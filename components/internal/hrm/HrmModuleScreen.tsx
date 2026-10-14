@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState, type ComponentType, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { ApiError } from "@/lib/http";
 import { subscribeUserEvents } from "@/lib/userSocket";
@@ -38,6 +38,8 @@ import { EntitySelect, HrmDrawer, HrmEmpty, HrmError, HrmHead, HrmKv, HrmLoading
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { ReasonModal, apiMessage } from "@/components/internal/live/bits";
 import HrmFieldInput, { useHrmRefs } from "./HrmFieldInput";
+import LeavePanel, { LeaveCheckNote, useLeaveCheck } from "@/components/internal/ops/LeaveOps";
+import { ScheduleMatrixPanel, TimesheetsPanel } from "@/components/internal/ops/TimeOps";
 import { useHrmText } from "./text";
 
 type Dict = Record<string, unknown>;
@@ -54,6 +56,9 @@ const text = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" 
 const isDict = (v: unknown): v is Dict => !!v && typeof v === "object" && !Array.isArray(v);
 const empty = (v: unknown) => v === undefined || v === null || (typeof v === "string" && !v.trim()) || (Array.isArray(v) && !v.length) || (isDict(v) && !Object.keys(v).length);
 const day = (iso: string) => iso.slice(0, 10);
+// Modules whose daily work has its own screen (2026-10-14 contract): shown
+// above the catalog's records, which stay below for everything else.
+const OPS: Record<string, ComponentType> = { leave: LeavePanel, timesheet: TimesheetsPanel, scheduling: ScheduleMatrixPanel };
 
 // The list's state lives in the address bar (MedControl's useListState):
 // a view can be shared, and comes back on Back and on reload.
@@ -312,6 +317,7 @@ function ModuleView({ cat, mod }: { cat: HrmCatalog; mod: HrmModule }) {
   const open = openId ? (rows.find((r) => r.id === openId) ?? null) : null;
   const byStatus = Object.entries(summary?.byStatus ?? {}).sort((a, b) => b[1] - a[1]);
   const pendingCount = (summary?.byStatus.pending ?? 0) + (summary?.byStatus.review ?? 0);
+  const Ops = OPS[mod.key];
 
   const onBoardMove = (r: HrmRow, toStatus: string) => {
     setNotice("");
@@ -356,6 +362,8 @@ function ModuleView({ cat, mod }: { cat: HrmCatalog; mod: HrmModule }) {
           </HrmPanel>
         ) : null}
       </div>
+
+      {Ops && !typeKey ? <Ops /> : null}
 
       <div className="hrmc-types" role="tablist" aria-label={t("typesLabel")}>
         <button type="button" role="tab" aria-selected={!typeKey} className={!typeKey ? "on" : ""} onClick={() => pickType("")}>
@@ -577,6 +585,10 @@ function RecordForm({ mod, type, row, parentId, onType, onClose, onSaved }: { mo
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [general, setGeneral] = useState("");
   const [busy, setBusy] = useState(false);
+  // A new leave request is checked as it is filled (contract §10); a
+  // blocking finding keeps it from being sent.
+  const leaveForm = mod.key === "leave" && !row && ["leave_type_id", "start_date", "end_date"].every((k) => type.fields.some((fd) => fd.key === k));
+  const leave = useLeaveCheck(leaveForm ? values : null);
 
   const set = (k: string, v: unknown) => {
     setValues((cur) => {
@@ -643,6 +655,10 @@ function RecordForm({ mod, type, row, parentId, onType, onClose, onSaved }: { mo
       setErrors(own);
       return;
     }
+    if (leave.blocked || leave.busy) {
+      setGeneral(leave.busy ? t("leaveChecking") : t("leaveBlocked"));
+      return;
+    }
     setBusy(true);
     const b = body();
     try {
@@ -701,9 +717,10 @@ function RecordForm({ mod, type, row, parentId, onType, onClose, onSaved }: { mo
             </div>
           ))}
         </div>
+        {leaveForm ? <LeaveCheckNote state={leave} /> : null}
         <p className="hrm-muted hrmc-form__note">{t("form.statusNote")}</p>
         <div className="hrm-form__foot">
-          <button className="btn btn--pri btn--sm" type="submit" disabled={busy}>
+          <button className="btn btn--pri btn--sm" type="submit" disabled={busy || leave.blocked}>
             <IconCheck />
             {busy ? t("form.saving") : row ? t("form.save") : t("form.create")}
           </button>

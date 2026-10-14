@@ -77,6 +77,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { href: "/internal/me", key: "me", Icon: IconUser, mobile: true, keywords: "profil profile" },
     { href: "/internal/me/tasks", key: "tasks", Icon: IconBriefcase },
     { href: "/internal/me/attendance", key: "attendance", Icon: IconCalendar },
+    { href: "/internal/me/payslips", key: "myPayslips", Icon: IconCoins, keywords: "oylik maosh payslip расчётный" },
     { href: "/internal/me/records", key: "myRecords", Icon: IconFolder },
   ] },
   { key: "org", Icon: IconBuilding, items: [

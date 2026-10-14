@@ -343,13 +343,20 @@ function optionOf(raw: unknown): HrmOption | null {
   if (!value) return null;
   const name = [d.last_name, d.first_name].filter((x) => typeof x === "string" && x).join(" ");
   const label = str(d.display_name, d.full_name, d.name, d.title, name, d.label, d.record_code, d.code, d.phone, value);
-  const sub = str(d.record_code && d.title ? d.record_code : "", d.employee_code, d.code && d.name ? d.code : "", d.lexgo_id, d.phone && label !== d.phone ? d.phone : "");
+  // A directory row names the person's position and unit beside the code.
+  const where = [d.position, d.org_unit].filter((x) => typeof x === "string" && x).join(" · ");
+  const sub = str(d.record_code && d.title ? d.record_code : "", d.employee_code && where ? `${d.employee_code} · ${where}` : "", d.employee_code, d.code && d.name ? d.code : "", d.lexgo_id, d.phone && label !== d.phone ? d.phone : "");
   return { value, label, sub: sub || undefined };
 }
 
+// A field that points at employees is always answered by the directory
+// (2026-10-14 contract §4), which pages at 100.
+const referencePath = (source: string) => (/^\/internal\/employees(\?|$)/.test(source) ? source.replace(/^\/internal\/employees/, "/internal/employees/directory") : source);
+
 export async function searchHrmReference(source: string, q: string, limit = 30, signal?: AbortSignal): Promise<HrmOption[]> {
-  const sep = source.includes("?") ? "&" : "?";
-  const raw = await http(`${source}${sep}${new URLSearchParams({ ...(q ? { q } : {}), limit: String(limit) })}`, { signal });
+  const path = referencePath(source);
+  const sep = path.includes("?") ? "&" : "?";
+  const raw = await http(`${path}${sep}${new URLSearchParams({ ...(q ? { q } : {}), limit: String(path === source ? limit : Math.min(limit, 100)) })}`, { signal });
   const list = Array.isArray(raw) ? raw : asArr(asDict(raw).items ?? asDict(raw).data ?? asDict(raw).results);
   return list.map(optionOf).filter((x): x is HrmOption => x !== null);
 }

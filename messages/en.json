@@ -9248,7 +9248,8 @@
             "PREMIUM": "Only Premium-level providers who passed LexGo's extended check carry out this package."
           },
           "policyAny": "Only providers who fit this package carry it out.",
-          "noSellers": "No provider meets this package's conditions right now. Try again later or pick another package."
+          "noSellers": "No provider meets this package's conditions right now. Try again later or pick another package.",
+          "misconfigured": "Package setup error: services {codes} are not in the catalogue. The order is blocked until an administrator fixes it."
         },
         "packageErrors": {
           "package_service_mismatch": "This service is not part of the chosen package. Pick the package again on the packages page.",
@@ -9258,6 +9259,13 @@
           "extended_verification_required": "A Premium package needs a provider who passed LexGo's extended check. Pick another one.",
           "provider_tier_mismatch": "This provider's level does not match the package's level. Pick another one.",
           "required_services_disabled": "This provider does not offer every service in the package. Pick another one."
+        },
+        "placedRegion": "Price region: {region}",
+        "regionSource": {
+          "request": "the region you chose",
+          "client_profile": "the region in your profile",
+          "profile": "the region in your profile",
+          "default": "the default region"
         }
       },
       "documents": {
@@ -9847,7 +9855,9 @@
         "services": "Service codes",
         "result": "Result",
         "included": "Included",
-        "excluded": "Not included"
+        "excluded": "Not included",
+        "misconfigured": "This package is set up wrong: services {codes} are not in the catalogue. It can't be ordered yet — an administrator will fix it.",
+        "orderFailed": "Couldn't load the package. Try again."
       }
     },
     "advocate": {
@@ -16133,6 +16143,10 @@
         "list": "List",
         "board": "Board",
         "none": "Empty"
+      },
+      "payTabs": {
+        "runs": "Runs",
+        "entries": "Entries"
       }
     },
     "people": {
@@ -16329,7 +16343,8 @@
         "undoMove": "moving «{name}»",
         "undoClose": "closing «{name}»",
         "undone": "The last change was undone",
-        "moved": "«{name}» is now under «{to}»"
+        "moved": "«{name}» is now under «{to}»",
+        "viewTree": "Tree"
       },
       "stat": {
         "total": "Total employees",
@@ -16824,7 +16839,8 @@
       "reasonCodes": "Reason codes",
       "biometrics": "Biometrics",
       "integrations": "Integrations",
-      "aiOversight": "AI oversight"
+      "aiOversight": "AI oversight",
+      "myPayslips": "My payslips"
     },
     "pagination": {
       "label": "Pagination",
@@ -18655,7 +18671,9 @@
         "xlsx": "Excel"
       },
       "typesLabel": "Record types",
-      "noEdit": "This state cannot be edited — only a draft or a returned record can."
+      "noEdit": "This state cannot be edited — only a draft or a returned record can.",
+      "leaveChecking": "The request is still being checked. Wait a moment.",
+      "leaveBlocked": "The pre-check found a problem that blocks this request. Fix it first."
     },
     "shell": {
       "apps": {
@@ -18857,6 +18875,310 @@
       "title": "Sections",
       "lead": "Every area of the workspace on one page.",
       "pages": "{n} pages"
+    },
+    "ops": {
+      "ready": {
+        "title": "Readiness",
+        "error": "Readiness did not load",
+        "retry": "Try again",
+        "ready": "Ready to work",
+        "notReady": "Something is still missing",
+        "records": "HR records by module",
+        "check": {
+          "profile": "Profile",
+          "assignment": "Position and unit",
+          "documents": "Documents",
+          "contract": "Contract",
+          "training": "Training"
+        },
+        "state": {
+          "ok": "Done",
+          "missing": "Missing",
+          "warning": "Needs a look",
+          "pending": "In progress"
+        }
+      },
+      "life": {
+        "action": {
+          "hire": "Hire",
+          "status": "Change status",
+          "dismiss": "Dismiss",
+          "reinstate": "Reinstate"
+        },
+        "done": {
+          "hire": "{name} is hired",
+          "status": "{name}'s status changed",
+          "dismiss": "{name} is dismissed",
+          "reinstate": "{name} is reinstated"
+        },
+        "lead": {
+          "hire": "The person becomes an active employee from the chosen date.",
+          "status": "The new status applies from the chosen date. The old one stays in the profile history.",
+          "dismiss": "Dismissal closes the person's active assignments and opens an offboarding record.",
+          "reinstate": "The person becomes active again from the chosen date."
+        },
+        "confirm": {
+          "hire": "Hire",
+          "status": "Change status",
+          "dismiss": "Dismiss",
+          "reinstate": "Reinstate"
+        },
+        "status": "New status",
+        "date": "From date",
+        "reason": "Reason",
+        "reasonNeeded": "Write the reason",
+        "reasonPh": "For example: administrative decision",
+        "error": "The change was not saved",
+        "cancel": "Cancel",
+        "export": "Export to Excel",
+        "exporting": "Exporting…",
+        "exportError": "The file did not download"
+      },
+      "leave": {
+        "title": "Leave",
+        "tab": {
+          "mine": "My balance",
+          "team": "Team balances",
+          "calendar": "Calendar"
+        },
+        "anyType": "Leave",
+        "daysLeft": "days left",
+        "balanceLine": "Accrued {accrued} · used {used} · {year}",
+        "error": "Leave did not load",
+        "retry": "Try again",
+        "noBalance": "No leave balance yet",
+        "noBalanceText": "HR has not opened a leave balance for you this year.",
+        "allUnits": "All units",
+        "unit": "Unit",
+        "noAccess": "You have no access to the team's balances.",
+        "noTeam": "No balances",
+        "noTeamText": "No leave balances for {year} yet.",
+        "col": {
+          "employee": "Employee",
+          "type": "Leave type",
+          "accrued": "Accrued",
+          "used": "Used",
+          "remaining": "Left"
+        },
+        "away": "{n} away",
+        "approved": "Approved",
+        "pending": "Waiting",
+        "nobodyAway": "Nobody is away this month.",
+        "checking": "Checking the request…",
+        "blocked": "This request can't be sent",
+        "checkOk": "The request can be sent",
+        "days": "{n} days",
+        "remaining": "{n} days left after it"
+      },
+      "team": {
+        "title": "Team today",
+        "manual": "Add a mark",
+        "allUnits": "All units",
+        "unit": "Unit",
+        "error": "Today's attendance did not load",
+        "retry": "Try again",
+        "group": {
+          "working": "Working",
+          "late": "Late",
+          "absent": "Absent",
+          "leave": "On leave",
+          "no_shift": "No shift"
+        },
+        "lateBy": "late {m}",
+        "manualFor": "Add a mark for {name}",
+        "emptyGroup": "Nobody in this group.",
+        "saved": "Mark added. The day is recounted.",
+        "saveError": "The mark was not added",
+        "manualLead": "A mark someone missed, with the reason",
+        "employee": "Employee",
+        "required": "Required",
+        "pickEmployee": "Pick an employee",
+        "eventType": "Mark",
+        "event": {
+          "check_in": "Came in",
+          "check_out": "Left",
+          "break_start": "Break started",
+          "break_end": "Break ended"
+        },
+        "day": "Day",
+        "time": "Time",
+        "reason": "Reason",
+        "reasonPh": "For example: the terminal was down",
+        "manualNote": "The backend recounts the day and everyone sees the change at once.",
+        "save": "Add mark",
+        "cancel": "Cancel"
+      },
+      "sheet": {
+        "title": "Timesheets",
+        "new": "New timesheet",
+        "month": "Month",
+        "allUnits": "All units",
+        "unit": "Unit",
+        "error": "Timesheets did not load",
+        "retry": "Try again",
+        "empty": "No timesheet for {month}",
+        "emptyText": "Create one: rows and days are filled from attendance.",
+        "rows": "{n} people",
+        "openRecord": "Open record",
+        "noRows": "This timesheet has no rows yet.",
+        "gridLabel": "Timesheet: people by day",
+        "employee": "Employee",
+        "hours": "Hours",
+        "hoursN": "{n} h",
+        "source": {
+          "attendance": "From attendance",
+          "manual": "Entered by hand",
+          "leave": "From leave",
+          "schedule": "From schedule",
+          "holiday": "Holiday",
+          "correction": "Correction"
+        },
+        "created": "Timesheet created",
+        "createError": "The timesheet was not created",
+        "newLead": "Generated from attendance",
+        "unitHint": "Empty means the whole company",
+        "name": "Name",
+        "newNote": "The backend fills every person and day from attendance. The timesheet starts as a draft and then goes for approval.",
+        "generate": "Create",
+        "cancel": "Cancel"
+      },
+      "plan": {
+        "title": "Shift plan",
+        "mine": "My schedule",
+        "month": "Month",
+        "allUnits": "All units",
+        "unit": "Unit",
+        "employee": "Employee",
+        "gridLabel": "Shift plan: people by day",
+        "status": {
+          "scheduled": "Shift",
+          "working": "Working",
+          "leave": "Leave",
+          "vacation": "Vacation",
+          "sick": "Sick leave",
+          "holiday": "Holiday",
+          "day_off": "Day off",
+          "off": "Day off",
+          "no_shift": "No shift",
+          "absent": "Absent"
+        },
+        "onDuty": "On duty now",
+        "nobodyOnDuty": "Nobody",
+        "error": "The plan did not load",
+        "retry": "Try again",
+        "empty": "No one in the plan",
+        "breakM": "break {m} min",
+        "mineEmpty": "No shifts planned for you this month."
+      },
+      "runs": {
+        "title": "Payroll runs",
+        "refresh": "Refresh",
+        "new": "New run",
+        "anyPeriod": "Any month",
+        "period": "Month",
+        "clear": "Clear",
+        "error": "Runs did not load",
+        "retry": "Try again",
+        "empty": "No payroll runs",
+        "emptyText": "A run pays a month for a unit or chosen people.",
+        "col": {
+          "run": "Run",
+          "period": "Period",
+          "scope": "Who",
+          "net": "To pay",
+          "status": "Status"
+        },
+        "run": "Payroll",
+        "allUnits": "Whole company",
+        "people": "{n} people",
+        "action": {
+          "calculate": "Calculate",
+          "recalculate": "Recalculate",
+          "submit": "Send for approval",
+          "approve": "Approve",
+          "pay": "Mark paid",
+          "close": "Close",
+          "cancel": "Cancel run"
+        },
+        "done": {
+          "calculate": "Run calculated",
+          "recalculate": "Run recalculated",
+          "submit": "Sent for approval",
+          "approve": "Run approved",
+          "pay": "Run marked paid",
+          "close": "Run closed",
+          "cancel": "Run cancelled"
+        },
+        "actionError": "The step did not go through",
+        "noActions": "No further steps for this run.",
+        "totals": "Totals",
+        "total": {
+          "gross": "Gross",
+          "gross_amount": "Gross",
+          "deductions": "Deductions",
+          "deduction_amount": "Deductions",
+          "net": "To pay",
+          "net_amount": "To pay",
+          "payable": "To pay",
+          "total": "Total",
+          "employees": "People",
+          "employees_count": "People",
+          "entries_count": "Entries",
+          "bonus": "Bonuses",
+          "penalty": "Penalties",
+          "advance": "Advances",
+          "tax": "Tax"
+        },
+        "noTotals": "Totals appear after the run is calculated.",
+        "history": "Status history",
+        "noHistory": "Current status: {status}.",
+        "cancelTitle": "Cancel the run",
+        "cancelLead": "A cancelled run is not paid. Say why.",
+        "reason": "Reason",
+        "reasonPh": "Why the run is cancelled",
+        "start": "From",
+        "end": "To",
+        "unit": "Unit",
+        "badRange": "The end is before the start",
+        "employees": "People",
+        "employeesHint": "None picked means everyone in the unit.",
+        "everyone": "Everyone",
+        "search": "Search",
+        "name": "Name",
+        "newNote": "The run starts as a draft. Calculate it, then send it for approval.",
+        "create": "Create run",
+        "cancel": "Cancel",
+        "created": "Run created",
+        "createError": "The run was not created",
+        "newLead": "A month's payroll"
+      },
+      "slips": {
+        "title": "My payslips",
+        "lead": "Your approved and paid entries, month by month.",
+        "refresh": "Refresh",
+        "error": "Payslips did not load",
+        "retry": "Try again",
+        "empty": "No payslips yet",
+        "emptyText": "Entries appear here once they are approved.",
+        "total": "Total"
+      },
+      "tree": {
+        "asOf": "As of",
+        "wholeCompany": "Whole company",
+        "planned": "Planned FTE",
+        "occupied": "Occupied FTE",
+        "vacant": "Vacant FTE",
+        "people": "People",
+        "title": "Organization tree",
+        "summary": "{units} units · {people} people",
+        "error": "The tree did not load",
+        "retry": "Try again",
+        "empty": "No units on this day.",
+        "collapse": "Collapse",
+        "expand": "Expand",
+        "head": "head: {name}",
+        "occupiedHint": "People in the unit / with sub-units"
+      }
     }
   }
 }

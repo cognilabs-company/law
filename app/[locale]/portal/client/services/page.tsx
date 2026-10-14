@@ -474,6 +474,9 @@ export default function ClientServices() {
   const [quote, setQuote] = useState<PriceQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [payOrderId, setPayOrderId] = useState<string | null>(null);
+  // The price region the backend settled on for the order just created, and
+  // where it took it from (request, client profile or default).
+  const [placed, setPlaced] = useState<{ region: string; source: string } | null>(null);
   // "Advokat yo'llash" reuses the advocate-picker/buy branch below even for a
   // document-template service (normally that branch is skipped in favor of
   // the self-fill flow) — set only by that button, reset with the modal.
@@ -934,6 +937,8 @@ export default function ClientServices() {
 
   async function buy() {
     if (!order || buying) return;
+    // A package the backend could not resolve is not ordered (contract §15).
+    if (pkg?.unresolvedServiceCodes.length) return;
     // The one required field on this form. Marked, named in words and focused
     // rather than silently refused — see `missing` above.
     if (!sellerId) {
@@ -950,6 +955,7 @@ export default function ClientServices() {
         ...(packageId ? { package_id: packageId, source: "marketplace_package", details: myRegion ? { region: myRegion } : {} } : {}),
       });
       setBuying(false);
+      setPlaced(o.region ? { region: o.region, source: o.regionSource ?? "" } : null);
       if (o.id) setPayOrderId(o.id);
       else router.push("/portal/client/cases");
     } catch (e) {
@@ -1634,7 +1640,16 @@ export default function ClientServices() {
           data-ai-entity-id={order?.id || undefined}
         >
           {payOrderId ? (
-            <OrderPayment orderId={payOrderId} onChat={afterPay} />
+            <>
+              {placed ? (
+                <p className="bhnote" role="note">
+                  <IconMapPin />
+                  {t("placedRegion", { region: te.has(`regions.${placed.region}`) ? te(`regions.${placed.region}`) : placed.region })}
+                  {placed.source && t.has(`regionSource.${placed.source}`) ? ` · ${t(`regionSource.${placed.source}`)}` : ""}
+                </p>
+              ) : null}
+              <OrderPayment orderId={payOrderId} onChat={afterPay} />
+            </>
           ) : order && docLawyer ? (
             <ServiceDocumentRequest serviceId={order.id} initialMode="lawyer" />
           ) : order && !orderAsAdvocate ? (
@@ -1697,7 +1712,12 @@ export default function ClientServices() {
                   ) : null}
                 </div>
                 {preSeller && preSellerOffers === false ? <p className="bhnote" role="status"><IconAlert />{t("preSellerNotOffering", { name: preSeller.name || t("preSellerAnon") })}</p> : null}
-                {packageId && pkg ? (
+                {packageId && pkg?.unresolvedServiceCodes.length ? (
+                  <p className="bhnote" role="alert">
+                    <IconAlert />
+                    {t("package.misconfigured", { codes: pkg.unresolvedServiceCodes.join(", ") })}
+                  </p>
+                ) : packageId && pkg ? (
                   <p className="pkgnote" role="note">
                     <b>{pkg.packageTitle || t("package.title")}</b>
                     {pkg.tariff && t.has(`package.tier.${pkg.tariff}`) ? <em className={`pkgnote__tier pkgnote__tier--${pkg.tariff.toLowerCase()}`}>{t(`package.tier.${pkg.tariff}`)}</em> : null}
@@ -1768,7 +1788,7 @@ export default function ClientServices() {
                   press instead — see `missing`. Only the in-flight request
                   disables it, which is the one state a second press would
                   actually break. */}
-              <button className="btn btn--grad btn--full btn--lg" type="button" disabled={buying} onClick={buy}>
+              <button className="btn btn--grad btn--full btn--lg" type="button" disabled={buying || Boolean(pkg?.unresolvedServiceCodes.length)} onClick={buy}>
                 {buying ? t("buying") : t("buy")}
               </button>
               <p className="rf__hint">{t("orderNote")}</p>

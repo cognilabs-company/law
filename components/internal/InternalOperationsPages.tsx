@@ -42,6 +42,8 @@ import { HrmDonut } from "@/components/internal/HrmCharts";
 import InternalField from "@/components/internal/InternalField";
 import TaskDrawer, { TASK_STATUSES } from "@/components/internal/TaskDrawer";
 import { AttendanceTable } from "@/components/internal/InternalSelfPages";
+import { TeamTodayPanel } from "@/components/internal/ops/TimeOps";
+import { PayrollRunsPanel } from "@/components/internal/ops/PayrollOps";
 import { useHrmDirectory, type HrmDirectory } from "@/components/internal/useHrmDirectory";
 import {
   EntitySelect,
@@ -412,6 +414,7 @@ function TimePage() {
   return (
     <section className="hrm-page">
       <HrmHead kicker={t("kicker")} title={t("titles.time")} lead={t("subtitles.time")} actions={<RefreshButton onClick={reload} busy={loading} label={t("refresh")} />} />
+      <TeamTodayPanel />
       <HrmPanel className="hrm-clock-panel">
         <div className="hrm-clock">
           <div className="hrm-clock__t">
@@ -605,6 +608,9 @@ function PayrollPage() {
   const [calculating, setCalculating] = useState(false);
   const [statusBusy, setStatusBusy] = useState("");
   const [statusErr, setStatusErr] = useState("");
+  // Runs (contract §11) are how a month is paid; single entries stay for
+  // one-off corrections.
+  const [tab, setTab] = useState<"runs" | "entries">("runs");
   const set = (k: keyof typeof filters) => (v: string) => { setFilters((c) => ({ ...c, [k]: v })); setOffset(0); };
 
   const { page, loading, error, reload } = usePaged<HrmPayroll>(
@@ -623,6 +629,13 @@ function PayrollPage() {
   return (
     <section className="hrm-page">
       <HrmHead kicker={t("kicker")} title={t("titles.payroll")} lead={t("subtitles.payroll")} actions={<><RefreshButton onClick={reload} busy={loading} label={t("refresh")} /><button className="btn btn--line btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.payroll")}</button><button className="btn btn--pri btn--sm" type="button" onClick={() => setCalculating(true)}><IconCalculator />{t("calc.open")}</button></>} />
+      <div className="hrm-tabs hrm-viewtabs" role="tablist" aria-label={t("titles.payroll")}>
+        {(["runs", "entries"] as const).map((k) => (
+          <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>{k === "runs" ? <IconTrendingUp /> : <IconList />}{t(`payTabs.${k}`)}</button>
+        ))}
+      </div>
+      {tab === "runs" ? <PayrollRunsPanel /> : (
+      <>
       {summary ? (
         <div className="hrm-grid hrm-grid--side">
           <div className="hrm-payroll-total">
@@ -702,6 +715,8 @@ function PayrollPage() {
         ) : <HrmEmpty icon={IconCard} title={t("empty.payroll")} action={<button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("new.payroll")}</button>} />}
         <InternalPagination page={page} onChange={setOffset} />
       </HrmPanel>
+      </>
+      )}
       <PayrollCreate open={creating} onClose={() => setCreating(false)} onCreated={() => { setCreating(false); reload(); }} typeLabel={typeLabel} />
       <PayrollCalculate open={calculating} onClose={() => setCalculating(false)} onDone={reload} />
     </section>

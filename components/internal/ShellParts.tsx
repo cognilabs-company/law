@@ -7,7 +7,7 @@ import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { hasAdminAccess, isCallCenterUser, useAuth } from "@/lib/auth";
 import { notifLink } from "@/lib/notifications";
 import { listNotificationsRich, type RichNotification } from "@/lib/services/notify";
-import { markAllNotificationsRead, markNotificationRead } from "@/lib/services/backend";
+import { readAllInternalNotifications as markAllNotificationsRead, readInternalNotification as markNotificationRead } from "@/lib/services/hrmOps";
 import { refreshUnread, subscribeUnread, unreadCount } from "@/lib/unread";
 import { setThemePref, useThemePref, type ThemePref } from "@/lib/theme";
 import { shortDateTime } from "@/lib/date";

@@ -12,6 +12,7 @@ import FilterBar from "@/components/filters/FilterBar";
 import InternalOrgPage from "@/components/internal/InternalOrgPage";
 import { EmployeeCreate, EMPLOYMENT_STATUSES } from "@/components/internal/EmployeeDrawers";
 import { refreshHrmDirectory, useHrmDirectory } from "@/components/internal/useHrmDirectory";
+import { ExportEmployeesButton } from "@/components/internal/ops/EmployeeOps";
 import { HrmEmpty, HrmError, HrmHead, HrmLoading, HrmPanel, HrmPerson, HrmStat, HrmStatus, useHrmFormat, useStatusLabel } from "@/components/internal/HrmUi";
 
 type Mode = "employees" | "org";
@@ -177,6 +178,7 @@ function Employees() {
         actions={
           <>
             <button className="btn btn--line btn--sm" type="button" onClick={reload} disabled={loading}><IconRefresh />{t("refresh")}</button>
+            <ExportEmployeesButton />
             <button className="btn btn--pri btn--sm" type="button" onClick={() => setCreating(true)}><IconPlus />{t("newEmployee")}</button>
           </>
         }

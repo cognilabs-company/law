@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { getServicePackages, getAllServices, getPackageEligibleSellers, type BackendPackage } from "@/lib/services/backend";
+import { getServicePackages, getAllServices, getPackageEligibleSellers, type BackendPackage, type PackageSellers } from "@/lib/services/backend";
+import { notify } from "@/lib/toast";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
@@ -36,24 +37,34 @@ export default function ClientPackages() {
   const [cat, setCat] = useState("");
   const [open, setOpen] = useState<BackendPackage | null>(null);
 
-  // Catalogue code → service (for the "separately" price and the order deep link).
-  const byCode = useMemo(() => {
-    const m = new Map<string, { id: string; price: number }>();
-    for (const s of services.data) if (s.catalogCode) m.set(s.catalogCode.toUpperCase(), { id: s.id, price: s.price ?? 0 });
-    return m;
-  }, [services.data]);
-  // "G01-G03" → ["G01","G02","G03"]; "G01, G04" → both.
-  const codesOf = (p: BackendPackage): string[] => {
-    const out: string[] = [];
-    for (const part of (p.relatedServiceCodes || "").split(/[,;]/)) {
-      const m = /^\s*([A-Z]+)(\d+)\s*-\s*(?:[A-Z]+)?(\d+)\s*$/i.exec(part);
-      if (m) { for (let i = Number(m[2]); i <= Number(m[3]); i++) out.push(`${m[1].toUpperCase()}${String(i).padStart(m[2].length, "0")}`); }
-      else if (part.trim()) out.push(part.trim().toUpperCase());
-    }
-    return out;
-  };
+  // Service id → its own price, for the "separately" comparison.
+  const priceOf = useMemo(() => new Map(services.data.map((s) => [s.id, s.price ?? 0])), [services.data]);
+  // Which services a package needs is the backend's answer, never read out
+  // of the "G01-G03" text (contract §15). The tiers of one package code
+  // share their services, so one tier is asked per code, a few at a time;
+  // the order itself asks again for the exact tier.
+  const [need, setNeed] = useState<Map<string, PackageSellers>>(() => new Map());
+  useEffect(() => {
+    const firsts = [...new Map(pk.data.filter((p) => !isTest(p)).map((p) => [p.code, p])).values()];
+    if (!firsts.length) return;
+    let live = true;
+    let next = 0;
+    const run = async () => {
+      while (live && next < firsts.length) {
+        const p = firsts[next++];
+        const r = await getPackageEligibleSellers(p.id, { limit: 1 }).catch(() => null);
+        if (live && r) setNeed((m) => new Map(m).set(p.code, r));
+      }
+    };
+    for (let i = 0; i < 4; i++) void run();
+    return () => {
+      live = false;
+    };
+  }, [pk.data]);
   const separately = (p: BackendPackage) => {
-    const prices = codesOf(p).map((c) => byCode.get(c)?.price ?? 0);
+    const r = need.get(p.code);
+    if (!r || r.unresolvedServiceCodes.length) return 0;
+    const prices = r.requiredServiceIds.map((id) => priceOf.get(id) ?? 0);
     return prices.length && prices.every((x) => x > 0) ? prices.reduce((a, b) => a + b, 0) : 0;
   };
   const found = useMemo(() => {
@@ -80,17 +91,25 @@ export default function ClientPackages() {
   ];
 
   // The service a package is ordered through is one the package itself
-  // requires — the backend refuses any other — so it is asked for first; the
-  // catalogue match by code is only the fallback.
+  // requires — the backend refuses any other. A package whose services the
+  // backend could not resolve is a configuration error: it is not ordered.
   const [opening, setOpening] = useState("");
   async function order(p: BackendPackage) {
     if (opening) return;
     setOpening(p.id);
-    // Only a real id is used: where the backend sends a code range instead
-    // ("G01-G03"), the catalogue match below finds the service.
-    const need = await getPackageEligibleSellers(p.id, { limit: 1 }).then((r) => r.requiredServiceIds.find((x) => /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(x)) ?? "").catch(() => "");
-    const first = need ? { id: need } : codesOf(p).map((c) => byCode.get(c)).find(Boolean);
-    router.push(first ? `/portal/client/services?service=${encodeURIComponent(first.id)}&package=${encodeURIComponent(p.id)}` : `/portal/client/services?q=${encodeURIComponent(p.categoryTitle || p.title)}&package=${encodeURIComponent(p.id)}`);
+    try {
+      const r = await getPackageEligibleSellers(p.id, { limit: 1 });
+      const first = r.requiredServiceIds[0];
+      if (r.unresolvedServiceCodes.length || !first) {
+        notify.error(t("misconfigured", { codes: r.unresolvedServiceCodes.join(", ") || p.relatedServiceCodes || "—" }), { id: `pkg-${p.id}` });
+        return;
+      }
+      router.push(`/portal/client/services?service=${encodeURIComponent(first)}&package=${encodeURIComponent(p.id)}`);
+    } catch (e) {
+      notify.error(t("orderFailed"), { id: `pkg-${p.id}`, error: e });
+    } finally {
+      setOpening("");
+    }
   }
 
   return (
@@ -160,7 +179,7 @@ export default function ClientPackages() {
               <div className="pkv__i"><label>{t("price")}</label><b>{fmtUzs(open.price)} {t("som")}</b></div>
               <div className="pkv__i"><label>{t("duration")}</label><b>{open.duration || "—"}</b></div>
               <div className="pkv__i"><label>{t("category")}</label><b>{open.categoryTitle || "—"}</b></div>
-              <div className="pkv__i"><label>{t("services")}</label><b>{open.relatedServiceCodes || "—"}</b></div>
+              <div className="pkv__i"><label>{t("services")}</label><b>{need.get(open.code)?.requiredServiceCodes.join(", ") || open.relatedServiceCodes || "—"}</b></div>
             </div>
             {open.result ? <p className="rf__benefit" style={{ marginTop: 12 }}><b>{t("result")}</b><br />{open.result}</p> : null}
             <b className="pkgd__h">{t("included")}</b>

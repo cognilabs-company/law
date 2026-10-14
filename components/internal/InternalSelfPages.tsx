@@ -47,6 +47,7 @@ import {
   useNow,
   useStatusLabel,
 } from "@/components/internal/HrmUi";
+import { MySchedulePanel } from "@/components/internal/ops/TimeOps";
 
 type Mode = "me" | "tasks" | "attendance" | "messages";
 const EMPTY_PAGE = { items: [], total: 0, offset: 0, limit: 25, hasMore: false };
@@ -297,6 +298,7 @@ function MyAttendancePage() {
   return (
     <section className="hrm-page">
       <HrmHead kicker={t("kicker")} title={t("titles.attendance")} lead={t("subtitles.attendance")} actions={<button className="btn btn--line btn--sm" type="button" onClick={reload} disabled={loading}><IconRefresh />{t("refresh")}</button>} />
+      <MySchedulePanel />
       <FilterBar
         fields={[
           { key: "from", label: t("from"), icon: IconCalendar, node: <DatePicker value={dates.from} onChange={(v) => { setDates((d) => ({ ...d, from: v })); setOffset(0); }} placeholder={t("from")} ariaLabel={t("from")} max={dates.to || undefined} clearLabel={tu("clear")} />, active: !!dates.from, chip: dates.from ? `${t("from")}: ${f.date(dates.from)}` : null, clear: () => setDates((d) => ({ ...d, from: "" })) },

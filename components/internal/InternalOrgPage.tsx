@@ -20,7 +20,8 @@ import {
   type HrmPosition,
   type OrgBoard,
 } from "@/lib/services/internalHrm";
-import { IconBriefcase, IconBuilding, IconChartBar, IconCheck, IconEdit, IconList, IconPlus, IconRefresh } from "@/components/icons";
+import { IconBriefcase, IconBuilding, IconChartBar, IconCheck, IconEdit, IconLayers, IconList, IconPlus, IconRefresh } from "@/components/icons";
+import { OrgTreePanel } from "@/components/internal/ops/OrgOps";
 import Select from "@/components/Select";
 import InternalField from "@/components/internal/InternalField";
 import InternalOrgBoard, { type OrgView } from "@/components/internal/InternalOrgBoard";
@@ -50,7 +51,9 @@ export default function InternalOrgPage() {
   const [positionForm, setPositionForm] = useState<HrmPosition | "new" | null>(null);
   const [employeeId, setEmployeeId] = useState("");
   const [newEmployeeUnit, setNewEmployeeUnit] = useState<string | null>(null);
-  const [view, setView] = useState<OrgView>("board");
+  // "tree" is the dated, read-only org tree (GET /internal/org/tree); the
+  // other three are the board's own views.
+  const [view, setView] = useState<OrgView | "tree">("board");
 
   // `quiet`: a live update re-reads in place — the board keeps its zoom,
   // scroll and open panel instead of dropping back to a skeleton.
@@ -128,10 +131,10 @@ export default function InternalOrgPage() {
         actions={
           <>
             <div className="hrm-tabs org-views" role="tablist" aria-label={t("board.views")}>
-              {(["board", "list", "stats"] as OrgView[]).map((v) => (
+              {(["board", "tree", "list", "stats"] as const).map((v) => (
                 <button key={v} type="button" role="tab" aria-selected={view === v} className={view === v ? "on" : ""} onClick={() => setView(v)}>
-                  {v === "board" ? <IconBuilding /> : v === "list" ? <IconList /> : <IconChartBar />}
-                  {v === "board" ? t("board.viewBoard") : v === "list" ? t("board.viewList") : t("board.viewStats")}
+                  {v === "board" ? <IconBuilding /> : v === "tree" ? <IconLayers /> : v === "list" ? <IconList /> : <IconChartBar />}
+                  {v === "board" ? t("board.viewBoard") : v === "tree" ? t("board.viewTree") : v === "list" ? t("board.viewList") : t("board.viewStats")}
                 </button>
               ))}
             </div>
@@ -143,6 +146,7 @@ export default function InternalOrgPage() {
       />
       {error ? <HrmError text={t("error")} onRetry={reload} retryLabel={t("refresh")} /> : null}
 
+      {view === "tree" ? <OrgTreePanel /> : (
       <InternalOrgBoard
         board={board}
         loading={loading}
@@ -185,6 +189,7 @@ export default function InternalOrgPage() {
         onAddEmployee={(unitId) => setNewEmployeeUnit(unitId)}
         onOpenEmployee={setEmployeeId}
       />
+      )}
 
       <HrmPanel flush title={t("positions")} icon={IconBriefcase} count={positions.length} actions={<button className="btn btn--line btn--sm" type="button" onClick={() => setPositionForm("new")}><IconPlus />{t("newPosition")}</button>}>
         {loading ? <div style={{ padding: 16 }}><HrmLoading rows={3} /></div> : positions.length ? (

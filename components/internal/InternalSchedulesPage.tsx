@@ -13,6 +13,7 @@ import InternalPagination from "@/components/internal/InternalPagination";
 import InternalField from "@/components/internal/InternalField";
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { EntitySelect, HrmDrawer, HrmEmpty, HrmError, HrmHead, HrmLoading, HrmPanel, HrmStatus, useHrmFormat } from "@/components/internal/HrmUi";
+import { ScheduleMatrixPanel } from "@/components/internal/ops/TimeOps";
 
 type WeeklyDay = { day: number; enabled: boolean; start: string; end: string };
 const defaultWeekly = (): WeeklyDay[] => Array.from({ length: 7 }, (_, i) => ({ day: i + 1, enabled: i < 5, start: "09:00", end: "18:00" }));
@@ -71,6 +72,7 @@ export default function InternalSchedulesPage() {
           </>
         }
       />
+      <ScheduleMatrixPanel />
       <FilterBar
         fields={[
           { key: "emp", label: t("employeeId"), icon: IconUser, value: filters.employeeId, onChange: (v) => { setFilters((c) => ({ ...c, employeeId: v })); setOffset(0); }, options: [{ value: "", label: tu("all") }, ...dir.employees.map((e) => ({ value: e.id, label: e.name || e.code }))], empty: "", hidden: !dir.employees.length },

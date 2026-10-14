@@ -11,6 +11,7 @@ import { HrmAvatar, HrmEmpty, HrmError, HrmLoading, HrmPanel, HrmStatus, useHrmF
 import { useHrmText } from "@/components/internal/hrm/text";
 import { domainHref } from "@/components/internal/hrm/routes";
 import { IconArrowRight, IconChevronLeft, IconFolder, IconMail, IconMonitor, IconPhone } from "@/components/icons";
+import { LifecycleButtons, ModuleCounts, ReadinessPanel } from "@/components/internal/ops/EmployeeOps";
 
 // The employee card after MedControl HR's (/people/employees/:id/:tab): a
 // header with who the person is and where they stand, then one tab per side
@@ -36,14 +37,17 @@ const RECORD_TABS: RecordTab[] = [
 ];
 
 export default function EmployeeCard({ id }: { id: string }) {
+  // A lifecycle step changes the person's status and records: the card is
+  // read again from the top.
+  const [rev, setRev] = useState(0);
   return (
     <Suspense fallback={<HrmPanel><HrmLoading rows={6} /></HrmPanel>}>
-      <Card id={id} />
+      <Card key={rev} id={id} onChanged={() => { refreshHrmDirectory(); setRev((n) => n + 1); }} />
     </Suspense>
   );
 }
 
-function Card({ id }: { id: string }) {
+function Card({ id, onChanged }: { id: string; onChanged: () => void }) {
   const t = useTranslations("internal.card");
   const tp = useTranslations("internal.people");
   const dir = useHrmDirectory();
@@ -77,6 +81,7 @@ function Card({ id }: { id: string }) {
         </div>
         <div className="hrm-card__acts">
           <Link className="btn btn--line btn--sm" href={`/internal/live-office?employee=${encodeURIComponent(e.id)}`}><IconMonitor />{tp("liveOfficeLink")}</Link>
+          <LifecycleButtons id={e.id} name={e.name || e.code} status={e.status} onDone={onChanged} />
           <button type="button" className="btn btn--pri btn--sm" onClick={() => go("edit")}>{tp("tabEdit")}</button>
         </div>
       </header>
@@ -89,7 +94,13 @@ function Card({ id }: { id: string }) {
       </div>
       {error ? <HrmError text={tp("error")} /> : null}
       {tab === "overview" ? (
-        <HrmPanel><EmployeeOverview employee={e} detail={detail} loading={loading} /></HrmPanel>
+        <div className="ops-card-grid">
+          <HrmPanel><EmployeeOverview employee={e} detail={detail} loading={loading} /></HrmPanel>
+          <div className="ops-card-side">
+            <ReadinessPanel id={e.id} />
+            <ModuleCounts id={e.id} />
+          </div>
+        </div>
       ) : tab === "edit" ? (
         <HrmPanel><EmployeeEdit employee={e} onSaved={refreshHrmDirectory} /></HrmPanel>
       ) : (

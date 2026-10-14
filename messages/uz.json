@@ -9254,7 +9254,8 @@
             "PREMIUM": "Bu paketni faqat LexGo kengaytirilgan tekshiruvidan o'tgan Premium darajadagi ijrochilar bajaradi."
           },
           "policyAny": "Bu paketni faqat unga mos ijrochilar bajaradi.",
-          "noSellers": "Hozircha bu paket shartlariga mos ijrochi yo'q. Keyinroq qayta urinib ko'ring yoki boshqa paketni tanlang."
+          "noSellers": "Hozircha bu paket shartlariga mos ijrochi yo'q. Keyinroq qayta urinib ko'ring yoki boshqa paketni tanlang.",
+          "misconfigured": "Paket sozlamasida xato: {codes} xizmatlari katalogda topilmadi. Buyurtma to'xtatildi — administrator tuzatishi kerak."
         },
         "packageErrors": {
           "package_service_mismatch": "Bu xizmat tanlangan paketga kirmaydi. Paketlar sahifasidan qaytadan tanlang.",
@@ -9264,6 +9265,13 @@
           "extended_verification_required": "Premium paket uchun ijrochi LexGo kengaytirilgan tekshiruvidan o'tgan bo'lishi kerak. Boshqa ijrochini tanlang.",
           "provider_tier_mismatch": "Bu ijrochining darajasi paket darajasiga mos emas. Boshqa ijrochini tanlang.",
           "required_services_disabled": "Bu ijrochi paketdagi barcha xizmatlarni ko'rsatmaydi. Boshqa ijrochini tanlang."
+        },
+        "placedRegion": "Narx hududi: {region}",
+        "regionSource": {
+          "request": "siz tanlagan hudud",
+          "client_profile": "profilingizdagi hudud",
+          "profile": "profilingizdagi hudud",
+          "default": "standart hudud"
         }
       },
       "documents": {
@@ -9853,7 +9861,9 @@
         "services": "Xizmat kodlari",
         "result": "Natija",
         "included": "Paketga kiradi",
-        "excluded": "Kirmaydi"
+        "excluded": "Kirmaydi",
+        "misconfigured": "Bu paket sozlamasida xato bor: {codes} xizmatlari katalogda topilmadi. Hozircha buyurtma berib bo'lmaydi — administrator tuzatadi.",
+        "orderFailed": "Paket ma'lumoti olinmadi. Qayta urinib ko'ring."
       }
     },
     "advocate": {
@@ -16139,6 +16149,10 @@
         "list": "Ro'yxat",
         "board": "Doska",
         "none": "Bo'sh"
+      },
+      "payTabs": {
+        "runs": "Hisob-kitoblar",
+        "entries": "Yozuvlar"
       }
     },
     "people": {
@@ -16335,7 +16349,8 @@
         "undoMove": "«{name}» ko'chirilishini",
         "undoClose": "«{name}» yopilishini",
         "undone": "Oxirgi o'zgarish bekor qilindi",
-        "moved": "«{name}» endi «{to}» ichida"
+        "moved": "«{name}» endi «{to}» ichida",
+        "viewTree": "Daraxt"
       },
       "stat": {
         "total": "Jami xodimlar",
@@ -16830,7 +16845,8 @@
       "reasonCodes": "Sabab kodlari",
       "biometrics": "Biometrika",
       "integrations": "Integratsiyalar",
-      "aiOversight": "AI nazorati"
+      "aiOversight": "AI nazorati",
+      "myPayslips": "Mening hisob varaqlarim"
     },
     "pagination": {
       "label": "Sahifalar",
@@ -18661,7 +18677,9 @@
         "xlsx": "Excel"
       },
       "typesLabel": "Yozuv turlari",
-      "noEdit": "Bu holatda tahrirlab bo'lmaydi — faqat qoralama yoki qaytarilgan yozuv tahrirlanadi."
+      "noEdit": "Bu holatda tahrirlab bo'lmaydi — faqat qoralama yoki qaytarilgan yozuv tahrirlanadi.",
+      "leaveChecking": "Ariza hali tekshirilmoqda. Biroz kuting.",
+      "leaveBlocked": "Tekshiruv arizani yuborishga to'sqinlik qiladigan muammo topdi. Avval uni tuzating."
     },
     "shell": {
       "apps": {
@@ -18863,6 +18881,310 @@
       "title": "Bo'limlar",
       "lead": "Ish maydonining barcha bo'limlari bir sahifada.",
       "pages": "{n} ta sahifa"
+    },
+    "ops": {
+      "ready": {
+        "title": "Tayyorgarlik",
+        "error": "Tayyorgarlik yuklanmadi",
+        "retry": "Qayta urinish",
+        "ready": "Ishga tayyor",
+        "notReady": "Hali nimadir yetishmayapti",
+        "records": "Modullar bo'yicha HR yozuvlari",
+        "check": {
+          "profile": "Profil",
+          "assignment": "Lavozim va bo'lim",
+          "documents": "Hujjatlar",
+          "contract": "Shartnoma",
+          "training": "O'qish"
+        },
+        "state": {
+          "ok": "Tayyor",
+          "missing": "Yo'q",
+          "warning": "Tekshirish kerak",
+          "pending": "Jarayonda"
+        }
+      },
+      "life": {
+        "action": {
+          "hire": "Ishga olish",
+          "status": "Holatni o'zgartirish",
+          "dismiss": "Ishdan bo'shatish",
+          "reinstate": "Qayta tiklash"
+        },
+        "done": {
+          "hire": "{name} ishga olindi",
+          "status": "{name} holati o'zgardi",
+          "dismiss": "{name} ishdan bo'shatildi",
+          "reinstate": "{name} qayta tiklandi"
+        },
+        "lead": {
+          "hire": "Tanlangan sanadan boshlab xodim faol bo'ladi.",
+          "status": "Yangi holat tanlangan sanadan amal qiladi. Eskisi profil tarixida qoladi.",
+          "dismiss": "Bo'shatish xodimning faol tayinlovlarini yopadi va offboarding yozuvini ochadi.",
+          "reinstate": "Tanlangan sanadan boshlab xodim yana faol bo'ladi."
+        },
+        "confirm": {
+          "hire": "Ishga olish",
+          "status": "Holatni o'zgartirish",
+          "dismiss": "Ishdan bo'shatish",
+          "reinstate": "Qayta tiklash"
+        },
+        "status": "Yangi holat",
+        "date": "Sanadan",
+        "reason": "Sabab",
+        "reasonNeeded": "Sababni yozing",
+        "reasonPh": "Masalan: ma'muriy qaror",
+        "error": "O'zgarish saqlanmadi",
+        "cancel": "Bekor qilish",
+        "export": "Excelga yuklash",
+        "exporting": "Yuklanmoqda…",
+        "exportError": "Fayl yuklanmadi"
+      },
+      "leave": {
+        "title": "Ta'til",
+        "tab": {
+          "mine": "Mening qoldig'im",
+          "team": "Jamoa qoldiqlari",
+          "calendar": "Kalendar"
+        },
+        "anyType": "Ta'til",
+        "daysLeft": "kun qoldi",
+        "balanceLine": "Hisoblangan {accrued} · ishlatilgan {used} · {year}",
+        "error": "Ta'til ma'lumoti yuklanmadi",
+        "retry": "Qayta urinish",
+        "noBalance": "Hozircha ta'til qoldig'i yo'q",
+        "noBalanceText": "HR bu yil uchun sizga ta'til qoldig'i ochmagan.",
+        "allUnits": "Barcha bo'limlar",
+        "unit": "Bo'lim",
+        "noAccess": "Jamoa qoldiqlarini ko'rishga ruxsatingiz yo'q.",
+        "noTeam": "Qoldiq yo'q",
+        "noTeamText": "{year} yil uchun ta'til qoldiqlari hali yo'q.",
+        "col": {
+          "employee": "Xodim",
+          "type": "Ta'til turi",
+          "accrued": "Hisoblangan",
+          "used": "Ishlatilgan",
+          "remaining": "Qolgan"
+        },
+        "away": "{n} kishi yo'q",
+        "approved": "Tasdiqlangan",
+        "pending": "Kutilmoqda",
+        "nobodyAway": "Bu oy hamma joyida.",
+        "checking": "Ariza tekshirilmoqda…",
+        "blocked": "Bu arizani yuborib bo'lmaydi",
+        "checkOk": "Arizani yuborish mumkin",
+        "days": "{n} kun",
+        "remaining": "Undan keyin {n} kun qoladi"
+      },
+      "team": {
+        "title": "Bugun jamoa",
+        "manual": "Belgi qo'shish",
+        "allUnits": "Barcha bo'limlar",
+        "unit": "Bo'lim",
+        "error": "Bugungi davomat yuklanmadi",
+        "retry": "Qayta urinish",
+        "group": {
+          "working": "Ishlayapti",
+          "late": "Kechikkan",
+          "absent": "Kelmagan",
+          "leave": "Ta'tilda",
+          "no_shift": "Smenasiz"
+        },
+        "lateBy": "{m} kechikdi",
+        "manualFor": "{name} uchun belgi qo'shish",
+        "emptyGroup": "Bu guruhda hech kim yo'q.",
+        "saved": "Belgi qo'shildi. Kun qayta hisoblandi.",
+        "saveError": "Belgi qo'shilmadi",
+        "manualLead": "Qo'yilmay qolgan belgi, sababi bilan",
+        "employee": "Xodim",
+        "required": "Majburiy",
+        "pickEmployee": "Xodimni tanlang",
+        "eventType": "Belgi",
+        "event": {
+          "check_in": "Keldi",
+          "check_out": "Ketdi",
+          "break_start": "Tanaffus boshlandi",
+          "break_end": "Tanaffus tugadi"
+        },
+        "day": "Kun",
+        "time": "Vaqt",
+        "reason": "Sabab",
+        "reasonPh": "Masalan: terminal ishlamadi",
+        "manualNote": "Backend kunni qayta hisoblaydi va o'zgarish hammaga darhol ko'rinadi.",
+        "save": "Belgi qo'shish",
+        "cancel": "Bekor qilish"
+      },
+      "sheet": {
+        "title": "Tabellar",
+        "new": "Yangi tabel",
+        "month": "Oy",
+        "allUnits": "Barcha bo'limlar",
+        "unit": "Bo'lim",
+        "error": "Tabellar yuklanmadi",
+        "retry": "Qayta urinish",
+        "empty": "{month} uchun tabel yo'q",
+        "emptyText": "Yarating: qatorlar va kunlar davomatdan to'ldiriladi.",
+        "rows": "{n} kishi",
+        "openRecord": "Yozuvni ochish",
+        "noRows": "Tabelda hali qator yo'q.",
+        "gridLabel": "Tabel: xodimlar kunlar bo'yicha",
+        "employee": "Xodim",
+        "hours": "Soat",
+        "hoursN": "{n} soat",
+        "source": {
+          "attendance": "Davomatdan",
+          "manual": "Qo'lda",
+          "leave": "Ta'tildan",
+          "schedule": "Jadvaldan",
+          "holiday": "Bayram",
+          "correction": "Tuzatish"
+        },
+        "created": "Tabel yaratildi",
+        "createError": "Tabel yaratilmadi",
+        "newLead": "Davomatdan tuziladi",
+        "unitHint": "Bo'sh bo'lsa — butun kompaniya",
+        "name": "Nomi",
+        "newNote": "Backend barcha xodim va kunlarni davomatdan to'ldiradi. Tabel qoralama sifatida yaratiladi, keyin tasdiqqa yuboriladi.",
+        "generate": "Yaratish",
+        "cancel": "Bekor qilish"
+      },
+      "plan": {
+        "title": "Smenalar rejasi",
+        "mine": "Mening jadvalim",
+        "month": "Oy",
+        "allUnits": "Barcha bo'limlar",
+        "unit": "Bo'lim",
+        "employee": "Xodim",
+        "gridLabel": "Smenalar rejasi: xodimlar kunlar bo'yicha",
+        "status": {
+          "scheduled": "Smena",
+          "working": "Ishlayapti",
+          "leave": "Ta'til",
+          "vacation": "Ta'til",
+          "sick": "Kasallik",
+          "holiday": "Bayram",
+          "day_off": "Dam olish",
+          "off": "Dam olish",
+          "no_shift": "Smenasiz",
+          "absent": "Kelmagan"
+        },
+        "onDuty": "Hozir smenada",
+        "nobodyOnDuty": "Hech kim",
+        "error": "Reja yuklanmadi",
+        "retry": "Qayta urinish",
+        "empty": "Rejada hech kim yo'q",
+        "breakM": "tanaffus {m} daq",
+        "mineEmpty": "Bu oy siz uchun smena rejalashtirilmagan."
+      },
+      "runs": {
+        "title": "Ish haqi hisob-kitoblari",
+        "refresh": "Yangilash",
+        "new": "Yangi hisob-kitob",
+        "anyPeriod": "Istalgan oy",
+        "period": "Oy",
+        "clear": "Tozalash",
+        "error": "Hisob-kitoblar yuklanmadi",
+        "retry": "Qayta urinish",
+        "empty": "Hisob-kitob yo'q",
+        "emptyText": "Hisob-kitob bo'lim yoki tanlangan xodimlarga oyni to'laydi.",
+        "col": {
+          "run": "Hisob-kitob",
+          "period": "Davr",
+          "scope": "Kimga",
+          "net": "To'lanadi",
+          "status": "Holat"
+        },
+        "run": "Ish haqi",
+        "allUnits": "Butun kompaniya",
+        "people": "{n} kishi",
+        "action": {
+          "calculate": "Hisoblash",
+          "recalculate": "Qayta hisoblash",
+          "submit": "Tasdiqqa yuborish",
+          "approve": "Tasdiqlash",
+          "pay": "To'langan deb belgilash",
+          "close": "Yopish",
+          "cancel": "Bekor qilish"
+        },
+        "done": {
+          "calculate": "Hisoblandi",
+          "recalculate": "Qayta hisoblandi",
+          "submit": "Tasdiqqa yuborildi",
+          "approve": "Tasdiqlandi",
+          "pay": "To'langan deb belgilandi",
+          "close": "Yopildi",
+          "cancel": "Bekor qilindi"
+        },
+        "actionError": "Qadam bajarilmadi",
+        "noActions": "Bu hisob-kitob uchun keyingi qadam yo'q.",
+        "totals": "Jami",
+        "total": {
+          "gross": "Hisoblangan",
+          "gross_amount": "Hisoblangan",
+          "deductions": "Ushlanmalar",
+          "deduction_amount": "Ushlanmalar",
+          "net": "To'lanadi",
+          "net_amount": "To'lanadi",
+          "payable": "To'lanadi",
+          "total": "Jami",
+          "employees": "Xodimlar",
+          "employees_count": "Xodimlar",
+          "entries_count": "Yozuvlar",
+          "bonus": "Bonuslar",
+          "penalty": "Jarimalar",
+          "advance": "Avanslar",
+          "tax": "Soliq"
+        },
+        "noTotals": "Jami hisoblangandan keyin chiqadi.",
+        "history": "Holatlar tarixi",
+        "noHistory": "Joriy holat: {status}.",
+        "cancelTitle": "Hisob-kitobni bekor qilish",
+        "cancelLead": "Bekor qilingan hisob-kitob to'lanmaydi. Sababini yozing.",
+        "reason": "Sabab",
+        "reasonPh": "Nega bekor qilinmoqda",
+        "start": "Dan",
+        "end": "Gacha",
+        "unit": "Bo'lim",
+        "badRange": "Tugash boshlanishdan oldin",
+        "employees": "Xodimlar",
+        "employeesHint": "Hech kim tanlanmasa — bo'limdagi hamma.",
+        "everyone": "Hamma",
+        "search": "Qidirish",
+        "name": "Nomi",
+        "newNote": "Hisob-kitob qoralama sifatida yaratiladi. Uni hisoblang, keyin tasdiqqa yuboring.",
+        "create": "Yaratish",
+        "cancel": "Bekor qilish",
+        "created": "Hisob-kitob yaratildi",
+        "createError": "Hisob-kitob yaratilmadi",
+        "newLead": "Bir oylik ish haqi"
+      },
+      "slips": {
+        "title": "Mening hisob varaqlarim",
+        "lead": "Tasdiqlangan va to'langan hisoblaringiz, oyma-oy.",
+        "refresh": "Yangilash",
+        "error": "Hisob varaqlari yuklanmadi",
+        "retry": "Qayta urinish",
+        "empty": "Hozircha hisob varag'i yo'q",
+        "emptyText": "Hisoblar tasdiqlangandan keyin shu yerda chiqadi.",
+        "total": "Jami"
+      },
+      "tree": {
+        "asOf": "Sanaga",
+        "wholeCompany": "Butun kompaniya",
+        "planned": "Rejadagi shtat",
+        "occupied": "Band shtat",
+        "vacant": "Bo'sh shtat",
+        "people": "Xodimlar",
+        "title": "Tashkilot daraxti",
+        "summary": "{units} bo'lim · {people} kishi",
+        "error": "Daraxt yuklanmadi",
+        "retry": "Qayta urinish",
+        "empty": "Bu sanada bo'lim yo'q.",
+        "collapse": "Yig'ish",
+        "expand": "Ochish",
+        "head": "rahbar: {name}",
+        "occupiedHint": "Bo'limdagi / ichki bo'limlar bilan xodimlar"
+      }
     }
   }
 }

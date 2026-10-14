@@ -927,7 +927,10 @@ export type BackendPackage = {
 // provider's tier and verification to the package's tariff and checks every
 // mandatory service. This list is the only one a package order picks from —
 // it is never merged with the general marketplace list.
-export type PackageSellers = { items: BackendLawyer[]; total: number; hasMore: boolean; tariff: string; packageTitle: string; requiredServiceIds: string[] };
+// The backend resolves the package's catalogue expression ("G01-G03") into
+// real service ids; codes it could not resolve are a configuration error
+// that blocks the order (2026-10-14 contract §15).
+export type PackageSellers = { items: BackendLawyer[]; total: number; hasMore: boolean; tariff: string; packageTitle: string; requiredServiceIds: string[]; requiredServiceCodes: string[]; unresolvedServiceCodes: string[] };
 export async function getPackageEligibleSellers(packageId: string, opts?: { limit?: number; offset?: number }): Promise<PackageSellers> {
   const d = asDict(await http(`/service-packages/${encodeURIComponent(packageId)}/eligible-sellers?limit=${opts?.limit ?? 30}&offset=${opts?.offset ?? 0}`));
   const pkg = asDict(d.package);
@@ -943,6 +946,8 @@ export async function getPackageEligibleSellers(packageId: string, opts?: { limi
     tariff: asStr(d.tariff ?? pkg.tariff).toUpperCase(),
     packageTitle: asStr(pkg.title ?? pkg.name),
     requiredServiceIds: asArr(d.required_service_ids).map((s) => asStr(s)).filter(Boolean),
+    requiredServiceCodes: asArr(d.required_service_codes).map((s) => asStr(s)).filter(Boolean),
+    unresolvedServiceCodes: asArr(d.unresolved_service_codes).map((s) => asStr(s)).filter(Boolean),
   };
 }
 
@@ -1182,6 +1187,9 @@ export type BackendOrder = {
   // Seller response window (T1-10 §6): details.confirmation_deadline_at.
   confirmationDeadlineAt?: string;
   source?: string;
+  // Where the price region came from when the client sent none: the
+  // request, the client's profile or the default (details.region_source).
+  regionSource?: string;
 };
 
 export function isUnpaidMarketplaceOrder(o: Pick<BackendOrder, "source" | "status">): boolean {
@@ -1212,6 +1220,7 @@ function normOrder(v: unknown): BackendOrder {
     lawyerName: asStr(d.lawyer_name ?? asDict(d.lawyer).name) || undefined,
     confirmationDeadlineAt: asStr(d.confirmation_deadline_at ?? details.confirmation_deadline_at) || undefined,
     source: asStr(d.source ?? (details.marketplace === true ? "marketplace" : "")) || undefined,
+    regionSource: asStr(details.region_source) || undefined,
   };
 }
 

@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { hasAdminAccess, isCallCenterUser, useAuth } from "@/lib/auth";
 import { shortDateTime } from "@/lib/date";
 import { markNotificationRead, markAllNotificationsRead, type NotificationDelivery } from "@/lib/services/backend";
+import { readAllInternalNotifications, readInternalNotification } from "@/lib/services/hrmOps";
 import { listNotificationsRich, getNotificationCategoryCounts, richNotificationOf, NOTIF_PAGE, type RichNotification, type NotifCategoryCounts } from "@/lib/services/notify";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { setUnreadCount } from "@/lib/unread";
@@ -105,7 +106,11 @@ function useNotifText() {
   );
 }
 
-export default function NotificationsPanel() {
+// `internal`: the HRM workspace's inbox, whose reads go through the
+// internal routes (2026-10-14 contract §12).
+export default function NotificationsPanel({ internal = false }: { internal?: boolean } = {}) {
+  const readOneCall = internal ? readInternalNotification : markNotificationRead;
+  const readAllCall = internal ? readAllInternalNotifications : markAllNotificationsRead;
   const t = useTranslations("portal.notifications");
   const locale = useLocale();
   const { session } = useAuth();
@@ -259,7 +264,7 @@ export default function NotificationsPanel() {
     announceRead();
     try {
       // A folded event marks every per-channel row it stands for.
-      await Promise.all((n.ids.length ? n.ids : [n.id]).map((id) => markNotificationRead(id)));
+      await Promise.all((n.ids.length ? n.ids : [n.id]).map((id) => readOneCall(id)));
     } catch {
       /* ignore — optimistic */
     } finally {
@@ -274,8 +279,8 @@ export default function NotificationsPanel() {
     try {
       // Only "every notification" maps to the read-all endpoint; a narrowed
       // view marks just the rows it shows.
-      if (!narrowed || (tab === "all" && !needle && filter === "unread")) await markAllNotificationsRead();
-      else await Promise.all(shownUnread.flatMap(({ n }) => (n.ids.length ? n.ids : [n.id])).map((id) => markNotificationRead(id)));
+      if (!narrowed || (tab === "all" && !needle && filter === "unread")) await readAllCall();
+      else await Promise.all(shownUnread.flatMap(({ n }) => (n.ids.length ? n.ids : [n.id])).map((id) => readOneCall(id)));
     } catch {
       /* ignore — optimistic */
     } finally {
