@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useState, useSyncExternalStore, type 
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
-import { useAuth } from "@/lib/auth";
+import { hasAdminAccess, useAuth } from "@/lib/auth";
 import { asDict, asNum } from "@/lib/http";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { hasInternalAccess, canInternal, getMyMessages, getMyToday, internalRoles } from "@/lib/services/internalHrm";
@@ -215,6 +215,12 @@ function Shell({ children }: { children: ReactNode }) {
         <OfflineBanner />
         <header className="ptop hn-top">
           <button className="ptop__burger" type="button" aria-label={t("menu")} onClick={() => setDrawerPath(drawer ? null : pathname)}>{drawer ? <IconClose /> : <IconMenu />}</button>
+          {hasAdminAccess(session) ? (
+            <Link href="/admin" className="hn-ib hn-back" aria-label={t("shell.backToAdmin")} title={t("shell.backToAdmin")}>
+              <IconChevronLeft />
+              <span>{t("shell.apps.admin")}</span>
+            </Link>
+          ) : null}
           <AppSwitcher />
           <div className="hn-top__where">
             {activeGroup ? <span className="hn-top__group">{t(`groups.${activeGroup.key}`)}</span> : null}

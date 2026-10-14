@@ -21010,3 +21010,38 @@ html:has(.portal--admin) .mtg__strip.scue-x:not([data-more]){-webkit-mask-image:
 @media (prefers-reduced-motion:reduce){
   .ops-tree__tg svg{transition:none}
 }
+/* Org board: folding a branch glides instead of jumping */
+.ob-world.is-glide{transition:transform .38s cubic-bezier(.22,.8,.26,1)}
+.ob-world.is-glide .obc{transition:left .38s cubic-bezier(.22,.8,.26,1),top .38s cubic-bezier(.22,.8,.26,1),box-shadow .15s,opacity .2s,transform .15s}
+.ob-world.is-glide .ob-edges path{transition:d .38s cubic-bezier(.22,.8,.26,1),stroke .2s,opacity .2s}
+.obc{animation:obcIn .34s cubic-bezier(.22,.8,.26,1) backwards}
+@keyframes obcIn{from{opacity:0;transform:translate(var(--fx,0),var(--fy,0)) scale(.7)}}
+.obc.is-leaving{opacity:0;transform:translate(var(--tx,0),var(--ty,0)) scale(.6);pointer-events:none;transition:transform .22s ease-in,opacity .2s ease-in}
+.ob-edges path{animation:obEdgeIn .3s .12s backwards}
+.ob-edges path.is-leaving{opacity:0;transition:opacity .14s}
+@keyframes obEdgeIn{from{opacity:0}}
+/* Org tree: branches open and close by height */
+.ops-tree__kids{display:grid;grid-template-rows:0fr;opacity:0;transition:grid-template-rows .28s cubic-bezier(.22,.8,.26,1),opacity .2s}
+.ops-tree__kids.is-open{grid-template-rows:1fr;opacity:1}
+.ops-tree__kids>ul{min-height:0;overflow:hidden}
+@media (prefers-reduced-motion:reduce){
+  .obc,.ob-edges path{animation:none}
+  .ob-world.is-glide,.ob-world.is-glide .obc,.ob-world.is-glide .ob-edges path,.obc.is-leaving,.ops-tree__kids{transition:none}
+}
+/* HRM header: the way back to the admin panel */
+.hn-back{display:inline-flex;align-items:center;gap:4px;width:auto;padding:0 13px 0 8px;color:var(--ink);font-size:.84rem;font-weight:600;text-decoration:none;white-space:nowrap}
+.hn-back svg{width:17px;height:17px;transition:transform .15s}
+.hn-back:hover svg{transform:translateX(-2px)}
+/* Admin header: the door into HRM */
+.ptop__hrm{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 14px 0 11px;border-radius:12px;background:linear-gradient(160deg,#3f76ed,#1b49ae);color:#fff;font-size:.84rem;font-weight:700;letter-spacing:.02em;text-decoration:none;box-shadow:0 8px 18px -10px rgba(24,82,200,.7);transition:transform .15s,box-shadow .15s}
+.ptop__hrm svg{width:18px;height:18px}
+.ptop__hrm:hover{transform:translateY(-1px);box-shadow:0 10px 22px -10px rgba(24,82,200,.85)}
+.ptop__hrm:focus-visible{outline:0;box-shadow:0 0 0 3px var(--b300)}
+@media (max-width:900px){
+  .hn-back{width:40px;padding:0;justify-content:center}
+  .hn-back span{display:none}
+  .ptop__hrm{height:36px;padding:0 10px}
+}
+/* On a phone the back button stands in for the app switcher, so the page title keeps its room. */
+@media (max-width:480px){.ptop__hrm span{display:none}.hn-back+.hn-pop{display:none}}
+@media (prefers-reduced-motion:reduce){.hn-back svg,.ptop__hrm{transition:none}}

@@ -65,11 +65,14 @@ const countUnits = (t: Tree): number => t.units.reduce((n, u) => n + 1 + countUn
 
 // A tidy tree: a parent centred over its children; children that are all
 // leaves and three or more become a column under the parent's left edge.
+// "Leaf" is judged on the whole tree, not on what is folded: folding a
+// branch must not turn its row of siblings into a column and throw the
+// board into a different shape.
 function layout(trees: Tree[], collapsed: Set<string>): Box[] {
   const kids = (t: Tree) => (collapsed.has(t.node.id) ? [] : t.units);
   const stack = (t: Tree) => {
     const k = kids(t);
-    return k.length >= 3 && k.every((c) => !kids(c).length);
+    return k.length >= 3 && k.every((c) => !c.units.length);
   };
   const widthOf = new Map<string, number>();
   const measure = (t: Tree): number => {
@@ -346,16 +349,56 @@ export default function OrgWhiteboard({
     return [...m.entries()];
   }, [trees]);
 
-  const toggle = (id: string) =>
-    setCollapsed((cur) => {
-      const next = new Set(cur);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // Folding and unfolding glide: the cards slide to their new places while
+  // the camera moves with them, so the card pressed stays where it was on
+  // screen. A folding branch first shrinks into its card, then the rest of
+  // the board closes the gap.
+  const [glide, setGlide] = useState(0);
+  const [leaving, setLeaving] = useState<{ id: string; ids: Set<string>; next: Set<string> } | null>(null);
+  useEffect(() => {
+    if (!glide) return;
+    const h = setTimeout(() => setGlide(0), 420);
+    return () => clearTimeout(h);
+  }, [glide]);
+  const calm = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reflow = (next: Set<string>, anchorId: string) => {
+    const before = boxes.find((b) => b.tree.node.id === anchorId);
+    const after = layout(trees, next).find((b) => b.tree.node.id === anchorId);
+    if (!calm()) setGlide((n) => n + 1);
+    setCollapsed(next);
+    if (before && after) setCam((c) => ({ ...c, x: c.x - (after.x - before.x) * c.k, y: c.y - (after.y - before.y) * c.k }));
+  };
+  const under = (b: Box, id: string) => {
+    for (let p = b.parent; p; p = p.parent) if (p.tree.node.id === id) return true;
+    return false;
+  };
+  const toggle = (id: string) => {
+    if (leaving) return;
+    const next = new Set(collapsed);
+    if (next.has(id)) {
+      next.delete(id);
+      return reflow(next, id);
+    }
+    next.add(id);
+    const gone = boxes.filter((b) => under(b, id));
+    if (!gone.length || calm()) return reflow(next, id);
+    setLeaving({ id, ids: new Set(gone.map((b) => b.tree.node.id)), next });
+  };
+  // Once the branch has shrunk away, it folds for real.
+  useEffect(() => {
+    if (!leaving) return;
+    const h = setTimeout(() => {
+      setLeaving(null);
+      reflow(leaving.next, leaving.id);
+    }, 220);
+    return () => clearTimeout(h);
+    // `reflow` is a fresh closure each render; `leaving` says when to run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leaving]);
   const all = flatten(trees);
-  const collapseAll = () => setCollapsed(new Set(all.filter((t) => t.units.length && t.depth >= 1).map((t) => t.node.id)));
-  const expandAll = () => setCollapsed(new Set());
+  const rootId = boxes.find((b) => !b.parent)?.tree.node.id ?? "";
+  const collapseAll = () => reflow(new Set(all.filter((t) => t.units.length && t.depth >= 1).map((t) => t.node.id)), rootId);
+  const expandAll = () => reflow(new Set(), rootId);
   const selectedBox = boxes.find((b) => b.tree.node.id === selected) ?? null;
 
   // A card picked under the panel is slid into view beside it.
@@ -561,12 +604,12 @@ export default function OrgWhiteboard({
         }
       }}
     >
-      <div className="ob-world" style={{ transform: `translate(${cam.x}px, ${cam.y}px) scale(${cam.k})` }} onClick={(e) => e.target === e.currentTarget && !moved.current && setSelected("")}>
+      <div className={`ob-world${glide ? " is-glide" : ""}`} style={{ transform: `translate(${cam.x}px, ${cam.y}px) scale(${cam.k})` }} onClick={(e) => e.target === e.currentTarget && !moved.current && setSelected("")}>
         <svg className="ob-edges" style={{ left: bounds.x - 40, top: bounds.y - 40, width: bounds.w + 80, height: bounds.h + 80 }} viewBox={`${bounds.x - 40} ${bounds.y - 40} ${bounds.w + 80} ${bounds.h + 80}`} aria-hidden>
           {boxes
             .filter((b) => b.parent)
             .map((b) => (
-              <path key={b.tree.node.id} d={edgePath(b)} className={`${chain.has(b.tree.node.id) && chain.has(b.parent!.tree.node.id) ? "is-chain" : ""}${(needle && !matchIds.has(b.tree.node.id)) || (chainSet && !chainSet.has(b.tree.node.id)) ? " is-dim" : ""}${menu?.kind === "edge" && menu.id === b.tree.node.id ? " is-menu" : ""}`} />
+              <path key={b.tree.node.id} d={edgePath(b)} style={{ d: `path("${edgePath(b)}")` } as CSSProperties} className={`${leaving?.ids.has(b.tree.node.id) ? "is-leaving " : ""}${chain.has(b.tree.node.id) && chain.has(b.parent!.tree.node.id) ? "is-chain" : ""}${(needle && !matchIds.has(b.tree.node.id)) || (chainSet && !chainSet.has(b.tree.node.id)) ? " is-dim" : ""}${menu?.kind === "edge" && menu.id === b.tree.node.id ? " is-menu" : ""}`} />
             ))}
           {/* Wide invisible twins of the lines: what a right-click on a line hits. */}
           {boxes
@@ -594,6 +637,7 @@ export default function OrgWhiteboard({
             match={!!needle && matchIds.has(b.tree.node.id)}
             chain={chain.has(b.tree.node.id) && selected !== b.tree.node.id}
             collapsed={collapsed.has(b.tree.node.id)}
+            leaveTo={leaving?.ids.has(b.tree.node.id) ? boxOfId(leaving.id) : null}
             onSelect={() => !moved.current && setSelected(b.tree.node.id)}
             onToggle={() => toggle(b.tree.node.id)}
             onEdit={() => onEditUnit(b.tree.node.entityId)}
@@ -820,6 +864,7 @@ function Card({
   match,
   chain,
   collapsed,
+  leaveTo,
   onSelect,
   onToggle,
   onEdit,
@@ -841,6 +886,8 @@ function Card({
   match: boolean;
   chain: boolean;
   collapsed: boolean;
+  // Set while this card's branch folds: the card it shrinks into.
+  leaveTo: Box | null;
   onSelect: () => void;
   onToggle: () => void;
   onEdit: () => void;
@@ -869,7 +916,11 @@ function Card({
   const head = personName(n.raw.head);
   const status = asStr(n.raw.status);
   const fte = fteOf(people);
-  const style = { left: box.x, top: box.y, width: CW, height: CH, "--c": colorOf(n) } as CSSProperties;
+  // --fx/--fy: where a card grows from when it first shows (its parent);
+  // --tx/--ty: where it shrinks to while its branch folds.
+  const from = box.parent ?? box;
+  const to = leaveTo ?? box;
+  const style = { left: box.x, top: box.y, width: CW, height: CH, "--c": colorOf(n), "--fx": `${from.x - box.x}px`, "--fy": `${from.y - box.y}px`, "--tx": `${to.x - box.x}px`, "--ty": `${to.y - box.y}px` } as CSSProperties;
   const positions = useMemo(() => {
     const m = new Map<string, { title: string; n: number }>();
     for (const p of people) {
@@ -882,7 +933,7 @@ function Card({
   const fmt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
   return (
     <div
-      className={`obc${selected ? " is-sel" : ""}${dim ? " is-dim" : ""}${match ? " is-match" : ""}${chain ? " is-chain" : ""}${menuOn ? " is-menu" : ""}${drag?.dragging ? " is-dragging" : ""}${drag?.over ? " is-drop" : ""}`}
+      className={`obc${selected ? " is-sel" : ""}${dim ? " is-dim" : ""}${match ? " is-match" : ""}${chain ? " is-chain" : ""}${menuOn ? " is-menu" : ""}${drag?.dragging ? " is-dragging" : ""}${drag?.over ? " is-drop" : ""}${leaveTo ? " is-leaving" : ""}`}
       style={style}
       data-unit={n.entityId}
       draggable={!!drag && !editing}

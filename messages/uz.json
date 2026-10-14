@@ -18985,6 +18985,7 @@
       "leaveBlocked": "Tekshiruv arizani yuborishga to'sqinlik qiladigan muammo topdi. Avval uni tuzating."
     },
     "shell": {
+      "backToAdmin": "Admin panelga qaytish",
       "apps": {
         "title": "Ilovalar",
         "portal": "LexGo portal",

@@ -51,13 +51,18 @@ function TreeNode({ node, depth, picked, onPick }: { node: OrgTreeNode; depth: n
   const tu = useTranslations("internal.ui");
   const dir = useHrmDirectory();
   const [open, setOpen] = useState(depth < 2);
+  // A branch once opened stays rendered, so closing it can animate.
+  const [seen, setSeen] = useState(open);
   const total = (n: OrgTreeNode): number => n.occupied + n.children.reduce((s, c) => s + total(c), 0);
   const head = dir.employeeName(node.headId);
   return (
     <li role="treeitem" aria-expanded={node.children.length ? open : undefined} aria-selected={picked === node.id}>
       <div className={`ops-tree__row${picked === node.id ? " on" : ""}`} style={{ paddingLeft: depth * 18 }}>
         {node.children.length ? (
-          <button type="button" className={`ops-tree__tg${open ? " is-open" : ""}`} onClick={() => setOpen((o) => !o)} aria-label={open ? t("collapse") : t("expand")}><IconChevronRight /></button>
+          <button type="button" className={`ops-tree__tg${open ? " is-open" : ""}`} onClick={() => {
+              setSeen(true);
+              setOpen((o) => !o);
+            }} aria-label={open ? t("collapse") : t("expand")}><IconChevronRight /></button>
         ) : <span className="ops-tree__tg" aria-hidden />}
         <button type="button" className="ops-tree__name" onClick={() => onPick({ id: node.id, name: node.name })}>
           <b>{node.name}</b>
@@ -68,10 +73,12 @@ function TreeNode({ node, depth, picked, onPick }: { node: OrgTreeNode; depth: n
           {node.children.length ? <small>/ {total(node)}</small> : null}
         </span>
       </div>
-      {node.children.length && open ? (
-        <ul role="group">
-          {node.children.map((c) => <TreeNode key={c.id} node={c} depth={depth + 1} picked={picked} onPick={onPick} />)}
-        </ul>
+      {node.children.length && seen ? (
+        <div className={`ops-tree__kids${open ? " is-open" : ""}`} inert={!open}>
+          <ul role="group">
+            {node.children.map((c) => <TreeNode key={c.id} node={c} depth={depth + 1} picked={picked} onPick={onPick} />)}
+          </ul>
+        </div>
       ) : null}
     </li>
   );

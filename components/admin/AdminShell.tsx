@@ -125,7 +125,6 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
   {
     group: "system",
     items: [
-      { href: "/internal", key: "internal", Icon: NavInternal },
       { href: "/admin/integrations", key: "integrations", Icon: NavIntegrations },
       { href: "/admin/test-otps", key: "testOtps", Icon: NavTestOtps },
       { href: "/admin/roles", key: "roles", Icon: NavRoles, perm: "roles.manage" },
@@ -249,8 +248,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const canSee = (n: NavItem) =>
     n.key === "profile"
       ? true
-      : n.key === "internal"
-      ? hasInternalAccess(session)
       : n.key === "supportTickets"
         ? isCallCenterUser(session)
       : n.key === "testOtps" && demoTools !== true
@@ -416,6 +413,14 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           </button>
           <h1 data-ai-target="ai-help:current-page">{title}</h1>
           <div className="ptop__sp">
+            {/* HRM is a workspace of its own, so its door sits up here
+                rather than among the admin pages in the sidebar. */}
+            {hasInternalAccess(session) ? (
+              <Link className="ptop__hrm" href="/internal" title={t("nav.internal")}>
+                <NavInternal />
+                <span>HRM</span>
+              </Link>
+            ) : null}
             <FeedbackButton />
             <ThemeToggle variant="square" />
             <LanguageSwitcher />

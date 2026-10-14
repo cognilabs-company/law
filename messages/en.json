@@ -18979,6 +18979,7 @@
       "leaveBlocked": "The pre-check found a problem that blocks this request. Fix it first."
     },
     "shell": {
+      "backToAdmin": "Back to the admin panel",
       "apps": {
         "title": "Apps",
         "portal": "LexGo portal",
