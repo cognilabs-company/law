@@ -6,7 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
-import { IconChat, IconCheck, IconClipboardCheck, IconClock, IconPhone, IconRefresh, IconSparkle, IconVideo, IconClose, IconUser } from "@/components/icons";
+import { IconChat, IconCheck, IconClipboardCheck, IconClock, IconCoins, IconPackage, IconPause, IconPhone, IconRefresh, IconSparkle, IconVideo, IconClose, IconUser } from "@/components/icons";
 import { errDetail } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
@@ -19,13 +19,15 @@ import { useAiReveal } from "@/lib/guide/targets";
 import {
   MARKET_EVENT,
   cancelMarketplaceOrder,
-  completeMarketplaceOrder,
   listMarketplaceOrders,
   marketChatHref,
   marketStageOf,
   type MarketOrder,
   type MarketStage,
 } from "@/lib/services/marketplace";
+import CompleteOrderDialog from "./CompleteOrderDialog";
+import SupplementalDialog from "./SupplementalDialog";
+import { OptionLines, RatingPanel, ResultBlock, SupplementalPanel } from "./OrderExtras";
 
 type View = "client" | "seller";
 type Tab = "all" | MarketStage;
@@ -53,6 +55,7 @@ export default function MarketOrders({ view }: { view: View }) {
   const [q, setQ] = useState("");
   const [cancelFor, setCancelFor] = useState<MarketOrder | null>(null);
   const [completeFor, setCompleteFor] = useState<MarketOrder | null>(null);
+  const [supFor, setSupFor] = useState<MarketOrder | null>(null);
   const [flash, setFlash] = useState("");
   const seq = useRef(0);
 
@@ -247,7 +250,16 @@ export default function MarketOrders({ view }: { view: View }) {
           data-ai-label={view === "client" ? t("clientTitle") : t("sellerTitle")}
         >
           {shown.map((o) => (
-            <OrderCard key={o.id} o={o} view={view} locale={locale} onCancel={() => setCancelFor(o)} onComplete={() => setCompleteFor(o)} />
+            <OrderCard
+              key={o.id}
+              o={o}
+              view={view}
+              locale={locale}
+              onCancel={() => setCancelFor(o)}
+              onComplete={() => setCompleteFor(o)}
+              onSupplemental={() => setSupFor(o)}
+              onRated={() => void load(true)}
+            />
           ))}
         </div>
       )}
@@ -272,22 +284,21 @@ export default function MarketOrders({ view }: { view: View }) {
           void load(true);
         }}
       />
-      <ActionDialog
-        aiId={`${ai}.complete-modal`}
+      <CompleteOrderDialog
         order={completeFor}
-        title={t("completeTitle")}
-        lead={t("completeLead")}
-        label={t("completeNote")}
-        placeholder={t("completeNotePh")}
-        confirm={t("completeConfirm")}
-        busyLabel={t("completing")}
-        errLabel={t("completeError")}
-        keep={t("keep")}
         onClose={() => setCompleteFor(null)}
-        run={async (o, text) => {
-          const r = await completeMarketplaceOrder(o.id, text);
-          patch(o.id, { status: r.status });
+        onDone={(st) => {
+          if (completeFor) patch(completeFor.id, { status: st });
           setFlash(t("updated"));
+          void load(true);
+        }}
+      />
+      <SupplementalDialog
+        order={supFor}
+        onClose={() => setSupFor(null)}
+        onSent={(s) => {
+          if (supFor && s) setOrders((cur) => cur.map((x) => (x.id === supFor.id ? { ...x, supplemental: s, workPaused: s.status === "pending" } : x)));
+          setFlash(t("supplementalSent"));
           void load(true);
         }}
       />
@@ -301,15 +312,20 @@ function OrderCard({
   locale,
   onCancel,
   onComplete,
+  onSupplemental,
+  onRated,
 }: {
   o: MarketOrder;
   view: View;
   locale: string;
   onCancel: () => void;
   onComplete: () => void;
+  onSupplemental: () => void;
+  onRated: () => void;
 }) {
   const t = useTranslations("marketplace.orders");
   const tch = useTranslations("marketplace.purchase.channels");
+  const tpk = useTranslations("portal.client.packages");
   const te = useTranslations("enums");
   const router = useRouter();
   const stage = marketStageOf(o);
@@ -356,13 +372,26 @@ function OrderCard({
               {stage === "pending" ? <i aria-hidden="true" /> : null}
               {t(`stage.${stage}`)}
             </span>
+            {o.workPaused ? (
+              <span className="mk-stage mk-stage--paused">
+                <IconPause aria-hidden="true" />
+                {t("paused")}
+              </span>
+            ) : null}
           </div>
           <b className="mk-order__price">
             {o.price ? fmtUzs(o.price) : "—"} <small>{o.currency === "UZS" ? te("currency") : o.currency}</small>
           </b>
         </div>
 
-        <h3 className="mk-order__svc">{o.serviceTitle || "—"}</h3>
+        <h3 className="mk-order__svc">{o.serviceTitle || o.packageTitle || "—"}</h3>
+        {o.packageTitle || o.packageTier ? (
+          <span className="mko__pkg">
+            <IconPackage aria-hidden="true" />
+            {[o.packageTitle, o.packageTier && tpk.has(`tiers.${o.packageTier}`) ? tpk(`tiers.${o.packageTier}`) : o.packageTier].filter(Boolean).join(" · ")}
+          </span>
+        ) : null}
+        <OptionLines options={o.selectedOptions} title={t("optionsTitle")} />
 
         {stage !== "cancelled" ? (
           <ol className="mk-track" aria-label={t(`stage.${stage}`)}>
@@ -428,6 +457,10 @@ function OrderCard({
           </p>
         ) : null}
 
+        <SupplementalPanel o={o} view={view} />
+        {stage === "completed" ? <ResultBlock o={o} /> : null}
+        {stage === "completed" && view === "client" ? <RatingPanel o={o} onRated={onRated} /> : null}
+
         {callErr ? <Notice ok={false} msg={callErr} /> : null}
 
         <div className="mk-order__acts">
@@ -449,8 +482,14 @@ function OrderCard({
               </button>
             </span>
           ) : null}
+          {view === "seller" && stage === "active" && !o.workPaused && (o.serviceId || o.packageId) ? (
+            <button type="button" className="btn btn--line btn--sm" onClick={onSupplemental} data-ai-id={sub("supplemental")} data-ai-label={t("supplemental")}>
+              <IconCoins />
+              {t("supplemental")}
+            </button>
+          ) : null}
           {view === "seller" && o.canComplete && stage === "active" ? (
-            <button type="button" className="btn btn--grad btn--sm" onClick={onComplete} data-ai-id={sub("complete")} data-ai-label={t("complete")}>
+            <button type="button" className="btn btn--grad btn--sm" disabled={o.workPaused} title={o.workPaused ? t("pausedHint") : undefined} onClick={onComplete} data-ai-id={sub("complete")} data-ai-label={t("complete")}>
               <IconCheck />
               {t("complete")}
             </button>

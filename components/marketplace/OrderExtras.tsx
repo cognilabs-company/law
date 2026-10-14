@@ -1,0 +1,260 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { Notice } from "@/components/admin/AdminBits";
+import { IconAlert, IconCheck, IconCoins, IconDownload, IconFileText, IconHourglass, IconPause, IconStarRate } from "@/components/icons";
+import { fmtUzs } from "@/lib/money";
+import { saveBlob } from "@/lib/download";
+import { getSecureMessageFileAt } from "@/lib/services/backend";
+import { marketErrorCode, rateMarketplaceOrder, type MarketOrder, type OrderOption, type ResultFile } from "@/lib/services/marketplace";
+import { useMarketError } from "./useMarketError";
+
+const RESULT_MAX = 4000;
+
+export function useTick(active: boolean, stepMs = 1000): number {
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const tick = () => setNow(Date.now());
+    const first = setTimeout(tick, 0);
+    const id = setInterval(tick, stepMs);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
+  }, [active, stepMs]);
+  return now;
+}
+
+const leftMs = (iso: string, now: number) => (iso && now ? new Date(iso).getTime() - now : NaN);
+
+function useLeftLabel() {
+  const t = useTranslations("marketplace.orderExtras");
+  return (ms: number, withSeconds: boolean) => {
+    if (!Number.isFinite(ms)) return "";
+    if (ms <= 0) return t("timeUp");
+    const total = Math.floor(ms / 1000);
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
+    if (withSeconds && h === 0) return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    return h ? t("hoursLeft", { h, m }) : t("minutesLeft", { m: Math.max(1, m) });
+  };
+}
+
+export function OptionLines({ options, title }: { options: OrderOption[]; title: string }) {
+  if (!options.length) return null;
+  return (
+    <div className="mko__opts">
+      <small>{title}</small>
+      <ul>
+        {options.map((o, i) => (
+          <li key={`${o.id}-${i}`}>
+            <IconCheck aria-hidden="true" />
+            <span>{o.label || o.id}</span>
+            {o.amount ? <b>+{fmtUzs(o.amount)}</b> : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function SupplementalPanel({ o, view }: { o: MarketOrder; view: "client" | "seller" }) {
+  const t = useTranslations("marketplace.orderExtras");
+  const left = useLeftLabel();
+  const s = o.supplemental;
+  const pending = s?.status === "pending";
+  const now = useTick(pending && !!s?.expiresAt, 30_000);
+  if (!s) return null;
+  const remain = leftMs(s.expiresAt, now);
+  const warn = pending && Number.isFinite(remain) && remain < 3 * 3600_000;
+  return (
+    <div className={`mko__sup is-${s.status}${warn ? " is-warn" : ""}`} role="status" data-ai-id={`marketplace.orders.supplemental.${o.id}`} data-ai-type="section" data-ai-label={t(`sup.${s.status}`)}>
+      <div className="mko__suph">
+        <span className="mko__supi" aria-hidden="true">
+          {pending ? <IconPause /> : s.status === "approved" ? <IconCheck /> : s.status === "rejected" || s.status === "cancelled" ? <IconAlert /> : <IconHourglass />}
+        </span>
+        <div>
+          <b>{t(`sup.${s.status}`)}</b>
+          <p>{pending ? (view === "client" ? t("sup.pendingClient") : t("sup.pendingSeller")) : t(`sup.${s.status}Text`)}</p>
+        </div>
+        {pending && s.expiresAt ? (
+          <em className="mko__left">
+            <IconHourglass aria-hidden="true" />
+            {left(remain, false) || "—"}
+          </em>
+        ) : null}
+      </div>
+      <OptionLines options={s.options} title={t("sup.options")} />
+      <div className="mko__supsum">
+        {s.amount ? (
+          <span>
+            <IconCoins aria-hidden="true" />
+            {t("sup.amount")}: <b>{fmtUzs(s.amount)}</b>
+          </span>
+        ) : null}
+        {s.newTotal ? (
+          <span>
+            {t("sup.newTotal")}: <b>{fmtUzs(s.newTotal)}</b>
+          </span>
+        ) : null}
+      </div>
+      {s.note ? <blockquote className="mko__supnote">{s.note}</blockquote> : null}
+    </div>
+  );
+}
+
+function FileButton({ f }: { f: ResultFile }) {
+  const t = useTranslations("marketplace.orderExtras");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(false);
+  async function get() {
+    if (busy || !f.downloadUrl) return;
+    setBusy(true);
+    setErr(false);
+    try {
+      saveBlob(await getSecureMessageFileAt(f.downloadUrl), f.fileName || "result");
+    } catch {
+      setErr(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <li>
+      <IconFileText aria-hidden="true" />
+      <span>{f.fileName || t("result.file")}</span>
+      <button type="button" className="btn btn--line btn--sm" disabled={busy || !f.downloadUrl} onClick={() => void get()}>
+        <IconDownload aria-hidden="true" />
+        {busy ? t("result.downloading") : err ? t("result.retry") : t("result.download")}
+      </button>
+    </li>
+  );
+}
+
+export function ResultBlock({ o }: { o: MarketOrder }) {
+  const t = useTranslations("marketplace.orderExtras");
+  if (!o.resultText && !o.resultFiles.length) return null;
+  return (
+    <section className="mko__res" data-ai-id={`marketplace.orders.result.${o.id}`} data-ai-type="section" data-ai-label={t("result.title")} data-ai-private>
+      <b className="mko__resh">
+        <IconCheck aria-hidden="true" />
+        {t("result.title")}
+      </b>
+      {o.resultText ? <p className="mko__rest">{o.resultText.slice(0, RESULT_MAX)}</p> : null}
+      {o.resultFiles.length ? (
+        <ul className="mko__files">
+          {o.resultFiles.map((f, i) => (
+            <FileButton key={`${f.fileId}-${i}`} f={f} />
+          ))}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
+export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => void }) {
+  const t = useTranslations("marketplace.orderExtras");
+  const marketErr = useMarketError();
+  const left = useLeftLabel();
+  const [value, setValue] = useState(0);
+  const [hover, setHover] = useState(0);
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const [closed, setClosed] = useState(false);
+  const [sent, setSent] = useState(0);
+  const open = o.rating.canRate && !o.rating.value && !closed && !sent;
+  const now = useTick(open && !!o.rating.deadlineAt, 1000);
+  const given = sent || o.rating.value;
+
+  if (given) {
+    return (
+      <div className="mko__rated" role="status">
+        <span className="mko__stars is-static" aria-label={t("rating.given", { n: given })}>
+          {[1, 2, 3, 4, 5].map((n) => (
+            <IconStarRate key={n} className={n <= given ? "is-on" : ""} aria-hidden="true" />
+          ))}
+        </span>
+        <span>{sent ? t("rating.thanks") : t("rating.given", { n: given })}</span>
+        {given <= 2 ? <small>{t("rating.complaintMade")}</small> : null}
+      </div>
+    );
+  }
+  if (closed) return <Notice ok={false} msg={err || t("rating.closed")} />;
+  if (!o.rating.canRate) return null;
+
+  const remain = leftMs(o.rating.deadlineAt, now);
+  const low = value > 0 && value <= 2;
+  const shown = hover || value;
+
+  async function submit() {
+    if (busy || !value || (low && !comment.trim())) return;
+    setBusy(true);
+    setErr("");
+    try {
+      await rateMarketplaceOrder(o, { rating: value, comment });
+      setSent(value);
+      onRated();
+    } catch (e) {
+      const msg = marketErr(e, t("rating.error"));
+      if (marketErrorCode(e) === "rating_window_closed") {
+        setErr(msg);
+        setClosed(true);
+      } else setErr(msg);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="mko__rate" data-ai-id={`marketplace.orders.rating.${o.id}`} data-ai-type="section" data-ai-label={t("rating.title")}>
+      <div className="mko__rateh">
+        <b>{t("rating.title")}</b>
+        {o.rating.deadlineAt ? (
+          <em className={`mko__left${Number.isFinite(remain) && remain < 3 * 60_000 ? " is-warn" : ""}`} aria-live="off">
+            <IconHourglass aria-hidden="true" />
+            {left(remain, true) || "—"}
+          </em>
+        ) : null}
+      </div>
+      <p className="mko__ratel">{t("rating.lead")}</p>
+      <div className="mko__stars" role="radiogroup" aria-label={t("rating.title")} onMouseLeave={() => setHover(0)}>
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={value === n}
+            aria-label={t("rating.star", { n })}
+            className={n <= shown ? "is-on" : ""}
+            onMouseEnter={() => setHover(n)}
+            onFocus={() => setHover(n)}
+            onBlur={() => setHover(0)}
+            onClick={() => setValue(n)}
+            data-ai-id={`marketplace.orders.rating.${o.id}.star.${n}`}
+          >
+            <IconStarRate aria-hidden="true" />
+          </button>
+        ))}
+        {shown ? <span className="mko__starl">{t(`rating.labels.${shown}`)}</span> : null}
+      </div>
+      {value ? (
+        <label className={`mk-in mko__ratec${low ? " is-low" : ""}`}>
+          <span>{low ? t("rating.lowLabel") : t("rating.commentLabel")}</span>
+          <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} maxLength={1000} placeholder={low ? t("rating.lowPh") : t("rating.commentPh")} data-ai-id={`marketplace.orders.rating.${o.id}.comment`} />
+          {low ? <small className="mko__lowhint">{t("rating.lowHint")}</small> : null}
+        </label>
+      ) : null}
+      {err ? <Notice ok={false} msg={err} /> : null}
+      {value ? (
+        <button type="button" className="btn btn--grad btn--sm" disabled={busy || (low && !comment.trim())} onClick={() => void submit()} data-ai-id={`marketplace.orders.rating.${o.id}.submit`}>
+          <IconStarRate aria-hidden="true" />
+          {busy ? t("rating.sending") : t("rating.submit")}
+        </button>
+      ) : null}
+    </section>
+  );
+}

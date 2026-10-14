@@ -4981,7 +4981,12 @@
       "completing": "Yakunlanmoqda…",
       "completeError": "Yakunlab bo'lmadi.",
       "keep": "Ortga",
-      "updated": "Holat yangilandi"
+      "updated": "Holat yangilandi",
+      "paused": "Ish to'xtatilgan",
+      "pausedHint": "Qo'shimcha to'lov tasdiqlanguncha ish to'xtatilgan",
+      "optionsTitle": "Tanlangan opsiyalar",
+      "supplemental": "Qo'shimcha to'lov",
+      "supplementalSent": "Qo'shimcha to'lov so'rovi yuborildi — Telegram orqali tasdiqlanadi"
     },
     "toast": {
       "paid": "Xizmat faollashtirildi",
@@ -4992,7 +4997,29 @@
       "rejected": "Xizmat so'rovi bekor qilindi",
       "rejectedText": "To'lov tasdiqlanmadi. Pul yechilmagan.",
       "open": "Ochish",
-      "close": "Yopish"
+      "close": "Yopish",
+      "sup": {
+        "requested": "Qo'shimcha to'lov so'raldi",
+        "requestedText": "Ijrochi qo'shimcha opsiya uchun to'lov so'radi. Tasdiqlanguncha ish to'xtatiladi.",
+        "approved": "Qo'shimcha to'lov tasdiqlandi",
+        "approvedText": "Ish yangi narx bilan davom etmoqda.",
+        "rejected": "Qo'shimcha to'lov rad etildi",
+        "rejectedText": "Ish oldingi shartlar bo'yicha davom etadi.",
+        "escalated": "Qo'shimcha to'lov operatorda",
+        "escalatedText": "24 soat ichida tasdiqlanmadi — operator ko'rib chiqadi.",
+        "expired": "Qo'shimcha to'lov muddati tugadi",
+        "expiredText": "So'rov 24 soat ichida tasdiqlanmadi.",
+        "warning": "Qo'shimcha to'lov muddati tugayapti",
+        "warningText": "So'rov tez orada operatorga o'tadi."
+      },
+      "refund": {
+        "approved": "Pulni qaytarish tasdiqlandi",
+        "approvedText": "Qaytarish Telegram orqali tasdiqlandi.",
+        "rejected": "Pulni qaytarish rad etildi",
+        "rejectedText": "Batafsil ma'lumot uchun operatorga yozing."
+      },
+      "completed": "Ish yakunlandi",
+      "completedText": "Natija tayyor — 15 daqiqa ichida ijrochini baholang."
     },
     "priceOptions": {
       "title": "Qo'shimcha opsiyalar",
@@ -5058,6 +5085,104 @@
       "pick": "Tanlash",
       "more": "Yana ko'rsatish",
       "loading": "Yuklanmoqda…"
+    },
+    "orderExtras": {
+      "timeUp": "Vaqt tugadi",
+      "hoursLeft": "{h} soat {m} daqiqa qoldi",
+      "minutesLeft": "{m} daqiqa qoldi",
+      "sup": {
+        "pending": "Qo'shimcha to'lov kutilmoqda",
+        "pendingClient": "Ijrochi qo'shimcha opsiya uchun to'lov so'radi. To'lov tasdiqlanguncha ish to'xtatiladi.",
+        "pendingSeller": "So'rov Telegram orqali tasdiqlanadi. Tasdiqlanguncha ish to'xtatilgan; 24 soat ichida tasdiqlanmasa operator ko'rib chiqadi.",
+        "approved": "Qo'shimcha to'lov tasdiqlandi",
+        "approvedText": "Yangi umumiy narx kuchga kirdi, ish davom etmoqda.",
+        "rejected": "Qo'shimcha to'lov rad etildi",
+        "rejectedText": "Ish oldingi shartlar bo'yicha davom etadi.",
+        "escalated": "Qo'shimcha to'lov operatorga o'tkazildi",
+        "escalatedText": "24 soat ichida tasdiqlanmadi — operator murojaat ochib, hal qiladi.",
+        "expired": "Qo'shimcha to'lov muddati tugadi",
+        "expiredText": "So'rov 24 soat ichida tasdiqlanmadi.",
+        "cancelled": "Qo'shimcha to'lov bekor qilindi",
+        "cancelledText": "Operator so'rovni almashtirdi yoki bekor qildi.",
+        "options": "Qo'shimcha opsiyalar",
+        "amount": "Qo'shimcha summa",
+        "newTotal": "Yangi umumiy narx"
+      },
+      "result": {
+        "title": "Ish natijasi",
+        "file": "Natija fayli",
+        "download": "Yuklab olish",
+        "downloading": "Yuklanmoqda…",
+        "retry": "Qayta urinish"
+      },
+      "rating": {
+        "title": "Ishni baholang",
+        "lead": "Baholash yakunlangandan keyin 15 daqiqa davomida ochiq. 1–2 baho sifat bo'limiga shikoyat sifatida yuboriladi.",
+        "given": "Sizning bahoyingiz: {n} / 5",
+        "thanks": "Rahmat! Bahoyingiz qabul qilindi.",
+        "complaintMade": "Past baho sifat bo'limiga yuborildi — operator siz bilan bog'lanadi.",
+        "closed": "Baholash muddati (15 daqiqa) tugagan.",
+        "error": "Bahoni yuborib bo'lmadi. Qayta urinib ko'ring.",
+        "star": "{n} yulduz",
+        "labels": {
+          "1": "Juda yomon",
+          "2": "Yomon",
+          "3": "O'rtacha",
+          "4": "Yaxshi",
+          "5": "A'lo"
+        },
+        "lowLabel": "Nima noto'g'ri bo'ldi? (majburiy)",
+        "commentLabel": "Izoh (ixtiyoriy)",
+        "lowPh": "Masalan: natija kelishilgan hajmni qamramadi",
+        "commentPh": "Ijrochi haqida fikringiz",
+        "lowHint": "Izohingiz sifat bo'limiga shikoyat bilan birga yuboriladi.",
+        "sending": "Yuborilmoqda…",
+        "submit": "Bahoni yuborish"
+      }
+    },
+    "complete": {
+      "title": "Ishni natija bilan yakunlash",
+      "lead": "Mijozga natijani yozing yoki fayl biriktiring. Yakunlangach mijozda 15 daqiqa baholash oynasi ochiladi.",
+      "textLabel": "Natija matni",
+      "textPh": "Masalan: maslahat o'tkazildi, yozma xulosa tayyorlandi va biriktirildi",
+      "filesLabel": "Natija fayllari",
+      "attach": "Fayl biriktirish",
+      "noRoom": "Fayl biriktirish uchun buyurtma chati ochilgan bo'lishi kerak. Hozircha faqat matn yozing.",
+      "filesHint": "{n} tagacha fayl, har biri {mb} MB gacha. Fayllar buyurtma chatiga ham joylanadi.",
+      "state": {
+        "wait": "Tayyor",
+        "up": "Yuklanmoqda…",
+        "done": "Yuklandi",
+        "fail": "Xato"
+      },
+      "remove": "Olib tashlash",
+      "rule": "Matn yoki kamida bitta fayl kerak",
+      "required": "Yakunlash uchun natija matnini yozing yoki fayl biriktiring.",
+      "tooBig": "{mb} MB dan katta fayllar qo'shilmadi.",
+      "caption": "Ish natijasi",
+      "error": "Yakunlab bo'lmadi. Qayta urinib ko'ring.",
+      "sending": "Yakunlanmoqda…",
+      "confirm": "Natija bilan yakunlash",
+      "keep": "Bekor qilish"
+    },
+    "supplemental": {
+      "title": "Qo'shimcha to'lov so'rash",
+      "rule24h": "So'rov 24 soat amal qiladi va Telegram orqali tasdiqlanadi.",
+      "rulePause": "Tasdiqlanguncha ish to'xtatiladi.",
+      "ruleIncrease": "Faqat LexGo Studio sozlagan opsiyalar; yangi umumiy narx to'langandan katta bo'lishi kerak.",
+      "alreadyPaid": "Mijoz allaqachon to'lagan opsiyalar",
+      "noTarget": "Bu buyurtma uchun xizmat yoki paket aniqlanmadi — opsiyalarni yuklab bo'lmaydi.",
+      "noOptions": "Bu xizmat uchun qo'shimcha opsiya qolmagan.",
+      "pickTitle": "Qo'shimcha opsiyalarni tanlang",
+      "pickLead": "Bir nechtasini tanlash mumkin",
+      "paidTotal": "Hozir to'langan",
+      "newTotal": "Yangi umumiy narx",
+      "noteLabel": "Mijozga izoh",
+      "notePh": "Nega bu opsiya kerakligini qisqacha yozing",
+      "error": "So'rovni yuborib bo'lmadi. Qayta urinib ko'ring.",
+      "sending": "Yuborilmoqda…",
+      "submit": "So'rov yuborish",
+      "keep": "Bekor qilish"
     }
   },
   "common": {

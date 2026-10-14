@@ -28,7 +28,7 @@ export default function MarketWatcher({ role }: { role: Role }) {
       const sig = marketSignalOf(ev);
       if (!sig) return;
       const now = Date.now();
-      const key = `${sig.kind}:${sig.orderId || sig.roomId || sig.serviceTitle}`;
+      const key = `${sig.kind}${sig.sub ? `.${sig.sub}` : ""}:${sig.orderId || sig.roomId || sig.serviceTitle}`;
       const last = seen.current.get(key) ?? 0;
       seen.current.set(key, now);
       if (now - last < 1500) return;
@@ -49,6 +49,13 @@ export default function MarketWatcher({ role }: { role: Role }) {
         toast = { kind: "paid", title: tt("newOrder"), text: tt("newOrderText"), href: ordersHref };
       } else if (sig.kind === "rejected" && role === "client") {
         toast = { kind: "rejected", title: tt("rejected"), text: tt("rejectedText"), href: ordersHref };
+      } else if (sig.kind === "supplemental" && sig.sub && (role === "client" || sig.sub !== "requested")) {
+        const sub = ["requested", "approved", "rejected", "escalated", "expired", "warning"].includes(sig.sub) ? sig.sub : "requested";
+        toast = { kind: sub === "approved" ? "paid" : sub === "rejected" ? "rejected" : "other", title: tt(`sup.${sub}`), text: tt(`sup.${sub}Text`), href: ordersHref };
+      } else if (sig.kind === "refund" && (sig.sub === "approved" || sig.sub === "rejected")) {
+        toast = { kind: sig.sub === "approved" ? "paid" : "rejected", title: tt(`refund.${sig.sub}`), text: tt(`refund.${sig.sub}Text`), href: ordersHref };
+      } else if (sig.kind === "completed" && role === "client") {
+        toast = { kind: "paid", title: tt("completed"), text: tt("completedText"), href: ordersHref };
       }
       if (!toast) return;
       const id = nextId.current++;

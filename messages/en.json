@@ -4981,7 +4981,12 @@
       "completing": "Completing…",
       "completeError": "Could not complete.",
       "keep": "Back",
-      "updated": "Status updated"
+      "updated": "Status updated",
+      "paused": "Work paused",
+      "pausedHint": "Work is paused until the supplemental payment is confirmed",
+      "optionsTitle": "Selected options",
+      "supplemental": "Supplemental payment",
+      "supplementalSent": "Supplemental payment request sent — it's confirmed through Telegram"
     },
     "toast": {
       "paid": "Service activated",
@@ -4992,7 +4997,29 @@
       "rejected": "Service request cancelled",
       "rejectedText": "The payment was not confirmed. Nothing was charged.",
       "open": "Open",
-      "close": "Close"
+      "close": "Close",
+      "sup": {
+        "requested": "Supplemental payment requested",
+        "requestedText": "The provider requested payment for an extra option. Work is paused until it's confirmed.",
+        "approved": "Supplemental payment confirmed",
+        "approvedText": "Work continues at the new price.",
+        "rejected": "Supplemental payment rejected",
+        "rejectedText": "Work continues on the original terms.",
+        "escalated": "Supplemental payment with an operator",
+        "escalatedText": "Not confirmed within 24 hours — an operator will review it.",
+        "expired": "Supplemental payment expired",
+        "expiredText": "The request wasn't confirmed within 24 hours.",
+        "warning": "Supplemental payment is about to expire",
+        "warningText": "The request will soon pass to an operator."
+      },
+      "refund": {
+        "approved": "Refund approved",
+        "approvedText": "The refund was approved through Telegram.",
+        "rejected": "Refund rejected",
+        "rejectedText": "Write to an operator for details."
+      },
+      "completed": "Work completed",
+      "completedText": "The result is ready — rate the provider within 15 minutes."
     },
     "priceOptions": {
       "title": "Extra options",
@@ -5058,6 +5085,104 @@
       "pick": "Choose",
       "more": "Show more",
       "loading": "Loading…"
+    },
+    "orderExtras": {
+      "timeUp": "Time's up",
+      "hoursLeft": "{h} h {m} min left",
+      "minutesLeft": "{m} min left",
+      "sup": {
+        "pending": "Supplemental payment pending",
+        "pendingClient": "The provider requested payment for an extra option. Work is paused until it's confirmed.",
+        "pendingSeller": "The request is confirmed through Telegram. Work is paused until then; if it isn't confirmed within 24 hours, an operator takes it over.",
+        "approved": "Supplemental payment confirmed",
+        "approvedText": "The new total is in effect and work continues.",
+        "rejected": "Supplemental payment rejected",
+        "rejectedText": "Work continues on the original terms.",
+        "escalated": "Supplemental payment passed to an operator",
+        "escalatedText": "Not confirmed within 24 hours — an operator opens a ticket and resolves it.",
+        "expired": "Supplemental payment expired",
+        "expiredText": "The request wasn't confirmed within 24 hours.",
+        "cancelled": "Supplemental payment cancelled",
+        "cancelledText": "An operator replaced or cancelled the request.",
+        "options": "Extra options",
+        "amount": "Extra amount",
+        "newTotal": "New total"
+      },
+      "result": {
+        "title": "Work result",
+        "file": "Result file",
+        "download": "Download",
+        "downloading": "Downloading…",
+        "retry": "Try again"
+      },
+      "rating": {
+        "title": "Rate the work",
+        "lead": "Rating stays open for 15 minutes after completion. A 1–2 rating is sent to the quality team as a complaint.",
+        "given": "Your rating: {n} / 5",
+        "thanks": "Thank you! Your rating was received.",
+        "complaintMade": "The low rating went to the quality team — an operator will contact you.",
+        "closed": "The 15-minute rating window has closed.",
+        "error": "Couldn't send the rating. Try again.",
+        "star": "{n} stars",
+        "labels": {
+          "1": "Very poor",
+          "2": "Poor",
+          "3": "Average",
+          "4": "Good",
+          "5": "Excellent"
+        },
+        "lowLabel": "What went wrong? (required)",
+        "commentLabel": "Comment (optional)",
+        "lowPh": "For example: the result didn't cover the agreed scope",
+        "commentPh": "Your feedback about the provider",
+        "lowHint": "Your comment goes to the quality team with the complaint.",
+        "sending": "Sending…",
+        "submit": "Send rating"
+      }
+    },
+    "complete": {
+      "title": "Complete with a result",
+      "lead": "Write the result for the client or attach a file. Completion opens the client's 15-minute rating window.",
+      "textLabel": "Result text",
+      "textPh": "For example: consultation done, written conclusion prepared and attached",
+      "filesLabel": "Result files",
+      "attach": "Attach file",
+      "noRoom": "The order chat must be open to attach files. Write the text for now.",
+      "filesHint": "Up to {n} files, {mb} MB each. Files are also posted to the order chat.",
+      "state": {
+        "wait": "Ready",
+        "up": "Uploading…",
+        "done": "Uploaded",
+        "fail": "Failed"
+      },
+      "remove": "Remove",
+      "rule": "Text or at least one file is required",
+      "required": "To complete, write the result or attach a file.",
+      "tooBig": "Files over {mb} MB weren't added.",
+      "caption": "Work result",
+      "error": "Couldn't complete. Try again.",
+      "sending": "Completing…",
+      "confirm": "Complete with result",
+      "keep": "Cancel"
+    },
+    "supplemental": {
+      "title": "Request a supplemental payment",
+      "rule24h": "The request is valid for 24 hours and is confirmed through Telegram.",
+      "rulePause": "Work pauses until it's confirmed.",
+      "ruleIncrease": "Only options set up in LexGo Studio; the new total must exceed what was already paid.",
+      "alreadyPaid": "Options the client already paid for",
+      "noTarget": "This order has no service or package attached — options can't be loaded.",
+      "noOptions": "No extra options are left for this service.",
+      "pickTitle": "Choose extra options",
+      "pickLead": "You can choose several",
+      "paidTotal": "Already paid",
+      "newTotal": "New total",
+      "noteLabel": "Note to the client",
+      "notePh": "Briefly explain why the option is needed",
+      "error": "Couldn't send the request. Try again.",
+      "sending": "Sending…",
+      "submit": "Send request",
+      "keep": "Cancel"
     }
   },
   "common": {
