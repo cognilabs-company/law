@@ -10074,6 +10074,23 @@
         "servicesTitle": "Mening xizmatlarim",
         "servicesEmpty": "Hozircha xizmatlar yo‘q",
         "servicesEmptyText": "Xizmatlarni ro‘yxatdan o‘tishda yoki profil sozlamalarida qo‘shing.",
+        "tabs": {
+          "personal": "Shaxsiy",
+          "professional": "Professional",
+          "work": "Narx va ish vaqti",
+          "security": "Xavfsizlik",
+          "notifications": "Bildirishnomalar"
+        },
+        "tabsLabel": "Profil bo'limlari",
+        "statusVerified": "Tasdiqlangan",
+        "statusPending": "Tekshiruvda",
+        "completeness": "Profil to'liqligi",
+        "emailMissing": "Email kiritilmagan",
+        "myId": "Mening ID",
+        "errors": {
+          "nameShort": "Kamida 2 ta harf kiriting",
+          "emailInvalid": "Email noto'g'ri, masalan: ism@mail.uz"
+        },
         "form": {
           "personal": "Shaxsiy ma'lumotlar",
           "professional": "Kasbiy ma'lumotlar",
@@ -12686,6 +12703,38 @@
     },
     "title": "Admin",
     "badge": "Admin",
+    "profile": {
+      "title": "Profil",
+      "accountTitle": "Akkaunt ma'lumotlari",
+      "edit": "Tahrirlash",
+      "editTitle": "Profilni tahrirlash",
+      "name": "Ism",
+      "phone": "Telefon",
+      "email": "Email",
+      "photo": "Rasm",
+      "photoHint": "JPG yoki PNG, 512×512 gacha",
+      "myId": "Mening ID",
+      "roles": "Rollar",
+      "permissions": "Ruxsatlar",
+      "permCount": "{n} ta ruxsat",
+      "phoneNote": "Telefon raqami tizimga kirish uchun ishlatiladi. Uni o'zgartirish uchun administratorga murojaat qiling.",
+      "emailMissing": "Email kiritilmagan",
+      "loadError": "Profilni yuklab bo'lmadi",
+      "tabs": {
+        "personal": "Shaxsiy",
+        "security": "Xavfsizlik",
+        "notifications": "Bildirishnomalar"
+      },
+      "tabsLabel": "Profil bo'limlari",
+      "save": "Saqlash",
+      "saving": "Saqlanmoqda…",
+      "saved": "Saqlandi.",
+      "saveFailed": "Saqlab bo'lmadi",
+      "errors": {
+        "nameShort": "Kamida 2 ta harf kiriting",
+        "emailInvalid": "Email noto'g'ri, masalan: ism@mail.uz"
+      }
+    },
     "backToPortal": "Portalga qaytish",
     "logout": "Chiqish",
     "menu": "Menyu",
@@ -12704,6 +12753,7 @@
     },
     "nav": {
       "templateEditor": "Shablon muharriri",
+      "profile": "Profil",
       "liveOffice": "Jonli ofis",
       "studio": "Studio",
       "aiReglaments": "AI reglamentlari",

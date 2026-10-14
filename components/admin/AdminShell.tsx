@@ -66,6 +66,7 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
     group: "command",
     items: [
       { href: "/admin", key: "overview", Icon: NavOverview },
+      { href: "/admin/profile", key: "profile", Icon: NavOverview, hidden: true },
       { href: "/admin/ceo", key: "ceo", Icon: NavCeo },
       { href: "/admin/live-office", key: "liveOffice", Icon: NavLiveOffice, perm: "users.manage" },
     ],
@@ -246,7 +247,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   // role on a session stored before permissions were saved) — call-center
   // operators run video meetings from here.
   const canSee = (n: NavItem) =>
-    n.key === "internal"
+    n.key === "profile"
+      ? true
+      : n.key === "internal"
       ? hasInternalAccess(session)
       : n.key === "supportTickets"
         ? isCallCenterUser(session)
@@ -300,8 +303,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
 
   const active = current;
   const title = active ? t(`nav.${active.key}`) : t("title");
-  // Clicking your own name goes to your own profile. Lawyers have no profile
-  // route yet, so they land on their portal instead.
+  // Clicking your own name goes to your own profile.
   const role = session?.role ?? "client";
   // Backend staff roles map to the UI's client role for shared auth storage,
   // but they must never be sent to client-only pages from this shell.
@@ -309,7 +311,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   // Staff see their own role on the badge, not "Admin" for everyone.
   const badgeKey = BADGE_ORDER.find((r) => roles.includes(r));
   const roleBadge = badgeKey && t.has(`roleBadges.${badgeKey}`) ? t(`roleBadges.${badgeKey}`) : t("badge");
-  const profileHref = staffSession ? "/admin" : role === "lawyer" ? "/portal/lawyer" : `/portal/${role}/profile`;
+  const profileHref = staffSession ? "/admin/profile" : `/portal/${role}/profile`;
 
   return (
     <div className="portal portal--admin">

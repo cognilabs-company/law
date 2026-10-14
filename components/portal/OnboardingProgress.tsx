@@ -11,12 +11,14 @@ import type { Role } from "@/lib/auth";
 import IdentityVerify from "./IdentityVerify";
 import { IconCheck, IconArrowRight } from "@/components/icons";
 
-// Where each onboarding step is completed. Lawyers have no profile page yet,
-// so their profile/documents steps have no link.
+// Where each onboarding step is completed.
 function hrefFor(key: string, role: Role): string | null {
   const advocate = role === "advocate";
-  if (key === "services" || key === "pricing") return advocate ? "/portal/advocate/profile" : "/portal/lawyer/services";
-  if (key === "profile" || key === "documents") return advocate ? "/portal/advocate/profile" : null;
+  const profile = `/portal/${role}/profile`;
+  if (key === "services") return advocate ? `${profile}?tab=professional` : "/portal/lawyer/services";
+  if (key === "pricing") return advocate ? `${profile}?tab=work` : "/portal/lawyer/services";
+  if (key === "profile") return profile;
+  if (key === "documents") return advocate ? `${profile}?tab=professional` : null;
   return null;
 }
 

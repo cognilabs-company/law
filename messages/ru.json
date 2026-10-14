@@ -10068,6 +10068,23 @@
         "servicesTitle": "Мои услуги",
         "servicesEmpty": "Услуг пока нет",
         "servicesEmptyText": "Добавьте услуги при регистрации или в настройках профиля.",
+        "tabs": {
+          "personal": "Личное",
+          "professional": "Профессиональное",
+          "work": "Цены и график",
+          "security": "Безопасность",
+          "notifications": "Уведомления"
+        },
+        "tabsLabel": "Разделы профиля",
+        "statusVerified": "Подтверждён",
+        "statusPending": "На проверке",
+        "completeness": "Заполненность профиля",
+        "emailMissing": "Email не указан",
+        "myId": "Мой ID",
+        "errors": {
+          "nameShort": "Введите не менее 2 букв",
+          "emailInvalid": "Неверный email, например: name@mail.uz"
+        },
         "form": {
           "personal": "Личные данные",
           "professional": "Профессиональные данные",
@@ -12680,6 +12697,38 @@
     },
     "title": "Админ",
     "badge": "Админ",
+    "profile": {
+      "title": "Профиль",
+      "accountTitle": "Данные аккаунта",
+      "edit": "Изменить",
+      "editTitle": "Изменить профиль",
+      "name": "Имя",
+      "phone": "Телефон",
+      "email": "Email",
+      "photo": "Фото",
+      "photoHint": "JPG или PNG, до 512×512",
+      "myId": "Мой ID",
+      "roles": "Роли",
+      "permissions": "Права",
+      "permCount": "{n, plural, one {# право} few {# права} other {# прав}}",
+      "phoneNote": "Номер телефона используется для входа. Чтобы изменить его, обратитесь к администратору.",
+      "emailMissing": "Email не указан",
+      "loadError": "Не удалось загрузить профиль",
+      "tabs": {
+        "personal": "Личное",
+        "security": "Безопасность",
+        "notifications": "Уведомления"
+      },
+      "tabsLabel": "Разделы профиля",
+      "save": "Сохранить",
+      "saving": "Сохранение…",
+      "saved": "Сохранено.",
+      "saveFailed": "Не удалось сохранить",
+      "errors": {
+        "nameShort": "Введите не менее 2 букв",
+        "emailInvalid": "Неверный email, например: name@mail.uz"
+      }
+    },
     "backToPortal": "Назад в портал",
     "logout": "Выйти",
     "menu": "Меню",
@@ -12698,6 +12747,7 @@
     },
     "nav": {
       "templateEditor": "Редактор шаблона",
+      "profile": "Профиль",
       "liveOffice": "Живой офис",
       "studio": "Studio",
       "aiReglaments": "Регламенты AI",

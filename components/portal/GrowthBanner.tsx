@@ -10,7 +10,7 @@ import { IconRocket, IconArrowRight, IconClose, IconCheck } from "../icons";
 // portal page. The stronger their profile, the higher they rank and the more
 // clients reach them — so we keep reminding until it hits 100%.
 const CTA_HREF: Partial<Record<Role, string>> = {
-  lawyer: "/portal/lawyer/services",
+  lawyer: "/portal/lawyer/profile",
   advocate: "/portal/advocate/profile",
 };
 

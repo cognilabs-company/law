@@ -426,7 +426,7 @@ export default function PortalShell({
                 </div>
               </div>
             ) : role !== "client" ? (
-              <GrowthBanner role={role} completeness={session.completeness} />
+              pathname === `/portal/${role}/profile` ? null : <GrowthBanner role={role} completeness={session.completeness} />
             ) : (
               <GiftNudge />
             )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, useCallback, useEffect, useState, type ReactNode } from "react";
+import { Component, Suspense, useCallback, useEffect, useId, useState, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuth, type Role } from "@/lib/auth";
 import { legalServiceLabel, type CatalogLocale } from "@/lib/legalServices";
@@ -14,6 +14,7 @@ import {
 } from "@/lib/services/backend";
 import { scoreCompleteness } from "@/lib/services/registration";
 import { useResource, useResourceOne } from "@/lib/useResource";
+import { useUrlTab } from "@/lib/useUrlTab";
 import { REGION_KEYS } from "@/lib/mock/catalog";
 import { fmtUzs } from "@/lib/money";
 import type { AdvocateStats, ProfessionalProfile, WorkEntry } from "@/lib/types";
@@ -35,8 +36,10 @@ import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
 import AccountAudit from "@/components/portal/AccountAudit";
 import { readVacation, writeVacation } from "@/components/portal/SellerMetrics";
 import { EmptyState, Skeleton } from "@/components/portal/DataState";
+import Tabs, { type TabItem } from "@/components/ui/Tabs";
+import FieldError from "@/components/ui/FieldError";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconEye, IconInfo, IconUser, IconShieldCheck, IconBriefcase, IconClock, IconSun, IconCard, IconEdit, IconAward, IconScale, IconGavel, IconMapPin, IconPhone, IconMail, IconLanguage, IconCheck } from "@/components/icons";
+import { IconEye, IconInfo, IconUser, IconShieldCheck, IconBriefcase, IconClock, IconSun, IconCard, IconEdit, IconAward, IconScale, IconGavel, IconMapPin, IconPhone, IconMail, IconCheck, IconBell } from "@/components/icons";
 
 const ZERO_STATS: AdvocateStats = { totalCases: 0, fullyWonCases: 0, partiallyWonCases: 0, successRate: 0 };
 const LANG_KEYS = ["uz", "ru", "en", "kaa", "tr", "ar"] as const;
@@ -46,6 +49,17 @@ const DEFAULT_DAYS = ["mon", "tue", "wed", "thu", "fri", "sat"];
 // provides one (T1-08); the allowed band is 70–100 % of the recommendation.
 const PRICE_HINT: Record<string, [number, number]> = { criminalAdmin: [300000, 800000], economicCivil: [250000, 700000], both: [300000, 800000], lawyer: [150000, 500000] };
 const PANEL_TARGET: Record<string, string> = { personal: "seller:profile-edit", professional: "profile:professional", areas: "profile:practice-areas", price: "profile:pricing", hours: "profile:work-hours", history: "profile:work-history" };
+const EMAIL = /^[^s@]+@[^s@]+.[^s@]{2,}$/;
+const SELLER_TABS = ["personal", "professional", "work", "security", "notifications"] as const;
+type SellerTab = (typeof SELLER_TABS)[number];
+const TAB_ICON: Record<SellerTab, typeof IconUser> = { personal: IconUser, professional: IconAward, work: IconClock, security: IconShieldCheck, notifications: IconBell };
+const TAB_REVEAL: Record<SellerTab, RegExp> = {
+  personal: /^(seller:profile-edit|button:request-verification|profile[.:](identity|verification))/,
+  professional: /^profile[.:](professional|practice-areas|work-history|services)/,
+  work: /^profile[.:](pricing|work-hours)/,
+  security: /^profile[.:](two-factor|telegram|sessions|security-events|account-audit)/,
+  notifications: /^profile[.:]notification-prefs/,
+};
 
 // Fields the backend profile (PUT /lawyers/me) has no columns for yet
 // (reported: gender, work hours, work history). Kept per user in the browser
@@ -86,7 +100,17 @@ export default function SellerProfileEditor({ role }: { role: Role }) {
     return <EmptyState icon={<IconUser />} title={t("emptyTitle")} text={t("emptyText")} />;
   }
   const acc = account.data;
-  return <Editor role={role} initial={{ ...res.data, name: acc?.name || res.data.name, email: acc?.email || res.data.email, photo: acc?.avatarUrl || res.data.photo }} />;
+  return (
+    <Suspense
+      fallback={
+        <div className="ppanel">
+          <Skeleton rows={4} />
+        </div>
+      }
+    >
+      <Editor role={role} initial={{ ...res.data, name: acc?.name || res.data.name, email: acc?.email || res.data.email, photo: acc?.avatarUrl || res.data.photo }} />
+    </Suspense>
+  );
 }
 
 function splitName(full: string) {
@@ -102,8 +126,12 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
   const ts = useTranslations("register.advocate.stats");
   const tv = useTranslations("register.advocate.review");
   const tcm = useTranslations("portal.common");
+  const tc = useTranslations("common");
   const locale = useLocale() as CatalogLocale;
   const { session, update } = useAuth();
+  const fid = useId();
+  const [tab, pick] = useUrlTab(SELLER_TABS, "personal");
+  const [tried, setTried] = useState(false);
   const uid = session?.id ?? "";
   const isAdvocate = role === "advocate";
 
@@ -163,9 +191,16 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       return { ...x, firstName, lastName, middleName, name: `${firstName} ${lastName} ${middleName}`.replace(/\s+/g, " ").trim() };
     });
   const livePct = Math.max(session?.completeness ?? 0, scoreCompleteness(isAdvocate ? "advocate" : "lawyer", d));
+  const nameErr = (v?: string) => (!v?.trim() ? tc("required") : v.trim().length < 2 ? t("errors.nameShort") : "");
+  const errs = { lastName: nameErr(d.lastName), firstName: nameErr(d.firstName), email: d.email?.trim() && !EMAIL.test(d.email.trim()) ? t("errors.emailInvalid") : "" };
+  const shown = (k: keyof typeof errs) => (tried && section === "personal" ? errs[k] : "");
 
   async function save() {
     if (busy) return;
+    if (section === "personal" && (errs.lastName || errs.firstName || errs.email)) {
+      setTried(true);
+      return;
+    }
     const won = (d.stats?.fullyWonCases || 0) + (d.stats?.partiallyWonCases || 0);
     if ((d.stats?.totalCases ?? 0) < won) { setNote({ ok: false, msg: t("statsError") }); return; }
     if (d.hourlyPrice && (d.hourlyPrice < quote.min || d.hourlyPrice > quote.max)) { setNote({ ok: false, msg: tp("priceRange", { min: fmtUzs(quote.min), max: fmtUzs(quote.max) }) }); return; }
@@ -194,6 +229,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       setSaved(d);
       update({ completeness: livePct, profile: d, ...(d.name ? { name: d.name } : {}) });
       setNote({ ok: true, msg: t("saved") });
+      setTried(false);
       setSection(null);
     } catch {
       setNote({ ok: false, msg: t("saveError") });
@@ -201,7 +237,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       setBusy(false);
     }
   }
-  function cancel() { setD(saved); setVacation(readVacation(uid)); setNote(null); setSection(null); }
+  function cancel() { setD(saved); setVacation(readVacation(uid)); setNote(null); setTried(false); setSection(null); }
 
   async function verify() {
     if (vbusy) return;
@@ -273,201 +309,278 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
     isAdvocate && !d.licenseNumber && tr("advocate.license"), !d.practiceAreas.length && t("directionsTitle"), !d.bio && tr("fields.bio"), !d.hourlyPrice && tp("f.price"),
   ].filter(Boolean) as string[];
 
+  const pPersonal = panel("personal", ico(IconUser), tp("personal"),
+    kv([
+      [tr("fields.lastName"), d.lastName], [tr("fields.firstName"), d.firstName], [tr("fields.middleName"), d.middleName],
+      [tr("fields.email"), d.email], [tr("fields.region"), regionLabel(d.region)], [tp("district"), d.district],
+      [tp("genderLabel"), d.gender ? tp(`gender.${d.gender}`) : ""], [tr("fields.languages"), d.languages.map(langLabel).join(", "), true],
+    ]),
+    <div className="cform" style={{ maxWidth: "none" }}>
+      <PhotoUpload value={d.photo} name={d.name} onChange={(u) => set({ photo: u })} label={tr("fields.photo")} hint={tr("fields.photoHint")} />
+      <div className="cform__row3">
+        <div><label htmlFor={`${fid}-lastName`}>{tr("fields.lastName")}</label><input id={`${fid}-lastName`} aria-invalid={shown("lastName") ? true : undefined} aria-describedby={shown("lastName") ? `${fid}-lastName-err` : undefined} value={d.lastName ?? ""} onChange={(e) => setName({ lastName: e.target.value })} /><FieldError id={`${fid}-lastName-err`} msg={shown("lastName")} /></div>
+        <div><label htmlFor={`${fid}-firstName`}>{tr("fields.firstName")}</label><input id={`${fid}-firstName`} aria-invalid={shown("firstName") ? true : undefined} aria-describedby={shown("firstName") ? `${fid}-firstName-err` : undefined} value={d.firstName ?? ""} onChange={(e) => setName({ firstName: e.target.value })} /><FieldError id={`${fid}-firstName-err`} msg={shown("firstName")} /></div>
+        <div><label>{tr("fields.middleName")}</label><input value={d.middleName ?? ""} onChange={(e) => setName({ middleName: e.target.value })} /></div>
+      </div>
+      <div className="cform__row2">
+        <div><label htmlFor={`${fid}-email`}>{tr("fields.email")}</label><input id={`${fid}-email`} aria-invalid={shown("email") ? true : undefined} aria-describedby={shown("email") ? `${fid}-email-err` : undefined} type="email" value={d.email ?? ""} onChange={(e) => set({ email: e.target.value })} placeholder={tr("fields.emailPh")} /><FieldError id={`${fid}-email-err`} msg={shown("email")} /></div>
+        <div><label>{tr("fields.phone")}</label><input value={session?.phone ?? ""} readOnly className="rf__ro" /></div>
+      </div>
+      <div className="cform__row3">
+        <div><label>{tr("fields.region")}</label><Select value={regionKeyOf(d.region)} onChange={(v) => set({ region: v })} options={regionOpts} ariaLabel={tr("fields.region")} placeholder={tr("fields.regionPh")} /></div>
+        <div><label>{tp("district")}</label><input value={d.district ?? ""} onChange={(e) => set({ district: e.target.value })} placeholder={tp("districtPh")} /></div>
+        <div><label>{tp("genderLabel")}</label><Select value={d.gender ?? ""} onChange={(v) => set({ gender: v })} options={genderOpts} ariaLabel={tp("genderLabel")} placeholder={tp("genderPh")} /></div>
+      </div>
+      <div>
+        <label>{tr("fields.languages")}</label>
+        <ChipMulti options={LANG_KEYS.map((k) => ({ value: k, label: langLabel(k) }))} value={d.languages} onChange={(v) => set({ languages: v })} />
+      </div>
+    </div>,
+  );
+
+  const pProfessional = panel("professional", ico(IconAward), tp("professional"),
+    kv([
+      ...(isAdvocate ? ([
+        [tr("advocate.license"), d.licenseNumber],
+        [tr("advocate.specialization"), d.specialization ? (tr.has(`advocate.specOptions.${d.specialization}`) ? tr(`advocate.specOptions.${d.specialization}`) : d.specialization) : ""],
+        [tr("advocate.structure"), d.advocateStructure ? (tr.has(`advocate.structureOptions.${d.advocateStructure}`) ? tr(`advocate.structureOptions.${d.advocateStructure}`) : d.advocateStructure) : ""],
+        [tr("advocate.orgName"), d.orgName],
+        [tr("advocate.advExp"), years(d.advocateYears)],
+      ] as [string, ReactNode][]) : []),
+      [isAdvocate ? tr("advocate.lawExp") : tr("lawyer.expLabel"), years(d.lawyerYears ?? d.experienceYears)],
+      [tr("fields.education"), d.education, true], [tr("fields.bio"), d.bio, true],
+    ]),
+    <div className="cform" style={{ maxWidth: "none" }}>
+      {isAdvocate ? (
+        <>
+          <div className="cform__row2">
+            <div><label>{tr("advocate.license")}</label><input value={d.licenseNumber ?? ""} onChange={(e) => set({ licenseNumber: e.target.value })} placeholder={tr("advocate.licensePh")} /></div>
+            <div><label>{tr("advocate.specialization")}</label><Select value={d.specialization ?? ""} onChange={(v) => set({ specialization: v })} options={specOpts} ariaLabel={tr("advocate.specialization")} placeholder={tr("advocate.specPlaceholder")} /></div>
+          </div>
+          <div className="cform__row2">
+            <div><label>{tr("advocate.structure")}</label><Select value={d.advocateStructure ?? ""} onChange={(v) => set({ advocateStructure: v })} options={structureOpts} ariaLabel={tr("advocate.structure")} placeholder={tr("advocate.structurePlaceholder")} /></div>
+            <div><label>{tr("advocate.orgName")}</label><input value={d.orgName ?? ""} onChange={(e) => set({ orgName: e.target.value })} placeholder={tr("advocate.orgNamePh")} /></div>
+          </div>
+          <div className="cform__row2">
+            <div><label>{tr("advocate.advExp")}</label><input type="number" min={0} value={d.advocateYears ?? ""} onChange={(e) => set({ advocateYears: parseInt(e.target.value || "0", 10) || 0 })} /></div>
+            <div><label>{tr("advocate.lawExp")}</label><input type="number" min={0} value={d.lawyerYears ?? ""} onChange={(e) => set({ lawyerYears: parseInt(e.target.value || "0", 10) || 0 })} /></div>
+          </div>
+          <div>
+            <label>{tr("advocate.licenseDoc")}</label>
+            <PhotoUpload value={d.licenseDoc?.startsWith("data:") ? d.licenseDoc : undefined} name="" capture="environment" onChange={(u) => set({ licenseDoc: u })} label={tr("advocate.upload")} hint={d.licenseDoc ? tr("advocate.uploaded") : tr("advocate.licenseHint")} />
+          </div>
+        </>
+      ) : (
+        <div className="cform__row2">
+          <div><label>{tr("lawyer.expLabel")}</label><input type="number" min={0} value={d.lawyerYears ?? d.experienceYears ?? ""} onChange={(e) => { const n = parseInt(e.target.value || "0", 10) || 0; set({ lawyerYears: n, experienceYears: n }); }} /></div>
+        </div>
+      )}
+      <div><label>{tr("fields.education")}</label><input value={d.education ?? ""} onChange={(e) => set({ education: e.target.value })} placeholder={tr("fields.educationPh")} /></div>
+      <div><label>{tr("fields.bio")}</label><textarea rows={4} value={d.bio ?? ""} onChange={(e) => set({ bio: e.target.value })} placeholder={tr("fields.bioPh")} maxLength={1000} /></div>
+    </div>,
+  );
+
+  const pAreas = panel("areas", ico(IconScale), t("detailsTitle"),
+    <>
+      <label className="pkv__lbl">{t("directionsTitle")}</label>
+      {d.practiceAreas.length ? (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>{d.practiceAreas.map((a) => <span className="chip" key={a}>{legalServiceLabel(a, locale)}</span>)}</div>
+      ) : <p className="advmuted" style={{ marginBottom: 16 }}>{t("emptyInfo")}</p>}
+      <label className="pkv__lbl">{t("statsTitle")}</label>
+      {(d.stats?.totalCases ?? 0) < 5 ? <p className="advmuted" style={{ fontSize: ".82rem", marginBottom: 8 }}>{tp("statsCollecting", { n: d.stats?.totalCases ?? 0 })}</p> : null}
+      <div className="amet">
+        <div className="amet__c"><b>{d.stats?.totalCases ?? 0}</b><span className="amet__l">{ts("totalCases")}</span></div>
+        <div className="amet__c"><b>{d.stats?.fullyWonCases ?? 0}</b><span className="amet__l">{ts("fullyWonCases")}</span></div>
+        <div className="amet__c"><b>{d.stats?.partiallyWonCases ?? 0}</b><span className="amet__l">{ts("partiallyWonCases")}</span></div>
+        <div className="amet__c"><b>{(d.stats?.totalCases ?? 0) >= 5 ? `${d.stats?.successRate ?? 0}%` : "—"}</b><span className="amet__l">{ts("successRate")}</span></div>
+      </div>
+    </>,
+    <>
+      <label className="advmuted" style={{ display: "block", marginBottom: 8 }}>{t("directionsTitle")}</label>
+      <LegalServicePicker value={d.practiceAreas} onChange={(v) => set({ practiceAreas: v })} isAdvocate={isAdvocate} />
+      <label className="advmuted" style={{ display: "block", margin: "18px 0 8px" }}>{t("statsTitle")}</label>
+      <StatsEditor value={d.stats ?? ZERO_STATS} onChange={(v) => set({ stats: v })} />
+    </>,
+  );
+
+  const pPrice = panel("price", ico(IconCard), tp("pricing"),
+    kv([[tp("f.price"), d.hourlyPrice ? `${fmtUzs(d.hourlyPrice)} ${tp("som")}` : ""], [tr("advocate.pricing.recommended"), tp("recommended", { min: fmtUzs(quote.min), max: fmtUzs(quote.max) })]]),
+    <div className="cform" style={{ maxWidth: "none" }}>
+      <div className="rf__benefit"><b>{tr("advocate.pricing.recommended")}</b><p>{tp("recommended", { min: fmtUzs(quote.min), max: fmtUzs(quote.max) })}</p></div>
+      <div className="cform__row2">
+        <div><label>{tp("f.price")}</label><input inputMode="numeric" value={d.hourlyPrice ? String(d.hourlyPrice) : ""} onChange={(e) => set({ hourlyPrice: parseInt(e.target.value.replace(/\D/g, "") || "0", 10) || 0 })} placeholder="500000" /><p className="rf__hint">{tp("priceHint")}</p></div>
+      </div>
+    </div>,
+  );
+
+  const pHours = panel("hours", ico(IconClock), tp("hours"),
+    <>
+      {kv([
+        [tr("advocate.expertise.hours"), <span className="pdays" key="days">{WEEK_DAYS.map((k) => <i key={k} className={d.workDays.includes(k) ? "on" : ""}>{dayLabel(k)}</i>)}<em>{d.workFrom}–{d.workTo}</em></span>],
+        [tp("vacation"), <span key="vac" className={`pstate ${vacation ? "pstate--off" : "pstate--on"}`}>{vacation ? <IconSun /> : <IconCheck />}{vacation ? tp("vacationOn") : tp("vacationOff")}</span>],
+        [tp("deadlines"), <span key="dl" className="pdays"><i className="on">{tp("dlManual", { n: deadlines.manual })}</i><i className="on">{tp("dlAuto", { n: deadlines.auto })}</i><i className="on">{tp("dlSos", { n: deadlines.sos })}</i></span>],
+      ])}
+      <p className="rf__hint" style={{ marginTop: 8 }}>{availSource === "custom" ? tp("availCustom") : availSource === "default" ? tp("availDefault") : tp("availLocal")}</p>
+      {vacation ? <p className="anote anote--err" style={{ marginTop: 10 }}>{tp("vacationNote")}</p> : null}
+    </>,
+    <div className="cform" style={{ maxWidth: "none" }}>
+      <div>
+        <label>{tr("advocate.expertise.hours")}</label>
+        <ChipMulti options={WEEK_DAYS.map((k) => ({ value: k, label: dayLabel(k) }))} value={d.workDays} onChange={(v) => set({ workDays: v })} />
+      </div>
+      <div className="cform__row2">
+        <div><label>{tr("advocate.expertise.from")}</label><TimePicker value={d.workFrom} onChange={(v) => set({ workFrom: v })} placeholder="09:00" ariaLabel={tr("advocate.expertise.from")} step={15} /></div>
+        <div><label>{tr("advocate.expertise.to")}</label><TimePicker value={d.workTo} onChange={(v) => set({ workTo: v })} placeholder="18:00" ariaLabel={tr("advocate.expertise.to")} step={15} /></div>
+      </div>
+      <div>
+        <label>{tp("deadlines")}</label>
+        <div className="cform__row3">
+          <div><label>{tp("dlManualLabel")}</label><input type="number" min={1} max={1440} value={deadlines.manual} onChange={(e) => setDeadlines((x) => ({ ...x, manual: Math.max(1, Math.min(1440, parseInt(e.target.value || "30", 10) || 30)) }))} /></div>
+          <div><label>{tp("dlAutoLabel")}</label><input type="number" min={1} max={1440} value={deadlines.auto} onChange={(e) => setDeadlines((x) => ({ ...x, auto: Math.max(1, Math.min(1440, parseInt(e.target.value || "15", 10) || 15)) }))} /></div>
+          <div><label>{tp("dlSosLabel")}</label><input type="number" min={1} max={1440} value={deadlines.sos} onChange={(e) => setDeadlines((x) => ({ ...x, sos: Math.max(1, Math.min(1440, parseInt(e.target.value || "5", 10) || 5)) }))} /></div>
+        </div>
+        <p className="rf__hint">{tp("deadlinesHint")}</p>
+      </div>
+      <label className={`vac${vacation ? " on" : ""}`} style={{ justifySelf: "start" }}>
+        <input type="checkbox" checked={vacation} onChange={(e) => setVacation(e.target.checked)} />
+        <IconSun />{vacation ? tp("vacationOn") : tp("vacationOff")}
+      </label>
+      <p className="rf__hint">{tp("vacationHint")}</p>
+    </div>,
+  );
+
+  const pHistory = panel("history", ico(IconBriefcase), tr("advocate.work.title"),
+    d.workHistory.length ? (
+      <div className="alist">
+        {d.workHistory.map((w) => (
+          <div className="creq" key={w.id}><span className="creq__st" /><div className="creq__m"><b>{w.position} — {w.org}</b><span>{w.start}{w.current ? ` — ${tp("now")}` : w.end ? ` — ${w.end}` : ""}{w.achievements ? ` · ${w.achievements}` : ""}</span></div></div>
+        ))}
+      </div>
+    ) : <p className="advmuted">{t("emptyInfo")}</p>,
+    <WorkHistoryEditor value={d.workHistory} onChange={(v) => set({ workHistory: v })} />,
+  );
+
+  const verifyPanel = (
+    <div className="ppanel" data-ai-target="profile:verification">
+      <div className="pverify">
+        <div><b>{t("verifyTitle")}</b><span>{t("verifyLead")}</span></div>
+        <button className="btn btn--pri btn--sm" type="button" onClick={verify} disabled={vbusy} data-ai-target="button:request-verification"><IconShieldCheck />{vbusy ? t("verifySending") : t("verifyCta")}</button>
+      </div>
+      {vnote ? <Notice ok={vnote.ok} msg={vnote.msg} /> : null}
+    </div>
+  );
+  const panels: Record<SellerTab, ReactNode> = {
+    personal: (
+      <div className="cprofile__stack">
+        {pPersonal}
+        {verifyPanel}
+        <IdentityVerify />
+      </div>
+    ),
+    professional: (
+      <div className="cprofile__stack">
+        {pProfessional}
+        {pAreas}
+        {pHistory}
+        <MyServices userId={uid} />
+      </div>
+    ),
+    work: (
+      <div className="cprofile__stack">
+        {pPrice}
+        {pHours}
+      </div>
+    ),
+    security: (
+      <div className="cprofile__stack">
+        <div className="pgrid2">
+          <TwoFactorCard />
+          <TelegramLinkCard />
+        </div>
+        <AccountAudit />
+      </div>
+    ),
+    notifications: <NotificationPrefsCard />,
+  };
+  const items: TabItem<SellerTab>[] = SELLER_TABS.map((k) => {
+    const Icon = TAB_ICON[k];
+    return { key: k, label: t(`tabs.${k}`), icon: <Icon />, panel: panels[k], lazy: true };
+  });
+  const status = session?.accountStatus;
+  const fullName = [saved.lastName, saved.firstName, saved.middleName].filter(Boolean).join(" ") || saved.name;
+
   return (
     <div className="advprofile">
-      <div className="ppanel" data-ai-target="profile:visibility">
-        <div className="ppanel__h">
-          <b>{t("title")}</b>
-          <span className="advmuted">{t("visibility", { pct: livePct })}</span>
+      <section className="cprof cprof--seller" aria-label={t("title")}>
+        <div className="cprof__av" data-ai-private>
+          <PhotoUpload value={saved.photo} name={saved.name} onChange={() => {}} label="" hint="" readOnly />
         </div>
-        <div className="meter" style={{ marginBottom: 6 }}><span style={{ width: `${livePct}%` }} /></div>
-        <div className="pprev">
-          <p className="advmuted" style={{ display: "flex", gap: 8, alignItems: "center", margin: 0 }}><IconInfo style={{ width: 16, height: 16, flex: "none" }} />{t("previewNote")}</p>
-          <button className="btn btn--line btn--sm" type="button" onPointerEnter={() => setWarm(true)} onFocus={() => setWarm(true)} onClick={() => setLive(true)}><IconEye />{tl("open")}</button>
+        <div className="cprof__main">
+          <div className="cprof__name">
+            <h2>{fullName || "—"}</h2>
+            <span className="cprof__role">{isAdvocate ? tcm("roleAdvocate") : tcm("roleLawyer")}</span>
+            {status === "active" ? (
+              <span className="tfa__on">
+                <IconShieldCheck />
+                {t("statusVerified")}
+              </span>
+            ) : status === "pending" ? (
+              <span className="cprof__pend">
+                <IconClock />
+                {t("statusPending")}
+              </span>
+            ) : null}
+          </div>
+          <ul className="cprof__meta" data-ai-private>
+            {session?.lexgoId ? (
+              <li className="cprof__id" title={t("myId")}>
+                <span>{t("myId")}</span>
+                <b>{session.lexgoId}</b>
+              </li>
+            ) : null}
+            {session?.phone ? (
+              <li>
+                <IconPhone aria-hidden="true" />
+                {session.phone}
+              </li>
+            ) : null}
+            <li className={saved.email ? undefined : "is-miss"}>
+              <IconMail aria-hidden="true" />
+              {saved.email || t("emailMissing")}
+            </li>
+            {saved.region ? (
+              <li>
+                <IconMapPin aria-hidden="true" />
+                {[regionLabel(saved.region), saved.district].filter(Boolean).join(", ")}
+              </li>
+            ) : null}
+          </ul>
         </div>
-        {missing.length ? <p className="advmuted" style={{ fontSize: ".82rem" }}>{tp("missing")}: {missing.join(", ")}</p> : null}
-        <div className="pverify">
-          <div><b>{t("verifyTitle")}</b><span>{t("verifyLead")}</span></div>
-          <button className="btn btn--pri btn--sm" type="button" onClick={verify} disabled={vbusy} data-ai-target="button:request-verification"><IconShieldCheck />{vbusy ? t("verifySending") : t("verifyCta")}</button>
+        <div className="cprof__fill" data-ai-target="profile:visibility">
+          <div className="cprof__fillh">
+            <span>{t("completeness")}</span>
+            <b>{livePct}%</b>
+          </div>
+          <div className="meter">
+            <span style={{ width: `${livePct}%` }} />
+          </div>
+          <button className="btn btn--line btn--sm" type="button" onPointerEnter={() => setWarm(true)} onFocus={() => setWarm(true)} onClick={() => setLive(true)}>
+            <IconEye />
+            {tl("open")}
+          </button>
         </div>
-        {vnote ? <Notice ok={vnote.ok} msg={vnote.msg} /> : null}
-        {note && !section ? <Notice ok={note.ok} msg={note.msg} /> : null}
-      </div>
+        {missing.length ? (
+          <p className="cprof__miss">
+            <IconInfo aria-hidden="true" />
+            <span>{tp("missing")}: {missing.join(", ")}</span>
+          </p>
+        ) : null}
+      </section>
 
-      {panel("personal", ico(IconUser), tp("personal"),
-        <div className="pident">
-          <div className="pident__card">
-            <PhotoUpload value={d.photo} name={d.name} onChange={() => {}} label="" hint="" readOnly />
-            <div className="pident__m">
-              <b>{[d.lastName, d.firstName, d.middleName].filter(Boolean).join(" ") || d.name || "—"}</b>
-              <span className="pident__role">{isAdvocate ? tcm("roleAdvocate") : tcm("roleLawyer")}{d.gender ? ` · ${tp(`gender.${d.gender}`)}` : ""}</span>
-              <div className="pident__chips">
-                {session?.phone ? <span><IconPhone />{session.phone}</span> : null}
-                {d.email ? <span><IconMail />{d.email}</span> : <span className="miss"><IconMail />{tr("fields.email")}: —</span>}
-                {d.region ? <span><IconMapPin />{[regionLabel(d.region), d.district].filter(Boolean).join(", ")}</span> : <span className="miss"><IconMapPin />{tr("fields.region")}: —</span>}
-                {d.languages.length ? <span><IconLanguage />{d.languages.map(langLabel).join(", ")}</span> : null}
-              </div>
-            </div>
-          </div>
-          {kv([
-            [tr("fields.lastName"), d.lastName], [tr("fields.firstName"), d.firstName], [tr("fields.middleName"), d.middleName],
-            [tr("fields.region"), regionLabel(d.region)], [tp("district"), d.district], [tp("genderLabel"), d.gender ? tp(`gender.${d.gender}`) : ""],
-          ])}
-        </div>,
-        <div className="cform" style={{ maxWidth: "none" }}>
-          <PhotoUpload value={d.photo} name={d.name} onChange={(u) => set({ photo: u })} label={tr("fields.photo")} hint={tr("fields.photoHint")} />
-          <div className="cform__row3">
-            <div><label>{tr("fields.lastName")}</label><input value={d.lastName ?? ""} onChange={(e) => setName({ lastName: e.target.value })} /></div>
-            <div><label>{tr("fields.firstName")}</label><input value={d.firstName ?? ""} onChange={(e) => setName({ firstName: e.target.value })} /></div>
-            <div><label>{tr("fields.middleName")}</label><input value={d.middleName ?? ""} onChange={(e) => setName({ middleName: e.target.value })} /></div>
-          </div>
-          <div className="cform__row2">
-            <div><label>{tr("fields.email")}</label><input type="email" value={d.email ?? ""} onChange={(e) => set({ email: e.target.value })} placeholder={tr("fields.emailPh")} /></div>
-            <div><label>{tr("fields.phone")}</label><input value={session?.phone ?? ""} readOnly className="rf__ro" /></div>
-          </div>
-          <div className="cform__row3">
-            <div><label>{tr("fields.region")}</label><Select value={regionKeyOf(d.region)} onChange={(v) => set({ region: v })} options={regionOpts} ariaLabel={tr("fields.region")} placeholder={tr("fields.regionPh")} /></div>
-            <div><label>{tp("district")}</label><input value={d.district ?? ""} onChange={(e) => set({ district: e.target.value })} placeholder={tp("districtPh")} /></div>
-            <div><label>{tp("genderLabel")}</label><Select value={d.gender ?? ""} onChange={(v) => set({ gender: v })} options={genderOpts} ariaLabel={tp("genderLabel")} placeholder={tp("genderPh")} /></div>
-          </div>
-          <div>
-            <label>{tr("fields.languages")}</label>
-            <ChipMulti options={LANG_KEYS.map((k) => ({ value: k, label: langLabel(k) }))} value={d.languages} onChange={(v) => set({ languages: v })} />
-          </div>
-        </div>,
-      )}
+      {note && !section ? <Notice ok={note.ok} msg={note.msg} /> : null}
 
-      {panel("professional", ico(IconAward), tp("professional"),
-        kv([
-          ...(isAdvocate ? ([
-            [tr("advocate.license"), d.licenseNumber],
-            [tr("advocate.specialization"), d.specialization ? (tr.has(`advocate.specOptions.${d.specialization}`) ? tr(`advocate.specOptions.${d.specialization}`) : d.specialization) : ""],
-            [tr("advocate.structure"), d.advocateStructure ? (tr.has(`advocate.structureOptions.${d.advocateStructure}`) ? tr(`advocate.structureOptions.${d.advocateStructure}`) : d.advocateStructure) : ""],
-            [tr("advocate.orgName"), d.orgName],
-            [tr("advocate.advExp"), years(d.advocateYears)],
-          ] as [string, ReactNode][]) : []),
-          [isAdvocate ? tr("advocate.lawExp") : tr("lawyer.expLabel"), years(d.lawyerYears ?? d.experienceYears)],
-          [tr("fields.education"), d.education, true], [tr("fields.bio"), d.bio, true],
-        ]),
-        <div className="cform" style={{ maxWidth: "none" }}>
-          {isAdvocate ? (
-            <>
-              <div className="cform__row2">
-                <div><label>{tr("advocate.license")}</label><input value={d.licenseNumber ?? ""} onChange={(e) => set({ licenseNumber: e.target.value })} placeholder={tr("advocate.licensePh")} /></div>
-                <div><label>{tr("advocate.specialization")}</label><Select value={d.specialization ?? ""} onChange={(v) => set({ specialization: v })} options={specOpts} ariaLabel={tr("advocate.specialization")} placeholder={tr("advocate.specPlaceholder")} /></div>
-              </div>
-              <div className="cform__row2">
-                <div><label>{tr("advocate.structure")}</label><Select value={d.advocateStructure ?? ""} onChange={(v) => set({ advocateStructure: v })} options={structureOpts} ariaLabel={tr("advocate.structure")} placeholder={tr("advocate.structurePlaceholder")} /></div>
-                <div><label>{tr("advocate.orgName")}</label><input value={d.orgName ?? ""} onChange={(e) => set({ orgName: e.target.value })} placeholder={tr("advocate.orgNamePh")} /></div>
-              </div>
-              <div className="cform__row2">
-                <div><label>{tr("advocate.advExp")}</label><input type="number" min={0} value={d.advocateYears ?? ""} onChange={(e) => set({ advocateYears: parseInt(e.target.value || "0", 10) || 0 })} /></div>
-                <div><label>{tr("advocate.lawExp")}</label><input type="number" min={0} value={d.lawyerYears ?? ""} onChange={(e) => set({ lawyerYears: parseInt(e.target.value || "0", 10) || 0 })} /></div>
-              </div>
-              <div>
-                <label>{tr("advocate.licenseDoc")}</label>
-                <PhotoUpload value={d.licenseDoc?.startsWith("data:") ? d.licenseDoc : undefined} name="" capture="environment" onChange={(u) => set({ licenseDoc: u })} label={tr("advocate.upload")} hint={d.licenseDoc ? tr("advocate.uploaded") : tr("advocate.licenseHint")} />
-              </div>
-            </>
-          ) : (
-            <div className="cform__row2">
-              <div><label>{tr("lawyer.expLabel")}</label><input type="number" min={0} value={d.lawyerYears ?? d.experienceYears ?? ""} onChange={(e) => { const n = parseInt(e.target.value || "0", 10) || 0; set({ lawyerYears: n, experienceYears: n }); }} /></div>
-            </div>
-          )}
-          <div><label>{tr("fields.education")}</label><input value={d.education ?? ""} onChange={(e) => set({ education: e.target.value })} placeholder={tr("fields.educationPh")} /></div>
-          <div><label>{tr("fields.bio")}</label><textarea rows={4} value={d.bio ?? ""} onChange={(e) => set({ bio: e.target.value })} placeholder={tr("fields.bioPh")} maxLength={1000} /></div>
-        </div>,
-      )}
+      <Tabs<SellerTab> items={items} value={tab} onChange={pick} label={t("tabsLabel")} aiId="profile" className="cprofile__tabs" reveal={TAB_REVEAL} />
 
-      {panel("areas", ico(IconScale), t("detailsTitle"),
-        <>
-          <label className="pkv__lbl">{t("directionsTitle")}</label>
-          {d.practiceAreas.length ? (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>{d.practiceAreas.map((a) => <span className="chip" key={a}>{legalServiceLabel(a, locale)}</span>)}</div>
-          ) : <p className="advmuted" style={{ marginBottom: 16 }}>{t("emptyInfo")}</p>}
-          <label className="pkv__lbl">{t("statsTitle")}</label>
-          {(d.stats?.totalCases ?? 0) < 5 ? <p className="advmuted" style={{ fontSize: ".82rem", marginBottom: 8 }}>{tp("statsCollecting", { n: d.stats?.totalCases ?? 0 })}</p> : null}
-          <div className="amet">
-            <div className="amet__c"><b>{d.stats?.totalCases ?? 0}</b><span className="amet__l">{ts("totalCases")}</span></div>
-            <div className="amet__c"><b>{d.stats?.fullyWonCases ?? 0}</b><span className="amet__l">{ts("fullyWonCases")}</span></div>
-            <div className="amet__c"><b>{d.stats?.partiallyWonCases ?? 0}</b><span className="amet__l">{ts("partiallyWonCases")}</span></div>
-            <div className="amet__c"><b>{(d.stats?.totalCases ?? 0) >= 5 ? `${d.stats?.successRate ?? 0}%` : "—"}</b><span className="amet__l">{ts("successRate")}</span></div>
-          </div>
-        </>,
-        <>
-          <label className="advmuted" style={{ display: "block", marginBottom: 8 }}>{t("directionsTitle")}</label>
-          <LegalServicePicker value={d.practiceAreas} onChange={(v) => set({ practiceAreas: v })} isAdvocate={isAdvocate} />
-          <label className="advmuted" style={{ display: "block", margin: "18px 0 8px" }}>{t("statsTitle")}</label>
-          <StatsEditor value={d.stats ?? ZERO_STATS} onChange={(v) => set({ stats: v })} />
-        </>,
-      )}
-
-      {panel("price", ico(IconCard), tp("pricing"),
-        kv([[tp("f.price"), d.hourlyPrice ? `${fmtUzs(d.hourlyPrice)} ${tp("som")}` : ""], [tr("advocate.pricing.recommended"), tp("recommended", { min: fmtUzs(quote.min), max: fmtUzs(quote.max) })]]),
-        <div className="cform" style={{ maxWidth: "none" }}>
-          <div className="rf__benefit"><b>{tr("advocate.pricing.recommended")}</b><p>{tp("recommended", { min: fmtUzs(quote.min), max: fmtUzs(quote.max) })}</p></div>
-          <div className="cform__row2">
-            <div><label>{tp("f.price")}</label><input inputMode="numeric" value={d.hourlyPrice ? String(d.hourlyPrice) : ""} onChange={(e) => set({ hourlyPrice: parseInt(e.target.value.replace(/\D/g, "") || "0", 10) || 0 })} placeholder="500000" /><p className="rf__hint">{tp("priceHint")}</p></div>
-          </div>
-        </div>,
-      )}
-
-      {panel("hours", ico(IconClock), tp("hours"),
-        <>
-          {kv([
-            [tr("advocate.expertise.hours"), <span className="pdays" key="days">{WEEK_DAYS.map((k) => <i key={k} className={d.workDays.includes(k) ? "on" : ""}>{dayLabel(k)}</i>)}<em>{d.workFrom}–{d.workTo}</em></span>],
-            [tp("vacation"), <span key="vac" className={`pstate ${vacation ? "pstate--off" : "pstate--on"}`}>{vacation ? <IconSun /> : <IconCheck />}{vacation ? tp("vacationOn") : tp("vacationOff")}</span>],
-            [tp("deadlines"), <span key="dl" className="pdays"><i className="on">{tp("dlManual", { n: deadlines.manual })}</i><i className="on">{tp("dlAuto", { n: deadlines.auto })}</i><i className="on">{tp("dlSos", { n: deadlines.sos })}</i></span>],
-          ])}
-          <p className="rf__hint" style={{ marginTop: 8 }}>{availSource === "custom" ? tp("availCustom") : availSource === "default" ? tp("availDefault") : tp("availLocal")}</p>
-          {vacation ? <p className="anote anote--err" style={{ marginTop: 10 }}>{tp("vacationNote")}</p> : null}
-        </>,
-        <div className="cform" style={{ maxWidth: "none" }}>
-          <div>
-            <label>{tr("advocate.expertise.hours")}</label>
-            <ChipMulti options={WEEK_DAYS.map((k) => ({ value: k, label: dayLabel(k) }))} value={d.workDays} onChange={(v) => set({ workDays: v })} />
-          </div>
-          <div className="cform__row2">
-            <div><label>{tr("advocate.expertise.from")}</label><TimePicker value={d.workFrom} onChange={(v) => set({ workFrom: v })} placeholder="09:00" ariaLabel={tr("advocate.expertise.from")} step={15} /></div>
-            <div><label>{tr("advocate.expertise.to")}</label><TimePicker value={d.workTo} onChange={(v) => set({ workTo: v })} placeholder="18:00" ariaLabel={tr("advocate.expertise.to")} step={15} /></div>
-          </div>
-          <div>
-            <label>{tp("deadlines")}</label>
-            <div className="cform__row3">
-              <div><label>{tp("dlManualLabel")}</label><input type="number" min={1} max={1440} value={deadlines.manual} onChange={(e) => setDeadlines((x) => ({ ...x, manual: Math.max(1, Math.min(1440, parseInt(e.target.value || "30", 10) || 30)) }))} /></div>
-              <div><label>{tp("dlAutoLabel")}</label><input type="number" min={1} max={1440} value={deadlines.auto} onChange={(e) => setDeadlines((x) => ({ ...x, auto: Math.max(1, Math.min(1440, parseInt(e.target.value || "15", 10) || 15)) }))} /></div>
-              <div><label>{tp("dlSosLabel")}</label><input type="number" min={1} max={1440} value={deadlines.sos} onChange={(e) => setDeadlines((x) => ({ ...x, sos: Math.max(1, Math.min(1440, parseInt(e.target.value || "5", 10) || 5)) }))} /></div>
-            </div>
-            <p className="rf__hint">{tp("deadlinesHint")}</p>
-          </div>
-          <label className={`vac${vacation ? " on" : ""}`} style={{ justifySelf: "start" }}>
-            <input type="checkbox" checked={vacation} onChange={(e) => setVacation(e.target.checked)} />
-            <IconSun />{vacation ? tp("vacationOn") : tp("vacationOff")}
-          </label>
-          <p className="rf__hint">{tp("vacationHint")}</p>
-        </div>,
-      )}
-
-      {panel("history", ico(IconBriefcase), tr("advocate.work.title"),
-        d.workHistory.length ? (
-          <div className="alist">
-            {d.workHistory.map((w) => (
-              <div className="creq" key={w.id}><span className="creq__st" /><div className="creq__m"><b>{w.position} — {w.org}</b><span>{w.start}{w.current ? ` — ${tp("now")}` : w.end ? ` — ${w.end}` : ""}{w.achievements ? ` · ${w.achievements}` : ""}</span></div></div>
-            ))}
-          </div>
-        ) : <p className="advmuted">{t("emptyInfo")}</p>,
-        <WorkHistoryEditor value={d.workHistory} onChange={(v) => set({ workHistory: v })} />,
-      )}
-
-      <MyServices userId={uid} />
-      {/* T0-10 §4: identity verification is mandatory for advocates/lawyers once MyID is live. */}
-      <IdentityVerify />
-      <div className="pgrid2">
-        <TwoFactorCard />
-        <TelegramLinkCard />
-      </div>
-      <NotificationPrefsCard />
-      <AccountAudit />
       {warm || live ? (
         <MarketPreviewModal
           open={live}

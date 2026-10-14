@@ -10068,6 +10068,23 @@
         "servicesTitle": "My services",
         "servicesEmpty": "No services yet",
         "servicesEmptyText": "Add services from registration or profile setup.",
+        "tabs": {
+          "personal": "Personal",
+          "professional": "Professional",
+          "work": "Pricing & hours",
+          "security": "Security",
+          "notifications": "Notifications"
+        },
+        "tabsLabel": "Profile sections",
+        "statusVerified": "Verified",
+        "statusPending": "Under review",
+        "completeness": "Profile completeness",
+        "emailMissing": "No email added",
+        "myId": "My ID",
+        "errors": {
+          "nameShort": "Enter at least 2 letters",
+          "emailInvalid": "Invalid email, for example name@mail.uz"
+        },
         "form": {
           "personal": "Personal details",
           "professional": "Professional details",
@@ -12680,6 +12697,38 @@
     },
     "title": "Admin",
     "badge": "Admin",
+    "profile": {
+      "title": "Profile",
+      "accountTitle": "Account details",
+      "edit": "Edit",
+      "editTitle": "Edit profile",
+      "name": "Name",
+      "phone": "Phone",
+      "email": "Email",
+      "photo": "Photo",
+      "photoHint": "JPG or PNG, up to 512×512",
+      "myId": "My ID",
+      "roles": "Roles",
+      "permissions": "Permissions",
+      "permCount": "{n, plural, one {# permission} other {# permissions}}",
+      "phoneNote": "Your phone number is used to sign in. Ask an administrator to change it.",
+      "emailMissing": "No email added",
+      "loadError": "Couldn't load your profile",
+      "tabs": {
+        "personal": "Personal",
+        "security": "Security",
+        "notifications": "Notifications"
+      },
+      "tabsLabel": "Profile sections",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Saved.",
+      "saveFailed": "Couldn't save",
+      "errors": {
+        "nameShort": "Enter at least 2 letters",
+        "emailInvalid": "Invalid email, for example name@mail.uz"
+      }
+    },
     "backToPortal": "Back to portal",
     "logout": "Log out",
     "menu": "Menu",
@@ -12698,6 +12747,7 @@
     },
     "nav": {
       "templateEditor": "Template editor",
+      "profile": "Profile",
       "liveOffice": "Live office",
       "studio": "Studio",
       "aiReglaments": "AI regulations",
