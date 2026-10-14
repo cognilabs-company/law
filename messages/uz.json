@@ -19277,5 +19277,63 @@
         "occupiedHint": "Bo'limdagi / ichki bo'limlar bilan xodimlar"
       }
     }
+  },
+  "sellerPackages": {
+    "tabsLabel": "Xizmatlar va paketlar bo'limlari",
+    "tabServices": "Xizmatlar",
+    "tabPackages": "Paketlar",
+    "title": "Xizmat paketlari",
+    "lead": "Paketlarni LexGo Studio yaratadi. Siz qaysi paket va tarifni bajarishingizni tanlaysiz — shundan keyin mijozlar paket uchun sizni tanlay oladi.",
+    "priceRule": "Paket narxi va tarkibini LexGo belgilaydi — ularni o'zgartirib bo'lmaydi.",
+    "stats": {
+      "active": "Yoqilgan",
+      "available": "Yoqish mumkin",
+      "blocked": "Mos emas"
+    },
+    "filters": {
+      "label": "Holat",
+      "all": "Hammasi",
+      "active": "Yoqilgan",
+      "available": "Yoqish mumkin",
+      "blocked": "Mos emas"
+    },
+    "search": "Paket nomi yoki toifa…",
+    "refresh": "Yangilash",
+    "state": {
+      "active": "Faol",
+      "paused": "To'xtatilgan",
+      "available": "Yoqilmagan",
+      "blocked": "Mos emas"
+    },
+    "fixedPrice": "Narx qat'iy — o'zgartirilmaydi",
+    "extendedOk": "Kengaytirilgan tekshiruvdan o'tgansiz",
+    "extendedNeeded": "Bu tarif uchun LexGo kengaytirilgan tekshiruvi kerak",
+    "notEligible": "Hozircha bu tarifni yoqib bo'lmaydi",
+    "missingServices": "Paketdagi {n} ta xizmat sizda yoqilmagan — avval ularni «Xizmatlar» bo'limida yoqing.",
+    "reasons": {
+      "extended_verification_required": "LexGo kengaytirilgan tekshiruvidan o'tish kerak",
+      "base_verification_required": "Profilingiz hali tasdiqlanmagan",
+      "required_services_disabled": "Paketga kiruvchi xizmatlar sizda yoqilmagan",
+      "provider_tier_mismatch": "Darajangiz bu tarifga mos emas",
+      "package_seller_profile_missing": "Marketplace profilingiz to'ldirilmagan"
+    },
+    "enable": "Yoqish",
+    "disable": "To'xtatish",
+    "activate": "Qayta yoqish",
+    "saving": "Saqlanmoqda…",
+    "toast": {
+      "enable": "Paket yoqildi — mijozlar endi sizni tanlay oladi",
+      "active": "Paket qayta yoqildi",
+      "disabled": "Paket to'xtatildi — yangi buyurtmalar kelmaydi"
+    },
+    "actionFailed": "Amal bajarilmadi. Qayta urinib ko'ring.",
+    "empty": "Hozircha faol paket yo'q",
+    "emptyText": "LexGo Studio yangi paket e'lon qilganda u shu yerda chiqadi.",
+    "noMatch": "Filtrga mos paket topilmadi",
+    "lockedTitle": "Paketlar yopiq",
+    "lockedText": "Paketlarni faqat tasdiqlangan advokat va yuristlar yoqa oladi.",
+    "errorTitle": "Paketlar yuklanmadi",
+    "errorText": "Internetni tekshirib, qayta urinib ko'ring.",
+    "retry": "Qayta urinish"
   }
 }

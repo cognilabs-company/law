@@ -19271,5 +19271,63 @@
         "occupiedHint": "People in the unit / with sub-units"
       }
     }
+  },
+  "sellerPackages": {
+    "tabsLabel": "Services and packages sections",
+    "tabServices": "Services",
+    "tabPackages": "Packages",
+    "title": "Service packages",
+    "lead": "LexGo Studio creates packages. You choose which packages and tiers you deliver — then clients can pick you for that package.",
+    "priceRule": "LexGo sets the package price and content — they can't be changed.",
+    "stats": {
+      "active": "Enabled",
+      "available": "Can enable",
+      "blocked": "Not eligible"
+    },
+    "filters": {
+      "label": "Status",
+      "all": "All",
+      "active": "Enabled",
+      "available": "Can enable",
+      "blocked": "Not eligible"
+    },
+    "search": "Package name or category…",
+    "refresh": "Refresh",
+    "state": {
+      "active": "Active",
+      "paused": "Paused",
+      "available": "Not enabled",
+      "blocked": "Not eligible"
+    },
+    "fixedPrice": "Fixed price — can't be changed",
+    "extendedOk": "You passed extended verification",
+    "extendedNeeded": "This tier needs LexGo extended verification",
+    "notEligible": "This tier can't be enabled yet",
+    "missingServices": "{n} service(s) in the package aren't enabled for you — enable them in Services first.",
+    "reasons": {
+      "extended_verification_required": "LexGo extended verification is required",
+      "base_verification_required": "Your profile isn't verified yet",
+      "required_services_disabled": "The package's services aren't enabled for you",
+      "provider_tier_mismatch": "Your level doesn't match this tier",
+      "package_seller_profile_missing": "Your marketplace profile isn't complete"
+    },
+    "enable": "Enable",
+    "disable": "Pause",
+    "activate": "Enable again",
+    "saving": "Saving…",
+    "toast": {
+      "enable": "Package enabled — clients can now pick you",
+      "active": "Package enabled again",
+      "disabled": "Package paused — no new orders will arrive"
+    },
+    "actionFailed": "Couldn't complete the action. Try again.",
+    "empty": "No active packages yet",
+    "emptyText": "When LexGo Studio publishes a new package, it shows up here.",
+    "noMatch": "No packages match the filter",
+    "lockedTitle": "Packages are closed",
+    "lockedText": "Only verified advocates and lawyers can enable packages.",
+    "errorTitle": "Couldn't load packages",
+    "errorText": "Check your connection and try again.",
+    "retry": "Try again"
   }
 }
