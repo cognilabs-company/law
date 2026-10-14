@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { MASK, previewStudioDraft, type StudioPreview, type StudioSchemaField } from "@/lib/services/studio";
 import { IconAlert, IconCircleCheck, IconEye, IconHistory, IconRefresh, IconShieldCheck } from "@/components/icons";
 import { useStudioHuman } from "../human";
-import { ChecklistList, PreviewView, RiskBadge, SurfaceList } from "../guide";
+import { ChecklistList, RiskBadge, SurfaceList } from "../guide";
+import { PreviewView } from "../preview";
 
 type Dict = Record<string, unknown>;
 const SECRET = /secret|token|password|passwd|credential|api_?key|private_?key|client_?secret/i;

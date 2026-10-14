@@ -2734,7 +2734,11 @@
       "no": "No",
       "empty": "Empty",
       "listItem": "Item {n}",
-      "zoneTashkent": "Tashkent time"
+      "zoneTashkent": "Tashkent time",
+      "pv": {
+        "sum": "{n} UZS",
+        "untitled": "No title yet"
+      }
     },
     "perm": {
       "callcenter__access": "Work in the call centre",

@@ -2734,7 +2734,11 @@
       "no": "Yo'q",
       "empty": "Bo'sh",
       "listItem": "{n}-band",
-      "zoneTashkent": "Toshkent vaqti"
+      "zoneTashkent": "Toshkent vaqti",
+      "pv": {
+        "sum": "{n} so'm",
+        "untitled": "Nomi kiritilmagan"
+      }
     },
     "perm": {
       "callcenter__access": "Call-markaz bo'limida ishlash",

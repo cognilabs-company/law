@@ -19938,3 +19938,66 @@ a.hn-app:hover{background:color-mix(in srgb,var(--b600) 7%,transparent)}
 @media (max-width:560px){.tpe-mode{grid-template-columns:minmax(0,1fr)}}
 .hrmc-noedit{max-width:320px;font-size:.76rem;line-height:1.4}
 .stu-sf__kvk{display:flex;align-items:center;min-height:40px;padding:0 4px;font-size:.86rem;font-weight:700;color:var(--ink)}
+
+/* Live preview: content drawn as the page shows it. Every grid track may
+   shrink, so a long word or a row of chips wraps instead of pushing the card
+   wider than its column. */
+.stu-live2,.stu-live2__b,.stu-pv,.stu-pv__mcard,.stu-pv__paper,.stu-pv__grp,.stu-pv__block{grid-template-columns:minmax(0,1fr)}
+.stu-live2__h{min-width:0}.stu-live2__state{flex:none;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stu-live2__desc,.stu-live2__warn li{overflow-wrap:anywhere}
+.stu-pv{gap:12px}
+.stu-pv__h{font-family:var(--fd);font-size:.98rem;line-height:1.3;overflow-wrap:anywhere}
+.stu-pv__lead{margin:0;font-size:.8rem;line-height:1.5;color:var(--gray);overflow-wrap:anywhere}
+.stu-pv__paper .stu-pv__lead{color:#475569}
+.stu-pv__kv dd,.stu-pv__kv dt{overflow-wrap:anywhere;min-width:0}
+.stu-pv__chips{display:flex;flex-wrap:wrap;gap:4px;min-width:0}
+.stu-pv__chips span{max-width:100%;padding:2px 9px;border-radius:999px;background:var(--dk-surface-2,#F1F4F9);color:var(--ink);font-size:.72rem;font-weight:700;line-height:1.5;overflow-wrap:anywhere}
+.stu-pv__paper .stu-pv__chips span{background:#EEF2F7;color:#334155}
+.stu-pv__chips.is-chan span{background:var(--dk-tint-violet,#F1EBFF);color:var(--dk-txt-violet,#6D3FD8)}
+.stu-pv__grp{display:grid;gap:7px;padding:10px;border-radius:14px;background:var(--dk-surface-2,#F7FAFE);box-shadow:inset 0 0 0 1px var(--line)}
+.stu-pv__grp>b{font-size:.78rem;overflow-wrap:anywhere}
+.stu-pv__grp .stu-pv__kv{background:var(--dk-surface,#fff)}
+.stu-pv__grp .stu-pv__grp{background:var(--dk-surface,#fff)}
+.stu-pv__muted{font-size:.74rem;color:var(--gray)}
+.stu-pv__cards{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.stu-pv__cards>li{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;padding:9px 10px;border-radius:12px;background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1px var(--line);font-size:.78rem;overflow-wrap:anywhere}
+.stu-pv__cards>li>b{font-size:.8rem}
+.stu-pv__text{display:grid;gap:8px;font-size:.82rem;line-height:1.6;overflow-wrap:anywhere}
+.stu-pv__text p,.stu-pv__bubble p{margin:0;white-space:pre-wrap}
+.stu-pv__text mark,.stu-pv__bubble mark{padding:1px 6px;border-radius:6px;background:#FFF1C9;color:#7A4B00;font-weight:700;font-size:.92em}
+.stu-pv__bubble{display:grid;gap:5px;overflow-wrap:anywhere}
+.stu-pv__bubble mark{background:rgba(255,255,255,.22);color:#fff}
+.stu-pv__docsec{display:grid;gap:6px}
+.stu-pv__docsec small{font-size:.74rem;color:#64748B}
+.stu-pv__form{display:grid;gap:8px}
+.stu-pv__form label{display:grid;gap:3px;font-size:.74rem;font-weight:700;color:#334155}
+.stu-pv__form i{color:#DC2626;font-style:normal}
+.stu-pv__input{display:block;min-height:32px;padding:7px 10px;border-radius:9px;background:#F5F8FC;box-shadow:inset 0 0 0 1px #DCE3EC;color:#94A3B8;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stu-pv__img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;background:var(--dk-surface-2,#EEF2F7)}
+.stu-pv__thumb{aspect-ratio:16/6;height:auto}
+.stu-pv__mcard{gap:8px}
+.stu-pv__mcard b{overflow-wrap:anywhere;line-height:1.3}
+.stu-pv__mcard p.stu-pv__value{color:var(--ink);font-weight:600}
+.stu-pv__incl{display:grid;gap:4px;margin:0;padding:0;list-style:none;font-size:.78rem}
+.stu-pv__incl li{display:flex;gap:7px;align-items:flex-start;overflow-wrap:anywhere}
+.stu-pv__incl svg{flex:none;width:14px;height:14px;margin-top:2px;color:var(--dk-txt-ok,#047857)}
+.stu-pv__incl li.is-out{color:var(--gray)}.stu-pv__incl li.is-out svg{color:var(--gray2)}
+.stu-pv__btn{justify-self:start;padding:8px 16px;border-radius:999px;background:linear-gradient(135deg,#2f7cf6,#1d5fd6);color:#fff;font-size:.8rem;font-weight:800}
+.stu-pv__block{display:grid;gap:6px;padding:12px;border-radius:14px;background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1px var(--line)}
+.stu-pv__block>b{font-size:.86rem;overflow-wrap:anywhere}
+.stu-pv__faq{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.stu-pv__faq li{display:grid;gap:3px;padding:9px 10px;border-radius:12px;background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1px var(--line);overflow-wrap:anywhere}
+.stu-pv__faq b{font-size:.8rem}.stu-pv__faq p{margin:0;font-size:.76rem;line-height:1.5;color:var(--gray)}
+.stu-pv__scroll{overflow-x:auto;border-radius:12px;box-shadow:inset 0 0 0 1px var(--line)}
+.stu-pv__scroll .stu-pv__table tr:last-child td{border-bottom:0}
+.stu-pv__steps li{min-width:0}.stu-pv__steps b{min-width:0;overflow-wrap:anywhere}.stu-pv__steps span{flex:none}.stu-pv__steps i{color:#DC2626;font-style:normal;font-weight:800}
+.stu-pv__col b{overflow-wrap:anywhere}
+.stu-pv__widget{min-width:0}.stu-pv__widget small{overflow-wrap:anywhere}
+@media (max-width:420px){.stu-pv__kv>div{grid-template-columns:minmax(0,1fr);gap:2px}.stu-pv__widgets{grid-template-columns:minmax(0,1fr)}.stu-live2__b{padding:4px 12px 14px}}
+.stu-pv__thumb{aspect-ratio:3/1}
+@media (max-width:420px){.stu-live2__tabs{margin-inline:10px;max-width:calc(100% - 20px)}.stu-live2__tabs button{padding-inline:9px;font-size:.74rem}}
+.stu-live2__tabs{display:flex;gap:2px}
+.stu-live2__tabs button{flex:1 1 auto;min-width:0;padding-inline:8px;font-size:.78rem;white-space:nowrap}
+.stu-pv__thumb{background:linear-gradient(135deg,color-mix(in srgb,#2563eb 16%,var(--dk-surface,#fff)),color-mix(in srgb,#19C3B1 12%,var(--dk-surface,#fff)))}
+@media (max-width:420px){.stu-live2__tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px;border-radius:18px;overflow:visible}.stu-live2__tabs button{padding-inline:10px;font-size:.78rem;justify-content:center;overflow:hidden;text-overflow:ellipsis}.stu-live2__state{max-width:48%}}
+@media (max-width:420px){.stu-live2__tabs{justify-self:stretch;align-self:stretch}}

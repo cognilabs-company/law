@@ -160,7 +160,7 @@ export function useStudioHuman() {
     }
   };
   const titleOf = (d: Record<string, unknown>): string => {
-    for (const k of ["title", "name", "label"]) if (typeof d[k] === "string" && d[k]) return codeLike(d[k] as string) ? humanize((d[k] as string).replace(/[.:/-]+/g, "_")) : (d[k] as string);
+    for (const k of ["title", "label", "name", "question"]) if (typeof d[k] === "string" && d[k]) return codeLike(d[k] as string) ? humanize((d[k] as string).replace(/[.:/-]+/g, "_")) : (d[k] as string);
     for (const k of ["status", "type", "code", "key"]) if (typeof d[k] === "string" && d[k]) return value(d[k], k);
     return "";
   };
