@@ -2897,7 +2897,9 @@
       "processed": "Overdue stages checked",
       "snapshot": "The order when this version was sent",
       "selfBlocked": "You cannot approve a record you created yourself.",
-      "notYours": "A decision at this stage is not expected from you."
+      "notYours": "A decision at this stage is not expected from you.",
+      "canDecide": "Who can decide",
+      "nobody": "Nobody has the “{role}” role yet. Give it in Studio settings → Access."
     }
   },
   "marketPricing": {

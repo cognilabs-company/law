@@ -7,7 +7,8 @@ import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
 import { useAuth } from "@/lib/auth";
 import { logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { STUDIO_PERM_REASSIGN, STUDIO_PERM_WORKFLOW, listApprovalUsers, reassignApprovalStep, type StudioStep } from "@/lib/services/studio";
+import { STUDIO_PERM_REASSIGN, STUDIO_PERM_WORKFLOW, listApprovalUsers, reassignApprovalStep, type StudioApprover, type StudioStep } from "@/lib/services/studio";
+import { normRole } from "./approvals/helpers";
 import { StudioErrorNote } from "./bits";
 import { useStudioHuman } from "./human";
 import { IconAlert, IconCheck, IconClock, IconHourglass, IconRefresh, IconUsers } from "@/components/icons";
@@ -22,19 +23,88 @@ export function useStudioPerms(): { workflow: boolean; reassign: boolean } {
 
 const pending = (s: StudioStep) => !/approv|done|complete|pass|skip|reject|declin|change|return/.test(s.status);
 
+// A stage given to a role carries no names: the people are whoever holds
+// that role (or Studio admin) among the Studio staff the backend lists for
+// this constructor (contract §4). One request per constructor serves every
+// stage on the page; it is asked again after a minute.
+const holders = new Map<string, { at: number; list: Promise<StudioApprover[]> }>();
+function studioPeople(code: string): Promise<StudioApprover[]> {
+  const hit = holders.get(code);
+  if (hit && Date.now() - hit.at < 60_000) return hit.list;
+  const list = listApprovalUsers("", code);
+  holders.set(code, { at: Date.now(), list });
+  list.catch(() => holders.delete(code));
+  return list;
+}
+
+function useRoleHolders(code: string, role: string): StudioApprover[] | null {
+  const key = `${code}|${role}`;
+  const [got, setGot] = useState<{ key: string; list: StudioApprover[] } | null>(null);
+  useEffect(() => {
+    if (!role) return;
+    let live = true;
+    studioPeople(code)
+      .then((all) => {
+        if (live) setGot({ key, list: all.filter((u) => u.roles.some((r) => normRole(r) === role || normRole(r) === "studio_admin")) });
+      })
+      // Without Studio access management the list is closed (403): the
+      // stage keeps showing its role alone.
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [code, role, key]);
+  return role && got?.key === key ? got.list : null;
+}
+
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w.charAt(0).toUpperCase())
+    .join("") || "?";
+
 // What a stage is waiting for: who decides, how many of them it takes (the
 // backend's own counters), by when, and who it was handed over to.
 export default function StepMeta({ step, code, onChanged }: { step: StudioStep; code: string; onChanged?: () => void }) {
-  const { t, when, num } = useStudioHuman();
+  const { t, when, num, role } = useStudioHuman();
   const perms = useStudioPerms();
   const [open, setOpen] = useState(false);
   const open_ = pending(step);
+  const byRole = open_ && !step.approvers.length ? normRole(step.role) : "";
+  const people = useRoleHolders(code, byRole);
   const decided = new Map(step.approvals.map((a) => [a.userId, a]));
   const waiting = step.approvers.filter((p) => !decided.has(p.id));
   const many = step.approvers.length > 1 || step.required > 1;
-  if (!step.approvers.length && !step.deadlineAt && !step.reassignments.length) return null;
+  if (!step.approvers.length && !people && !step.deadlineAt && !step.reassignments.length) return null;
   return (
     <div className="stu-stepm">
+      {people ? (
+        people.length ? (
+          <div className="stu-stepm__can">
+            <small>{t("appr.canDecide")}</small>
+            <ul className="stu-stepm__ppl" aria-label={t("appr.approvers")}>
+              {people.map((u) => (
+                <li key={u.id}>
+                  <span className="stu-stepm__av" aria-hidden>
+                    {initials(u.name)}
+                  </span>
+                  <span>
+                    <b>{u.name || "—"}</b>
+                    <small>{[u.employeeCode, u.roles.map((r) => role(normRole(r))).join(", ")].filter(Boolean).join(" · ")}</small>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="stu-stepm__none">
+            <IconAlert aria-hidden />
+            {t("appr.nobody", { role: role(byRole) })}
+          </p>
+        )
+      ) : null}
       {step.approvers.length ? (
         <ul className="stu-stepm__who" aria-label={t("appr.approvers")}>
           {step.approvers.map((p) => {

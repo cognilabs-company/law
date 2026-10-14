@@ -145,11 +145,11 @@ export function ConstructorGuide({ ctor }: { ctor: StudioConstructor }) {
             <h3>{t("ux.howTitle")}</h3>
             {nav && nav.steps ? <span className="stu-guide__step">{t("ux.stepOf", { n: nav.step, of: nav.steps, group: hm.groupTitle(nav.groupKey, nav.groupTitle) })}</span> : null}
           </header>
-          <ol className="stu-flow">
+          <ol className="stu-gflow">
             {steps.map((w, i) => (
               <li key={w.title}>
-                <span className="stu-flow__n">{i + 1}</span>
-                <span className="stu-flow__t">
+                <span className="stu-gflow__n">{i + 1}</span>
+                <span className="stu-gflow__t">
                   <b>{w.title}</b>
                   {w.text ? <small>{w.text}</small> : null}
                 </span>

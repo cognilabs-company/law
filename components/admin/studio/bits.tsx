@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ComponentType, type ReactNode, type SVGProps } from "react";
+import { useEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode, type SVGProps } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { dateOnly, dateTimeFull, fmtInt } from "@/lib/date";
 import { humanize } from "@/lib/labels";
@@ -141,12 +141,20 @@ export function StudioStatusSteps({ status, raw = "", approvalFree }: { status: 
   const archived = status === "archived";
   const at = back ? flow.indexOf("in_review") : archived ? -1 : flow.indexOf(status);
   const rejected = /^(rejected|declined)$/i.test(raw.trim());
+  // The rail runs from the first dot's centre to the last one's; the fill
+  // stops at the current stage.
+  const fill = at > 0 ? at / (flow.length - 1) : 0;
   return (
-    <div className={`stu-flow${archived ? " stu-flow--archived" : ""}`}>
+    <div className={`stu-flow${archived ? " stu-flow--archived" : ""}${back ? " stu-flow--warn" : ""}${status === "published" ? " stu-flow--done" : ""}`} style={{ "--n": flow.length } as CSSProperties}>
+      <span className="stu-flow__rail" aria-hidden>
+        <i style={{ "--p": fill } as CSSProperties} />
+      </span>
       <ol className="stu-flow__list" aria-label={t("flow.label")}>
         {flow.map((s, i) => {
-          const done = i < at;
-          const cur = i === at;
+          // Published is the last stage: reaching it finishes the line.
+          const live = status === "published" && i === at;
+          const done = i < at || live;
+          const cur = i === at && !live;
           const warn = cur && back;
           const cls = warn ? " is-warn" : cur ? " is-cur" : done ? " is-done" : "";
           return (

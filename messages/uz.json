@@ -2897,7 +2897,9 @@
       "processed": "Muddati o'tgan bosqichlar tekshirildi",
       "snapshot": "Shu versiya yuborilgan paytdagi tartib",
       "selfBlocked": "O'zingiz yaratgan yozuvni tasdiqlay olmaysiz.",
-      "notYours": "Bu bosqichda qaror siz tomondan kutilmayapti."
+      "notYours": "Bu bosqichda qaror siz tomondan kutilmayapti.",
+      "canDecide": "Qaror bera oladiganlar",
+      "nobody": "Hozircha hech kimda «{role}» roli yo'q. Uni Studio sozlamalari → Kirish huquqlari bo'limida bering."
     }
   },
   "marketPricing": {
