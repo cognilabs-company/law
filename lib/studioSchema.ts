@@ -81,7 +81,7 @@ function checkField(f: StudioSchemaField, value: unknown, path: string, required
         return;
       }
       const need = new Set(f.requiredFields);
-      for (const p of f.properties) checkField(p, value[p.key], joinPath(path, p.key), p.required || need.has(p.key), out);
+      for (const p of f.properties) if (!p.hidden && fieldVisible(p, value)) checkField(p, value[p.key], joinPath(path, p.key), p.required || need.has(p.key), out);
       return;
     }
     case "list": {
@@ -117,7 +117,7 @@ export function schemaValidate(fields: StudioSchemaField[], payload: Dict, requi
   const out: StudioFieldErrors = {};
   const need = new Set(required);
   // A field the backend fills from the route context is not the user's to fill.
-  for (const f of fields) if (!f.hidden) checkField(f, payload[f.key], f.key, f.required || need.has(f.key), out);
+  for (const f of fields) if (!f.hidden && fieldVisible(f, payload)) checkField(f, payload[f.key], f.key, f.required || need.has(f.key), out);
   return out;
 }
 
@@ -145,7 +145,7 @@ function cleanValue(f: StudioSchemaField | null, value: unknown): unknown {
 export function cleanPayload(fields: StudioSchemaField[], payload: Dict): Dict {
   const byKey = new Map(fields.map((f) => [f.key, f]));
   const out: Dict = {};
-  for (const [k, v] of Object.entries(payload)) {
+  for (const [k, v] of Object.entries(pruneInvisible(fields, payload))) {
     const c = cleanValue(byKey.get(k) ?? null, v);
     if (c !== undefined) out[k] = c;
   }
@@ -163,6 +163,75 @@ export function emptyItem(item: StudioSchemaField | null): unknown {
   if (item.type === "boolean") return false;
   if (item.type === "number" || item.type === "money") return null;
   return "";
+}
+
+const sameValue = (a: unknown, b: unknown) => String(a ?? "") === String(b ?? "");
+
+export function fieldVisible(f: StudioSchemaField, scope: Dict): boolean {
+  const w = f.visibleWhen;
+  if (!w) return true;
+  const v = scope[w.field];
+  if (w.in) return w.in.some((x) => sameValue(x, v));
+  if ("equals" in w) return sameValue(w.equals, v);
+  if ("notEquals" in w) return !sameValue(w.notEquals, v);
+  return !isEmpty(v);
+}
+
+function pruneValue(f: StudioSchemaField, value: unknown): unknown {
+  if (f.type === "object" && isDict(value) && f.properties.length) return pruneFields(f.properties, value);
+  const props = f.item?.type === "object" ? f.item.properties : [];
+  if (f.type === "list" && Array.isArray(value) && props.length) {
+    let changed = false;
+    const next = value.map((x) => {
+      const y = isDict(x) ? pruneFields(props, x) : x;
+      if (y !== x) changed = true;
+      return y;
+    });
+    return changed ? next : value;
+  }
+  return value;
+}
+
+function pruneFields(fields: StudioSchemaField[], obj: Dict): Dict {
+  let out = obj;
+  for (const f of fields) {
+    if (!(f.key in obj)) continue;
+    const v = obj[f.key];
+    if (!fieldVisible(f, obj) || (f.generated && isEmpty(v))) {
+      if (out === obj) out = { ...obj };
+      delete out[f.key];
+      continue;
+    }
+    const nv = pruneValue(f, v);
+    if (nv !== v) {
+      if (out === obj) out = { ...obj };
+      out[f.key] = nv;
+    }
+  }
+  return out;
+}
+
+// A value whose field is not shown (visible_when) is not kept or sent, and a
+// backend-generated id left empty is omitted so the backend makes one.
+export function pruneInvisible(fields: StudioSchemaField[], payload: Dict): Dict {
+  return pruneFields(fields, payload);
+}
+
+const TARGET_ROOTS = new Set(["", "_", "target", "target_id", "target_type"]);
+
+// An error about the target as a whole lands on the field the person picks:
+// the service or package select for target_required, the type for
+// conflicting_target.
+export function targetErrors(errors: StudioFieldErrors, payload: Dict): StudioFieldErrors {
+  let out = errors;
+  for (const [k, v] of Object.entries(errors)) {
+    const to = v === "@code:target_required" && TARGET_ROOTS.has(k) ? (payload.target_type === "package" ? "package_id" : "service_id") : v === "@code:conflicting_target" && TARGET_ROOTS.has(k) && k !== "target_type" ? "target_type" : "";
+    if (!to) continue;
+    if (out === errors) out = { ...errors };
+    delete out[k];
+    out[to] = out[to] || v;
+  }
+  return out;
 }
 
 // The root field of an error path, for scrolling to it.

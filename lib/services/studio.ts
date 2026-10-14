@@ -54,7 +54,21 @@ export type StudioSchemaField = {
   // Filled from the page the object is opened from, never typed.
   hidden: boolean;
   readOnly: boolean;
+  generated: boolean;
+  visibleWhen: StudioVisibleWhen | null;
 };
+export type StudioVisibleWhen = { field: string; equals?: unknown; in?: unknown[]; notEquals?: unknown };
+
+function visibleWhenOf(raw: unknown): StudioVisibleWhen | null {
+  const d = asDict(raw);
+  const field = asStr(d.field ?? d.key);
+  if (!field) return null;
+  const out: StudioVisibleWhen = { field };
+  if ("equals" in d) out.equals = d.equals;
+  if (Array.isArray(d.in ?? d.one_of)) out.in = asArr(d.in ?? d.one_of);
+  if ("not_equals" in d) out.notEquals = d.not_equals;
+  return out;
+}
 export type StudioSection = { key: string; title: string; order: number };
 
 // What a constructor is for, in words a newcomer understands (spec 10-12 UX
@@ -564,8 +578,10 @@ export function normSchemaField(raw: unknown, index = 0): StudioSchemaField {
     uniqueBy: asStr(f.unique_by),
     example: f.example,
     optionLabels: Object.fromEntries(asArr(f.options).filter((o) => o && typeof o === "object").map((o) => [first(asDict(o).value, asDict(o).key), first(asDict(o).label, asDict(o).title)]).filter(([v, l]) => v && l)),
-    hidden: asDict(f.ui).hidden === true || f.context_managed === true,
+    hidden: ui.hidden === true || f.context_managed === true || f.generated === true || (Array.isArray(f.visible_in_modes) && f.visible_in_modes.length === 0),
     readOnly: f.read_only === true,
+    generated: f.generated === true,
+    visibleWhen: visibleWhenOf(f.visible_when ?? ui.visible_when),
   };
 }
 

@@ -48,6 +48,9 @@ const WIDE = "(min-width: 1440px)";
 const ASSIST_RELOAD = new Set<SupportEventKind>(["assist", "transferred", "closed", "reopened"]);
 const ASSIST_PREVIEW = "support.assist_subscription_preview_created";
 const OWN_ACT_MS = 5000;
+const NEW_STATUSES = ["waiting_operator", "reopened"];
+const EMPTY_PAGE: Page<SupportTicket> = { items: [], total: 0, hasMore: false };
+
 const QUERY: Record<Tab, { status?: string; assignedToMe?: boolean }> = {
   new: { status: "waiting_operator" },
   mine: { status: "active", assignedToMe: true },
@@ -73,7 +76,7 @@ function shape(tab: Tab, p: Page<SupportTicket>): Page<SupportTicket> {
 }
 
 function belongs(tab: Tab, tk: SupportTicket, meId: string): boolean {
-  if (tab === "new") return tk.status === "waiting_operator";
+  if (tab === "new") return isWaitingTicket(tk);
   if (tab === "mine") return Boolean(meId) && tk.operatorUserId === meId && isActiveTicket(tk);
   if (tab === "transferred") return tk.status === "transferred";
   return tk.status === "closed";
@@ -106,7 +109,21 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
   const uid = useId();
 
   const fetcher = useCallback(
-    (o: number, l: number, s: AbortSignal) => listSupportQueue({ ...QUERY[tab], offset: o, limit: l }, s).then((p) => shape(tab, p)),
+    async (o: number, l: number, s: AbortSignal) => {
+      if (tab !== "new") return shape(tab, await listSupportQueue({ ...QUERY[tab], offset: o, limit: l }, s));
+      const pages = await Promise.all(
+        NEW_STATUSES.map((status, i) =>
+          i === 0
+            ? listSupportQueue({ status, offset: o, limit: l }, s)
+            : listSupportQueue({ status, offset: o, limit: l }, s).catch(() => EMPTY_PAGE),
+        ),
+      );
+      return shape(tab, {
+        items: pages.flatMap((p) => p.items),
+        total: pages.reduce((n, p) => n + p.total, 0),
+        hasMore: pages.some((p) => p.hasMore),
+      });
+    },
     [tab],
   );
   const list = usePaged(fetcher, tab, 50, (x) => x.id, 100);

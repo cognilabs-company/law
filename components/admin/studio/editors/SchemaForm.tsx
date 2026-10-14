@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useState, type DragEvent, type KeyboardEvent } from "react";
 import { getStudioConstructorDetail, studioSectionsOf, type StudioConstructor, type StudioFieldErrors, type StudioSchemaField } from "@/lib/services/studio";
-import { emptyItem, joinPath, normErrorPaths } from "@/lib/studioSchema";
+import { emptyItem, joinPath, normErrorPaths, fieldVisible, pruneInvisible, targetErrors } from "@/lib/studioSchema";
 import DatePicker from "@/components/DatePicker";
 import TimePicker from "@/components/TimePicker";
 import { zonedIso } from "@/components/internal/live/bits";
@@ -90,7 +90,7 @@ function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorPr
   const { t, label, section, value } = useLabels();
   const uid = useId();
   const groups = useMemo(() => studioSectionsOf(ctor), [ctor]);
-  const errs = useMemo(() => normErrorPaths(errors), [errors]);
+  const errs = useMemo(() => targetErrors(normErrorPaths(errors), payload), [errors, payload]);
   const known = new Set(ctor.typed.map((f) => f.key));
   const extra = Object.keys(payload).filter((k) => !known.has(k) && payload[k] !== undefined);
   const required = new Set(ctor.schema.required);
@@ -102,7 +102,7 @@ function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorPr
     const next: StudioPayload = { ...payload };
     if (v === undefined) delete next[key];
     else next[key] = v;
-    onChange(next);
+    onChange(pruneInvisible(ctor.typed, next));
   };
 
   return (
@@ -111,7 +111,7 @@ function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorPr
         <nav className="stu-sf__nav" aria-label={t("schema.sections")}>
           {groups.map((g) => {
             const bad = badIn(g.fields);
-            const shown = g.fields.filter((f) => !f.hidden);
+            const shown = g.fields.filter((f) => !f.hidden && fieldVisible(f, payload));
             const filled = shown.filter((f) => filledValue(payload[f.key])).length;
             const done = !bad && filled > 0 && shown.every((f) => !(f.required || required.has(f.key)) || filledValue(payload[f.key]));
             return (
@@ -135,7 +135,7 @@ function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorPr
         </ul>
       ) : null}
       {groups.map((g) => {
-        const shown = g.fields.filter((f) => !f.hidden);
+        const shown = g.fields.filter((f) => !f.hidden && fieldVisible(f, payload));
         const wide = spans(shown);
         return (
           <section key={g.section.key} id={`${uid}-${g.section.key}`} className="stu-sf__sec" aria-label={section(g.section.title)}>
@@ -500,7 +500,7 @@ function ObjectField({ f, value, onChange, path, errs, ro, code }: Omit<BlockPro
     onChange(next);
   };
   const extraKeys = Object.keys(obj).filter((k) => !known.has(k));
-  const shownProps = f.properties.filter((p) => !p.hidden);
+  const shownProps = f.properties.filter((p) => !p.hidden && fieldVisible(p, obj));
   const wideProps = spans(shownProps);
   return (
     <div className={`stu-sf__obj${errs[path] ? " is-bad" : ""}`}>

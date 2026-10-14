@@ -1809,7 +1809,12 @@
         "invalid_option": "Pick one of the listed options",
         "invalid_type": "The value is not entered correctly",
         "translation_required": "Fill it in all three languages",
-        "other": "The value was not accepted"
+        "other": "The value was not accepted",
+        "target_required": "Choose a service or package for the selected type",
+        "conflicting_target": "Choose either a service or a package, not both",
+        "reference_not_found": "The selected record no longer exists — choose another",
+        "duplicate_value": "This value is duplicated",
+        "options_required": "Add at least one option to the section"
       }
     },
     "field": {

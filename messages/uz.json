@@ -1809,7 +1809,12 @@
         "invalid_option": "Ro'yxatdagi variantlardan birini tanlang",
         "invalid_type": "Qiymat noto'g'ri kiritilgan",
         "translation_required": "Uchala tilda ham to'ldiring",
-        "other": "Qiymat qabul qilinmadi"
+        "other": "Qiymat qabul qilinmadi",
+        "target_required": "Tanlangan turga mos xizmat yoki paketni tanlang",
+        "conflicting_target": "Xizmat yoki paketdan faqat bittasini tanlang",
+        "reference_not_found": "Tanlangan yozuv endi mavjud emas — boshqasini tanlang",
+        "duplicate_value": "Bu qiymat takrorlangan",
+        "options_required": "Bo'limga kamida bitta opsiya qo'shing"
       }
     },
     "field": {
