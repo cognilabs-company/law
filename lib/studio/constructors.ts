@@ -59,6 +59,7 @@ export const STUDIO_GROUPS: StudioGroup[] = ["marketplace", "documents", "qualit
 export const STUDIO_CODES = [
   "K01",
   "K02",
+  "K29",
   "K03-M",
   "K04",
   "K05",
@@ -124,6 +125,7 @@ export const STUDIO_CODES = [
 export const CONSTRUCTOR_META: Record<string, ConstructorMeta> = {
   K01: { icon: IconLightbulb, group: "marketplace", i18nKey: "k01" },
   K02: { icon: IconBriefcase, group: "marketplace", i18nKey: "k02" },
+  K29: { icon: IconTrendingUp, group: "marketplace", i18nKey: "k29" },
   "K03-M": { icon: IconPackage, group: "marketplace", i18nKey: "k03m" },
   K04: { icon: IconCoins, group: "marketplace", i18nKey: "k04" },
   K05: { icon: IconClipboardList, group: "documents", i18nKey: "k05" },

@@ -1557,16 +1557,16 @@
         "desc": "Ruxsat etilgan fayl turlari, hajmi va virusga tekshirish."
       },
       "k01": {
-        "name": "Hayotiy vaziyatlar",
-        "desc": "Mijoz o‘z muammosini tanlaydi va unga mos xizmat ko‘rsatiladi."
+        "name": "Kategoriya va mijoz vaziyati",
+        "desc": "Xizmatlardan oldin kategoriyalar va mijoz tanlaydigan vaziyatlar yaratiladi."
       },
       "k02": {
-        "name": "Xizmat pasporti",
-        "desc": "Xizmat tarkibi, natijasi va asosiy shartlari."
+        "name": "Oddiy xizmat",
+        "desc": "Xizmat, uning narx chegarasi va sotuvchi talablari. Xizmatni faqat Studio yaratadi."
       },
       "k03m": {
-        "name": "Marketplace paketlari",
-        "desc": "Xizmat paketlari va ularning tarkibi."
+        "name": "Xizmat paketi",
+        "desc": "Xizmatlar va erkin tarkib: BASIC, STANDARD va PREMIUM — uch mustaqil variant."
       },
       "k04": {
         "name": "Narx qoidalari",
@@ -1647,6 +1647,10 @@
       "core": {
         "name": "Studio umumiy sozlamalari",
         "desc": "Studio'ning umumiy sozlamalari."
+      },
+      "k29": {
+        "name": "Narxni oshiruvchi opsiyalar",
+        "desc": "Xizmat yoki paketga qo'shiladigan ixtiyoriy opsiyalar: qat'iy summa yoki foiz."
       }
     },
     "roles": {
@@ -2743,6 +2747,14 @@
         "marketplace_services": {
           "title": "Marketplace va xizmatlar",
           "text": "Kategoriya, xizmat, paket, sotuvchi, narx, saralash, reklama, xarid va sharhlar — ketma-ket sozlanadi."
+        },
+        "services_packages": {
+          "title": "Xizmatlar va paketlar",
+          "text": "Kategoriya, oddiy xizmat, narx opsiyalari va paket — shu tartibda sozlanadi."
+        },
+        "advertising": {
+          "title": "Reklama",
+          "text": "Reklama joylari, paketlari va kampaniyalari alohida boshqariladi."
         }
       },
       "journey": {

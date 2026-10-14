@@ -1557,16 +1557,16 @@
         "desc": "Allowed file types, size and virus checks."
       },
       "k01": {
-        "name": "Life situations",
-        "desc": "A client picks their problem and gets the right service."
+        "name": "Category and client situation",
+        "desc": "Categories and the situations a client picks are created before services."
       },
       "k02": {
-        "name": "Service passport",
-        "desc": "What the service includes, its result and main terms."
+        "name": "Ordinary service",
+        "desc": "A service, its price ceiling and seller requirements. Only Studio creates services."
       },
       "k03m": {
-        "name": "Marketplace packages",
-        "desc": "Service packages and what they include."
+        "name": "Service package",
+        "desc": "Services and free-form content in three independent variants: BASIC, STANDARD and PREMIUM."
       },
       "k04": {
         "name": "Pricing rules",
@@ -1647,6 +1647,10 @@
       "core": {
         "name": "Shared Studio settings",
         "desc": "Shared Studio settings."
+      },
+      "k29": {
+        "name": "Price-increasing options",
+        "desc": "Optional add-ons for a service or package: a fixed amount or a percentage."
       }
     },
     "roles": {
@@ -2743,6 +2747,14 @@
         "marketplace_services": {
           "title": "Marketplace and services",
           "text": "Categories, services, packages, sellers, prices, ranking, advertising, purchase and reviews — set up in order."
+        },
+        "services_packages": {
+          "title": "Services and packages",
+          "text": "Category, ordinary service, price options and package — set up in this order."
+        },
+        "advertising": {
+          "title": "Advertising",
+          "text": "Ad placements, packages and campaigns are managed separately."
         }
       },
       "journey": {
