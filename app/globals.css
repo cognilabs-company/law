@@ -20278,6 +20278,32 @@ a.hn-app:hover{background:color-mix(in srgb,var(--b600) 7%,transparent)}
 }
 /* More sections than fit are reached by sliding the row; its end fades to say so. */
 .stu-sf__nav{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);padding-right:28px}
+.stu-sf{--stu-ctl:46px}
+.stu-sf__nav a>svg{flex:none;width:15px;height:15px;color:var(--gray2);transition:color .15s}
+.stu-sf__nav a:hover>svg{color:var(--dk-acc,var(--b600))}
+.stu-sf__nav a span{display:inline-grid;place-items:center;font-variant-numeric:tabular-nums}
+.stu-sf__nav a span svg{width:11px;height:11px}
+.stu-sf__nav a.is-done span{background:var(--dk-tint-ok,#E6F8F1);color:var(--dk-txt-ok,#047857)}
+.stu-sf__nav a.is-done>svg{color:var(--dk-txt-ok,#047857)}
+.stu-sf__nav a.is-bad>svg{color:var(--dk-txt-err,#B02E2E)}
+.stu-sf__sech h4{display:flex;align-items:center;gap:10px}
+.stu-sf__secico{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:10px;background:linear-gradient(160deg,var(--dk-tint-blue,#EEF5FF),var(--dk-surface-2,#F5F8FD));color:var(--dk-acc,var(--b600));box-shadow:inset 0 0 0 1px var(--dk-bd-blue,#D6E6FF)}
+.stu-sf__secico svg{width:16px;height:16px}
+.stu-sf__fi{display:inline-grid;place-items:center;flex:none;width:20px;height:20px;margin-right:7px;border-radius:6px;background:var(--dk-tint-blue,#EEF5FF);color:var(--dk-acc,var(--b600));vertical-align:-5px}
+.stu-sf__fi svg{width:12px;height:12px}
+.stu-sf__f.is-bad .stu-sf__fi{background:var(--dk-tint-err,#FDECEC);color:var(--dk-txt-err,#B02E2E)}
+.stu-sf__f>input,.stu-sf__num input{min-height:var(--stu-ctl)}
+.stu-sf .stu-fe-sel .dsel__btn,.stu-sf .stu-refsel .ssel__ctrl,.stu-sf .mpick__btn,.stu-sf .stu-sw,.stu-sf .stu-fe-sel.is-ro,.stu-sf .stu-refsel--ro{min-height:var(--stu-ctl)}
+.stu-sf__dt{grid-template-columns:minmax(0,1fr) minmax(118px,150px)}
+.stu-sf__dt .mpick__btn{width:100%}
+.stu-sf__f>.stu-sf__help{margin-top:-2px}
+.stu-sf__none{display:flex;align-items:center;gap:9px}
+.stu-sf__none svg{flex:none;width:17px;height:17px;color:var(--gray2)}
+.stu-sf .mpick__val,.stu-sf .mpick__val:focus{min-height:0;padding:0;border-radius:0;background:transparent;box-shadow:none}
+.stu-sf .mpick__btn,.stu-sf .stu-fe-sel .dsel__btn{padding-top:0;padding-bottom:0}
+.stu-sf__grid>.stu-sf__f--bool:not(.stu-sf__f--wide){padding-top:25px}
+.stu-sf .stu-refsel .ssel__ctrl{padding-top:5px;padding-bottom:5px}
+@media (max-width:480px){.stu-sf__dt{grid-template-columns:minmax(0,1fr)}}
 .nrcp__manual input[aria-invalid="true"]{box-shadow:inset 0 0 0 1.5px var(--dk-txt-err, #C0392B)}
 .nrcp__manual input[aria-invalid="true"]:focus{box-shadow:inset 0 0 0 1.5px var(--dk-txt-err, #C0392B),0 0 0 4px var(--dk-tint-err, #FDECEC)}
 .nrcp>.field-err{margin-top:10px}

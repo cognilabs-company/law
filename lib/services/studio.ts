@@ -1598,8 +1598,20 @@ export function getStudioConstructorDetail(code: string): Promise<StudioConstruc
   return p;
 }
 
-export async function getStudioReference(key: string, q = "", limit = 50, signal?: AbortSignal): Promise<StudioReferenceItem[]> {
-  const params = new URLSearchParams({ q, limit: String(Math.min(100, Math.max(1, limit))) });
+export function studioReferenceKey(source: string): { key: string; params: URLSearchParams } {
+  const [path, query = ""] = source.trim().split("?");
+  const key = path
+    .replace(/^https?:\/\/[^/]+/i, "")
+    .replace(/^\/+/, "")
+    .replace(/^(api\/backend\/)?studio\/reference\//, "")
+    .replace(/\/+$/, "");
+  return { key, params: new URLSearchParams(query) };
+}
+
+export async function getStudioReference(source: string, q = "", limit = 50, signal?: AbortSignal): Promise<StudioReferenceItem[]> {
+  const { key, params } = studioReferenceKey(source);
+  params.set("q", q);
+  params.set("limit", String(Math.min(100, Math.max(1, limit))));
   const raw = await http(`/studio/reference/${encodeURIComponent(key)}?${params}`, { signal });
   return listOf(raw, ["items", "data", "results", "options"]).map((value) => {
     const row = asDict(value);

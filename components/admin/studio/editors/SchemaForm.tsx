@@ -4,18 +4,36 @@ import { useEffect, useId, useMemo, useState, type DragEvent, type KeyboardEvent
 import { getStudioConstructorDetail, studioSectionsOf, type StudioConstructor, type StudioFieldErrors, type StudioSchemaField } from "@/lib/services/studio";
 import { emptyItem, joinPath, normErrorPaths } from "@/lib/studioSchema";
 import DatePicker from "@/components/DatePicker";
+import TimePicker from "@/components/TimePicker";
 import { zonedIso } from "@/components/internal/live/bits";
-import { IconAlert, IconClose, IconEye, IconEdit, IconMenu, IconPlus } from "@/components/icons";
+import { IconAlert, IconCheck, IconClose, IconEye, IconEdit, IconInbox, IconMenu, IconPlus } from "@/components/icons";
 import { PayloadSummary } from "../PayloadSummary";
 import { useStudioHuman } from "../human";
 import GenericEditor from "./GenericEditor";
 import RefSelect from "./parts/RefSelect";
+import { fieldGlyph, sectionGlyph } from "./parts/fieldIcon";
 import { ChipPick, RowTools, SelectIn, edAi, useEd } from "./parts/kit";
 import type { StudioEditorProps, StudioPayload } from "./types";
 
 type Dict = Record<string, unknown>;
 const isDict = (v: unknown): v is Dict => !!v && typeof v === "object" && !Array.isArray(v);
 const text = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "");
+const WIDE = new Set(["object", "list", "textarea", "richtext", "code", "multiselect", "datetime"]);
+const filledValue = (v: unknown) => v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && !v.length) && !(isDict(v) && !Object.keys(v).length);
+function spans(fields: StudioSchemaField[]): Set<string> {
+  const out = new Set<string>();
+  let pending = "";
+  for (const f of fields) {
+    if (WIDE.has(f.type)) {
+      if (pending) out.add(pending);
+      pending = "";
+      out.add(f.key);
+    } else if (pending) pending = "";
+    else pending = f.key;
+  }
+  if (pending) out.add(pending);
+  return out;
+}
 
 // A constructor drawn from its typed schema (definition version 3): fields
 // grouped by section and ordered by ui.order; every list a repeater whose
@@ -93,10 +111,14 @@ function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorPr
         <nav className="stu-sf__nav" aria-label={t("schema.sections")}>
           {groups.map((g) => {
             const bad = badIn(g.fields);
+            const shown = g.fields.filter((f) => !f.hidden);
+            const filled = shown.filter((f) => filledValue(payload[f.key])).length;
+            const done = !bad && filled > 0 && shown.every((f) => !(f.required || required.has(f.key)) || filledValue(payload[f.key]));
             return (
-              <a key={g.section.key} href={`#${uid}-${g.section.key}`} className={bad ? "is-bad" : undefined}>
+              <a key={g.section.key} href={`#${uid}-${g.section.key}`} className={bad ? "is-bad" : done ? "is-done" : undefined}>
+                {sectionGlyph(g.section.title, g.section.key)}
                 {section(g.section.title)}
-                <span>{bad ? bad : g.fields.length}</span>
+                <span>{bad ? bad : done ? <IconCheck aria-hidden /> : `${filled}/${shown.length}`}</span>
               </a>
             );
           })}
@@ -112,19 +134,28 @@ function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorPr
           ))}
         </ul>
       ) : null}
-      {groups.map((g) => (
-        <section key={g.section.key} id={`${uid}-${g.section.key}`} className="stu-sf__sec" aria-label={section(g.section.title)}>
-          <header className="stu-sf__sech">
-            <h4>{section(g.section.title)}</h4>
-            <small>{t("schema.fieldCount", { n: g.fields.filter((f) => !f.hidden).length })}</small>
-          </header>
-          <div className="stu-sf__grid">
-            {g.fields.filter((f) => !f.hidden).map((f) => (
-              <FieldBlock key={f.key} f={f} value={payload[f.key]} onChange={(v) => set(f.key, v)} path={f.key} errs={errs} ro={readOnly} required={f.required || required.has(f.key)} code={ctor.code} />
-            ))}
-          </div>
-        </section>
-      ))}
+      {groups.map((g) => {
+        const shown = g.fields.filter((f) => !f.hidden);
+        const wide = spans(shown);
+        return (
+          <section key={g.section.key} id={`${uid}-${g.section.key}`} className="stu-sf__sec" aria-label={section(g.section.title)}>
+            <header className="stu-sf__sech">
+              <h4>
+                <span className="stu-sf__secico" aria-hidden>
+                  {sectionGlyph(g.section.title, g.section.key)}
+                </span>
+                {section(g.section.title)}
+              </h4>
+              <small>{t("schema.fieldCount", { n: shown.length })}</small>
+            </header>
+            <div className="stu-sf__grid">
+              {shown.map((f) => (
+                <FieldBlock key={f.key} f={f} value={payload[f.key]} onChange={(v) => set(f.key, v)} path={f.key} errs={errs} ro={readOnly} required={f.required || required.has(f.key)} code={ctor.code} span={wide.has(f.key)} />
+              ))}
+            </div>
+          </section>
+        );
+      })}
       {extra.length ? (
         <section className="stu-sf__sec stu-sf__sec--extra">
           <header className="stu-sf__sech">
@@ -183,25 +214,26 @@ type BlockProps = {
   required: boolean;
   code: string;
   bare?: boolean;
+  span?: boolean;
 };
 
 // A field with its label, help, control and error.
 function FieldBlock(raw: BlockProps) {
   // A field the backend marks read-only stays on screen but cannot change.
   const props = raw.f.readOnly ? { ...raw, ro: true } : raw;
-  const { f, path, errs, required, bare } = props;
+  const { f, path, errs, required, bare, span } = props;
   const { label, help, t, example } = useLabels();
   const uid = useId();
   const id = `${uid}-f`;
   const own = errs[path] ?? "";
-  const wide = f.type === "object" || f.type === "list" || f.type === "textarea" || f.type === "richtext" || f.type === "code" || f.type === "multiselect";
+  const wide = span || WIDE.has(f.type);
   const h = help(f);
   const range = f.min !== null || f.max !== null ? rangeHint(f) : "";
   // A sample inside the empty field, where there is a readable one.
   const ex = ["text", "textarea", "number", "money", "url", "email"].includes(f.type) ? example(f) : "";
   if (f.type === "boolean") {
     return (
-      <div className={`stu-sf__f stu-sf__f--bool${own ? " is-bad" : ""}`}>
+      <div className={`stu-sf__f stu-sf__f--bool${wide ? " stu-sf__f--wide" : ""}${own ? " is-bad" : ""}`}>
         <Switch id={id} on={props.value === true} onChange={props.onChange} ro={props.ro} label={label(f)} ai={edAi(props.code, "field", path)} />
         {h ? <small className="stu-fld__help">{h}</small> : null}
         <ErrLineAt msg={own} />
@@ -214,6 +246,9 @@ function FieldBlock(raw: BlockProps) {
       {bare ? null : (
         <label className="stu-fld__l" htmlFor={id}>
           <span>
+            <span className="stu-sf__fi" aria-hidden>
+              {fieldGlyph(f)}
+            </span>
             {label(f)}
             {required ? (
               <i className="stu-req" aria-hidden>
@@ -225,8 +260,8 @@ function FieldBlock(raw: BlockProps) {
           {f.readOnly ? <small className="stu-sf__range">{t("ux.readOnly")}</small> : null}
         </label>
       )}
-      {h && !bare ? <small className="stu-fld__help stu-sf__help">{h}</small> : null}
       <Control {...props} id={id} invalid={Boolean(own)} placeholder={placeholder} />
+      {h && !bare ? <small className="stu-fld__help stu-sf__help">{h}</small> : null}
       <ErrLineAt msg={own} />
     </div>
   );
@@ -352,8 +387,8 @@ function DateTimeIn({ value, onChange, ro, label }: { value: string; onChange: (
   if (ro) return <span className="stu-fe-sel is-ro">{value ? when(value) : "—"}</span>;
   return (
     <span className="stu-sf__dt">
-      <DatePicker value={date} onChange={(v) => onChange(v ? zonedIso(v, time || "09:00") : undefined)} placeholder={label} ariaLabel={label} clearLabel={t("schema.clear")} />
-      <input type="time" value={time} onChange={(e) => date && onChange(zonedIso(date, e.target.value || "00:00"))} disabled={!date} aria-label={t("schema.time")} />
+      <DatePicker value={date} onChange={(v) => onChange(v ? zonedIso(v, time || "09:00") : undefined)} placeholder={t("schema.pickDate")} ariaLabel={label} clearLabel={t("schema.clear")} />
+      <TimePicker value={time} onChange={(v) => date && onChange(zonedIso(date, v || "00:00"))} placeholder="09:00" ariaLabel={t("schema.time")} disabled={!date} clearLabel={t("schema.clear")} step={15} />
     </span>
   );
 }
@@ -465,12 +500,14 @@ function ObjectField({ f, value, onChange, path, errs, ro, code }: Omit<BlockPro
     onChange(next);
   };
   const extraKeys = Object.keys(obj).filter((k) => !known.has(k));
+  const shownProps = f.properties.filter((p) => !p.hidden);
+  const wideProps = spans(shownProps);
   return (
     <div className={`stu-sf__obj${errs[path] ? " is-bad" : ""}`}>
       {f.properties.length ? (
         <div className="stu-sf__grid">
-          {f.properties.filter((p) => !p.hidden).map((p) => (
-            <FieldBlock key={p.key} f={p} value={obj[p.key]} onChange={(v) => set(p.key, v)} path={joinPath(path, p.key)} errs={errs} ro={ro} required={p.required || need.has(p.key)} code={code} />
+          {shownProps.map((p) => (
+            <FieldBlock key={p.key} f={p} value={obj[p.key]} onChange={(v) => set(p.key, v)} path={joinPath(path, p.key)} errs={errs} ro={ro} required={p.required || need.has(p.key)} code={code} span={wideProps.has(p.key)} />
           ))}
         </div>
       ) : null}
@@ -559,7 +596,10 @@ function KeyValue({ entries, onChange, ro, path, errs, title }: { entries: [stri
           ))}
         </ul>
       ) : (
-        <p className="stu-sf__none">{t("schema.noKeys")}</p>
+        <p className="stu-sf__none">
+          <IconInbox aria-hidden />
+          <span>{t("schema.noKeys")}</span>
+        </p>
       )}
       {rows.some(([k], i) => dup(k, i)) ? <p className="stu-ferr">{t("schema.dupKey")}</p> : null}
       {ro ? null : (
@@ -594,7 +634,8 @@ function ListField({ f, value, onChange, path, errs, ro, code }: Omit<BlockProps
   const remove = (i: number) => commit(items.filter((_, j) => j !== i));
   const add = () => commit([...items, emptyItem(item)]);
   const setAt = (i: number, v: unknown) => commit(items.map((x, j) => (j === i ? v : x)));
-  const what = item && item.label && item.label !== "value" ? label(item) : t("schema.item");
+  const own = item && item.label && item.label !== item.key && item.label !== "value" ? label(item) : "";
+  const what = own || t("schema.item");
   const summary = (v: unknown, i: number) => {
     if (!isDict(v) || !item) return t("generic.item", { n: i + 1 });
     // A row is named by what a person called it; a code or an id says
@@ -663,13 +704,16 @@ function ListField({ f, value, onChange, path, errs, ro, code }: Omit<BlockProps
           })}
         </ol>
       ) : (
-        <p className="stu-sf__none">{t("generic.noItems")}</p>
+        <p className="stu-sf__none">
+          <IconInbox aria-hidden />
+          <span>{t("schema.emptyList")}</span>
+        </p>
       )}
       <div className="stu-sf__lf">
         {ro ? null : (
-          <button type="button" className="stu-fe-add" onClick={add} data-ai-id={edAi(code, "field", path, "add")} data-ai-type="button" data-ai-label={t("schema.add", { what })}>
+          <button type="button" className="stu-fe-add" onClick={add} data-ai-id={edAi(code, "field", path, "add")} data-ai-type="button" data-ai-label={own ? t("schema.add", { what: own }) : t("schema.addKey")}>
             <IconPlus aria-hidden />
-            {t("schema.add", { what })}
+            {own ? t("schema.add", { what: own }) : t("schema.addKey")}
           </button>
         )}
         <small>

@@ -29,7 +29,7 @@ import { ConstructorIcon, StudioEmpty, StudioErrorNote, StudioLoading, StudioSta
 import { CtorSequence } from "./GroupFlow";
 import { useStudioHuman } from "./human";
 import { IconArchive, StudioConfirm, studioEventCode, useStudioRefetch } from "./dash/shared";
-import { IconBolt, IconCircleCheck, IconClipboardCheck, IconClock, IconCopy, IconEdit, IconEye, IconHistory, IconLayers, IconLock, IconPlus, IconSearch, IconShieldCheck, IconUser } from "@/components/icons";
+import { IconBolt, IconCircleCheck, IconClipboardCheck, IconClock, IconCopy, IconEdit, IconEye, IconHistory, IconInfo, IconLayers, IconLock, IconPlus, IconPower, IconSearch, IconShieldCheck, IconUser } from "@/components/icons";
 
 const PAGE = 50;
 const RUNTIME_STATUSES = ["active", "inactive"];
@@ -113,7 +113,13 @@ function RecordStatus({ r }: { r: StudioRecord }) {
   const { anyStatus } = useStudioHuman();
   if (r.source === "studio" && (STUDIO_STATUSES as string[]).includes(r.status)) return <StudioStatusPill status={r.status as StudioStatus} raw={r.status} />;
   const k = RUNTIME_STATUSES.includes(r.status) ? r.status : "";
-  return <span className={`stu-st stu-st--rt-${k || "other"}`}>{anyStatus(r.status)}</span>;
+  const Glyph = k === "active" ? IconCircleCheck : k === "inactive" ? IconPower : IconInfo;
+  return (
+    <span className={`stu-st stu-st--rt-${k || "other"}`}>
+      <Glyph aria-hidden />
+      {anyStatus(r.status)}
+    </span>
+  );
 }
 
 function ListBody({ code, ctor, canEdit, canArchive }: { code: string; ctor: StudioConstructor | null; canEdit: boolean; canArchive: boolean }) {

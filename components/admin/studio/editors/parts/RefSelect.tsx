@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
-import { loadStudioReference, type StudioReferenceItem } from "@/lib/services/studio";
+import { loadStudioReference, studioReferenceKey, type StudioReferenceItem } from "@/lib/services/studio";
+import { matchesSearch } from "@/lib/searchText";
 import { useStudioText } from "../../bits";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const keyOf = (source: string) => source.replace(/^\/?studio\/reference\//, "").replace(/^\//, "");
+const keyOf = (source: string) => studioReferenceKey(source).key;
 const str = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "");
 
 // A Studio field that holds an id (or a list of ids), picked from
@@ -35,6 +36,7 @@ export default function RefSelect(props: Props) {
   // Raw rows: they are named at render time, so the list is fetched once per
   // source and never again because a translation helper changed identity.
   const [base, setBase] = useState<{ phase: "loading" | "ready" | "error"; rows: StudioReferenceItem[] }>({ phase: "loading", rows: [] });
+  const [attempt, setAttempt] = useState(0);
 
   // The backend names roles, placements and constructors in Uzbek only; those
   // have names of our own. The second line says which record this is.
@@ -77,10 +79,31 @@ export default function RefSelect(props: Props) {
         if (!c.signal.aborted) setBase({ phase: "error", rows: [] });
       });
     return () => c.abort();
-  }, [source]);
+  }, [source, attempt]);
   const items = useMemo(() => base.rows.map(toOption), [base.rows, toOption]);
 
-  const search = useCallback(async (q: string) => (await loadStudioReference(source, q, 50)).map(toOption), [source, toOption]);
+  const search = useCallback(
+    async (q: string) => {
+      const hit = (r: StudioReferenceItem) => matchesSearch(`${r.label} ${str(r.raw.code)} ${str(r.raw.category_title)}`, q);
+      const local = base.rows.filter(hit);
+      let remote: StudioReferenceItem[] = [];
+      try {
+        remote = await loadStudioReference(source, q, 50);
+      } catch (e) {
+        if (!local.length) throw e;
+      }
+      const seen = new Set<string>();
+      return [...remote.filter(hit), ...local, ...remote.filter((r) => !hit(r))]
+        .filter((r) => !seen.has(r.value) && (seen.add(r.value), true))
+        .map(toOption);
+    },
+    [source, toOption, base.rows],
+  );
+  const retry = () => {
+    if (base.phase !== "error") return;
+    setBase({ phase: "loading", rows: [] });
+    setAttempt((n) => n + 1);
+  };
 
   const values = useMemo(() => (Array.isArray(value) ? value.map(String).filter(Boolean) : value ? [value] : []), [value]);
   // A saved value outside the first page still needs a name, not its id: a
@@ -100,7 +123,7 @@ export default function RefSelect(props: Props) {
     );
   }
   return (
-    <div className="stu-refsel">
+    <div className="stu-refsel" onFocusCapture={retry} onPointerDownCapture={retry}>
       <SearchSelect
         single={!multiple}
         value={values}
@@ -110,6 +133,7 @@ export default function RefSelect(props: Props) {
         placeholder={base.phase === "loading" ? t("generic.referenceLoading") : base.phase === "error" ? t("generic.referenceError") : multiple ? t("generic.referencePickMany") : t("generic.referencePick")}
         searchPlaceholder={t("generic.referenceSearch")}
         emptyText={t("generic.referenceEmpty")}
+        hint={base.phase === "loading" ? t("generic.referenceLoading") : base.phase === "error" ? t("generic.referenceRetry") : t("generic.referenceSearch")}
         ariaLabel={label}
         removeLabel={t("common.clear")}
       />
