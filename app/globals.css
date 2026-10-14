@@ -20538,6 +20538,96 @@ a.hn-app:hover{background:color-mix(in srgb,var(--b600) 7%,transparent)}
 .stu-sf__nav a>svg{flex:none;width:15px;height:15px;color:var(--gray2);transition:color .15s}
 .stu-sf__nav a:hover>svg{color:var(--dk-acc,var(--b600))}
 .stu-sf__nav a span{display:inline-grid;place-items:center;font-variant-numeric:tabular-nums}
+/* Studio status flow v2: big stage nodes with their own icons, a growing rail and a live ring on the current stage. Nothing clips: the list never scrolls and the panel leaves room for the ring. */
+.stu-flow2{container-type:inline-size;display:grid;gap:12px;padding:20px 16px 14px;border-radius:20px;background:linear-gradient(180deg,var(--dk-surface-2,#F5F8FE),var(--dk-surface,#fff));box-shadow:inset 0 0 0 1px var(--line);--node:48px}
+.stu-flow2__track{position:relative;padding-top:4px}
+.stu-flow2__list{list-style:none;margin:0;padding:0;display:flex;align-items:flex-start;gap:0;overflow:visible}
+.stu-flow2__step{position:relative;z-index:1;flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;animation:stuF2In .5s cubic-bezier(.2,.8,.2,1) calc(var(--i,0) * 90ms) both}
+.stu-flow2__node{position:relative;display:grid;place-items:center;width:var(--node);height:var(--node);flex:none}
+.stu-flow2__dot{position:relative;z-index:1;display:grid;place-items:center;width:100%;height:100%;border-radius:50%;background:var(--dk-surface,#fff);color:var(--gray2);box-shadow:inset 0 0 0 2px var(--dk-line,#DCE5F1);transition:background .3s,color .3s,box-shadow .3s,transform .3s}
+.stu-flow2__dot svg{width:21px;height:21px}
+.stu-flow2__txt{display:grid;gap:2px;min-width:0;max-width:100%;padding:0 4px}
+.stu-flow2__txt b{font-size:.86rem;line-height:1.25;color:var(--gray);overflow-wrap:anywhere}
+.stu-flow2__txt small{font-size:.72rem;line-height:1.3;color:var(--gray2);overflow-wrap:anywhere}
+.stu-flow2__step.is-done .stu-flow2__dot{background:var(--dk-tint-ok,#E3F6EA);color:var(--dk-txt-ok,#0F8A4B);box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--ok,#1E9E5A) 35%,transparent);animation:stuF2Pop .55s cubic-bezier(.2,.8,.3,1.4) calc(var(--i,0) * 90ms + 160ms) both}
+.stu-flow2__step.is-done .stu-flow2__txt b{color:var(--dk-txt-ok,#0F8A4B)}
+.stu-flow2__step.is-cur .stu-flow2__dot{background:var(--grad);color:#fff;box-shadow:var(--sblue);transform:scale(1.06)}
+.stu-flow2__step.is-cur .stu-flow2__txt b,.stu-flow2__step.is-live .stu-flow2__txt b{color:var(--ink)}
+.stu-flow2__step.is-cur .stu-flow2__txt small{color:var(--dk-acc,var(--b600));font-weight:600}
+.stu-flow2__step.is-cur .stu-flow2__node::before,.stu-flow2__step.is-warn .stu-flow2__node::before,.stu-flow2__step.is-live .stu-flow2__node::before{content:"";position:absolute;inset:0;border-radius:50%;animation:stuF2Pulse 2.2s ease-out infinite}
+.stu-flow2__halo{position:absolute;inset:-6px;border-radius:50%;background:conic-gradient(from 0deg,var(--b500,#2E8BFF),#00CFE8,transparent 62%,var(--b500,#2E8BFF));-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2px));animation:stuF2Spin 2.8s linear infinite}
+.stu-flow2__step.is-warn .stu-flow2__dot{background:linear-gradient(135deg,#FFB547,#F08A00);color:#fff;box-shadow:0 10px 22px -10px rgba(240,138,0,.7);transform:scale(1.06)}
+.stu-flow2__step.is-warn .stu-flow2__halo{background:conic-gradient(from 0deg,#F5A623,#FFD27A,transparent 62%,#F5A623)}
+.stu-flow2__step.is-warn .stu-flow2__node::before{animation-name:stuF2PulseWarn}
+.stu-flow2__step.is-warn .stu-flow2__txt b,.stu-flow2__step.is-warn .stu-flow2__txt small{color:var(--dk-txt-warn,#8A5300)}
+.stu-flow2__step.is-live .stu-flow2__dot{background:linear-gradient(135deg,#16A34A,#22C55E);color:#fff;box-shadow:0 12px 26px -12px rgba(22,163,74,.8);animation:stuF2Pop .6s cubic-bezier(.2,.8,.3,1.4) calc(var(--i,0) * 90ms + 200ms) both}
+.stu-flow2__step.is-live .stu-flow2__halo{background:conic-gradient(from 0deg,#22C55E,#A7F3D0,transparent 62%,#22C55E)}
+.stu-flow2__step.is-live .stu-flow2__node::before{animation-name:stuF2PulseOk}
+.stu-flow2__step.is-live .stu-flow2__txt small{color:var(--dk-txt-ok,#0F8A4B);font-weight:600}
+.stu-flow2__rail{position:absolute;z-index:0;top:calc(4px + var(--node) / 2 - 3px);left:calc(100% / var(--n) / 2);right:calc(100% / var(--n) / 2);height:6px;border-radius:6px;background:var(--dk-line,#E3EAF4);overflow:hidden;pointer-events:none}
+.stu-flow2__rail>i{position:absolute;inset:0;border-radius:inherit;transform-origin:left center;transform:scaleX(var(--p,0));background:linear-gradient(90deg,var(--ok,#1E9E5A),var(--b500,#2E8BFF));transition:transform .8s cubic-bezier(.2,.8,.2,1);animation:stuF2Rail 1.1s cubic-bezier(.2,.8,.2,1) .2s both}
+.stu-flow2__rail>i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.75),transparent) no-repeat;background-size:60px 100%;animation:stuF2Shine 2.6s ease-in-out 1.3s infinite}
+.stu-flow2.stu-flow--warn .stu-flow2__rail>i{background:linear-gradient(90deg,var(--ok,#1E9E5A),#F5A623)}
+.stu-flow2.stu-flow--done .stu-flow2__rail>i{background:linear-gradient(90deg,#16A34A,#22C55E)}
+.stu-flow2.stu-flow--done .stu-flow2__rail>i::after,.stu-flow2.stu-flow--archived .stu-flow2__rail>i::after{display:none}
+.stu-flow2.stu-flow--archived .stu-flow2__list{opacity:.55;filter:grayscale(.6)}
+.stu-flow2__cap{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1px var(--line);animation:stuF2In .45s .35s both}
+.stu-flow2__capi{flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:12px}
+.stu-flow2__capi svg{width:18px;height:18px}
+.stu-flow2__cap.is-ok .stu-flow2__capi{background:var(--dk-tint-ok,#E3F6EA);color:var(--dk-txt-ok,#0F8A4B)}
+.stu-flow2__cap.is-info .stu-flow2__capi{background:var(--dk-tint-blue,#EAF2FF);color:var(--dk-acc,var(--b600))}
+.stu-flow2__cap.is-warn .stu-flow2__capi{background:var(--dk-tint-warn,#FFF4DE);color:var(--dk-txt-warn,#8A5300)}
+.stu-flow2__capt{display:grid;gap:2px;flex:1;min-width:0}
+.stu-flow2__capt b{font-size:.88rem;color:var(--ink)}
+.stu-flow2__capt small{font-size:.8rem;line-height:1.45;color:var(--gray)}
+.stu-flow2__capa{flex:none}
+.stu-flow2 .stu-flow__note{margin:0}
+@container (max-width:560px){
+  .stu-flow2__list{flex-direction:column;gap:14px}
+  .stu-flow2__step{flex-direction:row;align-items:center;text-align:left;gap:12px;width:100%}
+  .stu-flow2__txt{padding:0}
+  .stu-flow2__rail{top:calc(4px + var(--node) / 2);bottom:calc(var(--node) / 2);left:calc(var(--node) / 2 - 3px);right:auto;width:6px;height:auto}
+  .stu-flow2__rail>i{transform-origin:center top;transform:scaleY(var(--p,0));animation-name:stuF2RailY}
+  .stu-flow2__rail>i::after{display:none}
+  .stu-flow2__cap{flex-wrap:wrap}
+  .stu-flow2__cap{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start}
+  .stu-flow2__capa{grid-column:1 / -1}
+  .stu-flow2__capa>.btn{width:100%;justify-content:center}
+}
+@keyframes stuF2In{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes stuF2Pop{0%{transform:scale(.55)}60%{transform:scale(1.14)}100%{transform:scale(1)}}
+@keyframes stuF2Spin{to{transform:rotate(360deg)}}
+@keyframes stuF2Pulse{0%{box-shadow:0 0 0 0 rgba(46,139,255,.42)}75%{box-shadow:0 0 0 14px rgba(46,139,255,0)}100%{box-shadow:0 0 0 0 rgba(46,139,255,0)}}
+@keyframes stuF2PulseWarn{0%{box-shadow:0 0 0 0 rgba(245,166,35,.45)}75%{box-shadow:0 0 0 14px rgba(245,166,35,0)}100%{box-shadow:0 0 0 0 rgba(245,166,35,0)}}
+@keyframes stuF2PulseOk{0%{box-shadow:0 0 0 0 rgba(34,197,94,.42)}75%{box-shadow:0 0 0 14px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+@keyframes stuF2Rail{from{transform:scaleX(0)}}
+@keyframes stuF2RailY{from{transform:scaleY(0)}}
+@keyframes stuF2Shine{from{background-position:-60px 0}to{background-position:calc(100% + 60px) 0}}
+@media (prefers-reduced-motion:reduce){.stu-flow2__step,.stu-flow2__dot,.stu-flow2__halo,.stu-flow2__node::before,.stu-flow2__rail>i,.stu-flow2__rail>i::after,.stu-flow2__cap,.stu-gfold__body .stu-guide{animation:none!important}.stu-flow2__rail>i{transition:none}}
+/* Studio editor: the constructor guide folds into one line so the form starts near the top. */
+.stu-gfold{display:grid;gap:10px;padding:12px 14px;border-radius:18px;background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1px var(--line)}
+.stu-gfold__head{display:flex;align-items:center;gap:10px 12px;flex-wrap:wrap}
+.stu-gfold__ic{flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#FFE7A3,#FFC94D);color:#7A4B00}
+.stu-gfold__ic svg{width:19px;height:19px}
+.stu-gfold__t{flex:1 1 260px;min-width:0;display:grid;gap:2px}
+.stu-gfold__t b{font-size:.94rem;color:var(--ink)}
+.stu-gfold__t small{font-size:.82rem;line-height:1.4;color:var(--gray);display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.stu-gfold.is-open .stu-gfold__t small{display:block}
+.stu-gfold__chips{display:flex;flex-wrap:wrap;gap:6px}
+.stu-gfold__chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;background:var(--dk-surface-2,#F2F6FC);color:var(--gray);font-size:.74rem;font-weight:700}
+.stu-gfold__chip svg{width:13px;height:13px;color:var(--dk-acc,var(--b600))}
+.stu-gfold__tg{flex:none;display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:0;border-radius:12px;background:var(--dk-tint-blue,#EAF2FF);color:var(--dk-acc-strong,var(--b700));font-weight:700;font-size:.82rem;cursor:pointer;transition:background .2s}
+.stu-gfold__tg:hover{background:color-mix(in srgb,var(--b500,#2E8BFF) 18%,transparent)}
+.stu-gfold__tg svg{width:16px;height:16px;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+.stu-gfold.is-open .stu-gfold__tg svg{transform:rotate(180deg)}
+.stu-gfold__warn{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;margin:0;padding:9px 12px;border-radius:12px;background:var(--dk-tint-warn,#FFF4DE);color:var(--dk-txt-warn,#8A5300);font-size:.82rem;line-height:1.4}
+.stu-gfold__warn--high{background:var(--dk-tint-err,#FDECEC);color:var(--dk-txt-err,#B42318)}
+.stu-gfold__warn svg{flex:none;width:16px;height:16px}
+.stu-gfold__body .stu-guide{animation:stuF2In .35s both}
+/* The side panel's four tabs stack icon over label so no name is cut. */
+.stu-ed .stu-oside__tabs .stu-seg__b{position:relative;flex-direction:column;gap:3px;padding:8px 4px;min-width:0}
+.stu-ed .stu-oside__tl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:.72rem}
+.stu-ed .stu-oside__n{position:absolute;top:4px;right:6px}
 .stu-sf__nav a span svg{width:11px;height:11px}
 .stu-sf__nav a.is-done span{background:var(--dk-tint-ok,#E6F8F1);color:var(--dk-txt-ok,#047857)}
 .stu-sf__nav a.is-done>svg{color:var(--dk-txt-ok,#047857)}

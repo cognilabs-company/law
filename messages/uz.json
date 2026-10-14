@@ -1386,7 +1386,15 @@
       "stepsDone": "{done} / {all} qadam",
       "view": "Ko'rish",
       "viewAria": "{title} ni ko'rish",
-      "why": "Nega yopiq?"
+      "why": "Nega yopiq?",
+      "hint": {
+        "draft": "Tahrirlash va saqlash",
+        "submitted": "Tasdiqlash navbatida",
+        "in_review": "Tekshiruvchi ko'rmoqda",
+        "approved": "E'longa tayyor",
+        "published": "Saytda faol",
+        "changes_requested": "Tuzatib, qayta yuboring"
+      }
     },
     "groups": {
       "communications": "Muloqot va bildirishnomalar",
@@ -2577,7 +2585,9 @@
       "itemExample": "Har bir band misoli:",
       "readOnly": "faqat o'qish",
       "completed": "Sozlangan",
-      "needsFirst": "Avval: {list}"
+      "needsFirst": "Avval: {list}",
+      "guideShow": "Qo'llanmani ochish",
+      "guideHide": "Qo'llanmani yig'ish"
     },
     "human": {
       "surface": {

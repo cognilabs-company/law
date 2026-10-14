@@ -1386,7 +1386,15 @@
       "stepsDone": "{done} / {all} steps",
       "view": "View",
       "viewAria": "View {title}",
-      "why": "Why closed?"
+      "why": "Why closed?",
+      "hint": {
+        "draft": "Edit and save",
+        "submitted": "Queued for review",
+        "in_review": "Reviewer is checking",
+        "approved": "Ready to publish",
+        "published": "Live on the site",
+        "changes_requested": "Fix it and send again"
+      }
     },
     "groups": {
       "communications": "Communication & notifications",
@@ -2577,7 +2585,9 @@
       "itemExample": "Example item:",
       "readOnly": "read only",
       "completed": "Set up",
-      "needsFirst": "First: {list}"
+      "needsFirst": "First: {list}",
+      "guideShow": "Open the guide",
+      "guideHide": "Collapse the guide"
     },
     "human": {
       "surface": {

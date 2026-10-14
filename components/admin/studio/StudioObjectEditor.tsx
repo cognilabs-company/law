@@ -36,6 +36,7 @@ import {
   StudioEmpty,
   StudioErrorNote,
   StudioLoading,
+  StudioFlowCaption,
   StudioStatusPill,
   StudioStatusSteps,
   studioEventObjectId,
@@ -48,7 +49,7 @@ import { cleanStudioPayload, editorFor, validateStudioPayload } from "./editors"
 import { changedRoots, normErrorPaths, normPath, rootOf } from "@/lib/studioSchema";
 import ImpactPreview from "./object/ImpactPreview";
 import LivePreview, { useLivePreview } from "./object/LivePreview";
-import { ConstructorGuide } from "./guide";
+import GuideFold from "./GuideFold";
 import { CtorSequence } from "./GroupFlow";
 import { STUDIO_ERR, type StudioPayload } from "./editors/types";
 import { useLeaveGuard } from "./object/useLeaveGuard";
@@ -791,7 +792,42 @@ function Workspace({ id, newCode, ctx, onCode }: { id: string; newCode: string; 
             </p>
           ) : null}
         </div>
-        <StudioStatusSteps status={status} raw={statusRaw} approvalFree={approvalFree} />
+        <StudioStatusSteps
+          status={status}
+          raw={statusRaw}
+          approvalFree={approvalFree}
+          caption={
+            status === "approved" ? (
+              <StudioFlowCaption tone="ok" icon={IconCircleCheck} title={t("editor.banner.approved")} text={publishShown ? t("editor.banner.approvedPublisher") : t("editor.banner.approvedWait")} />
+            ) : status === "submitted" || status === "in_review" ? (
+              <StudioFlowCaption
+                tone="info"
+                icon={IconHourglass}
+                title={t("editor.banner.review")}
+                text={t("editor.banner.reviewText")}
+                action={
+                  reviewShown ? (
+                    <Link href="/admin/studio/approvals" className="btn btn--soft btn--sm" data-ai-id="admin.studio.editor.open-review" data-ai-type="link" data-ai-label={t("editor.openReview")}>
+                      <IconShieldCheck aria-hidden />
+                      {t("editor.openReview")}
+                    </Link>
+                  ) : undefined
+                }
+              />
+            ) : status === "published" && acc.canEdit ? (
+              <StudioFlowCaption tone="info" icon={IconRocket} title={t("editor.banner.published")} text={t("editor.banner.publishedText")} />
+            ) : reviewNote ? (
+              <StudioFlowCaption
+                tone="warn"
+                icon={IconRefresh}
+                title={reviewNote.rejected ? t("editor.banner.rejected") : t("editor.banner.changes")}
+                text={[`«${reviewNote.text}»`, [reviewNote.by, st.when(reviewNote.at)].filter(Boolean).join(" · ")].filter((x) => x && x !== "«»").join(" — ")}
+              />
+            ) : status === "changes_requested" && acc.canEdit ? (
+              <StudioFlowCaption tone="warn" icon={IconRefresh} title={t("editor.banner.changes")} text={t("editor.banner.changesNoNote")} />
+            ) : null
+          }
+        />
       </section>
 
       {publishFail ? (
@@ -825,44 +861,7 @@ function Workspace({ id, newCode, ctx, onCode }: { id: string; newCode: string; 
         </Banner>
       ) : null}
 
-      {reviewNote ? (
-        <Banner tone="warn" icon={IconRefresh} title={reviewNote.rejected ? t("editor.banner.rejected") : t("editor.banner.changes")}>
-          <blockquote className="stu-oban__q">{reviewNote.text}</blockquote>
-          {reviewNote.by || reviewNote.at ? <small>{[reviewNote.by, st.when(reviewNote.at)].filter(Boolean).join(" · ")}</small> : null}
-        </Banner>
-      ) : status === "changes_requested" && acc.canEdit ? (
-        <Banner tone="warn" icon={IconRefresh} title={t("editor.banner.changes")}>
-          <p>{t("editor.banner.changesNoNote")}</p>
-        </Banner>
-      ) : null}
 
-      {status === "published" && acc.canEdit ? (
-        <Banner tone="info" icon={IconRocket} title={t("editor.banner.published")}>
-          <p>{t("editor.banner.publishedText")}</p>
-        </Banner>
-      ) : null}
-      {status === "approved" ? (
-        <Banner tone="ok" icon={IconCircleCheck} title={t("editor.banner.approved")}>
-          <p>{publishShown ? t("editor.banner.approvedPublisher") : t("editor.banner.approvedWait")}</p>
-        </Banner>
-      ) : null}
-      {status === "submitted" || status === "in_review" ? (
-        <Banner
-          tone="info"
-          icon={IconHourglass}
-          title={t("editor.banner.review")}
-          action={
-            reviewShown ? (
-              <Link href="/admin/studio/approvals" className="btn btn--soft btn--sm" data-ai-id="admin.studio.editor.open-review" data-ai-type="link" data-ai-label={t("editor.openReview")}>
-                <IconShieldCheck aria-hidden />
-                {t("editor.openReview")}
-              </Link>
-            ) : undefined
-          }
-        >
-          <p>{t("editor.banner.reviewText")}</p>
-        </Banner>
-      ) : null}
       {fc && fc.mode !== "create" ? (
         <Banner tone={fc.mode === "view" ? "info" : "warn"} icon={fc.mode === "view" ? IconLock : fc.mode === "clone" ? IconLayers : IconEdit} title={t(`flow.mode.${fc.mode}.title`, { title: fc.title || ctorName(code) })}>
           <p>{t(`flow.mode.${fc.mode}.text`)}</p>
@@ -900,7 +899,7 @@ function Workspace({ id, newCode, ctx, onCode }: { id: string; newCode: string; 
       ) : null}
       {actErr ? <StudioErrorNote error={actErr} /> : null}
 
-      {meta ? <ConstructorGuide ctor={meta} /> : null}
+      {meta ? <GuideFold key={code} ctor={meta} defaultOpen={creating} /> : null}
 
       <div className="stu-ed__panes hrm-tabs" role="tablist" aria-label={t("ux.panes")}>
         <button type="button" role="tab" aria-selected={pane === "form"} className={pane === "form" ? "on" : ""} onClick={() => setPane("form")}>{t("ux.paneForm")}</button>

@@ -134,40 +134,68 @@ export function StudioStatusPill({ status, raw = "", small }: { status: StudioSt
 
 const FLOW: StudioStatus[] = ["draft", "submitted", "in_review", "approved", "published"];
 
-export function StudioStatusSteps({ status, raw = "", approvalFree }: { status: StudioStatus; raw?: string; approvalFree?: boolean }) {
+export type StudioFlowTone = "ok" | "info" | "warn";
+
+export function StudioFlowCaption({ tone, icon: Glyph, title, text, action }: { tone: StudioFlowTone; icon: Icon; title: string; text: string; action?: ReactNode }) {
+  return (
+    <div className={`stu-flow2__cap is-${tone}`} role="status">
+      <span className="stu-flow2__capi" aria-hidden>
+        <Glyph />
+      </span>
+      <span className="stu-flow2__capt">
+        <b>{title}</b>
+        {text ? <small>{text}</small> : null}
+      </span>
+      {action ? <span className="stu-flow2__capa">{action}</span> : null}
+    </div>
+  );
+}
+
+export function StudioStatusSteps({ status, raw = "", approvalFree, caption }: { status: StudioStatus; raw?: string; approvalFree?: boolean; caption?: ReactNode }) {
   const { t, status: label } = useStudioText();
   const flow: StudioStatus[] = approvalFree ? ["draft", "published"] : FLOW;
   const back = status === "changes_requested";
   const archived = status === "archived";
   const at = back ? flow.indexOf("in_review") : archived ? -1 : flow.indexOf(status);
   const rejected = /^(rejected|declined)$/i.test(raw.trim());
-  // The rail runs from the first dot's centre to the last one's; the fill
-  // stops at the current stage.
   const fill = at > 0 ? at / (flow.length - 1) : 0;
+  const hint = (s: string) => (t.has(`flow.hint.${s}`) ? t(`flow.hint.${s}`) : "");
   return (
-    <div className={`stu-flow${archived ? " stu-flow--archived" : ""}${back ? " stu-flow--warn" : ""}${status === "published" ? " stu-flow--done" : ""}`} style={{ "--n": flow.length } as CSSProperties}>
-      <span className="stu-flow__rail" aria-hidden>
-        <i style={{ "--p": fill } as CSSProperties} />
-      </span>
-      <ol className="stu-flow__list" aria-label={t("flow.label")}>
-        {flow.map((s, i) => {
-          // Published is the last stage: reaching it finishes the line.
-          const live = status === "published" && i === at;
-          const done = i < at || live;
-          const cur = i === at && !live;
-          const warn = cur && back;
-          const cls = warn ? " is-warn" : cur ? " is-cur" : done ? " is-done" : "";
-          return (
-            <li key={s} className={`stu-flow__step${cls}`} aria-current={cur ? "step" : undefined}>
-              <span className="stu-flow__dot" aria-hidden>
-                {done ? <IconCheck /> : warn ? <IconRefresh /> : <span>{i + 1}</span>}
-              </span>
-              <span className="stu-flow__l">{warn ? label("changes_requested", raw) : label(s)}</span>
-            </li>
-          );
-        })}
-      </ol>
-      {archived ? (
+    <div
+      className={`stu-flow stu-flow2${archived ? " stu-flow--archived" : ""}${back ? " stu-flow--warn" : ""}${status === "published" ? " stu-flow--done" : ""}`}
+      style={{ "--n": flow.length, "--p": fill } as CSSProperties}
+    >
+      <div className="stu-flow2__track">
+        <span className="stu-flow2__rail" aria-hidden>
+          <i />
+        </span>
+        <ol className="stu-flow2__list" aria-label={t("flow.label")}>
+          {flow.map((s, i) => {
+            const live = status === "published" && i === at;
+            const done = i < at;
+            const cur = i === at && !live;
+            const warn = cur && back;
+            const state = warn ? "warn" : live ? "live" : cur ? "cur" : done ? "done" : "todo";
+            const Glyph = done ? IconCheck : warn ? IconRefresh : STATUS_ICON[s];
+            return (
+              <li key={s} className={`stu-flow2__step is-${state}`} style={{ "--i": i } as CSSProperties} aria-current={cur || live ? "step" : undefined}>
+                <span className="stu-flow2__node" aria-hidden>
+                  {cur || live ? <span className="stu-flow2__halo" /> : null}
+                  <span className="stu-flow2__dot">
+                    <Glyph />
+                  </span>
+                </span>
+                <span className="stu-flow2__txt">
+                  <b>{warn ? label("changes_requested", raw) : label(s)}</b>
+                  <small>{warn ? hint("changes_requested") : hint(s)}</small>
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+      {caption}
+      {caption ? null : archived ? (
         <p className="stu-flow__note">
           <IconInbox aria-hidden />
           {t("flow.archived")}

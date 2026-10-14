@@ -1386,7 +1386,15 @@
       "stepsDone": "шагов {done} из {all}",
       "view": "Просмотр",
       "viewAria": "Просмотр {title}",
-      "why": "Почему закрыт?"
+      "why": "Почему закрыт?",
+      "hint": {
+        "draft": "Правка и сохранение",
+        "submitted": "В очереди на проверку",
+        "in_review": "Проверяющий смотрит",
+        "approved": "Готово к публикации",
+        "published": "Работает на сайте",
+        "changes_requested": "Исправьте и отправьте снова"
+      }
     },
     "groups": {
       "communications": "Общение и уведомления",
@@ -2577,7 +2585,9 @@
       "itemExample": "Пример элемента:",
       "readOnly": "только чтение",
       "completed": "Настроено",
-      "needsFirst": "Сначала: {list}"
+      "needsFirst": "Сначала: {list}",
+      "guideShow": "Открыть руководство",
+      "guideHide": "Свернуть руководство"
     },
     "human": {
       "surface": {
