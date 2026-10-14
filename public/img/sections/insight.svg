@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs>
+<linearGradient id="n" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3f74de"/><stop offset="1" stop-color="#122d6b"/></linearGradient>
+<linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7aa6ff"/><stop offset="1" stop-color="#2459d6"/></linearGradient>
+<linearGradient id="w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d9e2f2"/></linearGradient>
+<linearGradient id="s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4f7fc"/><stop offset="1" stop-color="#b7c4da"/></linearGradient>
+<linearGradient id="m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6ee7d6"/><stop offset="1" stop-color="#0e9384"/></linearGradient>
+<linearGradient id="y" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#eaa823"/></linearGradient>
+<radialGradient id="g"><stop offset="0" stop-color="#0b1f45" stop-opacity=".3"/><stop offset="1" stop-color="#0b1f45" stop-opacity="0"/></radialGradient>
+</defs>
+<ellipse cx="64" cy="117" rx="46" ry="7" fill="url(#g)"/>
+<rect x="12" y="26" width="104" height="80" rx="13" fill="url(#n)"/>
+<rect x="21" y="35" width="86" height="62" rx="7" fill="url(#w)"/>
+<circle cx="64" cy="30.5" r="1.6" fill="#9fbaf6"/>
+<path d="M27 90h74" stroke="#c6d6fa" stroke-width="1.5"/>
+<rect x="31" y="74" width="11" height="16" rx="3" fill="url(#m)"/><rect x="47" y="64" width="11" height="26" rx="3" fill="url(#b)"/><rect x="63" y="56" width="11" height="34" rx="3" fill="url(#m)"/><rect x="79" y="44" width="11" height="46" rx="3" fill="url(#b)"/>
+<polyline points="36.5,64 52.5,54 68.5,47 84.5,36" fill="none" stroke="#153988" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="36.5" cy="64" r="3.6" fill="#fff" stroke="#153988" stroke-width="2.4"/><circle cx="52.5" cy="54" r="3.6" fill="#fff" stroke="#153988" stroke-width="2.4"/><circle cx="68.5" cy="47" r="3.6" fill="#fff" stroke="#153988" stroke-width="2.4"/><circle cx="84.5" cy="36" r="3.6" fill="#fff" stroke="#153988" stroke-width="2.4"/>
+<path d="M18 40a9 9 0 0 1 8-8" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="3" stroke-linecap="round"/></svg>

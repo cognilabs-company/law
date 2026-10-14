@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
@@ -8,7 +9,8 @@ import { HrmHead } from "@/components/internal/HrmUi";
 import { NAV_GROUPS, navHref, navId } from "./nav";
 
 // MedControl HR's «Boʻlimlar»: every area of the workspace as a tile with
-// its pages, for finding one's way without the menu.
+// its pages, for finding one's way without the menu. Each area has its own
+// picture in public/img/sections/<group key>.svg.
 export default function SectionsPage() {
   const t = useTranslations("internal");
   const { session } = useAuth();
@@ -20,7 +22,7 @@ export default function SectionsPage() {
         {groups.map((g) => (
           <article key={g.key} className="hrm-section-tile">
             <header>
-              <span className="hrm-section-tile__i"><g.Icon /></span>
+              <Image className="hrm-section-tile__art" src={`/img/sections/${g.key}.svg`} alt="" width={56} height={56} />
               <h3>{t(`groups.${g.key}`)}</h3>
               <small>{t("sections.pages", { n: g.items.length })}</small>
             </header>

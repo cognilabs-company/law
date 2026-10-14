@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128"><defs>
+<linearGradient id="n" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3f74de"/><stop offset="1" stop-color="#122d6b"/></linearGradient>
+<linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7aa6ff"/><stop offset="1" stop-color="#2459d6"/></linearGradient>
+<linearGradient id="w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d9e2f2"/></linearGradient>
+<linearGradient id="s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4f7fc"/><stop offset="1" stop-color="#b7c4da"/></linearGradient>
+<linearGradient id="m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6ee7d6"/><stop offset="1" stop-color="#0e9384"/></linearGradient>
+<linearGradient id="y" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#eaa823"/></linearGradient>
+<radialGradient id="g"><stop offset="0" stop-color="#0b1f45" stop-opacity=".3"/><stop offset="1" stop-color="#0b1f45" stop-opacity="0"/></radialGradient>
+</defs>
+<ellipse cx="64" cy="117" rx="46" ry="7" fill="url(#g)"/>
+<defs><linearGradient id="ng" gradientUnits="userSpaceOnUse" x1="18" y1="24" x2="86" y2="92"><stop offset="0" stop-color="#3f74de"/><stop offset="1" stop-color="#122d6b"/></linearGradient></defs>
+<rect x="45" y="22" width="14" height="14" rx="3.5" fill="url(#ng)" transform="rotate(0 52 58)"/><rect x="45" y="22" width="14" height="14" rx="3.5" fill="url(#ng)" transform="rotate(45 52 58)"/><rect x="45" y="22" width="14" height="14" rx="3.5" fill="url(#ng)" transform="rotate(90 52 58)"/><rect x="45" y="22" width="14" height="14" rx="3.5" fill="url(#ng)" transform="rotate(135 52 58)"/><rect x="45" y="22" width="14" height="14" rx="3.5" fill="url(#ng)" transform="rotate(180 52 58)"/><rect x="45" y="22" width="14" height="14" rx="3.5" fill="url(#ng)" transform="rotate(225 52 58)"/><rect x="45" y="22" width="14" height="14" rx="3.5" fill="url(#ng)" transform="rotate(270 52 58)"/><rect x="45" y="22" width="14" height="14" rx="3.5" fill="url(#ng)" transform="rotate(315 52 58)"/>
+<circle cx="52" cy="58" r="27" fill="url(#ng)"/>
+<circle cx="52" cy="58" r="11" fill="url(#w)"/>
+<path d="M33 46a22 22 0 0 1 12-11" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="3" stroke-linecap="round"/>
+<path d="M88 48l25 8.5v19c0 18-12 29-25 35-13-6-25-17-25-35v-19z" fill="url(#m)"/>
+<path d="M88 54l19 6.5v15c0 13.5-9 22-19 27z" fill="#fff" opacity=".18"/>
+<path d="M77 79l7.5 7.5L100 71" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>

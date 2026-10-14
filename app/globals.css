@@ -20339,8 +20339,7 @@ a.hn-app:hover{background:color-mix(in srgb,var(--b600) 7%,transparent)}
 .hrm-sections{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));gap:14px}
 .hrm-section-tile{display:grid;gap:10px;align-content:start;padding:18px;border-radius:20px;background:var(--mc-card,var(--dk-surface,#fff));box-shadow:var(--s1),inset 0 0 0 1px var(--mc-card-border,var(--line));backdrop-filter:var(--mc-glass)}
 .hrm-section-tile header{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto auto;column-gap:12px;align-items:center}
-.hrm-section-tile__i{grid-row:1/3;display:grid;place-items:center;width:44px;height:44px;border-radius:14px;background:linear-gradient(160deg,#3f76ed,#1b49ae);color:#fff;box-shadow:0 8px 18px -8px rgba(24,82,200,.6)}
-.hrm-section-tile__i svg{width:21px;height:21px}
+.hrm-section-tile__art{grid-row:1/3;width:56px;height:56px;object-fit:contain}
 .hrm-section-tile h3{margin:0;font-family:var(--fd);font-size:1rem}
 .hrm-section-tile header small{font-size:.74rem;color:var(--gray2)}
 .hrm-section-tile ul{display:grid;gap:2px;margin:0;padding:0;list-style:none}
