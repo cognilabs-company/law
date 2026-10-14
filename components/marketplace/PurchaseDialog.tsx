@@ -25,6 +25,7 @@ import { useMarketOrderTracker } from "@/lib/useMarketOrderTracker";
 import { deliveryLabel } from "./bits";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import { trackPromoContact } from "@/lib/services/promoEvents";
+import PriceOptions, { EMPTY_PRICE, type PriceState } from "./PriceOptions";
 
 const CHANNEL_ICON = { chat: IconChat, audio: IconPhone, video: IconVideo, meeting: IconUsers } as const;
 const NOTE_MAX = 1000;
@@ -58,6 +59,7 @@ export default function PurchaseDialog({
   const [err, setErr] = useState("");
   const [done, setDone] = useState<MarketPurchase | null>(null);
   const [active, setActive] = useState<ActivePurchase | null>(null);
+  const [price, setPrice] = useState<PriceState>(EMPTY_PRICE);
 
   const key = service?.id ?? "";
   const [prevKey, setPrevKey] = useState(key);
@@ -69,6 +71,7 @@ export default function PurchaseDialog({
     setErr("");
     setDone(null);
     setActive(null);
+    setPrice(EMPTY_PRICE);
   }
 
   const aiForm = !!service && !done && !active;
@@ -113,7 +116,7 @@ export default function PurchaseDialog({
   }
 
   async function submit() {
-    if (busy || done || !service) return;
+    if (busy || done || !service || price.pending || price.failed) return;
     if (note.length > NOTE_MAX) {
       setErr(t("noteTooLong"));
       return;
@@ -121,7 +124,7 @@ export default function PurchaseDialog({
     setBusy(true);
     setErr("");
     try {
-      const r = await requestMarketplacePurchase(sellerUserId, service.id, { note, preferredChannel: channel, preferredTime: time });
+      const r = await requestMarketplacePurchase(sellerUserId, service.id, { note, preferredChannel: channel, preferredTime: time, selectedOptionIds: price.ids });
       setDone(r);
       trackPromoContact(sellerUserId, "purchase");
     } catch (e) {
@@ -241,7 +244,7 @@ export default function PurchaseDialog({
           </div>
           <div className="mk-buy__sum">
             <small>{t("total")}</small>
-            <b>{fmtUzs(done?.amount || service.price)}</b>
+            <b>{fmtUzs(done?.amount || price.quote?.totalPrice || service.price)}</b>
             <span>{service.currency === "UZS" ? te("currency") : service.currency}</span>
           </div>
         </div>
@@ -310,6 +313,7 @@ export default function PurchaseDialog({
               void submit();
             }}
           >
+            <PriceOptions target="service" targetId={service.id} lawyerUserId={sellerUserId} onChange={setPrice} />
             <fieldset className="mk-buy__ch" data-ai-target="marketplace:purchase-channel" data-ai-id="marketplace.purchase.channel" data-ai-type="select">
               <legend>{t("channel")}</legend>
               <div className="mk-seg">
@@ -351,8 +355,8 @@ export default function PurchaseDialog({
             </div>
             <p className="mk-buy__note">{t("totalNote")}</p>
             {err ? <Notice ok={false} msg={err} /> : null}
-            <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy} data-ai-target="button:marketplace-purchase-submit" data-ai-id="marketplace.purchase.submit" data-ai-entity-type="marketplace_service" data-ai-entity-id={service.id}>
-              {busy ? t("sending") : t("submit")}
+            <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy || price.pending || price.failed} data-ai-target="button:marketplace-purchase-submit" data-ai-id="marketplace.purchase.submit" data-ai-entity-type="marketplace_service" data-ai-entity-id={service.id}>
+              {busy ? t("sending") : price.pending ? t("pricing") : t("submit")}
             </button>
           </form>
         )}

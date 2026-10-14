@@ -4906,7 +4906,8 @@
         "request": "So'rov",
         "confirm": "To'lov tasdig'i",
         "chat": "Chat va ish"
-      }
+      },
+      "pricing": "Narx hisoblanmoqda…"
     },
     "orders": {
       "emptyFilter": "Filtrga mos buyurtma topilmadi",
@@ -4991,6 +4992,21 @@
       "rejectedText": "To'lov tasdiqlanmadi. Pul yechilmagan.",
       "open": "Ochish",
       "close": "Yopish"
+    },
+    "priceOptions": {
+      "title": "Qo'shimcha opsiyalar",
+      "optional": "Ixtiyoriy — hech birini tanlamasangiz ham bo'ladi",
+      "picked": "{n} ta tanlandi",
+      "percent": "+{n}%",
+      "fixed": "+{price} so'm",
+      "fixedPlain": "{price} so'm",
+      "base": "Asosiy narx",
+      "total": "Yakuniy narx",
+      "calculating": "Narx hisoblanmoqda",
+      "optionsFailed": "Opsiyalarni yuklab bo'lmadi.",
+      "quoteFailed": "Narxni hisoblab bo'lmadi.",
+      "retry": "Qayta urinish",
+      "recalc": "Qayta hisoblash"
     }
   },
   "common": {

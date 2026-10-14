@@ -4906,7 +4906,8 @@
         "request": "Request",
         "confirm": "Payment check",
         "chat": "Chat and work"
-      }
+      },
+      "pricing": "Calculating the price…"
     },
     "orders": {
       "emptyFilter": "No orders match these filters",
@@ -4991,6 +4992,21 @@
       "rejectedText": "The payment was not confirmed. Nothing was charged.",
       "open": "Open",
       "close": "Close"
+    },
+    "priceOptions": {
+      "title": "Extra options",
+      "optional": "Optional — you can leave all of them unselected",
+      "picked": "{n} selected",
+      "percent": "+{n}%",
+      "fixed": "+{price} UZS",
+      "fixedPlain": "{price} UZS",
+      "base": "Base price",
+      "total": "Final price",
+      "calculating": "Calculating the price",
+      "optionsFailed": "Couldn't load the options.",
+      "quoteFailed": "Couldn't calculate the price.",
+      "retry": "Try again",
+      "recalc": "Recalculate"
     }
   },
   "common": {

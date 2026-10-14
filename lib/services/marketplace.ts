@@ -387,18 +387,24 @@ export type MarketPurchase = {
 export async function requestMarketplacePurchase(
   lawyerUserId: string,
   serviceId: string,
-  input: { note: string; preferredChannel: PreferredChannel; preferredTime: string },
+  input: { note: string; preferredChannel: PreferredChannel; preferredTime: string; selectedOptionIds?: string[] },
 ): Promise<MarketPurchase> {
   const d = asDict(
     await http(`/marketplace/lawyers/${encodeURIComponent(lawyerUserId)}/services/${encodeURIComponent(serviceId)}/purchase-request`, {
       method: "POST",
       body: JSON.stringify({
+        selected_option_ids: input.selectedOptionIds ?? [],
         note: input.note.trim(),
         preferred_channel: input.preferredChannel,
         preferred_time: input.preferredTime.trim(),
       }),
     }),
   );
+  return purchaseOf(d);
+}
+
+export function purchaseOf(raw: unknown): MarketPurchase {
+  const d = asDict(raw);
   const order = asDict(d.order);
   const payment = asDict(d.payment);
   const req = asDict(d.purchase_request);
