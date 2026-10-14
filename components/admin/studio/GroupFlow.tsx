@@ -1,12 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { aiId } from "@/lib/ai/ids";
 import { useStudioAccess, useStudioRegistry, type StudioConstructor, type StudioGroup, type StudioJourney } from "@/lib/services/studio";
 import StudioShell from "./StudioShell";
 import { ConstructorIcon, StudioEmpty, StudioLoading } from "./bits";
 import { useStudioHuman } from "./human";
-import { IconAlert, IconArrowRight, IconCheck, IconChevronRight, IconCircleCheck, IconFolder, IconInfo, IconLayers, IconLock, IconSearch } from "@/components/icons";
+import { groupGlyph, groupStyle } from "./dash/groupTheme";
+import { IconAlert, IconArrowRight, IconCheck, IconCircleCheck, IconFolder, IconInfo, IconLayers, IconLock, IconSearch } from "@/components/icons";
 
 // The catalog as the backend arranges the work (spec 10-12 grouped
 // workflows): nine business groups, each a sequence of constructors, and
@@ -51,58 +53,131 @@ export function CtorState({ ctor, compact }: { ctor: StudioConstructor; compact?
   return <span className="stu-cstate stu-cstate--open">{t("flow.state.open")}</span>;
 }
 
+type GroupFilter = "all" | "active" | "fresh" | "done";
+const FILTERS: GroupFilter[] = ["all", "active", "fresh", "done"];
+const stageOf = (g: StudioGroup): Exclude<GroupFilter, "all"> => (g.progress >= 100 ? "done" : g.progress > 0 || g.completed > 0 ? "active" : "fresh");
+
+function Ring({ value, label, size = 56 }: { value: number; label: string; size?: number }) {
+  const r = size / 2 - 5;
+  const c = 2 * Math.PI * r;
+  const v = Math.max(0, Math.min(100, value));
+  return (
+    <span className="stu-ring" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={v} aria-label={label} style={{ width: size, height: size }}>
+      <svg viewBox={`0 0 ${size} ${size}`} aria-hidden>
+        <circle className="stu-ring__bg" cx={size / 2} cy={size / 2} r={r} />
+        <circle className="stu-ring__fg" cx={size / 2} cy={size / 2} r={r} strokeDasharray={c} strokeDashoffset={c * (1 - v / 100)} />
+      </svg>
+      <b>{v >= 100 ? <IconCheck aria-hidden /> : `${v}%`}</b>
+    </span>
+  );
+}
+
+function CtorPath({ g, items }: { g: StudioGroup; items: StudioConstructor[] }) {
+  const { t, ctorName } = useStudioHuman();
+  if (!g.codes.length) return null;
+  return (
+    <ol className="stu-gc__path" aria-label={t("flow.pathLabel")}>
+      {g.codes.map((code) => {
+        const c = items.find((x) => x.code === code) ?? null;
+        const blocked = Boolean(c && !c.completed && (c.availability === "blocked" || c.missingRequired.length));
+        const state = c?.completed ? "done" : code === g.nextCode ? "next" : blocked ? "blocked" : "open";
+        const name = ctorName(code, c?.title);
+        const stateText = state === "done" ? t("flow.state.done") : state === "next" ? t("flow.current") : state === "blocked" ? t("flow.state.blocked") : t("flow.state.open");
+        return (
+          <li key={code} className={`stu-gc__dot is-${state}`} title={`${name} · ${stateText}`}>
+            <Link href={wsHref(code)} aria-label={`${name} · ${stateText}`} tabIndex={-1}>
+              {state === "done" ? <IconCheck aria-hidden /> : state === "blocked" ? <IconLock aria-hidden /> : null}
+            </Link>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export function DashGroups({ groups, items }: { groups: StudioGroup[]; items: StudioConstructor[] }) {
   const { t, ctorName, num, groupTitle, groupText } = useStudioHuman();
+  const [filter, setFilter] = useState<GroupFilter>("all");
   if (!groups.length) return null;
   const done = groups.reduce((n, g) => n + g.completed, 0);
   const all = groups.reduce((n, g) => n + g.count, 0);
+  const groupsDone = groups.filter((g) => stageOf(g) === "done").length;
+  const overall = all ? Math.round((done / all) * 100) : 0;
+  const counts: Record<GroupFilter, number> = { all: groups.length, active: 0, fresh: 0, done: 0 };
+  for (const g of groups) counts[stageOf(g)] += 1;
+  const shown = filter === "all" ? groups : groups.filter((g) => stageOf(g) === filter);
   return (
-    <section className="stu-groups" aria-label={t("flow.groupsTitle")} data-ai-id="admin.studio.dash.groups" data-ai-type="section" data-ai-label={t("flow.groupsTitle")}>
-      <header className="stu-sec-h">
-        <div>
+    <section className="stu-groups stu-groups--v2" aria-label={t("flow.groupsTitle")} data-ai-id="admin.studio.dash.groups" data-ai-type="section" data-ai-label={t("flow.groupsTitle")}>
+      <header className="stu-gh">
+        <div className="stu-gh__t">
           <h3>{t("flow.groupsTitle")}</h3>
           <p>{t("flow.groupsLead", { done: num(done), all: num(all), n: num(groups.length) })}</p>
         </div>
+        <div className="stu-gh__sum">
+          <Ring value={overall} label={t("flow.sumReady", { done: num(done), all: num(all) })} size={60} />
+          <span>
+            <b>{t("flow.sumReady", { done: num(done), all: num(all) })}</b>
+            <small>{t("flow.sumGroups", { done: num(groupsDone), all: num(groups.length) })}</small>
+          </span>
+        </div>
       </header>
-      <ol className="stu-groups__grid">
-        {groups.map((g) => {
-          const next = g.nextCode ? items.find((c) => c.code === g.nextCode) : null;
-          return (
-            <li key={g.key} className={`stu-gcard${g.progress >= 100 ? " is-done" : ""}`}>
-              <Link href={`/admin/studio/g/${encodeURIComponent(g.key)}`} className="stu-gcard__main" data-ai-id={aiId("admin.studio.dash.group", g.key)} data-ai-type="card" data-ai-label={groupTitle(g.key, g.title)}>
-                <span className="stu-gcard__n" aria-hidden>
-                  {g.order}
-                </span>
-                <span className="stu-gcard__t">
-                  <b>{groupTitle(g.key, g.title)}</b>
-                  {groupText(g.key, g.description) ? <small>{groupText(g.key, g.description)}</small> : null}
-                </span>
-                <IconChevronRight className="stu-gcard__go" aria-hidden />
-              </Link>
-              <div className="stu-gcard__prog">
-                <Progress value={g.progress} label={t("flow.progressAria", { title: groupTitle(g.key, g.title) })} />
-                <span>
-                  <b>{t("flow.doneOf", { done: num(g.completed), all: num(g.count) })}</b> · {g.progress}%
-                </span>
-              </div>
-              {g.nextCode ? (
-                <Link href={wsHref(g.nextCode)} className="stu-gcard__next" data-ai-id={aiId("admin.studio.dash.group", g.key, "next")} data-ai-type="link" data-ai-label={t("flow.continue")}>
-                  <span>
-                    <small>{t("flow.continue")}</small>
-                    <b>{ctorName(g.nextCode, next?.title)}</b>
+      <div className="stu-gfilter" role="group" aria-label={t("flow.filterLabel")}>
+        {FILTERS.map((f) => (
+          <button key={f} type="button" className="fchip" aria-pressed={filter === f} onClick={() => setFilter(f)} data-ai-id={aiId("admin.studio.dash.groups.filter", f)}>
+            {t(`flow.filter.${f}`)}
+            <span>{num(counts[f])}</span>
+          </button>
+        ))}
+      </div>
+      {shown.length ? (
+        <ol className="stu-gc-grid">
+          {shown.map((g) => {
+            const next = g.nextCode ? items.find((c) => c.code === g.nextCode) : null;
+            const title = groupTitle(g.key, g.title);
+            const text = groupText(g.key, g.description);
+            const isDone = stageOf(g) === "done";
+            return (
+              <li key={g.key} className={`stu-gc${isDone ? " is-done" : ""}`} style={groupStyle(g.key, g.title, g.order)}>
+                <Link href={`/admin/studio/g/${encodeURIComponent(g.key)}`} className="stu-gc__main" data-ai-id={aiId("admin.studio.dash.group", g.key)} data-ai-type="card" data-ai-label={title}>
+                  <span className="stu-gc__ico" aria-hidden>
+                    {groupGlyph(g.key, g.title, g.order)}
+                    <i>{g.order}</i>
                   </span>
-                  <IconArrowRight aria-hidden />
+                  <span className="stu-gc__t">
+                    <b>{title}</b>
+                    {text ? <small>{text}</small> : null}
+                  </span>
+                  <Ring value={g.progress} label={t("flow.progressAria", { title })} />
                 </Link>
-              ) : (
-                <span className="stu-gcard__next is-done">
-                  <IconCircleCheck aria-hidden />
-                  {t("flow.groupDone")}
-                </span>
-              )}
-            </li>
-          );
-        })}
-      </ol>
+                <CtorPath g={g} items={items} />
+                <div className="stu-gc__meta">
+                  <span>{t("flow.doneOf", { done: num(g.completed), all: num(g.count) })}</span>
+                  {g.available ? <span>{t("flow.availableN", { n: num(g.available) })}</span> : null}
+                </div>
+                {g.nextCode && !isDone ? (
+                  <Link href={wsHref(g.nextCode)} className="stu-gc__next" data-ai-id={aiId("admin.studio.dash.group", g.key, "next")} data-ai-type="link" data-ai-label={t("flow.continue")}>
+                    <span>
+                      <small>{t("flow.continue")}</small>
+                      <b>{ctorName(g.nextCode, next?.title)}</b>
+                    </span>
+                    <IconArrowRight aria-hidden />
+                  </Link>
+                ) : (
+                  <span className="stu-gc__next is-done">
+                    <IconCircleCheck aria-hidden />
+                    {t("flow.groupDone")}
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <p className="stu-gc-empty">
+          <IconInfo aria-hidden />
+          {t("flow.filterEmpty")}
+        </p>
+      )}
     </section>
   );
 }

@@ -8,13 +8,12 @@ import StudioShell from "./StudioShell";
 import { StudioErrorNote, useStudioText } from "./bits";
 import DashTiles from "./dash/DashTiles";
 import DashMine from "./dash/DashMine";
-import DashCatalog from "./dash/DashCatalog";
 import { DashGroups, DashJourneys } from "./GroupFlow";
 import { useDashData } from "./dash/useDashData";
 import { StudioConfirm, useStudioRefetch } from "./dash/shared";
 import { IconRefresh } from "@/components/icons";
 
-function DashBody({ isAdmin, canReview, onSync }: { isAdmin: boolean; canReview: boolean; onSync: () => void }) {
+function DashBody({ canReview }: { canReview: boolean }) {
   const reg = useStudioRegistry();
   const data = useDashData();
   useStudioRefetch(() => void data.reload());
@@ -30,7 +29,6 @@ function DashBody({ isAdmin, canReview, onSync }: { isAdmin: boolean; canReview:
       <DashGroups groups={reg.groups} items={reg.items} />
       <DashJourneys journeys={reg.journeys} />
       <DashMine items={data.mine} loading={loading} error={data.phase === "error" ? null : data.mineError} busy={data.busy} onRetry={() => void data.reload()} />
-      <DashCatalog items={reg.items} groups={reg.groups} perCode={data.perCode} canSync={isAdmin} onSync={onSync} />
     </>
   );
 }
@@ -75,7 +73,7 @@ export default function StudioDashboard() {
         ) : null
       }
     >
-      <DashBody isAdmin={acc.isAdmin} canReview={acc.canReview} onSync={openSync} />
+      <DashBody canReview={acc.canReview} />
       <StudioConfirm
         open={syncOpen}
         title={t("dash.sync.title")}

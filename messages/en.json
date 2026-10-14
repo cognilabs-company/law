@@ -1304,6 +1304,17 @@
       "groupMissing": "That section was not found.",
       "groupsLead": "{n} sections · {done} of {all} constructors set up. Work through each section in order.",
       "groupsTitle": "Sections and order of work",
+      "pathLabel": "Constructors of this section in order",
+      "sumReady": "{done} / {all} constructors ready",
+      "sumGroups": "{done} / {all} sections complete",
+      "filterLabel": "Filter sections",
+      "filterEmpty": "No sections in this state",
+      "filter": {
+        "all": "All",
+        "active": "In progress",
+        "fresh": "Not started",
+        "done": "Complete"
+      },
       "groupTitle": "Section",
       "hasDraft": "Has a Studio draft",
       "journeyDone": "Every step is done",

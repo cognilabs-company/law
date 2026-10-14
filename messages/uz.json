@@ -1304,6 +1304,17 @@
       "groupMissing": "Bunday bo'lim topilmadi.",
       "groupsLead": "{n} ta bo'lim · {done} / {all} konstruktor sozlangan. Har bo'lim ichida tartib bilan ishlang.",
       "groupsTitle": "Bo'limlar va ish tartibi",
+      "pathLabel": "Bo'lim konstruktorlari ketma-ketligi",
+      "sumReady": "{done} / {all} konstruktor tayyor",
+      "sumGroups": "{done} / {all} bo'lim tugallangan",
+      "filterLabel": "Bo'limlarni saralash",
+      "filterEmpty": "Bu holatda bo'lim yo'q",
+      "filter": {
+        "all": "Hammasi",
+        "active": "Jarayonda",
+        "fresh": "Boshlanmagan",
+        "done": "Tugallangan"
+      },
       "groupTitle": "Bo'lim",
       "hasDraft": "Studio qoralamasi bor",
       "journeyDone": "Barcha qadamlar bajarilgan",
