@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ApiError, errDetail, isAborted } from "@/lib/http";
+import { ApiError, isAborted } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { getPriceOptions, getPriceQuote, type PriceOption, type PriceOptionSection, type PriceQuote, type PriceTarget } from "@/lib/services/priceOptions";
 import { IconAlert, IconCheck, IconRefresh, IconSparkle } from "@/components/icons";
+import { PRICE_OPTION_ERRORS, marketErrorCode } from "@/lib/services/marketplace";
+import { useMarketError } from "./useMarketError";
 
 export type PriceState = { ids: string[]; quote: PriceQuote | null; pending: boolean; failed: boolean };
 export const EMPTY_PRICE: PriceState = { ids: [], quote: null, pending: true, failed: false };
@@ -54,14 +56,17 @@ export default function PriceOptions({
   target,
   targetId,
   lawyerUserId,
+  reload = 0,
   onChange,
 }: {
   target: PriceTarget;
   targetId: string;
   lawyerUserId?: string;
+  reload?: number;
   onChange: (s: PriceState) => void;
 }) {
   const t = useTranslations("marketplace.priceOptions");
+  const marketErr = useMarketError();
   const key = `${target}:${targetId}:${lawyerUserId ?? ""}`;
   const [form, setForm] = useState<FormState>({ key: "", status: "loading", sections: [] });
   const [picked, setPicked] = useState<string[]>([]);
@@ -87,13 +92,17 @@ export default function PriceOptions({
   useEffect(() => {
     const c = new AbortController();
     getPriceOptions(target, targetId, c.signal)
-      .then((f) => setForm({ key, status: f.sections.length ? "ready" : "none", sections: f.sections }))
+      .then((f) => {
+        const known = new Set(f.sections.flatMap((s) => s.options.map((o) => o.id)));
+        setForm({ key, status: f.sections.length ? "ready" : "none", sections: f.sections });
+        setPicked((cur) => (cur.every((id) => known.has(id)) ? cur : cur.filter((id) => known.has(id))));
+      })
       .catch((e: unknown) => {
         if (isAborted(e)) return;
         setForm({ key, status: e instanceof ApiError && e.status === 404 ? "none" : "error", sections: [] });
       });
     return () => c.abort();
-  }, [key, target, targetId, formTry]);
+  }, [key, target, targetId, formTry, reload]);
 
   const pickedKey = picked.join("|");
   useEffect(() => {
@@ -111,6 +120,7 @@ export default function PriceOptions({
             if (isAborted(e)) return;
             setQErr(e);
             setPending(false);
+            if (PRICE_OPTION_ERRORS.includes(marketErrorCode(e))) setFormTry((n) => n + 1);
           });
       },
       ids.length ? 250 : 0,
@@ -193,7 +203,7 @@ export default function PriceOptions({
       {qErr && sections.length ? (
         <p className="pxo__err" role="alert">
           <IconAlert aria-hidden />
-          <span>{errDetail(qErr) || t("quoteFailed")}</span>
+          <span>{marketErr(qErr, t("quoteFailed"))}</span>
           <button type="button" onClick={retryQuote}>
             <IconRefresh aria-hidden />
             {t("recalc")}

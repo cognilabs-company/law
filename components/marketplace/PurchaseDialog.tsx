@@ -5,16 +5,20 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconAlert, IconChat, IconCheck, IconClock, IconClose, IconHourglass, IconPhone, IconRefresh, IconSend, IconUsers, IconVideo } from "@/components/icons";
+import { IconAlert, IconChat, IconCheck, IconChevronLeft, IconClock, IconClose, IconHourglass, IconPhone, IconRefresh, IconSend, IconUsers, IconVideo } from "@/components/icons";
 import { ApiError, errDetail } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { setReturnTo } from "@/lib/returnTo";
 import {
+  PACKAGE_SELLER_ERRORS,
   PREFERRED_CHANNELS,
+  PRICE_OPTION_ERRORS,
   activePurchaseOf,
   marketChatHref,
+  marketErrorCode,
   phaseOfStatus,
   requestMarketplacePurchase,
+  requestPackagePurchase,
   type ActivePurchase,
   type MarketPurchase,
   type MarketService,
@@ -26,6 +30,9 @@ import { deliveryLabel } from "./bits";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import { trackPromoContact } from "@/lib/services/promoEvents";
 import PriceOptions, { EMPTY_PRICE, type PriceState } from "./PriceOptions";
+import { useMarketError } from "./useMarketError";
+
+export type PackagePurchaseTarget = { id: string; purchaseUrl: string; duration: string };
 
 const CHANNEL_ICON = { chat: IconChat, audio: IconPhone, video: IconVideo, meeting: IconUsers } as const;
 const NOTE_MAX = 1000;
@@ -38,6 +45,8 @@ export default function PurchaseDialog({
   sellerName,
   service,
   returnPath,
+  pkg,
+  onBack,
   onClose,
   onStale,
 }: {
@@ -45,6 +54,8 @@ export default function PurchaseDialog({
   sellerName: string;
   service: MarketService | null;
   returnPath: string;
+  pkg?: PackagePurchaseTarget;
+  onBack?: () => void;
   onClose: () => void;
   onStale: (what: "seller" | "service") => void;
 }) {
@@ -60,8 +71,10 @@ export default function PurchaseDialog({
   const [done, setDone] = useState<MarketPurchase | null>(null);
   const [active, setActive] = useState<ActivePurchase | null>(null);
   const [price, setPrice] = useState<PriceState>(EMPTY_PRICE);
+  const [optReload, setOptReload] = useState(0);
+  const marketErr = useMarketError();
 
-  const key = service?.id ?? "";
+  const key = service ? `${pkg ? "pkg" : "svc"}:${service.id}:${sellerUserId}` : "";
   const [prevKey, setPrevKey] = useState(key);
   if (key !== prevKey) {
     setPrevKey(key);
@@ -124,7 +137,8 @@ export default function PurchaseDialog({
     setBusy(true);
     setErr("");
     try {
-      const r = await requestMarketplacePurchase(sellerUserId, service.id, { note, preferredChannel: channel, preferredTime: time, selectedOptionIds: price.ids });
+      const input = { note, preferredChannel: channel, preferredTime: time, selectedOptionIds: price.ids };
+      const r = pkg ? await requestPackagePurchase(pkg.purchaseUrl, input) : await requestMarketplacePurchase(sellerUserId, service.id, input);
       setDone(r);
       trackPromoContact(sellerUserId, "purchase");
     } catch (e) {
@@ -134,6 +148,14 @@ export default function PurchaseDialog({
       } else if (e instanceof ApiError && e.status === 401) {
         setReturnTo(returnPath);
         router.push("/login");
+      } else if (marketErrorCode(e)) {
+        const code = marketErrorCode(e);
+        setErr(marketErr(e, t("error")));
+        if (PRICE_OPTION_ERRORS.includes(code)) setOptReload((n) => n + 1);
+        if (PACKAGE_SELLER_ERRORS.includes(code)) onStale("seller");
+      } else if (pkg && e instanceof ApiError && e.status === 404) {
+        setErr(errDetail(e) || t("staleSeller"));
+        onStale("seller");
       } else if (e instanceof ApiError && e.status === 404) {
         const noService = /ko'rsatmaydi/i.test(e.detail || "");
         setErr(noService ? t("staleService") : t("staleSeller"));
@@ -148,7 +170,7 @@ export default function PurchaseDialog({
     }
   }
 
-  const delivery = deliveryLabel(tm, service.deliveryMinutes);
+  const delivery = pkg?.duration || deliveryLabel(tm, service.deliveryMinutes);
   const chatHref = track?.roomId && tracked ? marketChatHref({ roomId: track.roomId, workId: tracked.workId, serviceTitle: service.title }) : "";
 
   const titles: Record<MarketTrackPhase, string> = {
@@ -217,7 +239,7 @@ export default function PurchaseDialog({
 
   return (
     <Modal open onClose={onClose} title={t("title")}>
-      <div className="mk-buy" data-ai-id="marketplace.purchase-modal" data-ai-type="modal" data-ai-label={t("title")} data-ai-entity-type="marketplace_service" data-ai-entity-id={service.id}>
+      <div className="mk-buy" data-ai-id="marketplace.purchase-modal" data-ai-type="modal" data-ai-label={t("title")} data-ai-entity-type={pkg ? "marketplace_package" : "marketplace_service"} data-ai-entity-id={service.id}>
         <ol className={`mk-steps${phase ? " mk-steps--calm" : ""}`} aria-label={t("title")}>
           {STEPS.map((s, i) => {
             const fail = failed && i === step;
@@ -313,7 +335,13 @@ export default function PurchaseDialog({
               void submit();
             }}
           >
-            <PriceOptions target="service" targetId={service.id} lawyerUserId={sellerUserId} onChange={setPrice} />
+            {onBack ? (
+              <button type="button" className="mk-buy__back" onClick={onBack} data-ai-id="marketplace.purchase.change-seller">
+                <IconChevronLeft aria-hidden />
+                {t("changeSeller")}
+              </button>
+            ) : null}
+            <PriceOptions target={pkg ? "package" : "service"} targetId={service.id} lawyerUserId={pkg ? undefined : sellerUserId} reload={optReload} onChange={setPrice} />
             <fieldset className="mk-buy__ch" data-ai-target="marketplace:purchase-channel" data-ai-id="marketplace.purchase.channel" data-ai-type="select">
               <legend>{t("channel")}</legend>
               <div className="mk-seg">
@@ -355,7 +383,7 @@ export default function PurchaseDialog({
             </div>
             <p className="mk-buy__note">{t("totalNote")}</p>
             {err ? <Notice ok={false} msg={err} /> : null}
-            <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy || price.pending || price.failed} data-ai-target="button:marketplace-purchase-submit" data-ai-id="marketplace.purchase.submit" data-ai-entity-type="marketplace_service" data-ai-entity-id={service.id}>
+            <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy || price.pending || price.failed} data-ai-target="button:marketplace-purchase-submit" data-ai-id="marketplace.purchase.submit" data-ai-entity-type={pkg ? "marketplace_package" : "marketplace_service"} data-ai-entity-id={service.id}>
               {busy ? t("sending") : price.pending ? t("pricing") : t("submit")}
             </button>
           </form>

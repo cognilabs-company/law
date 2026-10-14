@@ -384,23 +384,29 @@ export type MarketPurchase = {
   telegramSent: boolean;
 };
 
-export async function requestMarketplacePurchase(
-  lawyerUserId: string,
-  serviceId: string,
-  input: { note: string; preferredChannel: PreferredChannel; preferredTime: string; selectedOptionIds?: string[] },
-): Promise<MarketPurchase> {
-  const d = asDict(
+export type PurchaseInput = { note: string; preferredChannel: PreferredChannel; preferredTime: string; selectedOptionIds?: string[] };
+
+function purchaseBody(input: PurchaseInput): string {
+  return JSON.stringify({
+    selected_option_ids: input.selectedOptionIds ?? [],
+    note: input.note.trim(),
+    preferred_channel: input.preferredChannel,
+    preferred_time: input.preferredTime.trim(),
+  });
+}
+
+export async function requestMarketplacePurchase(lawyerUserId: string, serviceId: string, input: PurchaseInput): Promise<MarketPurchase> {
+  return purchaseOf(
     await http(`/marketplace/lawyers/${encodeURIComponent(lawyerUserId)}/services/${encodeURIComponent(serviceId)}/purchase-request`, {
       method: "POST",
-      body: JSON.stringify({
-        selected_option_ids: input.selectedOptionIds ?? [],
-        note: input.note.trim(),
-        preferred_channel: input.preferredChannel,
-        preferred_time: input.preferredTime.trim(),
-      }),
+      body: purchaseBody(input),
     }),
   );
-  return purchaseOf(d);
+}
+
+export async function requestPackagePurchase(packagePurchaseUrl: string, input: PurchaseInput): Promise<MarketPurchase> {
+  const path = packagePurchaseUrl.replace(/^https?:\/\/[^/]+/i, "");
+  return purchaseOf(await http(path, { method: "POST", body: purchaseBody(input) }));
 }
 
 export function purchaseOf(raw: unknown): MarketPurchase {
@@ -422,10 +428,32 @@ export function purchaseOf(raw: unknown): MarketPurchase {
 
 export type ActivePurchase = { orderId: string; workId: string; status: string };
 
+export const MARKET_ERROR_CODES = [
+  "marketplace_order_already_active",
+  "marketplace_package_order_already_active",
+  "package_seller_not_eligible",
+  "package_not_available_for_seller",
+  "unknown_price_options",
+  "duplicate_price_option",
+  "negative_price_adjustment_forbidden",
+  "additional_payment_must_increase_price",
+  "additional_payment_not_allowed",
+  "marketplace_result_required",
+  "rating_window_closed",
+  "ticket_closed",
+] as const;
+export const PRICE_OPTION_ERRORS: readonly string[] = ["unknown_price_options", "duplicate_price_option", "negative_price_adjustment_forbidden"];
+export const PACKAGE_SELLER_ERRORS: readonly string[] = ["package_seller_not_eligible", "package_not_available_for_seller"];
+const ACTIVE_ORDER_ERRORS: readonly string[] = ["marketplace_order_already_active", "marketplace_package_order_already_active"];
+
+export function marketErrorCode(e: unknown): string {
+  if (!(e instanceof ApiError)) return "";
+  return e.code || asStr(asDict(e.data.detail).code) || asStr(e.data.code);
+}
+
 export function activePurchaseOf(e: unknown): ActivePurchase | null {
-  if (!(e instanceof ApiError) || e.status !== 409) return null;
+  if (!(e instanceof ApiError) || e.status !== 409 || !ACTIVE_ORDER_ERRORS.includes(marketErrorCode(e))) return null;
   const detail = asDict(e.data.detail);
-  if (e.code !== "marketplace_order_already_active" && asStr(detail.code) !== "marketplace_order_already_active") return null;
   return { orderId: asStr(detail.order_id), workId: asStr(detail.work_id), status: asStr(detail.status) };
 }
 

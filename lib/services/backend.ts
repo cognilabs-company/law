@@ -922,7 +922,41 @@ export type BackendPackage = {
   included: string[];
   excluded: string[];
   active: boolean;
+  groupCode: string;
+  groupTitle: string;
 };
+
+const PACKAGE_TIERS = ["BASIC", "STANDARD", "PREMIUM"];
+function withoutTier(text: string, tariff: string): string {
+  if (!PACKAGE_TIERS.includes(tariff)) return text;
+  const cut = text.replace(new RegExp(`[\\s_·–—-]*\\(?${tariff}\\)?\\s*$`, "i"), "").trim();
+  return cut || text;
+}
+
+export function normPackage(v: unknown): BackendPackage {
+  const d = asDict(v);
+  const code = asStr(d.package_code ?? d.code);
+  const title = asStr(d.title ?? d.name);
+  const tariff = asStr(d.tariff).toUpperCase();
+  const category = asStr(d.category_title).trim();
+  return {
+    id: asStr(d.id),
+    code,
+    title,
+    tariff,
+    price: uzs(d, "price", "standard_price"),
+    slug: asStr(d.slug),
+    categoryTitle: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(category) ? "" : category,
+    relatedServiceCodes: asStr(d.related_service_codes),
+    duration: asStr(d.duration),
+    result: asStr(d.result),
+    included: asArr(d.included).map((x) => asStr(x)),
+    excluded: asArr(d.excluded).map((x) => asStr(x)),
+    active: d.is_active !== false,
+    groupCode: withoutTier(code, tariff),
+    groupTitle: withoutTier(title, tariff),
+  };
+}
 // Who may carry out a package (contract §17): the backend matches the
 // provider's tier and verification to the package's tariff and checks every
 // mandatory service. This list is the only one a package order picks from —
@@ -930,21 +964,42 @@ export type BackendPackage = {
 // The backend resolves the package's catalogue expression ("G01-G03") into
 // real service ids; codes it could not resolve are a configuration error
 // that blocks the order (2026-10-14 contract §15).
-export type PackageSellers = { items: BackendLawyer[]; total: number; hasMore: boolean; tariff: string; packageTitle: string; requiredServiceIds: string[]; requiredServiceCodes: string[]; unresolvedServiceCodes: string[] };
+export type PackageEligibility = { eligible: boolean; enabled: boolean; tariff: string; baseVerified: boolean; extendedVerified: boolean; reasons: string[]; missingServiceIds: string[] };
+export type PackageSeller = BackendLawyer & { packagePurchaseUrl: string; completedOrders: number; onlineNow: boolean; eligibility: PackageEligibility };
+export type PackageSellers = { items: PackageSeller[]; total: number; hasMore: boolean; tariff: string; packageTitle: string; pkg: BackendPackage | null; matchingPolicy: Record<string, string>; requiredServiceIds: string[]; requiredServiceCodes: string[]; unresolvedServiceCodes: string[] };
 export async function getPackageEligibleSellers(packageId: string, opts?: { limit?: number; offset?: number }): Promise<PackageSellers> {
   const d = asDict(await http(`/service-packages/${encodeURIComponent(packageId)}/eligible-sellers?limit=${opts?.limit ?? 30}&offset=${opts?.offset ?? 0}`));
   const pkg = asDict(d.package);
-  const items = asArr(d.items).map((v) => {
+  const items = asArr(d.items).map((v): PackageSeller => {
     const x = asDict(v);
+    const el = asDict(x.package_eligibility ?? x.eligibility);
+    const strs = (a: unknown) => asArr(a).map((s) => asStr(s)).filter(Boolean);
     // A row may carry the provider nested; either way it reads as one seller.
-    return normLawyer({ ...asDict(x.seller ?? x.lawyer ?? x.provider ?? x.profile), ...x });
+    return {
+      ...normLawyer({ ...asDict(x.seller ?? x.lawyer ?? x.provider ?? x.profile), ...x }),
+      packagePurchaseUrl: asStr(x.package_purchase_url),
+      completedOrders: asNum(x.completed_orders),
+      onlineNow: x.online_now === true,
+      eligibility: {
+        eligible: el.eligible !== false,
+        enabled: el.enabled !== false,
+        tariff: asStr(el.tariff).toUpperCase(),
+        baseVerified: el.base_verified === true,
+        extendedVerified: el.extended_verified === true || x.extended_verified === true,
+        reasons: strs(el.reasons),
+        missingServiceIds: strs(el.missing_service_ids),
+      },
+    };
   });
+  const policy = asDict(d.matching_policy);
   return {
     items: items.filter((l) => l.userId),
     total: asNum(d.total ?? d.count) || items.length,
     hasMore: d.has_more === true,
     tariff: asStr(d.tariff ?? pkg.tariff).toUpperCase(),
     packageTitle: asStr(pkg.title ?? pkg.name),
+    pkg: Object.keys(pkg).length ? normPackage(pkg) : null,
+    matchingPolicy: Object.fromEntries(Object.entries(policy).map(([k, v]) => [k.toUpperCase(), asStr(v)]).filter(([, v]) => v)),
     requiredServiceIds: asArr(d.required_service_ids).map((s) => asStr(s)).filter(Boolean),
     requiredServiceCodes: asArr(d.required_service_codes).map((s) => asStr(s)).filter(Boolean),
     unresolvedServiceCodes: asArr(d.unresolved_service_codes).map((s) => asStr(s)).filter(Boolean),
@@ -957,24 +1012,7 @@ export async function getServicePackages(params?: { package_code?: string; tarif
   if (params?.tariff) qs.set("tariff", params.tariff);
   const q = qs.toString();
   const data = await http(`/service-packages${q ? `?${q}` : ""}`);
-  return listFrom(data, "packages", "items", "data").map((v) => {
-    const d = asDict(v);
-    return {
-      id: asStr(d.id),
-      code: asStr(d.package_code ?? d.code),
-      title: asStr(d.title ?? d.name),
-      tariff: asStr(d.tariff).toUpperCase(),
-      price: uzs(d, "price", "standard_price"),
-      slug: asStr(d.slug),
-      categoryTitle: asStr(d.category_title),
-      relatedServiceCodes: asStr(d.related_service_codes),
-      duration: asStr(d.duration),
-      result: asStr(d.result),
-      included: asArr(d.included).map((x) => asStr(x)),
-      excluded: asArr(d.excluded).map((x) => asStr(x)),
-      active: d.is_active !== false,
-    };
-  });
+  return listFrom(data, "packages", "items", "data").map(normPackage);
 }
 
 // ── Subscription plans ────────────────────────────────────────────

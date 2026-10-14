@@ -4907,7 +4907,8 @@
         "confirm": "Payment check",
         "chat": "Chat and work"
       },
-      "pricing": "Calculating the price…"
+      "pricing": "Calculating the price…",
+      "changeSeller": "Choose another provider"
     },
     "orders": {
       "emptyFilter": "No orders match these filters",
@@ -5007,6 +5008,56 @@
       "quoteFailed": "Couldn't calculate the price.",
       "retry": "Try again",
       "recalc": "Recalculate"
+    },
+    "errors": {
+      "marketplace_order_already_active": "You already have an active order for this service.",
+      "marketplace_package_order_already_active": "You already have an active order for this package.",
+      "package_seller_not_eligible": "This provider no longer meets the package conditions. The list was refreshed — pick another one.",
+      "package_not_available_for_seller": "This provider doesn't offer this package right now. Pick another one.",
+      "unknown_price_options": "One of the selected options is no longer available. The option list was refreshed.",
+      "duplicate_price_option": "An option was selected twice. Check your selection.",
+      "negative_price_adjustment_forbidden": "An option can't lower the price. The option list was refreshed.",
+      "additional_payment_must_increase_price": "A supplemental payment must raise the final price. Pick another option.",
+      "additional_payment_not_allowed": "A supplemental payment can't be requested for this order.",
+      "marketplace_result_required": "To complete, write the result or attach a file.",
+      "rating_window_closed": "The 15-minute rating window has closed.",
+      "ticket_closed": "The ticket is closed — this action is no longer available."
+    },
+    "packageSellers": {
+      "title": "Choose a provider",
+      "stepsLabel": "Package order steps",
+      "stepTier": "Tier",
+      "stepSeller": "Provider",
+      "stepOptions": "Options and request",
+      "policy": {
+        "BASIC": "Active providers who enabled the package. LexGo extended verification is optional for this tier.",
+        "STANDARD": "Active providers who enabled the package, ranked by experience and rating.",
+        "PREMIUM": "{tier} tier: only providers with LexGo extended verification are shown."
+      },
+      "errorTitle": "Couldn't load providers",
+      "errorText": "Check your connection and try again.",
+      "retry": "Try again",
+      "emptyTitle": "No matching providers yet",
+      "emptyText": "No provider has enabled this tier yet. Pick another tier or come back later.",
+      "emptyPremium": "No extended-verified provider is available for the {tier} tier yet. Consider the {alt} tier.",
+      "count": "{n} providers",
+      "orderNote": "Order set by LexGo",
+      "noName": "Provider",
+      "verified": "Verified by LexGo",
+      "rating": "{r} · {n} ratings",
+      "newSeller": "New provider",
+      "completed": "{n} completed",
+      "experience": "{n} years of experience",
+      "extended": "Extended verification",
+      "online": "Online now",
+      "types": {
+        "advokat": "Advocate",
+        "yurist": "Lawyer",
+        "yurist_advokat": "Lawyer-advocate"
+      },
+      "pick": "Choose",
+      "more": "Show more",
+      "loading": "Loading…"
     }
   },
   "common": {
@@ -9896,7 +9947,8 @@
         "included": "Included",
         "excluded": "Not included",
         "misconfigured": "This package is set up wrong: services {codes} are not in the catalogue. It can't be ordered yet — an administrator will fix it.",
-        "orderFailed": "Couldn't load the package. Try again."
+        "orderFailed": "Couldn't load the package. Try again.",
+        "premiumReq": "Only extended-verified providers"
       }
     },
     "advocate": {

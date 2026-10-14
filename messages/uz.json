@@ -4907,7 +4907,8 @@
         "confirm": "To'lov tasdig'i",
         "chat": "Chat va ish"
       },
-      "pricing": "Narx hisoblanmoqda…"
+      "pricing": "Narx hisoblanmoqda…",
+      "changeSeller": "Boshqa ijrochini tanlash"
     },
     "orders": {
       "emptyFilter": "Filtrga mos buyurtma topilmadi",
@@ -5007,6 +5008,56 @@
       "quoteFailed": "Narxni hisoblab bo'lmadi.",
       "retry": "Qayta urinish",
       "recalc": "Qayta hisoblash"
+    },
+    "errors": {
+      "marketplace_order_already_active": "Bu xizmat bo'yicha sizda allaqachon faol buyurtma bor.",
+      "marketplace_package_order_already_active": "Bu paket bo'yicha sizda allaqachon faol buyurtma bor.",
+      "package_seller_not_eligible": "Bu ijrochi endi paket shartlariga mos emas. Ro'yxat yangilandi — boshqasini tanlang.",
+      "package_not_available_for_seller": "Bu ijrochi ushbu paketni hozir ko'rsatmaydi. Boshqa ijrochini tanlang.",
+      "unknown_price_options": "Tanlangan opsiyalardan biri endi mavjud emas. Opsiyalar ro'yxati yangilandi.",
+      "duplicate_price_option": "Bitta opsiya ikki marta tanlangan. Tanlovni tekshiring.",
+      "negative_price_adjustment_forbidden": "Opsiya narxni kamaytira olmaydi. Opsiyalar ro'yxati yangilandi.",
+      "additional_payment_must_increase_price": "Qo'shimcha to'lov yakuniy narxni oshirishi kerak. Boshqa opsiya tanlang.",
+      "additional_payment_not_allowed": "Bu buyurtma uchun qo'shimcha to'lov so'rab bo'lmaydi.",
+      "marketplace_result_required": "Yakunlash uchun natija matnini yozing yoki fayl biriktiring.",
+      "rating_window_closed": "Baholash muddati (15 daqiqa) tugagan.",
+      "ticket_closed": "Murojaat yopilgan — bu amalni endi bajarib bo'lmaydi."
+    },
+    "packageSellers": {
+      "title": "Ijrochini tanlang",
+      "stepsLabel": "Paket buyurtmasi bosqichlari",
+      "stepTier": "Tarif",
+      "stepSeller": "Ijrochi",
+      "stepOptions": "Opsiyalar va so'rov",
+      "policy": {
+        "BASIC": "Paketni yoqqan faol ijrochilar. LexGo kengaytirilgan tekshiruvi bu tarifda ixtiyoriy.",
+        "STANDARD": "Paketni yoqqan faol ijrochilar — tajriba va reyting bo'yicha saralangan.",
+        "PREMIUM": "{tier} tarifi: faqat LexGo kengaytirilgan tekshiruvidan o'tgan ijrochilar ko'rsatiladi."
+      },
+      "errorTitle": "Ijrochilar ro'yxati yuklanmadi",
+      "errorText": "Internetni tekshirib, qayta urinib ko'ring.",
+      "retry": "Qayta urinish",
+      "emptyTitle": "Hozircha mos ijrochi yo'q",
+      "emptyText": "Bu tarifni hali hech bir ijrochi yoqmagan. Boshqa tarifni tanlang yoki keyinroq qayting.",
+      "emptyPremium": "{tier} tarifi uchun kengaytirilgan tekshiruvdan o'tgan ijrochi hali yo'q. {alt} tarifini ko'rib chiqing.",
+      "count": "{n} ta ijrochi",
+      "orderNote": "Tartibni LexGo belgilaydi",
+      "noName": "Ijrochi",
+      "verified": "LexGo tomonidan tasdiqlangan",
+      "rating": "{r} · {n} baho",
+      "newSeller": "Yangi ijrochi",
+      "completed": "{n} ta bajarilgan",
+      "experience": "{n} yil tajriba",
+      "extended": "Kengaytirilgan tekshiruv",
+      "online": "Hozir onlayn",
+      "types": {
+        "advokat": "Advokat",
+        "yurist": "Yurist",
+        "yurist_advokat": "Yurist-advokat"
+      },
+      "pick": "Tanlash",
+      "more": "Yana ko'rsatish",
+      "loading": "Yuklanmoqda…"
     }
   },
   "common": {
@@ -9902,7 +9953,8 @@
         "included": "Paketga kiradi",
         "excluded": "Kirmaydi",
         "misconfigured": "Bu paket sozlamasida xato bor: {codes} xizmatlari katalogda topilmadi. Hozircha buyurtma berib bo'lmaydi — administrator tuzatadi.",
-        "orderFailed": "Paket ma'lumoti olinmadi. Qayta urinib ko'ring."
+        "orderFailed": "Paket ma'lumoti olinmadi. Qayta urinib ko'ring.",
+        "premiumReq": "Faqat kengaytirilgan tekshiruvdan o'tgan ijrochilar"
       }
     },
     "advocate": {
