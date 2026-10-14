@@ -2,6 +2,7 @@
 
 import type { StudioStep } from "@/lib/services/studio";
 import { useStudioText } from "../bits";
+import StepMeta from "../StepMeta";
 import { IconCheck, IconCircleX, IconHourglass, IconRefresh, IconRocket, IconShieldCheck } from "@/components/icons";
 
 function toneOf(status: string): "ok" | "warn" | "err" | "wait" {
@@ -13,7 +14,7 @@ function toneOf(status: string): "ok" | "warn" | "err" | "wait" {
 
 const GLYPH = { ok: IconCheck, warn: IconRefresh, err: IconCircleX, wait: IconHourglass };
 
-export default function StepsPane({ steps, approvalFree, submitted }: { steps: StudioStep[]; approvalFree: boolean; submitted: boolean }) {
+export default function StepsPane({ steps, approvalFree, submitted, code = "", onChanged }: { steps: StudioStep[]; approvalFree: boolean; submitted: boolean; code?: string; onChanged?: () => void }) {
   const { t, role, stepTitle, stepStatus, when } = useStudioText();
 
   if (approvalFree) {
@@ -46,10 +47,11 @@ export default function StepsPane({ steps, approvalFree, submitted }: { steps: S
                   </div>
                   <small>
                     {t("editor.steps.order", { n: s.order || i + 1 })}
-                    {s.role ? ` · ${role(s.role)}` : ""}
+                    {s.role && !s.approvers.length ? ` · ${role(s.role)}` : ""}
                   </small>
                   {s.decidedBy || s.decidedAt ? <small className="stu-osteps__by">{[s.decidedBy, when(s.decidedAt)].filter(Boolean).join(" · ")}</small> : null}
                   {s.comment ? <p className="stu-osteps__c">{s.comment}</p> : null}
+                  <StepMeta step={s} code={code} onChanged={onChanged} />
                 </div>
               </li>
             );

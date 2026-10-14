@@ -1,40 +1,48 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Select from "@/components/Select";
 import FilterBar from "@/components/filters/FilterBar";
 import { aiId } from "@/lib/ai/ids";
+import { logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { listApprovalRoutes, useStudioRegistry, type StudioRoute } from "@/lib/services/studio";
+import { getEffectiveRoute, listApprovalRoutes, useStudioRegistry, type StudioRoute, type StudioRouteBoard, type StudioRouteScope } from "@/lib/services/studio";
 import { STUDIO_CODES, ctorOrder } from "@/lib/studio/constructors";
-import { ConstructorIcon, StudioEmpty, StudioLoading, useStudioLive, useStudioText } from "../bits";
-import RouteModal, { DEFAULT_STEPS, type RouteMode, type RouteSaved } from "./RouteModal";
+import { ConstructorIcon, StudioEmpty, StudioLoading, useStudioLive } from "../bits";
+import { useStudioHuman } from "../human";
+import RouteChain from "../RouteChain";
+import RouteModal, { type RouteMode, type RouteSaved } from "./RouteModal";
 import { LoadProblem, PanelHead, matchesTerms, type Phase } from "./ui";
-import { IconArrowRight, IconEdit, IconPlus, IconRefresh, IconRocket, IconShieldCheck } from "@/components/icons";
+import { IconEdit, IconFolder, IconGlobe, IconPlus, IconRefresh, IconSearch, IconShieldCheck, IconSliders } from "@/components/icons";
 
-type State = { phase: Phase; items: StudioRoute[]; error: unknown };
-
+type State = { phase: Phase; board: StudioRouteBoard; error: unknown };
+const EMPTY: StudioRouteBoard = { items: [], groups: [], primarySuperadmin: null };
 const AI = "admin.studio.settings.routes";
+// A route that is switched off stands in nobody's way: the next level applies.
+const live = (r: StudioRoute) => r.status === "active";
 
+// Three levels of one setting (contract §16): the general route, a route per
+// section, an override per constructor — and, below, which of them a given
+// constructor is approved by today.
 export default function RoutesPanel() {
-  const { t, role, option, ctorName, num, day } = useStudioText();
+  const { t, option, ctorName, num, day, groupTitle, groupText } = useStudioHuman();
   const reg = useStudioRegistry();
-  const [st, setSt] = useState<State>({ phase: "loading", items: [], error: null });
+  const [st, setSt] = useState<State>({ phase: "loading", board: EMPTY, error: null });
   const [busy, setBusy] = useState(false);
   const [modal, setModal] = useState<RouteMode | null>(null);
   const [q, setQ] = useState("");
-  const [codeF, setCodeF] = useState("");
   const [statusF, setStatusF] = useState("");
   const seq = useRef(0);
 
   const load = useCallback(async () => {
     const my = ++seq.current;
     try {
-      const items = await listApprovalRoutes();
+      const board = await listApprovalRoutes();
       if (my !== seq.current) return;
-      setSt({ phase: "ready", items, error: null });
+      setSt({ phase: "ready", board, error: null });
     } catch (e) {
       if (my !== seq.current) return;
-      setSt((cur) => (cur.phase === "ready" ? { ...cur, error: e } : { phase: "error", items: [], error: e }));
+      setSt((cur) => (cur.phase === "ready" ? { ...cur, error: e } : { phase: "error", board: EMPTY, error: e }));
     }
   }, []);
 
@@ -42,51 +50,65 @@ export default function RoutesPanel() {
     void load();
   }, [load]);
 
+  const [pulse, setPulse] = useState(0);
   useStudioLive((e) => {
-    if (e.event === "studio.approval_route_updated" || e.event === "studio.resync") void load();
+    if (e.event === "studio.approval_route_updated" || e.event === "studio.resync") {
+      void load();
+      setPulse((n) => n + 1);
+    }
   });
 
   async function refresh() {
     setBusy(true);
     await load();
+    setPulse((n) => n + 1);
     setBusy(false);
   }
 
+  const { items, groups, primarySuperadmin } = st.board;
+  const superName = primarySuperadmin?.name ?? "";
+  const scopeName = (scope: StudioRouteScope, key: string) => (scope === "global" ? t("settings.routes.globalTitle") : scope === "group" ? groupTitle(key, groups.find((g) => g.key === key)?.title) : ctorName(key));
+
   async function onSaved(s: RouteSaved) {
     setModal(null);
-    toast(t("settings.routes.saved", { code: ctorName(s.input.constructorCode) }), { tone: "ok" });
+    toast(t("settings.routes.saved", { code: scopeName(s.input.scopeType, s.input.scopeKey) }), { tone: "ok" });
     await load();
+    setPulse((n) => n + 1);
   }
 
   const statusLabel = (s: string) => (t.has(`settings.routes.status_${s}`) ? t(`settings.routes.status_${s}`) : option(s));
+  const ctors = (reg.items.length ? reg.items.map((c) => ({ code: c.code, title: c.title })) : STUDIO_CODES.map((c) => ({ code: c as string, title: "" }))).sort((a, b) => ctorOrder(a.code) - ctorOrder(b.code));
+  const codeChoices = ctors.map((c) => ({ code: c.code, label: ctorName(c.code, c.title) }));
+  const taken = items.map((r) => `${r.scopeType}:${r.scopeKey}`);
 
-  const ctors = reg.items.length
-    ? reg.items.map((c) => ({ code: c.code, title: c.title, approvalFree: !c.approvalRequired }))
-    : STUDIO_CODES.map((c) => ({ code: c as string, title: "", approvalFree: c === "K16" }));
-  ctors.sort((a, b) => ctorOrder(a.code) - ctorOrder(b.code));
-  const codeChoices = ctors.map((c) => ({ code: c.code, label: ctorName(c.code, c.title), approvalFree: c.approvalFree }));
+  const global = items.find((r) => r.scopeType === "global") ?? null;
+  const groupRoute = (key: string) => items.find((r) => r.scopeType === "group" && r.scopeKey === key) ?? null;
+  const own = items.filter((r) => r.scopeType === "constructor").sort((a, b) => ctorOrder(a.constructorCode) - ctorOrder(b.constructorCode));
+  const statuses = [...new Set(own.map((r) => r.status).filter(Boolean))];
+  const shown = own.filter((r) => (!statusF || r.status === statusF) && matchesTerms([r.title, ctorName(r.constructorCode), ...r.steps.flatMap((s) => [s.title, ...s.approvers.map((p) => p.name)])], q));
+  // What a level falls back to when it has no route of its own.
+  const fallback = global && live(global) ? t("settings.routes.inheritsGlobal") : t("settings.routes.inheritsDefault");
 
-  const items = [...st.items].sort((a, b) => ctorOrder(a.constructorCode) - ctorOrder(b.constructorCode));
-  const taken = items.map((r) => r.constructorCode);
-  const uncovered = ctors.filter((c) => !c.approvalFree && !taken.includes(c.code));
-  const statuses = [...new Set(items.map((r) => r.status).filter(Boolean))];
-  const present = [...new Set(taken.filter(Boolean))];
-  if (codeF && !present.includes(codeF)) present.push(codeF);
-
-  const codeOpts = [{ value: "", label: t("common.all") }, ...present.map((c) => ({ value: c, label: ctorName(c) }))];
-  const statusOpts = [
-    { value: "", label: t("common.all") },
-    ...statuses.map((s) => ({ value: s, label: `${statusLabel(s)} (${num(items.filter((r) => r.status === s).length)})` })),
-  ];
-  const shown = items.filter((r) => {
-    if (codeF && r.constructorCode !== codeF) return false;
-    if (statusF && r.status !== statusF) return false;
-    return matchesTerms([r.title, r.constructorCode, ctorName(r.constructorCode), ...r.steps.flatMap((s) => [s.title, role(s.role)])], q);
-  });
+  const editBtn = (r: StudioRoute | null, mode: RouteMode, id: string) => (
+    <button type="button" className={`btn btn--sm ${r ? "btn--soft" : "btn--line"}`} onClick={() => setModal(r ? { kind: "edit", route: r } : mode)} data-ai-id={aiId(`${AI}.edit`, id)} data-ai-type="button" data-ai-label={r ? t("settings.routes.edit") : t("settings.routes.setup")}>
+      {r ? <IconEdit aria-hidden /> : <IconPlus aria-hidden />}
+      {r ? t("settings.routes.edit") : t("settings.routes.setup")}
+    </button>
+  );
+  const body = (r: StudioRoute | null) =>
+    r ? (
+      <>
+        <RouteChain route={r} superadmin={superName} />
+        {!live(r) ? <span className="stu-hint">{fallback}</span> : null}
+      </>
+    ) : (
+      <span className="stu-hint">{fallback}</span>
+    );
+  const pill = (r: StudioRoute | null) => (r ? <span className={`stu-spill${live(r) ? " stu-spill--ok" : ""}`}>{statusLabel(r.status)}</span> : null);
 
   return (
     <div className="stu-set__stack">
-      <section className="stu-card" data-ai-id={`${AI}.list`} data-ai-type="section" data-ai-label={t("settings.routes.title")}>
+      <section className="stu-card" data-ai-id={`${AI}.global`} data-ai-type="section" data-ai-label={t("settings.routes.globalTitle")}>
         <PanelHead icon={IconShieldCheck} title={t("settings.routes.title")} text={t("settings.routes.lead")}>
           {st.phase !== "loading" ? (
             <button type="button" className="btn btn--line btn--sm" onClick={() => void refresh()} disabled={busy} data-ai-id={`${AI}.refresh`} data-ai-type="button" data-ai-label={t("settings.common.refresh")}>
@@ -94,19 +116,7 @@ export default function RoutesPanel() {
               {t("settings.common.refresh")}
             </button>
           ) : null}
-          {st.phase === "ready" ? (
-            <button type="button" className="btn btn--pri btn--sm" onClick={() => setModal({ kind: "new" })} data-ai-id={`${AI}.create`} data-ai-type="button" data-ai-label={t("settings.routes.create")}>
-              <IconPlus aria-hidden />
-              {t("settings.routes.create")}
-            </button>
-          ) : null}
         </PanelHead>
-
-        <div className="stu-sdef" aria-label={t("settings.routes.defaultLabel")}>
-          <span className="stu-sdef__l">{t("settings.routes.defaultLabel")}</span>
-          <StepChain steps={DEFAULT_STEPS} />
-        </div>
-
         {st.phase === "loading" ? (
           <StudioLoading rows={3} />
         ) : st.phase === "error" ? (
@@ -114,105 +124,152 @@ export default function RoutesPanel() {
         ) : (
           <>
             {st.error ? <LoadProblem error={st.error} onRetry={() => void refresh()} busy={busy} /> : null}
-            {items.length ? (
+            <div className="stu-sroute stu-sroute--lvl">
+              <span className="stu-slvl" aria-hidden>
+                <IconGlobe />
+              </span>
+              <div className="stu-sroute__m">
+                <div className="stu-sroute__top">
+                  <b>{t("settings.routes.globalTitle")}</b>
+                  {pill(global)}
+                </div>
+                <small>{t("settings.routes.globalText")}</small>
+                {global ? body(global) : <span className="stu-hint">{t("settings.routes.inheritsDefault")}</span>}
+              </div>
+              {editBtn(global, { kind: "new", scope: "global", key: "*" }, "global")}
+            </div>
+          </>
+        )}
+      </section>
+
+      {st.phase === "ready" ? (
+        <>
+          <section className="stu-card" data-ai-id={`${AI}.groups`} data-ai-type="section" data-ai-label={t("settings.routes.groupsTitle")}>
+            <PanelHead icon={IconFolder} title={t("settings.routes.groupsTitle")} text={t("settings.routes.groupsText")} />
+            <ul className="stu-sroutes">
+              {groups.map((g) => {
+                const r = groupRoute(g.key);
+                return (
+                  <li key={g.key} className={`stu-sroute stu-sroute--lvl${r && !live(r) ? " is-off" : ""}`} data-ai-id={aiId(`${AI}.group`, g.key)} data-ai-type="row" data-ai-label={groupTitle(g.key, g.title)}>
+                    <span className="stu-slvl" aria-hidden>
+                      <IconFolder />
+                    </span>
+                    <div className="stu-sroute__m">
+                      <div className="stu-sroute__top">
+                        <b>{groupTitle(g.key, g.title)}</b>
+                        {pill(r)}
+                      </div>
+                      <small>
+                        {t("settings.routes.groupCount", { n: num(g.codes.length) })}
+                        {groupText(g.key, g.description) ? ` · ${groupText(g.key, g.description)}` : ""}
+                      </small>
+                      {body(r)}
+                    </div>
+                    {editBtn(r, { kind: "new", scope: "group", key: g.key }, g.key)}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+
+          <section className="stu-card" data-ai-id={`${AI}.list`} data-ai-type="section" data-ai-label={t("settings.routes.ctorsTitle")}>
+            <PanelHead icon={IconSliders} title={t("settings.routes.ctorsTitle")} text={t("settings.routes.ctorsText")}>
+              <button type="button" className="btn btn--pri btn--sm" onClick={() => setModal({ kind: "new", scope: "constructor" })} data-ai-id={`${AI}.create`} data-ai-type="button" data-ai-label={t("settings.routes.addOverride")}>
+                <IconPlus aria-hidden />
+                {t("settings.routes.addOverride")}
+              </button>
+            </PanelHead>
+            {own.length ? (
               <FilterBar
                 search={{ value: q, onChange: setQ, placeholder: t("settings.routes.searchPh"), aiId: `${AI}.search.input`, aiLabel: t("settings.routes.searchPh") }}
-                fields={[
-                  { key: "code", label: t("settings.routes.filterCtor"), value: codeF, onChange: setCodeF, options: codeOpts, aiId: `${AI}.filter.constructor` },
-                  { key: "status", label: t("settings.routes.filterStatus"), value: statusF, onChange: setStatusF, options: statusOpts, aiId: `${AI}.filter.status`, hidden: statuses.length < 2 && !statusF },
-                ]}
+                fields={[{ key: "status", label: t("settings.routes.filterStatus"), value: statusF, onChange: setStatusF, options: [{ value: "", label: t("common.all") }, ...statuses.map((s) => ({ value: s, label: `${statusLabel(s)} (${num(own.filter((r) => r.status === s).length)})` }))], aiId: `${AI}.filter.status`, hidden: statuses.length < 2 && !statusF }]}
                 count={shown.length}
                 aiId={`${AI}.filters`}
                 aiLabel={t("settings.routes.filterTitle")}
               />
             ) : null}
-            {!items.length ? (
-              <StudioEmpty icon={IconShieldCheck} title={t("settings.routes.emptyTitle")} text={t("settings.routes.emptyText")}>
-                <button type="button" className="btn btn--pri btn--sm" onClick={() => setModal({ kind: "new" })}>
-                  <IconPlus aria-hidden />
-                  {t("settings.routes.create")}
-                </button>
-              </StudioEmpty>
+            {!own.length ? (
+              <StudioEmpty icon={IconShieldCheck} title={t("settings.routes.emptyTitle")} text={t("settings.routes.emptyText")} />
             ) : !shown.length ? (
               <StudioEmpty icon={IconShieldCheck} title={t("settings.common.noMatch")} text={t("settings.common.noMatchText")} />
             ) : (
               <ul className="stu-sroutes">
                 {shown.map((r) => {
-                  const key = r.id || r.constructorCode;
-                  const off = r.status !== "active";
+                  const key = r.id || r.scopeKey;
                   return (
-                    <li key={key} className={`stu-sroute${off ? " is-off" : ""}`} data-ai-id={aiId(`${AI}.row`, key)} data-ai-type="row" data-ai-label={r.title || r.constructorCode}>
+                    <li key={key} className={`stu-sroute${live(r) ? "" : " is-off"}`} data-ai-id={aiId(`${AI}.row`, key)} data-ai-type="row" data-ai-label={r.title || ctorName(r.constructorCode)}>
                       <ConstructorIcon code={r.constructorCode} size="md" />
                       <div className="stu-sroute__m">
                         <div className="stu-sroute__top">
-                          <b>{r.title || ctorName(r.constructorCode)}</b>
-                          <span className={`stu-spill${off ? "" : " stu-spill--ok"}`}>{statusLabel(r.status)}</span>
+                          <b>{ctorName(r.constructorCode)}</b>
+                          {pill(r)}
                         </div>
                         <small>
-                          {ctorName(r.constructorCode)}
+                          {r.title}
                           {r.updatedAt ? ` · ${t("settings.routes.updated", { d: day(r.updatedAt) })}` : ""}
                         </small>
-                        {r.steps.length ? <StepChain steps={r.steps} /> : <span className="stu-hint">{t("settings.routes.noSteps")}</span>}
+                        <RouteChain route={r} superadmin={superName} />
                       </div>
-                      <button type="button" className="btn btn--soft btn--sm" onClick={() => setModal({ kind: "edit", route: r })} data-ai-id={aiId(`${AI}.row`, key, "edit")} data-ai-type="button" data-ai-label={t("settings.routes.edit")}>
-                        <IconEdit aria-hidden />
-                        {t("settings.routes.edit")}
-                      </button>
+                      {editBtn(r, { kind: "new", scope: "constructor", key: r.constructorCode }, key)}
                     </li>
                   );
                 })}
               </ul>
             )}
-          </>
-        )}
-      </section>
+          </section>
 
-      {st.phase === "ready" && uncovered.length ? (
-        <section className="stu-card" data-ai-id={`${AI}.uncovered`} data-ai-type="section" data-ai-label={t("settings.routes.uncoveredTitle")}>
-          <PanelHead icon={IconRocket} title={t("settings.routes.uncoveredTitle")} text={t("settings.routes.uncoveredText", { n: num(uncovered.length) })} />
-          <div className="stu-suncov">
-            {uncovered.map((c) => (
-              <button
-                key={c.code}
-                type="button"
-                className="stu-suncov__b"
-                onClick={() => setModal({ kind: "new", code: c.code })}
-                data-ai-id={aiId(`${AI}.setup`, c.code)}
-                data-ai-type="button"
-                data-ai-label={`${t("settings.routes.setup")} ${ctorName(c.code, c.title)}`}
-              >
-                <ConstructorIcon code={c.code} size="sm" />
-                <span>
-                  <b>{ctorName(c.code, c.title)}</b>
-                </span>
-                <IconPlus className="stu-suncov__plus" aria-hidden />
-              </button>
-            ))}
-          </div>
-        </section>
+          <EffectiveRoute codes={codeChoices} superadmin={superName} pulse={pulse} />
+        </>
       ) : null}
 
-      <RouteModal mode={modal} codes={codeChoices} taken={taken} onClose={() => setModal(null)} onSaved={(s) => void onSaved(s)} />
+      <RouteModal mode={modal} codes={codeChoices} groups={groups} taken={taken} superadmin={primarySuperadmin} onClose={() => setModal(null)} onSaved={(s) => void onSaved(s)} />
     </div>
   );
 }
 
-function StepChain({ steps }: { steps: { role: string; title: string }[] }) {
-  const { role, stepTitle } = useStudioText();
+// Which route a constructor is approved by today, and whose it is — the
+// backend resolves it (constructor, then section, then general, then its
+// own default); nothing is worked out here.
+function EffectiveRoute({ codes, superadmin, pulse }: { codes: { code: string; label: string }[]; superadmin: string; pulse: number }) {
+  const { t } = useStudioHuman();
+  const [code, setCode] = useState("");
+  const [got, setGot] = useState<{ key: string; route: StudioRoute | null; failed: boolean } | null>(null);
+  const key = `${code}|${pulse}`;
+  useEffect(() => {
+    if (!code) return;
+    const c = new AbortController();
+    getEffectiveRoute(code, c.signal)
+      .then((route) => setGot({ key, route, failed: false }))
+      .catch((e: unknown) => {
+        if (c.signal.aborted) return;
+        logApiError("studio.route.effective", e);
+        setGot({ key, route: null, failed: true });
+      });
+    return () => c.abort();
+  }, [code, key]);
+  const cur = got?.key === key ? got : null;
   return (
-    <ol className="stu-schain">
-      {steps.map((s, i) => (
-        <li key={`${i}-${s.role}`}>
-          {i > 0 ? <IconArrowRight className="stu-schain__arr" aria-hidden /> : null}
-          <span className="stu-schain__s">
-            <em>{i + 1}</em>
-            <span>
-              <b>{stepTitle(s.title, s.role)}</b>
-              {s.role && stepTitle(s.title, s.role) !== role(s.role) ? <small>{role(s.role)}</small> : null}
-            </span>
-          </span>
-        </li>
-      ))}
-    </ol>
+    <section className="stu-card" data-ai-id={`${AI}.effective`} data-ai-type="section" data-ai-label={t("settings.routes.effectiveTitle")}>
+      <PanelHead icon={IconSearch} title={t("settings.routes.effectiveTitle")} text={t("settings.routes.effectiveText")} />
+      <div className="stu-seff">
+        <div className="stu-fld" data-ai-id={`${AI}.effective.constructor`} data-ai-type="select" data-ai-label={t("settings.routes.constructor")}>
+          <Select value={code} onChange={setCode} options={codes.map((c) => ({ value: c.code, label: c.label }))} placeholder={t("settings.routes.pickCtor")} ariaLabel={t("settings.routes.constructor")} />
+        </div>
+        {!code ? null : !cur ? (
+          <StudioLoading rows={1} />
+        ) : cur.failed || !cur.route ? (
+          <p className="stu-hint">{t("error.hint.other")}</p>
+        ) : (
+          <div className="stu-seff__r">
+            <div className="stu-sroute__top">
+              <span className="stu-spill stu-spill--brand">{t("settings.routes.effectiveFrom", { src: t(`settings.routes.source.${cur.route.source}`) })}</span>
+              {cur.route.source !== "default" && cur.route.title ? <b>{cur.route.title}</b> : null}
+            </div>
+            <RouteChain route={cur.route} superadmin={superadmin} />
+            <p className="stu-hint">{t("settings.routes.effectiveNote")}</p>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

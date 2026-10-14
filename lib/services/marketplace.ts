@@ -14,6 +14,8 @@ export type MarketService = {
   basePrice: number;
   selectedPrice: number;
   price: number;
+  // The backend lowered the provider's own price to today's maximum.
+  priceCapped?: boolean;
   currency: string;
   deliveryMinutes: number;
   experienceNote: string;
@@ -124,7 +126,10 @@ export function normMarketService(v: unknown): MarketService {
     categoryTitle: asStr(d.category_title),
     basePrice: base,
     selectedPrice: selected,
-    price: selected || base,
+    // The payable price is the backend's capped one; the provider's own
+    // figure is context only (contract §19).
+    price: uzs(d, "effective_price") || selected || base,
+    priceCapped: d.price_capped === true,
     currency: asStr(d.currency, "UZS") || "UZS",
     deliveryMinutes: asNum(d.delivery_minutes),
     experienceNote: asStr(d.experience_note),

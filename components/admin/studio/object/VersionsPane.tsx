@@ -1,5 +1,6 @@
 "use client";
 
+import RouteChain from "../RouteChain";
 import { useState } from "react";
 import { toast } from "@/lib/toast";
 import { logApiError } from "@/lib/http";
@@ -92,6 +93,12 @@ export default function VersionsPane({
                   </div>
                   {meta ? <small className="stu-overs__meta">{meta}</small> : null}
                   {v.summary ? <p className="stu-overs__sum">{v.summary}</p> : null}
+                  {v.routeSnapshot ? (
+                    <div className="stu-overs__route">
+                      <small>{t("appr.snapshot")}</small>
+                      <RouteChain route={v.routeSnapshot} />
+                    </div>
+                  ) : null}
                   <div className="stu-overs__acts">
                     <button type="button" className="stu-olnk" onClick={() => onPreview(v)} data-ai-id="admin.studio.editor.versions.preview" data-ai-type="button" data-ai-label={t("editor.versions.preview")}>
                       <IconEye aria-hidden />

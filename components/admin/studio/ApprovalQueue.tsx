@@ -3,14 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import FilterBar from "@/components/filters/FilterBar";
 import { logApiError } from "@/lib/http";
-import { listStudioApprovals, useStudioAccess, useStudioRegistry, type StudioDetail } from "@/lib/services/studio";
+import { toast } from "@/lib/toast";
+import { listStudioApprovals, processOverdueApprovals, useStudioAccess, useStudioRegistry, type StudioDetail } from "@/lib/services/studio";
 import { ctorOrder } from "@/lib/studio/constructors";
 import StudioShell from "./StudioShell";
-import { StudioEmpty, StudioErrorNote, StudioLoading, studioEventObjectId, useNow, useStudioLive, useStudioText } from "./bits";
+import { StudioEmpty, StudioErrorNote, StudioLoading, studioEventObjectId, useNow, useStudioErrorText, useStudioLive, useStudioText } from "./bits";
+import { useStudioPerms } from "./StepMeta";
 import ApprovalCard from "./approvals/ApprovalCard";
 import ApprovalDrawer from "./approvals/ApprovalDrawer";
 import { DETAIL_EVENTS, LIST_EVENTS, QUEUE_STATUSES, canPublishItem, isMine, submittedOf, versionLabelOf, waitingSince } from "./approvals/helpers";
-import { IconCircleCheck, IconGrid, IconSearch, IconShieldCheck, IconUser } from "@/components/icons";
+import { IconCircleCheck, IconClock, IconGrid, IconSearch, IconShieldCheck, IconUser } from "@/components/icons";
 
 export default function ApprovalQueue() {
   const { t } = useStudioText();
@@ -102,6 +104,24 @@ function QueueBody() {
   const mineCount = all.filter((d) => isMine(d, access, ctorOf(d.code))).length;
   const filtered = Boolean(ctor || status || who || terms.length);
 
+  const perms = useStudioPerms();
+  const errorText = useStudioErrorText();
+  const [overdueBusy, setOverdueBusy] = useState(false);
+  // Overdue stages are escalated on their own every minute; this asks now.
+  async function overdue() {
+    setOverdueBusy(true);
+    try {
+      await processOverdueApprovals();
+      toast(t("appr.processed"), { tone: "ok" });
+      void retry();
+    } catch (e) {
+      logApiError("studio.approvals.overdue", e);
+      toast(errorText(e).title, { tone: "err" });
+    } finally {
+      setOverdueBusy(false);
+    }
+  }
+
   const open = (d: StudioDetail) => {
     setOpenId(d.id);
     setOpenBase(d);
@@ -152,6 +172,14 @@ function QueueBody() {
         aiId="admin.studio.approvals.filters"
         aiLabel={t("approvals.filter.title")}
       />
+      {perms.reassign ? (
+        <div className="stu-apover">
+          <button type="button" className="btn btn--line btn--sm" onClick={() => void overdue()} disabled={overdueBusy} data-ai-id="admin.studio.approvals.process-overdue" data-ai-type="button" data-ai-label={t("appr.processOverdue")}>
+            {overdueBusy ? <span className="stu-spin" aria-hidden /> : <IconClock aria-hidden />}
+            {t("appr.processOverdue")}
+          </button>
+        </div>
+      ) : null}
       {current?.ok && mineCount > 0 && who !== "mine" ? (
         <button type="button" className="stu-apnote" onClick={() => setWho("mine")} data-ai-id="admin.studio.approvals.mine" data-ai-type="button" data-ai-label={t("approvals.mineNote", { n: mineCount })}>
           <span className="stu-apnote__n" aria-hidden>

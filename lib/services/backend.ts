@@ -366,6 +366,8 @@ export type BackendLawyer = {
   ratingLabel: string;
   badgeLabel: string;
   basePrice: number;
+  effectivePrice?: number;
+  priceCapped?: boolean;
   bio?: string;
   verified: boolean;
   verificationStatus: string;
@@ -437,6 +439,10 @@ function normLawyer(v: unknown): BackendLawyer {
     reviews: asNum(d.reviews_count ?? d.reviews),
     ...trustFields(d),
     basePrice: uzs(d, "base_hourly_price"),
+    // What the client pays for this provider's service, after the backend's
+    // cap (never worked out here), and whether the cap lowered it.
+    effectivePrice: uzs(d, "effective_price") || undefined,
+    priceCapped: d.price_capped === true,
     bio: asStr(d.bio) || undefined,
     verificationStatus: asStr(d.verification_status),
     sellerType: asStr(d.seller_type),
@@ -917,6 +923,29 @@ export type BackendPackage = {
   excluded: string[];
   active: boolean;
 };
+// Who may carry out a package (contract §17): the backend matches the
+// provider's tier and verification to the package's tariff and checks every
+// mandatory service. This list is the only one a package order picks from —
+// it is never merged with the general marketplace list.
+export type PackageSellers = { items: BackendLawyer[]; total: number; hasMore: boolean; tariff: string; packageTitle: string; requiredServiceIds: string[] };
+export async function getPackageEligibleSellers(packageId: string, opts?: { limit?: number; offset?: number }): Promise<PackageSellers> {
+  const d = asDict(await http(`/service-packages/${encodeURIComponent(packageId)}/eligible-sellers?limit=${opts?.limit ?? 30}&offset=${opts?.offset ?? 0}`));
+  const pkg = asDict(d.package);
+  const items = asArr(d.items).map((v) => {
+    const x = asDict(v);
+    // A row may carry the provider nested; either way it reads as one seller.
+    return normLawyer({ ...asDict(x.seller ?? x.lawyer ?? x.provider ?? x.profile), ...x });
+  });
+  return {
+    items: items.filter((l) => l.userId),
+    total: asNum(d.total ?? d.count) || items.length,
+    hasMore: d.has_more === true,
+    tariff: asStr(d.tariff ?? pkg.tariff).toUpperCase(),
+    packageTitle: asStr(pkg.title ?? pkg.name),
+    requiredServiceIds: asArr(d.required_service_ids).map((s) => asStr(s)).filter(Boolean),
+  };
+}
+
 export async function getServicePackages(params?: { package_code?: string; tariff?: string }): Promise<BackendPackage[]> {
   const qs = new URLSearchParams();
   if (params?.package_code) qs.set("package_code", params.package_code);

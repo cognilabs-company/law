@@ -361,7 +361,7 @@ function Workspace({ id, newCode, ctx, onCode }: { id: string; newCode: string; 
     const oid = studioEventObjectId(e);
     if (!oid || oid !== id) return;
     if (e.event === "studio.comment_created") void loadComments();
-    else if (e.event.startsWith("studio.object_") || e.event === "studio.file_uploaded") void refresh();
+    else if (e.event.startsWith("studio.object_") || e.event.startsWith("studio.approval_") || e.event === "studio.file_uploaded") void refresh();
   }, Boolean(id));
 
   function fail(scope: string, e: unknown) {
@@ -1075,7 +1075,7 @@ function Workspace({ id, newCode, ctx, onCode }: { id: string; newCode: string; 
                     onUpload={upload}
                   />
                 ) : null}
-                {tab === "steps" ? <StepsPane steps={detail?.steps ?? []} approvalFree={approvalFree} submitted={status === "submitted" || status === "in_review"} /> : null}
+                {tab === "steps" ? <StepsPane code={code} onChanged={() => void refresh(true)} steps={detail?.steps ?? []} approvalFree={approvalFree} submitted={status === "submitted" || status === "in_review"} /> : null}
               </div>
             </>
           )}

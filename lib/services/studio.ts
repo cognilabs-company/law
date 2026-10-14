@@ -259,7 +259,14 @@ export type StudioVersion = {
   hasFile: boolean;
   createdAt: string;
   createdBy: string;
+  // The route this version was submitted under, kept as it was that day.
+  routeSnapshot: StudioRoute | null;
 };
+
+export type StudioPerson = { id: string; name: string };
+export type StudioApprovalMode = "any" | "all" | "quorum";
+export type StudioStepApproval = { userId: string; name: string; decision: string; comment: string; at: string };
+export type StudioReassignment = { fromId: string; from: string; toId: string; to: string; by: string; message: string; at: string };
 
 export type StudioStep = {
   id: string;
@@ -270,6 +277,19 @@ export type StudioStep = {
   decidedBy: string;
   decidedAt: string;
   comment: string;
+  // Who decides this stage and how many of them it takes; the counters and
+  // "may I decide" are the backend's, never worked out here.
+  approvers: StudioPerson[];
+  mode: StudioApprovalMode;
+  required: number;
+  approved: number;
+  remaining: number;
+  approvals: StudioStepApproval[];
+  reassignments: StudioReassignment[];
+  deadlineAt: string;
+  overdue: boolean;
+  escalatedAt: string;
+  canDecide: boolean | null;
 };
 
 export type StudioDetail = StudioObject & {
@@ -315,17 +335,55 @@ export type StudioMonitoringUser = { id: string; name: string; role: string; onl
 export type StudioMonitoring = { items: StudioActivity[]; online: number; total: number; summary: StudioMonitoringSummary; users: StudioMonitoringUser[]; raw: Dict };
 export type StudioReferenceItem = { id: string; label: string; value: string; raw: Dict };
 
-export type StudioRouteStep = { role: string; title: string };
+export type StudioRouteScope = "global" | "group" | "constructor";
+export type StudioRouteSource = StudioRouteScope | "default";
+export type StudioDeadlineUnit = "minute" | "hour" | "day";
+export type StudioRouteStep = {
+  role: string;
+  title: string;
+  approverIds: string[];
+  approvers: StudioPerson[];
+  mode: StudioApprovalMode;
+  required: number;
+  deadlineValue: number | null;
+  deadlineUnit: StudioDeadlineUnit;
+};
 export type StudioRoute = {
   id: string;
+  scopeType: StudioRouteScope;
+  scopeKey: string;
+  source: StudioRouteSource;
   constructorCode: string;
   title: string;
   steps: StudioRouteStep[];
+  finalAction: string;
+  deadlineHours: number;
+  requireSuperadmin: boolean;
+  autoPublishWhenEmpty: boolean;
+  changeRequestRestart: string;
+  version: number;
   status: string;
   updatedAt: string;
   raw: Dict;
 };
-export type StudioRouteInput = { constructorCode: string; title: string; steps: StudioRouteStep[]; status: string };
+export type StudioRouteInput = {
+  scopeType: StudioRouteScope;
+  scopeKey: string;
+  title: string;
+  steps: Pick<StudioRouteStep, "title" | "approverIds" | "mode" | "required" | "deadlineValue" | "deadlineUnit">[];
+  finalAction: string;
+  deadlineHours: number;
+  requireSuperadmin: boolean;
+  autoPublishWhenEmpty: boolean;
+  changeRequestRestart: string;
+  status: string;
+};
+export type StudioRouteGroup = { key: string; title: string; description: string; codes: string[]; order: number };
+export type StudioRouteBoard = { items: StudioRoute[]; groups: StudioRouteGroup[]; primarySuperadmin: StudioPerson | null };
+export type StudioApprover = { id: string; name: string; employeeCode: string; lexgoId: string; roles: string[]; primary: boolean };
+// The two permissions that open workflow administration (contract §3).
+export const STUDIO_PERM_WORKFLOW = "studio.workflow.manage";
+export const STUDIO_PERM_REASSIGN = "studio.approval.reassign";
 
 export type StudioAccessGrant = {
   id: string;
@@ -618,7 +676,21 @@ export function normStudioVersion(raw: unknown): StudioVersion {
     hasFile: has ?? Boolean(fileUrl || fileName),
     createdAt: timeOf(r.created_at, r.createdAt, r.updated_at),
     createdBy: personOf(r.created_by ?? r.createdBy ?? r.author ?? r.created_by_name ?? r.user),
+    routeSnapshot: Object.keys(asDict(r.route_snapshot)).length ? normStudioRoute(r.route_snapshot) : null,
   };
+}
+
+const MODES: StudioApprovalMode[] = ["any", "all", "quorum"];
+const modeOf = (v: unknown): StudioApprovalMode => (MODES.includes(asStr(v).toLowerCase() as StudioApprovalMode) ? (asStr(v).toLowerCase() as StudioApprovalMode) : "all");
+function peopleOf(list: unknown, ids: unknown): StudioPerson[] {
+  const named = asArr(list)
+    .map((x) => {
+      const d = asDict(x);
+      return { id: first(d.id, d.user_id, d.value), name: first(d.name, d.full_name, d.label) || personOf(x) };
+    })
+    .filter((x) => x.id);
+  const known = new Set(named.map((x) => x.id));
+  return [...named, ...strings(ids).filter((id) => !known.has(id)).map((id) => ({ id, name: "" }))];
 }
 
 export function normStudioStep(raw: unknown, index = 0): StudioStep {
@@ -632,6 +704,31 @@ export function normStudioStep(raw: unknown, index = 0): StudioStep {
     decidedBy: personOf(r.decided_by ?? r.reviewed_by ?? r.reviewer ?? r.decided_by_name ?? r.user),
     decidedAt: timeOf(r.decided_at, r.reviewed_at, r.completed_at),
     comment: first(r.comment, r.note),
+    approvers: peopleOf(r.approvers, r.approver_user_ids),
+    mode: modeOf(r.approval_mode),
+    required: asNum(r.required_approvals ?? r.quorum, 1),
+    approved: asNum(r.approved_count, 0),
+    remaining: asNum(r.remaining_approvals, 0),
+    approvals: asArr(r.approvals).map((x) => {
+      const d = asDict(x);
+      return { userId: first(d.user_id, d.approver_user_id, d.id), name: first(d.name, d.user_name, d.approver_name) || personOf(d.user ?? d.approver), decision: asStr(d.decision ?? d.status).toLowerCase(), comment: first(d.comment, d.note), at: timeOf(d.decided_at, d.created_at, d.at) };
+    }),
+    reassignments: asArr(r.reassignment_history).map((x) => {
+      const d = asDict(x);
+      return {
+        fromId: first(d.from_user_id, asDict(d.from_user).id),
+        from: first(d.from_user_name, d.from_name) || personOf(d.from_user),
+        toId: first(d.to_user_id, asDict(d.to_user).id),
+        to: first(d.to_user_name, d.to_name) || personOf(d.to_user),
+        by: first(d.by_user_name, d.reassigned_by_name, d.actor_name) || personOf(d.reassigned_by ?? d.by_user ?? d.actor),
+        message: first(d.message, d.comment),
+        at: timeOf(d.reassigned_at, d.created_at, d.at),
+      };
+    }),
+    deadlineAt: timeOf(r.deadline_at),
+    overdue: r.is_overdue === true,
+    escalatedAt: timeOf(r.escalation_notified_at),
+    canDecide: typeof r.can_decide === "boolean" ? r.can_decide : null,
   };
 }
 
@@ -760,16 +857,41 @@ export function normStudioActivity(raw: unknown, now = 0): StudioActivity {
   };
 }
 
+const UNITS: StudioDeadlineUnit[] = ["minute", "hour", "day"];
 export function normStudioRoute(raw: unknown): StudioRoute {
   const r = asDict(raw);
+  const scope = asStr(r.scope_type).toLowerCase();
+  const source = asStr(r.source).toLowerCase();
+  const code = first(r.constructor_code, r.constructorCode, r.code);
+  const scopeType: StudioRouteScope = scope === "global" || scope === "group" ? scope : "constructor";
   return {
     id: first(r.id, r.route_id, r.uuid),
-    constructorCode: first(r.constructor_code, r.constructorCode, r.code),
+    scopeType,
+    scopeKey: first(r.scope_key, scopeType === "constructor" ? code : scopeType === "global" ? "*" : ""),
+    source: source === "default" || source === "global" || source === "group" || source === "constructor" ? source : scopeType,
+    constructorCode: scopeType === "constructor" ? code || asStr(r.scope_key) : "",
     title: first(r.title, r.name),
     steps: listOf(r.steps, ["items", "steps"]).map((s) => {
       const d = asDict(s);
-      return { role: first(d.role, d.required_role), title: first(d.title, d.name, d.label) };
+      const unit = asStr(d.deadline_unit).toLowerCase() as StudioDeadlineUnit;
+      const people = peopleOf(d.approvers, d.approver_user_ids);
+      return {
+        role: first(d.role, d.required_role, d.reviewer_role),
+        title: first(d.title, d.name, d.label),
+        approverIds: people.map((x) => x.id),
+        approvers: people,
+        mode: modeOf(d.approval_mode),
+        required: asNum(d.required_approvals ?? d.quorum, 1),
+        deadlineValue: numOrNull(d.deadline_value),
+        deadlineUnit: UNITS.includes(unit) ? unit : "hour",
+      };
     }),
+    finalAction: asStr(r.final_action, "publish") || "publish",
+    deadlineHours: asNum(r.deadline_hours, 24),
+    requireSuperadmin: r.require_primary_superadmin !== false,
+    autoPublishWhenEmpty: r.auto_publish_when_empty !== false,
+    changeRequestRestart: asStr(r.change_request_restart, "current") || "current",
+    version: asNum(r.route_version, 1),
     status: asStr(r.status, "active").toLowerCase() || "active",
     updatedAt: timeOf(r.updated_at, r.created_at),
     raw: r,
@@ -1514,19 +1636,91 @@ export async function saveStudioAccess(input: StudioAccessInput): Promise<Studio
   return normStudioAccess(res.grant ?? res.item ?? res);
 }
 
-export async function listApprovalRoutes(): Promise<StudioRoute[]> {
+// Saved routes with the nine groups and the primary superadmin the backend
+// names (contract §6): group membership is never hardcoded here.
+export async function listApprovalRoutes(): Promise<StudioRouteBoard> {
   const res = await http("/admin/studio/approval-routes");
-  return listOf(res, ["items", "routes", "data", "results"]).map(normStudioRoute);
+  const d = asDict(res);
+  const sa = asDict(d.primary_superadmin);
+  return {
+    items: listOf(res, ["items", "routes", "data", "results"]).map(normStudioRoute),
+    groups: asArr(d.groups)
+      .map((g, i) => {
+        const x = asDict(g);
+        return { key: asStr(x.key), title: asStr(x.title), description: asStr(x.description), codes: strings(x.codes), order: asNum(x.order, i + 1) };
+      })
+      .filter((g) => g.key)
+      .sort((a, b) => a.order - b.order),
+    primarySuperadmin: first(sa.id) ? { id: first(sa.id), name: first(sa.name, sa.full_name) } : null,
+  };
 }
 
+// An upsert for the chosen scope: saving the same scope again updates it.
 export async function saveApprovalRoute(input: StudioRouteInput): Promise<StudioRoute> {
-  const res = asDict(
-    await http("/admin/studio/approval-routes", {
-      method: "POST",
-      body: JSON.stringify({ constructor_code: input.constructorCode, title: input.title, steps: input.steps, status: input.status }),
-    }),
-  );
+  const body: Dict = {
+    scope_type: input.scopeType,
+    scope_key: input.scopeKey,
+    title: input.title,
+    steps: input.steps.map((s) => ({
+      title: s.title,
+      approver_user_ids: s.approverIds,
+      approval_mode: s.mode,
+      ...(s.mode === "quorum" ? { required_approvals: s.required } : {}),
+      ...(s.deadlineValue ? { deadline_value: s.deadlineValue, deadline_unit: s.deadlineUnit } : {}),
+    })),
+    final_action: input.finalAction,
+    allow_self_approval: false,
+    change_request_restart: input.changeRequestRestart,
+    deadline_hours: input.deadlineHours,
+    require_primary_superadmin: input.requireSuperadmin,
+    auto_publish_when_empty: input.autoPublishWhenEmpty,
+    reminders: [],
+    status: input.status,
+  };
+  if (input.scopeType === "constructor") body.constructor_code = input.scopeKey;
+  const res = asDict(await http("/admin/studio/approval-routes", { method: "POST", body: JSON.stringify(body) }));
   return normStudioRoute(res.route ?? res.item ?? res);
+}
+
+// Who may be picked as an approver: active staff with Studio access only.
+export async function listApprovalUsers(q = "", constructorCode = "", signal?: AbortSignal): Promise<StudioApprover[]> {
+  const p = new URLSearchParams({ limit: "100" });
+  if (q.trim()) p.set("q", q.trim());
+  if (constructorCode) p.set("constructor_code", constructorCode);
+  const res = await http(`/admin/studio/approval-users?${p}`, { signal });
+  return listOf(res, ["items", "users", "data"]).map((x) => {
+    const d = asDict(x);
+    const roles = strings(d.constructor_roles);
+    return {
+      id: first(d.id, d.value),
+      name: first(d.label, d.name),
+      employeeCode: asStr(d.employee_code),
+      lexgoId: asStr(d.lexgo_id),
+      roles: roles.length ? roles : strings(d.studio_roles),
+      primary: d.is_primary_superadmin === true,
+    };
+  }).filter((u) => u.id);
+}
+
+// A pending decision handed from one approver to another (contract §13).
+export async function reassignApprovalStep(stepId: string, input: { fromUserId: string; toUserId: string; message?: string }): Promise<void> {
+  await http(`/admin/studio/approval-steps/${enc(stepId)}/reassign`, {
+    method: "POST",
+    body: JSON.stringify({ from_user_id: input.fromUserId, to_user_id: input.toUserId, message: input.message ?? "" }),
+  });
+}
+
+// Overdue stages are escalated by the backend every minute; this asks for a
+// pass right now.
+export async function processOverdueApprovals(): Promise<void> {
+  await http("/admin/studio/approvals/process-overdue", { method: "POST" });
+}
+
+// The route a constructor is approved by today, with where it comes from
+// (its own, its group's, the global one or the backend default).
+export async function getEffectiveRoute(code: string, signal?: AbortSignal): Promise<StudioRoute | null> {
+  const d = asDict(await http(`/studio/constructors/${enc(code)}`, { signal }));
+  return Object.keys(asDict(d.approval_route)).length ? normStudioRoute(d.approval_route) : null;
 }
 
 export async function exportStudioXlsx(): Promise<void> {

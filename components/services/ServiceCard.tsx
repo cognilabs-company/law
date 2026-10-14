@@ -126,6 +126,7 @@ export default function ServiceCard({
           <small>{t("card.som")}</small>
         </span>
         {!item.selectedPrice ? <span className="msv__tag">{t("card.catalogPrice")}</span> : null}
+        {item.priceCapped ? <span className="msv__tag msv__tag--cap" title={t("card.cappedHint", { price: som(item.selectedPrice) })}>{t("card.capped")}</span> : null}
       </div>
       <p className={`msv__band${off ? " is-off" : ""}`}>
         <IconCoins aria-hidden="true" />

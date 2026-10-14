@@ -17,6 +17,7 @@ import { editorFor } from "../editors";
 import { ConstructorIcon, StudioStatusPill, StudioStatusSteps, useStudioErrorText, useStudioText } from "../bits";
 import DecisionModal, { type DecisionKind } from "./DecisionModal";
 import ApprovalComments from "./ApprovalComments";
+import StepMeta from "../StepMeta";
 import { canActOnStep, canPublishItem, currentStepOf, currentVersionOf, isReviewable, mergeDetail, normRole, stepBack, stepDone, submittedOf, versionLabelOf } from "./helpers";
 import {
   IconChat,
@@ -375,6 +376,7 @@ function DrawerPanel({
                         </span>
                         {s.decidedBy || s.decidedAt ? <small>{[s.decidedBy, when(s.decidedAt)].filter(Boolean).join(" · ")}</small> : null}
                         {s.comment ? <q className="stu-aps__c">{s.comment}</q> : null}
+                        <StepMeta step={s} code={d.code} onChanged={stale} />
                       </div>
                     </li>
                   );

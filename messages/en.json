@@ -797,20 +797,20 @@
         }
       },
       "routes": {
-        "title": "Approval routes",
-        "lead": "Who approves each constructor and in what order.",
-        "create": "Add route",
-        "newTitle": "New route",
-        "editTitle": "Edit route",
+        "title": "Approval order",
+        "lead": "Who approves and in what order: for everything, for a section or for one constructor.",
+        "create": "Add an order",
+        "newTitle": "New order",
+        "editTitle": "Edit the order",
         "edit": "Edit",
         "setup": "Set up",
         "defaultLabel": "Default order",
-        "searchPh": "Constructor, title or role",
-        "filterTitle": "Route filters",
+        "searchPh": "Constructor or order name",
+        "filterTitle": "Order filters",
         "filterCtor": "Constructor",
         "filterStatus": "Status",
-        "emptyTitle": "No custom routes",
-        "emptyText": "All constructors use the default order now: reviewer, then publisher.",
+        "emptyTitle": "No separate orders",
+        "emptyText": "Constructors are approved by their section's order or by the general one.",
         "missing": "The approval order is not switched on yet. The standard order applies for now.",
         "uncoveredTitle": "Constructors on the default order",
         "uncoveredText": "{n} constructors have no custom route. Set one up if needed.",
@@ -819,7 +819,7 @@
         "saved": "Approval order for {code} saved",
         "constructor": "Constructor",
         "pickCtor": "Pick a constructor",
-        "replaces": "This constructor already has a route. Saving will update it.",
+        "replaces": "This constructor already has an order. Saving updates it.",
         "freeHint": "This type is usually published without approval. The order applies as the system is set up.",
         "status": "Status",
         "status_active": "Active",
@@ -827,10 +827,10 @@
         "status_archived": "Archived",
         "status_draft": "Draft",
         "status_disabled": "Off",
-        "routeTitle": "Route title",
+        "routeTitle": "Order name",
         "titlePh": "For example: two steps for documents",
         "steps": "Steps",
-        "stepsHint": "They run from top to bottom.",
+        "stepsHint": "Done from top to bottom. You may add no stages at all.",
         "stepN": "Step {n}",
         "stepRole": "Who approves",
         "stepTitle": "Step title",
@@ -840,7 +840,84 @@
         "down": "Move down",
         "save": "Save",
         "errCode": "Pick a constructor",
-        "errSteps": "At least one step is needed"
+        "errSteps": "At least one step is needed",
+        "scopeLabel": "What the order applies to",
+        "scope": {
+          "global": "Everything",
+          "group": "A section",
+          "constructor": "One constructor"
+        },
+        "group": "Section",
+        "pickGroup": "Pick a section",
+        "errGroup": "Pick a section",
+        "globalTitle": "General order",
+        "globalText": "Everything without an order of its own section or constructor is approved this way.",
+        "globalName": "General approval order",
+        "groupsTitle": "By section",
+        "groupsText": "A section's order applies to all of its constructors.",
+        "groupCount": "{n} constructors",
+        "ctorsTitle": "Single constructors",
+        "ctorsText": "An order set for one constructor comes before the section's and the general one.",
+        "addOverride": "Set an order for a constructor",
+        "inheritsGlobal": "Follows the general order",
+        "inheritsDefault": "Standard order: the primary superadmin approves",
+        "source": {
+          "constructor": "Its own order",
+          "group": "Section order",
+          "global": "General order",
+          "default": "Standard order"
+        },
+        "effectiveTitle": "Which order applies?",
+        "effectiveText": "Pick a constructor to see how its records are approved right now.",
+        "effectiveFrom": "Source: {src}",
+        "effectiveNote": "If the order changes, records already sent keep the earlier one.",
+        "approvers": "Who approves",
+        "approversPh": "Pick employees",
+        "approversSearch": "Search by name",
+        "approversEmpty": "No employees with Studio access found",
+        "approversHint": "Only active employees with Studio access are listed.",
+        "mode": {
+          "label": "How many approvals are needed",
+          "any": "Any one",
+          "all": "Everyone",
+          "quorum": "Several"
+        },
+        "modeHint": {
+          "any": "One of the chosen people is enough.",
+          "all": "Every chosen person must approve.",
+          "quorum": "The given number of people must approve."
+        },
+        "required": "Approvals needed",
+        "sla": "Deadline",
+        "slaUnit": {
+          "minute": "min",
+          "hour": "h",
+          "day": "d"
+        },
+        "slaHint": "Left empty, the general deadline applies.",
+        "deadlineHours": "General deadline (hours)",
+        "deadlineHoursHint": "Applies when a stage has no deadline of its own.",
+        "superadmin": "The primary superadmin approves last",
+        "superadminHint": "The primary superadmin ({name}) is added as the last stage.",
+        "superadminStep": "Primary superadmin",
+        "autoPublish": "With no stages, publish right away",
+        "autoPublishHint": "Switched off, the record stays approved and is published separately.",
+        "noStepsAuto": "No stages — a sent record is published right away",
+        "noStepsWait": "No stages — the record waits to be published as “Approved”",
+        "confirmEmptyTitle": "Publish without approval?",
+        "confirmEmptyText": "This order has no stages and the primary superadmin does not approve either. A sent record goes live at once, with nobody checking it.",
+        "confirmEmptyYes": "Yes, save it this way",
+        "stepTitlePh": "For example: Lawyer check",
+        "errApprovers": "Pick at least one employee",
+        "errQuorum": "Enter a number from 1 to {n}",
+        "errSla": "Enter a whole positive number",
+        "summaryAny": "any one",
+        "summaryAll": "everyone",
+        "summaryQuorum": "{n} of {of}",
+        "summarySla": "{n} {unit}",
+        "noApprovers": "No employees picked",
+        "versionN": "Revision {n}",
+        "noPermission": "You have no permission to set the approval order."
       },
       "registry": {
         "title": "Constructor list",
@@ -2789,6 +2866,38 @@
       "internal_analytics__view": "See internal reports",
       "internal_live_office__view": "See the live office",
       "_other": "Special permission"
+    },
+    "appr": {
+      "approvers": "Approvers",
+      "progress": "{done} of {need} approvals",
+      "remaining": "{n} more approvals needed",
+      "deadline": "Deadline: {d}",
+      "overdue": "Overdue",
+      "escalated": "Manager notified: {d}",
+      "reassign": "Pass to someone else",
+      "reassignTitle": "Pass the approval to another employee",
+      "from": "From",
+      "to": "To",
+      "pick": "Pick an employee",
+      "message": "Message (optional)",
+      "messagePh": "For example: please look before 18:00",
+      "reassigned": "The approval was passed to another employee",
+      "reassignConfirm": "Pass",
+      "history": "Handovers",
+      "historyRow": "{from} → {to}",
+      "decision": {
+        "approve": "approved",
+        "approved": "approved",
+        "reject": "rejected",
+        "rejected": "rejected",
+        "changes_requested": "asked for changes"
+      },
+      "waiting": "waiting",
+      "processOverdue": "Check overdue stages",
+      "processed": "Overdue stages checked",
+      "snapshot": "The order when this version was sent",
+      "selfBlocked": "You cannot approve a record you created yourself.",
+      "notYours": "A decision at this stage is not expected from you."
     }
   },
   "marketPricing": {
@@ -3035,7 +3144,9 @@
       "pending": "Awaiting approval",
       "pendingHint": "The promotion request is waiting for admin approval in Telegram",
       "promoteInactive": "Only active services can be promoted",
-      "remove": "Remove service"
+      "remove": "Remove service",
+      "capped": "Price capped",
+      "cappedHint": "Your price ({price} UZS) is above the highest allowed. The client pays the capped price."
     },
     "reasons": {
       "catalogOff": "inactive in the catalogue",
@@ -4635,7 +4746,8 @@
       "priceAsk": "Price on request",
       "servicesMore": "+{n}",
       "details": "Details",
-      "busy": "Busy now"
+      "busy": "Busy now",
+      "priceCapped": "Price lowered to the highest allowed"
     },
     "detail": {
       "back": "All specialists",
@@ -9032,7 +9144,32 @@
         "preSellerClear": "Another advocate",
         "preSellerNotOffering": "{name} does not offer this service — pick another advocate from the list or open another service.",
         "preSellerOnly": "Only the services this advocate offers ({n}) are shown — the order goes to them.",
-        "preSellerNoList": "This advocate has not listed services yet — the full catalogue is shown."
+        "preSellerNoList": "This advocate has not listed services yet — the full catalogue is shown.",
+        "priceCapped": "highest price allowed",
+        "package": {
+          "title": "Package",
+          "tier": {
+            "BASIC": "Basic",
+            "STANDARD": "Standard",
+            "PREMIUM": "Premium"
+          },
+          "policy": {
+            "BASIC": "Only verified Basic-level providers carry out this package.",
+            "STANDARD": "Only verified Standard-level providers carry out this package.",
+            "PREMIUM": "Only Premium-level providers who passed LexGo's extended check carry out this package."
+          },
+          "policyAny": "Only providers who fit this package carry it out.",
+          "noSellers": "No provider meets this package's conditions right now. Try again later or pick another package."
+        },
+        "packageErrors": {
+          "package_service_mismatch": "This service is not part of the chosen package. Pick the package again on the packages page.",
+          "package_seller_profile_missing": "This provider has no marketplace profile. Pick another one.",
+          "package_seller_not_eligible": "This provider no longer meets the package's conditions. The list was updated — pick another one.",
+          "base_verification_required": "This provider has not been verified yet. Pick another one.",
+          "extended_verification_required": "A Premium package needs a provider who passed LexGo's extended check. Pick another one.",
+          "provider_tier_mismatch": "This provider's level does not match the package's level. Pick another one.",
+          "required_services_disabled": "This provider does not offer every service in the package. Pick another one."
+        }
       },
       "documents": {
         "gatePooledSub": "We'll tell you as soon as a duty advocate takes it.",

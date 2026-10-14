@@ -11,6 +11,10 @@ export const LIST_EVENTS = new Set([
   "studio.object_rollback",
   "studio.object_archived",
   "studio.object_saved",
+  "studio.object_created",
+  "studio.approval_progress",
+  "studio.approval_reassigned",
+  "studio.approval_overdue",
   "studio.approval_route_updated",
   "studio.resync",
 ]);
@@ -96,9 +100,14 @@ export function isReviewable(d: StudioDetail): boolean {
 }
 
 export function canActOnStep(d: StudioDetail, acc: StudioAccess): boolean {
-  if (!acc.canReview || !isReviewable(d)) return false;
-  if (acc.isAdmin) return true;
+  if (!isReviewable(d)) return false;
   const at = currentStepOf(d);
+  // Whether this person may decide is the backend's answer (contract §11):
+  // it knows the approvers, the handovers and that a creator never approves
+  // their own record. Only a backend that does not say falls back to roles.
+  if (at && at.step.canDecide !== null) return at.step.canDecide;
+  if (!acc.canReview) return false;
+  if (acc.isAdmin) return true;
   if (!at || !at.step.role) return true;
   return acc.roles.includes(normRole(at.step.role));
 }

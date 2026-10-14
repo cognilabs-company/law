@@ -28,6 +28,7 @@ export type ManagedService = {
   status: ServiceStatus;
   selectedPrice: number;
   effectivePrice: number;
+  priceCapped: boolean;
   experienceNote: string;
   visible: boolean;
   ownPromotion: ServicePromotion | null;
@@ -140,6 +141,7 @@ function normManaged(v: unknown, locale: string): ManagedService {
     status: statusOf(d.status),
     selectedPrice: uzs(d, "selected_price"),
     effectivePrice: uzs(d, "effective_price"),
+    priceCapped: d.price_capped === true,
     experienceNote: asStr(d.experience_note),
     visible: d.is_marketplace_visible === true || d.marketplace_visible === true || d.visible === true,
     ownPromotion: promo && promo.serviceId === service.id ? promo : null,

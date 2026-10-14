@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { getServicePackages, getAllServices, type BackendPackage } from "@/lib/services/backend";
+import { getServicePackages, getAllServices, getPackageEligibleSellers, type BackendPackage } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
@@ -79,9 +79,18 @@ export default function ClientPackages() {
     ...cats.map((c) => ({ value: c, label: `${c} (${codeCount(found.filter((p) => p.categoryTitle === c))})` })),
   ];
 
-  function order(p: BackendPackage) {
-    const first = codesOf(p).map((c) => byCode.get(c)).find(Boolean);
-    router.push(first ? `/portal/client/services?service=${encodeURIComponent(first.id)}&package=${encodeURIComponent(p.id)}` : `/portal/client/services?q=${encodeURIComponent(p.categoryTitle || p.title)}`);
+  // The service a package is ordered through is one the package itself
+  // requires — the backend refuses any other — so it is asked for first; the
+  // catalogue match by code is only the fallback.
+  const [opening, setOpening] = useState("");
+  async function order(p: BackendPackage) {
+    if (opening) return;
+    setOpening(p.id);
+    // Only a real id is used: where the backend sends a code range instead
+    // ("G01-G03"), the catalogue match below finds the service.
+    const need = await getPackageEligibleSellers(p.id, { limit: 1 }).then((r) => r.requiredServiceIds.find((x) => /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(x)) ?? "").catch(() => "");
+    const first = need ? { id: need } : codesOf(p).map((c) => byCode.get(c)).find(Boolean);
+    router.push(first ? `/portal/client/services?service=${encodeURIComponent(first.id)}&package=${encodeURIComponent(p.id)}` : `/portal/client/services?q=${encodeURIComponent(p.categoryTitle || p.title)}&package=${encodeURIComponent(p.id)}`);
   }
 
   return (
@@ -134,7 +143,7 @@ export default function ClientPackages() {
                     </ul>
                     <div className="pkg__acts">
                       <button type="button" className="btn btn--line btn--sm" onClick={() => setOpen(p)}>{t("details")}</button>
-                      <button type="button" className={`btn btn--sm ${best ? "btn--grad" : "btn--pri"}`} onClick={() => order(p)}>{t("order")}<IconArrowRight /></button>
+                      <button type="button" className={`btn btn--sm ${best ? "btn--grad" : "btn--pri"}`} disabled={Boolean(opening)} onClick={() => void order(p)}>{t("order")}<IconArrowRight /></button>
                     </div>
                   </div>
                 );
@@ -162,7 +171,7 @@ export default function ClientPackages() {
                 <ul className="pkg__inc">{open.excluded.map((x, i) => <li key={i} className="no"><IconClose />{x}</li>)}</ul>
               </>
             ) : null}
-            <button type="button" className="btn btn--pri btn--full" style={{ marginTop: 14 }} onClick={() => order(open)}>{t("order")}</button>
+            <button type="button" className="btn btn--pri btn--full" style={{ marginTop: 14 }} disabled={Boolean(opening)} onClick={() => void order(open)}>{t("order")}</button>
           </div>
         ) : null}
       </Modal>

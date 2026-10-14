@@ -8,12 +8,13 @@ import AccessPanel from "./settings/AccessPanel";
 import RoutesPanel from "./settings/RoutesPanel";
 import RegistryPanel from "./settings/RegistryPanel";
 import ExportPanel from "./settings/ExportPanel";
+import { useStudioPerms } from "./StepMeta";
 import { IconDownload, IconLayers, IconLock, IconShieldCheck, IconSliders } from "@/components/icons";
 
 type Tab = "access" | "routes" | "registry" | "export";
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
-const TABS: { key: Tab; Icon: Icon }[] = [
+const ALL_TABS: { key: Tab; Icon: Icon }[] = [
   { key: "access", Icon: IconLock },
   { key: "routes", Icon: IconShieldCheck },
   { key: "registry", Icon: IconLayers },
@@ -33,10 +34,15 @@ export default function StudioSettings() {
 
 function SettingsBody() {
   const { t } = useStudioText();
+  const perms = useStudioPerms();
   const [tab, setTab] = useState<Tab>("access");
+  // The approval order opens only for someone allowed to set it (contract §3).
+  const TABS = ALL_TABS.filter((x) => x.key !== "routes" || perms.workflow);
 
   useAiReveal(/^admin\.studio\.settings\.access(\.|$)/, () => setTab("access"));
-  useAiReveal(/^admin\.studio\.settings\.routes(\.|$)/, () => setTab("routes"));
+  useAiReveal(/^admin\.studio\.settings\.routes(\.|$)/, () => {
+    if (perms.workflow) setTab("routes");
+  });
   useAiReveal(/^admin\.studio\.settings\.registry(\.|$)/, () => setTab("registry"));
   useAiReveal(/^admin\.studio\.settings\.export(\.|$)/, () => setTab("export"));
 
@@ -74,7 +80,7 @@ function SettingsBody() {
         ))}
       </div>
       <div className="stu-set__panel" role="tabpanel" id="stu-set-panel" aria-labelledby={`stu-set-tab-${tab}`}>
-        {tab === "access" ? <AccessPanel /> : tab === "routes" ? <RoutesPanel /> : tab === "registry" ? <RegistryPanel /> : <ExportPanel />}
+        {tab === "access" ? <AccessPanel /> : tab === "routes" && perms.workflow ? <RoutesPanel /> : tab === "registry" ? <RegistryPanel /> : <ExportPanel />}
       </div>
     </div>
   );

@@ -140,7 +140,7 @@ export function SellerServiceRow({
         </span>
       </button>
       <div className="mk-svc__end">
-        <b>{ph ? <span className="mk-ph">{ph.price}</span> : svc.price > 0 ? fmtUzs(svc.price) : t("card.priceAsk")}</b>
+        <b title={!ph && svc.priceCapped ? t("card.priceCapped") : undefined}>{ph ? <span className="mk-ph">{ph.price}</span> : svc.price > 0 ? fmtUzs(svc.price) : t("card.priceAsk")}</b>
         <button
           type="button"
           className="btn btn--pri btn--sm"

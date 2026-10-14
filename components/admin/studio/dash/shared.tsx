@@ -22,7 +22,7 @@ export function studioEventCode(e: UserEvent): string {
   return pick(d.constructor_code) || pick(d.constructorCode) || pick(obj.constructor_code) || pick(obj.constructorCode);
 }
 
-const touchesObjects = (e: UserEvent) => e.event === "studio.resync" || e.event.startsWith("studio.object_");
+const touchesObjects = (e: UserEvent) => e.event === "studio.resync" || e.event.startsWith("studio.object_") || e.event.startsWith("studio.approval_");
 
 export function useStudioRefetch(run: () => void, match?: (e: UserEvent) => boolean, enabled = true): void {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);

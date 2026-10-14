@@ -798,19 +798,19 @@
       },
       "routes": {
         "title": "Tasdiqlash tartibi",
-        "lead": "Har bir konstruktor uchun kim va qaysi tartibda tasdiqlaydi.",
+        "lead": "Kim va qaysi tartibda tasdiqlaydi: hamma uchun, bo'lim uchun yoki bitta konstruktor uchun.",
         "create": "Tartib qo'shish",
         "newTitle": "Yangi tartib",
         "editTitle": "Tartibni tahrirlash",
         "edit": "Tahrirlash",
         "setup": "Sozlash",
         "defaultLabel": "Standart tartib",
-        "searchPh": "Konstruktor, nom yoki rol",
+        "searchPh": "Konstruktor yoki tartib nomi",
         "filterTitle": "Tartib filtrlari",
         "filterCtor": "Konstruktor",
         "filterStatus": "Holat",
-        "emptyTitle": "Maxsus tartib yo'q",
-        "emptyText": "Hozir barcha konstruktorlar standart tartibda tasdiqlanadi: tekshiruvchi, keyin nashr etuvchi.",
+        "emptyTitle": "Alohida tartib yo'q",
+        "emptyText": "Hozir konstruktorlar bo'lim tartibi yoki umumiy tartib bo'yicha tasdiqlanadi.",
         "missing": "Tasdiqlash tartibi hali yoqilmagan. Hozircha standart tartib ishlaydi.",
         "uncoveredTitle": "Standart tartibdagi konstruktorlar",
         "uncoveredText": "{n} ta konstruktorda maxsus tartib yo'q. Kerak bo'lsa sozlang.",
@@ -830,7 +830,7 @@
         "routeTitle": "Tartib nomi",
         "titlePh": "Masalan: Hujjatlar uchun ikki bosqich",
         "steps": "Bosqichlar",
-        "stepsHint": "Yuqoridan pastga tartibda bajariladi.",
+        "stepsHint": "Yuqoridan pastga tartibda bajariladi. Bosqich qo'shmasangiz ham bo'ladi.",
         "stepN": "{n}-bosqich",
         "stepRole": "Kim tasdiqlaydi",
         "stepTitle": "Bosqich nomi",
@@ -840,7 +840,84 @@
         "down": "Pastga",
         "save": "Saqlash",
         "errCode": "Konstruktorni tanlang",
-        "errSteps": "Kamida bitta bosqich kerak"
+        "errSteps": "Kamida bitta bosqich kerak",
+        "scopeLabel": "Tartib nimaga tegishli",
+        "scope": {
+          "global": "Hamma uchun",
+          "group": "Bo'lim uchun",
+          "constructor": "Bitta konstruktor uchun"
+        },
+        "group": "Bo'lim",
+        "pickGroup": "Bo'limni tanlang",
+        "errGroup": "Bo'limni tanlang",
+        "globalTitle": "Umumiy tartib",
+        "globalText": "Bo'limi yoki konstruktori uchun alohida tartib bo'lmagan hamma narsa shu tartibda tasdiqlanadi.",
+        "globalName": "Umumiy tasdiqlash tartibi",
+        "groupsTitle": "Bo'limlar bo'yicha",
+        "groupsText": "Bo'limga tartib bersangiz, undagi barcha konstruktorlar shu tartibda tasdiqlanadi.",
+        "groupCount": "{n} ta konstruktor",
+        "ctorsTitle": "Alohida konstruktorlar",
+        "ctorsText": "Bitta konstruktor uchun berilgan tartib bo'lim va umumiy tartibdan ustun turadi.",
+        "addOverride": "Konstruktorga tartib berish",
+        "inheritsGlobal": "Umumiy tartib bo'yicha",
+        "inheritsDefault": "Standart tartib: bosh superadmin tasdiqlaydi",
+        "source": {
+          "constructor": "O'z tartibi",
+          "group": "Bo'lim tartibi",
+          "global": "Umumiy tartib",
+          "default": "Standart tartib"
+        },
+        "effectiveTitle": "Qaysi tartib ishlaydi?",
+        "effectiveText": "Konstruktorni tanlang — hozir uning yozuvlari qaysi tartibda tasdiqlanishini ko'rsatamiz.",
+        "effectiveFrom": "Manba: {src}",
+        "effectiveNote": "Tartib o'zgarsa, allaqachon yuborilgan yozuvlar eski tartibda tasdiqlanadi.",
+        "approvers": "Kim tasdiqlaydi",
+        "approversPh": "Xodimlarni tanlang",
+        "approversSearch": "Ism bo'yicha qidirish",
+        "approversEmpty": "Studio'ga ruxsati bor xodim topilmadi",
+        "approversHint": "Faqat Studio'ga ruxsati bor faol xodimlar chiqadi.",
+        "mode": {
+          "label": "Nechta tasdiq kerak",
+          "any": "Istalgan biri",
+          "all": "Hammasi",
+          "quorum": "Bir nechtasi"
+        },
+        "modeHint": {
+          "any": "Tanlanganlardan bittasi tasdiqlasa yetadi.",
+          "all": "Tanlanganlarning hammasi tasdiqlashi kerak.",
+          "quorum": "Ko'rsatilgan sondagi xodim tasdiqlashi kerak."
+        },
+        "required": "Kerakli tasdiqlar soni",
+        "sla": "Muddat",
+        "slaUnit": {
+          "minute": "daqiqa",
+          "hour": "soat",
+          "day": "kun"
+        },
+        "slaHint": "Bo'sh qoldirilsa, umumiy muddat ishlaydi.",
+        "deadlineHours": "Umumiy muddat (soat)",
+        "deadlineHoursHint": "Bosqichda muddat ko'rsatilmagan bo'lsa ishlaydi.",
+        "superadmin": "Oxirida bosh superadmin tasdiqlaydi",
+        "superadminHint": "Yoqilsa, oxirgi bosqich sifatida bosh superadmin ({name}) qo'shiladi.",
+        "superadminStep": "Bosh superadmin",
+        "autoPublish": "Bosqich bo'lmasa, darhol e'lon qilinsin",
+        "autoPublishHint": "O'chirilsa, yozuv tasdiqlangan holatda turadi va alohida e'lon qilinadi.",
+        "noStepsAuto": "Bosqichsiz — yuborilgan yozuv darhol e'lon qilinadi",
+        "noStepsWait": "Bosqichsiz — yozuv tasdiqlangan holatda e'lon qilinishini kutadi",
+        "confirmEmptyTitle": "Tasdiqlashsiz e'lon qilinsinmi?",
+        "confirmEmptyText": "Bu tartibda bosqich yo'q va bosh superadmin ham tasdiqlamaydi. Yuborilgan yozuv hech kim ko'rmasdan darhol saytga chiqadi.",
+        "confirmEmptyYes": "Ha, shunday saqlash",
+        "stepTitlePh": "Masalan: Yurist tekshiruvi",
+        "errApprovers": "Kamida bitta xodimni tanlang",
+        "errQuorum": "1 dan {n} gacha son kiriting",
+        "errSla": "Musbat butun son kiriting",
+        "summaryAny": "istalgan biri",
+        "summaryAll": "hammasi",
+        "summaryQuorum": "{n}/{of}",
+        "summarySla": "{n} {unit}",
+        "noApprovers": "Xodim tanlanmagan",
+        "versionN": "{n}-tahrir",
+        "noPermission": "Tasdiqlash tartibini sozlash uchun sizda ruxsat yo'q."
       },
       "registry": {
         "title": "Konstruktorlar ro'yxati",
@@ -2789,6 +2866,38 @@
       "internal_analytics__view": "Ichki hisobotlarni ko'rish",
       "internal_live_office__view": "Jonli ofisni ko'rish",
       "_other": "Maxsus ruxsat"
+    },
+    "appr": {
+      "approvers": "Tasdiqlovchilar",
+      "progress": "{done}/{need} tasdiq",
+      "remaining": "Yana {n} ta tasdiq kerak",
+      "deadline": "Muddat: {d}",
+      "overdue": "Muddati o'tdi",
+      "escalated": "Rahbarga xabar berildi: {d}",
+      "reassign": "Boshqasiga o'tkazish",
+      "reassignTitle": "Tasdiqlashni boshqa xodimga o'tkazish",
+      "from": "Kimdan",
+      "to": "Kimga",
+      "pick": "Xodimni tanlang",
+      "message": "Xabar (ixtiyoriy)",
+      "messagePh": "Masalan: soat 18:00 gacha ko'rib chiqing",
+      "reassigned": "Tasdiqlash boshqa xodimga o'tkazildi",
+      "reassignConfirm": "O'tkazish",
+      "history": "O'tkazishlar",
+      "historyRow": "{from} → {to}",
+      "decision": {
+        "approve": "tasdiqladi",
+        "approved": "tasdiqladi",
+        "reject": "rad etdi",
+        "rejected": "rad etdi",
+        "changes_requested": "qayta ishlashga qaytardi"
+      },
+      "waiting": "kutilmoqda",
+      "processOverdue": "Muddati o'tganlarni tekshirish",
+      "processed": "Muddati o'tgan bosqichlar tekshirildi",
+      "snapshot": "Shu versiya yuborilgan paytdagi tartib",
+      "selfBlocked": "O'zingiz yaratgan yozuvni tasdiqlay olmaysiz.",
+      "notYours": "Bu bosqichda qaror siz tomondan kutilmayapti."
     }
   },
   "marketPricing": {
@@ -3035,7 +3144,9 @@
       "pending": "Tasdiq kutilmoqda",
       "pendingHint": "Targ'ib so'rovi Telegram orqali admin tasdig'ini kutmoqda",
       "promoteInactive": "Targ'ib faqat faol xizmat uchun yoqiladi",
-      "remove": "Xizmatni o'chirish"
+      "remove": "Xizmatni o'chirish",
+      "capped": "Narx cheklangan",
+      "cappedHint": "Siz kiritgan narx ({price} so'm) ruxsat etilgan eng yuqori narxdan baland. Mijoz cheklangan narxni to'laydi."
     },
     "reasons": {
       "catalogOff": "katalogda nofaol",
@@ -4635,7 +4746,8 @@
       "priceAsk": "Narx kelishiladi",
       "servicesMore": "+{n} ta",
       "details": "Batafsil",
-      "busy": "Hozir band"
+      "busy": "Hozir band",
+      "priceCapped": "Narx ruxsat etilgan eng yuqori chegaraga tushirilgan"
     },
     "detail": {
       "back": "Barcha mutaxassislar",
@@ -9038,7 +9150,32 @@
         "preSellerClear": "Boshqa advokat",
         "preSellerNotOffering": "{name} bu xizmatni ko'rsatmaydi — ro'yxatdan boshqa advokatni tanlang yoki boshqa xizmatni oching.",
         "preSellerOnly": "Faqat shu advokat ko'rsatadigan xizmatlar ({n} ta) ko'rsatilmoqda — buyurtma shu advokatga yuboriladi.",
-        "preSellerNoList": "Bu advokat hali xizmatlar ro'yxatini belgilamagan — butun katalog ko'rsatilmoqda."
+        "preSellerNoList": "Bu advokat hali xizmatlar ro'yxatini belgilamagan — butun katalog ko'rsatilmoqda.",
+        "priceCapped": "ruxsat etilgan eng yuqori narx",
+        "package": {
+          "title": "Paket",
+          "tier": {
+            "BASIC": "Basic",
+            "STANDARD": "Standard",
+            "PREMIUM": "Premium"
+          },
+          "policy": {
+            "BASIC": "Bu paketni faqat tekshiruvdan o'tgan Basic darajadagi ijrochilar bajaradi.",
+            "STANDARD": "Bu paketni faqat tekshiruvdan o'tgan Standard darajadagi ijrochilar bajaradi.",
+            "PREMIUM": "Bu paketni faqat LexGo kengaytirilgan tekshiruvidan o'tgan Premium darajadagi ijrochilar bajaradi."
+          },
+          "policyAny": "Bu paketni faqat unga mos ijrochilar bajaradi.",
+          "noSellers": "Hozircha bu paket shartlariga mos ijrochi yo'q. Keyinroq qayta urinib ko'ring yoki boshqa paketni tanlang."
+        },
+        "packageErrors": {
+          "package_service_mismatch": "Bu xizmat tanlangan paketga kirmaydi. Paketlar sahifasidan qaytadan tanlang.",
+          "package_seller_profile_missing": "Bu ijrochining marketplace profili yo'q. Boshqa ijrochini tanlang.",
+          "package_seller_not_eligible": "Bu ijrochi endi paket shartlariga mos emas. Ro'yxat yangilandi — boshqasini tanlang.",
+          "base_verification_required": "Bu ijrochi hali tekshiruvdan o'tmagan. Boshqa ijrochini tanlang.",
+          "extended_verification_required": "Premium paket uchun ijrochi LexGo kengaytirilgan tekshiruvidan o'tgan bo'lishi kerak. Boshqa ijrochini tanlang.",
+          "provider_tier_mismatch": "Bu ijrochining darajasi paket darajasiga mos emas. Boshqa ijrochini tanlang.",
+          "required_services_disabled": "Bu ijrochi paketdagi barcha xizmatlarni ko'rsatmaydi. Boshqa ijrochini tanlang."
+        }
       },
       "documents": {
         "gatePooledSub": "Navbatchi advokat ishni olishi bilan xabar beramiz.",

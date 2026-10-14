@@ -12,6 +12,8 @@ import {
   searchServices,
   getServicePassport,
   listLawyers,
+  getPackageEligibleSellers,
+  type PackageSellers,
   createOrder,
   getPricingQuote,
   getMatchingCandidates,
@@ -826,8 +828,31 @@ export default function ClientServices() {
   // (self-fill only); "Advokat yo'llash" forces it open anyway.
   const orderAsAdvocate = order && (!order.documentTemplateId || forceAdvocate);
 
+  // An order that comes from a package picks its provider from the package's
+  // own eligible list and from nowhere else (contract §17): the tiers are
+  // never mixed, and an empty list is a real answer.
+  const [packageId] = useState(() => searchParams.get("package") ?? "");
+  const [pkg, setPkg] = useState<PackageSellers | null>(null);
+  const loadPackageSellers = useCallback(() => {
+    if (!packageId) return;
+    getPackageEligibleSellers(packageId)
+      .then((res) => {
+        setPkg(res);
+        setSellers(res.items);
+      })
+      .catch(() => {
+        setPkg(null);
+        setSellers([]);
+      })
+      .finally(() => setSellersLoading(false));
+  }, [packageId]);
+
   useEffect(() => {
     if (!order || (order.documentTemplateId && !forceAdvocate)) return;
+    if (packageId) {
+      loadPackageSellers();
+      return;
+    }
     listLawyers({ service_id: order.id })
       .then((rows) => {
         setSellers(rows);
@@ -843,7 +868,7 @@ export default function ClientServices() {
   // Ranked, verified candidates for this service; used to order the sellers
   // above and to explain the match. A failure just leaves the rating order.
   useEffect(() => {
-    if (!order || (order.documentTemplateId && !forceAdvocate)) return;
+    if (!order || packageId || (order.documentTemplateId && !forceAdvocate)) return;
     let alive = true;
     getMatchingCandidates({ serviceId: order.id, region: myRegion || undefined })
       .then((rows) => alive && setCands(new Map(rows.map((c) => [c.lawyerUserId, c]))))
@@ -851,10 +876,12 @@ export default function ClientServices() {
     return () => {
       alive = false;
     };
-  }, [order, myRegion, forceAdvocate]);
+  }, [order, myRegion, forceAdvocate, packageId]);
 
-  const sortable = !sellersLoading && sellers.filter((l) => l.userId).length > 1;
+  // A package's list comes ranked by the backend and stays in that order.
+  const sortable = !packageId && !sellersLoading && sellers.filter((l) => l.userId).length > 1;
   const sortedSellers = useMemo(() => {
+    if (packageId) return sellers;
     const rows = [...sellers];
     const score = (l: BackendLawyer) => cands.get(l.userId)?.score ?? -1;
     rows.sort((a, b) => {
@@ -864,7 +891,7 @@ export default function ClientServices() {
       return Number(b.rated) - Number(a.rated) || b.rating - a.rating;
     });
     return rows;
-  }, [sellers, sort, cands]);
+  }, [sellers, sort, cands, packageId]);
 
   // Price rows are labelled by the backend modifier code.
   const modLabel = (m: PriceModifier) =>
@@ -913,14 +940,25 @@ export default function ClientServices() {
     setBuying(true);
     setNote(null);
     try {
-      const packageId = typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("package") ?? "";
-      const o = await createOrder({ service_id: order.id, lawyer_user_id: sellerId, ...(packageId ? { package_id: packageId } : {}) });
+      const o = await createOrder({
+        service_id: order.id,
+        lawyer_user_id: sellerId,
+        ...(packageId ? { package_id: packageId, source: "marketplace_package", details: myRegion ? { region: myRegion } : {} } : {}),
+      });
       setBuying(false);
       if (o.id) setPayOrderId(o.id);
       else router.push("/portal/client/cases");
-    } catch {
+    } catch (e) {
       setBuying(false);
-      setNote({ ok: false, msg: t("orderError") });
+      // The backend says why a package order was refused; the client reads
+      // that reason, and the list is asked for again since it has changed.
+      const code = e instanceof ApiError ? e.code ?? "" : "";
+      setNote({ ok: false, msg: code && t.has(`packageErrors.${code}`) ? t(`packageErrors.${code}`) : t("orderError") });
+      if (packageId && e instanceof ApiError && (e.status === 409 || t.has(`packageErrors.${code}`))) {
+        setSellerId("");
+        setSellersLoading(true);
+        loadPackageSellers();
+      }
     }
   }
   function afterPay(roomId?: string) {
@@ -1648,10 +1686,17 @@ export default function ClientServices() {
                   ) : null}
                 </div>
                 {preSeller && preSellerOffers === false ? <p className="bhnote" role="status"><IconAlert />{t("preSellerNotOffering", { name: preSeller.name || t("preSellerAnon") })}</p> : null}
+                {packageId && pkg ? (
+                  <p className="pkgnote" role="note">
+                    <b>{pkg.packageTitle || t("package.title")}</b>
+                    {pkg.tariff && t.has(`package.tier.${pkg.tariff}`) ? <em className={`pkgnote__tier pkgnote__tier--${pkg.tariff.toLowerCase()}`}>{t(`package.tier.${pkg.tariff}`)}</em> : null}
+                    <span>{pkg.tariff && t.has(`package.policy.${pkg.tariff}`) ? t(`package.policy.${pkg.tariff}`) : t("package.policyAny")}</span>
+                  </p>
+                ) : null}
                 {sellersLoading ? (
                   <Skeleton rows={2} />
                 ) : !sortedSellers.length ? (
-                  <p className="advmuted">{t("noSellers")}</p>
+                  <p className="advmuted">{packageId ? t("package.noSellers") : t("noSellers")}</p>
                 ) : (
                   <div id="advpick" className={`advpick${missing === "seller" ? " is-bad" : ""}`}>
                     {sortedSellers.filter((l) => l.userId).map((l) => {
@@ -1687,7 +1732,8 @@ export default function ClientServices() {
                             ) : null}
                           </span>
                           <span className="advpick__price">
-                            {l.basePrice ? `${som(l.basePrice)} ${t("som")}` : t("byRequest")}
+                            {l.effectivePrice || l.basePrice ? `${som(l.effectivePrice || l.basePrice)} ${t("som")}` : t("byRequest")}
+                            {l.priceCapped ? <small className="advpick__cap">{t("priceCapped")}</small> : null}
                             {on ? <IconCheck className="advpick__ck" /> : null}
                           </span>
                         </button>
