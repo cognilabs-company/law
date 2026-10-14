@@ -4,6 +4,7 @@ import type { ComponentType, ReactNode, SVGProps } from "react";
 import { studioDetailSnapshot, type StudioFieldErrors, type StudioSchemaField } from "@/lib/services/studio";
 import { useStudioText } from "../bits";
 import { fieldRoot } from "./model";
+import { useStudioHuman } from "../human";
 import { IconAlert, IconChevronRight } from "@/components/icons";
 
 type P = SVGProps<SVGSVGElement>;
@@ -73,7 +74,7 @@ export function VersionBadge({ version }: { version: string }) {
 }
 
 export function useFieldLabel(code = "") {
-  const { t, field, locale } = useStudioText();
+  const { t, fieldLabel } = useStudioHuman();
   return (key: string) => {
     if (key === "_") return t("editor.errors.general");
     // A nested path is named field by field from the typed schema:
@@ -84,14 +85,14 @@ export function useFieldLabel(code = "") {
     const names: string[] = [];
     for (const part of parts) {
       if (/^\d+$/.test(part)) {
-        names.push(`#${Number(part) + 1}`);
+        names.push(String(Number(part) + 1));
         continue;
       }
       const f = level.find((x) => x.key === part);
-      names.push(f ? (locale === "uz" || !t.has(`field.${part}`) ? f.label || field(part) : field(part)) : field(part));
+      names.push(fieldLabel(part, f?.label));
       level = f ? (f.type === "list" ? (f.item?.properties ?? []) : f.properties) : [];
     }
-    return names.join(" · ") || field(fieldRoot(key));
+    return names.join(" · ") || fieldLabel(fieldRoot(key));
   };
 }
 

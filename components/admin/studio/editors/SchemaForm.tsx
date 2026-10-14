@@ -7,7 +7,7 @@ import DatePicker from "@/components/DatePicker";
 import { zonedIso } from "@/components/internal/live/bits";
 import { IconAlert, IconClose, IconEye, IconEdit, IconMenu, IconPlus } from "@/components/icons";
 import { PayloadSummary } from "../PayloadSummary";
-import { useStudioText } from "../bits";
+import { useStudioHuman } from "../human";
 import GenericEditor from "./GenericEditor";
 import RefSelect from "./parts/RefSelect";
 import { ChipPick, RowTools, SelectIn, edAi, useEd } from "./parts/kit";
@@ -53,20 +53,23 @@ function SchemaSkeleton() {
   );
 }
 
+// Every word of the form is said in the reader's language (../human): a
+// field by its name from the dictionary, help as a short instruction, an
+// option by its name — never the backend's key, code or sample value.
 function useLabels() {
-  const st = useStudioText();
-  // The backend names fields in Uzbek; other languages use our dictionary
-  // where it has the key and the backend's words otherwise.
-  // The backend's label, help and example are the field's words (spec 10-12
-  // §6); a key is never shown in a label's place.
-  const label = (f: StudioSchemaField) => f.label && f.label !== f.key ? f.label : st.field(f.key);
-  const help = (f: StudioSchemaField) => f.help || st.fieldHelp(f.key);
-  const optionLabel = (f: StudioSchemaField, v: string) => f.optionLabels[v] || st.option(v);
-  return { ...st, label, help, optionLabel };
+  const hm = useStudioHuman();
+  const label = (f: StudioSchemaField) => hm.label(f);
+  const help = (f: StudioSchemaField) => hm.help(f);
+  const optionLabel = (f: StudioSchemaField, v: string) => {
+    if (hm.t.has(`option.${v}`)) return hm.t(`option.${v}`);
+    const own = f.optionLabels[v];
+    return own && own !== v ? own : hm.option(v);
+  };
+  return { ...hm, label, help, optionLabel };
 }
 
 function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorProps & { ctor: StudioConstructor }) {
-  const { t, label } = useLabels();
+  const { t, label, section, value } = useLabels();
   const uid = useId();
   const groups = useMemo(() => studioSectionsOf(ctor), [ctor]);
   const errs = useMemo(() => normErrorPaths(errors), [errors]);
@@ -92,7 +95,7 @@ function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorPr
             const bad = badIn(g.fields);
             return (
               <a key={g.section.key} href={`#${uid}-${g.section.key}`} className={bad ? "is-bad" : undefined}>
-                {g.section.title}
+                {section(g.section.title)}
                 <span>{bad ? bad : g.fields.length}</span>
               </a>
             );
@@ -110,9 +113,9 @@ function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorPr
         </ul>
       ) : null}
       {groups.map((g) => (
-        <section key={g.section.key} id={`${uid}-${g.section.key}`} className="stu-sf__sec" aria-label={g.section.title}>
+        <section key={g.section.key} id={`${uid}-${g.section.key}`} className="stu-sf__sec" aria-label={section(g.section.title)}>
           <header className="stu-sf__sech">
-            <h4>{g.section.title}</h4>
+            <h4>{section(g.section.title)}</h4>
             <small>{t("schema.fieldCount", { n: g.fields.filter((f) => !f.hidden).length })}</small>
           </header>
           <div className="stu-sf__grid">
@@ -132,9 +135,9 @@ function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorPr
             {extra.map((k) => (
               <li key={k}>
                 <b>{label({ key: k, label: k } as StudioSchemaField)}</b>
-                {isDict(payload[k]) || Array.isArray(payload[k]) ? <PayloadSummary payload={isDict(payload[k]) ? (payload[k] as Dict) : { [k]: payload[k] }} compact /> : <span>{text(payload[k]) || String(payload[k])}</span>}
+                {isDict(payload[k]) || Array.isArray(payload[k]) ? <PayloadSummary payload={isDict(payload[k]) ? (payload[k] as Dict) : { [k]: payload[k] }} compact /> : <span>{value(payload[k], k)}</span>}
                 {readOnly ? null : (
-                  <button type="button" className="stu-fe-ib stu-fe-ib--x" onClick={() => set(k, undefined)} aria-label={t("schema.removeKey", { key: k })} title={t("schema.removeKey", { key: k })}>
+                  <button type="button" className="stu-fe-ib stu-fe-ib--x" onClick={() => set(k, undefined)} aria-label={t("schema.removeKey", { key: label({ key: k, label: k } as StudioSchemaField) })} title={t("schema.removeKey", { key: label({ key: k, label: k } as StudioSchemaField) })}>
                     <IconClose aria-hidden />
                   </button>
                 )}
@@ -149,9 +152,12 @@ function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorPr
 
 function ErrText({ path, msg }: { path: string; msg: string }) {
   const { ferr } = useEd();
+  const { fieldLabel } = useLabels();
+  // The field by its name, not its path: "limits.per_day" reads "Limits → Per day".
+  const parts = path.replace(/\[\d+\]/g, "").split(".").filter((k) => k && k !== "_");
   return (
     <span>
-      {path && path !== "_" ? <code className="stu-sf__path">{path}</code> : null}
+      {parts.length ? <b className="stu-sf__path">{parts.map((k) => fieldLabel(k)).join(" → ")}</b> : null}
       {ferr(msg)}
     </span>
   );
@@ -180,35 +186,19 @@ type BlockProps = {
 };
 
 // A field with its label, help, control and error.
-// The example as the person reads it: a short value goes into the empty
-// input; a list or an object is written out under it.
-export function exampleText(v: unknown): string {
-  if (v === undefined || v === null || v === "") return "";
-  if (typeof v === "string") return /^<.+>$/.test(v.trim()) ? "" : v;
-  if (typeof v === "number" || typeof v === "boolean") return String(v);
-  if (typeof v === "object" && !Object.keys(v).length) return "";
-  const s = JSON.stringify(v);
-  return s.length > 140 ? `${s.slice(0, 139)}…` : s;
-}
-const inlineExample = (f: StudioSchemaField) => ["text", "textarea", "number", "money", "url", "email", "code", "richtext"].includes(f.type) && typeof f.example !== "object";
-
 function FieldBlock(raw: BlockProps) {
   // A field the backend marks read-only stays on screen but cannot change.
   const props = raw.f.readOnly ? { ...raw, ro: true } : raw;
   const { f, path, errs, required, bare } = props;
-  const { label, help, t } = useLabels();
+  const { label, help, t, example } = useLabels();
   const uid = useId();
   const id = `${uid}-f`;
   const own = errs[path] ?? "";
   const wide = f.type === "object" || f.type === "list" || f.type === "textarea" || f.type === "richtext" || f.type === "code" || f.type === "multiselect";
   const h = help(f);
   const range = f.min !== null || f.max !== null ? rangeHint(f) : "";
-  const ex = exampleText(f.example);
-  const exLine = ex && !inlineExample(f) && f.type !== "boolean" && !bare ? (
-    <small className="stu-sf__ex">
-      <b>{t("ux.example")}</b> <code>{ex}</code>
-    </small>
-  ) : null;
+  // A sample inside the empty field, where there is a readable one.
+  const ex = ["text", "textarea", "number", "money", "url", "email"].includes(f.type) ? example(f) : "";
   if (f.type === "boolean") {
     return (
       <div className={`stu-sf__f stu-sf__f--bool${own ? " is-bad" : ""}`}>
@@ -218,7 +208,7 @@ function FieldBlock(raw: BlockProps) {
       </div>
     );
   }
-  const placeholder = ex && inlineExample(f) ? ex : undefined;
+  const placeholder = ex || undefined;
   return (
     <div className={`stu-sf__f${wide ? " stu-sf__f--wide" : ""}${own ? " is-bad" : ""}${bare ? " is-bare" : ""}`} data-path={path}>
       {bare ? null : (
@@ -237,7 +227,6 @@ function FieldBlock(raw: BlockProps) {
       )}
       {h && !bare ? <small className="stu-fld__help stu-sf__help">{h}</small> : null}
       <Control {...props} id={id} invalid={Boolean(own)} placeholder={placeholder} />
-      {exLine}
       <ErrLineAt msg={own} />
     </div>
   );
@@ -251,7 +240,7 @@ function rangeHint(f: StudioSchemaField): string {
 }
 
 function Control({ f, value, onChange, path, errs, ro, code, id, invalid, placeholder }: BlockProps & { id: string; invalid: boolean; placeholder?: string }) {
-  const { label, optionLabel, t } = useLabels();
+  const { label, optionLabel, t, day } = useLabels();
   const name = label(f);
   const ai = edAi(code, "field", path);
   const options = f.options.map((v) => ({ value: v, label: optionLabel(f, v) }));
@@ -279,7 +268,7 @@ function Control({ f, value, onChange, path, errs, ro, code, id, invalid, placeh
     case "money":
       return <NumberIn id={id} f={f} value={value} onChange={onChange} ro={ro} invalid={invalid} ai={ai} label={name} placeholder={placeholder} />;
     case "date":
-      return ro ? <span className="stu-fe-sel is-ro">{text(value) || "—"}</span> : <DatePicker value={text(value).slice(0, 10)} onChange={(v) => onChange(v || undefined)} placeholder={name} ariaLabel={name} clearLabel={t("schema.clear")} />;
+      return ro ? <span className="stu-fe-sel is-ro">{text(value) ? day(text(value)) : "—"}</span> : <DatePicker value={text(value).slice(0, 10)} onChange={(v) => onChange(v || undefined)} placeholder={name} ariaLabel={name} clearLabel={t("schema.clear")} />;
     case "datetime":
       return <DateTimeIn value={text(value)} onChange={onChange} ro={ro} label={name} />;
     case "textarea":
@@ -290,6 +279,8 @@ function Control({ f, value, onChange, path, errs, ro, code, id, invalid, placeh
       return <CodeBox id={id} value={text(value)} onChange={onChange} ro={ro} label={name} invalid={invalid} ai={ai} />;
     default:
       if (f.source) return <RefSelect source={f.source} value={text(value)} onChange={onChange} readOnly={ro} label={name} />;
+      // A moment kept as text ("starts_at") is still picked on a calendar.
+      if (/(_at|_until)$/.test(f.key) || /^\d{4}-\d{2}-\d{2}T\d{2}:/.test(text(value))) return <DateTimeIn value={text(value)} onChange={onChange} ro={ro} label={name} />;
       return (
         <input
           id={id}
@@ -463,7 +454,7 @@ function CodeBox({ id, value, onChange, ro, label, invalid, ai }: { id: string; 
 // ── Object ──────────────────────────────────────────────────────────────────
 
 function ObjectField({ f, value, onChange, path, errs, ro, code }: Omit<BlockProps, "required">) {
-  const { t } = useLabels();
+  const { t, fieldLabel } = useLabels();
   const obj = isDict(value) ? value : {};
   const need = new Set(f.requiredFields);
   const known = new Set(f.properties.map((p) => p.key));
@@ -498,7 +489,7 @@ function ObjectField({ f, value, onChange, path, errs, ro, code }: Omit<BlockPro
           title={f.properties.length ? t("schema.extraKeys") : ""}
         />
       ) : extraKeys.length ? (
-        <p className="stu-hint">{t("schema.droppedKeys", { keys: extraKeys.join(", ") })}</p>
+        <p className="stu-hint">{t("schema.droppedKeys", { keys: extraKeys.map((k) => fieldLabel(k)).join(", ") })}</p>
       ) : null}
     </div>
   );
@@ -507,11 +498,30 @@ function ObjectField({ f, value, onChange, path, errs, ro, code }: Omit<BlockPro
 // Keys the schema does not name: a row per key, the value a number when it
 // reads as one, true/false as a switch, anything else text.
 function KeyValue({ entries, onChange, ro, path, errs, title }: { entries: [string, unknown][]; onChange: (rows: [string, unknown][]) => void; ro: boolean; path: string; errs: StudioFieldErrors; title: string }) {
-  const { t } = useLabels();
-  const [rows, setRows] = useState<[string, string][]>(() => entries.map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)]));
-  const parse = (v: string): unknown => {
+  const { t, h, value: say } = useLabels();
+  // Yes and no are said in words; anything nested is kept as it came and
+  // shown as a count, never as braces.
+  const yes = h("yes");
+  const no = h("no");
+  const [init] = useState(() => {
+    const nested = new Map<string, unknown>();
+    const rows = entries.map(([k, v]): [string, string] => {
+      if (typeof v === "boolean") return [k, v ? yes : no];
+      if (v && typeof v === "object") {
+        const shown = say(v, k);
+        nested.set(`${k}|${shown}`, v);
+        return [k, shown];
+      }
+      return [k, v === null || v === undefined ? "" : String(v)];
+    });
+    return { rows, nested };
+  });
+  const [rows, setRows] = useState<[string, string][]>(init.rows);
+  const parse = (v: string, k = ""): unknown => {
     const s = v.trim();
-    if (s === "true" || s === "false") return s === "true";
+    if (init.nested.has(`${k}|${v}`)) return init.nested.get(`${k}|${v}`);
+    if ([yes.toLowerCase(), "true"].includes(s.toLowerCase())) return true;
+    if ([no.toLowerCase(), "false"].includes(s.toLowerCase())) return false;
     if (s !== "" && Number.isFinite(Number(s))) return Number(s);
     if (/^[[{]/.test(s)) {
       try {
@@ -524,7 +534,7 @@ function KeyValue({ entries, onChange, ro, path, errs, title }: { entries: [stri
   };
   const push = (next: [string, string][]) => {
     setRows(next);
-    onChange(next.filter(([k]) => k.trim()).map(([k, v]) => [k.trim(), parse(v)]));
+    onChange(next.filter(([k]) => k.trim()).map(([k, v]) => [k.trim(), parse(v, k.trim())]));
   };
   const dup = (k: string, i: number) => !!k.trim() && rows.some(([x], j) => j !== i && x.trim() === k.trim());
   return (
@@ -534,10 +544,14 @@ function KeyValue({ entries, onChange, ro, path, errs, title }: { entries: [stri
         <ul>
           {rows.map(([k, v], i) => (
             <li key={i} className={dup(k, i) || errs[joinPath(path, k)] ? "is-bad" : undefined}>
-              <input value={k} onChange={(e) => push(rows.map((r, j) => (j === i ? [e.target.value.replace(/\s+/g, "_"), r[1]] : r)))} readOnly={ro} placeholder={t("schema.keyPh")} aria-label={t("schema.keyPh")} spellCheck={false} />
+              {k && t.has(`field.${k}`) ? (
+                <b className="stu-sf__kvk">{t(`field.${k}`)}</b>
+              ) : (
+                <input value={k} onChange={(e) => push(rows.map((r, j) => (j === i ? [e.target.value.replace(/\s+/g, "_"), r[1]] : r)))} readOnly={ro} placeholder={t("schema.keyPh")} aria-label={t("schema.keyPh")} spellCheck={false} />
+              )}
               <input value={v} onChange={(e) => push(rows.map((r, j) => (j === i ? [r[0], e.target.value] : r)))} readOnly={ro} placeholder={t("schema.valuePh")} aria-label={t("schema.valuePh")} />
               {ro ? null : (
-                <button type="button" className="stu-fe-ib stu-fe-ib--x" onClick={() => push(rows.filter((_, j) => j !== i))} aria-label={t("schema.removeKey", { key: k || "—" })}>
+                <button type="button" className="stu-fe-ib stu-fe-ib--x" onClick={() => push(rows.filter((_, j) => j !== i))} aria-label={t("schema.removeKey", { key: k && t.has(`field.${k}`) ? t(`field.${k}`) : k || "—" })}>
                   <IconClose aria-hidden />
                 </button>
               )}
@@ -561,7 +575,7 @@ function KeyValue({ entries, onChange, ro, path, errs, title }: { entries: [stri
 // ── List ────────────────────────────────────────────────────────────────────
 
 function ListField({ f, value, onChange, path, errs, ro, code }: Omit<BlockProps, "required">) {
-  const { t, label, e } = { ...useLabels(), ...useEd() };
+  const { t, label, e, help, fieldLabel, value: say } = { ...useLabels(), ...useEd() };
   const items = Array.isArray(value) ? value : [];
   const item = f.item;
   const objectItems = item?.type === "object";
@@ -583,8 +597,13 @@ function ListField({ f, value, onChange, path, errs, ro, code }: Omit<BlockProps
   const what = item && item.label && item.label !== "value" ? label(item) : t("schema.item");
   const summary = (v: unknown, i: number) => {
     if (!isDict(v) || !item) return t("generic.item", { n: i + 1 });
+    // A row is named by what a person called it; a code or an id says
+    // nothing, so such a row keeps its number.
+    const named = ["title", "name", "label", "question", "text"].map((k) => text(v[k])).find(Boolean);
     const firstText = item.properties.find((p) => ["text", "select"].includes(p.type) && text(v[p.key]));
-    return firstText ? text(v[firstText.key]) : t("generic.item", { n: i + 1 });
+    const raw = named || (firstText ? text(v[firstText.key]) : "");
+    const name = /^[a-z0-9]+([_.:-][a-z0-9]+)+$/i.test(raw) && !t.has(`option.${raw}`) ? "" : say(raw, firstText?.key);
+    return name && name !== "—" ? name : t("generic.item", { n: i + 1 });
   };
   const onDrop = (ev: DragEvent, to: number) => {
     ev.preventDefault();
@@ -594,16 +613,7 @@ function ListField({ f, value, onChange, path, errs, ro, code }: Omit<BlockProps
 
   return (
     <div className={`stu-sf__list${errs[path] ? " is-bad" : ""}`}>
-      {item && (item.help || exampleText(item.example)) ? (
-        <p className="stu-sf__itemhelp">
-          {item.help ? <span>{item.help}</span> : null}
-          {exampleText(item.example) ? (
-            <small>
-              <b>{t("ux.itemExample")}</b> <code>{exampleText(item.example)}</code>
-            </small>
-          ) : null}
-        </p>
-      ) : null}
+      {item && help(item) ? <p className="stu-sf__itemhelp"><span>{help(item)}</span></p> : null}
       {items.length ? (
         <ol className={objectItems ? "is-cards" : "is-rows"}>
           {items.map((v, i) => {
@@ -663,7 +673,7 @@ function ListField({ f, value, onChange, path, errs, ro, code }: Omit<BlockProps
           </button>
         )}
         <small>
-          {[f.minItems ? t("schema.minItems", { n: f.minItems }) : "", f.uniqueBy ? t("schema.uniqueBy", { key: f.uniqueBy }) : "", t("schema.count", { n: items.length })].filter(Boolean).join(" · ")}
+          {[f.minItems ? t("schema.minItems", { n: f.minItems }) : "", f.uniqueBy ? t("schema.uniqueBy", { key: fieldLabel(f.uniqueBy) }) : "", t("schema.count", { n: items.length })].filter(Boolean).join(" · ")}
         </small>
       </div>
     </div>

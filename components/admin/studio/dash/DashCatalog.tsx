@@ -7,7 +7,8 @@ import { aiId } from "@/lib/ai/ids";
 import { useAiField } from "@/lib/ai/registry";
 import { isApprovalFree, type StudioConstructor, type StudioGroup } from "@/lib/services/studio";
 import { ctorMeta, ctorOrder } from "@/lib/studio/constructors";
-import { ConstructorIcon, StudioCodeChip, StudioEmpty, useStudioText } from "../bits";
+import { ConstructorIcon, StudioEmpty } from "../bits";
+import { useStudioHuman } from "../human";
 import { RiskBadge } from "../guide";
 import { CtorState } from "../GroupFlow";
 import { IconBolt, IconChevronRight, IconFolder, IconGrid, IconLayers, IconMapPin, IconRefresh, IconSearch, IconShieldCheck } from "@/components/icons";
@@ -29,7 +30,7 @@ export default function DashCatalog({
   canSync: boolean;
   onSync: () => void;
 }) {
-  const { t, ctorName, ctorDesc, group: groupLabel, num } = useStudioText();
+  const { t, ctorName, ctorDesc, group: groupLabel, num, groupTitle, what, surface } = useStudioHuman();
   const [q, setQ] = useState("");
   const [grp, setGrp] = useState("");
   useAiField("admin.studio.dash.catalog.search.input", { get: () => q, set: setQ });
@@ -50,14 +51,14 @@ export default function DashCatalog({
   const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const matches = (c: StudioConstructor) => {
     if (!terms.length) return true;
-    const hay = [c.code, c.title, ctorName(c.code, c.title), c.experience.plainLanguage, ...c.experience.whereUsed.map((w) => `${w.title} ${w.placement}`)].join(" ").toLowerCase();
+    const hay = [c.code, c.title, ctorName(c.code, c.title), what(c), ...c.experience.whereUsed.map((w) => `${surface(w).title} ${surface(w).what}`)].join(" ").toLowerCase();
     return terms.every((w) => hay.includes(w));
   };
   // The backend's groups and their order as given (§3–4); the frontend's
   // own grouping only for an older backend that sends none.
   let all: { g: { key: string; title: string }; list: StudioConstructor[] }[];
   if (backendGroups.length) {
-    all = backendGroups.map((bg) => ({ g: { key: bg.key, title: bg.title }, list: bg.codes.map((c) => items.find((x) => x.code === c)).filter((x): x is StudioConstructor => Boolean(x)) }));
+    all = backendGroups.map((bg) => ({ g: { key: bg.key, title: groupTitle(bg.key, bg.title) }, list: bg.codes.map((c) => items.find((x) => x.code === c)).filter((x): x is StudioConstructor => Boolean(x)) }));
   } else {
     const sorted = [...items].sort((a, b) => groupOf(a).order - groupOf(b).order || (a.navigation?.step ?? 99) - (b.navigation?.step ?? 99) || ctorOrder(a.code) - ctorOrder(b.code) || a.code.localeCompare(b.code));
     all = [];
@@ -123,7 +124,7 @@ export default function DashCatalog({
             <ul className="stu-cat__grid">
               {list.map((c) => {
                 const name = ctorName(c.code, c.title);
-                const desc = c.experience.plainLanguage || ctorDesc(c.code) || (c.title && c.title !== name ? c.title : "");
+                const desc = what(c) || ctorDesc(c.code);
                 const free = isApprovalFree(c.code, c);
                 const where = c.experience.whereUsed;
                 const n = perCode ? perCode[c.code] ?? 0 : null;
@@ -143,7 +144,6 @@ export default function DashCatalog({
                         <ConstructorIcon code={c.code} />
                         <span className="stu-cat__name">
                           <b>{name}</b>
-                          <StudioCodeChip code={c.code} />
                         </span>
                         <IconChevronRight className="stu-cat__go" aria-hidden />
                       </span>
@@ -151,10 +151,10 @@ export default function DashCatalog({
                       {where.length ? (
                         <span className="stu-cat__where">
                           {where.slice(0, 2).map((w) => (
-                            <span key={`${w.key}-${w.route}`} title={w.placement}>
+                            <span key={`${w.key}-${w.route}`} title={surface(w).what}>
                               <IconMapPin aria-hidden />
-                              <b>{w.title}</b>
-                              {w.placement ? <small>{w.placement}</small> : null}
+                              <b>{surface(w).title}</b>
+                              {surface(w).what ? <small>{surface(w).what}</small> : null}
                             </span>
                           ))}
                         </span>

@@ -6,6 +6,7 @@ import { hasInternalAccess } from "@/lib/services/internalHrm";
 import { MASK, type StudioConstructor, type StudioExperience, type StudioPreviewItem, type StudioRisk, type StudioSurface, type StudioVisualPreview } from "@/lib/services/studio";
 import { IconAlert, IconCheck, IconCircleCheck, IconExternal, IconInfo, IconLock, IconMapPin, IconShieldCheck } from "@/components/icons";
 import { useStudioText } from "./bits";
+import { useStudioHuman } from "./human";
 
 // What a constructor is for, shown from the backend's own words (spec 10-12
 // UX metadata): nothing here knows any one constructor — purpose, places,
@@ -38,12 +39,15 @@ export function useSurfaceLink() {
 }
 
 export function SurfaceList({ surfaces, compact }: { surfaces: StudioSurface[]; compact?: boolean }) {
-  const { t } = useStudioText();
+  const { t, surface } = useStudioHuman();
   const link = useSurfaceLink();
   if (!surfaces.length) return null;
+  // Several settings may land on one page: it is named once.
+  const seen = new Set<string>();
+  const rows = surfaces.map((s) => ({ s, w: surface(s) })).filter(({ s, w }) => (seen.has(`${w.title}|${w.what}|${s.route}`) ? false : (seen.add(`${w.title}|${w.what}|${s.route}`), true)));
   return (
     <ul className={`stu-where${compact ? " is-compact" : ""}`}>
-      {surfaces.map((s) => {
+      {rows.map(({ s, w }) => {
         const href = link(s.route);
         return (
           <li key={`${s.key}-${s.route}`}>
@@ -51,9 +55,8 @@ export function SurfaceList({ surfaces, compact }: { surfaces: StudioSurface[]; 
               <IconMapPin />
             </span>
             <span className="stu-where__t">
-              <b>{s.title}</b>
-              {s.placement ? <small>{s.placement}</small> : null}
-              {compact ? null : <code title={t("ux.surfaceKey")}>{s.key}</code>}
+              <b>{w.title}</b>
+              {w.what ? <small>{w.what}</small> : null}
             </span>
             {compact ? null : href ? (
               <a className="stu-where__go" href={href} target="_blank" rel="noopener noreferrer" title={t("ux.openPage")}>
@@ -74,9 +77,12 @@ export function SurfaceList({ surfaces, compact }: { surfaces: StudioSurface[]; 
 
 // The editor's opening: what it does, where it shows, the order to work in.
 export function ConstructorGuide({ ctor }: { ctor: StudioConstructor }) {
-  const { t, ctorName } = useStudioText();
+  const hm = useStudioHuman();
+  const { t, ctorName } = hm;
   const x: StudioExperience = ctor.experience;
   const nav = ctor.navigation;
+  const steps = hm.steps(ctor);
+  const notes = ["n1", "n2", "n3", "n4"].map((id) => hm.h(`note.${id}`));
   return (
     <section className="stu-guide" aria-label={t("ux.whatTitle")}>
       {x.risk === "high" || x.warnings.length ? (
@@ -86,7 +92,7 @@ export function ConstructorGuide({ ctor }: { ctor: StudioConstructor }) {
             <b>{x.risk === "high" ? t("ux.highTitle") : t("ux.warnTitle")}</b>
             <ul>
               {x.warnings.map((w) => (
-                <li key={w}>{w}</li>
+                <li key={w}>{hm.warn(w)}</li>
               ))}
             </ul>
           </div>
@@ -98,26 +104,18 @@ export function ConstructorGuide({ ctor }: { ctor: StudioConstructor }) {
             <h3>{t("ux.whatTitle")}</h3>
             <RiskBadge risk={x.risk} />
           </header>
-          <p className="stu-guide__lead">{x.plainLanguage}</p>
+          <p className="stu-guide__lead">{hm.what(ctor)}</p>
           <dl>
-            {x.whenToUse ? (
-              <>
-                <dt>{t("ux.when")}</dt>
-                <dd>{x.whenToUse}</dd>
-              </>
-            ) : null}
-            {x.result ? (
-              <>
-                <dt>{t("ux.result")}</dt>
-                <dd>{x.result}</dd>
-              </>
-            ) : null}
+            <dt>{t("ux.when")}</dt>
+            <dd>{hm.whenToUse(ctor)}</dd>
+            <dt>{t("ux.result")}</dt>
+            <dd>{hm.result(ctor)}</dd>
             {x.managedBy.length ? (
               <>
                 <dt>{t("ux.managedBy")}</dt>
                 <dd className="stu-guide__chips">
                   {x.managedBy.map((m) => (
-                    <span key={m}>{m.replace(/_/g, " ")}</span>
+                    <span key={m}>{hm.role(m)}</span>
                   ))}
                 </dd>
               </>
@@ -125,9 +123,9 @@ export function ConstructorGuide({ ctor }: { ctor: StudioConstructor }) {
             <dt>{t("ux.approval")}</dt>
             <dd>{ctor.approvalRequired ? <span className="stu-guide__appr"><IconShieldCheck aria-hidden />{t("ux.approvalYes")}</span> : t("ux.approvalNo")}</dd>
           </dl>
-          {x.notes.length ? (
+          {notes.length ? (
             <ul className="stu-guide__notes">
-              {x.notes.map((n) => (
+              {notes.map((n) => (
                 <li key={n}>
                   <IconInfo aria-hidden />
                   {n}
@@ -145,21 +143,19 @@ export function ConstructorGuide({ ctor }: { ctor: StudioConstructor }) {
         <article className="stu-guide__card">
           <header>
             <h3>{t("ux.howTitle")}</h3>
-            {nav && nav.steps ? <span className="stu-guide__step">{t("ux.stepOf", { n: nav.step, of: nav.steps, group: nav.groupTitle })}</span> : null}
+            {nav && nav.steps ? <span className="stu-guide__step">{t("ux.stepOf", { n: nav.step, of: nav.steps, group: hm.groupTitle(nav.groupKey, nav.groupTitle) })}</span> : null}
           </header>
-          {x.workflow.length ? (
-            <ol className="stu-flow">
-              {x.workflow.map((w) => (
-                <li key={w.step}>
-                  <span className="stu-flow__n">{w.step}</span>
-                  <span className="stu-flow__t">
-                    <b>{w.title}</b>
-                    {w.description ? <small>{w.description}</small> : null}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          ) : null}
+          <ol className="stu-flow">
+            {steps.map((w, i) => (
+              <li key={w.title}>
+                <span className="stu-flow__n">{i + 1}</span>
+                <span className="stu-flow__t">
+                  <b>{w.title}</b>
+                  {w.text ? <small>{w.text}</small> : null}
+                </span>
+              </li>
+            ))}
+          </ol>
           {nav && (nav.requiredBefore.length || nav.recommendedBefore.length || nav.nextSteps.length) ? (
             <div className="stu-guide__seq">
               {nav.requiredBefore.length ? <p><b>{t("ux.requiredBefore")}</b> {nav.requiredBefore.map((c) => ctorName(c)).join(", ")}</p> : null}
@@ -174,13 +170,14 @@ export function ConstructorGuide({ ctor }: { ctor: StudioConstructor }) {
 }
 
 export function ChecklistList({ items }: { items: string[] }) {
+  const { check } = useStudioHuman();
   if (!items.length) return null;
   return (
     <ul className="stu-check-list">
       {items.map((c) => (
         <li key={c}>
           <IconCheck aria-hidden />
-          {c}
+          {check(c)}
         </li>
       ))}
     </ul>
@@ -189,33 +186,18 @@ export function ChecklistList({ items }: { items: string[] }) {
 
 // ── Preview renderers ───────────────────────────────────────────────────────
 
-// A value as text, never more than it says: a masked value is the mask and
-// nothing else (no tooltip, no copy, never logged).
-export function previewText(item: StudioPreviewItem, yes: string, no: string): string {
-  if (item.masked || item.value === MASK) return MASK;
-  const v = item.value;
-  if (v === null || v === undefined || v === "") return "—";
-  if (typeof v === "boolean") return v ? yes : no;
-  if (typeof v === "number" || typeof v === "string") return String(v);
-  if (Array.isArray(v)) return v.map((x) => (x && typeof x === "object" ? Object.values(x as Record<string, unknown>).filter((y) => typeof y === "string" || typeof y === "number").slice(0, 2).join(" · ") : String(x))).join(", ");
-  if (typeof v === "object") return Object.entries(v as Record<string, unknown>).map(([k, x]) => `${k}: ${typeof x === "object" ? "…" : String(x)}`).join(" · ");
-  return String(v);
-}
-
-const listOf = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
-const nameOf = (x: unknown): string => {
-  if (x && typeof x === "object") {
-    const d = x as Record<string, unknown>;
-    for (const k of ["title", "name", "label", "key", "code", "status", "value"]) if (typeof d[k] === "string" && d[k]) return d[k] as string;
-    return Object.values(d).find((y) => typeof y === "string") as string ?? "—";
-  }
-  return x === null || x === undefined ? "—" : String(x);
-};
+// What the preview shows is said in the reader's words (./human): a field
+// by its name, a value as a person would say it; a masked value is the mask
+// and nothing else (no tooltip, no copy, never logged).
 
 export function PreviewView({ visual }: { visual: StudioVisualPreview }) {
-  const { t } = useStudioText();
-  const text = (i: StudioPreviewItem) => previewText(i, t("ux.yes"), t("ux.no"));
-  const items = visual.items;
+  const hm = useStudioHuman();
+  const { t } = hm;
+  const text = (i: StudioPreviewItem) => (i.masked || i.value === MASK ? MASK : hm.value(i.value, i.key));
+  const listOf = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+  const nameOf = (x: unknown): string => (x && typeof x === "object" ? hm.titleOf(x as Record<string, unknown>) || "—" : hm.value(x));
+  // Every row is named from the dictionary, never by the backend's key.
+  const items = visual.items.map((i) => ({ ...i, label: hm.fieldLabel(i.key, i.label) }));
   const firstList = items.find((i) => !i.masked && Array.isArray(i.value) && (i.value as unknown[]).length);
   const scalars = items.filter((i) => i.masked || !Array.isArray(i.value));
   const kv = (list: StudioPreviewItem[]) => (
@@ -237,7 +219,7 @@ export function PreviewView({ visual }: { visual: StudioVisualPreview }) {
         <div className="stu-pv stu-pv--doc">
           <div className="stu-pv__paper">
             <span className="stu-pv__fold" aria-hidden />
-            <h4>{title ? text(title) : visual.title}</h4>
+            <h4>{title ? text(title) : ""}</h4>
             {kv(rest.slice(0, 4))}
             {sections.map((s) => (
               <div key={s.key} className="stu-pv__docsec">
@@ -293,7 +275,7 @@ export function PreviewView({ visual }: { visual: StudioVisualPreview }) {
         <div className="stu-pv stu-pv--card">
           <div className="stu-pv__mcard">
             <span className="stu-pv__thumb" aria-hidden />
-            <b>{title ? text(title) : visual.title}</b>
+            <b>{title ? text(title) : "—"}</b>
             {desc ? <p>{text(desc)}</p> : null}
             {price ? <span className="stu-pv__price">{text(price)}</span> : null}
             <span className="stu-pv__tags">
@@ -328,7 +310,7 @@ export function PreviewView({ visual }: { visual: StudioVisualPreview }) {
       return (
         <div className="stu-pv stu-pv--comm">
           {channel ? <span className="stu-pv__chan">{text(channel)}</span> : null}
-          <div className="stu-pv__bubble">{body ? text(body) : visual.description || visual.title}</div>
+          <div className="stu-pv__bubble">{body ? text(body) : "…"}</div>
           {kv(rest.slice(0, 8))}
         </div>
       );
@@ -356,11 +338,11 @@ export function PreviewView({ visual }: { visual: StudioVisualPreview }) {
           {rows.length && cols.length ? (
             <table className="stu-pv__table">
               <thead>
-                <tr>{cols.map((c) => <th key={c}>{c}</th>)}</tr>
+                <tr>{cols.map((c) => <th key={c}>{hm.fieldLabel(c)}</th>)}</tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={i}>{cols.map((c) => <td key={c}>{nameOf((r as Record<string, unknown>)[c])}</td>)}</tr>
+                  <tr key={i}>{cols.map((c) => <td key={c}>{hm.value((r as Record<string, unknown>)[c], c)}</td>)}</tr>
                 ))}
               </tbody>
             </table>
@@ -379,7 +361,7 @@ export function PreviewView({ visual }: { visual: StudioVisualPreview }) {
               <thead>
                 <tr>
                   <th />
-                  {roles.slice(0, 5).map((r) => <th key={r}>{r}</th>)}
+                  {roles.slice(0, 5).map((r) => <th key={r}>{hm.role(r)}</th>)}
                 </tr>
               </thead>
               <tbody>

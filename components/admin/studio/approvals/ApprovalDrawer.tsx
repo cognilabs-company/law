@@ -14,7 +14,7 @@ import {
   type StudioDetail,
 } from "@/lib/services/studio";
 import { editorFor } from "../editors";
-import { ConstructorIcon, StudioCodeChip, StudioStatusPill, StudioStatusSteps, useStudioErrorText, useStudioText } from "../bits";
+import { ConstructorIcon, StudioStatusPill, StudioStatusSteps, useStudioErrorText, useStudioText } from "../bits";
 import DecisionModal, { type DecisionKind } from "./DecisionModal";
 import ApprovalComments from "./ApprovalComments";
 import { canActOnStep, canPublishItem, currentStepOf, currentVersionOf, isReviewable, mergeDetail, normRole, stepBack, stepDone, submittedOf, versionLabelOf } from "./helpers";
@@ -259,7 +259,6 @@ function DrawerPanel({
             <span className="rgl-drw__eyebrow">{ctorName(d.code)}</span>
             <h2 id={`${uid}-t`}>{d.title || t("approvals.untitled")}</h2>
             <div className="rgl-drw__chips">
-              <StudioCodeChip code={d.code} />
               {ver ? <span className="stu-apc__ver">v{ver}</span> : null}
               <StudioStatusPill status={d.status} raw={d.statusRaw} />
             </div>

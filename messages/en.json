@@ -32,7 +32,7 @@
       "group": "Group",
       "high": "High",
       "hybrid": "Hybrid",
-      "in_app": "In-app",
+      "in_app": "Inside the app",
       "inactive": "Inactive",
       "lawyer": "Lawyer",
       "low": "Low",
@@ -45,7 +45,7 @@
       "private": "Private",
       "public": "Public",
       "publish": "Publish",
-      "push": "Push",
+      "push": "Phone notification",
       "quote": "Quote",
       "rejected": "Rejected",
       "review": "Review",
@@ -61,7 +61,105 @@
       "uz-cyrl": "Uzbek (Cyrillic)",
       "uz-latn": "Uzbek (Latin)",
       "video": "Video",
-      "yurist": "Lawyer"
+      "yurist": "Lawyer",
+      "admin": "Admin",
+      "ai_lawyer": "AI lawyer",
+      "asc": "Ascending",
+      "avg": "Average",
+      "blur": "Blur",
+      "boolean": "Yes / No",
+      "call_center_lawyer": "Call-centre lawyer",
+      "campaign": "Campaign",
+      "cancelled": "Cancelled",
+      "color": "Colour",
+      "completed": "Completed",
+      "contains": "Contains",
+      "count": "Count",
+      "cron": "On a schedule",
+      "csv": "CSV file",
+      "cta": "Button",
+      "daily": "Daily",
+      "date": "Date",
+      "datetime": "Date and time",
+      "day": "Day",
+      "desc": "Descending",
+      "document_constructor": "Document builder",
+      "equals": "Equals",
+      "exponential": "Longer each time",
+      "faq": "Questions and answers",
+      "features": "Features",
+      "file": "File",
+      "fixed": "Fixed",
+      "friday": "Friday",
+      "greater_than": "Greater than",
+      "hmac-sha256": "HMAC-SHA256 signature",
+      "hmac-sha512": "HMAC-SHA512 signature",
+      "html": "Formatted text",
+      "image": "Image",
+      "immediate": "Immediately",
+      "in_progress": "In progress",
+      "in_review": "In review",
+      "inner": "Matching only",
+      "interval": "At intervals",
+      "is_empty": "Is empty",
+      "is_not_empty": "Is not empty",
+      "jwt": "Signed pass",
+      "least_loaded": "To the least busy person",
+      "left": "All, even without a match",
+      "less_than": "Less than",
+      "linear": "Evenly",
+      "link": "Link",
+      "max": "Maximum",
+      "medium": "Medium",
+      "merge": "Merge",
+      "min": "Minimum",
+      "monday": "Monday",
+      "money": "Money",
+      "month": "Month",
+      "monthly": "Monthly",
+      "multiselect": "Several options",
+      "new": "New",
+      "next_period": "From the next period",
+      "not_equals": "Does not equal",
+      "number": "Number",
+      "operator": "Operator",
+      "organization_unit": "Department",
+      "pdf": "PDF file",
+      "percent": "Percent",
+      "permission": "Permission",
+      "primary": "Primary",
+      "queue": "Queue",
+      "reject": "Reject",
+      "role": "Role",
+      "round_robin": "In turn",
+      "saturday": "Saturday",
+      "screenshot": "Screenshot",
+      "secondary": "Secondary",
+      "select": "Pick from a list",
+      "skill_based": "By skill",
+      "sum": "Sum",
+      "sunday": "Sunday",
+      "text": "Text",
+      "textarea": "Long text",
+      "thursday": "Thursday",
+      "tuesday": "Tuesday",
+      "url": "Link",
+      "user": "User",
+      "warn": "Warning",
+      "wednesday": "Wednesday",
+      "week": "Week",
+      "weekly": "Weekly",
+      "xlsx": "Excel file",
+      "yurist_advokat": "Lawyer or advocate",
+      "yearly": "Every year",
+      "standard": "Standard",
+      "main": "Main",
+      "default": "Standard",
+      "production": "Live system",
+      "profile_boost": "Profile boost",
+      "deleted": "Deleted",
+      "none": "None",
+      "all": "All"
     },
     "fieldHelp": {
       "service_id": "The service this rule applies to"
@@ -74,7 +172,7 @@
         "users": "Users",
         "saves": "Saves",
         "time": "Total work time: {v}",
-        "objects": "Objects created",
+        "objects": "Records created",
         "submitted": "Sent for approval",
         "duration": "Time worked",
         "onlineHint": "Working in Studio right now"
@@ -82,8 +180,8 @@
       "listTitle": "Active and recent sessions",
       "liveHint": "Updates live",
       "refresh": "Refresh",
-      "privacy": "Only who worked, where and for how long is shown here. Object content is never shown.",
-      "searchPh": "Name, constructor or object title",
+      "privacy": "Only who worked, where and for how long is shown here. Record content is never shown.",
+      "searchPh": "Name, constructor or record title",
       "filterTitle": "Monitoring filters",
       "filterCtor": "Constructor",
       "filterUser": "User",
@@ -94,18 +192,18 @@
       "offline": "Offline",
       "now": "Now",
       "unknownUser": "Unknown user",
-      "noObject": "New object",
+      "noObject": "New record",
       "noMatch": "No sessions found",
       "noMatchText": "Try changing the filters.",
-      "missing": "Monitoring is not enabled on the server yet. Once it is, you will see who is working in which constructor here.",
+      "missing": "Monitoring is not switched on yet. Once it is, you will see who is working in which constructor here.",
       "col": {
         "user": "User",
-        "work": "Constructor and object",
+        "work": "Constructor and record",
         "time": "Work time",
         "saves": "Saves",
         "seen": "Last activity",
         "sessions": "Sessions",
-        "objects": "Objects",
+        "objects": "Records",
         "submitted": "Submitted"
       },
       "usersTitle": "By user",
@@ -143,8 +241,8 @@
       "title": "Content",
       "view": "View",
       "requiredHint": "required fields",
-      "wholePayload": "All data (JSON)",
-      "jsonHint": "Valid JSON is applied to the form right away.",
+      "wholePayload": "All data",
+      "jsonHint": "The change is applied to the form right away.",
       "noSchema": "No field list came for this type. An administrator should check the constructor settings.",
       "extra": "Extra fields",
       "noData": "No data entered",
@@ -199,9 +297,9 @@
         "optional": "Optional",
         "serviceId": "Service",
         "serviceIdHint": "Which service this questionnaire belongs to",
-        "serviceIdPh": "service-id"
+        "serviceIdPh": "Service name"
       },
-      "jsonPeek": "Data as JSON",
+      "jsonPeek": "Data",
       "jsonPeekHint": "Read only. Switch back to Form to edit.",
       "insertVar": "Insert into text",
       "moveUp": "Move up: {what}",
@@ -247,7 +345,7 @@
       "fields": {
         "label": "Label",
         "labelPh": "e.g. Court name",
-        "name": "Key",
+        "name": "Name",
         "type": "Type",
         "required": "Required",
         "options": "Options",
@@ -274,7 +372,7 @@
         "statFields": "fields",
         "statRules": "rules",
         "sections": "Sections",
-        "sectionsHint": "The client fills the form section by section. Field keys must be unique across the whole form.",
+        "sectionsHint": "The client fills the form section by section. Field names must be unique across the whole form.",
         "sectionTitle": "Section title",
         "sectionTitlePh": "e.g. Application details",
         "addSection": "Add section",
@@ -359,7 +457,7 @@
       "k16": {
         "lead": "Regions, types and other lists.",
         "note": "This directory needs no approval: it is published as soon as you submit.",
-        "key": "Directory key",
+        "key": "Directory name",
         "keyHint": "Latin letters and _. e.g. regions",
         "items": "Items",
         "itemsHint": "Each item: a visible label and a system value.",
@@ -440,11 +538,10 @@
       }
     },
     "editor": {
-      "eyebrow": "Studio · {code}",
-      "loading": "Loading the object…",
-      "topLabel": "Object details",
+      "loading": "Loading the record…",
+      "topLabel": "Record details",
       "backToList": "Back to the list",
-      "titleLabel": "Object name",
+      "titleLabel": "Record name",
       "titlePh": "For example: Statement of claim template",
       "titleRequired": "Enter a name",
       "unsaved": "Unsaved changes",
@@ -454,21 +551,21 @@
       "shortcut": "Ctrl + S to save",
       "content": "Content",
       "contentHint": "Saving writes your changes to a new version.",
-      "contentLabel": "Object content",
+      "contentLabel": "Record content",
       "readOnly": "View only",
-      "actionsLabel": "Object actions",
+      "actionsLabel": "Record actions",
       "sideLabel": "Versions, comments, file and approval",
       "openReview": "Approval page",
       "unknown": {
         "title": "Constructor not found",
-        "text": "The code \"{code}\" is not in the Studio list. Pick a constructor on the home page."
+        "text": "There is no such constructor in the Studio list. Pick a constructor on the home page."
       },
       "notFound": {
-        "title": "Object not found",
-        "text": "The link is outdated or you have no access to this object."
+        "title": "Record not found",
+        "text": "The link is outdated or you have no access to this record."
       },
       "remote": {
-        "title": "This object was updated elsewhere",
+        "title": "This record was updated elsewhere",
         "text": "Your unsaved changes are still here. Loading the new version will discard them.",
         "load": "Load the new version"
       },
@@ -476,13 +573,13 @@
         "changes": "Changes requested",
         "rejected": "The reviewer rejected it",
         "changesNoNote": "The reviewer left no note. Check the comments, fix and submit again.",
-        "published": "This object is published",
+        "published": "This record is published",
         "publishedText": "If you change it, a new draft version opens. The published version stays live until the new one is approved.",
         "approved": "Approved",
         "approvedPublisher": "Both steps are done. You can publish now.",
         "approvedWait": "Both steps are done. A publisher will publish it.",
         "review": "In review",
-        "reviewText": "The object is in the approval queue. Editing is closed until there is a decision.",
+        "reviewText": "The record is in the approval queue. Editing is closed until there is a decision.",
         "viewOnly": "View only",
         "viewOnlyText": "Editing needs the Editor role. An administrator can grant it.",
         "fileNeeded": "A file is required",
@@ -501,7 +598,7 @@
         "summary": "What changed",
         "summaryPh": "For example: updated clause 3 text",
         "version": "Version number",
-        "versionHint": "Leave empty and the server will number it.",
+        "versionHint": "Leave empty and a number is given automatically.",
         "versionBad": "Format: 1.2 or 1.2.3"
       },
       "submit": {
@@ -512,28 +609,28 @@
         "freeLead": "This type needs no approval. Once submitted it is published and goes live at once.",
         "freeSave": "Your changes will be saved first.",
         "title": "Send for approval",
-        "lead": "The object goes to the reviewers. Below is what the change will touch.",
+        "lead": "The record goes to the reviewers. Below is what the change will touch.",
         "confirm": "Send"
       },
       "publish": {
         "title": "Publish",
         "lead": "The approved version will be connected to the system and become visible to users.",
         "note": "Note",
-        "notePh": "For example: Released to production",
-        "failed": "Could not connect to the runtime, publishing was cancelled",
+        "notePh": "For example: Published on the site",
+        "failed": "Could not connect to the site, publishing was cancelled",
         "saveFirst": "Save your changes first"
       },
       "rollback": {
         "cta": "Roll back to this version",
         "title": "Roll back to v{v}",
-        "lead": "The object returns to this version. Later versions stay in the history.",
+        "lead": "The record returns to this version. Later versions stay in the history.",
         "note": "Reason",
         "notePh": "For example: Returned to the previous version",
         "confirm": "Roll back"
       },
       "archive": {
         "title": "Archive",
-        "lead": "The object moves to the archive and can no longer be edited. It is not deleted and the version history is kept.",
+        "lead": "The record moves to the archive and can no longer be edited. It is not deleted and the version history is kept.",
         "dirty": "Unsaved changes will be lost."
       },
       "leave": {
@@ -602,7 +699,7 @@
       "toast": {
         "saved": "Saved",
         "created": "Draft created",
-        "noId": "The server did not return the object ID",
+        "noId": "Could not get the record number. Please try again.",
         "submitted": "Sent for approval",
         "submittedFree": "Submitted and published",
         "archived": "Moved to the archive",
@@ -615,15 +712,15 @@
       "tabsAria": "Settings sections",
       "tabs": {
         "access": "Access",
-        "routes": "Approval routes",
-        "registry": "Registry",
+        "routes": "Approval order",
+        "registry": "Constructor list",
         "export": "Export"
       },
       "common": {
         "refresh": "Refresh",
         "recheck": "Check again",
-        "missingTitle": "Not enabled on the server yet",
-        "missingText": "This section will work once the server side is ready.",
+        "missingTitle": "Not switched on yet",
+        "missingText": "This section will work later.",
         "noMatch": "Nothing found",
         "noMatchText": "Change the search or filters."
       },
@@ -645,25 +742,25 @@
         "since": "since {d}",
         "noRoles": "No roles",
         "allCtors": "All constructors",
-        "searchPh": "Name, phone or LexGo ID",
+        "searchPh": "Name, phone or LexGo number",
         "filterTitle": "Access filters",
         "filterRole": "Role",
         "filterState": "Status",
         "emptyTitle": "No one has access yet",
         "emptyText": "Admins and superadmins can always use Studio. Give others a role here.",
-        "missing": "The access list is not enabled on the server yet. You can read about the roles below.",
-        "readOnlyShape": "The server reply has an unexpected format, so the list is view only.",
-        "readOnlyWrite": "Granting access is not enabled on the server yet. The list is view only.",
-        "writeMissing": "Granting access is not enabled on the server yet",
+        "missing": "The access list is not switched on yet. You can read about the roles below.",
+        "readOnlyShape": "The list could not be read in full, so it is view only.",
+        "readOnlyWrite": "Granting access is not switched on yet. The list is view only.",
+        "writeMissing": "Granting access is not switched on yet",
         "saved": "Access saved for {name}",
         "savedHidden": "Saved, but it does not show in the list yet. Refresh in a moment.",
         "user": "User",
-        "userPh": "Name, phone or LexGo ID",
+        "userPh": "Name, phone or LexGo number",
         "userHint": "Type at least 2 characters.",
         "results": "Found users",
         "noUsers": "No one found.",
         "searchFail": "Search did not work.",
-        "useId": "Continue with ID {id}",
+        "useId": "Continue with number {id}",
         "changeUser": "Pick someone else",
         "hasGrant": "Has access",
         "existing": "This user already has access. Saving will update it.",
@@ -688,7 +785,7 @@
         },
         "studio_reviewer": {
           "short": "Reviews",
-          "text": "Reviews a submitted object: approves it, sends it back for changes or rejects it."
+          "text": "Reviews a submitted record: approves it, sends it back for changes or rejects it."
         },
         "studio_publisher": {
           "short": "Publishes",
@@ -714,16 +811,16 @@
         "filterStatus": "Status",
         "emptyTitle": "No custom routes",
         "emptyText": "All constructors use the default order now: reviewer, then publisher.",
-        "missing": "Approval routes are not enabled on the server yet. The default order applies for now.",
+        "missing": "The approval order is not switched on yet. The standard order applies for now.",
         "uncoveredTitle": "Constructors on the default order",
         "uncoveredText": "{n} constructors have no custom route. Set one up if needed.",
         "noSteps": "No steps given",
         "updated": "updated {d}",
-        "saved": "Route for {code} saved",
+        "saved": "Approval order for {code} saved",
         "constructor": "Constructor",
         "pickCtor": "Pick a constructor",
         "replaces": "This constructor already has a route. Saving will update it.",
-        "freeHint": "This type is usually published without approval. The route applies as the server decides.",
+        "freeHint": "This type is usually published without approval. The order applies as the system is set up.",
         "status": "Status",
         "status_active": "Active",
         "status_inactive": "Off",
@@ -746,30 +843,30 @@
         "errSteps": "At least one step is needed"
       },
       "registry": {
-        "title": "Constructor registry",
-        "lead": "{n} constructors on the server: target, approval and required fields.",
-        "sync": "Sync",
-        "confirmTitle": "Sync the registry?",
-        "confirmText": "The server will refresh the constructor list from its default settings.",
-        "confirmP1": "Existing objects and versions stay as they are.",
-        "confirmP2": "Titles, schema and approval rules may be updated.",
-        "synced": "Synced: {n} constructors",
-        "syncedNoCount": "Synced",
-        "syncFail": "Could not sync",
-        "searchPh": "Code, title or field",
-        "filterTitle": "Registry filters",
+        "title": "Constructor list",
+        "lead": "{n} constructors in the system: what each affects, whether approval is needed and what must be filled in.",
+        "sync": "Update list",
+        "confirmTitle": "Update the list?",
+        "confirmText": "The constructor list will be updated from the standard settings.",
+        "confirmP1": "Existing records and versions stay as they are.",
+        "confirmP2": "Titles, form layout and approval rules may be updated.",
+        "synced": "Updated: {n} constructors",
+        "syncedNoCount": "Updated",
+        "syncFail": "Could not update",
+        "searchPh": "Title or field",
+        "filterTitle": "List filters",
         "filterGroup": "Group",
         "filterApproval": "Approval",
         "approvalYes": "Needs approval",
         "approvalNo": "No approval",
         "fieldsN": "{n} fields",
-        "emptyTitle": "The registry is empty",
-        "emptyText": "Sync writes the default constructors to the server.",
+        "emptyTitle": "The list is empty",
+        "emptyText": "“Update list” adds the standard constructors.",
         "target": {
           "call_profiles": "Call profiles",
           "studio_core": "Studio core",
           "integration_configs": "Integration settings",
-          "webhook_configs": "Webhook endpoints",
+          "webhook_configs": "Addresses for messages to outside systems",
           "provider_routing": "Provider routing",
           "service_categories": "Service categories",
           "legal_services": "Legal services catalog",
@@ -812,14 +909,14 @@
           "complaint_policies": "Complaint rules",
           "promotion_campaigns": "Promotion campaigns",
           "seller_availability": "Provider availability",
-          "feature_flags": "Feature flags",
+          "feature_flags": "Switching features on and off",
           "scheduled_jobs": "Scheduled jobs",
           "business_calendars": "Business calendars",
           "retention_policies": "Retention periods",
           "export_definitions": "Export templates",
           "dashboard_definitions": "Dashboard settings",
           "id_registry": "Numbering rules",
-          "status_registry": "Status registry",
+          "status_registry": "Status list",
           "queue_routing": "Queue routing",
           "search_configs": "Search settings",
           "role_policies": "Role rules",
@@ -830,34 +927,34 @@
         },
         "col": {
           "ctor": "Constructor",
-          "target": "Runtime target",
+          "target": "Where it works",
           "approval": "Approval",
           "required": "Required fields"
         }
       },
       "export": {
         "allTitle": "All of Studio",
-        "allText": "Every object in one Excel file.",
-        "allP1": "Object, constructor and status",
+        "allText": "Every record in one Excel file.",
+        "allP1": "Record, constructor and status",
         "allP2": "Current and published version",
         "allP3": "Who created it and when it changed",
         "allBtn": "Download Excel",
-        "verTitle": "Object versions",
-        "verText": "The full version history of one object.",
+        "verTitle": "Record versions",
+        "verText": "The full version history of one record.",
         "pickCtor": "Constructor",
         "pickCtorPh": "Pick a constructor",
         "pickCtorFirst": "Pick a constructor first.",
-        "pickObj": "Object",
-        "pickObjPh": "Pick an object",
-        "noObjects": "This constructor has no objects.",
+        "pickObj": "Record",
+        "pickObjPh": "Pick a record",
+        "noObjects": "This constructor has no records.",
         "shownOf": "{n} / {total}",
         "verBtn": "Download versions"
       }
     },
     "list": {
-      "title": "Objects",
-      "lead": "All objects of this constructor.",
-      "untitled": "Untitled object",
+      "title": "Records",
+      "lead": "All records of this constructor.",
+      "untitled": "Untitled record",
       "new": "New",
       "version": "v{v}",
       "assigned": "Owner: {name}",
@@ -884,22 +981,22 @@
         "mineText": "Only assigned to me",
         "searchPh": "Search by name"
       },
-      "emptyTitle": "No objects yet",
+      "emptyTitle": "No records yet",
       "emptyText": "Create the first draft for \"{name}\".",
-      "emptyRead": "Created objects will show up here.",
+      "emptyRead": "Created records will show up here.",
       "noResults": "Nothing found",
       "noResultsText": "Change or clear the filter.",
-      "searchLoaded": "Search only covers the {n} loaded objects. Load more or change the filter.",
+      "searchLoaded": "Search only covers the {n} loaded records. Load more or change the filter.",
       "reset": "Clear filter",
       "count": "Showing {n} of {total}",
       "countSearch": "{n} of {all} match",
       "more": "Load more",
       "moreFail": "Could not load the next page",
-      "archiveTitle": "Archive object",
+      "archiveTitle": "Archive record",
       "archiveText": "\"{title}\" moves to the archive and can no longer be edited. It is not deleted and its history is kept.",
       "archived": "\"{title}\" archived",
       "missingTitle": "Constructor not found",
-      "missingText": "There is no constructor with code \"{code}\". Pick one on the Studio home page."
+      "missingText": "There is no such constructor. Pick one on the Studio home page."
     },
     "dash": {
       "title": "Studio",
@@ -925,7 +1022,7 @@
         "title": "Constructors",
         "lead": "{n} constructors. Pick one to start.",
         "group": "Section",
-        "searchPh": "Name or code (e.g. K06)",
+        "searchPh": "Search by name",
         "noResults": "No constructor found",
         "noResultsText": "Try another word or clear the filter.",
         "reset": "Clear filter",
@@ -933,14 +1030,14 @@
         "count": "{n} active",
         "none": "Empty yet",
         "emptyTitle": "The constructor list is empty",
-        "emptyText": "The list appears after an administrator syncs it.",
-        "emptyAdmin": "Fill the list with the server's default constructors."
+        "emptyText": "The list appears after an administrator updates it.",
+        "emptyAdmin": "Fill the list with the standard constructors."
       },
       "sync": {
-        "cta": "Sync list",
-        "title": "Sync the constructor list",
-        "text": "The constructor list is written or updated from the server defaults. Existing objects stay unchanged.",
-        "confirm": "Sync",
+        "cta": "Update list",
+        "title": "Update the constructor list",
+        "text": "The constructor list is filled or updated from the standard settings. Existing records stay unchanged.",
+        "confirm": "Update",
         "done": "List updated: {n} constructors",
         "donePlain": "List updated"
       }
@@ -949,7 +1046,7 @@
       "title": "Approval queue",
       "lead": "Review submitted work: approve it, send it back or publish it.",
       "loading": "Loading the queue…",
-      "untitled": "Untitled object",
+      "untitled": "Untitled record",
       "mineNote": "{n, plural, one {# item is waiting for your decision} other {# items are waiting for your decision}}",
       "filter": {
         "title": "Queue filters",
@@ -958,7 +1055,7 @@
         "who": "Whose turn",
         "everyone": "Everyone",
         "mine": "My turn",
-        "searchPh": "By title, code or author"
+        "searchPh": "By title or author"
       },
       "empty": {
         "title": "The queue is empty",
@@ -1003,8 +1100,8 @@
         "publish": {
           "title": "Publish",
           "text": "The approved version is connected to the system and becomes visible to users.",
-          "ph": "For example: released to production",
-          "hint": "If connecting fails, the server cancels the publish and we show the error.",
+          "ph": "For example: published on the site",
+          "hint": "If connecting fails, the publish is cancelled and we show the error.",
           "cta": "Publish",
           "ok": "Published"
         }
@@ -1086,14 +1183,14 @@
       "rejected": "The reviewer rejected it. You can fix it and submit again.",
       "direct": "No approval needed: it goes live as soon as you submit.",
       "availableN": "{n} open",
-      "blockedText": "This constructor is blocked until the required earlier steps are done. Its objects can be viewed; creating and editing are closed.",
+      "blockedText": "This constructor is blocked until the required earlier steps are done. Its records can be viewed; creating and editing are closed.",
       "blockedTitle": "Finish the required steps first",
       "clone": "Copy",
       "cloneAria": "Copy {title}",
       "cloned": "Copy created",
       "cloneLabel": "Name of the copy",
       "cloneName": "{title} (copy)",
-      "cloneText": "The original is not changed. Unique keys are cleared and a new draft is created.",
+      "cloneText": "The original is not changed. Values that must not repeat are cleared and a new draft is created.",
       "cloneTitle": "Create a copy",
       "col": {
         "source": "Source"
@@ -1107,14 +1204,14 @@
       "goTo": "Go to {name}",
       "groupDone": "Section complete",
       "groupEyebrow": "Section {n}",
-      "groupMissing": "Section \"{key}\" was not found.",
+      "groupMissing": "That section was not found.",
       "groupsLead": "{n} sections · {done} of {all} constructors set up. Work through each section in order.",
       "groupsTitle": "Sections and order of work",
       "groupTitle": "Section",
       "hasDraft": "Has a Studio draft",
       "journeyDone": "Every step is done",
       "journeyEyebrow": "Business workflow",
-      "journeyMissing": "Workflow \"{key}\" was not found.",
+      "journeyMissing": "That workflow was not found.",
       "journeysLead": "Run constructors from several sections in order toward one goal.",
       "journeysTitle": "Business workflows",
       "journeyTitle": "Workflow",
@@ -1125,12 +1222,12 @@
           "text": "Read only. To change it, choose \"Edit\" in the list."
         },
         "edit": {
-          "title": "Editing an existing object: {title}",
-          "text": "Saving creates a Studio draft for this object. Publishing updates this very object — no new one is created."
+          "title": "Editing an existing record: {title}",
+          "text": "Saving creates a Studio draft for this record. Publishing updates this very record — no new one is created."
         },
         "clone": {
           "title": "Copy: {title}",
-          "text": "The data was copied and the object's ID and unique keys cleared. Saving creates a new object; the original is not changed."
+          "text": "The data was copied and the values that must not repeat were cleared. Saving creates a new record; the original is not changed."
         }
       },
       "from": "Source: {source}",
@@ -1145,13 +1242,29 @@
       "recTitle": "Recommended to set up first",
       "rstatus": {
         "active": "Active",
-        "inactive": "Inactive"
+        "inactive": "Inactive",
+        "deleted": "Deleted",
+        "disabled": "Switched off",
+        "enabled": "Switched on",
+        "pending": "Waiting",
+        "hidden": "Hidden",
+        "blocked": "Blocked",
+        "expired": "Expired",
+        "paused": "Paused",
+        "scheduled": "Scheduled",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "new": "New",
+        "in_progress": "In progress",
+        "failed": "Failed",
+        "verified": "Verified",
+        "unverified": "Not verified"
       },
       "seqTitle": "Place in the order of work",
       "source": {
         "all": "All",
         "runtime": "Live in the system",
-        "studio": "Studio object"
+        "studio": "Studio record"
       },
       "split": "{runtime} live, {studio} in Studio",
       "state": {
@@ -1180,63 +1293,63 @@
     },
     "ctor": {
       "call01": {
-        "name": "Call technical profile",
-        "desc": "Video and audio session quality, recording and media features."
+        "name": "Call quality settings",
+        "desc": "Video and audio call quality, recording and extra features."
       },
       "int01": {
-        "name": "Integration settings",
-        "desc": "Connection settings for external services (secrets are not stored)."
+        "name": "Connecting outside services",
+        "desc": "Connection settings for outside services (passwords are not kept here)."
       },
       "int02": {
-        "name": "Webhook registry",
-        "desc": "Webhook endpoints and the events sent to them."
+        "name": "Messages to outside systems",
+        "desc": "Addresses of outside systems that get a message when something happens."
       },
       "int03": {
-        "name": "Provider routing",
-        "desc": "Which request goes to which provider, and the fallbacks."
+        "name": "Choosing an outside service",
+        "desc": "Which outside service is used when, and what replaces it."
       },
       "k17": {
-        "name": "Plans and entitlements",
+        "name": "Plans and what they include",
         "desc": "Plans, billing type and what each plan unlocks."
       },
       "k18": {
         "name": "Payment operations",
-        "desc": "Payment providers, confirmation, refunds and reconciliation."
+        "desc": "Payment services, payment confirmation, refunds and matching the accounts."
       },
       "k21": {
         "name": "Service access rules",
-        "desc": "Who can use a service by role, plan, region and prerequisites."
+        "desc": "Who can use a service by role, plan, region and earlier steps."
       },
       "k22": {
-        "name": "Consultation policy",
-        "desc": "Business rules for audio, video and chat consultations."
+        "name": "Consultation rules",
+        "desc": "Rules for audio, video and chat consultations."
       },
       "k23": {
-        "name": "Support workflow",
-        "desc": "Ticket queue, SLA, transfers and escalation."
+        "name": "Support process",
+        "desc": "The request queue, answer deadlines, passing to a colleague or a manager."
       },
       "k24": {
-        "name": "CRM pipeline",
-        "desc": "Lead stages, transitions and auto-assignment."
+        "name": "Client work stages",
+        "desc": "The stages a new request goes through and who gets it automatically."
       },
       "k25": {
         "name": "Commission and payouts",
-        "desc": "Platform share, holds and seller payout settlement."
+        "desc": "The platform's share, money on hold and paying sellers."
       },
       "k26": {
-        "name": "Document service policy",
+        "name": "Document service rules",
         "desc": "Analysis, builder, lawyer review and download rules."
       },
       "k27": {
-        "name": "Notification events",
-        "desc": "Event, recipients, channels, retries and deduplication."
+        "name": "Reasons for notifications",
+        "desc": "What happens, who is told and how, with no repeats."
       },
       "k28": {
         "name": "Marketplace ranking",
         "desc": "Marketplace sorting and recommendation scores."
       },
       "mp01": {
-        "name": "Seller eligibility",
+        "name": "Seller requirements",
         "desc": "What a seller needs to sell on the marketplace."
       },
       "mp02": {
@@ -1252,16 +1365,16 @@
         "desc": "Where and how ads are shown."
       },
       "mp05": {
-        "name": "Purchase workflow",
-        "desc": "Purchase steps, payment gate and seller handoff."
+        "name": "Purchase process",
+        "desc": "Purchase steps, the payment condition and passing the order to the seller."
       },
       "mp06": {
-        "name": "Seller verification",
-        "desc": "Seller checks, required documents and re-verification."
+        "name": "Seller checks",
+        "desc": "Checking a seller, the documents needed and checking again."
       },
       "mp07": {
-        "name": "Review policy",
-        "desc": "Review moderation and rating rules."
+        "name": "Review rules",
+        "desc": "Checking reviews and rating rules."
       },
       "mp08": {
         "name": "Complaint resolution",
@@ -1269,14 +1382,14 @@
       },
       "mp09": {
         "name": "Promotion campaign",
-        "desc": "Campaign budget, dates and frequency cap."
+        "desc": "Campaign budget, dates and how often an ad is shown."
       },
       "mp10": {
         "name": "Seller availability",
         "desc": "When a seller works and how many orders they can take."
       },
       "ops01": {
-        "name": "Feature flags",
+        "name": "Switching features on and off",
         "desc": "Turning features on and off gradually."
       },
       "ops02": {
@@ -1284,44 +1397,44 @@
         "desc": "Jobs that run automatically on a schedule."
       },
       "ops03": {
-        "name": "Business calendar",
+        "name": "Work calendar",
         "desc": "Work days, hours and holidays."
       },
       "ops04": {
-        "name": "Data retention",
+        "name": "Keeping data",
         "desc": "How long data is kept, archived and deleted."
       },
       "ops05": {
-        "name": "Export definitions",
-        "desc": "Which data is exported and with which columns."
+        "name": "Reports to download",
+        "desc": "Which data is downloaded to a file and with which columns."
       },
       "ops06": {
-        "name": "Dashboard definitions",
-        "desc": "Dashboard metrics, widgets and filters."
+        "name": "Indicator panels",
+        "desc": "The indicators, blocks and filters on a panel."
       },
       "ops07": {
-        "name": "ID registry",
-        "desc": "How document and object numbers are generated."
+        "name": "Numbering rules",
+        "desc": "How document and record numbers are generated."
       },
       "ops08": {
-        "name": "Status registry",
+        "name": "Status list",
         "desc": "System statuses and the transitions between them."
       },
       "org01": {
-        "name": "Team and queue routing",
+        "name": "Sharing work between teams",
         "desc": "Which team and queue work goes to."
       },
       "search01": {
         "name": "Search settings",
-        "desc": "Search indexes, synonyms and sorting."
+        "desc": "Where search looks, similar words and the order of results."
       },
       "sec01": {
         "name": "Roles and permissions",
-        "desc": "Policy for roles and their permissions."
+        "desc": "Roles and what each may do."
       },
       "sec02": {
         "name": "Data access",
-        "desc": "Who can see which data and fields."
+        "desc": "Who can see which data."
       },
       "sec03": {
         "name": "Risk rules",
@@ -1329,19 +1442,19 @@
       },
       "sec04": {
         "name": "Approval security",
-        "desc": "Maker-checker and self-approval limits for approvals."
+        "desc": "One person creates, another approves; nobody approves their own work."
       },
       "sec05": {
         "name": "File security",
-        "desc": "Allowed types, size, virus scan and quarantine."
+        "desc": "Allowed file types, size and virus checks."
       },
       "k01": {
         "name": "Life situations",
-        "desc": "A classifier that routes a client's problem to the right service."
+        "desc": "A client picks their problem and gets the right service."
       },
       "k02": {
         "name": "Service passport",
-        "desc": "What the service includes, its result and key terms."
+        "desc": "What the service includes, its result and main terms."
       },
       "k03m": {
         "name": "Marketplace packages",
@@ -1353,18 +1466,18 @@
       },
       "k05": {
         "name": "Intake questionnaire",
-        "desc": "Sections, fields and conditional questions."
+        "desc": "Sections, questions and questions that depend on an answer."
       },
       "k06": {
         "name": "Document templates",
-        "desc": "Template text, clause library or a file upload."
+        "desc": "Template text, ready-made clauses or a file upload."
       },
       "k07": {
         "name": "Contract & offer",
         "desc": "The client contract and public offer text."
       },
       "k08": {
-        "name": "Process (SOP)",
+        "name": "Work process",
         "desc": "How the service is carried out step by step."
       },
       "k09": {
@@ -1372,12 +1485,12 @@
         "desc": "A list of items that must be done."
       },
       "k10": {
-        "name": "SLA & work calendar",
+        "name": "Deadlines & work calendar",
         "desc": "Deadlines, working hours and days off."
       },
       "k11": {
         "name": "Service terms",
-        "desc": "Refunds, cancellations and other policies."
+        "desc": "Refunds, cancellations and other rules."
       },
       "k12m": {
         "name": "Partner lawyer selection",
@@ -1396,19 +1509,19 @@
         "desc": "Event messages in 3 languages."
       },
       "k15": {
-        "name": "AI knowledge & routing",
-        "desc": "Knowledge for the AI assistant and question routing."
+        "name": "AI knowledge",
+        "desc": "Knowledge for the AI assistant and who questions are passed to."
       },
       "k16": {
         "name": "Directories",
         "desc": "Regions, types and other lists. No approval."
       },
       "k19": {
-        "name": "Landing & FAQ",
+        "name": "Service page & common questions",
         "desc": "Page blocks and frequently asked questions."
       },
       "k20": {
-        "name": "Approval routes",
+        "name": "Approval order",
         "desc": "Who approves each type, and in what order."
       },
       "m1": {
@@ -1421,10 +1534,10 @@
       },
       "m3": {
         "name": "Control center",
-        "desc": "Key indicators for the CEO and admins."
+        "desc": "Main indicators for the CEO and admins."
       },
       "core": {
-        "name": "Studio core",
+        "name": "Shared Studio settings",
         "desc": "Shared Studio settings."
       }
     },
@@ -1460,7 +1573,20 @@
       "quality_control": "Quality control",
       "sales_head": "Head of sales",
       "sales_operator": "Sales operator",
-      "super_admin": "Super admin"
+      "super_admin": "Super admin",
+      "quality_manager": "Quality manager",
+      "security_manager": "Security manager",
+      "sales_manager": "Sales manager",
+      "marketplace_manager": "Marketplace manager",
+      "communications_manager": "Communications manager",
+      "document_manager": "Documents manager",
+      "operations_manager": "Operations manager",
+      "subscription_manager": "Plans manager",
+      "legal_manager": "Legal manager",
+      "support_manager": "Support manager",
+      "integration_manager": "Integrations manager",
+      "finance_manager": "Finance manager",
+      "catalog_manager": "Catalogue manager"
     },
     "actions": {
       "save": "Save",
@@ -1487,15 +1613,15 @@
       "cancel": "Cancel",
       "close": "Close",
       "formView": "Form",
-      "jsonView": "JSON",
-      "sync": "Sync registry",
+      "jsonView": "Details",
+      "sync": "Update list",
       "send": "Send",
       "history": "History"
     },
     "off": {
       "badge": "Coming soon",
-      "title": "Studio isn't enabled on the server yet",
-      "text": "The interface is ready. Constructors will appear here as soon as the server side is live.",
+      "title": "Studio isn't switched on yet",
+      "text": "The page is ready. Constructors will appear here as soon as Studio is switched on.",
       "p1": "Create and edit drafts",
       "p2": "Two-step approval",
       "p3": "Publishing and version history",
@@ -1523,11 +1649,11 @@
         "publish_requires_approved": "Approval is needed first",
         "publish_failed": "Publishing failed",
         "forbidden": "You can't do this",
-        "missing": "Not available on the server yet",
+        "missing": "Not available yet",
         "not_found": "Not found",
         "conflict": "The status has changed",
         "validation": "Check the fields",
-        "network": "Can't reach the server",
+        "network": "No connection to the system",
         "other": "Something went wrong",
         "edit_conflict": "Changed by someone else"
       },
@@ -1535,27 +1661,36 @@
         "payload_invalid": "Fix the highlighted fields.",
         "submit_invalid": "Check the required fields and dependencies.",
         "publish_requires_approved": "Publish once both approval steps are done.",
-        "publish_failed": "Sync failed and the publish was undone. Try again later.",
+        "publish_failed": "The changes could not be applied and the publish was undone. Try again later.",
         "forbidden": "An administrator can grant the role.",
-        "missing": "Try again once the server side is live.",
+        "missing": "Please try again later.",
         "not_found": "The item is gone or the link is wrong.",
         "conflict": "Reload and try again.",
         "validation": "Fix the errors in the fields.",
         "network": "Check your connection and try again.",
         "other": "Please try again shortly.",
-        "edit_conflict": "The object was saved elsewhere while you were editing. Load the newer version from the server and make your changes again."
+        "edit_conflict": "The record was saved elsewhere while you were editing. Load the newer version and make your changes again."
       }
     },
     "fieldErr": {
       "required": "This field is required",
-      "json": "Invalid JSON",
-      "object": "Must be a JSON object: { … }",
+      "json": "The value has the wrong format",
+      "object": "The value has the wrong format",
       "list": "Must be a list",
       "duplicate": "Must be unique",
       "lang": "Fill in all three languages",
       "file": "Upload a file",
       "number": "Enter a number",
-      "rule": "The rule points to a field that doesn't exist"
+      "rule": "The rule points to a field that doesn't exist",
+      "c": {
+        "required": "This field is required",
+        "minimum": "Must be at least {n}",
+        "maximum": "Must be at most {n}",
+        "invalid_option": "Pick one of the listed options",
+        "invalid_type": "The value is not entered correctly",
+        "translation_required": "Fill it in all three languages",
+        "other": "The value was not accepted"
+      }
     },
     "field": {
       "acceptance_criteria": "Acceptance criteria",
@@ -1589,12 +1724,12 @@
       "blocks": "Content blocks",
       "body": "Body",
       "body_i18n": "Body (multilingual)",
-      "boost_rules": "Boost rules",
-      "boost_score": "Boost score",
-      "boosts": "Boosts",
+      "boost_rules": "Rules for moving up",
+      "boost_score": "Points for moving up",
+      "boosts": "Moving up",
       "budget": "Budget",
       "business_hours": "Business hours",
-      "calendar_key": "Work calendar",
+      "calendar_key": "Short name of the calendar",
       "call_profile_key": "Call profile",
       "cancellation": "Cancellation",
       "cancellation_policy": "Cancellation policy",
@@ -1603,12 +1738,12 @@
       "capacity": "Capacity",
       "capacity_rules": "Capacity rules",
       "category_id": "Category",
-      "change_request_restart": "Restart on change request",
+      "change_request_restart": "Start over after changes are asked for",
       "chat_features": "Chat features",
       "chats": "Chat access",
       "checkout_steps": "Checkout steps",
       "checks": "Checks",
-      "checksum": "Checksum",
+      "checksum": "Check digit of the number",
       "circuit_breaker": "Circuit breaker",
       "client_notice": "Client notice",
       "client_response": "Client response",
@@ -1628,15 +1763,15 @@
       "consultation_type": "Consultation type",
       "cta": "Call to action",
       "currency": "Currency",
-      "dashboard_key": "Dashboard key",
+      "dashboard_key": "Short name of the dashboard",
       "data_type": "Data type",
       "days": "Days",
       "deadline_at": "Deadline",
       "deadline_hours": "Deadline (hours)",
-      "deduplication_window_seconds": "Deduplication window (seconds)",
+      "deduplication_window_seconds": "Do not repeat within (seconds)",
       "delegation": "Delegation",
       "delete_mode": "Delete mode",
-      "deliverables": "Deliverables",
+      "deliverables": "What the client receives",
       "delivery_minutes": "Delivery time (minutes)",
       "delivery_policy": "Delivery policy",
       "denial_message": "Denial message",
@@ -1648,7 +1783,7 @@
       "documents": "Document access",
       "downgrade_rules": "Downgrade rules",
       "download_policy": "Download policy",
-      "drilldowns": "Drill-downs",
+      "drilldowns": "Detailed views",
       "duplicate_rules": "Duplicate rules",
       "duplicates": "Duplicates",
       "duration": "Duration",
@@ -1657,13 +1792,13 @@
       "effective_from": "Effective from",
       "eligibility": "Eligibility",
       "enabled": "Enabled",
-      "endpoint_reference": "Endpoint reference",
+      "endpoint_reference": "Name of the receiving address",
       "ends_at": "Ends at",
       "entitlements": "Entitlements",
-      "entity_type": "Entity type",
+      "entity_type": "Record type",
       "environment": "Environment",
-      "escalation": "Escalation",
-      "escalation_rules": "Escalation rules",
+      "escalation": "Passing to a manager",
+      "escalation_rules": "Rules for passing to a manager",
       "event_mapping": "Event mapping",
       "evidence": "Evidence",
       "evidence_required": "Evidence required",
@@ -1675,37 +1810,37 @@
       "experience_rules": "Experience rules",
       "expiry": "Expiry",
       "expiry_rules": "Expiry rules",
-      "export_key": "Export key",
+      "export_key": "Short name of the export",
       "exports": "Exports",
       "extension_price_per_minute": "Extension price per minute",
       "extensions": "Extensions",
       "extra_page_price": "Extra page price",
       "extra_rules": "Extra rules",
-      "fallback": "Fallback",
-      "fallback_channels": "Fallback channels",
-      "fallback_provider": "Fallback provider",
-      "fallback_providers": "Fallback providers",
+      "fallback": "Backup option",
+      "fallback_channels": "Backup channels",
+      "fallback_provider": "Backup service",
+      "fallback_providers": "Backup services",
       "faq": "FAQ",
       "field_access": "Field access",
       "filters": "Filters",
       "final_action": "Final action",
-      "flag_key": "Flag key",
+      "flag_key": "Short name of the feature",
       "formatting": "Formatting",
       "free_extension_minutes": "Free extension (minutes)",
       "frequency_cap": "Frequency cap",
       "grace_period_days": "Grace period (days)",
       "handler": "Handler",
-      "handoff_rules": "Handoff rules",
+      "handoff_rules": "Passing-on rules",
       "health_check": "Health check",
       "hero": "Hero",
       "high_risk": "High risk",
-      "hold_days": "Hold days",
+      "hold_days": "Days the money is held",
       "holidays": "Holidays",
-      "idempotency": "Idempotency",
+      "idempotency": "Protection from paying twice",
       "included": "Included",
-      "index_key": "Index key",
+      "index_key": "Short name of the search list",
       "is_active": "Active",
-      "job_key": "Job key",
+      "job_key": "Short name of the job",
       "joins": "Joins",
       "lead_scoring": "Lead scoring",
       "legal_hold": "Legal hold",
@@ -1714,7 +1849,7 @@
       "limits": "Limits",
       "lost_reasons": "Lost reasons",
       "low_rating_threshold": "Low rating threshold",
-      "maker_checker": "Maker-checker",
+      "maker_checker": "One creates, another approves",
       "manual_review": "Manual review",
       "masking": "Masking",
       "max_file_mb": "Max file size (MB)",
@@ -1723,34 +1858,34 @@
       "maximum_price": "Maximum price",
       "menu": "Menu",
       "metrics": "Metrics",
-      "mime_types": "MIME types",
+      "mime_types": "File types",
       "minimum_payout": "Minimum payout",
       "minimum_price": "Minimum price",
       "moderation": "Moderation",
       "modes": "Modes",
       "normalization": "Normalization",
-      "object_id": "Studio object",
-      "object_type": "Object type",
+      "object_id": "Studio record",
+      "object_type": "Record type",
       "online_policy": "Online policy",
       "organization_unit_id": "Organization unit",
       "package_code": "Package code",
       "package_id": "Existing package",
       "packages": "Packages",
       "page_pricing": "Page pricing",
-      "parameters": "Parameters",
+      "parameters": "Settings",
       "participant_limit": "Participant limit",
       "pause_policy": "Pause policy",
       "pause_rules": "Pause rules",
       "payment_gate": "Payment gate",
       "permissions": "Permissions",
-      "pipeline_key": "Pipeline key",
+      "pipeline_key": "Short name of the pipeline",
       "placement": "Placement",
       "plan_id": "Existing plan",
       "plan_ids": "Plans",
       "plan_requirements": "Plan requirements",
       "plans": "Plans",
       "platform_percent": "Platform share (%)",
-      "policy_key": "Policy key",
+      "policy_key": "Short name of the policy",
       "prefix": "Prefix",
       "prerequisites": "Prerequisites",
       "preview": "Preview settings",
@@ -1760,7 +1895,7 @@
       "priorities": "Priorities",
       "priority": "Priority",
       "profile_completion": "Profile completion",
-      "profile_key": "Profile key",
+      "profile_key": "Short name of the profile",
       "promotion_cap": "Promotion cap",
       "provider": "Provider",
       "provider_fee_percent": "Provider fee (%)",
@@ -1770,7 +1905,7 @@
       "queue_key": "Queue",
       "queue_rules": "Queue rules",
       "quiet_hours": "Quiet hours",
-      "quorum": "Quorum",
+      "quorum": "Votes needed",
       "quotas": "Quotas",
       "rate_limit": "Rate limit",
       "rating_formula": "Rating formula",
@@ -1804,58 +1939,58 @@
       "result": "Result",
       "retention": "Retention",
       "retention_days": "Retention (days)",
-      "retry": "Retry",
-      "retry_policy": "Retry policy",
+      "retry": "Try again",
+      "retry_policy": "Rules for sending again",
       "reverification": "Re-verification",
       "review_policy": "Review policy",
       "review_steps": "Review steps",
       "role": "Role",
       "roles": "Roles",
       "rollback_policy": "Rollback policy",
-      "rollout_percent": "Rollout (%)",
+      "rollout_percent": "Share of users who get it (%)",
       "room": "Room settings",
       "routing_rules": "Routing rules",
       "sanctions": "Sanctions",
       "schedule": "Schedule",
-      "secret_reference": "Secret reference",
+      "secret_reference": "Where the password is stored",
       "selection_rules": "Selection rules",
       "self_approval": "Self-approval",
-      "self_purchase": "Self-purchase",
-      "seller_handoff": "Seller handoff",
+      "self_purchase": "Buying from oneself",
+      "seller_handoff": "Passing the order to the seller",
       "seller_percent": "Seller share (%)",
       "seller_requirements": "Seller requirements",
       "seller_type": "Seller type",
       "seller_types": "Seller types",
       "selling_permissions": "Selling permissions",
-      "seo": "SEO",
-      "sequence_scope": "Sequence scope",
+      "seo": "For search engines",
+      "sequence_scope": "Where the numbering applies",
       "settings": "Settings",
-      "settlement_schedule": "Settlement schedule",
+      "settlement_schedule": "Payout schedule",
       "signature": "Signature",
       "size_limits": "Size limits",
       "skills": "Skills",
-      "sla": "SLA",
-      "sla_minutes": "SLA (minutes)",
-      "slug": "Slug",
+      "sla": "Deadline",
+      "sla_minutes": "Deadline (minutes)",
+      "slug": "Name in the link",
       "sort_order": "Sort order",
       "sorts": "Sorts",
       "source": "Source",
       "starts_at": "Starts at",
       "statuses": "Statuses",
-      "synonyms": "Synonyms",
+      "synonyms": "Similar words",
       "target_roles": "Target roles",
       "tariff": "Tariff tier",
       "tasks": "Tasks",
       "tax_rules": "Tax rules",
-      "template_key": "Template key",
+      "template_key": "Short name of the template",
       "temporary_access": "Temporary access",
       "terminal_statuses": "Terminal statuses",
       "terms": "Terms",
       "ticket_type": "Ticket type",
-      "tie_breakers": "Tie-breakers",
-      "timeout": "Timeout",
-      "timeout_seconds": "Timeout (seconds)",
-      "timeouts": "Timeouts",
+      "tie_breakers": "Who goes first on equal scores",
+      "timeout": "Waiting time",
+      "timeout_seconds": "Waiting time (seconds)",
+      "timeouts": "Waiting times",
       "timezone": "Time zone",
       "title_i18n": "Title (multilingual)",
       "transfer_policy": "Transfer policy",
@@ -1865,25 +2000,25 @@
       "upgrade_rules": "Upgrade rules",
       "usage_limits": "Usage limits",
       "variants": "Variants",
-      "velocity": "Velocity",
+      "velocity": "Rate of attempts",
       "verification": "Verification",
-      "verification_boost": "Verification boost",
+      "verification_boost": "Bonus for a verified profile",
       "verification_required": "Verification required",
       "verified_only": "Verified only",
       "version": "Version",
       "virus_scan": "Virus scan",
       "visibility": "Visibility",
       "warranty_policy": "Warranty policy",
-      "weights": "Weights",
+      "weights": "Share of each criterion",
       "widgets": "Widgets",
       "window_minutes": "Window (minutes)",
       "work_days": "Work days",
       "work_hours": "Work hours",
-      "workflow_key": "Workflow key",
+      "workflow_key": "Short name of the workflow",
       "title": "Title",
       "mode": "Mode",
       "language": "Language",
-      "service_id": "Service identifier",
+      "service_id": "Service",
       "category": "Category",
       "subcategory": "Subcategory",
       "client_problem": "Client problem",
@@ -1891,13 +2026,13 @@
       "routing_tags": "Routing tags",
       "name": "Name",
       "code": "Code",
-      "unit_id": "Unit identifier",
-      "org_unit_id": "Unit identifier",
-      "employee_id": "Employee identifier",
-      "position_id": "Position identifier",
+      "unit_id": "Unit",
+      "org_unit_id": "Unit",
+      "employee_id": "Employee",
+      "position_id": "Position",
       "parent_id": "Parent item",
-      "manager_employee_id": "Manager identifier",
-      "template_id": "Template identifier",
+      "manager_employee_id": "Manager",
+      "template_id": "Template",
       "event": "Event",
       "channels": "Channels",
       "messages": "Messages",
@@ -1905,7 +2040,7 @@
       "audience_roles": "Audience roles",
       "sections": "Sections",
       "conditional_rules": "Conditional rules",
-      "directory_key": "Directory key",
+      "directory_key": "Short name of the directory",
       "items": "Items",
       "steps": "Steps",
       "status": "Status",
@@ -1913,7 +2048,250 @@
       "template_text": "Template text",
       "clauses": "Clauses",
       "fields": "Fields",
-      "source_file_required": "Source file required"
+      "source_file_required": "Source file required",
+      "accept_when_busy": "Accept when busy",
+      "action": "Action",
+      "active": "Active",
+      "admin_release": "Release by admin",
+      "admin_required": "Admin approval required",
+      "after_attempts": "After how many attempts",
+      "after_minutes": "After how many minutes",
+      "aggregation": "How it is calculated",
+      "ai_requests": "AI questions",
+      "algorithm": "Method",
+      "all_required": "All items required",
+      "allowed": "Allowed",
+      "allowed_queues": "Allowed queues",
+      "allowed_roles": "Allowed roles",
+      "answer": "Answer",
+      "approval_required": "Approval required",
+      "archive": "Archiving",
+      "assignee_id": "Assigned to",
+      "assignee_type": "Assignment type",
+      "at_least_once": "Deliver at least once",
+      "attempts": "Number of attempts",
+      "audio_fallback": "Switch to audio if video fails",
+      "audio_mb": "Audio size (MB)",
+      "auto_filter": "Automatic filter",
+      "average_weight": "Share of the average rating",
+      "backoff": "Pause between tries",
+      "before_minutes": "How many minutes before",
+      "block_seconds": "Block time (seconds)",
+      "break_end": "Break end",
+      "break_start": "Break start",
+      "burst": "How many in a row are allowed",
+      "business_calendar_key": "Work calendar",
+      "camera": "Camera",
+      "canonical_url": "Main address of the page",
+      "case_law_search": "Case-law search",
+      "casefold": "Ignore letter case",
+      "claim_timeout_seconds": "Time to accept (seconds)",
+      "color": "Colour",
+      "complaint_count": "Number of complaints",
+      "completed_orders": "Completed jobs",
+      "completed_orders_weight": "Share of completed jobs",
+      "condition": "Condition",
+      "consent_required": "Consent required",
+      "content": "Text",
+      "cooldown_minutes": "Waiting time (minutes)",
+      "cta_label": "Button text",
+      "cta_url": "Address the button opens",
+      "currency_format": "Money format",
+      "date": "Date",
+      "date_format": "Date format",
+      "day": "Day",
+      "default_mb": "Default size (MB)",
+      "delay_seconds": "Delay (seconds)",
+      "delete": "Deleting",
+      "departure_timeout_seconds": "Wait after leaving (seconds)",
+      "direction": "Direction",
+      "disconnect_seconds": "Wait after disconnect (seconds)",
+      "doc_analysis": "Document analysis",
+      "document_mb": "Document size (MB)",
+      "done": "Done",
+      "download": "Download",
+      "duration_days": "Duration (days)",
+      "edit": "Editing",
+      "effect": "Effect",
+      "effective": "Takes effect",
+      "email": "Email",
+      "empty_timeout_seconds": "Wait in an empty room (seconds)",
+      "end": "End",
+      "entitlement": "Feature",
+      "exact_query": "Exact search words",
+      "experience": "Experience",
+      "expires": "Has an expiry",
+      "export": "Export",
+      "expression": "Expression",
+      "fail_closed": "Block on error",
+      "failure_threshold": "Error threshold",
+      "fallback_queue": "Backup queue",
+      "fee_percent": "Fee percent",
+      "field": "Field",
+      "files": "Files",
+      "financial": "Financial",
+      "foreign_field": "Field in the linked table",
+      "format": "Format",
+      "formats": "File types",
+      "free": "Free",
+      "freeze_header": "Freeze the header row",
+      "frequency": "Frequency",
+      "from": "From",
+      "from_page": "First page",
+      "from_statuses": "From which statuses",
+      "from_step": "From which step",
+      "full_refund_conditions": "Full refund conditions",
+      "header": "Header name",
+      "heartbeat_seconds": "Connection check interval (seconds)",
+      "help_text": "Help text",
+      "history_days": "Days of history kept",
+      "hot_threshold": "\"Hot\" lead threshold",
+      "idle_seconds": "Idle time (seconds)",
+      "image_url": "Image address",
+      "include_payload": "Keep the content",
+      "initial_delay_seconds": "Initial delay (seconds)",
+      "interval_seconds": "Interval (seconds)",
+      "join_seconds": "Time to join (seconds)",
+      "key": "Short name",
+      "label": "Name",
+      "limit": "Limit",
+      "local_field": "Field in this table",
+      "manual_document_fill": "Filling a document by hand",
+      "manual_document_templates": "Document templates",
+      "mask_sensitive": "Hide sensitive data",
+      "max_active": "Active jobs at once",
+      "max_active_orders": "Active jobs limit",
+      "max_amount": "Maximum amount",
+      "max_attempts": "Maximum attempts",
+      "max_days": "Maximum days",
+      "max_delay_seconds": "Longest delay (seconds)",
+      "max_devices": "Number of devices",
+      "max_hours": "Maximum hours",
+      "max_items": "Maximum messages",
+      "max_minutes": "Maximum time (minutes)",
+      "max_participants": "Maximum participants",
+      "max_reopens": "Reopen limit",
+      "max_rows": "Maximum rows",
+      "max_years": "Maximum experience (years)",
+      "message": "Message",
+      "metric": "Metric",
+      "microphone": "Microphone",
+      "min_rating": "Minimum rating",
+      "min_video_quality": "Minimum video quality",
+      "min_years": "Minimum experience (years)",
+      "minimum": "Minimum votes",
+      "minimum_approvals": "Minimum approvals",
+      "minimum_experience_years": "Minimum experience (years)",
+      "minimum_rating": "Minimum rating",
+      "minimum_reviews": "Minimum reviews",
+      "minimum_score": "Minimum score",
+      "monthly": "1 month",
+      "new_device_verification": "Confirm a new device",
+      "notification_event": "Notification event",
+      "notify_roles": "Roles to notify",
+      "offline_after_seconds": "Seconds until shown as offline",
+      "online_required": "Must be online",
+      "operator": "Comparison",
+      "operator_review": "Operator review",
+      "options": "Options",
+      "order": "Order",
+      "ordered": "Deliver in order",
+      "partial_percent": "Partial refund percent",
+      "passed": "Accepted",
+      "passport": "Passport",
+      "path": "Address",
+      "pause_during_transfer": "Pause during transfer",
+      "percent": "Percent",
+      "period": "Period",
+      "permission": "Permission",
+      "phone": "Phone",
+      "placeholder": "Hint text inside the field",
+      "plan_required": "Plan required",
+      "platform_fee_refundable": "Platform fee is refundable",
+      "prepaid_yearly": "Yearly prepayment",
+      "profile": "Profile",
+      "prorate": "Charge for the remaining days",
+      "quantity": "Quantity",
+      "question": "Question",
+      "rating": "Rating",
+      "reactions": "Reactions",
+      "reason": "Reason",
+      "reason_required": "Reason required",
+      "redo_limit": "Number of redos",
+      "region": "Region",
+      "remind_before_days": "Remind how many days before",
+      "remove_punctuation": "Remove punctuation",
+      "replies": "Replies",
+      "requests": "Number of requests",
+      "required": "Required",
+      "requires_comment": "Comment required",
+      "reset_seconds": "Reset time (seconds)",
+      "resolution_minutes": "Time to resolve (minutes)",
+      "response_minutes": "Time to respond (minutes)",
+      "responsible_user_id": "Person responsible",
+      "retained_versions": "Versions kept",
+      "review_required": "Review required",
+      "reviewer_role": "Reviewer's role",
+      "reviewer_type": "Who reviews",
+      "reviews": "Reviews",
+      "reviews_weight": "Share of reviews",
+      "ru": "Russian",
+      "rules": "Rules",
+      "same_role_only": "Same role only",
+      "scheduled_publish": "Scheduled publishing",
+      "scope": "Applies to",
+      "score": "Score",
+      "score_threshold": "Risk threshold",
+      "screen_share": "Screen sharing",
+      "section_key": "Section",
+      "seller_deduction_percent": "Percent deducted from the seller",
+      "send": "Sending",
+      "service": "Match to the service",
+      "service_keyword": "Service keyword",
+      "severity": "Severity",
+      "show_fields": "Fields to show",
+      "six_month": "6 months",
+      "slots": "Time slots",
+      "specialization": "Specialisation",
+      "staging_required": "Test environment check first",
+      "start": "Start",
+      "strategy": "Strategy",
+      "style": "Style",
+      "subtitle": "Subtitle",
+      "target": "Target",
+      "target_id": "Recipient",
+      "target_queue": "Queue",
+      "target_type": "Routing type",
+      "template_download": "Template download",
+      "terminal": "Final status",
+      "threshold": "Threshold",
+      "timeout_hours": "Time limit (hours)",
+      "to": "To",
+      "to_page": "Last page",
+      "to_status": "Next status",
+      "to_step": "To which step",
+      "tolerance_amount": "Allowed difference",
+      "transliterate": "Latin–Cyrillic conversion",
+      "trusted_days": "Trusted days",
+      "type": "Type",
+      "url": "Address",
+      "uz_cyrl": "Uzbek (Cyrillic)",
+      "uz_latn": "Uzbek (Latin)",
+      "value": "Value",
+      "verified": "Verified",
+      "verified_required": "Must be verified",
+      "video_mb": "Video size (MB)",
+      "view": "Viewing",
+      "voice": "Voice message",
+      "watermark": "Watermark",
+      "weight": "Share",
+      "when_field": "Field the condition depends on",
+      "widget_key": "Widget",
+      "window_days": "Period (days)",
+      "window_hours": "Period (hours)",
+      "window_seconds": "Window (seconds)",
+      "working": "Working day",
+      "yearly": "1 year"
     },
     "fmt": {
       "hm": "{h} h {m} min",
@@ -1933,7 +2311,7 @@
         "title": "Studio",
         "lead": "Pick a constructor to get started.",
         "emptyTitle": "No constructors yet",
-        "emptyText": "The list will show here once the server sends it."
+        "emptyText": "The list will show here once it loads."
       },
       "list": {
         "title": "Items",
@@ -1969,8 +2347,8 @@
     "schema": {
       "sections": "Sections",
       "fieldCount": "{n} fields",
-      "extraHint": "These keys are not in the constructor's schema. Remove them if they are not needed.",
-      "removeKey": "Remove key “{key}”",
+      "extraHint": "These rows are not in the constructor's form. Remove them if they are not needed.",
+      "removeKey": "Remove row “{key}”",
       "clear": "Clear",
       "time": "Time",
       "currency": "UZS",
@@ -1984,35 +2362,35 @@
         "4": "Heading",
         "5": "Link"
       },
-      "extraKeys": "Extra keys",
-      "droppedKeys": "Keys outside the schema are not sent: {keys}",
-      "keyPh": "key",
+      "extraKeys": "Extra rows",
+      "droppedKeys": "Extra rows are not sent: {keys}",
+      "keyPh": "name",
       "valuePh": "value",
-      "noKeys": "No keys yet",
-      "dupKey": "Keys must not repeat",
-      "addKey": "Add key",
+      "noKeys": "No rows yet",
+      "dupKey": "Names must not repeat",
+      "addKey": "Add row",
       "item": "item",
       "drag": "Drag to reorder",
       "add": "Add {what}",
       "minItems": "at least {n}",
-      "uniqueBy": "“{key}” must be unique",
+      "uniqueBy": "“{key}” must not repeat",
       "count": "{n} total",
-      "checking": "Server is checking…",
-      "liveBad": "Server check: {n} errors",
-      "liveOk": "Server check: no errors",
+      "checking": "Checking…",
+      "liveBad": "Check: {n} errors",
+      "liveOk": "Check: no errors",
       "livePending": "Changes will be checked"
     },
     "impact": {
       "title": "Impact of the change",
       "loading": "Working out the impact…",
-      "failed": "Could not preview the impact. You can still send it — the backend checks it anyway.",
+      "failed": "Could not show the impact. You can still send it — the system checks it anyway.",
       "changed": "Changed fields",
       "capabilities": "Capabilities affected",
       "none": "None",
       "clean": "No warnings",
       "cap": {
         "draft": "Draft",
-        "validate": "Validate",
+        "validate": "Check",
         "preview": "Preview",
         "submit": "Submit",
         "approve": "Approve",
@@ -2031,7 +2409,7 @@
         "medium": "A setting that affects a workflow",
         "high": "Affects finance, security, governance or integrations"
       },
-      "surfaceKey": "Technical identifier",
+      "surfaceKey": "Page",
       "openPage": "Open the page",
       "noAccess": "You have no access to this page",
       "whatTitle": "What does this constructor do?",
@@ -2054,10 +2432,10 @@
       "yes": "Yes",
       "no": "No",
       "pricingNote": "Not a calculation — how the price setting looks.",
-      "secretsNote": "Secret values (keys, tokens, passwords) are never shown.",
-      "previewTitle": "Live preview",
+      "secretsNote": "Secret values (passwords and the like) are never shown.",
+      "previewTitle": "Live view",
       "updating": "Updating…",
-      "dryRun": "Not saved",
+      "dryRun": "Trial — not saved",
       "tab": {
         "preview": "Preview",
         "check": "Checks",
@@ -2070,8 +2448,8 @@
       "emptyPreview": "Fill in the form to see a preview.",
       "showsOn": "The result shows here:",
       "noPreview": "This constructor has no preview.",
-      "valid": "Backend check: no errors",
-      "diffNew": "A new object: every filled field is new.",
+      "valid": "Check: no errors",
+      "diffNew": "A new record: every filled field is new.",
       "diffField": "Field",
       "diffBefore": "Before",
       "diffAfter": "After",
@@ -2086,6 +2464,327 @@
       "readOnly": "read only",
       "completed": "Set up",
       "needsFirst": "First: {list}"
+    },
+    "human": {
+      "surface": {
+        "s1": {
+          "title": "Security and permissions",
+          "what": "Roles, permissions, data access, risk and file rules"
+        },
+        "s2": {
+          "title": "Marketplace",
+          "what": "Services, sellers and advertising blocks"
+        },
+        "s3": {
+          "title": "Operations",
+          "what": "Processes, statuses, queues, calendar and system settings"
+        },
+        "s4": {
+          "title": "Consultation room",
+          "what": "Call quality, camera and microphone permissions, recording"
+        },
+        "s5": {
+          "title": "Quality control",
+          "what": "Checklists, ratings, complaints and penalties"
+        },
+        "s6": {
+          "title": "Finance",
+          "what": "Prices, payments, commission and payouts to sellers"
+        },
+        "s7": {
+          "title": "Consent window",
+          "what": "The legal text shown to the user"
+        },
+        "s8": {
+          "title": "Urgent advocate",
+          "what": "Consultation type, time, price and meeting rules"
+        },
+        "s9": {
+          "title": "Sales pipeline",
+          "what": "Stage columns and the rules for moving between them"
+        },
+        "s10": {
+          "title": "Admin home page",
+          "what": "Indicators and their details"
+        },
+        "s11": {
+          "title": "Documents",
+          "what": "Choosing a document, the questionnaire, filling it in and the result"
+        },
+        "s12": {
+          "title": "Document builder",
+          "what": "Template text, clauses and the fields to fill in"
+        },
+        "s13": {
+          "title": "Export to Excel",
+          "what": "Columns, filters and format settings"
+        },
+        "s14": {
+          "title": "New document order",
+          "what": "The questionnaire a client fills in step by step"
+        },
+        "s15": {
+          "title": "Integrations",
+          "what": "Connections to outside services, their checks and backups"
+        },
+        "s16": {
+          "title": "Service pages",
+          "what": "Page blocks, questions and answers, and texts for search engines"
+        },
+        "s17": {
+          "title": "Advocate search",
+          "what": "The order search results are shown in"
+        },
+        "s18": {
+          "title": "Messages and consultations",
+          "what": "Notifications, chat, audio and video calls"
+        },
+        "s19": {
+          "title": "Notifications",
+          "what": "The final message for each channel and language"
+        },
+        "s20": {
+          "title": "Advertising view",
+          "what": "Where a banner, profile or service advert is shown"
+        },
+        "s21": {
+          "title": "Roles",
+          "what": "What each role can see and do"
+        },
+        "s22": {
+          "title": "Service catalogue",
+          "what": "Categories and their subcategories"
+        },
+        "s23": {
+          "title": "Legal documents",
+          "what": "Texts of the offer, consents, terms and policies"
+        },
+        "s24": {
+          "title": "Studio workspace",
+          "what": "Work plan, acceptance, monitoring and control"
+        },
+        "s25": {
+          "title": "Studio management",
+          "what": "Approval, publishing, change history and rolling back"
+        },
+        "s26": {
+          "title": "Studio management",
+          "what": "General rules for publishing, change history and rolling back"
+        },
+        "s27": {
+          "title": "Executive panel",
+          "what": "Indicators, filters and alerts"
+        },
+        "s28": {
+          "title": "Directories",
+          "what": "The shared values offered in lists and filters"
+        },
+        "s29": {
+          "title": "Choosing a plan",
+          "what": "The plan card, its price, features and limits"
+        },
+        "s30": {
+          "title": "Operator requests",
+          "what": "Queue, priority, response time and handing over to a colleague"
+        }
+      },
+      "section": {
+        "c1": "Main",
+        "c2": "Who it is for",
+        "c3": "Rules",
+        "c4": "Activity and dates",
+        "c5": "Text and look",
+        "c6": "Price and payment",
+        "c7": "Process and rules"
+      },
+      "group": {
+        "system_reference": {
+          "title": "System and directories",
+          "text": "Studio's main settings, shared directories, numbering, statuses and search."
+        },
+        "integrations": {
+          "title": "Integrations",
+          "text": "Connections to outside services, the messages sent to them and backups."
+        },
+        "operations": {
+          "title": "Operations",
+          "text": "Switching features on, scheduled jobs, the calendar, data keeping, exports, indicators, team queues, requests and the sales pipeline."
+        },
+        "security_access": {
+          "title": "Security and access",
+          "text": "Roles, permissions, data access, risk rules, approval and file safety."
+        },
+        "finance_tariffs": {
+          "title": "Finance and plans",
+          "text": "Plans, price limits, payment methods, commission and payouts to sellers."
+        },
+        "communications": {
+          "title": "Communication and notifications",
+          "text": "Notification events, message templates, call settings and consultation rules."
+        },
+        "process_quality": {
+          "title": "Process and quality",
+          "text": "Work stages, deadlines, checklists, ratings and complaints."
+        },
+        "documents_texts": {
+          "title": "Documents and texts",
+          "text": "Legal texts, document templates, questionnaires and service terms."
+        },
+        "marketplace_services": {
+          "title": "Marketplace and services",
+          "text": "Categories, services, packages, sellers, prices, ranking, advertising, purchase and reviews — set up in order."
+        }
+      },
+      "journey": {
+        "marketplace_service": {
+          "title": "Launching a marketplace service",
+          "text": "The whole path from the category to purchase, quality and the service page."
+        },
+        "document_service": {
+          "title": "Launching a document service",
+          "text": "The document template, questionnaire, rules, price and download."
+        },
+        "subscription": {
+          "title": "Launching a plan",
+          "text": "Plan features, access rules, payment and notifications."
+        },
+        "consultation": {
+          "title": "Launching consultations",
+          "text": "Call settings, consultation rules, price, process, quality and notifications."
+        },
+        "promotion": {
+          "title": "Launching marketplace advertising",
+          "text": "Advertising places, packages, the campaign, payment and ranking."
+        },
+        "integration": {
+          "title": "Launching an integration",
+          "text": "The outside service, message addresses, routing, security and monitoring."
+        }
+      },
+      "note": {
+        "n1": "Fields with a red star (*) must be filled in.",
+        "n2": "In list fields, pick from the offered list rather than typing a value.",
+        "n3": "The view on the right is only a showing: the real data on the site does not change.",
+        "n4": "Before publishing, look through the changes and warnings."
+      },
+      "check": {
+        "c1": "Required fields are filled in",
+        "c2": "The values picked from lists exist in the system",
+        "c3": "The view shows the expected result",
+        "c4": "The check has no errors",
+        "c5": "The impact and warnings have been reviewed"
+      },
+      "warn": {
+        "w1": "The change must be approved before it is published.",
+        "w2": "This setting can affect security, payments or how the system runs. Take care.",
+        "w3": "The change can affect people using the site now and new orders.",
+        "w4": "If the legal text changes, users may be asked for consent again."
+      },
+      "help": {
+        "number": "Enter a number (0 or more).",
+        "list": "Add them one by one, in the order you need.",
+        "toggle": "Switch it on or off.",
+        "pickOne": "Pick one from the list.",
+        "pickExisting": "Pick from what already exists in the system.",
+        "pickMany": "Pick one or several.",
+        "name": "Write a name people will understand.",
+        "status": "Pick the status.",
+        "key": "A short name in Latin letters that is not used anywhere else.",
+        "orderHint": "The smaller the number, the higher in the list.",
+        "activeHint": "When on, it starts working on the site.",
+        "perms": "Pick the permissions to grant."
+      },
+      "when": "When the settings of the “{where}” page need changing without a developer.",
+      "whenPlain": "When these settings need changing without a developer.",
+      "result": "Once published, the change shows on the “{where}” page.",
+      "resultPlain": "Once published, the change starts working on the site.",
+      "previewOf": "{name}: how it will look",
+      "previewText": "As you fill in the form, the approximate look of the result updates here.",
+      "emptyPreview": "Fill in the form fields to see the result.",
+      "reason": "Step {n} in the “{group}” section.",
+      "step": {
+        "pick": {
+          "title": "Pick the linked data",
+          "text": "First pick from the list: {list}."
+        },
+        "fill": {
+          "title": "Fill in the main fields",
+          "text": "Required fields: {list}.",
+          "textNone": "Fill in the fields you need."
+        },
+        "check": {
+          "title": "Check the result",
+          "text": "Look through the view on the right, the check and the list of changes."
+        },
+        "send": {
+          "title": "Save and send for approval",
+          "text": "Save the draft, fix any errors and, when ready, send it for approval."
+        },
+        "publish": {
+          "title": "Save and publish",
+          "text": "Save the draft, fix any errors and, when ready, publish it."
+        }
+      },
+      "count": {
+        "items": "{n} items",
+        "settings": "{n} settings",
+        "more": "and {n} more"
+      },
+      "yes": "Yes",
+      "no": "No",
+      "empty": "Empty",
+      "listItem": "Item {n}",
+      "zoneTashkent": "Tashkent time"
+    },
+    "perm": {
+      "callcenter__access": "Work in the call centre",
+      "sales__access": "Work in sales",
+      "internal_payroll__approve": "Approve payroll",
+      "internal_hrm__approve": "Approve HR records",
+      "packages__approve": "Approve packages",
+      "payout__approve": "Approve payouts",
+      "internal_hrm__manage": "Manage HR",
+      "meetings__manage": "Manage meetings",
+      "packages__create": "Create packages",
+      "internal_live_office__busy_override": "Change an employee's busy status",
+      "audit__export": "Download the activity history",
+      "internal_live_office__grant": "Give access to the live office",
+      "internal_live_office__manage": "Manage the live office",
+      "studio__workflow__manage": "Set the approval order in Studio",
+      "ads__manage": "Manage advertising",
+      "organizations__manage": "Manage organisations",
+      "b2b__manage": "Manage business clients",
+      "templates__manage": "Manage document templates",
+      "approvals__manage": "Manage approvals",
+      "internal_kpi__manage": "Manage staff indicators",
+      "internal_hr__manage": "Manage employees",
+      "internal_org__manage": "Manage the company structure",
+      "internal_payroll__manage": "Manage payroll",
+      "internal_product_feedback__manage": "Manage product feedback",
+      "internal_time__manage": "Manage working time",
+      "internal_execution__manage": "Manage tasks",
+      "replacements__manage": "Manage lawyer replacements",
+      "academy__manage": "Manage the academy",
+      "cases__manage": "Manage cases",
+      "documents__manage": "Manage documents",
+      "notifications__manage": "Manage notifications",
+      "payments__manage": "Manage payments",
+      "refunds__manage": "Manage refunds",
+      "roles__manage": "Manage roles",
+      "leads__manage": "Manage leads",
+      "services__manage": "Manage services",
+      "orders__manage": "Manage orders",
+      "legal_aid__manage": "Manage free legal aid",
+      "subscriptions__manage": "Manage subscriptions",
+      "users__manage": "Manage users",
+      "chat__open_for_dispute": "Open a chat when there is a dispute",
+      "studio__approval__reassign": "Change the approver in Studio",
+      "internal_live_office__correction_review": "Review working-time corrections",
+      "lawyers__verify": "Verify lawyers",
+      "internal_live_office__view_all": "See everyone in the live office",
+      "internal_analytics__view": "See internal reports",
+      "internal_live_office__view": "See the live office",
+      "_other": "Special permission"
     }
   },
   "marketPricing": {

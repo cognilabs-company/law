@@ -19937,3 +19937,4 @@ a.hn-app:hover{background:color-mix(in srgb,var(--b600) 7%,transparent)}
 .tpe-drop span{display:grid;gap:2px;min-width:0}.tpe-drop b{font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.tpe-drop small{font-size:.76rem;color:var(--gray)}
 @media (max-width:560px){.tpe-mode{grid-template-columns:minmax(0,1fr)}}
 .hrmc-noedit{max-width:320px;font-size:.76rem;line-height:1.4}
+.stu-sf__kvk{display:flex;align-items:center;min-height:40px;padding:0 4px;font-size:.86rem;font-weight:700;color:var(--ink)}

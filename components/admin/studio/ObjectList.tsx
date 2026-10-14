@@ -25,8 +25,9 @@ import {
 import { ctorMeta } from "@/lib/studio/constructors";
 import { RiskBadge, SurfaceList } from "./guide";
 import StudioShell from "./StudioShell";
-import { ConstructorIcon, StudioCodeChip, StudioEmpty, StudioErrorNote, StudioLoading, StudioStatusPill, useStudioText } from "./bits";
+import { ConstructorIcon, StudioEmpty, StudioErrorNote, StudioLoading, StudioStatusPill } from "./bits";
 import { CtorSequence } from "./GroupFlow";
+import { useStudioHuman } from "./human";
 import { IconArchive, StudioConfirm, studioEventCode, useStudioRefetch } from "./dash/shared";
 import { IconBolt, IconCircleCheck, IconClipboardCheck, IconClock, IconCopy, IconEdit, IconEye, IconHistory, IconLayers, IconLock, IconPlus, IconSearch, IconShieldCheck, IconUser } from "@/components/icons";
 
@@ -53,18 +54,15 @@ export function recordHref(code: string, url: string): string {
 }
 
 function CtorMeta({ code, ctor }: { code: string; ctor: StudioConstructor | null }) {
-  const { t, num } = useStudioText();
+  const { t, num, where } = useStudioHuman();
   const free = isApprovalFree(code, ctor);
   const req = ctor?.schema.required.length ?? 0;
   return (
     <ul className="stu-olm" aria-label={t("list.meta.label")}>
-      <li>
-        <StudioCodeChip code={code} />
-      </li>
       {ctor?.experience.whereUsed.length ? (
         <li title={t("list.meta.runtimeHint")}>
           <IconLayers aria-hidden />
-          {t("list.meta.runtime")} {ctor.experience.whereUsed.map((w) => w.title).join(", ")}
+          {t("list.meta.runtime")} {where(ctor).join(", ")}
         </li>
       ) : null}
       <li className={free ? "stu-olm__free" : undefined}>
@@ -89,17 +87,17 @@ function CtorMeta({ code, ctor }: { code: string; ctor: StudioConstructor | null
 // What the constructor does and where its result shows — readable before
 // any object of it is opened (spec 10-12 §4).
 function CtorAbout({ ctor }: { ctor: StudioConstructor | null }) {
-  const { t } = useStudioText();
+  const { t, whenToUse, result } = useStudioHuman();
   // What it does is the page's lead; here: when to use it, what comes out,
   // and where that shows.
   const x = ctor?.experience;
-  if (!ctor || !x || (!x.whenToUse && !x.result && !x.whereUsed.length)) return null;
+  if (!ctor || !x) return null;
   return (
     <section className="stu-about" aria-label={t("ux.whatTitle")}>
       <div>
         <h3>{t("ux.when")}</h3>
-        <p>{x.whenToUse || x.plainLanguage}</p>
-        {x.result ? <small>{x.result}</small> : null}
+        <p>{whenToUse(ctor)}</p>
+        <small>{result(ctor)}</small>
       </div>
       {ctor.experience.whereUsed.length ? (
         <div>
@@ -112,14 +110,14 @@ function CtorAbout({ ctor }: { ctor: StudioConstructor | null }) {
 }
 
 function RecordStatus({ r }: { r: StudioRecord }) {
-  const { t } = useStudioText();
+  const { anyStatus } = useStudioHuman();
   if (r.source === "studio" && (STUDIO_STATUSES as string[]).includes(r.status)) return <StudioStatusPill status={r.status as StudioStatus} raw={r.status} />;
   const k = RUNTIME_STATUSES.includes(r.status) ? r.status : "";
-  return <span className={`stu-st stu-st--rt-${k || "other"}`}>{k ? t(`flow.rstatus.${k}`) : r.status || "—"}</span>;
+  return <span className={`stu-st stu-st--rt-${k || "other"}`}>{anyStatus(r.status)}</span>;
 }
 
 function ListBody({ code, ctor, canEdit, canArchive }: { code: string; ctor: StudioConstructor | null; canEdit: boolean; canArchive: boolean }) {
-  const { t, num, ctorName, when } = useStudioText();
+  const { t, num, ctorName, when } = useStudioHuman();
   const router = useRouter();
   const [status, setStatus] = useState("");
   const [source, setSource] = useState<"" | StudioRecordSource>("");
@@ -498,7 +496,7 @@ function ListBody({ code, ctor, canEdit, canArchive }: { code: string; ctor: Stu
 }
 
 export default function ObjectList({ code }: { code: string }) {
-  const { t, ctorName, ctorDesc } = useStudioText();
+  const { t, ctorName, ctorDesc, what } = useStudioHuman();
   const acc = useStudioAccess();
   const reg = useStudioRegistry();
   const ctor = reg.items.find((c) => c.code === code) ?? reg.items.find((c) => c.code.toUpperCase() === code.toUpperCase()) ?? null;
@@ -512,8 +510,7 @@ export default function ObjectList({ code }: { code: string }) {
   return (
     <StudioShell
       title={missing ? t("list.missingTitle") : name}
-      lead={missing ? "" : ctor?.experience.plainLanguage || ctorDesc(realCode) || t("list.lead")}
-      eyebrow={realCode}
+      lead={missing ? "" : (ctor ? what(ctor) : "") || ctorDesc(realCode) || t("list.lead")}
       icon={<ConstructorIcon code={realCode} size="lg" />}
       back={{ href: "/admin/studio", label: t("actions.backHome") }}
       actions={

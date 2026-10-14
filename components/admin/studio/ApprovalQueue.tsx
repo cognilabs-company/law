@@ -80,7 +80,7 @@ function QueueBody() {
   if (ctor && !codes.includes(ctor)) codes.push(ctor);
   codes.sort((a, b) => ctorOrder(a) - ctorOrder(b) || a.localeCompare(b));
 
-  const ctorOpts = [{ value: "", label: t("common.all") }, ...codes.map((c) => ({ value: c, label: `${ctorName(c, ctorOf(c)?.title)} · ${c}` }))];
+  const ctorOpts = [{ value: "", label: t("common.all") }, ...codes.map((c) => ({ value: c, label: ctorName(c, ctorOf(c)?.title) }))];
   const stOpts = [{ value: "", label: t("common.all") }, ...QUEUE_STATUSES.map((s) => ({ value: s, label: statusLabel(s) }))];
   const whoOpts = [
     { value: "", label: t("approvals.filter.everyone") },

@@ -6,7 +6,7 @@ import { aiId } from "@/lib/ai/ids";
 import { toast } from "@/lib/toast";
 import { listApprovalRoutes, useStudioRegistry, type StudioRoute } from "@/lib/services/studio";
 import { STUDIO_CODES, ctorOrder } from "@/lib/studio/constructors";
-import { ConstructorIcon, StudioCodeChip, StudioEmpty, StudioLoading, useStudioLive, useStudioText } from "../bits";
+import { ConstructorIcon, StudioEmpty, StudioLoading, useStudioLive, useStudioText } from "../bits";
 import RouteModal, { DEFAULT_STEPS, type RouteMode, type RouteSaved } from "./RouteModal";
 import { LoadProblem, PanelHead, matchesTerms, type Phase } from "./ui";
 import { IconArrowRight, IconEdit, IconPlus, IconRefresh, IconRocket, IconShieldCheck } from "@/components/icons";
@@ -54,7 +54,7 @@ export default function RoutesPanel() {
 
   async function onSaved(s: RouteSaved) {
     setModal(null);
-    toast(t("settings.routes.saved", { code: s.input.constructorCode }), { tone: "ok" });
+    toast(t("settings.routes.saved", { code: ctorName(s.input.constructorCode) }), { tone: "ok" });
     await load();
   }
 
@@ -64,7 +64,7 @@ export default function RoutesPanel() {
     ? reg.items.map((c) => ({ code: c.code, title: c.title, approvalFree: !c.approvalRequired }))
     : STUDIO_CODES.map((c) => ({ code: c as string, title: "", approvalFree: c === "K16" }));
   ctors.sort((a, b) => ctorOrder(a.code) - ctorOrder(b.code));
-  const codeChoices = ctors.map((c) => ({ code: c.code, label: `${c.code} · ${ctorName(c.code, c.title)}`, approvalFree: c.approvalFree }));
+  const codeChoices = ctors.map((c) => ({ code: c.code, label: ctorName(c.code, c.title), approvalFree: c.approvalFree }));
 
   const items = [...st.items].sort((a, b) => ctorOrder(a.constructorCode) - ctorOrder(b.constructorCode));
   const taken = items.map((r) => r.constructorCode);
@@ -73,7 +73,7 @@ export default function RoutesPanel() {
   const present = [...new Set(taken.filter(Boolean))];
   if (codeF && !present.includes(codeF)) present.push(codeF);
 
-  const codeOpts = [{ value: "", label: t("common.all") }, ...present.map((c) => ({ value: c, label: `${c} · ${ctorName(c)}` }))];
+  const codeOpts = [{ value: "", label: t("common.all") }, ...present.map((c) => ({ value: c, label: ctorName(c) }))];
   const statusOpts = [
     { value: "", label: t("common.all") },
     ...statuses.map((s) => ({ value: s, label: `${statusLabel(s)} (${num(items.filter((r) => r.status === s).length)})` })),
@@ -145,7 +145,6 @@ export default function RoutesPanel() {
                       <ConstructorIcon code={r.constructorCode} size="md" />
                       <div className="stu-sroute__m">
                         <div className="stu-sroute__top">
-                          <StudioCodeChip code={r.constructorCode} />
                           <b>{r.title || ctorName(r.constructorCode)}</b>
                           <span className={`stu-spill${off ? "" : " stu-spill--ok"}`}>{statusLabel(r.status)}</span>
                         </div>
@@ -180,12 +179,11 @@ export default function RoutesPanel() {
                 onClick={() => setModal({ kind: "new", code: c.code })}
                 data-ai-id={aiId(`${AI}.setup`, c.code)}
                 data-ai-type="button"
-                data-ai-label={`${t("settings.routes.setup")} ${c.code}`}
+                data-ai-label={`${t("settings.routes.setup")} ${ctorName(c.code, c.title)}`}
               >
                 <ConstructorIcon code={c.code} size="sm" />
                 <span>
-                  <b>{c.code}</b>
-                  <small>{ctorName(c.code, c.title)}</small>
+                  <b>{ctorName(c.code, c.title)}</b>
                 </span>
                 <IconPlus className="stu-suncov__plus" aria-hidden />
               </button>

@@ -333,7 +333,8 @@ export function SelectIn({
   invalid?: boolean;
   placeholder?: string;
 }) {
-  const opts = value && !options.some((o) => o.value === value) ? [...options, { value, label: value }] : options;
+  const { option: say } = useStudioText();
+  const opts = value && !options.some((o) => o.value === value) ? [...options, { value, label: say(value) }] : options;
   const shown = opts.find((o) => o.value === value)?.label ?? "";
   if (readOnly) {
     return (
@@ -366,7 +367,8 @@ export function ChipPick({
   ai: string;
   invalid?: boolean;
 }) {
-  const extra = value.filter((v) => !options.some((o) => o.value === v)).map((v) => ({ value: v, label: v, icon: undefined }));
+  const { option: say } = useStudioText();
+  const extra = value.filter((v) => !options.some((o) => o.value === v)).map((v) => ({ value: v, label: say(v), icon: undefined }));
   const all = [...options, ...extra];
   const toggle = (v: string) => onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v]);
   return (

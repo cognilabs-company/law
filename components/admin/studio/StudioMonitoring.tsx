@@ -11,7 +11,7 @@ import { subscribeInternalEvents, type InternalEvent } from "@/lib/internalSocke
 import { getStudioMonitoring, isStudioEvent, normStudioActivity, type StudioActivity, type StudioMonitoringUser } from "@/lib/services/studio";
 import { ctorOrder } from "@/lib/studio/constructors";
 import StudioShell from "./StudioShell";
-import { ConstructorIcon, StudioCodeChip, StudioEmpty, StudioLoading, useNow, useStudioLive, useStudioText } from "./bits";
+import { ConstructorIcon, StudioEmpty, StudioLoading, useNow, useStudioLive, useStudioText } from "./bits";
 import { StudioKpi, LoadProblem, initialsOf, matchesTerms, type Phase } from "./settings/ui";
 import { IconChartBar, IconClock, IconEdit, IconPlus, IconRefresh, IconSend, IconUsers } from "@/components/icons";
 
@@ -264,7 +264,7 @@ function MonitoringBody() {
   if (code && !codes.includes(code)) codes.push(code);
   const codeOpts = [
     { value: "", label: t("common.all") },
-    ...codes.map((c) => ({ value: c, label: `${c} · ${ctorName(c)} (${num(rows.filter((r) => r.a.constructorCode === c).length)})` })),
+    ...codes.map((c) => ({ value: c, label: `${ctorName(c)} (${num(rows.filter((r) => r.a.constructorCode === c).length)})` })),
   ];
   const stateOpts = [
     { value: "", label: t("common.all") },
@@ -479,7 +479,7 @@ function MonitoringBody() {
                   role="row"
                   data-ai-id={aiId(`${AI}.row`, a.sessionId || a.userId)}
                   data-ai-type="row"
-                  data-ai-label={`${name} · ${a.constructorCode} · ${objName}`}
+                  data-ai-label={`${name} · ${objName}`}
                 >
                   <span className="stu-mon__who" role="cell">
                     <span className="stu-sava" aria-hidden>
@@ -505,7 +505,6 @@ function MonitoringBody() {
                         <b>{objName}</b>
                       )}
                       <small>
-                        <StudioCodeChip code={a.constructorCode} />
                         {a.constructorCode ? ctorName(a.constructorCode) : ""}
                       </small>
                       {whatOf(a) ? <small className="stu-mon__act">{whatOf(a)}</small> : null}

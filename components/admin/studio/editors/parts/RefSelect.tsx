@@ -30,7 +30,7 @@ type Props = {
 export default function RefSelect(props: Props) {
   const { source, value, readOnly, label, labelOf, multiple } = props;
   const pick = (v: string[]) => (props.multiple ? props.onChange(v) : props.onChange(v[v.length - 1] ?? ""));
-  const { t, role, ctorName, option, num } = useStudioText();
+  const { t, role, ctorName, option, num, perm } = useStudioText();
   const key = keyOf(source);
   // Raw rows: they are named at render time, so the list is fetched once per
   // source and never again because a translation helper changed identity.
@@ -42,11 +42,12 @@ export default function RefSelect(props: Props) {
     (v: string, backend: string) => {
       if (labelOf) return labelOf(v, backend);
       if (key === "roles") return role(v);
-      if (key === "studio-constructors") return `${v} · ${ctorName(v)}`;
+      if (key === "studio-constructors") return ctorName(v);
+      if (key === "permissions") return perm(v);
       if (key === "promotion-placements" && t.has(`option.${v}`)) return option(v);
       return backend;
     },
-    [labelOf, key, role, ctorName, option, t],
+    [labelOf, key, role, ctorName, option, t, perm],
   );
   const toOption = useCallback(
     (i: StudioReferenceItem): SearchOption => {
@@ -55,12 +56,12 @@ export default function RefSelect(props: Props) {
         key === "users"
           ? [str(r.role) ? role(str(r.role)) : "", str(r.lexgo_id)].filter(Boolean).join(" · ")
           : key === "document-templates"
-            ? [str(r.category), str(r.language).toUpperCase()].filter(Boolean).join(" · ")
+            ? [str(r.category) && t.has(`option.${str(r.category)}`) ? option(str(r.category)) : "", str(r.language) && t.has(`option.${str(r.language)}`) ? option(str(r.language)) : ""].filter(Boolean).join(" · ")
             : key === "promotion-packages"
               ? [str(r.placement) && t.has(`option.${str(r.placement)}`) ? option(str(r.placement)) : "", r.price != null ? `${num(Number(r.price))} ${str(r.currency) || "UZS"}` : "", r.days ? t("generic.refDays", { n: Number(r.days) }) : ""].filter(Boolean).join(" · ")
               : key === "subscription-plans"
                 ? r.monthly_price != null ? t("generic.refMonthly", { price: num(Number(r.monthly_price)) }) : ""
-                : [str(r.code), str(r.category_title)].filter(Boolean).join(" · ") || (key === "roles" ? str(r.value) : "");
+                : str(r.category_title);
       return { value: i.value, label: nameOf(i.value, i.label), sub: sub || undefined };
     },
     [key, role, option, num, t, nameOf],

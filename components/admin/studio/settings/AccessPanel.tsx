@@ -7,7 +7,7 @@ import { asDict, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { STUDIO_ROLES, listStudioAccess, saveStudioAccess, studioErrorOf, useStudioRegistry, type StudioAccessGrant } from "@/lib/services/studio";
 import { STUDIO_CODES, ctorOrder } from "@/lib/studio/constructors";
-import { StudioCodeChip, StudioEmpty, StudioLoading, useStudioErrorText, useStudioText } from "../bits";
+import { StudioEmpty, StudioLoading, useStudioErrorText, useStudioText } from "../bits";
 import GrantModal, { grantLexgoId, type GrantMode, type GrantSaved } from "./GrantModal";
 import { ConfirmModal, LoadProblem, PanelHead, initialsOf, matchesTerms, type Phase } from "./ui";
 import { IconCircleCheck, IconCrown, IconEdit, IconEye, IconInfo, IconLock, IconRefresh, IconRocket, IconShieldCheck, IconUserPlus, IconUsers } from "@/components/icons";
@@ -200,7 +200,6 @@ export default function AccessPanel() {
                           {g.constructorCodes.length ? (
                             g.constructorCodes.slice(0, 6).map((c) => (
                               <span key={c} title={ctorName(c)}>
-                                <StudioCodeChip code={c} />
                               </span>
                             ))
                           ) : (

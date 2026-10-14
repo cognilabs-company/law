@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MASK, previewStudioDraft, type StudioPreview, type StudioSchemaField } from "@/lib/services/studio";
 import { IconAlert, IconCircleCheck, IconEye, IconHistory, IconRefresh, IconShieldCheck } from "@/components/icons";
-import { useStudioText } from "../bits";
+import { useStudioHuman } from "../human";
 import { ChecklistList, PreviewView, RiskBadge, SurfaceList } from "../guide";
 
 type Dict = Record<string, unknown>;
@@ -51,28 +51,27 @@ export default function LivePreview({
   editing: boolean;
   onPickError: (path: string) => void;
 }) {
-  const { t, field } = useStudioText();
+  const hm = useStudioHuman();
+  const { t } = hm;
   const [tab, setTab] = useState<Tab>("preview");
   const d = preview.data;
   const errs = d ? Object.entries(d.errors) : [];
-  const label = (k: string) => fields.find((f) => f.key === k.split(/[.[]/)[0])?.label || field(k);
+  // A field by its own name; a field inside another, as "outer → inner".
+  const label = (k: string) => {
+    const parts = k.replace(/\[\d+\]/g, "").split(".").filter(Boolean);
+    const root = parts[0] ?? k;
+    const top = hm.fieldLabel(root, fields.find((f) => f.key === root)?.label);
+    return parts.length > 1 ? `${top} → ${hm.fieldLabel(parts[parts.length - 1])}` : top;
+  };
   // A secret never shows: what the preview masked, and whatever is named
   // like one, stays the mask in the diff as well.
   const maskedKeys = new Set((d?.visual?.items ?? []).filter((i) => i.masked).map((i) => i.key));
-  const shown = (k: string, v: unknown) => {
-    if (maskedKeys.has(k) || SECRET.test(k)) return MASK;
-    if (v === null || v === undefined || v === "") return "—";
-    if (typeof v === "object") {
-      const s = JSON.stringify(v, (key, val) => (key && SECRET.test(key) ? MASK : val));
-      return s.length > 120 ? `${s.slice(0, 119)}…` : s;
-    }
-    return String(v);
-  };
+  const shown = (k: string, v: unknown) => (maskedKeys.has(k) || SECRET.test(k) ? MASK : hm.value(v, k));
   return (
     <section className={`stu-live2${preview.loading ? " is-loading" : ""}`} aria-label={t("ux.previewTitle")} aria-busy={preview.loading}>
       <header className="stu-live2__h">
         <span className="stu-live2__dot" aria-hidden />
-        <b>{d?.visual?.title || t("ux.previewTitle")}</b>
+        <b>{t("ux.previewTitle")}</b>
         {preview.loading ? <small className="stu-live2__state">{t("ux.updating")}</small> : d?.dryRun ? <small className="stu-live2__state">{t("ux.dryRun")}</small> : null}
       </header>
       <div className="hrm-tabs stu-live2__tabs" role="tablist">
@@ -104,13 +103,13 @@ export default function LivePreview({
         ) : tab === "preview" ? (
           d.visual ? (
             <>
-              {d.visual.description ? <p className="stu-live2__desc">{d.visual.description}</p> : null}
+              <p className="stu-live2__desc">{hm.h("previewText")}</p>
               {d.visual.warnings.length ? (
                 <ul className="stu-live2__warn">
                   {d.visual.warnings.map((w) => (
                     <li key={w}>
                       <IconAlert aria-hidden />
-                      {w}
+                      {hm.warn(w)}
                     </li>
                   ))}
                 </ul>
@@ -118,7 +117,7 @@ export default function LivePreview({
               {d.visual.state === "empty" ? (
                 <div className="stu-live2__empty">
                   <IconEye aria-hidden />
-                  <p>{d.visual.emptyState || t("ux.emptyPreview")}</p>
+                  <p>{hm.h("emptyPreview")}</p>
                 </div>
               ) : (
                 <PreviewView visual={d.visual} />
@@ -142,7 +141,7 @@ export default function LivePreview({
                     <IconAlert aria-hidden />
                     <span>
                       <b>{label(k)}</b>
-                      <small>{v}</small>
+                      <small>{hm.fieldErr(v)}</small>
                     </span>
                   </button>
                 </li>
@@ -192,7 +191,9 @@ export default function LivePreview({
 
 // What the change reaches (spec §10), the backend's checklist as it came.
 export function ImpactBody({ preview: d }: { preview: StudioPreview }) {
-  const { t, field } = useStudioText();
+  const hm = useStudioHuman();
+  const { t } = hm;
+  const field = (k: string) => hm.fieldLabel(k);
   return (
     <div className="stu-impact2">
       <dl>
@@ -232,7 +233,7 @@ export function ImpactBody({ preview: d }: { preview: StudioPreview }) {
           {d.warnings.map((w) => (
             <li key={w}>
               <IconAlert aria-hidden />
-              {w}
+              {hm.warn(w)}
             </li>
           ))}
         </ul>

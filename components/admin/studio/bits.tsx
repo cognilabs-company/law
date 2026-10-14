@@ -82,6 +82,8 @@ export function useStudioText() {
   };
   // A constructor field's label and a select option's label: the Studio
   // dictionary first, the key made readable only as a last resort.
+  // A permission by what it lets a person do, never its code.
+  const perm = (p: string) => (p && t.has(`perm.${p.replace(/\./g, "__")}`) ? t(`perm.${p.replace(/\./g, "__")}`) : t("perm._other"));
   const field = (k: string) => (k && t.has(`field.${k}`) ? t(`field.${k}`) : humanize(k));
   const option = (v: string) => (v && t.has(`option.${v}`) ? t(`option.${v}`) : humanize(v));
   const fieldHelp = (k: string) => (k && t.has(`fieldHelp.${k}`) ? t(`fieldHelp.${k}`) : "");
@@ -108,10 +110,14 @@ export function useStudioText() {
   const fieldErr = (msg: string) => {
     if (!msg) return "";
     if (ERR_TOKENS.has(msg)) return t(`fieldErr.${msg.slice(1)}`);
+    // A backend error code (lib/services/studio errorsListOf): said in the
+    // reader's language instead of the backend's sentence.
+    const coded = /^@code:([a-z_]+)(?::(-?\d+(?:\.\d+)?))?$/.exec(msg);
+    if (coded) return t(`fieldErr.c.${t.has(`fieldErr.c.${coded[1]}`) ? coded[1] : "other"}`, { n: coded[2] ?? 0 });
     if (/^@[A-Za-z]+$/.test(msg) && t.has(`editors.err.${msg.slice(1)}`)) return t(`editors.err.${msg.slice(1)}`);
     return msg;
   };
-  return { t, locale, status, ctorName, ctorDesc, group, role, stepTitle, stepStatus, field, option, fieldHelp, when, day, num, duration, ago, fieldErr };
+  return { t, locale, status, ctorName, ctorDesc, group, role, stepTitle, stepStatus, field, option, perm, fieldHelp, when, day, num, duration, ago, fieldErr };
 }
 
 export function StudioStatusPill({ status, raw = "", small }: { status: StudioStatus; raw?: string; small?: boolean }) {
@@ -181,11 +187,6 @@ export function ConstructorIcon({ code, size = "md", className = "" }: { code: s
       <Glyph />
     </span>
   );
-}
-
-export function StudioCodeChip({ code }: { code: string }) {
-  if (!code) return null;
-  return <span className="stu-code">{code}</span>;
 }
 
 export function StudioUnavailable({ compact }: { compact?: boolean }) {
@@ -277,12 +278,14 @@ export function StudioEmpty({
 }
 
 export function useStudioErrorText() {
-  const { t } = useStudioText();
+  const { t, fieldErr } = useStudioText();
+  // The backend's own sentence is in one language and written for a
+  // developer; the reader gets ours, and the field errors in plain words.
   return (e: unknown): { title: string; text: string } => {
     const se = studioErrorOf(e);
     const title = t(`error.kind.${se.kind}`);
     const fields = Object.values(se.fieldErrors).filter(Boolean);
-    const text = se.message || fields.slice(0, 3).join(" · ") || t(`error.hint.${se.kind}`);
+    const text = [...new Set(fields.map(fieldErr))].slice(0, 3).join(" · ") || t(`error.hint.${se.kind}`);
     return { title, text };
   };
 }

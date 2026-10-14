@@ -1547,9 +1547,15 @@ function errorsListOf(d: Dict): StudioFieldErrors {
     const e = asDict(it);
     const loc = Array.isArray(e.loc) ? e.loc.map(str).filter((s) => s && s !== "body" && s !== "payload").join(".") : "";
     const key = first(e.field, e.path, e.name, loc) || "_";
-    const msg = first(e.message, e.msg, e.error, e.detail);
+    const raw = first(e.message, e.msg, e.error, e.detail);
+    // A coded error becomes a token the screen says in the reader's own
+    // language, about the field by its own name ("@code:minimum:1"); the
+    // backend's sentence is kept only where it sent no code.
+    const code = asStr(e.code).toLowerCase();
+    const bound = code === "minimum" || code === "maximum" ? /-?\d+(?:\.\d+)?/.exec(raw)?.[0] : undefined;
+    const msg = /^[a-z_]+$/.test(code) ? `@code:${code}${bound !== undefined ? `:${bound}` : ""}` : raw;
     if (!msg) continue;
-    out[key] = out[key] ? `${out[key]}; ${msg}` : msg;
+    out[key] = out[key] && !msg.startsWith("@code:") && !out[key].startsWith("@code:") ? `${out[key]}; ${msg}` : out[key] || msg;
   }
   if (!list.length && d.errors && typeof d.errors === "object") {
     for (const [k, v] of Object.entries(d.errors as Dict)) {

@@ -33,7 +33,6 @@ import {
 import StudioShell from "./StudioShell";
 import {
   ConstructorIcon,
-  StudioCodeChip,
   StudioEmpty,
   StudioErrorNote,
   StudioLoading,
@@ -108,7 +107,7 @@ export default function StudioObjectEditor({ id, newCode, ctx = "" }: { id: stri
     <StudioShell
       title={code ? ctorName(code) : t("screens.object.title")}
       lead=""
-      eyebrow={code ? t("editor.eyebrow", { code }) : t("eyebrow")}
+      eyebrow={t("eyebrow")}
       icon={code ? <ConstructorIcon code={code} size="lg" /> : undefined}
       need={creating ? "edit" : "any"}
       tabs={false}
@@ -745,7 +744,6 @@ function Workspace({ id, newCode, ctx, onCode }: { id: string; newCode: string; 
             <IconChevronLeft aria-hidden />
             {code ? ctorName(code) : t("actions.back")}
           </button>
-          <StudioCodeChip code={code} />
           <div className="stu-ed__meta">
             {detail?.currentVersion ? <VersionBadge version={detail.currentVersion} /> : null}
             <StudioStatusPill status={status} raw={statusRaw} />

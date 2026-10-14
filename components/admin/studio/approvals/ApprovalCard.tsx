@@ -2,7 +2,7 @@
 
 import { aiId } from "@/lib/ai/ids";
 import type { StudioDetail } from "@/lib/services/studio";
-import { ConstructorIcon, StudioCodeChip, StudioStatusPill, useStudioText } from "../bits";
+import { ConstructorIcon, StudioStatusPill, useStudioText } from "../bits";
 import { commentsCountOf, currentStepOf, submittedOf, versionLabelOf } from "./helpers";
 import { IconChat, IconChevronRight, IconClock, IconPaperclip, IconRocket, IconShieldCheck, IconUser } from "@/components/icons";
 
@@ -21,7 +21,7 @@ export default function ApprovalCard({
   active: boolean;
   onOpen: (item: StudioDetail) => void;
 }) {
-  const { t, ctorName, stepTitle, ago, num } = useStudioText();
+  const { t, ctorName, stepTitle, ago, num, when } = useStudioText();
   const sub = submittedOf(item);
   const ver = versionLabelOf(item);
   const step = currentStepOf(item);
@@ -40,7 +40,6 @@ export default function ApprovalCard({
         <ConstructorIcon code={item.code} />
         <span className="stu-apc__body">
           <span className="stu-apc__top">
-            <StudioCodeChip code={item.code} />
             <span className="stu-apc__ctor">{ctorName(item.code)}</span>
             {ver ? <span className="stu-apc__ver">v{ver}</span> : null}
           </span>
@@ -53,7 +52,7 @@ export default function ApprovalCard({
               </span>
             ) : null}
             {sub.at ? (
-              <span title={sub.at}>
+              <span title={when(sub.at)}>
                 <IconClock aria-hidden />
                 {ago(sub.at, now)}
               </span>

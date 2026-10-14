@@ -1,21 +1,11 @@
 "use client";
 
-import { useStudioText } from "./bits";
+import { useStudioHuman } from "./human";
 
 type Value = Record<string, unknown>;
 
-function textOf(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "—";
-  if (typeof value === "boolean") return value ? "✓" : "—";
-  if (typeof value === "string" || typeof value === "number") return String(value);
-  return "";
-}
-
 export function PayloadSummary({ payload, compact = false }: { payload: Value; compact?: boolean }) {
-  const { t, field, option } = useStudioText();
-  // A code-like value with a known option name (criminal, one_time, uz-latn)
-  // reads in the user's language; free text stays as typed.
-  const show = (value: unknown) => (typeof value === "string" && /^[A-Za-z][\w-]*$/.test(value) && t.has(`option.${value}`) ? option(value) : textOf(value));
+  const { t, fieldLabel, value: show } = useStudioHuman();
   const entries = Object.entries(payload).filter(([, value]) => value !== undefined && value !== null);
 
   if (!entries.length) return <p className="stu-hint">{t("generic.noData")}</p>;
@@ -23,7 +13,7 @@ export function PayloadSummary({ payload, compact = false }: { payload: Value; c
   return (
     <dl className={`stu-payload-summary${compact ? " stu-payload-summary--compact" : ""}`}>
       {entries.map(([key, value]) => {
-        const label = field(key);
+        const label = fieldLabel(key);
         const list = Array.isArray(value) ? value : null;
         const object = value && typeof value === "object" && !Array.isArray(value) ? (value as Value) : null;
         return (

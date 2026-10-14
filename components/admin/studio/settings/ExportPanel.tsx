@@ -41,7 +41,7 @@ export default function ExportPanel() {
   }, [code]);
 
   const codes = (reg.items.length ? reg.items.map((c) => c.code) : [...STUDIO_CODES]).sort((a, b) => ctorOrder(a) - ctorOrder(b));
-  const codeOpts = codes.map((c) => ({ value: c, label: `${c} · ${ctorName(c)}` }));
+  const codeOpts = codes.map((c) => ({ value: c, label: ctorName(c) }));
   const live = objs && objs.code === code ? objs : null;
   const loading = Boolean(code) && !live;
   const list = live?.items ?? [];

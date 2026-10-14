@@ -7,7 +7,7 @@ import { logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { syncStudioConstructors, useStudioRegistry } from "@/lib/services/studio";
 import { STUDIO_GROUPS, ctorMeta, ctorOrder } from "@/lib/studio/constructors";
-import { ConstructorIcon, StudioCodeChip, StudioEmpty, StudioErrorNote, StudioLoading, useStudioErrorText, useStudioText } from "../bits";
+import { ConstructorIcon, StudioEmpty, StudioErrorNote, StudioLoading, useStudioErrorText, useStudioText } from "../bits";
 import { ConfirmModal, PanelHead, matchesTerms } from "./ui";
 import { IconCircleCheck, IconLayers, IconRefresh, IconRocket } from "@/components/icons";
 
@@ -15,7 +15,7 @@ const AI = "admin.studio.settings.registry";
 const SHOW_REQ = 4;
 
 export default function RegistryPanel() {
-  const { t, ctorName, group, num, field } = useStudioText();
+  const { t, ctorName, group, num, field, option } = useStudioText();
   const errText = useStudioErrorText();
   const reg = useStudioRegistry();
   const [ask, setAsk] = useState(false);
@@ -104,12 +104,11 @@ export default function RegistryPanel() {
                   const name = ctorName(c.code, c.title);
                   const req = c.schema.required;
                   return (
-                    <div key={c.code} className="stu-sreg__row" role="row" data-ai-id={aiId(`${AI}.row`, c.code)} data-ai-type="row" data-ai-label={`${c.code} ${name}`}>
+                    <div key={c.code} className="stu-sreg__row" role="row" data-ai-id={aiId(`${AI}.row`, c.code)} data-ai-type="row" data-ai-label={name}>
                       <span className="stu-sreg__ctor" role="cell">
                         <ConstructorIcon code={c.code} size="sm" />
                         <span>
                           <span className="stu-sreg__nm">
-                            <StudioCodeChip code={c.code} />
                             <b>{name}</b>
                           </span>
                         </span>
@@ -119,9 +118,9 @@ export default function RegistryPanel() {
                         {!c.runtimeTarget ? (
                           <span className="stu-hint">—</span>
                         ) : t.has(`settings.registry.target.${c.runtimeTarget}`) ? (
-                          <span className="stu-sreg__tgt" title={c.runtimeTarget}>{t(`settings.registry.target.${c.runtimeTarget}`)}</span>
+                          <span className="stu-sreg__tgt">{t(`settings.registry.target.${c.runtimeTarget}`)}</span>
                         ) : (
-                          <code className="stu-sreg__code">{c.runtimeTarget}</code>
+                          <span className="stu-sreg__tgt">{option(c.runtimeTarget)}</span>
                         )}
                       </span>
                       <span role="cell" className="stu-sreg__cell">
@@ -143,7 +142,7 @@ export default function RegistryPanel() {
                         {req.length ? (
                           <>
                             {req.slice(0, SHOW_REQ).map((f) => (
-                              <span key={f} className="stu-sreg__f" title={f}>
+                              <span key={f} className="stu-sreg__f">
                                 {field(f)}
                               </span>
                             ))}
