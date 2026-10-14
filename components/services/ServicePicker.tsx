@@ -2,12 +2,15 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { searchServices, type BackendService } from "@/lib/services/backend";
+import { getServices, type BackendService } from "@/lib/services/backend";
 import { isAdvocateOnly } from "@/lib/services/sellerServices";
 import { IconCheck, IconClose, IconLayers, IconLock, IconSearch } from "@/components/icons";
 import { som } from "./bits";
 
 type Hit = { service: BackendService; blocked: "" | "taken" | "advocate" };
+
+const sellable = (s: BackendService): boolean =>
+  Boolean(s.id) && s.isActive && !s.documentTemplateId && s.executorType !== "ai_lawyer";
 type Result = { q: string; hits: BackendService[]; failed: boolean };
 
 export default function ServicePicker({
@@ -39,11 +42,11 @@ export default function ServicePicker({
     if (!enough) return;
     let alive = true;
     const h = window.setTimeout(() => {
-      searchServices(query, { limit: 20 }, locale)
+      getServices({ q: query, limit: 20 }, locale)
         .then((rows) => {
-          if (alive) // A seller offers professional marketplace services; a service
-          // tied to a document template belongs to the document catalog.
-          setRes({ q: query, hits: rows.map((r) => r.service).filter((s) => s.id && s.isActive && !s.documentTemplateId), failed: false });
+          // A seller offers what a person delivers; a document-template or
+          // AI-lawyer row belongs to the document catalog, not to them.
+          if (alive) setRes({ q: query, hits: rows.filter(sellable), failed: false });
         })
         .catch(() => {
           if (alive) setRes({ q: query, hits: [], failed: true });

@@ -1,6 +1,8 @@
 {
   "studio": {
     "option": {
+      "mandatory": "Majburiy",
+      "optional": "Ixtiyoriy",
       "FREE": "Bepul",
       "STANDARD": "Standart",
       "PRO": "Pro",
@@ -1818,6 +1820,10 @@
       }
     },
     "field": {
+      "components": "Tarkibiy qismlar",
+      "custom_items": "Qo'shimcha bandlar",
+      "tiers": "Tariflar",
+      "kind": "Turi",
       "acceptance_criteria": "Qabul mezonlari",
       "acceptance_required": "Rozilik talab qilinadi",
       "accepted_by": "Qabul qiluvchi",

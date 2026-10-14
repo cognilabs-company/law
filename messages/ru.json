@@ -1,6 +1,8 @@
 {
   "studio": {
     "option": {
+      "mandatory": "Обязательный",
+      "optional": "Опциональный",
       "FREE": "Бесплатный",
       "STANDARD": "Стандарт",
       "PRO": "Pro",
@@ -1818,6 +1820,10 @@
       }
     },
     "field": {
+      "components": "Компоненты",
+      "custom_items": "Дополнительные пункты",
+      "tiers": "Тарифы",
+      "kind": "Тип",
       "acceptance_criteria": "Критерии приёмки",
       "acceptance_required": "Требуется согласие",
       "accepted_by": "Кем принято",

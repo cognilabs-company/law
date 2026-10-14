@@ -1,6 +1,8 @@
 {
   "studio": {
     "option": {
+      "mandatory": "Mandatory",
+      "optional": "Optional",
       "FREE": "Free",
       "STANDARD": "Standard",
       "PRO": "Pro",
@@ -1818,6 +1820,10 @@
       }
     },
     "field": {
+      "components": "Components",
+      "custom_items": "Custom items",
+      "tiers": "Tiers",
+      "kind": "Kind",
       "acceptance_criteria": "Acceptance criteria",
       "acceptance_required": "Acceptance required",
       "accepted_by": "Accepted by",
