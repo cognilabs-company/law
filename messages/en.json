@@ -4277,7 +4277,9 @@
           "plan": "Sell a plan",
           "doc": "Lawyer drafts",
           "market": "Marketplace",
-          "urgent": "Connect now"
+          "urgent": "Connect now",
+          "supplement": "Replace or refund",
+          "supplementOpen": "{n} request(s) waiting"
         },
         "soon": "Coming soon",
         "off": "Off",
@@ -4286,7 +4288,8 @@
         "plan": "Plan",
         "doc": "Document",
         "market": "Service",
-        "capOff": "This action is not available right now."
+        "capOff": "This action is not available right now.",
+        "supplement": "Supplemental"
       },
       "period": {
         "monthly": "1 month",
@@ -4392,7 +4395,21 @@
         "nextStatus": {
           "admin_telegram_confirm_required": "Waiting for an admin to approve in Telegram"
         },
-        "afterPayment": "Once the payment is approved, the work goes to the specialist."
+        "afterPayment": "Once the payment is approved, the work goes to the specialist.",
+        "kind": "What to sell",
+        "kindService": "Service",
+        "kindPackage": "Package",
+        "package": "Package and tier",
+        "packageRequired": "Choose a package tier.",
+        "pricePending": "The price is still calculating or came back with an error — check the options.",
+        "packagesLoading": "Loading packages…",
+        "packagesError": "Couldn't load packages.",
+        "packagePh": "Package name or category…",
+        "noPackages": "No matching package found.",
+        "premiumNote": "{tier} tier: only providers with LexGo extended verification.",
+        "extended": "Extended verification",
+        "noPackageSellers": "No provider has enabled this tier yet.",
+        "options": "Options"
       },
       "confirm": {
         "client": "Client",
@@ -4427,6 +4444,53 @@
         "docDuplicatePlain": "The client already has an open request for this document.",
         "marketDuplicate": "The client already has an active request with this specialist for this service: {id}.",
         "marketDuplicatePlain": "The client already has an active request with this specialist for this service."
+      },
+      "sup": {
+        "heading": "Resolve a supplemental payment",
+        "lead": "Resolve an expired or client-agreed supplemental payment inside this ticket. Every action is confirmed through Telegram.",
+        "request": "Supplemental payment request",
+        "none": "No request was found in this ticket's context. If you know the ID, enter it below.",
+        "manual": "Request ID (manual)",
+        "manualPh": "For example: ap-…",
+        "expires": "expires: {at}",
+        "action": "Action",
+        "actions": {
+          "replace_options": "Replace options",
+          "full_refund": "Full refund",
+          "partial_refund": "Partial refund"
+        },
+        "hints": {
+          "replace_options": "The previous pending payment is cancelled, the total is recalculated, the 24-hour period restarts and the Telegram confirmation is resent.",
+          "full_refund": "When the client and operator agreed to cancel. The refund is confirmed through Telegram.",
+          "partial_refund": "When the scope was reduced — enter the refund amount. Confirmed through Telegram."
+        },
+        "newOptions": "New options",
+        "noTarget": "The request has no service or package attached — options can't be loaded.",
+        "optionsLoading": "Loading options…",
+        "optionsError": "Couldn't load options.",
+        "noOptions": "No options left to replace with.",
+        "amount": "Refund amount",
+        "amountPh": "For example: 100 000",
+        "paidTotal": "Paid: {sum}",
+        "reason": "Reason",
+        "reasonPh": "For example: scope reduced, client agreed",
+        "pickRequest": "Choose a request or enter its ID first.",
+        "pickOptions": "Choose at least one new option.",
+        "reasonRequired": "Write the reason.",
+        "amountRequired": "Enter the refund amount.",
+        "next": "Continue",
+        "confirmTitle": "Confirm the action",
+        "confirmReplace": "The new payment request is resent to the client with a Telegram confirmation.",
+        "confirmRefund": "The refund only happens after it's confirmed through Telegram.",
+        "sent": {
+          "replace_options": "Options replaced",
+          "full_refund": "Full refund requested",
+          "partial_refund": "Partial refund requested"
+        },
+        "telegramWait": "Waiting for confirmation",
+        "waitNote": "The status updates here when the Telegram confirmation arrives.",
+        "approvedNote": "Confirmed through Telegram.",
+        "rejectedNote": "Rejected through Telegram."
       }
     },
     "queue": {
@@ -7310,7 +7374,8 @@
         "court": "Court",
         "appeal": "Appeal",
         "completed": "Completed",
-        "archived": "Archived"
+        "archived": "Archived",
+        "escalated": "Escalated to an operator"
       },
       "docStatus": {
         "payment_rejected": "Payment cancelled",

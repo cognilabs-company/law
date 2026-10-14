@@ -21,18 +21,19 @@ import {
   type AssistContext,
   type AssistUrgentRoute,
 } from "@/lib/services/supportAssist";
-import { IconAlert, IconBolt, IconBriefcase, IconCard, IconFileText, IconHeadset, IconInfo, IconLock, IconRefresh, IconUser } from "@/components/icons";
+import { IconAlert, IconBolt, IconBriefcase, IconCard, IconCoins, IconFileText, IconHeadset, IconInfo, IconLock, IconRefresh, IconUser } from "@/components/icons";
 import { AssistAiHistory, AssistClientCard, AssistOverview } from "./AssistSummary";
 import AssistPlan, { type AssistPlansState } from "./AssistPlan";
 import AssistDoc from "./AssistDoc";
 import AssistMarket from "./AssistMarket";
+import AssistSupplemental from "./AssistSupplemental";
 import AssistUrgent, { type AssistUrgentState } from "./AssistUrgent";
 import { AssistNote } from "./bits";
 
-type Tab = "plan" | "doc" | "market" | "urgent";
-const TABS: Tab[] = ["plan", "doc", "market", "urgent"];
-const AI_TAB: Record<Tab, string> = { plan: "subscription", doc: "document", market: "marketplace", urgent: "urgent-advokat" };
-const TAB_ICON: Record<Tab, ComponentType<SVGProps<SVGSVGElement>>> = { plan: IconCard, doc: IconFileText, market: IconBriefcase, urgent: IconBolt };
+type Tab = "plan" | "doc" | "market" | "supplement" | "urgent";
+const TABS: Tab[] = ["plan", "doc", "market", "supplement", "urgent"];
+const AI_TAB: Record<Tab, string> = { plan: "subscription", doc: "document", market: "marketplace", supplement: "marketplace-additional-payment", urgent: "urgent-advokat" };
+const TAB_ICON: Record<Tab, ComponentType<SVGProps<SVGSVGElement>>> = { plan: IconCard, doc: IconFileText, market: IconBriefcase, supplement: IconCoins, urgent: IconBolt };
 const LIVE_SETTLE_MS = 600;
 
 type Load = { ticketId: string; key: string; ctx: AssistContext | null; error: unknown; at: number };
@@ -95,7 +96,7 @@ export default function AssistPanel({
   const [plans, setPlans] = useState<Plans | null>(null);
   const [planTick, setPlanTick] = useState(0);
   const [tab, setTab] = useState<Tab>("plan");
-  const [seen, setSeen] = useState<Record<Tab, boolean>>({ plan: true, doc: false, market: false, urgent: false });
+  const [seen, setSeen] = useState<Record<Tab, boolean>>({ plan: true, doc: false, market: false, supplement: false, urgent: false });
   const route = useSyncExternalStore(subscribeAssistUrgentRoute, assistUrgentRoute, serverRoute);
   const plansFor = useRef("");
   const capsCb = useRef(onCapabilities);
@@ -264,16 +265,19 @@ export default function AssistPanel({
       plan: caps.subscriptionCheckout,
       doc: caps.documentLawyerRequest,
       market: caps.marketplacePurchaseRequest,
+      supplement: caps.marketplacePurchaseRequest || ctx.supplementals.length > 0,
       urgent: caps.urgentAdvokatRequest !== false,
     };
+    const supOpen = ctx.supplementals.filter((s) => s.status === "pending" || s.status === "escalated").length;
     const soon = (k: Tab) => k === "urgent" && allowed.urgent && urgentState === "soon";
-    const hint = (k: Tab) => (!allowed[k] ? t("tabs.off") : soon(k) ? t("tabs.soon") : t(`tabs.hint.${k}`));
+    const hint = (k: Tab) => (!allowed[k] ? t("tabs.off") : soon(k) ? t("tabs.soon") : k === "supplement" && supOpen ? t("tabs.hint.supplementOpen", { n: supOpen }) : t(`tabs.hint.${k}`));
     const section = (k: Tab) => {
       if (!allowed[k]) return <p className="sasst__empty">{t("tabs.capOff")}</p>;
       const common = { ticketId, client: ctx.client, clientName: ticket.clientName, ctx, ctxAt: current?.at ?? 0, onDone: done, onBlock };
       if (k === "plan") return <AssistPlan key={ticketId} {...common} plans={plansState} />;
       if (k === "doc") return <AssistDoc key={ticketId} {...common} />;
       if (k === "urgent") return <AssistUrgent key={ticketId} {...common} state={urgentState} />;
+      if (k === "supplement") return <AssistSupplemental key={ticketId} {...common} />;
       return <AssistMarket key={ticketId} {...common} />;
     };
     body = (

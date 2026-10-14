@@ -156,7 +156,35 @@ export type AssistContext = {
   recentDocuments: AssistDocument[];
   recentOrders: AssistOrder[];
   aiHistory: AssistAiHistory;
+  supplementals: AssistSupplemental[];
 };
+
+export type AssistSupplementalOption = { id: string; label: string; amount: number };
+export type AssistSupplemental = {
+  id: string;
+  orderId: string;
+  workId: string;
+  status: string;
+  amount: number;
+  newTotal: number;
+  paidTotal: number;
+  note: string;
+  expiresAt: string;
+  options: AssistSupplementalOption[];
+  paidOptionIds: string[];
+  serviceId: string;
+  packageId: string;
+  serviceTitle: string;
+  lawyerUserId: string;
+  lawyerName: string;
+};
+
+export type AssistResolveInput =
+  | { action: "replace_options"; selectedOptionIds: string[] }
+  | { action: "full_refund"; reason: string }
+  | { action: "partial_refund"; amount: number; reason: string };
+
+export type AssistResolveResult = { status: string; amount: number; telegramSent: boolean; refundId: string; requestId: string };
 
 export type AssistPreview = {
   planId: string;
@@ -563,7 +591,67 @@ export function normAssistContext(v: unknown): AssistContext {
     recentDocuments: asArr(d.recent_documents).map(normDocument).filter((x) => x.id),
     recentOrders: asArr(d.recent_orders).map(normOrder).filter((x) => x.id),
     aiHistory: aiHistoryOf(d),
+    supplementals: supplementalsOf(d),
   };
+}
+
+function supOption(v: unknown): AssistSupplementalOption {
+  const d = asDict(v);
+  return { id: asStr(d.id ?? d.option_id), label: asStr(d.label ?? d.title ?? d.name), amount: uzs(d, "amount", "price", "value") };
+}
+
+function normSupplemental(v: unknown, order: Dict = {}): AssistSupplemental | null {
+  const d = asDict(v);
+  const id = asStr(d.id ?? d.request_id ?? d.additional_payment_request_id);
+  if (!id) return null;
+  const det = asDict(order.details);
+  const quote = asDict(d.quote);
+  const opts = asArr(d.selected_options ?? d.options ?? quote.breakdown).map(supOption).filter((o) => o.id || o.label);
+  const ids = asArr(d.selected_option_ids).map((x) => asStr(x)).filter(Boolean);
+  const paid = asArr(order.selected_options ?? det.selected_options ?? asDict(order.quote ?? det.quote_snapshot).breakdown).map(supOption).map((o) => o.id).filter(Boolean);
+  return {
+    id,
+    orderId: asStr(d.order_id ?? order.id),
+    workId: asStr(d.work_id ?? order.work_id ?? det.work_id),
+    status: asStr(d.status, "pending").toLowerCase(),
+    amount: uzs(d, "amount", "additional_amount") || uzs(quote, "additional_amount"),
+    newTotal: uzs(d, "new_total", "total_price") || uzs(quote, "total_price"),
+    paidTotal: uzs(d, "paid_total", "previous_total") || uzs(order, "price"),
+    note: asStr(d.note).trim(),
+    expiresAt: asStr(d.expires_at ?? d.deadline_at),
+    options: opts.length ? opts : ids.map((x) => ({ id: x, label: "", amount: 0 })),
+    paidOptionIds: asArr(d.paid_option_ids).map((x) => asStr(x)).filter(Boolean).length ? asArr(d.paid_option_ids).map((x) => asStr(x)).filter(Boolean) : paid,
+    serviceId: asStr(d.service_id ?? order.service_id ?? det.service_id),
+    packageId: asStr(d.package_id ?? order.package_id ?? det.package_id),
+    serviceTitle: titleOf(d.service_title ?? order.service_title ?? det.service_title),
+    lawyerUserId: asStr(d.lawyer_user_id ?? order.lawyer_user_id ?? asDict(order.lawyer).id),
+    lawyerName: asStr(d.lawyer_name ?? order.lawyer_name ?? asDict(order.lawyer).name).trim(),
+  };
+}
+
+function supplementalsOf(d: Dict): AssistSupplemental[] {
+  const out: AssistSupplemental[] = [];
+  const push = (v: unknown, order?: Dict) => {
+    const s = normSupplemental(v, order);
+    if (s && !out.some((x) => x.id === s.id)) out.push(s);
+  };
+  for (const v of asArr(d.additional_payment_requests ?? d.marketplace_additional_payment_requests ?? d.pending_additional_payments)) push(v);
+  const ticket = asDict(d.ticket);
+  const meta = asDict(ticket.meta ?? ticket.metadata ?? ticket.context);
+  const direct = meta.additional_payment_request ?? ticket.additional_payment_request ?? d.additional_payment_request;
+  if (direct && typeof direct === "object") push(direct, asDict(meta.order ?? d.order));
+  else {
+    const rid = asStr(meta.additional_payment_request_id ?? ticket.additional_payment_request_id);
+    if (rid) push({ id: rid, order_id: meta.order_id ?? ticket.order_id }, asDict(meta.order ?? d.order));
+  }
+  for (const o of asArr(d.recent_orders)) {
+    const od = asDict(o);
+    const det = asDict(od.details);
+    const one = od.additional_payment_request ?? det.additional_payment_request;
+    if (one && typeof one === "object") push(one, od);
+    for (const v of asArr(od.additional_payment_requests ?? det.additional_payment_requests)) push(v, od);
+  }
+  return out;
 }
 
 export function normAssistPreview(v: unknown): AssistPreview {
@@ -722,20 +810,38 @@ export async function createAssistDocumentRequest(
 
 export async function createAssistMarketplaceRequest(
   ticketId: string,
-  input: { lawyerUserId: string; serviceId: string; note: string; preferredChannel: AssistChannel; preferredTime: string },
+  input: { lawyerUserId: string; serviceId?: string; packageId?: string; selectedOptionIds?: string[]; note: string; preferredChannel: AssistChannel; preferredTime: string },
 ): Promise<AssistMarketResult> {
-  return normAssistMarketResult(
-    await http(assistPath(ticketId, "marketplace-purchase-request"), {
-      method: "POST",
-      body: JSON.stringify({
-        lawyer_user_id: input.lawyerUserId,
-        service_id: input.serviceId,
-        note: input.note.trim(),
-        preferred_channel: input.preferredChannel,
-        preferred_time: input.preferredTime.trim(),
-      }),
-    }),
-  );
+  const body: Dict = {
+    lawyer_user_id: input.lawyerUserId,
+    selected_option_ids: input.selectedOptionIds ?? [],
+    note: input.note.trim(),
+    preferred_channel: input.preferredChannel,
+    preferred_time: input.preferredTime.trim(),
+  };
+  if (input.packageId) body.package_id = input.packageId;
+  else body.service_id = input.serviceId ?? "";
+  return normAssistMarketResult(await http(assistPath(ticketId, "marketplace-purchase-request"), { method: "POST", body: JSON.stringify(body) }));
+}
+
+export async function resolveAssistSupplemental(ticketId: string, requestId: string, input: AssistResolveInput): Promise<AssistResolveResult> {
+  const body: Dict =
+    input.action === "replace_options"
+      ? { action: input.action, selected_option_ids: input.selectedOptionIds }
+      : input.action === "full_refund"
+        ? { action: input.action, reason: input.reason.trim() }
+        : { action: input.action, amount: Math.round(input.amount), reason: input.reason.trim() };
+  const d = asDict(await http(assistPath(ticketId, `marketplace-additional-payment/${encodeURIComponent(requestId)}/resolve`), { method: "POST", body: JSON.stringify(body) }));
+  const refund = asDict(d.refund ?? d.refund_request);
+  const req = asDict(d.additional_payment_request ?? d.request);
+  const payment = asDict(d.payment);
+  return {
+    status: asStr(d.status ?? refund.status ?? req.status, "pending").toLowerCase(),
+    amount: uzs(refund, "amount") || uzs(payment, "amount") || uzs(req, "amount") || uzs(d, "amount"),
+    telegramSent: d.telegram_sent === true || refund.telegram_sent === true || payment.telegram_sent === true,
+    refundId: asStr(refund.id ?? d.refund_id),
+    requestId: asStr(req.id ?? d.request_id) || requestId,
+  };
 }
 
 let urgentRoute: AssistUrgentRoute = "unknown";

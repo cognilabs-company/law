@@ -4277,7 +4277,9 @@
           "plan": "Paket sotish",
           "doc": "Advokat yozadi",
           "market": "Marketplace",
-          "urgent": "Darhol aloqa"
+          "urgent": "Darhol aloqa",
+          "supplement": "Almashtirish yoki qaytarish",
+          "supplementOpen": "{n} ta so'rov kutmoqda"
         },
         "soon": "Tez orada",
         "off": "Yopiq",
@@ -4286,7 +4288,8 @@
         "plan": "Tarif",
         "doc": "Hujjat",
         "market": "Xizmat",
-        "capOff": "Bu amal hozircha yopiq."
+        "capOff": "Bu amal hozircha yopiq.",
+        "supplement": "Qo'shimcha to'lov"
       },
       "period": {
         "monthly": "1 oy",
@@ -4392,7 +4395,21 @@
         "nextStatus": {
           "admin_telegram_confirm_required": "Telegramda admin tasdig'i kutilmoqda"
         },
-        "afterPayment": "To'lov tasdiqlangach ish mutaxassisga yuboriladi."
+        "afterPayment": "To'lov tasdiqlangach ish mutaxassisga yuboriladi.",
+        "kind": "Nima sotiladi",
+        "kindService": "Xizmat",
+        "kindPackage": "Paket",
+        "package": "Paket va tarif",
+        "packageRequired": "Paket tarifini tanlang.",
+        "pricePending": "Narx hali hisoblanmoqda yoki xato bilan qaytdi — opsiyalarni tekshiring.",
+        "packagesLoading": "Paketlar yuklanmoqda…",
+        "packagesError": "Paketlar ro'yxati yuklanmadi.",
+        "packagePh": "Paket nomi yoki toifa…",
+        "noPackages": "Mos paket topilmadi.",
+        "premiumNote": "{tier} tarifi: faqat LexGo kengaytirilgan tekshiruvidan o'tgan ijrochilar.",
+        "extended": "Kengaytirilgan tekshiruv",
+        "noPackageSellers": "Bu tarifni hali hech bir ijrochi yoqmagan.",
+        "options": "Opsiyalar"
       },
       "confirm": {
         "client": "Mijoz",
@@ -4427,6 +4444,53 @@
         "docDuplicatePlain": "Mijozda bu hujjat bo'yicha ochiq so'rov bor.",
         "marketDuplicate": "Mijozda bu mutaxassis va xizmat bo'yicha faol so'rov bor: {id}.",
         "marketDuplicatePlain": "Mijozda bu mutaxassis va xizmat bo'yicha faol so'rov bor."
+      },
+      "sup": {
+        "heading": "Qo'shimcha to'lovni hal qilish",
+        "lead": "Muddati o'tgan yoki mijoz bilan kelishilgan qo'shimcha to'lovni shu murojaat ichida hal qiling. Har bir amal Telegram orqali tasdiqlanadi.",
+        "request": "Qo'shimcha to'lov so'rovi",
+        "none": "Bu murojaat kontekstida so'rov topilmadi. ID ma'lum bo'lsa, quyida kiriting.",
+        "manual": "So'rov ID (qo'lda)",
+        "manualPh": "Masalan: ap-…",
+        "expires": "muddati: {at}",
+        "action": "Amal",
+        "actions": {
+          "replace_options": "Opsiyalarni almashtirish",
+          "full_refund": "To'liq qaytarish",
+          "partial_refund": "Qisman qaytarish"
+        },
+        "hints": {
+          "replace_options": "Oldingi kutilayotgan to'lov bekor qilinadi, yangi summa hisoblanadi, 24 soatlik muddat qayta boshlanadi va Telegram tasdig'i qayta yuboriladi.",
+          "full_refund": "Mijoz va operator bekor qilishga kelishgan bo'lsa. Qaytarish Telegram orqali tasdiqlanadi.",
+          "partial_refund": "Ish hajmi qisqargan bo'lsa — qaytariladigan summani kiriting. Telegram orqali tasdiqlanadi."
+        },
+        "newOptions": "Yangi opsiyalar",
+        "noTarget": "So'rovda xizmat yoki paket aniqlanmadi — opsiyalarni yuklab bo'lmaydi.",
+        "optionsLoading": "Opsiyalar yuklanmoqda…",
+        "optionsError": "Opsiyalarni yuklab bo'lmadi.",
+        "noOptions": "Almashtirish uchun opsiya qolmagan.",
+        "amount": "Qaytariladigan summa",
+        "amountPh": "Masalan: 100 000",
+        "paidTotal": "To'langan: {sum}",
+        "reason": "Sabab",
+        "reasonPh": "Masalan: ish hajmi qisqardi, mijoz rozi",
+        "pickRequest": "Avval so'rovni tanlang yoki ID kiriting.",
+        "pickOptions": "Kamida bitta yangi opsiyani tanlang.",
+        "reasonRequired": "Sababni yozing.",
+        "amountRequired": "Qaytariladigan summani kiriting.",
+        "next": "Davom etish",
+        "confirmTitle": "Amalni tasdiqlang",
+        "confirmReplace": "Yangi to'lov so'rovi mijozga Telegram tasdig'i bilan qayta yuboriladi.",
+        "confirmRefund": "Qaytarish faqat Telegram orqali tasdiqlangandan keyin bajariladi.",
+        "sent": {
+          "replace_options": "Opsiyalar almashtirildi",
+          "full_refund": "To'liq qaytarish so'raldi",
+          "partial_refund": "Qisman qaytarish so'raldi"
+        },
+        "telegramWait": "Tasdiq kutilmoqda",
+        "waitNote": "Telegram tasdig'i kelganda holat shu yerda yangilanadi.",
+        "approvedNote": "Telegram orqali tasdiqlandi.",
+        "rejectedNote": "Telegram orqali rad etildi."
       }
     },
     "queue": {
@@ -7316,7 +7380,8 @@
         "court": "Sud",
         "appeal": "Apellyatsiya",
         "completed": "Yakunlangan",
-        "archived": "Arxivlangan"
+        "archived": "Arxivlangan",
+        "escalated": "Operatorga o'tdi"
       },
       "docStatus": {
         "payment_rejected": "To'lov bekor qilingan",
