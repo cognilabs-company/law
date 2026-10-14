@@ -7789,7 +7789,7 @@
         "documentRequests": "Mening hujjatlarim",
         "messages": "Xabarlar",
         "notifications": "Bildirishnomalar",
-        "packages": "Paketlar"
+        "packages": "Xizmatlar"
       },
       "advocate": {
         "services": "Xizmatlarim",
@@ -9336,12 +9336,12 @@
           "tier": {
             "BASIC": "Basic",
             "STANDARD": "Standard",
-            "PREMIUM": "Premium"
+            "PREMIUM": "LexGo Mutaxassisi"
           },
           "policy": {
             "BASIC": "Bu paketni faqat tekshiruvdan o'tgan Basic darajadagi ijrochilar bajaradi.",
             "STANDARD": "Bu paketni faqat tekshiruvdan o'tgan Standard darajadagi ijrochilar bajaradi.",
-            "PREMIUM": "Bu paketni faqat LexGo kengaytirilgan tekshiruvidan o'tgan Premium darajadagi ijrochilar bajaradi."
+            "PREMIUM": "Bu paketni faqat LexGo kengaytirilgan tekshiruvidan o'tgan LexGo Mutaxassisi darajasidagi ijrochilar bajaradi."
           },
           "policyAny": "Bu paketni faqat unga mos ijrochilar bajaradi.",
           "noSellers": "Hozircha bu paket shartlariga mos ijrochi yo'q. Keyinroq qayta urinib ko'ring yoki boshqa paketni tanlang.",
@@ -9929,7 +9929,7 @@
       "packages": {
         "allCategories": "Barcha toifalar",
         "bestValue": "Eng ko‘p tanlanadi",
-        "title": "Xizmat paketlari",
+        "title": "Xizmatlar",
         "count": "{n} ta paket",
         "lead": "Paket — bir necha xizmat bitta narxda. Nima kiradi, nima kirmaydi va muddat aniq yozilgan.",
         "searchPh": "Paket yoki toifa nomi…",
@@ -9938,7 +9938,7 @@
         "tiers": {
           "BASIC": "Basic",
           "STANDARD": "Standard",
-          "PREMIUM": "Premium"
+          "PREMIUM": "LexGo Mutaxassisi"
         },
         "som": "so'm",
         "compare": "Alohida: {sep} · Paketda: {pkg}",

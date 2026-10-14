@@ -7783,7 +7783,7 @@
         "documentRequests": "My documents",
         "messages": "Messages",
         "notifications": "Notifications",
-        "packages": "Packages"
+        "packages": "Services"
       },
       "advocate": {
         "services": "My services",
@@ -9330,12 +9330,12 @@
           "tier": {
             "BASIC": "Basic",
             "STANDARD": "Standard",
-            "PREMIUM": "Premium"
+            "PREMIUM": "LexGo Specialist"
           },
           "policy": {
             "BASIC": "Only verified Basic-level providers carry out this package.",
             "STANDARD": "Only verified Standard-level providers carry out this package.",
-            "PREMIUM": "Only Premium-level providers who passed LexGo's extended check carry out this package."
+            "PREMIUM": "Only performers at the LexGo Specialist level, who passed LexGo's extended review, deliver this package."
           },
           "policyAny": "Only providers who fit this package carry it out.",
           "noSellers": "No provider meets this package's conditions right now. Try again later or pick another package.",
@@ -9923,7 +9923,7 @@
       "packages": {
         "allCategories": "All categories",
         "bestValue": "Most chosen",
-        "title": "Service packages",
+        "title": "Services",
         "count": "{n, plural, one {# package} other {# packages}}",
         "lead": "A package is several services at one price, with what is and isn't included and the timeline spelled out.",
         "searchPh": "Package or category name…",
@@ -9932,7 +9932,7 @@
         "tiers": {
           "BASIC": "Basic",
           "STANDARD": "Standard",
-          "PREMIUM": "Premium"
+          "PREMIUM": "LexGo Specialist"
         },
         "som": "UZS",
         "compare": "Separately: {sep} · In package: {pkg}",
