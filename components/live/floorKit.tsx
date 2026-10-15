@@ -22,6 +22,10 @@ const ZU = 22;
 
 export const pt = (x: number, y: number, z = 0): [number, number] => [x * XX + y * YX, x * XY + y * YY - z * ZU];
 export const pts = (...p: [number, number, number][]) => p.map(([x, y, z]) => pt(x, y, z).map((n) => n.toFixed(1)).join(",")).join(" ");
+// The way back: a move on screen, in drawing units, as a move along the
+// floor (what dragging a room needs).
+const DET = XX * YY - YX * XY;
+export const unpt = (sx: number, sy: number): [number, number] => [(sx * YY - sy * YX) / DET, (sy * XX - sx * XY) / DET];
 // What is nearer the viewer is drawn later.
 export const nearness = (x: number, y: number) => 0.47 * x + 1.05 * y;
 

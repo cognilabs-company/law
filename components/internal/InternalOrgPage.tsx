@@ -25,11 +25,11 @@ import { OrgTreePanel } from "@/components/internal/ops/OrgOps";
 import Select from "@/components/Select";
 import InternalField from "@/components/internal/InternalField";
 import InternalOrgBoard, { type OrgView } from "@/components/internal/InternalOrgBoard";
+import OrgUnitCreate, { UNIT_TYPES } from "@/components/internal/OrgUnitCreate";
 import { Employee360, EmployeeCreate } from "@/components/internal/EmployeeDrawers";
 import { refreshHrmDirectory, useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { EntitySelect, HrmDrawer, HrmEmpty, HrmError, HrmHead, HrmLoading, HrmPanel, HrmStatus, useStatusLabel } from "@/components/internal/HrmUi";
 
-const UNIT_TYPES = ["company", "department", "team", "branch", "division"] as const;
 const POSITION_CATEGORIES = ["management", "operations", "support", "legal", "documents", "marketplace", "sales", "finance", "hr", "quality"] as const;
 const STATUSES = ["active", "inactive"] as const;
 const EMPTY_BOARD: OrgBoard = { nodes: [], edges: [], stats: {}, layout: {}, raw: {} };
@@ -213,7 +213,8 @@ export default function InternalOrgPage() {
         ) : <HrmEmpty icon={IconBriefcase} title={t("emptyPositions")} />}
       </HrmPanel>
 
-      <UnitDrawer state={unitForm} board={board} onClose={() => setUnitForm(null)} onSaved={() => { setUnitForm(null); refreshHrmDirectory(); void load(undefined, true); }} />
+      <UnitDrawer state={unitForm?.id ? unitForm : null} board={board} onClose={() => setUnitForm(null)} onSaved={() => { setUnitForm(null); refreshHrmDirectory(); void load(undefined, true); }} />
+      <OrgUnitCreate state={unitForm && !unitForm.id ? unitForm : null} board={board} onClose={() => setUnitForm(null)} onSaved={() => { setUnitForm(null); refreshHrmDirectory(); void load(undefined, true); }} />
       <Modal
         open={!!closing}
         onClose={() => !closeBusy && setClosing(null)}

@@ -4,14 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { asDict, asStr } from "@/lib/http";
 import { canInternal, getMyProfile } from "@/lib/services/internalHrm";
-import { LIVE_STATUSES, startBusy, stopBusy, type LiveActivity, type LiveBusy, type LivePerson } from "@/lib/services/internalLive";
+import { LIVE_STATUSES, getLiveRooms, startBusy, stopBusy, updateRoom, type LiveActivity, type LiveBusy, type LivePerson, type LiveRoom } from "@/lib/services/internalLive";
 import Select from "@/components/Select";
 import { IconChartBar, IconFlag, IconGrid, IconHourglass, IconList, IconLock, IconMapPin, IconRefresh, IconSearch, IconSliders } from "@/components/icons";
 import { EntitySelect, HrmError, HrmHead, HrmLoading, HrmPanel, useHrmFormat, useNow } from "@/components/internal/HrmUi";
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { useLiveBoard } from "./useLiveBoard";
 import LiveBoardView from "./LiveBoardView";
-import LiveFloor from "./LiveFloor";
+import LiveFloor, { type RoomMove } from "./LiveFloor";
+import RoomBuilder from "./RoomBuilder";
+import { roomPayload } from "./roomPlan";
 import LiveEmployeeDrawer, { type CorrectionTarget } from "./LiveEmployeeDrawer";
 import LiveAnalytics from "./LiveAnalytics";
 import LiveCorrections, { CorrectionForm } from "./LiveCorrections";
@@ -47,6 +49,11 @@ export default function LiveOfficePage() {
   const [me, setMe] = useState<{ id: string; name: string } | null>(null);
   const [myBusy, setMyBusy] = useState<LiveBusy | null | undefined>(undefined);
   const [busyDialog, setBusyDialog] = useState<"start" | "stop" | null>(null);
+  // Admins: the rooms as the rooms list has them (with their meta: where
+  // each stands on the floor, its colour), and the room being built.
+  const [roomRows, setRoomRows] = useState<LiveRoom[]>([]);
+  const [roomTick, setRoomTick] = useState(0);
+  const [builder, setBuilder] = useState<LiveRoom | "new" | null>(null);
 
   // The search box asks the backend (§9 q=) once typing settles.
   useEffect(() => {
@@ -68,6 +75,30 @@ export default function LiveOfficePage() {
     }, 0);
     return () => clearTimeout(h);
   }, []);
+
+  useEffect(() => {
+    if (!canManage) return;
+    const c = new AbortController();
+    getLiveRooms({}, c.signal)
+      .then((r) => !c.signal.aborted && setRoomRows(r))
+      .catch(() => undefined);
+    return () => c.abort();
+  }, [canManage, roomTick]);
+  const roomMeta = useMemo(() => Object.fromEntries(roomRows.map((r) => [r.id, asDict(r.raw.meta)])), [roomRows]);
+  const fullRoom = (r: LiveRoom) => roomRows.find((x) => x.id === r.id) ?? r;
+  // Rooms put somewhere else on the floor: each keeps the rest of its meta.
+  // The list is updated in place, so the floor does not jump back while the
+  // board is read again.
+  const saveMoves = async (moves: RoomMove[]) => {
+    const next = moves.map(({ room, x, y }) => {
+      const full = fullRoom(room);
+      const meta = { ...asDict(full.raw.meta), floor: { x, y } };
+      return { ...full, raw: { ...full.raw, meta } };
+    });
+    await Promise.all(next.map((r) => updateRoom(r.id, roomPayload(r, asDict(r.raw.meta)))));
+    setRoomRows((rows) => [...rows.filter((r) => !next.some((n) => n.id === r.id)), ...next]);
+    reload();
+  };
 
   useEffect(() => {
     const c = new AbortController();
@@ -226,7 +257,17 @@ export default function LiveOfficePage() {
           ) : phase === "error" ? (
             <HrmError text={apiMessage(error, t("errors.load"))} onRetry={reload} retryLabel={t("retry")} />
           ) : view === "floor" ? (
-            <LiveFloor board={board} now={now} inactiveAfter={INACTIVE_AFTER} onOpen={openPerson} filtered={filtered} />
+            <LiveFloor
+              board={board}
+              now={now}
+              inactiveAfter={INACTIVE_AFTER}
+              onOpen={openPerson}
+              filtered={filtered}
+              roomMeta={canManage ? roomMeta : undefined}
+              onArrange={canManage ? saveMoves : undefined}
+              onAddRoom={canManage ? () => setBuilder("new") : undefined}
+              onEditRoom={canManage ? (r) => setBuilder(fullRoom(r)) : undefined}
+            />
           ) : (
             <LiveBoardView board={board} now={now} inactiveAfter={INACTIVE_AFTER} onOpen={openPerson} filtered={filtered} />
           )}
@@ -262,6 +303,20 @@ export default function LiveOfficePage() {
         />
       ) : null}
 
+      {builder ? (
+        <RoomBuilder
+          room={builder === "new" ? null : builder}
+          unitOptions={unitOptions}
+          unitName={unitName}
+          defaultUnit={unitId}
+          onClose={() => setBuilder(null)}
+          onSaved={() => {
+            setBuilder(null);
+            setRoomTick((n) => n + 1);
+            reload();
+          }}
+        />
+      ) : null}
       {correction ? <CorrectionForm key={`${correction.targetType}-${correction.targetId}-${correction.title}`} target={correction} onClose={() => setCorrection(null)} onSent={() => undefined} unitOptions={unitOptions} roomOptions={board.rooms.map((r) => ({ value: r.id, label: r.name, sub: unitName(r.unitId) }))} /> : null}
 
       <ReasonModal

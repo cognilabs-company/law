@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { asArr, asDict, asNum, asStr } from "@/lib/http";
 import { getOrgUnitDetail, normEmployee, personName, type OrgBoard, type OrgBoardNode } from "@/lib/services/internalHrm";
-import { IconBriefcase, IconBuilding, IconEdit, IconList, IconPlus, IconSearch, IconUser, IconUsers } from "@/components/icons";
+import { IconBuilding, IconEdit, IconPlus, IconSearch, IconUser, IconUsers } from "@/components/icons";
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
-import { HrmAvatar, HrmBar, HrmEmpty, HrmError, HrmKv, HrmLoading, HrmPerson, HrmSection, HrmStat, HrmStatus, useHrmFormat } from "@/components/internal/HrmUi";
+import { HrmAvatar, HrmEmpty, HrmError, HrmKv, HrmLoading, HrmPerson, HrmSection, HrmStatus, useHrmFormat } from "@/components/internal/HrmUi";
 import Select from "@/components/Select";
 import OrgWhiteboard from "./OrgWhiteboard";
+import OrgStats from "./OrgStats";
 import { buildTree, byPosition, filterTree, flatten, positionIdOf, subtreeOf, type Tree } from "./orgTree";
 
 // HRM org chart (10-09 guide §10): the whiteboard (OrgWhiteboard), the same
@@ -72,7 +73,7 @@ export default function InternalOrgBoard({
     return <div className="hrm-panel"><HrmEmpty icon={IconBuilding} title={t("emptyUnits")} text={tb("emptyLead")} action={<button className="btn btn--pri btn--sm" type="button" onClick={() => onAddUnit("")}><IconPlus />{t("newUnit")}</button>} /></div>;
   }
   if (view === "board") return <OrgWhiteboard trees={trees} {...actions} onEditUnit={onEditUnit} onAddUnit={onAddUnit} onAddEmployee={onAddEmployee} onOpenEmployee={onOpenEmployee} />;
-  if (view === "stats") return <OrgStats board={board} trees={trees} />;
+  if (view === "stats") return <OrgStats trees={trees} onOpenEmployee={onOpenEmployee} onEditUnit={onEditUnit} />;
 
   return (
     <section className="org">
@@ -143,38 +144,6 @@ function OrgList({ trees, showPeople, selectedId, onSelect, filtered }: { trees:
 
 function FragmentRows({ children }: { children: ReactNode }) {
   return <>{children}</>;
-}
-
-// ── Statistics view ────────────────────────────────────────────────────────
-
-function OrgStats({ board, trees }: { board: OrgBoard; trees: Tree[] }) {
-  const tb = useTranslations("internal.people.board");
-  const dir = useHrmDirectory();
-  const s = board.stats;
-  const units = flatten(trees);
-  const max = Math.max(1, ...units.map((u) => u.node.peopleCount));
-  const unassigned = dir.employees.filter((e) => !e.unitId).length;
-  return (
-    <div className="hrm-grid">
-      <div className="hrm-stats">
-        <HrmStat icon={IconBuilding} tone="blue" label={tb("statUnits")} value={asNum(s.units, units.length)} />
-        <HrmStat icon={IconUsers} tone="ok" label={tb("statEmployees")} value={asNum(s.employees)} hint={unassigned ? tb("unassigned", { n: unassigned }) : undefined} />
-        <HrmStat icon={IconBriefcase} tone="violet" label={tb("statAssignments")} value={asNum(s.assignments)} />
-        <HrmStat icon={IconList} tone="cyan" label={tb("statLevels")} value={asNum(s.levels)} hint={tb("statRoots", { n: asNum(s.roots) })} />
-      </div>
-      <div className="hrm-panel">
-        <div className="hrm-panel__h"><h3><span className="hrm-panel__i"><IconUsers /></span><span>{tb("headcount")}</span></h3></div>
-        <ul className="hrm-list">
-          {[...units].sort((a, b) => b.node.peopleCount - a.node.peopleCount).map((u) => (
-            <li key={u.node.id}>
-              <span className="hrm-list__t"><b>{u.node.label}</b><small>{u.node.subtitle}</small></span>
-              <span className="hrm-list__a org-headcount"><HrmBar value={(u.node.peopleCount / max) * 100} tone="blue" /><b className="hrm-num">{u.node.peopleCount}</b></span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
 }
 
 // ── Detail panel ───────────────────────────────────────────────────────────

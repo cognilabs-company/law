@@ -8,16 +8,13 @@ import type { SearchOption } from "@/components/SearchSelect";
 import InternalField from "@/components/internal/InternalField";
 import {
   MEMBERSHIP_TYPES,
-  ROOM_TYPES,
   createGrant,
   createRegistryRule,
-  createRoom,
   getActivityRegistry,
   getLiveRooms,
   getMemberships,
   revokeGrant,
   saveMembership,
-  updateRoom,
   type LiveGrant,
   type LiveMembership,
   type LiveRoom,
@@ -26,6 +23,7 @@ import {
 import { IconBuilding, IconCheck, IconClock, IconEdit, IconLayers, IconList, IconLock, IconPlus, IconUsers } from "@/components/icons";
 import { EntitySelect, HrmDrawer, HrmEmpty, HrmError, HrmLoading, HrmPanel, HrmStatus, useHrmFormat, useNow } from "@/components/internal/HrmUi";
 import { ReasonModal, apiMessage, dayIso, zonedIso, useLiveText } from "./bits";
+import RoomBuilder from "./RoomBuilder";
 
 type Section = "rooms" | "memberships" | "grants" | "registry";
 type Opts = { unitOptions: SearchOption[]; employeeOptions: SearchOption[]; userOptions: SearchOption[]; unitName: (id: string) => string };
@@ -126,9 +124,10 @@ function Rooms({ opts, onChanged }: { opts: Opts; onChanged: () => void }) {
         <HrmEmpty icon={IconBuilding} title={t("rooms.empty")} text={t("rooms.emptyText")} />
       )}
       {edit ? (
-        <RoomDrawer
+        <RoomBuilder
           room={edit === "new" ? null : edit}
-          opts={opts}
+          unitOptions={opts.unitOptions}
+          unitName={opts.unitName}
           onClose={() => setEdit(null)}
           onSaved={() => {
             setEdit(null);
@@ -138,70 +137,6 @@ function Rooms({ opts, onChanged }: { opts: Opts; onChanged: () => void }) {
         />
       ) : null}
     </HrmPanel>
-  );
-}
-
-function RoomDrawer({ room, opts, onClose, onSaved }: { room: LiveRoom | null; opts: Opts; onClose: () => void; onSaved: () => void }) {
-  const { t, roomType } = useLiveText();
-  const [form, setForm] = useState({ unit: room?.unitId ?? "", code: room?.code ?? "", name: room?.name ?? "", type: room?.type ?? "virtual", capacity: room?.capacity ? String(room.capacity) : "", status: room?.status ?? "active", order: room ? String(room.order) : "10" });
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
-  const set = (k: keyof typeof form) => (v: string) => setForm((c) => ({ ...c, [k]: v }));
-  async function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (busy || !form.unit || !form.name.trim() || !form.code.trim()) return;
-    setBusy(true);
-    setErr("");
-    const payload = { org_unit_id: form.unit, code: form.code.trim(), name: form.name.trim(), room_type: form.type, capacity: Number(form.capacity) || 0, status: form.status, order_index: Number(form.order) || 0, meta: room?.raw.meta ?? {} };
-    try {
-      if (room) await updateRoom(room.id, payload);
-      else await createRoom(payload);
-      onSaved();
-    } catch (cause) {
-      setErr(apiMessage(cause, t("errors.save")));
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <HrmDrawer open onClose={onClose} title={room ? t("rooms.edit") : t("rooms.new")} sub={room?.name}>
-      <form className="hrm-form" onSubmit={submit}>
-        {err ? <HrmError text={err} /> : null}
-        <div className="hrm-form__grid">
-          <InternalField label={t("rooms.unit")}>
-            <EntitySelect value={form.unit} onChange={set("unit")} options={opts.unitOptions} placeholder={t("corrections.pickUnit")} ariaLabel={t("rooms.unit")} />
-          </InternalField>
-          <InternalField label={t("rooms.name")}>
-            <input value={form.name} onChange={(e) => set("name")(e.target.value)} maxLength={120} required placeholder={t("rooms.namePh")} />
-          </InternalField>
-          <InternalField label={t("rooms.code")}>
-            <input value={form.code} onChange={(e) => set("code")(e.target.value.toUpperCase())} maxLength={40} required placeholder="STUDIO-01" />
-          </InternalField>
-          <InternalField label={t("rooms.type")}>
-            <Select value={form.type} onChange={set("type")} options={ROOM_TYPES.map((x) => ({ value: x, label: roomType(x) }))} ariaLabel={t("rooms.type")} />
-          </InternalField>
-          <InternalField label={t("rooms.capacity")}>
-            <input value={form.capacity} onChange={(e) => set("capacity")(e.target.value.replace(/\D/g, ""))} inputMode="numeric" maxLength={4} placeholder="20" />
-          </InternalField>
-          <InternalField label={t("rooms.order")}>
-            <input value={form.order} onChange={(e) => set("order")(e.target.value.replace(/\D/g, ""))} inputMode="numeric" maxLength={4} />
-          </InternalField>
-          <InternalField label={t("rooms.status")}>
-            <Select value={form.status} onChange={set("status")} options={["active", "inactive", "archived"].map((x) => ({ value: x, label: t(`roomStatus.${x}`) }))} ariaLabel={t("rooms.status")} />
-          </InternalField>
-        </div>
-        <p className="hrm-form__note">{t("rooms.typeNote")}</p>
-        <div className="hrm-form__foot">
-          <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !form.unit || !form.name.trim() || !form.code.trim()}>
-            <IconCheck />
-            {busy ? t("saving") : t("save")}
-          </button>
-          <button className="btn btn--line btn--sm" type="button" onClick={onClose}>
-            {t("cancel")}
-          </button>
-        </div>
-      </form>
-    </HrmDrawer>
   );
 }
 
