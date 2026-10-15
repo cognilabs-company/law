@@ -3238,6 +3238,8 @@
       "noResults": "Nothing found. Try another word.",
       "typeMore": "Type at least 2 characters",
       "added": "Added",
+      "documentOnly": "AI document",
+      "documentOnlyHint": "This service is handled by the document builder and cannot be added as a professional service",
       "advocateOnly": "Advocates only",
       "advocateOnlyHint": "Only advocates can provide this service",
       "change": "Change",

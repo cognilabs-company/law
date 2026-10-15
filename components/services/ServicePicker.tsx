@@ -2,15 +2,15 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { getServices, type BackendService } from "@/lib/services/backend";
+import { searchServices, type BackendService } from "@/lib/services/backend";
 import { isAdvocateOnly } from "@/lib/services/sellerServices";
 import { IconCheck, IconClose, IconLayers, IconLock, IconSearch } from "@/components/icons";
 import { som } from "./bits";
 
-type Hit = { service: BackendService; blocked: "" | "taken" | "advocate" };
+type Hit = { service: BackendService; blocked: "" | "taken" | "advocate" | "document" };
 
-const sellable = (s: BackendService): boolean =>
-  Boolean(s.id) && s.isActive && !s.documentTemplateId && s.executorType !== "ai_lawyer";
+const visibleResult = (s: BackendService): boolean => Boolean(s.id) && s.isActive;
+const documentService = (s: BackendService): boolean => Boolean(s.documentTemplateId) || s.executorType === "ai_lawyer";
 type Result = { q: string; hits: BackendService[]; failed: boolean };
 
 export default function ServicePicker({
@@ -42,11 +42,9 @@ export default function ServicePicker({
     if (!enough) return;
     let alive = true;
     const h = window.setTimeout(() => {
-      getServices({ q: query, limit: 20 }, locale)
+      searchServices(query, { limit: 20 }, locale)
         .then((rows) => {
-          // A seller offers what a person delivers; a document-template or
-          // AI-lawyer row belongs to the document catalog, not to them.
-          if (alive) setRes({ q: query, hits: rows.filter(sellable), failed: false });
+          if (alive) setRes({ q: query, hits: rows.map((row) => row.service).filter(visibleResult), failed: false });
         })
         .catch(() => {
           if (alive) setRes({ q: query, hits: [], failed: true });
@@ -62,7 +60,7 @@ export default function ServicePicker({
   const loading = enough && !ready;
   const hits: Hit[] = (ready?.hits ?? []).map((s) => ({
     service: s,
-    blocked: taken.has(s.id) ? "taken" : lawyer && isAdvocateOnly(s) ? "advocate" : "",
+    blocked: taken.has(s.id) ? "taken" : documentService(s) ? "document" : lawyer && isAdvocateOnly(s) ? "advocate" : "",
   }));
   const open = enough && !value;
   const pickable = hits.map((h, i) => (h.blocked ? -1 : i)).filter((i) => i >= 0);
@@ -168,7 +166,7 @@ export default function ServicePicker({
                 }}
               >
                 <span className="svpick__oi" aria-hidden="true">
-                  {h.blocked === "advocate" ? <IconLock /> : h.blocked === "taken" ? <IconCheck /> : <IconLayers />}
+                  {h.blocked === "advocate" || h.blocked === "document" ? <IconLock /> : h.blocked === "taken" ? <IconCheck /> : <IconLayers />}
                 </span>
                 <span className="svpick__om">
                   <b>{h.service.name}</b>
@@ -177,6 +175,10 @@ export default function ServicePicker({
                 <span className="svpick__or">
                   {h.blocked === "taken" ? (
                     <em className="svpick__tag">{t("added")}</em>
+                  ) : h.blocked === "document" ? (
+                    <em className="svpick__tag svpick__tag--lock" title={t("documentOnlyHint")}>
+                      {t("documentOnly")}
+                    </em>
                   ) : h.blocked === "advocate" ? (
                     <em className="svpick__tag svpick__tag--lock" title={t("advocateOnlyHint")}>
                       {t("advocateOnly")}
