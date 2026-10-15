@@ -3238,8 +3238,6 @@
       "noResults": "Hech narsa topilmadi. Boshqa so'z bilan urinib ko'ring.",
       "typeMore": "Kamida 2 ta harf yozing",
       "added": "Qo'shilgan",
-      "documentOnly": "AI hujjat xizmati",
-      "documentOnlyHint": "Bu xizmat hujjat konstruktori orqali bajariladi va mutaxassis xizmatiga qo'shilmaydi",
       "advocateOnly": "Faqat advokat",
       "advocateOnlyHint": "Bu xizmatni faqat advokatlar ko'rsata oladi",
       "change": "O'zgartirish",

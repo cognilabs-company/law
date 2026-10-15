@@ -7,10 +7,9 @@ import { isAdvocateOnly } from "@/lib/services/sellerServices";
 import { IconCheck, IconClose, IconLayers, IconLock, IconSearch } from "@/components/icons";
 import { som } from "./bits";
 
-type Hit = { service: BackendService; blocked: "" | "taken" | "advocate" | "document" };
+type Hit = { service: BackendService; blocked: "" | "taken" | "advocate" };
 
 const visibleResult = (s: BackendService): boolean => Boolean(s.id) && s.isActive;
-const documentService = (s: BackendService): boolean => Boolean(s.documentTemplateId) || s.executorType === "ai_lawyer";
 type Result = { q: string; hits: BackendService[]; failed: boolean };
 
 export default function ServicePicker({
@@ -60,7 +59,7 @@ export default function ServicePicker({
   const loading = enough && !ready;
   const hits: Hit[] = (ready?.hits ?? []).map((s) => ({
     service: s,
-    blocked: taken.has(s.id) ? "taken" : documentService(s) ? "document" : lawyer && isAdvocateOnly(s) ? "advocate" : "",
+    blocked: taken.has(s.id) ? "taken" : lawyer && isAdvocateOnly(s) ? "advocate" : "",
   }));
   const open = enough && !value;
   const pickable = hits.map((h, i) => (h.blocked ? -1 : i)).filter((i) => i >= 0);
@@ -166,7 +165,7 @@ export default function ServicePicker({
                 }}
               >
                 <span className="svpick__oi" aria-hidden="true">
-                  {h.blocked === "advocate" || h.blocked === "document" ? <IconLock /> : h.blocked === "taken" ? <IconCheck /> : <IconLayers />}
+                  {h.blocked === "advocate" ? <IconLock /> : h.blocked === "taken" ? <IconCheck /> : <IconLayers />}
                 </span>
                 <span className="svpick__om">
                   <b>{h.service.name}</b>
@@ -175,10 +174,6 @@ export default function ServicePicker({
                 <span className="svpick__or">
                   {h.blocked === "taken" ? (
                     <em className="svpick__tag">{t("added")}</em>
-                  ) : h.blocked === "document" ? (
-                    <em className="svpick__tag svpick__tag--lock" title={t("documentOnlyHint")}>
-                      {t("documentOnly")}
-                    </em>
                   ) : h.blocked === "advocate" ? (
                     <em className="svpick__tag svpick__tag--lock" title={t("advocateOnlyHint")}>
                       {t("advocateOnly")}
