@@ -343,9 +343,19 @@ function Switch({ id, on, onChange, ro, label, ai }: { id: string; on: boolean; 
   );
 }
 
+function groupedMoney(raw: string, separator: string): string {
+  const negative = raw.startsWith("-");
+  const body = raw.replace(/-/g, "");
+  const dot = body.indexOf(".");
+  const integer = dot < 0 ? body : body.slice(0, dot);
+  const fraction = dot < 0 ? "" : body.slice(dot);
+  return `${negative ? "-" : ""}${integer.replace(/\B(?=(\d{3})+(?!\d))/g, separator)}${fraction}`;
+}
+
 function NumberIn({ id, f, value, onChange, ro, invalid, ai, label, placeholder }: { id: string; f: StudioSchemaField; value: unknown; onChange: (v: unknown) => void; ro: boolean; invalid: boolean; ai: string; label: string; placeholder?: string }) {
   const { t, num } = useLabels();
   const money = f.type === "money";
+  const separator = num(1000).replace(/\d/g, "").charAt(0) || " ";
   const [draft, setDraft] = useState<string | null>(null);
   const shown = draft ?? (typeof value === "number" ? (money ? num(value) : String(value)) : text(value));
   return (
@@ -355,13 +365,32 @@ function NumberIn({ id, f, value, onChange, ro, invalid, ai, label, placeholder 
         type="text"
         inputMode="decimal"
         value={shown}
-        onFocus={() => setDraft(typeof value === "number" ? String(value) : text(value))}
+        onFocus={() => {
+          const raw = typeof value === "number" ? String(value) : text(value);
+          setDraft(money ? groupedMoney(raw, separator) : raw);
+        }}
         onChange={(e) => {
-          const raw = e.target.value.replace(/[^\d.,-]/g, "").replace(",", ".");
-          setDraft(raw);
+          const input = e.currentTarget;
+          const caret = input.selectionStart ?? input.value.length;
+          const before = input.value.slice(0, caret).split("").filter((ch) => ch !== separator).length;
+          const ungrouped = money ? input.value.split(separator).join("") : input.value;
+          const raw = ungrouped.replace(/[^\d.,-]/g, "").replace(",", ".");
+          const next = money ? groupedMoney(raw, separator) : raw;
+          setDraft(next);
           if (raw === "" || raw === "-") return onChange(undefined);
           const n = Number(raw);
           onChange(Number.isFinite(n) ? n : raw);
+          if (money) {
+            requestAnimationFrame(() => {
+              let pos = 0;
+              let seen = 0;
+              while (pos < next.length && seen < before) {
+                if (next[pos] !== separator) seen += 1;
+                pos += 1;
+              }
+              input.setSelectionRange(pos, pos);
+            });
+          }
         }}
         onBlur={() => setDraft(null)}
         readOnly={ro}
