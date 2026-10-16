@@ -18,6 +18,9 @@ import LiveEmployeeDrawer, { type CorrectionTarget } from "./LiveEmployeeDrawer"
 import LiveAnalytics from "./LiveAnalytics";
 import LiveCorrections, { CorrectionForm } from "./LiveCorrections";
 import LiveSettings from "./LiveSettings";
+import LiveScreen from "./LiveScreen";
+import CharacterStudio from "./CharacterStudio";
+import { PRESETS, lookFromRecord, presetFor, type Look } from "./character";
 import { LiveStatus, ReasonModal, STATUS_TONE, apiMessage, shownStatus, useLiveText } from "./bits";
 
 type Tab = "board" | "analytics" | "corrections" | "settings";
@@ -54,6 +57,12 @@ export default function LiveOfficePage() {
   const [roomRows, setRoomRows] = useState<LiveRoom[]>([]);
   const [roomTick, setRoomTick] = useState(0);
   const [builder, setBuilder] = useState<LiveRoom | "new" | null>(null);
+  // The person whose screen is shown in place of the floor, kept as last
+  // seen in case a filter takes them off the board; and whose character
+  // is being dressed, with the looks saved in this visit.
+  const [watch, setWatch] = useState<LivePerson | null>(null);
+  const [dressing, setDressing] = useState<{ id: string; name: string } | null>(null);
+  const [savedLooks, setSavedLooks] = useState<Record<string, Look>>({});
 
   // The search box asks the backend (§9 q=) once typing settles.
   useEffect(() => {
@@ -122,6 +131,24 @@ export default function LiveOfficePage() {
   const roomOptions = useMemo(() => board.rooms.filter((r) => !unitId || r.unitId === unitId).map((r) => ({ value: r.id, label: r.name, sub: unitName(r.unitId) })), [board.rooms, unitId, unitName]);
   const employeeOptions = useMemo(() => (dir.employeeOptions.length ? dir.employeeOptions : board.people.map((p) => ({ value: p.id, label: p.name, sub: p.code }))), [dir.employeeOptions, board.people]);
 
+  // Each person's character: one just saved here, the one on their board
+  // card, the one on their HRM profile, else a ready one picked by id.
+  const boardLooks = useMemo(() => new Map(board.people.flatMap((p) => {
+    const l = lookFromRecord(p.raw, p.id);
+    return l ? [[p.id, l] as const] : [];
+  })), [board.people]);
+  const dirLooks = useMemo(() => new Map(dir.employees.flatMap((e) => {
+    const l = lookFromRecord(e.raw, e.id);
+    return l ? [[e.id, l] as const] : [];
+  })), [dir.employees]);
+  const boardNames = useMemo(() => new Map(board.people.map((p) => [p.id, p.name])), [board.people]);
+  const nameOf = useCallback((id: string) => boardNames.get(id) || dir.employee(id)?.name || "", [boardNames, dir]);
+  const lookOf = useCallback((id: string) => savedLooks[id] ?? boardLooks.get(id) ?? dirLooks.get(id) ?? presetFor(id, nameOf(id)).look, [savedLooks, boardLooks, dirLooks, nameOf]);
+  const presetOf = (id: string) => {
+    const look = JSON.stringify(lookOf(id));
+    return PRESETS.find((p) => JSON.stringify(p.look) === look)?.id ?? presetFor(id, nameOf(id)).id;
+  };
+
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
     for (const p of board.people) {
@@ -141,6 +168,7 @@ export default function LiveOfficePage() {
     setOpenId(p.id);
     setEvents({ id: p.id, list: [] });
   };
+  const watched = watch ? (board.people.find((p) => p.id === watch.id) ?? watch) : null;
 
   return (
     <section className="hrm-page lv">
@@ -209,8 +237,27 @@ export default function LiveOfficePage() {
         ))}
       </div>
 
+      {tab === "board" && watched ? (
+        <LiveScreen
+          key={`screen-${watched.id}`}
+          person={watched}
+          look={lookOf(watched.id)}
+          roomName={roomName(watched.roomId)}
+          unitName={unitName(watched.unitId)}
+          inactiveAfter={INACTIVE_AFTER}
+          onBack={() => {
+            setWatch(null);
+            // Back where the person was picked: the office map (or list).
+            requestAnimationFrame(() => document.querySelector(".lv .lf, .lv .lv-board")?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+          }}
+          onRecord={() => openPerson(watched)}
+          onDress={canManage ? () => setDressing({ id: watched.id, name: watched.name }) : undefined}
+        />
+      ) : null}
       {tab === "board" ? (
-        <>
+        // Kept while a screen is shown, so the way back lands in the same
+        // room at the same zoom.
+        <div className="lv-wrap" hidden={!!watched}>
           <div className="lv-stats" role="group" aria-label={t("filters.status")}>
             {LIVE_STATUSES.map((s) => (
               <button key={s} type="button" className={`lv-stat lv-stat--${STATUS_TONE[s]}${status === s ? " on" : ""}`} aria-pressed={status === s} onClick={() => setStatus(status === s ? "" : s)}>
@@ -261,23 +308,24 @@ export default function LiveOfficePage() {
               board={board}
               now={now}
               inactiveAfter={INACTIVE_AFTER}
-              onOpen={openPerson}
+              onOpen={setWatch}
               filtered={filtered}
+              lookOf={lookOf}
               roomMeta={canManage ? roomMeta : undefined}
               onArrange={canManage ? saveMoves : undefined}
               onAddRoom={canManage ? () => setBuilder("new") : undefined}
               onEditRoom={canManage ? (r) => setBuilder(fullRoom(r)) : undefined}
             />
           ) : (
-            <LiveBoardView board={board} now={now} inactiveAfter={INACTIVE_AFTER} onOpen={openPerson} filtered={filtered} />
+            <LiveBoardView board={board} now={now} inactiveAfter={INACTIVE_AFTER} onOpen={setWatch} filtered={filtered} lookOf={lookOf} />
           )}
-        </>
+        </div>
       ) : tab === "analytics" ? (
         <LiveAnalytics employeeId={analyticsFor} onEmployee={setAnalyticsFor} unitOptions={unitOptions} employeeOptions={employeeOptions} />
       ) : tab === "corrections" ? (
         <LiveCorrections unitName={unitName} roomName={roomName} canReview={canManage} onNew={() => setCorrection({ targetType: "employee", targetId: myId, title: "", type: "department" })} />
       ) : (
-        <LiveSettings opts={{ unitOptions, employeeOptions, userOptions: dir.userOptions, unitName }} grants={board.grants} onChanged={reload} />
+        <LiveSettings opts={{ unitOptions, employeeOptions, userOptions: dir.userOptions, unitName }} grants={board.grants} onChanged={reload} cast={{ lookOf, onDress: setDressing }} />
       )}
 
       {open ? (
@@ -296,6 +344,8 @@ export default function LiveOfficePage() {
             setTab("analytics");
           }}
           onCorrect={(target) => setCorrection(target)}
+          look={lookOf(open.id)}
+          onDress={canManage ? () => setDressing({ id: open.id, name: open.name }) : undefined}
           onBusyStopped={() => {
             upsert(open.id, (cur) => (cur ? { ...cur, busy: null, status: cur.status === "busy" ? "working" : cur.status } : null));
             if (open.id === myId) setMyBusy(null);
@@ -314,6 +364,19 @@ export default function LiveOfficePage() {
             setBuilder(null);
             setRoomTick((n) => n + 1);
             reload();
+          }}
+        />
+      ) : null}
+      {dressing ? (
+        <CharacterStudio
+          key={`studio-${dressing.id}`}
+          person={dressing}
+          look={lookOf(dressing.id)}
+          preset={presetOf(dressing.id)}
+          onClose={() => setDressing(null)}
+          onSaved={(look) => {
+            setSavedLooks((cur) => ({ ...cur, [dressing.id]: look }));
+            setDressing(null);
           }}
         />
       ) : null}

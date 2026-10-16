@@ -17302,7 +17302,9 @@
         "busy": "Busy",
         "break": "On a break",
         "inactive": "Inactive",
-        "offline": "Offline"
+        "offline": "Offline",
+        "meeting": "In a meeting",
+        "remote": "Remote"
       },
       "roomType": {
         "virtual": "Virtual",
@@ -17345,7 +17347,12 @@
         "marketplace": "Marketplace",
         "admin": "Admin panel",
         "portal": "Portal",
-        "site": "Website"
+        "site": "Website",
+        "services": "Services",
+        "legal_work": "Legal work",
+        "communications": "Communications",
+        "administration": "Administration",
+        "platform": "Platform"
       },
       "errors": {
         "load": "Couldn't load the data",
@@ -17399,7 +17406,8 @@
         "noActivity": "No activity",
         "justNow": "just now",
         "minAgo": "{n} min ago",
-        "extraUnits": "+{n} dept."
+        "extraUnits": "+{n} dept.",
+        "watch": "{name} — view screen"
       },
       "detail": {
         "analytics": "View analytics",
@@ -17484,7 +17492,8 @@
         "rooms": "Rooms",
         "memberships": "Department membership",
         "grants": "Temporary access",
-        "registry": "Activity names"
+        "registry": "Activity names",
+        "characters": "Characters"
       },
       "rooms": {
         "new": "New room",
@@ -17617,6 +17626,290 @@
         "left": "Left",
         "right": "Right",
         "front": "Forward"
+      },
+      "screen": {
+        "title": "{name}'s screen",
+        "back": "Back to the office",
+        "record": "Details",
+        "monitor": "Virtual monitor",
+        "off": "Screen is off",
+        "onBreak": "On a break",
+        "away": "Away — the screen is asleep",
+        "openWork": "Open work",
+        "desktop": "Desktop",
+        "progress": "Progress",
+        "idle": "No open window",
+        "idleHint": "It shows here once a LexGo page is open",
+        "busy": "Busy",
+        "module": "Module",
+        "page": "Page",
+        "updated": "Updated",
+        "alsoOpen": "Also open",
+        "secAgo": "{n} s ago",
+        "minAgo": "{n} min ago",
+        "note": "This is not a screenshot: the monitor is rebuilt from safe work data (page, section, task). Typed text, documents and messages are never shown.",
+        "mode": {
+          "edit": "Editing",
+          "view": "Viewing",
+          "create": "Creating",
+          "review": "Reviewing"
+        }
+      },
+      "avatar": {
+        "dress": "Dress character",
+        "dressNamed": "Dress {name}'s character",
+        "title": "Character studio",
+        "lead": "How {name} looks on the office floor",
+        "preview": "{name}'s character",
+        "count": "{n} ready characters · {m} choices",
+        "random": "Surprise me",
+        "reset": "Undo all",
+        "all": "All",
+        "saveError": "Couldn't save the character",
+        "search": "Find an employee",
+        "settingsLead": "Give each employee one of {n} ready characters, or build one from {m} choices.",
+        "noPeople": "No employees to show",
+        "tab": {
+          "ready": "Ready-made",
+          "body": "Body",
+          "hair": "Hair",
+          "face": "Face",
+          "outfit": "Outfit",
+          "extras": "Extras"
+        },
+        "hiddenBy": {
+          "bottom": "A dress is chosen — bottoms are hidden",
+          "bottomColor": "A dress is chosen — bottoms are hidden",
+          "hair": "A headscarf is chosen — hair is hidden",
+          "hatColor": "Pick headwear first",
+          "earrings": "A headscarf is chosen — earrings are hidden"
+        },
+        "part": {
+          "body": "Gender",
+          "skin": "Skin tone",
+          "face": "Face shape",
+          "hair": "Hairstyle",
+          "hairColor": "Hair colour",
+          "brows": "Eyebrows",
+          "eyes": "Eyes",
+          "mouth": "Mouth",
+          "cheeks": "Cheeks",
+          "beard": "Facial hair",
+          "glasses": "Glasses",
+          "hat": "Headwear",
+          "hatColor": "Headwear colour",
+          "earrings": "Earrings",
+          "top": "Top",
+          "topColor": "Top colour",
+          "bottom": "Bottoms",
+          "bottomColor": "Bottoms colour",
+          "shoes": "Shoes",
+          "extra": "Accessory",
+          "bg": "Backdrop"
+        },
+        "opt": {
+          "body": {
+            "label": "Gender",
+            "m": "Male",
+            "f": "Female"
+          },
+          "skin": {
+            "porcelain": "Porcelain",
+            "light": "Light",
+            "fair": "Fair",
+            "warm": "Warm",
+            "tan": "Tan",
+            "olive": "Olive",
+            "brown": "Brown",
+            "deep": "Deep"
+          },
+          "face": {
+            "round": "Round",
+            "oval": "Oval",
+            "square": "Square",
+            "heart": "Heart"
+          },
+          "hair": {
+            "buzz": "Buzz cut",
+            "side": "Side part",
+            "quiff": "Quiff",
+            "curly": "Short curls",
+            "afro": "Afro",
+            "bald": "Bald",
+            "manbun": "Man bun",
+            "spiky": "Spiky",
+            "slick": "Slicked back",
+            "long": "Long straight",
+            "bob": "Bob",
+            "pony": "Ponytail",
+            "bun": "Bun",
+            "braids": "Braids",
+            "pixie": "Pixie",
+            "wavy": "Wavy",
+            "bangs": "Curtain bangs",
+            "curlylong": "Long curls"
+          },
+          "hairColor": {
+            "black": "Black",
+            "espresso": "Espresso",
+            "brown": "Brown",
+            "chestnut": "Chestnut",
+            "honey": "Honey",
+            "blonde": "Blonde",
+            "auburn": "Auburn",
+            "ginger": "Ginger",
+            "grey": "Grey",
+            "white": "White",
+            "violet": "Violet",
+            "teal": "Teal"
+          },
+          "brows": {
+            "soft": "Soft",
+            "straight": "Straight",
+            "arched": "Arched",
+            "bold": "Bold"
+          },
+          "eyes": {
+            "dot": "Dots",
+            "round": "Round",
+            "smile": "Smiling",
+            "almond": "Almond",
+            "lashes": "Lashes",
+            "wink": "Wink"
+          },
+          "mouth": {
+            "smile": "Smile",
+            "grin": "Grin",
+            "calm": "Calm",
+            "open": "Surprised",
+            "smirk": "Smirk"
+          },
+          "cheeks": {
+            "none": "None",
+            "blush": "Blush",
+            "freckles": "Freckles"
+          },
+          "beard": {
+            "none": "None",
+            "stubble": "Stubble",
+            "mustache": "Mustache",
+            "goatee": "Goatee",
+            "short": "Short beard",
+            "full": "Full beard"
+          },
+          "glasses": {
+            "none": "None",
+            "round": "Round",
+            "square": "Square",
+            "cateye": "Cat-eye",
+            "halfrim": "Half-rim",
+            "shades": "Sunglasses"
+          },
+          "hat": {
+            "none": "None",
+            "cap": "Cap",
+            "beanie": "Beanie",
+            "scarf": "Headscarf",
+            "headband": "Headband",
+            "doppi": "Doppi",
+            "beret": "Beret"
+          },
+          "earrings": {
+            "none": "None",
+            "studs": "Studs",
+            "hoops": "Hoops",
+            "drops": "Drops"
+          },
+          "top": {
+            "tee": "T-shirt",
+            "shirt": "Shirt",
+            "suit": "Suit",
+            "blazer": "Blazer",
+            "hoodie": "Hoodie",
+            "sweater": "Sweater",
+            "polo": "Polo",
+            "cardigan": "Cardigan",
+            "turtleneck": "Turtleneck",
+            "dress": "Dress",
+            "chapan": "Chapan"
+          },
+          "bottom": {
+            "trousers": "Trousers",
+            "jeans": "Jeans",
+            "skirt": "Skirt",
+            "maxi": "Maxi skirt"
+          },
+          "shoes": {
+            "sneakers": "Sneakers",
+            "loafers": "Loafers",
+            "boots": "Boots",
+            "heels": "Heels",
+            "flats": "Flats"
+          },
+          "extra": {
+            "none": "None",
+            "headset": "Headset",
+            "badge": "Badge",
+            "scarf": "Scarf",
+            "watch": "Watch",
+            "tie": "Tie",
+            "bowtie": "Bow tie",
+            "necklace": "Necklace",
+            "mug": "Coffee mug"
+          },
+          "bg": {
+            "sky": "Sky",
+            "mint": "Mint",
+            "peach": "Peach",
+            "lilac": "Lilac",
+            "lemon": "Lemon",
+            "rose": "Rose",
+            "cloud": "Cloud",
+            "night": "Night"
+          },
+          "topColor": {
+            "navy": "Navy",
+            "blue": "Blue",
+            "sky": "Sky blue",
+            "teal": "Teal",
+            "green": "Green",
+            "olive": "Olive",
+            "mustard": "Mustard",
+            "orange": "Orange",
+            "red": "Red",
+            "berry": "Berry",
+            "violet": "Violet",
+            "charcoal": "Charcoal",
+            "white": "White",
+            "beige": "Beige"
+          },
+          "hatColor": {
+            "navy": "Navy",
+            "blue": "Blue",
+            "sky": "Sky blue",
+            "teal": "Teal",
+            "green": "Green",
+            "olive": "Olive",
+            "mustard": "Mustard",
+            "orange": "Orange",
+            "red": "Red",
+            "berry": "Berry",
+            "violet": "Violet",
+            "charcoal": "Charcoal",
+            "white": "White",
+            "beige": "Beige"
+          },
+          "bottomColor": {
+            "black": "Black",
+            "navy": "Navy",
+            "denim": "Denim",
+            "grey": "Grey",
+            "brown": "Brown",
+            "khaki": "Khaki",
+            "cream": "Cream",
+            "wine": "Wine"
+          }
+        }
       }
     },
     "feedback": {

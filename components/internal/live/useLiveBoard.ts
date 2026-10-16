@@ -69,13 +69,19 @@ export function useLiveBoard({ unitId, roomId, status, q }: LiveFilter, onActivi
       if (name.startsWith("presence")) {
         const p = normPerson(d);
         if (!p.id) return;
-        upsert(p.id, (cur) => (cur ? { ...cur, ...p, name: p.name || cur.name, code: p.code || cur.code, position: p.position || cur.position, unitId: p.unitId || cur.unitId, roomId: p.roomId || cur.roomId, activity: p.activity ?? cur.activity, busy: p.status === "busy" ? (p.busy ?? cur.busy) : p.busy } : p));
+        upsert(p.id, (cur) => (cur ? { ...cur, ...p, raw: { ...cur.raw, ...p.raw }, name: p.name || cur.name, code: p.code || cur.code, position: p.position || cur.position, unitId: p.unitId || cur.unitId, roomId: p.roomId || cur.roomId, activity: p.activity ?? cur.activity, busy: p.status === "busy" ? (p.busy ?? cur.busy) : p.busy } : p));
       } else if (name.startsWith("activity")) {
         const id = employeeOf(d);
         const a = normActivity(asDict(d.activity ?? d.event ?? d));
         if (!id || !a) return;
         upsert(id, (cur) => (cur ? { ...cur, activity: a, lastSeenAt: a.at || cur.lastSeenAt } : null));
         onActivityRef.current?.(id, a);
+      } else if (name.startsWith("context")) {
+        // A safe workflow switch (§18): only the virtual monitor changes.
+        const id = employeeOf(d);
+        const screen = d.virtual_monitor ?? d.monitor ?? d.screen_context ?? d.context;
+        if (!id || !screen || typeof screen !== "object") return;
+        upsert(id, (cur) => (cur ? { ...cur, raw: { ...cur.raw, virtual_monitor: screen, parallel_contexts: d.parallel_contexts ?? d.work_contexts ?? cur.raw.parallel_contexts } } : null));
       } else if (name === "busy.started" || name === "busy.ended") {
         const id = employeeOf(d);
         if (!id) return;

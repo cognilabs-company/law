@@ -17308,7 +17308,9 @@
         "busy": "Band",
         "break": "Tanaffusda",
         "inactive": "Faol emas",
-        "offline": "Oflayn"
+        "offline": "Oflayn",
+        "meeting": "Uchrashuvda",
+        "remote": "Masofadan"
       },
       "roomType": {
         "virtual": "Virtual",
@@ -17351,7 +17353,12 @@
         "marketplace": "Marketplace",
         "admin": "Admin panel",
         "portal": "Portal",
-        "site": "Sayt"
+        "site": "Sayt",
+        "services": "Xizmatlar",
+        "legal_work": "Yuridik ish",
+        "communications": "Muloqot",
+        "administration": "Boshqaruv",
+        "platform": "Platforma"
       },
       "errors": {
         "load": "Ma'lumotni yuklab bo'lmadi",
@@ -17405,7 +17412,8 @@
         "noActivity": "Faoliyat yo'q",
         "justNow": "hozirgina",
         "minAgo": "{n} daq oldin",
-        "extraUnits": "+{n} bo'lim"
+        "extraUnits": "+{n} bo'lim",
+        "watch": "{name} — ekranini ko'rish"
       },
       "detail": {
         "analytics": "Tahlilini ko'rish",
@@ -17490,7 +17498,8 @@
         "rooms": "Xonalar",
         "memberships": "Bo'lim a'zoligi",
         "grants": "Vaqtinchalik ruxsat",
-        "registry": "Faoliyat nomlari"
+        "registry": "Faoliyat nomlari",
+        "characters": "Qahramonlar"
       },
       "rooms": {
         "new": "Yangi xona",
@@ -17623,6 +17632,290 @@
         "left": "Chapga",
         "right": "O'ngga",
         "front": "Oldinga"
+      },
+      "screen": {
+        "title": "{name} ekrani",
+        "back": "Ofisga qaytish",
+        "record": "Batafsil",
+        "monitor": "Virtual monitor",
+        "off": "Ekran o'chiq",
+        "onBreak": "Tanaffusda",
+        "away": "Joyida emas — ekran uyqu rejimida",
+        "openWork": "Ochiq ishlar",
+        "desktop": "Ish stoli",
+        "progress": "Bajarilishi",
+        "idle": "Faol oyna yo'q",
+        "idleHint": "LexGo'da biror sahifa ochilganda shu yerda ko'rinadi",
+        "busy": "Band",
+        "module": "Bo'lim",
+        "page": "Sahifa",
+        "updated": "Yangilandi",
+        "alsoOpen": "Yana ochiq",
+        "secAgo": "{n} soniya oldin",
+        "minAgo": "{n} daqiqa oldin",
+        "note": "Bu ekran tasviri emas: monitor xavfsiz ish ma'lumotlaridan (sahifa, bo'lim, vazifa) tiklanadi. Yozilgan matn, hujjat va xabarlar ko'rsatilmaydi.",
+        "mode": {
+          "edit": "Tahrirlash",
+          "view": "Ko'rish",
+          "create": "Yaratish",
+          "review": "Tekshirish"
+        }
+      },
+      "avatar": {
+        "dress": "Qahramonni bezash",
+        "dressNamed": "{name}: qahramonni bezash",
+        "title": "Qahramon studiyasi",
+        "lead": "{name} ofis xaritasida shu qiyofada ko'rinadi",
+        "preview": "{name} qahramoni",
+        "count": "{n} ta tayyor qahramon · {m} ta tanlov",
+        "random": "Tasodifiy",
+        "reset": "Avvalgisi",
+        "all": "Hammasi",
+        "saveError": "Qahramonni saqlab bo'lmadi",
+        "search": "Xodim qidirish",
+        "settingsLead": "Har bir xodimga {n} ta tayyor qahramondan birini tanlang yoki {m} ta tanlov bilan o'zingiz bezang.",
+        "noPeople": "Xodimlar ro'yxati yo'q",
+        "tab": {
+          "ready": "Tayyor",
+          "body": "Tana",
+          "hair": "Soch",
+          "face": "Yuz",
+          "outfit": "Kiyim",
+          "extras": "Aksessuarlar"
+        },
+        "hiddenBy": {
+          "bottom": "Ayollar ko'ylagi tanlangan — past kiyim ko'rinmaydi",
+          "bottomColor": "Ayollar ko'ylagi tanlangan — past kiyim ko'rinmaydi",
+          "hair": "Ro'mol tanlangan — soch ko'rinmaydi",
+          "hatColor": "Avval bosh kiyim tanlang",
+          "earrings": "Ro'mol tanlangan — sirg'a ko'rinmaydi"
+        },
+        "part": {
+          "body": "Jins",
+          "skin": "Teri rangi",
+          "face": "Yuz shakli",
+          "hair": "Soch turmagi",
+          "hairColor": "Soch rangi",
+          "brows": "Qosh",
+          "eyes": "Ko'z",
+          "mouth": "Og'iz",
+          "cheeks": "Yonoq",
+          "beard": "Soqol-mo'ylov",
+          "glasses": "Ko'zoynak",
+          "hat": "Bosh kiyim",
+          "hatColor": "Bosh kiyim rangi",
+          "earrings": "Sirg'a",
+          "top": "Ust kiyim",
+          "topColor": "Ust kiyim rangi",
+          "bottom": "Past kiyim",
+          "bottomColor": "Past kiyim rangi",
+          "shoes": "Poyabzal",
+          "extra": "Aksessuar",
+          "bg": "Fon"
+        },
+        "opt": {
+          "body": {
+            "label": "Jins",
+            "m": "Erkak",
+            "f": "Ayol"
+          },
+          "skin": {
+            "porcelain": "Juda och",
+            "light": "Och",
+            "fair": "Oqish",
+            "warm": "Iliq",
+            "tan": "Bug'doyrang",
+            "olive": "Zaytunrang",
+            "brown": "Qoramtir",
+            "deep": "To'q"
+          },
+          "face": {
+            "round": "Dumaloq",
+            "oval": "Oval",
+            "square": "To'rtburchak",
+            "heart": "Yuraksimon"
+          },
+          "hair": {
+            "buzz": "Kalta qirqim",
+            "side": "Yon fark",
+            "quiff": "Kok",
+            "curly": "Jingalak kalta",
+            "afro": "Afro",
+            "bald": "Taqir",
+            "manbun": "Tugun",
+            "spiky": "Tikka",
+            "slick": "Orqaga taralgan",
+            "long": "Uzun to'g'ri",
+            "bob": "Kare",
+            "pony": "Dumcha",
+            "bun": "Turmak",
+            "braids": "O'rim sochlar",
+            "pixie": "Piksi",
+            "wavy": "To'lqinli",
+            "bangs": "Chakkali uzun",
+            "curlylong": "Uzun jingalak"
+          },
+          "hairColor": {
+            "black": "Qora",
+            "espresso": "To'q jigarrang",
+            "brown": "Jigarrang",
+            "chestnut": "Kashtan",
+            "honey": "Asalrang",
+            "blonde": "Sariq",
+            "auburn": "Mis-qizil",
+            "ginger": "Malla",
+            "grey": "Oqargan",
+            "white": "Oppoq",
+            "violet": "Binafsha",
+            "teal": "Firuza"
+          },
+          "brows": {
+            "soft": "Yumshoq",
+            "straight": "To'g'ri",
+            "arched": "Kamon",
+            "bold": "Qalin"
+          },
+          "eyes": {
+            "dot": "Nuqta",
+            "round": "Dumaloq",
+            "smile": "Kulayotgan",
+            "almond": "Bodomsimon",
+            "lashes": "Kiprikli",
+            "wink": "Ko'z qisgan"
+          },
+          "mouth": {
+            "smile": "Tabassum",
+            "grin": "Keng kulgi",
+            "calm": "Xotirjam",
+            "open": "Hayron",
+            "smirk": "Kinoyali"
+          },
+          "cheeks": {
+            "none": "Yo'q",
+            "blush": "Qizillik",
+            "freckles": "Sepkil"
+          },
+          "beard": {
+            "none": "Yo'q",
+            "stubble": "Tuk",
+            "mustache": "Mo'ylov",
+            "goatee": "Echkisoqol",
+            "short": "Kalta soqol",
+            "full": "Qalin soqol"
+          },
+          "glasses": {
+            "none": "Yo'q",
+            "round": "Dumaloq",
+            "square": "To'rtburchak",
+            "cateye": "Mushukko'z",
+            "halfrim": "Yarim gardishli",
+            "shades": "Quyosh ko'zoynagi"
+          },
+          "hat": {
+            "none": "Yo'q",
+            "cap": "Kepka",
+            "beanie": "To'qima shapka",
+            "scarf": "Ro'mol",
+            "headband": "Soch bog'ich",
+            "doppi": "Do'ppi",
+            "beret": "Beret"
+          },
+          "earrings": {
+            "none": "Yo'q",
+            "studs": "Kichik",
+            "hoops": "Halqa",
+            "drops": "Osma"
+          },
+          "top": {
+            "tee": "Futbolka",
+            "shirt": "Ko'ylak",
+            "suit": "Kostyum",
+            "blazer": "Pidjak",
+            "hoodie": "Xudi",
+            "sweater": "Sviter",
+            "polo": "Polo",
+            "cardigan": "Kardigan",
+            "turtleneck": "Bodlon",
+            "dress": "Ko'ylak (ayollar)",
+            "chapan": "To'n"
+          },
+          "bottom": {
+            "trousers": "Shim",
+            "jeans": "Jinsi",
+            "skirt": "Yubka",
+            "maxi": "Uzun yubka"
+          },
+          "shoes": {
+            "sneakers": "Krossovka",
+            "loafers": "Tufli",
+            "boots": "Botinka",
+            "heels": "Poshnali",
+            "flats": "Baletka"
+          },
+          "extra": {
+            "none": "Yo'q",
+            "headset": "Garnitura",
+            "badge": "Beyjik",
+            "scarf": "Sharf",
+            "watch": "Soat",
+            "tie": "Galstuk",
+            "bowtie": "Kapalak galstuk",
+            "necklace": "Marjon",
+            "mug": "Kofe krujkasi"
+          },
+          "bg": {
+            "sky": "Osmon",
+            "mint": "Yalpiz",
+            "peach": "Shaftoli",
+            "lilac": "Nastarin",
+            "lemon": "Limon",
+            "rose": "Atirgul",
+            "cloud": "Bulut",
+            "night": "Tun"
+          },
+          "topColor": {
+            "navy": "To'q ko'k",
+            "blue": "Ko'k",
+            "sky": "Havorang",
+            "teal": "Firuza",
+            "green": "Yashil",
+            "olive": "Zaytun",
+            "mustard": "Xantal",
+            "orange": "To'q sariq",
+            "red": "Qizil",
+            "berry": "Malinarang",
+            "violet": "Binafsha",
+            "charcoal": "Grafit",
+            "white": "Oq",
+            "beige": "Bej"
+          },
+          "hatColor": {
+            "navy": "To'q ko'k",
+            "blue": "Ko'k",
+            "sky": "Havorang",
+            "teal": "Firuza",
+            "green": "Yashil",
+            "olive": "Zaytun",
+            "mustard": "Xantal",
+            "orange": "To'q sariq",
+            "red": "Qizil",
+            "berry": "Malinarang",
+            "violet": "Binafsha",
+            "charcoal": "Grafit",
+            "white": "Oq",
+            "beige": "Bej"
+          },
+          "bottomColor": {
+            "black": "Qora",
+            "navy": "To'q ko'k",
+            "denim": "Jinsi ko'k",
+            "grey": "Kulrang",
+            "brown": "Jigarrang",
+            "khaki": "Xaki",
+            "cream": "Krem",
+            "wine": "Bordo"
+          }
+        }
       }
     },
     "feedback": {

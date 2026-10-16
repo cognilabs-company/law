@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useId, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { asDict } from "@/lib/http";
 import type { LiveBoard, LivePerson, LiveRoom, LiveUnit } from "@/lib/services/internalLive";
 import { initials } from "@/lib/lawyers";
@@ -11,6 +11,8 @@ import { Bench, FloorDefs, Partition, Plant, SeatMark, Whiteboard } from "@/comp
 import { groupBoard } from "./LiveBoardView";
 import { STATUS_TONE, apiMessage, shownStatus, useLiveText } from "./bits";
 import { deskGrid, floorOf, tintOf, type Dict } from "./roomPlan";
+import CharacterArt, { backdropOf } from "./CharacterArt";
+import type { Look } from "./character";
 
 // The office drawn as a floor seen from above and to the side: every room a
 // walled bay with desks, the people at work on their chairs, the people who
@@ -130,6 +132,7 @@ export default function LiveFloor({
   onArrange,
   onAddRoom,
   onEditRoom,
+  lookOf,
 }: {
   board: LiveBoard;
   now: number;
@@ -142,6 +145,8 @@ export default function LiveFloor({
   onArrange?: (moves: RoomMove[]) => Promise<void>;
   onAddRoom?: () => void;
   onEditRoom?: (room: LiveRoom) => void;
+  // Each person's character; without it the floor shows initials.
+  lookOf?: (id: string) => Look;
 }) {
   const { t, roomType, status } = useLiveText();
   const statusOf = useMemo(() => (p: LivePerson) => shownStatus(p.status, p.lastSeenAt, now, inactiveAfter), [now, inactiveAfter]);
@@ -159,6 +164,7 @@ export default function LiveFloor({
   const clash = useMemo(() => (draft ? clashes(plans) : new Set<string>()), [draft, plans]);
   const [target, setTarget] = useState<Target>({ kind: "all" });
   const rootRef = useRef<HTMLDivElement>(null);
+  const clipId = `lfav${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
   const drag = useRef<{ id: string; sx: number; sy: number; ox: number; oy: number; moved: boolean } | null>(null);
 
   const focused = !arrange && target.kind === "room" ? (plans.find((p) => p.key === target.key) ?? null) : null;
@@ -294,6 +300,11 @@ export default function LiveFloor({
         }}
       >
         <FloorDefs />
+        <defs>
+          <clipPath id={clipId}>
+            <circle r={10.4} />
+          </clipPath>
+        </defs>
         <Block x={slab.x} y={slab.y} w={slab.w} d={slab.d} h={0.45} z={-0.45} cls="lf-m-slab" />
         <g transform={onFloor()} className="lf-ground">
           <rect className="lf-carpet" x={slab.x + 0.3} y={slab.y + 0.3} width={slab.w - 0.6} height={slab.d - 0.6} />
@@ -389,7 +400,7 @@ export default function LiveFloor({
                     role={on ? "button" : undefined}
                     tabIndex={on ? 0 : undefined}
                     aria-hidden={on ? undefined : true}
-                    aria-label={on ? t("board.open", { name: who.name }) : undefined}
+                    aria-label={on ? t("board.watch", { name: who.name }) : undefined}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (on) onOpen(who);
@@ -401,8 +412,19 @@ export default function LiveFloor({
                   >
                     <title>{`${who.name} — ${status(statusOf(who))}`}</title>
                     <circle className="lf-av__rim" r={13.4} />
-                    <circle className="lf-av__bg" r={10.4} />
-                    <text className="lf-av__i" y={3.4}>{initials(who.name || "?")}</text>
+                    {lookOf ? (
+                      <>
+                        <circle r={10.4} fill={backdropOf(lookOf(who.id))} />
+                        <g clipPath={`url(#${clipId})`}>
+                          <CharacterArt look={lookOf(who.id)} variant="bust" x={-10.4} y={-10.4} width={20.8} height={20.8} className="chr lf-av__chr" />
+                        </g>
+                      </>
+                    ) : (
+                      <>
+                        <circle className="lf-av__bg" r={10.4} />
+                        <text className="lf-av__i" y={3.4}>{initials(who.name || "?")}</text>
+                      </>
+                    )}
                     <circle className="lf-av__ring" r={11.6} />
                   </g>
                 );
@@ -522,8 +544,8 @@ export default function LiveFloor({
               </h3>
               <div>
                 {g.people.slice(0, TRAY_MAX).map((p) => (
-                  <button key={p.id} type="button" onClick={() => onOpen(p)} title={p.name} aria-label={t("board.open", { name: p.name })}>
-                    {initials(p.name || "?")}
+                  <button key={p.id} type="button" onClick={() => onOpen(p)} title={p.name} aria-label={t("board.watch", { name: p.name })} className={lookOf ? "lf-tray__chr" : undefined} style={lookOf ? { background: backdropOf(lookOf(p.id)) } : undefined}>
+                    {lookOf ? <CharacterArt look={lookOf(p.id)} variant="bust" /> : initials(p.name || "?")}
                   </button>
                 ))}
                 {g.people.length > TRAY_MAX ? <i>+{g.people.length - TRAY_MAX}</i> : null}

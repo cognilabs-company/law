@@ -14,7 +14,7 @@ import { HrmError } from "@/components/internal/HrmUi";
 // was about, and the "reason required" dialog every busy start/stop and
 // revoke goes through (§12, §13).
 
-export const STATUS_TONE: Record<string, string> = { working: "ok", online: "info", busy: "warn", break: "violet", inactive: "gray", offline: "off" };
+export const STATUS_TONE: Record<string, string> = { working: "ok", online: "info", busy: "warn", meeting: "violet", remote: "info", break: "violet", inactive: "gray", offline: "off" };
 
 export function useLiveText() {
   const t = useTranslations("internal.live");

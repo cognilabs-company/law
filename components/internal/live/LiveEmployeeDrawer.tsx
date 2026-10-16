@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import DatePicker from "@/components/DatePicker";
 import { getLiveEmployee, stopBusy, type LiveActivity, type LiveEmployeeDetail, type LivePerson } from "@/lib/services/internalLive";
-import { IconAlert, IconChartBar, IconClock, IconFlag } from "@/components/icons";
+import { IconAlert, IconChartBar, IconClock, IconEdit, IconFlag } from "@/components/icons";
 import { HrmAvatar, HrmDrawer, HrmEmpty, HrmError, HrmLoading, HrmSection, useHrmFormat, useNow } from "@/components/internal/HrmUi";
 import { LiveStatus, ObjectLink, ReasonModal, apiMessage, dayIso, hms, shownStatus, useLiveText } from "./bits";
+import CharacterArt, { backdropOf } from "./CharacterArt";
+import type { Look } from "./character";
 
 export type CorrectionTarget = { targetType: string; targetId: string; title: string; type: string };
 
@@ -24,6 +26,8 @@ export default function LiveEmployeeDrawer({
   onAnalytics,
   onCorrect,
   onBusyStopped,
+  look,
+  onDress,
 }: {
   person: LivePerson | null;
   onClose: () => void;
@@ -36,6 +40,8 @@ export default function LiveEmployeeDrawer({
   onAnalytics: (employeeId: string) => void;
   onCorrect: (target: CorrectionTarget) => void;
   onBusyStopped: () => void;
+  look?: Look;
+  onDress?: () => void;
 }) {
   const { t, module, membership, status: statusName } = useLiveText();
   const f = useHrmFormat();
@@ -78,12 +84,28 @@ export default function LiveEmployeeDrawer({
       onClose={onClose}
       title={person.name}
       sub={[person.position, person.code].filter(Boolean).join(" · ")}
-      head={<HrmAvatar name={person.name} size="lg" />}
+      head={
+        look ? (
+          <span className="lv-drawer__chr" style={{ background: backdropOf(look) }} aria-hidden>
+            <CharacterArt look={look} variant="bust" />
+          </span>
+        ) : (
+          <HrmAvatar name={person.name} size="lg" />
+        )
+      }
       footer={
-        <button type="button" className="btn btn--line btn--sm" onClick={() => onAnalytics(person.id)}>
-          <IconChartBar />
-          {t("detail.analytics")}
-        </button>
+        <>
+          <button type="button" className="btn btn--line btn--sm" onClick={() => onAnalytics(person.id)}>
+            <IconChartBar />
+            {t("detail.analytics")}
+          </button>
+          {onDress ? (
+            <button type="button" className="btn btn--line btn--sm" onClick={onDress}>
+              <IconEdit />
+              {t("avatar.dress")}
+            </button>
+          ) : null}
+        </>
       }
     >
       <div className="lv-now">

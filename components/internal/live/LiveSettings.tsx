@@ -20,31 +20,83 @@ import {
   type LiveRoom,
   type RegistryRule,
 } from "@/lib/services/internalLive";
-import { IconBuilding, IconCheck, IconClock, IconEdit, IconLayers, IconList, IconLock, IconPlus, IconUsers } from "@/components/icons";
+import { IconBuilding, IconCheck, IconClock, IconEdit, IconLayers, IconList, IconLock, IconPlus, IconSearch, IconUsers } from "@/components/icons";
 import { EntitySelect, HrmDrawer, HrmEmpty, HrmError, HrmLoading, HrmPanel, HrmStatus, useHrmFormat, useNow } from "@/components/internal/HrmUi";
 import { ReasonModal, apiMessage, dayIso, zonedIso, useLiveText } from "./bits";
 import RoomBuilder from "./RoomBuilder";
+import CharacterArt, { backdropOf } from "./CharacterArt";
+import { OPTION_COUNT, PRESETS, type Look } from "./character";
 
-type Section = "rooms" | "memberships" | "grants" | "registry";
+type Section = "rooms" | "characters" | "memberships" | "grants" | "registry";
+type Cast = { lookOf: (id: string) => Look; onDress: (person: { id: string; name: string }) => void };
 type Opts = { unitOptions: SearchOption[]; employeeOptions: SearchOption[]; userOptions: SearchOption[]; unitName: (id: string) => string };
 
 // Admin side of the Live Office: rooms per unit (§8), each person's primary
 // and additional department (§8), temporary monitoring access (§13) and the
 // activity registry that turns request paths into readable actions (§21).
-export default function LiveSettings({ opts, grants, onChanged }: { opts: Opts; grants: LiveGrant[]; onChanged: () => void }) {
+export default function LiveSettings({ opts, grants, onChanged, cast }: { opts: Opts; grants: LiveGrant[]; onChanged: () => void; cast: Cast }) {
   const { t } = useLiveText();
   const [section, setSection] = useState<Section>("rooms");
   return (
     <div className="lv-set">
       <div className="hrm-tabs lv-set__tabs" role="tablist" aria-label={t("settings.title")}>
-        {(["rooms", "memberships", "grants", "registry"] as Section[]).map((s) => (
+        {(["rooms", "characters", "memberships", "grants", "registry"] as Section[]).map((s) => (
           <button key={s} type="button" role="tab" aria-selected={section === s} className={section === s ? "on" : ""} onClick={() => setSection(s)}>
             {t(`settings.${s}`)}
           </button>
         ))}
       </div>
-      {section === "rooms" ? <Rooms opts={opts} onChanged={onChanged} /> : section === "memberships" ? <Memberships opts={opts} onChanged={onChanged} /> : section === "grants" ? <Grants opts={opts} known={grants} /> : <Registry opts={opts} />}
+      {section === "rooms" ? <Rooms opts={opts} onChanged={onChanged} /> : section === "characters" ? <Characters opts={opts} cast={cast} /> : section === "memberships" ? <Memberships opts={opts} onChanged={onChanged} /> : section === "grants" ? <Grants opts={opts} known={grants} /> : <Registry opts={opts} />}
     </div>
+  );
+}
+
+// ── Characters ──────────────────────────────────────────────────────────────
+
+// Everyone with their Live Office character, to dress one after another.
+function Characters({ opts, cast }: { opts: Opts; cast: Cast }) {
+  const { t } = useLiveText();
+  const [q, setQ] = useState("");
+  const needle = q.trim().toLocaleLowerCase();
+  const list = opts.employeeOptions.filter((o) => !needle || `${o.label} ${o.sub ?? ""}`.toLocaleLowerCase().includes(needle));
+  return (
+    <HrmPanel
+      title={t("settings.characters")}
+      icon={IconUsers}
+      count={opts.employeeOptions.length}
+      actions={
+        <div className="uf-search lv-cast__q">
+          <IconSearch aria-hidden />
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("avatar.search")} aria-label={t("avatar.search")} maxLength={80} />
+        </div>
+      }
+    >
+      <p className="hrm-muted lv-cast__lead">{t("avatar.settingsLead", { n: PRESETS.length, m: OPTION_COUNT })}</p>
+      {list.length ? (
+        <ul className="lv-cast">
+          {list.map((o) => {
+            const look = cast.lookOf(o.value);
+            return (
+              <li key={o.value}>
+                <span className="lv-cast__av" style={{ background: backdropOf(look) }} aria-hidden>
+                  <CharacterArt look={look} variant="bust" />
+                </span>
+                <span className="lv-cast__t">
+                  <b>{o.label}</b>
+                  {o.sub ? <small>{o.sub}</small> : null}
+                </span>
+                <button type="button" className="btn btn--line btn--sm" onClick={() => cast.onDress({ id: o.value, name: o.label })} aria-label={t("avatar.dressNamed", { name: o.label })}>
+                  <IconEdit />
+                  <span>{t("avatar.dress")}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <HrmEmpty icon={IconUsers} title={needle ? t("board.noMatch") : t("avatar.noPeople")} />
+      )}
+    </HrmPanel>
   );
 }
 

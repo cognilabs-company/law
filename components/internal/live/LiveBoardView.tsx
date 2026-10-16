@@ -5,6 +5,8 @@ import type { LiveBoard, LivePerson, LiveRoom, LiveUnit } from "@/lib/services/i
 import { IconBuilding, IconClock, IconUsers } from "@/components/icons";
 import { HrmAvatar, HrmEmpty, useHrmFormat } from "@/components/internal/HrmUi";
 import { LiveStatus, ObjectLink, STATUS_TONE, shownStatus, useLiveText } from "./bits";
+import CharacterArt, { backdropOf } from "./CharacterArt";
+import type { Look } from "./character";
 
 export type Group = { unit: LiveUnit | null; depth: number; rooms: { room: LiveRoom | null; people: LivePerson[] }[]; total: number; on: number };
 
@@ -50,12 +52,14 @@ export default function LiveBoardView({
   inactiveAfter,
   onOpen,
   filtered,
+  lookOf,
 }: {
   board: LiveBoard;
   now: number;
   inactiveAfter: number;
   onOpen: (p: LivePerson) => void;
   filtered: boolean;
+  lookOf?: (id: string) => Look;
 }) {
   const { t, roomType } = useLiveText();
   const statusOf = useMemo(() => (p: LivePerson) => shownStatus(p.status, p.lastSeenAt, now, inactiveAfter), [now, inactiveAfter]);
@@ -98,7 +102,7 @@ export default function LiveBoardView({
                 {people.length ? (
                   <div className="lv-grid">
                     {people.map((p) => (
-                      <PersonCard key={p.id} p={p} status={statusOf(p)} now={now} onOpen={() => onOpen(p)} />
+                      <PersonCard key={p.id} p={p} status={statusOf(p)} now={now} onOpen={() => onOpen(p)} look={lookOf?.(p.id)} />
                     ))}
                   </div>
                 ) : (
@@ -115,17 +119,23 @@ export default function LiveBoardView({
   );
 }
 
-function PersonCard({ p, status, now, onOpen }: { p: LivePerson; status: string; now: number; onOpen: () => void }) {
+function PersonCard({ p, status, now, onOpen, look }: { p: LivePerson; status: string; now: number; onOpen: () => void; look?: Look }) {
   const { t } = useLiveText();
   const f = useHrmFormat();
   const seen = p.lastSeenAt ? Date.parse(p.lastSeenAt) : NaN;
   const ago = Number.isFinite(seen) && now ? Math.max(0, Math.round((now - seen) / 60000)) : -1;
   return (
     <article className={`lv-card lv-card--${STATUS_TONE[status] ?? "gray"}`}>
-      <button type="button" className="lv-card__hit" onClick={onOpen} aria-label={t("board.open", { name: p.name })} />
+      <button type="button" className="lv-card__hit" onClick={onOpen} aria-label={t("board.watch", { name: p.name })} />
       <div className="lv-card__top">
         <span className="lv-card__av">
-          <HrmAvatar name={p.name} size="md" />
+          {look ? (
+            <span className="lv-card__chr" style={{ background: backdropOf(look) }} aria-hidden>
+              <CharacterArt look={look} variant="bust" />
+            </span>
+          ) : (
+            <HrmAvatar name={p.name} size="md" />
+          )}
           <i className={`lv-dot lv-dot--${STATUS_TONE[status] ?? "gray"}`} aria-hidden />
         </span>
         <span className="lv-card__who">

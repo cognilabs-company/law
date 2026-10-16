@@ -328,6 +328,20 @@ export async function getLiveEmployee(id: string, range: { from?: string; to?: s
   };
 }
 
+// The employee record as it comes, for its virtual_monitor and
+// parallel_contexts (§15) when the board card has none.
+export async function getLiveEmployeeRaw(id: string, signal?: AbortSignal): Promise<Dict> {
+  return asDict(await http(`/internal/live-office/employees/${enc(id)}${qs({ limit: 1 })}`, { signal }));
+}
+
+// A Live Office character is kept on the employee's HRM profile; the rest of
+// the profile is read first and sent back untouched.
+export async function saveLiveCharacter(employeeId: string, character: Dict): Promise<void> {
+  const rec = asDict(await http(`/internal/employees/${enc(employeeId)}`));
+  const emp = Object.keys(asDict(rec.employee)).length ? asDict(rec.employee) : rec;
+  await http(`/internal/employees/${enc(employeeId)}`, send("PATCH", { profile: { ...asDict(emp.profile), live_character: character } }));
+}
+
 // ── Analytics ───────────────────────────────────────────────────────────────
 
 export type LiveTotals = { online: number; active: number; inactive: number; busy: number; busyCount: number; actions: number; completed: number; modules: Record<string, number> };
