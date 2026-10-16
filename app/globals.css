@@ -21400,3 +21400,28 @@ html[data-theme="dark"] .ost{--ost-company:#3B82F6;--ost-department:#13A595;--os
 @media (prefers-reduced-motion:reduce){.lvs,.lvs__saver,.lvs__typing i,.chr-steam,.chs__fig,.chs__preset,.chs__opt,.chs__sw{animation:none;transition:none}}
 .lv-wrap{display:contents}
 .lv-wrap[hidden]{display:none}
+/* Live Office (HRM): furnished rooms, the building's light */
+.lf-zone--edge{stroke:var(--lf-carpet-a);stroke-dasharray:.4 .3}
+.lf--hrm .lf-room.is-dim .lf-corner{opacity:.85}
+.lf--hrm .lf__svg{transition:filter .8s}
+.lf--scene-morning .lf__svg{filter:sepia(.06) saturate(1.05)}
+.lf--scene-evening .lf__svg{filter:sepia(.2) saturate(1.12) brightness(.95)}
+.lf--scene-night .lf__svg{filter:brightness(.72) saturate(.85) hue-rotate(-6deg)}
+.lf--scene-evening .lf-win__sky{fill:#F6B58A}.lf--scene-evening .lf-win{fill:#E7A27F}
+.lf--scene-night .lf-win__sky{fill:#2A3766}.lf--scene-night .lf-win{fill:#1A2445}
+.lf--scene-night .lf-m-screen.is-on .lf-f1{filter:drop-shadow(0 0 5px rgba(143,219,255,.95))}
+.lf-scene svg{width:15px;height:15px}
+.lf-scene--morning{color:#E08A12}.lf-scene--day{color:#D9A400}.lf-scene--evening{color:#C2410C}.lf-scene--night{color:#6D5BD0}
+/* room builder: the style to furnish a room in */
+.lfb__styles{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px}
+.lfb__style{--s1:#DDEADF;--s2:#2E9C5B;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:8px;padding:7px 9px;border:1.5px solid var(--line);border-radius:12px;background:var(--dk-surface,#fff);color:var(--ink);font:inherit;font-size:.76rem;font-weight:700;text-align:left;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.lfb__style i{grid-row:span 2;width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,var(--s1) 55%,var(--s2) 55%);box-shadow:inset 0 0 0 1px rgba(11,31,69,.12)}
+.lfb__style span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lfb__style small{font-size:.66rem;font-weight:600;color:var(--gray);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lfb__style:hover{border-color:color-mix(in srgb,var(--b500,#2f7cf6) 45%,var(--line))}
+.lfb__style.is-on{border-color:var(--b500,#2f7cf6);box-shadow:0 0 0 3px color-mix(in srgb,var(--b500,#2f7cf6) 14%,transparent)}
+.lfb__style:focus-visible{outline:2px solid var(--b500,#2f7cf6);outline-offset:2px}
+.lfb__style--auto i{background:conic-gradient(#8B5CF6,#2F6FE0,#14A898,#E1A626,#D6453D,#8B5CF6)}
+.lfb__style--studio{--s1:#E4E6EA;--s2:#F28C38}.lfb__style--support{--s1:#DCE7F8;--s2:#5D86D6}.lfb__style--legal{--s1:#E2C59A;--s2:#7E5536}.lfb__style--finance{--s1:#EFE6D6;--s2:#E1A626}.lfb__style--people{--s1:#DDEADF;--s2:#8B5CF6}.lfb__style--tech{--s1:#1E2738;--s2:#2DD4E8}.lfb__style--sales{--s1:#F1D7C4;--s2:#F5A623}.lfb__style--board{--s1:#E2C59A;--s2:#3A2C24}.lfb__style--docs{--s1:#EFE6D6;--s2:#9AA3AF}.lfb__style--urgent{--s1:#F4F5F8;--s2:#E5484D}
+.lfb__room{animation:lfbIn .38s cubic-bezier(.2,.9,.3,1.2) both}
+@media (prefers-reduced-motion:reduce){.lfb__room{animation:none}.lf--hrm .lf__svg{transition:none}}

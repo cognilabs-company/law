@@ -17584,7 +17584,13 @@
         "zoom": "Zoom",
         "fit": "Show the whole office",
         "zoomIn": "Zoom in",
-        "zoomOut": "Zoom out"
+        "zoomOut": "Zoom out",
+        "scene": {
+          "morning": "Morning",
+          "day": "Day",
+          "evening": "Evening",
+          "night": "Night"
+        }
       },
       "builder": {
         "title": "New room",
@@ -17605,7 +17611,9 @@
         "auto": "Auto",
         "colorN": "Colour {n}",
         "untitled": "New room",
-        "preview": "The room"
+        "preview": "The room",
+        "style": "Room style",
+        "styleAutoHint": "Picked from the room's and department's names"
       },
       "arrange": {
         "start": "Arrange rooms",
@@ -17910,6 +17918,19 @@
             "wine": "Wine"
           }
         }
+      },
+      "theme": {
+        "office": "Office",
+        "studio": "Studio",
+        "support": "Call centre",
+        "legal": "Legal",
+        "finance": "Finance",
+        "people": "People",
+        "tech": "Tech",
+        "sales": "Sales",
+        "board": "Management",
+        "docs": "Documents",
+        "urgent": "Urgent"
       }
     },
     "feedback": {

@@ -8,10 +8,11 @@ import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import { IconBuilding, IconCheck, IconGlobe, IconLayers, IconMinus, IconPlus, IconSparkle } from "@/components/icons";
 import { EntitySelect, HrmError } from "@/components/internal/HrmUi";
-import { Block, U, boxOf, onFloor, pt } from "@/components/live/floorKit";
-import { Bench, FloorDefs, Partition, Plant, Whiteboard } from "@/components/live/floorArt";
+import { Block, U, boxOf, pt } from "@/components/live/floorKit";
+import { FloorDefs } from "@/components/live/floorArt";
 import { apiMessage, useLiveText } from "./bits";
 import { TINTS, codeFrom, deskGrid, tintOf, type Dict } from "./roomPlan";
+import { RoomArt, SIDE, THEMES, chosenTheme, themeOf, type ThemeId } from "./roomArt";
 
 const TYPE_ICON: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = { virtual: IconGlobe, physical: IconBuilding, hybrid: IconLayers };
 const QUICK = [4, 8, 12, 20];
@@ -31,6 +32,7 @@ export default function RoomBuilder({ room, unitOptions, unitName, defaultUnit =
   const [ownCode, setOwnCode] = useState(Boolean(room));
   const [cap, setCap] = useState(room?.capacity || 8);
   const [tint, setTint] = useState<number | null>(tintOf(meta));
+  const [theme, setTheme] = useState<ThemeId | null>(chosenTheme(meta));
   const [status, setStatus] = useState(room?.status ?? "active");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -44,6 +46,8 @@ export default function RoomBuilder({ room, unitOptions, unitName, defaultUnit =
     const nextMeta: Dict = { ...meta };
     if (tint === null) delete nextMeta.tint;
     else nextMeta.tint = tint;
+    if (theme === null) delete nextMeta.theme;
+    else nextMeta.theme = theme;
     const payload = { org_unit_id: unit, code: shownCode.trim(), name: name.trim(), room_type: type, capacity: cap, status, order_index: room?.order ?? 10, meta: nextMeta };
     try {
       if (room) await updateRoom(room.id, payload);
@@ -56,6 +60,8 @@ export default function RoomBuilder({ room, unitOptions, unitName, defaultUnit =
     }
   }
 
+  // The style the room will have: the one picked, or the one its names give.
+  const shownTheme = theme ?? themeOf({}, [name, shownCode, unitName(unit)], type, room?.id ?? "new");
   const bump = (n: number) => setCap((c) => Math.min(MAX_CAP, Math.max(1, c + n)));
 
   return (
@@ -136,6 +142,23 @@ export default function RoomBuilder({ room, unitOptions, unitName, defaultUnit =
           </div>
 
           <div className="internal-field">
+            <span className="internal-field__label" id="lfb-style">{t("builder.style")}</span>
+            <div className="lfb__styles" role="radiogroup" aria-labelledby="lfb-style">
+              <button type="button" role="radio" aria-checked={theme === null} className={`lfb__style lfb__style--auto${theme === null ? " is-on" : ""}`} onClick={() => setTheme(null)} title={t("builder.styleAutoHint")}>
+                <i aria-hidden />
+                <span>{t("builder.auto")}</span>
+                {theme === null ? <small>{t(`theme.${shownTheme}`)}</small> : null}
+              </button>
+              {THEMES.map((x) => (
+                <button key={x} type="button" role="radio" aria-checked={theme === x} className={`lfb__style lfb__style--${x}${theme === x ? " is-on" : ""}`} onClick={() => setTheme(x)}>
+                  <i aria-hidden />
+                  <span>{t(`theme.${x}`)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="internal-field">
             <span className="internal-field__label" id="lfb-tint">{t("builder.color")}</span>
             <div className="lfb__tints" role="radiogroup" aria-labelledby="lfb-tint">
               <button type="button" role="radio" aria-checked={tint === null} className={`lfb__tint lfb__tint--auto${tint === null ? " is-on" : ""}`} onClick={() => setTint(null)} title={t("builder.colorAuto")}>
@@ -155,7 +178,7 @@ export default function RoomBuilder({ room, unitOptions, unitName, defaultUnit =
           ) : null}
         </div>
 
-        <RoomStage type={type} name={name.trim() || t("builder.untitled")} unit={unitName(unit)} cap={cap} tint={tint ?? 0} label={t("builder.preview")} seatsLabel={t("builder.seatsShort", { n: cap })} />
+        <RoomStage type={type} theme={shownTheme} name={name.trim() || t("builder.untitled")} unit={[unitName(unit), t(`theme.${shownTheme}`)].filter(Boolean).join(" · ")} cap={cap} tint={tint} label={t("builder.preview")} seatsLabel={t("builder.seatsShort", { n: cap })} />
       </div>
     </Modal>
   );
@@ -163,28 +186,20 @@ export default function RoomBuilder({ room, unitOptions, unitName, defaultUnit =
 
 // The room as it will stand on the office floor, drawn with the floor's own
 // furniture. Only the first sixteen seats get desks, as on the floor.
-function RoomStage({ type, name, unit, cap, tint, label, seatsLabel }: { type: string; name: string; unit: string; cap: number; tint: number; label: string; seatsLabel: string }) {
+function RoomStage({ type, theme, name, unit, cap, tint, label, seatsLabel }: { type: string; theme: ThemeId; name: string; unit: string; cap: number; tint: number | null; label: string; seatsLabel: string }) {
   const g = useMemo(() => deskGrid(Math.min(cap, 16)), [cap]);
-  const box = boxOf(-0.6, -0.6, g.w + 1.2, g.d + 1.2, U * 0.9, 2.6);
-  const [lx, ly] = pt(g.w / 2, 0.1, 2.3);
+  const w = g.w + SIDE;
+  const box = boxOf(-0.6, -0.6, w + 1.2, g.d + 1.2, U * 0.9, 2.6);
+  const [lx, ly] = pt(w / 2, 0.1, 2.3);
+  // A few seats taken, so the screens light up.
+  const taken = g.desks.map((_, i) => [i === 0, false, i === 0, i % 2 === 1]);
   return (
     <figure className="lf lfb__stage" aria-label={label}>
       <svg viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`} role="img" aria-label={`${name} · ${seatsLabel}`} style={{ "--lf-k": (box.w / 420).toFixed(3) } as CSSProperties}>
         <FloorDefs />
-        <Block x={-0.6} y={-0.6} w={g.w + 1.2} d={g.d + 1.2} h={0.35} z={-0.35} cls="lf-m-slab" />
-        <g className={`lf-room lf-room--t${tint} lf-room--${type} on`}>
-          <g transform={onFloor()}>
-            <rect className="lf-zone lf-zone--tint" x={0} y={0} width={g.w} height={g.d} rx="0.25" />
-          </g>
-          <Partition x={0} y={0} len={g.w} along="x" glass={type === "virtual"} />
-          <Partition x={0} y={0} len={g.d - 1.4} along="y" glass />
-          {type !== "virtual" && g.w > 4 ? <Whiteboard x={0.9} y={0.07} w={Math.min(2.6, g.w - 1.8)} /> : null}
-          {g.desks.map((d, i) => (
-            <g key={`${g.desks.length}-${i}`} className="lfb__desk" style={{ animationDelay: `${i * 45}ms` }}>
-              <Bench x={d.x} y={d.y} />
-            </g>
-          ))}
-          <Plant x={g.w - 0.6} y={g.d - 0.7} />
+        <Block x={-0.6} y={-0.6} w={w + 1.2} d={g.d + 1.2} h={0.35} z={-0.35} cls="lf-m-slab" />
+        <g key={`${theme}-${g.desks.length}`} className={`lf-room lf-room--t${tint ?? 0} lf-room--${type} lfb__room`}>
+          <RoomArt x={0} y={0} w={w} d={g.d} gw={g.w} theme={theme} type={type} desks={g.desks} taken={taken} tint={tint} />
         </g>
         <text className="lf-label" x={lx.toFixed(1)} y={ly.toFixed(1)}>
           {name}

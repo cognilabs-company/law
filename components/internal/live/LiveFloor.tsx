@@ -4,13 +4,14 @@ import { useCallback, useId, useMemo, useRef, useState, type KeyboardEvent } fro
 import { asDict } from "@/lib/http";
 import type { LiveBoard, LivePerson, LiveRoom, LiveUnit } from "@/lib/services/internalLive";
 import { initials } from "@/lib/lawyers";
-import { IconCheck, IconChevronDown, IconChevronLeft, IconChevronRight, IconClose, IconEdit, IconExpand, IconGrid, IconMinus, IconPlus, IconUsers } from "@/components/icons";
+import { IconMoon, IconSun, IconCheck, IconChevronDown, IconChevronLeft, IconChevronRight, IconClose, IconEdit, IconExpand, IconGrid, IconMinus, IconPlus, IconUsers } from "@/components/icons";
 import { HrmEmpty } from "@/components/internal/HrmUi";
 import { Block, U, boxOf, onFloor, pt, unpt, useFloorCamera, type Rect } from "@/components/live/floorKit";
-import { Bench, FloorDefs, Partition, Plant, SeatMark, Whiteboard } from "@/components/live/floorArt";
+import { FloorDefs, SeatMark, WindowWallX, WindowWallY } from "@/components/live/floorArt";
 import { groupBoard } from "./LiveBoardView";
 import { STATUS_TONE, apiMessage, shownStatus, useLiveText } from "./bits";
 import { deskGrid, floorOf, tintOf, type Dict } from "./roomPlan";
+import { RoomArt, SIDE, themeOf, type ThemeId } from "./roomArt";
 import CharacterArt, { backdropOf } from "./CharacterArt";
 import type { Look } from "./character";
 
@@ -29,6 +30,11 @@ type Plan = {
   room: LiveRoom | null;
   unit: LiveUnit | null;
   tint: number;
+  // An admin's own floor colour, or the style's floor.
+  ownTint: boolean;
+  theme: ThemeId;
+  // The width of the desks; the furnished corner is beyond it.
+  gw: number;
   x: number;
   y: number;
   w: number;
@@ -51,7 +57,7 @@ const TRAY_MAX = 14;
 
 // Rooms an admin has placed stand where they were put; the rest go on
 // shelves below them, side by side until a row is as wide as the floor wants.
-function layout(board: LiveBoard, statusOf: (p: LivePerson) => string, filtered: boolean, openSpaces: boolean, placeOf: (id: string) => Pos | null, tintFor: (id: string) => number | null): Plan[] {
+function layout(board: LiveBoard, statusOf: (p: LivePerson) => string, filtered: boolean, openSpaces: boolean, placeOf: (id: string) => Pos | null, tintFor: (id: string) => number | null, metaFor: (id: string) => Dict): Plan[] {
   const plans: Plan[] = [];
   groupBoard(board, statusOf).forEach((g, gi) => {
     const bays = g.rooms.length || !g.unit || filtered || !openSpaces ? g.rooms : [{ room: null, people: [] }];
@@ -61,7 +67,10 @@ function layout(board: LiveBoard, statusOf: (p: LivePerson) => string, filtered:
       const grid = deskGrid(Math.max(seated.length, Math.min(room?.capacity || 4, 16)));
       const seats: Seat[] = grid.seats.map((s) => ({ ...s, person: null }));
       seated.forEach((p, i) => (seats[i].person = p));
-      plans.push({ key: room?.id || `open:${g.unit?.id ?? "none"}`, room, unit: g.unit, tint: (room ? tintFor(room.id) : null) ?? gi % 6, x: 0, y: 0, w: grid.w, d: grid.d, desks: grid.desks, seats, here: seated.length, total: people.length });
+      const own = room ? tintFor(room.id) : null;
+      const key = room?.id || `open:${g.unit?.id ?? "none"}`;
+      const theme = themeOf(room ? metaFor(room.id) : {}, [room?.name ?? "", room?.code ?? "", g.unit?.name ?? "", g.unit?.code ?? ""], room?.type ?? "physical", key);
+      plans.push({ key, room, unit: g.unit, tint: own ?? gi % 6, ownTint: own !== null, theme, gw: grid.w, x: 0, y: 0, w: grid.w + SIDE, d: grid.d, desks: grid.desks, seats, here: seated.length, total: people.length });
     }
   });
   const put = (p: Plan, x: number, y: number) => {
@@ -156,7 +165,7 @@ export default function LiveFloor({
   const metaOf = useCallback((id: string) => roomMeta?.[id] ?? asDict(board.rooms.find((r) => r.id === id)?.raw.meta), [roomMeta, board.rooms]);
   const draft = arrange?.draft;
   const plans = useMemo(
-    () => layout(board, statusOf, filtered && !draft, true, (id) => (draft ? (draft[id] ?? null) : floorOf(metaOf(id))), (id) => tintOf(metaOf(id))),
+    () => layout(board, statusOf, filtered && !draft, true, (id) => (draft ? (draft[id] ?? null) : floorOf(metaOf(id))), (id) => tintOf(metaOf(id)), metaOf),
     [board, statusOf, filtered, draft, metaOf],
   );
   // Back to front, so a room moved behind another is drawn behind it.
@@ -223,7 +232,7 @@ export default function LiveFloor({
   };
   const pick = (id: string) => setArrange((a) => (a ? { ...a, picked: id } : a));
   const autoArrange = () => {
-    const fresh = layout(board, statusOf, false, true, () => null, (id) => tintOf(metaOf(id)));
+    const fresh = layout(board, statusOf, false, true, () => null, (id) => tintOf(metaOf(id)), metaOf);
     setArrange((a) => (a ? { ...a, draft: Object.fromEntries(fresh.filter((p) => p.room).map((p) => [p.room!.id, { x: snap(p.x), y: snap(p.y) }])) } : a));
   };
   // Every room whose kept place differs is saved — also those never moved
@@ -271,13 +280,16 @@ export default function LiveFloor({
   }
 
   const here = plans.reduce((n, p) => n + p.here, 0);
+  // Morning, day, evening or night in Tashkent, as the backend says (§19),
+  // so every screen shows the same light.
+  const scene = ["morning", "day", "evening", "night"].includes(String(board.raw.scene_mode)) ? String(board.raw.scene_mode) : "day";
   const tone = (p: LivePerson) => STATUS_TONE[statusOf(p)] ?? "gray";
   const first = (name: string) => name.trim().split(/\s+/)[0] || "—";
   const planName = (p: Plan) => p.room?.name || p.unit?.name || t("board.noUnit");
   const picked = arrange?.picked ? (plans.find((p) => p.room?.id === arrange.picked) ?? null) : null;
 
   return (
-    <div ref={rootRef} className={`lf${focused ? " is-room" : ""}${arrange ? " is-arrange" : ""}`}>
+    <div ref={rootRef} className={`lf lf--hrm lf--scene-${scene}${focused ? " is-room" : ""}${arrange ? " is-arrange" : ""}`}>
       <svg
         ref={svgRef}
         className="lf__svg"
@@ -309,6 +321,8 @@ export default function LiveFloor({
         <g transform={onFloor()} className="lf-ground">
           <rect className="lf-carpet" x={slab.x + 0.3} y={slab.y + 0.3} width={slab.w - 0.6} height={slab.d - 0.6} />
         </g>
+        <WindowWallX x={slab.x + 0.3} y={slab.y + 0.6} w={slab.w - 0.3} h={1.7} />
+        <WindowWallY x={slab.x + 0.6} y={slab.y + 0.6} d={slab.d - 0.9} h={1.7} />
         {drawOrder.map((p) => {
           const on = focused?.key === p.key;
           const id = p.room?.id ?? "";
@@ -359,20 +373,19 @@ export default function LiveFloor({
                 if (pressed(e)) enter(p.key);
               }}
             >
-              <g transform={onFloor()}>
-                <rect className="lf-zone lf-zone--tint" x={p.x} y={p.y} width={p.w} height={p.d} rx="0.25" />
-              </g>
-              {p.room ? (
-                <>
-                  <Partition x={p.x} y={p.y} len={p.w} along="x" glass={p.room.type === "virtual"} />
-                  <Partition x={p.x} y={p.y} len={p.d - 1.4} along="y" glass />
-                  {p.room.type !== "virtual" && p.w > 4 ? <Whiteboard x={p.x + 0.9} y={p.y + 0.07} w={Math.min(2.6, p.w - 1.8)} /> : null}
-                </>
-              ) : null}
-              {p.desks.map((d, i) => (
-                <Bench key={i} x={d.x} y={d.y} taken={p.seats.slice(i * 4, i * 4 + 4).map((s) => !!s.person)} />
-              ))}
-              <Plant x={p.x + p.w - 0.6} y={p.y + p.d - 0.7} />
+              <RoomArt
+                x={p.x}
+                y={p.y}
+                w={p.w}
+                d={p.d}
+                gw={p.gw}
+                theme={p.theme}
+                type={p.room?.type ?? "physical"}
+                desks={p.desks}
+                taken={p.desks.map((_, i) => p.seats.slice(i * 4, i * 4 + 4).map((s) => !!s.person))}
+                tint={p.ownTint ? p.tint : null}
+                open={!p.room}
+              />
               {arrange && p.room ? (
                 <g transform={onFloor(0.02)} className="lf-grip" aria-hidden>
                   <rect x={p.x + 0.12} y={p.y + 0.12} width={p.w - 0.24} height={p.d - 0.24} rx="0.3" />
@@ -510,6 +523,9 @@ export default function LiveFloor({
                 <span>{t("arrange.addRoom")}</span>
               </button>
             ) : null}
+            <span className={`lf-count lf-scene lf-scene--${scene}`} title={t(`floor.scene.${scene}`)} aria-label={t(`floor.scene.${scene}`)}>
+              {scene === "night" || scene === "evening" ? <IconMoon /> : <IconSun />}
+            </span>
             <span className="lf-count" title={t("board.onlineOfTotal")}>
               <IconUsers />
               {here}/{board.people.length}

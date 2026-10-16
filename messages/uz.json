@@ -17590,7 +17590,13 @@
         "zoom": "Masshtab",
         "fit": "Butun ofisni ko'rsatish",
         "zoomIn": "Yaqinlashtirish",
-        "zoomOut": "Uzoqlashtirish"
+        "zoomOut": "Uzoqlashtirish",
+        "scene": {
+          "morning": "Tong",
+          "day": "Kunduz",
+          "evening": "Kechqurun",
+          "night": "Tun"
+        }
       },
       "builder": {
         "title": "Yangi xona",
@@ -17611,7 +17617,9 @@
         "auto": "Avto",
         "colorN": "{n}-rang",
         "untitled": "Yangi xona",
-        "preview": "Xona ko'rinishi"
+        "preview": "Xona ko'rinishi",
+        "style": "Xona uslubi",
+        "styleAutoHint": "Xona va bo'lim nomidan tanlanadi"
       },
       "arrange": {
         "start": "Xonalarni joylash",
@@ -17916,6 +17924,19 @@
             "wine": "Bordo"
           }
         }
+      },
+      "theme": {
+        "office": "Oddiy ofis",
+        "studio": "Studiya",
+        "support": "Call-markaz",
+        "legal": "Yuridik",
+        "finance": "Moliya",
+        "people": "Kadrlar",
+        "tech": "Texnologiya",
+        "sales": "Sotuv",
+        "board": "Rahbariyat",
+        "docs": "Hujjatlar",
+        "urgent": "Shoshilinch"
       }
     },
     "feedback": {
