@@ -1,5 +1,942 @@
 {
   "studio": {
+    "sx": {
+      "ui": {
+        "studio": "Studio",
+        "save": "Save",
+        "saving": "Saving…",
+        "cancel": "Cancel",
+        "close": "Close",
+        "more": "More actions",
+        "retry": "Try again",
+        "loading": "Loading…",
+        "open": "Open",
+        "back": "Back",
+        "edit": "Edit",
+        "view": "View",
+        "clone": "Make a copy",
+        "archive": "Archive",
+        "yes": "Yes",
+        "no": "No",
+        "notSet": "Not set",
+        "required": "required",
+        "optional": "optional",
+        "currencyUZS": "UZS",
+        "days": "{n, plural, one {# day} other {# days}}",
+        "perMonth": "{price}/mo",
+        "andMore": "and {n} more",
+        "errorTitle": "Something went wrong",
+        "loadFail": "The data didn't load",
+        "untitled": "Untitled"
+      },
+      "nav": {
+        "label": "Studio sections",
+        "crumbs": "Breadcrumb",
+        "home": "Home",
+        "approvals": "Approvals",
+        "monitoring": "Monitoring",
+        "settings": "Settings",
+        "backTo": "Back: {name}"
+      },
+      "gate": {
+        "offTitle": "Studio isn't switched on yet",
+        "offText": "The server hasn't opened this section yet. Check again a little later.",
+        "offAction": "Check again",
+        "deniedTitle": "You don't have access to this page",
+        "deniedText": "Ask a Studio admin if you need access."
+      },
+      "status": {
+        "draft": {
+          "label": "Draft",
+          "hint": "Saved, not sent yet"
+        },
+        "submitted": {
+          "label": "Submitted",
+          "hint": "Waiting for a reviewer"
+        },
+        "in_review": {
+          "label": "In review",
+          "hint": "A reviewer is looking at it"
+        },
+        "approved": {
+          "label": "Approved",
+          "hint": "Ready to go live"
+        },
+        "published": {
+          "label": "Live",
+          "hint": "People can see it now"
+        },
+        "returned": {
+          "label": "Returned",
+          "hint": "The reviewer asked for changes"
+        },
+        "rejected": {
+          "label": "Rejected",
+          "hint": "The reviewer turned the change down"
+        },
+        "archived": {
+          "label": "Archived",
+          "hint": "Not in use, kept for history"
+        },
+        "active": {
+          "label": "Active",
+          "hint": "Working on the site"
+        },
+        "inactive": {
+          "label": "Inactive",
+          "hint": "Not shown on the site"
+        },
+        "deleted": {
+          "label": "Deleted",
+          "hint": "Deleted record, history only"
+        },
+        "scheduled": {
+          "label": "Scheduled",
+          "hint": "Goes live at the set time"
+        },
+        "paused": {
+          "label": "Paused",
+          "hint": "Temporarily off"
+        },
+        "expired": {
+          "label": "Expired",
+          "hint": "Its validity period has ended"
+        },
+        "failed": {
+          "label": "Failed",
+          "hint": "The action didn't finish"
+        }
+      },
+      "rail": {
+        "label": "Record stages",
+        "done": "done",
+        "current": "current stage",
+        "ahead": "ahead",
+        "aria": "Status: {status}",
+        "live": "Published — it's live now"
+      },
+      "ctor": {
+        "K31": {"name":"Service rules","what":"Rules a lawyer personally accepts before switching a service on. Each new version must be accepted again."},
+        "K32": {"name":"Client guarantees","what":"Real guarantees and perks for clients who stay on LexGo."},
+        "K33": {"name":"Guarantee display rule","what":"Links several guarantees to several page placements in one rule."},
+        "K34": {"name":"Price factors","what":"Factors that only raise a price, reused across services and packages."},
+        "K01": {
+          "name": "Category",
+          "what": "The service catalogue's categories and sub-categories."
+        },
+        "K02": {
+          "name": "Single service",
+          "what": "One catalogue service: its description, price and who can deliver it."
+        },
+        "K29": {
+          "name": "Paid add-ons",
+          "what": "Optional extras for a service or package: a fixed amount or a percentage."
+        },
+        "K03-M": {
+          "name": "Service package",
+          "what": "A package with Basic, Standard and Premium levels: what's inside and each level's price."
+        },
+        "K30": {
+          "name": "Client situation",
+          "what": "Situations clients face, how they describe them, and the services that fit."
+        },
+        "K07": {
+          "name": "Offer and legal texts",
+          "what": "The offer, policy and contract texts people agree to."
+        },
+        "K06": {
+          "name": "Document template",
+          "what": "The document text, ready-made clauses and the blanks to fill in."
+        },
+        "K05": {
+          "name": "Client questionnaire",
+          "what": "The questions a client answers before a document is prepared, and their order."
+        },
+        "K26": {
+          "name": "Document service rules",
+          "what": "Rules for analysing a document, lawyer review and downloads."
+        },
+        "K11": {
+          "name": "Service terms",
+          "what": "Cancellation, refunds and other terms."
+        },
+        "K08": {
+          "name": "Work process and statuses",
+          "what": "The stages a service goes through and the status at each one."
+        },
+        "K10": {
+          "name": "Deadlines and work calendar",
+          "what": "Response and delivery deadlines, working hours and days off."
+        },
+        "K09": {
+          "name": "Quality checklist",
+          "what": "The items that must be done before work is handed over."
+        },
+        "K13": {
+          "name": "Quality, rating and penalties",
+          "what": "Quality criteria, how ratings are counted and what happens on a breach."
+        },
+        "K12-M": {
+          "name": "Partner lawyer selection",
+          "what": "How a lawyer is chosen for an order, and in what order."
+        },
+        "MP05": {
+          "name": "Purchase process",
+          "what": "Purchase steps, the payment condition and handing the order to the seller."
+        },
+        "K27": {
+          "name": "Notification triggers",
+          "what": "Which event sends a message, to whom and through which channel."
+        },
+        "K14": {
+          "name": "Notification texts",
+          "what": "The message text for each event in three languages."
+        },
+        "CALL01": {
+          "name": "Call settings",
+          "what": "Audio and video call quality, recording and reconnecting."
+        },
+        "K22": {
+          "name": "Consultation rules",
+          "what": "How consultations run over audio, video and chat."
+        },
+        "MP08": {
+          "name": "Complaint handling",
+          "what": "Complaint types, the evidence needed and how they are resolved."
+        },
+        "K17": {
+          "name": "Plans and features",
+          "what": "Plans, the billing period and what each plan includes."
+        },
+        "K04": {
+          "name": "Pricing rules",
+          "what": "Price ranges, surcharges and discounts."
+        },
+        "K18": {
+          "name": "Payment operations",
+          "what": "Payment methods, payment confirmation and refunds."
+        },
+        "K25": {
+          "name": "Commission and payouts",
+          "what": "The platform's share, holding money and paying the seller."
+        },
+        "MP02": {
+          "name": "Seller price limits",
+          "what": "The lowest and highest price a seller may set."
+        },
+        "MP03": {
+          "name": "Marketplace product",
+          "what": "A product built on a service: variants, packages, deliverables and who sells it."
+        },
+        "MP07": {
+          "name": "Review rules",
+          "what": "Checking, publishing and rating reviews."
+        },
+        "SEC01": {
+          "name": "Roles and permissions",
+          "what": "What each role is allowed to do."
+        },
+        "SEC02": {
+          "name": "Data access",
+          "what": "Who can see which data and what stays hidden."
+        },
+        "SEC03": {
+          "name": "Risk rules",
+          "what": "Spotting and limiting suspicious activity."
+        },
+        "SEC04": {
+          "name": "Approval safety",
+          "what": "One person makes a change, another approves it: nobody approves their own."
+        },
+        "SEC05": {
+          "name": "File safety",
+          "what": "Allowed file types, sizes and virus checks."
+        },
+        "K20": {
+          "name": "Approval order",
+          "what": "Who approves changes and in what order."
+        },
+        "K21": {
+          "name": "Service access rules",
+          "what": "Who can use a service by role, plan and region."
+        },
+        "MP06": {
+          "name": "Seller verification",
+          "what": "The documents a seller must provide and when they are checked again."
+        },
+        "OPS01": {
+          "name": "Feature switches",
+          "what": "Turning new features on and off step by step."
+        },
+        "OPS02": {
+          "name": "Scheduled jobs",
+          "what": "Jobs that run automatically on a schedule."
+        },
+        "OPS03": {
+          "name": "Business calendar",
+          "what": "Working days, hours and holidays."
+        },
+        "OPS04": {
+          "name": "Data retention",
+          "what": "How long data is kept, and when it is archived or deleted."
+        },
+        "OPS05": {
+          "name": "Exports",
+          "what": "Which data goes into a download file, and with which columns."
+        },
+        "OPS06": {
+          "name": "Dashboard",
+          "what": "The figures, blocks and filters on a dashboard."
+        },
+        "ORG01": {
+          "name": "Team routing",
+          "what": "Which team and queue work goes to."
+        },
+        "K23": {
+          "name": "Support process",
+          "what": "The request queue, answer deadlines and escalation to a manager."
+        },
+        "K24": {
+          "name": "Sales pipeline",
+          "what": "The stages a new lead goes through and who it is assigned to."
+        },
+        "MP01": {
+          "name": "Seller requirements",
+          "what": "What a seller needs to meet before selling."
+        },
+        "MP10": {
+          "name": "Seller availability",
+          "what": "When a seller works and how many orders they take at once."
+        },
+        "K28": {
+          "name": "Seller ranking",
+          "what": "The scores that decide who appears higher in the list."
+        },
+        "K19": {
+          "name": "Service page and FAQ",
+          "what": "The blocks on a service page and common questions."
+        },
+        "INT01": {
+          "name": "Connecting a service",
+          "what": "The connection to an outside service: waiting time, retries and a backup."
+        },
+        "INT02": {
+          "name": "Messages to other systems",
+          "what": "Outside addresses that get a message when something happens."
+        },
+        "INT03": {
+          "name": "Service routing",
+          "what": "Which outside service is used when, and what replaces it."
+        },
+        "CORE": {
+          "name": "Studio-wide rules",
+          "what": "Permissions, audit and publishing rules for the whole Studio."
+        },
+        "K16": {
+          "name": "Reference lists",
+          "what": "Regions, types and other shared lists. No approval needed."
+        },
+        "OPS07": {
+          "name": "Numbering",
+          "what": "How document and record numbers are made."
+        },
+        "OPS08": {
+          "name": "Status list",
+          "what": "The system's statuses, their colours and the moves between them."
+        },
+        "SEARCH01": {
+          "name": "Search settings",
+          "what": "Where search looks, synonyms and the order of results."
+        },
+        "M1": {
+          "name": "Work plan",
+          "what": "Studio tasks, owners and deadlines."
+        },
+        "M2": {
+          "name": "Work acceptance",
+          "what": "Acceptance criteria for a record, the evidence and the outcome."
+        },
+        "M3": {
+          "name": "Leadership dashboard",
+          "what": "The leadership dashboard's blocks, filters and alerts."
+        },
+        "MP04": {
+          "name": "Ad placement",
+          "what": "Where on the page ads appear and how."
+        },
+        "K12-PROMO": {
+          "name": "Ad packages",
+          "what": "The packages sellers buy for banner, profile and service ads."
+        },
+        "MP09": {
+          "name": "Promo campaign",
+          "what": "The campaign code, who it is for, the discount, budget and dates."
+        }
+      },
+      "group": {
+        "services_packages": {
+          "name": "Services and packages",
+          "what": "Category, service, paid add-ons, package and client situation — in this order."
+        },
+        "documents_texts": {
+          "name": "Documents and texts",
+          "what": "Legal texts, document templates, questionnaires and service terms."
+        },
+        "process_quality": {
+          "name": "Process and quality",
+          "what": "Work stages, deadlines, checklists, ratings and purchase."
+        },
+        "communications": {
+          "name": "Communication and notifications",
+          "what": "Notification triggers and texts, calls, consultations and complaints."
+        },
+        "finance_tariffs": {
+          "name": "Finance and plans",
+          "what": "Plans, pricing rules, payments, commission and seller payouts."
+        },
+        "security_access": {
+          "name": "Security and access",
+          "what": "Roles, permissions, data access, risk rules and files."
+        },
+        "operations": {
+          "name": "Operations",
+          "what": "Features, scheduled jobs, calendar, exports, teams and sellers."
+        },
+        "integrations": {
+          "name": "Integrations",
+          "what": "Connecting outside services, messages to them and backups."
+        },
+        "system_reference": {
+          "name": "System and reference lists",
+          "what": "Studio rules, reference lists, numbering, statuses and search."
+        },
+        "advertising": {
+          "name": "Advertising",
+          "what": "Ad placements, packages and campaigns."
+        }
+      },
+      "journey": {
+        "marketplace_service": {
+          "name": "Launching a service and package",
+          "what": "From the category through purchase and quality to the service page."
+        },
+        "document_service": {
+          "name": "Launching a document service",
+          "what": "Template, questionnaire, rules, price and download."
+        },
+        "subscription": {
+          "name": "Launching a plan",
+          "what": "Plan features, access, payment and notifications."
+        },
+        "consultation": {
+          "name": "Launching consultations",
+          "what": "Calls, consultation rules, price, process, quality and notifications."
+        },
+        "promotion": {
+          "name": "Launching advertising",
+          "what": "Ad placement, packages, campaign, payment and ranking."
+        },
+        "integration": {
+          "name": "Launching an integration",
+          "what": "Outside service, message addresses, routing, security and monitoring."
+        }
+      },
+      "role": {
+        "admin": "Administrator",
+        "advokat": "Advocate",
+        "advokat_tashkiloti": "Law firm",
+        "b2b_manager": "Corporate clients manager",
+        "call_center": "Duty officer",
+        "call_center_lawyer": "Duty lawyer",
+        "ceo_viewer": "Leader (view only)",
+        "content_manager": "Content manager",
+        "executive": "Executive",
+        "finance": "Finance",
+        "manager": "Manager",
+        "marketing": "Marketing",
+        "moderator": "Moderator",
+        "organization_owner": "Organisation owner",
+        "provider": "Provider",
+        "quality_control": "Quality control",
+        "sales": "Sales",
+        "sales_head": "Head of sales",
+        "sales_operator": "Sales operator",
+        "super_admin": "Super admin",
+        "superadmin": "Superadmin",
+        "yurist": "Lawyer",
+        "client": "Client",
+        "studio_editor": "Studio editor",
+        "studio_reviewer": "Reviewer",
+        "studio_publisher": "Publisher",
+        "studio_admin": "Studio admin"
+      },
+      "plan": {
+        "lexgo-ai-free": "LexGo.AI Free",
+        "lexgo-ai-lite": "LexGo.AI Lite",
+        "lexgo-ai-pro": "LexGo.AI Pro",
+        "lexgo-ai-jismoniy-shaxs": "LexGo.AI — individual",
+        "lexgo-ai-yurist-advokat-seller": "LexGo.AI — lawyers and advocates",
+        "shaxsiy-advokat-gift": "Personal lawyer — gift",
+        "shaxsiy-advokat-standard": "Personal lawyer Standard",
+        "shaxsiy-advokat-premium": "Personal lawyer Premium",
+        "biznes-abonent-basic": "Business subscriber — Basic",
+        "biznes-abonent-standard": "Business subscriber — Standard",
+        "biznes-abonent-premium": "Business subscriber — Premium"
+      },
+      "audience": {
+        "seller": "For sellers",
+        "client": "For clients",
+        "personal": "Personal use"
+      },
+      "tier": {
+        "BASIC": "Basic",
+        "STANDARD": "Standard",
+        "PREMIUM": "Premium",
+        "FREE": "Free",
+        "PRO": "Pro"
+      },
+      "promo": {
+        "profile-starter-7": "Profile ad · 7 days",
+        "profile-pro-14": "Profile ad · 14 days",
+        "service-top-7": "Service ad · 7 days",
+        "banner-main-7": "Main banner · 7 days"
+      },
+      "placement": {
+        "banner": {
+          "name": "Banner ad",
+          "what": "A rotating banner at the top of the marketplace. The seller uploads the image."
+        },
+        "profile_boost": {
+          "name": "Profile ad",
+          "what": "The seller's profile shows higher in the list, with a badge."
+        },
+        "service_boost": {
+          "name": "Service ad",
+          "what": "The chosen service shows higher in search results. The seller picks the service at checkout."
+        }
+      },
+      "placementRule": {
+        "service": "A service must be chosen",
+        "bannerAsset": "A banner image is uploaded",
+        "none": "No extra conditions"
+      },
+      "surface": {
+        "marketplace_top_banner": "Top marketplace banner",
+        "marketplace_list": "Marketplace list",
+        "marketplace_list_card": "Card in the marketplace list",
+        "category_search": "Category search",
+        "category_search_sponsored_service": "Sponsored service in search"
+      },
+      "opt": {
+        "K31__scope_type": {"global":"All services","service":"One service","category":"A category"},
+        "K33__placements": {"marketplace":"Marketplace list","service_detail":"Service page","checkout":"Checkout","negotiation":"Price negotiation","post_payment_order":"Order after payment","in_progress":"While work is in progress","second_opinion":"Second opinion","support":"Support"},
+        "target_type": {
+          "service": "To a service",
+          "package": "To a package"
+        },
+        "adjustment_type": {
+          "fixed": "Fixed amount",
+          "percent": "Percentage"
+        },
+        "kind": {
+          "mandatory": "Required",
+          "optional": "Optional",
+          "choose_one": "Choose one"
+        },
+        "visibility": {
+          "public": "Everyone",
+          "client": "Clients",
+          "staff": "Staff"
+        },
+        "K12-PROMO__status": {
+          "active": "On sale",
+          "inactive": "Paused",
+          "archived": "Archived"
+        }
+      },
+      "field": {
+        "discovery_terms": "Search terms",
+        "K31__rule_key": "Rule code",
+        "K31__body": "Rule text",
+        "K31__scope_type": "Applies to",
+        "K31__scope_id": "Service or category",
+        "K31__effective_at": "Takes effect",
+        "K32__icon": "Icon",
+        "K32__refund_policy_id": "Refund policy",
+        "K33__guarantee_ids": "Guarantees",
+        "K33__placements": "Where it shows",
+        "K34__value": "Raises the price by",
+        "tier": "Level",
+        "tiers": "Levels",
+        "category_id": "Category",
+        "client_price": "Client price",
+        "seller_fee": "Provider fee",
+        "adjustment_type": "How the price changes",
+        "client_phrases": "How clients put it",
+        "recommended_service_ids": "Recommended services",
+        "accepts_banner_asset": "Seller uploads a banner image",
+        "reach": "Reach",
+        "surface": "Where it shows",
+        "K12-PROMO__title": "Package name",
+        "K12-PROMO__code": "Package code",
+        "K12-PROMO__placement": "Ad placement",
+        "K12-PROMO__days": "Number of days",
+        "K12-PROMO__price": "Package price",
+        "K12-PROMO__boost_score": "Boost strength",
+        "K12-PROMO__requires_service": "Seller picks a service",
+        "K12-PROMO__requires_banner": "Banner image required",
+        "K12-PROMO__preview": "Badge",
+        "K12-PROMO__preview__label": "Badge text",
+        "K12-PROMO__status": "Sale status",
+        "K03-M__tiers": "Levels: Basic, Standard, Premium",
+        "K03-M__components": "Services in the package",
+        "K03-M__custom_items": "Extra items",
+        "K03-M__tiers__included": "What's included",
+        "K03-M__tiers__title": "Level name",
+        "K03-M__duration": "Overall duration",
+        "K29__target_type": "Applies to",
+        "K29__service_id": "Service",
+        "K29__package_id": "Package",
+        "K29__title": "Set name",
+        "K29__sections": "Sections and options",
+        "K29__sections__title": "Section name",
+        "K29__sections__options": "Options",
+        "K29__sections__options__label": "Option name",
+        "K29__sections__options__value": "Amount",
+        "INT01__provider": "Service name",
+        "INT01__enabled": "Connected"
+      },
+      "help": {
+        "discovery_terms": "Words and topics clients may type into search. Add them one by one.",
+        "K31__rule_key": "Stays the same in every version: a new version is linked to the earlier rule by this code.",
+        "K34__value": "A fixed amount is in UZS; a percentage is taken from the base price. Fixed amounts are added first, then percentages.",
+        "K12-PROMO__code": "Sellers don't see it: the system recognises the package by it.",
+        "K12-PROMO__boost_score": "The higher it is, the higher the ad shows.",
+        "K12-PROMO__preview__label": "A short tag shown next to the ad.",
+        "K12-PROMO__status": "Sellers can only buy packages that are on sale.",
+        "K03-M__tiers": "Each level once: Basic, Standard and Premium.",
+        "K29__sections__options__value": "In sum for a fixed amount, in percent for a percentage.",
+        "INT01__secret_reference": "Write where the password is stored, not the password."
+      },
+      "ph": {
+        "url": "https://…",
+        "email": "info@lexgo.uz",
+        "phone": "+998 90 123 45 67",
+        "K12-PROMO__title": "e.g. Profile ad · 7 days",
+        "K12-PROMO__code": "e.g. profile-7",
+        "K12-PROMO__preview__label": "e.g. Recommended",
+        "K03-M__title": "e.g. Full divorce support",
+        "K03-M__package_code": "e.g. ajrashish-toliq",
+        "K03-M__tiers__title": "e.g. Advice and documents",
+        "K03-M__tiers__included__value": "e.g. Drafting the statement of claim",
+        "K03-M__duration": "e.g. 10 working days",
+        "K29__title": "e.g. Urgency and extras",
+        "K29__sections__title": "e.g. Urgency",
+        "K29__sections__options__label": "e.g. Within 24 hours",
+        "INT01__provider": "e.g. Eskiz",
+        "INT01__timeout": "e.g. 10 seconds",
+        "INT01__secret_reference": "e.g. eskiz-sms",
+        "INT01__recordTitle": "e.g. SMS through Eskiz"
+      },
+      "section": {
+        "asosiy": "Basics",
+        "kirish_va_auditoriya": "Who it's for",
+        "qoidalar": "Rules",
+        "faollik_va_muddat": "Status and dates",
+        "kontent": "Text and look",
+        "narx_va_hisob_kitob": "Price and billing",
+        "jarayon_va_qoidalar": "Process and rules"
+      },
+      "doccat": {
+        "contract": "Contract",
+        "legal-doc-civil": "Civil document",
+        "legal-doc-criminal": "Criminal document",
+        "legal-doc-economic": "Economic document",
+        "legal-doc-administrative": "Administrative document"
+      },
+      "lang": {
+        "uz-latn": "Uzbek (Latin)",
+        "uz-cyrl": "Uzbek (Cyrillic)",
+        "ru": "Russian",
+        "en": "English"
+      },
+      "unit": {
+        "company": "Company",
+        "department": "Department",
+        "team": "Team"
+      },
+      "source": {
+        "runtime": "Live record",
+        "studio": "Studio draft",
+        "hasDraft": "Has a draft"
+      },
+      "risk": {
+        "low": "low",
+        "medium": "medium",
+        "high": "high"
+      },
+      "err": {
+        "required": "Fill in this field",
+        "requiredPick": "Choose from the list",
+        "min": "At least {n}",
+        "max": "At most {n}",
+        "minLen": "{n, plural, one {At least # character} other {At least # characters}}",
+        "maxLen": "{n, plural, one {At most # character} other {At most # characters}}",
+        "number": "Enter a number",
+        "option": "Pick one of the listed options",
+        "minItems": "{n, plural, one {Add at least # row} other {Add at least # rows}}",
+        "duplicate": "This value is already used",
+        "list": "This must be a list",
+        "object": "The value is not right",
+        "file": "Upload a file",
+        "reference": "The chosen record is gone — choose another",
+        "invalid": "The value wasn't accepted",
+        "summary": "Fix the fields below"
+      },
+      "hint": {
+        "min": "At least {min}",
+        "max": "At most {max}",
+        "between": "From {min} to {max}",
+        "maxLen": "{n, plural, one {Up to # character} other {Up to # characters}}"
+      },
+      "form": {
+        "pick": "Choose",
+        "pickMany": "Choose one or more",
+        "search": "Search",
+        "searchIn": "Search {label}",
+        "listLabel": "{label}: options",
+        "empty": "Nothing found",
+        "emptyQuery": "Nothing found for “{q}”",
+        "loadFail": "The list didn't load",
+        "clear": "Clear",
+        "remove": "Remove {name}",
+        "done": "Done",
+        "unknownRef": "Selected record",
+        "readOnly": "View only",
+        "datePh": "dd.mm.yyyy",
+        "timePh": "hh:mm",
+        "time": "Time",
+        "maxReached": "You can choose up to {n}",
+        "lab": {
+          "fields": "Field states",
+          "text": "Text and numbers",
+          "pickers": "Picking from lists",
+          "dates": "Date and time",
+          "lists": "Rows",
+          "cards": "Choice cards",
+          "check": "Check",
+          "reset": "Reset",
+          "note": "An error shows once you leave the field or press “Check”.",
+          "broken": "A list that fails to load"
+        }
+      },
+      "rep": {
+        "add": "Add",
+        "addThe": "Add {name}",
+        "empty": "Nothing added yet",
+        "item": "Row {n}",
+        "move": "Move {name}",
+        "moveHint": "Drag with the mouse or use the arrow keys",
+        "moved": "{name} moved to position {pos}",
+        "expand": "Expand {name}",
+        "collapse": "Collapse {name}",
+        "remove": "Remove {name}",
+        "removed": "“{name}” removed",
+        "undo": "Undo",
+        "errors": "{n, plural, one {# error} other {# errors}}"
+      },
+      "kv": {
+        "name": "Name",
+        "value": "Value",
+        "add": "Add a row",
+        "dup": "This name is already used",
+        "nested": "Complex value — kept as it is",
+        "empty": "No extra settings",
+        "removeRow": "Remove row {name}"
+      },
+      "table": {
+        "actions": "Actions",
+        "actionsFor": "Actions for {name}",
+        "sortBy": "Sort by {col}",
+        "range": "{from}–{to} of {total}",
+        "prev": "Previous",
+        "next": "Next",
+        "empty": "No records yet",
+        "noMatch": "No matching records",
+        "reset": "Clear filters"
+      },
+      "toolbar": {
+        "filters": "Filters"
+      },
+      "guide": {
+        "title": "What does this constructor do?",
+        "what": "What it does",
+        "where": "Where it shows",
+        "how": "How to work with it",
+        "deps": "Dependencies",
+        "approval": "Approval",
+        "result": "Once published, the change shows here: {where}.",
+        "resultNone": "Once published, the change starts working right away.",
+        "whereNone": "This setting has no page of its own — it works inside the system.",
+        "openPage": "Open the page",
+        "noAccess": "You can't open this page",
+        "stepPick": "Pick from the lists: {list}.",
+        "stepFill": "Fill in: {list}.",
+        "stepFillNone": "Fill in what you need — nothing is required.",
+        "stepSave": "Save. A draft doesn't go live.",
+        "stepSend": "Send it for approval. Once approved, it is published.",
+        "stepPublish": "Publish it — with no approval it goes live at once.",
+        "position": "Step {n} in “{group}”",
+        "required": "Must be done first",
+        "recommended": "Better done first",
+        "next": "Next step",
+        "done": "Set up",
+        "notDone": "Not set up yet",
+        "blocked": "Set these up first: {list}.",
+        "noDeps": "This constructor doesn't depend on others.",
+        "approvalYes": "It is approved before it goes live.",
+        "approvalNo": "No approval needed — it works as soon as it is published.",
+        "routeSteps": "Who approves: {list}.",
+        "routeSuper": "The main superadmin approves it.",
+        "routeAuto": "Once approved, it goes live automatically.",
+        "risk": "Impact: {level}"
+      },
+      "routeFrom": {
+        "global": "Studio-wide order",
+        "group": "Section order",
+        "constructor": "This constructor's own order",
+        "default": "Default order"
+      },
+      "lab": {
+        "title": "Studio samples",
+        "core": "Core: buttons, statuses, icons",
+        "form": "Form controls",
+        "layout": "Page parts"
+      },
+      "core": {
+        "lab": {
+          "rail": "Lifecycle line",
+          "railLead": "Pick a status: the line fills, the node lights up, and going live sets off a short burst.",
+          "statusPick": "Choose a status",
+          "next": "Next stage",
+          "restart": "Start over",
+          "compact": "Compact view",
+          "direct": "Constructor without approval",
+          "all": "Every status",
+          "pills": "Status pills",
+          "pillsLead": "Every status the server sends, with its own colour and icon.",
+          "buttons": "Buttons",
+          "buttonsLead": "Each kind in three states: ready, unavailable and working.",
+          "kind": "Kind",
+          "sizeMd": "Medium",
+          "sizeSm": "Small",
+          "variant": {
+            "primary": "Primary",
+            "secondary": "Secondary",
+            "ghost": "Plain",
+            "danger": "Risky action"
+          },
+          "send": "Send for approval",
+          "icons": "Icons",
+          "iconsLead": "Every icon in Studio, from one set in one style.",
+          "ctors": "Constructors and sections",
+          "labels": "How names are shown",
+          "fromServer": "From the server",
+          "onScreen": "On screen"
+        }
+      },
+      "layout": {
+        "results": "{n, plural, one {# result} other {# results}}",
+        "updated": "Updated",
+        "otherGroup": "Other",
+        "version": "Version {n}",
+        "lab": {
+          "lead": "Every state of the Studio parts. Nothing is saved on this page.",
+          "layout": "Page type",
+          "page": "Regular page",
+          "record": "Record page",
+          "next": "Next stage",
+          "stats": "Records by status",
+          "state": "Table state",
+          "stateData": "With data",
+          "stateLoading": "Loading",
+          "stateEmpty": "Empty",
+          "stateError": "Error",
+          "search": "Search packages",
+          "searchPh": "Package name or code",
+          "noWrites": "Changes are off on this page",
+          "details": "Package details",
+          "guides": "Constructor guides",
+          "notes": "Messages",
+          "empties": "Empty states",
+          "outline": "Jump to sections",
+          "sections": "Form sections"
+        }
+      },
+      "kit": {
+        "title": "Studio parts",
+        "lead": "Every part in its real states. This page opens only during development and saves nothing.",
+        "theme": "Theme",
+        "light": "Light",
+        "dark": "Dark",
+        "view": "Page type",
+        "page": "Regular page",
+        "record": "Record page",
+        "sections": "Page sections",
+        "stats": "Records by status",
+        "waiting": "Waiting to go live",
+        "rail": "Lifecycle line",
+        "railLead": "Change the status: the line draws, the node lights up, and going live sets off a short burst.",
+        "step": "Choose a status",
+        "next": "Next stage",
+        "restart": "Start over",
+        "compact": "Compact view",
+        "direct": "Constructor without approval",
+        "every": "Every status",
+        "pills": "Status pills",
+        "buttons": "Buttons",
+        "send": "Send for approval",
+        "controls": "Form fields",
+        "kind": {
+          "text": "Text",
+          "textarea": "Long text",
+          "number": "Number",
+          "money": "Money",
+          "picker": "Pick from a list",
+          "date": "Date",
+          "switch": "Switch",
+          "view": "View-only form"
+        },
+        "state": {
+          "empty": "Empty",
+          "filled": "Filled",
+          "focus": "Focused",
+          "error": "Error",
+          "disabled": "Disabled"
+        },
+        "pickers": "Kinds of lists",
+        "pick": {
+          "single": "One choice",
+          "multi": "Several",
+          "async": "Loads from the server",
+          "fail": "Fails to load"
+        },
+        "rows": "Rows",
+        "cards": "Choice cards",
+        "search": "Search packages",
+        "searchPh": "Package name or code",
+        "details": "Package details",
+        "empties": "Empty states",
+        "emptyTitle": "No packages yet",
+        "emptyText": "Create the first ad package — sellers buy it in the Marketplace.",
+        "create": "Create a package",
+        "noMatchText": "Try another word or filter.",
+        "notes": "Messages",
+        "guide": "Guide",
+        "guideOpen": "Open the guide",
+        "noWrites": "Nothing is saved on this page"
+      }
+    },
     "option": {
       "mandatory": "Mandatory",
       "optional": "Optional",

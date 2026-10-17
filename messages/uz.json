@@ -1,5 +1,942 @@
 {
   "studio": {
+    "sx": {
+      "ui": {
+        "studio": "Studio",
+        "save": "Saqlash",
+        "saving": "Saqlanmoqda…",
+        "cancel": "Bekor qilish",
+        "close": "Yopish",
+        "more": "Boshqa amallar",
+        "retry": "Qayta urinish",
+        "loading": "Yuklanmoqda…",
+        "open": "Ochish",
+        "back": "Orqaga",
+        "edit": "Tahrirlash",
+        "view": "Ko'rish",
+        "clone": "Nusxa olish",
+        "archive": "Arxivlash",
+        "yes": "Ha",
+        "no": "Yo'q",
+        "notSet": "Kiritilmagan",
+        "required": "majburiy",
+        "optional": "ixtiyoriy",
+        "currencyUZS": "so'm",
+        "days": "{n} kun",
+        "perMonth": "{price}/oy",
+        "andMore": "va yana {n} ta",
+        "errorTitle": "Nimadir xato ketdi",
+        "loadFail": "Ma'lumot yuklanmadi",
+        "untitled": "Nomsiz"
+      },
+      "nav": {
+        "label": "Studio bo'limlari",
+        "crumbs": "Sahifa yo'li",
+        "home": "Bosh sahifa",
+        "approvals": "Tasdiqlash",
+        "monitoring": "Kuzatuv",
+        "settings": "Sozlamalar",
+        "backTo": "Orqaga: {name}"
+      },
+      "gate": {
+        "offTitle": "Studio hali yoqilmagan",
+        "offText": "Server bu bo'limni hali ochmagan. Birozdan keyin qayta tekshiring.",
+        "offAction": "Qayta tekshirish",
+        "deniedTitle": "Bu sahifaga ruxsatingiz yo'q",
+        "deniedText": "Ruxsat kerak bo'lsa, Studio administratoriga yozing."
+      },
+      "status": {
+        "draft": {
+          "label": "Qoralama",
+          "hint": "Saqlangan, hali yuborilmagan"
+        },
+        "submitted": {
+          "label": "Yuborildi",
+          "hint": "Tekshiruvchi navbatida"
+        },
+        "in_review": {
+          "label": "Tekshiruvda",
+          "hint": "Tekshiruvchi ko'rib chiqmoqda"
+        },
+        "approved": {
+          "label": "Tasdiqlandi",
+          "hint": "E'lon qilishga tayyor"
+        },
+        "published": {
+          "label": "Saytda",
+          "hint": "Foydalanuvchilar ko'rmoqda"
+        },
+        "returned": {
+          "label": "Qaytarildi",
+          "hint": "Tekshiruvchi tuzatish so'radi"
+        },
+        "rejected": {
+          "label": "Rad etildi",
+          "hint": "Tekshiruvchi o'zgarishni qabul qilmadi"
+        },
+        "archived": {
+          "label": "Arxivda",
+          "hint": "Ishlatilmaydi, tarix uchun saqlanadi"
+        },
+        "active": {
+          "label": "Faol",
+          "hint": "Saytda ishlayapti"
+        },
+        "inactive": {
+          "label": "Nofaol",
+          "hint": "Saytda ko'rinmaydi"
+        },
+        "deleted": {
+          "label": "O'chirilgan",
+          "hint": "O'chirilgan yozuv, faqat tarixda"
+        },
+        "scheduled": {
+          "label": "Rejalashtirilgan",
+          "hint": "Belgilangan vaqtda saytga chiqadi"
+        },
+        "paused": {
+          "label": "To'xtatilgan",
+          "hint": "Vaqtincha ishlamayapti"
+        },
+        "expired": {
+          "label": "Muddati tugagan",
+          "hint": "Amal qilish muddati o'tdi"
+        },
+        "failed": {
+          "label": "Bajarilmadi",
+          "hint": "Amal oxiriga yetmadi"
+        }
+      },
+      "rail": {
+        "label": "Yozuv bosqichlari",
+        "done": "bajarildi",
+        "current": "hozirgi bosqich",
+        "ahead": "oldinda",
+        "aria": "Holat: {status}",
+        "live": "E'lon qilindi — endi saytda"
+      },
+      "ctor": {
+        "K31": {"name":"Xizmat qoidalari","what":"Advokat va yurist xizmatni yoqishdan oldin shaxsan qabul qiladigan qoidalar. Yangi versiyasi qayta qabul qilinadi."},
+        "K32": {"name":"Mijoz kafolatlari","what":"LexGo ichida qolgan mijozga beriladigan haqiqiy kafolat va qulayliklar."},
+        "K33": {"name":"Kafolat ko'rsatish qoidasi","what":"Bir nechta kafolatni bitta qoida bilan bir nechta sahifa joyiga bog'laydi."},
+        "K34": {"name":"Narxga ta'sir qiluvchi omillar","what":"Xizmat va paketlarda qayta ishlatiladigan, narxni faqat oshiradigan omillar."},
+        "K01": {
+          "name": "Kategoriya",
+          "what": "Xizmatlar katalogining kategoriyalari va ichki bo'limlari."
+        },
+        "K02": {
+          "name": "Oddiy xizmat",
+          "what": "Katalogdagi bitta xizmat: tavsifi, narxi va kim bajara olishi."
+        },
+        "K29": {
+          "name": "Narxni oshiruvchi tanlovlar",
+          "what": "Xizmat yoki paketga qo'shiladigan ixtiyoriy tanlovlar: qat'iy summa yoki foiz."
+        },
+        "K03-M": {
+          "name": "Xizmat paketi",
+          "what": "Asosiy, Standart va Premium darajali paket: tarkibi va har bir daraja narxi."
+        },
+        "K30": {
+          "name": "Mijoz vaziyati",
+          "what": "Mijoz duch keladigan vaziyatlar, ular qanday yozilishi va mos xizmatlar."
+        },
+        "K07": {
+          "name": "Oferta va huquqiy matnlar",
+          "what": "Foydalanuvchi rozilik beradigan oferta, siyosat va shartnoma matnlari."
+        },
+        "K06": {
+          "name": "Hujjat shabloni",
+          "what": "Hujjat matni, tayyor bandlar va to'ldiriladigan joylar."
+        },
+        "K05": {
+          "name": "Mijoz savolnomasi",
+          "what": "Hujjat tayyorlashdan oldin mijozga beriladigan savollar va ularning tartibi."
+        },
+        "K26": {
+          "name": "Hujjat xizmati qoidalari",
+          "what": "Hujjatni tahlil qilish, advokat tekshiruvi va yuklab olish qoidalari."
+        },
+        "K11": {
+          "name": "Xizmat shartlari",
+          "what": "Bekor qilish, pulni qaytarish va boshqa shartlar."
+        },
+        "K08": {
+          "name": "Ish jarayoni va holatlar",
+          "what": "Xizmat qaysi bosqichlardan o'tishi va har bosqichdagi holat."
+        },
+        "K10": {
+          "name": "Muddatlar va ish kalendari",
+          "what": "Javob va bajarish muddatlari, ish vaqti va dam olish kunlari."
+        },
+        "K09": {
+          "name": "Nazorat ro'yxati",
+          "what": "Ishni topshirishdan oldin bajarilishi shart bo'lgan bandlar."
+        },
+        "K13": {
+          "name": "Sifat, reyting va jarimalar",
+          "what": "Sifat mezonlari, reyting hisobi va qoida buzilganda choralar."
+        },
+        "K12-M": {
+          "name": "Hamkor advokat tanlash",
+          "what": "Buyurtmaga qaysi advokat qanday tartibda tanlanishi."
+        },
+        "MP05": {
+          "name": "Xarid jarayoni",
+          "what": "Xarid bosqichlari, to'lov sharti va buyurtmani sotuvchiga topshirish."
+        },
+        "K27": {
+          "name": "Bildirishnoma sabablari",
+          "what": "Qaysi voqeada kimga va qaysi kanal orqali xabar ketishi."
+        },
+        "K14": {
+          "name": "Bildirishnoma matnlari",
+          "what": "Har bir voqea uchun xabar matni uch tilda."
+        },
+        "CALL01": {
+          "name": "Qo'ng'iroq sozlamalari",
+          "what": "Audio va video qo'ng'iroq sifati, yozib olish va qayta ulanish."
+        },
+        "K22": {
+          "name": "Konsultatsiya qoidalari",
+          "what": "Audio, video va yozishma orqali maslahat berish tartibi."
+        },
+        "MP08": {
+          "name": "Shikoyatlarni hal qilish",
+          "what": "Shikoyat turlari, kerakli dalillar va hal qilish tartibi."
+        },
+        "K17": {
+          "name": "Tariflar va imkoniyatlar",
+          "what": "Tariflar, to'lov davri va har bir tarif beradigan imkoniyatlar."
+        },
+        "K04": {
+          "name": "Narx qoidalari",
+          "what": "Narx oralig'i, ustamalar va chegirmalar."
+        },
+        "K18": {
+          "name": "To'lov operatsiyalari",
+          "what": "To'lov usullari, to'lovni tasdiqlash va pulni qaytarish."
+        },
+        "K25": {
+          "name": "Komissiya va to'lovlar",
+          "what": "Platforma ulushi, pulni ushlab turish va sotuvchiga to'lash."
+        },
+        "MP02": {
+          "name": "Sotuvchi narx chegarasi",
+          "what": "Sotuvchi o'z xizmatiga qo'yishi mumkin bo'lgan eng past va eng yuqori narx."
+        },
+        "MP03": {
+          "name": "Sotuv mahsuloti",
+          "what": "Xizmat asosidagi mahsulot: variantlar, paketlar, natijalar va kim sotishi."
+        },
+        "MP07": {
+          "name": "Sharhlar qoidalari",
+          "what": "Sharhlarni tekshirish, chiqarish va baholash qoidalari."
+        },
+        "SEC01": {
+          "name": "Rollar va ruxsatlar",
+          "what": "Har bir rol nimalar qila olishi."
+        },
+        "SEC02": {
+          "name": "Ma'lumotga kirish",
+          "what": "Kim qaysi ma'lumotni ko'ra olishi va qaysi qismi yashirilishi."
+        },
+        "SEC03": {
+          "name": "Xavf qoidalari",
+          "what": "Shubhali harakatlarni aniqlash va cheklash."
+        },
+        "SEC04": {
+          "name": "Tasdiqlash xavfsizligi",
+          "what": "Bir kishi yaratadi, boshqasi tasdiqlaydi: o'z ishini o'zi tasdiqlab bo'lmaydi."
+        },
+        "SEC05": {
+          "name": "Fayllar xavfsizligi",
+          "what": "Ruxsat etilgan fayl turlari, hajmi va virusga tekshirish."
+        },
+        "K20": {
+          "name": "Tasdiqlash tartibi",
+          "what": "Har bir o'zgarishni kim va qaysi navbatda tasdiqlashi."
+        },
+        "K21": {
+          "name": "Xizmatga kirish qoidalari",
+          "what": "Xizmatdan rol, tarif va hudud bo'yicha kim foydalana olishi."
+        },
+        "MP06": {
+          "name": "Sotuvchini tekshirish",
+          "what": "Sotuvchidan talab qilinadigan hujjatlar va qayta tekshirish muddati."
+        },
+        "OPS01": {
+          "name": "Funksiyalarni yoqish",
+          "what": "Yangi imkoniyatlarni bosqichma-bosqich yoqish va o'chirish."
+        },
+        "OPS02": {
+          "name": "Rejalashtirilgan vazifalar",
+          "what": "Jadval bo'yicha avtomatik bajariladigan vazifalar."
+        },
+        "OPS03": {
+          "name": "Ish kalendari",
+          "what": "Ish kunlari, ish soatlari va bayramlar."
+        },
+        "OPS04": {
+          "name": "Ma'lumotlarni saqlash muddati",
+          "what": "Ma'lumot qancha saqlanishi, qachon arxivlanishi va o'chirilishi."
+        },
+        "OPS05": {
+          "name": "Yuklab olinadigan hisobotlar",
+          "what": "Qaysi ma'lumot qaysi ustunlar bilan faylga yuklab olinishi."
+        },
+        "OPS06": {
+          "name": "Ko'rsatkichlar paneli",
+          "what": "Panelda ko'rinadigan ko'rsatkichlar, bloklar va filtrlar."
+        },
+        "ORG01": {
+          "name": "Ishlarni jamoalarga taqsimlash",
+          "what": "Ish qaysi jamoa va navbatga tushishi."
+        },
+        "K23": {
+          "name": "Murojaatlar jarayoni",
+          "what": "Murojaatlar navbati, javob muddati va rahbarga ko'tarish."
+        },
+        "K24": {
+          "name": "Sotuv bosqichlari",
+          "what": "Yangi murojaat o'tadigan bosqichlar va u kimga biriktirilishi."
+        },
+        "MP01": {
+          "name": "Sotuvchiga qo'yiladigan shartlar",
+          "what": "Sotuvchi xizmat sotishi uchun bajarishi kerak bo'lgan shartlar."
+        },
+        "MP10": {
+          "name": "Sotuvchi bandligi",
+          "what": "Sotuvchining ish vaqti va bir vaqtda qabul qila oladigan buyurtmalari."
+        },
+        "K28": {
+          "name": "Sotuvchilar reytingi",
+          "what": "Ro'yxatda kim yuqorida turishini belgilaydigan ballar."
+        },
+        "K19": {
+          "name": "Xizmat sahifasi va savollar",
+          "what": "Xizmat sahifasidagi bloklar va ko'p beriladigan savollar."
+        },
+        "INT01": {
+          "name": "Tashqi xizmatni ulash",
+          "what": "Tashqi xizmat bilan ulanish: kutish vaqti, qayta urinish va zaxira."
+        },
+        "INT02": {
+          "name": "Tashqi tizimlarga xabarlar",
+          "what": "Voqea bo'lganda xabar yuboriladigan tashqi manzillar."
+        },
+        "INT03": {
+          "name": "Xizmatni tanlash tartibi",
+          "what": "Qaysi holatda qaysi tashqi xizmat ishlatilishi va uning zaxirasi."
+        },
+        "CORE": {
+          "name": "Studio umumiy qoidalari",
+          "what": "Studio bo'yicha ruxsatlar, audit va e'lon qilish qoidalari."
+        },
+        "K16": {
+          "name": "Ma'lumotnomalar",
+          "what": "Hududlar, turlar va boshqa umumiy ro'yxatlar. Tasdiqsiz ishlaydi."
+        },
+        "OPS07": {
+          "name": "Raqamlash tartibi",
+          "what": "Hujjat va yozuv raqamlari qanday yaratilishi."
+        },
+        "OPS08": {
+          "name": "Holatlar ro'yxati",
+          "what": "Tizimdagi holatlar, ularning ranglari va o'tishlar."
+        },
+        "SEARCH01": {
+          "name": "Qidiruv sozlamalari",
+          "what": "Qidiruv qayerdan izlashi, ma'nodosh so'zlar va natijalar tartibi."
+        },
+        "M1": {
+          "name": "Ish rejasi",
+          "what": "Studio vazifalari, mas'ullar va muddatlar."
+        },
+        "M2": {
+          "name": "Ishni qabul qilish",
+          "what": "Yozuvni qabul qilish mezonlari, dalillar va natija."
+        },
+        "M3": {
+          "name": "Rahbar paneli",
+          "what": "Rahbar paneli bloklari, filtrlari va ogohlantirishlari."
+        },
+        "MP04": {
+          "name": "Reklama joylashuvi",
+          "what": "Reklama sahifaning qayerida va qanday ko'rinishi."
+        },
+        "K12-PROMO": {
+          "name": "Reklama paketlari",
+          "what": "Banner, profil va xizmat reklamasi uchun sotiladigan paketlar."
+        },
+        "MP09": {
+          "name": "Aksiya kampaniyasi",
+          "what": "Kampaniya kodi, kimlar uchun, chegirma, byudjet va muddat."
+        }
+      },
+      "group": {
+        "services_packages": {
+          "name": "Xizmatlar va paketlar",
+          "what": "Kategoriya, xizmat, qo'shimcha tanlovlar, paket va mijoz vaziyati — shu tartibda."
+        },
+        "documents_texts": {
+          "name": "Hujjatlar va matnlar",
+          "what": "Huquqiy matnlar, hujjat shablonlari, savolnomalar va xizmat shartlari."
+        },
+        "process_quality": {
+          "name": "Jarayon va sifat",
+          "what": "Ish bosqichlari, muddatlar, nazorat ro'yxati, baholash va xarid."
+        },
+        "communications": {
+          "name": "Muloqot va bildirishnomalar",
+          "what": "Bildirishnoma sabablari va matnlari, qo'ng'iroqlar, konsultatsiya va shikoyatlar."
+        },
+        "finance_tariffs": {
+          "name": "Moliya va tariflar",
+          "what": "Tariflar, narx qoidalari, to'lovlar, komissiya va sotuvchiga to'lash."
+        },
+        "security_access": {
+          "name": "Xavfsizlik va kirish",
+          "what": "Rollar, ruxsatlar, ma'lumotga kirish, xavf qoidalari va fayllar."
+        },
+        "operations": {
+          "name": "Operatsiyalar",
+          "what": "Funksiyalar, jadval vazifalari, kalendar, hisobotlar, jamoalar va sotuvchilar."
+        },
+        "integrations": {
+          "name": "Integratsiyalar",
+          "what": "Tashqi xizmatlarni ulash, ularga xabar yuborish va zaxira yo'llari."
+        },
+        "system_reference": {
+          "name": "Tizim va ma'lumotnomalar",
+          "what": "Studio qoidalari, ma'lumotnomalar, raqamlash, holatlar va qidiruv."
+        },
+        "advertising": {
+          "name": "Reklama",
+          "what": "Reklama joylari, paketlari va kampaniyalari."
+        }
+      },
+      "journey": {
+        "marketplace_service": {
+          "name": "Xizmat va paketni ishga tushirish",
+          "what": "Kategoriyadan xarid, sifat va xizmat sahifasigacha."
+        },
+        "document_service": {
+          "name": "Hujjat xizmatini ishga tushirish",
+          "what": "Shablon, savolnoma, qoidalar, narx va yuklab olish."
+        },
+        "subscription": {
+          "name": "Tarifni ishga tushirish",
+          "what": "Tarif imkoniyatlari, kirish, to'lov va bildirishnomalar."
+        },
+        "consultation": {
+          "name": "Konsultatsiyani ishga tushirish",
+          "what": "Qo'ng'iroq, konsultatsiya qoidalari, narx, jarayon, sifat va xabarlar."
+        },
+        "promotion": {
+          "name": "Reklamani ishga tushirish",
+          "what": "Reklama joyi, paketlar, kampaniya, to'lov va saralash."
+        },
+        "integration": {
+          "name": "Integratsiyani ishga tushirish",
+          "what": "Tashqi xizmat, xabar manzillari, tanlash tartibi, xavfsizlik va kuzatuv."
+        }
+      },
+      "role": {
+        "admin": "Administrator",
+        "advokat": "Advokat",
+        "advokat_tashkiloti": "Advokatlik tuzilmasi",
+        "b2b_manager": "Korporativ mijozlar menejeri",
+        "call_center": "Navbatchi xodim",
+        "call_center_lawyer": "Navbatchi yurist",
+        "ceo_viewer": "Rahbar (faqat ko'rish)",
+        "content_manager": "Kontent menejeri",
+        "executive": "Rahbariyat",
+        "finance": "Moliya bo'limi",
+        "manager": "Menejer",
+        "marketing": "Marketing",
+        "moderator": "Moderator",
+        "organization_owner": "Tashkilot egasi",
+        "provider": "Ijrochi",
+        "quality_control": "Sifat nazorati",
+        "sales": "Sotuv bo'limi",
+        "sales_head": "Sotuv rahbari",
+        "sales_operator": "Sotuv operatori",
+        "super_admin": "Superadmin",
+        "superadmin": "Superadmin",
+        "yurist": "Yurist",
+        "client": "Mijoz",
+        "studio_editor": "Studio muharriri",
+        "studio_reviewer": "Tekshiruvchi",
+        "studio_publisher": "E'lon qiluvchi",
+        "studio_admin": "Studio administratori"
+      },
+      "plan": {
+        "lexgo-ai-free": "LexGo.AI Bepul",
+        "lexgo-ai-lite": "LexGo.AI Lite",
+        "lexgo-ai-pro": "LexGo.AI Pro",
+        "lexgo-ai-jismoniy-shaxs": "LexGo.AI — jismoniy shaxs",
+        "lexgo-ai-yurist-advokat-seller": "LexGo.AI — yurist va advokat",
+        "shaxsiy-advokat-gift": "Shaxsiy advokat — sovg'a",
+        "shaxsiy-advokat-standard": "Shaxsiy advokat Standart",
+        "shaxsiy-advokat-premium": "Shaxsiy advokat Premium",
+        "biznes-abonent-basic": "Biznes abonent — Asosiy",
+        "biznes-abonent-standard": "Biznes abonent — Standart",
+        "biznes-abonent-premium": "Biznes abonent — Premium"
+      },
+      "audience": {
+        "seller": "Sotuvchilar uchun",
+        "client": "Mijozlar uchun",
+        "personal": "Shaxsiy foydalanish"
+      },
+      "tier": {
+        "BASIC": "Asosiy",
+        "STANDARD": "Standart",
+        "PREMIUM": "Premium",
+        "FREE": "Bepul",
+        "PRO": "Pro"
+      },
+      "promo": {
+        "profile-starter-7": "Profil reklamasi · 7 kun",
+        "profile-pro-14": "Profil reklamasi · 14 kun",
+        "service-top-7": "Xizmat reklamasi · 7 kun",
+        "banner-main-7": "Bosh banner · 7 kun"
+      },
+      "placement": {
+        "banner": {
+          "name": "Banner reklama",
+          "what": "Marketplace tepasida navbat bilan ko'rinadigan banner. Rasmni sotuvchi o'zi yuklaydi."
+        },
+        "profile_boost": {
+          "name": "Profil reklamasi",
+          "what": "Sotuvchi profili ro'yxatda yuqoriroq va belgi bilan ko'rinadi."
+        },
+        "service_boost": {
+          "name": "Xizmat reklamasi",
+          "what": "Tanlangan xizmat qidiruv natijalarida yuqoriroq ko'rinadi. Xizmatni sotuvchi xarid paytida tanlaydi."
+        }
+      },
+      "placementRule": {
+        "service": "Xizmat tanlash shart",
+        "bannerAsset": "Banner rasmi yuklanadi",
+        "none": "Qo'shimcha shart yo'q"
+      },
+      "surface": {
+        "marketplace_top_banner": "Marketplace tepasidagi banner",
+        "marketplace_list": "Marketplace ro'yxati",
+        "marketplace_list_card": "Marketplace ro'yxatidagi karta",
+        "category_search": "Kategoriya bo'yicha qidiruv",
+        "category_search_sponsored_service": "Qidiruvdagi homiylik xizmati"
+      },
+      "opt": {
+        "K31__scope_type": {"global":"Barcha xizmatlarga","service":"Bitta xizmatga","category":"Kategoriyaga"},
+        "K33__placements": {"marketplace":"Marketplace ro'yxati","service_detail":"Xizmat sahifasi","checkout":"To'lov sahifasi","negotiation":"Narx kelishuvi","post_payment_order":"To'lovdan keyingi buyurtma","in_progress":"Ish bajarilayotganda","second_opinion":"Ikkinchi fikr","support":"Yordam markazi"},
+        "target_type": {
+          "service": "Xizmatga",
+          "package": "Paketga"
+        },
+        "adjustment_type": {
+          "fixed": "Qat'iy summa",
+          "percent": "Foiz"
+        },
+        "kind": {
+          "mandatory": "Majburiy",
+          "optional": "Ixtiyoriy",
+          "choose_one": "Bittasini tanlash"
+        },
+        "visibility": {
+          "public": "Hammaga",
+          "client": "Mijozlarga",
+          "staff": "Xodimlarga"
+        },
+        "K12-PROMO__status": {
+          "active": "Sotuvda",
+          "inactive": "To'xtatilgan",
+          "archived": "Arxivda"
+        }
+      },
+      "field": {
+        "discovery_terms": "Qidiruv so'zlari",
+        "K31__rule_key": "Qoida kodi",
+        "K31__body": "Qoida matni",
+        "K31__scope_type": "Qayerga qo'llanadi",
+        "K31__scope_id": "Xizmat yoki kategoriya",
+        "K31__effective_at": "Kuchga kirish vaqti",
+        "K32__icon": "Belgi",
+        "K32__refund_policy_id": "Pulni qaytarish tartibi",
+        "K33__guarantee_ids": "Kafolatlar",
+        "K33__placements": "Qayerda ko'rinadi",
+        "K34__value": "Qancha oshiradi",
+        "tier": "Daraja",
+        "tiers": "Darajalar",
+        "category_id": "Kategoriya",
+        "client_price": "Mijoz to'laydigan narx",
+        "seller_fee": "Ijrochi haqi",
+        "adjustment_type": "Narx qanday oshadi",
+        "client_phrases": "Mijoz qanday yozadi",
+        "recommended_service_ids": "Tavsiya etiladigan xizmatlar",
+        "accepts_banner_asset": "Sotuvchi banner rasmini yuklaydi",
+        "reach": "Qamrov",
+        "surface": "Qayerda ko'rinadi",
+        "K12-PROMO__title": "Paket nomi",
+        "K12-PROMO__code": "Paket kodi",
+        "K12-PROMO__placement": "Reklama joyi",
+        "K12-PROMO__days": "Necha kun",
+        "K12-PROMO__price": "Paket narxi",
+        "K12-PROMO__boost_score": "Ko'tarish kuchi",
+        "K12-PROMO__requires_service": "Xizmat tanlash shart",
+        "K12-PROMO__requires_banner": "Banner rasmi majburiy",
+        "K12-PROMO__preview": "Belgi",
+        "K12-PROMO__preview__label": "Belgi matni",
+        "K12-PROMO__status": "Sotuv holati",
+        "K03-M__tiers": "Darajalar: Asosiy, Standart, Premium",
+        "K03-M__components": "Paketdagi xizmatlar",
+        "K03-M__custom_items": "Qo'shimcha tarkib",
+        "K03-M__tiers__included": "Nimalar kiradi",
+        "K03-M__tiers__title": "Daraja nomi",
+        "K03-M__duration": "Umumiy muddat",
+        "K29__target_type": "Nimaga qo'llanadi",
+        "K29__service_id": "Xizmat",
+        "K29__package_id": "Paket",
+        "K29__title": "To'plam nomi",
+        "K29__sections": "Bo'limlar va tanlovlar",
+        "K29__sections__title": "Bo'lim nomi",
+        "K29__sections__options": "Tanlovlar",
+        "K29__sections__options__label": "Tanlov nomi",
+        "K29__sections__options__value": "Qiymati",
+        "INT01__provider": "Xizmat nomi",
+        "INT01__enabled": "Ulangan"
+      },
+      "help": {
+        "discovery_terms": "Mijozlar qidiruvda yozishi mumkin bo'lgan so'z va yo'nalishlar. Har birini alohida qo'shing.",
+        "K31__rule_key": "Hamma versiyalarda bir xil qoladi: yangi versiya shu kod orqali eski qoidaga bog'lanadi.",
+        "K34__value": "Qat'iy summa so'mda, foiz esa asosiy narxdan hisoblanadi. Avval qat'iy summalar, keyin foizlar qo'shiladi.",
+        "K12-PROMO__code": "Sotuvchi ko'rmaydi: tizim paketni shu kod bilan taniydi.",
+        "K12-PROMO__boost_score": "Qancha katta bo'lsa, reklama shuncha yuqorida chiqadi.",
+        "K12-PROMO__preview__label": "Reklama yonida ko'rinadigan qisqa yozuv.",
+        "K12-PROMO__status": "Sotuvchilar faqat «Sotuvda» paketlarni sotib oladi.",
+        "K03-M__tiers": "Har bir daraja bir marta: Asosiy, Standart va Premium.",
+        "K29__sections__options__value": "Qat'iy summa bo'lsa so'mda, foiz bo'lsa foizda.",
+        "INT01__secret_reference": "Parolning o'zini emas, u saqlangan joy nomini yozing."
+      },
+      "ph": {
+        "url": "https://…",
+        "email": "info@lexgo.uz",
+        "phone": "+998 90 123 45 67",
+        "K12-PROMO__title": "Masalan: Profil reklamasi · 7 kun",
+        "K12-PROMO__code": "masalan: profile-7",
+        "K12-PROMO__preview__label": "Masalan: Tavsiya etiladi",
+        "K03-M__title": "Masalan: Ajrashish bo'yicha to'liq yordam",
+        "K03-M__package_code": "masalan: ajrashish-toliq",
+        "K03-M__tiers__title": "Masalan: Maslahat va hujjatlar",
+        "K03-M__tiers__included__value": "Masalan: Da'vo arizasini tayyorlash",
+        "K03-M__duration": "Masalan: 10 ish kuni",
+        "K29__title": "Masalan: Tezkorlik va qo'shimchalar",
+        "K29__sections__title": "Masalan: Tezkorlik",
+        "K29__sections__options__label": "Masalan: 24 soat ichida",
+        "INT01__provider": "Masalan: Eskiz",
+        "INT01__timeout": "Masalan: 10 soniya",
+        "INT01__secret_reference": "masalan: eskiz-sms",
+        "INT01__recordTitle": "Masalan: Eskiz orqali SMS"
+      },
+      "section": {
+        "asosiy": "Asosiy",
+        "kirish_va_auditoriya": "Kimlar uchun",
+        "qoidalar": "Qoidalar",
+        "faollik_va_muddat": "Faollik va muddat",
+        "kontent": "Matn va ko'rinish",
+        "narx_va_hisob_kitob": "Narx va hisob-kitob",
+        "jarayon_va_qoidalar": "Jarayon va qoidalar"
+      },
+      "doccat": {
+        "contract": "Shartnoma",
+        "legal-doc-civil": "Fuqarolik ishi hujjati",
+        "legal-doc-criminal": "Jinoyat ishi hujjati",
+        "legal-doc-economic": "Iqtisodiy ish hujjati",
+        "legal-doc-administrative": "Ma'muriy ish hujjati"
+      },
+      "lang": {
+        "uz-latn": "O'zbekcha (lotin)",
+        "uz-cyrl": "O'zbekcha (kirill)",
+        "ru": "Ruscha",
+        "en": "Inglizcha"
+      },
+      "unit": {
+        "company": "Kompaniya",
+        "department": "Bo'lim",
+        "team": "Jamoa"
+      },
+      "source": {
+        "runtime": "Saytdagi yozuv",
+        "studio": "Studio qoralamasi",
+        "hasDraft": "Qoralamasi bor"
+      },
+      "risk": {
+        "low": "past",
+        "medium": "o'rta",
+        "high": "yuqori"
+      },
+      "err": {
+        "required": "Bu maydonni to'ldiring",
+        "requiredPick": "Ro'yxatdan tanlang",
+        "min": "Kamida {n}",
+        "max": "Ko'pi bilan {n}",
+        "minLen": "Kamida {n} ta belgi",
+        "maxLen": "Ko'pi bilan {n} ta belgi",
+        "number": "Faqat son kiriting",
+        "option": "Ro'yxatdagi variantlardan birini tanlang",
+        "minItems": "Kamida {n} ta qator qo'shing",
+        "duplicate": "Bu qiymat takrorlangan",
+        "list": "Ro'yxat bo'lishi kerak",
+        "object": "Qiymat noto'g'ri",
+        "file": "Fayl yuklang",
+        "reference": "Tanlangan yozuv endi yo'q — boshqasini tanlang",
+        "invalid": "Qiymat qabul qilinmadi",
+        "summary": "Quyidagi maydonlarni tuzating"
+      },
+      "hint": {
+        "min": "Kamida {min}",
+        "max": "Ko'pi bilan {max}",
+        "between": "{min} dan {max} gacha",
+        "maxLen": "Ko'pi bilan {n} ta belgi"
+      },
+      "form": {
+        "pick": "Tanlang",
+        "pickMany": "Bir nechtasini tanlang",
+        "search": "Qidirish",
+        "searchIn": "{label} bo'yicha qidirish",
+        "listLabel": "{label}: variantlar",
+        "empty": "Hech narsa topilmadi",
+        "emptyQuery": "«{q}» bo'yicha hech narsa topilmadi",
+        "loadFail": "Ro'yxat yuklanmadi",
+        "clear": "Tozalash",
+        "remove": "Olib tashlash: {name}",
+        "done": "Tayyor",
+        "unknownRef": "Tanlangan yozuv",
+        "readOnly": "Faqat ko'rish",
+        "datePh": "kk.oo.yyyy",
+        "timePh": "ss:dd",
+        "time": "Vaqt",
+        "maxReached": "Ko'pi bilan {n} ta tanlash mumkin",
+        "lab": {
+          "fields": "Maydon holatlari",
+          "text": "Matn va sonlar",
+          "pickers": "Ro'yxatdan tanlash",
+          "dates": "Sana va vaqt",
+          "lists": "Qatorlar",
+          "cards": "Tanlov kartalari",
+          "check": "Tekshirish",
+          "reset": "Boshidan",
+          "note": "Xato maydondan chiqqach yoki «Tekshirish» bosilgach ko'rinadi.",
+          "broken": "Yuklanmaydigan ro'yxat"
+        }
+      },
+      "rep": {
+        "add": "Qo'shish",
+        "addThe": "{name} qo'shish",
+        "empty": "Hali hech narsa qo'shilmagan",
+        "item": "{n}-qator",
+        "move": "Joyini o'zgartirish: {name}",
+        "moveHint": "Sichqoncha bilan suring yoki strelka tugmalarini bosing",
+        "moved": "{name}: {pos}-o'ringa ko'chirildi",
+        "expand": "Ochish: {name}",
+        "collapse": "Yig'ish: {name}",
+        "remove": "O'chirish: {name}",
+        "removed": "«{name}» o'chirildi",
+        "undo": "Qaytarish",
+        "errors": "{n} ta xato"
+      },
+      "kv": {
+        "name": "Nomi",
+        "value": "Qiymati",
+        "add": "Qator qo'shish",
+        "dup": "Bu nom allaqachon bor",
+        "nested": "Murakkab qiymat — o'zgarmasdan saqlanadi",
+        "empty": "Qo'shimcha sozlama yo'q",
+        "removeRow": "Qatorni o'chirish: {name}"
+      },
+      "table": {
+        "actions": "Amallar",
+        "actionsFor": "Amallar: {name}",
+        "sortBy": "Saralash: {col}",
+        "range": "{from}–{to} / {total}",
+        "prev": "Oldingi",
+        "next": "Keyingi",
+        "empty": "Hozircha yozuv yo'q",
+        "noMatch": "Mos yozuv topilmadi",
+        "reset": "Filtrlarni tozalash"
+      },
+      "toolbar": {
+        "filters": "Filtrlar"
+      },
+      "guide": {
+        "title": "Bu konstruktor nima qiladi?",
+        "what": "Nima qiladi",
+        "where": "Qayerda ko'rinadi",
+        "how": "Ishlash tartibi",
+        "deps": "Bog'liqlik",
+        "approval": "Tasdiqlash",
+        "result": "E'lon qilingach, o'zgarish shu yerda ko'rinadi: {where}.",
+        "resultNone": "E'lon qilingach, o'zgarish darhol ishlay boshlaydi.",
+        "whereNone": "Bu sozlamaning alohida sahifasi yo'q — u tizim ichida ishlaydi.",
+        "openPage": "Sahifani ochish",
+        "noAccess": "Bu sahifani ochish huquqingiz yo'q",
+        "stepPick": "Ro'yxatdan tanlang: {list}.",
+        "stepFill": "To'ldiring: {list}.",
+        "stepFillNone": "Kerakli maydonlarni to'ldiring — majburiy maydon yo'q.",
+        "stepSave": "Saqlang. Qoralama saytga chiqmaydi.",
+        "stepSend": "Tasdiqlashga yuboring. Tasdiqlangach, e'lon qilinadi.",
+        "stepPublish": "E'lon qiling — tasdiqsiz darhol saytga chiqadi.",
+        "position": "«{group}» bo'limidagi {n}-qadam",
+        "required": "Avval bajarilishi shart",
+        "recommended": "Avval qilish tavsiya etiladi",
+        "next": "Keyingi qadam",
+        "done": "Sozlangan",
+        "notDone": "Hali sozlanmagan",
+        "blocked": "Avval shularni sozlang: {list}.",
+        "noDeps": "Bu konstruktor boshqalariga bog'liq emas.",
+        "approvalYes": "E'lon qilishdan oldin tasdiqlanadi.",
+        "approvalNo": "Tasdiq kerak emas — e'lon qilinganda darhol ishlaydi.",
+        "routeSteps": "Kim tasdiqlaydi: {list}.",
+        "routeSuper": "Bosh superadmin tasdiqlaydi.",
+        "routeAuto": "Tasdiqlangach, avtomatik saytga chiqadi.",
+        "risk": "Ta'sir darajasi: {level}"
+      },
+      "routeFrom": {
+        "global": "Studio uchun umumiy tartib",
+        "group": "Bo'lim tartibi",
+        "constructor": "Shu konstruktorning o'z tartibi",
+        "default": "Standart tartib"
+      },
+      "lab": {
+        "title": "Studio namunalari",
+        "core": "Asos: tugmalar, holatlar, belgilar",
+        "form": "Shakl elementlari",
+        "layout": "Sahifa qismlari"
+      },
+      "core": {
+        "lab": {
+          "rail": "Bosqichlar chizig'i",
+          "railLead": "Holatni tanlang: chiziq to'ladi, nuqta yonadi, saytga chiqqanda qisqa salyut otiladi.",
+          "statusPick": "Holatni tanlang",
+          "next": "Keyingi bosqich",
+          "restart": "Boshidan",
+          "compact": "Ixcham ko'rinish",
+          "direct": "Tasdiqsiz konstruktor",
+          "all": "Barcha holatlar",
+          "pills": "Holat belgilari",
+          "pillsLead": "Serverdan keladigan har bir holat o'z rangi va belgisi bilan.",
+          "buttons": "Tugmalar",
+          "buttonsLead": "Har bir ko'rinish uch holatda: faol, o'chirilgan va bajarilayotgan.",
+          "kind": "Ko'rinish",
+          "sizeMd": "O'rta o'lcham",
+          "sizeSm": "Kichik o'lcham",
+          "variant": {
+            "primary": "Asosiy",
+            "secondary": "Oddiy",
+            "ghost": "Fonsiz",
+            "danger": "Xavfli amal"
+          },
+          "send": "Tasdiqlashga yuborish",
+          "icons": "Belgilar",
+          "iconsLead": "Studio'dagi barcha belgilar bitta to'plamdan, bir xil uslubda.",
+          "ctors": "Konstruktorlar va bo'limlar",
+          "labels": "Nomlar qanday ko'rsatiladi",
+          "fromServer": "Serverdan",
+          "onScreen": "Ekranda"
+        }
+      },
+      "layout": {
+        "results": "{n} ta natija",
+        "updated": "Yangilangan",
+        "otherGroup": "Boshqa",
+        "version": "{n}-versiya",
+        "lab": {
+          "lead": "Studio qismlarining barcha holatlari. Bu sahifada hech narsa saqlanmaydi.",
+          "layout": "Sahifa turi",
+          "page": "Oddiy sahifa",
+          "record": "Yozuv sahifasi",
+          "next": "Keyingi bosqich",
+          "stats": "Yozuvlar holati",
+          "state": "Jadval holati",
+          "stateData": "Ma'lumot bilan",
+          "stateLoading": "Yuklanmoqda",
+          "stateEmpty": "Bo'sh",
+          "stateError": "Xato",
+          "search": "Paketlarni qidirish",
+          "searchPh": "Paket nomi yoki kodi",
+          "noWrites": "Bu sahifada o'zgartirish o'chirilgan",
+          "details": "Paket tafsilotlari",
+          "guides": "Konstruktor yo'riqnomalari",
+          "notes": "Xabarlar",
+          "empties": "Bo'sh holatlar",
+          "outline": "Bo'limlarga o'tish",
+          "sections": "Shakl bo'limlari"
+        }
+      },
+      "kit": {
+        "title": "Studio qismlari",
+        "lead": "Har bir qism haqiqiy holatlarida. Bu sahifa faqat ishlab chiqish vaqtida ochiladi va hech narsani saqlamaydi.",
+        "theme": "Mavzu",
+        "light": "Yorug'",
+        "dark": "Qorong'i",
+        "view": "Sahifa turi",
+        "page": "Oddiy sahifa",
+        "record": "Yozuv sahifasi",
+        "sections": "Sahifa bo'limlari",
+        "stats": "Yozuvlar holati",
+        "waiting": "E'lon kutmoqda",
+        "rail": "Bosqichlar chizig'i",
+        "railLead": "Holatni almashtiring: chiziq chiziladi, nuqta yonadi, saytga chiqqanda qisqa salyut otiladi.",
+        "step": "Holatni tanlang",
+        "next": "Keyingi bosqich",
+        "restart": "Boshidan",
+        "compact": "Ixcham ko'rinish",
+        "direct": "Tasdiqsiz konstruktor",
+        "every": "Barcha holatlar",
+        "pills": "Holat belgilari",
+        "buttons": "Tugmalar",
+        "send": "Tasdiqlashga yuborish",
+        "controls": "Shakl maydonlari",
+        "kind": {
+          "text": "Matn",
+          "textarea": "Ko'p qatorli matn",
+          "number": "Son",
+          "money": "Pul summasi",
+          "picker": "Ro'yxatdan tanlash",
+          "date": "Sana",
+          "switch": "Yoqish va o'chirish",
+          "view": "Faqat ko'rish shakli"
+        },
+        "state": {
+          "empty": "Bo'sh",
+          "filled": "To'ldirilgan",
+          "focus": "Fokusda",
+          "error": "Xato",
+          "disabled": "Faol emas"
+        },
+        "pickers": "Ro'yxat turlari",
+        "pick": {
+          "single": "Bittasi",
+          "multi": "Bir nechtasi",
+          "async": "Serverdan yuklanadi",
+          "fail": "Yuklanmaydi"
+        },
+        "rows": "Qatorlar",
+        "cards": "Tanlov kartalari",
+        "search": "Paketlarni qidirish",
+        "searchPh": "Paket nomi yoki kodi",
+        "details": "Paket tafsilotlari",
+        "empties": "Bo'sh holatlar",
+        "emptyTitle": "Hali paket yo'q",
+        "emptyText": "Birinchi reklama paketini yarating — sotuvchilar uni Marketplace'da sotib oladi.",
+        "create": "Paket yaratish",
+        "noMatchText": "Boshqa so'z yoki filtr bilan qidirib ko'ring.",
+        "notes": "Xabarlar",
+        "guide": "Yo'riqnoma",
+        "guideOpen": "Yo'riqnomani ochish",
+        "noWrites": "Bu sahifada hech narsa saqlanmaydi"
+      }
+    },
     "option": {
       "mandatory": "Majburiy",
       "optional": "Ixtiyoriy",
