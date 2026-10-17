@@ -1,0 +1,276 @@
+.sx-pop .svloc-dlg {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.sx-pop .svloc-steps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sx-pop .svloc-steps__i {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--sx-muted);
+  font: 500 13px/18px var(--sx-font);
+}
+.sx-pop .svloc-steps__i:last-child {
+  flex: 0 1 auto;
+}
+.sx-pop .svloc-steps__i:not(:last-child)::after {
+  content: "";
+  flex: 1 1 16px;
+  min-width: 12px;
+  height: 1px;
+  background: var(--sx-line-strong);
+}
+.sx-pop .svloc-steps__n {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--sx-line-strong);
+  border-radius: 50%;
+  background: var(--sx-surface);
+  color: var(--sx-muted);
+  font: 600 12px/1 var(--sx-font);
+}
+.sx-pop .svloc-steps__t {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sx-pop .svloc-steps__i[data-state="current"] {
+  color: var(--sx-ink);
+  font-weight: 600;
+}
+.sx-pop .svloc-steps__i[data-state="current"] .svloc-steps__n {
+  border-color: var(--sx-accent);
+  background: var(--sx-accent);
+  color: var(--sx-on-accent);
+}
+.sx-pop .svloc-steps__i[data-state="done"] {
+  color: var(--sx-ink-2);
+}
+.sx-pop .svloc-steps__i[data-state="done"] .svloc-steps__n {
+  border-color: var(--sx-published-line);
+  background: var(--sx-published-bg);
+  color: var(--sx-published-fg);
+}
+.sx-pop .svloc-explain,
+.sx-pop .svloc-allow,
+.sx-pop .svloc-confirm {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.sx-pop .svloc-lead {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--sx-r-lg);
+  background: var(--sx-accent-soft);
+  color: var(--sx-accent-ink);
+}
+.sx-pop .svloc-points {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sx-pop .svloc-points li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--sx-ink-2);
+  font: 400 14px/20px var(--sx-font);
+}
+.sx-pop .svloc-points svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--sx-accent-ink);
+}
+.sx-pop .svloc-text {
+  margin: 0;
+  color: var(--sx-ink-2);
+  font: 400 14px/20px var(--sx-font);
+}
+.sx-pop .svloc-muted {
+  margin: 0;
+  color: var(--sx-muted);
+  font: 400 13px/18px var(--sx-font);
+}
+.sx-pop .svloc-dlabel {
+  margin: 0;
+  color: var(--sx-ink);
+  font: 600 14px/20px var(--sx-font);
+}
+@container (min-width: 420px) {
+  .sx-pop .svloc-dur .sx-choices__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .sx-pop .svloc-dur .sx-choices__grid > .sx-choice:last-child {
+    grid-column: span 2;
+  }
+}
+.sx-pop .svloc-dur .sx-choice__title {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+@media (max-width: 480px) {
+  .sx-pop .svloc-steps__i:not([data-state="current"]) .svloc-steps__t {
+    display: none;
+  }
+}
+
+.svm__notice.svloc-card {
+  flex-wrap: wrap;
+}
+.svm__notice.svloc-card .svloc-card__ic {
+  position: relative;
+  background: var(--dk-tint-blue, #EEF5FF);
+  color: var(--dk-acc, #1D5BE0);
+}
+.svm__notice.svloc-card[data-state="on"] {
+  background: var(--dk-tint-ok, #F0FBF6);
+  box-shadow: inset 0 0 0 1.5px var(--dk-bd-ok, #B8E8D2);
+}
+.svm__notice.svloc-card[data-state="on"] .svloc-card__ic {
+  background: var(--dk-ok-bg, #DDF5EA);
+  color: var(--dk-txt-ok, #0A7D55);
+}
+.svm__notice.svloc-card .svloc-card__dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #12B76A;
+  box-shadow: 0 0 0 2px var(--dk-surface, #FFFFFF);
+}
+.svm__notice.svloc-card .svloc-card__body {
+  flex: 1 1 260px;
+}
+.svm__notice.svloc-card .svloc-card__meta {
+  font-size: .78rem;
+}
+.svm__notice.svloc-card .svloc-card__err {
+  color: var(--dk-txt-err, #B42318);
+  font-weight: 600;
+}
+.svm__notice.svloc-card .svloc-card__acts {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.svm__notice.svloc-card .svloc-card__acts .btn svg {
+  width: 16px;
+  height: 16px;
+}
+@media (max-width: 640px) {
+  .svm__notice.svloc-card {
+    align-items: flex-start;
+  }
+  .svm__notice.svloc-card .svloc-card__acts {
+    flex: 1 1 100%;
+  }
+  .svm__notice.svloc-card .svloc-card__acts .btn {
+    flex: 1 1 0;
+  }
+}
+@media (pointer: coarse) {
+  .svm__notice.svloc-card .svloc-card__acts .btn {
+    min-height: 44px;
+  }
+}
+
+.umenu-btn.pslot-loc {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 14px 0 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--dk-tint-ok, #E6F7EF);
+  box-shadow: inset 0 0 0 1.5px var(--dk-bd-ok, #B8E8D2);
+  color: var(--dk-txt-ok, #0A6E4B);
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.umenu-btn.pslot-loc:hover {
+  filter: brightness(.98);
+}
+.umenu-btn.pslot-loc:focus-visible {
+  outline: 2px solid var(--dk-acc, #1D5BE0);
+  outline-offset: 2px;
+}
+.umenu-btn.pslot-loc .pslot-loc__pin {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+}
+.umenu-btn.pslot-loc .pslot-loc__pin svg {
+  width: 18px;
+  height: 18px;
+}
+.umenu-btn.pslot-loc .pslot-loc__dot {
+  position: absolute;
+  top: -2px;
+  right: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #12B76A;
+  box-shadow: 0 0 0 2px var(--dk-surface, #FFFFFF);
+}
+.umenu-btn.pslot-loc .pslot-loc__dot[data-state="warn"] {
+  background: #F79009;
+}
+.umenu-btn.pslot-loc .pslot-loc__short {
+  display: none;
+}
+@media (max-width: 600px) {
+  .umenu-btn.pslot-loc {
+    padding: 0 10px;
+    gap: 6px;
+  }
+  .umenu-btn.pslot-loc .pslot-loc__full {
+    display: none;
+  }
+  .umenu-btn.pslot-loc .pslot-loc__short {
+    display: inline;
+    font-variant-numeric: tabular-nums;
+  }
+}
+@media (max-width: 420px) {
+  .umenu-btn.pslot-loc {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+  .umenu-btn.pslot-loc .pslot-loc__short {
+    display: none;
+  }
+}
+@media (pointer: coarse) {
+  .umenu-btn.pslot-loc {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

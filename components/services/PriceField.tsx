@@ -3,23 +3,22 @@
 import type { ComponentType, SVGProps } from "react";
 import { useTranslations } from "next-intl";
 import { isZeroBand, type PriceBand } from "@/lib/services/sellerServices";
+import { priceCapOf, type RuntimePricing } from "@/lib/services/marketRuntime";
+import { priceVerdict } from "@/lib/services/sellerConfig";
 import { isNeutralModifier, modifierEffect, modifierLabel, type PriceModifier } from "@/lib/services/marketplacePricing";
-import { IconAward, IconBriefcase, IconCoins, IconMapPin, IconShieldCheck, IconSliders, IconStar, IconTag, IconTrendingUp } from "@/components/icons";
+import { IconAward, IconBriefcase, IconCoins, IconInfo, IconMapPin, IconShieldCheck, IconSliders, IconStar, IconTag, IconTrendingUp } from "@/components/icons";
 import { som } from "./bits";
+import { RuntimeFactors } from "./RuntimeFactors";
+import "./config.css";
 
 export const digitsOf = (v: string) => v.replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(0, 12);
 
-export function priceOutOfBand(price: number, band: PriceBand | null): boolean {
-  return Boolean(band && price > 0 && (price < band.min || price > band.max));
+export function priceAboveCap(price: number, runtime: RuntimePricing | null): boolean {
+  return priceVerdict(price, runtime) === "aboveMax";
 }
 
 export function bandRecommended(band: PriceBand): number {
   return band.recommended >= band.min && band.recommended <= band.max ? band.recommended : band.max;
-}
-
-export function bandPercents(band: PriceBand | null): { lo: number; hi: number } | null {
-  if (!band || band.recommended <= 0) return null;
-  return { lo: Math.round((band.min / band.recommended) * 100), hi: Math.round((band.max / band.recommended) * 100) };
 }
 
 const MOD_ICON: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
@@ -72,6 +71,9 @@ export default function PriceField({
   bandState,
   basePrice,
   error,
+  runtime,
+  runtimeState,
+  explanation,
 }: {
   id: string;
   value: string;
@@ -80,11 +82,17 @@ export default function PriceField({
   bandState: "idle" | "loading" | "ready" | "failed";
   basePrice: number;
   error: string;
+  runtime: RuntimePricing | null;
+  runtimeState: "idle" | "loading" | "ready" | "failed";
+  explanation: { text: string; lines: string[] } | null;
 }) {
   const t = useTranslations("sellerServices.form");
   const tl = useTranslations("sellerServices.limits");
+  const tc = useTranslations("sellerServices.config");
   const hintId = `${id}-hint`;
-  if (isZeroBand(band)) {
+  const explId = `${id}-expl`;
+  const runtimeRec = runtime && runtime.recommendedPrice > 0 ? runtime.recommendedPrice : 0;
+  if (isZeroBand(band) && !runtimeRec) {
     return (
       <div className="svprice2 is-none">
         <div className="svprice2__field">
@@ -99,19 +107,41 @@ export default function PriceField({
     );
   }
   const n = Number(value || "0");
-  const off = priceOutOfBand(n, band);
+  const cap = runtime ? priceCapOf(runtime) : null;
+  const above = priceAboveCap(n, runtime);
+  const rec = runtimeRec || (band && !isZeroBand(band) ? bandRecommended(band) : 0);
   const limId = `${id}-lim`;
-  const lo = band ? band.min * 0.86 : 0;
-  const hi = band ? band.max * 1.1 : 1;
-  const pos = (v: number) => `${Math.min(100, Math.max(0, ((v - lo) / (hi - lo || 1)) * 100))}%`;
+  const hi = cap ? cap * 1.1 : 1;
+  const pos = (v: number) => `${Math.min(100, Math.max(0, (v / (hi || 1)) * 100))}%`;
   const shown = value ? som(n) : "";
-  const rec = band ? bandRecommended(band) : 0;
-  const pct = bandPercents(band);
-  const base = band?.base || basePrice || 0;
-  const mods = band?.modifiers ?? [];
+  const runtimeOk = runtimeState === "ready" && Boolean(runtime);
+  const base = runtimeOk ? rec : band?.base || basePrice || 0;
+  const mods = runtimeState === "failed" ? (band?.modifiers ?? []) : [];
+  const expl = explanation && (explanation.text || explanation.lines.length) ? explanation : null;
+  const showLimits = rec > 0 || Boolean(runtime);
+  const bad = above || Boolean(error);
+  const described = [hintId, expl ? explId : "", showLimits ? limId : ""].filter(Boolean).join(" ");
+
+  const hint = error
+    ? error
+    : above && cap
+      ? tc("aboveMax", { max: som(cap) })
+      : runtimeState === "loading"
+        ? tc("runtimeLoading")
+        : runtimeState === "failed"
+          ? tc("runtimeFailed")
+          : cap
+            ? tc("hintCap", { max: som(cap) })
+            : runtimeOk
+              ? tc("hintBelow")
+              : bandState === "loading"
+                ? t("bandLoading")
+                : basePrice
+                  ? t("priceHintBase", { price: som(basePrice) })
+                  : t("priceHint");
 
   return (
-    <div className={`svprice2${off || error ? " is-bad" : ""}`}>
+    <div className={`svprice2${bad ? " is-bad" : ""}`}>
       <div className="svprice2__field">
         <IconCoins aria-hidden="true" />
         <input
@@ -120,68 +150,73 @@ export default function PriceField({
           autoComplete="off"
           value={shown}
           onChange={(e) => onChange(digitsOf(e.target.value))}
-          placeholder={band ? som(rec) : t("pricePh")}
-          aria-describedby={band ? `${hintId} ${limId}` : hintId}
-          aria-invalid={off || error ? true : undefined}
+          placeholder={rec ? som(rec) : t("pricePh")}
+          aria-describedby={described}
+          aria-invalid={bad ? true : undefined}
         />
         <span className="svprice2__cur">{t("som")}</span>
       </div>
 
-      {band ? (
+      {expl ? (
+        <div id={explId} className="svcfg-expl">
+          <IconInfo aria-hidden="true" />
+          <div className="svcfg-expl__b">
+            <b>{tc("explanationTitle")}</b>
+            {expl.text && !(expl.lines.length > 1 && expl.text === expl.lines.join(" ")) ? <p>{expl.text}</p> : null}
+            {expl.lines.length > 1 ? (
+              <ul>
+                {expl.lines.map((l, i) => (
+                  <li key={`${i}-${l}`}>{l}</li>
+                ))}
+              </ul>
+            ) : null}
+            <small>{tc("explanationHint")}</small>
+          </div>
+        </div>
+      ) : null}
+
+      {cap ? (
         <div className="svband" aria-hidden="true">
           <div className="svband__track">
-            <span className="svband__range" style={{ left: pos(band.min), right: `calc(100% - ${pos(band.max)})` }} />
-            {rec > band.min && rec < band.max ? <span className="svband__rec" style={{ left: pos(rec) }} /> : null}
-            {n > 0 ? <span className={`svband__dot${off ? " is-off" : ""}`} style={{ left: pos(n) }} /> : null}
+            <span className="svband__range" style={{ left: "0%", right: `calc(100% - ${pos(cap)})` }} />
+            {rec > 0 && rec < cap ? <span className="svband__rec" style={{ left: pos(rec) }} /> : null}
+            {n > 0 ? <span className={`svband__dot${above ? " is-off" : ""}`} style={{ left: pos(n) }} /> : null}
           </div>
           <div className="svband__lbl">
-            <span style={{ left: pos(band.min) }}>{som(band.min)}</span>
-            <span style={{ left: pos(band.max) }}>{som(band.max)}</span>
+            <span style={{ left: pos(cap) }}>{som(cap)}</span>
           </div>
         </div>
       ) : null}
 
       <div className="svprice2__chips">
-        {band ? (
-          <>
-            <button type="button" className={`svchip${n === rec ? " is-on" : ""}`} onClick={() => onChange(String(rec))}>
-              {t("useRecommended", { price: som(rec) })}
-            </button>
-            <button type="button" className={`svchip${n === band.min ? " is-on" : ""}`} onClick={() => onChange(String(band.min))}>
-              {t("useMin", { price: som(band.min) })}
-            </button>
-          </>
+        {rec > 0 ? (
+          <button type="button" className={`svchip svcfg-chip${n === rec ? " is-on" : ""}`} onClick={() => onChange(String(rec))}>
+            {t("useRecommended", { price: som(rec) })}
+          </button>
+        ) : null}
+        {cap ? (
+          <button type="button" className={`svchip svcfg-chip${n === cap ? " is-on" : ""}`} onClick={() => onChange(String(cap))}>
+            {tc("useMax", { price: som(cap) })}
+          </button>
         ) : null}
         {value ? (
-          <button type="button" className="svchip svchip--ghost" onClick={() => onChange("")}>
+          <button type="button" className="svchip svchip--ghost svcfg-chip" onClick={() => onChange("")}>
             {t("useCatalog")}
           </button>
         ) : null}
       </div>
 
-      <p id={hintId} className={`svprice2__hint${off || error ? " is-bad" : ""}`} role={off || error ? "alert" : undefined}>
-        {error
-          ? error
-          : off && band
-            ? t("priceOut", { min: som(band.min), max: som(band.max) })
-            : bandState === "loading"
-              ? t("bandLoading")
-              : bandState === "failed"
-                ? t("bandUnknown")
-                : band
-                  ? tl("bandHint")
-                  : basePrice
-                    ? t("priceHintBase", { price: som(basePrice) })
-                    : t("priceHint")}
+      <p id={hintId} className={`svprice2__hint${bad ? " is-bad" : ""}`} role={bad ? "alert" : undefined}>
+        {hint}
       </p>
 
-      {band ? (
-        <div id={limId} className={`svlim${off || error ? " is-bad" : ""}`}>
+      {showLimits ? (
+        <div id={limId} className={`svlim${bad ? " is-bad" : ""}`}>
           <p className="svlim__h">
             <IconSliders aria-hidden="true" />
             {tl("title")}
           </p>
-          {base > 0 ? (
+          {base > 0 && base !== rec ? (
             <div className="svlim__row">
               <span>{tl("base")}</span>
               <b>
@@ -190,16 +225,21 @@ export default function PriceField({
             </div>
           ) : null}
           <PriceModifiers modifiers={mods} variant="rows" />
-          <div className="svlim__row svlim__row--rec">
-            <span>{tl("recommended")}</span>
-            <b>
-              {som(rec)} {t("som")}
-            </b>
-          </div>
-          <div className="svlim__row svlim__row--range">
-            <span>{pct ? tl("rangeOf", pct) : tl("range")}</span>
-            <b>{tl("rangeValue", { min: som(band.min), max: som(band.max) })}</b>
-          </div>
+          {rec > 0 ? (
+            <div className="svlim__row svlim__row--rec">
+              <span>{tl("recommended")}</span>
+              <b>
+                {som(rec)} {t("som")}
+              </b>
+            </div>
+          ) : null}
+          {runtime ? (
+            <div className="svlim__row svcfg-max">
+              <span>{tc("maxLabel")}</span>
+              <b>{cap ? `${som(cap)} ${t("som")}` : tc("maxNoneShort")}</b>
+            </div>
+          ) : null}
+          {runtime ? <RuntimeFactors factors={runtime.factors} price={n || rec} /> : null}
         </div>
       ) : null}
     </div>

@@ -27,6 +27,8 @@ export type ManagedService = {
   capabilityId: string;
   status: ServiceStatus;
   selectedPrice: number;
+  legacyPrice: number;
+  negotiationAllowed: boolean | null;
   effectivePrice: number;
   priceCapped: boolean;
   experienceNote: string;
@@ -139,7 +141,9 @@ function normManaged(v: unknown, locale: string): ManagedService {
     service,
     capabilityId: asStr(d.capability_id),
     status: statusOf(d.status),
-    selectedPrice: uzs(d, "selected_price"),
+    selectedPrice: uzs(d, "configured_price") || uzs(d, "selected_price"),
+    legacyPrice: uzs(d, "selected_price"),
+    negotiationAllowed: typeof d.negotiation_allowed === "boolean" ? d.negotiation_allowed : null,
     effectivePrice: uzs(d, "effective_price"),
     priceCapped: d.price_capped === true,
     experienceNote: asStr(d.experience_note),

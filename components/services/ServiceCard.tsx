@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   hiddenReasons,
@@ -12,9 +12,12 @@ import {
   type ServiceSellerProfile,
   type ServiceStatus,
 } from "@/lib/services/sellerServices";
-import { IconClock, IconCoins, IconEdit, IconEye, IconEyeOff, IconLayers, IconMegaphone, IconTrash } from "@/components/icons";
+import { priceCapOf } from "@/lib/services/marketRuntime";
+import { IconAlert, IconClock, IconCoins, IconEdit, IconEye, IconEyeOff, IconLayers, IconLock, IconMegaphone, IconTrash } from "@/components/icons";
 import { StatusPill, StatusSwitch, som } from "./bits";
-import { PriceModifiers, bandRecommended, priceOutOfBand } from "./PriceField";
+import { PriceModifiers, bandRecommended } from "./PriceField";
+import { useRuntimeConfig } from "./useRuntimeConfig";
+import "./config.css";
 
 type BandLoad = { key: string; band: PriceBand | null };
 
@@ -31,8 +34,14 @@ export default function ServiceCard({
   onPromote,
   onRemove,
   aiId,
+  enableLock,
+  statusError,
+  showNegotiation,
 }: {
   aiId?: string;
+  enableLock?: { reason: string; onOpen: () => void } | null;
+  statusError?: string;
+  showNegotiation?: boolean;
   item: ManagedService;
   profile: ServiceSellerProfile;
   sellerId: string;
@@ -46,13 +55,18 @@ export default function ServiceCard({
   onRemove: () => void;
 }) {
   const t = useTranslations("sellerServices");
+  const uid = useId();
+  const lockId = `${uid}-lock`;
+  const errId = `${uid}-err`;
+  const runtime = useRuntimeConfig(item.id);
+  const runtimeFailed = runtime.state === "failed";
   const region = profile.region;
   const bandKey = `${item.id}|${sellerId}|${region}`;
   const [bandLoad, setBandLoad] = useState<BandLoad | null>(null);
   const hasLimits = Boolean(item.limits);
 
   useEffect(() => {
-    if (hasLimits) return;
+    if (hasLimits || !runtimeFailed) return;
     let alive = true;
     priceBandFor(item.id, sellerId, region)
       .then((band) => {
@@ -64,13 +78,35 @@ export default function ServiceCard({
     return () => {
       alive = false;
     };
-  }, [item.id, sellerId, region, bandKey, hasLimits]);
+  }, [item.id, sellerId, region, bandKey, hasLimits, runtimeFailed]);
 
   const loaded = bandLoad && bandLoad.key === bandKey ? bandLoad : null;
   const band = item.limits ?? loaded?.band ?? null;
   const known = hasLimits || Boolean(loaded);
-  const off = priceOutOfBand(item.selectedPrice, band);
-  const rec = band ? bandRecommended(band) : 0;
+  const pricing = runtime.config?.pricing ?? null;
+  const runtimeRec = pricing && pricing.recommendedPrice > 0 ? pricing.recommendedPrice : 0;
+  const legacyRec = band && !isZeroBand(band) ? bandRecommended(band) : 0;
+  const rec = runtimeRec || legacyRec;
+  const cap = pricing ? priceCapOf(pricing) : null;
+  const off = cap !== null && item.selectedPrice > cap;
+  const bandText =
+    runtime.state === "loading" || runtime.state === "idle"
+      ? t("config.cardLoading")
+      : isZeroBand(band) && !runtimeRec
+        ? t("card.bandNone")
+        : off && cap
+          ? t("config.cardAboveMax", { max: som(cap) })
+          : runtime.state === "ready" && rec > 0
+            ? cap
+              ? t("config.cardRecMax", { rec: som(rec), max: som(cap) })
+              : t("config.cardRec", { rec: som(rec) })
+            : rec > 0
+              ? t("config.cardRec", { rec: som(rec) })
+              : runtimeFailed && !known
+                ? t("card.bandLoading")
+                : t("card.bandUnknown");
+  const negotiation = Boolean(showNegotiation) && item.negotiationAllowed === true;
+  const describedBy = [enableLock ? lockId : "", statusError ? errId : ""].filter(Boolean).join(" ");
   const own = item.ownPromotion;
   const editable = item.service.isActive;
   const reasons = hiddenReasons(item, profile)
@@ -127,21 +163,11 @@ export default function ServiceCard({
         </span>
         {!item.selectedPrice ? <span className="msv__tag">{t("card.catalogPrice")}</span> : null}
         {item.priceCapped ? <span className="msv__tag msv__tag--cap" title={t("card.cappedHint", { price: som(item.selectedPrice) })}>{t("card.capped")}</span> : null}
+        {negotiation ? <span className="msv__tag svcfg-neg">{t("config.negotiationChip")}</span> : null}
       </div>
       <p className={`msv__band${off ? " is-off" : ""}`}>
         <IconCoins aria-hidden="true" />
-        <span>
-          {!known
-            ? t("card.bandLoading")
-            : isZeroBand(band)
-              ? t("card.bandNone")
-              : band
-              ? off
-                ? t("card.bandOff", { min: som(band.min), max: som(band.max) })
-                : t("card.band", { min: som(band.min), max: som(band.max) })
-              : t("card.bandUnknown")}
-          {band && rec !== band.max ? <em className="msv__rec">{t("limits.cardRec", { price: som(rec) })}</em> : null}
-        </span>
+        <span>{bandText}</span>
       </p>
       {band?.modifiers?.length ? <PriceModifiers modifiers={band.modifiers} variant="chips" /> : null}
 
@@ -159,8 +185,33 @@ export default function ServiceCard({
         <span>{item.visible ? t("card.visible") : t("card.hidden", { reasons })}</span>
       </p>
 
+      {enableLock ? (
+        <p id={lockId} className="svcfg-lock">
+          <IconLock aria-hidden="true" />
+          <span>{enableLock.reason}</span>
+          <button type="button" className="svcfg-lock__btn" onClick={enableLock.onOpen}>
+            {t("rules.lockAction")}
+          </button>
+        </p>
+      ) : null}
+      {statusError ? (
+        <p id={errId} className="svcfg-err" role="alert">
+          <IconAlert aria-hidden="true" />
+          <span>{statusError}</span>
+        </p>
+      ) : null}
+
       <div className="msv__foot">
-        <StatusSwitch value={item.status} busy={busy} onChange={onStatus} label={t("statusLabel")} aiTarget={first ? "services:status" : undefined} aiId={sub("status")} />
+        <StatusSwitch
+          value={item.status}
+          busy={busy}
+          onChange={onStatus}
+          label={t("statusLabel")}
+          aiTarget={first ? "services:status" : undefined}
+          aiId={sub("status")}
+          lockActive={enableLock ? enableLock.reason : undefined}
+          describedBy={describedBy || undefined}
+        />
         <div className="msv__acts">
           <button
             type="button"

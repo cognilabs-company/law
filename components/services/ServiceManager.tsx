@@ -50,6 +50,13 @@ import {
 } from "@/components/icons";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { aiId } from "@/lib/ai/ids";
+import { updateSellerServiceConfig, type SellerServiceConfig } from "@/lib/services/marketRuntime";
+import { applySellerConfig, configErrorOf, configSupport, isConfigUnsupported, withRememberedNegotiation } from "@/lib/services/sellerConfig";
+import { ensureServiceRules, openRulesDrawer, refreshRulesGate, rulesBlockOf, useRulesGate } from "@/lib/services/rulesGate";
+import { useDeskEmbedded } from "@/components/portal/desk/deskMode";
+import LocationShareCard from "@/components/services/location/LocationShareCard";
+import RulesBanner from "./rules/RulesBanner";
+import RulesDrawer from "./rules/RulesDrawer";
 import { useAiField, useAiModal, useAiSelection } from "@/lib/ai/registry";
 import { useAiReveal } from "@/lib/guide/targets";
 import ServiceCard from "./ServiceCard";
@@ -95,6 +102,7 @@ export default function ServiceManager({
 }) {
   const t = useTranslations("sellerServices");
   const to = useTranslations("orgOwner");
+  const tm = useTranslations("marketplace");
   const locale = useLocale();
   const { session } = useAuth();
   const uid = session?.id ?? "";
@@ -113,12 +121,22 @@ export default function ServiceManager({
   const [busyIds, setBusyIds] = useState<Record<string, boolean>>({});
   const [removing, setRemoving] = useState(false);
   const [removeErr, setRemoveErr] = useState("");
+  const [statusErr, setStatusErr] = useState<Record<string, string>>({});
   const onDataRef = useRef(onData);
   const mut = useRef({ seq: 0, skey: "" });
   const aiBase = orgId ? aiId("organization.member", memberId, "services") : "advocate.services";
   const aiCard = orgId ? aiId("organization.member", memberId, "service") : "services.card";
   const data = load.key.startsWith(prefix) ? load.data : null;
   const hasItems = Boolean(data?.items.length);
+  const self = sc.kind === "me" && !owner;
+  const gate = useRulesGate(self ? uid : "");
+  const embedded = useDeskEmbedded();
+  const [prevAll, setPrevAll] = useState(gate.allAccepted);
+  if (prevAll !== gate.allAccepted) {
+    setPrevAll(gate.allAccepted);
+    if (prevAll === false && gate.allAccepted === true) setStatusErr({});
+    if ((prevAll === false && gate.allAccepted === true) || (prevAll === true && gate.allAccepted === false)) setTick((x) => ({ n: x.n + 1, quiet: true }));
+  }
 
   const pickFilter = (v: string) => {
     const w = v.trim().toLowerCase();
@@ -148,15 +166,16 @@ export default function ServiceManager({
           setLoad((cur) => ({ ...cur, key: reqKey, error: null }));
           return;
         }
-        setLoad({ key: reqKey, data: d, error: null });
-        onDataRef.current?.(d);
+        const next = self && uid ? { ...d, items: d.items.map((x) => withRememberedNegotiation(uid, x)) } : d;
+        setLoad({ key: reqKey, data: next, error: null });
+        onDataRef.current?.(next);
       })
       .catch((e: unknown) => {
         if (isAborted(e) || c.signal.aborted) return;
         setLoad((cur) => ({ key: reqKey, data: cur.data && cur.key.startsWith(`${skey}|`) ? cur.data : null, error: serviceErrorOf(e) }));
       });
     return () => c.abort();
-  }, [sc, skey, locale, reqKey]);
+  }, [sc, skey, locale, reqKey, self, uid]);
 
   useEffect(() => {
     if (!pulse) return;
@@ -227,7 +246,10 @@ export default function ServiceManager({
   const waiting = items.filter((x) => !x.ownPromotion && pending[pendingPromoKey(sc, x.id)]).length;
   const loading = load.key !== reqKey;
   const dim = loading && !(tick.quiet && load.key.startsWith(`${skey}|${locale}|`));
-  const reload = () => setTick((x) => ({ n: x.n + 1, quiet: false }));
+  const reload = () => {
+    setStatusErr({});
+    setTick((x) => ({ n: x.n + 1, quiet: false }));
+  };
 
   const errText = (e: ServiceError) => {
     if (e.kind === "range") return t("errors.range", { min: som(e.min), max: som(e.max) });
@@ -241,15 +263,78 @@ export default function ServiceManager({
   const dropItem = (id: string) =>
     setLoad((cur) => (cur.data ? { ...cur, data: { ...cur.data, items: cur.data.items.filter((x) => x.id !== id) } } : cur));
 
+  const setErr = (id: string, text: string) =>
+    setStatusErr((cur) => {
+      if (text) return { ...cur, [id]: text };
+      if (!(id in cur)) return cur;
+      return Object.fromEntries(Object.entries(cur).filter(([k]) => k !== id));
+    });
+
+  const configErrorText = (e: unknown) => {
+    const ce = configErrorOf(e);
+    return ce.code !== "other" && tm.has(`errors.${ce.code}`) ? tm(`errors.${ce.code}`, { n: ce.missingRuleIds.length, list: "" }) : t("config.configFailed");
+  };
+
+  const rulesBlocked = (id: string, ids: string[]) => {
+    setErr(id, tm("errors.service_rules_acceptance_required", { n: ids.length }));
+    openRulesDrawer({ focusIds: ids, serviceId: id });
+  };
+
   const changeStatus = async (item: ManagedService, status: ServiceStatus) => {
     if (busyIds[item.id]) return;
+    setErr(item.id, "");
+    const enabling = self && status === "active";
+    if (enabling && gate.closed) {
+      openRulesDrawer({ serviceId: item.id });
+      return;
+    }
     setBusyIds((b) => ({ ...b, [item.id]: true }));
     try {
-      const saved = await setManagedServiceStatus(sc, item.id, status, locale);
+      let cfg: SellerServiceConfig | null = null;
+      if (enabling) {
+        const chk = await ensureServiceRules(item.id);
+        if (chk.allAccepted === false) {
+          setErr(item.id, t("rules.lockReason"));
+          openRulesDrawer({ focusIds: chk.missingIds, serviceId: item.id });
+          return;
+        }
+        if (configSupport() !== "no") {
+          try {
+            cfg = await updateSellerServiceConfig(item.id, { enabled: true });
+          } catch (e) {
+            if (!isConfigUnsupported(e)) {
+              const ids = rulesBlockOf(e);
+              if (ids) rulesBlocked(item.id, ids);
+              else setErr(item.id, configErrorText(e));
+              return;
+            }
+          }
+        }
+      }
+      let saved: ManagedService;
+      try {
+        saved = await setManagedServiceStatus(sc, item.id, status, locale);
+      } catch (e) {
+        if (cfg) void updateSellerServiceConfig(item.id, { enabled: false }).catch(() => undefined);
+        throw e;
+      }
       mut.current = { seq: mut.current.seq + 1, skey };
-      replaceItem(saved);
+      replaceItem(cfg ? applySellerConfig(saved, cfg) : saved);
       toast(t(`statusSaved.${status}`), { tone: "ok" });
+      if (self && status !== "active" && configSupport() !== "no") {
+        try {
+          await updateSellerServiceConfig(item.id, { enabled: false });
+        } catch (e) {
+          if (!isConfigUnsupported(e)) setErr(item.id, t("config.disableSyncFailed"));
+        }
+      }
     } catch (e) {
+      const ids = rulesBlockOf(e);
+      if (ids) {
+        if (self) rulesBlocked(item.id, ids);
+        else setErr(item.id, t("rules.ownerNote"));
+        return;
+      }
       const err = serviceErrorOf(e);
       toast(errText(err), { tone: "err" });
       if (err.kind === "notFound") reload();
@@ -387,6 +472,7 @@ export default function ServiceManager({
         </ul>
       </section>
 
+      {self ? <RulesBanner gate={gate} aiBase={aiBase} onOpen={() => openRulesDrawer()} onRetry={() => void refreshRulesGate({ force: true })} /> : null}
       {verified ? null : (
         <div className="svm__notice svm__notice--warn" role="note">
           <span className="svm__nic" aria-hidden="true">
@@ -414,6 +500,7 @@ export default function ServiceManager({
           </div>
         </div>
       ) : null}
+      {self && !embedded ? <LocationShareCard role={role} /> : null}
 
       {items.length ? (
         <>
@@ -456,6 +543,9 @@ export default function ServiceManager({
                 sellerId={sellerId}
                 pending={x.ownPromotion ? null : (pending[pendingPromoKey(sc, x.id)] ?? null)}
                 busy={Boolean(busyIds[x.id])}
+                enableLock={self && gate.closed && x.status !== "active" ? { reason: t("rules.lockReason"), onOpen: () => openRulesDrawer({ serviceId: x.id }) } : null}
+                statusError={statusErr[x.id] ?? ""}
+                showNegotiation={self}
                 onStatus={(s) => void changeStatus(x, s)}
                 onEdit={() => setDialog({ kind: "edit", item: x })}
                 onPromote={() => setDialog({ kind: "promote", item: x })}
@@ -500,11 +590,17 @@ export default function ServiceManager({
           lawyer={lawyer}
           owner={owner}
           taken={taken}
+          rules={self ? { closed: gate.closed, open: (focusIds, serviceId) => openRulesDrawer({ focusIds, serviceId }), check: ensureServiceRules } : null}
+          onPersist={(saved) => {
+            mut.current = { seq: mut.current.seq + 1, skey };
+            replaceItem(saved);
+          }}
           onClose={() => setDialog(null)}
           onStale={reload}
           onSaved={(saved, created) => {
             mut.current = { seq: mut.current.seq + 1, skey };
             replaceItem(saved);
+            setTick((x) => ({ n: x.n + 1, quiet: true }));
             toast(t(created ? "toast.added" : "toast.saved"), { tone: "ok" });
             setDialog(null);
           }}
@@ -535,6 +631,7 @@ export default function ServiceManager({
           onConfirm={() => void confirmRemove()}
         />
       ) : null}
+      {self ? <RulesDrawer /> : null}
     </div>
   );
 }

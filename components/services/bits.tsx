@@ -39,6 +39,8 @@ export function StatusSwitch({
   label,
   aiTarget,
   aiId,
+  lockActive,
+  describedBy,
 }: {
   value: ServiceStatus;
   busy?: boolean;
@@ -47,15 +49,22 @@ export function StatusSwitch({
   label: string;
   aiTarget?: string;
   aiId?: string;
+  lockActive?: string;
+  describedBy?: string;
 }) {
   const t = useTranslations("sellerServices");
   const off = Boolean(disabled || busy);
+  const locked = (s: ServiceStatus) => Boolean(lockActive) && s === "active" && value !== "active";
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
     if (!step || off) return;
     e.preventDefault();
     const n = SERVICE_STATUSES.length;
-    const next = SERVICE_STATUSES[(SERVICE_STATUSES.indexOf(value) + step + n) % n];
+    let i = SERVICE_STATUSES.indexOf(value);
+    do i = (i + step + n) % n;
+    while (locked(SERVICE_STATUSES[i]));
+    const next = SERVICE_STATUSES[i];
+    if (next === value) return;
     onChange(next);
     e.currentTarget.querySelectorAll<HTMLButtonElement>("[role=radio]")[SERVICE_STATUSES.indexOf(next)]?.focus();
   };
@@ -64,6 +73,7 @@ export function StatusSwitch({
       {SERVICE_STATUSES.map((s) => {
         const Icon = STATUS_ICON[s];
         const on = value === s;
+        const lock = locked(s);
         return (
           <button
             key={s}
@@ -71,9 +81,10 @@ export function StatusSwitch({
             role="radio"
             aria-checked={on}
             tabIndex={on ? 0 : -1}
-            className={`svsw__o svsw__o--${s}${on ? " is-on" : ""}`}
-            disabled={off}
-            title={t(`statusHint.${s}`)}
+            className={`svsw__o svsw__o--${s}${on ? " is-on" : ""}${lock ? " svcfg-locked" : ""}`}
+            disabled={off || lock}
+            title={lock ? lockActive : t(`statusHint.${s}`)}
+            aria-describedby={describedBy || undefined}
             onClick={() => {
               if (!on) onChange(s);
             }}

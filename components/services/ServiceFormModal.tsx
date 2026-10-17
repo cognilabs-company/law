@@ -7,12 +7,10 @@ import type { BackendService } from "@/lib/services/backend";
 import {
   NOTE_MAX,
   SERVICE_STATUSES,
-  addManagedService,
   isZeroBand,
   priceBandFor,
   profileVerified,
   serviceErrorOf,
-  updateManagedService,
   type ManagedService,
   type PriceBand,
   type ServiceError,
@@ -20,14 +18,18 @@ import {
   type ServiceSellerProfile,
   type ServiceStatus,
 } from "@/lib/services/sellerServices";
-import { IconAlert, IconCheck, IconCoins, IconEdit, IconEye, IconLayers, IconPause, IconPlay, IconPower } from "@/components/icons";
+import { configSupport, lastSellerConfig, saveSellerService, type ConfigError } from "@/lib/services/sellerConfig";
+import { IconAlert, IconCheck, IconCoins, IconEdit, IconEye, IconLayers, IconLock, IconPause, IconPlay, IconPower, IconScale } from "@/components/icons";
 import { InBody, som } from "./bits";
 import ServicePicker from "./ServicePicker";
-import PriceField, { bandPercents, digitsOf, priceOutOfBand } from "./PriceField";
+import PriceField, { bandRecommended, digitsOf, priceAboveCap } from "./PriceField";
 import MarketPreviewModal from "./MarketPreviewModal";
+import { RequirementsLine } from "./RuntimeFactors";
+import { useRuntimeConfig } from "./useRuntimeConfig";
 import type { PreviewDraft } from "@/lib/marketPreview";
+import "./config.css";
 
-const POLICY_KEY = (uid: string) => `lexgo_price_policy_${uid}`;
+const POLICY_KEY = (uid: string) => `lexgo_price_policy_v2_${uid}`;
 
 function withDetails(primary: PriceBand | null, extra: PriceBand | null): PriceBand | null {
   if (!primary) return extra;
@@ -54,6 +56,12 @@ function rememberPolicy(uid: string): void {
 }
 
 type BandLoad = { key: string; band: PriceBand | null; failed: boolean; advocate: boolean };
+type NegState = { key: string; on: boolean };
+type RulesProp = {
+  closed: boolean;
+  open: (focusIds?: string[], serviceId?: string) => void;
+  check: (serviceId: string) => Promise<{ allAccepted: boolean | null; missingIds: string[] }>;
+};
 
 export default function ServiceFormModal({
   item,
@@ -68,6 +76,8 @@ export default function ServiceFormModal({
   onSaved,
   onStale,
   aiId,
+  rules,
+  onPersist,
 }: {
   item: ManagedService | null;
   scope: ServiceScope;
@@ -81,16 +91,25 @@ export default function ServiceFormModal({
   onSaved: (saved: ManagedService, created: boolean) => void;
   onStale?: () => void;
   aiId?: string;
+  rules?: RulesProp | null;
+  onPersist?: (saved: ManagedService) => void;
 }) {
   const t = useTranslations("sellerServices");
   const tv = useTranslations("sellerServices.preview");
+  const tm = useTranslations("marketplace.errors");
   const locale = useLocale();
   const ids = useId();
-  const editing = Boolean(item);
+  const self = scope.kind === "me" && !owner;
+  const [persisted, setPersisted] = useState<ManagedService | null>(item);
+  const editing = Boolean(persisted);
   const [service, setService] = useState<BackendService | null>(item?.service ?? null);
   const [price, setPrice] = useState(item?.selectedPrice ? String(item.selectedPrice) : "");
   const [note, setNote] = useState(item?.experienceNote ?? "");
-  const [status, setStatus] = useState<ServiceStatus>(item?.status ?? "active");
+  const [status, setStatus] = useState<ServiceStatus>(item?.status ?? (rules?.closed ? "paused" : "active"));
+  const [checking, setChecking] = useState(false);
+  const [statusErr, setStatusErr] = useState("");
+  const [cfgErr, setCfgErr] = useState<{ price: string; form: string } | null>(null);
+  const [neg, setNeg] = useState<NegState | null>(null);
   const [agreed, setAgreed] = useState(() => readPolicy(uid));
   const [askPolicy] = useState(() => !readPolicy(uid));
   const [busy, setBusy] = useState(false);
@@ -105,7 +124,10 @@ export default function ServiceFormModal({
   const region = profile.region;
   const serviceId = service?.id ?? "";
   const bandKey = `${serviceId}|${sellerId}|${region}`;
-  const savedBand = item && item.id === serviceId ? item.limits : null;
+  const savedBand = persisted && persisted.id === serviceId ? persisted.limits : null;
+  const runtimeLoad = useRuntimeConfig(serviceId);
+  const runtime = runtimeLoad.config;
+  const pricing = runtime?.pricing ?? null;
   const savedComplete = Boolean(savedBand && savedBand.base !== null && savedBand.modifiers !== null);
 
   useEffect(() => {
@@ -127,11 +149,18 @@ export default function ServiceFormModal({
   const fromServer = serverBand && serverBand.key === serviceId ? serverBand.band : null;
   const band = withDetails(fromServer, withDetails(savedBand, loaded?.band ?? null));
   const bandState = !serviceId ? "idle" : band ? "ready" : loaded ? "failed" : "loading";
-  const noPrice = isZeroBand(band);
+  const noPrice = isZeroBand(band) && !(pricing && pricing.recommendedPrice > 0);
   const n = noPrice ? 0 : Number(price || "0");
-  const off = priceOutOfBand(n, band);
+  const off = priceAboveCap(n, pricing);
   const advocateBlocked = Boolean(loaded?.advocate) || err?.kind === "advocateOnly";
-  const pct = bandPercents(band);
+  const remembered = serviceId ? lastSellerConfig(uid, serviceId) : null;
+  const explanation = remembered && remembered.selectedPrice === n && (remembered.priceExplanation || remembered.priceExplanationLines.length) ? { text: remembered.priceExplanation, lines: remembered.priceExplanationLines } : null;
+  const showNeg = self && Boolean(runtime?.negotiationAvailable) && configSupport() !== "no";
+  const negInitial = persisted && persisted.id === serviceId && persisted.negotiationAllowed !== null ? persisted.negotiationAllowed : (remembered?.negotiationAllowed ?? null);
+  const negTouched = neg !== null && neg.key === serviceId;
+  const negOn = negTouched ? neg.on : negInitial === true;
+  const sendNeg = showNeg && (negTouched || negInitial !== null);
+  const activeLocked = Boolean(rules?.closed) && status !== "active";
 
   const errText = (e: ServiceError) => {
     if (e.kind === "range") return t("limits.serverRange", { min: som(e.min), max: som(e.max) });
@@ -141,8 +170,30 @@ export default function ServiceFormModal({
     return t(`errors.${e.kind}`);
   };
 
+  const codeText = (code: string, values?: Record<string, string | number>) => (tm.has(code) ? tm(code, values) : "");
+
+  const keep = (row: ManagedService) => {
+    setPersisted(row);
+    onPersist?.(row);
+  };
+
+  const applyConfigError = (error: ConfigError, rolledBack: boolean, id: string) => {
+    if (error.field === "price") {
+      const text = error.code === "seller_price_above_maximum" && error.maximum ? t("config.aboveMax", { max: som(error.maximum) }) : codeText(error.code) || error.message || t("config.configFailed");
+      setCfgErr({ price: text, form: t("config.partialSaved") });
+      return;
+    }
+    if (error.code === "service_rules_acceptance_required") {
+      const head = codeText(error.code, { n: error.missingRuleIds.length });
+      setStatusErr([head, rolledBack ? t("rules.savedNotEnabled") : ""].filter(Boolean).join(" "));
+      rules?.open(error.missingRuleIds, id);
+      return;
+    }
+    setCfgErr({ price: "", form: [t("config.configFailed"), error.message].filter(Boolean).join(" ") });
+  };
+
   const save = async () => {
-    if (busy || !service) return;
+    if (busy || checking || !service) return;
     if (askPolicy && !agreed) {
       setPolicyErr(true);
       return;
@@ -152,27 +203,71 @@ export default function ServiceFormModal({
       return;
     }
     if (off || advocateBlocked) return;
-    setBusy(true);
     setErr(null);
+    setCfgErr(null);
+    setStatusErr("");
+    const enabling = status === "active" && (!persisted || persisted.status !== "active");
+    if (self && rules && enabling) {
+      if (rules.closed) {
+        setStatusErr(t("rules.lockReason"));
+        rules.open(undefined, service.id);
+        return;
+      }
+      setChecking(true);
+      let blocked = false;
+      try {
+        const r = await rules.check(service.id);
+        if (r.allAccepted === false) {
+          blocked = true;
+          setStatusErr(t("rules.lockReason"));
+          rules.open(r.missingIds, service.id);
+        }
+      } catch {
+        blocked = false;
+      } finally {
+        setChecking(false);
+      }
+      if (blocked) return;
+    }
+    setBusy(true);
     try {
       const input = { serviceId: service.id, selectedPrice: n, experienceNote: note, status };
-      const saved = editing ? await updateManagedService(scope, input, locale) : await addManagedService(scope, input, locale);
-      rememberPolicy(uid);
-      onSaved(saved, !editing);
+      const res = await saveSellerService({
+        scope,
+        locale,
+        uid,
+        persisted,
+        input,
+        negotiation: sendNeg ? negOn : null,
+        runtime: runtimeLoad.state === "ready" ? runtime : null,
+        fallbackPrice: persisted ? persisted.legacyPrice : band && !isZeroBand(band) ? bandRecommended(band) : 0,
+      });
+      if (res.ok) {
+        rememberPolicy(uid);
+        onSaved(res.saved, res.created);
+        return;
+      }
+      if (res.stage === "manage") {
+        const se = res.error;
+        setErr(se);
+        if ((se.kind === "range" || se.kind === "noPrice") && se.limits) setServerBand({ key: service.id, band: se.limits });
+        if (res.persisted && res.persisted !== persisted) keep(res.persisted);
+        if (se.kind === "notFound") onStale?.();
+        return;
+      }
+      keep(res.persisted);
+      applyConfigError(res.error, res.rolledBack, service.id);
     } catch (e) {
-      const se = serviceErrorOf(e, locale);
-      setErr(se);
-      if ((se.kind === "range" || se.kind === "noPrice") && se.limits) setServerBand({ key: service.id, band: se.limits });
-      if (se.kind === "notFound") onStale?.();
+      setErr(serviceErrorOf(e, locale));
     } finally {
       setBusy(false);
     }
   };
 
   const close = () => {
-    if (!busy) onClose();
+    if (!busy && !checking) onClose();
   };
-  const priceErr = err?.kind === "range" ? errText(err) : priceReq ? t("errors.priceRequired") : "";
+  const priceErr = err?.kind === "range" ? errText(err) : cfgErr?.price ? cfgErr.price : priceReq ? t("errors.priceRequired") : "";
   const draft: PreviewDraft = {
     kind: "service",
     sellerId,
@@ -183,7 +278,8 @@ export default function ServiceFormModal({
     ad: null,
     profile: null,
   };
-  const formErr = err && err.kind !== "range" && err.kind !== "noPrice" && err.kind !== "advocateOnly" ? errText(err) : "";
+  const formErr = err && err.kind !== "range" && err.kind !== "noPrice" && err.kind !== "advocateOnly" ? errText(err) : (cfgErr?.form ?? "");
+  const stDescribed = [activeLocked ? `${ids}-lock` : "", statusErr ? `${ids}-sterr` : ""].filter(Boolean).join(" ") || undefined;
 
   return (
     <InBody>
@@ -206,14 +302,14 @@ export default function ServiceFormModal({
               </span>
               {t("form.service")}
             </label>
-            {editing && item ? (
+            {editing && persisted ? (
               <div className="svpick__sel svpick__sel--fixed">
                 <span className="svpick__ic" aria-hidden="true">
                   <IconEdit />
                 </span>
                 <span className="svpick__selm">
-                  <b>{item.service.name}</b>
-                  <small>{[item.service.categoryTitle, item.service.subcategory].filter(Boolean).join(" · ")}</small>
+                  <b>{persisted.service.name}</b>
+                  <small>{[persisted.service.categoryTitle, persisted.service.subcategory].filter(Boolean).join(" · ")}</small>
                 </span>
               </div>
             ) : (
@@ -235,6 +331,7 @@ export default function ServiceFormModal({
                 {t("errors.advocateOnly")}
               </p>
             ) : null}
+            {runtime ? <RequirementsLine req={runtime.minimumRequirements} verified={profileVerified(profile)} id={`${ids}-req`} /> : null}
           </section>
 
           <section className={`svform__sec${service ? "" : " is-dim"}`}>
@@ -251,13 +348,48 @@ export default function ServiceFormModal({
                 setPrice(digitsOf(v));
                 setPriceReq(false);
                 if (err?.kind === "range") setErr(null);
+                if (cfgErr?.price) setCfgErr(null);
               }}
               band={band}
               bandState={bandState}
               basePrice={service?.price ?? 0}
               error={priceErr}
+              runtime={pricing}
+              runtimeState={runtimeLoad.state}
+              explanation={explanation}
             />
           </section>
+
+          {showNeg ? (
+            <section className="svform__sec svcfg-negsec">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={negOn}
+                aria-labelledby={`${ids}-neg`}
+                aria-describedby={`${ids}-neg-h`}
+                className={`svcfg-sw${negOn ? " is-on" : ""}`}
+                data-ai-id={aiId ? `${aiId}.negotiation` : undefined}
+                data-ai-type={aiId ? "toggle" : undefined}
+                onClick={() => setNeg({ key: serviceId, on: !negOn })}
+              >
+                <span className="svform__n" aria-hidden="true">
+                  <IconScale />
+                </span>
+                <span className="svcfg-sw__l">
+                  <b id={`${ids}-neg`}>{t("config.negotiation")}</b>
+                  <small id={`${ids}-neg-h`}>
+                    {t("config.negotiationHint")}
+                    {!negTouched && negInitial === null ? <span className="svcfg-sw__m">{t("config.negotiationUnknown")}</span> : null}
+                    {status !== "active" ? <span className="svcfg-sw__m">{t("config.negotiationActiveOnly")}</span> : null}
+                  </small>
+                </span>
+                <span className="svcfg-sw__track" aria-hidden="true">
+                  <i />
+                </span>
+              </button>
+            </section>
+          ) : null}
 
           <section className="svform__sec">
             <label className="svform__lbl" htmlFor={`${ids}-note`}>
@@ -295,14 +427,21 @@ export default function ServiceFormModal({
               {SERVICE_STATUSES.map((s) => {
                 const Icon = STATUS_ICON[s];
                 const on = status === s;
+                const lock = s === "active" && activeLocked;
                 return (
                   <button
                     key={s}
                     type="button"
                     role="radio"
                     aria-checked={on}
-                    className={`svform__sto svform__sto--${s}${on ? " is-on" : ""}`}
-                    onClick={() => setStatus(s)}
+                    className={`svform__sto svform__sto--${s}${on ? " is-on" : ""}${lock ? " svcfg-locked" : ""}`}
+                    disabled={lock}
+                    title={lock ? t("rules.lockReason") : undefined}
+                    aria-describedby={stDescribed}
+                    onClick={() => {
+                      setStatus(s);
+                      setStatusErr("");
+                    }}
                   >
                     <span className="svform__stic" aria-hidden="true">
                       <Icon />
@@ -313,6 +452,21 @@ export default function ServiceFormModal({
                 );
               })}
             </div>
+            {activeLocked && rules ? (
+              <p id={`${ids}-lock`} className="svcfg-lock">
+                <IconLock aria-hidden="true" />
+                <span>{t("rules.lockReason")}</span>
+                <button type="button" className="svcfg-lock__btn" onClick={() => rules.open(undefined, serviceId)}>
+                  {t("rules.lockAction")}
+                </button>
+              </p>
+            ) : null}
+            {statusErr ? (
+              <p id={`${ids}-sterr`} className="svcfg-err" role="alert">
+                <IconAlert aria-hidden="true" />
+                <span>{statusErr}</span>
+              </p>
+            ) : null}
           </section>
 
           {askPolicy ? (
@@ -328,7 +482,7 @@ export default function ServiceFormModal({
               <span className="svform__box" aria-hidden="true">
                 <IconCheck />
               </span>
-              <span>{pct ? t("limits.policy", pct) : t("limits.policyPlain")}</span>
+              <span>{t("config.policy")}</span>
             </label>
           ) : null}
           {policyErr && !agreed ? (
@@ -348,12 +502,12 @@ export default function ServiceFormModal({
               <IconEye aria-hidden="true" />
               {tv("open")}
             </button>
-            <button type="button" className="btn btn--line" onClick={close} disabled={busy}>
+            <button type="button" className="btn btn--line" onClick={close} disabled={busy || checking}>
               {t("form.cancel")}
             </button>
-            <button type="submit" className="btn btn--pri" disabled={busy || !service || off || advocateBlocked}>
-              {busy ? t("form.saving") : t("form.save")}
-              {busy ? null : <IconCheck aria-hidden="true" />}
+            <button type="submit" className="btn btn--pri" disabled={busy || checking || !service || off || advocateBlocked} aria-busy={busy || checking || undefined}>
+              {checking ? t("rules.checking") : busy ? t("form.saving") : t("form.save")}
+              {busy || checking ? null : <IconCheck aria-hidden="true" />}
             </button>
           </div>
         </form>

@@ -12,6 +12,7 @@ import ThemeToggle from "../ThemeToggle";
 import NotificationBell from "./NotificationBell";
 import SupportMenu from "./SupportMenu";
 import MarketWatcher from "../marketplace/MarketWatcher";
+import SellerHeaderSlot from "./SellerHeaderSlot";
 import GrowthBanner from "./GrowthBanner";
 import GiftNudge from "./GiftNudge";
 import { canUseDesk, setDeskMode, useDeskEmbedOs, useDeskEmbedded, useDeskMode, useDeskOs } from "./desk/deskMode";
@@ -334,21 +335,25 @@ export default function PortalShell({
   }
   if (deskAllowed && deskMode === "desktop") {
     return (
-      <DesktopShell
-        key={deskOs}
-        os={deskOs}
-        role={role}
-        apps={nav.map((n) => ({ ...n, label: t(`sidebar.${role}.${n.key}`), locked: isLocked(role, n.key, limited, actions) }))}
-        name={session.name}
-        isAdmin={hasAdminAccess(session)}
-        onLogout={logout}
-      />
+      <>
+        {!limited ? <SellerHeaderSlot role={role} quiet desk /> : null}
+        <DesktopShell
+          key={deskOs}
+          os={deskOs}
+          role={role}
+          apps={nav.map((n) => ({ ...n, label: t(`sidebar.${role}.${n.key}`), locked: isLocked(role, n.key, limited, actions) }))}
+          name={session.name}
+          isAdmin={hasAdminAccess(session)}
+          onLogout={logout}
+        />
+      </>
     );
   }
 
   return (
     <div className={`portal${collapsed ? " psb-collapsed" : ""}${fullscreen ? " portal--full" : ""}`}>
       <MarketWatcher role={role} />
+      {fullscreen && role !== "client" && !limited ? <SellerHeaderSlot role={role} quiet /> : null}
       {picking ? (
         <OsPicker
           current={deskOs}
@@ -468,6 +473,7 @@ export default function PortalShell({
             </button>
             <h1 data-ai-target="ai-help:current-page">{title}</h1>
             <div className="ptop__sp">
+              {role !== "client" && !limited ? <SellerHeaderSlot role={role} /> : null}
               {deskAllowed ? (
                 <button type="button" className="ptop__desk" onClick={() => setPicking(true)} title={t("desk.switchDesktopHint")}>
                   <IconMonitor />
