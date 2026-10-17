@@ -1,13 +1,20 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import type { Session } from "@/lib/auth";
 
-// The lawyer's cabinet can be seen two ways: the classic sidebar layout, or
+// A seller's cabinet can be seen two ways: the classic sidebar layout, or
 // as a computer desktop where every section is an app opened in a window.
 // Which one is a choice of this browser, so it lives in localStorage and
 // both ways stay one click apart for comparing them.
 
 export type DeskMode = "classic" | "desktop";
+
+// The desktop is being tried out with one account first (an advocate,
+// LGA-45431074); everyone else keeps the classic cabinet. Matched by the
+// account's id, which does not change with its phone number or name.
+const DESK_USERS = new Set(["efeb656a-93c5-42fb-aaf0-1f572995e239"]);
+export const canUseDesk = (session: Session | null) => !!session?.id && DESK_USERS.has(session.id);
 const KEY = "lexgo_desk_mode";
 const EVENT = "lexgo-desk-mode";
 

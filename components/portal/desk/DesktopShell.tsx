@@ -51,13 +51,13 @@ type Note = { title: string; rows: [string, string][]; icon: ReactNode };
 
 // Each computer style keeps its own desk: wallpaper, pins, open windows.
 const storeOf = (os: DeskOs) => (os === "mac" ? "lexgo_desk_state_mac" : "lexgo_desk_state");
-const DEFAULT_PINNED = ["dashboard", "cases", "calendar", "chat", "files"];
-const FIRST = ["dashboard", "cases", "tasks", "calendar", "clients", "chat", "ai", "assistant"];
+const DEFAULT_PINNED = ["dashboard", "cases", "calendar", "chat", "messages", "files"];
+const FIRST = ["dashboard", "cases", "tasks", "calendar", "clients", "chat", "messages", "ai", "assistant"];
 const PHONE = 760;
 let seq = 0;
 const newId = () => `w${Date.now().toString(36)}${(seq++).toString(36)}`;
 
-// The lawyer's cabinet as a computer desktop: the sections are apps and
+// The cabinet as a computer desktop: the sections are apps and
 // folders on a wallpaper, opened (double-click, Enter, or from the taskbar
 // and the Start menu) as windows that hold the real pages — several at once,
 // each movable, resizable, snapped to a half of the screen or filling it,

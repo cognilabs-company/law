@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 
-// What sits on the lawyer's desktop. Every section of the cabinet is an
+// What sits on the cabinet's desktop. Every section of the cabinet is an
 // app; the everyday ones stand on the desktop, the rest are grouped in
 // folders. Each app has its own tile colour and the apps it is used with,
 // which its right-click menu offers to open next.
@@ -11,9 +11,9 @@ export type FolderId = "docs" | "market" | "comms" | "account";
 
 export const FOLDERS: { id: FolderId; keys: string[] }[] = [
   { id: "docs", keys: ["documents", "documentRequests", "files"] },
-  { id: "market", keys: ["marketplace", "marketplaceOrders", "services", "urgentAssigned"] },
+  { id: "market", keys: ["marketplace", "opportunities", "marketplaceOrders", "services", "urgentAssigned"] },
   { id: "comms", keys: ["meetings", "notifications", "support"] },
-  { id: "account", keys: ["profile", "subscription", "referrals", "promotion"] },
+  { id: "account", keys: ["profile", "organization", "subscription", "referrals", "promotion"] },
 ];
 
 // The tile colours, two stops of a gradient.
@@ -24,6 +24,9 @@ export const TILE: Record<string, [string, string]> = {
   calendar: ["#FF6B6B", "#D93D52"],
   clients: ["#7C6CF2", "#5435D6"],
   chat: ["#22C3E6", "#0A8FC2"],
+  messages: ["#22C3E6", "#0A8FC2"],
+  opportunities: ["#2EC4B6", "#12907F"],
+  organization: ["#6B8AFD", "#3C5BD6"],
   ai: ["#B26CF5", "#7A2FD6"],
   assistant: ["#5ED1C1", "#16998A"],
   documents: ["#5B8DEF", "#2D5BC4"],
@@ -49,8 +52,11 @@ export const RELATED: Record<string, string[]> = {
   cases: ["tasks", "documents", "clients"],
   tasks: ["calendar", "cases"],
   calendar: ["meetings", "tasks"],
-  clients: ["chat", "cases", "meetings"],
+  clients: ["chat", "messages", "cases", "meetings"],
   chat: ["clients", "meetings"],
+  messages: ["clients", "meetings"],
+  opportunities: ["marketplaceOrders", "services"],
+  organization: ["profile", "clients"],
   ai: ["assistant", "documents"],
   assistant: ["ai", "documents"],
   documents: ["documentRequests", "files", "ai"],
@@ -80,11 +86,11 @@ export const KINDS: { kind: AppKind; keys: string[] }[] = [
   { kind: "home", keys: ["dashboard"] },
   { kind: "files", keys: ["cases", "documents", "documentRequests", "files"] },
   { kind: "calendar", keys: ["calendar", "meetings"] },
-  { kind: "comms", keys: ["chat", "notifications", "support"] },
+  { kind: "comms", keys: ["chat", "messages", "notifications", "support"] },
   { kind: "todo", keys: ["tasks", "urgentAssigned"] },
   { kind: "people", keys: ["clients"] },
-  { kind: "store", keys: ["marketplace", "marketplaceOrders", "services"] },
-  { kind: "settings", keys: ["profile", "subscription", "referrals", "promotion"] },
+  { kind: "store", keys: ["marketplace", "opportunities", "marketplaceOrders", "services"] },
+  { kind: "settings", keys: ["profile", "organization", "subscription", "referrals", "promotion"] },
   { kind: "ai", keys: ["ai", "assistant"] },
 ];
 export const kindOf = (key: string): AppKind => KINDS.find((k) => k.keys.includes(key))?.kind ?? "home";

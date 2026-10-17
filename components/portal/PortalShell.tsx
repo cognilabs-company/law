@@ -14,11 +14,11 @@ import SupportMenu from "./SupportMenu";
 import MarketWatcher from "../marketplace/MarketWatcher";
 import GrowthBanner from "./GrowthBanner";
 import GiftNudge from "./GiftNudge";
-import { setDeskMode, useDeskEmbedOs, useDeskEmbedded, useDeskMode, useDeskOs } from "./desk/deskMode";
+import { canUseDesk, setDeskMode, useDeskEmbedOs, useDeskEmbedded, useDeskMode, useDeskOs } from "./desk/deskMode";
 import DeskApp from "./desk/DeskApp";
 import OsPicker from "./desk/OsPicker";
 
-// The lawyer's desktop view is its own bundle, loaded only by those who
+// The cabinet's desktop view is its own bundle, loaded only by those who
 // switch to it.
 const DesktopShell = dynamic(() => import("./desk/DesktopShell"), { ssr: false });
 
@@ -215,7 +215,7 @@ export default function PortalShell({
   // viewport-height chain to fill.
   const fullscreen = /\/services\/document\//.test(pathname) || /\/document-requests\/[^/]+\/editor$/.test(pathname);
   const [peek, setPeek] = useState(false);
-  // The lawyer's cabinet as a desktop, and a page running inside one of its
+  // The cabinet as a desktop, and a page running inside one of its
   // windows (which tells the desktop where it has gone).
   const deskMode = useDeskMode();
   const embedded = useDeskEmbedded();
@@ -311,13 +311,15 @@ export default function PortalShell({
   // The name in the header is where people click to reach their own profile.
   const profileHref = nav.find((n) => n.key === "profile")?.href ?? `/portal/${role}`;
 
+  // The desktop view, for the accounts it is open to (see canUseDesk).
+  const deskAllowed = role !== "client" && canUseDesk(session);
   // Inside a desktop window: the page alone, no sidebar, header or assistant.
-  // A lawyer's page is dressed as the program it is (see DeskApp).
+  // A cabinet page is dressed as the program it is (see DeskApp).
   if (embedded) {
     return (
       <div className="portal portal--embed">
         <CabinetProvider value={cabinet}>
-          {role === "lawyer" && active ? (
+          {deskAllowed && active ? (
             <DeskApp os={embedOs} nav={nav} current={active.key} label={(k) => t(`sidebar.${role}.${k}`)} locked={(k) => isLocked(role, k, limited, actions)} name={session.name}>
               {gated}
             </DeskApp>
@@ -330,7 +332,7 @@ export default function PortalShell({
       </div>
     );
   }
-  if (role === "lawyer" && deskMode === "desktop") {
+  if (deskAllowed && deskMode === "desktop") {
     return (
       <DesktopShell
         key={deskOs}
@@ -466,7 +468,7 @@ export default function PortalShell({
             </button>
             <h1 data-ai-target="ai-help:current-page">{title}</h1>
             <div className="ptop__sp">
-              {role === "lawyer" ? (
+              {deskAllowed ? (
                 <button type="button" className="ptop__desk" onClick={() => setPicking(true)} title={t("desk.switchDesktopHint")}>
                   <IconMonitor />
                   <span>{t("desk.switchDesktop")}</span>
