@@ -21496,11 +21496,21 @@ html[data-theme="dark"] .wd{--wd-glass:rgba(28,32,44,.78);--wd-glass2:rgba(36,41
 @keyframes wdClose{to{opacity:0;transform:scale(.94)}}
 /* the Mac's windows grow out of their Dock icon, are pulled back into it
    (narrower than tall, like the genie) and shrink away when closed */
-.wd--mac .wd-win{animation:wdGenieIn .46s cubic-bezier(.16,.9,.24,1)}
-@keyframes wdGenieIn{0%{opacity:0;transform:translate(var(--ox),var(--oy)) scale(.04,.03)}35%{opacity:1;transform:translate(calc(var(--ox) * .35),calc(var(--oy) * .5)) scale(.45,.3)}}
-.wd--mac .wd-win.is-min{transform:translate(var(--ox),var(--oy)) scale(.04,.03);transition:opacity .28s .2s,transform .5s cubic-bezier(.55,.05,.3,1),visibility 0s .5s}
-.wd--mac .wd-win.is-closing{animation:wdCloseMac .22s cubic-bezier(.4,0,1,1) forwards}
-@keyframes wdCloseMac{to{opacity:0;transform:scale(.86) translateY(14px)}}
+/* Opening: the window starts as the very icon that was clicked — its size,
+   its place, its rounded corners — and grows out of it to its own size,
+   the content fading in a beat behind. */
+.wd--mac .wd-win{--sx:.06;--sy:.06;animation:wdZoomIn .5s cubic-bezier(.16,1,.3,1) backwards;will-change:transform}
+.wd--mac .wd-win>*{animation:wdZoomInBody .36s .1s ease-out backwards}
+@keyframes wdZoomIn{0%{opacity:0;border-radius:40%;transform:translate(var(--ox),var(--oy)) scale(var(--sx),var(--sy))}18%{opacity:1}60%{border-radius:14px}100%{opacity:1;transform:none}}
+@keyframes wdZoomInBody{from{opacity:0}}
+/* Minimised: pulled into its Dock icon, narrowing toward the bottom on
+   the way like the genie, and back out the same way. */
+.wd--mac .wd-win.is-min{transform:translate(var(--ox),var(--oy)) scale(var(--sx),var(--sy));clip-path:polygon(0 0,100% 0,64% 100%,36% 100%);opacity:0;transition:transform .56s cubic-bezier(.55,.06,.3,1),clip-path .3s cubic-bezier(.5,0,.5,1),opacity .2s .38s,visibility 0s .58s}
+.wd--mac .wd-win:not(.is-min){clip-path:polygon(0 0,100% 0,100% 100%,0 100%);transition:box-shadow .2s,opacity .16s,transform .5s cubic-bezier(.16,1,.3,1),clip-path .42s .12s cubic-bezier(.2,.8,.2,1),left .32s cubic-bezier(.2,.9,.3,1),top .32s cubic-bezier(.2,.9,.3,1),width .32s cubic-bezier(.2,.9,.3,1),height .32s cubic-bezier(.2,.9,.3,1)}
+.wd--mac.is-busy .wd-win:not(.is-min){transition:box-shadow .2s,opacity .16s,transform .5s cubic-bezier(.16,1,.3,1),clip-path .42s .12s cubic-bezier(.2,.8,.2,1)}
+/* Closed: it shrinks back into the place it belongs and fades. */
+.wd--mac .wd-win.is-closing{animation:wdZoomOut .36s cubic-bezier(.5,0,.75,0) forwards}
+@keyframes wdZoomOut{0%{transform:none;opacity:1}70%{opacity:.85}100%{opacity:0;border-radius:40%;transform:translate(var(--ox),var(--oy)) scale(var(--sx),var(--sy))}}
 .wd-win__bar{display:flex;align-items:center;gap:8px;height:38px;padding-left:12px;background:var(--wd-glass2);border-bottom:1px solid var(--wd-line);cursor:default;touch-action:none}
 .wd-win:not(.is-active) .wd-win__bar{color:var(--wd-mute)}
 .wd-win__icon{display:grid;place-items:center}
@@ -21685,8 +21695,12 @@ html[data-theme="dark"] .wd-mbar>button:hover,html[data-theme="dark"] .wd-mbar>b
 .wd-mbar__clock{font-variant-numeric:tabular-nums}
 .wd-dock{position:absolute;left:50%;bottom:6px;z-index:10000;display:flex;align-items:flex-end;gap:4px;max-width:calc(100% - 16px);height:66px;padding:6px 8px;border-radius:20px;background:var(--wd-glass);backdrop-filter:blur(30px) saturate(1.8);-webkit-backdrop-filter:blur(30px) saturate(1.8);box-shadow:0 0 0 1px rgba(255,255,255,.35) inset,0 0 0 1px rgba(0,0,0,.12),0 16px 40px -12px rgba(0,0,0,.4);transform:translateX(-50%);overflow:visible}
 .wd-dock__slot{display:flex;align-items:flex-end;gap:4px}
-.wd-dock__app{--dk:1;position:relative;display:grid;place-items:end center;width:calc(52px * var(--dk));height:52px;padding:0;border:0;background:none;cursor:pointer;transition:width .09s linear}
-.wd-dock__app>:first-child{transform:scale(var(--dk));transform-origin:50% 100%;transition:transform .09s linear}
+/* The Dock's zoom eases in and out when the pointer arrives or leaves,
+   and follows it closely while it moves along. */
+.wd-dock__app{--dk:1;position:relative;display:grid;place-items:end center;width:calc(52px * var(--dk));height:52px;padding:0;border:0;background:none;cursor:pointer;transition:width .32s cubic-bezier(.22,1,.36,1)}
+.wd-dock__app>:first-child{transform:scale(var(--dk));transform-origin:50% 100%;transition:transform .32s cubic-bezier(.22,1,.36,1);will-change:transform}
+.wd-dock.is-mag .wd-dock__app,.wd-dock.is-mag .wd-dock__app>:first-child{transition-duration:.14s;transition-timing-function:cubic-bezier(.25,.8,.35,1)}
+.wd-dock__app:active>:first-child{filter:brightness(.82)}
 .wd-dock__app .wd-tile{--s:50px;border-radius:12px}
 .wd-dock__app .wd-folder{--s:44px}
 .wd-dock__app::after{content:"";position:absolute;bottom:-5px;left:50%;width:4px;height:4px;border-radius:50%;background:transparent;transform:translateX(-50%)}
@@ -21991,3 +22005,4 @@ html[data-theme="dark"] .wd-wg{background:rgba(32,36,48,.66);color:#EEF2F8}
 .wd-snip__acts{display:flex;justify-content:flex-end;gap:8px}
 @media (max-width:760px){.wd-snip{grid-template-columns:1fr;grid-template-rows:minmax(0,45%) minmax(0,1fr)}.wd-snip__side{border-right:0;border-bottom:1px solid var(--wd-line)}.wd-start__items{grid-template-columns:1fr}.wd-act{right:6px;left:6px;width:auto}}
 @media (prefers-reduced-motion:reduce){.wd-pal__box,.wd-act,.wd-toast{animation:none}}
+@media (prefers-reduced-motion:reduce){.wd--mac .wd-win,.wd--mac .wd-win>*{animation:none}.wd--mac .wd-win.is-closing{animation:none;opacity:0}.wd--mac .wd-win:not(.is-min),.wd--mac .wd-win.is-min{transition:none}}

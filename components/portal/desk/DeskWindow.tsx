@@ -24,6 +24,13 @@ export type Win = {
   // grows out of when it opens and where it shrinks into when minimised.
   ox?: number;
   oy?: number;
+  // …and the size of that button against the window's, so the window
+  // starts (and ends) exactly as large as the icon it came from.
+  sx?: number;
+  sy?: number;
+  // Where it was opened from (desk coordinates), to go back there when
+  // closed if its button is gone.
+  src?: { x: number; y: number; w: number; h: number };
   // Playing its closing animation; gone right after.
   closing?: boolean;
 };
@@ -154,7 +161,7 @@ export default function DeskWindow({
   return (
     <section
       className={`wd-win${active ? " is-active" : ""}${win.min ? " is-min" : ""}${win.closing ? " is-closing" : ""}${full ? " is-max" : ""}${win.snap === "l" || win.snap === "r" ? " is-snap" : ""}`}
-      style={{ left: box.x, top: box.y, width: box.w, height: box.h, zIndex: win.z, "--ox": `${win.ox ?? 0}px`, "--oy": `${win.oy ?? 0}px` } as CSSProperties}
+      style={{ left: box.x, top: box.y, width: box.w, height: box.h, zIndex: win.z, "--ox": `${win.ox ?? 0}px`, "--oy": `${win.oy ?? 0}px`, "--sx": (win.sx ?? 0.06).toFixed(4), "--sy": (win.sy ?? 0.06).toFixed(4) } as CSSProperties}
       role="dialog"
       aria-label={title}
       aria-hidden={win.min || win.closing || undefined}
