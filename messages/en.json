@@ -16581,6 +16581,7 @@
       "editTitle": "Edit ad",
       "statusLabel": "Status",
       "recordType": {
+        "package": "Package",
         "banner": "Banner",
         "featured": "Featured",
         "promotion": "Promotion",
@@ -16589,6 +16590,8 @@
         "sponsored": "Sponsored"
       },
       "status": {
+        "archived": "Archived",
+        "inactive": "Inactive",
         "draft": "Draft",
         "active": "Active",
         "paused": "Paused",

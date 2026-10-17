@@ -16587,6 +16587,7 @@
       "editTitle": "Reklamani tahrirlash",
       "statusLabel": "Holat",
       "recordType": {
+        "package": "Paket",
         "banner": "Banner",
         "featured": "Tavsiya etilgan",
         "promotion": "Aksiya",
@@ -16595,6 +16596,8 @@
         "sponsored": "Homiylik"
       },
       "status": {
+        "archived": "Arxivda",
+        "inactive": "Nofaol",
         "draft": "Qoralama",
         "active": "Faol",
         "paused": "To'xtatilgan",

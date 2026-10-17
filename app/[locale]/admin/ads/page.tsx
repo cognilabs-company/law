@@ -11,9 +11,15 @@ import { IconInfo, IconRocket } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "—");
 
+const statusRank = (s?: string) => (s === "deleted" || s === "removed" ? 2 : s === "archived" ? 1 : 0);
+
 export default function AdminAds() {
   const t = useTranslations("admin");
   const ads = useResource(listAds, []);
+  const rows = ads.data
+    .map((a, i) => ({ a, i }))
+    .sort((x, y) => statusRank(x.a.status) - statusRank(y.a.status) || x.i - y.i)
+    .map((x) => x.a);
 
   return (
     <div className="ppanel">
@@ -65,7 +71,7 @@ export default function AdminAds() {
           <EmptyState icon={<IconRocket />} title={t("ads.empty")} text={t("ads.emptyReadOnly")} />
         ) : (
           <div className="alist">
-            {ads.data.map((a, i) => (
+            {rows.map((a, i) => (
               <AdminItem
                 key={a.id}
                 index={i + 1}
