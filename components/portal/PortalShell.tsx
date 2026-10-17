@@ -14,6 +14,11 @@ import SupportMenu from "./SupportMenu";
 import MarketWatcher from "../marketplace/MarketWatcher";
 import GrowthBanner from "./GrowthBanner";
 import GiftNudge from "./GiftNudge";
+import { setDeskMode, useDeskEmbedded, useDeskMode } from "./desk/deskMode";
+
+// The lawyer's desktop view is its own bundle, loaded only by those who
+// switch to it.
+const DesktopShell = dynamic(() => import("./desk/DesktopShell"), { ssr: false });
 
 // three.js/R3F must never run during SSR; isolated behind ssr:false rather
 // than disabling SSR for the shell itself.
@@ -60,6 +65,7 @@ import {
   IconPackage,
   IconClipboardList,
   IconTag,
+  IconMonitor,
 } from "../icons";
 
 type SvgC = ComponentType<{ className?: string }>;
@@ -207,6 +213,13 @@ export default function PortalShell({
   // viewport-height chain to fill.
   const fullscreen = /\/services\/document\//.test(pathname) || /\/document-requests\/[^/]+\/editor$/.test(pathname);
   const [peek, setPeek] = useState(false);
+  // The lawyer's cabinet as a desktop, and a page running inside one of its
+  // windows (which tells the desktop where it has gone).
+  const deskMode = useDeskMode();
+  const embedded = useDeskEmbedded();
+  useEffect(() => {
+    if (embedded && window.parent !== window) window.parent.postMessage({ type: "lexgo-desk:path", path: pathname }, window.location.origin);
+  }, [embedded, pathname]);
 
   // Desktop collapse (icon-only rail) — a per-device convenience, remembered
   // across visits but never blocking the page if storage is unavailable.
@@ -279,6 +292,7 @@ export default function PortalShell({
   if (!ready || !session || session.role !== role) return <div className="portal portal--redirect" aria-busy="true"><span className="rf__spinner" /></div>;
   // Locked (or not yet known) seller route: chrome only, never the page itself.
   const hideBody = routeLocked || routeUnknown;
+  const gated = hideBody ? <div className="portal--gated" aria-busy="true"><span className="rf__spinner" /></div> : children;
 
   const nav =
     role === "advocate" ? ADVOCATE_NAV : role === "lawyer" ? LAWYER_NAV : CLIENT_NAV;
@@ -291,6 +305,30 @@ export default function PortalShell({
   const title = active ? t(`sidebar.${role}.${active.key}`) : t("metaTitle");
   // The name in the header is where people click to reach their own profile.
   const profileHref = nav.find((n) => n.key === "profile")?.href ?? `/portal/${role}`;
+
+  // Inside a desktop window: the page alone, no sidebar, header or assistant.
+  if (embedded) {
+    return (
+      <div className="portal portal--embed">
+        <div className="pbody">
+          <div className="pbody__in">
+            <CabinetProvider value={cabinet}>{gated}</CabinetProvider>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (role === "lawyer" && deskMode === "desktop") {
+    return (
+      <DesktopShell
+        role={role}
+        apps={nav.map((n) => ({ ...n, label: t(`sidebar.${role}.${n.key}`), locked: isLocked(role, n.key, limited, actions) }))}
+        name={session.name}
+        isAdmin={hasAdminAccess(session)}
+        onLogout={logout}
+      />
+    );
+  }
 
   return (
     <div className={`portal${collapsed ? " psb-collapsed" : ""}${fullscreen ? " portal--full" : ""}`}>
@@ -404,6 +442,12 @@ export default function PortalShell({
             </button>
             <h1 data-ai-target="ai-help:current-page">{title}</h1>
             <div className="ptop__sp">
+              {role === "lawyer" ? (
+                <button type="button" className="ptop__desk" onClick={() => setDeskMode("desktop")} title={t("desk.switchDesktopHint")}>
+                  <IconMonitor />
+                  <span>{t("desk.switchDesktop")}</span>
+                </button>
+              ) : null}
               <SupportMenu role={role} />
               <NotificationBell role={role} />
               <ThemeToggle variant="square" />
@@ -430,7 +474,7 @@ export default function PortalShell({
             ) : (
               <GiftNudge />
             )}
-            <CabinetProvider value={cabinet}>{hideBody ? <div className="portal--gated" aria-busy="true"><span className="rf__spinner" /></div> : children}</CabinetProvider>
+            <CabinetProvider value={cabinet}>{gated}</CabinetProvider>
           </div>
         </div>
       </div>

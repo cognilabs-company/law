@@ -11181,7 +11181,108 @@
     },
     "menu": "Menu",
     "collapse": "Collapse",
-    "expand": "Expand"
+    "expand": "Expand",
+    "desk": {
+      "switchDesktop": "Desktop",
+      "switchDesktopHint": "Open the cabinet as a computer desktop",
+      "switchClassic": "Switch to the classic view",
+      "classic": "Classic",
+      "desktop": "Desktop",
+      "start": "Start",
+      "search": "Search apps and folders",
+      "results": "Results",
+      "allApps": "All apps",
+      "noResults": "Nothing found",
+      "admin": "Admin panel",
+      "power": "Power",
+      "logout": "Sign out",
+      "taskbar": "Taskbar",
+      "folders": "Folders",
+      "ok": "OK",
+      "folder": {
+        "docs": "Documents",
+        "market": "Market & services",
+        "comms": "Communication",
+        "account": "Account & plan"
+      },
+      "menu": {
+        "open": "Open",
+        "newWindow": "Open in a new window",
+        "newTab": "Open in a new browser tab",
+        "related": "Used together with",
+        "pin": "Pin to taskbar",
+        "unpin": "Unpin from taskbar",
+        "properties": "Properties",
+        "inside": "Inside",
+        "view": "Icon size",
+        "icons": {
+          "lg": "Large icons",
+          "md": "Medium icons",
+          "sm": "Small icons"
+        },
+        "sortBy": "Sort by",
+        "sort": {
+          "default": "Default order",
+          "name": "Name",
+          "type": "Type"
+        },
+        "wallpaper": "Wallpaper",
+        "showDesktop": "Show desktop",
+        "closeAll": "Close all windows",
+        "closeN": "Close {n} windows"
+      },
+      "wallpaper": {
+        "bloom": "Bloom — blue",
+        "night": "Bloom — night",
+        "glow": "Bloom — glow",
+        "lexgo": "LexGo"
+      },
+      "win": {
+        "minimize": "Minimise",
+        "maximize": "Maximise",
+        "restore": "Restore",
+        "close": "Close",
+        "snapLeft": "Snap to the left half",
+        "snapRight": "Snap to the right half",
+        "reload": "Reload",
+        "back": "Back"
+      },
+      "props": {
+        "status": "Status",
+        "locked": "Opens once your account is approved",
+        "ready": "Ready to use",
+        "type": "Type",
+        "app": "App",
+        "folder": "Folder",
+        "where": "Location",
+        "address": "Address",
+        "related": "Used with",
+        "contains": "Contains",
+        "items": "{n} items"
+      },
+      "greet": {
+        "night": "Good night, {name}",
+        "morning": "Good morning, {name}",
+        "day": "Good afternoon, {name}",
+        "evening": "Good evening, {name}"
+      },
+      "tray": {
+        "ai": "AI assistant",
+        "notifications": "Notifications",
+        "language": "Language",
+        "theme": "Theme"
+      },
+      "lang": {
+        "uz": "Inglizcha",
+        "ru": "Английский",
+        "en": "English"
+      },
+      "theme": {
+        "light": "Light",
+        "dark": "Dark",
+        "system": "System"
+      }
+    }
   },
   "notFound": {
     "title": "Page not found",

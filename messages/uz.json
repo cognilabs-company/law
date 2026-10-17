@@ -11187,7 +11187,108 @@
     },
     "menu": "Menyu",
     "collapse": "Yig'ish",
-    "expand": "Kengaytirish"
+    "expand": "Kengaytirish",
+    "desk": {
+      "switchDesktop": "Ish stoli",
+      "switchDesktopHint": "Kabinetni kompyuter ish stoli ko'rinishida ochish",
+      "switchClassic": "Klassik ko'rinishga o'tish",
+      "classic": "Klassik",
+      "desktop": "Ish stoli",
+      "start": "Pusk",
+      "search": "Ilova yoki papka qidirish",
+      "results": "Natijalar",
+      "allApps": "Barcha ilovalar",
+      "noResults": "Hech narsa topilmadi",
+      "admin": "Admin panel",
+      "power": "Chiqish va ko'rinish",
+      "logout": "Tizimdan chiqish",
+      "taskbar": "Vazifalar paneli",
+      "folders": "Papkalar",
+      "ok": "Yaxshi",
+      "folder": {
+        "docs": "Hujjatlar",
+        "market": "Bozor va xizmatlar",
+        "comms": "Aloqa",
+        "account": "Hisob va tarif"
+      },
+      "menu": {
+        "open": "Ochish",
+        "newWindow": "Yangi oynada ochish",
+        "newTab": "Brauzerning yangi varag'ida ochish",
+        "related": "Birga ishlatiladi",
+        "pin": "Vazifalar paneliga mahkamlash",
+        "unpin": "Vazifalar panelidan olib tashlash",
+        "properties": "Xususiyatlar",
+        "inside": "Ichida",
+        "view": "Belgilar o'lchami",
+        "icons": {
+          "lg": "Katta belgilar",
+          "md": "O'rtacha belgilar",
+          "sm": "Kichik belgilar"
+        },
+        "sortBy": "Saralash",
+        "sort": {
+          "default": "Asl tartib",
+          "name": "Nomi bo'yicha",
+          "type": "Turi bo'yicha"
+        },
+        "wallpaper": "Fon rasmi",
+        "showDesktop": "Ish stolini ko'rsatish",
+        "closeAll": "Barcha oynalarni yopish",
+        "closeN": "{n} ta oynani yopish"
+      },
+      "wallpaper": {
+        "bloom": "Gul — ko'k",
+        "night": "Gul — tun",
+        "glow": "Gul — shafaq",
+        "lexgo": "LexGo"
+      },
+      "win": {
+        "minimize": "Yig'ish",
+        "maximize": "Kattalashtirish",
+        "restore": "Avvalgi o'lcham",
+        "close": "Yopish",
+        "snapLeft": "Ekranning chap yarmiga",
+        "snapRight": "Ekranning o'ng yarmiga",
+        "reload": "Qayta yuklash",
+        "back": "Orqaga"
+      },
+      "props": {
+        "status": "Holati",
+        "locked": "Akkaunt tasdiqlangandan keyin ochiladi",
+        "ready": "Foydalanishga tayyor",
+        "type": "Turi",
+        "app": "Ilova",
+        "folder": "Papka",
+        "where": "Joylashuvi",
+        "address": "Manzili",
+        "related": "Birga ishlatiladi",
+        "contains": "Tarkibi",
+        "items": "{n} ta element"
+      },
+      "greet": {
+        "night": "Xayrli tun, {name}",
+        "morning": "Xayrli tong, {name}",
+        "day": "Xayrli kun, {name}",
+        "evening": "Xayrli kech, {name}"
+      },
+      "tray": {
+        "ai": "AI yordamchi",
+        "notifications": "Bildirishnomalar",
+        "language": "Til",
+        "theme": "Mavzu"
+      },
+      "lang": {
+        "uz": "O'zbekcha",
+        "ru": "Узбекский",
+        "en": "Uzbek"
+      },
+      "theme": {
+        "light": "Yorug'",
+        "dark": "Qorong'i",
+        "system": "Tizim bo'yicha"
+      }
+    }
   },
   "notFound": {
     "title": "Sahifa topilmadi",
