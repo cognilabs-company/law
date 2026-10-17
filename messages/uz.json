@@ -12428,7 +12428,20 @@
           "meetings": "Bugungi uchrashuvlar",
           "earnings": "Bozordan daromad"
         },
-        "som": "so'm"
+        "som": "so'm",
+        "empty": {
+          "today_work": "Bugun ish yo'q",
+          "deadlines": "Kutilayotgan so'rov yo'q",
+          "unread_messages": "Hammasi o'qilgan",
+          "meetings": "Bugun uchrashuv yo'q",
+          "earnings": "Hali daromad yo'q"
+        },
+        "count": {
+          "today_work": "{n} ta faol ish",
+          "deadlines": "{n} ta so'rov javob kutmoqda",
+          "unread_messages": "{n} ta yangi xabar",
+          "meetings": "{n} ta uchrashuv"
+        }
       }
     }
   },

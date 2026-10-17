@@ -12422,7 +12422,20 @@
           "meetings": "Meetings today",
           "earnings": "Marketplace earnings"
         },
-        "som": "UZS"
+        "som": "UZS",
+        "empty": {
+          "today_work": "Nothing on today",
+          "deadlines": "No requests waiting",
+          "unread_messages": "All caught up",
+          "meetings": "No meetings today",
+          "earnings": "No earnings yet"
+        },
+        "count": {
+          "today_work": "{n} active jobs",
+          "deadlines": "{n} waiting for a reply",
+          "unread_messages": "{n} new messages",
+          "meetings": "{n} meetings"
+        }
       }
     }
   },
