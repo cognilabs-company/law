@@ -1987,3 +1987,149 @@ export function useStudioHeartbeat(opts: StudioHeartbeatOptions): { markSaved: (
   }, [on, key]);
   return { markSaved: useCallback(() => void (saves.current += 1), []) };
 }
+
+export type StudioJourneyType = "service" | "package";
+export type StudioCreationJourney = {
+  id: string;
+  type: StudioJourneyType;
+  title: string;
+  status: string;
+  progress: number | null;
+  completedCount: number;
+  totalCount: number | null;
+  currentStep: string;
+  completedSteps: string[];
+  missingSteps: string[];
+  context: Record<string, unknown>;
+  resumeUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  raw: Record<string, unknown>;
+};
+export type StudioCreationJourneys = { items: StudioCreationJourney[]; total: number; incompleteCount: number | null };
+export type StudioJourneyQuery = { status?: string; type?: StudioJourneyType; limit?: number; offset?: number };
+
+export const JOURNEY_STATUS = { drafts: "draft", incomplete: "incomplete", completed: "completed" } as const;
+
+const JOURNEY_LIST_KEYS = ["items", "journeys", "results", "data"];
+const JOURNEY_FIND_PAGE = 50;
+const JOURNEY_FIND_PAGES = 10;
+const journeyMemory = new Map<string, StudioCreationJourney>();
+
+function journeyStepKey(v: unknown): string {
+  if (typeof v === "string") return v.trim();
+  const d = asDict(v);
+  return first(d.key, d.step);
+}
+
+function journeyStepList(v: unknown): string[] {
+  const out: string[] = [];
+  for (const item of asArr(v)) {
+    const k = journeyStepKey(item);
+    if (k && !out.includes(k)) out.push(k);
+  }
+  return out;
+}
+
+function journeyCount(v: unknown): number | null {
+  const n = numOrNull(v);
+  return n === null || n < 0 ? null : Math.floor(n);
+}
+
+export function normCreationJourney(raw: unknown): StudioCreationJourney {
+  let d = asDict(raw);
+  if (!first(d.id, d.journey_id)) {
+    for (const k of ["journey", "item", "data"]) {
+      const inner = asDict(d[k]);
+      if (first(inner.id, inner.journey_id)) {
+        d = inner;
+        break;
+      }
+    }
+  }
+  const completedSteps = journeyStepList(d.completed_steps);
+  const percent = numOrNull(d.progress_percent);
+  return {
+    id: first(d.id, d.journey_id),
+    type: /package/i.test(first(d.journey_type, d.type)) ? "package" : "service",
+    title: first(d.title, d.name),
+    status: first(d.status).toLowerCase(),
+    progress: percent === null ? null : Math.max(0, Math.min(100, percent)),
+    completedCount: journeyCount(d.completed_count) ?? completedSteps.length,
+    totalCount: journeyCount(d.total_count),
+    currentStep: journeyStepKey(d.current_step),
+    completedSteps,
+    missingSteps: journeyStepList(d.missing_steps),
+    context: { ...asDict(d.context) },
+    resumeUrl: typeof d.resume_url === "string" ? d.resume_url.trim() : "",
+    createdAt: timeOf(d.created_at, d.createdAt),
+    updatedAt: timeOf(d.updated_at, d.updatedAt, d.created_at),
+    raw: d,
+  };
+}
+
+export function rememberCreationJourney(j: StudioCreationJourney): void {
+  if (j.id) journeyMemory.set(j.id, j);
+}
+
+export function peekCreationJourney(id: string): StudioCreationJourney | null {
+  return id ? journeyMemory.get(id) ?? null : null;
+}
+
+export async function listCreationJourneys(q: StudioJourneyQuery = {}, signal?: AbortSignal): Promise<StudioCreationJourneys> {
+  const p = new URLSearchParams();
+  if (q.status) p.set("status", q.status);
+  if (q.type) p.set("journey_type", q.type);
+  if (q.limit != null) p.set("limit", String(q.limit));
+  if (q.offset != null) p.set("offset", String(q.offset));
+  const qs = p.toString();
+  const res = await http(`/studio/journeys${qs ? `?${qs}` : ""}`, { signal });
+  const items = listOf(res, JOURNEY_LIST_KEYS).map(normCreationJourney).filter((j) => j.id);
+  return { items, total: totalOf(res, items.length), incompleteCount: journeyCount(asDict(res).incomplete_count) };
+}
+
+export async function startCreationJourney(input: { type: StudioJourneyType; title: string; context?: Record<string, unknown> }): Promise<StudioCreationJourney> {
+  const res = await http("/studio/journeys", {
+    method: "POST",
+    body: JSON.stringify({ journey_type: input.type, title: input.title, context: input.context ?? {} }),
+  });
+  const j = normCreationJourney(res);
+  if (!j.id) throw new Error("journey_no_id");
+  const typed = first(j.raw.journey_type, j.raw.type);
+  const out: StudioCreationJourney = { ...j, title: j.title || input.title, type: typed ? j.type : input.type };
+  rememberCreationJourney(out);
+  return out;
+}
+
+export async function saveCreationJourney(id: string, input: { completedSteps: string[]; currentStep: string; context: Record<string, unknown> }): Promise<StudioCreationJourney> {
+  const res = await http(`/studio/journeys/${enc(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify({ completed_steps: input.completedSteps, current_step: input.currentStep, context: input.context }),
+  });
+  const j = normCreationJourney(res);
+  const out: StudioCreationJourney = j.id ? j : { ...j, id };
+  if (j.id || j.raw.completed_steps !== undefined) rememberCreationJourney(out);
+  return out;
+}
+
+export async function findCreationJourney(id: string, signal?: AbortSignal): Promise<StudioCreationJourney | null> {
+  if (!id) return null;
+  const hit = (list: StudioCreationJourney[]): StudioCreationJourney | null => {
+    const j = list.find((x) => x.id === id) ?? null;
+    if (j) rememberCreationJourney(j);
+    return j;
+  };
+  for (let page = 0; page < JOURNEY_FIND_PAGES; page++) {
+    const offset = page * JOURNEY_FIND_PAGE;
+    const res = await listCreationJourneys({ limit: JOURNEY_FIND_PAGE, offset }, signal);
+    const j = hit(res.items);
+    if (j) return j;
+    if (res.items.length < JOURNEY_FIND_PAGE || offset + res.items.length >= res.total) break;
+  }
+  for (const status of [JOURNEY_STATUS.drafts, JOURNEY_STATUS.incomplete, JOURNEY_STATUS.completed]) {
+    const res = await listCreationJourneys({ status, limit: JOURNEY_FIND_PAGE, offset: 0 }, signal);
+    const j = hit(res.items);
+    if (j) return j;
+  }
+  return null;
+}

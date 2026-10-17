@@ -1,0 +1,132 @@
+.sx-lp {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.sx-lp-head {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sx-lp-prog {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+.sx-lp-prog .sx-lp-prog__count,
+.sx-lp-prog .sx-lp-prog__pct {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--sx-ink-2);
+  white-space: nowrap;
+}
+.sx-lp-prog .sx-lp-prog__bar {
+  flex: 1 1 160px;
+  max-inline-size: 320px;
+}
+.sx-lp-prog .sx-lp-prog__done {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--sx-published-fg);
+}
+
+.sx-lp-head .sx-lp-sk,
+.sx-page__below > .sx-lp-sk {
+  display: block;
+  inline-size: min(100%, 420px);
+  block-size: 18px;
+  border-radius: 6px;
+}
+
+.sx-lp .sx-lp-num {
+  color: var(--sx-muted);
+}
+
+.sx-lp .sx-lp-ctor {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+.sx-lp .sx-lp-ctor__icon {
+  flex: none;
+  margin-top: 1px;
+  color: var(--sx-muted);
+}
+.sx-lp .sx-lp-ctor__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.sx-lp .sx-lp-ctor__name {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--sx-ink);
+  overflow-wrap: anywhere;
+}
+.sx-lp .sx-lp-ctor__group {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--sx-muted);
+}
+
+.sx-lp .sx-lp-state {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--sx-muted);
+}
+.sx-lp .sx-lp-state > svg {
+  flex: none;
+  margin-top: 1px;
+}
+.sx-lp .sx-lp-state[data-state="done"] {
+  color: var(--sx-ink-2);
+}
+.sx-lp .sx-lp-state[data-state="done"] > svg {
+  color: var(--sx-published-fg);
+}
+.sx-lp .sx-lp-state[data-state="next"] {
+  color: var(--sx-accent-ink);
+  font-weight: 600;
+}
+.sx-lp .sx-lp-state[data-state="blocked"] {
+  color: var(--sx-ink-2);
+}
+.sx-lp .sx-lp-state[data-state="blocked"] > svg {
+  color: var(--sx-muted);
+}
+
+.sx-page .sx-lp-next {
+  max-inline-size: 100%;
+}
+.sx-page .sx-lp-next .sx-btn__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .sx-lp .sx-lp-ctor__name {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 44px;
+  }
+  .sx-lp .sx-lp-state__link {
+    display: inline-flex;
+    align-items: center;
+    min-block-size: 44px;
+  }
+}

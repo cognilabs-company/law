@@ -22,7 +22,7 @@ import { ctxModeOf, isSaveShortcut } from "./model";
 import { useEditorState, type EditorAlert, type EditorInit, type EditorState } from "./useEditorState";
 import { useLeaveGuard, type LeaveGuard } from "./useLeaveGuard";
 
-export type EditorProps = { id: string; newCode: string; ctx: string; focus?: string };
+export type EditorProps = { id: string; newCode: string; ctx: string; focus?: string; prefill?: Readonly<Record<string, string>> };
 
 type DrawerState = { open: boolean; tab: EditorTab | null };
 
@@ -273,7 +273,7 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
   );
 }
 
-export function Editor({ id, newCode, ctx, focus }: EditorProps): ReactElement {
-  const init: EditorInit = newCode ? { code: newCode, id: null, ctx, focus } : { code: "", id, focus };
-  return <EditorScreen key={newCode ? `new:${newCode}:${ctx}` : `id:${id}`} init={init} />;
+export function Editor({ id, newCode, ctx, focus, prefill }: EditorProps): ReactElement {
+  const init: EditorInit = newCode ? { code: newCode, id: null, ctx, focus, initialPayload: prefill ? { ...prefill } : undefined } : { code: "", id, focus };
+  return <EditorScreen key={newCode ? `new:${newCode}:${ctx}:${prefill ? JSON.stringify(prefill) : ""}` : `id:${id}`} init={init} />;
 }

@@ -72,6 +72,7 @@ type ActionsProps<T> = {
   title: string;
   base: string;
   uid: string;
+  menuOnly: boolean;
 };
 
 const DEFAULT_SKELETON_ROWS = 6;
@@ -87,11 +88,15 @@ function skeletonCount(n: number): number {
   return Number.isFinite(n) ? Math.min(MAX_SKELETON_ROWS, Math.max(1, Math.floor(n))) : DEFAULT_SKELETON_ROWS;
 }
 
-function RowActions<T>({ row, actions, title, base, uid }: ActionsProps<T>) {
+function shownActions<T>(row: T, actions: readonly SxRowAction<T>[]): SxRowAction<T>[] {
+  return actions.filter((a) => !a.hidden?.(row));
+}
+
+function RowActions<T>({ row, actions, title, base, uid, menuOnly }: ActionsProps<T>) {
   const t = useTranslations("studio");
-  const shown = actions.filter((a) => !a.hidden?.(row));
+  const shown = shownActions(row, actions);
   if (!shown.length) return null;
-  if (shown.length === 1) {
+  if (shown.length === 1 && !menuOnly) {
     const a = shown[0];
     const off = a.disabled?.(row) ?? false;
     const reason = typeof off === "string" ? off : "";
@@ -202,6 +207,7 @@ export function SxTable<T>({
   };
 
   const actionsOf = (row: T): readonly SxRowAction<T>[] => (typeof rowActions === "function" ? rowActions(row) : (rowActions ?? []));
+  const menuOnly = hasActions && rows.some((row) => shownActions(row, actionsOf(row)).length > 1);
 
   const activate = (e: MouseEvent<HTMLTableRowElement>, row: T) => {
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -265,7 +271,7 @@ export function SxTable<T>({
         })}
         {hasActions ? (
           <td role="cell" className="sx-table__cell sx-table__actions">
-            <RowActions row={row} actions={actionsOf(row)} title={title} base={aiIdOf(base, "row", key)} uid={domId(uid, key)} />
+            <RowActions row={row} actions={actionsOf(row)} title={title} base={aiIdOf(base, "row", key)} uid={domId(uid, key)} menuOnly={menuOnly} />
           </td>
         ) : null}
       </tr>

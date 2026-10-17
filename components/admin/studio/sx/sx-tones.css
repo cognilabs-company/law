@@ -1,0 +1,20 @@
+:is(.sx, .sx-pop) [data-hue="blue"]    { --hue-3:#e6f4fe; --hue-4:#d5efff; --hue-6:#acd8fc; --hue-9:#0090ff; --hue-11:#0d74ce; --hue-12:#113264; --hue-bar:#0090ff; }
+:is(.sx, .sx-pop) [data-hue="violet"]  { --hue-3:#f4f0fe; --hue-4:#ebe4ff; --hue-6:#d4cafe; --hue-9:#6e56cf; --hue-11:#6550b9; --hue-12:#2f265f; --hue-bar:#6e56cf; }
+:is(.sx, .sx-pop) [data-hue="jade"]    { --hue-3:#e6f7ed; --hue-4:#d6f1e3; --hue-6:#acdec8; --hue-9:#29a383; --hue-11:#208368; --hue-12:#1d3b31; --hue-bar:#29a383; }
+:is(.sx, .sx-pop) [data-hue="cyan"]    { --hue-3:#def7f9; --hue-4:#caf1f6; --hue-6:#9ddde7; --hue-9:#00a2c7; --hue-11:#107d98; --hue-12:#0d3c48; --hue-bar:#00a2c7; }
+:is(.sx, .sx-pop) [data-hue="amber"]   { --hue-3:#fff7c2; --hue-4:#ffee9c; --hue-6:#f3d673; --hue-9:#ffc53d; --hue-11:#ab6400; --hue-12:#4f3422; --hue-bar:#ab6400; }
+:is(.sx, .sx-pop) [data-hue="crimson"] { --hue-3:#ffe9f0; --hue-4:#fedce7; --hue-6:#f3bed1; --hue-9:#e93d82; --hue-11:#cb1d63; --hue-12:#621639; --hue-bar:#e93d82; }
+:is(.sx, .sx-pop) [data-hue="orange"]  { --hue-3:#ffefd6; --hue-4:#ffdfb5; --hue-6:#ffc182; --hue-9:#f76b15; --hue-11:#cc4e00; --hue-12:#582d1d; --hue-bar:#cc4e00; }
+:is(.sx, .sx-pop) [data-hue="teal"]    { --hue-3:#e0f8f3; --hue-4:#ccf3ea; --hue-6:#a1ded2; --hue-9:#12a594; --hue-11:#008573; --hue-12:#0d3d38; --hue-bar:#12a594; }
+:is(.sx, .sx-pop) [data-hue="iris"]    { --hue-3:#f0f1fe; --hue-4:#e6e7ff; --hue-6:#cbcdff; --hue-9:#5b5bd6; --hue-11:#5753c6; --hue-12:#272962; --hue-bar:#5b5bd6; }
+:is(.sx, .sx-pop) [data-hue="plum"]    { --hue-3:#fbebfb; --hue-4:#f7def8; --hue-6:#e9c2ec; --hue-9:#ab4aba; --hue-11:#953ea3; --hue-12:#53195d; --hue-bar:#ab4aba; }
+html[data-theme="dark"] :is(.sx, .sx-pop) [data-hue="blue"]    { --hue-3:#0d2847; --hue-4:#003362; --hue-6:#104d87; --hue-9:#0090ff; --hue-11:#70b8ff; --hue-12:#c2e6ff; --hue-bar:#0090ff; }
+html[data-theme="dark"] :is(.sx, .sx-pop) [data-hue="violet"]  { --hue-3:#291f43; --hue-4:#33255b; --hue-6:#473876; --hue-9:#6e56cf; --hue-11:#baa7ff; --hue-12:#e2ddfe; --hue-bar:#6e56cf; }
+html[data-theme="dark"] :is(.sx, .sx-pop) [data-hue="jade"]    { --hue-3:#0f2e22; --hue-4:#0b3b2c; --hue-6:#1b5745; --hue-9:#29a383; --hue-11:#1fd8a4; --hue-12:#adf0d4; --hue-bar:#29a383; }
+html[data-theme="dark"] :is(.sx, .sx-pop) [data-hue="cyan"]    { --hue-3:#082c36; --hue-4:#003848; --hue-6:#045468; --hue-9:#00a2c7; --hue-11:#4ccce6; --hue-12:#b6ecf7; --hue-bar:#00a2c7; }
+html[data-theme="dark"] :is(.sx, .sx-pop) [data-hue="amber"]   { --hue-3:#302008; --hue-4:#3f2700; --hue-6:#5c3d05; --hue-9:#ffc53d; --hue-11:#ffca16; --hue-12:#ffe7b3; --hue-bar:#ffc53d; }
+html[data-theme="dark"] :is(.sx, .sx-pop) [data-hue="crimson"] { --hue-3:#381525; --hue-4:#4d122f; --hue-6:#6d2545; --hue-9:#e93d82; --hue-11:#ff92ad; --hue-12:#fdd3e8; --hue-bar:#e93d82; }
+html[data-theme="dark"] :is(.sx, .sx-pop) [data-hue="orange"]  { --hue-3:#331e0b; --hue-4:#462100; --hue-6:#66350c; --hue-9:#f76b15; --hue-11:#ffa057; --hue-12:#ffe0c2; --hue-bar:#f76b15; }
+html[data-theme="dark"] :is(.sx, .sx-pop) [data-hue="teal"]    { --hue-3:#0d2d2a; --hue-4:#023b37; --hue-6:#145750; --hue-9:#12a594; --hue-11:#0bd8b6; --hue-12:#adf0dd; --hue-bar:#12a594; }
+html[data-theme="dark"] :is(.sx, .sx-pop) [data-hue="iris"]    { --hue-3:#202248; --hue-4:#262a65; --hue-6:#3d3e82; --hue-9:#5b5bd6; --hue-11:#b1a9ff; --hue-12:#e0dffe; --hue-bar:#5b5bd6; }
+html[data-theme="dark"] :is(.sx, .sx-pop) [data-hue="plum"]    { --hue-3:#351a35; --hue-4:#451d47; --hue-6:#5e3061; --hue-9:#ab4aba; --hue-11:#e796f3; --hue-12:#f4d4f4; --hue-bar:#ab4aba; }

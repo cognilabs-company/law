@@ -1,8 +1,21 @@
-import ObjectList from "@/components/admin/studio/ObjectList";
+import { CtorPage } from "@/components/admin/studio/sx/ctorpage/CtorPage";
+import { ctorQueryOf } from "@/components/admin/studio/sx/ctorpage/urlState";
 
-type Props = { params: Promise<{ locale: string; code: string }> };
+type Props = {
+  params: Promise<{ locale: string; code: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default async function AdminStudioConstructorPage({ params }: Props) {
+function safeDecode(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+export default async function AdminStudioConstructorPage({ params, searchParams }: Props) {
   const { code } = await params;
-  return <ObjectList code={decodeURIComponent(code)} />;
+  const sp = await searchParams;
+  return <CtorPage code={safeDecode(code)} initial={ctorQueryOf(sp)} />;
 }

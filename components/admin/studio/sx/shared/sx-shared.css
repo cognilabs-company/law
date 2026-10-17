@@ -1,0 +1,37 @@
+.sx-progress {
+  display: block;
+  position: relative;
+  inline-size: 100%;
+  min-inline-size: 24px;
+  block-size: 4px;
+  border-radius: 999px;
+  background: var(--sx-line);
+  overflow: hidden;
+}
+.sx-progress[data-size="md"] {
+  block-size: 6px;
+}
+.sx-progress > i {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--hue-bar, var(--sx-accent));
+  transition: inline-size var(--sx-mid) var(--sx-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-progress > i {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .sx-progress {
+    border: 1px solid CanvasText;
+  }
+  .sx-progress > i {
+    background: Highlight;
+  }
+}
+
+.sx-sj {
+  min-width: 0;
+}

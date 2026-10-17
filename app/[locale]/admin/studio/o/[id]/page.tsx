@@ -13,5 +13,7 @@ export default async function AdminStudioObjectPage({ params, searchParams }: Pr
   const { id } = await params;
   const sp = await searchParams;
   const focus = first(sp.focus);
-  return <Editor id={decodeURIComponent(id)} newCode={first(sp.new)} ctx={first(sp.ctx)} focus={focus || undefined} />;
+  const newCode = first(sp.new);
+  const parent = first(sp.parent);
+  return <Editor id={decodeURIComponent(id)} newCode={newCode} ctx={first(sp.ctx)} focus={focus || undefined} prefill={newCode.toUpperCase() === "K01" && parent ? { parent_id: parent } : undefined} />;
 }

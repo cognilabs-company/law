@@ -1,42 +1,19 @@
 "use client";
 
-import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { listAds, createAd, updateAd, deleteAd, type ModuleRecord } from "@/lib/services/backend";
+import { Link } from "@/i18n/navigation";
+import { listAds } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
-import { notify } from "@/lib/toast";
-import { Skeleton, EmptyState } from "@/components/portal/DataState";
-import { AdminForm, AdminItem, useReload } from "@/components/admin/AdminBits";
-import Modal from "@/components/admin/Modal";
-import { IconRocket, IconPlus, IconEdit, IconTrash } from "@/components/icons";
+import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
+import { AdminItem } from "@/components/admin/AdminBits";
+import { IconInfo, IconRocket } from "@/components/icons";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "—");
-const num = (v: string | boolean) => parseInt(String(v || "0"), 10) || 0;
 
 export default function AdminAds() {
   const t = useTranslations("admin");
-  const [key, reload] = useReload();
-  const ads = useResource(listAds, [key]);
-  const [open, setOpen] = useState(false);
-  const [edit, setEdit] = useState<ModuleRecord | null>(null);
-  const [del, setDel] = useState<ModuleRecord | null>(null);
-  const [delBusy, setDelBusy] = useState(false);
-
-  async function confirmDelete() {
-    if (!del || delBusy) return;
-    setDelBusy(true);
-    try {
-      await deleteAd(del.id);
-      setDel(null);
-      reload();
-      notify.success(t("form.deleted"), { id: `ad-del-${del.id}`, body: del.title });
-    } catch (e) {
-      notify.error(t("form.deleteError"), { id: `ad-del-${del.id}`, error: e });
-    } finally {
-      setDelBusy(false);
-    }
-  }
+  const ads = useResource(listAds, []);
 
   return (
     <div className="ppanel">
@@ -44,129 +21,63 @@ export default function AdminAds() {
         <b>{t("ads.title")}</b>
         <span className="ahdr">
           <span className="advmuted">{ads.data.length}</span>
-          <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-ad">
-            <IconPlus />
-            {t("form.add")}
-          </button>
         </span>
       </div>
-      <p className="advmuted" style={{ marginBottom: 16 }}>{t("ads.lead")}</p>
-
-      {ads.status === "loading" ? (
-        <Skeleton rows={3} />
-      ) : !ads.data.length ? (
-        <EmptyState icon={<IconRocket />} title={t("ads.empty")} text={t("ads.emptyText")} />
-      ) : (
-        <div className="alist" data-ai-target="ads:list">
-          {ads.data.map((a, i) => (
-            <AdminItem
-              key={a.id}
-              index={i + 1}
-              title={a.title}
-              meta={a.recordType ? (t.has(`ads.recordType.${a.recordType}`) ? t(`ads.recordType.${a.recordType}`) : a.recordType) : undefined}
-              right={som(a.price)}
-              tags={a.status ? [{ label: t.has(`ads.status.${a.status}`) ? t(`ads.status.${a.status}`) : a.status }] : undefined}
-              actions={
-                <>
-                  <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => setEdit(a)}>
-                    <IconEdit />
-                  </button>
-                  <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => setDel(a)}>
-                    <IconTrash />
-                  </button>
-                </>
-              }
-            />
-          ))}
+      <div
+        className="ads-ro"
+        role="note"
+        aria-labelledby="ads-ro-title"
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "flex-start",
+          gap: 12,
+          padding: "12px 14px",
+          marginBottom: 12,
+          border: "1px solid var(--dk-bd-blue, var(--b200))",
+          background: "var(--dk-tint-blue, var(--b50))",
+          borderRadius: 12,
+        }}
+      >
+        <span aria-hidden="true" style={{ display: "inline-flex", flex: "none", marginTop: 2, color: "var(--dk-acc, var(--b600))" }}>
+          <IconInfo />
+        </span>
+        <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+          <b id="ads-ro-title">{t("ads.readOnlyTitle")}</b>
+          <p className="advmuted" style={{ margin: "4px 0 0" }}>
+            {t("ads.readOnlyText")}
+          </p>
         </div>
-      )}
+        <Link href="/admin/studio/c/K12-PROMO" className="btn btn--pri btn--sm" data-ai-target="button:new-ad" style={{ alignSelf: "center" }}>
+          {t("ads.openStudio")}
+        </Link>
+      </div>
+      <p className="advmuted" style={{ marginBottom: 16 }}>
+        {t("ads.lead")}
+      </p>
 
-      <Modal open={open} onClose={() => setOpen(false)} title={t("ads.create")}>
-        <AdminForm
-          onCancel={() => setOpen(false)}
-          cancelLabel={t("form.cancel")}
-          fields={[
-            { name: "title", label: t("form.title"), required: true },
-            { name: "description", label: t("form.description"), type: "textarea" },
-            { name: "price", label: t("form.price"), type: "number", placeholder: "0" },
-          ]}
-          onSubmit={async (v) =>
-            void (await createAd({
-              title: String(v.title),
-              price: num(v.price),
-              payload: { description: String(v.description) },
-            }))
-          }
-          submitLabel={t("form.save")}
-          busyLabel={t("form.saving")}
-          okMsg={t("form.created")}
-          errMsg={t("form.saveFailed")}
-          onDone={() => {
-            reload();
-            setOpen(false);
-          }}
-        />
-      </Modal>
-
-      {/* Edit */}
-      <Modal open={edit !== null} onClose={() => setEdit(null)} title={t("ads.editTitle")}>
-        {edit ? (
-          <AdminForm
-            key={edit.id}
-            onCancel={() => setEdit(null)}
-            cancelLabel={t("form.cancel")}
-            fields={[
-              { name: "title", label: t("form.title"), required: true },
-              { name: "description", label: t("form.description"), type: "textarea" },
-              { name: "price", label: t("form.price"), type: "number", placeholder: "0" },
-              { name: "status", label: t("ads.statusLabel"), placeholder: "active" },
-            ]}
-            initialValues={{
-              title: edit.title,
-              description: String(edit.payload?.description ?? ""),
-              price: edit.price ? String(Math.round(edit.price)) : "",
-              status: edit.status,
-            }}
-            resetOnDone={false}
-            onSubmit={async (v) =>
-              void (await updateAd(edit.id, {
-                title: String(v.title),
-                price: num(v.price),
-                status: String(v.status) || undefined,
-                payload: { ...edit.payload, description: String(v.description) },
-              }))
-            }
-            submitLabel={t("form.update")}
-            busyLabel={t("form.saving")}
-            okMsg={t("form.updated")}
-            errMsg={t("form.updateError")}
-            onDone={() => {
-              reload();
-              setEdit(null);
-            }}
-          />
-        ) : null}
-      </Modal>
-
-      {/* Delete confirm */}
-      <Modal open={del !== null} onClose={() => setDel(null)} title={t("form.deleteConfirm")}>
-        {del ? (
-          <div className="cform" style={{ maxWidth: "none" }}>
-            <p style={{ margin: 0 }}>
-              <b>{del.title}</b>
-            </p>
-            <p className="advmuted" style={{ margin: 0 }}>{t("form.deleteConfirmText")}</p>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button className="btn btn--ghost" type="button" onClick={() => setDel(null)}>
-                {t("form.cancel")}
-              </button>
-              <button className="btn btn--danger" type="button" onClick={confirmDelete} disabled={delBusy}>
-                {delBusy ? t("form.saving") : t("form.delete")}
-              </button>
-            </div>
+      <div data-ai-target="ads:list">
+        {ads.status === "loading" ? (
+          <Skeleton rows={3} />
+        ) : ads.status === "error" ? (
+          <ErrorState error={ads.error} onRetry={ads.refresh} />
+        ) : !ads.data.length ? (
+          <EmptyState icon={<IconRocket />} title={t("ads.empty")} text={t("ads.emptyReadOnly")} />
+        ) : (
+          <div className="alist">
+            {ads.data.map((a, i) => (
+              <AdminItem
+                key={a.id}
+                index={i + 1}
+                title={a.title}
+                meta={a.recordType ? (t.has(`ads.recordType.${a.recordType}`) ? t(`ads.recordType.${a.recordType}`) : a.recordType) : undefined}
+                right={som(a.price)}
+                tags={a.status ? [{ label: t.has(`ads.status.${a.status}`) ? t(`ads.status.${a.status}`) : a.status }] : undefined}
+              />
+            ))}
           </div>
-        ) : null}
-      </Modal>
+        )}
+      </div>
     </div>
   );
 }

@@ -9,7 +9,8 @@ import { aiId as aiIdOf } from "@/lib/ai/ids";
 import { recheckStudio, studioErrorOf, useStudioAccess, type StudioAccess } from "@/lib/services/studio";
 import { useScrollEdges } from "@/lib/useScrollEdges";
 import { SxButton } from "../Button";
-import { ArrowLeftIcon, ArrowsClockwiseIcon, CaretRightIcon, LockSimpleIcon, NAV_ICON, StackIcon, SxIconScope, glyph } from "../icons";
+import { ArrowLeftIcon, ArrowsClockwiseIcon, CaretRightIcon, LockSimpleIcon, StackIcon, SxIconScope, glyph } from "../icons";
+import { STUDIO_NAV_LINE } from "../lineIcons";
 import type { SxCrumb, SxNeed, SxSection } from "../types";
 import { SxEmpty } from "./Empty";
 import { SxNote } from "./Note";
@@ -18,6 +19,7 @@ import { scrollParent } from "./util";
 export type SxPageProps = {
   title: string;
   layout?: "page" | "record";
+  icon?: ReactNode;
   section?: SxSection | null;
   crumbs?: readonly SxCrumb[];
   lead?: ReactNode;
@@ -85,6 +87,7 @@ function StudioNav({ section, acc, checking, base }: { section: SxSection | null
         {items.map((n) => {
           const label = t(`sx.nav.${n.key}`);
           const current = section === n.key;
+          const NavGlyph = STUDIO_NAV_LINE[n.key];
           return (
             <li key={n.key}>
               <Link
@@ -95,7 +98,7 @@ function StudioNav({ section, acc, checking, base }: { section: SxSection | null
                 data-ai-type="tab"
                 data-ai-label={label}
               >
-                {glyph(NAV_ICON[n.key], { size: 16 })}
+                <NavGlyph width={16} height={16} />
                 <span>{label}</span>
               </Link>
             </li>
@@ -215,6 +218,7 @@ function Gate({ gate, acc }: { gate: Exclude<SxGate, "open" | "checking">; acc: 
 export function SxPage({
   title,
   layout = "page",
+  icon,
   section = null,
   crumbs,
   lead,
@@ -324,6 +328,11 @@ export function SxPage({
         {crumbs ? <Crumbs crumbs={crumbs} inline={false} base={base} /> : null}
         <div ref={head} className="sx-head">
           <div className="sx-head__row">
+            {icon ? (
+              <span className="sx-head__icon" aria-hidden="true">
+                {icon}
+              </span>
+            ) : null}
             <Title title={title} record={false} />
             {open && status ? <div className="sx-head__status">{status}</div> : null}
             {open && actions ? <div className="sx-head__actions">{actions}</div> : null}

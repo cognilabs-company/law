@@ -1,7 +1,7 @@
 "use client";
 
-import StudioDashboard from "@/components/admin/studio/StudioDashboard";
+import { Home } from "@/components/admin/studio/sx/home/Home";
 
 export default function AdminStudioPage() {
-  return <StudioDashboard />;
+  return <Home />;
 }

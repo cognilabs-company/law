@@ -769,6 +769,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
         showServer(targetErrors(normErrorPaths(check.errors), cur.payload));
         return false;
       }
+      setServerErrors(EMPTY_ERRORS);
       return true;
     } catch (e) {
       fail("studio.sx.object.validate", e);
