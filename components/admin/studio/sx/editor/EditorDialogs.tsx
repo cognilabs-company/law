@@ -230,7 +230,7 @@ function PublishDialog({ st, onClose }: { st: EditorState; onClose: () => void }
       footer={<Footer aiId={aiId} busy={running} onCancel={onClose} confirm={t("sx.editor.publishDlg.confirm")} icon={RocketLaunchIcon} formId={formId} />}
     >
       <form id={formId} className="sx-dlg__form" onSubmit={run} noValidate>
-        {version ? <VersionLine version={version} /> : null}
+        {version ? <VersionLine version={version} detail={st.detail} /> : null}
         <ChangeList st={st} paths={st.changedPaths} />
         <WarningList warnings={st.warnings} />
         <Field id={noteId} label={t("sx.editor.publishDlg.note")} labelAside={<span className="sx-dlg__opt">{t("sx.ui.optional")}</span>}>
@@ -383,7 +383,7 @@ function RollbackDialog({ st, version, onClose }: { st: EditorState; version: St
       footer={<Footer aiId={aiId} busy={running} onCancel={onClose} confirm={t("sx.editor.rollbackDlg.confirm")} icon={ArrowCounterClockwiseIcon} formId={formId} />}
     >
       <form id={formId} className="sx-dlg__form" onSubmit={run} noValidate>
-        <VersionLine version={version} />
+        <VersionLine version={version} detail={st.detail} />
         <Field id={`${uid}-r`} label={t("sx.editor.rollbackDlg.reason")} labelAside={<span className="sx-dlg__opt">{t("sx.ui.optional")}</span>}>
           {(a11y) => (
             <TextArea
@@ -515,7 +515,7 @@ function VersionPreview({ st, version, onClose, onRollback }: { st: EditorState;
         ) : undefined
       }
     >
-      <VersionLine version={version} />
+      <VersionLine version={version} detail={st.detail} />
       <p className="sx-dlg__muted">{diff.length ? t("sx.editor.versions.diff", { list: labels.list(diff, 6) }) : t("sx.editor.versions.same")}</p>
       {model ? (
         <SxFormContext.Provider value={policy}>

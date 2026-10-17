@@ -161,7 +161,6 @@ export function Repeater<T>({
     setExpand((e) => ({ ...e, open: withKey(e.open, key, true), closed: withKey(e.closed, key, false) }));
     pending.current = { key, part: "first" };
     onChange([...items, item]);
-    onTouched?.();
   };
 
   const remove = (index: number) => {

@@ -199,6 +199,12 @@
 .sx-ed-vers__route li + li::before {
   content: "→ " counter(sx-route) ". ";
 }
+.sx-ed-vers__route li[data-bare]::before {
+  content: none;
+}
+.sx-ed-vers__route li + li[data-bare]::before {
+  content: "→ ";
+}
 .sx-ed-vers__acts {
   display: flex;
   flex-wrap: wrap;

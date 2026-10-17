@@ -65,7 +65,22 @@ export function ChoiceCards({
           const base = `${id}-c${i}`;
           const described = [o.description ? `${base}-d` : "", o.meta ? `${base}-m` : "", why ? `${base}-w` : ""].filter(Boolean).join(" ");
           return (
-            <label key={o.value} className="sx-choice" data-checked={checked ? "" : undefined} data-disabled={off ? "" : undefined} data-noicon={o.icon ? undefined : ""}>
+            <label
+              key={o.value}
+              className="sx-choice"
+              data-checked={checked ? "" : undefined}
+              data-disabled={off ? "" : undefined}
+              data-noicon={o.icon ? undefined : ""}
+              onClick={(e) => {
+                const target = e.target as HTMLElement;
+                if (target.closest("input, a, button")) return;
+                e.preventDefault();
+                const input = e.currentTarget.querySelector<HTMLInputElement>("input");
+                if (!input || input.disabled) return;
+                input.focus({ preventScroll: true });
+                if (!checked && !readOnly && !off) onChange(o.value);
+              }}
+            >
               <input
                 type="radio"
                 className="sx-choice__input sx-vh"

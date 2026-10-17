@@ -13,7 +13,8 @@ import { useStudioLabels } from "../../useStudioLabels";
 import { ArrowCounterClockwiseIcon, DownloadSimpleIcon, EyeIcon, PaperclipIcon, ClockCounterClockwiseIcon, glyph } from "../../icons";
 import type { EditorState } from "../useEditorState";
 import { useEditorErrorText } from "../useEditorErrorText";
-import { versionRollbackable } from "../model";
+import { routeStepNames, versionRollbackable } from "../model";
+import { sxStatus } from "../../status";
 
 export function versionsNewestFirst(list: readonly StudioVersion[]): StudioVersion[] {
   return list
@@ -31,15 +32,27 @@ export function canRollbackVersion(canRollback: boolean, detail: StudioDetail | 
   return canRollback && versionRollbackable(v, detail);
 }
 
-export function VersionLine({ version }: { version: StudioVersion }): ReactElement {
+export function versionLiveMarks(v: StudioVersion, detail: StudioDetail | null): { live: boolean; tag: boolean; plainPill: boolean } {
+  const live = Boolean(v.id) && v.id === detail?.publishedVersionId;
+  const liveStatus = sxStatus(v.statusRaw || v.status).live;
+  return { live, tag: live && !liveStatus, plainPill: liveStatus && !live && Boolean(detail?.publishedVersionId) };
+}
+
+export function VersionLine({ version, detail = null }: { version: StudioVersion; detail?: StudioDetail | null }): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const meta = [version.createdAt ? labels.dateTime(version.createdAt) : "", version.createdBy].filter(Boolean).join(" · ");
+  const marks = versionLiveMarks(version, detail);
   return (
     <div className="sx-ed-vline">
       <div className="sx-ed-vline__top">
         <span className="sx-code">{t("sx.editor.versionTag", { v: version.version || "—" })}</span>
-        <StatusPill status={version.statusRaw || version.status} size="sm" />
+        <StatusPill status={version.statusRaw || version.status} size="sm" label={marks.plainPill ? labels.status(version.statusRaw || version.status) : undefined} />
+        {marks.tag ? (
+          <span className="sx-ed-tag" data-live="">
+            {t("sx.editor.versions.live")}
+          </span>
+        ) : null}
       </div>
       {meta ? <p className="sx-ed-vline__meta">{meta}</p> : null}
       {version.summary ? <p className="sx-ed-vline__sum">{version.summary}</p> : <p className="sx-ed-vline__sum" data-muted="">{t("sx.editor.versions.noSummary")}</p>}
@@ -101,17 +114,18 @@ export function VersionsTab({ st, onPreview, onRollback }: { st: EditorState; on
         <ol className="sx-ed-vers__list">
           {list.map((v) => {
             const isCur = Boolean(v.id) && v.id === detail?.currentVersionId;
-            const isLive = Boolean(v.id) && v.id === detail?.publishedVersionId;
+            const marks = versionLiveMarks(v, detail);
             const rollback = canRollbackVersion(st.can.rollback, detail, v);
             const meta = [v.createdAt ? labels.dateTime(v.createdAt) : "", v.createdBy].filter(Boolean).join(" · ");
             const steps = v.routeSnapshot?.steps ?? [];
+            const stepNames = routeStepNames(labels, steps, detail?.steps ?? []);
             return (
               <li key={v.id || `${v.version}-${v.createdAt}`} className="sx-ed-vers__item" data-current={isCur ? "" : undefined}>
                 <div className="sx-ed-vers__top">
                   <span className="sx-code">{t("sx.editor.versionTag", { v: v.version || "—" })}</span>
-                  <StatusPill status={v.statusRaw || v.status} size="sm" />
+                  <StatusPill status={v.statusRaw || v.status} size="sm" label={marks.plainPill ? labels.status(v.statusRaw || v.status) : undefined} />
                   {isCur ? <span className="sx-ed-tag">{t("sx.editor.versions.current")}</span> : null}
-                  {isLive ? (
+                  {marks.tag ? (
                     <span className="sx-ed-tag" data-live="">
                       {t("sx.editor.versions.live")}
                     </span>
@@ -124,7 +138,9 @@ export function VersionsTab({ st, onPreview, onRollback }: { st: EditorState; on
                     <p className="sx-ed-vers__routet">{t("sx.editor.versions.route")}</p>
                     <ol>
                       {steps.map((s, i) => (
-                        <li key={`${s.role}-${i}`}>{labels.role(s.role, s.title) || t("sx.editor.steps.step", { n: i + 1 })}</li>
+                        <li key={`${s.role}-${i}`} data-bare={stepNames[i] ? undefined : ""}>
+                          {stepNames[i] || t("sx.editor.steps.step", { n: i + 1 })}
+                        </li>
                       ))}
                     </ol>
                   </div>

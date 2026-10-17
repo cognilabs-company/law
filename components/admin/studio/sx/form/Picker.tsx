@@ -226,7 +226,7 @@ export function Picker(props: PickerProps): ReactElement {
     tagFocus.current = null;
     const buttons = tagsRef.current?.querySelectorAll<HTMLButtonElement>(".sx-picker__tag-x");
     const target = buttons && buttons.length ? buttons[Math.min(at, buttons.length - 1)] : triggerRef.current;
-    target?.focus();
+    target?.focus({ preventScroll: true });
   });
 
   const shown = useMemo(
@@ -264,7 +264,7 @@ export function Picker(props: PickerProps): ReactElement {
 
   const clear = () => {
     emit([]);
-    triggerRef.current?.focus();
+    triggerRef.current?.focus({ preventScroll: true });
   };
 
   const removeTag = (value: string, index: number) => {

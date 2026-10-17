@@ -122,7 +122,7 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
         if (!page || (active && active !== document.body && page.contains(active))) return;
         if (active && active !== document.body && active.closest("[role=dialog]")) return;
         const target = page.querySelector<HTMLElement>(".sx-ed__primary") ?? page.querySelector<HTMLElement>('[data-ai-id="admin.studio.editor.menu"]');
-        target?.focus();
+        target?.focus({ preventScroll: true });
       }),
     );
   };

@@ -87,7 +87,7 @@ export const SOURCE_PRODUCER: Readonly<Record<string, Producer>> = {
   "subscription-plans": { code: "K17", to: "new" },
 };
 
-const NOT_READY: ReadonlySet<string> = new Set(["package-eligibility-rules"]);
+const NOT_READY: ReadonlySet<string> = new Set(["package-eligibility-rules", "refund-policies"]);
 
 export function producerOf(source: string): SxSourceProducer | null {
   const raw = String(source ?? "").trim();

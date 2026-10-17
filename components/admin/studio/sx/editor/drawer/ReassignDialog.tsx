@@ -25,7 +25,7 @@ export function reassignTargets(users: readonly StudioApprover[], approvers: rea
   const taken = new Set(approvers.map((p) => p.id));
   return users
     .filter((u) => u.id && !taken.has(u.id))
-    .map((u) => ({ value: u.id, label: u.name || "—", description: [u.employeeCode, u.roles.map((r) => roleName(normRole(r))).join(", ")].filter(Boolean).join(" · ") || undefined }));
+    .map((u) => ({ value: u.id, label: u.name || "—", description: [u.employeeCode, u.roles.map((r) => { const c = normRole(r); const n = roleName(c); return n && n !== c ? n : ""; }).filter(Boolean).join(", ")].filter(Boolean).join(" · ") || undefined }));
 }
 
 export function ReassignDialog({ step, code, from, onClose, onDone }: { step: StudioStep; code: string; from: readonly StudioPerson[]; onClose: () => void; onDone: () => void }): ReactElement {

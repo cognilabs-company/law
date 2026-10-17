@@ -98,7 +98,7 @@ export const K32_LAYOUT: SxCtorLayout = {
       optionIcon: guaranteeIcon,
       help: "sx.help.K32__icon",
     },
-    { path: "refund_policy_id", hidden: true },
+    { path: "refund_policy_id" },
     { path: "conditions", flatten: true },
   ],
 };

@@ -23,7 +23,7 @@ import {
   glyph,
 } from "../../icons";
 import type { EditorState } from "../useEditorState";
-import { initials, normRole, stepPending, stepTone } from "../model";
+import { initials, normRole, roleName, stepName, stepPending, stepTone } from "../model";
 import { ReassignDialog } from "./ReassignDialog";
 
 type Tone = "ok" | "warn" | "err" | "wait";
@@ -92,7 +92,7 @@ function StepMeta({ step, code, onChanged }: { step: StudioStep; code: string; o
                   </span>
                   <span className="sx-ed-ppl__m">
                     <span className="sx-ed-ppl__n">{u.name || "—"}</span>
-                    <span className="sx-ed-ppl__s">{[u.employeeCode, u.roles.map((r) => labels.role(normRole(r))).join(", ")].filter(Boolean).join(" · ")}</span>
+                    <span className="sx-ed-ppl__s">{[u.employeeCode, u.roles.map((r) => roleName(labels, normRole(r))).filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</span>
                   </span>
                 </li>
               ))}
@@ -101,7 +101,7 @@ function StepMeta({ step, code, onChanged }: { step: StudioStep; code: string; o
         ) : (
           <p className="sx-ed-steps__warn">
             {glyph(WarningIcon, { size: 16 })}
-            <span>{t("sx.editor.steps.nobody", { role: labels.role(byRole) })}</span>
+            <span>{roleName(labels, byRole) ? t("sx.editor.steps.nobody", { role: roleName(labels, byRole) }) : t("sx.editor.steps.nobodyAny")}</span>
           </p>
         )
       ) : null}
@@ -206,9 +206,9 @@ export function StepsTab({ st }: { st: EditorState }): ReactElement {
             const tone = stepTone(s.status);
             const n = s.order || i + 1;
             const stepLabel = t("sx.editor.steps.step", { n });
-            const title = (s.title || s.role ? labels.role(s.role, s.title) : "") || stepLabel;
-            const roleName = s.role && !s.approvers.length ? labels.role(s.role) : "";
-            const sub = [title !== stepLabel ? stepLabel : "", roleName && roleName !== title ? roleName : ""].filter(Boolean).join(" · ");
+            const title = stepName(labels, s) || stepLabel;
+            const role = s.role && !s.approvers.length ? roleName(labels, s.role) : "";
+            const sub = [title !== stepLabel ? stepLabel : "", role && role !== title ? role : ""].filter(Boolean).join(" · ");
             const by = [s.decidedBy, s.decidedAt ? labels.dateTime(s.decidedAt) : ""].filter(Boolean).join(" · ");
             return (
               <li key={s.id || i} className="sx-ed-steps__item" data-tone={tone}>

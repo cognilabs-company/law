@@ -2,6 +2,8 @@ import { parseServerTime } from "@/lib/http";
 import type { StudioAccess, StudioComment, StudioDetail, StudioStep, StudioVersion } from "@/lib/services/studio";
 import type { SxPayload, SxValues } from "../contract";
 import type { SxErrors, SxStatusKey } from "../types";
+import { EN_WORDS, codeLike, isEnglishLooking } from "../labels";
+import type { StudioLabels } from "../useStudioLabels";
 import type { EditorMode, EditorPrimary, EditorState } from "./useEditorState";
 
 export const SAVE_SHORTCUT = "Control+S Meta+S";
@@ -122,6 +124,33 @@ const ROLE_ALIAS: Readonly<Record<string, string>> = {
 export function normRole(role: string): string {
   const k = String(role ?? "").trim().toLowerCase();
   return ROLE_ALIAS[k] ?? k;
+}
+
+export function roleName(labels: Pick<StudioLabels, "role">, code: string): string {
+  const c = String(code ?? "").trim();
+  if (!c) return "";
+  const out = labels.role(c);
+  return out && out !== c ? out : "";
+}
+
+function mostlyEnglish(text: string): boolean {
+  const words = text.toLowerCase().match(/[a-z]+/g) ?? [];
+  return words.length > 0 && words.filter((w) => EN_WORDS.has(w)).length * 2 > words.length;
+}
+
+export function stepName(labels: Pick<StudioLabels, "role">, step: { role: string; title: string }): string {
+  const byRole = roleName(labels, step.role) || roleName(labels, normRole(step.role));
+  if (byRole) return byRole;
+  const own = String(step.title ?? "").trim();
+  return own && !codeLike(own) && !isEnglishLooking(own) && !mostlyEnglish(own) ? own : "";
+}
+
+export function routeStepNames(labels: Pick<StudioLabels, "role">, route: readonly { role: string; title: string }[], live: readonly Pick<StudioStep, "order" | "role" | "title">[]): string[] {
+  return route.map((s, i) => {
+    const title = String(s.title ?? "").trim();
+    const twin = s.role ? null : live.find((x, j) => (x.order || j + 1) === i + 1 && !!title && String(x.title ?? "").trim() === title);
+    return stepName(labels, { role: s.role || twin?.role || "", title });
+  });
 }
 
 export function initials(name: string): string {

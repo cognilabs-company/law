@@ -372,6 +372,15 @@ function countsAsFilled(f: SchemaFieldModel, v: unknown, ctx: SxLayoutCtx): bool
   return filled(v);
 }
 
+function rowsExist(root: SxValues, path: string): boolean {
+  let cur: unknown = root;
+  for (const s of segs(path)) {
+    if (/^\d+$/.test(s) && (!Array.isArray(cur) || Number(s) >= cur.length)) return false;
+    cur = Array.isArray(cur) ? cur[Number(s)] : isDict(cur) ? cur[s] : undefined;
+  }
+  return true;
+}
+
 export function outlineItems(
   model: SchemaModel,
   payload: SxValues,
@@ -381,6 +390,8 @@ export function outlineItems(
   labels: StudioLabels,
 ): SxOutlineItem[] {
   void labels;
+  const live: Record<string, string> = {};
+  for (const [k, v] of Object.entries(errors)) if (k === RECORD_TITLE_PATH || rowsExist(payload, k)) live[k] = v;
   const out: SxOutlineItem[] = [];
   for (const s of model.sections) {
     if (s.visible && !s.visible(layoutCtx(model, payload, payload, ctx.mode, ctx.recordId))) continue;
@@ -390,12 +401,12 @@ export function outlineItems(
     const lctx = layoutCtx(model, payload, payload, ctx.mode, ctx.recordId);
     const shown = s.fields.filter((f) => fieldIsShown(model, f.pattern, f.pattern, payload) && (!f.field || fieldVisible(f.field, payload as Dict)));
     for (const f of shown) {
-      errs += policy.visibleCount(f.pattern, errors);
+      errs += policy.visibleCount(f.pattern, live);
       const v = getAt(payload, f.pattern);
       if (countsAsFilled(f, v, lctx)) any = true;
       else if (f.required && !filled(v)) missing = true;
     }
-    if (s === model.sections[0] && errors[RECORD_TITLE_PATH]) errs += policy.visibleCount(RECORD_TITLE_PATH, errors);
+    if (s === model.sections[0] && live[RECORD_TITLE_PATH]) errs += policy.visibleCount(RECORD_TITLE_PATH, live);
     const state: SxOutlineItem["state"] = errs > 0 ? "error" : !missing && any ? "done" : "todo";
     out.push({ id: s.domId, label: s.title, state, errors: errs });
   }

@@ -12,7 +12,7 @@ import { useStudioLabels } from "../../useStudioLabels";
 import { ChatCircleTextIcon, PaperPlaneTiltIcon, glyph } from "../../icons";
 import type { EditorState } from "../useEditorState";
 import { useEditorErrorText } from "../useEditorErrorText";
-import { initials, newestFirst } from "../model";
+import { initials, newestFirst, roleName } from "../model";
 
 const DECISION_WORD = /^(approve|approved|reject|rejected|changes_requested|request_changes|publish|published)$/i;
 const MAX = 2000;
@@ -117,6 +117,7 @@ export function CommentsTab({ st }: { st: EditorState }): ReactElement {
           {list.map((c, i) => {
             const ver = c.versionId ? verOf(c.versionId) : "";
             const who = c.author || t("sx.editor.comments.someone");
+            const role = roleName(labels, c.authorRole);
             return (
               <li key={c.id || `${c.createdAt}-${i}`} className="sx-ed-cmt__item">
                 <span className="sx-ed-av" aria-hidden="true">
@@ -125,7 +126,7 @@ export function CommentsTab({ st }: { st: EditorState }): ReactElement {
                 <div className="sx-ed-cmt__body">
                   <div className="sx-ed-cmt__top">
                     <span className="sx-ed-cmt__who">{who}</span>
-                    {c.authorRole ? <span className="sx-ed-cmt__role">{labels.role(c.authorRole)}</span> : null}
+                    {role ? <span className="sx-ed-cmt__role">{role}</span> : null}
                     {ver ? <span className="sx-code">{t("sx.editor.versionTag", { v: ver })}</span> : null}
                   </div>
                   <p className="sx-ed-cmt__text">{commentText(c.text, labels.stepDecision)}</p>
