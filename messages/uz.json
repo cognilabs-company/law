@@ -12173,7 +12173,9 @@
         "showDesktop": "Ish stolini ko'rsatish",
         "closeAll": "Barcha oynalarni yopish",
         "closeN": "{n} ta oynani yopish",
-        "os": "Kompyuter uslubi"
+        "os": "Kompyuter uslubi",
+        "focus": "Diqqat rejimi",
+        "refresh": "Ish stolini yangilash"
       },
       "wallpaper": {
         "bloom": "Gul — ko'k",
@@ -12330,6 +12332,92 @@
           "store": "Bo'limlar",
           "settings": "Hisob",
           "ai": "Yordamchilar"
+        }
+      },
+      "layoutUpdated": "Ish stoli boshqa qurilmada yangilandi",
+      "snippets": {
+        "title": "Matn shablonlari",
+        "search": "Shablon qidirish",
+        "all": "Hammasi",
+        "favourites": "Sevimlilar",
+        "new": "Yangi shablon",
+        "loading": "Yuklanmoqda…",
+        "empty": "Shablon yo'q",
+        "loadError": "Shablonlarni yuklab bo'lmadi",
+        "saveError": "Saqlab bo'lmadi",
+        "sensitive": "Parol, kod, token yoki telefon raqami kabi maxfiy ma'lumotni shablonda saqlab bo'lmaydi",
+        "copyError": "Nusxa olib bo'lmadi",
+        "titlePh": "Masalan: Sudga murojaat",
+        "titleLabel": "Nomi",
+        "category": "Toifa",
+        "categoryPh": "Toifa (sud, shartnoma…)",
+        "content": "Matn",
+        "contentPh": "Shablon matni…",
+        "favourite": "Sevimlilarga qo'shish",
+        "hint": "Parol, kod va telefon raqamlarini shablonga yozmang — tizim ularni qabul qilmaydi.",
+        "cancel": "Bekor qilish",
+        "save": "Saqlash",
+        "personal": "Shaxsiy",
+        "lexgo": "LexGo shabloni",
+        "uses": "{n} marta ishlatilgan",
+        "copy": "Nusxa olish",
+        "copied": "Nusxa olindi",
+        "edit": "Tahrirlash",
+        "delete": "O'chirish",
+        "pick": "Chapdan shablon tanlang yoki yangisini yarating",
+        "cat": {
+          "general": "Umumiy",
+          "court": "Sud",
+          "contract": "Shartnoma",
+          "letter": "Xat",
+          "client": "Mijoz"
+        }
+      },
+      "palette": {
+        "title": "Buyruqlar va qidiruv",
+        "placeholder": "Ilova, buyruq, buyurtma, fayl yoki hujjat…",
+        "apps": "Ilovalar",
+        "app": "Ilova",
+        "pinned": "Mahkamlangan",
+        "recent": "So'nggi ochilganlar",
+        "commands": "Buyruqlar",
+        "results": "Qidiruv natijalari",
+        "disabled": "Hozir mavjud emas",
+        "minChars": "Qidirish uchun kamida 2 ta harf kiriting",
+        "none": "Hech narsa topilmadi",
+        "pin": "Mahkamlash",
+        "unpin": "Mahkamlashni olib tashlash",
+        "type": {
+          "orders": "Buyurtma",
+          "chats": "Chat",
+          "files": "Fayl",
+          "services": "Xizmat",
+          "documents": "Hujjat",
+          "order": "Buyurtma",
+          "chat": "Chat",
+          "file": "Fayl",
+          "service": "Xizmat",
+          "document": "Hujjat"
+        }
+      },
+      "activity": {
+        "title": "Faollik markazi",
+        "refresh": "Yangilash",
+        "close": "Yopish",
+        "focus": "Diqqat rejimi",
+        "focusOn": "Faqat shoshilinch ishlar ko'rsatiladi",
+        "focusOff": "Barcha bildirishnomalar ko'rsatiladi",
+        "empty": "Hozircha yangi narsa yo'q",
+        "muted": "{n} ta oddiy bildirishnoma yashirildi"
+      },
+      "widgets": {
+        "title": "Vidjetlar",
+        "id": {
+          "today_work": "Bugungi ishlar",
+          "deadlines": "Muddatlar",
+          "unread_messages": "O'qilmagan xabarlar",
+          "meetings": "Uchrashuvlar",
+          "earnings": "Daromad"
         }
       }
     }

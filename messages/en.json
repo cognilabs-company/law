@@ -12167,7 +12167,9 @@
         "showDesktop": "Show desktop",
         "closeAll": "Close all windows",
         "closeN": "Close {n} windows",
-        "os": "Computer style"
+        "os": "Computer style",
+        "focus": "Focus mode",
+        "refresh": "Refresh desktop"
       },
       "wallpaper": {
         "bloom": "Bloom — blue",
@@ -12324,6 +12326,92 @@
           "store": "Sections",
           "settings": "Account",
           "ai": "Assistants"
+        }
+      },
+      "layoutUpdated": "Layout updated on another device",
+      "snippets": {
+        "title": "Snippets",
+        "search": "Search snippets",
+        "all": "All",
+        "favourites": "Favourites",
+        "new": "New snippet",
+        "loading": "Loading…",
+        "empty": "No snippets",
+        "loadError": "Couldn't load snippets",
+        "saveError": "Couldn't save",
+        "sensitive": "Passwords, codes, tokens and phone numbers can't be stored in snippets",
+        "copyError": "Couldn't copy",
+        "titlePh": "E.g. Court greeting",
+        "titleLabel": "Title",
+        "category": "Category",
+        "categoryPh": "Category (court, contract…)",
+        "content": "Text",
+        "contentPh": "Snippet text…",
+        "favourite": "Add to favourites",
+        "hint": "Don't put passwords, codes or phone numbers in a snippet — they're refused.",
+        "cancel": "Cancel",
+        "save": "Save",
+        "personal": "Personal",
+        "lexgo": "From LexGo",
+        "uses": "Used {n} times",
+        "copy": "Copy",
+        "copied": "Copied",
+        "edit": "Edit",
+        "delete": "Delete",
+        "pick": "Pick a snippet on the left or create one",
+        "cat": {
+          "general": "General",
+          "court": "Court",
+          "contract": "Contract",
+          "letter": "Letter",
+          "client": "Client"
+        }
+      },
+      "palette": {
+        "title": "Commands and search",
+        "placeholder": "An app, command, order, file or document…",
+        "apps": "Apps",
+        "app": "App",
+        "pinned": "Pinned",
+        "recent": "Recent",
+        "commands": "Commands",
+        "results": "Search results",
+        "disabled": "Not available now",
+        "minChars": "Type at least 2 letters to search",
+        "none": "Nothing found",
+        "pin": "Pin",
+        "unpin": "Unpin",
+        "type": {
+          "orders": "Order",
+          "chats": "Chat",
+          "files": "File",
+          "services": "Service",
+          "documents": "Document",
+          "order": "Order",
+          "chat": "Chat",
+          "file": "File",
+          "service": "Service",
+          "document": "Document"
+        }
+      },
+      "activity": {
+        "title": "Activity Center",
+        "refresh": "Refresh",
+        "close": "Close",
+        "focus": "Focus mode",
+        "focusOn": "Only urgent items are shown",
+        "focusOff": "All notifications are shown",
+        "empty": "Nothing new for now",
+        "muted": "{n} regular notifications hidden"
+      },
+      "widgets": {
+        "title": "Widgets",
+        "id": {
+          "today_work": "Today's work",
+          "deadlines": "Deadlines",
+          "unread_messages": "Unread messages",
+          "meetings": "Meetings",
+          "earnings": "Earnings"
         }
       }
     }

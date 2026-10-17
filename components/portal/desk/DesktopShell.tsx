@@ -9,9 +9,12 @@ import { setThemePref, useThemePref, type ThemePref } from "@/lib/theme";
 import { initials } from "@/lib/lawyers";
 import { fmtDate, localDay } from "@/lib/date";
 import type { Role } from "@/lib/auth";
+import { asDict, asStr } from "@/lib/http";
 import {
   IconArrowRight,
   IconBell,
+  IconClipboardList,
+  IconStar,
   IconChevronLeft,
   IconClose,
   IconExternal,
@@ -37,7 +40,13 @@ import ContextMenu, { type MenuItem } from "./ContextMenu";
 import DeskWindow, { MIN_H, MIN_W, boxOf, type Area, type Snap, type Win } from "./DeskWindow";
 import Wallpaper, { wallpapersOf, type WallpaperId } from "./Wallpaper";
 import { AppTile, FolderTile } from "./AppIcon";
-import { FOLDERS, RELATED, folderOf, type DeskApp, type FolderId } from "./apps";
+import { FOLDERS, RELATED, folderOf, navOfReg, regOf, type DeskApp, type FolderId } from "./apps";
+import { useDeskBackend } from "./useDeskBackend";
+import Palette, { type PaletteApp } from "./Palette";
+import ActivityPanel from "./ActivityPanel";
+import DeskWidgets from "./DeskWidgets";
+import SnippetsApp from "./SnippetsApp";
+import { safeRoute, type DeskLink, type SearchHit, type WindowInput } from "@/lib/services/lawyerDesktop";
 import { DESK_FRAME, setDeskMode, setDeskOs, type DeskOs } from "./deskMode";
 
 const AiSystemAssistant = dynamic(() => import("../AiSystemAssistant"), { ssr: false });
@@ -64,7 +73,7 @@ const newId = () => `w${Date.now().toString(36)}${(seq++).toString(36)}`;
 // minimised to the taskbar. Right-click everywhere: the desktop (icon size,
 // sorting, wallpaper, show the desktop), an icon (open, the apps used with
 // it, pin, properties), a window's title bar and a taskbar button.
-export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }: { os: DeskOs; role: Role; apps: DeskApp[]; name: string; isAdmin: boolean; onLogout: () => void }) {
+export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, onLogout }: { os: DeskOs; role: Role; apps: DeskApp[]; name: string; isAdmin: boolean; onLogout: () => void }) {
   const t = useTranslations("portal.desk");
   const locale = useLocale();
   const pathname = usePathname();
@@ -99,6 +108,21 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
   const [aiOpen, setAiOpen] = useState(false);
   const [now, setNow] = useState(0);
   const phone = area.w < PHONE;
+  // The Activity Center panel; focus mode while the backend is not there.
+  const [actOpen, setActOpen] = useState(false);
+  const [localFocus, setLocalFocus] = useState(false);
+
+  // The backend's desktop feed (bootstrap, widgets, activity, presence…).
+  const backend = useDeskBackend(() => {
+    const w = wins.find((x) => x.id === active && !x.min);
+    return { appId: w && w.kind === "app" ? regOf(w.key) : "", busy: w?.key === "meetings" };
+  });
+  const registry = useMemo(() => new Set(backend.boot?.apps.map((a) => a.id) ?? []), [backend.boot]);
+  const ready = backend.status === "ready";
+  // The snippets app lives in the desktop itself, when the backend has it.
+  const snippetsOn = ready && (!registry.size || registry.has("snippets"));
+  const apps = useMemo<DeskApp[]>(() => (snippetsOn ? [...navApps, { key: "snippets", href: "", label: t("snippets.title"), Icon: IconClipboardList, locked: false }] : navApps), [navApps, snippetsOn, t]);
+  const focusMode = backend.prefs ? backend.prefs.focusMode : localFocus;
 
   const byKey = useMemo(() => new Map(apps.map((a) => [a.key, a])), [apps]);
   const folderApps = useCallback((id: FolderId) => (FOLDERS.find((f) => f.id === id)?.keys ?? []).map((k) => byKey.get(k)).filter((a): a is DeskApp => !!a), [byKey]);
@@ -125,6 +149,7 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
   }, []);
 
   // ── what this browser remembers ───────────────────────────────────────────
+  const localEmpty = useRef(false);
   useEffect(() => {
     const h = setTimeout(() => {
       let saved: Partial<Saved> = {};
@@ -144,6 +169,7 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
       if (here && here.key !== "dashboard" && !opened.some((w) => w.key === here.key)) {
         opened = [...opened, { id: newId(), kind: "app", key: here.key, href: pathname, path: pathname, x: 80, y: 30, w: 1000, h: 680, z: opened.length + 1, min: false, snap: "max", tick: 0 }];
       }
+      localEmpty.current = !keep.length;
       setWins(opened);
       const top = opened.filter((w) => !w.min).at(-1);
       if (top) setActive(top.id);
@@ -163,19 +189,18 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
     }
   }, [restored, STORE, wallpaper, icons, sort, pinned, wins]);
 
-  // Ctrl/Cmd+K: search — the Start menu here, Spotlight on the Mac-style desk.
+  // Ctrl/Cmd+K: the command palette (Spotlight on the Mac-style desk).
   useEffect(() => {
     const onKey = (e: globalThis.KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setQuery("");
-        if (mac) setSpot(true);
-        else setStart(true);
+        setStart(false);
+        setSpot(true);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [mac]);
+  }, []);
 
   // A page inside a window tells where it has gone, so the title follows.
   useEffect(() => {
@@ -235,14 +260,19 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
   };
   const locked = (app: DeskApp) =>
     setNote({ title: app.label, icon: <AppTile app={app} size="sm" />, rows: [[t("props.status"), t("props.locked")]] });
-  const openApp = (key: string, fresh = false) => {
+  // An app, at its own page or at a route inside it (a deep link).
+  const openApp = (key: string, fresh = false, route = "") => {
     const app = byKey.get(key);
     if (!app) return;
     if (app.locked) return locked(app);
     const have = wins.find((w) => w.kind === "app" && w.key === key);
-    if (have && !fresh) return focus(have.id);
+    if (have && !fresh) {
+      if (route && route !== have.path) patch(have.id, { href: route, path: route, tick: have.tick + 1 });
+      return focus(have.id);
+    }
     const id = newId();
-    const nw: Win = { id, kind: "app", key, href: app.href, path: app.href, ...place(wins.length), z: topZ(), min: false, snap: phone ? "max" : "", tick: 0 };
+    const at = route || app.href;
+    const nw: Win = { id, kind: "app", key, href: at, path: at, ...place(wins.length), z: topZ(), min: false, snap: phone ? "max" : "", tick: 0 };
     setWins((ws) => [...ws, { ...nw, ...toAnchor(nw) }]);
     setActive(id);
     setStart(false);
@@ -265,8 +295,167 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
     setActive("");
   };
   const reload = (w: Win) => patch(w.id, { href: w.path || w.href, tick: w.tick + 1 });
+  // A deep link from the backend (§10, §23): a route of this cabinet opens
+  // in the app it belongs to; otherwise the app the link names; with
+  // neither, the Activity Center. Nothing outside the site is ever opened.
+  const openLink = (link: DeskLink) => {
+    if (link.appId === "snippets") return openApp("snippets");
+    const route = safeRoute(link.route);
+    const owner = route ? appAt(route) : undefined;
+    if (owner && owner.key !== "snippets") return openApp(owner.key, false, route);
+    const key = navOfReg(link.appId, (k) => byKey.has(k));
+    if (key && link.appId !== "activity-center") return openApp(key);
+    setActOpen(true);
+  };
+  const openHit = (h: SearchHit) => {
+    openLink(h.link);
+    if (h.link.route && h.entityId) backend.opened({ entity_type: h.entityType || h.type, entity_id: h.entityId, app_id: h.link.appId, title: h.title, subtitle: h.subtitle, route: h.link.route });
+  };
+  const hitMenu = (e: MouseEvent, h: SearchHit) =>
+    openMenu(e, h.title, [
+      { id: "open", label: t("menu.open"), icon: <IconArrowRight />, onSelect: () => openHit(h) },
+      ...(h.entityId && h.link.route ? ([{ id: "pin", label: t("palette.pin"), icon: <IconStar />, onSelect: () => backend.pin({ entity_type: h.entityType || h.type, entity_id: h.entityId, app_id: h.link.appId, title: h.title, subtitle: h.subtitle, route: h.link.route }) }] as MenuItem[]) : []),
+    ]);
+  const setFocus = (on: boolean) => (ready ? void backend.updatePrefs({ focus_mode: on }, t("layoutUpdated")) : setLocalFocus(on));
+  const signOut = () => {
+    backend.signOut();
+    onLogout();
+  };
+  // Badges from the backend's counts (§4): unread chats and notifications,
+  // active orders, pending document requests. Focus mode keeps only the
+  // work ones.
+  const counts = backend.boot?.counts;
+  const unreadMsg = Number(backend.widgets.find((w) => w.id === "unread_messages")?.value);
+  const badgeOf = (key: string): number => {
+    if (!counts) return 0;
+    if (key === "chat" || key === "messages") return focusMode ? 0 : Number.isFinite(unreadMsg) ? unreadMsg : counts.unreadMessages;
+    if (key === "notifications") return focusMode ? 0 : counts.unreadNotifications;
+    if (key === "marketplaceOrders") return counts.activeOrders;
+    if (key === "documentRequests") return counts.pendingRequests;
+    return 0;
+  };
+  const folderBadge = (id: FolderId) => folderApps(id).reduce((n, a) => n + badgeOf(a.key), 0);
+  const badge = (n: number) => (n > 0 ? <i className="wd-badge">{n > 99 ? "99+" : n}</i> : null);
+  const bellCount = focusMode ? backend.activity.filter((a) => a.priority === "high").length : backend.activity.filter((a) => a.unread).length || (counts?.unreadNotifications ?? 0);
   const newTab = (path: string) => window.open(`/${locale}${path}`, "_blank", "noopener");
   const togglePin = (key: string) => setPinned((p) => (p.includes(key) ? p.filter((k) => k !== key) : [...p, key]));
+
+  // ── kept on the backend (§6, §7, §25) ─────────────────────────────────────
+  // Once the account's preferences arrive: its theme, and this computer
+  // style's own desk (wallpaper, icons, sorting, pins) from settings, so the
+  // desk looks the same on another device. Changes go back, debounced.
+  const deskKey = `desk_${os}`;
+  const applied = useRef(false);
+  const prefs = backend.prefs;
+  useEffect(() => {
+    if (!prefs || !restored || applied.current) return;
+    applied.current = true;
+    const h = setTimeout(() => {
+      if (prefs.theme === "light" || prefs.theme === "dark" || prefs.theme === "system") setThemePref(prefs.theme);
+      const d = asDict(prefs.settings[deskKey]);
+      if (typeof d.wallpaper === "string" && walls.includes(d.wallpaper as WallpaperId)) setWallpaper(d.wallpaper as WallpaperId);
+      if (d.icons === "lg" || d.icons === "md" || d.icons === "sm") setIcons(d.icons);
+      if (d.sort === "name" || d.sort === "type" || d.sort === "default") setSort(d.sort);
+      if (Array.isArray(d.pinned)) setPinned(d.pinned.filter((k): k is string => typeof k === "string"));
+    }, 0);
+    return () => clearTimeout(h);
+  }, [prefs, restored, deskKey, walls]);
+  const { updatePrefs, syncWindows } = backend;
+  // The last desk sent, so an answer that comes back in another key order is
+  // not taken for a change and sent again.
+  const pushed = useRef("");
+  useEffect(() => {
+    if (!prefs || !applied.current) return;
+    const mine = { wallpaper, icons, sort, pinned };
+    const json = JSON.stringify(mine);
+    const kept = asDict(prefs.settings[deskKey]);
+    if (json === pushed.current || json === JSON.stringify({ wallpaper: kept.wallpaper, icons: kept.icons, sort: kept.sort, pinned: kept.pinned })) return;
+    const h = setTimeout(() => {
+      pushed.current = json;
+      void updatePrefs({ settings: { ...prefs.settings, [deskKey]: mine } }, t("layoutUpdated"));
+    }, 900);
+    return () => clearTimeout(h);
+  }, [prefs, deskKey, wallpaper, icons, sort, pinned, updatePrefs, t]);
+
+  // Windows of apps the backend knows, saved for this device: a move or a
+  // resize after a pause, a state change (minimise, maximise, close) at once.
+  const sent = useRef(new Map<string, Omit<WindowInput, "revision">>());
+  useEffect(() => {
+    if (!ready || !restored) return;
+    const first = new Map<string, string>();
+    const recs: Omit<WindowInput, "revision">[] = [];
+    for (const w of [...wins].filter((x) => !x.closing && x.kind === "app").sort((a, b) => a.z - b.z)) {
+      const reg = regOf(w.key);
+      if (!reg || (registry.size && !registry.has(reg))) continue;
+      const key = first.has(reg) ? `${reg}-${w.id}` : reg;
+      if (!first.has(reg)) first.set(reg, w.id);
+      const b = boxOf(w, area);
+      recs.push({
+        window_key: key,
+        app_id: reg,
+        state: w.min ? "minimized" : w.snap === "max" ? "maximized" : "normal",
+        x: Math.round(b.x),
+        y: Math.round(b.y),
+        width: Math.round(b.w),
+        height: Math.round(b.h),
+        z_index: w.z,
+        monitor_key: "primary",
+        route: safeRoute(w.path || w.href),
+        context: { mode: w.snap === "l" ? "split-left" : w.snap === "r" ? "split-right" : "floating" },
+      });
+    }
+    const next = new Map(recs.map((r) => [r.window_key, r]));
+    const gone = [...sent.current.values()].filter((r) => !next.has(r.window_key)).map((r) => ({ ...r, state: "closed" as const }));
+    const changed = recs.filter((r) => JSON.stringify(sent.current.get(r.window_key)) !== JSON.stringify(r));
+    if (!changed.length && !gone.length) return;
+    const urgent = gone.length > 0 || changed.some((r) => sent.current.get(r.window_key)?.state !== r.state);
+    const h = setTimeout(
+      () => {
+        sent.current = next;
+        void syncWindows([...changed, ...gone]);
+      },
+      urgent ? 0 : 600,
+    );
+    return () => clearTimeout(h);
+  }, [wins, area, ready, restored, registry, syncWindows]);
+
+  // A first visit on this browser: the windows the backend kept for this
+  // device come back — closed ones never, unknown apps never, each clamped
+  // to this screen, in their order, the top one in front.
+  const fromServer = backend.boot?.windows;
+  useEffect(() => {
+    if (!fromServer || !restored || !localEmpty.current) return;
+    localEmpty.current = false;
+    const list = fromServer
+      .filter((s) => s.state !== "closed" && (!registry.size || registry.has(s.appId)))
+      .sort((a, b) => a.z - b.z)
+      .flatMap((s, i): Win[] => {
+        const owner = s.route ? appAt(s.route) : undefined;
+        const key = owner?.key ?? navOfReg(s.appId, (k) => byKey.has(k));
+        const app = byKey.get(key);
+        if (!app || app.locked) return [];
+        const route = owner ? s.route : app.href;
+        const w = Math.max(MIN_W, Math.min(s.w || 960, area.w));
+        const h = Math.max(MIN_H, Math.min(s.h || 640, area.h));
+        const mode = asStr(s.context.mode);
+        return [{ id: newId(), kind: "app", key, href: route, path: route, x: Math.max(0, Math.min(s.x, area.w - w)), y: Math.max(0, Math.min(s.y, area.h - h)), w, h, z: i + 1, min: s.state === "minimized", snap: s.state === "maximized" || s.state === "fullscreen" ? "max" : mode === "split-left" ? "l" : mode === "split-right" ? "r" : "", tick: 0 }];
+      });
+    if (!list.length) return;
+    const h = setTimeout(() => {
+      setWins((ws) => (ws.length ? ws : list));
+      const top = list.filter((w) => !w.min).at(-1);
+      if (top) setActive(top.id);
+    }, 0);
+    return () => clearTimeout(h);
+  }, [fromServer, restored, registry, appAt, byKey, area]);
+
+  // "Layout updated on another device" goes away by itself.
+  const { notice, clearNotice } = backend;
+  useEffect(() => {
+    if (!notice) return;
+    const h = setTimeout(clearNotice, 5000);
+    return () => clearTimeout(h);
+  }, [notice, clearNotice]);
 
   // ── the desktop's items ───────────────────────────────────────────────────
   const items = useMemo<Item[]>(() => {
@@ -353,6 +542,8 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
     { heading: t("menu.os"), id: "h-os" },
     ...osItems(),
     { sep: true, id: "s3" },
+    { id: "focus", label: t("menu.focus"), checked: focusMode, onSelect: () => setFocus(!focusMode) },
+    ...(ready ? ([{ id: "refresh", label: t("menu.refresh"), icon: <IconRefresh />, onSelect: backend.refreshFeeds }] as MenuItem[]) : []),
     { id: "show", label: t("menu.showDesktop"), icon: <IconGrid />, disabled: !wins.some((w) => !w.min), onSelect: showDesktop },
     { id: "closeAll", label: t("menu.closeAll"), icon: <IconClose />, disabled: !wins.length, onSelect: () => setWins([]) },
     { sep: true, id: "s4" },
@@ -376,7 +567,16 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
 
   const osItems = (): MenuItem[] => (["win", "mac"] as DeskOs[]).map((o) => ({ id: `os-${o}`, label: t(`os.${o}.name`), checked: os === o, onSelect: () => setDeskOs(o) }));
   const langItems = (): MenuItem[] => routing.locales.map((l) => ({ id: `l-${l}`, label: t(`lang.${l}`), checked: l === locale, onSelect: () => l !== locale && router.replace(pathname, { locale: l }) }));
-  const themeItems = (): MenuItem[] => (["light", "dark", "system"] as ThemePref[]).map((p) => ({ id: `t-${p}`, label: t(`theme.${p}`), checked: theme === p, onSelect: () => setThemePref(p) }));
+  const themeItems = (): MenuItem[] =>
+    (["light", "dark", "system"] as ThemePref[]).map((p) => ({
+      id: `t-${p}`,
+      label: t(`theme.${p}`),
+      checked: theme === p,
+      onSelect: () => {
+        setThemePref(p);
+        if (ready) void backend.updatePrefs({ theme: p }, t("layoutUpdated"));
+      },
+    }));
 
   // ── taskbar ───────────────────────────────────────────────────────────────
   type Slot = { key: string; kind: "app" | "folder"; wins: Win[] };
@@ -475,7 +675,7 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
     { sep: true, id: "s2" },
     { id: "classic", label: t("switchClassic"), onSelect: () => setDeskMode("classic") },
     ...(isAdmin ? ([{ id: "admin", label: t("admin"), onSelect: () => router.push("/admin") }] as MenuItem[]) : []),
-    { id: "out", label: t("logout"), danger: true, onSelect: onLogout },
+    { id: "out", label: t("logout"), danger: true, onSelect: signOut },
   ];
   const barItems = (m: "file" | "view" | "window" | "help"): MenuItem[] => {
     const w = activeWin;
@@ -502,27 +702,16 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
         id: "spot",
         label: t("mac.spotlight"),
         hint: "Ctrl K",
-        onSelect: () => {
-          setQuery("");
-          setSpot(true);
-        },
+        onSelect: () => setSpot(true),
       },
+      { id: "act", label: t("activity.title"), onSelect: () => setActOpen(true) },
       ...(w && w.kind === "app" && byKey.get(w.key) ? ([{ id: "props", label: t("menu.properties"), onSelect: () => appProps(byKey.get(w.key)!) }] as MenuItem[]) : []),
     ];
   };
-  const onSpotKey = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Escape") return setSpot(false);
-    const list = [...e.currentTarget.querySelectorAll<HTMLButtonElement>(".wd-spot__list button")];
-    if (!list.length) return;
-    const at = list.indexOf(document.activeElement as HTMLButtonElement);
-    if (e.key === "Enter" && at < 0) {
-      e.preventDefault();
-      list[0].click();
-    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      e.preventDefault();
-      list[(at + (e.key === "ArrowDown" ? 1 : -1) + list.length + (at < 0 && e.key === "ArrowUp" ? 1 : 0)) % list.length].focus();
-    }
-  };
+  const paletteApps: PaletteApp[] = [
+    ...FOLDERS.filter((f) => folderApps(f.id).length).map((f) => ({ id: `f-${f.id}`, label: folderName(f.id), icon: <FolderTile apps={folderApps(f.id)} size="sm" />, open: () => openFolder(f.id) })),
+    ...apps.map((a) => ({ id: a.key, label: a.label, icon: <AppTile app={a} size="sm" />, open: () => openApp(a.key) })),
+  ];
   const winTitle = (w: Win) => (w.kind === "folder" ? folderName(w.key) : (appAt(w.path)?.label ?? byKey.get(w.key)?.label ?? ""));
 
   return (
@@ -569,6 +758,7 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
                 }}
               >
                 {it.kind === "app" ? <AppTile app={it.app} size={icons} /> : <FolderTile apps={it.apps} size={icons} />}
+                {badge(it.kind === "app" ? badgeOf(it.app.key) : folderBadge(it.id))}
                 <span className="wd-icon__l">{label}</span>
               </button>
             );
@@ -582,6 +772,8 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
             <small>{t(`greet.${greet}`, { name: name.split(/\s+/)[0] || name })}</small>
           </div>
         ) : null}
+
+        {ready && !phone ? <DeskWidgets widgets={backend.widgets} order={backend.prefs?.widgets ?? []} focus={focusMode} onOpen={(l) => openLink(l)} /> : null}
 
         {hint && !phone ? <div className={`wd-snap wd-snap--${hint}`} aria-hidden /> : null}
 
@@ -606,7 +798,7 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
               onBusy={setBusy}
               onSnapHint={setHint}
               tools={
-                w.kind === "app" ? (
+                w.kind === "app" && w.key !== "snippets" ? (
                   <>
                     <button type="button" onClick={() => frames.current.get(w.id)?.contentWindow?.history.back()} aria-label={t("win.back")} title={t("win.back")}>
                       <IconChevronLeft />
@@ -621,7 +813,9 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
                 ) : null
               }
             >
-              {w.kind === "app" && app ? (
+              {w.kind === "app" && w.key === "snippets" ? (
+                <SnippetsApp />
+              ) : w.kind === "app" && app ? (
                 <>
                   <iframe
                     key={frameKey}
@@ -673,8 +867,9 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
             <button type="button" onClick={() => setAiOpen(true)} aria-label={t("tray.ai")} title={t("tray.ai")}>
               <IconSparkle />
             </button>
-            <button type="button" onClick={() => openApp("notifications")} aria-label={t("tray.notifications")} title={t("tray.notifications")}>
+            <button type="button" className="wd-bell" onClick={() => setActOpen((v) => !v)} aria-label={t("activity.title")} title={t("activity.title")} aria-expanded={actOpen}>
               <IconBell />
+              {badge(bellCount)}
             </button>
             <button type="button" className="wd-mbar__wide" onClick={(e) => openBar(e, "lang", langItems())} aria-label={t("tray.language")} title={t("tray.language")}>
               <span className="wd-mbar__lang">{locale.toUpperCase()}</span>
@@ -684,10 +879,7 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
             </button>
             <button
               type="button"
-              onClick={() => {
-                setQuery("");
-                setSpot(true);
-              }}
+              onClick={() => setSpot(true)}
               aria-label={t("mac.spotlight")}
               title={t("mac.spotlight")}
             >
@@ -747,6 +939,7 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
                     aria-pressed={on}
                   >
                     {app ? <AppTile app={app} size="lg" /> : <FolderTile apps={folderApps(s.key as FolderId)} size="lg" />}
+                    {badge(s.kind === "app" ? badgeOf(s.key) : folderBadge(s.key as FolderId))}
                     <span className="wd-dock__tip" aria-hidden>
                       {slotLabel(s)}
                     </span>
@@ -789,38 +982,6 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
             </div>
           ) : null}
 
-          {spot ? (
-            <div className="wd-spot" role="dialog" aria-label={t("mac.spotlight")} onPointerDown={(e) => e.target === e.currentTarget && setSpot(false)}>
-              <div className="wd-spot__box" onKeyDown={onSpotKey}>
-                <div className="wd-spot__q">
-                  <IconSearch aria-hidden />
-                  <input autoFocus type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("mac.spotlightPh")} aria-label={t("mac.spotlight")} />
-                </div>
-                {needle ? (
-                  <ul className="wd-spot__list" role="listbox" aria-label={t("results")}>
-                    {[...foundFolders.map((f) => ({ id: `f-${f.id}`, label: folderName(f.id), type: t("props.folder"), icon: <FolderTile apps={folderApps(f.id)} size="sm" />, go: () => openFolder(f.id) })), ...found.map((a) => ({ id: `a-${a.key}`, label: a.label, type: t("props.app"), icon: <AppTile app={a} size="sm" />, go: () => openApp(a.key) }))].slice(0, 8).map((r) => (
-                      <li key={r.id}>
-                        <button
-                          type="button"
-                          role="option"
-                          aria-selected={false}
-                          onClick={() => {
-                            setSpot(false);
-                            r.go();
-                          }}
-                        >
-                          {r.icon}
-                          <span className="wd-spot__l">{r.label}</span>
-                          <small>{r.type}</small>
-                        </button>
-                      </li>
-                    ))}
-                    {!found.length && !foundFolders.length ? <li className="wd-spot__none">{t("noResults")}</li> : null}
-                  </ul>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
         </>
       ) : (
         <>
@@ -830,6 +991,40 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
               <IconSearch aria-hidden />
               <input autoFocus type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
             </div>
+            {!needle && (backend.pinned.length || backend.recent.length) ? (
+              <div className="wd-start__items">
+                {[
+                  { id: "pinned", list: backend.pinned },
+                  { id: "recent", list: backend.recent },
+                ].map((g) =>
+                  g.list.length ? (
+                    <section key={g.id}>
+                      <h3>{t(`palette.${g.id}`)}</h3>
+                      <ul>
+                        {g.list.slice(0, 4).map((it) => (
+                          <li key={it.id}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setStart(false);
+                                openLink({ appId: it.appId, route: it.route });
+                              }}
+                              onContextMenu={(e) => g.id === "pinned" && it.id && openMenu(e, it.title, [{ id: "unpin", label: t("palette.unpin"), icon: <IconStar />, onSelect: () => backend.unpin(it.id) }])}
+                            >
+                              {g.id === "pinned" ? <IconStar aria-hidden /> : <IconArrowRight aria-hidden />}
+                              <span>
+                                <b>{it.title}</b>
+                                {it.subtitle || it.badge ? <small>{it.subtitle || it.badge}</small> : null}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ) : null,
+                )}
+              </div>
+            ) : null}
             <h3>{needle ? t("results") : t("allApps")}</h3>
             <div className="wd-start__grid">
               {foundFolders.map((f) => (
@@ -875,7 +1070,7 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
                           ] as MenuItem[])
                         : []),
                       { id: "classic", label: t("switchClassic"), icon: <IconList />, onSelect: () => setDeskMode("classic") },
-                      { id: "out", label: t("logout"), icon: <IconLogout />, danger: true, onSelect: onLogout },
+                      { id: "out", label: t("logout"), icon: <IconLogout />, danger: true, onSelect: signOut },
                     ])
                   }
                   title={t("power")}
@@ -907,8 +1102,8 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
               type="button"
               className="wd-bar__search"
               onClick={() => {
-                setQuery("");
-                setStart(true);
+                setStart(false);
+                setSpot(true);
               }}
             >
               <IconSearch aria-hidden />
@@ -932,6 +1127,7 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
                 >
                   {app ? <AppTile app={app} size="sm" /> : <FolderTile apps={folderApps(s.key as FolderId)} size="sm" />}
                   {s.wins.length > 1 ? <em>{s.wins.length}</em> : null}
+                  {badge(s.kind === "app" ? badgeOf(s.key) : folderBadge(s.key as FolderId))}
                 </button>
               );
             })}
@@ -940,8 +1136,9 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
             <button type="button" onClick={() => setAiOpen(true)} aria-label={t("tray.ai")} title={t("tray.ai")}>
               <IconSparkle />
             </button>
-            <button type="button" onClick={() => openApp("notifications")} aria-label={t("tray.notifications")} title={t("tray.notifications")}>
+            <button type="button" className="wd-bell" onClick={() => setActOpen((v) => !v)} aria-label={t("activity.title")} title={t("activity.title")} aria-expanded={actOpen}>
               <IconBell />
+              {badge(bellCount)}
             </button>
             <button
               type="button"
@@ -975,6 +1172,28 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
         </nav>
         </>
       )}
+
+      {spot ? (
+        <Palette
+          os={os}
+          apps={paletteApps}
+          pinned={backend.pinned}
+          recent={backend.recent}
+          onLink={(l) => openLink(l)}
+          onHit={openHit}
+          onHitMenu={hitMenu}
+          onClose={() => setSpot(false)}
+        />
+      ) : null}
+      {actOpen ? <ActivityPanel os={os} items={backend.activity} focus={focusMode} onFocus={setFocus} onRefresh={backend.refreshFeeds} onOpen={(l) => openLink(l)} onClose={() => setActOpen(false)} /> : null}
+      {backend.notice ? (
+        <div className="wd-toast" role="status">
+          <span>{backend.notice}</span>
+          <button type="button" onClick={backend.clearNotice} aria-label={t("win.close")}>
+            <IconClose />
+          </button>
+        </div>
+      ) : null}
 
       {menu ? (
         <ContextMenu

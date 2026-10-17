@@ -10,7 +10,7 @@ export type DeskApp = DeskNav & { label: string; locked: boolean };
 export type FolderId = "docs" | "market" | "comms" | "account";
 
 export const FOLDERS: { id: FolderId; keys: string[] }[] = [
-  { id: "docs", keys: ["documents", "documentRequests", "files"] },
+  { id: "docs", keys: ["documents", "documentRequests", "files", "snippets"] },
   { id: "market", keys: ["marketplace", "opportunities", "marketplaceOrders", "services", "urgentAssigned"] },
   { id: "comms", keys: ["meetings", "notifications", "support"] },
   { id: "account", keys: ["profile", "organization", "subscription", "referrals", "promotion"] },
@@ -32,6 +32,7 @@ export const TILE: Record<string, [string, string]> = {
   documents: ["#5B8DEF", "#2D5BC4"],
   documentRequests: ["#6FA8FF", "#3E6FD8"],
   files: ["#F2C14E", "#D59A12"],
+  snippets: ["#FFD15C", "#F0A30A"],
   marketplace: ["#2EC4B6", "#12907F"],
   marketplaceOrders: ["#FF8A5B", "#E25A2A"],
   services: ["#9B8CFF", "#6650E6"],
@@ -62,6 +63,7 @@ export const RELATED: Record<string, string[]> = {
   documents: ["documentRequests", "files", "ai"],
   documentRequests: ["documents", "files"],
   files: ["documents", "cases"],
+  snippets: ["documents", "messages", "chat"],
   marketplace: ["marketplaceOrders", "services"],
   marketplaceOrders: ["marketplace", "chat"],
   services: ["marketplace", "promotion"],
@@ -94,3 +96,22 @@ export const KINDS: { kind: AppKind; keys: string[] }[] = [
   { kind: "ai", keys: ["ai", "assistant"] },
 ];
 export const kindOf = (key: string): AppKind => KINDS.find((k) => k.keys.includes(key))?.kind ?? "home";
+
+// The backend's app registry (§5) against the cabinet's sections: which
+// section a registry app opens, and which registry app a section's window
+// is saved under. Sections with no registry app are kept in this browser.
+export const REGISTRY: Record<string, string[]> = {
+  files: ["files"],
+  messages: ["messages", "chat"],
+  "marketplace-work": ["marketplaceOrders", "opportunities", "marketplace", "urgentAssigned"],
+  editor: ["documentRequests", "documents"],
+  services: ["services"],
+  promotions: ["promotion"],
+  "profile-settings": ["profile", "subscription"],
+  calendar: ["calendar"],
+  calls: ["meetings"],
+  snippets: ["snippets"],
+  "activity-center": ["notifications"],
+};
+export const regOf = (key: string) => Object.keys(REGISTRY).find((id) => REGISTRY[id].includes(key)) ?? "";
+export const navOfReg = (id: string, has: (key: string) => boolean) => (REGISTRY[id] ?? []).find(has) ?? "";
