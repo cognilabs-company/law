@@ -97,6 +97,9 @@ const link = (raw: unknown, fallbackApp = ""): DeskLink => {
 };
 
 function normAction(raw: unknown): QuickAction | null {
+  // The registry sends plain action codes ("new_folder"); richer entries
+  // may come as objects.
+  if (typeof raw === "string") return raw ? { id: raw, label: raw, route: "", enabled: true } : null;
   const d = asDict(raw);
   const label = asStr(d.label ?? d.title ?? d.name);
   if (!label) return null;
@@ -240,7 +243,7 @@ export async function saveWindows(device: string, windows: WindowInput[]): Promi
 
 // ── Feeds ───────────────────────────────────────────────────────────────────
 
-export type Widget = { id: string; title: string; value: string; caption: string; items: { title: string; subtitle: string; link: DeskLink }[]; link: DeskLink };
+export type Widget = { id: string; title: string; value: string; currency: string; caption: string; items: { title: string; subtitle: string; link: DeskLink }[]; link: DeskLink };
 export async function getWidgets(signal?: AbortSignal): Promise<Widget[]> {
   return rows(await http(`${BASE}/widgets`, { signal }), "widgets").map((raw) => {
     const d = asDict(raw);
@@ -249,6 +252,7 @@ export async function getWidgets(signal?: AbortSignal): Promise<Widget[]> {
       id: asStr(d.id ?? d.widget_id ?? d.key),
       title: asStr(d.title ?? d.label),
       value: v === undefined || v === null ? "" : typeof v === "number" ? String(v) : asStr(asDict(v).formatted ?? v),
+      currency: asStr(d.currency),
       caption: asStr(d.caption ?? d.subtitle ?? d.description),
       items: rows(d.items ?? asDict(d.data).items).slice(0, 4).map((x) => {
         const i = asDict(x);

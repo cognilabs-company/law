@@ -12392,7 +12392,16 @@
           "file": "File",
           "service": "Service",
           "document": "Document"
-        }
+        },
+        "cmd": {
+          "open-files": "Open Files",
+          "open-messages": "Open Messages",
+          "open-work": "Open Marketplace Work",
+          "new-document": "Create Document",
+          "new-calendar-event": "Create Calendar Event",
+          "edit-profile": "Edit Profile"
+        },
+        "folder": "Folder"
       },
       "activity": {
         "title": "Activity Center",
@@ -12408,11 +12417,12 @@
         "title": "Widgets",
         "id": {
           "today_work": "Today's work",
-          "deadlines": "Deadlines",
+          "deadlines": "Pending requests",
           "unread_messages": "Unread messages",
-          "meetings": "Meetings",
-          "earnings": "Earnings"
-        }
+          "meetings": "Meetings today",
+          "earnings": "Marketplace earnings"
+        },
+        "som": "UZS"
       }
     }
   },

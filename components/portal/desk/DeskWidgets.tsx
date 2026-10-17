@@ -17,12 +17,15 @@ export default function DeskWidgets({ widgets, order, focus, onOpen }: { widgets
   return (
     <div className="wd-wgs" role="list" aria-label={t("title")}>
       {list.map((w) => {
-        const title = w.title || (t.has(`id.${w.id}`) ? t(`id.${w.id}`) : w.id);
+        // The backend's titles are English; the site's own words come first.
+        const title = t.has(`id.${w.id}`) ? t(`id.${w.id}`) : w.title || w.id;
+        const n = Number(w.value);
+        const value = w.currency && w.value !== "" && Number.isFinite(n) ? `${n.toLocaleString("ru-RU").replace(/\u00a0/g, " ")} ${w.currency === "UZS" ? t("som") : w.currency}` : w.value;
         return (
           <section key={w.id} role="listitem" className={`wd-wg wd-wg--${w.id}`}>
             <button type="button" className="wd-wg__head" onClick={() => onOpen(w.link, title)} disabled={!w.link.route && !w.link.appId}>
               <small>{title}</small>
-              {w.value ? <b>{w.value}</b> : null}
+              {value !== "" ? <b>{value}</b> : null}
               {w.caption ? <span>{w.caption}</span> : null}
             </button>
             {w.items.length ? (

@@ -12398,7 +12398,16 @@
           "file": "Fayl",
           "service": "Xizmat",
           "document": "Hujjat"
-        }
+        },
+        "cmd": {
+          "open-files": "Fayllarni ochish",
+          "open-messages": "Xabarlarni ochish",
+          "open-work": "Bozordagi ishlarni ochish",
+          "new-document": "Hujjat yaratish",
+          "new-calendar-event": "Kalendarga voqea qo'shish",
+          "edit-profile": "Profilni tahrirlash"
+        },
+        "folder": "Papka"
       },
       "activity": {
         "title": "Faollik markazi",
@@ -12414,11 +12423,12 @@
         "title": "Vidjetlar",
         "id": {
           "today_work": "Bugungi ishlar",
-          "deadlines": "Muddatlar",
+          "deadlines": "Kutilayotgan so'rovlar",
           "unread_messages": "O'qilmagan xabarlar",
-          "meetings": "Uchrashuvlar",
-          "earnings": "Daromad"
-        }
+          "meetings": "Bugungi uchrashuvlar",
+          "earnings": "Bozordan daromad"
+        },
+        "som": "so'm"
       }
     }
   },

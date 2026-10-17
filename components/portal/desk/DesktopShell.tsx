@@ -709,7 +709,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
     ];
   };
   const paletteApps: PaletteApp[] = [
-    ...FOLDERS.filter((f) => folderApps(f.id).length).map((f) => ({ id: `f-${f.id}`, label: folderName(f.id), icon: <FolderTile apps={folderApps(f.id)} size="sm" />, open: () => openFolder(f.id) })),
+    ...FOLDERS.filter((f) => folderApps(f.id).length).map((f) => ({ id: `f-${f.id}`, label: folderName(f.id), icon: <FolderTile apps={folderApps(f.id)} size="sm" />, folder: true, open: () => openFolder(f.id) })),
     ...apps.map((a) => ({ id: a.key, label: a.label, icon: <AppTile app={a} size="sm" />, open: () => openApp(a.key) })),
   ];
   const winTitle = (w: Win) => (w.kind === "folder" ? folderName(w.key) : (appAt(w.path)?.label ?? byKey.get(w.key)?.label ?? ""));
