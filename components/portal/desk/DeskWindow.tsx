@@ -20,6 +20,12 @@ export type Win = {
   snap: Snap;
   // Bumped to reload the page in the window.
   tick: number;
+  // From the window's centre to its button on the Dock or taskbar: where it
+  // grows out of when it opens and where it shrinks into when minimised.
+  ox?: number;
+  oy?: number;
+  // Playing its closing animation; gone right after.
+  closing?: boolean;
 };
 export type Area = { w: number; h: number };
 export const MIN_W = 380;
@@ -147,12 +153,12 @@ export default function DeskWindow({
 
   return (
     <section
-      className={`wd-win${active ? " is-active" : ""}${win.min ? " is-min" : ""}${full ? " is-max" : ""}${win.snap === "l" || win.snap === "r" ? " is-snap" : ""}`}
-      style={{ left: box.x, top: box.y, width: box.w, height: box.h, zIndex: win.z } as CSSProperties}
+      className={`wd-win${active ? " is-active" : ""}${win.min ? " is-min" : ""}${win.closing ? " is-closing" : ""}${full ? " is-max" : ""}${win.snap === "l" || win.snap === "r" ? " is-snap" : ""}`}
+      style={{ left: box.x, top: box.y, width: box.w, height: box.h, zIndex: win.z, "--ox": `${win.ox ?? 0}px`, "--oy": `${win.oy ?? 0}px` } as CSSProperties}
       role="dialog"
       aria-label={title}
-      aria-hidden={win.min || undefined}
-      inert={win.min || undefined}
+      aria-hidden={win.min || win.closing || undefined}
+      inert={win.min || win.closing || undefined}
       onPointerDownCapture={onFocus}
     >
       <header

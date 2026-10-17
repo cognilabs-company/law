@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -34,7 +34,7 @@ import {
 } from "@/components/icons";
 import MarketWatcher from "@/components/marketplace/MarketWatcher";
 import ContextMenu, { type MenuItem } from "./ContextMenu";
-import DeskWindow, { MIN_H, MIN_W, type Area, type Snap, type Win } from "./DeskWindow";
+import DeskWindow, { MIN_H, MIN_W, boxOf, type Area, type Snap, type Win } from "./DeskWindow";
 import Wallpaper, { wallpapersOf, type WallpaperId } from "./Wallpaper";
 import { AppTile, FolderTile } from "./AppIcon";
 import { FOLDERS, RELATED, folderOf, type DeskApp, type FolderId } from "./apps";
@@ -83,6 +83,8 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
   // macOS: the Spotlight search box and the open menu bar menu.
   const [spot, setSpot] = useState(false);
   const [barMenu, setBarMenu] = useState("");
+  // The Dock's magnification: the pointer's x and the icons' resting centres.
+  const [mag, setMag] = useState<{ x: number; c: number[] } | null>(null);
   const [icons, setIcons] = useState<IconSize>("md");
   const [sort, setSort] = useState<Sort>("default");
   const [pinned, setPinned] = useState<string[]>(DEFAULT_PINNED);
@@ -153,7 +155,7 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
   }, []);
   useEffect(() => {
     if (!restored) return;
-    const data: Saved = { wallpaper, icons, sort, pinned, wins: wins.map(({ kind, key, href, path, x, y, w, h, min, snap }) => ({ kind, key, href, path, x, y, w, h, min, snap })) };
+    const data: Saved = { wallpaper, icons, sort, pinned, wins: wins.filter((w) => !w.closing).map(({ kind, key, href, path, x, y, w, h, min, snap }) => ({ kind, key, href, path, x, y, w, h, min, snap })) };
     try {
       localStorage.setItem(STORE, JSON.stringify(data));
     } catch {
@@ -198,14 +200,30 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
       return ws.map((w) => (w.id === id ? { ...w, z: w.z === z - 1 ? w.z : z, min: false } : w));
     });
   };
+  // Where a window comes from and goes to: its button on the Dock or the
+  // taskbar, else its icon on the desktop — as an offset from its centre.
+  const toAnchor = (w: Win) => {
+    const desk = deskRef.current?.getBoundingClientRect();
+    const el = document.querySelector<HTMLElement>(`[data-slot="${w.kind}-${w.key}"]`) ?? document.querySelector<HTMLElement>(`[data-item="${w.key}"]`);
+    if (!desk || !el) return {};
+    const r = el.getBoundingClientRect();
+    const b = phone ? { x: 0, y: 0, w: area.w, h: area.h } : boxOf(w, area);
+    return { ox: Math.round(r.left + r.width / 2 - desk.left - (b.x + b.w / 2)), oy: Math.round(r.top + r.height / 2 - desk.top - (b.y + b.h / 2)) };
+  };
   const patch = (id: string, p: Partial<Win>) => {
-    setWins((ws) => ws.map((w) => (w.id === id ? { ...w, ...p } : w)));
+    const w = wins.find((x) => x.id === id);
+    // Minimised: it shrinks into its button, from wherever it stands now.
+    const into = p.min && w ? toAnchor({ ...w, ...p }) : {};
+    setWins((ws) => ws.map((x) => (x.id === id ? { ...x, ...p, ...into } : x)));
     if (p.min) setActive((a) => (a === id ? "" : a));
   };
   const close = (id: string) => {
-    frames.current.delete(id);
-    setWins((ws) => ws.filter((w) => w.id !== id));
+    setWins((ws) => ws.map((w) => (w.id === id ? { ...w, closing: true } : w)));
     setActive((a) => (a === id ? "" : a));
+    setTimeout(() => {
+      frames.current.delete(id);
+      setWins((ws) => ws.filter((w) => w.id !== id));
+    }, 240);
   };
   const place = (n: number) => {
     const w = Math.max(MIN_W, Math.min(1120, area.w - 120));
@@ -224,7 +242,8 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
     const have = wins.find((w) => w.kind === "app" && w.key === key);
     if (have && !fresh) return focus(have.id);
     const id = newId();
-    setWins((ws) => [...ws, { id, kind: "app", key, href: app.href, path: app.href, ...place(ws.length), z: topZ(), min: false, snap: phone ? "max" : "", tick: 0 }]);
+    const nw: Win = { id, kind: "app", key, href: app.href, path: app.href, ...place(wins.length), z: topZ(), min: false, snap: phone ? "max" : "", tick: 0 };
+    setWins((ws) => [...ws, { ...nw, ...toAnchor(nw) }]);
     setActive(id);
     setStart(false);
   };
@@ -234,13 +253,15 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
     if (have) return focus(have.id);
     const wid = newId();
     const p = place(wins.length);
-    setWins((ws) => [...ws, { id: wid, kind: "folder", key: id, href: "", path: "", ...p, w: Math.min(p.w, 860), h: Math.min(p.h, 540), z: topZ(), min: false, snap: phone ? "max" : "", tick: 0 }]);
+    const nw: Win = { id: wid, kind: "folder", key: id, href: "", path: "", ...p, w: Math.min(p.w, 860), h: Math.min(p.h, 540), z: topZ(), min: false, snap: phone ? "max" : "", tick: 0 };
+    setWins((ws) => [...ws, { ...nw, ...toAnchor(nw) }]);
     setActive(wid);
     setStart(false);
   };
   const openItem = (it: Item) => (it.kind === "app" ? openApp(it.app.key) : openFolder(it.id));
   const showDesktop = () => {
-    setWins((ws) => ws.map((w) => ({ ...w, min: true })));
+    const into = Object.fromEntries(wins.map((w) => [w.id, toAnchor(w)]));
+    setWins((ws) => ws.map((w) => ({ ...w, min: true, ...into[w.id] })));
     setActive("");
   };
   const reload = (w: Win) => patch(w.id, { href: w.path || w.href, tick: w.tick + 1 });
@@ -425,6 +446,15 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
     const app = appAt(w.path) ?? byKey.get(w.key);
     return app ? <AppTile app={app} size="sm" /> : null;
   };
+  // How much a Dock icon grows: most under the pointer, easing off over
+  // about two icons on either side.
+  const zoom = (i: number) => {
+    const c = mag?.c[i];
+    const d = mag && c !== undefined ? Math.abs(mag.x - c) : Infinity;
+    const k = d < 140 ? 1 + 0.6 * ((Math.cos((Math.PI * d) / 140) + 1) / 2) : 1;
+    return { "--dk": k.toFixed(3) } as CSSProperties;
+  };
+
   // ── macOS: the menu bar's menus, Spotlight's keys ─────────────────────────
   const activeWin = wins.find((w) => w.id === active && !w.min) ?? null;
   const openBar = (e: MouseEvent<HTMLElement>, id: string, list: MenuItem[]) => {
@@ -668,13 +698,29 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
             </button>
           </header>
 
-          <nav className="wd-dock" aria-label={t("mac.dock")} onContextMenu={(e) => e.target === e.currentTarget && openMenu(e, t("mac.dock"), [{ id: "show", label: t("menu.showDesktop"), onSelect: showDesktop }, { id: "classic", label: t("switchClassic"), onSelect: () => setDeskMode("classic") }])}>
-            <button type="button" className="wd-dock__app is-open" onClick={() => openFolder("docs")} aria-label={t("mac.finder")} title={t("mac.finder")}>
+          <nav
+            className="wd-dock"
+            aria-label={t("mac.dock")}
+            onPointerEnter={(e) => {
+              if (e.pointerType !== "mouse") return;
+              // The icons' resting centres, measured before any of them grows:
+              // the zoom follows the pointer's distance from these, so a
+              // growing icon never slides away from under the pointer.
+              const c = [...e.currentTarget.querySelectorAll<HTMLElement>("[data-dock]")].map((el) => {
+                const r = el.getBoundingClientRect();
+                return r.left + r.width / 2;
+              });
+              setMag({ x: e.clientX, c });
+            }}
+            onPointerMove={(e) => e.pointerType === "mouse" && setMag((m) => (m ? { ...m, x: e.clientX } : m))}
+            onPointerLeave={() => setMag(null)}
+            onContextMenu={(e) => e.target === e.currentTarget && openMenu(e, t("mac.dock"), [{ id: "show", label: t("menu.showDesktop"), onSelect: showDesktop }, { id: "classic", label: t("switchClassic"), onSelect: () => setDeskMode("classic") }])}>
+            <button type="button" data-dock style={zoom(0)} className="wd-dock__app is-open" onClick={() => openFolder("docs")} aria-label={t("mac.finder")} title={t("mac.finder")}>
               <span className="wd-dock__finder" aria-hidden>
                 <i />
               </span>
             </button>
-            <button type="button" className="wd-dock__app" onClick={() => setStart((v) => !v)} aria-label={t("mac.launchpad")} title={t("mac.launchpad")}>
+            <button type="button" data-dock style={zoom(1)} className="wd-dock__app" onClick={() => setStart((v) => !v)} aria-label={t("mac.launchpad")} title={t("mac.launchpad")}>
               <span className="wd-dock__launch" aria-hidden>
                 {Array.from({ length: 9 }, (_, k) => (
                   <i key={k} />
@@ -691,6 +737,9 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
                   {sep ? <i className="wd-dock__sep" aria-hidden /> : null}
                   <button
                     type="button"
+                    data-dock
+                    data-slot={`${s.kind}-${s.key}`}
+                    style={zoom(k + 2)}
                     className={`wd-dock__app${open ? " is-open" : ""}${on ? " is-on" : ""}`}
                     onClick={() => pressSlot(s)}
                     onContextMenu={(e) => openMenu(e, slotLabel(s), slotMenu(s))}
@@ -706,7 +755,7 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
               );
             })}
             <i className="wd-dock__sep" aria-hidden />
-            <button type="button" className="wd-dock__app" onClick={() => setDeskMode("classic")} aria-label={t("switchClassic")}>
+            <button type="button" data-dock style={zoom(slots.length + 2)} className="wd-dock__app" onClick={() => setDeskMode("classic")} aria-label={t("switchClassic")}>
               <span className="wd-dock__classic" aria-hidden>
                 <IconList />
               </span>
@@ -873,7 +922,8 @@ export default function DesktopShell({ os, role, apps, name, isAdmin, onLogout }
                 <button
                   key={`${s.kind}-${s.key}`}
                   type="button"
-                  className={`wd-bar__app${open ? " is-open" : ""}${on ? " is-on" : ""}`}
+                  data-slot={`${s.kind}-${s.key}`}
+                className={`wd-bar__app${open ? " is-open" : ""}${on ? " is-on" : ""}`}
                   onClick={() => pressSlot(s)}
                   onContextMenu={(e) => openMenu(e, slotLabel(s), slotMenu(s))}
                   aria-label={slotLabel(s)}
