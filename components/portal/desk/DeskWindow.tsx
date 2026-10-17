@@ -48,6 +48,7 @@ export function snapAt(px: number, py: number, area: Area): Snap {
 // the top to fill it), edges and corners to resize, and the three buttons.
 // Double-clicking the title bar fills the desk or gives the window back.
 export default function DeskWindow({
+  os,
   win,
   area,
   active,
@@ -64,6 +65,7 @@ export default function DeskWindow({
   onSnapHint,
   children,
 }: {
+  os: "win" | "mac";
   win: Win;
   area: Area;
   active: boolean;
@@ -169,12 +171,26 @@ export default function DeskWindow({
           onMenu(e);
         }}
       >
+        {os === "mac" ? (
+          // The Mac's three lights: close, minimise, zoom.
+          <span className="wd-win__lights">
+            <button type="button" className="is-close" onClick={onClose} aria-label={labels.close} title={labels.close}>
+              <IconClose />
+            </button>
+            <button type="button" className="is-min" onClick={() => onChange({ min: true })} aria-label={labels.minimize} title={labels.minimize}>
+              <IconMinus />
+            </button>
+            <button type="button" className="is-zoom" onClick={() => !phone && onChange({ snap: win.snap === "max" ? "" : "max" })} aria-label={win.snap === "max" ? labels.restore : labels.maximize} title={win.snap === "max" ? labels.restore : labels.maximize}>
+              <i aria-hidden />
+            </button>
+          </span>
+        ) : null}
         <span className="wd-win__icon" aria-hidden>
           {icon}
         </span>
         <h2 className="wd-win__title">{title}</h2>
         {tools ? <span className="wd-win__tools">{tools}</span> : null}
-        <span className="wd-win__ctl">
+        {os === "mac" ? null : <span className="wd-win__ctl">
           <button type="button" onClick={() => onChange({ min: true })} aria-label={labels.minimize} title={labels.minimize}>
             <IconMinus />
           </button>
@@ -186,7 +202,7 @@ export default function DeskWindow({
           <button type="button" className="wd-win__x" onClick={onClose} aria-label={labels.close} title={labels.close}>
             <IconClose />
           </button>
-        </span>
+        </span>}
       </header>
       <div className="wd-win__body">{children}</div>
       {full ? null : EDGES.map((k) => <i key={k} className={`wd-win__edge wd-win__edge--${k}`} onPointerDown={(e) => begin(e, k)} {...handlers} aria-hidden />)}

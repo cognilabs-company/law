@@ -70,3 +70,21 @@ export const RELATED: Record<string, string[]> = {
 };
 
 export const folderOf = (key: string): FolderId | null => FOLDERS.find((f) => f.keys.includes(key))?.id ?? null;
+
+// What kind of program each section is, so its window looks like the one a
+// computer has for that job: a file manager, a calendar, a messenger, a
+// to-do list, contacts, a store, settings, an assistant, or the home screen.
+// Sections of one kind share a side menu, as one program would.
+export type AppKind = "home" | "files" | "calendar" | "comms" | "todo" | "people" | "store" | "settings" | "ai";
+export const KINDS: { kind: AppKind; keys: string[] }[] = [
+  { kind: "home", keys: ["dashboard"] },
+  { kind: "files", keys: ["cases", "documents", "documentRequests", "files"] },
+  { kind: "calendar", keys: ["calendar", "meetings"] },
+  { kind: "comms", keys: ["chat", "notifications", "support"] },
+  { kind: "todo", keys: ["tasks", "urgentAssigned"] },
+  { kind: "people", keys: ["clients"] },
+  { kind: "store", keys: ["marketplace", "marketplaceOrders", "services"] },
+  { kind: "settings", keys: ["profile", "subscription", "referrals", "promotion"] },
+  { kind: "ai", keys: ["ai", "assistant"] },
+];
+export const kindOf = (key: string): AppKind => KINDS.find((k) => k.keys.includes(key))?.kind ?? "home";

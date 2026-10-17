@@ -21626,3 +21626,233 @@ html[data-theme="dark"] .wd{--wd-glass:rgba(28,32,44,.78);--wd-glass2:rgba(36,41
 @media (max-width:760px){.wd{--wd-bar-h:58px}.wd-tray__wide,.wd-bar__search,.wd-tray__view span,.wd-tray__clock small,.wd-tray__lang{display:none!important}.wd-bar__mid{justify-content:flex-start}.wd-icons{grid-auto-flow:row;grid-template-columns:repeat(auto-fill,var(--wd-cell-w));grid-template-rows:none;grid-auto-rows:var(--wd-cell-h);inset:10px;justify-content:center}.wd-icons--lg,.wd-icons--md{--wd-cell-w:84px;--wd-cell-h:94px;--wd-tile:48px}.wd-win{border-radius:0;animation-name:wdOpenPhone}.wd-win__ctl button{width:42px}}
 @keyframes wdOpenPhone{from{opacity:0;transform:translateY(30px)}}
 @media (prefers-reduced-motion:reduce){.wd-wall__petal,.wd-icon,.wd-win,.wd-start,.wd-menu,.wd-snap,.wd-win__load .wd-tile,.wd-props{animation:none}.wd-win{transition:none}}
+/* ── Choosing the computer style ── */
+.osp{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:16px;background:rgba(6,14,32,.5);backdrop-filter:blur(6px);animation:wdMenu .16s ease-out}
+.osp__card{position:relative;width:min(760px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:28px;border-radius:22px;background:var(--dk-surface,#fff);color:var(--ink);box-shadow:var(--s3)}
+.osp__card h2{font-size:1.5rem;margin:0 40px 6px 0}
+.osp__card>p{margin:0 0 20px;color:var(--gray);font-size:.92rem}
+.osp__x{position:absolute;top:16px;right:16px;display:grid;place-items:center;width:36px;height:36px;border:0;border-radius:10px;background:var(--dk-surface-2,#F1F4F9);color:var(--ink);cursor:pointer}
+.osp__x svg{width:16px;height:16px}
+.osp__opts{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.osp__opt{position:relative;display:grid;gap:6px;padding:14px;border:2px solid var(--line);border-radius:18px;background:var(--dk-surface,#fff);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:border-color .15s,transform .15s,box-shadow .15s}
+.osp__opt:hover,.osp__opt:focus-visible{border-color:var(--b500);transform:translateY(-2px);box-shadow:0 18px 40px -20px rgba(22,104,240,.5);outline:none}
+.osp__opt b{font-size:1.02rem;margin-top:6px}
+.osp__opt small{color:var(--gray);font-size:.8rem;line-height:1.4}
+.osp__opt em{position:absolute;top:22px;right:22px;padding:3px 9px;border-radius:999px;background:rgba(255,255,255,.9);color:#0F1F3D;font-size:.68rem;font-style:normal;font-weight:800}
+.osp__pic{position:relative;display:block;aspect-ratio:16/10;border-radius:12px;overflow:hidden}
+.osp__opt--win .osp__pic{background:radial-gradient(70% 90% at 62% 55%,#fff 0,#BFD6F4 40%,#7FA7E0 100%)}
+.osp__opt--win .osp__pic::before{content:"";position:absolute;left:44%;top:22%;width:40%;height:60%;background:conic-gradient(from 200deg,#1D5BE0,#7FB4FF,#1D5BE0,#5C9BF5,#1D5BE0);border-radius:50% 10% 50% 10%;opacity:.55;filter:blur(1px)}
+.osp__win{position:absolute;left:12%;top:12%;width:56%;height:58%;border-radius:6px;background:#fff;box-shadow:0 10px 24px -10px rgba(0,0,0,.4)}
+.osp__win::before{content:"";position:absolute;inset:0 0 auto;height:14%;border-bottom:1px solid #E6E9EF;background:#F7F8FA;border-radius:6px 6px 0 0}
+.osp__winbar{position:absolute;left:0;right:0;bottom:0;height:13%;display:flex;align-items:center;justify-content:center;gap:5%;background:rgba(243,246,251,.85)}
+.osp__winbar i{width:5%;aspect-ratio:1;border-radius:3px;background:#1D6CF0}
+.osp__winbar i:nth-child(2){background:#F5A524}.osp__winbar i:nth-child(3){background:#34C38F}.osp__winbar i:nth-child(4){background:#22C3E6}.osp__winbar i:nth-child(5){background:#E8A915}
+.osp__opt--mac .osp__pic{background:linear-gradient(180deg,#C9D8FF,#9AB2F5 45%,#5A55C9 70%,#2C1A63)}
+.osp__menubar{position:absolute;inset:0 0 auto;height:7%;background:rgba(255,255,255,.55);backdrop-filter:blur(4px)}
+.osp__macwin{position:absolute;left:18%;top:16%;width:58%;height:54%;border-radius:8px;background:#fff;box-shadow:0 12px 26px -10px rgba(0,0,0,.45)}
+.osp__macwin i{position:absolute;top:6%;width:4%;aspect-ratio:1;border-radius:50%;background:#FF5F57}
+.osp__macwin i:nth-child(1){left:3%}.osp__macwin i:nth-child(2){left:9%;background:#FEBC2E}.osp__macwin i:nth-child(3){left:15%;background:#28C840}
+.osp__dock{position:absolute;left:24%;right:24%;bottom:4%;height:11%;display:flex;align-items:center;justify-content:center;gap:4%;border-radius:8px;background:rgba(255,255,255,.4);backdrop-filter:blur(4px)}
+.osp__dock i{width:10%;aspect-ratio:1;border-radius:22%;background:#007AFF}
+.osp__dock i:nth-child(2){background:#FF3B30}.osp__dock i:nth-child(3){background:#34C759}.osp__dock i:nth-child(4){background:#FF9500}.osp__dock i:nth-child(5){background:#BF5AF2}.osp__dock i:nth-child(6){background:#8E8E93}
+@media (max-width:600px){.osp__opts{grid-template-columns:1fr}.osp__card{padding:20px}}
+
+/* ── The Mac-style desktop ── */
+.wd--mac{--wd-mbar-h:28px;--wd-bar-h:0px;--wd-dock-h:78px;--wd-acc:#007AFF;--wd-glass:rgba(246,246,248,.62);--wd-glass2:rgba(250,250,252,.82);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",var(--fb)}
+html[data-theme="dark"] .wd--mac{--wd-acc:#0A84FF;--wd-glass:rgba(30,30,32,.6);--wd-glass2:rgba(40,40,44,.84)}
+.wd--mac .wd-desk{inset:var(--wd-mbar-h) 0 var(--wd-dock-h) 0}
+.wd-wall__ridge{transform-origin:50% 100%;animation:wdRidge 18s ease-in-out infinite}
+@keyframes wdRidge{50%{transform:translateX(-14px) scaleY(1.01)}}
+.wd-mbar{position:absolute;inset:0 0 auto;z-index:10000;display:flex;align-items:center;gap:2px;height:var(--wd-mbar-h);padding:0 10px;background:var(--wd-glass);backdrop-filter:blur(30px) saturate(1.8);-webkit-backdrop-filter:blur(30px) saturate(1.8);color:var(--wd-ink);font-size:.8rem}
+.wd-mbar>button,.wd-mbar__app{display:flex;align-items:center;gap:5px;height:22px;padding:0 9px;border:0;border-radius:5px;background:none;color:inherit;font:inherit;cursor:default;white-space:nowrap}
+.wd-mbar>button:hover,.wd-mbar>button.is-on{background:rgba(0,0,0,.1)}
+html[data-theme="dark"] .wd-mbar>button:hover,html[data-theme="dark"] .wd-mbar>button.is-on{background:rgba(255,255,255,.16)}
+.wd-mbar>button svg{width:14px;height:14px}
+.wd-mbar__logo svg{width:16px!important;height:16px!important}
+.wd-mbar__app{font-weight:700;padding:0 10px 0 6px}
+.wd-mbar__sp{flex:1}
+.wd-mbar__lang{font-weight:700;font-size:.72rem}
+.wd-mbar__clock{font-variant-numeric:tabular-nums}
+.wd-dock{position:absolute;left:50%;bottom:6px;z-index:10000;display:flex;align-items:flex-end;gap:4px;max-width:calc(100% - 16px);height:66px;padding:6px 8px;border-radius:20px;background:var(--wd-glass);backdrop-filter:blur(30px) saturate(1.8);-webkit-backdrop-filter:blur(30px) saturate(1.8);box-shadow:0 0 0 1px rgba(255,255,255,.35) inset,0 0 0 1px rgba(0,0,0,.12),0 16px 40px -12px rgba(0,0,0,.4);transform:translateX(-50%);overflow:visible}
+.wd-dock__slot{display:flex;align-items:flex-end;gap:4px}
+.wd-dock__app{position:relative;display:grid;place-items:center;width:52px;height:52px;padding:0;border:0;background:none;cursor:pointer;transform-origin:50% 100%;transition:transform .18s cubic-bezier(.2,.9,.3,1.2),margin .18s}
+.wd-dock__app .wd-tile{--s:50px;border-radius:12px}
+.wd-dock__app .wd-folder{--s:44px}
+.wd-dock__app:hover{transform:scale(1.42) translateY(-6px);margin:0 10px;z-index:2}
+.wd-dock__app:has(+ .wd-dock__app:hover),.wd-dock__slot:has(+ .wd-dock__slot .wd-dock__app:hover) .wd-dock__app,.wd-dock__app:hover + .wd-dock__app,.wd-dock__slot:has(.wd-dock__app:hover) + .wd-dock__slot .wd-dock__app{transform:scale(1.18) translateY(-2px);margin:0 4px}
+.wd-dock__app::after{content:"";position:absolute;bottom:-5px;left:50%;width:4px;height:4px;border-radius:50%;background:transparent;transform:translateX(-50%)}
+.wd-dock__app.is-open::after{background:var(--wd-ink)}
+.wd-dock__tip{position:absolute;bottom:calc(100% + 14px);left:50%;padding:4px 10px;border-radius:7px;background:var(--wd-glass2);color:var(--wd-ink);font-size:.62rem;font-weight:600;white-space:nowrap;box-shadow:0 4px 14px -4px rgba(0,0,0,.35);transform:translateX(-50%);opacity:0;pointer-events:none;transition:opacity .12s}
+.wd-dock__app:hover .wd-dock__tip{opacity:1}
+.wd-dock__sep{align-self:stretch;width:1px;margin:6px 4px;background:rgba(0,0,0,.18)}
+html[data-theme="dark"] .wd-dock__sep{background:rgba(255,255,255,.22)}
+.wd-dock__finder{position:relative;display:block;width:50px;height:50px;border-radius:12px;background:linear-gradient(90deg,#7FD3FF 50%,#E8F4FF 50%);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 4px 10px -4px rgba(0,0,0,.45);overflow:hidden}
+.wd-dock__finder::before{content:"";position:absolute;left:30%;top:28%;width:7%;height:16%;border-radius:3px;background:#1E2A3D;box-shadow:16px 0 0 #1E2A3D}
+.wd-dock__finder i{position:absolute;left:24%;right:24%;bottom:22%;height:16%;border:2.5px solid #1E2A3D;border-top:0;border-radius:0 0 50% 50%}
+.wd-dock__launch{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;width:50px;height:50px;padding:8px;border-radius:12px;background:linear-gradient(145deg,#C9CFDA,#8E97A8);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 4px 10px -4px rgba(0,0,0,.45)}
+.wd-dock__launch i{border-radius:3px;background:#fff;opacity:.9}
+.wd-dock__launch i:nth-child(3n+1){background:#FF6B6B}.wd-dock__launch i:nth-child(3n+2){background:#4F8BFF}.wd-dock__launch i:nth-child(4){background:#34C38F}
+.wd-dock__classic{display:grid;place-items:center;width:50px;height:50px;border-radius:12px;background:linear-gradient(145deg,#F4F6FA,#C9D0DC);color:#1E2A3D;box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 4px 10px -4px rgba(0,0,0,.45)}
+.wd-dock__classic svg{width:24px;height:24px}
+.wd-launch{position:absolute;inset:0;z-index:10005;display:grid;grid-template-rows:auto minmax(0,1fr);justify-items:center;gap:28px;padding:48px 6vw 120px;background:rgba(20,22,30,.5);backdrop-filter:blur(40px) saturate(1.4);-webkit-backdrop-filter:blur(40px) saturate(1.4);animation:wdLaunch .25s ease-out}
+@keyframes wdLaunch{from{opacity:0;transform:scale(1.06)}}
+.wd-launch .wd-launch__q{width:min(300px,90vw);background:rgba(255,255,255,.22);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3);color:#fff}
+.wd-launch__q svg{color:rgba(255,255,255,.85)}
+.wd-launch .wd-launch__q input{color:#fff;background:none}
+.wd-launch__q input::placeholder{color:rgba(255,255,255,.75)}
+.wd-launch__grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));align-content:start;gap:26px 18px;width:min(1100px,100%);overflow:auto}
+.wd-launch__grid>button{display:grid;justify-items:center;gap:10px;border:0;background:none;color:#fff;font:inherit;font-size:.8rem;font-weight:500;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.5);cursor:pointer}
+.wd-launch__grid .wd-tile{--s:72px;border-radius:17px}
+.wd-launch__grid .wd-folder{--s:64px}
+.wd-launch__grid>button:active .wd-tile{transform:scale(.92)}
+.wd-spot{position:absolute;inset:0;z-index:10006;display:flex;justify-content:center;padding-top:16vh;background:rgba(0,0,0,.04)}
+.wd-spot__box{width:min(640px,calc(100vw - 24px));align-self:flex-start;border-radius:14px;background:var(--wd-glass2);backdrop-filter:blur(40px) saturate(1.8);-webkit-backdrop-filter:blur(40px) saturate(1.8);box-shadow:0 0 0 1px var(--wd-line),0 30px 80px -20px rgba(0,0,0,.5);overflow:hidden;animation:wdMenu .14s ease-out}
+.wd-spot__q{display:flex;align-items:center;gap:12px;padding:12px 16px}
+.wd-spot__q svg{width:22px;height:22px;color:var(--wd-mute)}
+.wd-spot__q input{flex:1;border:0;background:none;color:var(--wd-ink);font:inherit;font-size:1.3rem;outline:0}
+.wd-spot__list{margin:0;padding:6px;list-style:none;border-top:1px solid var(--wd-line)}
+.wd-spot__list button{display:flex;align-items:center;gap:12px;width:100%;padding:7px 10px;border:0;border-radius:8px;background:none;color:var(--wd-ink);font:inherit;font-size:.86rem;text-align:left;cursor:pointer;outline:none}
+.wd-spot__list button:hover,.wd-spot__list button:focus-visible{background:var(--wd-acc);color:#fff}
+.wd-spot__list .wd-spot__l{flex:1}
+.wd-spot__list button small{font-size:.72rem;opacity:.7}
+.wd-spot__list .wd-tile{--s:26px}
+.wd-spot__list .wd-folder{--s:24px}
+.wd-spot__none{padding:12px;text-align:center;color:var(--wd-mute);font-size:.84rem}
+/* mac windows and desktop */
+.wd--mac .wd-win{border-radius:12px;box-shadow:0 0 0 1px rgba(0,0,0,.18),0 30px 70px -20px rgba(0,0,0,.5)}
+.wd--mac .wd-win.is-max{border-radius:0}
+.wd--mac .wd-win__bar{position:relative;height:40px;padding:0 10px;background:var(--wd-glass2);gap:8px}
+.wd--mac .wd-win__title{position:absolute;left:50%;max-width:45%;transform:translateX(-50%);text-align:center;font-size:.8rem;font-weight:700}
+.wd--mac .wd-win__icon{display:none}
+.wd--mac .wd-win__tools{margin-left:auto}
+.wd-win__lights{display:flex;gap:8px;padding-right:6px}
+.wd-win__lights button{display:grid;place-items:center;width:12px;height:12px;padding:0;border:0;border-radius:50%;cursor:pointer;color:rgba(0,0,0,.55);box-shadow:inset 0 0 0 .5px rgba(0,0,0,.2)}
+.wd-win__lights svg{width:8px;height:8px;opacity:0}
+.wd-win__lights .is-close{background:#FF5F57}.wd-win__lights .is-min{background:#FEBC2E}.wd-win__lights .is-zoom{background:#28C840}
+.wd-win__lights .is-zoom i{width:6px;height:6px;opacity:0;background:linear-gradient(135deg,rgba(0,0,0,.6) 50%,transparent 50%),linear-gradient(-45deg,rgba(0,0,0,.6) 50%,transparent 50%);clip-path:polygon(0 0,60% 0,0 60%,40% 100%,100% 100%,100% 40%)}
+.wd-win__lights:hover svg,.wd-win__lights:hover i{opacity:1}
+.wd-win:not(.is-active) .wd-win__lights button{background:#CDCDD2}
+html[data-theme="dark"] .wd-win:not(.is-active) .wd-win__lights button{background:#4A4A4E}
+.wd--mac .wd-icons{left:auto;right:10px;direction:rtl}
+.wd--mac .wd-icon{direction:ltr}
+.wd--mac .wd-icon.is-on{background:rgba(0,0,0,.18);border-color:transparent;border-radius:6px}
+.wd--mac .wd-icon.is-on .wd-icon__l{background:var(--wd-acc);border-radius:4px;padding:0 4px;text-shadow:none}
+.wd--mac .wd-widget{right:auto;left:28px;justify-items:start;padding:14px 18px;border-radius:20px;background:rgba(255,255,255,.22);backdrop-filter:blur(20px);color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.25)}
+.wd--mac .wd-widget b{font-size:2.6rem;font-weight:300}
+.wd--mac .wd-menu{min-width:220px;padding:5px;border-radius:9px;font-size:.8rem}
+.wd--mac .wd-menu button{grid-template-columns:16px minmax(0,1fr) auto;min-height:24px;gap:6px;padding:0 8px;border-radius:5px}
+.wd--mac .wd-menu button:hover:not(:disabled),.wd--mac .wd-menu button:focus-visible{background:var(--wd-acc);color:#fff}
+.wd--mac .wd-menu button:hover:not(:disabled) kbd,.wd--mac .wd-menu button:focus-visible kbd{color:#fff}
+.wd--mac .wd-menu__i>svg:not(:only-child){display:none}
+.wd--mac .wd-menu__i>svg{width:12px;height:12px}
+.wd--mac .wd-menu__h{text-transform:none;letter-spacing:0;font-size:.7rem}
+.wd--mac .wd-ex__side{background:color-mix(in srgb,var(--wd-glass2) 80%,transparent)}
+.wd-ex__sec{padding:6px 9px 2px;font-size:.68rem;font-weight:700;color:var(--wd-mute)}
+.wd--mac .wd-ex__side button.is-on{background:rgba(0,0,0,.08)}
+html[data-theme="dark"] .wd--mac .wd-ex__side button.is-on{background:rgba(255,255,255,.1)}
+.wd--mac .wd-ex__path{order:3;margin:0;border-radius:0;background:none;border-top:1px solid var(--wd-line);padding:6px 12px}
+.wd--mac .wd-ex__main{grid-template-rows:minmax(0,1fr) auto auto}
+.wd--mac .wd-ex__status{display:none}
+.wd--mac .wd-props__card{border-radius:12px}
+@media (max-width:760px){.wd--mac{--wd-dock-h:74px}.wd-mbar__m,.wd-mbar__wide,.wd-mbar__clock{display:none!important}.wd-dock{height:60px;max-width:calc(100% - 12px);overflow-x:auto;justify-content:flex-start}.wd-dock__app{width:46px;height:46px}.wd-dock__app .wd-tile{--s:44px}.wd-dock__app:hover,.wd-dock__app:has(+ .wd-dock__app:hover),.wd-dock__app:hover + .wd-dock__app{transform:none;margin:0}.wd-dock__tip{display:none}.wd--mac .wd-icons{direction:ltr;right:10px;left:10px}}
+
+/* ── Each app inside its window, as the system's own program ── */
+.dapp{--dapp-acc:#0067C0;--dapp-side:#EEF1F5;--dapp-stroke:rgba(0,0,0,.08);--dapp-card:#FFFFFF;--dapp-r:8px;--dapp-c:4px;display:grid;grid-template-columns:minmax(0,1fr);height:100dvh;background:var(--b50);color:var(--ink);
+  --fd:"Segoe UI Variable Display","Segoe UI Variable Text","Segoe UI",var(--font-inter),system-ui,sans-serif;--fb:"Segoe UI Variable Text","Segoe UI",var(--font-inter),system-ui,sans-serif;
+  --b600:var(--dapp-acc);--b500:color-mix(in srgb,var(--dapp-acc) 82%,#fff);--b700:color-mix(in srgb,var(--dapp-acc) 80%,#000);--b400:color-mix(in srgb,var(--dapp-acc) 62%,#fff);--b300:color-mix(in srgb,var(--dapp-acc) 42%,#fff);--b200:color-mix(in srgb,var(--dapp-acc) 24%,#fff);--b100:color-mix(in srgb,var(--dapp-acc) 12%,#fff);--b50:#F3F3F3;
+  --pill:var(--dapp-c);--r:var(--dapp-r);--rl:var(--dapp-r);--rx:calc(var(--dapp-r) + 4px);--line:#E5E5E5;--sblue:none;--grad:linear-gradient(135deg,var(--dapp-acc),color-mix(in srgb,var(--dapp-acc) 60%,#fff));--dk-acc:var(--dapp-acc);
+  font-family:var(--fb)}
+.dapp.has-side{grid-template-columns:260px minmax(0,1fr)}
+html[data-theme="dark"] .dapp{--dapp-side:#1C1C1C;--dapp-stroke:rgba(255,255,255,.08);--dapp-card:#2B2B2B;--b50:#202020;--line:#383838;--dk-bg:#202020;--dk-surface:#2B2B2B;--dk-surface-2:#323232;--dk-line:#383838;--dk-bd-neutral:#3A3A3A;--b100:color-mix(in srgb,var(--dapp-acc) 22%,#202020);--b200:color-mix(in srgb,var(--dapp-acc) 34%,#202020);--dk-acc:color-mix(in srgb,var(--dapp-acc) 70%,#fff)}
+.dapp--mac{--dapp-acc:#007AFF;--dapp-side:rgba(232,232,237,.92);--dapp-stroke:rgba(0,0,0,.1);--dapp-r:10px;--dapp-c:6px;--b50:#FFFFFF;--line:#E5E5EA;
+  --fd:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",var(--font-inter),system-ui,sans-serif;--fb:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",var(--font-inter),system-ui,sans-serif}
+html[data-theme="dark"] .dapp--mac{--dapp-side:rgba(40,40,44,.94);--b50:#1E1E1E;--dk-bg:#1E1E1E;--dk-surface:#2A2A2C;--dk-surface-2:#323234;--line:#3A3A3C;--dk-line:#3A3A3C}
+/* the program each kind is */
+.dapp--win.dapp--files{--dapp-acc:#0067C0}.dapp--win.dapp--calendar{--dapp-acc:#0F6CBD}.dapp--win.dapp--comms{--dapp-acc:#5B5FC7}.dapp--win.dapp--todo{--dapp-acc:#2564CF}.dapp--win.dapp--people{--dapp-acc:#8764B8}.dapp--win.dapp--store{--dapp-acc:#0067C0}.dapp--win.dapp--settings{--dapp-acc:#0067C0}.dapp--win.dapp--ai{--dapp-acc:#7A4CF5}.dapp--win.dapp--home{--dapp-acc:#0067C0}
+.dapp--mac.dapp--calendar{--dapp-acc:#FF3B30}.dapp--mac.dapp--comms{--dapp-acc:#34C759}.dapp--mac.dapp--todo{--dapp-acc:#FF9500}.dapp--mac.dapp--people{--dapp-acc:#A2845E}.dapp--mac.dapp--ai{--dapp-acc:#BF5AF2}
+html[data-theme="dark"] .dapp--win.dapp--files,html[data-theme="dark"] .dapp--win.dapp--store,html[data-theme="dark"] .dapp--win.dapp--settings,html[data-theme="dark"] .dapp--win.dapp--home{--dapp-acc:#4CC2FF}
+html[data-theme="dark"] .dapp--mac:not(.dapp--calendar):not(.dapp--comms):not(.dapp--todo):not(.dapp--people):not(.dapp--ai){--dapp-acc:#0A84FF}
+/* side menu */
+.dapp__side{display:grid;grid-template-rows:auto auto minmax(0,1fr);align-content:start;gap:4px;min-height:0;padding:14px 10px;background:var(--dapp-side);border-right:1px solid var(--dapp-stroke);overflow:auto}
+.dapp--mac .dapp__side{backdrop-filter:blur(30px) saturate(1.6);-webkit-backdrop-filter:blur(30px) saturate(1.6)}
+.dapp__brand{display:flex;align-items:center;gap:10px;padding:4px 10px 12px;font-size:.82rem}
+.dapp__brand .wd-tile{--s:24px;border-radius:6px}
+.dapp__me{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:12px;align-items:center;padding:6px 8px 14px}
+.dapp__me span{grid-row:span 2;display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--dapp-acc),color-mix(in srgb,var(--dapp-acc) 50%,#fff));color:#fff;font-weight:700;font-size:1.05rem}
+.dapp__me b{font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dapp__me small{font-size:.74rem;color:var(--gray)}
+.dapp__sec{padding:8px 10px 2px;font-size:.68rem;font-weight:700;color:var(--gray)}
+.dapp__side nav{display:grid;align-content:start;gap:2px}
+.dapp__link{position:relative;display:flex;align-items:center;gap:12px;min-height:36px;padding:0 12px;border-radius:var(--dapp-c);color:var(--ink);font-size:.86rem;text-decoration:none;transition:background .12s}
+.dapp__link svg{width:16px;height:16px;flex:none}
+.dapp__link>i{display:grid;place-items:center;font-style:normal}
+.dapp__link:hover{background:rgba(0,0,0,.05)}
+html[data-theme="dark"] .dapp__link:hover{background:rgba(255,255,255,.06)}
+.dapp--win .dapp__link.is-on{background:rgba(0,0,0,.06);font-weight:600}
+html[data-theme="dark"] .dapp--win .dapp__link.is-on{background:rgba(255,255,255,.08)}
+.dapp--win .dapp__link.is-on::before{content:"";position:absolute;left:0;top:50%;width:3px;height:16px;border-radius:2px;background:var(--dapp-acc);transform:translateY(-50%)}
+.dapp--mac .dapp__link{min-height:28px;gap:8px;padding:0 8px;font-size:.82rem}
+.dapp--mac .dapp__link>i{color:var(--dapp-acc)}
+.dapp--mac .dapp__link.is-on{background:var(--dapp-acc);color:#fff}
+.dapp--mac .dapp__link.is-on>i{color:#fff}
+.dapp__link.is-locked{opacity:.5;cursor:not-allowed}
+.dapp__link.is-locked svg:last-child{width:12px;height:12px;margin-left:auto}
+/* the messenger: on Windows a narrow app bar of icons, as Teams has */
+.dapp--win.dapp--comms.has-side{grid-template-columns:76px minmax(0,1fr)}
+.dapp--win.dapp--comms .dapp__side{padding:8px 4px;background:color-mix(in srgb,var(--dapp-acc) 6%,var(--dapp-side))}
+.dapp--win.dapp--comms .dapp__brand{justify-content:center;padding:6px 0 10px}
+.dapp--win.dapp--comms .dapp__brand b{display:none}
+.dapp--win.dapp--comms .dapp__link{flex-direction:column;justify-content:center;gap:3px;min-height:58px;padding:6px 2px;font-size:.62rem;text-align:center}
+.dapp--win.dapp--comms .dapp__link svg{width:20px;height:20px}
+.dapp--win.dapp--comms .dapp__link.is-on{color:var(--dapp-acc);background:none}
+.dapp--win.dapp--comms .dapp__link.is-on::before{top:12px;height:30px;transform:none}
+/* main column and the program's header */
+.dapp__main{display:grid;grid-template-rows:auto minmax(0,1fr);min-width:0;min-height:0}
+.dapp .pbody{--pb-pad:clamp(14px,2vw,26px);height:auto;min-height:0}
+.dapp__head{padding:18px clamp(14px,2vw,26px) 4px}
+.dapp--mac .dapp__head{padding:12px 20px;border-bottom:1px solid var(--dapp-stroke);background:color-mix(in srgb,var(--b50) 92%,transparent)}
+.dapp__title h1{margin:0;font-family:var(--fd);font-size:1.7rem;font-weight:600;letter-spacing:-.01em;line-height:1.2}
+.dapp--mac .dapp__title h1{font-size:1.15rem;font-weight:700}
+.dapp__title small{display:block;margin-top:2px;font-size:.8rem;color:var(--gray)}
+.dapp__path{display:flex;align-items:center;gap:6px;margin:0;padding:8px 12px;border-radius:var(--dapp-c);background:var(--dapp-card);box-shadow:inset 0 0 0 1px var(--dapp-stroke);font-size:.82rem;color:var(--gray)}
+.dapp__path svg{width:16px;height:16px;color:#E8A915}
+.dapp__path span::after{content:"›";margin-left:6px}
+.dapp__path b{color:var(--ink);font-weight:600}
+.dapp--mac .dapp__path{padding:0;background:none;box-shadow:none;font-size:.8rem}
+.dapp--mac .dapp__path svg{color:#1E9BF0}
+.dapp__date{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px}
+.dapp__date>b{font-family:var(--fd);font-size:2.6rem;font-weight:300;line-height:1;color:var(--dapp-acc)}
+.dapp__date span{display:grid}
+.dapp__date strong{font-size:1rem;font-weight:600}
+.dapp__date small{font-size:.8rem;color:var(--gray)}
+.dapp__date em{font-style:normal;font-size:.8rem;font-weight:600;padding:4px 10px;border-radius:var(--dapp-c);background:color-mix(in srgb,var(--dapp-acc) 12%,transparent);color:var(--dapp-acc)}
+.dapp--home .dapp__head{padding-top:24px}
+.dapp--home .dapp__title h1{font-size:2rem}
+.dapp--ai .dapp__head{background:linear-gradient(120deg,color-mix(in srgb,var(--dapp-acc) 14%,transparent),color-mix(in srgb,#22C3E6 12%,transparent))}
+.dapp--ai .dapp__title h1{background:linear-gradient(90deg,var(--dapp-acc),#22A3E6);-webkit-background-clip:text;background-clip:text;color:transparent}
+.dapp--store .dapp__head{margin:14px clamp(14px,2vw,26px) 0;padding:22px 24px;border-radius:var(--dapp-r);background:linear-gradient(120deg,var(--dapp-acc),color-mix(in srgb,var(--dapp-acc) 55%,#22C3E6));color:#fff}
+.dapp--store .dapp__title small{color:rgba(255,255,255,.85)}
+.dapp--mac.dapp--store .dapp__head{border-bottom:0}
+/* the page's own pieces in the system's look */
+.dapp h1,.dapp h2,.dapp h3,.dapp h4{font-weight:600;letter-spacing:-.005em}
+.dapp .ppanel{border-radius:var(--dapp-r);background:var(--dapp-card);box-shadow:0 0 0 1px var(--dapp-stroke),0 1px 3px rgba(0,0,0,.04)}
+.dapp--mac .ppanel{box-shadow:0 0 0 .5px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.05)}
+.dapp .btn{padding:7px 14px;font-size:.84rem;font-weight:600;gap:7px;box-shadow:none;min-height:32px}
+.dapp--mac .btn{padding:4px 12px;min-height:28px;font-weight:500;font-size:.82rem}
+.dapp .btn--pri{background:var(--dapp-acc);color:#fff}
+.dapp .btn--pri:hover{background:color-mix(in srgb,var(--dapp-acc) 88%,#000)}
+.dapp--mac .btn--pri{background:linear-gradient(180deg,color-mix(in srgb,var(--dapp-acc) 88%,#fff),var(--dapp-acc));box-shadow:0 .5px 1px rgba(0,0,0,.2),inset 0 .5px 0 rgba(255,255,255,.25)}
+.dapp .btn--line{background:var(--dapp-card);box-shadow:inset 0 0 0 1px var(--dapp-stroke),0 1px 0 rgba(0,0,0,.04)}
+.dapp .segs{padding:3px;border-radius:calc(var(--dapp-c) + 3px);background:rgba(0,0,0,.05)}
+html[data-theme="dark"] .dapp .segs{background:rgba(255,255,255,.07)}
+.dapp .seg{padding:6px 12px;border-radius:var(--dapp-c);font-size:.82rem}
+.dapp--win .segs{background:none;padding:0;gap:14px;border-bottom:1px solid var(--dapp-stroke);border-radius:0}
+.dapp--win .seg{position:relative;padding:8px 2px;border-radius:0;background:none!important;box-shadow:none!important;color:var(--gray)}
+.dapp--win .seg.on,.dapp--win .seg[aria-selected="true"],.dapp--win .seg[aria-pressed="true"]{color:var(--ink);font-weight:600}
+.dapp--win .seg.on::after,.dapp--win .seg[aria-selected="true"]::after,.dapp--win .seg[aria-pressed="true"]::after{content:"";position:absolute;left:30%;right:30%;bottom:-1px;height:3px;border-radius:2px;background:var(--dapp-acc)}
+.dapp .chip{padding:5px 11px;font-size:.8rem}
+.dapp input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),.dapp select,.dapp textarea{border-radius:var(--dapp-c)}
+.dapp--win input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,.dapp--win textarea:focus{box-shadow:inset 0 -2px 0 var(--dapp-acc),inset 0 0 0 1px var(--dapp-stroke)!important}
+.dapp--mac input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,.dapp--mac textarea:focus{box-shadow:0 0 0 3.5px color-mix(in srgb,var(--dapp-acc) 35%,transparent)!important}
+@media (max-width:760px){.dapp.has-side,.dapp--win.dapp--comms.has-side{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}.dapp__side{grid-template-rows:none;grid-auto-flow:column;align-items:center;justify-content:start;padding:6px 8px;border-right:0;border-bottom:1px solid var(--dapp-stroke);overflow-x:auto}.dapp__side nav{grid-auto-flow:column}.dapp__brand,.dapp__me,.dapp__sec{display:none}.dapp__link{white-space:nowrap}.dapp--win.dapp--comms .dapp__link{flex-direction:row;min-height:34px;font-size:.78rem}.dapp--win .dapp__link.is-on::before{left:12px;right:12px;top:auto;bottom:0;width:auto;height:3px;transform:none}.dapp__title h1{font-size:1.3rem}.dapp--store .dapp__head{margin:10px 10px 0;padding:16px}}
+@media (prefers-reduced-motion:reduce){.wd-wall__ridge,.wd-launch,.osp{animation:none}.wd-dock__app{transition:none}}

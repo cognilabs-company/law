@@ -11229,13 +11229,18 @@
         "wallpaper": "Wallpaper",
         "showDesktop": "Show desktop",
         "closeAll": "Close all windows",
-        "closeN": "Close {n} windows"
+        "closeN": "Close {n} windows",
+        "os": "Computer style"
       },
       "wallpaper": {
         "bloom": "Bloom — blue",
         "night": "Bloom — night",
         "glow": "Bloom — glow",
-        "lexgo": "LexGo"
+        "lexgo": "LexGo",
+        "dunes": "Dunes",
+        "waves": "Waves",
+        "aurora": "Aurora",
+        "dusk": "Dusk"
       },
       "win": {
         "minimize": "Minimise",
@@ -11281,6 +11286,108 @@
         "light": "Light",
         "dark": "Dark",
         "system": "System"
+      },
+      "os": {
+        "title": "Which computer style?",
+        "lead": "The desktop will look like the system you pick. You can switch any time.",
+        "close": "Close",
+        "last": "Last used",
+        "win": {
+          "name": "Windows style",
+          "text": "Start menu, taskbar and snapping windows to half the screen"
+        },
+        "mac": {
+          "name": "macOS style",
+          "text": "Menu bar on top, the Dock below, Launchpad and Spotlight search"
+        }
+      },
+      "mac": {
+        "menubar": "Menu bar",
+        "lexgo": "LexGo menu",
+        "finder": "Finder",
+        "menu": {
+          "file": "File",
+          "view": "View",
+          "window": "Window",
+          "help": "Help"
+        },
+        "spotlight": "Spotlight search",
+        "spotlightPh": "An app, folder or section",
+        "dock": "Dock",
+        "launchpad": "Launchpad",
+        "settings": "System Settings",
+        "openWindows": "Open windows",
+        "favourites": "Favourites",
+        "day": {
+          "0": "Sun",
+          "1": "Mon",
+          "2": "Tue",
+          "3": "Wed",
+          "4": "Thu",
+          "5": "Fri",
+          "6": "Sat"
+        },
+        "month": {
+          "0": "Jan",
+          "1": "Feb",
+          "2": "Mar",
+          "3": "Apr",
+          "4": "May",
+          "5": "Jun",
+          "6": "Jul",
+          "7": "Aug",
+          "8": "Sep",
+          "9": "Oct",
+          "10": "Nov",
+          "11": "Dec"
+        }
+      },
+      "app": {
+        "hello": "Hello, {name}",
+        "account": "LexGo account",
+        "locked": "Opens once your account is approved",
+        "weekday": {
+          "0": "Sunday",
+          "1": "Monday",
+          "2": "Tuesday",
+          "3": "Wednesday",
+          "4": "Thursday",
+          "5": "Friday",
+          "6": "Saturday"
+        },
+        "kind": {
+          "home": "Home",
+          "files": "Files & cases",
+          "calendar": "Calendar",
+          "comms": "Messages",
+          "todo": "To do",
+          "people": "Contacts",
+          "store": "Store",
+          "settings": "Settings",
+          "ai": "Assistant"
+        },
+        "tagline": {
+          "home": "Your working day at a glance",
+          "files": "Cases, documents and files in one place",
+          "calendar": "Meetings, deadlines and events",
+          "comms": "Conversations and notifications",
+          "todo": "What needs doing today",
+          "people": "Your clients and the work with them",
+          "store": "Orders, services and the case market",
+          "settings": "Account, plan and profile",
+          "ai": "Ask — the AI will help"
+        },
+        "section": {
+          "home": "Home",
+          "files": "Locations",
+          "calendar": "Calendars",
+          "comms": "Conversations",
+          "todo": "Lists",
+          "people": "Contacts",
+          "store": "Sections",
+          "settings": "Account",
+          "ai": "Assistants"
+        }
       }
     }
   },

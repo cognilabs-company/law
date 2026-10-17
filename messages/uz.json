@@ -11235,13 +11235,18 @@
         "wallpaper": "Fon rasmi",
         "showDesktop": "Ish stolini ko'rsatish",
         "closeAll": "Barcha oynalarni yopish",
-        "closeN": "{n} ta oynani yopish"
+        "closeN": "{n} ta oynani yopish",
+        "os": "Kompyuter uslubi"
       },
       "wallpaper": {
         "bloom": "Gul — ko'k",
         "night": "Gul — tun",
         "glow": "Gul — shafaq",
-        "lexgo": "LexGo"
+        "lexgo": "LexGo",
+        "dunes": "Barxanlar",
+        "waves": "To'lqinlar",
+        "aurora": "Shimol shafog'i",
+        "dusk": "G'ira-shira"
       },
       "win": {
         "minimize": "Yig'ish",
@@ -11287,6 +11292,108 @@
         "light": "Yorug'",
         "dark": "Qorong'i",
         "system": "Tizim bo'yicha"
+      },
+      "os": {
+        "title": "Qaysi kompyuter uslubi?",
+        "lead": "Ish stoli tanlagan tizimingizga o'xshab ko'rinadi. Keyin istalgan payt almashtirish mumkin.",
+        "close": "Yopish",
+        "last": "Oxirgi tanlov",
+        "win": {
+          "name": "Windows uslubi",
+          "text": "Pusk menyusi, vazifalar paneli va oynalarni yarim ekranga yopishtirish"
+        },
+        "mac": {
+          "name": "macOS uslubi",
+          "text": "Yuqorida menyu qatori, pastda Dock, Launchpad va Spotlight qidiruvi"
+        }
+      },
+      "mac": {
+        "menubar": "Menyu qatori",
+        "lexgo": "LexGo menyusi",
+        "finder": "Finder",
+        "menu": {
+          "file": "Fayl",
+          "view": "Ko'rinish",
+          "window": "Oyna",
+          "help": "Yordam"
+        },
+        "spotlight": "Spotlight qidiruvi",
+        "spotlightPh": "Ilova, papka yoki bo'lim nomi",
+        "dock": "Dock",
+        "launchpad": "Launchpad",
+        "settings": "Tizim sozlamalari",
+        "openWindows": "Ochiq oynalar",
+        "favourites": "Sevimlilar",
+        "day": {
+          "0": "Yak",
+          "1": "Dush",
+          "2": "Sesh",
+          "3": "Chor",
+          "4": "Pay",
+          "5": "Jum",
+          "6": "Shan"
+        },
+        "month": {
+          "0": "yan",
+          "1": "fev",
+          "2": "mar",
+          "3": "apr",
+          "4": "may",
+          "5": "iyun",
+          "6": "iyul",
+          "7": "avg",
+          "8": "sen",
+          "9": "okt",
+          "10": "noy",
+          "11": "dek"
+        }
+      },
+      "app": {
+        "hello": "Xayrli kun, {name}",
+        "account": "LexGo hisobi",
+        "locked": "Akkaunt tasdiqlangandan keyin ochiladi",
+        "weekday": {
+          "0": "Yakshanba",
+          "1": "Dushanba",
+          "2": "Seshanba",
+          "3": "Chorshanba",
+          "4": "Payshanba",
+          "5": "Juma",
+          "6": "Shanba"
+        },
+        "kind": {
+          "home": "Bosh ekran",
+          "files": "Fayllar va ishlar",
+          "calendar": "Kalendar",
+          "comms": "Aloqa markazi",
+          "todo": "Vazifalar",
+          "people": "Kontaktlar",
+          "store": "Do'kon",
+          "settings": "Sozlamalar",
+          "ai": "Yordamchi"
+        },
+        "tagline": {
+          "home": "Bugungi ish kuningiz bir qarashda",
+          "files": "Ishlar, hujjatlar va fayllar bir joyda",
+          "calendar": "Uchrashuvlar, muddatlar va voqealar",
+          "comms": "Mijozlar bilan suhbat va xabarlar",
+          "todo": "Bugun nima qilish kerak",
+          "people": "Mijozlaringiz va ular bilan ishlar",
+          "store": "Buyurtmalar, xizmatlar va ishlar bozori",
+          "settings": "Hisob, tarif va profil",
+          "ai": "Savol bering — sun'iy intellekt yordam beradi"
+        },
+        "section": {
+          "home": "Bosh ekran",
+          "files": "Joylar",
+          "calendar": "Kalendarlar",
+          "comms": "Suhbatlar",
+          "todo": "Ro'yxatlar",
+          "people": "Kontaktlar",
+          "store": "Bo'limlar",
+          "settings": "Hisob",
+          "ai": "Yordamchilar"
+        }
       }
     }
   },

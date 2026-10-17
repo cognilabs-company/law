@@ -14,7 +14,9 @@ import SupportMenu from "./SupportMenu";
 import MarketWatcher from "../marketplace/MarketWatcher";
 import GrowthBanner from "./GrowthBanner";
 import GiftNudge from "./GiftNudge";
-import { setDeskMode, useDeskEmbedded, useDeskMode } from "./desk/deskMode";
+import { setDeskMode, useDeskEmbedOs, useDeskEmbedded, useDeskMode, useDeskOs } from "./desk/deskMode";
+import DeskApp from "./desk/DeskApp";
+import OsPicker from "./desk/OsPicker";
 
 // The lawyer's desktop view is its own bundle, loaded only by those who
 // switch to it.
@@ -217,6 +219,9 @@ export default function PortalShell({
   // windows (which tells the desktop where it has gone).
   const deskMode = useDeskMode();
   const embedded = useDeskEmbedded();
+  const embedOs = useDeskEmbedOs();
+  const deskOs = useDeskOs();
+  const [picking, setPicking] = useState(false);
   useEffect(() => {
     if (embedded && window.parent !== window) window.parent.postMessage({ type: "lexgo-desk:path", path: pathname }, window.location.origin);
   }, [embedded, pathname]);
@@ -307,20 +312,29 @@ export default function PortalShell({
   const profileHref = nav.find((n) => n.key === "profile")?.href ?? `/portal/${role}`;
 
   // Inside a desktop window: the page alone, no sidebar, header or assistant.
+  // A lawyer's page is dressed as the program it is (see DeskApp).
   if (embedded) {
     return (
       <div className="portal portal--embed">
-        <div className="pbody">
-          <div className="pbody__in">
-            <CabinetProvider value={cabinet}>{gated}</CabinetProvider>
-          </div>
-        </div>
+        <CabinetProvider value={cabinet}>
+          {role === "lawyer" && active ? (
+            <DeskApp os={embedOs} nav={nav} current={active.key} label={(k) => t(`sidebar.${role}.${k}`)} locked={(k) => isLocked(role, k, limited, actions)} name={session.name}>
+              {gated}
+            </DeskApp>
+          ) : (
+            <div className="pbody">
+              <div className="pbody__in">{gated}</div>
+            </div>
+          )}
+        </CabinetProvider>
       </div>
     );
   }
   if (role === "lawyer" && deskMode === "desktop") {
     return (
       <DesktopShell
+        key={deskOs}
+        os={deskOs}
         role={role}
         apps={nav.map((n) => ({ ...n, label: t(`sidebar.${role}.${n.key}`), locked: isLocked(role, n.key, limited, actions) }))}
         name={session.name}
@@ -333,6 +347,16 @@ export default function PortalShell({
   return (
     <div className={`portal${collapsed ? " psb-collapsed" : ""}${fullscreen ? " portal--full" : ""}`}>
       <MarketWatcher role={role} />
+      {picking ? (
+        <OsPicker
+          current={deskOs}
+          onClose={() => setPicking(false)}
+          onPick={() => {
+            setPicking(false);
+            setDeskMode("desktop");
+          }}
+        />
+      ) : null}
       {/* LEXGO_AI_SYSTEM_ASSISTANT_FRONTEND_BACKEND_2026-09-29.md asks for a
           floating assistant at the bottom right on desktop. That corner is
           the robot's — .robot-edge-zone, and it is hidden below 900px — so
@@ -443,7 +467,7 @@ export default function PortalShell({
             <h1 data-ai-target="ai-help:current-page">{title}</h1>
             <div className="ptop__sp">
               {role === "lawyer" ? (
-                <button type="button" className="ptop__desk" onClick={() => setDeskMode("desktop")} title={t("desk.switchDesktopHint")}>
+                <button type="button" className="ptop__desk" onClick={() => setPicking(true)} title={t("desk.switchDesktopHint")}>
                   <IconMonitor />
                   <span>{t("desk.switchDesktop")}</span>
                 </button>
