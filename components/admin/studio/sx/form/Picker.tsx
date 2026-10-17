@@ -666,7 +666,7 @@ function PickerPop({
     const off = isOff(o);
     const on = selected.has(o.value);
     const why = typeof o.disabled === "string" ? o.disabled : "";
-    const desc = why || o.description;
+    const desc = [o.description, why].filter(Boolean).join(" · ");
     const code = codeTag(o);
     return (
       <li

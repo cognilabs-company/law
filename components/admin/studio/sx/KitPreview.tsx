@@ -4,7 +4,7 @@ import "./sx-core.css";
 import "./sx-form.css";
 import "./sx-layout.css";
 import "./sx-kit.css";
-import { useEffect, useId, useMemo, useState, useSyncExternalStore, type ReactElement, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useId, useMemo, useState, useSyncExternalStore, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import IconButton from "@/components/ui/IconButton";
 import Menu, { type MenuEntry } from "@/components/ui/Menu";
@@ -13,6 +13,7 @@ import { matchesSearch } from "@/lib/searchText";
 import { setThemePref } from "@/lib/theme";
 import { notify } from "@/lib/toast";
 import { SxButton, SxLinkButton, type SxButtonVariant } from "./Button";
+import * as iconSet from "./icons";
 import {
   ArchiveIcon,
   ArrowCounterClockwiseIcon,
@@ -20,10 +21,12 @@ import {
   ArrowSquareOutIcon,
   ArrowsClockwiseIcon,
   BriefcaseIcon,
+  CheckCircleIcon,
   CopyIcon,
   CrownIcon,
   EyeIcon,
   FloppyDiskIcon,
+  GROUP_ICON,
   InfoIcon,
   MagnifyingGlassIcon,
   PackageIcon,
@@ -32,7 +35,6 @@ import {
   PLACEMENT_ICON,
   PlusIcon,
   SquaresFourIcon,
-  UserGearIcon,
   WarningCircleIcon,
   XIcon,
   ctorGlyph,
@@ -43,11 +45,12 @@ import {
 import { StatusPill } from "./StatusPill";
 import { StatusRail } from "./StatusRail";
 import { sxStatus } from "./status";
-import type { SxIcon, SxOption, SxRecordSource, SxRule } from "./types";
+import type { SxErrors, SxIcon, SxOption, SxRecordSource, SxRule } from "./types";
 import { useStudioLabels } from "./useStudioLabels";
 import { ChoiceCards, type ChoiceCard } from "./form/ChoiceCards";
 import { DateField } from "./form/DateField";
 import { Field, FormGrid } from "./form/Field";
+import { useSxFormPolicy } from "./form/formPolicy";
 import { KeyValue } from "./form/KeyValue";
 import { MoneyInput } from "./form/MoneyInput";
 import { NumberInput } from "./form/NumberInput";
@@ -56,6 +59,7 @@ import { Repeater } from "./form/Repeater";
 import { Switch } from "./form/Switch";
 import { TextArea, TextCount } from "./form/TextArea";
 import { TextInput } from "./form/TextInput";
+import { useReferenceOptions } from "./form/useReferenceOptions";
 import { SxDrawer } from "./layout/Drawer";
 import { SxEmpty } from "./layout/Empty";
 import { SxGuide, SxGuideButton } from "./layout/Guide";
@@ -106,13 +110,35 @@ const CTOR_GROUPS: readonly (readonly [string, readonly string[]])[] = [
   ["finance_tariffs", ["K17", "K04", "K18", "K25"]],
   ["advertising", ["MP04", "K12-PROMO", "MP09"]],
 ];
-const ROLE_CODES = ["advokat", "yurist", "moderator", "content_manager", "finance", "sales_head", "quality_control", "call_center_lawyer"] as const;
+const ALL_GROUPS: readonly (readonly [string, readonly string[]])[] = [
+  ["services_packages", ["K01", "K34", "K31", "K32", "K33", "K02", "K29", "K03-M", "K30"]],
+  ["documents_texts", ["K07", "K06", "K05", "K26", "K11"]],
+  ["process_quality", ["K08", "K10", "K09", "K13", "K12-M", "MP05"]],
+  ["communications", ["K27", "K14", "CALL01", "K22", "MP08"]],
+  ["finance_tariffs", ["K17", "K04", "K18", "K25", "MP02", "MP03", "MP07"]],
+  ["security_access", ["SEC01", "SEC02", "SEC03", "SEC04", "SEC05", "K20", "K21", "MP06"]],
+  ["operations", ["OPS01", "OPS02", "OPS03", "OPS04", "OPS05", "OPS06", "ORG01", "K23", "K24", "MP01", "MP10", "K28", "K19"]],
+  ["integrations", ["INT01", "INT02", "INT03"]],
+  ["system_reference", ["CORE", "K16", "OPS07", "OPS08", "SEARCH01", "M1", "M2", "M3"]],
+  ["advertising", ["MP04", "K12-PROMO", "MP09"]],
+];
+const ICONS: readonly (readonly [string, SxIcon])[] = Object.entries(iconSet)
+  .filter((e): e is [string, SxIcon] => /^[A-Z][A-Za-z]+Icon$/.test(e[0]) && e[1] !== null && (typeof e[1] === "object" || typeof e[1] === "function"))
+  .sort((a, b) => a[0].localeCompare(b[0]));
 const PLAN_SLUGS = ["lexgo-ai-lite", "lexgo-ai-pro", "biznes-abonent-basic", "shaxsiy-advokat-standard"] as const;
+const TABLE_VIEWS = ["data", "loading", "empty", "error"] as const;
+const TABLE_VIEW_KEY: Readonly<Record<TableView, string>> = {
+  data: "sx.layout.lab.stateData",
+  loading: "sx.layout.lab.stateLoading",
+  empty: "sx.layout.lab.stateEmpty",
+  error: "sx.layout.lab.stateError",
+};
 const GUIDES = [PROMO, PACKAGE] as const;
 
 type View = "page" | "record";
 type Theme = "light" | "dark";
 type KitState = "empty" | "filled" | "focus" | "error" | "disabled" | "readOnly";
+type TableView = (typeof TABLE_VIEWS)[number];
 
 const STATES: readonly KitState[] = ["empty", "filled", "focus", "error", "disabled", "readOnly"];
 const STATE_KEY: Readonly<Record<KitState, string>> = {
@@ -682,10 +708,13 @@ function PickersPanel() {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const uid = useKitId();
+  const liveRoles = useReferenceOptions("roles");
+  const liveMissing = useReferenceOptions("sx-kit-missing");
   const [ctor, setCtor] = useState<string>(PROMO);
   const [roles, setRoles] = useState<string[]>(["advokat", "yurist"]);
   const [service, setService] = useState("srv-02");
   const [category, setCategory] = useState("");
+  const [missing, setMissing] = useState("");
   const [startsAt, setStartsAt] = useState("2026-10-20T09:00:00+05:00");
   const ctorLabel = labels.field("constructor_code");
   const rolesLabel = labels.field("roles");
@@ -696,7 +725,6 @@ function PickersPanel() {
   const ctorOptions: SxOption[] = CTOR_GROUPS.flatMap(([group, codes]) =>
     codes.map((code) => ({ value: code, label: labels.ctorName(code), code, icon: ctorIcon(code, group), group: labels.groupName(group) })),
   );
-  const roleOptions: SxOption[] = ROLE_CODES.map((code) => ({ value: code, label: labels.role(code), icon: UserGearIcon }));
   const planOptions: SxOption[] = PLAN_SLUGS.map((slug) => ({ value: slug, label: labels.plan(slug), icon: CrownIcon }));
   const loaders = useMemo(() => {
     const toOption = (s: Service): SxOption => ({ value: s.id, label: s.name, description: `${s.category} · ${labels.money(s.price)}`, icon: BriefcaseIcon });
@@ -716,8 +744,21 @@ function PickersPanel() {
         <Field id={`${uid}-ctor`} span={1} label={ctorLabel} labelAside={aside("sx.kit.pick.single")}>
           {(a) => <Picker {...a} label={ctorLabel} options={ctorOptions} value={ctor} onChange={setCtor} aiId={aiId(AI, "pick", "single")} />}
         </Field>
-        <Field id={`${uid}-roles`} span={1} label={rolesLabel} labelAside={aside("sx.kit.pick.multi")}>
-          {(a) => <Picker {...a} multiple max={4} label={rolesLabel} options={roleOptions} value={roles} onChange={setRoles} aiId={aiId(AI, "pick", "multi")} />}
+        <Field id={`${uid}-roles`} span={1} label={rolesLabel} labelAside={aside("sx.kit.pick.live")}>
+          {(a) => (
+            <Picker
+              {...a}
+              multiple
+              max={4}
+              label={rolesLabel}
+              loadOptions={liveRoles.loadOptions}
+              resolveOptions={liveRoles.resolveOptions}
+              leadingIcon={liveRoles.leadingIcon}
+              value={roles}
+              onChange={setRoles}
+              aiId={aiId(AI, "pick", "multi")}
+            />
+          )}
         </Field>
         <Field id={`${uid}-service`} span={1} label={serviceLabel} labelAside={aside("sx.kit.pick.async")}>
           {(a) => (
@@ -736,11 +777,37 @@ function PickersPanel() {
         <Field id={`${uid}-category`} span={1} label={categoryLabel} labelAside={aside("sx.kit.pick.fail")}>
           {(a) => <Picker {...a} label={categoryLabel} loadOptions={loaders.fail} value={category} onChange={setCategory} aiId={aiId(AI, "pick", "fail")} />}
         </Field>
+        <Field id={`${uid}-missing`} span={1} label={t("sx.form.lab.broken")} labelAside={aside("sx.kit.pick.live")}>
+          {(a) => (
+            <Picker
+              {...a}
+              label={t("sx.form.lab.broken")}
+              loadOptions={liveMissing.loadOptions}
+              resolveOptions={liveMissing.resolveOptions}
+              leadingIcon={liveMissing.leadingIcon}
+              value={missing}
+              onChange={setMissing}
+              aiId={aiId(AI, "pick", "missing")}
+            />
+          )}
+        </Field>
         <Field id={`${uid}-starts`} span={1} label={startsLabel}>
           {(a) => <DateField {...a} withTime label={startsLabel} value={startsAt} onChange={(v) => setStartsAt(v ?? "")} aiId={aiId(AI, "pick", "starts")} />}
         </Field>
         <Field id={`${uid}-plans`} span={1} label={plansLabel} labelAside={aside("sx.form.readOnly")}>
           {(a) => <Picker {...a} multiple readOnly label={plansLabel} options={planOptions} value={PLAN_SLUGS} onChange={() => undefined} />}
+        </Field>
+        <Field id={`${uid}-target`} span={1} label={labels.field("target_type", { ctor: "K29" })} labelAside={aside("sx.kit.state.disabled")}>
+          {(a) => (
+            <Picker
+              {...a}
+              disabled
+              label={labels.field("target_type", { ctor: "K29" })}
+              options={[{ value: "service", label: labels.option("service", { ctor: "K29", field: "target_type" }) }]}
+              value="service"
+              onChange={() => undefined}
+            />
+          )}
         </Field>
       </FormGrid>
     </SxPanel>
@@ -852,9 +919,14 @@ function CardsPanel() {
   const label = labels.field("placement", { ctor: PROMO });
   return (
     <SxPanel id="kit-cards" title={t("sx.kit.cards")} aiId={aiId(AI, "cards")}>
-      <Field as="fieldset" id={`${uid}-place`} label={label} required>
-        {(a) => <ChoiceCards {...a} value={placement} onChange={setPlacement} options={cards} aiId={aiId(AI, "placement")} />}
-      </Field>
+      <div className="sx-kit-block">
+        <Field as="fieldset" id={`${uid}-place`} label={label} required>
+          {(a) => <ChoiceCards {...a} value={placement} onChange={setPlacement} options={cards} aiId={aiId(AI, "placement")} />}
+        </Field>
+        <Field as="fieldset" id={`${uid}-place-ro`} label={label} labelAside={<span className="sx-kit-cap">{t("sx.form.readOnly")}</span>}>
+          {(a) => <ChoiceCards {...a} readOnly value="banner" onChange={() => undefined} options={cards} />}
+        </Field>
+      </div>
     </SxPanel>
   );
 }
@@ -868,14 +940,16 @@ function PackagesPanel() {
   const [place, setPlace] = useState("");
   const [page, setPage] = useState(0);
   const [openId, setOpenId] = useState("");
+  const [view, setView] = useState<TableView>("data");
+  const [busy, pulse] = useBusyPulse();
   const noWrites = t("sx.kit.noWrites");
   const field = (key: string) => labels.field(key, { ctor: PROMO });
   const all: PkgRow[] = PACKAGES.map((p) => ({ ...p, name: labels.promoPackage(p.code, p.title) }));
   const filtered = all.filter((r) => (!place || r.placement === place) && matchesSearch(`${r.name} ${r.code}`, query));
-  const total = filtered.length;
+  const total = view === "data" ? filtered.length : 0;
   const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
   const current = Math.min(page, lastPage);
-  const rows = filtered.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE);
+  const rows = view === "data" ? filtered.slice(current * PAGE_SIZE, current * PAGE_SIZE + PAGE_SIZE) : [];
   const opened = all.find((r) => r.id === openId) ?? null;
   const reset = () => {
     setQuery("");
@@ -901,7 +975,24 @@ function PackagesPanel() {
     { key: "archive", label: t("sx.ui.archive"), icon: ArchiveIcon, danger: true, disabled: () => noWrites, hidden: (r) => r.status === "archived" },
   ];
   return (
-    <SxPanel id="kit-table" flush title={labels.ctorName(PROMO)} aiId={aiId(AI, "table")}>
+    <SxPanel
+      id="kit-table"
+      flush
+      title={labels.ctorName(PROMO)}
+      actions={
+        <Seg
+          label={t("sx.layout.lab.state")}
+          value={view}
+          options={TABLE_VIEWS.map((v) => ({ value: v, label: t(TABLE_VIEW_KEY[v]) }))}
+          onChange={(v) => {
+            setView(v);
+            setPage(0);
+          }}
+          ai={aiId(AI, "table", "state")}
+        />
+      }
+      aiId={aiId(AI, "table")}
+    >
       <div className="sx-kit-tablebar">
         <SxToolbar
           aiId={aiId(AI, "toolbar")}
@@ -914,7 +1005,7 @@ function PackagesPanel() {
             placeholder: t("sx.kit.searchPh"),
             label: t("sx.kit.search"),
           }}
-          count={t("sx.layout.results", { n: total })}
+          count={view === "data" ? t("sx.layout.results", { n: total }) : undefined}
           active={!!query || !!place}
           onReset={reset}
         >
@@ -942,17 +1033,45 @@ function PackagesPanel() {
         onRowClick={(r) => setOpenId(r.id)}
         rowActions={actions}
         groupBy={(r) => ({ key: r.placement, title: labels.placement(r.placement) })}
+        loading={view === "loading"}
+        error={
+          view === "error" ? (
+            <SxEmpty
+              tone="error"
+              icon={WarningCircleIcon}
+              title={t("sx.ui.loadFail")}
+              action={
+                <SxButton size="sm" icon={ArrowsClockwiseIcon} busy={busy} onClick={pulse} aiId={aiId(AI, "table", "retry")}>
+                  {t("sx.ui.retry")}
+                </SxButton>
+              }
+            />
+          ) : undefined
+        }
         empty={
-          <SxEmpty
-            compact
-            icon={MagnifyingGlassIcon}
-            title={t("sx.table.noMatch")}
-            action={
-              <SxButton variant="ghost" size="sm" icon={ArrowCounterClockwiseIcon} onClick={reset} aiId={aiId(AI, "table", "reset")}>
-                {t("sx.table.reset")}
-              </SxButton>
-            }
-          />
+          view === "empty" ? (
+            <SxEmpty
+              icon={PackageIcon}
+              title={t("sx.kit.emptyTitle")}
+              text={t("sx.kit.emptyText")}
+              action={
+                <SxButton variant="primary" size="sm" icon={PlusIcon} onClick={() => notify.info(noWrites)} aiId={aiId(AI, "table", "create")}>
+                  {t("sx.kit.create")}
+                </SxButton>
+              }
+            />
+          ) : (
+            <SxEmpty
+              compact
+              icon={MagnifyingGlassIcon}
+              title={t("sx.table.noMatch")}
+              action={
+                <SxButton variant="ghost" size="sm" icon={ArrowCounterClockwiseIcon} onClick={reset} aiId={aiId(AI, "table", "reset")}>
+                  {t("sx.table.reset")}
+                </SxButton>
+              }
+            />
+          )
         }
         footer={
           total > PAGE_SIZE ? (
@@ -1121,6 +1240,230 @@ function GuidePanel({ onOpen }: { onOpen: () => void }) {
   );
 }
 
+function CtorsPanel() {
+  const t = useTranslations("studio");
+  const labels = useStudioLabels();
+  const uid = useKitId();
+  return (
+    <SxPanel id="kit-ctors" title={t("sx.core.lab.ctors")} aiId={aiId(AI, "ctors")}>
+      <div className="sx-kit-groups">
+        {ALL_GROUPS.map(([group, codes]) => (
+          <section key={group} className="sx-kit-group" aria-labelledby={`${uid}-${group}`}>
+            <h3 id={`${uid}-${group}`} className="sx-kit-group__name">
+              {glyph(GROUP_ICON[group], { size: 18 })}
+              <span>{labels.groupName(group)}</span>
+            </h3>
+            <ul className="sx-kit-ctors">
+              {codes.map((code) => {
+                const name = labels.ctorName(code);
+                return (
+                  <li key={code} className="sx-kit-ctor">
+                    {ctorGlyph(code, group)}
+                    <span className="sx-kit-ctor__name">{name}</span>
+                    {name !== code ? <code className="sx-code">{code}</code> : null}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ))}
+      </div>
+    </SxPanel>
+  );
+}
+
+function IconsPanel() {
+  const t = useTranslations("studio");
+  return (
+    <SxPanel id="kit-icons" title={t("sx.core.lab.icons")} lead={t("sx.core.lab.iconsLead")} aiId={aiId(AI, "icons")}>
+      <ul className="sx-kit-icons">
+        {ICONS.map(([name, icon]) => (
+          <li key={name} className="sx-kit-icon">
+            {glyph(icon, { size: 20 })}
+            <code>{name.replace(/Icon$/, "")}</code>
+          </li>
+        ))}
+      </ul>
+    </SxPanel>
+  );
+}
+
+function LabelsPanel() {
+  const t = useTranslations("studio");
+  const labels = useStudioLabels();
+  const kv = labels.splitCodeLabel("K01 - Kategoriya");
+  const rows: readonly (readonly [string, string])[] = [
+    ["K12-PROMO - Marketplace reklama paketlari", labels.ctorName("K12-PROMO", "K12-PROMO - Marketplace reklama paketlari")],
+    ["K99 - Webhook registry", labels.ctorName("K99", "K99 - Webhook registry")],
+    ["K01 - Kategoriya", `${kv.name} · ${kv.code}`],
+    ["REAL | K12-PROMO | Marketplace reklama paketlari", labels.splitCodeLabel("REAL | K12-PROMO | Marketplace reklama paketlari").name],
+    ["call_center_lawyer · Call Center Lawyer", labels.role("call_center_lawyer", "Call Center Lawyer")],
+    ["biznes-abonent-basic · Бизнес абонент — Basic", labels.plan("biznes-abonent-basic", "Бизнес абонент — Basic")],
+    ["kind · choose_one", labels.option("choose_one", { field: "kind" })],
+    ["placement · service_boost", labels.placement("service_boost")],
+    ["published", labels.status("published")],
+    ["published · pill", labels.statusPill("published")],
+    ["changes_requested", labels.status("changes_requested")],
+    ["399000 UZS", labels.money(399000, "UZS")],
+    ["14", labels.days(14)],
+    ["@code:minimum:1", labels.error("@code:minimum:1", { type: "number" })],
+    ["Advokat, Yurist, Mijoz, Moderator", labels.list(["Advokat", "Yurist", "Mijoz", "Moderator"], 2)],
+  ];
+  return (
+    <SxPanel id="kit-labels" title={t("sx.core.lab.labels")} aiId={aiId(AI, "labels")}>
+      <div className="sx-kit-scroll" tabIndex={0} role="region" aria-label={t("sx.core.lab.labels")}>
+        <table className="sx-kit-table">
+          <thead>
+            <tr>
+              <th scope="col">{t("sx.core.lab.fromServer")}</th>
+              <th scope="col">{t("sx.core.lab.onScreen")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([from, shown]) => (
+              <tr key={from}>
+                <td>
+                  <code className="sx-code">{from}</code>
+                </td>
+                <td>{shown}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </SxPanel>
+  );
+}
+
+function PolicyPanel() {
+  const t = useTranslations("studio");
+  const labels = useStudioLabels();
+  const policy = useSxFormPolicy();
+  const uid = useKitId();
+  const [title, setTitle] = useState("");
+  const [placement, setPlacement] = useState("");
+  const [days, setDays] = useState<number | undefined>(7);
+  const [daysBad, setDaysBad] = useState(false);
+  const [price, setPrice] = useState<number | undefined>(undefined);
+  const scope = { ctor: PROMO };
+  const rules: Readonly<Record<string, SxRule>> = {
+    title: { type: "text", key: "title", ctor: PROMO },
+    placement: { type: "select", key: "placement", ctor: PROMO, source: "promotion-placements" },
+    days: DAYS_RULE,
+    price: { type: "money", key: "price", ctor: PROMO, min: 0 },
+  };
+  const raw: Record<string, string> = {};
+  if (!title.trim()) raw.title = "@required";
+  if (!placement) raw.placement = "@required";
+  if (daysBad) raw.days = "@number";
+  else if (days === undefined) raw.days = "@required";
+  else if (days < 1) raw.days = "@min";
+  else if (days > 90) raw.days = "@max";
+  if (price === undefined) raw.price = "@required";
+  const errors: SxErrors = raw;
+  const err = (path: string): string => {
+    const token = policy.visible(path, errors);
+    return token ? labels.error(token, rules[path]) : "";
+  };
+  const reset = () => {
+    policy.reset();
+    setTitle("");
+    setPlacement("");
+    setDays(7);
+    setDaysBad(false);
+    setPrice(undefined);
+  };
+  return (
+    <SxPanel
+      id="kit-policy"
+      title={t("sx.form.lab.fields")}
+      lead={t("sx.form.lab.note")}
+      actions={
+        <>
+          <SxButton size="sm" variant="ghost" icon={ArrowCounterClockwiseIcon} onClick={reset} aiId={aiId(AI, "policy", "reset")}>
+            {t("sx.form.lab.reset")}
+          </SxButton>
+          <SxButton size="sm" icon={CheckCircleIcon} onClick={policy.markSubmitted} aiId={aiId(AI, "policy", "check")}>
+            {t("sx.form.lab.check")}
+          </SxButton>
+        </>
+      }
+      aiId={aiId(AI, "policy")}
+    >
+      <FormGrid>
+        <Field id={`${uid}-title`} span={1} label={labels.field("title", scope)} required error={err("title")}>
+          {(a) => (
+            <TextInput
+              {...a}
+              value={title}
+              onChange={setTitle}
+              onBlur={() => policy.touch("title")}
+              placeholder={labels.placeholder("title", scope)}
+              aiId={aiId(AI, "policy", "title")}
+              aiLabel={labels.field("title", scope)}
+            />
+          )}
+        </Field>
+        <Field id={`${uid}-placement`} span={1} label={labels.field("placement", scope)} required error={err("placement")}>
+          {(a) => (
+            <Picker
+              {...a}
+              label={labels.field("placement", scope)}
+              options={placementOptions(labels)}
+              value={placement}
+              onChange={setPlacement}
+              onBlur={() => policy.touch("placement")}
+              aiId={aiId(AI, "policy", "placement")}
+            />
+          )}
+        </Field>
+        <Field id={`${uid}-days`} span={1} label={labels.field("days", scope)} hint={labels.hint(DAYS_RULE)} required error={err("days")}>
+          {(a) => (
+            <NumberInput
+              {...a}
+              value={days}
+              onChange={setDays}
+              onDraftInvalid={setDaysBad}
+              onBlur={() => policy.touch("days")}
+              min={1}
+              max={90}
+              aiId={aiId(AI, "policy", "days")}
+              aiLabel={labels.field("days", scope)}
+            />
+          )}
+        </Field>
+        <Field id={`${uid}-price`} span={1} label={labels.field("price", scope)} required error={err("price")}>
+          {(a) => (
+            <MoneyInput
+              {...a}
+              value={price}
+              onChange={setPrice}
+              onBlur={() => policy.touch("price")}
+              aiId={aiId(AI, "policy", "price")}
+              aiLabel={labels.field("price", scope)}
+            />
+          )}
+        </Field>
+      </FormGrid>
+    </SxPanel>
+  );
+}
+
+const Pills = memo(PillsPanel);
+const Buttons = memo(ButtonsPanel);
+const Controls = memo(ControlsPanel);
+const Policy = memo(PolicyPanel);
+const Pickers = memo(PickersPanel);
+const Rows = memo(RowsPanel);
+const Cards = memo(CardsPanel);
+const Packages = memo(PackagesPanel);
+const Empties = memo(EmptiesPanel);
+const Notes = memo(NotesPanel);
+const Guides = memo(GuidePanel);
+const Ctors = memo(CtorsPanel);
+const Icons = memo(IconsPanel);
+const Labels = memo(LabelsPanel);
+
 export function KitPreview(): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
@@ -1129,6 +1472,7 @@ export function KitPreview(): ReactElement {
   const [view, setView] = useState<View>("page");
   const [status, setStatus] = useState<string>("draft");
   const [guide, setGuide] = useState(false);
+  const openGuide = useCallback(() => setGuide(true), []);
   const saveWhyId = useKitId();
   const record = view === "record";
   const noWrites = t("sx.kit.noWrites");
@@ -1211,6 +1555,7 @@ export function KitPreview(): ReactElement {
     { id: "kit-pills", label: t("sx.kit.pills"), state: "done" },
     { id: "kit-buttons", label: t("sx.kit.buttons"), state: "done" },
     { id: "kit-controls", label: t("sx.kit.controls"), state: "error", errors: 7 },
+    { id: "kit-policy", label: t("sx.form.lab.fields") },
     { id: "kit-pickers", label: t("sx.kit.pickers") },
     { id: "kit-rows", label: t("sx.kit.rows"), state: "error", errors: 1 },
     { id: "kit-cards", label: t("sx.kit.cards"), state: "done" },
@@ -1218,6 +1563,9 @@ export function KitPreview(): ReactElement {
     { id: "kit-empty", label: t("sx.kit.empties") },
     { id: "kit-notes", label: t("sx.kit.notes") },
     { id: "kit-guide", label: t("sx.kit.guide") },
+    { id: "kit-ctors", label: t("sx.core.lab.ctors") },
+    { id: "kit-icons", label: t("sx.core.lab.icons") },
+    { id: "kit-labels", label: t("sx.core.lab.labels") },
   ];
 
   return (
@@ -1225,7 +1573,7 @@ export function KitPreview(): ReactElement {
       title={record ? labels.promoPackage("profile-starter-7") : t("sx.kit.title")}
       layout={view}
       section="home"
-      need="any"
+      need="admin"
       crumbs={
         record
           ? [
@@ -1253,16 +1601,20 @@ export function KitPreview(): ReactElement {
         <div className="sx-kit-main">
           <SxStatStrip label={t("sx.kit.stats")} items={stats} />
           <RailPanel status={status} onStatus={setStatus} celebrate={!record} />
-          <PillsPanel />
-          <ButtonsPanel />
-          <ControlsPanel />
-          <PickersPanel />
-          <RowsPanel />
-          <CardsPanel />
-          <PackagesPanel />
-          <EmptiesPanel />
-          <NotesPanel />
-          <GuidePanel onOpen={() => setGuide(true)} />
+          <Pills />
+          <Buttons />
+          <Controls />
+          <Policy />
+          <Pickers />
+          <Rows />
+          <Cards />
+          <Packages />
+          <Empties />
+          <Notes />
+          <Guides onOpen={openGuide} />
+          <Ctors />
+          <Icons />
+          <Labels />
         </div>
       </div>
       <SxGuide code={PROMO} open={guide} onClose={() => setGuide(false)} />

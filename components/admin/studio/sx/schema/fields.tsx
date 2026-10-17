@@ -1,0 +1,774 @@
+"use client";
+
+import "../sx-core.css";
+import "../sx-form.css";
+import "../sx-layout.css";
+import "./sx-schema.css";
+import { createContext, memo, useContext, useEffect, useState, type ReactElement, type ReactNode } from "react";
+import { aiId, aiSeg } from "@/lib/ai/ids";
+import type { StudioSchemaField } from "@/lib/services/studio";
+import { emptyItem, fieldVisible, normPath } from "@/lib/studioSchema";
+import { ChoiceCards, type ChoiceCard } from "../form/ChoiceCards";
+import { DateField } from "../form/DateField";
+import { Field, FormGrid } from "../form/Field";
+import type { SxFormPolicy } from "../form/formPolicy";
+import { KeyValue } from "../form/KeyValue";
+import { splitDateValue, zonedIso } from "../form/logic";
+import { MoneyInput } from "../form/MoneyInput";
+import { NumberInput } from "../form/NumberInput";
+import { Picker } from "../form/Picker";
+import { Repeater } from "../form/Repeater";
+import { Switch } from "../form/Switch";
+import { TextArea } from "../form/TextArea";
+import { TextInput } from "../form/TextInput";
+import { firstReferencePage } from "../form/useReferenceOptions";
+import { WarningIcon, glyph } from "../icons";
+import { SxSectionHeader } from "../layout/Panel";
+import type { SchemaFieldModel, SchemaModel, SxControlKind, SxEditMode, SxLayoutCtx, SxLayoutField, SxValues, SxWarning } from "../contract";
+import type { SxControlA11y, SxErrors, SxOption, SxRule } from "../types";
+import type { StudioLabels } from "../useStudioLabels";
+import { useStudioLabels } from "../useStudioLabels";
+import { useCategoryTitle } from "./categoryOptions";
+import { DiscoveryTerms } from "./DiscoveryTerms";
+import { RefPicker } from "./RefPicker";
+import { RichText, RichTextView } from "./RichText";
+import {
+  controlFor,
+  dyn,
+  effectiveSource,
+  fieldLabelOf,
+  getAt,
+  layoutCtx,
+  layoutFieldFor,
+  optionTextOf,
+  rowSummaryText,
+  spanFor,
+  type SchemaTr,
+} from "./model";
+
+type Dict = Record<string, unknown>;
+
+export type SfEnv = {
+  model: SchemaModel;
+  root: SxValues;
+  errors: SxErrors;
+  warnings: readonly SxWarning[];
+  readOnly: boolean;
+  mode: SxEditMode;
+  recordId: string;
+  emit: (path: string, value: unknown, clears?: readonly string[]) => void;
+  onDraftError?: (path: string, invalid: boolean) => void;
+  policy: SxFormPolicy;
+  labels: StudioLabels;
+  t: SchemaTr;
+};
+
+export const SfContext = createContext<SfEnv | null>(null);
+
+function useEnv(): SfEnv {
+  const env = useContext(SfContext);
+  if (!env) throw new Error("SchemaField outside SchemaForm");
+  return env;
+}
+
+const isDict = (v: unknown): v is Dict => !!v && typeof v === "object" && !Array.isArray(v);
+const str = (v: unknown): string => (typeof v === "string" ? v : typeof v === "number" || typeof v === "boolean" ? String(v) : "");
+const num = (v: unknown): number | undefined => (typeof v === "number" && Number.isFinite(v) ? v : undefined);
+const strList = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => str(x)).filter(Boolean) : typeof v === "string" && v ? [v] : []);
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+export const DEFAULT_TIME = "09:00";
+
+export function withDefaultTime(prev: string, next: string | undefined): string | undefined {
+  if (!next || str(prev).trim() || DAY.test(next)) return next;
+  const parts = splitDateValue(next, true);
+  return parts.date && parts.time === "00:00" ? zonedIso(parts.date, DEFAULT_TIME) : next;
+}
+
+function childNodes(model: SchemaModel, parent: StudioSchemaField, pattern: string): SchemaFieldModel[] {
+  const props = parent.type === "list" ? (parent.item?.properties ?? []) : parent.properties;
+  const req = new Set(parent.type === "list" ? (parent.item?.requiredFields ?? []) : parent.requiredFields);
+  const base = parent.type === "list" ? `${pattern}.*` : pattern;
+  const out: SchemaFieldModel[] = [];
+  for (const p of props) {
+    if (p.hidden) continue;
+    const pat = `${base}.${p.key}`;
+    const lf = layoutFieldFor(model, pat);
+    if (lf?.hidden) continue;
+    out.push({ pattern: pat, key: p.key, field: p, layout: lf, required: p.required || req.has(p.key) });
+  }
+  return out;
+}
+
+function ruleOf(model: SchemaModel, node: SchemaFieldModel, path: string, source: string): SxRule {
+  const f = node.field;
+  const vt = node.layout?.virtual?.type;
+  return {
+    type: f?.type ?? (vt === "boolean" ? "boolean" : vt ?? "text"),
+    key: node.key,
+    ctor: model.code,
+    path,
+    min: f?.min ?? null,
+    max: f?.max ?? null,
+    minItems: f?.minItems ?? 0,
+    source,
+    options: f?.optionLabels,
+  };
+}
+
+function warningsAt(list: readonly SxWarning[], path: string, pattern: string): SxWarning[] {
+  return list.filter((w) => {
+    if (!w.path) return false;
+    if (w.path.includes("*")) return w.path === pattern;
+    return normPath(w.path) === path;
+  });
+}
+
+function optionsFor(lf: SxLayoutField | null, f: StudioSchemaField | null): string[] {
+  if (lf?.options?.length) return [...lf.options];
+  if (lf?.virtual?.options?.length) return [...lf.virtual.options];
+  if (f?.options.length) return [...f.options];
+  if (f?.item?.options.length) return [...f.item.options];
+  return [];
+}
+
+function useRefLabels(sources: readonly string[]): (source: string, value: string) => string {
+  const labels = useStudioLabels();
+  const key = [...new Set(sources.filter(Boolean))].sort().join("\n");
+  const [maps, setMaps] = useState<Readonly<Record<string, Readonly<Record<string, string>>>>>({});
+  useEffect(() => {
+    if (!key) return;
+    let live = true;
+    for (const s of key.split("\n")) {
+      firstReferencePage(s).then(
+        (rows) => {
+          if (!live) return;
+          const map: Record<string, string> = {};
+          for (const r of rows) map[r.value] = labels.refOption(s, r).label;
+          setMaps((m) => ({ ...m, [s]: map }));
+        },
+        () => {},
+      );
+    }
+    return () => {
+      live = false;
+    };
+  }, [key, labels]);
+  return (source, value) => maps[source]?.[value] ?? "";
+}
+
+function RefNames({ source, values }: { source: string; values: readonly string[] }): ReactElement {
+  const labels = useStudioLabels();
+  const name = useRefLabels([source]);
+  return <>{labels.list(values.map((v) => name(source, v) || labels.unknownRef(v)), values.length)}</>;
+}
+
+function WarnLine({ id, list }: { id: string; list: readonly SxWarning[] }): ReactElement | null {
+  const { t } = useEnv();
+  if (!list.length) return null;
+  return (
+    <div className="sx-sf__warns" id={id}>
+      {list.map((w) => (
+        <p key={w.key} className="sx-sf__warn" data-tone={w.tone}>
+          {glyph(WarningIcon, { size: 14 })}
+          <span>{t(w.key, w.values ? { ...w.values } : undefined)}</span>
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function TagsField({ id, a11y, value, label, readOnly, ai, suggest, onChange, onBlur }: { id: string; a11y: SxControlA11y; value: string[]; label: string; readOnly: boolean; ai: string; suggest: { title: string; description: string; parentId: string } | null; onChange: (v: string[]) => void; onBlur: () => void }): ReactElement {
+  const parentTitle = useCategoryTitle(suggest?.parentId ?? "");
+  return (
+    <DiscoveryTerms
+      id={id}
+      value={value}
+      onChange={onChange}
+      label={label}
+      readOnly={readOnly}
+      a11y={a11y}
+      aiId={ai}
+      suggest={suggest ? { title: suggest.title, description: suggest.description, parentTitle } : null}
+      onBlur={onBlur}
+    />
+  );
+}
+
+function RowsField({ node, path, ai, id, label, ro, f }: { node: SchemaFieldModel; path: string; ai: string; id: string; label: string; ro: boolean; f: StudioSchemaField }): ReactElement {
+  const env = useEnv();
+  const { model, root, labels, t, policy, errors, emit } = env;
+  const items = Array.isArray(getAt(root, path)) ? (getAt(root, path) as unknown[]) : [];
+  const lf = node.layout;
+  const inline = f.item?.type !== "object";
+  const props = f.item?.properties ?? [];
+  const sources = inline ? [] : props.map((p) => effectiveSource(model.code, { pattern: `${node.pattern}.*.${p.key}`, field: p }, {}));
+  const refName = useRefLabels(sources);
+  const scopeSource = (pattern: string, p: StudioSchemaField) => effectiveSource(model.code, { pattern, field: p }, {});
+  const children = inline ? [] : childNodes(model, f, node.pattern);
+  const summary = (item: unknown, i: number): string =>
+    lf?.summary && isDict(item) ? lf.summary(item, i, labels) || t("sx.rep.item", { n: i + 1 }) : rowSummaryText(item, i, { field: f, code: model.code, labels, t, refName, scopeSource, pattern: node.pattern });
+  const meta = lf?.meta ? (item: unknown, i: number) => (isDict(item) ? lf.meta?.(item, i, labels) : "") : undefined;
+  const itemType = f.item?.type ?? "text";
+  const renderInline = (item: unknown, i: number): ReactNode => {
+    const p = `${path}.${i}`;
+    const rowLabel = t("sx.rep.item", { n: i + 1 });
+    const bad = !!policy.visible(p, errors);
+    const itemKey = f.item?.key || "value";
+    if (itemType === "number" || itemType === "money") {
+      return (
+        <NumberInput
+          value={num(item)}
+          onChange={(v) => emit(p, v ?? null)}
+          onDraftInvalid={(b) => env.onDraftError?.(p, b)}
+          onBlur={() => policy.touch(p)}
+          invalid={bad}
+          readOnly={ro}
+          aria-label={rowLabel}
+          aiId={aiId(ai, i)}
+        />
+      );
+    }
+    if (itemType === "boolean") return <Switch checked={item === true} onChange={(v) => emit(p, v)} readOnly={ro} aria-label={rowLabel} aiId={aiId(ai, i)} />;
+    return (
+      <TextInput
+        value={str(item)}
+        onChange={(v) => emit(p, v)}
+        onBlur={() => policy.touch(p)}
+        invalid={bad}
+        readOnly={ro}
+        aria-label={rowLabel}
+        placeholder={labels.placeholder(itemKey, { ctor: model.code, path: `${path}.${i}.${itemKey}`, type: itemType }) || undefined}
+        aiId={aiId(ai, i)}
+        aiLabel={rowLabel}
+      />
+    );
+  };
+  const renderObject = (item: unknown, i: number): ReactNode => {
+    const scope = isDict(item) ? item : {};
+    return (
+      <FormGrid>
+        {children.map((c) => (
+          <SchemaField key={c.pattern} node={c} path={`${path}.${i}.${c.key}`} scope={scope} />
+        ))}
+      </FormGrid>
+    );
+  };
+  return (
+    <Repeater<unknown>
+      id={id}
+      label={label}
+      itemName={t("sx.form.rowName")}
+      items={items}
+      onChange={(next) => emit(path, next)}
+      newItem={() => emptyItem(f.item)}
+      summary={summary}
+      meta={meta}
+      renderItem={(item, i) => (inline ? renderInline(item, i) : renderObject(item, i))}
+      inline={inline}
+      rowErrors={(i) => policy.visibleCount(`${path}.${i}`, errors)}
+      minItems={f.minItems || undefined}
+      addLabel={t(lf?.addKey ?? "sx.rep.add")}
+      readOnly={ro}
+      onTouched={() => policy.touch(path)}
+      aiId={ai}
+    />
+  );
+}
+
+function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: string; scope: SxValues }): ReactElement | null {
+  const env = useEnv();
+  const { model, root, labels, t, policy, errors, emit, readOnly: formRo } = env;
+  const f = node.field;
+  const lf = node.layout;
+  if (lf?.hidden || f?.hidden) return null;
+  const ctx: SxLayoutCtx = layoutCtx(model, root, scope, env.mode, env.recordId);
+  if (lf?.visible && !lf.visible(ctx)) return null;
+  if (f && !fieldVisible(f, scope as Dict)) return null;
+
+  const norm = normPath(path);
+  const value = getAt(root, path);
+  const control: SxControlKind = controlFor(model.code, node, value, ctx);
+  const source = effectiveSource(model.code, node, scope);
+  const id = `${model.idPrefix}-f-${aiSeg(path)}`;
+  const ai = aiId(model.aiBase, "field", path);
+  const span = spanFor(control, node.key, lf);
+  const virtual = lf?.virtual;
+  const lockKey = lf?.locked?.(ctx) || "";
+  const fieldRo = !!f?.readOnly || !!virtual?.readOnly || !!lockKey;
+  const ro = formRo || fieldRo;
+
+  const label = fieldLabelOf(model, node.key, path, f, lf, labels, t, ctx);
+  const ownHelp = dyn(lf?.help, ctx);
+  let help = "";
+  if (lockKey) help = t.has(lockKey) ? t(lockKey) : "";
+  else if (ownHelp === false) help = "";
+  else if (typeof ownHelp === "string") help = t.has(ownHelp) ? t(ownHelp) : "";
+  else if (virtual?.helpKey) help = t.has(virtual.helpKey) ? t(virtual.helpKey) : "";
+  else {
+    help = labels.help(node.key, { ctor: model.code, path, backend: f?.help });
+    if (!help && f?.type === "list" && f.item) help = labels.help(f.item.key || node.key, { ctor: model.code, path: `${path}.0.${f.item.key || node.key}`, backend: f.item.help });
+  }
+  const ownPh = dyn(lf?.placeholder, ctx);
+  const isNumber = control === "number" || control === "money" || control === "percent";
+  let placeholder: string | undefined;
+  if (!isNumber && ownPh !== false) {
+    if (typeof ownPh === "string") placeholder = t.has(ownPh) ? t(ownPh) : undefined;
+    else if (virtual?.placeholderKey) placeholder = t.has(virtual.placeholderKey) ? t(virtual.placeholderKey) : undefined;
+    else placeholder = labels.placeholder(node.key, { ctor: model.code, path, type: f?.type }) || undefined;
+  }
+  const rule = ruleOf(model, node, path, source);
+  const hint = f && (f.type === "number" || f.type === "money" || f.type === "text" || f.type === "textarea") ? labels.hint({ type: f.type, min: f.min, max: f.max }) : "";
+  const token = policy.visible(norm, errors);
+  const error = token ? labels.error(token, rule) : "";
+  const warns = warningsAt(env.warnings, norm, node.pattern);
+  const warnId = `${id}-warn`;
+  const opt = (v: string) => optionTextOf(v, { layout: lf, field: f, code: model.code, key: node.key, labels, t });
+  const shown = { required: node.required };
+  const touch = () => policy.touch(norm);
+  const set = (v: unknown) => emit(path, v, lf?.clears);
+  const withWarn = (a: SxControlA11y): SxControlA11y => (warns.length ? { ...a, "aria-describedby": [a["aria-describedby"], warnId].filter(Boolean).join(" ") } : a);
+
+  const cell = (body: ReactNode, extra?: ReactNode) => (
+    <div className="sx-sf__f" data-path={norm} data-span={span} data-ai-id={aiId(ai, "root")}>
+      {body}
+      <WarnLine id={warnId} list={warns} />
+      {extra}
+    </div>
+  );
+
+  if (control === "object" && f) {
+    const kids = childNodes(model, f, node.pattern);
+    const obj = isDict(value) ? value : {};
+    const known = new Set(f.properties.map((p) => p.key));
+    const extra: Dict = {};
+    for (const [k, v] of Object.entries(obj)) if (!known.has(k)) extra[k] = v;
+    const showExtra = f.additional && (!formRo || Object.keys(extra).length > 0);
+    return (
+      <div className="sx-sf__f sx-sf__obj" data-path={norm} data-span={2} data-flat={lf?.flatten ? "" : undefined} data-ai-id={aiId(ai, "root")}>
+        {lf?.flatten ? null : <SxSectionHeader as="h4" title={label} lead={help || undefined} className="sx-sf__objhead" />}
+        {error ? (
+          <p className="sx-field__err sx-sf__objerr" id={`${id}-err`}>
+            {error}
+          </p>
+        ) : null}
+        <FormGrid>
+          {kids.map((c) => (
+            <SchemaField key={c.pattern} node={c} path={`${path}.${c.key}`} scope={obj} />
+          ))}
+          {showExtra ? (
+            <div className="sx-sf__f" data-span={2}>
+              <Field id={`${id}-extra`} label={t("sx.form.extraKeys")} as="fieldset">
+                <KeyValue
+                  id={`${id}-extra`}
+                  label={t("sx.form.extraKeys")}
+                  value={extra}
+                  readOnly={ro}
+                  nameOf={(k) => {
+                    const n = labels.field(k, { ctor: model.code, path: `${path}.${k}` });
+                    return n && n !== k ? n : null;
+                  }}
+                  onChange={(next) => {
+                    const base: Dict = {};
+                    for (const [k, v] of Object.entries(obj)) if (known.has(k)) base[k] = v;
+                    set({ ...base, ...next });
+                  }}
+                  aiId={aiId(ai, "extra")}
+                />
+              </Field>
+            </div>
+          ) : null}
+        </FormGrid>
+        <WarnLine id={warnId} list={warns} />
+      </div>
+    );
+  }
+
+  if (formRo) {
+    let text: ReactNode;
+    if (control === "richtext") text = <RichTextView html={str(value)} />;
+    else if ((control === "picker" || control === "pickerMulti") && source) {
+      const vals = strList(value);
+      text = vals.length ? <RefNames source={source} values={vals} /> : "";
+    } else if (control === "picker" || control === "pickerMulti" || control === "choices" || control === "tags" || control === "repeaterInline") {
+      const vals = strList(value);
+      text = vals.length ? labels.list(control === "tags" || control === "repeaterInline" ? vals : vals.map(opt), vals.length) : "";
+    } else if (control === "display" && virtual?.display) text = virtual.display(ctx, labels);
+    else if (control === "money" && num(value) !== undefined) text = labels.money(num(value) as number, str(scope.currency) || str(root.currency) || "UZS");
+    else if (control === "percent" && num(value) !== undefined) text = `${labels.num(num(value) as number)}${t("sx.form.percentSuffix")}`;
+    else if (control === "repeater" && f) {
+      return cell(
+        <Field id={id} label={label} as="fieldset" required={false}>
+          <RowsField node={node} path={path} ai={ai} id={id} label={label} ro f={f} />
+        </Field>,
+      );
+    } else if (control === "keyValue") {
+      return cell(
+        <Field id={id} label={label} as="fieldset">
+          <KeyValue id={id} label={label} value={isDict(value) ? value : {}} readOnly onChange={() => {}} aiId={ai} />
+        </Field>,
+      );
+    } else text = labels.display(value, rule);
+    return cell(<Field id={id} label={label} readOnly value={text} span={span} />);
+  }
+
+  if (control === "display") {
+    const text = virtual?.display ? virtual.display(ctx, labels) : labels.display(value, rule);
+    return cell(<Field id={id} label={label} help={help} readOnly value={text} span={span} />);
+  }
+
+  if (control === "switch") {
+    return cell(
+      <Field id={id} label={label} help={help} error={error} required={false} layout="inline" span={span}>
+        {(a) => (
+          <Switch
+            id={id}
+            checked={value === true}
+            onChange={(v) => {
+              set(v);
+              touch();
+            }}
+            readOnly={ro}
+            aria-describedby={withWarn(a)["aria-describedby"]}
+            aria-invalid={a["aria-invalid"]}
+            aiId={ai}
+            aiLabel={label}
+          />
+        )}
+      </Field>,
+    );
+  }
+
+  if (control === "choices") {
+    const opts = optionsFor(lf, f);
+    const cards: ChoiceCard[] = opts.map((v) => {
+      const meta = lf?.choices?.[v];
+      const card: ChoiceCard = { value: v, title: opt(v) };
+      const icon = meta?.icon ?? lf?.optionIcon?.(v);
+      if (icon) card.icon = icon;
+      if (meta?.descriptionKey && t.has(meta.descriptionKey)) card.description = t(meta.descriptionKey);
+      if (meta?.metaKey && t.has(meta.metaKey)) card.meta = t(meta.metaKey);
+      return card;
+    });
+    const cur = str(value);
+    if (cur && !opts.includes(cur)) cards.push({ value: cur, title: cur });
+    return cell(
+      <Field id={id} label={label} help={help} hint={hint} error={error} required={shown.required} as="fieldset" span={span}>
+        {(a) => (
+          <ChoiceCards
+            id={id}
+            value={cur}
+            onChange={(v) => {
+              set(v);
+              touch();
+            }}
+            options={cards}
+            columns={lf?.columns}
+            readOnly={ro}
+            aria-labelledby={a["aria-labelledby"]}
+            aria-describedby={withWarn(a)["aria-describedby"]}
+            aria-invalid={a["aria-invalid"]}
+            aria-required={a["aria-required"]}
+            aiId={ai}
+          />
+        )}
+      </Field>,
+    );
+  }
+
+  if (control === "repeater" || control === "repeaterInline") {
+    if (!f) return null;
+    return cell(
+      <Field id={id} label={label} help={help} error={error} required={shown.required} as="fieldset" span={span}>
+        <RowsField node={node} path={path} ai={ai} id={id} label={label} ro={ro} f={f} />
+      </Field>,
+    );
+  }
+
+  if (control === "keyValue") {
+    return cell(
+      <Field id={id} label={label} help={help} error={error} required={shown.required} as="fieldset" span={span}>
+        <KeyValue
+          id={id}
+          label={label}
+          value={isDict(value) ? value : {}}
+          readOnly={ro}
+          nameOf={(k) => {
+            const n = labels.field(k, { ctor: model.code, path: `${path}.${k}` });
+            return n && n !== k ? n : null;
+          }}
+          onChange={(next) => {
+            set(next);
+            touch();
+          }}
+          aiId={ai}
+        />
+      </Field>,
+    );
+  }
+
+  if (control === "tags") {
+    const suggest = lf?.aiSuggest ? { title: str(root.title), description: str(root.description), parentId: str(root.parent_id) } : null;
+    return cell(
+      <Field id={id} label={label} help={help} error={error} required={shown.required} span={span}>
+        {(a) => (
+          <TagsField
+            id={id}
+            a11y={withWarn(a)}
+            value={strList(value)}
+            label={label}
+            readOnly={ro}
+            ai={ai}
+            suggest={suggest}
+            onChange={(next) => {
+              set(next);
+              touch();
+            }}
+            onBlur={touch}
+          />
+        )}
+      </Field>,
+    );
+  }
+
+  const field = (render: (a: SxControlA11y) => ReactNode, aside?: ReactNode) => (
+    <Field id={id} label={label} help={help} hint={hint} error={error} required={shown.required} span={span} labelAside={aside}>
+      {(a) => render(withWarn(a))}
+    </Field>
+  );
+
+  if ((control === "picker" || control === "pickerMulti") && source) {
+    const emptyId = `${id}-src`;
+    return cell(
+      field((a) =>
+        control === "pickerMulti" ? (
+          <RefPicker
+            multiple
+            a11y={a}
+            label={label}
+            source={source}
+            value={strList(value)}
+            onChange={(v) => {
+              set(v);
+              touch();
+            }}
+            required={shown.required}
+            readOnly={ro}
+            invalid={!!error}
+            placeholder={placeholder}
+            onBlur={touch}
+            aiId={ai}
+            code={model.code}
+            pattern={node.pattern}
+            recordId={env.recordId}
+            emptyId={emptyId}
+          />
+        ) : (
+          <RefPicker
+            a11y={a}
+            label={label}
+            source={source}
+            value={str(value)}
+            onChange={(v) => set(v)}
+            required={shown.required}
+            readOnly={ro}
+            invalid={!!error}
+            placeholder={placeholder}
+            onBlur={touch}
+            aiId={ai}
+            code={model.code}
+            pattern={node.pattern}
+            recordId={env.recordId}
+            emptyId={emptyId}
+          />
+        ),
+      ),
+    );
+  }
+
+  if (control === "picker" || control === "pickerMulti") {
+    const opts: SxOption[] = optionsFor(lf, f).map((v) => {
+      const o: SxOption = { value: v, label: opt(v) };
+      const icon = lf?.optionIcon?.(v);
+      if (icon) o.icon = icon;
+      return o;
+    });
+    const resolveRaw = async (values: readonly string[]) => values.map((v) => ({ value: v, label: v }));
+    return cell(
+      field((a) =>
+        control === "pickerMulti" ? (
+          <Picker
+            id={id}
+            multiple
+            label={label}
+            options={opts}
+            resolveOptions={resolveRaw}
+            value={strList(value)}
+            onChange={(v) => {
+              set(v);
+              touch();
+            }}
+            readOnly={ro}
+            required={shown.required}
+            invalid={!!error}
+            placeholder={placeholder}
+            onBlur={touch}
+            aria-labelledby={a["aria-labelledby"]}
+            aria-describedby={a["aria-describedby"]}
+            aria-invalid={a["aria-invalid"]}
+            aria-required={a["aria-required"]}
+            aiId={ai}
+          />
+        ) : (
+          <Picker
+            id={id}
+            label={label}
+            options={opts}
+            resolveOptions={resolveRaw}
+            value={str(value)}
+            onChange={(v) => set(v ? v : undefined)}
+            clearable={!shown.required && !ro}
+            readOnly={ro}
+            required={shown.required}
+            invalid={!!error}
+            placeholder={placeholder}
+            onBlur={touch}
+            aria-labelledby={a["aria-labelledby"]}
+            aria-describedby={a["aria-describedby"]}
+            aria-invalid={a["aria-invalid"]}
+            aria-required={a["aria-required"]}
+            aiId={ai}
+          />
+        ),
+      ),
+    );
+  }
+
+  if (control === "number" || control === "percent" || control === "money") {
+    const suffix = control === "percent" ? t("sx.form.percentSuffix") : lf?.suffixKey && t.has(lf.suffixKey) ? t(lf.suffixKey) : undefined;
+    return cell(
+      field((a) =>
+        control === "money" ? (
+          <MoneyInput
+            id={id}
+            value={num(value)}
+            onChange={(v) => set(v)}
+            onDraftInvalid={(bad) => env.onDraftError?.(norm, bad)}
+            onBlur={touch}
+            currency={str(scope.currency) || str(root.currency) || "UZS"}
+            readOnly={ro}
+            aria-labelledby={a["aria-labelledby"]}
+            aria-describedby={a["aria-describedby"]}
+            aria-invalid={a["aria-invalid"]}
+            aria-required={a["aria-required"]}
+            aiId={ai}
+            aiLabel={label}
+          />
+        ) : (
+          <NumberInput
+            id={id}
+            value={num(value)}
+            onChange={(v) => set(v)}
+            onDraftInvalid={(bad) => env.onDraftError?.(norm, bad)}
+            onBlur={touch}
+            min={f?.min}
+            max={f?.max}
+            suffix={suffix}
+            readOnly={ro}
+            aria-labelledby={a["aria-labelledby"]}
+            aria-describedby={a["aria-describedby"]}
+            aria-invalid={a["aria-invalid"]}
+            aria-required={a["aria-required"]}
+            aiId={ai}
+            aiLabel={label}
+          />
+        ),
+      ),
+    );
+  }
+
+  if (control === "date" || control === "datetime") {
+    const withTime = control === "datetime";
+    const cur = str(value);
+    return cell(
+      field((a) => (
+        <DateField
+          id={id}
+          value={cur}
+          onChange={(v) => set(withTime ? withDefaultTime(cur, v) : v)}
+          label={label}
+          withTime={withTime}
+          readOnly={ro}
+          onBlur={touch}
+          aria-labelledby={a["aria-labelledby"]}
+          aria-describedby={a["aria-describedby"]}
+          aria-invalid={a["aria-invalid"]}
+          aria-required={a["aria-required"]}
+          aiId={ai}
+        />
+      )),
+    );
+  }
+
+  if (control === "richtext") {
+    return cell(
+      field((a) => (
+        <RichText
+          id={id}
+          value={str(value)}
+          onChange={(v) => set(v)}
+          label={label}
+          readOnly={ro}
+          placeholder={placeholder}
+          onBlur={touch}
+          aria-labelledby={a["aria-labelledby"]}
+          aria-describedby={a["aria-describedby"]}
+          aria-invalid={a["aria-invalid"]}
+          aria-required={a["aria-required"]}
+          aiId={ai}
+        />
+      )),
+    );
+  }
+
+  if (control === "textarea") {
+    const max = f?.max && f.max > 0 ? f.max : undefined;
+    return cell(
+      field((a) => (
+        <TextArea
+          {...a}
+          value={str(value)}
+          onChange={(v) => set(v)}
+          onBlur={touch}
+          readOnly={ro}
+          placeholder={placeholder}
+          counter={!!max}
+          maxLength={max}
+          mono={f?.type === "code"}
+          aiId={ai}
+          aiLabel={label}
+        />
+      )),
+    );
+  }
+
+  const inputType = f?.type === "url" ? "url" : f?.type === "email" ? "email" : f?.type === "phone" ? "tel" : "text";
+  return cell(
+    field((a) => (
+      <TextInput
+        {...a}
+        type={inputType}
+        value={str(value)}
+        onChange={(v) => set(v)}
+        onBlur={touch}
+        readOnly={ro}
+        mono={control === "mono"}
+        placeholder={placeholder}
+        aiId={ai}
+        aiLabel={label}
+      />
+    )),
+  );
+}
+
+export const SchemaField = memo(SchemaFieldImpl);

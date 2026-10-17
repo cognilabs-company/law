@@ -13,6 +13,7 @@ export type SxGuideModel = {
   what: string;
   result: string;
   places: SxGuidePlace[];
+  surfaces: string;
   steps: string[];
   position: string;
   blocked: { text: string; first: SxGuideDep } | null;
@@ -71,6 +72,14 @@ export function buildGuide(code: string, ctor: StudioConstructor, registry: read
   }
   const where = unique(places.map((p) => p.title));
   const result = where.length ? t("sx.guide.result", { where: labels.list(where) }) : t("sx.guide.resultNone");
+  const pageTitles = new Set(where.map((w) => w.toLowerCase()));
+  const surfaceNames = unique(
+    x.preview.surfaceKeys
+      .map((key) => ({ key: key.trim(), name: labels.surface(key).trim() }))
+      .filter((s) => s.key && s.name && s.name !== s.key && !pageTitles.has(s.name.toLowerCase()))
+      .map((s) => s.name),
+  );
+  const surfaces = surfaceNames.length ? t("sx.guide.surfaces", { list: labels.list(surfaceNames, LIST_MAX) }) : "";
 
   const shown = ctor.typed.filter((f) => !f.hidden);
   const need = new Set(ctor.schema.required);
@@ -123,6 +132,7 @@ export function buildGuide(code: string, ctor: StudioConstructor, registry: read
     what: labels.ctorWhat(code, { purpose: x.purpose, description: ctor.description }),
     result,
     places,
+    surfaces,
     steps,
     position,
     blocked,

@@ -14,17 +14,21 @@ import {
   FileTextIcon,
   FolderOpenIcon,
   FrameCornersIcon,
+  ListChecksIcon,
   LockKeyIcon,
   MegaphoneSimpleIcon,
   PackageIcon,
   PLACEMENT_ICON,
   ScrollIcon,
+  SealCheckIcon,
+  ShieldStarIcon,
   sourceIcon,
   TreeStructureIcon,
+  TrendUpIcon,
   UserCircleIcon,
   UserGearIcon,
 } from "./icons";
-import { isEnglishLooking, scopedKeys, splitCodeLabel, splitUserLabel } from "./labels";
+import { ctorVariant, fieldPath, isEnglishLooking, scopedKeys, splitCodeLabel, splitUserLabel } from "./labels";
 import { normStatus, statusKeyOf } from "./status";
 import type { SxLocale, SxNameCode, SxOption, SxRecordSource, SxRule, SxScope } from "./types";
 
@@ -38,6 +42,7 @@ export type StudioLabels = {
   journeyWhat(key: string, backendDescription?: string): string;
   section(key: string, backendTitle?: string): string;
   status(raw: string, source?: SxRecordSource): string;
+  statusPill(raw: string, source?: SxRecordSource): string;
   statusHint(raw: string, source?: SxRecordSource): string;
   stepDecision(raw: string): string;
   role(code: string, backendLabel?: string): string;
@@ -81,6 +86,19 @@ export type SxTranslate = {
 const KNOWN_CODES: ReadonlySet<string> = new Set(Object.keys(CTOR_ICON));
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HELP_JARGON = /konfiguratsiya|runtime|vaqt zonasi|\breal\b|uzsda|reference|\bapi\b|payload|json|kalit|slug|obyekt|backend|endpoint|\bid\b|identifikator|sxema|parametr|token|webhook|\bkey\b|`/i;
+const HELP_TEMPLATES: readonly RegExp[] = [
+  /^bu element nima berishini oddiy foydalanuvchi tushunadigan qilib yozing\.?$/,
+  /^(.+ )?matnini foydalanuvchiga tayyor ko'rinishda yozing\.?$/,
+  /^ushbu qoida amal qiladigan rollarni tanlang\.?$/,
+  /^qoida amal qiladigan hududlarni kiriting\.?$/,
+  /^ishlash (boshlanadigan|tugaydigan) sana va vaqtni belgilang\.?$/,
+  /^foydalanuvchi to'ldiradigan maydonlarni hujjatdagi tartibda qo'shing\.?$/,
+  /^maydonlarni foydalanuvchiga ko'rinadigan mantiqiy bosqichlarga ajrating\.?$/,
+  /^element ko'rinadigan xizmat kategoriyasini tanlang\.?$/,
+  /^kontent ko'rsatiladigan asosiy tilni tanlang\.?$/,
+  /^jarayon bosqichlarini bajarilish tartibida qo'shing\.?$/,
+  /^qaysi statusdan qaysi statusga o'tish mumkinligini belgilang\.?$/,
+];
 const WHAT_JARGON = /`|runtime|konfiguratsiya/i;
 const TEXT_TYPES: ReadonlySet<string> = new Set(["text", "textarea", "richtext", "url", "email", "code", "string"]);
 const PICK_TYPES: ReadonlySet<string> = new Set(["select", "multiselect"]);
@@ -156,17 +174,22 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
     return UUID.test(v) ? pick(["sx.form.unknownRef"]) || v : v;
   };
   const split = (label: string): SxNameCode => splitCodeLabel(label, KNOWN_CODES);
+  const variantKeys = (c: string, part: "name" | "what"): string[] => {
+    if (!c) return [];
+    const v = ctorVariant(c, (findStudioConstructor(c) ?? findStudioConstructor(c.toUpperCase()))?.runtimeTarget ?? "");
+    return v ? [`sx.ctor.${c}__${v}.${part}`, `sx.ctor.${c.toUpperCase()}__${v}.${part}`] : [];
+  };
 
   const ctorName = (code: string, backendTitle?: string): string => {
     const c = str(code);
-    const hit = pick([`sx.ctor.${c}.name`, `sx.ctor.${c.toUpperCase()}.name`]);
+    const hit = pick([...variantKeys(c, "name"), `sx.ctor.${c}.name`, `sx.ctor.${c.toUpperCase()}.name`]);
     if (hit) return hit;
     const name = vocab(split(backendTitle ?? "").name);
     return name || c;
   };
   const ctorWhat = (code: string, backend?: { purpose?: string; description?: string }): string => {
     const c = str(code);
-    const hit = pick([`sx.ctor.${c}.what`, `sx.ctor.${c.toUpperCase()}.what`]);
+    const hit = pick([...variantKeys(c, "what"), `sx.ctor.${c}.what`, `sx.ctor.${c.toUpperCase()}.what`]);
     if (hit) return hit;
     const ik = c ? ctorMeta(c).i18nKey : "";
     const legacy = ik ? pick([`ctor.${ik}.desc`]) : "";
@@ -207,6 +230,8 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
     const n = normStatus(raw);
     return pick([key !== "unknown" && `sx.status.${key}.label`, n && `flow.rstatus.${n}`, n && `status.${n}`, n && `option.${n}`]) || str(raw) || pick(["sx.ui.notSet"]);
   };
+  const statusPill = (raw: string, source?: SxRecordSource): string =>
+    (statusKeyOf(raw, source) === "published" && pick(["sx.status.published.live"])) || status(raw, source);
   const statusHint = (raw: string, source?: SxRecordSource): string => {
     const key = statusKeyOf(raw, source);
     return key === "unknown" ? "" : pick([`sx.status.${key}.hint`]);
@@ -267,23 +292,32 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
   };
   const risk = (level: string): string => pick([`sx.risk.${str(level).toLowerCase()}`, "sx.risk.medium"]);
 
+  const fieldKeys = (base: string, k: string, scope?: SxScope): string[] => {
+    const keys = scopedKeys(base, k, scope);
+    const ctor = str(scope?.ctor);
+    const path = str(scope?.path);
+    if (!ctor || !k || !/[.[]/.test(path) || fieldPath(path) === k) return keys;
+    const flat = `${base}.${ctor}__${k}`;
+    return keys.filter((x) => x !== flat);
+  };
   const field = (key: string, scope?: SxScope): string => {
     const k = str(key);
-    return pick([...scopedKeys("sx.field", k, scope), k && `field.${k}`]) || vocab(scope?.backend, k) || k;
+    return pick([...fieldKeys("sx.field", k, scope), k && `field.${k}`]) || vocab(scope?.backend, k) || k;
   };
   const help = (key: string, scope?: SxScope): string => {
     const k = str(key);
-    const hit = pick([...scopedKeys("sx.help", k, scope), k && `fieldHelp.${k}`]);
+    const hit = pick([...fieldKeys("sx.help", k, scope), k && `fieldHelp.${k}`]);
     if (hit) return hit;
     const raw = str(scope?.backend);
     if (!isUz || !raw) return "";
     const n = normText(raw);
     if (HELP_RULES.some(([, rx]) => rx.test(n))) return "";
+    if (HELP_TEMPLATES.some((rx) => rx.test(n))) return "";
     return HELP_JARGON.test(raw) ? "" : raw;
   };
   const placeholder = (key: string, scope?: SxScope & { type?: string }): string => {
     const k = str(key);
-    const hit = pick(scopedKeys("sx.ph", k, scope));
+    const hit = pick(fieldKeys("sx.ph", k, scope));
     if (hit) return hit;
     const type = str(scope?.type);
     if (type === "url") return pick(["sx.ph.url"]);
@@ -297,7 +331,7 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
     const c = str(scope?.ctor);
     const hit = pick([c && f && `sx.opt.${c}__${f}.${v}`, f && `sx.opt.${f}.${v}`]);
     if (hit) return hit;
-    if (f === "tier") return tier(v);
+    if (f === "tier" || f === "package_tiers") return tier(v);
     if (f === "placement") return placement(v, scope?.backend);
     return pick([v && `option.${v}`]) || vocab(scope?.backend, v) || unknownRef(v);
   };
@@ -354,6 +388,8 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
           return tr("sx.err.duplicate");
         case "reference_not_found":
           return tr("sx.err.reference");
+        case "promotion_package_placement_mismatch":
+          return tr("sx.err.k12Mismatch");
       }
       return pick([code && `fieldErr.c.${code}`], { n: shown }) || tr("sx.err.invalid");
     }
@@ -483,6 +519,18 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
       }
       case "permissions":
         return base({ label: permission(value, label), code: value, icon: LockKeyIcon });
+      case "price-factors": {
+        const kind = str(r.adjustment_type);
+        const amount = numOf(r.value);
+        const shown = amount === null ? "" : kind === "percent" ? `${num(amount)}%` : money(amount);
+        return base({ label, description: joinDot([kind ? option(kind, { field: "adjustment_type" }) : "", shown]), icon: TrendUpIcon });
+      }
+      case "client-guarantees":
+        return base({ label, description: str(r.description), icon: ShieldStarIcon });
+      case "checklists":
+        return base({ label, description: str(r.description), icon: ListChecksIcon });
+      case "package-eligibility-rules":
+        return base({ label, description: str(r.description), icon: SealCheckIcon });
     }
     return base({ label: label || value, icon: sourceIcon(source) });
   };
@@ -497,6 +545,7 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
     journeyWhat,
     section,
     status,
+    statusPill,
     statusHint,
     stepDecision,
     role,

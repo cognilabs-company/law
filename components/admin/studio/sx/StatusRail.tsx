@@ -1,7 +1,7 @@
 "use client";
 
 import "./sx-core.css";
-import { useEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { celebrate } from "./celebrate";
 import { prefersReducedMotion, useReducedMotion } from "./hooks";
@@ -25,14 +25,16 @@ export type StatusRailProps = {
 type Seen = { status: string; from: number; run: number };
 type StepState = "done" | "current" | "todo";
 
-const POP_DELAY = 300;
+const POP_DELAY = 60;
 const LINE_STAGGER = 90;
 const LINE_SPREAD = 360;
 const MOMENT_MS = 960;
 const BURST_MS = 650;
 const GLOW_MS = 600;
+const GLOW_LAG = 140;
 const LATE_MS = 320;
-const DOT_WEIGHT = { size: 10, weight: "bold" } as const;
+const CHECK_GLYPH = { size: 16, weight: "bold" } as const;
+const STAGE_GLYPH = { size: 18, weight: "duotone" } as const;
 
 const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" ");
 
@@ -71,12 +73,13 @@ export function StatusRail({ status, source, direct = false, variant = "full", n
   const compact = variant === "compact";
   const party = toLive && animate && celebrateOnPublish;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!party) return;
     const box = compact ? compactRef.current : wrapRef.current;
     const origin = box?.querySelector<HTMLElement>("[data-origin]");
     if (!box || !origin) return;
-    const glowTarget = box.querySelector<HTMLElement>("[data-glow-target], .sx-rail-c > .sx-pill");
+    const glowTarget = box.querySelector<HTMLElement>(".sx-rail__live > .sx-pill, .sx-rail-c > .sx-pill");
+    const lag = compact ? 0 : GLOW_LAG;
     const born = performance.now();
     let fired = false;
     let cancel: (() => void) | null = null;
@@ -88,7 +91,7 @@ export function StatusRail({ status, source, direct = false, variant = "full", n
       const left = MOMENT_MS - (performance.now() - born);
       if (prefersReducedMotion() || left < LATE_MS) return;
       if (glowTarget) {
-        glowTarget.style.setProperty("--sx-glow-ms", `${Math.round(Math.min(GLOW_MS, left))}ms`);
+        glowTarget.style.setProperty("--sx-glow-ms", `${Math.round(Math.min(GLOW_MS, left - lag))}ms`);
         glowTarget.setAttribute("data-glow", "");
       }
       cancel = celebrate(origin, { duration: Math.min(BURST_MS, left) });
@@ -97,7 +100,7 @@ export function StatusRail({ status, source, direct = false, variant = "full", n
       if (e.animationName === "sx-pop") fire();
     };
     origin.addEventListener("animationstart", onStart);
-    const timer = window.setTimeout(fire, lastDelay + (compact ? 0 : POP_DELAY) + 60);
+    const timer = window.setTimeout(fire, lastDelay + (compact ? 0 : POP_DELAY));
     return () => {
       window.clearTimeout(timer);
       origin.removeEventListener("animationstart", onStart);
@@ -120,6 +123,7 @@ export function StatusRail({ status, source, direct = false, variant = "full", n
               key={i}
               className="sx-rail-c__dot"
               data-on={!offLine && i <= to ? "" : undefined}
+              data-current={!offLine && i === to ? "" : undefined}
               data-fresh={fresh(i) ? "" : undefined}
               data-origin={!offLine && i === to ? "" : undefined}
               style={delay(i)}
@@ -133,47 +137,57 @@ export function StatusRail({ status, source, direct = false, variant = "full", n
 
   const announce = motion.run > 0 ? (toLive ? t("sx.rail.live") : t("sx.rail.aria", { status: labels.status(status, source) })) : "";
   const stepWord: Record<StepState, string> = { done: t("sx.rail.done"), current: t("sx.rail.current"), todo: t("sx.rail.ahead") };
+  const liveFresh = animate && toLive;
 
   return (
     <div ref={wrapRef} id={id} className={cx("sx-rail-wrap", className)}>
-      <ol key={motion.run} className="sx-rail" aria-label={t("sx.rail.label")} data-tone={info.tone} data-direct={direct ? "" : undefined} data-status={info.key}>
-        {Array.from({ length: n }, (_, i) => {
-          const state = stateOf(i);
-          const stage = stageKey(i, direct);
-          const current = state === "current";
-          const branch = current && info.branch ? info.branch : null;
-          const text = current && (branch || info.key === "scheduled") ? labels.status(status, source) : labels.status(stage);
-          const icon = state === "done" ? CheckIcon : current ? currentIcon(info, stage) : null;
-          return (
-            <li
-              key={stage}
-              className="sx-rail__step"
-              data-state={state}
-              data-stage={stage}
-              data-branch={branch ?? undefined}
-              data-fresh={fresh(i) ? "" : undefined}
-              aria-current={current ? "step" : undefined}
-              style={delay(i)}
-            >
-              {i > 0 ? (
-                <span className="sx-rail__line" aria-hidden="true">
-                  <i />
+      <div className="sx-rail-row">
+        <ol key={motion.run} className="sx-rail" aria-label={t("sx.rail.label")} data-tone={info.tone} data-direct={direct ? "" : undefined} data-status={info.key}>
+          {Array.from({ length: n }, (_, i) => {
+            const state = stateOf(i);
+            const stage = stageKey(i, direct);
+            const current = state === "current";
+            const branch = current && info.branch ? info.branch : null;
+            const text = current && (branch || info.key === "scheduled") ? labels.status(status, source) : labels.status(stage);
+            const icon = state === "done" ? glyph(CheckIcon, CHECK_GLYPH) : glyph(current ? currentIcon(info, stage) : STATUS_ICON[stage], STAGE_GLYPH);
+            return (
+              <li
+                key={stage}
+                className="sx-rail__step"
+                data-state={state}
+                data-stage={stage}
+                data-branch={branch ?? undefined}
+                data-fresh={fresh(i) ? "" : undefined}
+                aria-current={current ? "step" : undefined}
+                style={delay(i)}
+              >
+                {i > 0 ? (
+                  <span className="sx-rail__line" aria-hidden="true">
+                    <i />
+                  </span>
+                ) : null}
+                <span className="sx-rail__dot" aria-hidden="true" data-origin={current ? "" : undefined}>
+                  {icon}
                 </span>
-              ) : null}
-              <span className="sx-rail__dot" aria-hidden="true" data-origin={current ? "" : undefined}>
-                {icon ? glyph(icon, DOT_WEIGHT) : null}
-              </span>
-              <span className="sx-rail__label">
-                <span className="sx-rail__text" data-glow-target={current && info.live ? "" : undefined}>
-                  {text}
+                <span className="sx-rail__label">
+                  <span className="sx-rail__text">{text}</span>
+                  <span className="sx-vh"> — {stepWord[state]}</span>
                 </span>
-                <span className="sx-vh"> — {stepWord[state]}</span>
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-      {offLine ? <StatusPill status={status} source={source} /> : null}
+              </li>
+            );
+          })}
+        </ol>
+        {offLine ? <StatusPill status={status} source={source} /> : null}
+        {!offLine && info.live ? (
+          <span
+            className="sx-rail__live"
+            data-fresh={liveFresh ? "" : undefined}
+            style={liveFresh ? ({ "--d": `${Math.round(lastDelay)}ms` } as CSSProperties) : undefined}
+          >
+            <StatusPill status="published" />
+          </span>
+        ) : null}
+      </div>
       {note ? <p className="sx-rail__note">{note}</p> : null}
       <span className="sx-vh" aria-live="polite">
         {announce}

@@ -121,8 +121,6 @@ export function schemaValidate(fields: StudioSchemaField[], payload: Dict, requi
   return out;
 }
 
-// What is sent: no undefined, no empty number boxes, and inside an object
-// that admits no other keys, only the keys its schema names.
 function cleanValue(f: StudioSchemaField | null, value: unknown): unknown {
   if (value === undefined) return undefined;
   if (!f) return value;
@@ -132,7 +130,6 @@ function cleanValue(f: StudioSchemaField | null, value: unknown): unknown {
     const out: Dict = {};
     for (const [k, v] of Object.entries(value)) {
       const p = known.get(k);
-      if (!p && !f.additional && f.properties.length) continue;
       const c = cleanValue(p ?? null, v);
       if (c !== undefined) out[k] = c;
     }

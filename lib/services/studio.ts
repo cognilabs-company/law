@@ -144,11 +144,27 @@ function navigationOf(r: Dict): StudioNavigation | null {
 
 // How a constructor's objects are worked on (spec 10-12 grouped workflows
 // §10): the backend names the endpoints, the frontend never builds them.
-export type StudioOperations = { supported: string[]; listEndpoint: string; formContextEndpoint: string };
+export type StudioOperations = { supported: string[]; listEndpoint: string; formContextEndpoint: string; contextFields: string[]; identitySource: string; defaultView: string };
 
 function operationsOf(r: Dict): StudioOperations {
   const o = asDict(r.operations);
-  return { supported: strings(o.supported), listEndpoint: asStr(o.list_endpoint), formContextEndpoint: asStr(o.form_context_endpoint) };
+  return {
+    supported: strings(o.supported),
+    listEndpoint: asStr(o.list_endpoint),
+    formContextEndpoint: asStr(o.form_context_endpoint),
+    contextFields: strings(o.context_fields),
+    identitySource: first(o.identity_source),
+    defaultView: first(o.default),
+  };
+}
+
+function referencesOf(v: unknown): string[] {
+  const out: string[] = [];
+  for (const x of asArr(v)) {
+    const s = (typeof x === "string" ? x : str(asDict(x).source)).trim();
+    if (s && !out.includes(s)) out.push(s);
+  }
+  return out;
 }
 
 export type StudioConstructor = {
@@ -174,6 +190,8 @@ export type StudioConstructor = {
   missingRecommended: string[];
   recordCount: number | null;
   operations: StudioOperations;
+  references: string[];
+  contextFields: string[];
   raw: Dict;
 };
 
@@ -650,6 +668,7 @@ export function normStudioConstructor(raw: unknown): StudioConstructor {
       return { key: first(d.key, d.title) || `s${i}`, title: first(d.title, d.key), order: numOrNull(d.order) ?? i + 1 };
     })
     .filter((x) => x.title);
+  const operations = operationsOf(r);
   return {
     code,
     title: first(r.title, r.name, r.label, code),
@@ -669,7 +688,9 @@ export function normStudioConstructor(raw: unknown): StudioConstructor {
     missingRequired: strings(r.missing_required),
     missingRecommended: strings(r.missing_recommended),
     recordCount: numOrNull(r.record_count),
-    operations: operationsOf(r),
+    operations,
+    references: referencesOf(r.references),
+    contextFields: operations.contextFields.length ? [...operations.contextFields] : strings(schema.context_fields),
     raw: r,
   };
 }
@@ -1126,6 +1147,11 @@ export function findStudioConstructor(code: string): StudioConstructor | null {
   return snapshot().items.find((c) => c.code === code) ?? null;
 }
 
+export function studioCtorRank(code: string): number {
+  const nav = findStudioConstructor(str(code).trim())?.navigation;
+  return nav ? nav.groupOrder * 100 + nav.step : 9999;
+}
+
 export function isApprovalFree(code: string, ctor?: StudioConstructor | null): boolean {
   if (ctor) return !ctor.approvalRequired;
   return STUDIO_APPROVAL_FREE.includes(code);
@@ -1417,6 +1443,51 @@ export async function getStudioFormContext(url: string, signal?: AbortSignal): P
   };
 }
 
+export function studioFormContextUrl(url: string, mode: StudioFormMode): string {
+  const path = studioPath(url, "/studio/constructors/");
+  const hashAt = path.indexOf("#");
+  const bare = hashAt < 0 ? path : path.slice(0, hashAt);
+  const queryAt = bare.indexOf("?");
+  const base = queryAt < 0 ? bare : bare.slice(0, queryAt);
+  if (!base.includes("/form-context")) return "";
+  const params = new URLSearchParams(queryAt < 0 ? "" : bare.slice(queryAt + 1));
+  params.set("mode", mode);
+  return `${base}?${params}${hashAt < 0 ? "" : path.slice(hashAt)}`;
+}
+
+const SUGGEST_LIST_KEYS = ["items", "suggestions", "terms", "discovery_terms"];
+const SUGGEST_DATA_KEYS = ["items", "suggestions"];
+const SUGGEST_MAX = 30;
+
+function suggestionsOf(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  const d = asDict(raw);
+  for (const k of SUGGEST_LIST_KEYS) if (Array.isArray(d[k])) return d[k] as unknown[];
+  const data = asDict(d.data);
+  for (const k of SUGGEST_DATA_KEYS) if (Array.isArray(data[k])) return data[k] as unknown[];
+  return [];
+}
+
+export async function suggestDiscoveryTerms(input: { title: string; description?: string; parentTitle?: string }, signal?: AbortSignal): Promise<string[]> {
+  const res = await http("/studio/categories/discovery-terms/suggest", {
+    method: "POST",
+    body: JSON.stringify({ title: input.title, description: input.description ?? "", parent_title: input.parentTitle ?? "" }),
+    signal,
+  });
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const x of suggestionsOf(res)) {
+    const d = x && typeof x === "object" && !Array.isArray(x) ? (x as Dict) : null;
+    const term = d ? first(d.value, d.term, d.text, d.label, d.title) : first(x);
+    const key = term.toLowerCase();
+    if (!term || seen.has(key)) continue;
+    seen.add(key);
+    out.push(term);
+    if (out.length >= SUGGEST_MAX) break;
+  }
+  return out;
+}
+
 // A Studio object's copy under a new title; the original is not touched.
 export async function cloneStudioObject(url: string, title: string): Promise<StudioDetail> {
   const path = studioPath(url, "/studio/objects/");
@@ -1432,6 +1503,10 @@ export async function archiveStudioRecord(url: string): Promise<StudioDetail> {
 
 // The object a "/studio/objects/{id}" action stands for.
 export const studioObjectIdOf = (url: string): string => /^\/studio\/objects\/([^/?#]+)\/?$/.exec(studioPath(url, "/studio/objects/"))?.[1] ?? "";
+
+export function studioObjectAction(id: string, action: "clone" | "archive"): string {
+  return `/studio/objects/${enc(id)}/${action}`;
+}
 
 export async function archiveStudioObject(id: string): Promise<StudioDetail> {
   return normStudioDetail(await http(`/studio/objects/${enc(id)}/archive`, { method: "POST" }));

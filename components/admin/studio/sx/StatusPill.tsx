@@ -19,7 +19,7 @@ export type StatusPillProps = {
 export function StatusPill({ status, source, size = "md", label, glow = false, className }: StatusPillProps): ReactElement {
   const labels = useStudioLabels();
   const info = sxStatus(status, source);
-  const text = label ?? labels.status(status, source);
+  const text = label ?? labels.statusPill(status, source);
   return (
     <span className={className ? `sx-pill ${className}` : "sx-pill"} data-tone={info.tone} data-size={size} data-status={info.key} data-glow={glow ? "" : undefined}>
       {glyph(info.icon, { size: size === "sm" ? 12 : 14 })}

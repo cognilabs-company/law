@@ -64,7 +64,7 @@ function GuideSkeleton() {
   );
 }
 
-function GuideBody({ code }: { code: string }) {
+export function SxGuideBody({ code }: { code: string }): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const registry = useStudioRegistry();
@@ -150,6 +150,7 @@ function GuideBody({ code }: { code: string }) {
         ) : (
           <p className="sx-guide__muted">{t("sx.guide.whereNone")}</p>
         )}
+        {m.surfaces ? <p className="sx-guide__muted">{m.surfaces}</p> : null}
       </Section>
 
       <Section id={ids.how} title={t("sx.guide.how")}>
@@ -240,7 +241,7 @@ export function SxGuide({ code, open, onClose }: SxGuideProps): ReactElement {
       }
       aiId={aiIdOf("admin.studio.guide", seg(code))}
     >
-      {open ? <GuideBody code={code} /> : null}
+      {open ? <SxGuideBody code={code} /> : null}
     </SxDrawer>
   );
 }

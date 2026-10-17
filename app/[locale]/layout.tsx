@@ -39,7 +39,7 @@ const inter = Inter({
   display: "swap",
 });
 const onest = Onest({
-  subsets: ["latin"],
+  subsets: ["latin", "cyrillic"],
   variable: "--font-onest",
   display: "swap",
 });

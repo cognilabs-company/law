@@ -31,6 +31,7 @@ import { CaretDownIcon } from "@phosphor-icons/react/dist/csr/CaretDown";
 import { CaretLeftIcon } from "@phosphor-icons/react/dist/csr/CaretLeft";
 import { CaretRightIcon } from "@phosphor-icons/react/dist/csr/CaretRight";
 import { CaretUpIcon } from "@phosphor-icons/react/dist/csr/CaretUp";
+import { CertificateIcon } from "@phosphor-icons/react/dist/csr/Certificate";
 import { ChartBarIcon } from "@phosphor-icons/react/dist/csr/ChartBar";
 import { ChatCircleTextIcon } from "@phosphor-icons/react/dist/csr/ChatCircleText";
 import { ChatsCircleIcon } from "@phosphor-icons/react/dist/csr/ChatsCircle";
@@ -41,6 +42,7 @@ import { ClipboardTextIcon } from "@phosphor-icons/react/dist/csr/ClipboardText"
 import { ClockClockwiseIcon } from "@phosphor-icons/react/dist/csr/ClockClockwise";
 import { ClockCountdownIcon } from "@phosphor-icons/react/dist/csr/ClockCountdown";
 import { ClockCounterClockwiseIcon } from "@phosphor-icons/react/dist/csr/ClockCounterClockwise";
+import { ClockIcon } from "@phosphor-icons/react/dist/csr/Clock";
 import { CodeIcon } from "@phosphor-icons/react/dist/csr/Code";
 import { CoinsIcon } from "@phosphor-icons/react/dist/csr/Coins";
 import { CopyIcon } from "@phosphor-icons/react/dist/csr/Copy";
@@ -56,8 +58,11 @@ import { ExportIcon } from "@phosphor-icons/react/dist/csr/Export";
 import { EyeIcon } from "@phosphor-icons/react/dist/csr/Eye";
 import { EyeSlashIcon } from "@phosphor-icons/react/dist/csr/EyeSlash";
 import { FileArrowDownIcon } from "@phosphor-icons/react/dist/csr/FileArrowDown";
+import { FileDashedIcon } from "@phosphor-icons/react/dist/csr/FileDashed";
 import { FileLockIcon } from "@phosphor-icons/react/dist/csr/FileLock";
+import { FilesIcon } from "@phosphor-icons/react/dist/csr/Files";
 import { FileTextIcon } from "@phosphor-icons/react/dist/csr/FileText";
+import { FileXIcon } from "@phosphor-icons/react/dist/csr/FileX";
 import { FingerprintIcon } from "@phosphor-icons/react/dist/csr/Fingerprint";
 import { FlagIcon } from "@phosphor-icons/react/dist/csr/Flag";
 import { FloppyDiskIcon } from "@phosphor-icons/react/dist/csr/FloppyDisk";
@@ -68,6 +73,8 @@ import { FunnelSimpleIcon } from "@phosphor-icons/react/dist/csr/FunnelSimple";
 import { GaugeIcon } from "@phosphor-icons/react/dist/csr/Gauge";
 import { GavelIcon } from "@phosphor-icons/react/dist/csr/Gavel";
 import { GearSixIcon } from "@phosphor-icons/react/dist/csr/GearSix";
+import { GitBranchIcon } from "@phosphor-icons/react/dist/csr/GitBranch";
+import { GlobeIcon } from "@phosphor-icons/react/dist/csr/Globe";
 import { HandCoinsIcon } from "@phosphor-icons/react/dist/csr/HandCoins";
 import { HandshakeIcon } from "@phosphor-icons/react/dist/csr/Handshake";
 import { HardDrivesIcon } from "@phosphor-icons/react/dist/csr/HardDrives";
@@ -91,6 +98,7 @@ import { MagnifyingGlassIcon } from "@phosphor-icons/react/dist/csr/MagnifyingGl
 import { MedalIcon } from "@phosphor-icons/react/dist/csr/Medal";
 import { MegaphoneIcon } from "@phosphor-icons/react/dist/csr/Megaphone";
 import { MegaphoneSimpleIcon } from "@phosphor-icons/react/dist/csr/MegaphoneSimple";
+import { MoneyIcon } from "@phosphor-icons/react/dist/csr/Money";
 import { NotebookIcon } from "@phosphor-icons/react/dist/csr/Notebook";
 import { NotePencilIcon } from "@phosphor-icons/react/dist/csr/NotePencil";
 import { PackageIcon } from "@phosphor-icons/react/dist/csr/Package";
@@ -99,6 +107,7 @@ import { PaperclipIcon } from "@phosphor-icons/react/dist/csr/Paperclip";
 import { PathIcon } from "@phosphor-icons/react/dist/csr/Path";
 import { PauseCircleIcon } from "@phosphor-icons/react/dist/csr/PauseCircle";
 import { PencilSimpleIcon } from "@phosphor-icons/react/dist/csr/PencilSimple";
+import { PercentIcon } from "@phosphor-icons/react/dist/csr/Percent";
 import { PlugIcon } from "@phosphor-icons/react/dist/csr/Plug";
 import { PlugsConnectedIcon } from "@phosphor-icons/react/dist/csr/PlugsConnected";
 import { PlusIcon } from "@phosphor-icons/react/dist/csr/Plus";
@@ -108,6 +117,7 @@ import { PulseIcon } from "@phosphor-icons/react/dist/csr/Pulse";
 import { RankingIcon } from "@phosphor-icons/react/dist/csr/Ranking";
 import { RocketLaunchIcon } from "@phosphor-icons/react/dist/csr/RocketLaunch";
 import { RowsIcon } from "@phosphor-icons/react/dist/csr/Rows";
+import { ScalesIcon } from "@phosphor-icons/react/dist/csr/Scales";
 import { ScrollIcon } from "@phosphor-icons/react/dist/csr/Scroll";
 import { SealCheckIcon } from "@phosphor-icons/react/dist/csr/SealCheck";
 import { ShareNetworkIcon } from "@phosphor-icons/react/dist/csr/ShareNetwork";
@@ -118,6 +128,7 @@ import { ShoppingBagOpenIcon } from "@phosphor-icons/react/dist/csr/ShoppingBagO
 import { ShoppingCartSimpleIcon } from "@phosphor-icons/react/dist/csr/ShoppingCartSimple";
 import { SignpostIcon } from "@phosphor-icons/react/dist/csr/Signpost";
 import { SlidersHorizontalIcon } from "@phosphor-icons/react/dist/csr/SlidersHorizontal";
+import { SparkleIcon } from "@phosphor-icons/react/dist/csr/Sparkle";
 import { SquaresFourIcon } from "@phosphor-icons/react/dist/csr/SquaresFour";
 import { StackIcon } from "@phosphor-icons/react/dist/csr/Stack";
 import { StampIcon } from "@phosphor-icons/react/dist/csr/Stamp";
@@ -129,7 +140,11 @@ import { TagIcon } from "@phosphor-icons/react/dist/csr/Tag";
 import { TargetIcon } from "@phosphor-icons/react/dist/csr/Target";
 import { TextAaIcon } from "@phosphor-icons/react/dist/csr/TextAa";
 import { TextAlignLeftIcon } from "@phosphor-icons/react/dist/csr/TextAlignLeft";
+import { TextBIcon } from "@phosphor-icons/react/dist/csr/TextB";
+import { TextHTwoIcon } from "@phosphor-icons/react/dist/csr/TextHTwo";
+import { TextItalicIcon } from "@phosphor-icons/react/dist/csr/TextItalic";
 import { TextTIcon } from "@phosphor-icons/react/dist/csr/TextT";
+import { TextUnderlineIcon } from "@phosphor-icons/react/dist/csr/TextUnderline";
 import { TimerIcon } from "@phosphor-icons/react/dist/csr/Timer";
 import { ToggleRightIcon } from "@phosphor-icons/react/dist/csr/ToggleRight";
 import { TrashIcon } from "@phosphor-icons/react/dist/csr/Trash";
@@ -174,6 +189,7 @@ export {
   CaretLeftIcon,
   CaretRightIcon,
   CaretUpIcon,
+  CertificateIcon,
   ChartBarIcon,
   ChatCircleTextIcon,
   ChatsCircleIcon,
@@ -184,6 +200,7 @@ export {
   ClockClockwiseIcon,
   ClockCountdownIcon,
   ClockCounterClockwiseIcon,
+  ClockIcon,
   CodeIcon,
   CoinsIcon,
   CopyIcon,
@@ -199,8 +216,11 @@ export {
   EyeIcon,
   EyeSlashIcon,
   FileArrowDownIcon,
+  FileDashedIcon,
   FileLockIcon,
+  FilesIcon,
   FileTextIcon,
+  FileXIcon,
   FingerprintIcon,
   FlagIcon,
   FloppyDiskIcon,
@@ -211,6 +231,8 @@ export {
   GaugeIcon,
   GavelIcon,
   GearSixIcon,
+  GitBranchIcon,
+  GlobeIcon,
   HandCoinsIcon,
   HandshakeIcon,
   HardDrivesIcon,
@@ -234,6 +256,7 @@ export {
   MedalIcon,
   MegaphoneIcon,
   MegaphoneSimpleIcon,
+  MoneyIcon,
   NotebookIcon,
   NotePencilIcon,
   PackageIcon,
@@ -242,6 +265,7 @@ export {
   PathIcon,
   PauseCircleIcon,
   PencilSimpleIcon,
+  PercentIcon,
   PlugIcon,
   PlugsConnectedIcon,
   PlusIcon,
@@ -251,6 +275,7 @@ export {
   RankingIcon,
   RocketLaunchIcon,
   RowsIcon,
+  ScalesIcon,
   ScrollIcon,
   SealCheckIcon,
   ShareNetworkIcon,
@@ -261,6 +286,7 @@ export {
   ShoppingCartSimpleIcon,
   SignpostIcon,
   SlidersHorizontalIcon,
+  SparkleIcon,
   SquaresFourIcon,
   StackIcon,
   StampIcon,
@@ -272,7 +298,11 @@ export {
   TargetIcon,
   TextAaIcon,
   TextAlignLeftIcon,
+  TextBIcon,
+  TextHTwoIcon,
+  TextItalicIcon,
   TextTIcon,
+  TextUnderlineIcon,
   TimerIcon,
   ToggleRightIcon,
   TrashIcon,
@@ -368,6 +398,9 @@ export const SOURCE_ICON: Readonly<Record<string, SxIcon>> = {
   "organization-units": TreeStructureIcon,
   permissions: LockKeyIcon,
   "client-guarantees": ShieldStarIcon,
+  "price-factors": TrendUpIcon,
+  checklists: ListChecksIcon,
+  "package-eligibility-rules": SealCheckIcon,
   "local:service-packages": PackageIcon,
   "local:consent-documents": ScrollIcon,
   "local:studio-objects": StackIcon,

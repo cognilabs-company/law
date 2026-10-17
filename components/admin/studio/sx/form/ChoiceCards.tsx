@@ -65,7 +65,7 @@ export function ChoiceCards({
           const base = `${id}-c${i}`;
           const described = [o.description ? `${base}-d` : "", o.meta ? `${base}-m` : "", why ? `${base}-w` : ""].filter(Boolean).join(" ");
           return (
-            <label key={o.value} className="sx-choice" data-checked={checked ? "" : undefined} data-disabled={off ? "" : undefined}>
+            <label key={o.value} className="sx-choice" data-checked={checked ? "" : undefined} data-disabled={off ? "" : undefined} data-noicon={o.icon ? undefined : ""}>
               <input
                 type="radio"
                 className="sx-choice__input sx-vh"
@@ -82,9 +82,11 @@ export function ChoiceCards({
                 data-ai-type={aiId ? "button" : undefined}
                 data-ai-label={aiId ? o.title : undefined}
               />
-              <span className="sx-choice__icon" aria-hidden="true">
-                {o.icon ? glyph(o.icon, { size: 20 }) : null}
-              </span>
+              {o.icon ? (
+                <span className="sx-choice__icon" aria-hidden="true">
+                  {glyph(o.icon, { size: 20 })}
+                </span>
+              ) : null}
               <span className="sx-choice__title" id={`${base}-t`}>
                 {o.title}
               </span>

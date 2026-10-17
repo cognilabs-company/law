@@ -76,6 +76,17 @@ export function scopedKeys(base: string, key: string, scope?: SxScope): string[]
   return out;
 }
 
+export const CTOR_VARIANTS: Readonly<Record<string, (runtimeTarget: string) => string>> = {
+  K29: (rt) => (rt && rt !== "marketplace_price_options" ? "checklist" : ""),
+};
+
+export function ctorVariant(code: string, runtimeTarget: string): string {
+  const c = String(code ?? "").trim();
+  const own = Object.prototype.hasOwnProperty;
+  const key = own.call(CTOR_VARIANTS, c) ? c : own.call(CTOR_VARIANTS, c.toUpperCase()) ? c.toUpperCase() : "";
+  return key ? CTOR_VARIANTS[key](String(runtimeTarget ?? "").trim()) : "";
+}
+
 export function groupedMoney(raw: string, separator: string): string {
   const text = String(raw ?? "").trim();
   if (!text) return "";
