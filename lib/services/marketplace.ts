@@ -1,8 +1,9 @@
-import { http, asDict, asStr, asNum, asArr, ApiError, isAborted, type Dict } from "@/lib/http";
+import { http, asDict, asStr, asNum, asArr, ApiError, isAborted, parseServerTime, type Dict } from "@/lib/http";
 import { uzs } from "@/lib/money";
 import { cleanDocTitle } from "@/lib/docTitle";
 import { sellerTrustOf, type RatingStatus } from "./trust";
 import { featureMissing, noteFeatureError } from "@/lib/endpointGate";
+import { RUNTIME_ERROR_CODES, completeOrderV2 } from "./marketRuntime";
 
 export type MarketCategory = { id: string; title: string; slug: string };
 
@@ -441,6 +442,7 @@ export const MARKET_ERROR_CODES = [
   "marketplace_result_required",
   "rating_window_closed",
   "ticket_closed",
+  ...RUNTIME_ERROR_CODES,
 ] as const;
 export const PRICE_OPTION_ERRORS: readonly string[] = ["unknown_price_options", "duplicate_price_option", "negative_price_adjustment_forbidden"];
 export const PACKAGE_SELLER_ERRORS: readonly string[] = ["package_seller_not_eligible", "package_not_available_for_seller"];
@@ -496,7 +498,7 @@ export type MarketOrder = {
 
 export type OrderOption = { id: string; label: string; amount: number };
 export type ResultFile = { fileId: string; fileName: string; downloadUrl: string };
-export type OrderRating = { canRate: boolean; deadlineAt: string; value: number; comment: string };
+export type OrderRating = { canRate: boolean; available: boolean; closed: boolean; reason: string; deadlineAt: string; remainingSeconds: number; expiresAt: number; value: number; comment: string };
 export type SupplementalStatus = "pending" | "approved" | "rejected" | "escalated" | "expired" | "cancelled";
 export type SupplementalPayment = {
   id: string;
@@ -555,6 +557,27 @@ function normSupplemental(v: unknown): SupplementalPayment | null {
   };
 }
 
+export function ratingOf(d: Dict, details: Dict = asDict(d.details), now = Date.now()): OrderRating {
+  const r = asDict(d.rating);
+  const available = typeof r.available === "boolean" ? r.available : r.can_rate === true;
+  const closed = r.closed === true;
+  const remaining = asNum(r.remaining_seconds, -1);
+  const deadlineAt = asStr(r.deadline_at ?? d.rating_deadline_at ?? details.rating_deadline_at);
+  const at = parseServerTime(deadlineAt);
+  const own = typeof d.rating === "number" ? d.rating : asNum(r.value ?? r.rating ?? r.score);
+  return {
+    canRate: available && !closed,
+    available,
+    closed,
+    reason: asStr(r.reason),
+    deadlineAt,
+    remainingSeconds: Math.max(0, remaining),
+    expiresAt: remaining > 0 ? now + remaining * 1000 : Number.isFinite(at) ? at : 0,
+    value: own || (typeof details.rating === "number" ? details.rating : asNum(asDict(details.rating).value)),
+    comment: asStr(r.comment ?? d.rating_comment ?? details.rating_comment),
+  };
+}
+
 function supplementalOf(d: Dict, details: Dict): SupplementalPayment | null {
   const direct = d.additional_payment ?? d.additional_payment_request ?? details.additional_payment_request ?? details.additional_payment;
   if (direct && typeof direct === "object" && !Array.isArray(direct)) return normSupplemental(direct);
@@ -574,8 +597,6 @@ export function normMarketOrder(v: unknown): MarketOrder {
   const pkg = asDict(d.package ?? d.package_snapshot ?? details.package_snapshot ?? details.package);
   const quote = asDict(d.quote ?? d.quote_snapshot ?? details.quote_snapshot ?? details.quote);
   const result = asDict(d.result);
-  const rating = asDict(d.rating);
-  const ratingValue = typeof d.rating === "number" ? d.rating : asNum(rating.value ?? rating.rating ?? rating.score);
   const supplemental = supplementalOf(d, details);
   const optionRows = asArr(d.selected_options ?? details.selected_options ?? quote.breakdown).map(normOrderOption).filter((o) => o.id || o.label);
   return {
@@ -609,12 +630,7 @@ export function normMarketOrder(v: unknown): MarketOrder {
     resultText: asStr(d.result_text ?? details.result_text ?? result.text).trim(),
     resultFiles: asArr(d.result_files ?? details.result_files ?? result.files).map(normResultFile).filter((f) => f.fileName || f.downloadUrl),
     completedAt: asStr(d.completed_at ?? details.completed_at),
-    rating: {
-      canRate: rating.can_rate === true,
-      deadlineAt: asStr(rating.deadline_at ?? d.rating_deadline_at),
-      value: ratingValue,
-      comment: asStr(rating.comment ?? d.rating_comment),
-    },
+    rating: ratingOf(d, details),
     ratingUrl: asStr(d.rating_url),
     supplemental,
     workPaused: supplemental?.status === "pending" || (status === "waiting_payment" && (asStr(d.payment_status ?? payment.status).toLowerCase() === "paid" || !!supplemental)),
@@ -641,7 +657,21 @@ export async function cancelMarketplaceOrder(orderId: string, reason: string): P
   return { status: asStr(o.status, "cancelled").toLowerCase(), paymentStatus: asStr(o.payment_status, "cancelled").toLowerCase() };
 }
 
-export async function completeMarketplaceOrder(orderId: string, input: { resultText: string; resultFiles: ResultFile[] }): Promise<{ status: string }> {
+export type MarketCompletion = { status: string; via: "v2" | "legacy"; chatReadOnly: boolean | null; callsAllowed: boolean | null; ratingDeadlineAt: string };
+
+export function isCompleteV2Missing(e: unknown): boolean {
+  if (!(e instanceof ApiError) || e.code) return false;
+  if (e.status === 405) return true;
+  return e.status === 404 && (!e.detail || /^not found$/i.test(e.detail.trim()));
+}
+
+export async function completeMarketplaceOrder(orderId: string, input: { resultText: string; resultFiles: ResultFile[] }): Promise<MarketCompletion> {
+  try {
+    const r = await completeOrderV2(orderId, { resultText: input.resultText, resultFiles: input.resultFiles.map((f) => ({ id: f.fileId, name: f.fileName })) });
+    return { status: r.status || "completed", via: "v2", chatReadOnly: r.chatReadOnly, callsAllowed: r.callsAllowed, ratingDeadlineAt: r.ratingDeadlineAt };
+  } catch (e) {
+    if (!isCompleteV2Missing(e)) throw e;
+  }
   const o = orderOf(
     await http(`/marketplace/me/orders/${encodeURIComponent(orderId)}/complete`, {
       method: "POST",
@@ -651,7 +681,7 @@ export async function completeMarketplaceOrder(orderId: string, input: { resultT
       }),
     }),
   );
-  return { status: asStr(o.status, "completed").toLowerCase() };
+  return { status: asStr(o.status, "completed").toLowerCase(), via: "legacy", chatReadOnly: null, callsAllowed: null, ratingDeadlineAt: "" };
 }
 
 export async function rateMarketplaceOrder(order: Pick<MarketOrder, "id" | "ratingUrl">, input: { rating: number; comment: string }): Promise<void> {
@@ -671,7 +701,24 @@ export async function requestAdditionalPayment(orderId: string, input: { selecte
 
 export const MARKET_EVENT = "lexgo:marketplace";
 
-export type MarketSignal = { kind: "paid" | "rejected" | "requested" | "supplemental" | "refund" | "completed" | "other"; sub?: string; orderId: string; workId: string; roomId: string; serviceTitle: string };
+export type MarketSignalKind = "paid" | "rejected" | "requested" | "supplemental" | "refund" | "completed" | "started" | "negotiation" | "checklist" | "review" | "rules" | "other";
+
+export type MarketSignal = {
+  kind: MarketSignalKind;
+  sub?: string;
+  orderId: string;
+  workId: string;
+  roomId: string;
+  serviceTitle: string;
+  event?: string;
+  negotiationId?: string;
+  reviewId?: string;
+  ruleId?: string;
+  deadlineAt?: string;
+  outcome?: string;
+  groupRoomId?: string;
+  amount?: number;
+};
 
 const SUB_RE = /(requested|approved|rejected|escalated|expired|warning)$/;
 function specialKind(name: string): Pick<MarketSignal, "kind" | "sub"> | null {
@@ -679,6 +726,97 @@ function specialKind(name: string): Pick<MarketSignal, "kind" | "sub"> | null {
   if (/refund/.test(name)) return { kind: "refund", sub: SUB_RE.exec(name)?.[1] ?? "" };
   if (/order_completed|order_complete$|_completed$/.test(name)) return { kind: "completed", sub: "" };
   return null;
+}
+
+const RUNTIME_SIGNALS = new Map<string, Pick<MarketSignal, "kind" | "sub">>([
+  ["rule_accepted", { kind: "rules", sub: "accepted" }],
+  ["negotiation_created", { kind: "negotiation", sub: "created" }],
+  ["negotiation_updated", { kind: "negotiation", sub: "updated" }],
+  ["order_started", { kind: "started", sub: "" }],
+  ["checklist_updated", { kind: "checklist", sub: "" }],
+  ["cancellation_review_created", { kind: "review", sub: "created" }],
+  ["cancellation_review_resolved", { kind: "review", sub: "resolved" }],
+  ["order_completed", { kind: "completed", sub: "" }],
+]);
+
+export const MARKET_RUNTIME_EVENTS: readonly string[] = [...RUNTIME_SIGNALS.keys()].map((k) => `marketplace.${k}`);
+
+const RUNTIME_FAMILIES: [string, MarketSignalKind][] = [
+  ["cancellation_review", "review"],
+  ["negotiation", "negotiation"],
+];
+
+function runtimeKind(tail: string): Pick<MarketSignal, "kind" | "sub"> | null {
+  const hit = RUNTIME_SIGNALS.get(tail);
+  if (hit) return hit;
+  for (const [key, kind] of RUNTIME_FAMILIES) {
+    const at = tail.indexOf(key);
+    if (at >= 0) return { kind, sub: tail.slice(at + key.length).replace(/^_+/, "") };
+  }
+  return null;
+}
+
+const plainDict = (v: unknown): Dict => (v && typeof v === "object" && !Array.isArray(v) ? (v as Dict) : {});
+
+function signalSources(root: Dict): Dict[] {
+  const data = plainDict(root.data);
+  const out: Dict[] = [root];
+  const add = (s: Dict) => {
+    if (Object.keys(s).length && !out.includes(s)) out.push(s);
+  };
+  for (const s of [data, plainDict(root.payload), plainDict(data.payload), plainDict(data.data)]) add(s);
+  for (const s of [...out]) for (const k of ["review", "cancellation_review", "negotiation"]) add(plainDict(s[k]));
+  for (const s of [...out]) add(plainDict(s.resolution));
+  return out;
+}
+
+function pickStr(srcs: Dict[], keys: string[]): string {
+  for (const s of srcs) {
+    for (const k of keys) {
+      const v = s[k];
+      if ((typeof v === "string" && v.trim()) || (typeof v === "number" && Number.isFinite(v))) return String(v).trim();
+    }
+  }
+  return "";
+}
+
+function pickIn(srcs: Dict[], objKeys: string[], keys: string[]): string {
+  for (const s of srcs) {
+    for (const o of objKeys) {
+      const v = pickStr([plainDict(s[o])], keys);
+      if (v) return v;
+    }
+  }
+  return "";
+}
+
+const orderShaped = (d: Dict) => !("order_id" in d) && "status" in d && ("work_id" in d || "service_id" in d || "lawyer_user_id" in d || "client_user_id" in d);
+
+function runtimeSignal(spec: Pick<MarketSignal, "kind" | "sub">, root: Dict, event: string): MarketSignal {
+  const srcs = signalSources(root);
+  const inner = srcs.slice(1);
+  const own = (test: (d: Dict) => boolean) => pickStr(inner.filter(test), ["id"]);
+  const chatUrl = pickStr(srcs, ["chat_url"]) || pickIn(srcs, ["order"], ["chat_url"]);
+  const amount = asNum(pickStr(srcs, ["amount", "counter_amount", "new_price"]), NaN);
+  const negotiationState = spec.kind === "negotiation" ? pickStr(srcs, ["negotiation_status"]) || pickStr(inner, ["status"]) || pickStr([root], ["status"]) : "";
+  const outcome = pickStr(srcs, ["action", "resolution", "outcome", "decision"]) || pickIn(srcs, ["resolution", "review", "negotiation"], ["action", "status"]) || negotiationState;
+  const orderIsPayload = spec.kind === "started" || spec.kind === "completed";
+  return {
+    kind: spec.kind,
+    sub: spec.sub,
+    event,
+    orderId: pickStr(srcs, ["order_id", "marketplace_order_id"]) || pickIn(srcs, ["order"], ["id"]) || (orderIsPayload ? own(orderShaped) : ""),
+    workId: pickStr(srcs, ["work_id"]) || pickIn(srcs, ["purchase_request", "order"], ["work_id"]),
+    roomId: pickStr(srcs, ["room_id", "secure_chat_room_id", "chat_room_id"]) || pickIn(srcs, ["chat", "order"], ["room_id", "secure_chat_room_id"]) || (ROOM_RE.exec(chatUrl)?.[1] ?? ""),
+    serviceTitle: pickStr(srcs, ["service_title"]) || pickIn(srcs, ["order"], ["service_title"]),
+    negotiationId: spec.kind === "negotiation" ? pickStr(srcs, ["negotiation_id"]) || pickIn(srcs, ["negotiation"], ["id"]) || own((d) => "order_id" in d && ("amount" in d || "expires_at" in d)) : "",
+    reviewId: spec.kind === "review" ? pickStr(srcs, ["review_id", "cancellation_review_id"]) || pickIn(srcs, ["review", "cancellation_review"], ["id"]) || own((d) => "order_id" in d && ("reason" in d || "action" in d || "resolution" in d || "group_chat_room_id" in d)) : "",
+    ruleId: spec.kind === "rules" ? pickStr(srcs, ["rule_id"]) || pickIn(srcs, ["rule"], ["id"]) || own((d) => "rule_key" in d || "version" in d) : "",
+    deadlineAt: pickStr(srcs, ["expected_completed_at", "deadline_at"]) || pickIn(srcs, ["order"], ["expected_completed_at"]),
+    outcome: outcome.toLowerCase(),
+    groupRoomId: pickStr(srcs, ["group_chat_room_id", "group_room_id"]) || pickIn(srcs, ["group_chat"], ["room_id", "id"]) || pickIn(srcs, ["resolution", "review"], ["group_chat_room_id"]),
+    amount: Number.isFinite(amount) ? amount : undefined,
+  };
 }
 
 export function marketSignalOf(ev: { event: string } & Record<string, unknown>): MarketSignal | null {
@@ -698,6 +836,8 @@ export function marketSignalOf(ev: { event: string } & Record<string, unknown>):
     };
   }
   if (name.startsWith("marketplace.")) {
+    const runtime = runtimeKind(name.slice("marketplace.".length));
+    if (runtime) return runtimeSignal(runtime, ev, name);
     const special = specialKind(name);
     const kind = special ? special.kind : /paid|approved/.test(name) ? "paid" : /reject|cancel/.test(name) ? "rejected" : "other";
     const chat = asStr(ev.chat_url);
@@ -721,6 +861,11 @@ export function marketSignalOf(ev: { event: string } & Record<string, unknown>):
     return { kind: "other", orderId: asStr(data.target_id), workId: "", roomId: "", serviceTitle: "" };
   }
   if (!inner.startsWith("marketplace_")) return null;
+  const runtime = runtimeKind(inner.slice("marketplace_".length));
+  if (runtime) {
+    const sig = runtimeSignal(runtime, data, inner);
+    return sig.serviceTitle ? sig : { ...sig, serviceTitle: asStr(n.body) };
+  }
   const special = specialKind(inner);
   if (special) return { ...special, orderId: asStr(data.order_id), workId: asStr(data.work_id), roomId: asStr(data.room_id), serviceTitle: asStr(data.service_title) || asStr(n.body) };
   const kind = inner === "marketplace_purchase_approved" || inner === "marketplace_order_paid" ? "paid" : inner === "marketplace_purchase_rejected" ? "rejected" : inner === "marketplace_purchase_requested" ? "requested" : "other";

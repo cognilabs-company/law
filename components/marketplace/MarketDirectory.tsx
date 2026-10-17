@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { getMarketplaceCategoryServices, getMarketplaceServiceCategories, type MarketServiceCategory } from "@/lib/services/backend";
+import { categoryPathLabel, descendantIds, flattenCategoryTree, getCategoryTree, type CategoryRow } from "@/lib/services/categoryTree";
 import { Link } from "@/i18n/navigation";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { IconArrowRight, IconAward, IconBriefcase, IconCard, IconClose, IconFileText, IconGavel, IconHeadset, IconLayers, IconMapPin, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconStar, IconUser, IconUsers } from "@/components/icons";
@@ -214,45 +214,41 @@ export default function MarketDirectory({
     return (["advokat", "yurist"] as const).filter((v) => seen.has(v)).map((value) => ({ value, label: sellerTypeLabel(t, value) }));
   }, [meta, items, t]);
 
-  // The marketplace's own catalog (GET /marketplace/service-categories):
-  // the professional services only, never the document-template tree. Until
-  // it answers, the categories the sellers themselves carry stand in.
-  const [proCats, setProCats] = useState<MarketServiceCategory[] | null>(null);
-  const [proServices, setProServices] = useState<{ categoryId: string; items: { value: string; label: string; categoryId: string }[] } | null>(null);
+  const isPreview = Boolean(preview);
+  const [tree, setTree] = useState<CategoryRow[] | null>(null);
   useEffect(() => {
+    if (isPreview) return;
     const c = new AbortController();
-    getMarketplaceServiceCategories(c.signal)
-      .then((rows) => !c.signal.aborted && setProCats(rows))
+    getCategoryTree({}, c.signal)
+      .then((nodes) => {
+        if (c.signal.aborted) return;
+        const rows = flattenCategoryTree(nodes);
+        const off = new Set(rows.filter((r) => !r.node.isActive).map((r) => r.node.id));
+        setTree(rows.filter((r) => !off.has(r.node.id) && !r.ancestors.some((id) => off.has(id))));
+      })
       .catch(() => undefined);
     return () => c.abort();
-  }, [reload]);
-  useEffect(() => {
-    const cat = proCats?.find((x) => x.id === category);
-    if (!cat) return;
-    const c = new AbortController();
-    getMarketplaceCategoryServices(cat, locale, c.signal)
-      .then((rows) => !c.signal.aborted && setProServices({ categoryId: cat.id, items: rows.map((x) => ({ value: x.id, label: x.name, categoryId: cat.id })) }))
-      .catch(() => undefined);
-    return () => c.abort();
-  }, [proCats, category, locale]);
+  }, [reload, isPreview]);
+  const treeRows = useMemo(() => (tree?.length ? tree : null), [tree]);
+  const treeById = useMemo(() => new Map((treeRows ?? []).map((r) => [r.node.id, r])), [treeRows]);
 
   const categories = useMemo(() => {
-    if (proCats?.length) return proCats.map((c) => ({ value: c.id, label: `${specLabel(te, c.title)} (${c.servicesCount})` }));
+    if (treeRows) return treeRows.map((r) => ({ value: r.node.id, label: categoryPathLabel(r, (title) => specLabel(te, title)) }));
     const src = meta?.categories.length ? meta.categories : items.flatMap((s) => s.categories);
     const m = new Map<string, string>();
     for (const c of src) if (c.id && !m.has(c.id)) m.set(c.id, specLabel(te, c.title || c.slug));
     return [...m.entries()].map(([value, label]) => ({ value, label }));
-  }, [proCats, meta, items, te]);
+  }, [treeRows, meta, items, te]);
+
+  const categorySet = useMemo(() => (category ? new Set([category, ...(treeRows ? descendantIds(category, treeRows) : [])]) : null), [category, treeRows]);
 
   const services = useMemo(() => {
     const src = meta?.services.length ? meta.services : items.flatMap((s) => s.services.map((x) => ({ id: x.id, title: x.title, categoryId: x.categoryId, basePrice: x.basePrice })));
     const m = new Map<string, { value: string; label: string; categoryId: string }>();
-    if (category && proServices?.categoryId === category) return proServices.items;
-    // Only what belongs to a marketplace category is a marketplace service.
-    const pro = proCats?.length ? new Set(proCats.map((c) => c.id)) : null;
+    const pro = treeRows ? treeById : null;
     for (const x of src) if (x.id && !m.has(x.id) && (!pro || pro.has(x.categoryId))) m.set(x.id, { value: x.id, label: x.title, categoryId: x.categoryId });
-    return [...m.values()].filter((x) => !category || x.categoryId === category);
-  }, [meta, items, category, proCats, proServices]);
+    return [...m.values()].filter((x) => !categorySet || categorySet.has(x.categoryId));
+  }, [meta, items, treeRows, treeById, categorySet]);
 
   const query = q.trim();
   const aiHit = ai && ai.q === query && ai.matches.length ? ai : null;
@@ -273,12 +269,17 @@ export default function MarketDirectory({
     const rank = new Map((aiHit?.matches ?? []).map((m, i) => [m.userId, i]));
     const known = new Set(shownItems.map((s) => s.userId));
     const extra = (aiHit?.matches ?? []).map((m) => m.seller).filter((x): x is MarketSeller => Boolean(x && x.verified && !known.has(x.userId)));
-    const hayOf = (s: MarketSeller) => [s.name, s.organizationName, regionLabel(te, s.region), s.district, ...s.specializations.map((x) => specLabel(te, x)), ...s.serviceTitles, ...s.services.map((x) => x.title), ...s.categories.map((c) => c.title)].join(" ");
+    const termsOf = (id: string) => {
+      const row = treeById.get(id);
+      return row ? [row.node.title, ...row.node.discoveryTerms] : [];
+    };
+    const hayOf = (s: MarketSeller) =>
+      [s.name, s.organizationName, regionLabel(te, s.region), s.district, ...s.specializations.map((x) => specLabel(te, x)), ...s.serviceTitles, ...s.services.map((x) => x.title), ...s.categories.map((c) => c.title), ...new Set([...s.categories.map((c) => c.id), ...s.services.map((x) => x.categoryId)].flatMap(termsOf))].join(" ");
     const pool = shownItems.concat(extra).filter((s) => {
       if (region && (regionKeyOf(te, s.region) || s.region.toLowerCase()) !== region) return false;
       if (sellerType && s.sellerType !== sellerType) return false;
       if (effSpec && !s.specializations.some((x) => x.toLowerCase() === effSpec)) return false;
-      if (category && !s.categories.some((c) => c.id === category) && !s.services.some((x) => x.categoryId === category)) return false;
+      if (categorySet && !s.categories.some((c) => categorySet.has(c.id)) && !s.services.some((x) => categorySet.has(x.categoryId))) return false;
       if (service && !s.services.some((x) => x.id === service)) return false;
       if (minR && !(hasRating(s) && s.rating >= minR)) return false;
       if (maxP && !(s.priceFrom > 0 && s.priceFrom <= maxP)) return false;
@@ -298,7 +299,7 @@ export default function MarketDirectory({
       .filter((x) => x.hits > 0)
       .sort((a, b) => b.hits - a.hits)
       .map((x) => x.s);
-  }, [shownItems, region, sellerType, effSpec, category, service, minRating, priceMax, minExp, q, te, aiHit, aiThinking]);
+  }, [shownItems, region, sellerType, effSpec, categorySet, treeById, service, minRating, priceMax, minExp, q, te, aiHit, aiThinking]);
 
   // Banners: the AI answer's, else the list's, else the active ones asked for
   // directly — whichever the backend filled. Sponsored: a picked service shows
@@ -467,7 +468,7 @@ export default function MarketDirectory({
   useAiField("marketplace.filters.category", {
     get: () => category,
     set: (v) => {
-      const next = aiOption(categories, v);
+      const next = aiOption(categories, v) ?? (searchTerms(v).length ? treeRows?.find((r) => matchesSearch([...r.path, r.node.slug, ...r.node.discoveryTerms].join(" "), v))?.node.id : null) ?? null;
       if (next === null) return;
       setCategory(next);
       setService("");

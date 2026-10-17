@@ -1,0 +1,4 @@
+.mkc__blocked .mkc__list li{align-items:flex-start}
+.mkc__blocked .mkc__list li>svg{margin-top:1px;color:var(--dk-txt-err, #B42318)}
+.mkc__blocked .mkc__list li>span{white-space:normal;overflow:visible;overflow-wrap:anywhere}
+.mkc__blocked .mkc__list li>em{flex:none;margin-top:1px}

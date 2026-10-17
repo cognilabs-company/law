@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { getMarketplaceServiceCategories, getServiceCategories, searchServices, type BackendCategory, type MarketServiceCategory } from "@/lib/services/backend";
+import { Link } from "@/i18n/navigation";
+import { searchServices, type BackendCategory } from "@/lib/services/backend";
 import { sessionRoles, useAuth } from "@/lib/auth";
-import { saveCategory, removeCategory, restoreCategory, resetCategory, type OverlaidCategory } from "@/lib/services/catalogOverrides";
+import { CATEGORY_PATH_SEP, categoryPathLabel, descendantIds, flattenCategoryTree, getCategoryTree, invalidateCategoryTree, type CategoryRow } from "@/lib/services/categoryTree";
 import {
-  createServiceCategory,
   createService,
   listAdminServices,
   deleteService,
@@ -26,7 +26,8 @@ import Modal from "@/components/admin/Modal";
 import FilterBar from "@/components/filters/FilterBar";
 import ServiceEditModal from "@/components/admin/ServiceEditModal";
 import { useAiSelection } from "@/lib/ai/registry";
-import { IconBriefcase, IconPlus, IconSearch, IconEdit, IconTrash, IconRefresh, IconInfo, IconEye, IconLayers, IconCircleCheck } from "@/components/icons";
+import { IconAlert, IconBriefcase, IconChevronRight, IconPlus, IconSearch, IconEdit, IconTrash, IconRefresh, IconInfo, IconEye, IconLayers, IconCircleCheck } from "@/components/icons";
+import "./categoryTree.css";
 
 function num(v: string | boolean): number {
   const n = parseInt(String(v || "0"), 10);
@@ -46,6 +47,47 @@ const hayOf = (s: AdminService) =>
 
 const isMissingEndpoint = (e: unknown) => e instanceof ApiError && (e.status === 404 || e.status === 405 || e.status === 501);
 
+const STUDIO_CATEGORIES_HREF = "/admin/studio/c/K01";
+
+const loadCategoryRows = () =>
+  getCategoryTree({ includeInactive: true })
+    .catch(() => getCategoryTree())
+    .then(flattenCategoryTree);
+
+const categoryAsBackend = (r: CategoryRow): BackendCategory => ({
+  id: r.node.id,
+  name: categoryPathLabel(r),
+  slug: r.node.slug,
+  description: r.node.description,
+  subcategoriesCount: r.node.childrenCount,
+  servicesCount: 0,
+  subcategories: [],
+});
+
+function CategoryTreeRow({ row, rootIndex, active, onShow }: { row: CategoryRow; rootIndex: number; active: boolean; onShow: () => void }) {
+  const ts = useTranslations("admin.services");
+  const meta = [row.path.slice(0, -1).join(CATEGORY_PATH_SEP), row.node.slug].filter(Boolean).join(" · ");
+  return (
+    <li className={`aitem${row.node.isActive ? "" : " is-off"}`} style={{ "--svc-depth": row.depth } as CSSProperties} aria-level={row.depth + 1}>
+      {row.depth ? <IconChevronRight className="svcadm-tree__branch" aria-hidden="true" /> : <span className="aitem__n" aria-hidden="true">{rootIndex}</span>}
+      <div className="aitem__m">
+        <b title={row.node.title}>{row.node.title}</b>
+        {meta ? <span className="aitem__meta">{meta}</span> : null}
+        <div className="aitem__tags">
+          {row.depth ? <em className="atag atag--muted">{ts("catTree.level", { n: row.depth + 1 })}</em> : null}
+          {row.node.childrenCount ? <em className="atag atag--muted">{ts("catTree.children", { n: row.node.childrenCount })}</em> : null}
+          {row.node.isActive ? null : <em className="atag atag--muted">{ts("catTree.inactive")}</em>}
+        </div>
+      </div>
+      <div className="aitem__acts">
+        <button className="aitem__act" type="button" aria-label={ts("catTree.showServices", { name: row.node.title })} title={ts("scope.showServices")} onClick={onShow} aria-pressed={active}>
+          <IconEye />
+        </button>
+      </div>
+    </li>
+  );
+}
+
 export default function AdminServices() {
   const t = useTranslations("admin");
   const ts = useTranslations("admin.services");
@@ -57,33 +99,18 @@ export default function AdminServices() {
   const [replaceOpen, setReplaceOpen] = useState(false);
   const [replaceBusy, setReplaceBusy] = useState(false);
   const [catKey, reloadCats] = useReload();
-  // The marketplace's own categories: never the document-template tree.
-  const mcats = useResource(() => getMarketplaceServiceCategories().catch(() => [] as MarketServiceCategory[]), [catKey]);
+  const cats = useResource(loadCategoryRows, [catKey]);
+  const refreshCats = () => {
+    invalidateCategoryTree();
+    reloadCats();
+  };
+  const activeCats = useMemo(() => cats.data.filter((r) => r.node.isActive), [cats.data]);
+  const rootIndex = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of cats.data) if (!r.depth) m.set(r.node.id, m.size + 1);
+    return m;
+  }, [cats.data]);
   const [svcKey, reloadSvcs] = useReload();
-  // Admin sees hidden ("deleted") categories too, behind a toggle.
-  const cats = useResource(() => getServiceCategories({ includeHidden: true }) as Promise<OverlaidCategory[]>, [catKey]);
-  const [showHiddenCats, setShowHiddenCats] = useState(false);
-  const visibleCats = useMemo(() => cats.data.filter((c) => !c.hidden), [cats.data]);
-  const hiddenCats = useMemo(() => cats.data.filter((c) => c.hidden), [cats.data]);
-  const [catEdit, setCatEdit] = useState<OverlaidCategory | null>(null);
-  const [catDel, setCatDel] = useState<OverlaidCategory | null>(null);
-  const [catBusy, setCatBusy] = useState("");
-  async function catOp(c: BackendCategory, kind: "restore" | "reset" | "del", op: () => Promise<{ via: "backend" | "overlay" } | void>, msg: string, failMsg: string) {
-    if (catBusy) return;
-    setCatBusy(c.id);
-    const id = `svc-cat-${kind}-${c.id}`;
-    try {
-      const r = await op();
-      notify.success(msg, { id, body: r && r.via === "overlay" ? ts("cat.overlayNote") : c.name });
-      setCatDel(null);
-      reloadCats();
-    } catch (e) {
-      notify.error(failMsg, { id, error: e });
-    } finally {
-      setCatBusy("");
-    }
-  }
-  const [catOpen, setCatOpen] = useState(false);
   const [svcOpen, setSvcOpen] = useState(false);
   const [edit, setEdit] = useState<AdminService | null>(null);
   const [del, setDel] = useState<AdminService | null>(null);
@@ -96,13 +123,15 @@ export default function AdminServices() {
   // The professional catalog is always asked for by is_active: the live
   // list by default, the archive on request.
   const [state, setState] = useState<StateFilter>("active");
+  const catScope = useMemo(() => (cat ? new Set([cat, ...descendantIds(cat, cats.data)]) : null), [cat, cats.data]);
+  const serverCat = catScope && catScope.size === 1 ? cat : "";
   // category_id and is_active are real server-side filters (2026-09-19
   // backend); free-text stays client-side (matchesSearch below, merged with
   // the debounced /services/search remote hits) — no reason to run three
   // separate search paths for the same "q".
   const svcs = useResource(
-    () => listAdminServices(locale, { categoryId: cat || undefined, isActive: state === "all" ? undefined : state === "active", scope: scope === "all" ? undefined : scope }),
-    [svcKey, locale, cat, state, scope],
+    () => listAdminServices(locale, { categoryId: serverCat || undefined, isActive: state === "all" ? undefined : state === "active", scope: scope === "all" ? undefined : scope }),
+    [svcKey, locale, serverCat, state, scope],
   );
   // Categories and services used to pop in separately — whichever request
   // resolved first showed its panel while the other still sat on its own
@@ -137,27 +166,23 @@ export default function AdminServices() {
   const remoteIds = remote && remote.q === term ? remote.ids : null;
   const serverSearchOff = Boolean(remote?.off);
 
-  const all = svcs.data;
+  const all = useMemo(() => (catScope ? svcs.data.filter((s) => catScope.has(s.categoryId ?? "")) : svcs.data), [svcs.data, catScope]);
 
   const list = useMemo(() => {
     return all.filter((s) => {
       if (state === "active" && !s.isActive) return false;
       if (state === "inactive" && s.isActive) return false;
-      if (cat && s.categoryId !== cat) return false;
       if (!term) return true;
       return matchesSearch(hayOf(s), term) || Boolean(remoteIds?.has(s.id));
     });
-  }, [all, state, cat, term, remoteIds]);
+  }, [all, state, term, remoteIds]);
 
-  const scopeCats = [
-    ...(scope !== "documents" ? mcats.data.map((c) => ({ value: c.id, label: c.title })) : []),
-    ...(scope !== "marketplace" ? cats.data.map((c) => ({ value: c.id, label: c.name })) : []),
-  ];
+  const scopeCats = cats.data.map((r) => ({ value: r.node.id, label: r.node.isActive ? categoryPathLabel(r) : `${categoryPathLabel(r)} · ${ts("catTree.inactive")}` }));
   const catOpts = [{ value: "", label: ts("allCats") }, ...scopeCats];
   const stateOpts = ((scope === "marketplace" ? ["active", "inactive"] : ["all", "active", "inactive"]) as StateFilter[]).map((k) => ({ value: k, label: scope === "marketplace" && k === "inactive" ? ts("scope.archive") : ts(`state.${k}`) }));
-  // A service keeps to its own catalog's categories when edited.
-  const marketAsCats = mcats.data.map((c) => ({ id: c.id, name: c.title, slug: c.slug, description: c.description, subcategoriesCount: c.subcategories.length, servicesCount: c.servicesCount, subcategories: [] }) as BackendCategory);
-  const editCats = edit && mcats.data.some((c) => c.id === edit.categoryId) ? marketAsCats : visibleCats;
+  const editCats = cats.data
+    .filter((r) => r.node.isActive || r.node.id === edit?.categoryId)
+    .map((r) => (r.node.isActive ? categoryAsBackend(r) : { ...categoryAsBackend(r), name: `${categoryPathLabel(r)} · ${ts("catTree.inactive")}` }));
   const pickScope = (next: Scope) => {
     setScope(next);
     setCat("");
@@ -173,7 +198,7 @@ export default function AdminServices() {
       await replaceProfessionalCatalog();
       setReplaceOpen(false);
       notify.success(ts("scope.replaceDone"), { id: "svc-replace" });
-      reloadCats();
+      refreshCats();
       reloadSvcs();
     } catch (e) {
       notify.error(ts("scope.replaceError"), { id: "svc-replace", error: e, map: { 403: ts("edit.errForbidden") } });
@@ -181,7 +206,6 @@ export default function AdminServices() {
       setReplaceBusy(false);
     }
   }
-  const viewHiddenCats = showHiddenCats && hiddenCats.length > 0;
   useAiSelection("admin_services_state", state === "all" ? "" : state);
 
   // GET /admin/services lists inactive rows too, so a PATCH just replaces the
@@ -248,116 +272,33 @@ export default function AdminServices() {
       ) : null}
     </div>
     <div className="agrid svcadm__grid">
-      {scope === "marketplace" ? (
-        <div className="ppanel" data-ai-target="services:market-categories">
-          <div className="ppanel__h">
-            <b>{ts("scope.marketCats")}</b>
-            <span className="ahdr"><span className="advmuted">{mcats.data.length}</span></span>
-          </div>
-          {mcats.status === "loading" ? (
-            <Skeleton rows={3} />
-          ) : !mcats.data.length ? (
-            <EmptyState icon={<IconBriefcase />} title={t("services.catEmpty")} />
-          ) : (
-            <div className="alist">
-              {mcats.data.map((c, i) => (
-                <AdminItem
-                  key={c.id}
-                  index={i + 1}
-                  title={c.title}
-                  meta={[c.slug, ts("scope.servicesN", { n: c.servicesCount })].join(" · ")}
-                  tags={c.subcategories.slice(0, 3).map((x) => ({ label: x.title, tone: "muted" as const }))}
-                  actions={
-                    <button className="aitem__act" type="button" aria-label={ts("scope.showServices")} title={ts("scope.showServices")} onClick={() => setCat(cat === c.id ? "" : c.id)} aria-pressed={cat === c.id}>
-                      <IconEye />
-                    </button>
-                  }
-                />
-              ))}
-            </div>
-          )}
-          <p className="svcadm__hint">
-            <IconInfo />
-            <span>{ts("scope.marketCatsNote")}</span>
-          </p>
-        </div>
-      ) : (
       <div className="ppanel" data-ai-target="services:categories">
         <div className="ppanel__h">
           <b>{t("services.catTitle")}</b>
           <span className="ahdr">
-            <span className="advmuted">{visibleCats.length}</span>
-            <button className="btn btn--pri btn--sm" type="button" onClick={() => setCatOpen(true)} data-ai-target="button:new-category">
-              <IconPlus />
-              {t("form.add")}
-            </button>
+            <span className="advmuted">{cats.status === "ready" ? cats.data.length : ""}</span>
           </span>
         </div>
-        {hiddenCats.length ? (
-          <FilterBar
-            className="uf--tray uf--solo"
-            fields={[
-              {
-                key: "view",
-                label: ts("cat.view"),
-                icon: IconEye,
-                value: viewHiddenCats ? "hidden" : "visible",
-                empty: "visible",
-                onChange: (v) => setShowHiddenCats(v === "hidden"),
-                options: [
-                  { value: "visible", label: ts("cat.visibleChip", { n: visibleCats.length }) },
-                  { value: "hidden", label: ts("cat.hiddenChip", { n: hiddenCats.length }) },
-                ],
-                chip: null,
-              },
-            ]}
-          />
-        ) : null}
+        <p className="svcadm__hint svcadm-tree__note">
+          <IconInfo />
+          <span>
+            {ts("catTree.studioNote")} <Link href={STUDIO_CATEGORIES_HREF}>{ts("catTree.studioLink")}</Link>
+          </span>
+        </p>
         {cats.status === "loading" ? (
           <Skeleton rows={3} />
+        ) : cats.status === "error" ? (
+          <EmptyState icon={<IconAlert />} title={ts("catTree.loadError")} action={{ label: ts("catTree.retry"), onClick: refreshCats }} />
         ) : !cats.data.length ? (
           <EmptyState icon={<IconBriefcase />} title={t("services.catEmpty")} />
         ) : (
-          <div className="alist">
-            {(viewHiddenCats ? hiddenCats : visibleCats).map((c, i) => (
-              <AdminItem
-                key={c.id}
-                index={i + 1}
-                title={c.name}
-                meta={c.slug}
-                tags={[...(c.overridden ? [{ label: ts("cat.overridden"), tone: "muted" as const }] : []), ...(c.hidden ? [{ label: ts("cat.hiddenTag"), tone: "muted" as const }] : [])]}
-                actions={
-                  <>
-                    {c.hidden ? (
-                      <button className="aitem__act" type="button" aria-label={ts("cat.restore")} title={ts("cat.restore")} disabled={catBusy === c.id} onClick={() => void catOp(c, "restore", () => restoreCategory(c.id), ts("cat.restored"), t("form.updateError"))}>
-                        <IconEye />
-                      </button>
-                    ) : null}
-                    {c.overridden ? (
-                      <button className="aitem__act" type="button" aria-label={ts("cat.reset")} title={ts("cat.reset")} disabled={catBusy === c.id} onClick={() => void catOp(c, "reset", () => resetCategory(c.id), ts("cat.resetDone"), t("form.updateError"))}>
-                        <IconRefresh />
-                      </button>
-                    ) : null}
-                    <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => setCatEdit(c)}>
-                      <IconEdit />
-                    </button>
-                    {!c.hidden ? (
-                      <button className="aitem__act aitem__act--danger" type="button" aria-label={t("form.delete")} title={t("form.delete")} onClick={() => setCatDel(c)}>
-                        <IconTrash />
-                      </button>
-                    ) : null}
-                  </>
-                }
-              />
+          <ul className="alist svcadm-tree" aria-label={t("services.catTitle")}>
+            {cats.data.map((r) => (
+              <CategoryTreeRow key={r.node.id} row={r} rootIndex={rootIndex.get(r.node.id) ?? 0} active={cat === r.node.id} onShow={() => setCat(cat === r.node.id ? "" : r.node.id)} />
             ))}
-          </div>
+          </ul>
         )}
-        <p className="svcadm__hint">
-          <IconInfo />
-          <span>{ts("catLimitNote")}</span>
-        </p>
       </div>
-      )}
 
       {/* Services */}
       <div className="ppanel svcadm">
@@ -451,27 +392,6 @@ export default function AdminServices() {
         )}
       </div>
 
-      <Modal open={catOpen} onClose={() => setCatOpen(false)} title={t("services.catCreate")}>
-        <AdminForm
-          fields={[
-            { name: "title", label: t("form.title"), required: true },
-            { name: "slug", label: t("form.slug"), required: true, placeholder: "criminal" },
-            { name: "description", label: t("form.description"), type: "textarea" },
-          ]}
-          onSubmit={async (v) =>
-            void (await createServiceCategory({ slug: String(v.slug), title: String(v.title), description: String(v.description) }))
-          }
-          submitLabel={t("form.save")}
-          busyLabel={t("form.saving")}
-          okMsg={t("form.created")}
-          errMsg={t("form.saveFailed")}
-          onDone={() => {
-            reloadCats();
-            setCatOpen(false);
-          }}
-        />
-      </Modal>
-
       <Modal open={svcOpen} onClose={() => setSvcOpen(false)} title={t("services.svcCreate")}>
         <AdminForm
           fields={[
@@ -481,8 +401,7 @@ export default function AdminServices() {
               type: "select",
               required: true,
               placeholder: t("form.selectCategory"),
-              // A new service is created in the catalog on screen.
-              options: scope === "marketplace" ? mcats.data.map((c) => ({ value: c.id, label: c.title })) : scope === "documents" ? visibleCats.map((c) => ({ value: c.id, label: c.name })) : scopeCats,
+              options: activeCats.map((r) => ({ value: r.node.id, label: categoryPathLabel(r) })),
             },
             { name: "title", label: t("form.title"), required: true },
             { name: "slug", label: t("form.slug"), required: true },
@@ -514,51 +433,7 @@ export default function AdminServices() {
         />
       </Modal>
 
-      <ServiceEditModal service={edit} categories={editCats} professional={Boolean(edit && !edit.documentTemplateId && mcats.data.some((c) => c.id === edit.categoryId))} onClose={() => setEdit(null)} onSaved={onSaved} />
-
-      {/* Category edit */}
-      <Modal open={catEdit !== null} onClose={() => setCatEdit(null)} title={ts("cat.editTitle")}>
-        {catEdit ? (
-          <AdminForm
-            key={catEdit.id}
-            fields={[{ name: "title", label: t("form.title"), required: true, placeholder: catEdit.slug }]}
-            initialValues={{ title: catEdit.name }}
-            resetOnDone={false}
-            onSubmit={async (v) => {
-              const r = await saveCategory(catEdit.id, { title: String(v.title).trim() });
-              if (r.via === "overlay") notify.info(ts("cat.overlaySaved"), { body: ts("cat.overlayNote") });
-            }}
-            submitLabel={t("form.update")}
-            busyLabel={t("form.saving")}
-            okMsg={t("form.updated")}
-            errMsg={t("form.saveFailed")}
-            onDone={() => {
-              reloadCats();
-              setCatEdit(null);
-            }}
-          />
-        ) : null}
-      </Modal>
-
-      {/* Category delete (hide) confirm */}
-      <Modal open={catDel !== null} onClose={() => setCatDel(null)} title={t("form.deleteConfirm")}>
-        {catDel ? (
-          <div className="cform" style={{ maxWidth: "none" }}>
-            <p style={{ margin: 0 }}>
-              <b>{catDel.name}</b> <span className="advmuted">{catDel.slug}</span>
-            </p>
-            <p className="advmuted" style={{ margin: 0 }}>{ts("cat.deleteText")}</p>
-            <div className="svced__acts">
-              <button className="btn btn--ghost" type="button" onClick={() => setCatDel(null)} disabled={catBusy === catDel.id}>
-                {t("form.cancel")}
-              </button>
-              <button className="btn btn--danger" type="button" disabled={catBusy === catDel.id} onClick={() => void catOp(catDel, "del", () => removeCategory(catDel.id), ts("cat.deleted"), t("form.deleteError"))}>
-                {catBusy === catDel.id ? t("form.saving") : t("form.delete")}
-              </button>
-            </div>
-          </div>
-        ) : null}
-      </Modal>
+      <ServiceEditModal service={edit} categories={editCats} professional={Boolean(edit && !edit.documentTemplateId && scope === "marketplace")} onClose={() => setEdit(null)} onSaved={onSaved} />
 
       {/* Delete (soft) confirm */}
       <Modal open={del !== null} onClose={() => setDel(null)} title={ts("del.title")}>

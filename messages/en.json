@@ -4672,6 +4672,7 @@
         "actions": "Each plan has buttons to edit, switch off or delete it."
       },
       "admin_services": {
+        "categoriesStudio": "The category tree: here you can only view it and open a category's services. Adding and editing happen in Studio.",
         "title": "The service catalog — categories and the services clients buy.",
         "categories": "Service categories: add, rename or hide them.",
         "add": "Add a new service with this button: name, category and price.",
@@ -6011,6 +6012,11 @@
       "supplementalSent": "Supplemental payment request sent — it's confirmed through Telegram"
     },
     "toast": {
+      "started": "Work started",
+      "startedText": "The provider has started the work. Deadline: {deadline}.",
+      "startedTextNoDeadline": "The provider has started the work. See the deadline in the order.",
+      "review": {"created":"Cancellation request under review","createdText":"The provider asked to cancel the order. An operator will review it; the deadline is paused.","resolved":"Cancellation request resolved","outcome":{"continue":"The work continues.","new_price":"A new price was set for the order.","cancel":"The order was cancelled.","reassign":"The order was reassigned to another provider.","refund":"A refund has been started.","other":"See the order for the details of the decision."},"chatText":"A separate chat with the operator is open for the discussion."},
+      "negotiation": {"created":"New price offer","createdText":"The client proposed a different price for the order. Reply before the offer expires.","updated":"Reply to your price offer","outcome":{"accepted":"The provider accepted your offer — the new price is now on the order.","countered":"The provider made a counter-offer. Open the order to see it.","rejected":"The provider declined the offer. The order keeps its original price.","other":"Open the order to see the reply.","expired":"The provider didn't reply in time. The order keeps its original price."},"expired":"Price offer expired","changed":"Price offer updated"},
       "paid": "Service activated",
       "paidText": "{service} — the chat is open.",
       "paidTextNoService": "Payment confirmed, the chat is open.",
@@ -6059,6 +6065,12 @@
       "recalc": "Recalculate"
     },
     "errors": {
+      "service_rules_acceptance_required": "{n, plural, =0 {Accept the new service rules before turning the service on.} one {Accept # new rule before turning the service on.} other {Accept # new rules before turning the service on.}} Open the rules, read them and press \"I accept\".",
+      "seller_price_above_maximum": "The price is above the maximum for this service. Lower the price and save again.",
+      "seller_price_negative": "The price can't be negative. Enter 0 or more.",
+      "required_checklist_incomplete": "{n, plural, =0 {Required checklist items are not done yet.} one {# required checklist item is not done yet.} other {# required checklist items are not done yet.}} Complete them or skip them with a reason, then complete the order again.",
+      "radius_invalid": "That radius isn't available. Choose one of {list} km.",
+      "callcenter_role_required": "This queue is for call-center operators only. Ask an administrator if you need access.",
       "marketplace_order_already_active": "You already have an active order for this service.",
       "marketplace_package_order_already_active": "You already have an active order for this package.",
       "package_seller_not_eligible": "This provider no longer meets the package conditions. The list was refreshed — pick another one.",
@@ -6138,6 +6150,7 @@
         "retry": "Try again"
       },
       "rating": {
+        "timeLeft": "Time left to rate:",
         "title": "Rate the work",
         "lead": "Rating stays open for 15 minutes after completion. A 1–2 rating is sent to the quality team as a complaint.",
         "given": "Your rating: {n} / 5",
@@ -6163,6 +6176,11 @@
       }
     },
     "complete": {
+      "blockedItem": "Item {n}",
+      "blockedPending": "Not done",
+      "checklistTitle": "Required checklist items aren't done.",
+      "checklistLead": "{n, plural, =0 {To complete the order, finish them or skip them with a reason.} one {To complete the order, finish the item below or skip it with a reason:} other {To complete the order, finish the # items below or skip them with a reason:}}",
+      "checklistNext": "Once the items are done, press “{action}” again.",
       "title": "Complete with a result",
       "lead": "Write the result for the client or attach a file. Completion opens the client's 15-minute rating window.",
       "textLabel": "Result text",
@@ -14595,6 +14613,7 @@
       "add": "Add"
     },
     "services": {
+      "catTree": {"studioNote":"Categories are managed in Studio.","studioLink":"Open categories in Studio","level":"Level {n}","children":"{n, plural, one {# subcategory} other {# subcategories}}","loadError":"The category tree didn't load.","retry":"Try again","inactive":"Inactive","showServices":"Show services in “{name}”"},
       "stateLabel": "Status",
       "state": {
         "all": "All",

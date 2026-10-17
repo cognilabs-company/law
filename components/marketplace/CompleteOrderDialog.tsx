@@ -1,13 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconCheck, IconClose, IconFileText, IconPaperclip } from "@/components/icons";
+import { IconAlert, IconCheck, IconClose, IconFileText, IconPaperclip } from "@/components/icons";
 import { uploadSecureMessage } from "@/lib/services/backend";
 import { completeMarketplaceOrder, type MarketOrder, type ResultFile } from "@/lib/services/marketplace";
+import { checklistBlockOf, type BlockingItem } from "@/lib/services/marketRuntime";
 import { useMarketError } from "./useMarketError";
+import "./completeOrder.css";
 
 const TEXT_MAX = 4000;
 const FILES_MAX = 5;
@@ -22,7 +24,17 @@ export default function CompleteOrderDialog({ order, onClose, onDone }: { order:
   const [files, setFiles] = useState<Attachment[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [blocked, setBlocked] = useState<BlockingItem[] | null>(null);
+  const blockId = useId();
+  const errId = useId();
   const input = useRef<HTMLInputElement>(null);
+  const submitBtn = useRef<HTMLButtonElement>(null);
+  const [refocus, setRefocus] = useState(0);
+  useEffect(() => {
+    if (!refocus) return;
+    const at = document.activeElement;
+    if (!at || at === document.body) submitBtn.current?.focus();
+  }, [refocus]);
   const key = order?.id ?? "";
   const [prevKey, setPrevKey] = useState(key);
   if (key !== prevKey) {
@@ -30,6 +42,7 @@ export default function CompleteOrderDialog({ order, onClose, onDone }: { order:
     setText("");
     setFiles([]);
     setErr("");
+    setBlocked(null);
   }
   if (!order) return <Modal open={false} onClose={onClose} title="">{null}</Modal>;
   const target = order;
@@ -61,6 +74,7 @@ export default function CompleteOrderDialog({ order, onClose, onDone }: { order:
     }
     setBusy(true);
     setErr("");
+    setBlocked(null);
     const out: ResultFile[] = [];
     try {
       for (const p of files) {
@@ -83,7 +97,10 @@ export default function CompleteOrderDialog({ order, onClose, onDone }: { order:
       onDone(r.status);
       onClose();
     } catch (e) {
-      setErr(marketErr(e, t("error")));
+      const items = checklistBlockOf(e);
+      if (items) setBlocked(items);
+      else setErr(marketErr(e, t("error")));
+      setRefocus((n) => n + 1);
     } finally {
       setBusy(false);
     }
@@ -135,9 +152,32 @@ export default function CompleteOrderDialog({ order, onClose, onDone }: { order:
           <IconCheck aria-hidden="true" />
           {t("rule")}
         </p>
-        {err ? <Notice ok={false} msg={err} /> : null}
+        {blocked ? (
+          <div id={blockId} className="mkc__files mkc__blocked" role="alert" data-ai-id="advocate.marketplace-orders.complete.blocked" data-ai-type="section" data-ai-label={t("checklistTitle")}>
+            <p className="anote anote--err">
+              <b>{t("checklistTitle")}</b> {t("checklistLead", { n: blocked.length })}
+            </p>
+            {blocked.length ? (
+              <ul className="mkc__list" aria-label={t("checklistTitle")}>
+                {blocked.map((it, i) => (
+                  <li key={`${it.id || it.title}-${i}`} className="is-fail">
+                    <IconAlert aria-hidden="true" />
+                    <span>{it.title || t("blockedItem", { n: i + 1 })}</span>
+                    <em>{t("blockedPending")}</em>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <small className="mkc__hint">{t("checklistNext", { action: t("confirm") })}</small>
+          </div>
+        ) : null}
+        {err ? (
+          <div id={errId}>
+            <Notice ok={false} msg={err} />
+          </div>
+        ) : null}
         <div className="mk-buy__acts">
-          <button type="button" className="btn btn--grad" disabled={busy || !ready} onClick={() => void go()} data-ai-id="advocate.marketplace-orders.complete.submit">
+          <button ref={submitBtn} type="button" className="btn btn--grad" disabled={busy || !ready} aria-describedby={[blocked ? blockId : "", err ? errId : ""].filter(Boolean).join(" ") || undefined} onClick={() => void go()} data-ai-id="advocate.marketplace-orders.complete.submit">
             {busy ? t("sending") : t("confirm")}
           </button>
           <button type="button" className="btn btn--line" disabled={busy} onClick={onClose}>

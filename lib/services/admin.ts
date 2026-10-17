@@ -118,7 +118,7 @@ const adminTitle = (raw: string) => cleanDocTitle(raw) || raw;
 // Same localized-title preference as the public catalog normalizer.
 function adminServiceName(d: Dict, locale: string): string {
   const byLocale = locale === "ru" ? d.title_ru : d.title_uz_latn;
-  return adminTitle(asStr(byLocale ?? d.title ?? d.name));
+  return adminTitle(asStr(byLocale) || asStr(d.title) || asStr(d.name));
 }
 
 export function normAdminService(v: unknown, locale = "uz"): AdminService {

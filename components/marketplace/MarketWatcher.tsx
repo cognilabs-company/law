@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { Role } from "@/lib/auth";
+import { parseServerTime } from "@/lib/http";
+import { shortDateTime } from "@/lib/date";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { MARKET_EVENT, isMarketOrderHeld, marketChatHref, marketSignalOf, type MarketSignal } from "@/lib/services/marketplace";
 import { IconCheck, IconClose, IconInfo, IconTag } from "@/components/icons";
@@ -11,16 +13,28 @@ import { IconCheck, IconClose, IconInfo, IconTag } from "@/components/icons";
 type Toast = { id: number; kind: MarketSignal["kind"]; title: string; text: string; href: string };
 
 const DEDUPE_MS = 20000;
+const REVIEW_OUTCOMES = ["continue", "new_price", "cancel", "reassign", "refund"];
+
+function negotiationOutcome(raw: string): "accepted" | "countered" | "rejected" | "expired" | "other" {
+  if (/^accept/.test(raw)) return "accepted";
+  if (/^counter/.test(raw)) return "countered";
+  if (/^reject|^declin/.test(raw)) return "rejected";
+  if (/^expir/.test(raw)) return "expired";
+  return "other";
+}
 
 export default function MarketWatcher({ role }: { role: Role }) {
   const t = useTranslations("marketplace.toast");
+  const locale = useLocale();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const seen = useRef(new Map<string, number>());
   const nextId = useRef(1);
   const tRef = useRef(t);
+  const localeRef = useRef(locale);
 
   useEffect(() => {
     tRef.current = t;
+    localeRef.current = locale;
   });
 
   useEffect(() => {
@@ -56,6 +70,23 @@ export default function MarketWatcher({ role }: { role: Role }) {
         toast = { kind: sig.sub === "approved" ? "paid" : "rejected", title: tt(`refund.${sig.sub}`), text: tt(`refund.${sig.sub}Text`), href: ordersHref };
       } else if (sig.kind === "completed" && role === "client") {
         toast = { kind: "paid", title: tt("completed"), text: tt("completedText"), href: ordersHref };
+      } else if (sig.kind === "started" && role === "client") {
+        const at = parseServerTime(sig.deadlineAt ?? "");
+        const deadline = Number.isFinite(at) ? shortDateTime(new Date(at).toISOString(), localeRef.current) : "";
+        toast = { kind: "paid", title: tt("started"), text: deadline ? tt("startedText", { deadline }) : tt("startedTextNoDeadline"), href: ordersHref };
+      } else if (sig.kind === "review" && sig.sub === "created" && role === "client") {
+        toast = { kind: "other", title: tt("review.created"), text: tt("review.createdText"), href: ordersHref };
+      } else if (sig.kind === "review" && sig.sub === "resolved") {
+        const outcome = REVIEW_OUTCOMES.includes(sig.outcome ?? "") ? (sig.outcome as string) : "other";
+        const href = sig.groupRoomId ? marketChatHref({ roomId: sig.groupRoomId, workId: sig.workId, serviceTitle: sig.serviceTitle }) : ordersHref;
+        const text = tt(`review.outcome.${outcome}`);
+        toast = { kind: "other", title: tt("review.resolved"), text: sig.groupRoomId ? `${text} ${tt("review.chatText")}` : text, href };
+      } else if (sig.kind === "negotiation" && sig.sub === "created" && role !== "client") {
+        toast = { kind: "other", title: tt("negotiation.created"), text: tt("negotiation.createdText"), href: ordersHref };
+      } else if (sig.kind === "negotiation" && sig.sub === "updated" && role === "client") {
+        const outcome = negotiationOutcome(sig.outcome ?? "");
+        const title = outcome === "expired" ? tt("negotiation.expired") : outcome === "other" ? tt("negotiation.changed") : tt("negotiation.updated");
+        toast = { kind: outcome === "accepted" ? "paid" : outcome === "rejected" ? "rejected" : "other", title, text: tt(`negotiation.outcome.${outcome}`), href: ordersHref };
       }
       if (!toast) return;
       const id = nextId.current++;

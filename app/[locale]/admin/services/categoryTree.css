@@ -1,0 +1,10 @@
+.svcadm-tree{list-style:none;margin:0 0 8px;padding:0 4px 0 0;--svc-indent:18px}
+.svcadm-tree>.aitem{margin-inline-start:calc(min(var(--svc-depth, 0), 6) * var(--svc-indent))}
+.svcadm-tree>.aitem.is-off{background:var(--dk-surface-2, #F5F8FD);border-style:dashed}
+.svcadm-tree>.aitem.is-off .aitem__m b{color:var(--gray)}
+.svcadm-tree__branch{flex:none;width:16px;height:16px;margin-inline:5px;color:var(--gray2)}
+.svcadm-tree__note a{font-weight:700;color:var(--dk-acc, var(--b600));text-decoration:underline;text-underline-offset:2px}
+.svcadm-tree__note a:focus-visible{outline:2px solid currentColor;outline-offset:2px;border-radius:4px}
+@media (max-width:600px){.svcadm-tree{--svc-indent:10px}}
+.svcadm-tree .aitem__act[aria-pressed="true"]{border-color:var(--b300);color:var(--dk-acc, var(--b600));background:var(--b50)}
+.svcadm-tree>.aitem:has(.aitem__act[aria-pressed="true"]){border-color:var(--b300)}

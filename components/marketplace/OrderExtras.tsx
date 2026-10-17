@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconAlert, IconCheck, IconCoins, IconDownload, IconFileText, IconHourglass, IconPause, IconStarRate } from "@/components/icons";
@@ -28,6 +28,8 @@ export function useTick(active: boolean, stepMs = 1000): number {
 }
 
 const leftMs = (iso: string, now: number) => (iso && now ? new Date(iso).getTime() - now : NaN);
+
+export const ratingLeftMs = (r: Pick<MarketOrder["rating"], "expiresAt" | "deadlineAt">, now: number) => (r.expiresAt > 0 && now ? r.expiresAt - now : leftMs(r.deadlineAt, now));
 
 function useLeftLabel() {
   const t = useTranslations("marketplace.orderExtras");
@@ -166,8 +168,17 @@ export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => voi
   const [err, setErr] = useState("");
   const [closed, setClosed] = useState(false);
   const [sent, setSent] = useState(0);
+  const errId = useId();
+  const submitBtn = useRef<HTMLButtonElement>(null);
+  const [refocus, setRefocus] = useState(0);
+  useEffect(() => {
+    if (!refocus) return;
+    const at = document.activeElement;
+    if (!at || at === document.body) submitBtn.current?.focus();
+  }, [refocus]);
   const open = o.rating.canRate && !o.rating.value && !closed && !sent;
-  const now = useTick(open && !!o.rating.deadlineAt, 1000);
+  const timed = o.rating.expiresAt > 0 || !!o.rating.deadlineAt;
+  const now = useTick(open && timed, 1000);
   const given = sent || o.rating.value;
 
   if (given) {
@@ -186,7 +197,8 @@ export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => voi
   if (closed) return <Notice ok={false} msg={err || t("rating.closed")} />;
   if (!o.rating.canRate) return null;
 
-  const remain = leftMs(o.rating.deadlineAt, now);
+  const remain = ratingLeftMs(o.rating, now);
+  if (Number.isFinite(remain) && remain <= 0 && !busy) return <Notice ok={false} msg={t("rating.closed")} />;
   const low = value > 0 && value <= 2;
   const shown = hover || value;
 
@@ -203,7 +215,10 @@ export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => voi
       if (marketErrorCode(e) === "rating_window_closed") {
         setErr(msg);
         setClosed(true);
-      } else setErr(msg);
+      } else {
+        setErr(msg);
+        setRefocus((n) => n + 1);
+      }
     } finally {
       setBusy(false);
     }
@@ -213,11 +228,14 @@ export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => voi
     <section className="mko__rate" data-ai-id={`marketplace.orders.rating.${o.id}`} data-ai-type="section" data-ai-label={t("rating.title")}>
       <div className="mko__rateh">
         <b>{t("rating.title")}</b>
-        {o.rating.deadlineAt ? (
-          <em className={`mko__left${Number.isFinite(remain) && remain < 3 * 60_000 ? " is-warn" : ""}`} aria-live="off">
-            <IconHourglass aria-hidden="true" />
-            {left(remain, true) || "—"}
-          </em>
+        {timed ? (
+          <>
+            <span className="sr-only">{t("rating.timeLeft")}</span>
+            <em className={`mko__left${Number.isFinite(remain) && remain < 3 * 60_000 ? " is-warn" : ""}`} aria-live="off">
+              <IconHourglass aria-hidden="true" />
+              {left(remain, true) || "—"}
+            </em>
+          </>
         ) : null}
       </div>
       <p className="mko__ratel">{t("rating.lead")}</p>
@@ -248,9 +266,13 @@ export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => voi
           {low ? <small className="mko__lowhint">{t("rating.lowHint")}</small> : null}
         </label>
       ) : null}
-      {err ? <Notice ok={false} msg={err} /> : null}
+      {err ? (
+        <div id={errId}>
+          <Notice ok={false} msg={err} />
+        </div>
+      ) : null}
       {value ? (
-        <button type="button" className="btn btn--grad btn--sm" disabled={busy || (low && !comment.trim())} onClick={() => void submit()} data-ai-id={`marketplace.orders.rating.${o.id}.submit`}>
+        <button ref={submitBtn} type="button" className="btn btn--grad btn--sm" disabled={busy || (low && !comment.trim())} aria-describedby={err ? errId : undefined} onClick={() => void submit()} data-ai-id={`marketplace.orders.rating.${o.id}.submit`}>
           <IconStarRate aria-hidden="true" />
           {busy ? t("rating.sending") : t("rating.submit")}
         </button>

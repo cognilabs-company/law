@@ -127,7 +127,7 @@ export const ADMIN_PAGES: GuidePage[] = [
     roles: ["staff"],
     tour: [
       { target: "ai-help:current-page", text: "tours.admin_services.title" },
-      { target: "services:categories", text: "tours.admin_services.categories" },
+      { target: "services:categories", text: "tours.admin_services.categoriesStudio" },
       { target: "button:new-service", text: "tours.admin_services.add" },
       { target: "services:filters", text: "tours.admin_services.filters" },
       { target: "services:list", text: "tours.admin_services.list" },

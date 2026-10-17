@@ -4672,6 +4672,7 @@
         "actions": "Har bir tarif yonida tahrirlash, o'chirib qo'yish va o'chirish tugmalari bor."
       },
       "admin_services": {
+        "categoriesStudio": "Kategoriyalar daraxti: bu yerda faqat ko'rish va kategoriya xizmatlarini ochish mumkin. Qo'shish va tahrirlash Studio'da bajariladi.",
         "title": "Xizmatlar katalogi — kategoriyalar va mijozlar sotib oladigan xizmatlar.",
         "categories": "Xizmat kategoriyalari: qo'shing, nomini o'zgartiring yoki yashiring.",
         "add": "Yangi xizmatni shu tugma bilan qo'shasiz: nomi, kategoriyasi va narxi.",
@@ -6011,6 +6012,11 @@
       "supplementalSent": "Qo'shimcha to'lov so'rovi yuborildi — Telegram orqali tasdiqlanadi"
     },
     "toast": {
+      "started": "Ish boshlandi",
+      "startedText": "Ijrochi ishni boshladi. Muddat: {deadline}.",
+      "startedTextNoDeadline": "Ijrochi ishni boshladi. Muddatni buyurtmada ko'ring.",
+      "review": {"created":"Bekor qilish so'rovi ko'rib chiqilmoqda","createdText":"Ijrochi buyurtmani bekor qilishni so'radi. Operator ko'rib chiqadi, muddat to'xtatildi.","resolved":"Bekor qilish so'rovi hal qilindi","outcome":{"continue":"Ish davom etadi.","new_price":"Buyurtma uchun yangi narx belgilandi.","cancel":"Buyurtma bekor qilindi.","reassign":"Buyurtma boshqa ijrochiga o'tkazildi.","refund":"Pulni qaytarish boshlandi.","other":"Qaror tafsilotlarini buyurtmada ko'ring."},"chatText":"Muhokama uchun operator bilan alohida chat ochildi."},
+      "negotiation": {"created":"Yangi narx taklifi","createdText":"Mijoz buyurtma uchun boshqa narx taklif qildi. Taklif muddati tugashidan oldin javob bering.","updated":"Narx taklifingizga javob keldi","outcome":{"accepted":"Ijrochi taklifingizni qabul qildi — yangi narx buyurtmaga yozildi.","countered":"Ijrochi o'z narxini taklif qildi. Buyurtmani ochib, javobni ko'ring.","rejected":"Ijrochi taklifni rad etdi. Buyurtma oldingi narxda qoladi.","other":"Buyurtmani ochib, javobni ko'ring.","expired":"Ijrochi o'z vaqtida javob bermadi. Buyurtma oldingi narxda qoladi."},"expired":"Narx taklifi muddati tugadi","changed":"Narx taklifi yangilandi"},
       "paid": "Xizmat faollashtirildi",
       "paidText": "{service} — chat ochildi.",
       "paidTextNoService": "To'lov tasdiqlandi, chat ochildi.",
@@ -6059,6 +6065,12 @@
       "recalc": "Qayta hisoblash"
     },
     "errors": {
+      "service_rules_acceptance_required": "{n, plural, =0 {Xizmatni yoqishdan oldin yangi xizmat qoidalarini qabul qiling.} other {Xizmatni yoqishdan oldin # ta yangi qoidani qabul qiling.}} Qoidalarni ochib, har birini o'qing va «Qabul qilaman» tugmasini bosing.",
+      "seller_price_above_maximum": "Narx bu xizmat uchun belgilangan eng yuqori narxdan oshib ketdi. Narxni kamaytirib, qayta saqlang.",
+      "seller_price_negative": "Narx manfiy bo'lishi mumkin emas. 0 yoki undan katta summa kiriting.",
+      "required_checklist_incomplete": "{n, plural, =0 {Majburiy bandlar hali bajarilmagan.} other {# ta majburiy band hali bajarilmagan.}} Ularni bajaring yoki sababini yozib o'tkazib yuboring, so'ng qayta yakunlang.",
+      "radius_invalid": "Bunday radius yo'q. {list} km dan birini tanlang.",
+      "callcenter_role_required": "Bu navbat faqat Call-markaz operatorlari uchun. Kirish kerak bo'lsa, administratorga murojaat qiling.",
       "marketplace_order_already_active": "Bu xizmat bo'yicha sizda allaqachon faol buyurtma bor.",
       "marketplace_package_order_already_active": "Bu paket bo'yicha sizda allaqachon faol buyurtma bor.",
       "package_seller_not_eligible": "Bu ijrochi endi paket shartlariga mos emas. Ro'yxat yangilandi — boshqasini tanlang.",
@@ -6138,6 +6150,7 @@
         "retry": "Qayta urinish"
       },
       "rating": {
+        "timeLeft": "Baholash uchun qolgan vaqt:",
         "title": "Ishni baholang",
         "lead": "Baholash yakunlangandan keyin 15 daqiqa davomida ochiq. 1–2 baho sifat bo'limiga shikoyat sifatida yuboriladi.",
         "given": "Sizning bahoyingiz: {n} / 5",
@@ -6163,6 +6176,11 @@
       }
     },
     "complete": {
+      "blockedItem": "{n}-band",
+      "blockedPending": "Bajarilmagan",
+      "checklistTitle": "Nazorat ro'yxatining majburiy bandlari bajarilmagan.",
+      "checklistLead": "{n, plural, =0 {Yakunlash uchun ularni bajaring yoki sababini yozib o'tkazib yuboring.} other {Yakunlash uchun quyidagi # ta bandni bajaring yoki sababini yozib o'tkazib yuboring:}}",
+      "checklistNext": "Bandlar bajarilgach, «{action}» tugmasini qayta bosing.",
       "title": "Ishni natija bilan yakunlash",
       "lead": "Mijozga natijani yozing yoki fayl biriktiring. Yakunlangach mijozda 15 daqiqa baholash oynasi ochiladi.",
       "textLabel": "Natija matni",
@@ -14601,6 +14619,7 @@
       "add": "Qo‘shish"
     },
     "services": {
+      "catTree": {"studioNote":"Kategoriyalar Studio'da boshqariladi.","studioLink":"Kategoriyalarni Studio'da ochish","level":"{n}-daraja","children":"{n} ta ichki","loadError":"Kategoriyalar daraxti yuklanmadi.","retry":"Qayta urinish","inactive":"Nofaol","showServices":"«{name}» kategoriyasi xizmatlarini ko'rsatish"},
       "stateLabel": "Holat",
       "state": {
         "all": "Hammasi",
