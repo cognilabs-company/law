@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
-import { IconBriefcase, IconClose, IconHelpCircle, IconMapPin, IconScale, IconShieldCheck, IconStar, IconTag } from "@/components/icons";
+import { useLocale, useTranslations } from "next-intl";
+import { IconBriefcase, IconClose, IconHelpCircle, IconMapPin, IconScale, IconShieldCheck, IconStar, IconTag, IconTrendingUp } from "@/components/icons";
 import { fmtUzs } from "@/lib/money";
 import { humanize } from "@/lib/labels";
 import { getPublicPricingPolicy, regionName, tierLabel, type PricingPolicy, type Translate } from "@/lib/services/marketplacePricing";
+import type { RuntimeFactor } from "@/lib/services/marketRuntime";
+import { fmtPct, orderedFactors } from "./runtime/facts";
 
 type Load = { status: "idle" | "loading" | "ready"; policy: PricingPolicy | null };
 
@@ -47,17 +49,18 @@ function Step({ icon, title, lines }: { icon: ReactNode; title: string; lines: s
       </span>
       <span className="mkpx__txt">
         <b>{title}</b>
-        {lines.map((l) => (
-          <span key={l}>{l}</span>
+        {lines.map((l, i) => (
+          <span key={`${i}-${l}`}>{l}</span>
         ))}
       </span>
     </li>
   );
 }
 
-export default function PricingExplainer({ service, aiId }: { service: ExplainedService | null; aiId?: string }) {
+export default function PricingExplainer({ service, aiId, factors }: { service: ExplainedService | null; aiId?: string; factors?: readonly RuntimeFactor[] }) {
   const t = useTranslations("marketPricing");
   const te = useTranslations("enums");
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [load, setLoad] = useState<Load>({ status: "idle", policy: null });
   const root = useRef<HTMLDivElement>(null);
@@ -106,6 +109,10 @@ export default function PricingExplainer({ service, aiId }: { service: Explained
   const exp = p ? experienceLine(p, t) : "";
   const premium = p ? premiumLines(p, t) : [];
   const picked = service && service.basePrice > 0 && service.price > 0 ? service : null;
+  const fx = orderedFactors(factors);
+  const fxLines = fx.map((f) =>
+    f.adjustmentType === "percent" ? t("explain.factorPercent", { title: f.title, pct: fmtPct(f.value, locale) }) : t("explain.factorFixed", { title: f.title, amount: fmtUzs(f.value), cur: te("currency") }),
+  );
 
   return (
     <div className="mkpx" ref={root}>
@@ -145,6 +152,7 @@ export default function PricingExplainer({ service, aiId }: { service: Explained
           ) : (
             <ol className="mkpx__steps">
               <Step icon={<IconTag />} title={t("explain.baseT")} lines={[t("explain.baseD")]} />
+              {fx.length ? <Step icon={<IconTrendingUp />} title={t("explain.factorsT")} lines={[t("explain.factorsD"), ...fxLines]} /> : null}
               <Step icon={<IconMapPin />} title={t("explain.regionT")} lines={[regions || t("explain.regionD")]} />
               <Step icon={<IconBriefcase />} title={t("explain.expT")} lines={[exp || t("explain.expD")]} />
               <Step icon={<IconStar />} title={t("explain.premiumT")} lines={premium.length ? premium : [t("explain.premiumD")]} />

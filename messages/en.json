@@ -4176,6 +4176,10 @@
       "remote": "Remote"
     },
     "explain": {
+      "factorsT": "When the price can go up",
+      "factorsD": "Fixed amounts are added first, then percentages of the base price. The price can only go up.",
+      "factorFixed": "{title}: +{amount} {cur}",
+      "factorPercent": "{title}: +{pct}% of the base price",
       "open": "How is the price set?",
       "title": "How is the price set?",
       "close": "Close",
@@ -5560,6 +5564,10 @@
         "unpaid": "Awaiting payment"
       },
       "market": {
+        "facts": "Service terms",
+        "factsLoading": "Loading the service terms…",
+        "factsFailed": "Couldn't load the service terms. You can still send the request; pick the service again to see them.",
+        "duration": "Delivery time",
         "heading": "Marketplace service",
         "lead": "Pick a specialist and one of their services — the request is sent on the client's behalf.",
         "seller": "Specialist",
@@ -5946,6 +5954,9 @@
     }
   },
   "marketplace": {
+    "runtime": {"duration":{"minute":"{n, plural, one {# minute} other {# minutes}}","hour":"{n, plural, one {# hour} other {# hours}}","day":"{n, plural, one {# day} other {# days}}","businessDay":"{n, plural, one {# business day} other {# business days}}","week":"{n, plural, one {# week} other {# weeks}}","month":"{n, plural, one {# month} other {# months}}","other":"{n} {unit}","inBusiness":"{value} (business days)"},"durationLabel":"Delivery time","startsAfterAccept":"after work starts","startsAfterPayment":"after payment","startNote":"The time counts from when the specialist accepts the order and starts work.","startNotePayment":"The time counts from when the payment is confirmed.","businessNote":"Only business days count: Monday to Friday.","calendarNote":"Every day counts, weekends included.","guaranteesTitle":"Guarantees","guaranteesMore":"+{n}","guaranteesMoreLabel":"{n, plural, one {# more guarantee} other {# more guarantees}}","checklistTitle":"What will be done","checklistLead":"The specialist works through these steps, and you can follow them in the order.","checklistRequired":"required","checklistMore":"{n, plural, one {Show # more step} other {Show # more steps}}","checklistLess":"Show less","templateTitle":"Document template","template":{"required":"This service is done from a document template.","optional":"If needed, this service is done from a document template.","source":{"catalog":"The template comes from the LexGo catalogue.","upload":"An uploaded document is used as the template.","catalog_or_upload":"The template comes from the catalogue or from an uploaded document."}},"factorsTitle":"When the price can go up","factorsLead":"Fixed amounts are added first, then percentages of the base price. These only raise the price, never lower it.","factorsBase":"Base price: {amount} {cur}","factorFixed":"+{amount} {cur}","factorPercent":"+{pct}% · ≈ {amount} {cur}","factorPercentOnly":"+{pct}%","reqTitle":"Specialist requirements","reqLead":"Only specialists who meet these requirements can offer this service.","reqVerified":"Verified specialist","reqExperience":"{n, plural, one {At least # year of experience} other {At least # years of experience}}","reqRating":"Rating {r} or higher","factsTitle":"About \"{service}\"","factsLoading":"Loading the service terms…"},
+    "mode": {"label":"Search mode","all":"All specialists","nearby":"Near me"},
+    "nearby": {"title":"Specialists near you","lead":"We list advocates and lawyers who share their location, nearest first.","privacy":"Your location is sent, rounded to about 100 m, only for this search. It is not saved in the browser or your profile and is not shown to anyone.","locate":"Use my location","locating":"Finding your location…","relocate":"Update my location","radiusLabel":"Radius","radiusKm":"{n} km","serviceLabel":"Service","allServices":"All services","precision":"≈{m} m accuracy","approxNote":"Distances are approximate. No exact address is shown: it only opens in a paid order, for the assigned specialist.","count":"{n, plural, one {# specialist} other {# specialists}} within {r} km","fallback":"No one within {r} km — showing the nearest instead.","emptyTitle":"No specialists nearby","emptyText":"No specialist within {r} km is sharing a location. Widen the radius or browse all specialists.","emptyNone":"No specialist near you is sharing a location yet. Pick one from the full list.","widen":"Widen to {r} km","showAll":"Show all specialists","distanceKm":"≈ {d} km","distanceM":"≈ {d} m","distanceAria":"About {d} away, {p}","distanceUnknown":"Distance unknown","profile":"View profile","loading":"Looking for specialists nearby…","loadError":"Couldn't load nearby specialists. Check your connection and try again.","retry":"Try again","listLabel":"Nearby specialists","geo":{"denied":"The browser blocked location access. Allow it from the lock icon in the address bar, or browse all specialists.","unavailable":"Couldn't find your location. Check that location services are on and try again.","timeout":"Finding your location took too long. Try again.","insecure":"Location works only over a secure connection. Open the site from its secure address.","unsupported":"This browser can't find your location. Use the full list of specialists instead."},"countNearest":"{n, plural, one {The nearest specialist} other {The # nearest specialists}}"},
     "aiSuggested": "Matching services:",
     "aiReasons": "Why it matches",
     "askSupport": "Contact an operator",

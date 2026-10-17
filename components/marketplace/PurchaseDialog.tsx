@@ -31,6 +31,10 @@ import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import { trackPromoContact } from "@/lib/services/promoEvents";
 import PriceOptions, { EMPTY_PRICE, type PriceState } from "./PriceOptions";
 import { useMarketError } from "./useMarketError";
+import { useRuntimeFacts } from "./runtime/useRuntimeFacts";
+import { durationParts, guaranteesOf } from "./runtime/facts";
+import { DurationChip } from "./runtime/DurationChip";
+import { GuaranteeList } from "./runtime/Guarantees";
 
 export type PackagePurchaseTarget = { id: string; purchaseUrl: string; duration: string };
 
@@ -110,6 +114,7 @@ export default function PurchaseDialog({
 
   const tracked = done ?? active;
   const track = useMarketOrderTracker(service && tracked ? tracked.orderId : "", service && tracked ? tracked.workId : "", service && tracked ? tracked.status : "");
+  const checkout = useRuntimeFacts(service?.id ?? "", "checkout", { enabled: !!service && !pkg });
 
   if (!service) return <Modal open={false} onClose={onClose} title="">{null}</Modal>;
 
@@ -170,7 +175,9 @@ export default function PurchaseDialog({
     }
   }
 
-  const delivery = pkg?.duration || deliveryLabel(tm, service.deliveryMinutes);
+  const rtDur = !pkg && durationParts(checkout.config?.duration) ? (checkout.config?.duration ?? null) : null;
+  const delivery = pkg?.duration || (rtDur ? "" : deliveryLabel(tm, service.deliveryMinutes));
+  const guarantees = pkg ? [] : guaranteesOf(checkout.config);
   const chatHref = track?.roomId && tracked ? marketChatHref({ roomId: track.roomId, workId: tracked.workId, serviceTitle: service.title }) : "";
 
   const titles: Record<MarketTrackPhase, string> = {
@@ -257,12 +264,15 @@ export default function PurchaseDialog({
             <small>{t("seller")}</small>
             <b>{sellerName}</b>
             <p>{service.title}</p>
-            {delivery ? (
+            {rtDur ? (
+              <DurationChip duration={rtDur} tone="ticket" start />
+            ) : delivery ? (
               <span className="mk-buy__eta">
                 <IconClock />
                 {delivery}
               </span>
             ) : null}
+            {guarantees.length ? <GuaranteeList items={guarantees} tone="ticket" aiId="marketplace.purchase.guarantees" /> : null}
           </div>
           <div className="mk-buy__sum">
             <small>{t("total")}</small>

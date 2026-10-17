@@ -4176,6 +4176,10 @@
       "remote": "Masofaviy"
     },
     "explain": {
+      "factorsT": "Narx qachon oshishi mumkin",
+      "factorsD": "Avval qat'iy summalar, so'ng asosiy narxdan foizlar qo'shiladi. Narx faqat oshadi.",
+      "factorFixed": "{title}: +{amount} {cur}",
+      "factorPercent": "{title}: asosiy narxning +{pct}%",
       "open": "Narx qanday hisoblanadi?",
       "title": "Narx qanday hisoblanadi?",
       "close": "Yopish",
@@ -5560,6 +5564,10 @@
         "unpaid": "To'lov kutilmoqda"
       },
       "market": {
+        "facts": "Xizmat shartlari",
+        "factsLoading": "Xizmat shartlari yuklanmoqda…",
+        "factsFailed": "Xizmat shartlarini yuklab bo'lmadi. So'rovni baribir yuborishingiz mumkin, shartlarni ko'rish uchun xizmatni qayta tanlang.",
+        "duration": "Muddat",
         "heading": "Marketplace xizmati",
         "lead": "Mutaxassis va uning xizmatini tanlang — so'rov mijoz nomidan yuboriladi.",
         "seller": "Mutaxassis",
@@ -5946,6 +5954,9 @@
     }
   },
   "marketplace": {
+    "runtime": {"duration":{"minute":"{n} daqiqa","hour":"{n} soat","day":"{n} kun","businessDay":"{n} ish kuni","week":"{n} hafta","month":"{n} oy","other":"{n} {unit}","inBusiness":"{value} (ish kunlari)"},"durationLabel":"Bajarish muddati","startsAfterAccept":"ish boshlangandan keyin","startsAfterPayment":"to'lovdan keyin","startNote":"Muddat ijrochi buyurtmani qabul qilib, ishni boshlagan paytdan hisoblanadi.","startNotePayment":"Muddat to'lov tasdiqlangan paytdan hisoblanadi.","businessNote":"Faqat ish kunlari hisoblanadi: dushanbadan jumagacha.","calendarNote":"Barcha kunlar, dam olish kunlari ham hisoblanadi.","guaranteesTitle":"Kafolatlar","guaranteesMore":"+{n}","guaranteesMoreLabel":"Yana {n} ta kafolat","checklistTitle":"Nima qilinadi","checklistLead":"Ijrochi ish davomida shu bandlarni bajaradi, siz esa ularni buyurtmada kuzatib borasiz.","checklistRequired":"majburiy","checklistMore":"Yana {n} ta bandni ko'rsatish","checklistLess":"Kamroq ko'rsatish","templateTitle":"Hujjat shabloni","template":{"required":"Bu xizmat hujjat shabloni asosida bajariladi.","optional":"Kerak bo'lsa, xizmat hujjat shabloni asosida bajariladi.","source":{"catalog":"Shablon LexGo katalogidan olinadi.","upload":"Shablon sifatida yuklangan hujjat ishlatiladi.","catalog_or_upload":"Shablon katalogdan olinadi yoki hujjat yuklanadi."}},"factorsTitle":"Narx qachon oshishi mumkin","factorsLead":"Avval qat'iy qo'shimchalar qo'shiladi, so'ng foizlar asosiy narxdan hisoblanadi. Bu holatlar narxni faqat oshiradi, kamaytirmaydi.","factorsBase":"Asosiy narx: {amount} {cur}","factorFixed":"+{amount} {cur}","factorPercent":"+{pct}% · ≈ {amount} {cur}","factorPercentOnly":"+{pct}%","reqTitle":"Ijrochiga talablar","reqLead":"Bu xizmatni faqat shu talablarga mos mutaxassislar ko'rsata oladi.","reqVerified":"Tasdiqlangan mutaxassis","reqExperience":"Kamida {n} yil tajriba","reqRating":"Reyting kamida {r}","factsTitle":"«{service}» haqida","factsLoading":"Xizmat shartlari yuklanmoqda…"},
+    "mode": {"label":"Qidiruv usuli","all":"Barcha mutaxassislar","nearby":"Yaqinimda"},
+    "nearby": {"title":"Yaqiningizdagi mutaxassislar","lead":"Joylashuvini ulashgan advokat va yuristlarni sizga eng yaqinidan boshlab ko'rsatamiz.","privacy":"Joylashuvingiz taxminan 100 m aniqlikda faqat shu qidiruv uchun yuboriladi. U brauzerda va profilingizda saqlanmaydi, boshqalarga ko'rsatilmaydi.","locate":"Joylashuvni aniqlash","locating":"Joylashuv aniqlanmoqda…","relocate":"Joylashuvni yangilash","radiusLabel":"Radius","radiusKm":"{n} km","serviceLabel":"Xizmat","allServices":"Barcha xizmatlar","precision":"≈{m} m aniqlik","approxNote":"Masofa taxminiy. Aniq manzil ko'rsatilmaydi: u faqat to'langan buyurtmada, tayinlangan ijrochi uchun ochiladi.","count":"{r} km radiusda {n} ta mutaxassis","fallback":"Yaqin atrofda ({r} km) topilmadi — eng yaqinlari ko'rsatilmoqda.","emptyTitle":"Yaqin atrofda mutaxassis topilmadi","emptyText":"{r} km ichida joylashuvini ulashgan mutaxassis yo'q. Radiusni kengaytiring yoki barcha mutaxassislarni ko'ring.","emptyNone":"Hozircha atrofingizda joylashuvini ulashgan mutaxassis yo'q. Barcha mutaxassislar ro'yxatidan tanlang.","widen":"Radiusni {r} km gacha kengaytirish","showAll":"Barcha mutaxassislarni ko'rish","distanceKm":"≈ {d} km","distanceM":"≈ {d} m","distanceAria":"Taxminan {d} uzoqlikda, {p}","distanceUnknown":"Masofa noma'lum","profile":"Profilni ko'rish","loading":"Yaqindagi mutaxassislar qidirilmoqda…","loadError":"Yaqindagi mutaxassislarni yuklab bo'lmadi. Internetni tekshirib, qayta urining.","retry":"Qayta urinish","listLabel":"Yaqindagi mutaxassislar ro'yxati","geo":{"denied":"Brauzer joylashuvga ruxsat bermadi. Manzil satridagi qulf belgisi orqali ruxsat bering yoki barcha mutaxassislarni ko'ring.","unavailable":"Joylashuvni aniqlab bo'lmadi. Qurilmada joylashuv xizmati yoqilganini tekshirib, qayta urining.","timeout":"Joylashuvni aniqlash juda uzoq davom etdi. Qayta urining.","insecure":"Joylashuv faqat xavfsiz ulanishda ishlaydi. Saytni xavfsiz manzil orqali oching.","unsupported":"Bu brauzer joylashuvni aniqlay olmaydi. Barcha mutaxassislar ro'yxatidan foydalaning."},"countNearest":"Eng yaqin {n} ta mutaxassis"},
     "aiSuggested": "Mos xizmatlar:",
     "aiReasons": "Moslik sabablari",
     "askSupport": "Operatorga murojaat",

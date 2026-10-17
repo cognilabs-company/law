@@ -9,6 +9,10 @@ import VerifiedBadge from "@/components/VerifiedBadge";
 import { IconClock, IconGlobe, IconMapPin, IconStar } from "@/components/icons";
 import { Monogram, deliveryLabel, hasRating, hasSuccess, langLabel, sellerTypeLabel, specLabel } from "./bits";
 import { aiId } from "@/lib/ai/ids";
+import { useRuntimeFacts } from "./runtime/useRuntimeFacts";
+import { durationParts, guaranteesOf } from "./runtime/facts";
+import { DurationChip } from "./runtime/DurationChip";
+import { GuaranteeBadges } from "./runtime/Guarantees";
 
 export function SellerHero({ seller, top }: { seller: MarketSeller; top: boolean }) {
   const t = useTranslations("marketplace");
@@ -95,6 +99,7 @@ export function SellerServiceRow({
   onPick,
   onBuy,
   ph,
+  runtime = false,
 }: {
   svc: MarketService;
   sellerUserId: string;
@@ -104,13 +109,18 @@ export function SellerServiceRow({
   onPick: () => void;
   onBuy: () => void;
   ph?: { title: string; category: string; price: string };
+  runtime?: boolean;
 }) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
-  const eta = deliveryLabel(t, svc.deliveryMinutes);
+  const { config: rtConfig, ref: rowRef } = useRuntimeFacts(svc.id, "marketplace", { enabled: runtime && !ph, lazy: true });
+  const dur = durationParts(rtConfig?.duration) ? (rtConfig?.duration ?? null) : null;
+  const eta = dur ? "" : deliveryLabel(t, svc.deliveryMinutes);
+  const guarantees = guaranteesOf(rtConfig);
   const svcAiId = aiId(`${aiId("marketplace.seller", sellerUserId)}.service`, svc.id);
   return (
     <div
+      ref={rowRef}
       className={`mk-svc${on ? " is-on" : ""}${top ? " mk-svc--top" : ""}`}
       data-ai-target={`marketplace:service-card:${svc.id}`}
       data-ai-id={svcAiId}
@@ -128,8 +138,10 @@ export function SellerServiceRow({
           <span>
             {ph ? <span className="mk-ph">{ph.category}</span> : null}
             {svc.categoryTitle ? specLabel(te, svc.categoryTitle) : null}
-            {svc.categoryTitle && eta ? " · " : null}
-            {eta ? (
+            {svc.categoryTitle && (dur || eta) ? " · " : null}
+            {dur ? (
+              <DurationChip duration={dur} tone="row" />
+            ) : eta ? (
               <span className="mk-eta">
                 <IconClock />
                 {eta}
@@ -137,6 +149,7 @@ export function SellerServiceRow({
             ) : null}
           </span>
           {svc.experienceNote ? <i>{svc.experienceNote}</i> : null}
+          {guarantees.length ? <GuaranteeBadges items={guarantees} max={2} /> : null}
         </span>
       </button>
       <div className="mk-svc__end">

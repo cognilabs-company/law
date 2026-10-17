@@ -7,7 +7,7 @@ import { Link } from "@/i18n/navigation";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { IconArrowRight, IconAward, IconBriefcase, IconCard, IconClose, IconFileText, IconGavel, IconHeadset, IconLayers, IconMapPin, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconStar, IconUser, IconUsers } from "@/components/icons";
 import HeroShowcase from "./HeroShowcase";
-import { aiSearchMarketplace, listMarketplace, marketAiAvailable, rememberSellers, type MarketAiMatch, type MarketMeta, type MarketPromotionSurface, type MarketSeller } from "@/lib/services/marketplace";
+import { aiSearchMarketplace, listMarketplace, marketAiAvailable, peekSeller, rememberSellers, type MarketAiMatch, type MarketMeta, type MarketPromotionSurface, type MarketSeller } from "@/lib/services/marketplace";
 import { matchesSearch, normalizeSearchText, searchTerms } from "@/lib/searchText";
 import { regionKeyOf, regionLabel } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
@@ -17,6 +17,9 @@ import PromotionSurfaces from "./PromotionSurfaces";
 import SellerCard from "./SellerCard";
 import { listActivePromotions } from "@/lib/services/promotions";
 import type { DirectoryPreview } from "@/lib/marketPreview";
+import { DEFAULT_NEARBY_RADIUS, modeOf, radiusOf, writeNearbyParams, type NearbyMode } from "@/lib/services/marketDiscovery";
+import type { NearbyRadius } from "@/lib/services/marketRuntime";
+import NearbySellers, { MarketModeSwitch, type NearbyServiceOption } from "./NearbySellers";
 
 type Status = "loading" | "ready" | "error";
 
@@ -83,12 +86,18 @@ export default function MarketDirectory({
   initialArea = "",
   initialQuery = "",
   initialSellerType = "",
+  initialMode,
+  initialRadius,
+  initialNearbyService,
   preview,
 }: {
   variant: "public" | "portal";
   initialArea?: string;
   initialQuery?: string;
   initialSellerType?: string;
+  initialMode?: string;
+  initialRadius?: string;
+  initialNearbyService?: string;
   preview?: DirectoryPreview;
 }) {
   const t = useTranslations("marketplace");
@@ -126,6 +135,16 @@ export default function MarketDirectory({
   const aiCtrl = useRef<AbortController | null>(null);
   const [aiPending, setAiPending] = useState("");
   const aiSeq = useRef(0);
+  const [mode, setMode] = useState<NearbyMode>(() => (preview ? "all" : modeOf(initialMode)));
+  const [nearbyPick, setNearbyPick] = useState<{ radius: NearbyRadius; serviceId: string }>(() => ({ radius: radiusOf(initialRadius) ?? DEFAULT_NEARBY_RADIUS, serviceId: typeof initialNearbyService === "string" ? initialNearbyService.trim().slice(0, 80) : "" }));
+  const syncUrl = (m: NearbyMode, pick: { radius: NearbyRadius; serviceId: string } = nearbyPick) => {
+    const next = writeNearbyParams(window.location.href, { mode: m, ...pick });
+    if (next !== window.location.pathname + window.location.search + window.location.hash) window.history.replaceState(window.history.state, "", next);
+  };
+  const switchMode = (m: NearbyMode) => {
+    setMode(m);
+    syncUrl(m);
+  };
 
   useEffect(() => {
     const my = ++seq.current;
@@ -249,6 +268,17 @@ export default function MarketDirectory({
     for (const x of src) if (x.id && !m.has(x.id) && (!pro || pro.has(x.categoryId))) m.set(x.id, { value: x.id, label: x.title, categoryId: x.categoryId });
     return [...m.values()].filter((x) => !categorySet || categorySet.has(x.categoryId));
   }, [meta, items, treeRows, treeById, categorySet]);
+
+  const nearbyServices = useMemo<NearbyServiceOption[]>(() => {
+    const src = meta?.services.length ? meta.services : items.flatMap((s) => s.services.map((x) => ({ id: x.id, title: x.title, categoryId: x.categoryId })));
+    const m = new Map<string, NearbyServiceOption>();
+    const pro = treeRows ? treeById : null;
+    for (const x of src) if (x.id && x.title && !m.has(x.id) && (!pro || pro.has(x.categoryId))) m.set(x.id, { value: x.id, label: x.title });
+    return [...m.values()];
+  }, [meta, items, treeRows, treeById]);
+
+  const itemsById = useMemo(() => new Map(items.map((s) => [s.userId, s])), [items]);
+  const known = useCallback((id: string) => itemsById.get(id) ?? peekSeller(id), [itemsById]);
 
   const query = q.trim();
   const aiHit = ai && ai.q === query && ai.matches.length ? ai : null;
@@ -412,10 +442,18 @@ export default function MarketDirectory({
   }, [q, examples.length]);
   const showResults = () => {
     void runAi(q);
-    const el = resultsRef.current;
-    if (!el) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    const scroll = () => {
+      const el = resultsRef.current;
+      if (!el) return;
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    };
+    if (mode === "nearby") {
+      switchMode("all");
+      window.requestAnimationFrame(scroll);
+      return;
+    }
+    scroll();
   };
 
   const filterFields: FilterField[] = [
@@ -540,6 +578,7 @@ export default function MarketDirectory({
               value={q}
               onChange={(e) => {
                 typedRef.current = true;
+                if (mode === "nearby" && e.target.value.trim()) switchMode("all");
                 setQ(e.target.value);
               }}
               onKeyDown={(e) => {
@@ -611,6 +650,7 @@ export default function MarketDirectory({
                     className={q === x ? "on" : undefined}
                     onClick={() => {
                       typedRef.current = true;
+                      if (mode === "nearby") switchMode("all");
                       setQ(x);
                     }}
                   >
@@ -648,70 +688,89 @@ export default function MarketDirectory({
         <HeroShowcase items={shownItems} promos={shownBanners} base={base} locale={locale} />
       </div>
 
-      <FilterBar
-        variant="market"
-        fields={filterFields}
-        count={list.length}
-        onReset={resetFilters}
-        title={t("filters.toggle")}
-        aiId="marketplace.filters"
-        aiTarget="marketplace:filters"
-      />
+      {!isPreview ? <MarketModeSwitch mode={mode} onChange={switchMode} /> : null}
 
-      <PromotionSurfaces part="sponsored" sponsored={shownSponsored} base={base} searchKey={promoSearchKey} />
-
-      <div className="mk-count" ref={resultsRef} aria-live="polite">
-        {status === "ready" ? t("count", { n: list.length }) : null}
-      </div>
-
-      {status === "loading" ? (
-        <div className="mk-grid">
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="mk-card mk-card--ghost" aria-hidden="true" />
-          ))}
-        </div>
-      ) : status === "error" ? (
-        <div className="mk-empty">
-          <b>{t("error")}</b>
-          <button type="button" className="btn btn--line btn--sm" onClick={retry}>
-            <IconRefresh />
-            {t("retry")}
-          </button>
-        </div>
-      ) : !list.length ? (
-        <div className="mk-empty" data-ai-target="marketplace:lawyer-list" data-ai-id="marketplace.results">
-          <IconSparkle />
-          <b>{t("empty")}</b>
-          <span>{q ? t("emptyTextAi") : t("emptyText")}</span>
-          <div className="mk-empty__acts">
-            {activeFilters || q ? (
-              <button type="button" className="btn btn--line btn--sm" onClick={resetFilters} data-ai-id="marketplace.results.reset">
-                {t("filters.reset")}
-              </button>
-            ) : null}
-            {q ? (
-              <Link href="/portal/client/support?topic=marketplace" className="btn btn--pri btn--sm" data-ai-target="button:operator-support" data-ai-id="marketplace.results.ask-support">
-                <IconHeadset />
-                {t("askSupport")}
-              </Link>
-            ) : null}
-          </div>
-        </div>
+      {mode === "nearby" ? (
+        <NearbySellers
+          base={base}
+          services={nearbyServices}
+          initialRadius={nearbyPick.radius}
+          initialServiceId={nearbyPick.serviceId}
+          known={known}
+          onShowAll={() => switchMode("all")}
+          onChange={(s) => {
+            setNearbyPick(s);
+            syncUrl("nearby", s);
+          }}
+        />
       ) : (
-        <div className={`mk-grid${aiThinking ? " is-busy" : ""}`} data-ai-target="marketplace:lawyer-list" data-ai-id="marketplace.results" data-ai-type="list">
-          {list.map((s, i) => (
-            <SellerCard key={s.userId} s={s} href={`${base}/${encodeURIComponent(s.userId)}`} index={i} locale={locale} match={aiMatchOf.get(s.userId)} phService={preview && s.userId === preview.seller.userId && preview.phService ? preview.phService : undefined} />
-          ))}
-        </div>
-      )}
+        <>
+          <FilterBar
+            variant="market"
+            fields={filterFields}
+            count={list.length}
+            onReset={resetFilters}
+            title={t("filters.toggle")}
+            aiId="marketplace.filters"
+            aiTarget="marketplace:filters"
+          />
 
-      {status === "ready" && items.length < total ? (
-        <div className="mk-more">
-          <button type="button" className="btn btn--line" disabled={moreBusy} onClick={() => void loadMore()} data-ai-id="marketplace.results.load-more">
-            {t("loadMore")}
-          </button>
-        </div>
-      ) : null}
+          <PromotionSurfaces part="sponsored" sponsored={shownSponsored} base={base} searchKey={promoSearchKey} />
+
+          <div className="mk-count" ref={resultsRef} aria-live="polite">
+            {status === "ready" ? t("count", { n: list.length }) : null}
+          </div>
+
+          {status === "loading" ? (
+            <div className="mk-grid">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="mk-card mk-card--ghost" aria-hidden="true" />
+              ))}
+            </div>
+          ) : status === "error" ? (
+            <div className="mk-empty">
+              <b>{t("error")}</b>
+              <button type="button" className="btn btn--line btn--sm" onClick={retry}>
+                <IconRefresh />
+                {t("retry")}
+              </button>
+            </div>
+          ) : !list.length ? (
+            <div className="mk-empty" data-ai-target="marketplace:lawyer-list" data-ai-id="marketplace.results">
+              <IconSparkle />
+              <b>{t("empty")}</b>
+              <span>{q ? t("emptyTextAi") : t("emptyText")}</span>
+              <div className="mk-empty__acts">
+                {activeFilters || q ? (
+                  <button type="button" className="btn btn--line btn--sm" onClick={resetFilters} data-ai-id="marketplace.results.reset">
+                    {t("filters.reset")}
+                  </button>
+                ) : null}
+                {q ? (
+                  <Link href="/portal/client/support?topic=marketplace" className="btn btn--pri btn--sm" data-ai-target="button:operator-support" data-ai-id="marketplace.results.ask-support">
+                    <IconHeadset />
+                    {t("askSupport")}
+                  </Link>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <div className={`mk-grid${aiThinking ? " is-busy" : ""}`} data-ai-target="marketplace:lawyer-list" data-ai-id="marketplace.results" data-ai-type="list">
+              {list.map((s, i) => (
+                <SellerCard key={s.userId} s={s} href={`${base}/${encodeURIComponent(s.userId)}`} index={i} locale={locale} match={aiMatchOf.get(s.userId)} phService={preview && s.userId === preview.seller.userId && preview.phService ? preview.phService : undefined} />
+              ))}
+            </div>
+          )}
+
+          {status === "ready" && items.length < total ? (
+            <div className="mk-more">
+              <button type="button" className="btn btn--line" disabled={moreBusy} onClick={() => void loadMore()} data-ai-id="marketplace.results.load-more">
+                {t("loadMore")}
+              </button>
+            </div>
+          ) : null}
+        </>
+      )}
     </section>
   );
 }

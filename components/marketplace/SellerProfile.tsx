@@ -25,12 +25,18 @@ import { SellerAbout, SellerHero, SellerServiceRow } from "./SellerParts";
 import { aiId } from "@/lib/ai/ids";
 import { PH_SERVICE_ID, type ProfilePreview } from "@/lib/marketPreview";
 import { useAiModal, useAiSelection } from "@/lib/ai/registry";
+import { useRuntimeFacts } from "./runtime/useRuntimeFacts";
+import { durationParts, guaranteesOf } from "./runtime/facts";
+import { DurationChip } from "./runtime/DurationChip";
+import { GuaranteeList } from "./runtime/Guarantees";
+import { ServiceFacts, ServiceFactsSkeleton } from "./runtime/ServiceFacts";
 
 type Status = "loading" | "ready" | "notfound" | "error";
 
 export default function SellerProfile({ userId, variant, preview }: { userId: string; variant: "public" | "portal"; preview?: ProfilePreview }) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
+  const rt = useTranslations("marketplace.runtime");
   const locale = useLocale();
   const router = useRouter();
   const { session: signedIn, ready } = useAuth();
@@ -126,6 +132,9 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
             : "";
 
   const selected = useMemo(() => services.find((s) => s.id === picked) ?? services[0] ?? null, [services, picked]);
+  const detail = useRuntimeFacts(selected?.id ?? "", "service_detail", { enabled: live && !!selected && selected.id !== PH_SERVICE_ID });
+  const detailDur = durationParts(detail.config?.duration) ? (detail.config?.duration ?? null) : null;
+  const guarantees = guaranteesOf(detail.config);
 
   const startBuy = useCallback(
     (svc: MarketService) => {
@@ -227,25 +236,41 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
           <section className="mk-panel" data-ai-target="marketplace:seller-services" data-ai-id={`${sellerAiId}.services`} data-ai-type="list">
             <div className="mkpx-row">
               <h2 className="mk-panel__t">{t("detail.services")}</h2>
-              {services.length && selected?.id !== PH_SERVICE_ID ? <PricingExplainer service={selected} aiId={`${sellerAiId}.price-info`} /> : null}
+              {services.length && selected?.id !== PH_SERVICE_ID ? <PricingExplainer service={selected} factors={detail.config?.pricing.factors} aiId={`${sellerAiId}.price-info`} /> : null}
             </div>
             <p className="mk-panel__l">{t("detail.servicesLead")}</p>
             {services.length ? (
-              <div className="mk-svcs" role="radiogroup" aria-label={t("detail.services")}>
-                {services.map((svc) => (
-                  <SellerServiceRow
-                    key={svc.id}
-                    svc={svc}
-                    sellerUserId={seller.userId}
-                    on={selected?.id === svc.id}
-                    top={svc.isSponsored || topServiceIds.has(svc.id)}
-                    buyDisabled={!!blocked || svc.price <= 0}
-                    onPick={() => setPicked(svc.id)}
-                    ph={preview?.ph && svc.id === PH_SERVICE_ID ? preview.ph : undefined}
-                    onBuy={() => startBuy(svc)}
+              <>
+                <div className="mk-svcs" role="radiogroup" aria-label={t("detail.services")}>
+                  {services.map((svc) => (
+                    <SellerServiceRow
+                      key={svc.id}
+                      svc={svc}
+                      sellerUserId={seller.userId}
+                      on={selected?.id === svc.id}
+                      top={svc.isSponsored || topServiceIds.has(svc.id)}
+                      buyDisabled={!!blocked || svc.price <= 0}
+                      onPick={() => setPicked(svc.id)}
+                      ph={preview?.ph && svc.id === PH_SERVICE_ID ? preview.ph : undefined}
+                      onBuy={() => startBuy(svc)}
+                      runtime={live && svc.id !== PH_SERVICE_ID}
+                    />
+                  ))}
+                </div>
+                {selected && detail.state === "loading" ? (
+                  <ServiceFactsSkeleton label={rt("factsLoading")} />
+                ) : selected && detail.config ? (
+                  <ServiceFacts
+                    key={selected.id}
+                    config={detail.config}
+                    tone="detail"
+                    title={rt("factsTitle", { service: selected.title })}
+                    basePrice={detail.config.pricing.recommendedPrice > 0 ? detail.config.pricing.recommendedPrice : selected.price}
+                    currency={selected.currency}
+                    aiId={`${sellerAiId}.service-facts`}
                   />
-                ))}
-              </div>
+                ) : null}
+              </>
             ) : (
               <div className="mk-empty mk-empty--flat">
                 <IconBriefcase />
@@ -296,7 +321,9 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
               {selected && selected.price > 0 ? fmtUzs(selected.price) : seller.priceFrom > 0 ? t("card.priceFrom", { price: fmtUzs(seller.priceFrom) }) : t("card.priceAsk")}
               {selected && selected.price > 0 ? <span> {te("currency")}</span> : null}
             </b>
-            {selected && deliveryLabel(t, selected.deliveryMinutes) ? (
+            {detailDur ? (
+              <DurationChip duration={detailDur} tone="side" start />
+            ) : selected && deliveryLabel(t, selected.deliveryMinutes) ? (
               <span className="mk-side__eta">
                 <IconClock />
                 {deliveryLabel(t, selected.deliveryMinutes)}
@@ -322,15 +349,27 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
             </button>
           </div>
           <div className="mk-safe" data-ai-target="marketplace:safe-deal" data-ai-id="marketplace.safe-deal" data-ai-type="section">
-            <b>
-              <IconShieldCheck />
-              {t("detail.safeTitle")}
-            </b>
-            <ul>
-              <li>{t("detail.safe1")}</li>
-              <li>{t("detail.safe2")}</li>
-              <li>{t("detail.safe3")}</li>
-            </ul>
+            {guarantees.length ? (
+              <>
+                <b>
+                  <IconShieldCheck />
+                  {rt("guaranteesTitle")}
+                </b>
+                <GuaranteeList items={guarantees} tone="side" />
+              </>
+            ) : (
+              <>
+                <b>
+                  <IconShieldCheck />
+                  {t("detail.safeTitle")}
+                </b>
+                <ul>
+                  <li>{t("detail.safe1")}</li>
+                  <li>{t("detail.safe2")}</li>
+                  <li>{t("detail.safe3")}</li>
+                </ul>
+              </>
+            )}
           </div>
         </aside>
       </div>

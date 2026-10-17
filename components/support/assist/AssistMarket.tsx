@@ -11,6 +11,10 @@ import { getMarketplaceSellerServices, marketErrorCode, type MarketSeller, type 
 import { getPackageEligibleSellers, getServicePackages, type BackendPackage, type PackageSeller } from "@/lib/services/backend";
 import PriceOptions, { EMPTY_PRICE, type PriceState } from "@/components/marketplace/PriceOptions";
 import { useMarketError } from "@/components/marketplace/useMarketError";
+import { useRuntimeFacts } from "@/components/marketplace/runtime/useRuntimeFacts";
+import { useDurationText } from "@/components/marketplace/runtime/DurationChip";
+import { ServiceFacts } from "@/components/marketplace/runtime/ServiceFacts";
+import { ASSIST_SECTIONS, durationParts, factSections } from "@/components/marketplace/runtime/facts";
 import {
   ASSIST_CHANNELS,
   createAssistMarketplaceRequest,
@@ -180,6 +184,10 @@ export default function AssistMarket({ ticketId, client, clientName, ctx, onDone
   const svcFailed = svc?.status === "error" && !svcItems.length;
   const svcLoading = Boolean(seller) && !svc && !svcItems.length;
   const service = svcItems.find((s) => s.id === serviceId) ?? (svcItems.length === 1 ? svcItems[0] : null);
+  const facts = useRuntimeFacts(service?.id ?? "", "support", { enabled: mode === "service" && !!seller && !!service });
+  const durText = useDurationText();
+  const factDur = facts.config && durationParts(facts.config.duration) ? durText(facts.config.duration) : "";
+  const factList = factSections(facts.config, ASSIST_SECTIONS);
 
   const typeLabel = (s: { sellerType: string }) => (s.sellerType ? (ts.has(`roles.${s.sellerType}`) ? ts(`roles.${s.sellerType}`) : humanize(s.sellerType)) : "");
   const sellerMeta = (s: MarketSeller) =>
@@ -324,6 +332,7 @@ export default function AssistMarket({ ticketId, client, clientName, ctx, onDone
           { key: "client", label: t("confirm.client"), value: clientLine(t, client, clientName) },
           { key: "seller", label: t("market.seller"), value: [seller.name, typeLabel(seller)].filter(Boolean).join(" · ") },
           { key: "service", label: t("market.service"), value: service.title },
+          ...(factDur ? [{ key: "duration", label: t("market.duration"), value: factDur }] : []),
           ...optionRows,
           { key: "price", label: t("market.price"), value: sumText(t, price.quote?.totalPrice || service.price, service.currency) },
           { key: "channel", label: t("market.channel"), value: t(`market.channels.${channel}`) },
@@ -649,6 +658,20 @@ export default function AssistMarket({ ticketId, client, clientName, ctx, onDone
                 </li>
               ))}
             </ul>
+          )}
+        </div>
+      ) : null}
+      {mode === "service" && seller && service && (facts.state === "loading" || facts.state === "failed" || (facts.state === "ready" && facts.config && factList.length)) ? (
+        <div className="sasst__f" data-ai-id={ai("service-facts")} data-ai-type="section">
+          <span className="sasst__lbl">{t("market.facts")}</span>
+          {facts.state === "loading" ? (
+            <p className="sasst__muted" role="status">
+              {t("market.factsLoading")}
+            </p>
+          ) : facts.state === "failed" || !facts.config ? (
+            <p className="sasst__muted">{t("market.factsFailed")}</p>
+          ) : (
+            <ServiceFacts key={service.id} config={facts.config} tone="assist" basePrice={facts.config.pricing.recommendedPrice > 0 ? facts.config.pricing.recommendedPrice : service.price} currency={service.currency} />
           )}
         </div>
       ) : null}

@@ -4,7 +4,7 @@ import MarketDirectory from "@/components/marketplace/MarketDirectory";
 
 type Props = {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ area?: string }>;
+  searchParams: Promise<{ area?: string; mode?: string; radius?: string; service?: string }>;
 };
 
 export async function generateMetadata({
@@ -20,11 +20,11 @@ export async function generateMetadata({
 export default async function Page({ params, searchParams }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const { area } = await searchParams;
+  const { area, mode, radius, service } = await searchParams;
   return (
     <section className="sec mk-sec">
       <div className="wrap">
-        <MarketDirectory variant="public" initialArea={area || ""} />
+        <MarketDirectory variant="public" initialArea={area || ""} initialMode={mode} initialRadius={radius} initialNearbyService={service} />
       </div>
     </section>
   );
