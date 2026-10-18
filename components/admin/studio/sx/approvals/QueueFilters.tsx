@@ -14,12 +14,11 @@ import type { SxOption } from "../types";
 import { useStudioLabels } from "../useStudioLabels";
 import type { ApprRow } from "./model";
 import { isFiltered } from "./queue";
-import { APPR_NEED_VALUES, APPR_Q_MAX, APPR_STATUS_VALUES, EMPTY_APPR_QUERY, type ApprQuery, type ApprStatus } from "./urlState";
+import { APPR_Q_MAX, APPR_STATUS_VALUES, EMPTY_APPR_QUERY, type ApprQuery, type ApprStatus } from "./urlState";
 
 export type QueueFiltersProps = { query: ApprQuery; onChange: (next: ApprQuery) => void; rows: readonly ApprRow[]; count: number | null };
 
 const asStatus = (v: string): ApprStatus => ((APPR_STATUS_VALUES as readonly string[]).includes(v) ? (v as ApprStatus) : "");
-const asNeed = (v: string): ApprQuery["need"] => ((APPR_NEED_VALUES as readonly string[]).includes(v) ? (v as ApprQuery["need"]) : "");
 
 export function QueueFilters({ query, onChange, rows, count }: QueueFiltersProps): ReactElement {
   const t = useTranslations("studio");
@@ -50,7 +49,6 @@ export function QueueFilters({ query, onChange, rows, count }: QueueFiltersProps
   ];
 
   const statusOpts: SxOption[] = [all, ...APPR_STATUS_VALUES.map((v) => ({ value: v, label: labels.status(v) }))];
-  const needOpts: SxOption[] = [all, ...APPR_NEED_VALUES.map((v) => ({ value: v, label: t(`sx.appr.need.${v}`) }))];
 
   const setGroup = (v: string) => {
     const keep = !query.ctor || !v || groupOf(query.ctor) === v;
@@ -100,16 +98,6 @@ export function QueueFilters({ query, onChange, rows, count }: QueueFiltersProps
         onChange={(v) => onChange({ ...query, status: asStatus(v) })}
         searchable={false}
         aiId="admin.studio.approvals.filters.status"
-      />
-      <Picker
-        size="sm"
-        label={t("sx.appr.filter.need")}
-        placeholder={t("sx.appr.filter.need")}
-        options={needOpts}
-        value={query.need}
-        onChange={(v) => onChange({ ...query, need: asNeed(v) })}
-        searchable={false}
-        aiId="admin.studio.approvals.filters.need"
       />
     </SxToolbar>
   );

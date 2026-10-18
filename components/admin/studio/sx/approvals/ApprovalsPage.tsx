@@ -3,6 +3,7 @@
 import "../sx-core.css";
 import "../sx-layout.css";
 import "./sx-approvals.css";
+import "./sx-ap2.css";
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import Menu from "@/components/ui/Menu";
@@ -18,10 +19,12 @@ import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxPage } from "../layout/Page";
 import { useStudioLabels } from "../useStudioLabels";
+import { BulkBar, BulkDialog, bulkItemOf, type BulkItem } from "./Bulk";
 import { DoneSection } from "./DoneSection";
 import type { ApprRow } from "./model";
+import { NeedTabs } from "./NeedTabs";
 import { QueueFilters } from "./QueueFilters";
-import { QueueSection } from "./QueueSection";
+import { QueueSection, type ApprPick } from "./QueueSection";
 import { isFiltered, rowMatches, sectionRows, showDone, showWork } from "./queue";
 import { ReviewDrawer, type ReviewTarget } from "./review/ReviewDrawer";
 import { apprQueryString, EMPTY_APPR_QUERY, type ApprQuery } from "./urlState";
@@ -32,6 +35,7 @@ export type ApprovalsPageProps = { initial: ApprQuery };
 type Pages = { mine: number; others: number; done: number };
 
 const FIRST_PAGES: Pages = { mine: 0, others: 0, done: 0 };
+const NO_PICK: ReadonlySet<string> = new Set();
 
 function writeUrl(qs: string): void {
   if (typeof window === "undefined") return;
@@ -65,6 +69,8 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
   const [doneOpen, setDoneOpen] = useState(initial.status === "published");
   const [target, setTarget] = useState<ReviewTarget | null>(initial.open ? { id: initial.open, row: null } : null);
   const [overdueBusy, setOverdueBusy] = useState(false);
+  const [picked, setPicked] = useState<ReadonlySet<string>>(NO_PICK);
+  const [bulk, setBulk] = useState<readonly BulkItem[] | null>(null);
   const [seenInitial, setSeenInitial] = useState(initial);
   if (seenInitial !== initial) {
     setSeenInitial(initial);
@@ -100,6 +106,42 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
   const workEmpty = !work || (mine.length === 0 && others.length === 0);
   const doneEmpty = !doneShown || !doneExpanded || (!!doneRows && doneRows.length === 0 && !data.doneLoading);
   const filteredEmpty = !data.loading && !data.error && filtered && workEmpty && doneEmpty;
+
+  const bulkOn = data.viewer.access.canPublish;
+  const canPick = (r: ApprRow): boolean => bulkOn && r.kind === "publish" && r.section === "mine";
+  const chosen = bulkOn ? [...mine, ...others].filter((r) => canPick(r) && picked.has(r.id)) : [];
+  const pick: ApprPick | null = bulkOn
+    ? {
+        can: canPick,
+        has: (id) => picked.has(id),
+        toggle: (r) =>
+          setPicked((cur) => {
+            const next = new Set(cur);
+            if (next.has(r.id)) next.delete(r.id);
+            else next.add(r.id);
+            return next;
+          }),
+        setMany: (ids, on) =>
+          setPicked((cur) => {
+            const next = new Set(cur);
+            for (const id of ids) {
+              if (on) next.add(id);
+              else next.delete(id);
+            }
+            return next;
+          }),
+      }
+    : null;
+
+  const closeBulk = (published: readonly string[]) => {
+    setBulk(null);
+    if (!published.length) return;
+    setPicked((cur) => {
+      const next = new Set(cur);
+      for (const id of published) next.delete(id);
+      return next;
+    });
+  };
 
   const changeFilters = (next: ApprQuery) => {
     if (!sameFilters(query, next)) setPages(FIRST_PAGES);
@@ -231,6 +273,7 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
             onPage={(p) => setPages((cur) => ({ ...cur, mine: p }))}
             openId={target?.id ?? ""}
             onOpen={openRow}
+            pick={pick}
           />
         ) : null}
         {work && others.length > 0 ? (
@@ -243,6 +286,7 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
             onPage={(p) => setPages((cur) => ({ ...cur, others: p }))}
             openId={target?.id ?? ""}
             onOpen={openRow}
+            pick={pick}
           />
         ) : null}
         {doneSection}
@@ -255,6 +299,7 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
   return (
     <SxPage title={t("sx.appr.title")} section="approvals" need="review" lead={t("sx.appr.lead")} aiId="admin.studio.approvals" actions={overflow}>
       <div ref={root} className="sx-appr">
+        <NeedTabs query={query} onChange={changeFilters} rows={data.rows} loading={data.loading} />
         <QueueFilters query={query} onChange={changeFilters} rows={data.rows} count={count} />
         {data.partial ? (
           <SxNote tone="error" action={retry}>
@@ -262,8 +307,10 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
           </SxNote>
         ) : null}
         {body}
+        {chosen.length ? <BulkBar count={chosen.length} onPublish={() => setBulk(chosen.map(bulkItemOf))} onClear={() => setPicked(NO_PICK)} /> : null}
       </div>
       <ReviewDrawer target={target ? { id: target.id, row: found ?? target.row } : null} viewer={data.viewer} onClose={close} onChanged={() => data.reload()} />
+      {bulk ? <BulkDialog items={bulk} onClose={closeBulk} onFinished={data.reload} /> : null}
     </SxPage>
   );
 }
