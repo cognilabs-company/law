@@ -154,10 +154,12 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("buy");
     if (!id) return;
-    const url = new URL(window.location.href);
-    url.searchParams.delete("buy");
-    window.history.replaceState(window.history.state, "", url.toString());
-    const h = setTimeout(() => setAutoBuy(id), 0);
+    const h = setTimeout(() => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("buy");
+      window.history.replaceState(window.history.state, "", url.toString());
+      setAutoBuy(id);
+    }, 0);
     return () => clearTimeout(h);
   }, []);
   useEffect(() => {

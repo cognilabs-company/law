@@ -1,0 +1,89 @@
+"use client";
+
+import type { ReactElement, ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { SxPanel } from "@/components/admin/studio/sx/layout/Panel";
+import { fmtUzs } from "@/lib/money";
+import { shortDateTime } from "@/lib/date";
+import { marketPhaseOf, type MarketOrder } from "@/lib/services/marketplace";
+import type { RuntimeConfig, RuntimeDuration } from "@/lib/services/marketRuntime";
+import { OptionLines } from "../OrderExtras";
+import { durationParts } from "./deadline";
+import type { OrderView } from "./types";
+
+export function useDurationText(): (d: RuntimeDuration | null) => string {
+  const t = useTranslations("marketplace.orderDetail.duration");
+  return (d) => {
+    const parts = durationParts(d);
+    if (!parts || !d) return "";
+    return `${t(parts.unit, { n: parts.n })} · ${t(d.calendar === "business" ? "business" : "calendar")}`;
+  };
+}
+
+function Row({ label, children }: { label: string; children: ReactNode }): ReactElement {
+  return (
+    <div className="mod-facts__row">
+      <dt>{label}</dt>
+      <dd>{children}</dd>
+    </div>
+  );
+}
+
+export default function OrderFacts({ o, view, aiBase, runtime }: { o: MarketOrder; view: OrderView; aiBase: string; runtime: RuntimeConfig | null }): ReactElement {
+  const t = useTranslations("marketplace.orderDetail");
+  const to = useTranslations("marketplace.orders");
+  const tch = useTranslations("marketplace.purchase.channels");
+  const tpk = useTranslations("portal.client.packages");
+  const te = useTranslations("enums");
+  const locale = useLocale();
+  const durationText = useDurationText();
+  const counterpart = view === "client" ? o.lawyerName : o.clientName;
+  const paid = o.paymentStatus === "paid";
+  const phone = view === "seller" ? o.clientPhone : "";
+  const duration = o.duration ?? (runtime && runtime.duration.value > 0 ? runtime.duration : null);
+  const durationLine = durationText(duration);
+  const pkgLine = [o.packageTitle, o.packageTier && tpk.has(`tiers.${o.packageTier}`) ? tpk(`tiers.${o.packageTier}`) : o.packageTier].filter(Boolean).join(" · ");
+  const when = (v: string) => shortDateTime(v, locale);
+  const phase = marketPhaseOf(o);
+  const startsHint = !o.startedAt && (phase === "pending" || phase === "paid");
+
+  return (
+    <SxPanel title={t("facts.title")} className="mod-facts" as="section" aiId={`${aiBase}.facts`}>
+      <dl className="mod-facts__list">
+        {counterpart ? <Row label={view === "client" ? t("facts.seller") : t("facts.client")}>{counterpart}</Row> : null}
+        {view === "seller" ? (
+          <Row label={to("phone")}>{paid && phone ? <a className="sx-link" href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{phone}</a> : <span className="mod-muted">{to("phoneHidden")}</span>}</Row>
+        ) : null}
+        <Row label={t("facts.price")}>
+          <span>
+            <span className="sx-num">{o.price ? fmtUzs(o.price) : "—"}</span> {o.currency === "UZS" ? te("currency") : o.currency}
+          </span>
+        </Row>
+        {pkgLine ? <Row label={t("facts.package")}>{pkgLine}</Row> : null}
+        {o.preferredChannel ? <Row label={to("channel")}>{tch.has(o.preferredChannel) ? tch(o.preferredChannel) : o.preferredChannel}</Row> : null}
+        {o.preferredTime ? <Row label={to("time")}>{o.preferredTime}</Row> : null}
+        {o.createdAt ? <Row label={t("facts.created")}>{when(o.createdAt)}</Row> : null}
+        {o.startedAt ? <Row label={t("facts.started")}>{when(o.startedAt)}</Row> : null}
+        {o.expectedCompletedAt ? <Row label={t("facts.due")}>{when(o.expectedCompletedAt)}</Row> : null}
+        {o.completedAt ? <Row label={t("facts.completed")}>{when(o.completedAt)}</Row> : null}
+        {durationLine ? (
+          <Row label={t("facts.duration")}>
+            {durationLine}
+            {startsHint ? <small className="mod-facts__hint">{t("duration.starts")}</small> : null}
+          </Row>
+        ) : null}
+      </dl>
+      {o.selectedOptions.length ? (
+        <div className="mod-facts__opts">
+          <OptionLines options={o.selectedOptions} title={to("optionsTitle")} />
+        </div>
+      ) : null}
+      {o.note ? (
+        <blockquote className="mod-facts__note">
+          <small>{to("note")}</small>
+          {o.note}
+        </blockquote>
+      ) : null}
+    </SxPanel>
+  );
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconAlert, IconCheck, IconCoins, IconDownload, IconFileText, IconHourglass, IconPause, IconStarRate } from "@/components/icons";
@@ -278,5 +278,24 @@ export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => voi
         </button>
       ) : null}
     </section>
+  );
+}
+
+export function RatingCountdown({ o, view, className }: { o: MarketOrder; view: "client" | "seller"; className?: string }): ReactElement | null {
+  const t = useTranslations("marketplace.orderDetail.rating");
+  const left = useLeftLabel();
+  const timed = o.rating.expiresAt > 0 || !!o.rating.deadlineAt;
+  const open = o.rating.canRate && !o.rating.value && timed;
+  const now = useTick(open, 1000);
+  if (!open) return null;
+  const remain = ratingLeftMs(o.rating, now);
+  if (!Number.isFinite(remain) || remain <= 0) return null;
+  const time = left(remain, true);
+  const warn = remain < 3 * 60_000;
+  return (
+    <em className={["mko__left", "mko-rc", warn ? "is-warn" : "", className ?? ""].filter(Boolean).join(" ")} aria-live="off" data-view={view}>
+      <IconHourglass aria-hidden="true" />
+      {view === "client" ? t("clientLeft", { time }) : t("sellerLeft", { time })}
+    </em>
   );
 }

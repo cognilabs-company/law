@@ -1,0 +1,30 @@
+.mk-order .mod-card-chip svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+.mk-order .mod-card-chip--due {
+  background: var(--dk-tint-blue, #E6F0FF);
+  color: var(--dk-acc-strong, #1D4ED8);
+}
+.mk-order .mod-card-chip--deal {
+  background: var(--dk-tint-warn, #FFF4DE);
+  color: var(--dk-txt-warn, #8A5300);
+}
+.mk-order .mk-order__acts .mod-card-detail {
+  margin-left: auto;
+}
+.mk-order .mk-order__acts .mod-card-detail svg {
+  width: 14px;
+  height: 14px;
+}
+@media (max-width: 560px) {
+  .mk-order .mk-order__acts .mod-card-detail {
+    margin-left: 0;
+  }
+}
+@media (pointer: coarse) {
+  .mk-order .mk-order__acts .mod-card-detail {
+    min-height: 44px;
+  }
+}

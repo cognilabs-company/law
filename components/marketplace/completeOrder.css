@@ -2,3 +2,6 @@
 .mkc__blocked .mkc__list li>svg{margin-top:1px;color:var(--dk-txt-err, #B42318)}
 .mkc__blocked .mkc__list li>span{white-space:normal;overflow:visible;overflow-wrap:anywhere}
 .mkc__blocked .mkc__list li>em{flex:none;margin-top:1px}
+.mkc__pending .mkc__open{justify-self:start;display:inline-flex;align-items:center;gap:6px}
+.mkc__pending .mkc__open svg{width:15px;height:15px}
+@media (pointer: coarse){.mkc__pending .mkc__open{min-height:44px}}

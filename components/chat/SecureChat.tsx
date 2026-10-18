@@ -36,6 +36,7 @@ import {
   type UrgentRequest,
 } from "@/lib/services/backend";
 import ChatFilePreview, { canPreviewFile } from "./ChatFilePreview";
+import { roomOrderLock, subscribeOrderLock, type OrderLock } from "@/components/marketplace/order/lock";
 import { statusLabel } from "@/lib/labels";
 // The star is imported, not re-drawn: it needs pathLength on its path for the
 // dashed-outline animation, and DocRatingBox is where that one widget lives —
@@ -692,6 +693,8 @@ export default function SecureChat({
   // the backend refuses every message once the request is completed, and a
   // room can be completed by the other side while this tab sits open.
   const [finished, setFinished] = useState(false);
+  const [callsOff, setCallsOff] = useState(false);
+  const [roomOrder, setRoomOrder] = useState<{ orderId: string; clientUserId: string; sellerUserId: string } | null>(null);
   const [completing, setCompleting] = useState(false);
   // The Tezkor Advokat record this room belongs to, once it has been read
   // back. It is what supplies the three header facts the room itself does not
@@ -782,12 +785,32 @@ export default function SecureChat({
         const mine = rooms.find((r) => r.id === roomId);
         const st = (mine?.status || "").toLowerCase();
         if (alive && (st === "completed" || st === "closed")) setFinished(true);
+        if (alive && mine?.orderId) setRoomOrder({ orderId: mine.orderId, clientUserId: mine.clientUserId ?? "", sellerUserId: mine.sellerUserId ?? "" });
       })
       .catch(() => {});
     return () => {
       alive = false;
     };
   }, [roomId, urgentRecordId]);
+
+  useEffect(() => {
+    if (!roomOrder || urgentRecordId) return;
+    const ctrl = new AbortController();
+    const apply = (l: OrderLock) => {
+      if (l.chatReadOnly) setFinished(true);
+      if (!l.callsAllowed) setCallsOff(true);
+    };
+    const off = subscribeOrderLock(roomOrder.orderId, apply);
+    roomOrderLock(roomOrder, session?.id ?? "", ctrl.signal)
+      .then((l) => {
+        if (l && !ctrl.signal.aborted) apply(l);
+      })
+      .catch(() => {});
+    return () => {
+      off();
+      ctrl.abort();
+    };
+  }, [roomOrder, urgentRecordId, session?.id]);
 
   // The glow is a one-shot: the timer clears it so a second jump to the same
   // bubble restarts the animation instead of doing nothing.
@@ -1455,7 +1478,7 @@ export default function SecureChat({
             {headPeople}
           </span>
         ) : null}
-        {!compact && canMakeCalls(session) ? (
+        {!compact && canMakeCalls(session) && !callsOff ? (
           <div className="schat__calls" data-ai-target="chat-room:calls">
             <button
               className="schat__call"

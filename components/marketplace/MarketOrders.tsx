@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Link, useRouter } from "@/i18n/navigation";
+import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
-import { IconChat, IconCheck, IconClipboardCheck, IconClock, IconCoins, IconPackage, IconPause, IconPhone, IconRefresh, IconSparkle, IconVideo, IconClose, IconUser } from "@/components/icons";
+import { IconArrowRight, IconChat, IconCheck, IconClipboardCheck, IconClock, IconCoins, IconPackage, IconPause, IconPhone, IconRefresh, IconSparkle, IconVideo, IconClose, IconUser } from "@/components/icons";
 import { errDetail } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
@@ -14,6 +14,7 @@ import { matchesSearch } from "@/lib/searchText";
 import { onUserSocketResync } from "@/lib/userSocket";
 import { startCall } from "@/lib/services/backend";
 import { aiId, aiSeg } from "@/lib/ai/ids";
+import { useAuth } from "@/lib/auth";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import { useAiReveal } from "@/lib/guide/targets";
 import {
@@ -21,16 +22,22 @@ import {
   cancelMarketplaceOrder,
   listMarketplaceOrders,
   marketChatHref,
+  marketPhaseOf,
   marketStageOf,
+  orderDetailHref,
+  rememberMarketOrders,
   type MarketOrder,
   type MarketStage,
 } from "@/lib/services/marketplace";
 import CompleteOrderDialog from "./CompleteOrderDialog";
 import SupplementalDialog from "./SupplementalDialog";
 import { OptionLines, RatingPanel, ResultBlock, SupplementalPanel } from "./OrderExtras";
+import "./order/cards.css";
 
 type View = "client" | "seller";
 type Tab = "all" | MarketStage;
+
+const DEAL_OPEN = /^(pending|open|proposed|created|waiting|counter)/;
 
 const STEP_INDEX: Record<MarketStage, number> = { pending: 1, active: 2, completed: 4, cancelled: -1 };
 const EVENT_SETTLE_MS = 500;
@@ -48,6 +55,7 @@ export default function MarketOrders({ view }: { view: View }) {
   const t = useTranslations("marketplace.orders");
   const tf = useTranslations("filterBar");
   const locale = useLocale();
+  const pathname = usePathname();
   const [orders, setOrders] = useState<MarketOrder[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [refreshing, setRefreshing] = useState(false);
@@ -58,6 +66,11 @@ export default function MarketOrders({ view }: { view: View }) {
   const [supFor, setSupFor] = useState<MarketOrder | null>(null);
   const [flash, setFlash] = useState("");
   const seq = useRef(0);
+  const owner = useAuth().session?.id ?? "";
+  const ownerRef = useRef(owner);
+  useEffect(() => {
+    ownerRef.current = owner;
+  });
 
   const load = useCallback(
     async (soft: boolean) => {
@@ -66,6 +79,7 @@ export default function MarketOrders({ view }: { view: View }) {
       try {
         const list = await listMarketplaceOrders(view);
         if (my !== seq.current) return;
+        rememberMarketOrders(list, ownerRef.current);
         setOrders(list);
         setStatus("ready");
       } catch {
@@ -255,6 +269,7 @@ export default function MarketOrders({ view }: { view: View }) {
               o={o}
               view={view}
               locale={locale}
+              listHref={pathname}
               onCancel={() => setCancelFor(o)}
               onComplete={() => setCompleteFor(o)}
               onSupplemental={() => setSupFor(o)}
@@ -286,6 +301,7 @@ export default function MarketOrders({ view }: { view: View }) {
       />
       <CompleteOrderDialog
         order={completeFor}
+        detailHref={completeFor ? orderDetailHref(pathname, completeFor.id) : undefined}
         onClose={() => setCompleteFor(null)}
         onDone={(st) => {
           if (completeFor) patch(completeFor.id, { status: st });
@@ -310,6 +326,7 @@ function OrderCard({
   o,
   view,
   locale,
+  listHref,
   onCancel,
   onComplete,
   onSupplemental,
@@ -318,17 +335,25 @@ function OrderCard({
   o: MarketOrder;
   view: View;
   locale: string;
+  listHref: string;
   onCancel: () => void;
   onComplete: () => void;
   onSupplemental: () => void;
   onRated: () => void;
 }) {
   const t = useTranslations("marketplace.orders");
+  const tod = useTranslations("marketplace.orderDetail.card");
+  const tph = useTranslations("marketplace.orderDetail.phase");
   const tch = useTranslations("marketplace.purchase.channels");
   const tpk = useTranslations("portal.client.packages");
   const te = useTranslations("enums");
   const router = useRouter();
   const stage = marketStageOf(o);
+  const phase = marketPhaseOf(o);
+  const dealOpen = phase === "pending" && !!o.negotiation && DEAL_OPEN.test(o.negotiation.status);
+  const dealAmount = o.negotiation ? o.negotiation.counterAmount || o.negotiation.amount : 0;
+  const stageLabel = phase === "paid" ? tph("paid") : t(`stage.${stage}`);
+  const currency = !o.currency || o.currency === "UZS" ? te("currency") : o.currency;
   const [calling, setCalling] = useState<"" | "audio" | "video">("");
   const [callErr, setCallErr] = useState("");
   const counterpart = view === "client" ? o.lawyerName : o.clientName;
@@ -360,7 +385,7 @@ function OrderCard({
       data-ai-type="card"
       data-ai-entity-type="marketplace_order"
       data-ai-entity-id={o.id || undefined}
-      data-ai-label={[o.serviceTitle, t(`stage.${stage}`)].filter(Boolean).join(" · ")}
+      data-ai-label={[o.serviceTitle, stageLabel].filter(Boolean).join(" · ")}
       data-ai-private
     >
       <div className="mk-order__rail" aria-hidden="true" />
@@ -370,12 +395,30 @@ function OrderCard({
             {o.workId ? <span className="wid">{o.workId}</span> : null}
             <span className={`mk-stage mk-stage--${stage}`}>
               {stage === "pending" ? <i aria-hidden="true" /> : null}
-              {t(`stage.${stage}`)}
+              {stageLabel}
             </span>
             {o.workPaused ? (
               <span className="mk-stage mk-stage--paused">
                 <IconPause aria-hidden="true" />
                 {t("paused")}
+              </span>
+            ) : null}
+            {phase === "review" ? (
+              <span className="mk-stage mk-stage--paused mod-card-chip">
+                <IconPause aria-hidden="true" />
+                {tod("review")}
+              </span>
+            ) : null}
+            {phase === "in_progress" && o.expectedCompletedAt ? (
+              <span className="mk-stage mod-card-chip mod-card-chip--due">
+                <IconClock aria-hidden="true" />
+                {tod("due", { date: shortDateTime(o.expectedCompletedAt, locale) })}
+              </span>
+            ) : null}
+            {dealOpen && dealAmount > 0 ? (
+              <span className="mk-stage mod-card-chip mod-card-chip--deal">
+                <IconCoins aria-hidden="true" />
+                {tod("negotiation", { amount: `${fmtUzs(dealAmount)} ${currency}` })}
               </span>
             ) : null}
           </div>
@@ -470,7 +513,7 @@ function OrderCard({
               {t("openChat")}
             </Link>
           ) : null}
-          {o.canCreateCall && stage !== "cancelled" && stage !== "completed" ? (
+          {o.canCreateCall && o.callsAllowed && stage !== "cancelled" && stage !== "completed" ? (
             <span className="mk-callgrp" role="group" aria-label={t("call")} data-ai-id={sub("call")} data-ai-type="call_button" data-ai-label={t("call")}>
               <button type="button" className="btn btn--line btn--sm" disabled={!!calling} onClick={() => void call("audio")}>
                 <IconPhone />
@@ -488,7 +531,7 @@ function OrderCard({
               {t("supplemental")}
             </button>
           ) : null}
-          {view === "seller" && o.canComplete && stage === "active" ? (
+          {view === "seller" && o.canComplete && stage === "active" && !(phase === "paid" && o.canStart) ? (
             <button type="button" className="btn btn--grad btn--sm" disabled={o.workPaused} title={o.workPaused ? t("pausedHint") : undefined} onClick={onComplete} data-ai-id={sub("complete")} data-ai-label={t("complete")}>
               <IconCheck />
               {t("complete")}
@@ -499,6 +542,12 @@ function OrderCard({
               <IconClose />
               {t("cancel")}
             </button>
+          ) : null}
+          {o.id ? (
+            <Link href={orderDetailHref(listHref, o.id)} className="btn btn--line btn--sm mod-card-detail" aria-label={o.serviceTitle || o.packageTitle || o.workId ? tod("detailNamed", { service: o.serviceTitle || o.packageTitle || o.workId }) : undefined} data-ai-id={sub("detail")} data-ai-label={tod("detail")}>
+              {tod("detail")}
+              <IconArrowRight aria-hidden="true" />
+            </Link>
           ) : null}
         </div>
       </div>

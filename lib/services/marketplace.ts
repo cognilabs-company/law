@@ -3,7 +3,7 @@ import { uzs } from "@/lib/money";
 import { cleanDocTitle } from "@/lib/docTitle";
 import { sellerTrustOf, type RatingStatus } from "./trust";
 import { featureMissing, noteFeatureError } from "@/lib/endpointGate";
-import { RUNTIME_ERROR_CODES, completeOrderV2 } from "./marketRuntime";
+import { RUNTIME_ERROR_CODES, completeOrderV2, normDuration, normNegotiation, normCancellationReview, type RuntimeDuration, type Negotiation, type CancellationReview, type ChecklistProgress } from "./marketRuntime";
 
 export type MarketCategory = { id: string; title: string; slug: string };
 
@@ -494,6 +494,20 @@ export type MarketOrder = {
   ratingUrl: string;
   supplemental: SupplementalPayment | null;
   workPaused: boolean;
+  startedAt: string;
+  expectedCompletedAt: string;
+  duration: RuntimeDuration | null;
+  deadlinePaused: boolean;
+  deadlineRemainingSeconds: number | null;
+  chatReadOnly: boolean;
+  callsAllowed: boolean;
+  lockExplicit: boolean;
+  negotiation: Negotiation | null;
+  negotiationAvailable: boolean | null;
+  cancellationReview: CancellationReview | null;
+  checklistProgress: ChecklistProgress | null;
+  canStart: boolean;
+  urls: { start: string; checklist: string; negotiations: string; cancellationReview: string; secondOpinion: string };
 };
 
 export type OrderOption = { id: string; label: string; amount: number };
@@ -585,6 +599,53 @@ function supplementalOf(d: Dict, details: Dict): SupplementalPayment | null {
   return list.find((x) => x.status === "pending") ?? list[list.length - 1] ?? null;
 }
 
+function filledDict(v: unknown): Dict | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  return Object.keys(v).length ? (v as Dict) : null;
+}
+
+function firstFinite(...vals: unknown[]): number | null {
+  for (const v of vals) {
+    if (v === null || v === undefined || v === "" || typeof v === "boolean") continue;
+    const n = typeof v === "number" ? v : parseFloat(String(v));
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function firstBool(...vals: unknown[]): boolean | null {
+  for (const v of vals) if (typeof v === "boolean") return v;
+  return null;
+}
+
+function durationOfRow(v: unknown): RuntimeDuration | null {
+  if (!filledDict(v)) return null;
+  const d = normDuration(v);
+  return d.value > 0 ? d : null;
+}
+
+function negotiationOfRow(d: Dict, details: Dict): Negotiation | null {
+  const list = asArr(d.negotiations ?? details.negotiations);
+  const raw = filledDict(d.negotiation) ?? filledDict(d.current_negotiation) ?? filledDict(d.active_negotiation) ?? filledDict(details.negotiation) ?? filledDict(list[list.length - 1]);
+  if (!raw) return null;
+  const n = normNegotiation(raw);
+  return n.id || n.amount > 0 ? n : null;
+}
+
+function progressOfRow(v: unknown): ChecklistProgress | null {
+  if (typeof v === "number" && Number.isFinite(v)) return { done: 0, total: 0, requiredDone: 0, requiredTotal: 0, percent: v };
+  const d = filledDict(v);
+  if (!d) return null;
+  const n = (...vals: unknown[]) => firstFinite(...vals) ?? 0;
+  return {
+    done: n(d.done, d.completed, d.done_count),
+    total: n(d.total, d.total_count),
+    requiredDone: n(d.required_done, d.required_completed),
+    requiredTotal: n(d.required_total, d.required_count),
+    percent: n(d.percent, d.progress_percent, d.percentage),
+  };
+}
+
 export function normMarketOrder(v: unknown): MarketOrder {
   const d = asDict(v);
   const details = asDict(d.details);
@@ -599,11 +660,18 @@ export function normMarketOrder(v: unknown): MarketOrder {
   const result = asDict(d.result);
   const supplemental = supplementalOf(d, details);
   const optionRows = asArr(d.selected_options ?? details.selected_options ?? quote.breakdown).map(normOrderOption).filter((o) => o.id || o.label);
+  const paymentStatus = asStr(d.payment_status ?? payment.status).toLowerCase();
+  const done = MARKET_DONE.has(status);
+  const stopped = MARKET_STOPPED.has(status);
+  const startedAt = asStr(d.started_at ?? details.started_at ?? details.work_started_at);
+  const readOnlyFlag = firstBool(d.chat_read_only, details.chat_read_only, asDict(d.chat).read_only);
+  const callsFlag = firstBool(d.calls_allowed, details.calls_allowed);
+  const reviewRaw = filledDict(d.cancellation_review) ?? filledDict(d.cancellation_review_request) ?? filledDict(details.cancellation_review);
   return {
     id: asStr(d.id ?? d.order_id),
     workId: asStr(d.work_id),
     status,
-    paymentStatus: asStr(d.payment_status ?? payment.status).toLowerCase(),
+    paymentStatus,
     serviceTitle: cleanDocTitle(asStr(d.service_title ?? details.service_title)),
     price: uzs(d, "price") || uzs(payment, "amount"),
     currency: asStr(d.currency, "UZS") || "UZS",
@@ -633,7 +701,27 @@ export function normMarketOrder(v: unknown): MarketOrder {
     rating: ratingOf(d, details),
     ratingUrl: asStr(d.rating_url),
     supplemental,
-    workPaused: supplemental?.status === "pending" || (status === "waiting_payment" && (asStr(d.payment_status ?? payment.status).toLowerCase() === "paid" || !!supplemental)),
+    workPaused: supplemental?.status === "pending" || (status === "waiting_payment" && (paymentStatus === "paid" || !!supplemental)),
+    startedAt,
+    expectedCompletedAt: asStr(d.expected_completed_at ?? details.expected_completed_at ?? d.deadline_at),
+    duration: durationOfRow(d.duration ?? details.duration),
+    deadlinePaused: d.deadline_paused === true || details.deadline_paused === true || status === "cancellation_review",
+    deadlineRemainingSeconds: firstFinite(d.deadline_remaining_seconds, details.deadline_remaining_seconds, d.remaining_seconds_at_pause),
+    chatReadOnly: readOnlyFlag ?? done,
+    callsAllowed: callsFlag ?? (!done && !stopped),
+    lockExplicit: readOnlyFlag !== null || callsFlag !== null,
+    negotiation: negotiationOfRow(d, details),
+    negotiationAvailable: firstBool(d.negotiation_available ?? d.negotiation_allowed ?? details.negotiation_available),
+    cancellationReview: reviewRaw ? normCancellationReview(reviewRaw) : null,
+    checklistProgress: progressOfRow(d.checklist_progress ?? asDict(d.checklist).progress ?? details.checklist_progress),
+    canStart: paymentStatus === "paid" && !startedAt && !done && !stopped && (status === "paid" || (!!asStr(d.start_url) && status !== "in_progress" && status !== "cancellation_review")),
+    urls: {
+      start: asStr(d.start_url),
+      checklist: asStr(d.checklist_url),
+      negotiations: asStr(d.negotiations_url ?? d.negotiation_url),
+      cancellationReview: asStr(d.cancellation_review_url),
+      secondOpinion: asStr(d.second_opinion_url),
+    },
   };
 }
 
@@ -641,6 +729,62 @@ export async function listMarketplaceOrders(roleView: "client" | "seller", opts:
   const d = await http(`/marketplace/me/orders?role_view=${roleView}`, { signal: opts.signal });
   const items = Array.isArray(d) ? d : asArr(asDict(d).items);
   return items.map(normMarketOrder).filter((o) => o.id);
+}
+
+export type MarketOrderPage = { items: MarketOrder[]; count: number; raw: Dict };
+
+export async function listMarketplaceOrdersPage(roleView: "client" | "seller", opts: { limit?: number; offset?: number; signal?: AbortSignal } = {}): Promise<MarketOrderPage> {
+  const limit = Math.max(1, Math.round(opts.limit ?? 50));
+  const offset = Math.max(0, Math.round(opts.offset ?? 0));
+  const qs = new URLSearchParams({ role_view: roleView, limit: String(limit), offset: String(offset) });
+  const res = await http(`/marketplace/me/orders?${qs}`, { signal: opts.signal });
+  const d: Dict = Array.isArray(res) ? { items: res } : asDict(res);
+  const items = asArr(d.items).map(normMarketOrder).filter((o) => o.id);
+  return { items, count: asNum(d.count, items.length), raw: d };
+}
+
+const orderMemo = new Map<string, { owner: string; order: MarketOrder; at: number }>();
+
+export function rememberMarketOrders(list: readonly MarketOrder[], owner = ""): void {
+  const at = Date.now();
+  for (const o of list) if (o.id) orderMemo.set(o.id, { owner, order: o, at });
+}
+
+export function peekMarketOrder(orderId: string, owner = "", maxAgeMs = Number.POSITIVE_INFINITY): MarketOrder | null {
+  const hit = orderMemo.get(orderId);
+  return hit && hit.owner === owner && Date.now() - hit.at <= maxAgeMs ? hit.order : null;
+}
+
+export async function findMarketplaceOrder(orderId: string, roleView: "client" | "seller", opts: { signal?: AbortSignal; pageSize?: number; maxPages?: number; owner?: string } = {}): Promise<MarketOrder | null> {
+  if (!orderId) return null;
+  const pageSize = Math.max(1, Math.round(opts.pageSize ?? 50));
+  const maxPages = Math.max(1, Math.round(opts.maxPages ?? 10));
+  const seen = new Set<string>();
+  let offset = 0;
+  for (let page = 0; page < maxPages; page += 1) {
+    const r = await listMarketplaceOrdersPage(roleView, { limit: pageSize, offset, signal: opts.signal });
+    const hit = r.items.find((o) => o.id === orderId);
+    if (hit) {
+      rememberMarketOrders([hit], opts.owner ?? "");
+      return hit;
+    }
+    const repeated = r.items.some((o) => seen.has(o.id));
+    for (const o of r.items) seen.add(o.id);
+    offset += pageSize;
+    if (repeated || r.items.length < pageSize || (r.count > r.items.length && offset >= r.count)) break;
+  }
+  return null;
+}
+
+export function orderDetailHref(listHref: string, orderId: string, section?: string): string {
+  const base = listHref.replace(/\/+$/, "");
+  return `${base}/${encodeURIComponent(orderId)}${section ? `#${section}` : ""}`;
+}
+
+export function sellerListHref(role: string): string {
+  if (role === "client") return "/portal/client/marketplace-orders";
+  if (role === "lawyer") return "/portal/lawyer/marketplace-orders";
+  return "/portal/advocate/marketplace-orders";
 }
 
 function orderOf(v: unknown): Dict {
@@ -878,6 +1022,19 @@ export function isOrderPending(o: Pick<MarketOrder, "status" | "paymentStatus">)
 
 export const MARKET_DONE = new Set(["completed", "rated", "done", "closed"]);
 export const MARKET_STOPPED = new Set(["cancelled", "canceled", "declined", "rejected", "lost", "refunded"]);
+
+export type MarketPhase = "pending" | "paid" | "in_progress" | "review" | "completed" | "rated" | "cancelled";
+export const MARKET_PHASES: readonly MarketPhase[] = ["pending", "paid", "in_progress", "review", "completed", "rated", "cancelled"];
+
+export function marketPhaseOf(o: Pick<MarketOrder, "status" | "paymentStatus" | "startedAt" | "rating">): MarketPhase {
+  if (MARKET_STOPPED.has(o.status)) return "cancelled";
+  if (o.status === "rated" || (MARKET_DONE.has(o.status) && o.rating.value > 0)) return "rated";
+  if (MARKET_DONE.has(o.status)) return "completed";
+  if (o.status === "cancellation_review") return "review";
+  if (o.status === "in_progress" || o.startedAt) return "in_progress";
+  if (isOrderPending(o)) return "pending";
+  return "paid";
+}
 
 export type MarketStage = "pending" | "active" | "completed" | "cancelled";
 
