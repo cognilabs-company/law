@@ -68,6 +68,7 @@ import CallBackgroundPicker from "./CallBackgroundPicker";
 import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord, IconBgPerson } from "../icons";
 import { regionLabel } from "@/lib/labels";
 import { CALLROOM_EVENT } from "@/lib/callEvents";
+import { tellDesk } from "@/lib/deskBridge";
 import { notify, notifyStore, type NotifyOptions } from "@/lib/toast";
 
 type Props = {
@@ -1921,6 +1922,13 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // connection-quality actions, so the policy says exactly this once it
   // arrives — this only stops the room guessing the opposite while it waits.
   const videoAllowed = quality ? quality.videoEnabled : callType === "video";
+  // Inside a virtual desktop window: the desktop is told a call is on (so
+  // it can float the window as picture-in-picture and set presence to
+  // in_call) and when it is over.
+  useEffect(() => {
+    tellDesk({ type: "lexgo-desk:call", on: true, video: videoAllowed });
+  }, [videoAllowed]);
+  useEffect(() => () => tellDesk({ type: "lexgo-desk:call", on: false, video: false }), []);
   // …and whether it may GROW one. LEXGO_AUDIO_CALL_CAMERA_UPGRADE_FRONTEND.md
   // is the newer contract and it overrides the line above for the audio case:
   // "Audio call ichida user camera yoqsa backend callni video callga

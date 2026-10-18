@@ -84,9 +84,14 @@ export type SavedWindow = {
 export type DeskItem = { id: string; kind: string; entityType: string; entityId: string; appId: string; title: string; subtitle: string; route: string; badge: string; at: string };
 export type DeskCounts = { activeOrders: number; pendingRequests: number; unreadNotifications: number; unreadMessages: number };
 export type DeskAi = { endpoint: string; mode: string; artifactsUrl: string };
+// A desktop shortcut (§8): the role's defaults come without an id (they
+// are the app icons already on the desk); saved ones carry one, and
+// usually a piece of work.
+export type Shortcut = { id: string; key: string; appId: string; label: string; entityType: string; entityId: string; route: string; x: number; y: number; order: number };
 export type Bootstrap = {
   ai: DeskAi;
   apps: RegistryApp[];
+  shortcuts: Shortcut[];
   prefs: DeskPrefs;
   wallpapers: string[];
   windows: SavedWindow[];
@@ -190,6 +195,25 @@ const normCounts = (raw: unknown): DeskCounts => {
   return { activeOrders: asNum(d.active_orders, 0), pendingRequests: asNum(d.pending_requests, 0), unreadNotifications: asNum(d.unread_notifications, 0), unreadMessages: asNum(d.unread_messages, 0) };
 };
 
+export function normShortcut(raw: unknown): Shortcut | null {
+  const d = asDict(raw);
+  const key = asStr(d.shortcut_key ?? d.key);
+  const route = safeRoute(d.route);
+  if (!key || !route) return null;
+  return {
+    id: asStr(d.id),
+    key,
+    appId: asStr(d.app_id),
+    label: asStr(d.label ?? d.title) || key,
+    entityType: asStr(d.entity_type),
+    entityId: asStr(d.entity_id),
+    route,
+    x: asNum(d.x),
+    y: asNum(d.y),
+    order: asNum(d.sort_order),
+  };
+}
+
 export async function getBootstrap(device: string, signal?: AbortSignal): Promise<Bootstrap> {
   const d = asDict(await http(`${BASE}/bootstrap${qs({ device_key: device })}`, { signal }));
   const rt = asDict(d.realtime);
@@ -197,6 +221,7 @@ export async function getBootstrap(device: string, signal?: AbortSignal): Promis
   return {
     ai: { endpoint: asStr(ai.endpoint) || "/api/ai/assistant", mode: asStr(ai.mode), artifactsUrl: asStr(ai.artifacts_url) },
     apps: rows(d.apps).map(normApp).filter((x): x is RegistryApp => !!x),
+    shortcuts: rows(d.shortcuts).map(normShortcut).filter((x): x is Shortcut => !!x),
     prefs: normPrefs(d.preferences),
     wallpapers: rows(d.wallpapers).map((w) => asStr(asDict(w).key ?? w)).filter(Boolean),
     windows: rows(d.windows).map(normWindow).filter((x): x is SavedWindow => !!x),
@@ -249,6 +274,16 @@ export async function saveWindows(device: string, windows: WindowInput[]): Promi
   const d = await http(`${BASE}/windows/batch`, send("PUT", { device_key: device, windows: windows.slice(0, 50) }));
   return rows(d, "windows").map(normWindow).filter((x): x is SavedWindow => !!x);
 }
+
+// ── Shortcuts ───────────────────────────────────────────────────────────────
+
+export type ShortcutInput = { shortcut_key: string; app_id: string; label: string; entity_type?: string; entity_id?: string; route: string; x: number; y: number; sort_order: number };
+// Creates the shortcut, or moves it (the same key again).
+export async function saveShortcut(device: string, sc: ShortcutInput): Promise<Shortcut | null> {
+  const d = asDict(await http(`${BASE}/shortcuts`, send("POST", { device_key: device, ...sc, route: safeRoute(sc.route) })));
+  return normShortcut(d.shortcut ?? d);
+}
+export const removeShortcut = (id: string) => http(`${BASE}/shortcuts/${enc(id)}`, send("DELETE"));
 
 // ── Feeds ───────────────────────────────────────────────────────────────────
 

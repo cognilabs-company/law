@@ -139,6 +139,14 @@ export const IconExpand = (p: P) => (
   </svg>
 );
 
+// Picture-in-picture: a screen with a small window in its corner.
+export const IconPip = (p: P) => (
+  <svg {...base} {...p}>
+    <rect x="3" y="5" width="18" height="14" rx="2" />
+    <rect x="12" y="12" width="7" height="5" rx="1" />
+  </svg>
+);
+
 export const IconChat = (p: P) => (
   <svg {...base} {...p}>
     <path d="M21 12a8 8 0 01-8 8H4l2.3-2.3A8 8 0 1121 12z" />
@@ -345,6 +353,13 @@ export const IconMapPin = (p: P) => (
   <svg {...base} {...p}>
     <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0116 0z" />
     <circle cx="12" cy="10" r="3" />
+  </svg>
+);
+
+// A folded map.
+export const IconMap = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" />
   </svg>
 );
 

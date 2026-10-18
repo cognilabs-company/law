@@ -96,6 +96,9 @@ export async function askCopilot(input: AskInput, signal?: AbortSignal): Promise
   if (input.entity?.id) {
     body.entity_type = input.entity.type;
     body.entity_id = input.entity.id;
+    // A secure chat is also named by its room (the backend reads the
+    // history this person may see from it).
+    if (/^(secure_chat|chat|chat_room)$/.test(input.entity.type)) body.room_id = input.entity.id;
   }
   return normAnswer(await http("/api/ai/assistant", { method: "POST", body: JSON.stringify(body), signal }), requestId, input.sessionId);
 }

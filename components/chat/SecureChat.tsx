@@ -53,7 +53,9 @@ import { VoiceNotePlayer } from "@/components/portal/AttachmentPreview";
 import { fetchAndDeliver } from "@/lib/download";
 import ImageLightbox from "./ImageLightbox";
 import CallRoom from "./CallRoom";
+import { tellDesk, useInDesk } from "@/lib/deskBridge";
 import {
+  IconSparkle,
   IconSend,
   IconShieldCheck,
   IconClose,
@@ -666,6 +668,9 @@ export default function SecureChat({
   // portal.client.rate's five words) rather than duplicating it here.
   const tu = useTranslations("portal.client.urgent");
   const tr = useTranslations("portal.client.rate");
+  // In a virtual desktop window the copilot can be pointed at this chat;
+  // the backend loads the history it may see, nothing is copied from here.
+  const inDesk = useInDesk();
   const tn = useTranslations("common.notify");
   const locale = useLocale();
   const { session, ready } = useAuth();
@@ -1519,6 +1524,18 @@ export default function SecureChat({
           >
             {completing ? <IconClock /> : <IconClipboardCheck />}
             <span>{t("completeChat")}</span>
+          </button>
+        ) : null}
+        {inDesk && !compact ? (
+          <button
+            className="schat__call schat__cop"
+            type="button"
+            onClick={() => tellDesk({ type: "lexgo-desk:copilot", entity: { type: "secure_chat", id: roomId, title: headService || (headWorkId ? `#${headWorkId}` : t("title")) } })}
+            aria-label={t("askCopilot")}
+            title={t("askCopilot")}
+            data-ai-target="button:chat-copilot"
+          >
+            <IconSparkle />
           </button>
         ) : null}
         {compact ? null : <InstructorButton className="schat__call schat__ai" iconOnly size={26} />}

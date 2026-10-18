@@ -13,6 +13,11 @@ const LAWYER_WORK = ["plan", "timeline", "evidence", "strategy", "redline", "mee
 const LAWYER_FREE = ["prioritize", "intake", "grounding", "handoff"];
 const CLIENT_WORK = ["status", "meetingPrep", "explainDoc", "secondOpinion", "complaint"];
 const CLIENT_FREE = ["findService", "findLawyer", "intake", "navigate"];
+// A secure chat in focus (sent from the chat's own window): the backend
+// reads the part of its history this person may see.
+const LAWYER_CHAT = ["chatSummary", "clientReply", "intake", "translate", "meetingSummary"];
+const CLIENT_CHAT = ["chatSummary", "chatNext", "meetingPrep", "complaint"];
+const CHAT_TYPES = new Set(["secure_chat", "chat", "chat_room"]);
 
 // The copilot (§ Client AI and lawyer AI) as a desktop app: a chat with the
 // mode the backend gave this role, focused on one piece of work when one is
@@ -107,7 +112,8 @@ export default function CopilotApp({ mode, focus, onFocus, onOpenRoute }: { mode
     }
   }
 
-  const chips = focus ? (lawyer ? LAWYER_WORK : CLIENT_WORK) : lawyer ? LAWYER_FREE : CLIENT_FREE;
+  const chat = !!focus && CHAT_TYPES.has(focus.type);
+  const chips = chat ? (lawyer ? LAWYER_CHAT : CLIENT_CHAT) : focus ? (lawyer ? LAWYER_WORK : CLIENT_WORK) : lawyer ? LAWYER_FREE : CLIENT_FREE;
   const submit = (e: FormEvent) => {
     e.preventDefault();
     void ask(text);
@@ -131,6 +137,14 @@ export default function CopilotApp({ mode, focus, onFocus, onOpenRoute }: { mode
           <small>{t("noFocusHint")}</small>
         </button>
         <ul className="wd-cop__work" aria-label={t("works")}>
+          {chat && focus ? (
+            <li>
+              <button type="button" className="wd-cop__ctx is-on" aria-pressed>
+                <b>{focus.title || t("chatFocus")}</b>
+                <small>{t("chatFocus")}</small>
+              </button>
+            </li>
+          ) : null}
           {work.slice(0, 30).map((w) => (
             <li key={w.id}>
               <button type="button" className={`wd-cop__ctx${focus?.id === w.id ? " is-on" : ""}`} aria-pressed={focus?.id === w.id} onClick={() => onFocus({ type: w.entityType, id: w.id, title: w.title })}>
@@ -146,7 +160,7 @@ export default function CopilotApp({ mode, focus, onFocus, onOpenRoute }: { mode
       <section className="wd-cop__main">
         <header className="wd-cop__top">
           <div className="wd-cop__now">
-            <small>{focus ? t("focused") : t("general")}</small>
+            <small>{chat ? t("focusedChat") : focus ? t("focused") : t("general")}</small>
             <b>{focus ? focus.title || focus.id : lawyer ? t("lawyerHello") : t("clientHello")}</b>
           </div>
           <div className="wd-cop__tabs" role="tablist">
@@ -166,7 +180,7 @@ export default function CopilotApp({ mode, focus, onFocus, onOpenRoute }: { mode
                   <i aria-hidden>
                     <IconSparkle />
                   </i>
-                  <b>{focus ? t("emptyFocus") : t("empty")}</b>
+                  <b>{chat ? t("emptyChat") : focus ? t("emptyFocus") : t("empty")}</b>
                   <small>{t("privacy")}</small>
                 </div>
               ) : null}
@@ -256,7 +270,7 @@ export default function CopilotApp({ mode, focus, onFocus, onOpenRoute }: { mode
                     void ask(text);
                   }
                 }}
-                placeholder={focus ? t("placeholderFocus") : t("placeholder")}
+                placeholder={chat ? t("placeholderChat") : focus ? t("placeholderFocus") : t("placeholder")}
                 aria-label={t("placeholder")}
                 rows={2}
                 maxLength={4000}

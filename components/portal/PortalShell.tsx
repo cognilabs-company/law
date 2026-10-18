@@ -13,6 +13,7 @@ import NotificationBell from "./NotificationBell";
 import SupportMenu from "./SupportMenu";
 import MarketWatcher from "../marketplace/MarketWatcher";
 import SellerHeaderSlot from "./SellerHeaderSlot";
+import { listenToDesk, tellDesk } from "@/lib/deskBridge";
 import GrowthBanner from "./GrowthBanner";
 import GiftNudge from "./GiftNudge";
 import { canUseDesk, setDeskMode, useDeskEmbedOs, useDeskEmbedded, useDeskMode, useDeskOs } from "./desk/deskMode";
@@ -224,8 +225,10 @@ export default function PortalShell({
   const deskOs = useDeskOs();
   const [picking, setPicking] = useState(false);
   useEffect(() => {
-    if (embedded && window.parent !== window) window.parent.postMessage({ type: "lexgo-desk:path", path: pathname }, window.location.origin);
+    if (embedded) tellDesk({ type: "lexgo-desk:path", path: pathname });
   }, [embedded, pathname]);
+  // …and hears back how it is shown (picture-in-picture during a call).
+  useEffect(() => (embedded ? listenToDesk() : undefined), [embedded]);
 
   // Desktop collapse (icon-only rail) — a per-device convenience, remembered
   // across visits but never blocking the page if storage is unavailable.

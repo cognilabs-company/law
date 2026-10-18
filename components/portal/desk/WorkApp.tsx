@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { fmtDateTime } from "@/lib/date";
 import { getWork, type DeskLink, type WorkFeed, type WorkItem } from "@/lib/services/lawyerDesktop";
-import { IconArrowRight, IconChat, IconClock, IconRefresh, IconSparkle } from "@/components/icons";
+import { IconArrowRight, IconChat, IconClock, IconPlus, IconRefresh, IconSparkle } from "@/components/icons";
 
 const GROUPS = ["requests", "active", "completed", "cancelled"] as const;
 type Group = (typeof GROUPS)[number];
@@ -14,7 +14,13 @@ type Group = (typeof GROUPS)[number];
 // price, deadline and checklist progress, and opens by its own deep link;
 // from here the chat about it and the copilot focused on it are one click.
 // A read-only view: every change happens in the work's own page.
-export default function WorkApp({ onOpen, onChat, onCopilot }: { onOpen: (link: DeskLink, title: string) => void; onChat: () => void; onCopilot: (w: WorkItem) => void }) {
+// What a row carries when it is dragged onto the desk: a shortcut to it.
+export const SHORTCUT_DRAG = "application/x-lexgo-shortcut";
+export function workShortcut(w: WorkItem) {
+  return { shortcut_key: `work-${w.id}`, app_id: w.link.appId || "marketplace-work", label: w.title || w.code, entity_type: w.entityType, entity_id: w.id, route: w.link.route };
+}
+
+export default function WorkApp({ onOpen, onChat, onCopilot, onShortcut }: { onOpen: (link: DeskLink, title: string) => void; onChat: () => void; onCopilot: (w: WorkItem) => void; onShortcut?: (w: WorkItem) => void }) {
   const t = useTranslations("portal.desk.work");
   const tc = useTranslations("portal.desk.copilot");
   const locale = useLocale();
@@ -79,7 +85,15 @@ export default function WorkApp({ onOpen, onChat, onCopilot }: { onOpen: (link: 
         {shown.map((w) => {
           const pct = w.total ? Math.round((w.done / w.total) * 100) : 0;
           return (
-            <li key={w.id} className="wd-work__item">
+            <li
+              key={w.id}
+              className="wd-work__item"
+              draggable={!!onShortcut && !!w.link.route}
+              onDragStart={(e) => {
+                e.dataTransfer.setData(SHORTCUT_DRAG, JSON.stringify(workShortcut(w)));
+                e.dataTransfer.effectAllowed = "link";
+              }}
+            >
               <button type="button" className="wd-work__main" onClick={() => onOpen(w.link, w.title)}>
                 <span className="wd-work__head">
                   <b>{w.title || w.code}</b>
@@ -115,6 +129,12 @@ export default function WorkApp({ onOpen, onChat, onCopilot }: { onOpen: (link: 
                   <button type="button" onClick={onChat} title={t("chat")}>
                     <IconChat aria-hidden />
                     {t("chat")}
+                  </button>
+                ) : null}
+                {onShortcut && w.link.route ? (
+                  <button type="button" onClick={() => onShortcut(w)} title={t("toDesktopHint")}>
+                    <IconPlus aria-hidden />
+                    {t("toDesktop")}
                   </button>
                 ) : null}
                 <button type="button" onClick={() => onOpen(w.link, w.title)} title={t("open")}>

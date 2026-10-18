@@ -22204,3 +22204,13 @@ html[data-theme="dark"] .wd-work__acts button:first-child{color:#C4A8FF}
 .stu-fo__none{margin:0;font-size:.78rem;color:var(--gray)}
 @media (max-width:560px){.stu-fo li{grid-template-columns:1fr}.svprom__refs ul{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (prefers-reduced-motion:reduce){.mk-att__rec svg{animation:none}}
+/* ── Desktop: calls as picture-in-picture, saved shortcuts (2026-10-18) ── */
+.wd-win.is-pip{border-radius:14px;box-shadow:0 0 0 1px rgba(255,255,255,.18),0 30px 70px -18px rgba(0,0,0,.6),0 10px 24px -10px rgba(0,0,0,.45)}
+.wd-win.is-pip .wd-win__bar{height:30px;padding-left:10px;gap:6px}
+.wd-win.is-pip .wd-win__title{font-size:.74rem}
+.wd-win.is-pip .wd-win__ctl button:not(.wd-win__x){display:none}
+.wd-win.is-pip::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 2px rgba(52,199,89,.75);pointer-events:none}
+.wd-icon__sc{position:absolute;z-index:2;top:calc(8px + var(--wd-tile,46px) - 16px);left:calc(50% - var(--wd-tile,46px) / 2 - 3px);width:17px;height:17px;border-radius:4px;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 11c0-4 2-6 6-6M8 3h3.5V6.5' fill='none' stroke='%231668F0' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/13px no-repeat;box-shadow:0 1px 3px rgba(0,0,0,.35);pointer-events:none}
+html[data-desk-pip] .mtg,html[data-desk-pip] .mtg.mtg--float{inset:0!important;width:auto!important;height:auto!important;border:0!important;border-radius:0!important;box-shadow:none!important;animation:none}
+html[data-desk-pip] .mtg__grip{display:none}
+.schat__cop{color:var(--b600)}

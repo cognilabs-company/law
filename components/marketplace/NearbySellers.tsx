@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Select from "@/components/Select";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { IconInfo, IconLock, IconMapPin, IconRefresh, IconStarRate, IconUsers } from "@/components/icons";
+import { IconInfo, IconList, IconLock, IconMap, IconMapPin, IconRefresh, IconStarRate, IconUsers } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 import { regionLabel } from "@/lib/labels";
 import { humanizeSlug } from "@/lib/lawyers";
@@ -15,6 +15,7 @@ import { NEARBY_RADII, type NearbyRadius, type NearbyResult, type NearbySeller }
 import type { MarketSeller } from "@/lib/services/marketplace";
 import { approxDistance, findNearby, geoFailureOf, locateClient, nearbyFailureOf, nearbyKey, precisionMeters, sortNearby, type GeoFailure, type NearbyFailure, type NearbyMode, type Spot } from "@/lib/services/marketDiscovery";
 import { Monogram, sellerTypeLabel } from "./bits";
+import NearbyMap from "./NearbyMap";
 import "./nearbySellers.css";
 
 export type NearbyServiceOption = { value: string; label: string };
@@ -69,6 +70,8 @@ export default function NearbySellers({
   const [geo, setGeo] = useState<GeoState>({ busy: false, fail: null });
   const [res, setRes] = useState<ResState | null>(null);
   const [tick, setTick] = useState(0);
+  // The results as a list, or on the map around the client.
+  const [view, setView] = useState<"list" | "map">("list");
 
   const key = `${nearbyKey(spot, radius, serviceId)}#${tick}`;
 
@@ -255,6 +258,16 @@ export default function NearbySellers({
           <span className="mknb-meta__n">{result.fallbackNearest ? t("countNearest", { n: rows.length }) : t("count", { n: rows.length, r: shownR })}</span>
           <span className="mknb-prec">{precText}</span>
           <p className="mknb-note">{t("approxNote")}</p>
+          <div className="mknb-view" role="group" aria-label={t("map.view")}>
+            <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")} data-ai-id="marketplace.nearby.view.list">
+              <IconList aria-hidden="true" />
+              {t("map.list")}
+            </button>
+            <button type="button" aria-pressed={view === "map"} onClick={() => setView("map")} data-ai-id="marketplace.nearby.view.map">
+              <IconMap aria-hidden="true" />
+              {t("map.map")}
+            </button>
+          </div>
         </div>
         {result.fallbackNearest ? (
           <p className="mknb-fallback">
@@ -262,7 +275,8 @@ export default function NearbySellers({
             <span>{t("fallback", { r: shownR })}</span>
           </p>
         ) : null}
-        <ul className="mknb-list" aria-label={t("listLabel")} data-ai-id="marketplace.nearby.results" data-ai-type="list">
+        {view === "map" && spot ? <NearbyMap spot={spot} radiusKm={shownR} items={rows} base={base} label={t("map.label", { n: rows.length, r: shownR })} /> : null}
+        <ul className="mknb-list" aria-label={t("listLabel")} data-ai-id="marketplace.nearby.results" data-ai-type="list" hidden={view === "map"}>
           {rows.map(renderRow)}
         </ul>
       </>

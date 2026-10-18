@@ -33,16 +33,23 @@ export type Win = {
   src?: { x: number; y: number; w: number; h: number };
   // Playing its closing animation; gone right after.
   closing?: boolean;
+  // Floating as picture-in-picture (a call while another app is in front):
+  // its own small box, above every window; its usual box comes back after.
+  pip?: Box;
 };
+export type Box = { x: number; y: number; w: number; h: number };
 export type Area = { w: number; h: number };
 export const MIN_W = 380;
 export const MIN_H = 260;
+export const PIP_MIN_W = 260;
+export const PIP_MIN_H = 170;
 const EDGES = ["n", "s", "e", "w", "ne", "nw", "se", "sw"] as const;
 type Edge = (typeof EDGES)[number];
 
 // Where a window stands: its own box, or the half or whole of the desk it
 // was snapped to.
-export function boxOf(w: Win, area: Area) {
+export function boxOf(w: Win, area: Area): Box {
+  if (w.pip) return w.pip;
   if (w.snap === "max") return { x: 0, y: 0, w: area.w, h: area.h };
   if (w.snap === "l") return { x: 0, y: 0, w: Math.round(area.w / 2), h: area.h };
   if (w.snap === "r") return { x: Math.round(area.w / 2), y: 0, w: area.w - Math.round(area.w / 2), h: area.h };
@@ -97,7 +104,10 @@ export default function DeskWindow({
 }) {
   const box = phone ? { x: 0, y: 0, w: area.w, h: area.h } : boxOf(win, area);
   const drag = useRef<{ kind: "move" | Edge; sx: number; sy: number; box: { x: number; y: number; w: number; h: number }; snap: Snap; id: number } | null>(null);
-  const full = phone || win.snap === "max";
+  const pip = !!win.pip && !phone;
+  const full = !pip && (phone || win.snap === "max");
+  const minW = pip ? PIP_MIN_W : MIN_W;
+  const minH = pip ? PIP_MIN_H : MIN_H;
 
   const begin = (e: PointerEvent<HTMLElement>, kind: "move" | Edge) => {
     if (e.button !== 0 || phone) return;
@@ -106,7 +116,7 @@ export default function DeskWindow({
     e.currentTarget.setPointerCapture(e.pointerId);
     let start = box;
     // A snapped window dragged away gets its own size back, under the pointer.
-    if (kind === "move" && win.snap) {
+    if (kind === "move" && win.snap && !pip) {
       const rel = (e.clientX - box.x) / box.w;
       start = { x: Math.round(e.clientX - win.w * rel), y: 0, w: win.w, h: win.h };
       onChange({ snap: "", x: start.x, y: start.y });
@@ -123,6 +133,7 @@ export default function DeskWindow({
     if (d.kind === "move") {
       const x = Math.min(area.w - 80, Math.max(80 - b.w, b.x + dx));
       const y = Math.min(area.h - 40, Math.max(0, b.y + dy));
+      if (pip) return onChange({ pip: { ...b, x, y } });
       onChange({ x, y });
       const rect = e.currentTarget.closest(".wd-desk")?.getBoundingClientRect();
       const snap = rect ? snapAt(e.clientX - rect.left, e.clientY - rect.top, area) : "";
@@ -134,18 +145,19 @@ export default function DeskWindow({
     }
     const k = d.kind;
     let { x, y, w, h } = b;
-    if (k.includes("e")) w = Math.max(MIN_W, Math.min(area.w - x, b.w + dx));
-    if (k.includes("s")) h = Math.max(MIN_H, Math.min(area.h - y, b.h + dy));
+    if (k.includes("e")) w = Math.max(minW, Math.min(area.w - x, b.w + dx));
+    if (k.includes("s")) h = Math.max(minH, Math.min(area.h - y, b.h + dy));
     if (k.includes("w")) {
-      w = Math.max(MIN_W, b.w - dx);
+      w = Math.max(minW, b.w - dx);
       x = Math.max(0, b.x + b.w - w);
       w = b.x + b.w - x;
     }
     if (k.includes("n")) {
-      h = Math.max(MIN_H, b.h - dy);
+      h = Math.max(minH, b.h - dy);
       y = Math.max(0, b.y + b.h - h);
       h = b.y + b.h - y;
     }
+    if (pip) return onChange({ pip: { x, y, w, h } });
     onChange({ x, y, w, h, snap: "" });
   };
   const end = (e: PointerEvent<HTMLElement>) => {
@@ -154,14 +166,14 @@ export default function DeskWindow({
     drag.current = null;
     onBusy(false);
     onSnapHint("");
-    if (d.kind === "move" && d.snap) onChange({ snap: d.snap });
+    if (d.kind === "move" && d.snap && !pip) onChange({ snap: d.snap });
   };
   const handlers = { onPointerMove: move, onPointerUp: end, onPointerCancel: end };
 
   return (
     <section
-      className={`wd-win${active ? " is-active" : ""}${win.min ? " is-min" : ""}${win.closing ? " is-closing" : ""}${full ? " is-max" : ""}${win.snap === "l" || win.snap === "r" ? " is-snap" : ""}`}
-      style={{ left: box.x, top: box.y, width: box.w, height: box.h, zIndex: win.z, "--ox": `${win.ox ?? 0}px`, "--oy": `${win.oy ?? 0}px`, "--sx": (win.sx ?? 0.06).toFixed(4), "--sy": (win.sy ?? 0.06).toFixed(4) } as CSSProperties}
+      className={`wd-win${active ? " is-active" : ""}${win.min ? " is-min" : ""}${win.closing ? " is-closing" : ""}${full ? " is-max" : ""}${win.snap === "l" || win.snap === "r" ? " is-snap" : ""}${pip ? " is-pip" : ""}`}
+      style={{ left: box.x, top: box.y, width: box.w, height: box.h, zIndex: pip ? 9000 : win.z, "--ox": `${win.ox ?? 0}px`, "--oy": `${win.oy ?? 0}px`, "--sx": (win.sx ?? 0.06).toFixed(4), "--sy": (win.sy ?? 0.06).toFixed(4) } as CSSProperties}
       role="dialog"
       aria-label={title}
       aria-hidden={win.min || win.closing || undefined}
@@ -177,6 +189,7 @@ export default function DeskWindow({
         {...handlers}
         onDoubleClick={(e) => {
           if ((e.target as HTMLElement).closest("button") || phone) return;
+          if (pip) return onChange({ pip: undefined });
           onChange({ snap: win.snap === "max" ? "" : "max" });
         }}
         onContextMenu={(e) => {

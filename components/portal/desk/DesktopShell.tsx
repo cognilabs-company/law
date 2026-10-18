@@ -18,7 +18,10 @@ import {
   IconStar,
   IconChevronLeft,
   IconClose,
+  IconExpand,
   IconExternal,
+  IconPip,
+  IconPlus,
   IconFolder,
   IconGrid,
   IconInfo,
@@ -38,7 +41,7 @@ import {
 } from "@/components/icons";
 import MarketWatcher from "@/components/marketplace/MarketWatcher";
 import ContextMenu, { type MenuItem } from "./ContextMenu";
-import DeskWindow, { MIN_H, MIN_W, boxOf, type Area, type Snap, type Win } from "./DeskWindow";
+import DeskWindow, { MIN_H, MIN_W, boxOf, type Area, type Box, type Snap, type Win } from "./DeskWindow";
 import Wallpaper, { wallpapersOf, type WallpaperId } from "./Wallpaper";
 import { AppTile, FolderTile } from "./AppIcon";
 import { FOLDERS, RELATED, folderOf, navOfReg, regOf, type DeskApp, type FolderId } from "./apps";
@@ -48,17 +51,18 @@ import ActivityPanel from "./ActivityPanel";
 import DeskWidgets from "./DeskWidgets";
 import SnippetsApp from "./SnippetsApp";
 import CopilotApp from "./CopilotApp";
-import WorkApp from "./WorkApp";
+import WorkApp, { SHORTCUT_DRAG, workShortcut } from "./WorkApp";
 import type { CopilotEntity } from "@/lib/services/aiCopilot";
-import { safeRoute, type DeskLink, type SearchHit, type WindowInput } from "@/lib/services/lawyerDesktop";
+import { safeRoute, type DeskLink, type SearchHit, type Shortcut, type ShortcutInput, type WindowInput } from "@/lib/services/lawyerDesktop";
 import { DESK_FRAME, setDeskMode, setDeskOs, type DeskOs } from "./deskMode";
+import type { FromDesk, ToDesk } from "@/lib/deskBridge";
 
 const AiSystemAssistant = dynamic(() => import("../AiSystemAssistant"), { ssr: false });
 
 type IconSize = "lg" | "md" | "sm";
 type Sort = "default" | "name" | "type";
 type Saved = { wallpaper: WallpaperId; icons: IconSize; sort: Sort; pinned: string[]; wins: Omit<Win, "id" | "z" | "tick">[] };
-type Item = { kind: "app"; id: string; app: DeskApp } | { kind: "folder"; id: FolderId; apps: DeskApp[] };
+type Item = { kind: "app"; id: string; app: DeskApp } | { kind: "folder"; id: FolderId; apps: DeskApp[] } | { kind: "link"; id: string; sc: Shortcut; app: DeskApp };
 type Menu = { at: { x: number; y: number }; items: MenuItem[]; label: string };
 type Note = { title: string; rows: [string, string][]; icon: ReactNode };
 
@@ -73,6 +77,16 @@ let seq = 0;
 // The time, for how recent a click is (read in handlers, never in render).
 const clockMs = () => Date.now();
 const newId = () => `w${Date.now().toString(36)}${(seq++).toString(36)}`;
+const without = <T,>(rec: Record<string, T>, key: string): Record<string, T> => Object.fromEntries(Object.entries(rec).filter(([k]) => k !== key));
+// Where a call floats as picture-in-picture: where it was last left, kept
+// on the desk, else the bottom-right corner; a video call a little larger.
+function pipBoxFor(area: Area, last: Box | null, video: boolean): Box {
+  const w = last?.w ?? (video ? 360 : 320);
+  const h = last?.h ?? (video ? 240 : 180);
+  const x = last ? last.x : area.w - w - 16;
+  const y = last ? last.y : area.h - h - 16;
+  return { x: Math.max(0, Math.min(area.w - w, x)), y: Math.max(0, Math.min(area.h - h, y)), w, h };
+}
 
 // The cabinet as a computer desktop: the sections are apps and
 // folders on a wallpaper, opened (double-click, Enter, or from the taskbar
@@ -122,13 +136,18 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
   // The Activity Center panel; focus mode while the backend is not there.
   const [actOpen, setActOpen] = useState(false);
   const [localFocus, setLocalFocus] = useState(false);
+  // The windows with a call on, and whether it carries video.
+  const [calls, setCalls] = useState<Record<string, boolean>>({});
+  // Where the last picture-in-picture stood, for the next one.
+  const pipLast = useRef<Box | null>(null);
 
   // The backend's desktop feed (bootstrap, widgets, activity, presence…).
   const backend = useDeskBackend(role, () => {
     const w = wins.find((x) => x.id === active && !x.min);
-    return { appId: w && w.kind === "app" ? regOf(w.key) : "", busy: w?.key === "meetings" };
+    return { appId: w && w.kind === "app" ? regOf(w.key) : "", busy: Object.keys(calls).length > 0 || w?.key === "meetings" };
   });
   const registry = useMemo(() => new Set(backend.boot?.apps.map((a) => a.id) ?? []), [backend.boot]);
+  const shortcuts = backend.shortcuts;
   const ready = backend.status === "ready";
   // The snippets app lives in the desktop itself, when the backend has it.
   const snippetsOn = ready && (!registry.size || registry.has("snippets"));
@@ -228,15 +247,16 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // A page inside a window tells where it has gone, so the title follows.
+  // A page inside a window tells where it has gone (so the title follows),
+  // that a call has started or ended in it, or that it wants the copilot
+  // on something it shows (a secure chat).
+  const onPage = useRef<(id: string, d: ToDesk) => void>(() => undefined);
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (e.origin !== window.location.origin) return;
-      const d = e.data as { type?: string; path?: string } | null;
-      if (!d || d.type !== "lexgo-desk:path" || typeof d.path !== "string") return;
-      for (const [id, frame] of frames.current) {
-        if (frame.contentWindow === e.source) setWins((ws) => ws.map((w) => (w.id === id ? { ...w, path: d.path! } : w)));
-      }
+      const d = e.data as ToDesk | null;
+      if (!d || typeof d.type !== "string" || !d.type.startsWith("lexgo-desk:")) return;
+      for (const [id, frame] of frames.current) if (frame.contentWindow === e.source) onPage.current(id, d);
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -287,10 +307,14 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
   };
   const patch = (id: string, p: Partial<Win>) => {
     const w = wins.find((x) => x.id === id);
+    // A call is never hidden: minimising it floats it instead (§21).
+    const toPip = !!p.min && id in calls && !phone;
+    if (toPip) p = { ...p, min: false, pip: w?.pip ?? pipBoxFor(area, pipLast.current, calls[id]) };
+    if (p.pip) pipLast.current = p.pip;
     // Minimised: it shrinks into its button, from wherever it stands now.
     const into = p.min && w ? toAnchor({ ...w, ...p }) : {};
     setWins((ws) => ws.map((x) => (x.id === id ? { ...x, ...p, ...into } : x)));
-    if (p.min) setActive((a) => (a === id ? "" : a));
+    if (p.min || toPip) setActive((a) => (a === id ? "" : a));
   };
   // Closed: it shrinks back into its button (or where it came from) and is
   // gone once the animation is over.
@@ -299,6 +323,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
     const into = w && mac ? toAnchor(w) : {};
     setWins((ws) => ws.map((x) => (x.id === id ? { ...x, ...into, closing: true } : x)));
     setActive((a) => (a === id ? "" : a));
+    setCalls((c) => (id in c ? without(c, id) : c));
     setTimeout(
       () => {
         frames.current.delete(id);
@@ -345,7 +370,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
     setActive(wid);
     setStart(false);
   };
-  const openItem = (it: Item) => (it.kind === "app" ? openApp(it.app.key) : openFolder(it.id));
+  const openItem = (it: Item) => (it.kind === "app" ? openApp(it.app.key) : it.kind === "link" ? openLink({ appId: it.sc.appId, route: it.sc.route }) : openFolder(it.id));
   const showDesktop = () => {
     const into = Object.fromEntries(wins.map((w) => [w.id, toAnchor(w)]));
     setWins((ws) => ws.map((w) => ({ ...w, min: true, ...into[w.id] })));
@@ -373,7 +398,80 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
     openMenu(e, h.title, [
       { id: "open", label: t("menu.open"), icon: <IconArrowRight />, onSelect: () => openHit(h) },
       ...(h.entityId && h.link.route ? ([{ id: "pin", label: t("palette.pin"), icon: <IconStar />, onSelect: () => backend.pin({ entity_type: h.entityType || h.type, entity_id: h.entityId, app_id: h.link.appId, title: h.title, subtitle: h.subtitle, route: h.link.route }) }] as MenuItem[]) : []),
+      ...(ready && h.link.route ? ([{ id: "desk", label: t("shortcut.add"), icon: <IconPlus />, onSelect: () => addShortcut({ shortcut_key: `${h.type || "item"}-${h.entityId || h.id}`, app_id: h.link.appId, label: h.title, entity_type: h.entityType || h.type, entity_id: h.entityId, route: h.link.route }) }] as MenuItem[]) : []),
     ]);
+  // ── what the pages in the windows say ───────────────────────────────────
+  const fromPage = (id: string, d: ToDesk) => {
+    if (d.type === "lexgo-desk:path") {
+      if (typeof d.path === "string") setWins((ws) => ws.map((w) => (w.id === id ? { ...w, path: d.path } : w)));
+      return;
+    }
+    if (d.type === "lexgo-desk:call") {
+      if (d.on) {
+        // A call has started here: its window comes to the front (§21).
+        const w = wins.find((x) => x.id === id);
+        if (!(id in calls) && w && !w.pip && (w.min || active !== id)) focus(id);
+        setCalls((c) => (c[id] === !!d.video ? c : { ...c, [id]: !!d.video }));
+        return;
+      }
+      if (!(id in calls)) return;
+      // Over: the window takes its own place back, presence and the feeds
+      // catch up.
+      setCalls((c) => without(c, id));
+      setWins((ws) => ws.map((w) => (w.id === id && w.pip ? { ...w, pip: undefined } : w)));
+      backend.refreshFeeds();
+      return;
+    }
+    if (d.type === "lexgo-desk:copilot" && aiMode && d.entity && typeof d.entity.id === "string" && d.entity.id) {
+      setCopilotFocus({ type: String(d.entity.type || "secure_chat"), id: d.entity.id, title: typeof d.entity.title === "string" ? d.entity.title : "" });
+      openApp("copilot");
+    }
+  };
+  useEffect(() => {
+    onPage.current = fromPage;
+  });
+  // A call whose window is not in front floats as picture-in-picture, so
+  // its controls stay at hand while another app is used (§21).
+  useEffect(() => {
+    if (phone) return;
+    const ids = wins.filter((w) => w.id in calls && w.id !== active && !w.pip && !w.closing).map((w) => w.id);
+    if (!ids.length) return;
+    const h = setTimeout(() => {
+      setWins((ws) =>
+        ws.map((w) => {
+          if (!ids.includes(w.id)) return w;
+          const pip = pipBoxFor(area, pipLast.current, calls[w.id]);
+          pipLast.current = pip;
+          return { ...w, min: false, pip };
+        }),
+      );
+    }, 0);
+    return () => clearTimeout(h);
+  }, [wins, calls, active, phone, area]);
+  // Presence follows at once when a call starts or ends (in_call, online).
+  const inCall = Object.keys(calls).length > 0;
+  const wasInCall = useRef(false);
+  const { pulse } = backend;
+  useEffect(() => {
+    if (wasInCall.current === inCall) return;
+    wasInCall.current = inCall;
+    pulse();
+  }, [inCall, pulse]);
+  // …and the page in it is told, so it shows only the call.
+  const pipSent = useRef(new Map<string, boolean>());
+  useEffect(() => {
+    for (const w of wins) {
+      const on = !!w.pip;
+      if ((pipSent.current.get(`${w.id}-${w.tick}`) ?? false) === on) continue;
+      pipSent.current.set(`${w.id}-${w.tick}`, on);
+      const msg: FromDesk = { type: "lexgo-desk:pip", on };
+      frames.current.get(w.id)?.contentWindow?.postMessage(msg, window.location.origin);
+    }
+  }, [wins]);
+  const unpip = (id: string) => {
+    patch(id, { pip: undefined });
+    focus(id);
+  };
   const setFocus = (on: boolean) => (ready ? void backend.updatePrefs({ focus_mode: on }, t("layoutUpdated")) : setLocalFocus(on));
   const signOut = () => {
     backend.signOut();
@@ -451,7 +549,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
       recs.push({
         window_key: key,
         app_id: reg,
-        state: w.min ? "minimized" : w.snap === "max" ? "maximized" : "normal",
+        state: w.min ? "minimized" : w.snap === "max" && !w.pip ? "maximized" : "normal",
         x: Math.round(b.x),
         y: Math.round(b.y),
         width: Math.round(b.w),
@@ -459,7 +557,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
         z_index: w.z,
         monitor_key: "primary",
         route: safeRoute(w.path || w.href),
-        context: { mode: w.snap === "l" ? "split-left" : w.snap === "r" ? "split-right" : "floating" },
+        context: { mode: w.pip ? "pip" : w.snap === "l" ? "split-left" : w.snap === "r" ? "split-right" : "floating" },
       });
     }
     const next = new Map(recs.map((r) => [r.window_key, r]));
@@ -518,12 +616,21 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
   // ── the desktop's items ───────────────────────────────────────────────────
   const items = useMemo<Item[]>(() => {
     const loose = apps.filter((a) => !folderOf(a.key)).sort((a, b) => (FIRST.indexOf(a.key) + 99) % 99 - (FIRST.indexOf(b.key) + 99) % 99);
-    const list: Item[] = [...loose.map((app) => ({ kind: "app" as const, id: app.key, app })), ...FOLDERS.map((f) => ({ kind: "folder" as const, id: f.id, apps: folderApps(f.id) })).filter((f) => f.apps.length)];
-    const label = (it: Item) => (it.kind === "app" ? it.app.label : t(`folder.${it.id}`));
+    // Saved shortcuts (§8) after the apps: a piece of work, or a page deeper
+    // than an app's own; the role's defaults are the app icons themselves.
+    const links = shortcuts
+      .filter((sc) => sc.id && (sc.entityId || appAt(sc.route)?.href !== sc.route))
+      .sort((a, b) => a.order - b.order)
+      .map((sc): Item => {
+        const owner = appAt(sc.route) ?? byKey.get(navOfReg(sc.appId, (k) => byKey.has(k)));
+        return { kind: "link", id: `sc-${sc.key}`, sc, app: { ...(owner ?? { key: sc.appId, href: sc.route, Icon: IconBriefcase }), label: sc.label, locked: false } };
+      });
+    const list: Item[] = [...loose.map((app) => ({ kind: "app" as const, id: app.key, app })), ...links, ...FOLDERS.map((f) => ({ kind: "folder" as const, id: f.id, apps: folderApps(f.id) })).filter((f) => f.apps.length)];
+    const label = (it: Item) => (it.kind === "folder" ? t(`folder.${it.id}`) : it.app.label);
     if (sort === "name") return [...list].sort((a, b) => label(a).localeCompare(label(b)));
     if (sort === "type") return [...list].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "folder" ? -1 : 1));
     return list;
-  }, [apps, folderApps, sort, t]);
+  }, [apps, folderApps, sort, t, shortcuts, appAt, byKey]);
 
   // ── menus ─────────────────────────────────────────────────────────────────
   const openMenu = (e: MouseEvent | { clientX: number; clientY: number }, label: string, list: MenuItem[]) => {
@@ -586,7 +693,24 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
         }),
     },
   ];
-  const itemMenu = (it: Item) => (it.kind === "app" ? appMenu(it.app) : folderMenu(it.id));
+  const linkMenu = (sc: Shortcut): MenuItem[] => {
+    const owner = appAt(sc.route);
+    return [
+      { id: "open", label: t("menu.open"), icon: <IconArrowRight />, hint: "Enter", onSelect: () => openLink({ appId: sc.appId, route: sc.route }) },
+      ...(owner && !NATIVE.has(owner.key) ? ([{ id: "new", label: t("menu.newWindow"), icon: <IconGrid />, onSelect: () => openApp(owner.key, true, sc.route) }] as MenuItem[]) : []),
+      ...(sc.entityId ? ([{ id: "pin", label: t("palette.pin"), icon: <IconStar />, onSelect: () => backend.pin({ entity_type: sc.entityType, entity_id: sc.entityId, app_id: sc.appId, title: sc.label, route: sc.route }) }] as MenuItem[]) : []),
+      { sep: true, id: "s-rm" },
+      { id: "rm", label: t("shortcut.remove"), icon: <IconClose />, danger: true, onSelect: () => void backend.dropShortcut(sc.id).then((ok) => !ok && backend.say(t("shortcut.failed"))) },
+    ];
+  };
+  const itemMenu = (it: Item) => (it.kind === "app" ? appMenu(it.app) : it.kind === "link" ? linkMenu(it.sc) : folderMenu(it.id));
+  // A shortcut on the desk, from a piece of work or a search result; put
+  // where it was dropped, else after the others.
+  const addShortcut = (sc: Omit<ShortcutInput, "x" | "y" | "sort_order">, at?: { x: number; y: number }) => {
+    if (!safeRoute(sc.route)) return;
+    const order = shortcuts.reduce((m, x) => Math.max(m, x.order), 0) + 1;
+    void backend.addShortcut({ ...sc, x: Math.round(at?.x ?? 0), y: Math.round(at?.y ?? 0), sort_order: order }).then((ok) => backend.say(ok ? t("shortcut.added", { name: sc.label }) : t("shortcut.failed")));
+  };
   const deskMenu = (): MenuItem[] => [
     { heading: t("menu.view"), id: "h-view" },
     ...(["lg", "md", "sm"] as IconSize[]).map((s) => ({ id: `i-${s}`, label: t(`menu.icons.${s}`), checked: icons === s, onSelect: () => setIcons(s) })),
@@ -680,7 +804,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
     if ((e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) && it) {
       e.preventDefault();
       const r = (document.activeElement as HTMLElement | null)?.getBoundingClientRect();
-      openMenu({ clientX: (r?.left ?? 0) + 40, clientY: (r?.top ?? 0) + 40 }, it.kind === "app" ? it.app.label : folderName(it.id), itemMenu(it));
+      openMenu({ clientX: (r?.left ?? 0) + 40, clientY: (r?.top ?? 0) + 40 }, it.kind === "folder" ? folderName(it.id) : it.app.label, itemMenu(it));
       return;
     }
     const step = e.key === "ArrowDown" || e.key === "ArrowRight" ? 1 : e.key === "ArrowUp" || e.key === "ArrowLeft" ? -1 : 0;
@@ -824,10 +948,30 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
         onContextMenu={(e) => {
           if (e.target === e.currentTarget || (e.target as HTMLElement).closest(".wd-icons") === e.target) openMenu(e, t("desktop"), deskMenu());
         }}
+        onDragOver={(e) => {
+          if (ready && e.dataTransfer.types.includes(SHORTCUT_DRAG) && !(e.target as HTMLElement).closest(".wd-win")) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "link";
+          }
+        }}
+        onDrop={(e) => {
+          const raw = e.dataTransfer.getData(SHORTCUT_DRAG);
+          if (!raw || (e.target as HTMLElement).closest(".wd-win")) return;
+          e.preventDefault();
+          let sc: Record<string, unknown>;
+          try {
+            sc = JSON.parse(raw) as Record<string, unknown>;
+          } catch {
+            return;
+          }
+          const str = (v: unknown) => (typeof v === "string" ? v : "");
+          const r = e.currentTarget.getBoundingClientRect();
+          addShortcut({ shortcut_key: str(sc.shortcut_key), app_id: str(sc.app_id), label: str(sc.label), entity_type: str(sc.entity_type), entity_id: str(sc.entity_id), route: str(sc.route) }, { x: e.clientX - r.left, y: e.clientY - r.top });
+        }}
       >
         <div className={`wd-icons wd-icons--${icons}`} role="listbox" aria-label={t("desktop")} aria-orientation="vertical" onKeyDown={onIconsKey} onContextMenu={(e) => e.target === e.currentTarget && openMenu(e, t("desktop"), deskMenu())}>
           {items.map((it, i) => {
-            const label = it.kind === "app" ? it.app.label : folderName(it.id);
+            const label = it.kind === "folder" ? folderName(it.id) : it.app.label;
             const on = selected === it.id;
             return (
               <button
@@ -837,7 +981,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
                 aria-selected={on}
                 data-item={it.id}
                 tabIndex={on || (!selected && i === 0) ? 0 : -1}
-                className={`wd-icon${on ? " is-on" : ""}${it.kind === "app" && it.app.locked ? " is-locked" : ""}`}
+                className={`wd-icon${on ? " is-on" : ""}${it.kind === "app" && it.app.locked ? " is-locked" : ""}${it.kind === "link" ? " is-link" : ""}`}
                 style={{ animationDelay: `${i * 22}ms` }}
                 title={it.kind === "app" && it.app.locked ? t("props.locked") : label}
                 onPointerDown={(e) => {
@@ -852,8 +996,9 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
                   openMenu(e, label, itemMenu(it));
                 }}
               >
-                {it.kind === "app" ? <AppTile app={it.app} size={icons} /> : <FolderTile apps={it.apps} size={icons} />}
-                {badge(it.kind === "app" ? badgeOf(it.app.key) : folderBadge(it.id))}
+                {it.kind === "folder" ? <FolderTile apps={it.apps} size={icons} /> : <AppTile app={it.app} size={icons} />}
+                {it.kind === "link" ? <i className="wd-icon__sc" aria-hidden /> : null}
+                {badge(it.kind === "app" ? badgeOf(it.app.key) : it.kind === "folder" ? folderBadge(it.id) : 0)}
                 <span className="wd-icon__l">{label}</span>
               </button>
             );
@@ -893,8 +1038,17 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
               onBusy={setBusy}
               onSnapHint={setHint}
               tools={
-                w.kind === "app" && !NATIVE.has(w.key) ? (
+                w.pip ? (
+                  <button type="button" onClick={() => unpip(w.id)} aria-label={t("win.unpip")} title={t("win.unpip")}>
+                    <IconExpand />
+                  </button>
+                ) : w.kind === "app" && !NATIVE.has(w.key) ? (
                   <>
+                    {w.id in calls && !phone ? (
+                      <button type="button" onClick={() => patch(w.id, { pip: pipBoxFor(area, pipLast.current, calls[w.id]) })} aria-label={t("win.pip")} title={t("win.pip")}>
+                        <IconPip />
+                      </button>
+                    ) : null}
                     <button type="button" onClick={() => frames.current.get(w.id)?.contentWindow?.history.back()} aria-label={t("win.back")} title={t("win.back")}>
                       <IconChevronLeft />
                     </button>
@@ -916,6 +1070,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
                 <WorkApp
                   onOpen={(l) => openLink(l)}
                   onChat={() => openApp(byKey.has("messages") ? "messages" : "chat")}
+                  onShortcut={ready ? (it) => addShortcut(workShortcut(it)) : undefined}
                   onCopilot={(it) => {
                     setCopilotFocus({ type: it.entityType, id: it.id, title: it.title || it.code });
                     openApp("copilot");

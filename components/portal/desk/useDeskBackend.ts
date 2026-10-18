@@ -15,7 +15,9 @@ import {
   heartbeat,
   normPrefs,
   removeItem,
+  removeShortcut,
   savePrefs,
+  saveShortcut,
   saveWindows,
   setDeskRole,
   type Activity,
@@ -25,6 +27,8 @@ import {
   type ItemInput,
   type PrefsInput,
   type SavedWindow,
+  type Shortcut,
+  type ShortcutInput,
   type Widget,
   type WindowInput,
 } from "@/lib/services/lawyerDesktop";
@@ -48,10 +52,13 @@ export function useDeskBackend(role: string, activeApp: () => { appId: string; e
   const [activity, setActivity] = useState<Activity[]>([]);
   const [pinned, setPinned] = useState<DeskItem[]>([]);
   const [recent, setRecent] = useState<DeskItem[]>([]);
+  const [shortcuts, setShortcuts] = useState<Shortcut[]>([]);
   const [notice, setNotice] = useState("");
   const [device, setDevice] = useState("");
   const appRef = useRef(activeApp);
   const revs = useRef(new Map<string, number>());
+  // The heartbeat, to send at once when something changes (a call ends).
+  const beatRef = useRef<() => void>(() => undefined);
   useEffect(() => {
     appRef.current = activeApp;
   });
@@ -79,6 +86,7 @@ export function useDeskBackend(role: string, activeApp: () => { appId: string; e
         setPrefs(b.prefs);
         setPinned(b.pinned);
         setRecent(b.recent);
+        setShortcuts(b.shortcuts);
         setStatus("ready");
         refreshFeeds();
       })
@@ -101,10 +109,12 @@ export function useDeskBackend(role: string, activeApp: () => { appId: string; e
       heartbeat({ device_key: device, status: a.busy ? "in_call" : a.appId === "editor" ? "editing" : "online", active_app_id: a.appId || undefined, entity_type: a.entityType, entity_id: a.entityId }).catch(() => undefined);
     };
     beat();
+    beatRef.current = beat;
     const every = (boot?.heartbeatSeconds ?? 30) * 1000;
     const h = setInterval(beat, every);
     document.addEventListener("visibilitychange", beat);
     return () => {
+      beatRef.current = () => undefined;
       clearInterval(h);
       document.removeEventListener("visibilitychange", beat);
     };
@@ -230,11 +240,35 @@ export function useDeskBackend(role: string, activeApp: () => { appId: string; e
   const pin = useCallback((item: ItemInput) => addItem("pinned", item).then(refreshItems).catch(() => undefined), [refreshItems]);
   const unpin = useCallback((id: string) => removeItem(id).then(refreshItems).catch(() => undefined), [refreshItems]);
   const opened = useCallback((item: ItemInput) => addItem("recent", item).then(refreshItems).catch(() => undefined), [refreshItems]);
+  // Shortcuts (§8): saved with this device; the same key again moves one.
+  const addShortcut = useCallback(
+    async (sc: ShortcutInput) => {
+      if (!ready || !device) return false;
+      try {
+        const saved = await saveShortcut(device, sc);
+        if (saved) setShortcuts((l) => [...l.filter((x) => x.key !== saved.key), saved]);
+        return !!saved;
+      } catch {
+        return false;
+      }
+    },
+    [ready, device],
+  );
+  const dropShortcut = useCallback(async (id: string) => {
+    try {
+      await removeShortcut(id);
+      setShortcuts((l) => l.filter((x) => x.id !== id));
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
   const signOut = useCallback(() => {
     if (device) goOffline(device).catch(() => undefined);
   }, [device]);
 
   const clearNotice = useCallback(() => setNotice(""), []);
+  const pulse = useCallback(() => beatRef.current(), []);
 
-  return { status, boot, prefs, widgets, activity, pinned, recent, notice, clearNotice, refreshFeeds, updatePrefs, syncWindows, pin, unpin, opened, signOut };
+  return { status, boot, prefs, widgets, activity, pinned, recent, notice, clearNotice, refreshFeeds, updatePrefs, syncWindows, pin, unpin, opened, signOut, pulse, shortcuts, addShortcut, dropShortcut, say: setNotice };
 }
