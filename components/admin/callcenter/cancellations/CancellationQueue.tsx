@@ -8,7 +8,7 @@ import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { SxPanel } from "@/components/admin/studio/sx/layout/Panel";
 import { humanize } from "@/lib/labels";
 import type { CancellationReview } from "@/lib/services/marketRuntime";
-import { ArrowsClockwiseIcon, CaretLeftIcon, CaretRightIcon, CheckCircleIcon, SxIconScope, WarningCircleIcon } from "./icons";
+import { RefreshCwIcon, ChevronLeftIcon, ChevronRightIcon, CircleCheckIcon, SxIconScope, CircleAlertIcon } from "./icons";
 import { CCX_AI } from "./model";
 import { ResolveDialog } from "./ResolveDialog";
 import { ReviewItem } from "./ReviewItem";
@@ -43,7 +43,7 @@ export default function CancellationQueue({ onCount }: { onCount?: (n: number) =
   const range = q.state === "ready" && q.items.length ? (page.total !== null ? t("pager.rangeTotal", { from: page.from, to: page.to, total: page.total }) : t("pager.range", { from: page.from, to: page.to })) : "";
 
   const refresh = (
-    <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} busy={q.busy} aria-label={t("refresh")} aiId="call_center.cancellations.refresh" className="ccx-refresh" onClick={q.refresh}>
+    <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} busy={q.busy} aria-label={t("refresh")} aiId="call_center.cancellations.refresh" className="ccx-refresh" onClick={q.refresh}>
       {t("refresh")}
     </SxButton>
   );
@@ -66,11 +66,11 @@ export default function CancellationQueue({ onCount }: { onCount?: (n: number) =
     body = (
       <SxEmpty
         tone="error"
-        icon={WarningCircleIcon}
+        icon={CircleAlertIcon}
         title={t("loadError")}
         text={t("loadErrorText")}
         action={
-          <SxButton onClick={q.refresh} icon={ArrowsClockwiseIcon} aiId="call_center.cancellations.retry">
+          <SxButton onClick={q.refresh} icon={RefreshCwIcon} aiId="call_center.cancellations.retry">
             {t("retry")}
           </SxButton>
         }
@@ -80,18 +80,18 @@ export default function CancellationQueue({ onCount }: { onCount?: (n: number) =
     body = (
       <>
         {q.stale ? (
-          <SxNote tone="warn" role="status" action={<SxButton size="sm" onClick={q.refresh} icon={ArrowsClockwiseIcon}>{t("retry")}</SxButton>}>
+          <SxNote tone="warn" role="status" action={<SxButton size="sm" onClick={q.refresh} icon={RefreshCwIcon}>{t("retry")}</SxButton>}>
             {t("refreshFailed")}
           </SxNote>
         ) : null}
-        <SxEmpty icon={CheckCircleIcon} title={q.status === "open" ? t("emptyOpen") : t("emptyOther")} text={q.status === "open" ? t("emptyOpenText") : t("emptyOtherText")} />
+        <SxEmpty icon={CircleCheckIcon} title={q.status === "open" ? t("emptyOpen") : t("emptyOther")} text={q.status === "open" ? t("emptyOpenText") : t("emptyOtherText")} />
       </>
     );
   } else {
     body = (
       <>
         {q.stale ? (
-          <SxNote tone="warn" role="status" action={<SxButton size="sm" onClick={q.refresh} icon={ArrowsClockwiseIcon}>{t("retry")}</SxButton>}>
+          <SxNote tone="warn" role="status" action={<SxButton size="sm" onClick={q.refresh} icon={RefreshCwIcon}>{t("retry")}</SxButton>}>
             {t("refreshFailed")}
           </SxNote>
         ) : null}
@@ -128,10 +128,10 @@ export default function CancellationQueue({ onCount }: { onCount?: (n: number) =
           {body}
           {showPager ? (
             <nav className="ccx-pager" aria-label={t("pager.aria")}>
-              <SxButton size="sm" icon={CaretLeftIcon} aria-disabled={q.offset <= 0 || undefined} onClick={q.prev} aiId="call_center.cancellations.pager.prev">
+              <SxButton size="sm" icon={ChevronLeftIcon} aria-disabled={q.offset <= 0 || undefined} onClick={q.prev} aiId="call_center.cancellations.pager.prev">
                 {t("pager.prev")}
               </SxButton>
-              <SxButton size="sm" iconEnd={CaretRightIcon} aria-disabled={!page.hasMore || undefined} onClick={q.next} aiId="call_center.cancellations.pager.next">
+              <SxButton size="sm" iconEnd={ChevronRightIcon} aria-disabled={!page.hasMore || undefined} onClick={q.next} aiId="call_center.cancellations.pager.next">
                 {t("pager.next")}
               </SxButton>
             </nav>

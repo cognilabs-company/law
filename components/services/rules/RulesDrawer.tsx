@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { SxDrawer } from "@/components/admin/studio/sx/layout/Drawer";
 import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { SxButton } from "@/components/admin/studio/sx/Button";
-import { ArrowsClockwiseIcon, CaretDownIcon, CheckCircleIcon, ScrollIcon, ShieldWarningIcon, glyph } from "@/components/admin/studio/sx/icons";
+import { RefreshCwIcon, ChevronDownIcon, CircleCheckIcon, ScrollTextIcon, ShieldAlertIcon, glyph } from "@/components/admin/studio/sx/icons";
 import { aiId } from "@/lib/ai/ids";
 import { fmtDate } from "@/lib/date";
 import { deviceLabel, type ServiceRule } from "@/lib/services/marketRuntime";
@@ -94,7 +94,7 @@ export default function RulesDrawer(): ReactElement | null {
         {t("rules.close")}
       </SxButton>
       {pendingCount === 0 && gate.rules.length ? (
-        <SxButton id={doneId} variant="primary" icon={CheckCircleIcon} onClick={close} disabled={busy}>
+        <SxButton id={doneId} variant="primary" icon={CircleCheckIcon} onClick={close} disabled={busy}>
           {t("rules.done")}
         </SxButton>
       ) : null}
@@ -118,7 +118,7 @@ export default function RulesDrawer(): ReactElement | null {
             tone="error"
             title={t("rules.loadError")}
             action={
-              <SxButton size="sm" icon={ArrowsClockwiseIcon} onClick={() => void refreshRulesGate({ force: true })}>
+              <SxButton size="sm" icon={RefreshCwIcon} onClick={() => void refreshRulesGate({ force: true })}>
                 {t("retry")}
               </SxButton>
             }
@@ -150,7 +150,7 @@ export default function RulesDrawer(): ReactElement | null {
                   <article key={r.id} className="svr-rule" data-state={state} data-ai-id={aiId("seller.rules.rule", r.id)} data-ai-type="card" aria-labelledby={hid}>
                     <div className="svr-rule__head">
                       <span className="svr-rule__ic" aria-hidden="true">
-                        {glyph(r.accepted ? CheckCircleIcon : blocking ? ShieldWarningIcon : ScrollIcon, { size: 18 })}
+                        {glyph(r.accepted ? CircleCheckIcon : blocking ? ShieldAlertIcon : ScrollTextIcon, { size: 18 })}
                       </span>
                       <div className="svr-rule__ht">
                         <h3 id={hid}>{r.title || r.ruleKey}</h3>
@@ -164,7 +164,7 @@ export default function RulesDrawer(): ReactElement | null {
                     <p className="svr-rule__state">
                       {r.accepted ? (
                         <span className="svr-chip" data-tone="ok">
-                          {glyph(CheckCircleIcon, { size: 14 })}
+                          {glyph(CircleCheckIcon, { size: 14 })}
                           {r.acceptedAt ? t("rules.stateAcceptedAt", { date: fmtDate(r.acceptedAt, locale) }) : t("rules.stateAccepted")}
                         </span>
                       ) : (
@@ -174,7 +174,7 @@ export default function RulesDrawer(): ReactElement | null {
                       )}
                       {blocking ? (
                         <span className="svr-chip" data-tone="danger">
-                          {glyph(ShieldWarningIcon, { size: 14 })}
+                          {glyph(ShieldAlertIcon, { size: 14 })}
                           {t("rules.blocking")}
                         </span>
                       ) : null}
@@ -186,7 +186,7 @@ export default function RulesDrawer(): ReactElement | null {
                       aria-controls={bid}
                       onClick={() => setShown((cur) => ({ ...cur, [r.id]: !expanded }))}
                     >
-                      {glyph(CaretDownIcon, { size: 16 })}
+                      {glyph(ChevronDownIcon, { size: 16 })}
                       {expanded ? t("rules.hideText") : t("rules.showText")}
                     </button>
                     <div id={bid} className="svr-rule__body" hidden={!expanded}>
@@ -197,7 +197,7 @@ export default function RulesDrawer(): ReactElement | null {
                         <SxButton
                           id={accId(r.id)}
                           variant="primary"
-                          icon={CheckCircleIcon}
+                          icon={CircleCheckIcon}
                           busy={accepting}
                           aiId={aiId("seller.rules.rule", r.id, "accept")}
                           aria-describedby={[pendingCount && device ? deviceId : "", hasErr ? eid : ""].filter(Boolean).join(" ") || undefined}

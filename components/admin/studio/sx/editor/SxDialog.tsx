@@ -6,7 +6,7 @@ import "./sx-editor-panels.css";
 import type { ReactElement, ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import Modal, { type ModalInitialFocus } from "@/components/admin/Modal";
-import { SxIconScope, WarningCircleIcon, glyph } from "../icons";
+import { SxIconScope, CircleAlertIcon, glyph } from "../icons";
 
 export type SxDialogErrorText = { title: string; text: string } | null;
 
@@ -14,7 +14,7 @@ export function SxDialogError({ error, id }: { error: SxDialogErrorText; id?: st
   if (!error) return null;
   return (
     <div className="sx-dlg__err" role="alert" id={id}>
-      {glyph(WarningCircleIcon, { size: 18, className: "sx-dlg__erricon" })}
+      {glyph(CircleAlertIcon, { size: 18, className: "sx-dlg__erricon" })}
       <div className="sx-dlg__errbody">
         <p className="sx-dlg__errtitle">{error.title}</p>
         {error.text ? <p className="sx-dlg__errtext">{error.text}</p> : null}

@@ -13,7 +13,7 @@ import { archiveStudioRecord, studioObjectIdOf, type StudioConstructor, type Stu
 import { SxButton } from "../Button";
 import { useEditorErrorText } from "../editor/useEditorErrorText";
 import { Picker } from "../form/Picker";
-import { ArchiveIcon, ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, CopyIcon, EyeIcon, MagnifyingGlassIcon, PencilSimpleIcon } from "../icons";
+import { ArchiveIcon, RotateCcwIcon, RefreshCwIcon, CopyIcon, EyeIcon, SearchIcon, PencilIcon } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxPanel } from "../layout/Panel";
@@ -101,7 +101,7 @@ export function useRecordActions({ code, canEdit, canArchive, refetch }: { code:
     const clone = cloneTargetOf(code, rec);
     const out: SxRowAction<T>[] = [];
     if (view) out.push({ key: "view", label: t("sx.ui.view"), icon: EyeIcon, href: () => view });
-    if (canEdit && edit) out.push({ key: "edit", label: t("sx.ui.edit"), icon: PencilSimpleIcon, href: () => edit });
+    if (canEdit && edit) out.push({ key: "edit", label: t("sx.ui.edit"), icon: PencilIcon, href: () => edit });
     out.push(...extra);
     if (canEdit && clone.href) out.push({ key: "clone", label: t("sx.ui.clone"), icon: CopyIcon, href: () => clone.href });
     else if (canEdit && clone.studio) out.push({ key: "clone", label: t("sx.ui.clone"), icon: CopyIcon, onSelect: () => setCloneOf(rec) });
@@ -131,7 +131,7 @@ export function LoadError({ error, onRetry, busy, compact = false }: { error: un
       title={compact ? undefined : t("sx.ui.errorTitle")}
       className={compact ? "sx-cp-note" : undefined}
       action={
-        <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} busy={busy} onClick={onRetry} aiId="admin.studio.list.retry">
+        <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} busy={busy} onClick={onRetry} aiId="admin.studio.list.retry">
           {t("sx.ui.retry")}
         </SxButton>
       }
@@ -174,7 +174,7 @@ export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, crea
   const shownTotal = k12 && q.placement ? shown.length : total;
 
   const reset = (
-    <SxButton variant="ghost" size="sm" icon={ArrowCounterClockwiseIcon} onClick={st.reset} aiId="admin.studio.list.reset">
+    <SxButton variant="ghost" size="sm" icon={RotateCcwIcon} onClick={st.reset} aiId="admin.studio.list.reset">
       {t("sx.table.reset")}
     </SxButton>
   );
@@ -182,7 +182,7 @@ export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, crea
     !filtered && q.page === 0 ? (
       <SxEmpty title={t("sx.table.empty")} text={canEdit ? t("sx.cpage.emptyText", { name }) : undefined} action={canEdit ? createControl : undefined} />
     ) : (
-      <SxEmpty compact icon={MagnifyingGlassIcon} title={t("sx.table.noMatch")} action={reset} />
+      <SxEmpty compact icon={SearchIcon} title={t("sx.table.noMatch")} action={reset} />
     );
 
   const from = q.page * st.limit;

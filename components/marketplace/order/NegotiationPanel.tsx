@@ -17,7 +17,7 @@ import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
 import { parseServerTime } from "@/lib/http";
 import { marketErrorInfo, priceCapOf, proposeNegotiation, respondNegotiation, type Negotiation, type NegotiationResponse } from "@/lib/services/marketRuntime";
-import { CheckIcon, CheckCircleIcon, ClockCountdownIcon, CoinsIcon, HandCoinsIcon, HourglassMediumIcon, ProhibitIcon, XIcon, glyph } from "./icons";
+import { CheckIcon, CircleCheckIcon, TimerIcon, CoinsIcon, HandCoinsIcon, HourglassIcon, BanIcon, XIcon, glyph } from "./icons";
 import { SECTION_ID, type OrderSectionProps } from "./types";
 import { counterProblem, negotiationActions, negotiationErrorKey, negotiationStateOf, pickNegotiation, proposalProblem, showNegotiation, type NegotiationState } from "./negotiationRules";
 import { noteNegotiation, useNotedNegotiation } from "./negotiationStore";
@@ -36,12 +36,12 @@ const STATE_TONE: Readonly<Record<NegotiationState, string>> = {
 };
 
 const STATE_ICON: Readonly<Record<NegotiationState, SxIcon>> = {
-  none: HourglassMediumIcon,
-  proposed: HourglassMediumIcon,
+  none: HourglassIcon,
+  proposed: HourglassIcon,
   countered: CoinsIcon,
-  accepted: CheckCircleIcon,
-  rejected: ProhibitIcon,
-  expired: ClockCountdownIcon,
+  accepted: CircleCheckIcon,
+  rejected: BanIcon,
+  expired: TimerIcon,
 };
 
 function focusById(id: string): void {
@@ -219,7 +219,7 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
       <div className="mng-expiry">
         {Number.isFinite(at) ? (
           <p className="mng-expiry__left">
-            {glyph(ClockCountdownIcon, { size: 16 })}
+            {glyph(TimerIcon, { size: 16 })}
             <span>
               {now > 0 ? <b>{t("negotiation.expiresIn", { time: leftLabel(at - now) })}</b> : null}
               {now > 0 ? " · " : null}

@@ -10,19 +10,19 @@ import Menu, { menuSeparator, tidyMenu, type MenuEntry } from "@/components/ui/M
 import { SxButton } from "../Button";
 import {
   ArchiveIcon,
-  ArrowSquareOutIcon,
-  ArrowsClockwiseIcon,
-  ChatCircleTextIcon,
-  ClockCounterClockwiseIcon,
+  ExternalLinkIcon,
+  RefreshCwIcon,
+  MessageSquareTextIcon,
+  HistoryIcon,
   CopyIcon,
-  FloppyDiskIcon,
+  SaveIcon,
   GitBranchIcon,
   InfoIcon,
-  PaperPlaneTiltIcon,
+  SendIcon,
   PaperclipIcon,
-  PencilSimpleIcon,
-  RocketLaunchIcon,
-  SealCheckIcon,
+  PencilIcon,
+  RocketIcon,
+  BadgeCheckIcon,
   XIcon,
   glyph,
   moreGlyph,
@@ -45,13 +45,13 @@ const NOW_MS = 30_000;
 type PrimaryLook = { key: string; icon: SxIcon; ai: string };
 
 const PRIMARY: Readonly<Record<Exclude<EditorPrimary, null>, PrimaryLook>> = {
-  saveSubmit: { key: "sx.editor.saveSubmit", icon: PaperPlaneTiltIcon, ai: `${AI}.submit` },
-  submit: { key: "sx.editor.submit", icon: PaperPlaneTiltIcon, ai: `${AI}.submit` },
-  publishDirect: { key: "sx.editor.publish", icon: RocketLaunchIcon, ai: `${AI}.submit` },
-  publish: { key: "sx.editor.publish", icon: RocketLaunchIcon, ai: `${AI}.publish` },
-  openReview: { key: "sx.editor.openReview", icon: ArrowSquareOutIcon, ai: `${AI}.open-review` },
-  edit: { key: "sx.ui.edit", icon: PencilSimpleIcon, ai: `${AI}.edit` },
-  save: { key: "sx.ui.save", icon: FloppyDiskIcon, ai: `${AI}.save` },
+  saveSubmit: { key: "sx.editor.saveSubmit", icon: SendIcon, ai: `${AI}.submit` },
+  submit: { key: "sx.editor.submit", icon: SendIcon, ai: `${AI}.submit` },
+  publishDirect: { key: "sx.editor.publish", icon: RocketIcon, ai: `${AI}.submit` },
+  publish: { key: "sx.editor.publish", icon: RocketIcon, ai: `${AI}.publish` },
+  openReview: { key: "sx.editor.openReview", icon: ExternalLinkIcon, ai: `${AI}.open-review` },
+  edit: { key: "sx.ui.edit", icon: PencilIcon, ai: `${AI}.edit` },
+  save: { key: "sx.ui.save", icon: SaveIcon, ai: `${AI}.save` },
 };
 
 const RUNTIME_PILL = new Set(["active", "inactive", "archived", "deleted"]);
@@ -121,7 +121,7 @@ function menuEntries(st: EditorState, narrow: boolean, t: (key: string, values?:
     out.push({
       key: "save",
       label: busy && st.busy === "save" ? t("sx.ui.saving") : t("sx.ui.save"),
-      icon: glyph(FloppyDiskIcon, { size: 16 }),
+      icon: glyph(SaveIcon, { size: 16 }),
       disabled: st.mode === "object" && !st.dirty ? nothing : busy || undefined,
       onSelect: () => onMenu("save"),
       aiId: `${AI}.menu.save`,
@@ -131,7 +131,7 @@ function menuEntries(st: EditorState, narrow: boolean, t: (key: string, values?:
     out.push({
       key: "saveNote",
       label: t("sx.editor.saveNote"),
-      icon: glyph(FloppyDiskIcon, { size: 16 }),
+      icon: glyph(SaveIcon, { size: 16 }),
       disabled: !st.dirty ? nothing : busy || undefined,
       onSelect: () => onMenu("saveNote"),
       aiId: `${AI}.menu.save-note`,
@@ -144,7 +144,7 @@ function menuEntries(st: EditorState, narrow: boolean, t: (key: string, values?:
     out.push({
       key: "versions",
       label: t("sx.editor.tab.versions"),
-      icon: glyph(ClockCounterClockwiseIcon, { size: 16 }),
+      icon: glyph(HistoryIcon, { size: 16 }),
       hint: versions ? String(versions) : undefined,
       onSelect: () => onMenu("versions"),
       aiId: `${AI}.menu.versions`,
@@ -152,7 +152,7 @@ function menuEntries(st: EditorState, narrow: boolean, t: (key: string, values?:
     out.push({
       key: "comments",
       label: t("sx.editor.tab.comments"),
-      icon: glyph(ChatCircleTextIcon, { size: 16 }),
+      icon: glyph(MessageSquareTextIcon, { size: 16 }),
       hint: comments ? String(comments) : undefined,
       onSelect: () => onMenu("comments"),
       aiId: `${AI}.menu.comments`,
@@ -173,7 +173,7 @@ function menuEntries(st: EditorState, narrow: boolean, t: (key: string, values?:
     out.push({
       key: "steps",
       label: t("sx.editor.tab.steps"),
-      icon: glyph(SealCheckIcon, { size: 16 }),
+      icon: glyph(BadgeCheckIcon, { size: 16 }),
       onSelect: () => onMenu("steps"),
       aiId: `${AI}.menu.steps`,
     });
@@ -254,7 +254,7 @@ export function EditorActions({
       {showSave ? (
         <SxButton
           variant="secondary"
-          icon={FloppyDiskIcon}
+          icon={SaveIcon}
           busy={st.busy === "save"}
           aria-disabled={off || undefined}
           aria-keyshortcuts={SAVE_SHORTCUT}
@@ -351,7 +351,7 @@ function AlertSlot({ alert, st, onAction }: { alert: NonNullable<EditorAlert>; s
         role="status"
         title={t(alert.conflict ? "sx.editor.alert.conflictTitle" : "sx.editor.alert.remoteTitle")}
         action={
-          <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={() => onAction("remote")} aiId={`${AI}.remote.load`}>
+          <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={() => onAction("remote")} aiId={`${AI}.remote.load`}>
             {t("sx.editor.alert.loadNew")}
           </SxButton>
         }

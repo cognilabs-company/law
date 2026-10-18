@@ -22,7 +22,7 @@ import { Switch } from "../form/Switch";
 import { TextArea } from "../form/TextArea";
 import { TextInput } from "../form/TextInput";
 import { firstReferencePage } from "../form/useReferenceOptions";
-import { WarningIcon, glyph } from "../icons";
+import { TriangleAlertIcon, glyph } from "../icons";
 import { SxSectionHeader } from "../layout/Panel";
 import type { SchemaFieldModel, SchemaModel, SxControlKind, SxEditMode, SxLayoutCtx, SxLayoutField, SxValues, SxWarning } from "../contract";
 import type { SxControlA11y, SxErrors, SxOption, SxRule } from "../types";
@@ -170,7 +170,7 @@ function WarnLine({ id, list }: { id: string; list: readonly SxWarning[] }): Rea
     <div className="sx-sf__warns" id={id}>
       {list.map((w) => (
         <p key={w.key} className="sx-sf__warn" data-tone={w.tone}>
-          {glyph(WarningIcon, { size: 14 })}
+          {glyph(TriangleAlertIcon, { size: 14 })}
           <span>{t(w.key, w.values ? { ...w.values } : undefined)}</span>
         </p>
       ))}

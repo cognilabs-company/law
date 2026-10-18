@@ -7,7 +7,7 @@ import { Link } from "@/i18n/navigation";
 import { aiId } from "@/lib/ai/ids";
 import { JOURNEY_STATUS, useStudioAccess } from "@/lib/services/studio";
 import { SxButton, SxLinkButton } from "../Button";
-import { ArrowsClockwiseIcon, CaretRightIcon, ClockCountdownIcon, PlusIcon, ctorGlyph, glyph } from "../icons";
+import { RefreshCwIcon, ChevronRightIcon, TimerIcon, PlusIcon, ctorGlyph, glyph } from "../icons";
 import { stepLabelKey } from "../journey/steps";
 import { useCreationJourneys } from "../journey/useCreationJourneys";
 import { SxNote } from "../layout/Note";
@@ -44,7 +44,7 @@ export function ResumePanel(): ReactElement {
     if (mFailed) mine.reload();
   };
   const retry = (
-    <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={retryAll} aiId={aiId(BASE, "retry")}>
+    <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={retryAll} aiId={aiId(BASE, "retry")}>
       {t("sx.ui.retry")}
     </SxButton>
   );
@@ -97,7 +97,7 @@ export function ResumePanel(): ReactElement {
                       <SxProgress value={j.progress} label={`${title}: ${pct}`} size="sm" className="sx-hrow__bar" />
                       <span className="sx-hrow__pct sx-num">{pct}</span>
                     </span>
-                    <span className="sx-hrow__caret">{glyph(CaretRightIcon, { size: 16 })}</span>
+                    <span className="sx-hrow__caret">{glyph(ChevronRightIcon, { size: 16 })}</span>
                   </Link>
                 </li>
               );
@@ -105,12 +105,12 @@ export function ResumePanel(): ReactElement {
             {incomplete > 0 ? (
               <li>
                 <Link href={`${CREATE_HOME_HREF}#incomplete`} className="sx-hrow" data-ai-id={aiId(BASE, "incomplete")} data-ai-type="link" data-ai-label={t("sx.home.resume.incomplete", { n: incomplete })}>
-                  <span className="sx-hrow__icon">{glyph(ClockCountdownIcon, { size: 16 })}</span>
+                  <span className="sx-hrow__icon">{glyph(TimerIcon, { size: 16 })}</span>
                   <span className="sx-hrow__main">
                     <span className="sx-hrow__title">{t("sx.home.resume.incomplete", { n: incomplete })}</span>
                   </span>
                   <span />
-                  <span className="sx-hrow__caret">{glyph(CaretRightIcon, { size: 16 })}</span>
+                  <span className="sx-hrow__caret">{glyph(ChevronRightIcon, { size: 16 })}</span>
                 </Link>
               </li>
             ) : null}
@@ -139,7 +139,7 @@ export function ResumePanel(): ReactElement {
                         <span className="sx-hrow__meta">{meta}</span>
                       </span>
                       <StatusPill status={o.status} size="sm" />
-                      <span className="sx-hrow__caret">{glyph(CaretRightIcon, { size: 16 })}</span>
+                      <span className="sx-hrow__caret">{glyph(ChevronRightIcon, { size: 16 })}</span>
                     </Link>
                   </li>
                 );

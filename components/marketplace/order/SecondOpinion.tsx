@@ -11,7 +11,7 @@ import { fmtRating } from "@/lib/date";
 import { fmtUzs } from "@/lib/money";
 import type { MarketOrder, MarketPhase } from "@/lib/services/marketplace";
 import type { SecondOpinion as SecondOpinionData, SecondOpinionSeller } from "@/lib/services/marketRuntime";
-import { ArrowsClockwiseIcon, SealCheckIcon, StarIcon, StorefrontIcon, glyph } from "./icons";
+import { RefreshCwIcon, BadgeCheckIcon, StarIcon, StoreIcon, glyph } from "./icons";
 import { SECTION_ID, type LoadState } from "./types";
 
 export const OPINION_MAX = 6;
@@ -60,14 +60,14 @@ function SellerCard({ s, o, aiBase }: { s: SecondOpinionSeller; o: MarketOrder; 
       </div>
       {s.verified ? (
         <span className="sx-pill mso-card__verified" data-tone="published" data-size="sm">
-          {glyph(SealCheckIcon, { size: 12 })}
+          {glyph(BadgeCheckIcon, { size: 12 })}
           <span className="sx-pill__text">{t("card.verified")}</span>
         </span>
       ) : null}
       <p className="mso-card__rating">
         {s.rating > 0 ? (
           <>
-            {glyph(StarIcon, { size: 14, weight: "fill", className: "mso-card__star" })}
+            {glyph(StarIcon, { size: 14, fill: "currentColor", className: "mso-card__star" })}
             <span className="sx-num">{fmtRating(s.rating, locale)}</span>
             <span className="mso-card__dot" aria-hidden="true">
               ·
@@ -81,7 +81,7 @@ function SellerCard({ s, o, aiBase }: { s: SecondOpinionSeller; o: MarketOrder; 
       {s.price > 0 ? <p className="mso-card__price sx-num">{t("card.priceFrom", { price: fmtUzs(s.price) })}</p> : null}
       {s.region ? <p className="mso-card__region">{s.region}</p> : null}
       <div className="mso-card__foot">
-        <SxLinkButton href={opinionHref(s, o.serviceId)} size="sm" variant="secondary" icon={StorefrontIcon} aiId={`${id}.view`} aiLabel={td("view")} className="mso-card__view">
+        <SxLinkButton href={opinionHref(s, o.serviceId)} size="sm" variant="secondary" icon={StoreIcon} aiId={`${id}.view`} aiLabel={td("view")} className="mso-card__view">
           <span aria-hidden="true">{td("view")}</span>
           <span className="sx-vh">{td("viewAria", { name })}</span>
         </SxLinkButton>
@@ -116,7 +116,7 @@ export default function SecondOpinion({ o, phase, aiBase, opinion, state, onRetr
           role="status"
           className="mso-error"
           action={
-            <SxButton size="sm" variant="ghost" icon={ArrowsClockwiseIcon} onClick={onRetry} aiId={`${aiBase}.second-opinion.retry`}>
+            <SxButton size="sm" variant="ghost" icon={RefreshCwIcon} onClick={onRetry} aiId={`${aiBase}.second-opinion.retry`}>
               {t("retry")}
             </SxButton>
           }

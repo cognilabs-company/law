@@ -4,7 +4,7 @@ import "../sx-core.css";
 import "../sx-form.css";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { aiId as makeAiId } from "@/lib/ai/ids";
-import { CheckCircleIcon, glyph } from "../icons";
+import { CircleCheckIcon, glyph } from "../icons";
 import type { SxIcon } from "../types";
 
 export type ChoiceCard = { value: string; title: string; description?: string; icon?: SxIcon; meta?: ReactNode; disabled?: boolean | string };
@@ -120,7 +120,7 @@ export function ChoiceCards({
                   {why}
                 </span>
               ) : null}
-              {checked ? <span className="sx-choice__check">{glyph(CheckCircleIcon, { size: 20 })}</span> : null}
+              {checked ? <span className="sx-choice__check">{glyph(CircleCheckIcon, { size: 20 })}</span> : null}
             </label>
           );
         })}

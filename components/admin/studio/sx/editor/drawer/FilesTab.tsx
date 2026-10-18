@@ -9,7 +9,7 @@ import { logApiError } from "@/lib/http";
 import { STUDIO_FILE_ACCEPT, STUDIO_FILE_EXT, downloadStudioVersionFile } from "@/lib/services/studio";
 import { SxButton } from "../../Button";
 import { useStudioLabels } from "../../useStudioLabels";
-import { CheckCircleIcon, DownloadSimpleIcon, InfoIcon, PaperclipIcon, UploadSimpleIcon, WarningCircleIcon, WarningIcon, glyph } from "../../icons";
+import { CircleCheckIcon, DownloadIcon, InfoIcon, PaperclipIcon, UploadIcon, CircleAlertIcon, TriangleAlertIcon, glyph } from "../../icons";
 import type { EditorState } from "../useEditorState";
 import { useEditorErrorText } from "../useEditorErrorText";
 import { fileExt } from "../model";
@@ -102,7 +102,7 @@ export function FilesTab({ st }: { st: EditorState }): ReactElement {
     <div className="sx-ed-file" data-ai-id="admin.studio.editor.file" data-ai-type="section" data-ai-label={t("sx.editor.tab.files")}>
       {st.fileRequired ? (
         <p className="sx-ed-file__note" data-tone={has ? "ok" : "warn"}>
-          {glyph(has ? CheckCircleIcon : WarningIcon, { size: 18 })}
+          {glyph(has ? CircleCheckIcon : TriangleAlertIcon, { size: 18 })}
           <span>{has ? t("sx.editor.files.requiredOk") : t("sx.editor.files.required")}</span>
         </p>
       ) : null}
@@ -121,7 +121,7 @@ export function FilesTab({ st }: { st: EditorState }): ReactElement {
             </span>
           </span>
           {version?.id ? (
-            <SxButton size="sm" icon={DownloadSimpleIcon} busy={downloading} onClick={() => void download()} aiId="admin.studio.editor.file.download">
+            <SxButton size="sm" icon={DownloadIcon} busy={downloading} onClick={() => void download()} aiId="admin.studio.editor.file.download">
               {t("sx.editor.files.download")}
             </SxButton>
           ) : null}
@@ -167,7 +167,7 @@ export function FilesTab({ st }: { st: EditorState }): ReactElement {
           />
           <label htmlFor={inputId} className="sx-ed-file__label" aria-disabled={!enabled || undefined}>
             <span className="sx-ed-file__icon" aria-hidden="true">
-              {uploading ? <span className="sx-spin" /> : glyph(UploadSimpleIcon, { size: 22 })}
+              {uploading ? <span className="sx-spin" /> : glyph(UploadIcon, { size: 22 })}
             </span>
             <span className="sx-ed-file__lt">{dropText}</span>
             <span className="sx-ed-file__ls">{t("sx.editor.files.choose")}</span>
@@ -180,7 +180,7 @@ export function FilesTab({ st }: { st: EditorState }): ReactElement {
 
       {shownErr ? (
         <p className="sx-ed-file__err" role="alert" id={errId}>
-          {glyph(WarningCircleIcon, { size: 16 })}
+          {glyph(CircleAlertIcon, { size: 16 })}
           <span>{shownErr}</span>
         </p>
       ) : null}

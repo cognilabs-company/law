@@ -18,7 +18,7 @@ import type { MarketOrder, MarketPhase } from "@/lib/services/marketplace";
 import { checklistStatusOf, marketErrorInfo, updateChecklistItem, type ChecklistItem, type ChecklistStatus, type MarketFileRef, type OrderChecklist as OrderChecklistData } from "@/lib/services/marketRuntime";
 import { useMarketError } from "../useMarketError";
 import { canEditChecklist, draftOf, itemProblems, mergeChecklistItem, sortedItems, type ItemDraft } from "./checklistRules";
-import { ArrowBendUpRightIcon, CheckCircleIcon, CircleDashedIcon, DownloadSimpleIcon, FileTextIcon, PaperclipIcon, PencilSimpleIcon, WarningCircleIcon, XIcon, glyph } from "./icons";
+import { ForwardIcon, CircleCheckIcon, CircleDashedIcon, DownloadIcon, FileTextIcon, PaperclipIcon, PencilIcon, CircleAlertIcon, XIcon, glyph } from "./icons";
 import { SECTION_ID, type LoadState, type OrderView } from "./types";
 import { ORDER_FILE_MB, ORDER_FILES_MAX, uploadOrderFile, type UploadedFile } from "./upload";
 import "./checklist.css";
@@ -27,8 +27,8 @@ const COMMENT_MAX = 1000;
 
 const STATUS_ICON: Readonly<Record<ChecklistStatus, SxIcon>> = {
   pending: CircleDashedIcon,
-  done: CheckCircleIcon,
-  skipped_with_reason: ArrowBendUpRightIcon,
+  done: CircleCheckIcon,
+  skipped_with_reason: ForwardIcon,
 };
 
 const STATUS_TONE: Readonly<Record<ChecklistStatus, string>> = {
@@ -239,7 +239,7 @@ function ChecklistRow({
             id={editBtnId(item)}
             size="sm"
             variant="ghost"
-            icon={PencilSimpleIcon}
+            icon={PencilIcon}
             aria-label={t("editAria", { title })}
             aria-expanded={open}
             aria-controls={open ? editorId : undefined}
@@ -302,7 +302,7 @@ function ItemFile({ f }: { f: MarketFileRef }) {
       {glyph(FileTextIcon, { size: 16 })}
       <span>{name}</span>
       {f.url ? (
-        <SxButton size="sm" variant="ghost" icon={DownloadSimpleIcon} busy={busy} onClick={() => void get()} aria-label={`${busy ? t("result.downloading") : err ? t("result.retry") : t("result.download")}: ${name}`}>
+        <SxButton size="sm" variant="ghost" icon={DownloadIcon} busy={busy} onClick={() => void get()} aria-label={`${busy ? t("result.downloading") : err ? t("result.retry") : t("result.download")}: ${name}`}>
           {busy ? t("result.downloading") : err ? t("result.retry") : t("result.download")}
         </SxButton>
       ) : null}
@@ -353,8 +353,8 @@ function ItemEditor({
   const canAttach = !!o.roomId && !busy && fileCount < ORDER_FILES_MAX;
 
   const options: ChoiceCard[] = [
-    { value: "done", title: t("opt.done"), icon: CheckCircleIcon },
-    { value: "skipped_with_reason", title: t("opt.skip"), icon: ArrowBendUpRightIcon },
+    { value: "done", title: t("opt.done"), icon: CircleCheckIcon },
+    { value: "skipped_with_reason", title: t("opt.skip"), icon: ForwardIcon },
     { value: "pending", title: t("opt.pending"), icon: CircleDashedIcon },
   ];
 
@@ -543,7 +543,7 @@ function ItemEditor({
           ) : null}
           {errs.file ? (
             <p className="sx-field__err" id={fileErrId}>
-              {glyph(WarningCircleIcon, { size: 14 })}
+              {glyph(CircleAlertIcon, { size: 14 })}
               <span>{errs.file}</span>
             </p>
           ) : null}

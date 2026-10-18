@@ -15,7 +15,7 @@ import { SxFormContext, useSxFormPolicy } from "../form/formPolicy";
 import { SxDrawer } from "../layout/Drawer";
 import { SxNote } from "../layout/Note";
 import { useStudioLabels, type StudioLabels } from "../useStudioLabels";
-import { ArrowCounterClockwiseIcon, CopyIcon, FloppyDiskIcon, GitBranchIcon, PaperPlaneTiltIcon, RocketLaunchIcon, WarningIcon, glyph } from "../icons";
+import { RotateCcwIcon, CopyIcon, SaveIcon, GitBranchIcon, SendIcon, RocketIcon, TriangleAlertIcon, glyph } from "../icons";
 import type { SxLayoutCtx, SxTranslate, SxWarning } from "../contract";
 import { useSchemaModel } from "../schema/useSchemaModel";
 import { SchemaForm } from "../schema/SchemaForm";
@@ -128,7 +128,7 @@ function WarningList({ warnings }: { warnings: readonly SxWarning[] }): ReactEle
       <ul className="sx-dlg__list" data-warn="">
         {warnings.map((w) => (
           <li key={`${w.key}|${w.path ?? ""}`} data-tone={w.tone}>
-            {glyph(WarningIcon, { size: 16 })}
+            {glyph(TriangleAlertIcon, { size: 16 })}
             <span>{t(w.key, w.values ? { ...w.values } : undefined)}</span>
           </li>
         ))}
@@ -137,7 +137,7 @@ function WarningList({ warnings }: { warnings: readonly SxWarning[] }): ReactEle
   );
 }
 
-function Footer({ aiId, busy, onCancel, confirm, icon, formId, variant = "primary" }: { aiId: string; busy: boolean; onCancel: () => void; confirm: string; icon: typeof FloppyDiskIcon; formId: string; variant?: "primary" | "danger" }): ReactElement {
+function Footer({ aiId, busy, onCancel, confirm, icon, formId, variant = "primary" }: { aiId: string; busy: boolean; onCancel: () => void; confirm: string; icon: typeof SaveIcon; formId: string; variant?: "primary" | "danger" }): ReactElement {
   const t = useTr();
   return (
     <>
@@ -180,12 +180,12 @@ function SubmitDialog({ st, onClose }: { st: EditorState; onClose: () => void })
       description={t(direct ? "sx.editor.submitDlg.directLead" : "sx.editor.submitDlg.lead")}
       busy={running}
       aiId={aiId}
-      footer={<Footer aiId={aiId} busy={running} onCancel={onClose} confirm={t(direct ? "sx.editor.submitDlg.directConfirm" : "sx.editor.submitDlg.confirm")} icon={direct ? RocketLaunchIcon : PaperPlaneTiltIcon} formId={formId} />}
+      footer={<Footer aiId={aiId} busy={running} onCancel={onClose} confirm={t(direct ? "sx.editor.submitDlg.directConfirm" : "sx.editor.submitDlg.confirm")} icon={direct ? RocketIcon : SendIcon} formId={formId} />}
     >
       <form id={formId} className="sx-dlg__form" onSubmit={run} noValidate>
         {persist ? (
           <p className="sx-dlg__muted" data-icon="">
-            {glyph(FloppyDiskIcon, { size: 16 })}
+            {glyph(SaveIcon, { size: 16 })}
             <span>{t("sx.editor.submitDlg.saveFirst")}</span>
           </p>
         ) : null}
@@ -227,7 +227,7 @@ function PublishDialog({ st, onClose }: { st: EditorState; onClose: () => void }
       description={t("sx.editor.publishDlg.lead")}
       busy={running}
       aiId={aiId}
-      footer={<Footer aiId={aiId} busy={running} onCancel={onClose} confirm={t("sx.editor.publishDlg.confirm")} icon={RocketLaunchIcon} formId={formId} />}
+      footer={<Footer aiId={aiId} busy={running} onCancel={onClose} confirm={t("sx.editor.publishDlg.confirm")} icon={RocketIcon} formId={formId} />}
     >
       <form id={formId} className="sx-dlg__form" onSubmit={run} noValidate>
         {version ? <VersionLine version={version} detail={st.detail} /> : null}
@@ -301,7 +301,7 @@ function SaveNoteDialog({ st, onClose }: { st: EditorState; onClose: () => void 
           <SxButton variant="secondary" onClick={onClose} disabled={running} aiId={`${aiId}.cancel`}>
             {t("sx.ui.cancel")}
           </SxButton>
-          <SxButton type="submit" form={formId} variant="primary" icon={FloppyDiskIcon} busy={running} aiId="admin.studio.editor.save.confirm">
+          <SxButton type="submit" form={formId} variant="primary" icon={SaveIcon} busy={running} aiId="admin.studio.editor.save.confirm">
             {t("sx.ui.save")}
           </SxButton>
         </>
@@ -380,7 +380,7 @@ function RollbackDialog({ st, version, onClose }: { st: EditorState; version: St
       description={t("sx.editor.rollbackDlg.lead")}
       busy={running}
       aiId={aiId}
-      footer={<Footer aiId={aiId} busy={running} onCancel={onClose} confirm={t("sx.editor.rollbackDlg.confirm")} icon={ArrowCounterClockwiseIcon} formId={formId} />}
+      footer={<Footer aiId={aiId} busy={running} onCancel={onClose} confirm={t("sx.editor.rollbackDlg.confirm")} icon={RotateCcwIcon} formId={formId} />}
     >
       <form id={formId} className="sx-dlg__form" onSubmit={run} noValidate>
         <VersionLine version={version} detail={st.detail} />
@@ -501,7 +501,7 @@ function VersionPreview({ st, version, onClose, onRollback }: { st: EditorState;
             ) : null}
             <SxButton
               variant="secondary"
-              icon={ArrowCounterClockwiseIcon}
+              icon={RotateCcwIcon}
               disabled={Boolean(st.busy)}
               aria-disabled={st.dirty || undefined}
               aria-describedby={st.dirty ? saveFirstId : undefined}

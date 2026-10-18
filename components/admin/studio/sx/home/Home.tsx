@@ -9,10 +9,9 @@ import { exportStudioXlsx, useStudioAccess, useStudioRegistry, type StudioConstr
 import { notify } from "@/lib/toast";
 import { SxButton, SxLinkButton } from "../Button";
 import { useEditorErrorText } from "../editor/useEditorErrorText";
-import { ArrowsClockwiseIcon, DownloadSimpleIcon, PlusIcon } from "../icons";
+import { RefreshCwIcon, DownloadIcon, PlusIcon } from "../icons";
 import { SxNote } from "../layout/Note";
 import { SxPage } from "../layout/Page";
-import { SxLineScope } from "../lineIcons";
 import { groupHue } from "../tones";
 import { useStudioLabels, type StudioLabels } from "../useStudioLabels";
 import { GroupCard, type GroupCardKind, type GroupCardModel } from "./GroupCard";
@@ -67,9 +66,9 @@ export function Home(): ReactElement {
 
   const head =
     acc.isAdmin || acc.canEdit ? (
-      <SxLineScope>
+      <>
         {acc.isAdmin ? (
-          <SxButton variant="secondary" size="sm" icon={DownloadSimpleIcon} busy={exporting} onClick={() => void doExport()} aiId="admin.studio.export" aiLabel={t("sx.home.excelAria")} aria-label={t("sx.home.excelAria")}>
+          <SxButton variant="secondary" size="sm" icon={DownloadIcon} busy={exporting} onClick={() => void doExport()} aiId="admin.studio.export" aiLabel={t("sx.home.excelAria")} aria-label={t("sx.home.excelAria")}>
             {t("sx.home.excel")}
           </SxButton>
         ) : null}
@@ -78,14 +77,14 @@ export function Home(): ReactElement {
             {t("sx.journeyRun.title")}
           </SxLinkButton>
         ) : null}
-      </SxLineScope>
+      </>
     ) : undefined;
 
   const cards = reg.groups.map((g) => groupCardModel(g, reg.items, labels, actions.byGroup[g.key]));
 
   return (
     <SxPage title={t("sx.ui.studio")} section="home" lead={t("sx.home.lead")} aiId="admin.studio.home" actions={head}>
-      <SxLineScope>
+      <>
         <div className="sx-home">
           <div className="sx-home__band">
             <WaitingPanel data={actions} max={3} aiId="admin.studio.home.waiting" />
@@ -106,7 +105,7 @@ export function Home(): ReactElement {
                 tone="error"
                 title={t("sx.ui.errorTitle")}
                 action={
-                  <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={() => void reg.reload()} aiId="admin.studio.home.groups.retry">
+                  <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={() => void reg.reload()} aiId="admin.studio.home.groups.retry">
                     {t("sx.ui.retry")}
                   </SxButton>
                 }
@@ -117,7 +116,7 @@ export function Home(): ReactElement {
           </section>
           <LaunchPaths journeys={reg.journeys} items={reg.items} />
         </div>
-      </SxLineScope>
+      </>
     </SxPage>
   );
 }

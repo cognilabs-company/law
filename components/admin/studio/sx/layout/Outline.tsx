@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, type MouseEvent, type ReactElement } from 
 import { useTranslations } from "next-intl";
 import { aiId as aiIdOf } from "@/lib/ai/ids";
 import { prefersReducedMotion } from "../hooks";
-import { CheckIcon, WarningCircleIcon, glyph } from "../icons";
+import { CheckIcon, CircleAlertIcon, glyph } from "../icons";
 import { scrollParent } from "./util";
 
 export type SxOutlineItem = { id: string; label: string; state?: "todo" | "done" | "error"; errors?: number };
@@ -134,12 +134,12 @@ export function SxOutline({ items, label, activeId, spy = false, onSelect, aiId 
                 <span className="sx-outline__text">{it.label}</span>
                 {it.state === "done" ? (
                   <span className="sx-outline__mark" data-mark="done">
-                    {glyph(CheckIcon, { size: 14, weight: "bold" })}
+                    {glyph(CheckIcon, { size: 14, strokeWidth: 2.5 })}
                     <span className="sx-vh">{t("sx.guide.done")}</span>
                   </span>
                 ) : it.state === "error" ? (
                   <span className="sx-outline__mark" data-mark="error">
-                    {glyph(WarningCircleIcon, { size: 14 })}
+                    {glyph(CircleAlertIcon, { size: 14 })}
                     {errors ? (
                       <span className="sx-num" aria-hidden="true">
                         {errors}

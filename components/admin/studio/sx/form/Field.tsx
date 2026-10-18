@@ -4,7 +4,7 @@ import "../sx-core.css";
 import "../sx-form.css";
 import type { ReactElement, ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { WarningCircleIcon, glyph } from "../icons";
+import { CircleAlertIcon, glyph } from "../icons";
 import type { SxControlA11y } from "../types";
 
 export type FieldProps = {
@@ -92,7 +92,7 @@ export function Field({
   ) : null;
   const errEl = error ? (
     <p className="sx-field__err" id={`${id}-err`}>
-      {glyph(WarningCircleIcon, { size: 14 })}
+      {glyph(CircleAlertIcon, { size: 14 })}
       <span>{error}</span>
     </p>
   ) : null;

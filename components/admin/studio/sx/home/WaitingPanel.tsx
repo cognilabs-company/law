@@ -8,7 +8,7 @@ import { aiId as aiIdOf } from "@/lib/ai/ids";
 import { useStudioAccess } from "@/lib/services/studio";
 import { approvalsHref } from "../approvals/urlState";
 import { SxButton, SxLinkButton } from "../Button";
-import { ArrowsClockwiseIcon, CaretRightIcon, glyph } from "../icons";
+import { RefreshCwIcon, ChevronRightIcon, glyph } from "../icons";
 import { SxNote } from "../layout/Note";
 import { SxPanel } from "../layout/Panel";
 import { useNow } from "../live";
@@ -57,7 +57,7 @@ export function WaitingPanel({ data, scope, max, aiId, headerAction }: { data: A
   const someFailed = !data.loading && failed.length > 0 && !allFailed;
   const toApprovals = acc.canReview && rows.length > 0;
   const retry = (
-    <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={data.reload} aiId={aiIdOf(aiId, "retry")}>
+    <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={data.reload} aiId={aiIdOf(aiId, "retry")}>
       {t("sx.ui.retry")}
     </SxButton>
   );
@@ -119,7 +119,7 @@ export function WaitingPanel({ data, scope, max, aiId, headerAction }: { data: A
                     <span className="sx-hrow__meta">{meta}</span>
                   </span>
                   <span />
-                  <span className="sx-hrow__caret">{glyph(CaretRightIcon, { size: 16 })}</span>
+                  <span className="sx-hrow__caret">{glyph(ChevronRightIcon, { size: 16 })}</span>
                 </Link>
               </li>
             );
@@ -129,7 +129,7 @@ export function WaitingPanel({ data, scope, max, aiId, headerAction }: { data: A
           <div className="sx-hfoot">
             {more > 0 ? <span className="sx-hfoot__more">{t("sx.home.waiting.more", { n: more })}</span> : null}
             {toApprovals ? (
-              <SxLinkButton variant="ghost" size="sm" href={approvalsHref({ group: scope?.group, need: scope?.need })} iconEnd={CaretRightIcon} aiId={aiIdOf(aiId, "approvals")}>
+              <SxLinkButton variant="ghost" size="sm" href={approvalsHref({ group: scope?.group, need: scope?.need })} iconEnd={ChevronRightIcon} aiId={aiIdOf(aiId, "approvals")}>
                 {t("sx.home.waiting.approvals")}
               </SxLinkButton>
             ) : null}

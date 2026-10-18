@@ -6,7 +6,7 @@ import "./sx-approvals.css";
 import { useId, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { SxButton } from "../Button";
-import { ArrowsClockwiseIcon, CaretDownIcon, CaretUpIcon } from "../icons";
+import { RefreshCwIcon, ChevronDownIcon, ChevronUpIcon } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxPager, SxTable } from "../layout/Table";
@@ -48,7 +48,7 @@ export function DoneSection({ open, onToggle, rows, loading, error, onRetry, pag
           tone="error"
           title={t("sx.ui.errorTitle")}
           action={
-            <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} busy={loading} onClick={onRetry} aiId="admin.studio.approvals.section.done.retry">
+            <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} busy={loading} onClick={onRetry} aiId="admin.studio.approvals.section.done.retry">
               {t("sx.ui.retry")}
             </SxButton>
           }
@@ -97,7 +97,7 @@ export function DoneSection({ open, onToggle, rows, loading, error, onRetry, pag
           <SxButton
             variant="ghost"
             size="sm"
-            iconEnd={open ? CaretUpIcon : CaretDownIcon}
+            iconEnd={open ? ChevronUpIcon : ChevronDownIcon}
             aria-expanded={open}
             aria-controls={open ? bodyId : undefined}
             onClick={onToggle}

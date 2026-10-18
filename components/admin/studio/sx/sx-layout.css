@@ -54,6 +54,7 @@ html[data-theme="dark"] .pbody:has(.sx-page) {
   margin-bottom: -4px;
 }
 .sx-nav__list {
+  position: relative;
   display: flex;
   gap: 4px;
   height: 100%;
@@ -91,6 +92,7 @@ html[data-theme="dark"] .pbody:has(.sx-page) {
 @media (hover: hover) {
   .sx .sx-nav__link:hover {
     color: var(--sx-ink);
+    background: var(--sx-surface-2);
   }
 }
 .sx .sx-nav__link[aria-current] {
@@ -109,6 +111,34 @@ html[data-theme="dark"] .pbody:has(.sx-page) {
 }
 .sx .sx-nav__link:focus-visible {
   outline-offset: -2px;
+}
+.sx-nav__list > .sx-nav__ink {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  display: block;
+  width: var(--ink-w, 0px);
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--sx-accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--sx-accent) 55%, transparent);
+  transform: translateX(var(--ink-x, 0px));
+  pointer-events: none;
+  transition: transform 380ms var(--sx-ease), width 380ms var(--sx-ease);
+}
+.sx-nav__list > .sx-nav__ink[data-still] {
+  transition: none;
+}
+.sx-nav__list > .sx-nav__ink[data-off] {
+  opacity: 0;
+}
+.sx .sx-nav[data-ink] .sx-nav__link[aria-current]::after {
+  content: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-nav__list > .sx-nav__ink {
+    transition: none;
+  }
 }
 .sx-nav__sk {
   align-items: center;
@@ -152,9 +182,6 @@ html[data-theme="dark"] .pbody:has(.sx-page) {
 @media (hover: hover) {
   .sx .sx-crumbs__link:hover {
     color: var(--sx-ink);
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
   }
 }
 .sx-crumbs__text {
@@ -559,9 +586,7 @@ html[data-theme="dark"] .pbody:has(.sx-page) {
 }
 @media (hover: hover) {
   .sx .sx-table__primary:hover {
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
+    color: var(--sx-accent-ink);
   }
 }
 .sx-table .sx-table__actions {

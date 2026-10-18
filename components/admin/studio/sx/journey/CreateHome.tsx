@@ -11,7 +11,7 @@ import { JOURNEY_STATUS, useStudioAccess, useStudioRegistry, type StudioConstruc
 import { SxButton, SxLinkButton } from "../Button";
 import { useEditorErrorText } from "../editor/useEditorErrorText";
 import { prefersReducedMotion } from "../hooks";
-import { ArrowRightIcon, ArrowsClockwiseIcon, CaretDownIcon, CaretUpIcon } from "../icons";
+import { ArrowRightIcon, RefreshCwIcon, ChevronDownIcon, ChevronUpIcon } from "../icons";
 import { SxNote } from "../layout/Note";
 import { SxPage } from "../layout/Page";
 import { SxPanel } from "../layout/Panel";
@@ -66,7 +66,7 @@ function JourneyList({ list, status, title, emptyText, id, showCount = false }: 
               tone="error"
               title={failed.title}
               action={
-                <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={data.reload} aiId={`admin.studio.create.${list}.retry`}>
+                <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={data.reload} aiId={`admin.studio.create.${list}.retry`}>
                   {t("sx.ui.retry")}
                 </SxButton>
               }
@@ -102,7 +102,7 @@ function CompletedList(): ReactElement {
       <SxButton
         variant="ghost"
         size="sm"
-        iconEnd={open ? CaretUpIcon : CaretDownIcon}
+        iconEnd={open ? ChevronUpIcon : ChevronDownIcon}
         aria-expanded={open}
         aria-controls="sx-jr-completed"
         onClick={() => setOpen((v) => !v)}

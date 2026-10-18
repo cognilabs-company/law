@@ -12,8 +12,8 @@ import { SxDialog } from "@/components/admin/studio/sx/editor/SxDialog";
 import { SxButton } from "@/components/admin/studio/sx/Button";
 import { ChoiceCards, type ChoiceCard } from "@/components/admin/studio/sx/form/ChoiceCards";
 import { SxNote } from "@/components/admin/studio/sx/layout/Note";
-import { ArrowRightIcon, ArrowsClockwiseIcon, CheckIcon, ClockCountdownIcon, EyeSlashIcon, HourglassMediumIcon, ShieldCheckIcon, glyph } from "@/components/admin/studio/sx/icons";
-import { CrosshairIcon, MapPinIcon, NavigationArrowIcon } from "./icons";
+import { ArrowRightIcon, RefreshCwIcon, CheckIcon, TimerIcon, EyeOffIcon, HourglassIcon, ShieldCheckIcon, glyph } from "@/components/admin/studio/sx/icons";
+import { LocateFixedIcon, MapPinIcon, NavigationIcon } from "./icons";
 
 type Step = 1 | 2 | 3;
 
@@ -130,9 +130,9 @@ export default function LocationShareDialog({ open, onClose }: { open: boolean; 
       value: String(h),
       title: t("location.dialog.hours", { n: h }),
       description: t("location.dialog.hoursHint", { time: timeOnly(new Date((now || 0) + h * 3_600_000).toISOString(), locale) }),
-      icon: ClockCountdownIcon,
+      icon: TimerIcon,
     })),
-    { value: "manual", title: t("location.dialog.manual"), description: t("location.dialog.manualHint"), icon: ArrowsClockwiseIcon },
+    { value: "manual", title: t("location.dialog.manual"), description: t("location.dialog.manualHint"), icon: RefreshCwIcon },
   ];
   const geoText = geoErr ? t(GEO_ERR_KEY[geoErr] ?? "location.errUnavailable") : "";
 
@@ -151,7 +151,7 @@ export default function LocationShareDialog({ open, onClose }: { open: boolean; 
         <SxButton variant="secondary" onClick={close} disabled={locating} aiId="seller.location.dialog.cancel">
           {t("form.cancel")}
         </SxButton>
-        <SxButton variant="primary" icon={geoErr ? ArrowsClockwiseIcon : CrosshairIcon} busy={locating} onClick={() => void locate()} aiId="seller.location.dialog.allow">
+        <SxButton variant="primary" icon={geoErr ? RefreshCwIcon : LocateFixedIcon} busy={locating} onClick={() => void locate()} aiId="seller.location.dialog.allow">
           {locating ? t("location.dialog.locating") : geoErr ? t("location.dialog.retry") : t("location.dialog.allow")}
         </SxButton>
       </>
@@ -160,7 +160,7 @@ export default function LocationShareDialog({ open, onClose }: { open: boolean; 
         <SxButton variant="secondary" onClick={close} disabled={starting} aiId="seller.location.dialog.cancel">
           {t("form.cancel")}
         </SxButton>
-        <SxButton variant="primary" icon={NavigationArrowIcon} busy={starting} disabled={hoursOf(choice) === undefined} onClick={() => void confirm()} aiId="seller.location.dialog.confirm">
+        <SxButton variant="primary" icon={NavigationIcon} busy={starting} disabled={hoursOf(choice) === undefined} onClick={() => void confirm()} aiId="seller.location.dialog.confirm">
           {starting ? t("location.dialog.starting") : t("location.dialog.confirm")}
         </SxButton>
       </>
@@ -173,7 +173,7 @@ export default function LocationShareDialog({ open, onClose }: { open: boolean; 
           {steps.map((s) => (
             <li key={s.n} className="svloc-steps__i" data-state={s.n < step ? "done" : s.n === step ? "current" : "next"} aria-current={s.n === step ? "step" : undefined}>
               <span className="svloc-steps__n" aria-hidden="true">
-                {s.n < step ? glyph(CheckIcon, { size: 14, weight: "bold" }) : s.n}
+                {s.n < step ? glyph(CheckIcon, { size: 14, strokeWidth: 2.5 }) : s.n}
               </span>
               <span className="svloc-steps__t">{s.label}</span>
             </li>
@@ -187,11 +187,11 @@ export default function LocationShareDialog({ open, onClose }: { open: boolean; 
             </span>
             <ul className="svloc-points">
               <li>
-                {glyph(NavigationArrowIcon, { size: 18, "aria-hidden": true })}
+                {glyph(NavigationIcon, { size: 18, "aria-hidden": true })}
                 <span>{t("location.dialog.explain1")}</span>
               </li>
               <li>
-                {glyph(EyeSlashIcon, { size: 18, "aria-hidden": true })}
+                {glyph(EyeOffIcon, { size: 18, "aria-hidden": true })}
                 <span>{t("location.dialog.explain2")}</span>
               </li>
               <li>
@@ -199,7 +199,7 @@ export default function LocationShareDialog({ open, onClose }: { open: boolean; 
                 <span>{t("location.dialog.explain3")}</span>
               </li>
               <li>
-                {glyph(HourglassMediumIcon, { size: 18, "aria-hidden": true })}
+                {glyph(HourglassIcon, { size: 18, "aria-hidden": true })}
                 <span>{t("location.dialog.explain4", { days: share.policy.retentionDays })}</span>
               </li>
             </ul>
@@ -209,7 +209,7 @@ export default function LocationShareDialog({ open, onClose }: { open: boolean; 
         {step === 2 ? (
           <div className="svloc-allow">
             <span className="svloc-lead" aria-hidden="true">
-              {glyph(CrosshairIcon, { size: 28 })}
+              {glyph(LocateFixedIcon, { size: 28 })}
             </span>
             <p className="svloc-text">{t("location.dialog.allowHint")}</p>
             {locating ? (

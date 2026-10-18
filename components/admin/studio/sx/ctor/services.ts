@@ -1,5 +1,5 @@
 import type { SxCtorLayout, SxLayoutCtx, SxValues } from "../contract";
-import { BooksIcon, BriefcaseIcon, CoinsIcon, FileDashedIcon, FilesIcon, FileTextIcon, FileXIcon, FolderOpenIcon, GlobeIcon, PackageIcon, PercentIcon, UploadSimpleIcon } from "../icons";
+import { LibraryBigIcon, BriefcaseBusinessIcon, CoinsIcon, FileQuestionMarkIcon, FilesIcon, FileTextIcon, FileXIcon, FolderOpenIcon, GlobeIcon, PackageIcon, PercentIcon, UploadIcon } from "../icons";
 import type { SxIcon } from "../types";
 import type { StudioLabels } from "../useStudioLabels";
 import { GUARANTEE_ICONS } from "./guaranteeIcons";
@@ -75,7 +75,7 @@ export const K31_LAYOUT: SxCtorLayout = {
       clears: ["service_id", "category_id"],
       choices: {
         global: { icon: GlobeIcon, descriptionKey: "sx.optd.K31__scope_type.global" },
-        service: { icon: BriefcaseIcon, descriptionKey: "sx.optd.K31__scope_type.service" },
+        service: { icon: BriefcaseBusinessIcon, descriptionKey: "sx.optd.K31__scope_type.service" },
         category: { icon: FolderOpenIcon, descriptionKey: "sx.optd.K31__scope_type.category" },
       },
     },
@@ -152,7 +152,7 @@ export const K02_LAYOUT: SxCtorLayout = {
       columns: 3,
       choices: {
         required: { icon: FileTextIcon, descriptionKey: "sx.optd.template_mode.required" },
-        optional: { icon: FileDashedIcon, descriptionKey: "sx.optd.template_mode.optional" },
+        optional: { icon: FileQuestionMarkIcon, descriptionKey: "sx.optd.template_mode.optional" },
         not_required: { icon: FileXIcon, descriptionKey: "sx.optd.template_mode.not_required" },
       },
     },
@@ -163,8 +163,8 @@ export const K02_LAYOUT: SxCtorLayout = {
       help: false,
       visible: templateNeeded,
       choices: {
-        catalog: { icon: BooksIcon, descriptionKey: "sx.optd.template_source.catalog" },
-        upload: { icon: UploadSimpleIcon, descriptionKey: "sx.optd.template_source.upload_edit" },
+        catalog: { icon: LibraryBigIcon, descriptionKey: "sx.optd.template_source.catalog" },
+        upload: { icon: UploadIcon, descriptionKey: "sx.optd.template_source.upload_edit" },
         catalog_or_upload: { icon: FilesIcon, descriptionKey: "sx.optd.template_source.catalog_or_upload_edit" },
       },
     },
@@ -182,7 +182,7 @@ export const K29_LAYOUT: SxCtorLayout = {
       control: "choices",
       columns: 2,
       choices: {
-        service: { icon: BriefcaseIcon, descriptionKey: "sx.optd.target_type.service" },
+        service: { icon: BriefcaseBusinessIcon, descriptionKey: "sx.optd.target_type.service" },
         package: { icon: PackageIcon, descriptionKey: "sx.optd.target_type.package" },
       },
     },

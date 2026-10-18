@@ -11,7 +11,7 @@ import { SxButton } from "../../Button";
 import { TextArea } from "../../form/TextArea";
 import { SxNote } from "../../layout/Note";
 import { useStudioLabels } from "../../useStudioLabels";
-import { ChatCircleTextIcon, PaperPlaneTiltIcon, glyph } from "../../icons";
+import { MessageSquareTextIcon, SendIcon, glyph } from "../../icons";
 import { commentText, isSendKey } from "../../editor/drawer/CommentsTab";
 import { useEditorErrorText } from "../../editor/useEditorErrorText";
 import { initials, newestFirst, roleName } from "../../editor/model";
@@ -81,7 +81,7 @@ export function Comments({ state, canWrite, versions, onSend, onRetry }: Comment
             <p className="sx-ed-cmt__hint" id={hintId}>
               {t("sx.editor.comments.hint")}
             </p>
-            <SxButton type="submit" variant="primary" size="sm" icon={PaperPlaneTiltIcon} busy={sending} disabled={!sending && !text.trim()} aiId="admin.studio.approvals.drawer.comment.send">
+            <SxButton type="submit" variant="primary" size="sm" icon={SendIcon} busy={sending} disabled={!sending && !text.trim()} aiId="admin.studio.approvals.drawer.comment.send">
               {t("sx.editor.comments.send")}
             </SxButton>
           </div>
@@ -109,7 +109,7 @@ export function Comments({ state, canWrite, versions, onSend, onRetry }: Comment
       ) : null}
       {items && !list.length ? (
         <div className="sx-ed-none sx-rv-none">
-          {glyph(ChatCircleTextIcon, { size: 24 })}
+          {glyph(MessageSquareTextIcon, { size: 24 })}
           <p>{t("sx.editor.comments.empty")}</p>
         </div>
       ) : null}

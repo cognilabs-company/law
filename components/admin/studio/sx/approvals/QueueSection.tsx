@@ -5,7 +5,7 @@ import "../sx-layout.css";
 import "./sx-approvals.css";
 import type { ReactElement, ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { ChatCircleTextIcon, PaperclipIcon, SealCheckIcon, ctorGlyph, glyph } from "../icons";
+import { MessageSquareTextIcon, PaperclipIcon, BadgeCheckIcon, ctorGlyph, glyph } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxPanel } from "../layout/Panel";
 import { SxPager, SxTable, type SxColumn } from "../layout/Table";
@@ -38,7 +38,7 @@ export function useQueueColumns(section: ApprSection, openId: string): SxColumn<
     if (r.comments > 0)
       parts.push(
         <span key="m">
-          {glyph(ChatCircleTextIcon, { size: 14 })}
+          {glyph(MessageSquareTextIcon, { size: 14 })}
           <span aria-hidden="true">{labels.num(r.comments)}</span>
           <span className="sx-vh">{t("sx.appr.row.comments", { n: r.comments })}</span>
         </span>,
@@ -149,7 +149,7 @@ export function QueueSection({ section, rows, loading, busy, page, onPage, openI
         loading={loading}
         skeletonRows={4}
         busy={busy}
-        empty={section === "mine" ? <SxEmpty compact icon={SealCheckIcon} title={t("sx.home.waiting.empty")} /> : <SxEmpty compact title={t("sx.appr.empty.others")} />}
+        empty={section === "mine" ? <SxEmpty compact icon={BadgeCheckIcon} title={t("sx.home.waiting.empty")} /> : <SxEmpty compact title={t("sx.appr.empty.others")} />}
         footer={
           slice.total > APPR_PAGE ? (
             <SxPager from={slice.from} to={slice.to} total={slice.total} onPrev={() => onPage(slice.page - 1)} onNext={() => onPage(slice.page + 1)} aiId={pagerId} />

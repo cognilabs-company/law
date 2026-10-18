@@ -16,7 +16,7 @@ import type { OrderChecklist } from "@/lib/services/marketRuntime";
 import CompleteOrderDialog from "../CompleteOrderDialog";
 import SupplementalDialog from "../SupplementalDialog";
 import { useMarketError } from "../useMarketError";
-import { ChatCircleTextIcon, CheckCircleIcon, CoinsIcon, PhoneIcon, VideoCameraIcon, XIcon } from "./icons";
+import { MessageSquareTextIcon, CircleCheckIcon, CoinsIcon, PhoneIcon, VideoIcon, XIcon } from "./icons";
 import type { OrderView } from "./types";
 
 const REASON_MAX = 500;
@@ -109,7 +109,7 @@ export default function OrderActions({
     <SxPanel title={t("actions.title")} className="mod-actions" as="section">
       <div className="mod-actions__list">
         {chat ? (
-          <SxLinkButton variant={chat === "open" ? "primary" : "secondary"} icon={ChatCircleTextIcon} href={marketChatHref(o)} aiId={`${aiBase}.chat`}>
+          <SxLinkButton variant={chat === "open" ? "primary" : "secondary"} icon={MessageSquareTextIcon} href={marketChatHref(o)} aiId={`${aiBase}.chat`}>
             {chat === "open" ? to("openChat") : t("actions.viewChat")}
           </SxLinkButton>
         ) : null}
@@ -118,7 +118,7 @@ export default function OrderActions({
             <SxButton icon={PhoneIcon} disabled={!!calling} onClick={() => void call("audio")}>
               {calling === "audio" ? to("calling") : to("audio")}
             </SxButton>
-            <SxButton icon={VideoCameraIcon} disabled={!!calling} onClick={() => void call("video")}>
+            <SxButton icon={VideoIcon} disabled={!!calling} onClick={() => void call("video")}>
               {calling === "video" ? to("calling") : to("video")}
             </SxButton>
           </div>
@@ -134,7 +134,7 @@ export default function OrderActions({
           </SxButton>
         ) : null}
         {complete ? (
-          <SxButton variant="primary" icon={CheckCircleIcon} disabled={o.workPaused} title={o.workPaused ? to("pausedHint") : undefined} onClick={() => setCompleteOpen(true)} aiId={`${aiBase}.complete`}>
+          <SxButton variant="primary" icon={CircleCheckIcon} disabled={o.workPaused} title={o.workPaused ? to("pausedHint") : undefined} onClick={() => setCompleteOpen(true)} aiId={`${aiBase}.complete`}>
             {to("complete")}
           </SxButton>
         ) : null}

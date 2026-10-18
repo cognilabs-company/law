@@ -6,7 +6,7 @@ import { useId, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { useStudioAccess, useStudioRegistry, type StudioConstructor, type StudioGroup, type StudioRecordSource } from "@/lib/services/studio";
 import { SxButton, SxLinkButton } from "../Button";
-import { MagnifyingGlassIcon, PlusIcon } from "../icons";
+import { SearchIcon, PlusIcon } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxGuideButton } from "../layout/Guide";
 import { SxNote } from "../layout/Note";
@@ -168,7 +168,7 @@ export function CtorPage({ code, initial }: CtorPageProps): ReactElement {
     return (
       <SxPage title={t("sx.editor.unknownTitle")} section="home" crumbs={[]} aiId="admin.studio.list">
         <SxEmpty
-          icon={MagnifyingGlassIcon}
+          icon={SearchIcon}
           title={t("sx.editor.unknownTitle")}
           text={t("sx.editor.unknownText")}
           action={

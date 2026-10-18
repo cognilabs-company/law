@@ -14,7 +14,7 @@ import { Picker } from "../../form/Picker";
 import { TextArea } from "../../form/TextArea";
 import { useStudioLabels } from "../../useStudioLabels";
 import type { SxOption } from "../../types";
-import { UserSwitchIcon } from "../../icons";
+import { ArrowRightLeftIcon } from "../../icons";
 import { SxDialog, SxDialogError } from "../SxDialog";
 import { useEditorErrorText } from "../useEditorErrorText";
 import { normRole } from "../model";
@@ -99,7 +99,7 @@ export function ReassignDialog({ step, code, from, onClose, onDone }: { step: St
           <SxButton variant="secondary" onClick={onClose} disabled={busy} aiId="admin.studio.approvals.reassign.cancel">
             {t("sx.ui.cancel")}
           </SxButton>
-          <SxButton type="submit" form={formId} variant="primary" icon={UserSwitchIcon} busy={busy} aiId="admin.studio.approvals.reassign.confirm">
+          <SxButton type="submit" form={formId} variant="primary" icon={ArrowRightLeftIcon} busy={busy} aiId="admin.studio.approvals.reassign.confirm">
             {t("sx.editor.steps.reassignConfirm")}
           </SxButton>
         </>

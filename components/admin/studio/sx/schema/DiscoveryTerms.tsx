@@ -9,7 +9,7 @@ import IconButton from "@/components/ui/IconButton";
 import { aiId as makeAiId } from "@/lib/ai/ids";
 import { suggestDiscoveryTerms } from "@/lib/services/studio";
 import { SxButton } from "../Button";
-import { PlusIcon, SparkleIcon, XIcon, glyph } from "../icons";
+import { PlusIcon, SparklesIcon, XIcon, glyph } from "../icons";
 import { SxNote } from "../layout/Note";
 import { TagsInput, mergeTags } from "../form/TagsInput";
 import type { SxControlA11y } from "../types";
@@ -104,7 +104,7 @@ export function DiscoveryTerms({ id, value, onChange, label, readOnly, a11y, aiI
             <SxButton
               variant="secondary"
               size="sm"
-              icon={SparkleIcon}
+              icon={SparklesIcon}
               busy={ask.state === "busy"}
               aria-disabled={needTitle || ask.state === "busy" ? true : undefined}
               aria-describedby={needTitle ? needId : undefined}

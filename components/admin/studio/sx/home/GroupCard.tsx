@@ -9,7 +9,7 @@ import { aiId } from "@/lib/ai/ids";
 import { useStudioAccess } from "@/lib/services/studio";
 import { approvalsHref } from "../approvals/urlState";
 import { SxLinkButton } from "../Button";
-import { ArrowRightIcon, ArrowUUpLeftIcon, CheckCircleIcon, HourglassMediumIcon, RocketLaunchIcon, glyph } from "../icons";
+import { ArrowRightIcon, Undo2Icon, CircleCheckIcon, HourglassIcon, RocketIcon, glyph } from "../icons";
 import type { SxHue } from "../tones";
 import type { SxIcon } from "../types";
 import { SxProgress } from "../shared/Progress";
@@ -30,7 +30,7 @@ export type GroupCardModel = {
 export type GroupCardProps = { model: GroupCardModel; loadingCounts: boolean };
 
 export const NEED_KINDS: readonly GroupCardKind[] = ["returned", "review", "publish"];
-export const NEED_ICON: Readonly<Record<GroupCardKind, SxIcon>> = { returned: ArrowUUpLeftIcon, review: HourglassMediumIcon, publish: RocketLaunchIcon };
+export const NEED_ICON: Readonly<Record<GroupCardKind, SxIcon>> = { returned: Undo2Icon, review: HourglassIcon, publish: RocketIcon };
 
 const enc = encodeURIComponent;
 
@@ -89,7 +89,7 @@ export function GroupCard({ model, loadingCounts }: GroupCardProps): ReactElemen
         ) : (
           <>
             <span className="sx-gcard__done">
-              {glyph(CheckCircleIcon, { size: 16 })}
+              {glyph(CircleCheckIcon, { size: 16 })}
               <span>{t("sx.home.card.allDone")}</span>
             </span>
             <SxLinkButton variant="ghost" size="sm" href={href} aiId={aiId(base, "view")}>

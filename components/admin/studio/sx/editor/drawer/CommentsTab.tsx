@@ -9,7 +9,7 @@ import { SxButton } from "../../Button";
 import { TextArea } from "../../form/TextArea";
 import { SxNote } from "../../layout/Note";
 import { useStudioLabels } from "../../useStudioLabels";
-import { ChatCircleTextIcon, PaperPlaneTiltIcon, glyph } from "../../icons";
+import { MessageSquareTextIcon, SendIcon, glyph } from "../../icons";
 import type { EditorState } from "../useEditorState";
 import { useEditorErrorText } from "../useEditorErrorText";
 import { initials, newestFirst, roleName } from "../model";
@@ -80,7 +80,7 @@ export function CommentsTab({ st }: { st: EditorState }): ReactElement {
             <p className="sx-ed-cmt__hint" id={hintId}>
               {t("sx.editor.comments.hint")}
             </p>
-            <SxButton type="submit" variant="primary" size="sm" icon={PaperPlaneTiltIcon} busy={sending} disabled={!sending && !text.trim()} aiId="admin.studio.editor.comments.send">
+            <SxButton type="submit" variant="primary" size="sm" icon={SendIcon} busy={sending} disabled={!sending && !text.trim()} aiId="admin.studio.editor.comments.send">
               {t("sx.editor.comments.send")}
             </SxButton>
           </div>
@@ -108,7 +108,7 @@ export function CommentsTab({ st }: { st: EditorState }): ReactElement {
       ) : null}
       {items && !list.length ? (
         <div className="sx-ed-none">
-          {glyph(ChatCircleTextIcon, { size: 24 })}
+          {glyph(MessageSquareTextIcon, { size: 24 })}
           <p>{t("sx.editor.comments.empty")}</p>
         </div>
       ) : null}

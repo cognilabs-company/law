@@ -11,7 +11,7 @@ import { hasAdminAccess, useAuth } from "@/lib/auth";
 import { hasInternalAccess } from "@/lib/services/internalHrm";
 import { getEffectiveRoute, getStudioConstructorDetail, studioDetailSnapshot, useStudioRegistry, type StudioConstructor, type StudioRoute } from "@/lib/services/studio";
 import { SxButton, SxLinkButton } from "../Button";
-import { ArrowRightIcon, ArrowSquareOutIcon, ArrowsClockwiseIcon, CheckIcon, InfoIcon, LockSimpleIcon, WarningIcon, ctorGlyph, glyph } from "../icons";
+import { ArrowRightIcon, ExternalLinkIcon, RefreshCwIcon, CheckIcon, InfoIcon, LockIcon, TriangleAlertIcon, ctorGlyph, glyph } from "../icons";
 import { useStudioLabels } from "../useStudioLabels";
 import { SxDrawer } from "./Drawer";
 import { buildGuide, guideRouteOf } from "./guideModel";
@@ -91,7 +91,7 @@ export function SxGuideBody({ code }: { code: string }): ReactElement {
         tone="error"
         title={t("sx.ui.loadFail")}
         action={
-          <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={() => setAttempt((n) => n + 1)} aiId={aiIdOf("admin.studio.guide", seg(code), "retry")}>
+          <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={() => setAttempt((n) => n + 1)} aiId={aiIdOf("admin.studio.guide", seg(code), "retry")}>
             {t("sx.ui.retry")}
           </SxButton>
         }
@@ -134,12 +134,12 @@ export function SxGuideBody({ code }: { code: string }): ReactElement {
                       data-ai-type="link"
                       data-ai-label={`${t("sx.guide.openPage")}: ${p.title}`}
                     >
-                      {glyph(ArrowSquareOutIcon, { size: 16 })}
+                      {glyph(ExternalLinkIcon, { size: 16 })}
                       <span>{t("sx.guide.openPage")}</span>
                     </a>
                   ) : p.route.startsWith("/") ? (
                     <span className="sx-guide__lock" title={t("sx.guide.noAccess")}>
-                      {glyph(LockSimpleIcon, { size: 16 })}
+                      {glyph(LockIcon, { size: 16 })}
                       <span className="sx-vh">{t("sx.guide.noAccess")}</span>
                     </span>
                   ) : null}
@@ -187,7 +187,7 @@ export function SxGuideBody({ code }: { code: string }): ReactElement {
                     <span className="sx-guide__dname">{d.name}</span>
                     <code className="sx-code">{d.code}</code>
                     <span className="sx-guide__dstate" data-done={d.done || undefined}>
-                      {d.done ? glyph(CheckIcon, { size: 14, weight: "bold" }) : null}
+                      {d.done ? glyph(CheckIcon, { size: 14, strokeWidth: 2.5 }) : null}
                       {d.done ? t("sx.guide.done") : t("sx.guide.notDone")}
                     </span>
                   </Link>
@@ -212,7 +212,7 @@ export function SxGuideBody({ code }: { code: string }): ReactElement {
           <ul className="sx-guide__warns">
             {m.warnings.map((w) => (
               <li key={w}>
-                {glyph(WarningIcon, { size: 16, className: "sx-guide__wicon" })}
+                {glyph(TriangleAlertIcon, { size: 16, className: "sx-guide__wicon" })}
                 <span>{w}</span>
               </li>
             ))}

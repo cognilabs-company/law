@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { aiId } from "@/lib/ai/ids";
 import type { StudioConstructor, StudioJourney } from "@/lib/services/studio";
-import { CaretRightIcon, glyph } from "../icons";
+import { ChevronRightIcon, glyph } from "../icons";
 import { SxPanel } from "../layout/Panel";
 import { SxProgress } from "../shared/Progress";
 import { useStudioLabels } from "../useStudioLabels";
@@ -39,7 +39,7 @@ export function LaunchPaths({ journeys }: { journeys: readonly StudioJourney[]; 
                   <span className="sx-hrow__pct sx-num">{progress}</span>
                   <SxProgress value={j.progress} label={`${name}: ${progress}`} size="sm" className="sx-hrow__bar sx-hrow__bar--wide" />
                 </span>
-                <span className="sx-hrow__caret">{glyph(CaretRightIcon, { size: 16 })}</span>
+                <span className="sx-hrow__caret">{glyph(ChevronRightIcon, { size: 16 })}</span>
               </Link>
             </li>
           );

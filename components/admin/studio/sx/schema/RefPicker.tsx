@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import { studioReferenceKey } from "@/lib/services/studio";
 import { SxLinkButton } from "../Button";
 import { producerOf } from "../ctor/sources";
-import { PlusIcon, WarningIcon, glyph } from "../icons";
+import { PlusIcon, TriangleAlertIcon, glyph } from "../icons";
 import { Picker } from "../form/Picker";
 import { firstReferencePage, useReferenceOptions } from "../form/useReferenceOptions";
 import type { SxControlA11y, SxOption } from "../types";
@@ -167,7 +167,7 @@ export function RefPicker(props: RefPickerProps): ReactElement {
       )}
       {missing ? (
         <p className="sx-sf__warn" id={missingId}>
-          {glyph(WarningIcon, { size: 14 })}
+          {glyph(TriangleAlertIcon, { size: 14 })}
           <span>{t("sx.err.reference")}</span>
         </p>
       ) : null}

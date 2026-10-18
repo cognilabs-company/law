@@ -13,7 +13,7 @@ import type { StudioConstructor, StudioRecord } from "@/lib/services/studio";
 import { matchesSearch } from "@/lib/searchText";
 import type { UserEvent } from "@/lib/userSocket";
 import { SxButton } from "../Button";
-import { ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, FolderOpenIcon, MagnifyingGlassIcon, PlusIcon, glyph } from "../icons";
+import { RotateCcwIcon, RefreshCwIcon, FolderOpenIcon, SearchIcon, PlusIcon, glyph } from "../icons";
 import { studioEventCode, useStudioLive } from "../live";
 import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
@@ -204,7 +204,7 @@ export function CategoryTreeTable({ ctor, canEdit, canArchive, initial, createCo
           tone="warn"
           className="sx-cp-note"
           action={
-            <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={retryTree} aiId="admin.studio.list.tree.retry">
+            <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={retryTree} aiId="admin.studio.list.tree.retry">
               {t("sx.ui.retry")}
             </SxButton>
           }
@@ -251,12 +251,12 @@ export function CategoryTreeTable({ ctor, canEdit, canArchive, initial, createCo
   const matched = rows.filter((r) => r.match).length;
   const loading = tree.phase === "loading" && !tree.nodes.length;
   const reset = (
-    <SxButton variant="ghost" size="sm" icon={ArrowCounterClockwiseIcon} onClick={st.reset} aiId="admin.studio.list.reset">
+    <SxButton variant="ghost" size="sm" icon={RotateCcwIcon} onClick={st.reset} aiId="admin.studio.list.reset">
       {t("sx.table.reset")}
     </SxButton>
   );
   const empty = filtered ? (
-    <SxEmpty compact icon={MagnifyingGlassIcon} title={t("sx.table.noMatch")} action={reset} />
+    <SxEmpty compact icon={SearchIcon} title={t("sx.table.noMatch")} action={reset} />
   ) : (
     <SxEmpty title={t("sx.table.empty")} text={canEdit ? t("sx.cpage.emptyText", { name: labels.ctorName(CODE, ctor?.title) }) : undefined} action={canEdit ? createControl : undefined} />
   );

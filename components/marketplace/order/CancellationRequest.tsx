@@ -14,7 +14,7 @@ import { shortDateTime } from "@/lib/date";
 import { parseServerTime } from "@/lib/http";
 import { marketChatHref, type MarketSignal } from "@/lib/services/marketplace";
 import { marketErrorInfo, requestCancellationReview, type CancellationReview } from "@/lib/services/marketRuntime";
-import { ChatCircleTextIcon, LifebuoyIcon } from "./icons";
+import { MessageSquareTextIcon, LifeBuoyIcon } from "./icons";
 import { SECTION_ID, type OrderSectionProps } from "./types";
 
 export const CANCEL_REASON_MIN = 20;
@@ -146,7 +146,7 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
       {groupRoomId ? (
         <div className="mcr-group">
           <p>{t("cancel.groupChatText")}</p>
-          <SxLinkButton variant="primary" icon={ChatCircleTextIcon} href={marketChatHref({ roomId: groupRoomId, workId: o.workId, serviceTitle: o.serviceTitle })} aiId={`${ai}.group-chat`}>
+          <SxLinkButton variant="primary" icon={MessageSquareTextIcon} href={marketChatHref({ roomId: groupRoomId, workId: o.workId, serviceTitle: o.serviceTitle })} aiId={`${ai}.group-chat`}>
             {t("cancel.openGroupChat")}
           </SxLinkButton>
         </div>
@@ -159,7 +159,7 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
       <div className="mcr-actions">
         <SxButton
           variant="secondary"
-          icon={LifebuoyIcon}
+          icon={LifeBuoyIcon}
           onClick={() => {
             setError(null);
             setReasonErr("");

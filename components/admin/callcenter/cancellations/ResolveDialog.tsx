@@ -12,7 +12,7 @@ import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { REVIEW_ACTIONS, resolveCancellationReview, reviewOrderOf, type CancellationReview, type ReviewAction, type ReviewResolution } from "@/lib/services/marketRuntime";
-import { ChatsCircleIcon } from "./icons";
+import { MessagesSquareIcon } from "./icons";
 import { EMPTY_DRAFT, NOTE_MAX, resolveFailureOf, staffChatHref, toResolveInput, validateResolve, type ResolveDraft, type ResolveErrors, type ResolveFailure, type ResolveField } from "./model";
 import { REVIEW_ACTION_ICON } from "./ReviewItem";
 import { SellerPicker } from "./SellerPicker";
@@ -155,7 +155,7 @@ export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveD
           </SxNote>
           <p className="ccx-rd-chat">{done.chat === "opened" ? t("done.chatOpened") : done.chat === "blocked" ? t("done.chatBlocked") : t("done.noChat")}</p>
           {done.href ? (
-            <SxLinkButton href={done.href} target="_blank" variant={done.chat === "opened" ? "secondary" : "primary"} icon={ChatsCircleIcon} aiId="call_center.cancellations.resolve.group-chat" aiLabel={t("done.openChat")}>
+            <SxLinkButton href={done.href} target="_blank" variant={done.chat === "opened" ? "secondary" : "primary"} icon={MessagesSquareIcon} aiId="call_center.cancellations.resolve.group-chat" aiLabel={t("done.openChat")}>
               {t("done.openChat")}
             </SxLinkButton>
           ) : null}
@@ -163,7 +163,7 @@ export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveD
       ) : (
         <div className="ccx-rd">
           {general ? <SxDialogError id={ids.error} error={{ title: t("dialog.errorTitle"), text: t(general.key) }} /> : null}
-          <SxNote tone="info" icon={ChatsCircleIcon}>
+          <SxNote tone="info" icon={MessagesSquareIcon}>
             {t("dialog.groupNote")}
           </SxNote>
           <Field id={ids.action} as="fieldset" label={t("dialog.action")} required error={say(shown.action)}>

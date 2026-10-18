@@ -16,26 +16,26 @@ import { SxButton, SxLinkButton, type SxButtonVariant } from "./Button";
 import * as iconSet from "./icons";
 import {
   ArchiveIcon,
-  ArrowCounterClockwiseIcon,
+  RotateCcwIcon,
   ArrowRightIcon,
-  ArrowSquareOutIcon,
-  ArrowsClockwiseIcon,
-  BriefcaseIcon,
-  CheckCircleIcon,
+  ExternalLinkIcon,
+  RefreshCwIcon,
+  BriefcaseBusinessIcon,
+  CircleCheckIcon,
   CopyIcon,
   CrownIcon,
   EyeIcon,
-  FloppyDiskIcon,
+  SaveIcon,
   GROUP_ICON,
   InfoIcon,
-  MagnifyingGlassIcon,
+  SearchIcon,
   PackageIcon,
-  PaperPlaneTiltIcon,
-  PencilSimpleIcon,
+  SendIcon,
+  PencilIcon,
   PLACEMENT_ICON,
   PlusIcon,
-  SquaresFourIcon,
-  WarningCircleIcon,
+  LayoutGridIcon,
+  CircleAlertIcon,
   XIcon,
   ctorGlyph,
   ctorIcon,
@@ -340,7 +340,7 @@ function RailPanel({ status, onStatus, celebrate }: { status: string; onStatus: 
           >
             {t("sx.kit.next")}
           </SxButton>
-          <SxButton variant="ghost" size="sm" icon={ArrowCounterClockwiseIcon} onClick={() => onStatus("draft")} aiId={aiId(AI, "status", "restart")}>
+          <SxButton variant="ghost" size="sm" icon={RotateCcwIcon} onClick={() => onStatus("draft")} aiId={aiId(AI, "status", "restart")}>
             {t("sx.kit.restart")}
           </SxButton>
         </div>
@@ -408,8 +408,8 @@ function ButtonsPanel() {
   const t = useTranslations("studio");
   const [busy, pulse] = useBusyPulse(1400);
   const rows: readonly { variant: SxButtonVariant; icon: SxIcon; text: string }[] = [
-    { variant: "primary", icon: PaperPlaneTiltIcon, text: t("sx.kit.send") },
-    { variant: "secondary", icon: FloppyDiskIcon, text: t("sx.ui.save") },
+    { variant: "primary", icon: SendIcon, text: t("sx.kit.send") },
+    { variant: "secondary", icon: SaveIcon, text: t("sx.ui.save") },
     { variant: "ghost", icon: XIcon, text: t("sx.ui.cancel") },
     { variant: "danger", icon: ArchiveIcon, text: t("sx.ui.archive") },
   ];
@@ -439,13 +439,13 @@ function ButtonsPanel() {
           </div>
         ))}
         <div className="sx-kit-row">
-          <SxLinkButton size="sm" icon={ArrowSquareOutIcon} href={`/admin/studio/c/${PROMO}`} aiId={aiId(AI, "btn", "link")}>
+          <SxLinkButton size="sm" icon={ExternalLinkIcon} href={`/admin/studio/c/${PROMO}`} aiId={aiId(AI, "btn", "link")}>
             {t("sx.ui.open")}
           </SxLinkButton>
-          <IconButton className="sx-ibtn" label={t("sx.ui.edit")} icon={glyph(PencilSimpleIcon)} aiId={aiId(AI, "btn", "icon", "edit")} />
+          <IconButton className="sx-ibtn" label={t("sx.ui.edit")} icon={glyph(PencilIcon)} aiId={aiId(AI, "btn", "icon", "edit")} />
           <IconButton className="sx-ibtn" label={t("sx.ui.clone")} icon={glyph(CopyIcon)} aiId={aiId(AI, "btn", "icon", "clone")} />
           <IconButton className="sx-ibtn" variant="danger" label={t("sx.ui.archive")} icon={glyph(ArchiveIcon)} aiId={aiId(AI, "btn", "icon", "archive")} />
-          <IconButton className="sx-ibtn" size="sm" label={t("sx.ui.edit")} icon={glyph(PencilSimpleIcon)} aiId={aiId(AI, "btn", "icon", "edit-sm")} />
+          <IconButton className="sx-ibtn" size="sm" label={t("sx.ui.edit")} icon={glyph(PencilIcon)} aiId={aiId(AI, "btn", "icon", "edit-sm")} />
           <Menu label={t("sx.ui.more")} className="sx-pop sx-menu" triggerClassName="sx-ibtn" icon={moreGlyph()} items={more} aiId={aiId(AI, "btn", "menu")} />
         </div>
       </div>
@@ -727,7 +727,7 @@ function PickersPanel() {
   );
   const planOptions: SxOption[] = PLAN_SLUGS.map((slug) => ({ value: slug, label: labels.plan(slug), icon: CrownIcon }));
   const loaders = useMemo(() => {
-    const toOption = (s: Service): SxOption => ({ value: s.id, label: s.name, description: `${s.category} · ${labels.money(s.price)}`, icon: BriefcaseIcon });
+    const toOption = (s: Service): SxOption => ({ value: s.id, label: s.name, description: `${s.category} · ${labels.money(s.price)}`, icon: BriefcaseBusinessIcon });
     return {
       load: (query: string, signal: AbortSignal) => later(() => SERVICES.filter((s) => matchesSearch(`${s.name} ${s.category}`, query)).map(toOption), LOAD_MS, signal),
       resolve: (values: readonly string[], signal: AbortSignal) => later(() => SERVICES.filter((s) => values.includes(s.id)).map(toOption), 120, signal),
@@ -767,7 +767,7 @@ function PickersPanel() {
               label={serviceLabel}
               loadOptions={loaders.load}
               resolveOptions={loaders.resolve}
-              leadingIcon={BriefcaseIcon}
+              leadingIcon={BriefcaseBusinessIcon}
               value={service}
               onChange={setService}
               aiId={aiId(AI, "pick", "async")}
@@ -1038,10 +1038,10 @@ function PackagesPanel() {
           view === "error" ? (
             <SxEmpty
               tone="error"
-              icon={WarningCircleIcon}
+              icon={CircleAlertIcon}
               title={t("sx.ui.loadFail")}
               action={
-                <SxButton size="sm" icon={ArrowsClockwiseIcon} busy={busy} onClick={pulse} aiId={aiId(AI, "table", "retry")}>
+                <SxButton size="sm" icon={RefreshCwIcon} busy={busy} onClick={pulse} aiId={aiId(AI, "table", "retry")}>
                   {t("sx.ui.retry")}
                 </SxButton>
               }
@@ -1063,10 +1063,10 @@ function PackagesPanel() {
           ) : (
             <SxEmpty
               compact
-              icon={MagnifyingGlassIcon}
+              icon={SearchIcon}
               title={t("sx.table.noMatch")}
               action={
-                <SxButton variant="ghost" size="sm" icon={ArrowCounterClockwiseIcon} onClick={reset} aiId={aiId(AI, "table", "reset")}>
+                <SxButton variant="ghost" size="sm" icon={RotateCcwIcon} onClick={reset} aiId={aiId(AI, "table", "reset")}>
                   {t("sx.table.reset")}
                 </SxButton>
               }
@@ -1140,14 +1140,14 @@ function EmptiesPanel() {
             </SxButton>
           }
         />
-        <SxEmpty icon={MagnifyingGlassIcon} title={t("sx.table.noMatch")} text={t("sx.kit.noMatchText")} />
+        <SxEmpty icon={SearchIcon} title={t("sx.table.noMatch")} text={t("sx.kit.noMatchText")} />
         <SxEmpty
           tone="error"
-          icon={WarningCircleIcon}
+          icon={CircleAlertIcon}
           title={t("sx.ui.errorTitle")}
           text={t("sx.ui.loadFail")}
           action={
-            <SxButton icon={ArrowsClockwiseIcon} busy={busy} onClick={pulse} aiId={aiId(AI, "empty", "retry")}>
+            <SxButton icon={RefreshCwIcon} busy={busy} onClick={pulse} aiId={aiId(AI, "empty", "retry")}>
               {t("sx.ui.retry")}
             </SxButton>
           }
@@ -1183,7 +1183,7 @@ function NotesPanel() {
           tone="error"
           title={t("sx.ui.errorTitle")}
           action={
-            <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} busy={busy} onClick={pulse} aiId={aiId(AI, "note", "retry")}>
+            <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} busy={busy} onClick={pulse} aiId={aiId(AI, "note", "retry")}>
               {t("sx.ui.retry")}
             </SxButton>
           }
@@ -1196,7 +1196,7 @@ function NotesPanel() {
           </SxNote>
         ) : (
           <div className="sx-kit-row">
-            <SxButton variant="ghost" size="sm" icon={ArrowCounterClockwiseIcon} onClick={() => setShown(true)} aiId={aiId(AI, "note", "restore")}>
+            <SxButton variant="ghost" size="sm" icon={RotateCcwIcon} onClick={() => setShown(true)} aiId={aiId(AI, "note", "restore")}>
               {t("sx.rep.undo")}
             </SxButton>
           </div>
@@ -1380,10 +1380,10 @@ function PolicyPanel() {
       lead={t("sx.form.lab.note")}
       actions={
         <>
-          <SxButton size="sm" variant="ghost" icon={ArrowCounterClockwiseIcon} onClick={reset} aiId={aiId(AI, "policy", "reset")}>
+          <SxButton size="sm" variant="ghost" icon={RotateCcwIcon} onClick={reset} aiId={aiId(AI, "policy", "reset")}>
             {t("sx.form.lab.reset")}
           </SxButton>
-          <SxButton size="sm" icon={CheckCircleIcon} onClick={policy.markSubmitted} aiId={aiId(AI, "policy", "check")}>
+          <SxButton size="sm" icon={CircleCheckIcon} onClick={policy.markSubmitted} aiId={aiId(AI, "policy", "check")}>
             {t("sx.form.lab.check")}
           </SxButton>
         </>
@@ -1512,9 +1512,9 @@ export function KitPreview(): ReactElement {
   );
 
   const moreItems: MenuEntry[] = [
-    ...(phone ? [{ key: "save", label: t("sx.ui.save"), icon: glyph(FloppyDiskIcon, { size: 16 }), disabled: noWrites, aiId: aiId(AI, "more", "save") }] : []),
+    ...(phone ? [{ key: "save", label: t("sx.ui.save"), icon: glyph(SaveIcon, { size: 16 }), disabled: noWrites, aiId: aiId(AI, "more", "save") }] : []),
     { key: "guide", label: t("sx.guide.title"), icon: glyph(InfoIcon, { size: 16 }), onSelect: () => setGuide(true), aiId: aiId(AI, "more", "guide") },
-    { key: "page", label: t("sx.kit.page"), icon: glyph(SquaresFourIcon, { size: 16 }), onSelect: () => setView("page"), aiId: aiId(AI, "more", "page") },
+    { key: "page", label: t("sx.kit.page"), icon: glyph(LayoutGridIcon, { size: 16 }), onSelect: () => setView("page"), aiId: aiId(AI, "more", "page") },
     { kind: "separator", key: "sep-theme" },
     { kind: "heading", key: "theme", label: t("sx.kit.theme") },
     { key: "light", label: t("sx.kit.light"), checked: theme === "light", onSelect: () => setThemePref("light"), aiId: aiId(AI, "more", "light") },
@@ -1527,7 +1527,7 @@ export function KitPreview(): ReactElement {
     <>
       {phone ? null : (
         <>
-          <SxButton icon={FloppyDiskIcon} aria-disabled title={noWrites} aria-describedby={saveWhyId} aiId={aiId(AI, "save")}>
+          <SxButton icon={SaveIcon} aria-disabled title={noWrites} aria-describedby={saveWhyId} aiId={aiId(AI, "save")}>
             {t("sx.ui.save")}
           </SxButton>
           <span id={saveWhyId} className="sx-vh">

@@ -339,7 +339,8 @@
   height: 16px;
   border-radius: 50%;
   background: var(--sx-surface);
-  transition: transform var(--sx-fast) var(--sx-ease);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .25);
+  transition: transform 300ms var(--sx-spring, var(--sx-ease));
 }
 .sx-switch:hover .sx-switch__track {
   background: color-mix(in srgb, var(--sx-control-line) 55%, var(--sx-muted));
@@ -608,7 +609,8 @@ html[data-theme="dark"] .sx-switch:disabled[aria-checked="true"] .sx-switch__thu
   border-radius: var(--sx-r);
   box-shadow: var(--sx-pop);
   font: 400 14px/20px var(--sx-font);
-  animation: sx-form-in var(--sx-fast) var(--sx-ease);
+  transform-origin: top center;
+  animation: sx-pop-open 180ms var(--sx-ease);
 }
 .sx-picker__pop:focus {
   outline: none;
@@ -1550,5 +1552,14 @@ html[data-theme="dark"] .sx-picker__scrim {
   .sx-tags:focus-within {
     outline: 2px solid CanvasText;
     outline-offset: 1px;
+  }
+}
+
+.sx-picker__opt[aria-selected="true"] .sx-picker__check > svg {
+  animation: sx-check-pop 260ms var(--sx-spring, var(--sx-ease)) backwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-picker__opt[aria-selected="true"] .sx-picker__check > svg {
+    animation: none;
   }
 }

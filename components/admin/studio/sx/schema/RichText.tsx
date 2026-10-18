@@ -8,7 +8,7 @@ import { useTranslations } from "next-intl";
 import IconButton from "@/components/ui/IconButton";
 import { aiId as makeAiId } from "@/lib/ai/ids";
 import { SxButton } from "../Button";
-import { EyeIcon, LinkSimpleIcon, ListBulletsIcon, PencilSimpleIcon, TextBIcon, TextHTwoIcon, TextItalicIcon, TextUnderlineIcon, glyph } from "../icons";
+import { EyeIcon, LinkIcon, ListIcon, PencilIcon, BoldIcon, Heading2Icon, ItalicIcon, UnderlineIcon, glyph } from "../icons";
 import { TextArea } from "../form/TextArea";
 import type { SxIcon } from "../types";
 
@@ -46,12 +46,12 @@ export function sanitizeHtml(html: string): string {
 type Tool = { key: string; icon: SxIcon; open: string; close: string };
 
 const TOOLS: readonly Tool[] = [
-  { key: "bold", icon: TextBIcon, open: "<b>", close: "</b>" },
-  { key: "italic", icon: TextItalicIcon, open: "<i>", close: "</i>" },
-  { key: "underline", icon: TextUnderlineIcon, open: "<u>", close: "</u>" },
-  { key: "list", icon: ListBulletsIcon, open: "<ul>\n<li>", close: "</li>\n</ul>" },
-  { key: "heading", icon: TextHTwoIcon, open: "<h4>", close: "</h4>" },
-  { key: "link", icon: LinkSimpleIcon, open: '<a href="https://">', close: "</a>" },
+  { key: "bold", icon: BoldIcon, open: "<b>", close: "</b>" },
+  { key: "italic", icon: ItalicIcon, open: "<i>", close: "</i>" },
+  { key: "underline", icon: UnderlineIcon, open: "<u>", close: "</u>" },
+  { key: "list", icon: ListIcon, open: "<ul>\n<li>", close: "</li>\n</ul>" },
+  { key: "heading", icon: Heading2Icon, open: "<h4>", close: "</h4>" },
+  { key: "link", icon: LinkIcon, open: '<a href="https://">', close: "</a>" },
 ];
 
 export type RichTextProps = {
@@ -145,7 +145,7 @@ export function RichText({
         <SxButton
           variant="ghost"
           size="sm"
-          icon={preview ? PencilSimpleIcon : EyeIcon}
+          icon={preview ? PencilIcon : EyeIcon}
           aria-pressed={preview}
           onClick={() => setPreview((p) => !p)}
           aiId={aiId ? makeAiId(aiId, "rt", "preview") : undefined}

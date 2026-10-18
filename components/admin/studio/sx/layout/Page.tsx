@@ -2,15 +2,15 @@
 
 import "../sx-core.css";
 import "../sx-layout.css";
-import { useEffect, useRef, type ReactElement, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { aiId as aiIdOf } from "@/lib/ai/ids";
 import { recheckStudio, studioErrorOf, useStudioAccess, type StudioAccess } from "@/lib/services/studio";
 import { useScrollEdges } from "@/lib/useScrollEdges";
 import { SxButton } from "../Button";
-import { ArrowLeftIcon, ArrowsClockwiseIcon, CaretRightIcon, LockSimpleIcon, StackIcon, SxIconScope, glyph } from "../icons";
-import { STUDIO_NAV_LINE } from "../lineIcons";
+import { prefersReducedMotion } from "../hooks";
+import { ArrowLeftIcon, RefreshCwIcon, ChevronRightIcon, LockIcon, LayersIcon, NAV_ICON, SxIconScope, glyph } from "../icons";
 import type { SxCrumb, SxNeed, SxSection } from "../types";
 import { SxEmpty } from "./Empty";
 import { SxNote } from "./Note";
@@ -60,12 +60,67 @@ export function gateOf(acc: Pick<StudioAccess, "avail" | "error" | "any" | "canE
   return allowedBy(acc, need) ? "open" : "denied";
 }
 
+type Ink = { x: number; w: number };
+
+let lastInk: Ink | null = null;
+
 function StudioNav({ section, acc, checking, base }: { section: SxSection | null; acc: StudioAccess; checking: boolean; base: string }) {
   const t = useTranslations("studio");
   const pathname = usePathname();
   const list = useRef<HTMLUListElement>(null);
+  const ink = useRef<HTMLLIElement>(null);
   useScrollEdges(list, { silent: true });
   const items = NAV.filter((n) => allowedBy(acc, n.need));
+  const inkKey = `${checking ? "wait" : "ready"}|${section ?? ""}|${items.map((n) => n.key).join(",")}`;
+  useLayoutEffect(() => {
+    const ul = list.current;
+    const bar = ink.current;
+    if (!ul || !bar) return;
+    const nav = ul.parentElement;
+    const read = (): Ink | null => {
+      const cur = ul.querySelector<HTMLElement>(".sx-nav__link[aria-current]");
+      return cur ? { x: cur.offsetLeft + 10, w: Math.max(0, cur.offsetWidth - 20) } : null;
+    };
+    const put = (v: Ink) => {
+      bar.style.setProperty("--ink-x", `${v.x}px`);
+      bar.style.setProperty("--ink-w", `${v.w}px`);
+    };
+    const target = read();
+    if (!target) {
+      nav?.removeAttribute("data-ink");
+      bar.setAttribute("data-off", "");
+      return;
+    }
+    bar.removeAttribute("data-off");
+    nav?.setAttribute("data-ink", "");
+    const from = lastInk;
+    if (from && !prefersReducedMotion() && (from.x !== target.x || from.w !== target.w)) {
+      bar.setAttribute("data-still", "");
+      put(from);
+      bar.getBoundingClientRect();
+      bar.removeAttribute("data-still");
+    }
+    put(target);
+    lastInk = target;
+    let frame = 0;
+    const ro =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            const next = read();
+            if (!next) return;
+            bar.setAttribute("data-still", "");
+            put(next);
+            lastInk = next;
+            cancelAnimationFrame(frame);
+            frame = requestAnimationFrame(() => bar.removeAttribute("data-still"));
+          });
+    ro?.observe(ul);
+    return () => {
+      ro?.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [inkKey]);
   const here = pathname.replace(/\/+$/, "") || "/";
   if (checking) {
     return (
@@ -87,7 +142,7 @@ function StudioNav({ section, acc, checking, base }: { section: SxSection | null
         {items.map((n) => {
           const label = t(`sx.nav.${n.key}`);
           const current = section === n.key;
-          const NavGlyph = STUDIO_NAV_LINE[n.key];
+          const NavGlyph = NAV_ICON[n.key];
           return (
             <li key={n.key}>
               <Link
@@ -98,12 +153,13 @@ function StudioNav({ section, acc, checking, base }: { section: SxSection | null
                 data-ai-type="tab"
                 data-ai-label={label}
               >
-                <NavGlyph width={16} height={16} />
+                <NavGlyph size={16} aria-hidden="true" />
                 <span>{label}</span>
               </Link>
             </li>
           );
         })}
+        <li ref={ink} className="sx-nav__ink" role="presentation" aria-hidden="true" />
       </ul>
     </nav>
   );
@@ -126,7 +182,7 @@ function Crumbs({ crumbs, inline, base }: { crumbs: readonly SxCrumb[]; inline: 
               ) : (
                 <span className="sx-crumbs__text">{c.label}</span>
               )}
-              {!last || inline ? glyph(CaretRightIcon, { size: 12, className: "sx-crumbs__sep" }) : null}
+              {!last || inline ? glyph(ChevronRightIcon, { size: 12, className: "sx-crumbs__sep" }) : null}
             </li>
           );
         })}
@@ -186,11 +242,11 @@ function Gate({ gate, acc }: { gate: Exclude<SxGate, "open" | "checking">; acc: 
   if (gate === "off") {
     return (
       <SxEmpty
-        icon={StackIcon}
+        icon={LayersIcon}
         title={t("sx.gate.offTitle")}
         text={t("sx.gate.offText")}
         action={
-          <SxButton variant="secondary" icon={ArrowsClockwiseIcon} onClick={() => void recheckStudio()} aiId="admin.studio.gate.recheck">
+          <SxButton variant="secondary" icon={RefreshCwIcon} onClick={() => void recheckStudio()} aiId="admin.studio.gate.recheck">
             {t("sx.gate.offAction")}
           </SxButton>
         }
@@ -203,7 +259,7 @@ function Gate({ gate, acc }: { gate: Exclude<SxGate, "open" | "checking">; acc: 
         tone="error"
         title={t("sx.ui.errorTitle")}
         action={
-          <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={() => void acc.reload()} aiId="admin.studio.gate.retry">
+          <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={() => void acc.reload()} aiId="admin.studio.gate.retry">
             {t("sx.ui.retry")}
           </SxButton>
         }
@@ -212,7 +268,7 @@ function Gate({ gate, acc }: { gate: Exclude<SxGate, "open" | "checking">; acc: 
       </SxNote>
     );
   }
-  return <SxEmpty icon={LockSimpleIcon} title={t("sx.gate.deniedTitle")} text={t("sx.gate.deniedText")} />;
+  return <SxEmpty icon={LockIcon} title={t("sx.gate.deniedTitle")} text={t("sx.gate.deniedText")} />;
 }
 
 export function SxPage({

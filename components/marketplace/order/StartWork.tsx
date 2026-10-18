@@ -11,7 +11,7 @@ import { marketChatHref, marketPhaseOf, type MarketOrder } from "@/lib/services/
 import { marketErrorInfo, startMarketOrder, type OrderStart, type RuntimeConfig } from "@/lib/services/marketRuntime";
 import { useMarketError } from "../useMarketError";
 import { useDurationText } from "./OrderFacts";
-import { ChatCircleTextIcon, RocketLaunchIcon } from "./icons";
+import { MessageSquareTextIcon, RocketIcon } from "./icons";
 
 export default function StartWork({ o, aiBase, runtime, onStarted, onRefresh }: { o: MarketOrder; aiBase: string; runtime: RuntimeConfig | null; onStarted: (r: OrderStart) => void; onRefresh?: () => void }): ReactElement | null {
   const t = useTranslations("marketplace.orderDetail.start");
@@ -34,7 +34,7 @@ export default function StartWork({ o, aiBase, runtime, onStarted, onRefresh }: 
         title={t("doneTitle")}
         action={
           roomId ? (
-            <SxLinkButton variant="primary" size="sm" icon={ChatCircleTextIcon} href={marketChatHref({ roomId, workId: o.workId, serviceTitle: o.serviceTitle })} aiId={`${aiBase}.start.chat`}>
+            <SxLinkButton variant="primary" size="sm" icon={MessageSquareTextIcon} href={marketChatHref({ roomId, workId: o.workId, serviceTitle: o.serviceTitle })} aiId={`${aiBase}.start.chat`}>
               {to("openChat")}
             </SxLinkButton>
           ) : undefined
@@ -79,7 +79,7 @@ export default function StartWork({ o, aiBase, runtime, onStarted, onRefresh }: 
     <SxPanel title={t("title")} lead={t("lead")} className="mod-start" aiId={`${aiBase}.start-panel`}>
       {durationLine ? <p className="mod-start__duration">{t("duration", { duration: durationLine })}</p> : null}
       <div className="mod-start__acts">
-        <SxButton variant="primary" icon={RocketLaunchIcon} onClick={() => setOpen(true)} aiId={`${aiBase}.start`}>
+        <SxButton variant="primary" icon={RocketIcon} onClick={() => setOpen(true)} aiId={`${aiBase}.start`}>
           {t("button")}
         </SxButton>
       </div>
@@ -94,7 +94,7 @@ export default function StartWork({ o, aiBase, runtime, onStarted, onRefresh }: 
         aiId={`${aiBase}.start-modal`}
         footer={
           <>
-            <SxButton variant="primary" className="mod-start__confirm" icon={RocketLaunchIcon} busy={busy} onClick={() => void run()} aiId={`${aiBase}.start.confirm`}>
+            <SxButton variant="primary" className="mod-start__confirm" icon={RocketIcon} busy={busy} onClick={() => void run()} aiId={`${aiBase}.start.confirm`}>
               {busy ? t("starting") : t("confirm")}
             </SxButton>
             <SxButton variant="ghost" disabled={busy} onClick={close}>

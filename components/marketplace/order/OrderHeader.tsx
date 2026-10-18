@@ -13,18 +13,17 @@ import { deadlineOf } from "./deadline";
 import { useDurationText } from "./OrderFacts";
 import {
   ArrowLeftIcon,
-  ArrowsClockwiseIcon,
-  CheckCircleIcon,
-  ClockCountdownIcon,
-  CoinsIcon,
-  HourglassMediumIcon,
-  LockSimpleIcon,
-  PauseCircleIcon,
-  ProhibitIcon,
-  RocketLaunchIcon,
-  StarIcon,
+  RefreshCwIcon,
+  CircleCheckIcon,
   TimerIcon,
-  WarningCircleIcon,
+  CoinsIcon,
+  HourglassIcon,
+  LockIcon,
+  CirclePauseIcon,
+  BanIcon,
+  RocketIcon,
+  StarIcon,
+  CircleAlertIcon,
   glyph,
 } from "./icons";
 import type { OrderView } from "./types";
@@ -42,13 +41,13 @@ const PHASE_TONE: Readonly<Record<MarketPhase, Tone>> = {
 };
 
 const PHASE_ICON: Readonly<Record<MarketPhase, SxIcon>> = {
-  pending: HourglassMediumIcon,
+  pending: HourglassIcon,
   paid: CoinsIcon,
-  in_progress: RocketLaunchIcon,
-  review: PauseCircleIcon,
-  completed: CheckCircleIcon,
+  in_progress: RocketIcon,
+  review: CirclePauseIcon,
+  completed: CircleCheckIcon,
   rated: StarIcon,
-  cancelled: ProhibitIcon,
+  cancelled: BanIcon,
 };
 
 const STEPS = ["created", "paid", "work", "done", "rated"] as const;
@@ -79,7 +78,7 @@ function StepRail({ phase }: { phase: MarketPhase }): ReactElement {
         return (
           <li key={s} className="mod-rail__step" data-state={state} aria-current={i === at ? "step" : undefined}>
             <span className="mod-rail__dot" aria-hidden="true">
-              {state === "done" ? glyph(CheckCircleIcon, { size: 14, weight: "fill" }) : state === "paused" ? glyph(PauseCircleIcon, { size: 14, weight: "fill" }) : null}
+              {state === "done" ? glyph(CircleCheckIcon, { size: 14, strokeWidth: 2.25 }) : state === "paused" ? glyph(CirclePauseIcon, { size: 14, strokeWidth: 2.25 }) : null}
             </span>
             <span className="mod-rail__label">
               {t(s)}
@@ -110,11 +109,11 @@ export function DeadlineStrip({ o, phase, runtime }: { o: MarketOrder; phase: Ma
     if (!due) return null;
     main = due;
   } else if (info.kind === "waiting") {
-    icon = ClockCountdownIcon;
+    icon = TimerIcon;
     main = t("waitingShort");
     hint = durationText(info.duration);
   } else if (info.kind === "paused") {
-    icon = PauseCircleIcon;
+    icon = CirclePauseIcon;
     tone = "paused";
     main = t("paused");
     if (Number.isFinite(info.leftMs) && info.leftMs > 0) {
@@ -126,7 +125,7 @@ export function DeadlineStrip({ o, phase, runtime }: { o: MarketOrder; phase: Ma
       hint = t("pausedLeft", { time });
     } else hint = t("pausedText");
   } else if (info.kind === "overdue") {
-    icon = WarningCircleIcon;
+    icon = CircleAlertIcon;
     tone = "returned";
     main = t("overdue");
     hint = info.overdueMs >= DAY_MS ? t("overdueDays", { n: Math.floor(info.overdueMs / DAY_MS) }) : t("overdueHours", { n: Math.max(1, Math.floor(info.overdueMs / HOUR_MS)) });
@@ -187,7 +186,7 @@ export default function OrderHeader({
         <SxLinkButton variant="ghost" size="sm" icon={ArrowLeftIcon} href={listHref} aiId={`${aiBase}.back`}>
           {view === "client" ? t("backClient") : t("backSeller")}
         </SxLinkButton>
-        <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} busy={refreshing} onClick={onRefresh} aiId={`${aiBase}.refresh`}>
+        <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} busy={refreshing} onClick={onRefresh} aiId={`${aiBase}.refresh`}>
           {t("refresh")}
         </SxButton>
       </div>
@@ -216,7 +215,7 @@ export default function OrderHeader({
       </div>
       {locked ? (
         <p className="mod-lock">
-          {glyph(LockSimpleIcon, { size: 16 })}
+          {glyph(LockIcon, { size: 16 })}
           <span>
             {t("actions.chatReadOnly")}
             {!o.callsAllowed ? ` ${t("actions.callsOff")}` : ""}

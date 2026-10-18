@@ -129,9 +129,6 @@ html :where(.sx, .sx-pop, .amodal__c:has(.sx-dw)) h4 { font-size: 13px; line-hei
   border-radius: 2px;
   cursor: pointer;
 }
-@media (hover: hover) {
-  .sx-link:hover { text-decoration-thickness: 2px; }
-}
 
 .sx-code {
   display: inline-block;
@@ -770,5 +767,130 @@ html :where(.sx, .sx-pop, .amodal__c:has(.sx-dw)) h4 { font-size: 13px; line-hei
   .sx-spin {
     animation: none !important;
     opacity: .6;
+  }
+}
+
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) {
+  --sx-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --sx-lift-shadow: 0 14px 30px -16px rgba(15, 23, 42, .32), 0 2px 6px rgba(15, 23, 42, .05);
+}
+html[data-theme="dark"] :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) {
+  --sx-lift-shadow: 0 18px 36px -16px rgba(0, 0, 0, .72), 0 0 0 1px rgba(122, 169, 255, .1);
+}
+
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn {
+  transition: background-color var(--sx-fast) var(--sx-ease), border-color var(--sx-fast) var(--sx-ease), color var(--sx-fast) var(--sx-ease), box-shadow var(--sx-mid) var(--sx-ease), transform var(--sx-fast) var(--sx-ease);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn > svg {
+  transition: transform var(--sx-mid) var(--sx-ease);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) :is(.sx-btn, .ibtn.sx-ibtn) {
+  transition-property: background-color, border-color, color, box-shadow, transform;
+  transition-duration: var(--sx-fast);
+  transition-timing-function: var(--sx-ease);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) :is(.sx-btn, .ibtn.sx-ibtn):active:not(:disabled):not([aria-disabled="true"]) {
+  transform: scale(.96);
+  transition-duration: 80ms;
+}
+@media (hover: hover) and (pointer: fine) {
+  :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--primary:not(:disabled, [aria-disabled="true"]):hover {
+    box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--sx-accent) 70%, transparent);
+  }
+  :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn:not(:disabled, [aria-disabled="true"]):hover > svg:last-child:not(:first-child) {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes sx-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+@keyframes sx-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes sx-zoom-in {
+  from {
+    opacity: 0;
+    transform: scale(.96);
+  }
+}
+@keyframes sx-pop-open {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(.97);
+  }
+}
+@keyframes sx-check-pop {
+  from {
+    opacity: 0;
+    transform: scale(.3);
+  }
+}
+@keyframes sx-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.sx .sx-enter {
+  animation: sx-rise var(--sx-slow) var(--sx-ease) backwards;
+  animation-delay: calc(min(var(--i, 0), 14) * 40ms);
+}
+.sx .sx-enter[data-enter="fade"] {
+  animation-name: sx-fade-in;
+}
+.sx .sx-enter[data-enter="zoom"] {
+  animation-name: sx-zoom-in;
+}
+.sx-page > .sx-head,
+.sx-page > .sx-page__below {
+  animation: sx-fade-in var(--sx-mid) var(--sx-ease) backwards;
+}
+.sx-page__body > * {
+  animation: sx-rise var(--sx-slow) var(--sx-ease) backwards;
+}
+.sx-page__body > :nth-child(2) {
+  animation-delay: 60ms;
+}
+.sx-page__body > :nth-child(n + 3) {
+  animation-delay: 120ms;
+}
+
+.sx .sx-lift {
+  transition: transform var(--sx-mid) var(--sx-ease), box-shadow var(--sx-mid) var(--sx-ease), border-color var(--sx-fast) var(--sx-ease), background-color var(--sx-fast) var(--sx-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sx .sx-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--sx-lift-shadow);
+  }
+}
+.sx .sx-lift:active {
+  transform: translateY(-1px) scale(.995);
+}
+
+.sx-menu.umenu-pop {
+  transform-origin: top center;
+  animation: sx-pop-open 180ms var(--sx-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sx .sx-enter,
+  .sx-page > .sx-head,
+  .sx-page > .sx-page__below,
+  .sx-page__body > *,
+  .sx-menu.umenu-pop {
+    animation: none !important;
+  }
+  .sx .sx-lift,
+  .sx .sx-lift:hover,
+  .sx .sx-lift:active,
+  :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) :is(.sx-btn, .ibtn.sx-ibtn):active {
+    transform: none !important;
   }
 }

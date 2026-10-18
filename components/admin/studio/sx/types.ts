@@ -1,6 +1,6 @@
-import type { Icon } from "@phosphor-icons/react/dist/lib/types";
+import type { LucideIcon } from "lucide-react";
 
-export type SxIcon = Icon;
+export type SxIcon = LucideIcon;
 export type SxLocale = "uz" | "ru" | "en";
 export type SxTone = "draft" | "submitted" | "review" | "approved" | "published" | "returned" | "archived";
 export type SxStage = "draft" | "submitted" | "in_review" | "approved" | "published";

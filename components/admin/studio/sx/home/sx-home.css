@@ -251,16 +251,8 @@
   .sx-gcard:not([data-sk]):hover .sx-gtile {
     background: var(--hue-4, var(--sx-surface-2));
   }
-  .sx .sx-gcard__link:hover {
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
-  }
   .sx .sx-gcard__need:hover {
     color: var(--sx-ink);
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
   }
 }
 .sx-gcard:focus-within {
@@ -306,11 +298,6 @@
 @media (hover: hover) {
   .sx .sx-hrow:hover {
     background: var(--sx-surface-2);
-  }
-  .sx .sx-hrow:hover .sx-hrow__title {
-    text-decoration: underline;
-    text-decoration-thickness: 1px;
-    text-underline-offset: 3px;
   }
 }
 .sx-hrow__icon {

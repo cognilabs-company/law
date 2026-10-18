@@ -16,11 +16,14 @@
   block-size: 100%;
   border-radius: inherit;
   background: var(--hue-bar, var(--sx-accent));
+  transform-origin: left center;
   transition: inline-size var(--sx-mid) var(--sx-ease);
+  animation: sx-grow-x 800ms var(--sx-ease) 120ms backwards;
 }
 @media (prefers-reduced-motion: reduce) {
   .sx-progress > i {
     transition: none;
+    animation: none;
   }
 }
 @media (forced-colors: active) {
@@ -34,4 +37,56 @@
 
 .sx-sj {
   min-width: 0;
+}
+
+.sx-ring {
+  position: relative;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  inline-size: var(--ring-size);
+  block-size: var(--ring-size);
+}
+.sx-ring > svg {
+  display: block;
+  overflow: visible;
+}
+.sx-ring__track {
+  stroke: var(--hue-4, var(--sx-line));
+}
+.sx-ring__bar {
+  stroke: var(--hue-bar, var(--sx-accent));
+  transition: stroke-dashoffset var(--sx-slow) var(--sx-ease);
+  animation: sx-ring-in 1100ms var(--sx-ease) 150ms backwards;
+}
+.sx-ring__bar[data-empty] {
+  opacity: 0;
+}
+.sx-ring__center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--sx-ink);
+  font: 700 13px/1 var(--sx-font);
+  font-variant-numeric: tabular-nums;
+}
+@keyframes sx-ring-in {
+  from {
+    stroke-dashoffset: var(--ring-c);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-ring__bar {
+    transition: none;
+    animation: none;
+  }
+}
+@media (forced-colors: active) {
+  .sx-ring__bar {
+    stroke: Highlight;
+  }
+  .sx-ring__track {
+    stroke: CanvasText;
+  }
 }

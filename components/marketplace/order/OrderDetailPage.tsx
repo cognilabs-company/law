@@ -21,7 +21,7 @@ import OrderFacts from "./OrderFacts";
 import OrderHeader from "./OrderHeader";
 import SecondOpinion from "./SecondOpinion";
 import StartWork from "./StartWork";
-import { ArrowLeftIcon, ArrowsClockwiseIcon, ClipboardTextIcon, MagnifyingGlassIcon, SxIconScope, WarningCircleIcon } from "./icons";
+import { ArrowLeftIcon, RefreshCwIcon, ClipboardListIcon, SearchIcon, SxIconScope, CircleAlertIcon } from "./icons";
 import { SECTION_ID, orderAiBase, type OrderSectionProps, type OrderView } from "./types";
 import { useOrderDetail, type OrderDetail } from "./useOrderDetail";
 
@@ -139,7 +139,7 @@ function Sections({ d, o, phase, view, aiBase, listHref }: { d: OrderDetail; o: 
       cancel,
       client ? (
         <div key="find" className="mod-find">
-          <SxLinkButton variant="secondary" icon={MagnifyingGlassIcon} href="/portal/client/lawyers" aiId={`${aiBase}.find-other`}>
+          <SxLinkButton variant="secondary" icon={SearchIcon} href="/portal/client/lawyers" aiId={`${aiBase}.find-other`}>
             {t("cancelledFind")}
           </SxLinkButton>
         </div>
@@ -215,7 +215,7 @@ export default function OrderDetailPage({ orderId, view, listHref }: { orderId: 
       body = (
         <div className="mod-empty">
           <SxEmpty
-            icon={ClipboardTextIcon}
+            icon={ClipboardListIcon}
             title={t("missingTitle")}
             text={view === "seller" ? t("missingSeller") : t("missingText")}
             action={
@@ -231,11 +231,11 @@ export default function OrderDetailPage({ orderId, view, listHref }: { orderId: 
     body = (
       <div className="mod-empty">
         <SxEmpty
-          icon={WarningCircleIcon}
+          icon={CircleAlertIcon}
           tone="error"
           title={t("error")}
           action={
-            <SxButton variant="primary" icon={ArrowsClockwiseIcon} onClick={() => d.refresh("all")} aiId={`${aiBase}.retry`}>
+            <SxButton variant="primary" icon={RefreshCwIcon} onClick={() => d.refresh("all")} aiId={`${aiBase}.retry`}>
               {t("retry")}
             </SxButton>
           }

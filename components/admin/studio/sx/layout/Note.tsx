@@ -5,7 +5,7 @@ import "../sx-layout.css";
 import type { ReactElement, ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import IconButton from "@/components/ui/IconButton";
-import { CheckCircleIcon, InfoIcon, WarningCircleIcon, WarningIcon, XIcon, glyph } from "../icons";
+import { CircleCheckIcon, InfoIcon, CircleAlertIcon, TriangleAlertIcon, XIcon, glyph } from "../icons";
 import type { SxIcon, SxNoteTone } from "../types";
 import { cx } from "./util";
 
@@ -23,9 +23,9 @@ export type SxNoteProps = {
 
 const NOTE_ICON: Readonly<Record<SxNoteTone, SxIcon>> = {
   info: InfoIcon,
-  warn: WarningIcon,
-  error: WarningCircleIcon,
-  success: CheckCircleIcon,
+  warn: TriangleAlertIcon,
+  error: CircleAlertIcon,
+  success: CircleCheckIcon,
 };
 
 export function SxNote({ tone, title, children, action, icon, role, onDismiss, id, className }: SxNoteProps): ReactElement {

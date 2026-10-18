@@ -18,7 +18,7 @@ import IconButton from "@/components/ui/IconButton";
 import { aiId as makeAiId } from "@/lib/ai/ids";
 import { notify } from "@/lib/toast";
 import { SxButton } from "../Button";
-import { CaretRightIcon, DotsSixVerticalIcon, PlusIcon, TrashIcon, WarningCircleIcon, glyph } from "../icons";
+import { ChevronRightIcon, GripVerticalIcon, PlusIcon, Trash2Icon, CircleAlertIcon, glyph } from "../icons";
 import { carryRowKey, dropTarget, insertAt, moveItem, removeAt, rowKeys } from "./logic";
 
 export type RepeaterProps<T> = {
@@ -306,7 +306,7 @@ export function Repeater<T>({
                       data-ai-type={aiId ? "button" : undefined}
                       data-ai-label={aiId ? t("sx.rep.move", { name }) : undefined}
                     >
-                      {glyph(DotsSixVerticalIcon, { size: 16 })}
+                      {glyph(GripVerticalIcon, { size: 16 })}
                     </button>
                   )}
                   <span className="sx-rep__idx" aria-hidden="true">
@@ -328,7 +328,7 @@ export function Repeater<T>({
                       data-ai-label={aiId ? name : undefined}
                     >
                       <span className="sx-rep__chev" aria-hidden="true">
-                        {glyph(CaretRightIcon, { size: 14 })}
+                        {glyph(ChevronRightIcon, { size: 14 })}
                       </span>
                       <span className="sx-rep__sum" data-empty={rawSummary ? undefined : ""}>
                         {name}
@@ -342,7 +342,7 @@ export function Repeater<T>({
                   )}
                   {errors > 0 ? (
                     <span className="sx-rep__err">
-                      {glyph(WarningCircleIcon, { size: 14 })}
+                      {glyph(CircleAlertIcon, { size: 14 })}
                       <span aria-hidden="true">{errors}</span>
                       <span className="sx-vh" id={errId}>
                         {t("sx.rep.errors", { n: errors })}
@@ -356,7 +356,7 @@ export function Repeater<T>({
                       className="sx-ibtn sx-rep__remove"
                       size="sm"
                       tip={false}
-                      icon={glyph(TrashIcon, { size: 16 })}
+                      icon={glyph(Trash2Icon, { size: 16 })}
                       label={t("sx.rep.remove", { name })}
                       onClick={() => remove(index)}
                       aiId={aiId ? makeAiId(aiId, index, "remove") : undefined}

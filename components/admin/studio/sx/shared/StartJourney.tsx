@@ -14,7 +14,7 @@ import { useEditorErrorText } from "../editor/useEditorErrorText";
 import { ChoiceCards, type ChoiceCard } from "../form/ChoiceCards";
 import { Field, FormGrid } from "../form/Field";
 import { TextInput } from "../form/TextInput";
-import { BriefcaseIcon, PackageIcon, PlusIcon, RocketLaunchIcon } from "../icons";
+import { BriefcaseBusinessIcon, PackageIcon, PlusIcon, RocketIcon } from "../icons";
 import { creationJourneyHref } from "./journeyLinks";
 
 export const JOURNEY_TITLE_MAX = 200;
@@ -71,7 +71,7 @@ export type StartJourneyFieldsProps = {
 export function StartJourneyFields({ idPrefix, type, onTypeChange, showType, title, onTitleChange, error, onSubmit, autoFocus, aiBase }: StartJourneyFieldsProps): ReactElement {
   const t = useTranslations("studio");
   const options: readonly ChoiceCard[] = [
-    { value: "service", title: t("sx.journeyRun.service"), description: t("sx.journeyRun.serviceWhat"), icon: BriefcaseIcon },
+    { value: "service", title: t("sx.journeyRun.service"), description: t("sx.journeyRun.serviceWhat"), icon: BriefcaseBusinessIcon },
     { value: "package", title: t("sx.journeyRun.package"), description: t("sx.journeyRun.packageWhat"), icon: PackageIcon },
   ];
   const nameLabel = t("sx.journeyRun.name");
@@ -164,7 +164,7 @@ function StartJourneyDialog({ type, label, aiId, onClose }: { type: StudioJourne
           <SxButton variant="secondary" onClick={onClose} disabled={working} aiId={`${modalAi}.cancel`}>
             {t("sx.ui.cancel")}
           </SxButton>
-          <SxButton type="submit" form={formId} variant="primary" icon={RocketLaunchIcon} busy={working} aiId={`${modalAi}.confirm`}>
+          <SxButton type="submit" form={formId} variant="primary" icon={RocketIcon} busy={working} aiId={`${modalAi}.confirm`}>
             {t("sx.journeyRun.start")}
           </SxButton>
         </>

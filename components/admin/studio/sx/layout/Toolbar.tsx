@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { aiId as aiIdOf } from "@/lib/ai/ids";
 import { SxButton } from "../Button";
 import { TextInput } from "../form/TextInput";
-import { ArrowCounterClockwiseIcon, MagnifyingGlassIcon } from "../icons";
+import { RotateCcwIcon, SearchIcon } from "../icons";
 
 export type SxToolbarProps = {
   search?: { value: string; onChange: (v: string) => void; placeholder: string; label: string; aiId?: string };
@@ -33,7 +33,7 @@ export function SxToolbar({ search, children, count, end, active = false, onRese
             onChange={search.onChange}
             placeholder={search.placeholder}
             aria-label={search.label}
-            leading={MagnifyingGlassIcon}
+            leading={SearchIcon}
             enterKeyHint="search"
             aiId={search.aiId ?? aiIdOf(base, "search")}
             aiLabel={search.label}
@@ -45,7 +45,7 @@ export function SxToolbar({ search, children, count, end, active = false, onRese
         {count === undefined || count === null || count === false || count === "" ? null : count}
       </div>
       {active && onReset ? (
-        <SxButton variant="ghost" size="sm" icon={ArrowCounterClockwiseIcon} onClick={onReset} aiId={aiIdOf(base, "reset")}>
+        <SxButton variant="ghost" size="sm" icon={RotateCcwIcon} onClick={onReset} aiId={aiIdOf(base, "reset")}>
           {t("sx.table.reset")}
         </SxButton>
       ) : null}

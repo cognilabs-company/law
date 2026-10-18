@@ -13,7 +13,7 @@ import { STUDIO_PERM_REASSIGN, processOverdueApprovals } from "@/lib/services/st
 import { notify } from "@/lib/toast";
 import { SxButton } from "../Button";
 import { useEditorErrorText } from "../editor/useEditorErrorText";
-import { ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, ClockCountdownIcon, MagnifyingGlassIcon, SealCheckIcon, glyph, moreGlyph } from "../icons";
+import { RotateCcwIcon, RefreshCwIcon, TimerIcon, SearchIcon, BadgeCheckIcon, glyph, moreGlyph } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxPage } from "../layout/Page";
@@ -152,7 +152,7 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
   const canOverdue = (session?.permissions ?? []).includes(STUDIO_PERM_REASSIGN);
   const overflow = canOverdue ? (
     <Menu
-      items={[{ key: "overdue", label: t("sx.appr.overdue.run"), icon: glyph(ClockCountdownIcon, { size: 16 }), onSelect: () => void runOverdue(), aiId: "admin.studio.approvals.process-overdue" }]}
+      items={[{ key: "overdue", label: t("sx.appr.overdue.run"), icon: glyph(TimerIcon, { size: 16 }), onSelect: () => void runOverdue(), aiId: "admin.studio.approvals.process-overdue" }]}
       label={t("sx.ui.more")}
       className="sx-pop sx-menu"
       triggerClassName="sx-ibtn"
@@ -164,7 +164,7 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
   ) : undefined;
 
   const retry = (
-    <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} busy={data.fetching} onClick={data.reload} aiId="admin.studio.approvals.retry">
+    <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} busy={data.fetching} onClick={data.reload} aiId="admin.studio.approvals.retry">
       {t("sx.ui.retry")}
     </SxButton>
   );
@@ -197,7 +197,7 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
   } else if (allEmpty) {
     body = (
       <>
-        <SxEmpty icon={SealCheckIcon} title={t("sx.appr.empty.allTitle")} text={t("sx.appr.empty.allText")} />
+        <SxEmpty icon={BadgeCheckIcon} title={t("sx.appr.empty.allTitle")} text={t("sx.appr.empty.allText")} />
         {doneSection}
       </>
     );
@@ -206,11 +206,11 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
       <>
         <SxEmpty
           compact
-          icon={MagnifyingGlassIcon}
+          icon={SearchIcon}
           title={t("sx.table.noMatch")}
           text={t("sx.appr.empty.filteredText")}
           action={
-            <SxButton variant="secondary" size="sm" icon={ArrowCounterClockwiseIcon} onClick={reset} aiId="admin.studio.approvals.empty.reset">
+            <SxButton variant="secondary" size="sm" icon={RotateCcwIcon} onClick={reset} aiId="admin.studio.approvals.empty.reset">
               {t("sx.table.reset")}
             </SxButton>
           }

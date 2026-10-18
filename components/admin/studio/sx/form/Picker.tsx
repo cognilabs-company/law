@@ -23,7 +23,7 @@ import { isCoarsePointer, nextTabbable, usePopover, type PopoverCloseReason } fr
 import { useSwipeDismiss } from "@/lib/useSwipeDismiss";
 import { SxButton } from "../Button";
 import { useDebouncedValue } from "../hooks";
-import { ArrowsClockwiseIcon, CaretDownIcon, CheckIcon, MagnifyingGlassIcon, XIcon, glyph } from "../icons";
+import { RefreshCwIcon, ChevronDownIcon, CheckIcon, SearchIcon, XIcon, glyph } from "../icons";
 import type { SxIcon, SxOption } from "../types";
 import { useStudioLabels } from "../useStudioLabels";
 import { filterOptions, isNavKey, navIndex, optionRuns, remoteOptions, toggleValue, typeAhead, type OptionPages, type TypeBuffer } from "./logic";
@@ -383,7 +383,7 @@ export function Picker(props: PickerProps): ReactElement {
           </span>
           {selectedCode ? <span className="sx-code">{selectedCode}</span> : null}
           <span className="sx-picker__caret" aria-hidden="true">
-            {glyph(CaretDownIcon, { size: 16 })}
+            {glyph(ChevronDownIcon, { size: 16 })}
           </span>
         </button>
         {clearable ? (
@@ -720,7 +720,7 @@ function PickerPop({
 
   const search = searchable ? (
     <div className="sx-picker__search">
-      {glyph(MagnifyingGlassIcon, { size: 16 })}
+      {glyph(SearchIcon, { size: 16 })}
       <input
         ref={searchRef}
         type="search"
@@ -779,7 +779,7 @@ function PickerPop({
           <SxButton
             variant="ghost"
             size="sm"
-            icon={ArrowsClockwiseIcon}
+            icon={RefreshCwIcon}
             onClick={() => {
               onRetry();
               (searchRef.current ?? listRef.current)?.focus({ preventScroll: true });

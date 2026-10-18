@@ -13,7 +13,7 @@ import { EditorDialogs } from "../editor/EditorDialogs";
 import { useEditorState } from "../editor/useEditorState";
 import { SxFormContext } from "../form/formPolicy";
 import { SxButton } from "../Button";
-import { CheckCircleIcon, CircleDashedIcon, glyph } from "../icons";
+import { CircleCheckIcon, CircleDashedIcon, glyph } from "../icons";
 import { SxNote } from "../layout/Note";
 import { SchemaForm } from "../schema/SchemaForm";
 import { useSchemaModel } from "../schema/useSchemaModel";
@@ -198,7 +198,7 @@ export function WizardReview({ journey, steps, objectId, code, onSubmitted, onGo
         {others.map((s) => (
           <li key={s.key}>
             <button type="button" className="sx-jr-review__step" data-state={s.state === "done" ? "done" : "todo"} onClick={() => onGoStep(s.key)} data-ai-id={`admin.studio.wizard.review.step.${s.key}`} data-ai-type="button" data-ai-label={s.label}>
-              {glyph(s.state === "done" ? CheckCircleIcon : CircleDashedIcon, { size: 16, className: "sx-jr-review__mark" })}
+              {glyph(s.state === "done" ? CircleCheckIcon : CircleDashedIcon, { size: 16, className: "sx-jr-review__mark" })}
               <span className="sx-jr-review__name">{s.label}</span>
               <span className="sx-vh">{t(s.state === "done" ? "sx.guide.done" : "sx.guide.notDone")}</span>
             </button>

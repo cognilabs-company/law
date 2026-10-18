@@ -10,16 +10,16 @@ import { SxButton } from "../../Button";
 import { useStudioLabels } from "../../useStudioLabels";
 import type { SxIcon } from "../../types";
 import {
-  ArrowUUpLeftIcon,
+  Undo2Icon,
   CheckIcon,
   ClockIcon,
-  HourglassMediumIcon,
-  ProhibitIcon,
-  RocketLaunchIcon,
-  SealCheckIcon,
+  HourglassIcon,
+  BanIcon,
+  RocketIcon,
+  BadgeCheckIcon,
   UserCheckIcon,
-  UserSwitchIcon,
-  WarningIcon,
+  ArrowRightLeftIcon,
+  TriangleAlertIcon,
   glyph,
 } from "../../icons";
 import type { EditorState } from "../useEditorState";
@@ -28,7 +28,7 @@ import { ReassignDialog } from "./ReassignDialog";
 
 export type StepTone = "ok" | "warn" | "err" | "wait";
 
-export const STEP_TONE_ICON: Readonly<Record<StepTone, SxIcon>> = { ok: CheckIcon, warn: ArrowUUpLeftIcon, err: ProhibitIcon, wait: HourglassMediumIcon };
+export const STEP_TONE_ICON: Readonly<Record<StepTone, SxIcon>> = { ok: CheckIcon, warn: Undo2Icon, err: BanIcon, wait: HourglassIcon };
 
 const holders = new Map<string, { at: number; list: Promise<StudioApprover[]> }>();
 
@@ -100,7 +100,7 @@ export function StepMeta({ step, code, onChanged }: { step: StudioStep; code: st
           </div>
         ) : (
           <p className="sx-ed-steps__warn">
-            {glyph(WarningIcon, { size: 16 })}
+            {glyph(TriangleAlertIcon, { size: 16 })}
             <span>{roleName(labels, byRole) ? t("sx.editor.steps.nobody", { role: roleName(labels, byRole) }) : t("sx.editor.steps.nobodyAny")}</span>
           </p>
         )
@@ -134,7 +134,7 @@ export function StepMeta({ step, code, onChanged }: { step: StudioStep; code: st
         {pending && many && step.remaining > 0 ? <span className="sx-ed-chip">{t("sx.editor.steps.remaining", { n: step.remaining })}</span> : null}
         {step.deadlineAt ? (
           <span className="sx-ed-chip" data-late={late ? "" : undefined}>
-            {glyph(late ? WarningIcon : ClockIcon, { size: 14 })}
+            {glyph(late ? TriangleAlertIcon : ClockIcon, { size: 14 })}
             {late ? `${t("sx.editor.steps.overdue")} · ` : ""}
             {t("sx.editor.steps.deadline", { date: labels.dateTime(step.deadlineAt) })}
           </span>
@@ -145,7 +145,7 @@ export function StepMeta({ step, code, onChanged }: { step: StudioStep; code: st
           </span>
         ) : null}
         {pending && canReassign && waiting.length ? (
-          <SxButton variant="ghost" size="sm" icon={UserSwitchIcon} onClick={() => setOpen(true)} aria-haspopup="dialog" aiId="admin.studio.approvals.step.reassign">
+          <SxButton variant="ghost" size="sm" icon={ArrowRightLeftIcon} onClick={() => setOpen(true)} aria-haspopup="dialog" aiId="admin.studio.approvals.step.reassign">
             {t("sx.editor.steps.reassign")}
           </SxButton>
         ) : null}
@@ -191,7 +191,7 @@ export function StepsTab({ st }: { st: EditorState }): ReactElement {
     return (
       <div className="sx-ed-steps" data-ai-id="admin.studio.editor.steps" data-ai-type="section" data-ai-label={t("sx.editor.tab.steps")}>
         <div className="sx-ed-none">
-          {glyph(RocketLaunchIcon, { size: 24 })}
+          {glyph(RocketIcon, { size: 24 })}
           <p>{t("sx.editor.steps.free")}</p>
         </div>
       </div>
@@ -233,7 +233,7 @@ export function StepsTab({ st }: { st: EditorState }): ReactElement {
         </ol>
       ) : (
         <div className="sx-ed-none">
-          {glyph(SealCheckIcon, { size: 24 })}
+          {glyph(BadgeCheckIcon, { size: 24 })}
           <p>{submitted ? t("sx.editor.steps.pending") : t("sx.editor.steps.empty")}</p>
         </div>
       )}

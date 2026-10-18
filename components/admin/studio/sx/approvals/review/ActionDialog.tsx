@@ -13,7 +13,7 @@ import { Field } from "../../form/Field";
 import { TextArea } from "../../form/TextArea";
 import { useStudioLabels } from "../../useStudioLabels";
 import type { SxIcon } from "../../types";
-import { ArrowUUpLeftIcon, CheckCircleIcon, ProhibitIcon, RocketLaunchIcon } from "../../icons";
+import { Undo2Icon, CircleCheckIcon, BanIcon, RocketIcon } from "../../icons";
 import { SxDialog, SxDialogError } from "../../editor/SxDialog";
 import { VersionLine } from "../../editor/drawer/VersionsTab";
 import { actionErrorOf, allowedBy, decisionOf, needsComment, type ActionError, type ReviewKind } from "./actions";
@@ -37,10 +37,10 @@ const AI = "admin.studio.approvals.decision";
 const FIELD_SELECTOR = `textarea[data-ai-id="${AI}.comment"]`;
 
 const CONFIRM: Readonly<Record<ReviewKind, { variant: SxButtonVariant; icon: SxIcon; key: string }>> = {
-  approve: { variant: "primary", icon: CheckCircleIcon, key: "sx.appr.act.approve" },
-  return: { variant: "secondary", icon: ArrowUUpLeftIcon, key: "sx.appr.act.return" },
-  reject: { variant: "danger", icon: ProhibitIcon, key: "sx.appr.act.reject" },
-  publish: { variant: "primary", icon: RocketLaunchIcon, key: "sx.editor.publishDlg.confirm" },
+  approve: { variant: "primary", icon: CircleCheckIcon, key: "sx.appr.act.approve" },
+  return: { variant: "secondary", icon: Undo2Icon, key: "sx.appr.act.return" },
+  reject: { variant: "danger", icon: BanIcon, key: "sx.appr.act.reject" },
+  publish: { variant: "primary", icon: RocketIcon, key: "sx.editor.publishDlg.confirm" },
 };
 
 export function ActionDialog({ kind, state, changed, onClose, onDone, onStale, onRunning }: ActionDialogProps): ReactElement {

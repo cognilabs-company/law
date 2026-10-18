@@ -13,7 +13,7 @@ import type { SchemaOnly } from "../contract";
 import { useEditorErrorText } from "../editor/useEditorErrorText";
 import { useEditorState, type EditorState } from "../editor/useEditorState";
 import { SxFormContext } from "../form/formPolicy";
-import { ArrowRightIcon, ArrowSquareOutIcon, ArrowsClockwiseIcon } from "../icons";
+import { ArrowRightIcon, ExternalLinkIcon, RefreshCwIcon } from "../icons";
 import { SxNote } from "../layout/Note";
 import { SxPanel, SxSectionHeader } from "../layout/Panel";
 import { SchemaErrorSummary } from "../schema/ErrorSummary";
@@ -66,7 +66,7 @@ export function StepShell({ step, children }: { step: JourneyStep; children: Rea
         title={step.label}
         actions={
           step.link ? (
-            <SxLinkButton variant="ghost" size="sm" href={step.link.href} target="_blank" iconEnd={ArrowSquareOutIcon} aiId={`admin.studio.wizard.link.${step.key}`}>
+            <SxLinkButton variant="ghost" size="sm" href={step.link.href} target="_blank" iconEnd={ExternalLinkIcon} aiId={`admin.studio.wizard.link.${step.key}`}>
               {t(step.link.labelKey)}
             </SxLinkButton>
           ) : undefined
@@ -83,7 +83,7 @@ export function StepProblem({ st }: { st: EditorState }): ReactElement | null {
   const reg = useStudioRegistry();
   const errorText = useEditorErrorText();
   const retry = (
-    <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={st.retryLoad} aiId="admin.studio.wizard.retry">
+    <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={st.retryLoad} aiId="admin.studio.wizard.retry">
       {t("sx.ui.retry")}
     </SxButton>
   );

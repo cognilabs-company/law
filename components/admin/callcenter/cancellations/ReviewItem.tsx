@@ -12,24 +12,24 @@ import { getSecureMessageFileAt } from "@/lib/services/backend";
 import { reviewOrderOf, reviewPaymentOf, reviewResolutionOf, type CancellationReview, type ChecklistItem, type MarketFileRef, type ReviewAction } from "@/lib/services/marketRuntime";
 import type { SxIcon } from "@/components/admin/studio/sx/types";
 import {
-  ArrowCounterClockwiseIcon,
+  RotateCcwIcon,
   ArrowRightIcon,
-  CaretDownIcon,
-  CaretUpIcon,
-  ChatCircleTextIcon,
-  ChatsCircleIcon,
-  CheckCircleIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  MessageSquareTextIcon,
+  MessagesSquareIcon,
+  CircleCheckIcon,
   CircleDashedIcon,
   CoinsIcon,
-  DownloadSimpleIcon,
+  DownloadIcon,
   FileTextIcon,
   HandCoinsIcon,
   ListChecksIcon,
-  PauseCircleIcon,
-  ProhibitIcon,
-  StorefrontIcon,
-  UserCircleIcon,
-  UserSwitchIcon,
+  CirclePauseIcon,
+  BanIcon,
+  StoreIcon,
+  CircleUserIcon,
+  ArrowRightLeftIcon,
   glyph,
 } from "./icons";
 import { CCX_AI, checklistSummary, isOpenReview, orderPhaseKey, orderPhaseTone, reviewTone, staffChatHref } from "./model";
@@ -37,9 +37,9 @@ import { CCX_AI, checklistSummary, isOpenReview, orderPhaseKey, orderPhaseTone, 
 export const REVIEW_ACTION_ICON: Readonly<Record<ReviewAction, SxIcon>> = {
   continue: ArrowRightIcon,
   new_price: CoinsIcon,
-  cancel: ProhibitIcon,
-  reassign: UserSwitchIcon,
-  refund: ArrowCounterClockwiseIcon,
+  cancel: BanIcon,
+  reassign: ArrowRightLeftIcon,
+  refund: RotateCcwIcon,
 };
 
 export function isReviewAction(v: string): v is ReviewAction {
@@ -63,7 +63,7 @@ function useRemaining(): (seconds: number) => string {
 
 function CheckRow({ item }: { item: ChecklistItem }): ReactElement {
   const tc = useTranslations("marketplace.orderDetail.checklist");
-  const icon = item.status === "done" ? CheckCircleIcon : item.status === "skipped_with_reason" ? ArrowRightIcon : CircleDashedIcon;
+  const icon = item.status === "done" ? CircleCheckIcon : item.status === "skipped_with_reason" ? ArrowRightIcon : CircleDashedIcon;
   return (
     <li className="ccx-check" data-status={item.status}>
       <span className="ccx-check__icon">{glyph(icon, { size: 16 })}</span>
@@ -113,7 +113,7 @@ function ResultFile({ f, ai }: { f: MarketFileRef; ai: string }): ReactElement {
       {glyph(FileTextIcon, { size: 16 })}
       <span className="ccx-file__name">{name}</span>
       {f.url ? (
-        <SxButton size="sm" variant="ghost" icon={DownloadSimpleIcon} busy={busy} onClick={() => void get()} aria-label={`${verb}: ${name}`} aiId={ai}>
+        <SxButton size="sm" variant="ghost" icon={DownloadIcon} busy={busy} onClick={() => void get()} aria-label={`${verb}: ${name}`} aiId={ai}>
           {verb}
         </SxButton>
       ) : (
@@ -193,7 +193,7 @@ export function ReviewItem({ review, onResolve }: ReviewItemProps): ReactElement
         </div>
         <div className="ccx-parties">
           <div className="ccx-party">
-            <span className="ccx-party__icon">{glyph(UserCircleIcon, { size: 20 })}</span>
+            <span className="ccx-party__icon">{glyph(CircleUserIcon, { size: 20 })}</span>
             <div className="ccx-party__body">
               <p className="ccx-label">{t("item.client")}</p>
               <p className="ccx-party__name">{ctx.clientName || "—"}</p>
@@ -205,7 +205,7 @@ export function ReviewItem({ review, onResolve }: ReviewItemProps): ReactElement
             </div>
           </div>
           <div className="ccx-party">
-            <span className="ccx-party__icon">{glyph(StorefrontIcon, { size: 20 })}</span>
+            <span className="ccx-party__icon">{glyph(StoreIcon, { size: 20 })}</span>
             <div className="ccx-party__body">
               <p className="ccx-label">{t("item.seller")}</p>
               <p className="ccx-party__name">
@@ -260,7 +260,7 @@ export function ReviewItem({ review, onResolve }: ReviewItemProps): ReactElement
               {ctx.deadlinePaused ? (
                 <>
                   <span className="ccx-paused">
-                    {glyph(PauseCircleIcon, { size: 16 })}
+                    {glyph(CirclePauseIcon, { size: 16 })}
                     <span>{t("item.deadlinePaused")}</span>
                   </span>
                   {ctx.expectedCompletedAt ? <span className="ccx-sub">{t("item.deadlineWas", { date: shortDateTime(ctx.expectedCompletedAt, locale) })}</span> : null}
@@ -287,7 +287,7 @@ export function ReviewItem({ review, onResolve }: ReviewItemProps): ReactElement
             </SxButton>
           ) : null}
           {chatHref ? (
-            <SxLinkButton variant="secondary" icon={ChatCircleTextIcon} href={chatHref} target="_blank" aiId={`${ai}.chat`} aiLabel={t("item.serviceChat")}>
+            <SxLinkButton variant="secondary" icon={MessageSquareTextIcon} href={chatHref} target="_blank" aiId={`${ai}.chat`} aiLabel={t("item.serviceChat")}>
               {t("item.serviceChat")}
               <span className="sx-vh"> ({t("item.newTab")})</span>
             </SxLinkButton>
@@ -295,7 +295,7 @@ export function ReviewItem({ review, onResolve }: ReviewItemProps): ReactElement
             <p className="ccx-muted ccx-nochat">{t("item.noChat")}</p>
           )}
           {resolved && groupHref ? (
-            <SxLinkButton variant="secondary" icon={ChatsCircleIcon} href={groupHref} target="_blank" aiId={`${ai}.group-chat`} aiLabel={t("item.groupChat")}>
+            <SxLinkButton variant="secondary" icon={MessagesSquareIcon} href={groupHref} target="_blank" aiId={`${ai}.group-chat`} aiLabel={t("item.groupChat")}>
               {t("item.groupChat")}
               <span className="sx-vh"> ({t("item.newTab")})</span>
             </SxLinkButton>
@@ -307,7 +307,7 @@ export function ReviewItem({ review, onResolve }: ReviewItemProps): ReactElement
         <SxButton
           variant="ghost"
           size="sm"
-          iconEnd={expanded ? CaretUpIcon : CaretDownIcon}
+          iconEnd={expanded ? ChevronUpIcon : ChevronDownIcon}
           aria-expanded={expanded}
           aria-controls={detailsId}
           aria-label={t("item.moreAria", { work })}

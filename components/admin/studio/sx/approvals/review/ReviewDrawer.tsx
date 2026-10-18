@@ -16,7 +16,7 @@ import { SxEmpty } from "../../layout/Empty";
 import { SxNote } from "../../layout/Note";
 import { useNow } from "../../live";
 import { useStudioLabels } from "../../useStudioLabels";
-import { ArrowSquareOutIcon, ArrowUUpLeftIcon, CheckCircleIcon, DownloadSimpleIcon, FileArrowDownIcon, PaperclipIcon, PencilSimpleIcon, ProhibitIcon, RocketLaunchIcon, glyph } from "../../icons";
+import { ExternalLinkIcon, Undo2Icon, CircleCheckIcon, DownloadIcon, FileDownIcon, PaperclipIcon, PencilIcon, BanIcon, RocketIcon, glyph } from "../../icons";
 import { reviewNoteOf } from "../../editor/model";
 import { schemaFieldAt } from "../../schema/model";
 import { REVIEW_STATUSES, sentAtOf, type ApprRow, type ApprViewer } from "../model";
@@ -183,25 +183,25 @@ function ReviewPanel({ target, viewer, onClose, onChanged }: { target: ReviewTar
   const acts: ReactElement[] = [];
   if (can.approve) {
     acts.push(
-      <SxButton key="reject" variant="ghost" className="sx-rv-reject" icon={ProhibitIcon} onClick={() => setDialog("reject")} aria-haspopup="dialog" aiId={`${AI}.reject`}>
+      <SxButton key="reject" variant="ghost" className="sx-rv-reject" icon={BanIcon} onClick={() => setDialog("reject")} aria-haspopup="dialog" aiId={`${AI}.reject`}>
         {t("sx.appr.act.reject")}
       </SxButton>,
-      <SxButton key="return" variant="secondary" icon={ArrowUUpLeftIcon} onClick={() => setDialog("return")} aria-haspopup="dialog" aiId={`${AI}.changes`}>
+      <SxButton key="return" variant="secondary" icon={Undo2Icon} onClick={() => setDialog("return")} aria-haspopup="dialog" aiId={`${AI}.changes`}>
         {t("sx.appr.act.return")}
       </SxButton>,
-      <SxButton key="approve" variant="primary" icon={CheckCircleIcon} onClick={() => setDialog("approve")} aria-haspopup="dialog" aiId={`${AI}.approve`}>
+      <SxButton key="approve" variant="primary" icon={CircleCheckIcon} onClick={() => setDialog("approve")} aria-haspopup="dialog" aiId={`${AI}.approve`}>
         {t("sx.appr.act.approve")}
       </SxButton>,
     );
   } else if (can.publish) {
     acts.push(
-      <SxButton key="publish" variant="primary" icon={RocketLaunchIcon} onClick={() => setDialog("publish")} aria-haspopup="dialog" aiId={`${AI}.publish`}>
+      <SxButton key="publish" variant="primary" icon={RocketIcon} onClick={() => setDialog("publish")} aria-haspopup="dialog" aiId={`${AI}.publish`}>
         {t("sx.appr.act.publish")}
       </SxButton>,
     );
   } else if (can.fix) {
     acts.push(
-      <SxLinkButton key="fix" variant="primary" icon={PencilSimpleIcon} href={`/admin/studio/o/${encodeURIComponent(id)}`} aiId={`${AI}.fix`}>
+      <SxLinkButton key="fix" variant="primary" icon={PencilIcon} href={`/admin/studio/o/${encodeURIComponent(id)}`} aiId={`${AI}.fix`}>
         {t("sx.appr.dw.fix")}
       </SxLinkButton>,
     );
@@ -299,18 +299,18 @@ function ReviewPanel({ target, viewer, onClose, onChanged }: { target: ReviewTar
             <div className="sx-rv-file">
               {glyph(PaperclipIcon, { size: 16 })}
               <span className="sx-rv-file__n">{st.current?.fileName || t("sx.appr.dw.fileUnnamed")}</span>
-              <SxButton variant="ghost" size="sm" icon={DownloadSimpleIcon} busy={fileBusy} onClick={() => void download()} aiId={`${AI}.download`}>
+              <SxButton variant="ghost" size="sm" icon={DownloadIcon} busy={fileBusy} onClick={() => void download()} aiId={`${AI}.download`}>
                 {t("sx.appr.dw.download")}
               </SxButton>
             </div>
           </Block>
         ) : null}
         <div className="sx-rv-links">
-          <SxLinkButton variant="ghost" size="sm" icon={ArrowSquareOutIcon} href={`/admin/studio/o/${encodeURIComponent(id)}`} aiId={`${AI}.open-editor`}>
+          <SxLinkButton variant="ghost" size="sm" icon={ExternalLinkIcon} href={`/admin/studio/o/${encodeURIComponent(id)}`} aiId={`${AI}.open-editor`}>
             {t("sx.appr.dw.openEditor")}
           </SxLinkButton>
           {can.exportVersions ? (
-            <SxButton variant="ghost" size="sm" icon={FileArrowDownIcon} busy={xlsxBusy} onClick={() => void exportXlsx()} aiId={`${AI}.versions-xlsx`}>
+            <SxButton variant="ghost" size="sm" icon={FileDownIcon} busy={xlsxBusy} onClick={() => void exportXlsx()} aiId={`${AI}.versions-xlsx`}>
               {t("sx.appr.dw.exportVersions")}
             </SxButton>
           ) : null}

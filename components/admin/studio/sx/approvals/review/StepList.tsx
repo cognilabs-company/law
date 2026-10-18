@@ -7,7 +7,7 @@ import type { ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import type { StudioDetail } from "@/lib/services/studio";
 import { useStudioLabels } from "../../useStudioLabels";
-import { SealCheckIcon, glyph } from "../../icons";
+import { BadgeCheckIcon, glyph } from "../../icons";
 import { roleName, stepName, stepTone } from "../../editor/model";
 import { STEP_TONE_ICON, StepMeta } from "../../editor/drawer/StepsTab";
 
@@ -20,7 +20,7 @@ export function StepList({ detail, code, onChanged }: StepListProps): ReactEleme
   if (!steps.length) {
     return (
       <div className="sx-ed-none sx-rv-none">
-        {glyph(SealCheckIcon, { size: 24 })}
+        {glyph(BadgeCheckIcon, { size: 24 })}
         <p>{t("sx.editor.steps.pending")}</p>
       </div>
     );

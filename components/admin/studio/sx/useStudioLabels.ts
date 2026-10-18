@@ -7,26 +7,21 @@ import { findStudioConstructor, studioReferenceKey, type StudioReferenceItem } f
 import { ctorMeta } from "@/lib/studio/constructors";
 import { HELP_RULES, normText, SECTION_IDS, SURFACE_IDS, SURFACE_TITLE_IDS, WARN_IDS } from "@/lib/studio/humanText";
 import {
-  BriefcaseIcon,
+  BriefcaseBusinessIcon,
   CrownIcon,
   CTOR_ICON,
   ctorIcon,
   FileTextIcon,
-  FolderOpenIcon,
-  FrameCornersIcon,
   ListChecksIcon,
-  LockKeyIcon,
-  MegaphoneSimpleIcon,
-  PackageIcon,
+  MegaphoneIcon,
   PLACEMENT_ICON,
-  ScrollIcon,
-  SealCheckIcon,
-  ShieldStarIcon,
+  ScrollTextIcon,
+  BadgeCheckIcon,
   sourceIcon,
-  TreeStructureIcon,
-  TrendUpIcon,
-  UserCircleIcon,
-  UserGearIcon,
+  SOURCE_ICON,
+  NetworkIcon,
+  CircleUserIcon,
+  UserCogIcon,
 } from "./icons";
 import { ctorVariant, fieldPath, isEnglishLooking, scopedKeys, splitCodeLabel, splitUserLabel } from "./labels";
 import { normStatus, statusKeyOf } from "./status";
@@ -462,10 +457,10 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
     };
     switch (key) {
       case "service-categories":
-        return base({ label, description: str(r.description), code: str(r.slug), icon: FolderOpenIcon });
+        return base({ label, description: str(r.description), code: str(r.slug), icon: SOURCE_ICON["service-categories"] });
       case "services": {
         const price = numOf(r.base_price);
-        return base({ label, description: joinDot([str(r.category_title), price === null ? "" : money(price, str(r.currency))]), icon: BriefcaseIcon });
+        return base({ label, description: joinDot([str(r.category_title), price === null ? "" : money(price, str(r.currency))]), icon: BriefcaseBusinessIcon });
       }
       case "document-templates": {
         const cat = str(r.category);
@@ -474,12 +469,12 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
       }
       case "service-packages":
       case "local:service-packages":
-        return base({ label, description: str(r.category_title), code: str(r.code), icon: PackageIcon });
+        return base({ label, description: str(r.category_title), code: str(r.code), icon: SOURCE_ICON["service-packages"] });
       case "consent-documents":
       case "local:consent-documents": {
         const [slugPart = "", versionPart = ""] = str(r.code).split(" · ");
         const version = str(r.version) || versionPart.trim();
-        return base({ label: label.replace(VERSION_TAIL, "").trim() || label, description: version ? `v${version}` : "", code: str(r.slug) || slugPart.trim(), icon: ScrollIcon });
+        return base({ label: label.replace(VERSION_TAIL, "").trim() || label, description: version ? `v${version}` : "", code: str(r.slug) || slugPart.trim(), icon: ScrollTextIcon });
       }
       case "promotion-packages": {
         const d = numOf(r.days);
@@ -488,13 +483,13 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
           label: promoPackage(str(r.code), str(r.title) || label),
           description: joinDot([str(r.placement) ? placement(str(r.placement)) : "", d === null ? "" : days(d), price === null ? "" : money(price, str(r.currency))]),
           code: str(r.code),
-          icon: MegaphoneSimpleIcon,
+          icon: MegaphoneIcon,
         });
       }
       case "promotion-placements":
-        return base({ label: placement(value, label), description: placementWhat(value), code: value, icon: own.call(PLACEMENT_ICON, value) ? PLACEMENT_ICON[value] : FrameCornersIcon });
+        return base({ label: placement(value, label), description: placementWhat(value), code: value, icon: own.call(PLACEMENT_ICON, value) ? PLACEMENT_ICON[value] : SOURCE_ICON["promotion-placements"] });
       case "roles":
-        return base({ label: role(value, label), description: vocab(str(r.description)), code: value, icon: UserGearIcon });
+        return base({ label: role(value, label), description: vocab(str(r.description)), code: value, icon: UserCogIcon });
       case "subscription-plans": {
         const monthly = numOf(r.monthly_price);
         const price = monthly === null ? "" : tr("sx.ui.perMonth", { price: money(monthly) });
@@ -506,7 +501,7 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
       }
       case "users": {
         const who = splitUserLabel(label);
-        return base({ label: who.name, description: joinDot([str(r.role) ? role(str(r.role)) : "", who.phone]), code: str(r.lexgo_id), icon: UserCircleIcon });
+        return base({ label: who.name, description: joinDot([str(r.role) ? role(str(r.role)) : "", who.phone]), code: str(r.lexgo_id), icon: CircleUserIcon });
       }
       case "studio-objects":
       case "local:studio-objects": {
@@ -515,22 +510,22 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
       }
       case "organization-units": {
         const unit = str(r.unit_type);
-        return base({ label, description: pick([unit && `sx.unit.${unit}`]), code: str(r.code), icon: TreeStructureIcon });
+        return base({ label, description: pick([unit && `sx.unit.${unit}`]), code: str(r.code), icon: NetworkIcon });
       }
       case "permissions":
-        return base({ label: permission(value, label), code: value, icon: LockKeyIcon });
+        return base({ label: permission(value, label), code: value, icon: SOURCE_ICON.permissions });
       case "price-factors": {
         const kind = str(r.adjustment_type);
         const amount = numOf(r.value);
         const shown = amount === null ? "" : kind === "percent" ? `${num(amount)}%` : money(amount);
-        return base({ label, description: joinDot([kind ? option(kind, { field: "adjustment_type" }) : "", shown]), icon: TrendUpIcon });
+        return base({ label, description: joinDot([kind ? option(kind, { field: "adjustment_type" }) : "", shown]), icon: SOURCE_ICON["price-factors"] });
       }
       case "client-guarantees":
-        return base({ label, description: str(r.description), icon: ShieldStarIcon });
+        return base({ label, description: str(r.description), icon: SOURCE_ICON["client-guarantees"] });
       case "checklists":
         return base({ label, description: str(r.description), icon: ListChecksIcon });
       case "package-eligibility-rules":
-        return base({ label, description: str(r.description), icon: SealCheckIcon });
+        return base({ label, description: str(r.description), icon: BadgeCheckIcon });
     }
     return base({ label: label || value, icon: sourceIcon(source) });
   };

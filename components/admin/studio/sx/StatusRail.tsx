@@ -33,8 +33,8 @@ const BURST_MS = 650;
 const GLOW_MS = 600;
 const GLOW_LAG = 140;
 const LATE_MS = 320;
-const CHECK_GLYPH = { size: 16, weight: "bold" } as const;
-const STAGE_GLYPH = { size: 18, weight: "duotone" } as const;
+const CHECK_GLYPH = { size: 16, strokeWidth: 2.5 } as const;
+const STAGE_GLYPH = { size: 18 } as const;
 
 const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" ");
 

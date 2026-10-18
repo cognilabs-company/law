@@ -10,7 +10,7 @@ import { useStudioRegistry } from "@/lib/services/studio";
 import { SxButton, SxLinkButton } from "../Button";
 import { SxFormContext } from "../form/formPolicy";
 import { Picker } from "../form/Picker";
-import { ArrowRightIcon, ArrowsClockwiseIcon, FileXIcon, LockSimpleIcon, StackIcon, ctorGlyph } from "../icons";
+import { ArrowRightIcon, RefreshCwIcon, FileXIcon, LockIcon, LayersIcon, ctorGlyph } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxOutline, focusSection } from "../layout/Outline";
@@ -56,7 +56,7 @@ function HomeLink() {
 function RetryButton({ onClick }: { onClick: () => void }) {
   const t = useTranslations("studio");
   return (
-    <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={onClick} aiId={`${AI}.retry`}>
+    <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={onClick} aiId={`${AI}.retry`}>
       {t("sx.ui.retry")}
     </SxButton>
   );
@@ -73,7 +73,7 @@ function BlockedCard({ st }: { st: EditorState }) {
     <SxPanel as="section" className="sx-ed__blocked" aiId={`${AI}.blocked`}>
       <div className="sx-ed__blocked-head">
         <span className="sx-ed__blocked-icon" aria-hidden="true">
-          <LockSimpleIcon size={20} />
+          <LockIcon size={20} />
         </span>
         <div className="sx-ed__blocked-titles">
           <h2 className="sx-ed__blocked-title">{t("sx.editor.blockedTitle")}</h2>
@@ -115,7 +115,7 @@ export function EditorForm({ st, onPick }: { st: EditorState; onPick: (path: str
   const errorText = useEditorErrorText();
 
   if (st.phase === "loading") return <FormSkeleton />;
-  if (st.phase === "unknown-ctor") return <SxEmpty icon={StackIcon} title={t("sx.editor.unknownTitle")} text={t("sx.editor.unknownText")} action={<HomeLink />} />;
+  if (st.phase === "unknown-ctor") return <SxEmpty icon={LayersIcon} title={t("sx.editor.unknownTitle")} text={t("sx.editor.unknownText")} action={<HomeLink />} />;
   if (st.phase === "not-found") return <SxEmpty icon={FileXIcon} title={t("sx.editor.notFoundTitle")} text={t("sx.editor.notFoundText")} action={<HomeLink />} />;
   if (st.phase === "load-error") {
     const e = errorText(st.loadError);

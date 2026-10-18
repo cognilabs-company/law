@@ -10,7 +10,7 @@ import { Link } from "@/i18n/navigation";
 import { aiId } from "@/lib/ai/ids";
 import { useStudioRegistry, type StudioConstructor, type StudioGroup, type StudioJourney } from "@/lib/services/studio";
 import { SxButton, SxLinkButton } from "../Button";
-import { ArrowRightIcon, ArrowsClockwiseIcon, CheckCircleIcon, LockSimpleIcon, MagnifyingGlassIcon, ctorGlyph, glyph } from "../icons";
+import { ArrowRightIcon, RefreshCwIcon, CircleCheckIcon, LockIcon, SearchIcon, ctorGlyph, glyph } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxPage } from "../layout/Page";
@@ -52,7 +52,7 @@ function StepState({ row, nameOf }: { row: GroupStepRow; nameOf: (code: string) 
   if (row.state === "done") {
     return (
       <span className="sx-lp-state" data-state="done">
-        {glyph(CheckCircleIcon, { size: 16 })}
+        {glyph(CircleCheckIcon, { size: 16 })}
         <span>{t("sx.guide.done")}</span>
       </span>
     );
@@ -70,7 +70,7 @@ function StepState({ row, nameOf }: { row: GroupStepRow; nameOf: (code: string) 
     const [before, after] = splitAround(t("sx.gpage.state.blocked", { list: LIST_MARK }));
     return (
       <span className="sx-lp-state" data-state="blocked">
-        {glyph(LockSimpleIcon, { size: 16 })}
+        {glyph(LockIcon, { size: 16 })}
         <span>
           {before}
           {missing.map((code, i) => (
@@ -88,7 +88,7 @@ function StepState({ row, nameOf }: { row: GroupStepRow; nameOf: (code: string) 
   }
   return (
     <span className="sx-lp-state" data-state={row.state === "blocked" ? "blocked" : "open"}>
-      {row.state === "blocked" ? glyph(LockSimpleIcon, { size: 16 }) : null}
+      {row.state === "blocked" ? glyph(LockIcon, { size: 16 }) : null}
       <span>{t("sx.guide.notDone")}</span>
     </span>
   );
@@ -160,7 +160,7 @@ export function LaunchPathPage({ pathKey }: { pathKey: string }): ReactElement {
             <span className="sx-lp-prog__pct sx-num">{t("sx.journeyRun.percent", { n: j.progress })}</span>
           ) : (
             <span className="sx-lp-prog__done">
-              {glyph(CheckCircleIcon, { size: 16 })}
+              {glyph(CircleCheckIcon, { size: 16 })}
               <span>{t("sx.lpath.done")}</span>
             </span>
           )}
@@ -196,7 +196,7 @@ export function LaunchPathPage({ pathKey }: { pathKey: string }): ReactElement {
         tone="error"
         title={t("sx.ui.errorTitle")}
         action={
-          <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={() => void reg.reload()} aiId="admin.studio.path.retry">
+          <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={() => void reg.reload()} aiId="admin.studio.path.retry">
             {t("sx.ui.retry")}
           </SxButton>
         }
@@ -207,7 +207,7 @@ export function LaunchPathPage({ pathKey }: { pathKey: string }): ReactElement {
   } else if (missing) {
     body = (
       <SxEmpty
-        icon={MagnifyingGlassIcon}
+        icon={SearchIcon}
         title={t("sx.lpath.missingTitle")}
         text={t("sx.lpath.missingText")}
         action={

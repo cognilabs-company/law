@@ -10,7 +10,7 @@ import { downloadStudioVersionFile, exportStudioVersionsXlsx, type StudioDetail,
 import { SxButton } from "../../Button";
 import { StatusPill } from "../../StatusPill";
 import { useStudioLabels } from "../../useStudioLabels";
-import { ArrowCounterClockwiseIcon, DownloadSimpleIcon, EyeIcon, PaperclipIcon, ClockCounterClockwiseIcon, glyph } from "../../icons";
+import { RotateCcwIcon, DownloadIcon, EyeIcon, PaperclipIcon, HistoryIcon, glyph } from "../../icons";
 import type { EditorState } from "../useEditorState";
 import { useEditorErrorText } from "../useEditorErrorText";
 import { routeStepNames, versionRollbackable } from "../model";
@@ -100,7 +100,7 @@ export function VersionsTab({ st, onPreview, onRollback }: { st: EditorState; on
     <div className="sx-ed-vers" data-ai-id="admin.studio.editor.versions" data-ai-type="section" data-ai-label={t("sx.editor.tab.versions")}>
       {st.can.exportVersions && list.length ? (
         <div className="sx-ed-vers__bar">
-          <SxButton size="sm" icon={DownloadSimpleIcon} busy={exporting} onClick={() => void doExport()} aiId="admin.studio.editor.versions.export">
+          <SxButton size="sm" icon={DownloadIcon} busy={exporting} onClick={() => void doExport()} aiId="admin.studio.editor.versions.export">
             {t("sx.editor.versions.export")}
           </SxButton>
         </div>
@@ -158,7 +158,7 @@ export function VersionsTab({ st, onPreview, onRollback }: { st: EditorState; on
                     <SxButton
                       variant="ghost"
                       size="sm"
-                      icon={ArrowCounterClockwiseIcon}
+                      icon={RotateCcwIcon}
                       disabled={Boolean(st.busy)}
                       aria-disabled={st.dirty || undefined}
                       aria-describedby={st.dirty ? saveFirstId : undefined}
@@ -176,7 +176,7 @@ export function VersionsTab({ st, onPreview, onRollback }: { st: EditorState; on
         </ol>
       ) : (
         <div className="sx-ed-none">
-          {glyph(ClockCounterClockwiseIcon, { size: 24 })}
+          {glyph(HistoryIcon, { size: 24 })}
           <p>{t("sx.editor.versions.empty")}</p>
         </div>
       )}

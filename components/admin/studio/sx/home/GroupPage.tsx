@@ -8,13 +8,12 @@ import { Link } from "@/i18n/navigation";
 import { aiId } from "@/lib/ai/ids";
 import { useStudioAccess, useStudioRegistry } from "@/lib/services/studio";
 import { SxButton, SxLinkButton } from "../Button";
-import { ArrowRightIcon, ArrowsClockwiseIcon, CheckCircleIcon, LockSimpleIcon, MagnifyingGlassIcon, ctorGlyph, glyph } from "../icons";
+import { ArrowRightIcon, RefreshCwIcon, CircleCheckIcon, LockIcon, SearchIcon, ctorGlyph, glyph } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxPage } from "../layout/Page";
 import { SxPanel } from "../layout/Panel";
 import { SxTable, type SxColumn } from "../layout/Table";
-import { SxLineScope } from "../lineIcons";
 import { SxProgress } from "../shared/Progress";
 import { StartJourneyButton } from "../shared/StartJourney";
 import { groupHue } from "../tones";
@@ -51,7 +50,7 @@ function StateCell({ row, labels }: { row: GroupStepRow; labels: StudioLabels })
   if (row.state === "done")
     return (
       <span className="sx-gstate" data-state="done">
-        {glyph(CheckCircleIcon, { size: 16 })}
+        {glyph(CircleCheckIcon, { size: 16 })}
         <span>{t("sx.guide.done")}</span>
       </span>
     );
@@ -70,7 +69,7 @@ function StateCell({ row, labels }: { row: GroupStepRow; labels: StudioLabels })
     ));
     return (
       <span className="sx-gstate" data-state="blocked">
-        {glyph(LockSimpleIcon, { size: 16 })}
+        {glyph(LockIcon, { size: 16 })}
         <span>{links.length ? withList(t("sx.gpage.state.blocked", { list: SENTINEL }), links) : t("sx.guide.notDone")}</span>
       </span>
     );
@@ -133,10 +132,10 @@ export function GroupPage({ groupKey, need }: { groupKey: string; need: GroupNee
 
   const headActions =
     g && g.key === "services_packages" && acc.canEdit ? (
-      <SxLineScope>
+      <>
         <StartJourneyButton type="service" variant="primary" label={t("sx.journeyRun.newService")} aiId="admin.studio.group.new-service" />
         <StartJourneyButton type="package" variant="secondary" label={t("sx.journeyRun.newPackage")} aiId="admin.studio.group.new-package" />
-      </SxLineScope>
+      </>
     ) : undefined;
 
   let below: ReactNode;
@@ -148,7 +147,7 @@ export function GroupPage({ groupKey, need }: { groupKey: string; need: GroupNee
     );
   else if (g && acc.any)
     below = (
-      <SxLineScope>
+      <>
         <div className="sx-gprog" data-hue={hue}>
           <span className="sx-gprog__count sx-num">{t("sx.home.card.progress", { done, total })}</span>
           <SxProgress value={total ? (done / total) * 100 : 0} label={t("sx.home.card.progressLabel", { name, done, total })} size="md" className="sx-gprog__bar" />
@@ -158,12 +157,12 @@ export function GroupPage({ groupKey, need }: { groupKey: string; need: GroupNee
             </SxLinkButton>
           ) : (
             <span className="sx-gcard__done">
-              {glyph(CheckCircleIcon, { size: 16 })}
+              {glyph(CircleCheckIcon, { size: 16 })}
               <span>{t("sx.home.card.allDone")}</span>
             </span>
           )}
         </div>
-      </SxLineScope>
+      </>
     );
 
   let body: ReactNode;
@@ -173,7 +172,7 @@ export function GroupPage({ groupKey, need }: { groupKey: string; need: GroupNee
         tone="error"
         title={t("sx.ui.errorTitle")}
         action={
-          <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={() => void reg.reload()} aiId="admin.studio.group.retry">
+          <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={() => void reg.reload()} aiId="admin.studio.group.retry">
             {t("sx.ui.retry")}
           </SxButton>
         }
@@ -184,7 +183,7 @@ export function GroupPage({ groupKey, need }: { groupKey: string; need: GroupNee
   else if (missing)
     body = (
       <SxEmpty
-        icon={MagnifyingGlassIcon}
+        icon={SearchIcon}
         title={t("sx.gpage.missingTitle")}
         text={t("sx.gpage.missingText")}
         action={
@@ -244,11 +243,11 @@ export function GroupPage({ groupKey, need }: { groupKey: string; need: GroupNee
       below={below}
       aiId="admin.studio.group"
     >
-      <SxLineScope>
+      <>
         <div data-hue={hue} className="sx-gpage">
           {body}
         </div>
-      </SxLineScope>
+      </>
     </SxPage>
   );
 }

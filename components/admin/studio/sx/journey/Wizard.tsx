@@ -13,7 +13,7 @@ import { useEditorErrorText } from "../editor/useEditorErrorText";
 import { useLeaveGuard } from "../editor/useLeaveGuard";
 import { Picker } from "../form/Picker";
 import { prefersReducedMotion } from "../hooks";
-import { ArrowsClockwiseIcon, CheckCircleIcon, MagnifyingGlassIcon } from "../icons";
+import { RefreshCwIcon, CircleCheckIcon, SearchIcon } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxOutline } from "../layout/Outline";
@@ -224,7 +224,7 @@ export function Wizard({ id }: { id: string }): ReactElement {
   } else if (wj.phase === "missing") {
     body = (
       <SxEmpty
-        icon={MagnifyingGlassIcon}
+        icon={SearchIcon}
         title={t("sx.journeyRun.missingTitle")}
         text={t("sx.journeyRun.missingText")}
         action={
@@ -241,7 +241,7 @@ export function Wizard({ id }: { id: string }): ReactElement {
         tone="error"
         title={e.title}
         action={
-          <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={wj.reload} aiId="admin.studio.wizard.retry">
+          <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={wj.reload} aiId="admin.studio.wizard.retry">
             {t("sx.ui.retry")}
           </SxButton>
         }
@@ -252,7 +252,7 @@ export function Wizard({ id }: { id: string }): ReactElement {
   } else if (done) {
     body = (
       <SxEmpty
-        icon={CheckCircleIcon}
+        icon={CircleCheckIcon}
         title={t("sx.journeyRun.doneTitle")}
         text={t("sx.journeyRun.doneText")}
         action={
@@ -303,7 +303,7 @@ export function Wizard({ id }: { id: string }): ReactElement {
             tone="info"
             role="status"
             action={
-              <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={wj.adopt} aiId="admin.studio.wizard.refresh">
+              <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={wj.adopt} aiId="admin.studio.wizard.refresh">
                 {t("sx.journeyRun.refresh")}
               </SxButton>
             }
@@ -314,7 +314,7 @@ export function Wizard({ id }: { id: string }): ReactElement {
           <SxNote
             tone="error"
             action={
-              <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} busy={wj.patching} onClick={() => void retry()} aiId="admin.studio.wizard.retry">
+              <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} busy={wj.patching} onClick={() => void retry()} aiId="admin.studio.wizard.retry">
                 {t("sx.ui.retry")}
               </SxButton>
             }

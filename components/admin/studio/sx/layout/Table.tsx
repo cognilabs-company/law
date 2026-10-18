@@ -8,7 +8,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import Menu, { type MenuEntry } from "@/components/ui/Menu";
 import { aiId as aiIdOf } from "@/lib/ai/ids";
 import { SxButton, SxLinkButton } from "../Button";
-import { ArrowsDownUpIcon, CaretDownIcon, CaretLeftIcon, CaretRightIcon, CaretUpIcon, glyph, moreGlyph } from "../icons";
+import { ArrowDownUpIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, glyph, moreGlyph } from "../icons";
 import type { SxIcon } from "../types";
 import { useStudioLabels } from "../useStudioLabels";
 import { SxEmpty } from "./Empty";
@@ -374,7 +374,7 @@ export function SxTable<T>({
                       data-ai-label={c.header}
                     >
                       {label}
-                      {glyph(dir === "asc" ? CaretUpIcon : dir === "desc" ? CaretDownIcon : ArrowsDownUpIcon, { size: 14, className: "sx-table__sorticon" })}
+                      {glyph(dir === "asc" ? ChevronUpIcon : dir === "desc" ? ChevronDownIcon : ArrowDownUpIcon, { size: 14, className: "sx-table__sorticon" })}
                     </button>
                   ) : (
                     label
@@ -415,7 +415,7 @@ export function SxPager({ from, to, total, onPrev, onNext, busy = false, aiId }:
       <div className="sx-pager__nav">
         <SxButton
           size="sm"
-          icon={CaretLeftIcon}
+          icon={ChevronLeftIcon}
           aria-disabled={atStart || busy || undefined}
           onClick={() => {
             if (!atStart && !busy) onPrev();
@@ -426,7 +426,7 @@ export function SxPager({ from, to, total, onPrev, onNext, busy = false, aiId }:
         </SxButton>
         <SxButton
           size="sm"
-          iconEnd={CaretRightIcon}
+          iconEnd={ChevronRightIcon}
           aria-disabled={atEnd || busy || undefined}
           onClick={() => {
             if (!atEnd && !busy) onNext();

@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import IconButton from "@/components/ui/IconButton";
 import { aiId as makeAiId } from "@/lib/ai/ids";
 import { SxButton } from "../Button";
-import { PlusIcon, TrashIcon, WarningCircleIcon, glyph } from "../icons";
+import { PlusIcon, Trash2Icon, CircleAlertIcon, glyph } from "../icons";
 import { useStudioLabels } from "../useStudioLabels";
 import { hasKey, kvKind, renameKey, withoutKey } from "./logic";
 import { NumberInput } from "./NumberInput";
@@ -212,7 +212,7 @@ export function KeyValue({ id, label, value, onChange, nameOf, readOnly = false,
   const dupNote = (key: string): ReactNode =>
     edit?.key === key && edit.dup ? (
       <p className="sx-field__err sx-kv__err" id={`${uid}-dup`}>
-        {glyph(WarningCircleIcon, { size: 14 })}
+        {glyph(CircleAlertIcon, { size: 14 })}
         <span>{t("sx.kv.dup")}</span>
       </p>
     ) : null;
@@ -242,7 +242,7 @@ export function KeyValue({ id, label, value, onChange, nameOf, readOnly = false,
                       className="sx-ibtn"
                       size="sm"
                       tip={false}
-                      icon={glyph(TrashIcon, { size: 16 })}
+                      icon={glyph(Trash2Icon, { size: 16 })}
                       label={t("sx.kv.removeRow", { name })}
                       onClick={() => removeRow(key, index)}
                       aiId={aiId ? makeAiId(aiId, key, "remove") : undefined}
@@ -251,7 +251,7 @@ export function KeyValue({ id, label, value, onChange, nameOf, readOnly = false,
                   {dupNote(key)}
                   {!readOnly && isUnread(key) ? (
                     <p className="sx-field__err sx-kv__err" id={noteId} data-for="value">
-                      {glyph(WarningCircleIcon, { size: 14 })}
+                      {glyph(CircleAlertIcon, { size: 14 })}
                       <span>{labels.error("@number")}</span>
                     </p>
                   ) : null}
@@ -266,7 +266,7 @@ export function KeyValue({ id, label, value, onChange, nameOf, readOnly = false,
                   className="sx-ibtn"
                   size="sm"
                   tip={false}
-                  icon={glyph(TrashIcon, { size: 16 })}
+                  icon={glyph(Trash2Icon, { size: 16 })}
                   label={t("sx.ui.cancel")}
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {

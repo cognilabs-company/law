@@ -7,7 +7,7 @@ import type { SxOption } from "@/components/admin/studio/sx/types";
 import { fmtRating } from "@/lib/date";
 import { listAdminMarketplaceSellers, type MkmSeller } from "@/lib/services/adminMarketplace";
 import { searchMarketplaceSellers, type MarketSeller } from "@/lib/services/marketplace";
-import { UserSwitchIcon } from "./icons";
+import { ArrowRightLeftIcon } from "./icons";
 import { mergeSellerCandidates, raceAbort } from "./model";
 
 export type SellerPickerProps = {
@@ -83,7 +83,7 @@ export function SellerPicker(props: SellerPickerProps): ReactElement {
       disabled={disabled}
       invalid={invalid}
       emptyText={t("dialog.sellerEmpty")}
-      leadingIcon={UserSwitchIcon}
+      leadingIcon={ArrowRightLeftIcon}
       aiId="call_center.cancellations.resolve.seller"
       aria-labelledby={props["aria-labelledby"]}
       aria-describedby={props["aria-describedby"]}
