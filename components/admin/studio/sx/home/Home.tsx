@@ -14,16 +14,25 @@ import { SxNote } from "../layout/Note";
 import { SxPage } from "../layout/Page";
 import { groupHue } from "../tones";
 import { useStudioLabels, type StudioLabels } from "../useStudioLabels";
-import { GroupCard, type GroupCardKind, type GroupCardModel } from "./GroupCard";
+import { GroupCard, GroupCardSkeleton, type GroupCardKind, type GroupCardModel } from "./GroupCard";
 import { groupNext, groupProgress, groupSteps } from "./groupModel";
 import { LaunchPaths } from "./LaunchPaths";
+import { Overview } from "./Overview";
 import { ResumePanel } from "./ResumePanel";
+import { sumRecords, useStudioSummary, type StudioSummary } from "./summary";
 import { useActionItems } from "./useActionItems";
 import { WaitingPanel } from "./WaitingPanel";
 
 const ZERO: Readonly<Record<GroupCardKind, number>> = { returned: 0, review: 0, publish: 0 };
+const SK_CARDS = [0, 1, 2, 3, 4, 5];
 
-export function groupCardModel(g: StudioGroup, items: readonly StudioConstructor[], labels: Pick<StudioLabels, "groupName" | "groupWhat" | "ctorName">, counts?: Readonly<Record<GroupCardKind, number>>): GroupCardModel {
+export function groupCardModel(
+  g: StudioGroup,
+  items: readonly StudioConstructor[],
+  labels: Pick<StudioLabels, "groupName" | "groupWhat" | "ctorName">,
+  counts?: Readonly<Record<GroupCardKind, number>>,
+  summary?: StudioSummary | null,
+): GroupCardModel {
   const rows = groupSteps(g, items);
   const { done, total } = groupProgress(rows);
   const next = groupNext(g, rows);
@@ -35,6 +44,9 @@ export function groupCardModel(g: StudioGroup, items: readonly StudioConstructor
     what: labels.groupWhat(g.key, g.description),
     done,
     total,
+    blocked: rows.filter((r) => r.state === "blocked").length,
+    records: sumRecords(rows, summary ?? null),
+    steps: rows.map((r) => ({ code: r.code, step: r.step, name: labels.ctorName(r.code, r.ctor?.title), state: r.state })),
     next: next ? { code: next.code, name: labels.ctorName(next.code, next.ctor?.title) } : null,
     counts: counts ?? ZERO,
   };
@@ -46,6 +58,7 @@ export function Home(): ReactElement {
   const acc = useStudioAccess();
   const reg = useStudioRegistry();
   const actions = useActionItems();
+  const summary = useStudioSummary();
   const errText = useEditorErrorText();
   const headingId = useId();
   const [exporting, setExporting] = useState(false);
@@ -80,24 +93,32 @@ export function Home(): ReactElement {
       </>
     ) : undefined;
 
-  const cards = reg.groups.map((g) => groupCardModel(g, reg.items, labels, actions.byGroup[g.key]));
+  const cards = reg.groups.map((g) => groupCardModel(g, reg.items, labels, actions.byGroup[g.key], summary.data));
+  const sumDone = cards.reduce((a, c) => a + c.done, 0);
+  const sumTotal = cards.reduce((a, c) => a + c.total, 0);
+  const groupsDone = cards.filter((c) => c.total > 0 && c.done >= c.total).length;
+  const regLoading = !cards.length && !reg.error && reg.avail !== "off" && reg.at === 0;
 
   return (
     <SxPage title={t("sx.ui.studio")} section="home" lead={t("sx.home.lead")} aiId="admin.studio.home" actions={head}>
       <>
         <div className="sx-home">
+          <Overview done={sumDone} total={sumTotal} groups={cards.length} groupsDone={groupsDone} ready={cards.length > 0 || (reg.at > 0 && !reg.error)} summary={summary} />
           <div className="sx-home__band">
             <WaitingPanel data={actions} max={3} aiId="admin.studio.home.waiting" />
             <ResumePanel />
           </div>
           <section className="sx-home__groups" aria-labelledby={headingId}>
-            <h2 id={headingId} className="sx-home__h">
-              {t("sx.home.groups.title")}
-            </h2>
+            <div className="sx-home__hrow">
+              <h2 id={headingId} className="sx-home__h">
+                {t("sx.home.groups.title")}
+              </h2>
+              {cards.length ? <span className="sx-home__hcount sx-num">{labels.num(cards.length)}</span> : null}
+            </div>
             {cards.length ? (
               <ol className="sx-ggrid" aria-label={t("sx.home.groups.title")} data-ai-id="admin.studio.home.groups" data-ai-type="list" data-ai-label={t("sx.home.groups.title")}>
-                {cards.map((m) => (
-                  <GroupCard key={m.key} model={m} loadingCounts={actions.loading} />
+                {cards.map((m, i) => (
+                  <GroupCard key={m.key} model={m} index={i} loadingCounts={actions.loading} />
                 ))}
               </ol>
             ) : reg.error ? (
@@ -112,6 +133,12 @@ export function Home(): ReactElement {
               >
                 {t("sx.ui.loadFail")}
               </SxNote>
+            ) : regLoading ? (
+              <ol className="sx-ggrid" aria-hidden="true">
+                {SK_CARDS.map((i) => (
+                  <GroupCardSkeleton key={i} index={i} />
+                ))}
+              </ol>
             ) : null}
           </section>
           <LaunchPaths journeys={reg.journeys} items={reg.items} />

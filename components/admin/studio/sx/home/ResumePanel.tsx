@@ -7,7 +7,8 @@ import { Link } from "@/i18n/navigation";
 import { aiId } from "@/lib/ai/ids";
 import { JOURNEY_STATUS, useStudioAccess } from "@/lib/services/studio";
 import { SxButton, SxLinkButton } from "../Button";
-import { RefreshCwIcon, ChevronRightIcon, TimerIcon, PlusIcon, ctorGlyph, glyph } from "../icons";
+import { enterStyle } from "../hooks";
+import { RefreshCwIcon, ChevronRightIcon, TimerIcon, PlusIcon, BriefcaseBusinessIcon, PackageIcon, ctorGlyph, glyph } from "../icons";
 import { stepLabelKey } from "../journey/steps";
 import { useCreationJourneys } from "../journey/useCreationJourneys";
 import { SxNote } from "../layout/Note";
@@ -82,13 +83,16 @@ export function ResumePanel(): ReactElement {
         {errorNote}
         {jItems.length || incomplete > 0 ? (
           <ul className="sx-hlist">
-            {jItems.map((j) => {
+            {jItems.map((j, i) => {
               const title = j.title || t("sx.ui.untitled");
               const pct = j.progress === null ? "—" : t("sx.journeyRun.percent", { n: Math.round(j.progress) });
               const meta = [t(j.type === "package" ? "sx.journeyRun.package" : "sx.journeyRun.service"), j.currentStep ? t(stepLabelKey(j.currentStep)) : ""].filter(Boolean).join(" · ");
               return (
-                <li key={j.id}>
-                  <Link href={creationJourneyHref(j)} className="sx-hrow" data-noicon="" data-ai-id={aiId(BASE, "item", j.id)} data-ai-type="list_item" data-ai-label={title}>
+                <li key={j.id} className="sx-enter" style={enterStyle(Math.min(i, 12))}>
+                  <Link href={creationJourneyHref(j)} className="sx-hrow" data-ai-id={aiId(BASE, "item", j.id)} data-ai-type="list_item" data-ai-label={title}>
+                    <span className="sx-hrow__icon" data-kind="journey">
+                      {glyph(j.type === "package" ? PackageIcon : BriefcaseBusinessIcon, { size: 18 })}
+                    </span>
                     <span className="sx-hrow__main">
                       <span className="sx-hrow__title">{title}</span>
                       <span className="sx-hrow__meta">{meta}</span>
@@ -103,9 +107,9 @@ export function ResumePanel(): ReactElement {
               );
             })}
             {incomplete > 0 ? (
-              <li>
+              <li className="sx-enter" style={enterStyle(jItems.length)}>
                 <Link href={`${CREATE_HOME_HREF}#incomplete`} className="sx-hrow" data-ai-id={aiId(BASE, "incomplete")} data-ai-type="link" data-ai-label={t("sx.home.resume.incomplete", { n: incomplete })}>
-                  <span className="sx-hrow__icon">{glyph(TimerIcon, { size: 16 })}</span>
+                  <span className="sx-hrow__icon" data-kind="timer">{glyph(TimerIcon, { size: 18 })}</span>
                   <span className="sx-hrow__main">
                     <span className="sx-hrow__title">{t("sx.home.resume.incomplete", { n: incomplete })}</span>
                   </span>
@@ -120,11 +124,11 @@ export function ResumePanel(): ReactElement {
           <>
             <h3 className="sx-hsub">{t("sx.home.resume.mine")}</h3>
             <ul className="sx-hlist">
-              {mine.items.map((o) => {
+              {mine.items.map((o, i) => {
                 const title = o.title || t("sx.ui.untitled");
                 const meta = [o.code ? labels.ctorName(o.code) : "", now && (o.updatedAt || o.createdAt) ? labels.ago(o.updatedAt || o.createdAt, now) : ""].filter(Boolean).join(" · ");
                 return (
-                  <li key={o.id}>
+                  <li key={o.id} className="sx-enter" style={enterStyle(Math.min(i + 2, 12))}>
                     <Link
                       href={`/admin/studio/o/${enc(o.id)}`}
                       className="sx-hrow"
@@ -133,7 +137,7 @@ export function ResumePanel(): ReactElement {
                       data-ai-label={title}
                       data-ai-entity-type="studio_object"
                     >
-                      <span className="sx-hrow__icon">{ctorGlyph(o.code, undefined, { size: 16 })}</span>
+                      <span className="sx-hrow__icon" data-kind="ctor">{ctorGlyph(o.code, undefined, { size: 18 })}</span>
                       <span className="sx-hrow__main">
                         <span className="sx-hrow__title">{title}</span>
                         <span className="sx-hrow__meta">{meta}</span>

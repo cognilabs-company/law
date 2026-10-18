@@ -7,6 +7,7 @@ import { Link } from "@/i18n/navigation";
 import { aiId as aiIdOf } from "@/lib/ai/ids";
 import { useStudioAccess } from "@/lib/services/studio";
 import { approvalsHref } from "../approvals/urlState";
+import { enterStyle } from "../hooks";
 import { SxButton, SxLinkButton } from "../Button";
 import { RefreshCwIcon, ChevronRightIcon, glyph } from "../icons";
 import { SxNote } from "../layout/Note";
@@ -31,7 +32,7 @@ export function WaitingSkeleton(): ReactElement {
     <div aria-hidden="true">
       {SK_ROWS.map((i) => (
         <div key={i} className="sx-hrow-sk">
-          <span className="sx-sk" />
+          <span className="sx-sk sx-hrow-sk__tile" />
           <span className="sx-hrow-sk__lines">
             <span className="sx-sk" />
             <span className="sx-sk" />
@@ -98,11 +99,11 @@ export function WaitingPanel({ data, scope, max, aiId, headerAction }: { data: A
           </div>
         ) : null}
         <ul className="sx-hlist">
-          {shown.map((it) => {
+          {shown.map((it, i) => {
             const title = it.title || t("sx.ui.untitled");
             const meta = [t(`sx.home.waiting.${it.kind}`), it.code ? labels.ctorName(it.code) : "", now && it.at ? labels.ago(it.at, now) : ""].filter(Boolean).join(" · ");
             return (
-              <li key={`${it.kind}-${it.id}`}>
+              <li key={`${it.kind}-${it.id}`} className="sx-enter" style={enterStyle(Math.min(i, 12))}>
                 <Link
                   href={`/admin/studio/o/${enc(it.id)}`}
                   className="sx-hrow"
@@ -112,7 +113,7 @@ export function WaitingPanel({ data, scope, max, aiId, headerAction }: { data: A
                   data-ai-entity-type="studio_object"
                 >
                   <span className="sx-hrow__icon" data-kind={it.kind}>
-                    {glyph(NEED_ICON[it.kind], { size: 16 })}
+                    {glyph(NEED_ICON[it.kind], { size: 18 })}
                   </span>
                   <span className="sx-hrow__main">
                     <span className="sx-hrow__title">{title}</span>
