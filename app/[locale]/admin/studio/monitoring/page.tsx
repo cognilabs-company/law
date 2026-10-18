@@ -1,6 +1,6 @@
 "use client";
 
-import StudioMonitoring from "@/components/admin/studio/StudioMonitoring";
+import StudioMonitoring from "@/components/admin/studio/sx/monitoring/Monitoring";
 
 export default function AdminStudioMonitoringPage() {
   return <StudioMonitoring />;
