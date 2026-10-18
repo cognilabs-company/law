@@ -8,14 +8,16 @@ import { humanize } from "@/lib/labels";
 import { initials } from "@/lib/lawyers";
 import { EmptyState } from "@/components/portal/DataState";
 import { isForbidden } from "@/lib/http";
-import { IconAlert, IconBolt, IconCheck, IconChevronLeft, IconChevronRight, IconClock, IconClose, IconInfo, IconLock, IconRefresh } from "@/components/icons";
+import { IconAlert, IconBolt, IconCheck, IconChevronLeft, IconChevronRight, IconClock, IconClose, IconHourglass, IconInfo, IconLock, IconRefresh } from "@/components/icons";
+import "./mkm-status.css";
 
-export type Tone = "pending" | "active" | "done" | "cancel" | "other";
+export type Tone = "pending" | "active" | "review" | "done" | "cancel" | "other";
 
 export function toneOf(status: string): Tone {
+  if (status === "cancellation_review") return "review";
   if (status === "pending_payment" || status === "pending") return "pending";
   if (status === "paid" || status === "in_progress") return "active";
-  if (status === "completed" || status === "approved") return "done";
+  if (status === "completed" || status === "approved" || status === "rated") return "done";
   if (status === "cancelled" || status === "rejected" || status === "failed" || status === "refunded") return "cancel";
   return "other";
 }
@@ -23,6 +25,7 @@ export function toneOf(status: string): Tone {
 const TONE_ICON: Record<Tone, ComponentType<SVGProps<SVGSVGElement>>> = {
   pending: IconClock,
   active: IconBolt,
+  review: IconHourglass,
   done: IconCheck,
   cancel: IconClose,
   other: IconInfo,

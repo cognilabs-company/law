@@ -4958,6 +4958,7 @@
         "list": "Your meeting history: scheduled ones on top, ended ones below."
       },
       "admin_call_center": {
+        "cancellations": "Cancellation requests: a request lands here when a specialist cannot continue the work. Open it and choose a decision: continue, a new price, cancel, another specialist or a refund.",
         "title": "The duty desk — the call-center operator's main workspace.",
         "queue": "The queue: SLA breaches come first. Send an order to the next advocate or move a lead to a stage.",
         "urgent": "Urgent advocate requests: claim one, pick advocates, start the meeting and record the result.",
@@ -14063,6 +14064,9 @@
         "clearDate": "Clear date",
         "status": "Status",
         "statusOpt": {
+          "in_progress": "In progress",
+          "cancellation_review": "Cancellation under review",
+          "rated": "Rated",
           "all": "All statuses",
           "pending_payment": "Awaiting payment",
           "paid": "Paid (active + completed)",
@@ -14079,6 +14083,9 @@
         "sellersNote": "Only the date range applies to the seller list. The status, seller and client filters work in Overview and Orders."
       },
       "status": {
+        "in_progress": "In progress",
+        "cancellation_review": "Cancellation under review",
+        "rated": "Rated",
         "pending_payment": "Awaiting payment",
         "paid": "Active",
         "completed": "Completed",
@@ -14138,6 +14145,8 @@
         "emptyFiltered": "No orders match the filters"
       },
       "orders": {
+        "deadline": "Due {date}",
+        "deadlinePaused": "Deadline paused",
         "title": "Marketplace orders",
         "lead": "Click a row for the full details, the Telegram approval and the activity history.",
         "col": {
@@ -14199,6 +14208,9 @@
         "emptyText": "Try another search."
       },
       "detail": {
+        "started": "Work started",
+        "deadline": "Due by",
+        "deadlinePaused": "Paused — cancellation under review",
         "title": "Order {id}",
         "notFound": "This order can no longer be found — showing the last data from the list.",
         "ids": {
@@ -14207,6 +14219,8 @@
           "payment": "Payment ID"
         },
         "journey": {
+          "review": "Cancellation under review",
+          "refunded": "Refunded",
           "aria": "Order stages",
           "requested": "Request sent",
           "confirm": "Telegram approval",
@@ -16231,9 +16245,12 @@
       }
     },
     "callCenter": {
+      "cancellations": {"title":"Cancellation requests","lead":"When a provider asks to cancel paid work, the request lands here. The order deadline is paused until you decide.","refresh":"Refresh the list","filterLabel":"Request status","statusAll":"All","statusCount":"{label} · {n}","status":{"open":"Open","in_review":"In review","resolved":"Resolved","closed":"Closed","cancelled":"Cancelled"},"pill":{"open":"Open","in_review":"In review","resolved":"Resolved","closed":"Closed","cancelled":"Cancelled"},"loading":"Loading requests…","loadError":"Couldn't load the requests","loadErrorText":"Try again in a moment. If it keeps happening, reload the page.","retry":"Try again","refreshFailed":"The list didn't refresh. Showing the last loaded data.","emptyOpen":"No open requests","emptyOpenText":"As soon as a provider asks to cancel, the request shows up here.","emptyOther":"No requests with this status","emptyOtherText":"Pick another status.","updated":"The list was updated","pager":{"aria":"Request pages","range":"{from}–{to}","rangeTotal":"{from}–{to} of {total}","prev":"Previous","next":"Next"},"item":{"workIdAria":"Order number","noTitle":"Untitled service","requested":"Requested {date}","resolvedAt":"Resolved {date}","client":"Client","seller":"Provider","price":"Order price","orderStatus":"Order status","deadline":"Due by","deadlinePaused":"Deadline paused","deadlineWas":"Original due date: {date}","remaining":"Time left when paused: {time}","started":"Work started","reason":"Provider's reason","noReason":"No reason was given.","more":"Details","less":"Collapse","moreAria":"Details of request {work}","checklist":"Checklist","checklistProgress":"{done} of {total} done","checklistRequired":"Required: {done} of {total}","checklistEmpty":"This order has no checklist.","payment":"Additional payment","paymentNone":"No additional payment was requested.","paymentAmount":"Requested amount","paymentPaid":"Paid","paymentReason":"Reason","paymentStatusLabel":"Status","paymentCount":"Number of requests","paymentStatus":{"requested":"Requested","pending":"Awaiting payment","approved":"Approved","paid":"Paid","rejected":"Rejected","cancelled":"Cancelled","expired":"Expired"},"files":"Result files","filesEmpty":"No result files were uploaded.","fileNoLink":"no link","serviceChat":"Service chat","noChat":"No service chat","newTab":"opens in a new tab","resolve":"Decide","resolveAria":"Decide on {work}","outcome":"Decision","outcomeNote":"Operator's note","outcomeAmount":"New price: {price}","outcomeSeller":"New provider: {name}","resolvedBy":"Decided by {name}","groupChat":"Group chat"},"action":{"continue":"Continue the work","new_price":"Set a new price","cancel":"Cancel the order","reassign":"Reassign to another provider","refund":"Refund the client"},"actionHint":{"continue":"The request closes and the provider carries on.","new_price":"The order gets a new price.","cancel":"The order is cancelled.","reassign":"The order moves to the provider you pick.","refund":"A refund to the client is started."},"outcome":{"continue":"The work continues.","new_price":"A new price was set for the order.","cancel":"The order was cancelled.","reassign":"The order was reassigned to another provider.","refund":"A refund was started.","other":"The decision was saved."},"dialog":{"title":"Decision on the cancellation request","groupNote":"After the decision a separate group chat opens for the client, the provider and you. The main service chat stays as it is.","action":"Decision","actionRequired":"Pick a decision.","amount":"New price","amountHelp":"Current price: {price}","amountRequired":"Enter the new price.","amountPositive":"The price must be above zero.","amountServer":"This price wasn't accepted. Enter another amount.","seller":"New provider","sellerPh":"Search by name, phone or LexGo ID","sellerHelp":"Providers who offer this service are listed first.","sellerRequired":"Pick the new provider.","sellerSame":"Pick someone other than the current provider.","sellerServer":"This provider can't be picked. Choose another one.","sellerOffers":"Offers this service","sellerVerified":"Verified","sellerGroupOffers":"Offer this service","sellerGroupOthers":"Other providers","sellerCurrent":"Current provider","sellerEmpty":"No providers found","note":"Note","noteHelp":"The note is saved with the decision.","notePh":"For example: spoke with both sides, the work resumes tomorrow","noteLong":"The note is too long — keep it to {max} characters or fewer.","submit":{"continue":"Continue","new_price":"Save the price","cancel":"Cancel the order","reassign":"Reassign","refund":"Refund"},"submitAny":"Save the decision","saving":"Saving…","back":"Back","close":"Close","errorTitle":"Couldn't save the decision","errorText":"Try again. If it keeps happening, reload the page.","errorForbidden":"You don't have the right to decide on this request.","errorGone":"The request wasn't found — another operator may have handled it. The list was refreshed.","errorResolved":"A decision on this request was already made. The list was refreshed."},"done":{"title":"Decision saved","chatOpened":"The group chat opened in a new tab.","chatBlocked":"The browser blocked the new tab. Open the chat with the button.","noChat":"No group chat link came back.","openChat":"Open the group chat"}},
       "console": {
+        "openCancellations": "{n} open",
         "tabsAria": "Duty desk sections",
         "tabs": {
+          "cancellations": "Cancellation requests",
           "queue": "Queue",
           "urgent": "Urgent advocate",
           "complaints": "Complaints",

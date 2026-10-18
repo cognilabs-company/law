@@ -5,6 +5,7 @@ import { useAuth, isCallCenterUser } from "@/lib/auth";
 import CallCenterQueue from "@/components/admin/CallCenterQueue";
 import UrgentAdvocateQueue from "@/components/admin/UrgentAdvocateQueue";
 import QualityComplaints from "@/components/admin/QualityComplaints";
+import CancellationQueue from "@/components/admin/callcenter/cancellations/CancellationQueue";
 import CallCenterBoard from "@/components/admin/CallCenterBoard";
 import CcClientSearch from "@/components/admin/CcClientSearch";
 import CcCallLog from "@/components/admin/CcCallLog";
@@ -38,6 +39,9 @@ function AdminCallCenterConsole() {
           endpoint answers 403 to everyone else. */}
       <CcTabPanel con={con} tab="complaints">
         {cc ? <QualityComplaints onCount={con.count.complaints} /> : null}
+      </CcTabPanel>
+      <CcTabPanel con={con} tab="cancellations">
+        {cc ? <CancellationQueue onCount={con.count.cancellations} /> : null}
       </CcTabPanel>
       <CcTabPanel con={con} tab="leads">
         <CallCenterBoard />

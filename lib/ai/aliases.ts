@@ -70,6 +70,7 @@ const RULES: [string, string, Kind][] = [
   ["call_center.urgent-advokat.item.{id}", "callcenter:urgent-list", "a"],
   ["call_center.leads.queue", "callcenter:queue", "x"],
   ["call_center.complaints", "callcenter:complaints", "x"],
+  ["call_center.cancellations", "callcenter:cancellations", "x"],
   ["documents.create.open", "button:create-document", "x"],
   ["documents.search.input", "documents:catalog-search", "x"],
   ["documents.categories", "documents:category-list", "x"],

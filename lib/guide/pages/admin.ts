@@ -51,6 +51,7 @@ export const ADMIN_PAGES: GuidePage[] = [
       { target: "callcenter:queue", text: "tours.admin_call_center.queue" },
       { target: "callcenter:urgent", text: "tours.admin_call_center.urgent" },
       { target: "callcenter:complaints", text: "tours.admin_call_center.complaints" },
+      { target: "callcenter:cancellations", text: "tours.admin_call_center.cancellations" },
       { target: "callcenter:board", text: "tours.admin_call_center.board" },
       { target: "callcenter:client-search", text: "tours.admin_call_center.clientSearch" },
     ],

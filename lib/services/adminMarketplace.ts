@@ -2,7 +2,7 @@ import { http, asDict, asStr, asArr, asNum, type Dict } from "@/lib/http";
 import { uzs } from "@/lib/money";
 import { cleanDocTitle } from "@/lib/docTitle";
 
-export const MKM_STATUSES = ["pending_payment", "paid", "completed", "cancelled"] as const;
+export const MKM_STATUSES = ["pending_payment", "paid", "in_progress", "cancellation_review", "completed", "rated", "cancelled"] as const;
 export const MKM_PAGE = 50;
 
 export type MkmScope = { status: string; sellerUserId: string; clientUserId: string; dateFrom: string; dateTo: string };
@@ -57,6 +57,9 @@ export type MkmOrder = {
   canCreateCall: boolean;
   createdAt: string;
   updatedAt: string;
+  startedAt: string;
+  expectedCompletedAt: string;
+  deadlinePaused: boolean;
 };
 
 export type MkmDelivery = { chatId: string; ok: boolean; messageId: string; error: string };
@@ -192,11 +195,12 @@ export function normMkmOrder(v: unknown): MkmOrder {
   const chatUrl = asStr(d.chat_url);
   const roomId = asStr(d.secure_chat_room_id ?? details.secure_chat_room_id) || (ROOM_RE.exec(chatUrl)?.[1] ?? "");
   const seller = normPerson(d.lawyer, { id: d.lawyer_user_id, name: d.lawyer_name ?? details.lawyer_name });
+  const status = low(d.status);
   return {
     id: asStr(d.id),
     workId: asStr(d.work_id ?? details.work_id),
     orderWorkId: asStr(d.order_work_id),
-    status: low(d.status),
+    status,
     paymentStatus: low(d.payment_status) || (payment?.status ?? ""),
     serviceTitle: cleanDocTitle(asStr(d.service_title ?? details.service_title)),
     sellerType: low(details.seller_type) || seller.role,
@@ -214,6 +218,9 @@ export function normMkmOrder(v: unknown): MkmOrder {
     canCreateCall: d.can_create_call === true && !!roomId,
     createdAt: asStr(d.created_at),
     updatedAt: asStr(d.updated_at),
+    startedAt: asStr(d.started_at ?? details.started_at),
+    expectedCompletedAt: asStr(d.expected_completed_at ?? details.expected_completed_at),
+    deadlinePaused: d.deadline_paused === true || details.deadline_paused === true || status === "cancellation_review",
   };
 }
 

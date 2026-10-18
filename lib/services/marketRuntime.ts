@@ -882,6 +882,124 @@ export async function resolveCancellationReview(reviewId: string, input: ReviewR
   };
 }
 
+export type ReviewOrderContext = {
+  orderId: string;
+  workId: string;
+  orderWorkId: string;
+  serviceId: string;
+  serviceTitle: string;
+  status: string;
+  paymentStatus: string;
+  price: number;
+  currency: string;
+  clientUserId: string;
+  clientName: string;
+  clientPhone: string;
+  sellerUserId: string;
+  sellerName: string;
+  sellerPhone: string;
+  sellerType: string;
+  startedAt: string;
+  expectedCompletedAt: string;
+  deadlinePaused: boolean;
+  pausedAt: string;
+  remainingSeconds: number | null;
+  serviceChatRoomId: string;
+};
+
+const REVIEW_ROOM_RE = /\/secure-chats\/([^/?#]+)/;
+const lowered = (v: unknown): string => trimmed(v).toLowerCase();
+
+function reviewSrcOf(r: CancellationReview): Dict {
+  const inner = dictOf(r.raw.review ?? r.raw.cancellation_review);
+  return Object.keys(inner).length ? inner : r.raw;
+}
+
+export function reviewOrderOf(r: CancellationReview): ReviewOrderContext {
+  const src = reviewSrcOf(r);
+  const o = r.order;
+  const det = dictOf(o.details);
+  const client = dictOf(o.client ?? src.client);
+  const seller = dictOf(o.lawyer ?? o.seller ?? src.seller);
+  const status = lowered(o.status ?? src.order_status);
+  const serviceChat = dictOf(src.service_chat);
+  const fullName = [trimmed(client.first_name), trimmed(client.last_name)].filter(Boolean).join(" ");
+  return {
+    orderId: r.orderId,
+    workId: r.workId || trimmed(det.work_id),
+    orderWorkId: trimmed(o.order_work_id),
+    serviceId: trimmed(o.service_id ?? src.service_id ?? det.service_id),
+    serviceTitle: r.serviceTitle || trimmed(det.service_title),
+    status,
+    paymentStatus: lowered(o.payment_status),
+    price: uzs(o, "price", "final_price") || uzs(src, "order_price", "price"),
+    currency: trimmed(o.currency) || "UZS",
+    clientUserId: trimmed(o.client_user_id ?? client.id ?? src.client_user_id),
+    clientName: r.clientName || trimmed(det.client_name) || fullName,
+    clientPhone: trimmed(client.phone ?? src.client_phone),
+    sellerUserId: trimmed(o.lawyer_user_id ?? seller.id ?? src.seller_user_id),
+    sellerName: r.sellerName || trimmed(det.lawyer_name),
+    sellerPhone: trimmed(seller.phone),
+    sellerType: lowered(det.seller_type ?? seller.role),
+    startedAt: trimmed(o.started_at ?? det.started_at),
+    expectedCompletedAt: trimmed(o.expected_completed_at ?? det.expected_completed_at ?? src.expected_completed_at),
+    deadlinePaused: o.deadline_paused === true || det.deadline_paused === true || src.deadline_paused === true || status === "cancellation_review",
+    pausedAt: trimmed(o.deadline_paused_at ?? det.deadline_paused_at ?? src.deadline_paused_at),
+    remainingSeconds: numOrNull(o.deadline_remaining_seconds ?? det.deadline_remaining_seconds ?? src.remaining_seconds ?? src.deadline_remaining_seconds),
+    serviceChatRoomId:
+      r.serviceChatRoomId ||
+      trimmed(src.service_chat_id) ||
+      trimmed(serviceChat.room_id) ||
+      trimmed(serviceChat.id) ||
+      (REVIEW_ROOM_RE.exec(asStr(o.chat_url))?.[1] ?? ""),
+  };
+}
+
+export type ReviewPayment = { status: string; amount: number; paidAmount: number; currency: string; reason: string; workId: string; createdAt: string; paidAt: string; requests: number; raw: Dict };
+
+export function reviewPaymentOf(r: CancellationReview): ReviewPayment | null {
+  const src = reviewSrcOf(r);
+  const base = r.additionalPayment;
+  const b = dictOf(base);
+  const list = firstArr(src.additional_payments, b.items, b.requests);
+  if (!base && !list.length) return null;
+  const last = dictOf(b.latest ?? b.request ?? list[list.length - 1]);
+  const status = lowered(b.status ?? last.status);
+  const amount = uzs(b, "amount", "requested_amount", "total_amount") || uzs(last, "amount");
+  const reason = trimmed(b.reason ?? b.description ?? last.reason ?? last.description);
+  if (!status && !amount && !reason) return null;
+  return {
+    status,
+    amount,
+    paidAmount: uzs(b, "paid_amount", "paid_total") || (status === "paid" ? amount : 0),
+    currency: trimmed(b.currency ?? last.currency) || "UZS",
+    reason,
+    workId: trimmed(b.work_id ?? last.work_id),
+    createdAt: trimmed(b.created_at ?? last.created_at),
+    paidAt: trimmed(b.paid_at ?? last.paid_at),
+    requests: list.length || 1,
+    raw: Object.keys(b).length ? b : last,
+  };
+}
+
+export type ReviewResolutionInfo = { action: string; note: string; amount: number; lawyerUserId: string; lawyerName: string; groupChatRoomId: string; resolvedAt: string; resolvedByName: string };
+
+export function reviewResolutionOf(r: CancellationReview): ReviewResolutionInfo | null {
+  if (!r.action && !r.resolvedAt && !r.groupChatRoomId) return null;
+  const src = reviewSrcOf(r);
+  const res = dictOf(src.resolution);
+  return {
+    action: r.action,
+    note: r.note,
+    amount: r.amount,
+    lawyerUserId: r.lawyerUserId,
+    lawyerName: trimmed(res.lawyer_name ?? src.new_lawyer_name ?? dictOf(res.lawyer).name),
+    groupChatRoomId: r.groupChatRoomId,
+    resolvedAt: r.resolvedAt,
+    resolvedByName: trimmed(src.resolved_by_name ?? dictOf(src.resolved_by).name ?? res.resolved_by_name),
+  };
+}
+
 export type SecondOpinionSeller = { sellerUserId: string; name: string; sellerType: string; rating: number; reviewsCount: number; verified: boolean; serviceId: string; price: number; region: string; raw: Dict };
 export type SecondOpinion = { items: SecondOpinionSeller[]; showDuringWork: boolean | null; showAfterCompletion: boolean | null; visible: boolean | null; flags: Dict; raw: Dict };
 

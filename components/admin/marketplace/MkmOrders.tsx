@@ -7,7 +7,7 @@ import ScrollCue from "@/components/ui/ScrollCue";
 import { IconChevronRight, IconLayers, IconRefresh } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 import type { Live } from "./useLive";
-import { LoadFailed, Pager, PayBadge, RefreshFailed, StatusBadge, payWorthShowing, useCount, useMoney, useTypeLabel, useWhen } from "./bits";
+import { LoadFailed, Pager, PayBadge, RefreshFailed, StatusBadge, payWorthShowing, toneOf, useCount, useMoney, useTypeLabel, useWhen } from "./bits";
 
 export default function MkmOrders({
   live,
@@ -139,6 +139,11 @@ export default function MkmOrders({
                       <span className="mkm-badges">
                         <StatusBadge status={o.status} />
                         {payWorthShowing(o) ? <PayBadge status={o.paymentStatus} /> : null}
+                        {o.deadlinePaused ? (
+                          <small className="mkm-deadline">{t("deadlinePaused")}</small>
+                        ) : o.expectedCompletedAt && toneOf(o.status) === "active" ? (
+                          <small className="mkm-deadline mkm-deadline--due">{t("deadline", { date: when(o.expectedCompletedAt) })}</small>
+                        ) : null}
                       </span>
                     </td>
                     <td data-l={col("date")} className="mkm-td--date">

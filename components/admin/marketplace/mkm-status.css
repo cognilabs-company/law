@@ -1,0 +1,6 @@
+.mkm{--mkm-review:#7c3aed}
+html[data-theme="dark"] .mkm{--mkm-review:#a78bfa}
+.mkm-tone--review{--mkm-c:var(--mkm-review, #7c3aed)}
+.mkm-st.mkm-st--review{background:var(--dk-tint-violet, #F1EBFF);color:var(--dk-txt-violet, #5B2BC9)}
+.mkm-badges .mkm-deadline{display:block;flex-basis:100%;margin-top:4px;font-size:.74rem;font-weight:600;color:var(--dk-txt-warn, #875000)}
+.mkm-badges .mkm-deadline--due{color:var(--gray)}

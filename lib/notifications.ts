@@ -55,9 +55,12 @@ const EVENT_CATEGORY: Record<string, NotifCategory> = {
   marketplace_purchase_rejected: "orders",
 };
 
+const REVIEW_EVENT = /^marketplace[._]cancellation_review(?:_|$)/;
+
 // Prefix / fragment rules for events that are not listed above (future
 // backend events such as subscription_*, identity_*, register_request_*).
 const EVENT_RULES: [RegExp, NotifCategory][] = [
+  [/^marketplace[._]cancellation_review/, "orders"],
   [/^(order|sos|milestone_(created|updated|approved|rejected))/, "orders"],
   [/^(payment|payout|invoice|refund|subscription|milestone|upsell_paid|gift_paid)/, "payments"],
   [/^(secure_chat|chat|message|call|meeting|video|voice)/, "chat"],
@@ -185,6 +188,12 @@ export function notifLink(event: string, category: NotifCategory, data: Dict, ro
     if (staff) return "/admin/call-center";
     const ref = asStr(data.complaint_id).trim() || asStr(data.work_id).trim();
     return profileTabHref("complaints", ref ? { work: ref } : {});
+  }
+  if (REVIEW_EVENT.test(event)) {
+    if (staff) return callCenter ? "/admin/call-center?tab=cancellations" : "/admin/marketplace";
+    const orderId = asStr(data.order_id).trim();
+    const base = `/portal/${role}/marketplace-orders`;
+    return orderId ? `${base}/${encodeURIComponent(orderId)}` : base;
   }
   if (event.startsWith("marketplace_")) {
     if (role !== "client") return `/portal/${role}/marketplace-orders`;

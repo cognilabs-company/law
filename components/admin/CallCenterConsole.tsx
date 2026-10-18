@@ -5,13 +5,13 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { registerReveal, revealTarget } from "@/lib/guide/targets";
 import { useScrollEdges } from "@/lib/useScrollEdges";
-import { IconArrowRight, IconBolt, IconFlag, IconHeadset, IconInbox, IconSearch, IconUsers } from "@/components/icons";
+import { IconArrowRight, IconBolt, IconCircleX, IconFlag, IconHeadset, IconInbox, IconSearch, IconUsers } from "@/components/icons";
 
-export type CcTab = "queue" | "urgent" | "complaints" | "leads" | "clients";
+export type CcTab = "queue" | "urgent" | "complaints" | "cancellations" | "leads" | "clients";
 export type CcSearch = { q: string; n: number };
-type Counted = "queue" | "urgent" | "complaints";
+type Counted = "queue" | "urgent" | "complaints" | "cancellations";
 
-const ALL: CcTab[] = ["queue", "urgent", "complaints", "leads", "clients"];
+const ALL: CcTab[] = ["queue", "urgent", "complaints", "cancellations", "leads", "clients"];
 const OPEN: CcTab[] = ["leads", "clients"];
 const STORE = "lexgo_cc_tab";
 
@@ -19,6 +19,7 @@ const ICON: Record<CcTab, ComponentType<SVGProps<SVGSVGElement>>> = {
   queue: IconInbox,
   urgent: IconBolt,
   complaints: IconFlag,
+  cancellations: IconCircleX,
   leads: IconUsers,
   clients: IconHeadset,
 };
@@ -27,6 +28,7 @@ const REVEAL: Record<CcTab, RegExp> = {
   queue: /^(?:call_center\.leads(?:\.|$)|callcenter:queue$)/,
   urgent: /^(?:call_center\.urgent-advokat(?:\.|$)|callcenter:urgent(?:-[a-z]+)?$|button:urgent-claim$)/,
   complaints: /^(?:call_center\.complaints(?:\.|$)|callcenter:complaints$)/,
+  cancellations: /^(?:call_center\.cancellations(?:\.|$)|callcenter:cancellations$)/,
   leads: /^(?:call_center\.board(?:\.|$)|callcenter:board$|leads:filters$)/,
   clients: /^(?:call_center\.(?:calls|clients)(?:\.|$)|callcenter:(?:client-search|call-log)$|button:log-call$)/,
 };
@@ -132,7 +134,7 @@ export function useCcConsole(cc: boolean): CcConsole {
 
   const count = useMemo(() => {
     const put = (k: Counted) => (n: number) => setCounts((c) => (c[k] === n ? c : { ...c, [k]: n }));
-    return { queue: put("queue"), urgent: put("urgent"), complaints: put("complaints") };
+    return { queue: put("queue"), urgent: put("urgent"), complaints: put("complaints"), cancellations: put("cancellations") };
   }, []);
 
   const hiddenKey = tabs.filter((k) => k !== active).join(",");
@@ -214,6 +216,7 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
   const listRef = useRef<HTMLDivElement>(null);
   useScrollEdges(listRef, { silent: true });
   const { active, tabs, counts, select, find, attach } = con;
+  const activeCount = active === "queue" || active === "urgent" || active === "complaints" || active === "cancellations" ? counts[active] : undefined;
 
   useEffect(() => {
     const list = listRef.current;
@@ -223,7 +226,7 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
     const at = el.getBoundingClientRect();
     if (at.left < box.left + 32) list.scrollLeft -= box.left + 32 - at.left;
     else if (at.right > box.right - 32) list.scrollLeft += at.right - box.right + 32;
-  }, [active]);
+  }, [active, activeCount]);
 
   function onKey(e: KeyboardEvent<HTMLButtonElement>, k: CcTab) {
     const i = tabs.indexOf(k);
@@ -240,6 +243,7 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
     if (k === "queue") return counts.queue === undefined ? null : <span className="ccon__n">{counts.queue}</span>;
     if (k === "urgent" && counts.urgent) return <span className="ccon__n ccon__n--hot">{t("newUrgent", { n: counts.urgent })}</span>;
     if (k === "complaints" && counts.complaints) return <span className="ccon__n ccon__n--warn">{t("newComplaints", { n: counts.complaints })}</span>;
+    if (k === "cancellations" && counts.cancellations) return <span className="ccon__n ccon__n--warn">{t("openCancellations", { n: counts.cancellations })}</span>;
     return null;
   }
 

@@ -4958,6 +4958,7 @@
         "list": "Uchrashuvlaringiz tarixi: rejalashtirilganlari tepada, tugaganlari pastda."
       },
       "admin_call_center": {
+        "cancellations": "Bekor qilish so'rovlari: ijrochi ishni davom ettira olmasa, so'rov shu yerga tushadi. Ochib, qaror tanlang: davom ettirish, yangi narx, bekor qilish, boshqa ijrochi yoki pulni qaytarish.",
         "title": "Navbatchi xizmat — qo'ng'iroq markazi operatorining asosiy ish joyi.",
         "queue": "Navbat: SLA buzilganlar tepada. Buyurtmani keyingi advokatga yuboring yoki lidni bosqichga o'tkazing.",
         "urgent": "Tezkor advokat so'rovlari: ishni oling, advokat tanlang, uchrashuvni boshlang va natijani yozing.",
@@ -14069,6 +14070,9 @@
         "clearDate": "Sanani tozalash",
         "status": "Holat",
         "statusOpt": {
+          "in_progress": "Ish jarayonida",
+          "cancellation_review": "Bekor qilish ko'rib chiqilmoqda",
+          "rated": "Baholangan",
           "all": "Barcha holatlar",
           "pending_payment": "To'lov kutilmoqda",
           "paid": "To'langan (aktiv + yakunlangan)",
@@ -14085,6 +14089,9 @@
         "sellersNote": "Sotuvchilar ro'yxatiga faqat sana oralig'i ta'sir qiladi. Holat, sotuvchi va mijoz filtrlari Umumiy va Buyurtmalar bo'limlarida ishlaydi."
       },
       "status": {
+        "in_progress": "Ish jarayonida",
+        "cancellation_review": "Bekor qilish ko'rib chiqilmoqda",
+        "rated": "Baholangan",
         "pending_payment": "To'lov kutilmoqda",
         "paid": "Aktiv",
         "completed": "Yakunlangan",
@@ -14144,6 +14151,8 @@
         "emptyFiltered": "Filtrga mos buyurtma yo'q"
       },
       "orders": {
+        "deadline": "Muddat: {date}",
+        "deadlinePaused": "Muddat to'xtatilgan",
         "title": "Marketplace buyurtmalari",
         "lead": "Qatorni bosing — to'liq tafsilot, Telegram tasdig'i va faoliyat tarixi ochiladi.",
         "col": {
@@ -14205,6 +14214,9 @@
         "emptyText": "Qidiruvni o'zgartirib ko'ring."
       },
       "detail": {
+        "started": "Ish boshlangan",
+        "deadline": "Bajarish muddati",
+        "deadlinePaused": "To'xtatilgan — bekor qilish ko'rib chiqilmoqda",
         "title": "Buyurtma {id}",
         "notFound": "Bu buyurtma endi topilmadi — ro'yxatdagi oxirgi ma'lumot ko'rsatilmoqda.",
         "ids": {
@@ -14213,6 +14225,8 @@
           "payment": "To'lov ID"
         },
         "journey": {
+          "review": "Bekor qilish ko'rib chiqilmoqda",
+          "refunded": "Pul qaytarildi",
           "aria": "Buyurtma bosqichlari",
           "requested": "So'rov yuborildi",
           "confirm": "Telegram tasdig'i",
@@ -16237,9 +16251,12 @@
       }
     },
     "callCenter": {
+      "cancellations": {"title":"Bekor qilish so'rovlari","lead":"Ijrochi to'langan ishni bekor qilishni so'raganda so'rov shu yerga tushadi. Qaror chiqquncha buyurtma muddati to'xtatilgan.","refresh":"Ro'yxatni yangilash","filterLabel":"So'rov holati","statusAll":"Barchasi","statusCount":"{label} · {n}","status":{"open":"Ochiq","in_review":"Ko'rib chiqilmoqda","resolved":"Hal qilingan","closed":"Yopilgan","cancelled":"Bekor qilingan"},"pill":{"open":"Ochiq","in_review":"Ko'rib chiqilmoqda","resolved":"Hal qilingan","closed":"Yopilgan","cancelled":"Bekor qilingan"},"loading":"So'rovlar yuklanmoqda…","loadError":"So'rovlarni yuklab bo'lmadi","loadErrorText":"Birozdan keyin qayta urinib ko'ring. Muammo takrorlansa, sahifani yangilang.","retry":"Qayta urinish","refreshFailed":"Ro'yxat yangilanmadi. Oxirgi yuklangan ma'lumot ko'rsatilmoqda.","emptyOpen":"Ochiq so'rov yo'q","emptyOpenText":"Ijrochi bekor qilishni so'rashi bilan so'rov shu yerda paydo bo'ladi.","emptyOther":"Bu holatda so'rov yo'q","emptyOtherText":"Boshqa holatni tanlang.","updated":"Ro'yxat yangilandi","pager":{"aria":"So'rovlar sahifalari","range":"{from}–{to}","rangeTotal":"{from}–{to} / {total}","prev":"Oldingi","next":"Keyingi"},"item":{"workIdAria":"Buyurtma raqami","noTitle":"Nomsiz xizmat","requested":"So'ralgan: {date}","resolvedAt":"Hal qilingan: {date}","client":"Mijoz","seller":"Ijrochi","price":"Buyurtma narxi","orderStatus":"Buyurtma holati","deadline":"Bajarish muddati","deadlinePaused":"Muddat to'xtatilgan","deadlineWas":"Asl muddat: {date}","remaining":"To'xtatilganda qolgan vaqt: {time}","started":"Ish boshlangan","reason":"Ijrochi yozgan sabab","noReason":"Sabab yozilmagan.","more":"Batafsil","less":"Yig'ish","moreAria":"{work} so'rovi tafsilotlari","checklist":"Nazorat ro'yxati","checklistProgress":"{done} / {total} bajarildi","checklistRequired":"Majburiy: {done} / {total}","checklistEmpty":"Bu buyurtmada nazorat ro'yxati yo'q.","payment":"Qo'shimcha to'lov","paymentNone":"Qo'shimcha to'lov so'ralmagan.","paymentAmount":"So'ralgan summa","paymentPaid":"To'langan","paymentReason":"Sabab","paymentStatusLabel":"Holati","paymentCount":"So'rovlar soni","paymentStatus":{"requested":"So'ralgan","pending":"To'lov kutilmoqda","approved":"Tasdiqlangan","paid":"To'langan","rejected":"Rad etilgan","cancelled":"Bekor qilingan","expired":"Muddati o'tgan"},"files":"Natija fayllari","filesEmpty":"Natija fayli yuklanmagan.","fileNoLink":"havola yo'q","serviceChat":"Xizmat chati","noChat":"Xizmat chati yo'q","newTab":"yangi oynada ochiladi","resolve":"Qaror qabul qilish","resolveAria":"{work} bo'yicha qaror qabul qilish","outcome":"Qaror","outcomeNote":"Operator izohi","outcomeAmount":"Yangi narx: {price}","outcomeSeller":"Yangi ijrochi: {name}","resolvedBy":"Qaror qabul qildi: {name}","groupChat":"Guruh chati"},"action":{"continue":"Ishni davom ettirish","new_price":"Yangi narx belgilash","cancel":"Buyurtmani bekor qilish","reassign":"Boshqa ijrochiga o'tkazish","refund":"Pulni qaytarish"},"actionHint":{"continue":"So'rov yopiladi, ijrochi ishni davom ettiradi.","new_price":"Buyurtma uchun yangi narx belgilanadi.","cancel":"Buyurtma bekor qilinadi.","reassign":"Buyurtma siz tanlagan boshqa ijrochiga o'tadi.","refund":"Mijozga pulni qaytarish boshlanadi."},"outcome":{"continue":"Ish davom etadi.","new_price":"Buyurtma uchun yangi narx belgilandi.","cancel":"Buyurtma bekor qilindi.","reassign":"Buyurtma boshqa ijrochiga o'tkazildi.","refund":"Pulni qaytarish boshlandi.","other":"Qaror saqlandi."},"dialog":{"title":"Bekor qilish so'rovi bo'yicha qaror","groupNote":"Qarordan keyin mijoz, ijrochi va siz uchun alohida guruh chati ochiladi. Asosiy xizmat chati o'zgarmaydi.","action":"Qaror","actionRequired":"Qarorni tanlang.","amount":"Yangi narx","amountHelp":"Hozirgi narx: {price}","amountRequired":"Yangi narxni kiriting.","amountPositive":"Narx noldan katta bo'lishi kerak.","amountServer":"Bu narx qabul qilinmadi. Boshqa summa kiriting.","seller":"Yangi ijrochi","sellerPh":"Ism, telefon yoki LexGo ID bo'yicha qidiring","sellerHelp":"Shu xizmatni ko'rsatadigan ijrochilar ro'yxat boshida turadi.","sellerRequired":"Yangi ijrochini tanlang.","sellerSame":"Hozirgi ijrochidan boshqasini tanlang.","sellerServer":"Bu ijrochini tanlab bo'lmaydi. Boshqasini tanlang.","sellerOffers":"Shu xizmatni ko'rsatadi","sellerVerified":"Tasdiqlangan","sellerGroupOffers":"Shu xizmatni ko'rsatadiganlar","sellerGroupOthers":"Boshqa ijrochilar","sellerCurrent":"Hozirgi ijrochi","sellerEmpty":"Ijrochi topilmadi","note":"Izoh","noteHelp":"Izoh qaror bilan birga saqlanadi.","notePh":"Masalan: ikkala tomon bilan gaplashildi, ish ertaga davom etadi","noteLong":"Izoh juda uzun — {max} ta belgigacha yozing.","submit":{"continue":"Davom ettirish","new_price":"Narxni saqlash","cancel":"Buyurtmani bekor qilish","reassign":"Ijrochiga o'tkazish","refund":"Pulni qaytarish"},"submitAny":"Qarorni saqlash","saving":"Saqlanmoqda…","back":"Ortga","close":"Yopish","errorTitle":"Qarorni saqlab bo'lmadi","errorText":"Qayta urinib ko'ring. Muammo takrorlansa, sahifani yangilang.","errorForbidden":"Sizda bu so'rov bo'yicha qaror qabul qilish huquqi yo'q.","errorGone":"So'rov topilmadi — ehtimol, uni boshqa operator hal qilgan. Ro'yxat yangilandi.","errorResolved":"Bu so'rov bo'yicha qaror allaqachon qabul qilingan. Ro'yxat yangilandi."},"done":{"title":"Qaror saqlandi","chatOpened":"Guruh chati yangi oynada ochildi.","chatBlocked":"Brauzer yangi oynani ochishga ruxsat bermadi. Chatni tugma orqali oching.","noChat":"Guruh chati havolasi olinmadi.","openChat":"Guruh chatini ochish"}},
       "console": {
+        "openCancellations": "{n} ochiq",
         "tabsAria": "Navbatchi xizmat bo'limlari",
         "tabs": {
+          "cancellations": "Bekor qilish so'rovlari",
           "queue": "Navbat",
           "urgent": "Tezkor advokat",
           "complaints": "Shikoyatlar",

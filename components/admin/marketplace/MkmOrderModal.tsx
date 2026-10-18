@@ -64,9 +64,10 @@ function Person({ role, p, type, onOrders }: { role: string; p: MkmPerson; type?
 function useJourney() {
   const t = useTranslations("admin.marketplace.detail.journey");
   return (o: MkmOrder, c: MkmConfirm | undefined): Step[] => {
-    const cancelled = o.status === "cancelled";
-    const completed = o.status === "completed";
-    const paid = o.paymentStatus === "paid" || o.status === "paid" || completed;
+    const cancelled = o.status === "cancelled" || o.status === "refunded";
+    const done = o.status === "completed" || o.status === "rated";
+    const review = o.status === "cancellation_review";
+    const paid = o.paymentStatus === "paid" || o.status === "paid" || done;
     const rejected = c?.status === "rejected";
     const approved = c?.status === "approved" || paid;
     const paidAt = c?.reviewedAt || o.payment?.updatedAt || "";
@@ -79,18 +80,22 @@ function useJourney() {
           : cancelled
             ? { key: "confirm", state: "todo", tone: "pending", label: t("confirm"), at: "" }
             : { key: "confirm", state: "now", tone: "pending", label: t("confirm"), at: "" },
-      completed
+      done
         ? { key: "work", state: "done", tone: "done", label: t("work"), at: paidAt }
-        : paid && !cancelled
-          ? { key: "work", state: "now", tone: "active", label: t("work"), at: paidAt }
-          : cancelled && approved
-            ? { key: "work", state: "fail", tone: "cancel", label: t("work"), at: "" }
-            : { key: "work", state: "todo", tone: "active", label: t("work"), at: "" },
-      completed
+        : review
+          ? { key: "work", state: "now", tone: "pending", label: t("review"), at: o.updatedAt }
+          : paid && !cancelled
+            ? { key: "work", state: "now", tone: "active", label: t("work"), at: paidAt }
+            : cancelled && approved
+              ? { key: "work", state: "fail", tone: "cancel", label: t("work"), at: "" }
+              : { key: "work", state: "todo", tone: "active", label: t("work"), at: "" },
+      done
         ? { key: "done", state: "done", tone: "done", label: t("done"), at: o.updatedAt }
-        : cancelled
-          ? { key: "done", state: "fail", tone: "cancel", label: t("cancelled"), at: o.updatedAt }
-          : { key: "done", state: "todo", tone: "done", label: t("finish"), at: "" },
+        : o.status === "refunded"
+          ? { key: "done", state: "fail", tone: "cancel", label: t("refunded"), at: o.updatedAt }
+          : cancelled
+            ? { key: "done", state: "fail", tone: "cancel", label: t("cancelled"), at: o.updatedAt }
+            : { key: "done", state: "todo", tone: "done", label: t("finish"), at: "" },
     ];
   };
 }
@@ -290,6 +295,23 @@ export default function MkmOrderModal({
                     <dt>{t("updated")}</dt>
                     <dd>{when(o.updatedAt) || "—"}</dd>
                   </div>
+                  {o.startedAt ? (
+                    <div>
+                      <dt>{t("started")}</dt>
+                      <dd>{when(o.startedAt)}</dd>
+                    </div>
+                  ) : null}
+                  {o.deadlinePaused ? (
+                    <div className="is-wide">
+                      <dt>{t("deadline")}</dt>
+                      <dd>{t("deadlinePaused")}</dd>
+                    </div>
+                  ) : o.expectedCompletedAt ? (
+                    <div>
+                      <dt>{t("deadline")}</dt>
+                      <dd>{when(o.expectedCompletedAt)}</dd>
+                    </div>
+                  ) : null}
                 </dl>
                 {o.note ? (
                   <p className="mkm-note">
