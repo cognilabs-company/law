@@ -1,7 +1,7 @@
 "use client";
 
-import StudioSettings from "@/components/admin/studio/StudioSettings";
+import { SettingsPage } from "@/components/admin/studio/sx/settings/SettingsPage";
 
 export default function AdminStudioSettingsPage() {
-  return <StudioSettings />;
+  return <SettingsPage />;
 }
