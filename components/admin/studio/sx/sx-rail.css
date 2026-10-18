@@ -1,0 +1,91 @@
+.sx-rail-wrap {
+  --sx-node: 36px;
+}
+.sx-rail-wrap .sx-rail .sx-rail__line {
+  top: calc(var(--sx-node) / 2 - 1px);
+  inset-inline-start: calc(-50% + var(--sx-node) / 2 + 8px);
+  inset-inline-end: calc(50% + var(--sx-node) / 2 + 8px);
+  background: repeating-linear-gradient(90deg, var(--sx-line-strong) 0 3px, transparent 3px 8px);
+  overflow: visible;
+}
+.sx-rail-wrap .sx-rail .sx-rail__line > i {
+  background: linear-gradient(90deg, var(--rail-from, var(--t-fg)), var(--t-fg));
+}
+.sx-rail-wrap .sx-rail .sx-rail__step:is([data-state="done"], [data-state="current"]) .sx-rail__line {
+  background: transparent;
+}
+.sx-rail-wrap .sx-rail .sx-rail__step:is([data-state="done"], [data-state="current"]) .sx-rail__line > i {
+  box-shadow: 0 0 10px color-mix(in srgb, var(--t-fg) 40%, transparent);
+}
+.sx-rail-wrap .sx-rail .sx-rail__dot {
+  border: 1.5px solid var(--sx-line-strong);
+  background: var(--sx-surface);
+  color: var(--sx-muted);
+  transition: box-shadow var(--sx-mid) var(--sx-ease), background-color var(--sx-mid) var(--sx-ease), border-color var(--sx-mid) var(--sx-ease);
+}
+.sx-rail-wrap .sx-rail .sx-rail__step[data-state="done"] .sx-rail__dot {
+  border-color: var(--t-fg);
+  background: var(--t-fg);
+  color: var(--sx-surface);
+  box-shadow: 0 0 14px -2px color-mix(in srgb, var(--t-fg) 55%, transparent);
+}
+.sx-rail-wrap .sx-rail .sx-rail__step[data-state="current"] .sx-rail__dot {
+  border-color: var(--t-fg);
+  background: var(--t-fg);
+  color: var(--sx-surface);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--t-fg) 22%, transparent), 0 0 24px 2px color-mix(in srgb, var(--t-fg) 50%, transparent);
+}
+.sx-rail-wrap .sx-rail .sx-rail__step[data-state="current"] .sx-rail__dot::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border: 1.5px solid color-mix(in srgb, var(--t-fg) 55%, transparent);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: sx-rail-halo 2.6s var(--sx-ease) infinite;
+}
+.sx-rail-wrap .sx-rail .sx-rail__label {
+  font: 500 14px/20px var(--sx-font);
+}
+.sx-rail-wrap .sx-rail .sx-rail__step[data-state="done"] .sx-rail__label {
+  color: var(--sx-ink-2);
+}
+.sx-rail-wrap .sx-rail .sx-rail__step[data-state="current"] .sx-rail__label {
+  color: var(--t-fg);
+  font-weight: 700;
+}
+.sx-rail-wrap .sx-rail .sx-rail__step[data-state="todo"] .sx-rail__label {
+  color: var(--sx-muted);
+}
+
+@keyframes sx-rail-halo {
+  0% {
+    opacity: .9;
+    transform: scale(.86);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.22);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sx-rail-wrap .sx-rail .sx-rail__step[data-state="current"] .sx-rail__dot::after {
+    animation: none;
+    opacity: .5;
+    transform: none;
+  }
+  .sx-rail-wrap .sx-rail .sx-rail__dot {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .sx-rail-wrap .sx-rail .sx-rail__line {
+    background: CanvasText;
+  }
+  .sx-rail-wrap .sx-rail .sx-rail__step[data-state="current"] .sx-rail__dot::after {
+    border-color: CanvasText;
+  }
+}

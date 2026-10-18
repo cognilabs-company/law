@@ -1,6 +1,7 @@
 "use client";
 
 import "./sx-core.css";
+import "./sx-rail.css";
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { celebrate } from "./celebrate";
@@ -8,7 +9,7 @@ import { prefersReducedMotion, useReducedMotion } from "./hooks";
 import { CheckIcon, glyph, STATUS_ICON } from "./icons";
 import { StatusPill } from "./StatusPill";
 import { stageCount, stageKey, stageOnLine, sxStatus } from "./status";
-import type { SxIcon, SxRecordSource, SxStage, SxStatusInfo } from "./types";
+import type { SxIcon, SxRecordSource, SxStage, SxStatusInfo, SxTone } from "./types";
 import { useStudioLabels } from "./useStudioLabels";
 
 export type StatusRailProps = {
@@ -35,6 +36,8 @@ const GLOW_LAG = 140;
 const LATE_MS = 320;
 const CHECK_GLYPH = { size: 16, strokeWidth: 2.5 } as const;
 const STAGE_GLYPH = { size: 18 } as const;
+
+const STAGE_TONE: Readonly<Record<SxStage, SxTone>> = { draft: "draft", submitted: "submitted", in_review: "review", approved: "approved", published: "published" };
 
 const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" ");
 
@@ -150,16 +153,19 @@ export function StatusRail({ status, source, direct = false, variant = "full", n
             const branch = current && info.branch ? info.branch : null;
             const text = current && (branch || info.key === "scheduled") ? labels.status(status, source) : labels.status(stage);
             const icon = state === "done" ? glyph(CheckIcon, CHECK_GLYPH) : glyph(current ? currentIcon(info, stage) : STATUS_ICON[stage], STAGE_GLYPH);
+            const from = i > 0 && state !== "todo" ? ({ "--rail-from": `var(--sx-${STAGE_TONE[stageKey(i - 1, direct)]}-fg)` } as CSSProperties) : undefined;
+            const style = from || fresh(i) ? { ...from, ...delay(i) } : undefined;
             return (
               <li
                 key={stage}
                 className="sx-rail__step"
                 data-state={state}
                 data-stage={stage}
+                data-tone={state === "done" ? STAGE_TONE[stage] : undefined}
                 data-branch={branch ?? undefined}
                 data-fresh={fresh(i) ? "" : undefined}
                 aria-current={current ? "step" : undefined}
-                style={delay(i)}
+                style={style}
               >
                 {i > 0 ? (
                   <span className="sx-rail__line" aria-hidden="true">

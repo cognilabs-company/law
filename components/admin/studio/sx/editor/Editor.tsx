@@ -90,6 +90,7 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
   const [drawer, setDrawer] = useState<DrawerState>({ open: false, tab: null });
 
   const st = useEditorState(init, {
+    lockLive: true,
     onCreated: async (d) => {
       await guardRef.current?.release();
       router.replace(objectHref(d.id));
@@ -243,6 +244,7 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
   return (
     <SxPage
       layout="record"
+      look="neon"
       aiId="admin.studio.editor"
       title={pageTitle(st, tr)}
       crumbs={editorCrumbs(st, labels)}

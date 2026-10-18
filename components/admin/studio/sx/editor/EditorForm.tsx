@@ -4,6 +4,7 @@ import "../sx-core.css";
 import "../sx-layout.css";
 import "../sx-form.css";
 import "./sx-editor.css";
+import "./sx-editor-neon.css";
 import type { ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { useStudioRegistry } from "@/lib/services/studio";
@@ -18,6 +19,7 @@ import { SxPanel } from "../layout/Panel";
 import { outlineItems } from "../schema/model";
 import { SchemaErrorSummary } from "../schema/ErrorSummary";
 import { SchemaForm } from "../schema/SchemaForm";
+import { sectionIcon } from "../schema/neonLook";
 import { useStudioLabels } from "../useStudioLabels";
 import { useEditorErrorText } from "./useEditorErrorText";
 import type { EditorState } from "./useEditorState";
@@ -136,17 +138,18 @@ export function EditorForm({ st, onPick }: { st: EditorState; onPick: (path: str
   const model = st.model;
   if (!model) return <FormSkeleton />;
 
-  const items = outlineItems(model, st.payload, st.errors, st.policy, { mode: st.formMode, recordId: st.recordId }, labels);
+  const sectionIds = new Map(model.sections.map((s) => [s.domId, s.id]));
+  const items = outlineItems(model, st.payload, st.errors, st.policy, { mode: st.formMode, recordId: st.recordId }, labels).map((it) => ({ ...it, icon: sectionIcon(sectionIds.get(it.id) ?? "") }));
   const multi = items.length > 1;
   const sectionOptions = items.map((i) => ({ value: i.id, label: i.label }));
   const recordTitle = model.titleField ? null : { value: st.recordTitle, onChange: st.setRecordTitle, placeholderKey: st.layout.recordTitlePlaceholderKey };
 
   return (
     <SxFormContext.Provider value={st.policy}>
-      <div className="sx-ed" data-outline={multi ? "" : undefined}>
+      <div className="sx-ed" data-look="neon" data-outline={multi ? "" : undefined}>
         {multi ? (
           <aside className="sx-ed__aside">
-            <SxOutline items={items} label={t("sx.editor.outline")} spy aiId={`${AI}.outline`} />
+            <SxOutline items={items} label={t("sx.editor.outline")} spy look="neon" aiId={`${AI}.outline`} />
           </aside>
         ) : null}
         <div className="sx-ed__main">
@@ -177,6 +180,7 @@ export function EditorForm({ st, onPick }: { st: EditorState; onPick: (path: str
               mode={st.formMode}
               recordId={st.recordId}
               recordTitle={recordTitle}
+              look="neon"
             />
           </SxPanel>
         </div>

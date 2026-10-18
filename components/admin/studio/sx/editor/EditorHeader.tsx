@@ -3,14 +3,15 @@
 import "../sx-core.css";
 import "../sx-layout.css";
 import "./sx-editor.css";
+import "./sx-editor-neon.css";
 import { useId, type ReactElement } from "react";
+import { EllipsisVerticalIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import IconButton from "@/components/ui/IconButton";
 import Menu, { menuSeparator, tidyMenu, type MenuEntry } from "@/components/ui/Menu";
 import { SxButton } from "../Button";
 import {
   ArchiveIcon,
-  ExternalLinkIcon,
   RefreshCwIcon,
   MessageSquareTextIcon,
   HistoryIcon,
@@ -23,14 +24,15 @@ import {
   PencilIcon,
   RocketIcon,
   BadgeCheckIcon,
+  ClockIcon,
   XIcon,
   glyph,
-  moreGlyph,
 } from "../icons";
 import { SxNote } from "../layout/Note";
 import { useNow } from "../live";
 import { StatusPill } from "../StatusPill";
 import { StatusRail } from "../StatusRail";
+import { sxStatus } from "../status";
 import type { SxCrumb, SxIcon } from "../types";
 import { useStudioLabels, type StudioLabels } from "../useStudioLabels";
 import { useEditorErrorText } from "./useEditorErrorText";
@@ -49,7 +51,7 @@ const PRIMARY: Readonly<Record<Exclude<EditorPrimary, null>, PrimaryLook>> = {
   submit: { key: "sx.editor.submit", icon: SendIcon, ai: `${AI}.submit` },
   publishDirect: { key: "sx.editor.publish", icon: RocketIcon, ai: `${AI}.submit` },
   publish: { key: "sx.editor.publish", icon: RocketIcon, ai: `${AI}.publish` },
-  openReview: { key: "sx.editor.openReview", icon: ExternalLinkIcon, ai: `${AI}.open-review` },
+  openReview: { key: "sx.editor.openReview", icon: SendIcon, ai: `${AI}.open-review` },
   edit: { key: "sx.ui.edit", icon: PencilIcon, ai: `${AI}.edit` },
   save: { key: "sx.ui.save", icon: SaveIcon, ai: `${AI}.save` },
 };
@@ -97,7 +99,7 @@ export function EditorMeta({ st }: { st: EditorState }): ReactElement {
   const unsaved = st.dirty && !st.readOnly;
   return (
     <span className="sx-ed-meta">
-      {version ? <span className="sx-code">{t("sx.editor.versionTag", { v: version })}</span> : null}
+      {version ? <span className="sx-code sx-ed-meta__ver">{t("sx.editor.versionTag", { v: version })}</span> : null}
       {unsaved ? (
         <span className="sx-ed-meta__save" data-unsaved="">
           <span className="sx-ed__dot" aria-hidden="true" />
@@ -105,6 +107,7 @@ export function EditorMeta({ st }: { st: EditorState }): ReactElement {
         </span>
       ) : st.savedAt ? (
         <span className="sx-ed-meta__save" title={labels.dateTime(st.savedAt)}>
+          {glyph(ClockIcon, { size: 15 })}
           {t("sx.editor.savedAt", { when: labels.ago(st.savedAt, now) })}
         </span>
       ) : null}
@@ -249,8 +252,33 @@ export function EditorActions({
   const risky = (st.full ?? st.ctor)?.experience.risk === "high";
   const items = menuEntries(st, narrow, t, onMenu);
   const primaryBusy = st.busy === "check" || (st.primary === "save" && st.busy === "save");
+  const unlockable = st.readOnlyReason === "live" && st.access.canEdit && st.phase === "ready";
+  const onUnlock = () => {
+    st.unlock();
+    if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") return;
+    const form = `${st.idPrefix}-form`;
+    window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(() => {
+        const target = document.getElementById(form)?.querySelector<HTMLElement>(UNLOCK_FOCUS);
+        target?.focus({ preventScroll: true });
+      }),
+    );
+  };
   return (
     <>
+      {unlockable ? (
+        <SxButton
+          variant={look ? "secondary" : "primary"}
+          icon={PencilIcon}
+          onClick={onUnlock}
+          title={t("sx.ed2.unlockHint")}
+          aiId={`${AI}.unlock`}
+          aiLabel={t("sx.ed2.unlock")}
+          className={look ? "sx-ed__unlock" : "sx-ed__primary sx-ed__unlock"}
+        >
+          {t("sx.ed2.unlock")}
+        </SxButton>
+      ) : null}
       {showSave ? (
         <SxButton
           variant="secondary"
@@ -310,8 +338,8 @@ export function EditorActions({
           items={items}
           label={t("sx.editor.menuLabel")}
           className="sx-pop sx-menu"
-          triggerClassName="sx-ibtn"
-          icon={moreGlyph()}
+          triggerClassName="sx-ibtn sx-ed__more"
+          icon={glyph(EllipsisVerticalIcon, { strokeWidth: 2.25 })}
           align="end"
           tipAlign="end"
           aiId={`${AI}.menu`}
@@ -376,29 +404,85 @@ function AlertSlot({ alert, st, onAction }: { alert: NonNullable<EditorAlert>; s
   );
 }
 
+const UNLOCK_FOCUS = 'input:not([disabled]):not([type="hidden"]),textarea:not([disabled]),[contenteditable="true"]';
+
+const GENERIC_NEXT: ReadonlySet<string> = new Set([
+  "sx.editor.next.new",
+  "sx.editor.next.submitted",
+  "sx.editor.next.inReview",
+  "sx.editor.next.returnedNoNote",
+  "sx.editor.next.rejectedNoNote",
+  "sx.editor.next.archived",
+  "sx.editor.next.clone",
+]);
+const SHORT_NEXT: Readonly<Record<string, string>> = {
+  "sx.editor.next.returned": "sx.ed2.next.note",
+  "sx.editor.next.rejected": "sx.ed2.next.note",
+  "sx.editor.next.approvedPublisher": "sx.ed2.next.approvedPublisher",
+  "sx.editor.next.approvedWait": "sx.ed2.next.approvedWait",
+  "sx.editor.next.published": "sx.ed2.next.published",
+  "sx.editor.next.runtimeEdit": "sx.ed2.next.runtimeEdit",
+  "sx.editor.next.runtimeView": "sx.ed2.next.runtimeView",
+};
+
+function stateKeyOf(st: EditorState): string {
+  if (st.mode === "runtime-view" || st.mode === "runtime-edit") return "runtime";
+  if (st.mode === "create") return "new";
+  if (st.mode === "clone") return "clone";
+  return sxStatus(st.status).key;
+}
+
+function StateCard({ st }: { st: EditorState }): ReactElement {
+  const t = useTranslations("studio");
+  const key = stateKeyOf(st);
+  const tone = st.mode === "object" ? sxStatus(st.status).tone : "draft";
+  const nextKey = st.next.key;
+  const title = t(`sx.ed2.state.${key}.title`);
+  const text = nextKey && !GENERIC_NEXT.has(nextKey) ? t(SHORT_NEXT[nextKey] ?? nextKey, st.next.values) : t(`sx.ed2.state.${key}.text`);
+  return (
+    <div className="sx-ed-sp__info" data-tone={tone} role="note" aria-label={title}>
+      <span className="sx-ed-sp__i" aria-hidden="true">
+        {glyph(InfoIcon, { size: 20 })}
+      </span>
+      <div className="sx-ed-sp__txt">
+        <p className="sx-ed-sp__title">{title}</p>
+        <p className="sx-ed__note">{text}</p>
+      </div>
+    </div>
+  );
+}
+
 export function EditorBelow({ st, narrow = false, onAlertAction }: { st: EditorState; narrow?: boolean; onAlertAction: (kind: NonNullable<EditorAlert>["kind"]) => void }): ReactElement {
   const t = useTranslations("studio");
   const loading = st.phase === "loading";
   const rail = railShown(st);
   const ready = st.phase === "ready";
-  const note = ready && !st.blocked && st.next.key ? t(st.next.key, st.next.values) : "";
+  const info = ready && !st.blocked && !!st.next.key;
+  const showRail = rail && ready;
   return (
     <div className="sx-ed__below">
       {loading && st.mode !== "runtime-view" && st.mode !== "runtime-edit" ? (
-        <div className="sx-ed__rail" aria-hidden="true">
-          <span className="sx-sk sx-ed__railsk" />
+        <div className="sx-ed-sp" data-loading="" aria-hidden="true">
+          <div className="sx-ed__rail">
+            <span className="sx-sk sx-ed__railsk" />
+          </div>
+          <span className="sx-sk sx-ed-sp__sk" />
         </div>
-      ) : rail && ready ? (
-        <div className="sx-ed__rail" data-ai-id={`${AI}.rail`} data-ai-type="section" data-ai-label={t("sx.rail.label")}>
-          <StatusRail status={st.status} direct={st.direct} variant="full" celebrateOnPublish />
-        </div>
+      ) : showRail || info ? (
+        <section className="sx-ed-sp" data-solo={showRail ? undefined : ""} aria-label={t("sx.rail.label")}>
+          {showRail ? (
+            <div className="sx-ed__rail" data-ai-id={`${AI}.rail`} data-ai-type="section" data-ai-label={t("sx.rail.label")}>
+              <StatusRail status={st.status} direct={st.direct} variant="full" celebrateOnPublish />
+            </div>
+          ) : null}
+          {info ? <StateCard st={st} /> : null}
+        </section>
       ) : null}
       {narrow && !loading ? (
         <div className="sx-ed__meta-row">
           <EditorMeta st={st} />
         </div>
       ) : null}
-      {note ? <p className="sx-ed__note">{note}</p> : null}
       {st.alert ? (
         <div className="sx-ed__alert">
           <AlertSlot alert={st.alert} st={st} onAction={onAlertAction} />

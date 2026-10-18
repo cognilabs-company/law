@@ -88,6 +88,7 @@ export type EditorOptions = {
   idPrefix?: string;
   only?: SchemaOnly;
   onFocusFail?: (path: string) => void;
+  lockLive?: boolean;
 };
 export type EditorDialogError = { title: string; text: string };
 
@@ -113,7 +114,7 @@ export type EditorState = {
   formMode: SxEditMode;
   schemaFailed: boolean;
   readOnly: boolean;
-  readOnlyReason: "" | "access" | "locked" | "view" | "archived";
+  readOnlyReason: "" | "access" | "locked" | "view" | "archived" | "live";
   blocked: boolean;
   missing: string[];
   status: string;
@@ -164,6 +165,7 @@ export type EditorState = {
   dismissAlert: () => void;
   retryLoad: () => void;
   clearDialogError: () => void;
+  unlock: () => void;
 };
 
 type Draft = { title: string; payload: SxPayload };
@@ -173,6 +175,7 @@ type FullState = { code: string; ctor: StudioConstructor | null; done: boolean }
 const EMPTY_PAYLOAD: SxPayload = {};
 const EMPTY_ERRORS: SxErrors = {};
 const REVIEWING: ReadonlySet<string> = new Set(["submitted", "in_review"]);
+const LIVE: ReadonlySet<string> = new Set(["approved", "published"]);
 const SUBMIT_PRIMARY: ReadonlySet<EditorPrimary> = new Set<EditorPrimary>(["saveSubmit", "submit", "publishDirect", "save"]);
 const NO_CAN: EditorState["can"] = { save: false, submit: false, publish: false, archive: false, review: false, rollback: false, clone: false, newVersion: false, comment: false, upload: false, exportVersions: false, edit: false };
 const TITLE_MAX = 200;
@@ -256,6 +259,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const [dialogError, setDialogError] = useState<EditorDialogError | null>(null);
   const [fileError, setFileError] = useState("");
   const [desc, setDesc] = useState<{ id: string; n: number }>({ id: "", n: 0 });
+  const [unlockedFor, setUnlockedFor] = useState<string | null>(() => (id && peekPatch(id) ? "*" : null));
 
   const code = init.code || detail?.code || seed?.code || "";
   const regCtor = useMemo(() => (code ? reg.items.find((c) => c.code === code) ?? null : null), [reg.items, code]);
@@ -274,8 +278,10 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const statusNorm: string = mode === "object" ? detail?.status ?? "draft" : mode === "create" || mode === "clone" ? "draft" : "";
   const status = mode === "object" ? detail?.statusRaw || detail?.status || "" : statusNorm;
   const statusKey = statusKeyOf(status, "studio");
+  const liveKey = `${statusNorm}:${detail?.currentVersionId ?? ""}`;
+  const liveLocked = !!opts.lockLive && mode === "object" && LIVE.has(statusNorm) && unlockedFor !== "*" && unlockedFor !== liveKey;
   const readOnlyReason: EditorState["readOnlyReason"] =
-    statusNorm === "archived" ? "archived" : REVIEWING.has(statusNorm) ? "locked" : !access.canEdit ? "access" : mode === "runtime-view" ? "view" : "";
+    statusNorm === "archived" ? "archived" : REVIEWING.has(statusNorm) ? "locked" : !access.canEdit ? "access" : mode === "runtime-view" ? "view" : liveLocked ? "live" : "";
   const readOnly = readOnlyReason !== "";
   const formMode: SxEditMode = readOnly ? "view" : mode === "create" || mode === "clone" ? "create" : "edit";
   const gate = regCtor ?? full;
@@ -1009,6 +1015,13 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
 
   const clearDialogError = () => setDialogError(null);
 
+  const unlock = () => {
+    if (readOnlyReason !== "live") return;
+    setUnlockedFor(liveKey);
+    const cur = latestRef.current;
+    if (cur?.prepared) commit({ ...cur, prepared: false });
+  };
+
   return {
     phase,
     loadError,
@@ -1082,6 +1095,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     dismissAlert,
     retryLoad,
     clearDialogError,
+    unlock,
   };
 }
 

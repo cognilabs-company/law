@@ -3,6 +3,7 @@
 import "../sx-core.css";
 import "../sx-layout.css";
 import "./sx-editor-panels.css";
+import "./sx-editor-neon.css";
 import type { ReactElement, ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import Tabs, { type TabItem } from "@/components/ui/Tabs";
@@ -83,7 +84,11 @@ export function EditorDrawer({
         }
         aiId="admin.studio.editor.drawer"
       >
-        {open ? <div data-ai-id={TAB_AI.guide} data-ai-type="section" data-ai-label={t("sx.guide.title")}>{guide}</div> : null}
+        {open ? (
+          <div className="sx-ed-dwx" data-ai-id={TAB_AI.guide} data-ai-type="section" data-ai-label={t("sx.guide.title")}>
+            {guide}
+          </div>
+        ) : null}
       </SxDrawer>
     );
   }
@@ -137,15 +142,17 @@ export function EditorDrawer({
 
   return (
     <SxDrawer open={open} onClose={onClose} size="lg" title={t("sx.editor.drawer")} description={st.title || ctorName || undefined} aiId="admin.studio.editor.drawer">
-      <Tabs<EditorTab>
-        items={items}
-        value={active}
-        onChange={onTab}
-        variant="line"
-        label={t("sx.editor.drawer")}
-        idPrefix="sx-ed-side"
-        className="sx-tabs"
-      />
+      <div className="sx-ed-dwx">
+        <Tabs<EditorTab>
+          items={items}
+          value={active}
+          onChange={onTab}
+          variant="line"
+          label={t("sx.editor.drawer")}
+          idPrefix="sx-ed-side"
+          className="sx-tabs"
+        />
+      </div>
     </SxDrawer>
   );
 }

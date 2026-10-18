@@ -7,10 +7,11 @@ import { useTranslations } from "next-intl";
 import { aiId as aiIdOf } from "@/lib/ai/ids";
 import { prefersReducedMotion } from "../hooks";
 import { CheckIcon, CircleAlertIcon, glyph } from "../icons";
+import type { SxIcon } from "../types";
 import { scrollParent } from "./util";
 
-export type SxOutlineItem = { id: string; label: string; state?: "todo" | "done" | "error"; errors?: number };
-export type SxOutlineProps = { items: readonly SxOutlineItem[]; label: string; activeId?: string; spy?: boolean; onSelect?: (id: string) => void; aiId?: string };
+export type SxOutlineItem = { id: string; label: string; state?: "todo" | "done" | "error"; errors?: number; icon?: SxIcon };
+export type SxOutlineProps = { items: readonly SxOutlineItem[]; label: string; activeId?: string; spy?: boolean; onSelect?: (id: string) => void; aiId?: string; look?: "neon" };
 
 const HEADING = "h1,h2,h3,h4,h5,h6";
 const HOLD_MS = 1000;
@@ -28,7 +29,7 @@ export function focusSection(id: string): HTMLElement | null {
   return target;
 }
 
-export function SxOutline({ items, label, activeId, spy = false, onSelect, aiId }: SxOutlineProps): ReactElement {
+export function SxOutline({ items, label, activeId, spy = false, onSelect, aiId, look }: SxOutlineProps): ReactElement {
   const t = useTranslations("studio");
   const nav = useRef<HTMLElement>(null);
   const hold = useRef(0);
@@ -114,7 +115,7 @@ export function SxOutline({ items, label, activeId, spy = false, onSelect, aiId 
   };
 
   return (
-    <nav ref={nav} className="sx-outline" aria-label={label}>
+    <nav ref={nav} className="sx-outline" aria-label={label} data-look={look}>
       <ol className="sx-outline__list">
         {items.map((it) => {
           const on = it.id === current;
@@ -131,11 +132,16 @@ export function SxOutline({ items, label, activeId, spy = false, onSelect, aiId 
                 data-ai-type="link"
                 data-ai-label={it.label}
               >
+                {it.icon ? (
+                  <span className="sx-outline__icon" aria-hidden="true">
+                    {glyph(it.icon, { size: 18 })}
+                  </span>
+                ) : null}
                 <span className="sx-outline__text">{it.label}</span>
                 {it.state === "done" ? (
                   <span className="sx-outline__mark" data-mark="done">
                     {glyph(CheckIcon, { size: 14, strokeWidth: 2.5 })}
-                    <span className="sx-vh">{t("sx.guide.done")}</span>
+                    <span className="sx-vh">{t(look === "neon" ? "sx.ed2.outline.done" : "sx.guide.done")}</span>
                   </span>
                 ) : it.state === "error" ? (
                   <span className="sx-outline__mark" data-mark="error">
@@ -146,6 +152,10 @@ export function SxOutline({ items, label, activeId, spy = false, onSelect, aiId 
                       </span>
                     ) : null}
                     <span className="sx-vh">{t("sx.rep.errors", { n: errors || 1 })}</span>
+                  </span>
+                ) : look === "neon" ? (
+                  <span className="sx-outline__mark" data-mark="todo">
+                    <span className="sx-vh">{t("sx.ed2.outline.todo")}</span>
                   </span>
                 ) : null}
               </a>

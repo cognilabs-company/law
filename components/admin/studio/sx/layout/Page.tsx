@@ -2,6 +2,7 @@
 
 import "../sx-core.css";
 import "../sx-layout.css";
+import "../editor/sx-record-head.css";
 import { useEffect, useLayoutEffect, useRef, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -10,6 +11,7 @@ import { recheckStudio, studioErrorOf, useStudioAccess, type StudioAccess } from
 import { useScrollEdges } from "@/lib/useScrollEdges";
 import { SxButton } from "../Button";
 import { prefersReducedMotion } from "../hooks";
+import { HouseIcon } from "lucide-react";
 import { ArrowLeftIcon, RefreshCwIcon, ChevronRightIcon, LockIcon, LayersIcon, NAV_ICON, SxIconScope, glyph } from "../icons";
 import type { SxCrumb, SxNeed, SxSection } from "../types";
 import { SxEmpty } from "./Empty";
@@ -19,6 +21,7 @@ import { scrollParent } from "./util";
 export type SxPageProps = {
   title: string;
   layout?: "page" | "record";
+  look?: "neon";
   icon?: ReactNode;
   section?: SxSection | null;
   crumbs?: readonly SxCrumb[];
@@ -191,6 +194,37 @@ function Crumbs({ crumbs, inline, base }: { crumbs: readonly SxCrumb[]; inline: 
   );
 }
 
+function NeonCrumbs({ crumbs, here, base }: { crumbs: readonly SxCrumb[]; here: string; base: string }) {
+  const t = useTranslations("studio");
+  const trail: SxCrumb[] = [{ label: t("sx.ui.studio"), href: ROOT_HREF }, ...crumbs];
+  return (
+    <nav className="sx-crumbs sx-rh__crumbs" aria-label={t("sx.nav.crumbs")}>
+      <ol className="sx-crumbs__list">
+        {trail.map((c, i) => (
+          <li key={`${i}-${c.label}`} className="sx-crumbs__item">
+            {c.href ? (
+              <Link href={c.href} className="sx-crumbs__link" data-ai-id={aiIdOf(base, "crumb", i)} data-ai-type="link" data-ai-label={c.label}>
+                {i === 0 ? glyph(HouseIcon, { size: 16, className: "sx-rh__home" }) : null}
+                <span>{c.label}</span>
+              </Link>
+            ) : (
+              <span className="sx-crumbs__text">{c.label}</span>
+            )}
+            {glyph(ChevronRightIcon, { size: 14, className: "sx-crumbs__sep" })}
+          </li>
+        ))}
+        {here ? (
+          <li className="sx-crumbs__item sx-rh__here">
+            <span className="sx-crumbs__text" aria-current="page">
+              {here}
+            </span>
+          </li>
+        ) : null}
+      </ol>
+    </nav>
+  );
+}
+
 function BackLink({ crumbs, base }: { crumbs: readonly SxCrumb[]; base: string }) {
   const t = useTranslations("studio");
   const target = [...crumbs].reverse().find((c) => c.href) ?? { label: t("sx.ui.studio"), href: ROOT_HREF };
@@ -274,6 +308,7 @@ function Gate({ gate, acc }: { gate: Exclude<SxGate, "open" | "checking">; acc: 
 export function SxPage({
   title,
   layout = "page",
+  look,
   icon,
   section = null,
   crumbs,
@@ -341,6 +376,41 @@ export function SxPage({
   }, [record, hasBelow]);
 
   const body = gate === "checking" ? <Skeleton record={record} /> : gate === "open" ? children : <Gate gate={gate} acc={acc} />;
+
+  if (record && look === "neon") {
+    return (
+      <SxIconScope>
+        <div ref={root} className="sx sx-page" data-layout="record" data-look="neon" data-ai-id={aiId} data-ai-type={aiId ? "section" : undefined} data-ai-label={aiId ? title : undefined}>
+          <div ref={head} className="sx-head sx-rh" data-sticky="">
+            <div className="sx-head__row sx-rh__row">
+              <div className="sx-head__main sx-rh__main">
+                {crumbs ? <NeonCrumbs crumbs={crumbs} here={title} base={base} /> : null}
+                {crumbs ? <BackLink crumbs={crumbs} base={base} /> : null}
+                <Title title={title} record />
+              </div>
+              {open && (meta || statusWhenStuck || actions) ? (
+                <div className="sx-head__side sx-rh__side">
+                  {statusWhenStuck ? (
+                    <div className="sx-head__stuck" data-always={below ? undefined : ""}>
+                      {statusWhenStuck}
+                    </div>
+                  ) : null}
+                  {meta ? <div className="sx-head__meta">{meta}</div> : null}
+                  {actions ? <div className="sx-head__actions">{actions}</div> : null}
+                </div>
+              ) : null}
+            </div>
+          </div>
+          {hasBelow ? (
+            <div ref={belowBox} className="sx-page__below">
+              {below}
+            </div>
+          ) : null}
+          <div className="sx-page__body">{body}</div>
+        </div>
+      </SxIconScope>
+    );
+  }
 
   if (record) {
     return (

@@ -1,0 +1,245 @@
+.sx-sf[data-look="neon"] {
+  display: grid;
+  gap: 18px;
+}
+.sx-sf[data-look="neon"] > .sx-sf__sec.sx-sfn {
+  margin: 0;
+  padding: 22px 24px 24px;
+  border: 1px solid var(--rn-border, var(--sx-line));
+  border-radius: 16px;
+  background:
+    radial-gradient(560px 140px at 0% 0%, var(--rn-glow-soft, transparent), transparent 70%),
+    var(--rn-panel, var(--sx-surface));
+  box-shadow: var(--rn-shadow, none);
+}
+.sx-sf[data-look="neon"] > .sx-sf__sec.sx-sfn + .sx-sf__sec.sx-sfn {
+  margin-top: 0;
+}
+.sx-sfn__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  margin: 0 0 16px;
+}
+.sx-sfn__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, var(--rn-tile-a, var(--sx-accent-soft)), var(--rn-tile-b, var(--sx-surface-2)));
+  color: var(--rn-tile-ink, var(--sx-accent));
+  box-shadow: inset 0 1px 0 var(--rn-tile-hi, transparent), inset 0 0 0 1px color-mix(in srgb, var(--rn-tile-ink, var(--sx-accent)) 18%, transparent);
+}
+.sx-sfn__head > .sx-sechead {
+  flex: 1 1 auto;
+  margin: 0;
+}
+.sx .sx-sfn__head .sx-sechead__title {
+  font: 700 17px/24px var(--sx-font-display);
+}
+.sx .sx-sfn__head .sx-sechead__lead {
+  color: var(--sx-muted);
+  font: 400 13px/18px var(--sx-font);
+}
+.sx-sfn__card {
+  min-width: 0;
+  padding: 18px 20px;
+  border: 1px solid var(--rn-border, var(--sx-line));
+  border-radius: 14px;
+  background: var(--rn-panel-2, var(--sx-surface-2));
+}
+
+.sx-sf[data-look="neon"] .sx-form-grid__in {
+  gap: 18px 28px;
+}
+@container (min-width: 640px) {
+  .sx-sf[data-look="neon"] .sx-form-grid__in {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sx-sf[data-look="neon"] .sx-form-grid__in > :not([data-span="1"]) {
+    grid-column: auto;
+  }
+}
+@container (min-width: 720px) {
+  .sx-sf[data-look="neon"] .sx-form-grid__in {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sx-sf[data-look="neon"] .sx-form-grid__in > :not([data-span="1"]) {
+    grid-column: 1 / -1;
+  }
+}
+
+.sx-sf__f[data-neon] {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: start;
+  gap: 0 14px;
+  min-width: 0;
+}
+.sx-nf__icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, var(--rn-tile-a, var(--sx-surface-2)), var(--rn-tile-b, var(--sx-surface-2)));
+  color: var(--rn-tile-ink, var(--sx-ink-2));
+  box-shadow: inset 0 1px 0 var(--rn-tile-hi, transparent), inset 0 0 0 1px var(--rn-border, var(--sx-line));
+  transition: color var(--sx-fast) var(--sx-ease), box-shadow var(--sx-fast) var(--sx-ease), transform var(--sx-mid) var(--sx-spring);
+}
+.sx-sf__f[data-neon]:focus-within > .sx-nf__icon {
+  color: var(--rn-accent, var(--sx-accent));
+  box-shadow: inset 0 1px 0 var(--rn-tile-hi, transparent), inset 0 0 0 1px var(--rn-accent, var(--sx-accent)), 0 0 16px -4px var(--rn-glow, transparent);
+  transform: scale(1.05);
+}
+.sx-sf__f[data-neon]:has([data-invalid]) > .sx-nf__icon {
+  color: var(--sx-danger);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sx-danger) 50%, transparent);
+}
+.sx-nf__body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sx-nv {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 1px;
+}
+.sx-nv__label {
+  color: var(--sx-muted);
+  font: 500 13px/18px var(--sx-font);
+}
+.sx-nv__value {
+  min-width: 0;
+  color: var(--sx-ink);
+  font: 500 15px/22px var(--sx-font);
+  overflow-wrap: anywhere;
+}
+.sx-nv__value[data-empty] {
+  color: var(--sx-muted);
+}
+.sx-nv__value .sx-sf-rt__view {
+  min-height: 0;
+  padding: 0;
+  font: 400 14px/22px var(--sx-font);
+}
+.sx-nv__bool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.sx-nv__dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--sx-muted);
+}
+.sx-nv__bool[data-on] .sx-nv__dot {
+  background: var(--rn-success, var(--sx-published-fg));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rn-success, var(--sx-published-fg)) 22%, transparent), 0 0 10px color-mix(in srgb, var(--rn-success, var(--sx-published-fg)) 55%, transparent);
+}
+.sx-nv__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.sx-nv__chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 1px solid color-mix(in srgb, var(--rn-accent, var(--sx-accent)) 26%, var(--rn-border, var(--sx-line)));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--rn-accent, var(--sx-accent)) 9%, transparent);
+  color: var(--sx-ink);
+  font: 500 13px/20px var(--sx-font);
+  overflow-wrap: anywhere;
+}
+
+.sx-sf[data-look="neon"] .sx-sf__obj {
+  padding: 16px;
+  border: 1px dashed var(--rn-border-strong, var(--sx-line-strong));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--rn-panel, var(--sx-surface)) 60%, transparent);
+}
+.sx-sf[data-look="neon"] .sx-sf__obj[data-flat] {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.sx-sf[data-look="neon"] .sx-field__label {
+  color: var(--sx-ink-2);
+  font-weight: 600;
+}
+.sx-sf[data-look="neon"][data-ro] .sx-field[data-ro] .sx-field__label {
+  color: var(--sx-muted);
+  font-weight: 500;
+}
+.sx-sf[data-look="neon"] .sx-sf__f[data-neon] .sx-field[data-layout="inline"] {
+  min-height: 36px;
+  align-content: center;
+}
+
+@container (max-width: 480px) {
+  .sx-sf__f[data-neon] {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 0 10px;
+  }
+  .sx-nf__icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+  .sx-sf__f[data-neon] > .sx-nf__icon > svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .sx-sf[data-look="neon"] > .sx-sf__sec.sx-sfn {
+    padding: 16px;
+    border-radius: 14px;
+  }
+  .sx-sfn__head {
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .sx-sfn__icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+  }
+  .sx-sfn__card {
+    padding: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sx-nf__icon {
+    transition: none;
+  }
+  .sx-sf__f[data-neon]:focus-within > .sx-nf__icon {
+    transform: none;
+  }
+}
+
+.sx-sfn__icon > svg {
+  width: 20px;
+  height: 20px;
+}
+.sx-nf__icon > svg {
+  width: 18px;
+  height: 18px;
+}

@@ -4,6 +4,7 @@ import "../sx-core.css";
 import "../sx-form.css";
 import "../sx-layout.css";
 import "./sx-schema.css";
+import "./sx-schema-neon.css";
 import { createContext, memo, useContext, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import type { StudioSchemaField } from "@/lib/services/studio";
@@ -25,12 +26,13 @@ import { firstReferencePage } from "../form/useReferenceOptions";
 import { TriangleAlertIcon, glyph } from "../icons";
 import { SxSectionHeader } from "../layout/Panel";
 import type { SchemaFieldModel, SchemaModel, SxControlKind, SxEditMode, SxLayoutCtx, SxLayoutField, SxValues, SxWarning } from "../contract";
-import type { SxControlA11y, SxErrors, SxOption, SxRule } from "../types";
+import type { SxControlA11y, SxErrors, SxIcon, SxOption, SxRule } from "../types";
 import type { StudioLabels } from "../useStudioLabels";
 import { useStudioLabels } from "../useStudioLabels";
 import { useCategoryTitle } from "./categoryOptions";
 import { DiscoveryTerms } from "./DiscoveryTerms";
 import { RefPicker } from "./RefPicker";
+import { NEON_WIDE_RO, fieldIcon, type SxLook } from "./neonLook";
 import { RichText, RichTextView } from "./RichText";
 import {
   controlFor,
@@ -61,6 +63,7 @@ export type SfEnv = {
   policy: SxFormPolicy;
   labels: StudioLabels;
   t: SchemaTr;
+  look?: SxLook;
 };
 
 export const SfContext = createContext<SfEnv | null>(null);
@@ -161,6 +164,75 @@ function RefNames({ source, values }: { source: string; values: readonly string[
   const labels = useStudioLabels();
   const name = useRefLabels([source]);
   return <>{labels.list(values.map((v) => name(source, v) || labels.unknownRef(v)), values.length)}</>;
+}
+
+function NeonChips({ items }: { items: readonly string[] }): ReactElement {
+  return (
+    <ul className="sx-nv__chips">
+      {items.map((x, i) => (
+        <li key={`${i}-${x}`} className="sx-nv__chip">
+          {x}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function RefChips({ source, values }: { source: string; values: readonly string[] }): ReactElement {
+  const labels = useStudioLabels();
+  const name = useRefLabels([source]);
+  return <NeonChips items={values.map((v) => name(source, v) || labels.unknownRef(v))} />;
+}
+
+function blankValue(v: unknown): boolean {
+  if (v === null || v === undefined || v === "") return true;
+  if (Array.isArray(v)) return v.length === 0;
+  if (isDict(v)) return Object.keys(v).length === 0;
+  return false;
+}
+
+export function NeonValue({ id, label, value, empty }: { id: string; label: string; value: ReactNode; empty: boolean }): ReactElement {
+  const { t } = useEnv();
+  return (
+    <div className="sx-nv" role="group" aria-labelledby={`${id}-label`}>
+      <span className="sx-nv__label" id={`${id}-label`}>
+        {label}
+      </span>
+      <div className="sx-nv__value" id={id} data-empty={empty ? "" : undefined}>
+        {empty ? (
+          <>
+            <span aria-hidden="true">—</span>
+            <span className="sx-vh">{t("sx.ui.notSet")}</span>
+          </>
+        ) : (
+          value
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function NeonCell({
+  icon,
+  path,
+  span,
+  ai,
+  children,
+}: {
+  icon: SxIcon;
+  path: string;
+  span: 1 | 2;
+  ai?: string;
+  children: ReactNode;
+}): ReactElement {
+  return (
+    <div className="sx-sf__f" data-neon="" data-path={path} data-span={span} data-ai-id={ai}>
+      <span className="sx-nf__icon" aria-hidden="true">
+        {glyph(icon, { size: 18 })}
+      </span>
+      <div className="sx-nf__body">{children}</div>
+    </div>
+  );
 }
 
 function WarnLine({ id, list }: { id: string; list: readonly SxWarning[] }): ReactElement | null {
@@ -292,7 +364,8 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
   const source = effectiveSource(model.code, node, scope);
   const id = `${model.idPrefix}-f-${aiSeg(path)}`;
   const ai = aiId(model.aiBase, "field", path);
-  const span = spanFor(control, node.key, lf);
+  const neon = env.look === "neon";
+  const span: 1 | 2 = neon && formRo ? (lf?.span ?? (NEON_WIDE_RO.has(control) ? 2 : 1)) : spanFor(control, node.key, lf);
   const virtual = lf?.virtual;
   const lockKey = lf?.locked?.(ctx) || "";
   const fieldRo = !!f?.readOnly || !!virtual?.readOnly || !!lockKey;
@@ -329,13 +402,20 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
   const set = (v: unknown) => emit(path, v, lf?.clears);
   const withWarn = (a: SxControlA11y): SxControlA11y => (warns.length ? { ...a, "aria-describedby": [a["aria-describedby"], warnId].filter(Boolean).join(" ") } : a);
 
-  const cell = (body: ReactNode, extra?: ReactNode) => (
-    <div className="sx-sf__f" data-path={norm} data-span={span} data-ai-id={aiId(ai, "root")}>
-      {body}
-      <WarnLine id={warnId} list={warns} />
-      {extra}
-    </div>
-  );
+  const cell = (body: ReactNode, extra?: ReactNode) =>
+    neon ? (
+      <NeonCell icon={fieldIcon(node.key, f?.type ?? virtual?.type, control)} path={norm} span={span} ai={aiId(ai, "root")}>
+        {body}
+        <WarnLine id={warnId} list={warns} />
+        {extra}
+      </NeonCell>
+    ) : (
+      <div className="sx-sf__f" data-path={norm} data-span={span} data-ai-id={aiId(ai, "root")}>
+        {body}
+        <WarnLine id={warnId} list={warns} />
+        {extra}
+      </div>
+    );
 
   if (control === "object" && f) {
     const kids = childNodes(model, f, node.pattern);
@@ -382,6 +462,29 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
         <WarnLine id={warnId} list={warns} />
       </div>
     );
+  }
+
+  if (formRo && neon && control !== "repeater" && control !== "keyValue") {
+    const vals = strList(value);
+    const empty = control === "display" ? false : blankValue(value);
+    let shownValue: ReactNode;
+    if (control === "richtext") shownValue = <RichTextView html={str(value)} />;
+    else if (control === "switch")
+      shownValue =
+        value === true || value === false ? (
+          <span className="sx-nv__bool" data-on={value ? "" : undefined}>
+            <span className="sx-nv__dot" aria-hidden="true" />
+            {t(value ? "sx.ui.yes" : "sx.ui.no")}
+          </span>
+        ) : null;
+    else if ((control === "picker" || control === "pickerMulti") && source) shownValue = control === "pickerMulti" ? <RefChips source={source} values={vals} /> : <RefNames source={source} values={vals} />;
+    else if (control === "pickerMulti" || control === "tags" || control === "repeaterInline" || (control === "choices" && vals.length > 1)) shownValue = <NeonChips items={control === "tags" || control === "repeaterInline" ? vals : vals.map(opt)} />;
+    else if (control === "picker" || control === "choices") shownValue = labels.list(vals.map(opt), vals.length);
+    else if (control === "display") shownValue = virtual?.display ? virtual.display(ctx, labels) : labels.display(value, rule);
+    else if (control === "money" && num(value) !== undefined) shownValue = labels.money(num(value) as number, str(scope.currency) || str(root.currency) || "UZS");
+    else if (control === "percent" && num(value) !== undefined) shownValue = `${labels.num(num(value) as number)}${t("sx.form.percentSuffix")}`;
+    else shownValue = labels.display(value, rule);
+    return cell(<NeonValue id={id} label={label} value={shownValue} empty={empty || shownValue === null || shownValue === ""} />);
   }
 
   if (formRo) {
