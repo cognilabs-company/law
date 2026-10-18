@@ -72,7 +72,7 @@ body{margin:0;background:var(--dk-bg, #fff);color:var(--ink);font-family:var(--f
   -webkit-font-smoothing:antialiased;overflow-x:hidden;font-variant-numeric:tabular-nums}
 img,svg{display:block;max-width:100%}
 /* Icon default: an unsized 24-grid icon renders at text size instead of the SVG 300x150 default. Component rules (.btn svg, .pico svg …) override. */
-svg[viewBox="0 0 24 24"]{width:1em;height:1em;flex:none}
+svg[viewBox="0 0 24 24"]:where(:not(.lucide)){width:1em;height:1em;flex:none}svg.lucide{flex:none}
 a{color:inherit;text-decoration:none}
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:3px solid var(--b400);outline-offset:2px;border-radius:8px}
