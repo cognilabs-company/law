@@ -1,7 +1,11 @@
-"use client";
+import { ApprovalsPage } from "@/components/admin/studio/sx/approvals/ApprovalsPage";
+import { apprQueryOf } from "@/components/admin/studio/sx/approvals/urlState";
 
-import ApprovalQueue from "@/components/admin/studio/ApprovalQueue";
+type Props = {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default function AdminStudioApprovalsPage() {
-  return <ApprovalQueue />;
+export default async function AdminStudioApprovalsPage({ searchParams }: Props) {
+  return <ApprovalsPage initial={apprQueryOf(await searchParams)} />;
 }

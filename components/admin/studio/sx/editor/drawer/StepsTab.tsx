@@ -26,9 +26,9 @@ import type { EditorState } from "../useEditorState";
 import { initials, normRole, roleName, stepName, stepPending, stepTone } from "../model";
 import { ReassignDialog } from "./ReassignDialog";
 
-type Tone = "ok" | "warn" | "err" | "wait";
+export type StepTone = "ok" | "warn" | "err" | "wait";
 
-const TONE_ICON: Readonly<Record<Tone, SxIcon>> = { ok: CheckIcon, warn: ArrowUUpLeftIcon, err: ProhibitIcon, wait: HourglassMediumIcon };
+export const STEP_TONE_ICON: Readonly<Record<StepTone, SxIcon>> = { ok: CheckIcon, warn: ArrowUUpLeftIcon, err: ProhibitIcon, wait: HourglassMediumIcon };
 
 const holders = new Map<string, { at: number; list: Promise<StudioApprover[]> }>();
 
@@ -64,7 +64,7 @@ function useRoleHolders(code: string, role: string): StudioApprover[] | null {
   return role && got?.key === key ? got.list : null;
 }
 
-function StepMeta({ step, code, onChanged }: { step: StudioStep; code: string; onChanged: () => void }): ReactElement | null {
+export function StepMeta({ step, code, onChanged }: { step: StudioStep; code: string; onChanged: () => void }): ReactElement | null {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const { session } = useAuth();
@@ -109,11 +109,11 @@ function StepMeta({ step, code, onChanged }: { step: StudioStep; code: string; o
         <ul className="sx-ed-ppl">
           {step.approvers.map((p) => {
             const a = decided.get(p.id);
-            const tone: Tone = a ? (stepTone(a.decision) === "ok" ? "ok" : stepTone(a.decision) === "err" ? "err" : "warn") : "wait";
+            const tone: StepTone = a ? (stepTone(a.decision) === "ok" ? "ok" : stepTone(a.decision) === "err" ? "err" : "warn") : "wait";
             return (
               <li key={p.id} data-tone={tone}>
                 <span className="sx-ed-ppl__mark" aria-hidden="true">
-                  {glyph(TONE_ICON[tone], { size: 14 })}
+                  {glyph(STEP_TONE_ICON[tone], { size: 14 })}
                 </span>
                 <span className="sx-ed-ppl__m">
                   <span className="sx-ed-ppl__n">{p.name || "—"}</span>
@@ -213,7 +213,7 @@ export function StepsTab({ st }: { st: EditorState }): ReactElement {
             return (
               <li key={s.id || i} className="sx-ed-steps__item" data-tone={tone}>
                 <span className="sx-ed-steps__dot" aria-hidden="true">
-                  {glyph(TONE_ICON[tone], { size: 14 })}
+                  {glyph(STEP_TONE_ICON[tone], { size: 14 })}
                 </span>
                 <div className="sx-ed-steps__body">
                   <div className="sx-ed-steps__top">

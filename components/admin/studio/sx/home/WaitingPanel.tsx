@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { aiId as aiIdOf } from "@/lib/ai/ids";
 import { useStudioAccess } from "@/lib/services/studio";
+import { approvalsHref } from "../approvals/urlState";
 import { SxButton, SxLinkButton } from "../Button";
 import { ArrowsClockwiseIcon, CaretRightIcon, glyph } from "../icons";
 import { SxNote } from "../layout/Note";
@@ -54,7 +55,7 @@ export function WaitingPanel({ data, scope, max, aiId, headerAction }: { data: A
   const failed = relevant.filter((k) => data.errors[k] !== undefined);
   const allFailed = !data.loading && relevant.length > 0 && failed.length === relevant.length;
   const someFailed = !data.loading && failed.length > 0 && !allFailed;
-  const toApprovals = acc.canReview && rows.some((r) => r.kind === "review" || r.kind === "publish");
+  const toApprovals = acc.canReview && rows.length > 0;
   const retry = (
     <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} onClick={data.reload} aiId={aiIdOf(aiId, "retry")}>
       {t("sx.ui.retry")}
@@ -128,7 +129,7 @@ export function WaitingPanel({ data, scope, max, aiId, headerAction }: { data: A
           <div className="sx-hfoot">
             {more > 0 ? <span className="sx-hfoot__more">{t("sx.home.waiting.more", { n: more })}</span> : null}
             {toApprovals ? (
-              <SxLinkButton variant="ghost" size="sm" href="/admin/studio/approvals" iconEnd={CaretRightIcon} aiId={aiIdOf(aiId, "approvals")}>
+              <SxLinkButton variant="ghost" size="sm" href={approvalsHref({ group: scope?.group, need: scope?.need })} iconEnd={CaretRightIcon} aiId={aiIdOf(aiId, "approvals")}>
                 {t("sx.home.waiting.approvals")}
               </SxLinkButton>
             ) : null}

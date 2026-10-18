@@ -1,0 +1,269 @@
+"use client";
+
+import "../sx-core.css";
+import "../sx-layout.css";
+import "./sx-approvals.css";
+import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useTranslations } from "next-intl";
+import Menu from "@/components/ui/Menu";
+import { aiSeg } from "@/lib/ai/ids";
+import { useAuth } from "@/lib/auth";
+import { logApiError } from "@/lib/http";
+import { STUDIO_PERM_REASSIGN, processOverdueApprovals } from "@/lib/services/studio";
+import { notify } from "@/lib/toast";
+import { SxButton } from "../Button";
+import { useEditorErrorText } from "../editor/useEditorErrorText";
+import { ArrowCounterClockwiseIcon, ArrowsClockwiseIcon, ClockCountdownIcon, MagnifyingGlassIcon, SealCheckIcon, glyph, moreGlyph } from "../icons";
+import { SxEmpty } from "../layout/Empty";
+import { SxNote } from "../layout/Note";
+import { SxPage } from "../layout/Page";
+import { useStudioLabels } from "../useStudioLabels";
+import { DoneSection } from "./DoneSection";
+import type { ApprRow } from "./model";
+import { QueueFilters } from "./QueueFilters";
+import { QueueSection } from "./QueueSection";
+import { isFiltered, rowMatches, sectionRows, showDone, showWork } from "./queue";
+import { ReviewDrawer, type ReviewTarget } from "./review/ReviewDrawer";
+import { apprQueryString, EMPTY_APPR_QUERY, type ApprQuery } from "./urlState";
+import { useApprovals } from "./useApprovals";
+
+export type ApprovalsPageProps = { initial: ApprQuery };
+
+type Pages = { mine: number; others: number; done: number };
+
+const FIRST_PAGES: Pages = { mine: 0, others: 0, done: 0 };
+
+function writeUrl(qs: string): void {
+  if (typeof window === "undefined") return;
+  const next = `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`;
+  const now = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (next !== now) window.history.replaceState(window.history.state, "", next);
+}
+
+const sameFilters = (a: ApprQuery, b: ApprQuery): boolean => a.status === b.status && a.ctor === b.ctor && a.group === b.group && a.need === b.need && a.q === b.q;
+
+function doneRowsOf(fromLists: readonly ApprRow[], loaded: readonly ApprRow[] | null): ApprRow[] | null {
+  if (!loaded) return null;
+  const seen = new Set<string>();
+  const out: ApprRow[] = [];
+  for (const r of [...loaded, ...fromLists]) {
+    if (!r.id || seen.has(r.id)) continue;
+    seen.add(r.id);
+    out.push(r);
+  }
+  return out;
+}
+
+export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
+  const t = useTranslations("studio");
+  const labels = useStudioLabels();
+  const { session } = useAuth();
+  const errorText = useEditorErrorText();
+  const root = useRef<HTMLDivElement>(null);
+  const [query, setQuery] = useState<ApprQuery>(initial);
+  const [pages, setPages] = useState<Pages>(FIRST_PAGES);
+  const [doneOpen, setDoneOpen] = useState(initial.status === "published");
+  const [target, setTarget] = useState<ReviewTarget | null>(initial.open ? { id: initial.open, row: null } : null);
+  const [overdueBusy, setOverdueBusy] = useState(false);
+  const [seenInitial, setSeenInitial] = useState(initial);
+  if (seenInitial !== initial) {
+    setSeenInitial(initial);
+    if (apprQueryString(initial) !== apprQueryString(query)) {
+      setQuery(initial);
+      setPages(FIRST_PAGES);
+      setDoneOpen(initial.status === "published");
+      setTarget(initial.open ? { id: initial.open, row: null } : null);
+    }
+  }
+  const locked = query.status === "published";
+  const data = useApprovals({ ctor: query.ctor, done: doneOpen || locked });
+
+  const qs = apprQueryString(query);
+  useEffect(() => {
+    writeUrl(qs);
+  }, [qs]);
+
+  const match = (r: ApprRow) => rowMatches(r, query, labels);
+  const work = showWork(query);
+  const doneShown = showDone(query);
+  const mine = work ? sectionRows(data.rows, "mine").filter(match) : [];
+  const others = work ? sectionRows(data.rows, "others").filter(match) : [];
+  const listDone = data.rows.filter((r) => r.section === "done");
+  const doneAll = doneRowsOf(listDone, data.doneRows);
+  const doneRows = doneAll ? sectionRows(doneAll, "done").filter(match) : null;
+  const doneExpanded = doneShown && (doneOpen || locked);
+  const filtered = isFiltered(query);
+  const workRows = data.rows.filter((r) => r.section !== "done");
+  const count = data.loading ? null : mine.length + others.length + (doneExpanded && doneRows ? doneRows.length : 0);
+
+  const allEmpty = !data.loading && !data.error && !filtered && workRows.length === 0 && !doneExpanded;
+  const workEmpty = !work || (mine.length === 0 && others.length === 0);
+  const doneEmpty = !doneShown || !doneExpanded || (!!doneRows && doneRows.length === 0 && !data.doneLoading);
+  const filteredEmpty = !data.loading && !data.error && filtered && workEmpty && doneEmpty;
+
+  const changeFilters = (next: ApprQuery) => {
+    if (!sameFilters(query, next)) setPages(FIRST_PAGES);
+    setQuery(next);
+  };
+
+  const reset = () => changeFilters({ ...EMPTY_APPR_QUERY, open: query.open });
+
+  const openRow = (row: ApprRow) => {
+    setTarget({ id: row.id, row });
+    setQuery((q) => ({ ...q, open: row.id }));
+  };
+
+  const close = () => {
+    const id = target?.id ?? "";
+    setTarget(null);
+    setQuery((q) => ({ ...q, open: "" }));
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      if (active && active !== document.body && active.isConnected && root.current?.contains(active)) return;
+      const host = root.current;
+      const seg = aiSeg(id);
+      const btn = seg && host ? host.querySelector<HTMLElement>(`[data-ai-id$=".row.${CSS.escape(seg)}"]`) : null;
+      if (btn) {
+        btn.focus();
+        return;
+      }
+      const h1 = host?.closest(".sx-page")?.querySelector<HTMLElement>("h1");
+      if (!h1) return;
+      if (!h1.hasAttribute("tabindex")) h1.setAttribute("tabindex", "-1");
+      h1.focus();
+    });
+  };
+
+  const runOverdue = async () => {
+    if (overdueBusy) return;
+    setOverdueBusy(true);
+    try {
+      await processOverdueApprovals();
+      notify.success(t("sx.appr.overdue.ok"));
+      data.reload();
+    } catch (e) {
+      logApiError("studio.sx.approvals.overdue", e);
+      notify.error(errorText(e).text);
+    } finally {
+      setOverdueBusy(false);
+    }
+  };
+
+  const canOverdue = (session?.permissions ?? []).includes(STUDIO_PERM_REASSIGN);
+  const overflow = canOverdue ? (
+    <Menu
+      items={[{ key: "overdue", label: t("sx.appr.overdue.run"), icon: glyph(ClockCountdownIcon, { size: 16 }), onSelect: () => void runOverdue(), aiId: "admin.studio.approvals.process-overdue" }]}
+      label={t("sx.ui.more")}
+      className="sx-pop sx-menu"
+      triggerClassName="sx-ibtn"
+      icon={moreGlyph()}
+      align="end"
+      busy={overdueBusy}
+      aiId="admin.studio.approvals.more"
+    />
+  ) : undefined;
+
+  const retry = (
+    <SxButton variant="ghost" size="sm" icon={ArrowsClockwiseIcon} busy={data.fetching} onClick={data.reload} aiId="admin.studio.approvals.retry">
+      {t("sx.ui.retry")}
+    </SxButton>
+  );
+
+  const doneSection = doneShown ? (
+    <DoneSection
+      open={doneOpen || locked}
+      locked={locked}
+      onToggle={() => {
+        setDoneOpen((v) => !v);
+        setPages((p) => ({ ...p, done: 0 }));
+      }}
+      rows={doneRows}
+      loading={data.doneLoading}
+      error={data.doneError}
+      onRetry={data.reload}
+      page={pages.done}
+      onPage={(p) => setPages((cur) => ({ ...cur, done: p }))}
+      onOpen={openRow}
+    />
+  ) : null;
+
+  let body: ReactElement;
+  if (data.error) {
+    body = (
+      <SxNote tone="error" title={t("sx.ui.errorTitle")} action={retry}>
+        {t("sx.ui.loadFail")}
+      </SxNote>
+    );
+  } else if (allEmpty) {
+    body = (
+      <>
+        <SxEmpty icon={SealCheckIcon} title={t("sx.appr.empty.allTitle")} text={t("sx.appr.empty.allText")} />
+        {doneSection}
+      </>
+    );
+  } else if (filteredEmpty) {
+    body = (
+      <>
+        <SxEmpty
+          compact
+          icon={MagnifyingGlassIcon}
+          title={t("sx.table.noMatch")}
+          text={t("sx.appr.empty.filteredText")}
+          action={
+            <SxButton variant="secondary" size="sm" icon={ArrowCounterClockwiseIcon} onClick={reset} aiId="admin.studio.approvals.empty.reset">
+              {t("sx.table.reset")}
+            </SxButton>
+          }
+        />
+        {doneExpanded ? null : doneSection}
+      </>
+    );
+  } else {
+    body = (
+      <>
+        {work ? (
+          <QueueSection
+            section="mine"
+            rows={mine}
+            loading={data.loading}
+            busy={data.busy}
+            page={pages.mine}
+            onPage={(p) => setPages((cur) => ({ ...cur, mine: p }))}
+            openId={target?.id ?? ""}
+            onOpen={openRow}
+          />
+        ) : null}
+        {work && others.length > 0 ? (
+          <QueueSection
+            section="others"
+            rows={others}
+            loading={false}
+            busy={data.busy}
+            page={pages.others}
+            onPage={(p) => setPages((cur) => ({ ...cur, others: p }))}
+            openId={target?.id ?? ""}
+            onOpen={openRow}
+          />
+        ) : null}
+        {doneSection}
+      </>
+    );
+  }
+
+  const found = target ? (data.rows.find((r) => r.id === target.id) ?? doneAll?.find((r) => r.id === target.id)) : undefined;
+
+  return (
+    <SxPage title={t("sx.appr.title")} section="approvals" need="review" lead={t("sx.appr.lead")} aiId="admin.studio.approvals" actions={overflow}>
+      <div ref={root} className="sx-appr">
+        <QueueFilters query={query} onChange={changeFilters} rows={data.rows} count={count} />
+        {data.partial ? (
+          <SxNote tone="error" action={retry}>
+            {t("sx.appr.partial")}
+          </SxNote>
+        ) : null}
+        {body}
+      </div>
+      <ReviewDrawer target={target ? { id: target.id, row: found ?? target.row } : null} viewer={data.viewer} onClose={close} onChanged={() => data.reload()} />
+    </SxPage>
+  );
+}

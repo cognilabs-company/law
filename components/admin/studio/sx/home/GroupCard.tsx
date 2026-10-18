@@ -6,6 +6,8 @@ import type { ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { aiId } from "@/lib/ai/ids";
+import { useStudioAccess } from "@/lib/services/studio";
+import { approvalsHref } from "../approvals/urlState";
 import { SxLinkButton } from "../Button";
 import { ArrowRightIcon, ArrowUUpLeftIcon, CheckCircleIcon, HourglassMediumIcon, RocketLaunchIcon, glyph } from "../icons";
 import type { SxHue } from "../tones";
@@ -38,11 +40,13 @@ export function groupHref(key: string, need?: GroupCardKind): string {
 
 export function GroupCard({ model, loadingCounts }: GroupCardProps): ReactElement {
   const t = useTranslations("studio");
+  const acc = useStudioAccess();
   const { key, order, hue, name, what, done, total, next, counts } = model;
   const base = aiId("admin.studio.home.group", key);
   const href = groupHref(key);
   const needs = NEED_KINDS.filter((k) => (counts[k] ?? 0) > 0);
   const allDone = !next;
+  const needHref = (k: GroupCardKind) => (acc.canReview ? approvalsHref({ group: key, need: k }) : groupHref(key, k));
   const nextLabel = next ? t("sx.home.card.next", { name: next.name }) : "";
   return (
     <li className="sx-gcard" data-hue={hue} data-done={allDone ? "" : undefined}>
@@ -67,7 +71,7 @@ export function GroupCard({ model, loadingCounts }: GroupCardProps): ReactElemen
         <ul className="sx-gcard__needs">
           {needs.map((k) => (
             <li key={k}>
-              <Link href={groupHref(key, k)} className="sx-gcard__need" data-kind={k} data-ai-id={aiId(base, "need", k)} data-ai-type="link" data-ai-label={t(`sx.home.card.${k}`, { n: counts[k] })}>
+              <Link href={needHref(k)} className="sx-gcard__need" data-kind={k} data-ai-id={aiId(base, "need", k)} data-ai-type="link" data-ai-label={t(`sx.home.card.${k}`, { n: counts[k] })}>
                 {glyph(NEED_ICON[k], { size: 14 })}
                 <span>{t(`sx.home.card.${k}`, { n: counts[k] })}</span>
               </Link>
