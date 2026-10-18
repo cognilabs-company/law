@@ -2,6 +2,7 @@
 
 import "../sx-core.css";
 import "../sx-layout.css";
+import "../sx-tones.css";
 import "./sx-ctorpage.css";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
@@ -13,22 +14,24 @@ import type { StudioConstructor, StudioRecord } from "@/lib/services/studio";
 import { matchesSearch } from "@/lib/searchText";
 import type { UserEvent } from "@/lib/userSocket";
 import { SxButton } from "../Button";
-import { RotateCcwIcon, RefreshCwIcon, FolderOpenIcon, SearchIcon, PlusIcon, glyph } from "../icons";
-import { studioEventCode, useStudioLive } from "../live";
+import { FolderIcon } from "lucide-react";
+import { RotateCcwIcon, RefreshCwIcon, FolderOpenIcon, FolderTreeIcon, ListFilterIcon, SearchIcon, PlusIcon, glyph } from "../icons";
+import { studioEventCode, useNow, useStudioLive } from "../live";
 import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxPanel } from "../layout/Panel";
 import { SxTable, type SxColumn, type SxRowAction } from "../layout/Table";
+import type { SxHue } from "../tones";
 import { SxToolbar } from "../layout/Toolbar";
 import { Picker } from "../form/Picker";
-import { StatusPill } from "../StatusPill";
 import type { SxOption } from "../types";
 import { useStudioLabels, type SxTranslate } from "../useStudioLabels";
 import type { CtorQuery } from "./CtorPage";
 import { isTestTitle, quietLastBy } from "./quiet";
-import { LoadError, RecordTable, recordHref, useRecordActions } from "./RecordTable";
+import { CtorEmpty } from "./CtorEmpty";
+import { LoadError, RecordTable, recordHref, toolsColumn, useRecordActions } from "./RecordTable";
 import { useCtorRecords } from "./useCtorRecords";
-import { genericColumns, rowTitle, variantOf, type RecordRow } from "./variants";
+import { genericColumns, rowTitle, updatedText, variantOf, type RecordRow } from "./variants";
 
 export type TreeRow = { row: CategoryRow; rec: StudioRecord | null; match: boolean };
 
@@ -118,11 +121,17 @@ type TreeState = { phase: "loading" | "ready" | "error"; nodes: CategoryNode[]; 
 
 const START: TreeState = { phase: "loading", nodes: [], error: null };
 
+export function treeIconOf(depth: number, kids: number): typeof FolderIcon {
+  if (kids > 0) return depth === 0 ? FolderTreeIcon : FolderOpenIcon;
+  return FolderIcon;
+}
+
 function TreeName({ tr, t }: { tr: TreeRow; t: SxTranslate }): ReactElement {
   const { node, depth, path } = tr.row;
   const title = node.title.trim() || t("sx.ui.untitled");
   const kids = node.childrenCount || node.children.length;
   const depthStyle = { "--depth": depth } as CSSProperties;
+  const guides = Array.from({ length: Math.max(0, depth) }, (_, i) => i);
   return (
     <span
       className="sx-cp-tree"
@@ -133,21 +142,35 @@ function TreeName({ tr, t }: { tr: TreeRow; t: SxTranslate }): ReactElement {
       data-ai-entity-id={tr.rec?.id || node.id}
       data-ai-label={title}
     >
-      {kids > 0 ? glyph(FolderOpenIcon, { size: 16, className: "sx-cp-tree__icon" }) : <span className="sx-cp-tree__pad" aria-hidden="true" />}
+      {guides.length ? (
+        <span className="sx-cp-tree__guides" aria-hidden="true">
+          {guides.map((i) => (
+            <i key={i} style={{ "--g": i } as CSSProperties} />
+          ))}
+        </span>
+      ) : null}
+      <span className="sx-cp-tree__tile" data-kids={kids > 0 ? "" : undefined} data-off={node.isActive ? undefined : ""} aria-hidden="true">
+        {glyph(treeIconOf(depth, kids), { size: 16, className: kids > 0 ? "sx-cp-tree__icon" : undefined })}
+      </span>
       <span className="sx-cp-tree__body">
         <span className="sx-cp-name__t">{title}</span>
-        {kids > 0 ? <span className="sx-cp-name__m">{t("sx.cpage.tree.children", { n: kids })}</span> : null}
+        {kids > 0 ? (
+          <span className="sx-cp-name__m">
+            <span className="sx-cp-tree__kids">{t("sx.cpage.tree.children", { n: kids })}</span>
+          </span>
+        ) : null}
         {depth > 0 ? <span className="sx-vh">{t("sx.cpage.tree.parent", { path: path.slice(0, -1).join(CATEGORY_PATH_SEP) })}</span> : null}
       </span>
     </span>
   );
 }
 
-export type CategoryTreeTableProps = { ctor: StudioConstructor | null; canEdit: boolean; canArchive: boolean; initial: CtorQuery; createControl?: ReactNode };
+export type CategoryTreeTableProps = { ctor: StudioConstructor | null; canEdit: boolean; canArchive: boolean; initial: CtorQuery; createControl?: ReactNode; hue?: SxHue; group?: string };
 
-export function CategoryTreeTable({ ctor, canEdit, canArchive, initial, createControl }: CategoryTreeTableProps): ReactElement {
+export function CategoryTreeTable({ ctor, canEdit, canArchive, initial, createControl, hue, group }: CategoryTreeTableProps): ReactElement {
   const t = useTranslations("studio") as SxTranslate;
   const labels = useStudioLabels();
+  const now = useNow();
   const [tree, setTree] = useState<TreeState>(START);
   const [attempt, setAttempt] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -211,17 +234,27 @@ export function CategoryTreeTable({ ctor, canEdit, canArchive, initial, createCo
         >
           {t("sx.cpage.tree.fail")}
         </SxNote>
-        <RecordTable code={CODE} ctor={ctor} st={st} variant={variantOf(CODE)} canEdit={canEdit} canArchive={canArchive} createControl={createControl ?? null} />
+        <RecordTable code={CODE} ctor={ctor} st={st} variant={variantOf(CODE)} canEdit={canEdit} canArchive={canArchive} createControl={createControl ?? null} hue={hue} group={group} />
       </>
     );
   }
+
+  const actionsOf = (tr: TreeRow): SxRowAction<TreeRow>[] => {
+    const extra: SxRowAction<TreeRow>[] = canEdit ? [{ key: "add-child", label: t("sx.cpage.addChild"), icon: PlusIcon, href: () => addChildHref(tr.row.node.id) }] : [];
+    return acts.actionsFor<TreeRow>(tr.rec, extra);
+  };
+  const treeTitle = (tr: TreeRow) => tr.row.node.title.trim() || t("sx.ui.untitled");
 
   const columns: SxColumn<TreeRow>[] = [
     { key: "name", header: t("sx.cpage.col.title"), primary: true, cell: (tr) => <TreeName tr={tr} t={t} /> },
     {
       key: "status",
       header: t("sx.cpage.col.status"),
-      cell: (tr) => <StatusPill status={tr.row.node.isActive ? "active" : "inactive"} source="runtime" size="sm" />,
+      cell: (tr) => (
+        <span className="sx-cp-dot" data-on={tr.row.node.isActive ? "" : undefined}>
+          {labels.status(tr.row.node.isActive ? "active" : "inactive", "runtime")}
+        </span>
+      ),
     },
     {
       key: "updated",
@@ -229,19 +262,15 @@ export function CategoryTreeTable({ ctor, canEdit, canArchive, initial, createCo
       hideBelow: "md",
       cell: (tr) =>
         tr.rec?.updatedAt ? (
-          <span className="sx-cp-muted" title={labels.dateTime(tr.rec.updatedAt)}>
-            {labels.date(tr.rec.updatedAt)}
-          </span>
+          <time className="sx-cp-when" dateTime={tr.rec.updatedAt} title={labels.dateTime(tr.rec.updatedAt)}>
+            {updatedText(tr.rec.updatedAt, { labels, now })}
+          </time>
         ) : (
           "—"
         ),
     },
+    toolsColumn<TreeRow>(t, actionsOf, (tr) => tr.row.node.id, treeTitle),
   ];
-
-  const actionsOf = (tr: TreeRow): SxRowAction<TreeRow>[] => {
-    const extra: SxRowAction<TreeRow>[] = canEdit ? [{ key: "add-child", label: t("sx.cpage.addChild"), icon: PlusIcon, href: () => addChildHref(tr.row.node.id) }] : [];
-    return acts.actionsFor<TreeRow>(tr.rec, extra);
-  };
 
   const statusOpts: SxOption[] = [
     { value: "", label: t("sx.cpage.filter.all") },
@@ -258,12 +287,18 @@ export function CategoryTreeTable({ ctor, canEdit, canArchive, initial, createCo
   const empty = filtered ? (
     <SxEmpty compact icon={SearchIcon} title={t("sx.table.noMatch")} action={reset} />
   ) : (
-    <SxEmpty title={t("sx.table.empty")} text={canEdit ? t("sx.cpage.emptyText", { name: labels.ctorName(CODE, ctor?.title) }) : undefined} action={canEdit ? createControl : undefined} />
+    <CtorEmpty
+      code={CODE}
+      group={group}
+      title={t("sx.cp2.empty.title")}
+      text={canEdit ? t("sx.cpage.emptyText", { name: labels.ctorName(CODE, ctor?.title) }) : t("sx.cp2.empty.textView")}
+      action={canEdit ? createControl : undefined}
+    />
   );
   const draftRows: RecordRow[] = drafts.map((rec) => ({ rec }));
 
   return (
-    <div className="sx-cp" data-variant="k01">
+    <div className="sx-cp" data-variant="k01" data-hue={hue}>
       <SxToolbar
         aiId="admin.studio.list.filters"
         search={{ value: st.query.q, onChange: st.setQ, placeholder: t("sx.cpage.searchPh"), label: t("sx.cpage.searchLabel"), aiId: "admin.studio.list.search.input" }}
@@ -279,6 +314,7 @@ export function CategoryTreeTable({ ctor, canEdit, canArchive, initial, createCo
           value={status}
           onChange={st.setStatus}
           searchable={false}
+          leadingIcon={ListFilterIcon}
           aiId="admin.studio.list.filters.status"
         />
       </SxToolbar>
@@ -291,9 +327,8 @@ export function CategoryTreeTable({ ctor, canEdit, canArchive, initial, createCo
           columns={columns}
           rowKey={(tr) => tr.row.node.id}
           rowHref={(tr) => (tr.rec ? recordHref(CODE, tr.rec.actions.view) || undefined : undefined)}
-          rowTitle={(tr) => tr.row.node.title.trim() || t("sx.ui.untitled")}
+          rowTitle={treeTitle}
           rowTone={(tr) => (!tr.row.node.isActive || isTestTitle(tr.row.node.title) ? "muted" : undefined)}
-          rowActions={actionsOf}
           loading={loading}
           busy={tree.phase === "loading" && !!tree.nodes.length}
           empty={empty}
@@ -305,11 +340,19 @@ export function CategoryTreeTable({ ctor, canEdit, canArchive, initial, createCo
             caption={t("sx.cpage.tree.drafts")}
             aiId="admin.studio.list.drafts"
             rows={draftRows}
-            columns={genericColumns({ code: CODE, labels, t })}
+            columns={[
+              ...genericColumns({ code: CODE, labels, t, now }),
+              toolsColumn<RecordRow>(
+                t,
+                (r) => acts.actionsFor<RecordRow>(r.rec),
+                (r) => `${r.rec.source}-${r.rec.id}`,
+                (r) => rowTitle(r.rec) || t("sx.ui.untitled"),
+                "admin.studio.list.drafts",
+              ),
+            ]}
             rowKey={(r) => `${r.rec.source}-${r.rec.id}`}
             rowHref={(r) => recordHref(CODE, r.rec.actions.view) || undefined}
             rowTitle={(r) => rowTitle(r.rec) || t("sx.ui.untitled")}
-            rowActions={(r) => acts.actionsFor<RecordRow>(r.rec)}
           />
         </SxPanel>
       ) : null}

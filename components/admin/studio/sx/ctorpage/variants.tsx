@@ -5,6 +5,8 @@ import "./sx-ctorpage.css";
 import { useEffect, useState, type ReactElement, type ReactNode } from "react";
 import { aiId as aiIdOf } from "@/lib/ai/ids";
 import { loadStudioReference, type StudioRecord } from "@/lib/services/studio";
+import { GlobeIcon, LayersIcon, glyph } from "../icons";
+import { sxStatus } from "../status";
 import { StatusPill } from "../StatusPill";
 import type { SxColumn, SxRowGroup } from "../layout/Table";
 import type { StudioLabels, SxTranslate } from "../useStudioLabels";
@@ -13,7 +15,7 @@ import { quietLast } from "./quiet";
 
 export type RecordRow = { rec: StudioRecord; payload?: Readonly<Record<string, unknown>> | null; extra?: Readonly<Record<string, unknown>> };
 
-export type VariantCtx = { code: string; labels: StudioLabels; t: SxTranslate; placements?: readonly string[] };
+export type VariantCtx = { code: string; labels: StudioLabels; t: SxTranslate; placements?: readonly string[]; now?: number };
 
 export type CtorVariantKind = "generic" | "k31" | "k33" | "k34" | "k12promo";
 
@@ -193,18 +195,34 @@ function TitleCell({ row, ctx, meta }: { row: RecordRow; ctx: VariantCtx; meta?:
       data-ai-entity-id={r.id}
       data-ai-label={title}
     >
-      <span className="sx-cp-name__t">{title}</span>
-      {shown.length ? (
-        <span className="sx-cp-name__m">
-          {shown.map((p, i) => (
-            <span key={i} className="sx-cp-name__part">
-              {p}
-            </span>
-          ))}
-        </span>
-      ) : null}
+      <StatusTile status={r.status} source={r.source} />
+      <span className="sx-cp-name__body">
+        <span className="sx-cp-name__t">{title}</span>
+        {shown.length ? (
+          <span className="sx-cp-name__m">
+            {shown.map((p, i) => (
+              <span key={i} className="sx-cp-name__part">
+                {p}
+              </span>
+            ))}
+          </span>
+        ) : null}
+      </span>
     </span>
   );
+}
+
+export function StatusTile({ status, source, size = "md" }: { status: string; source: StudioRecord["source"]; size?: "md" | "lg" }): ReactElement {
+  const info = sxStatus(status, source);
+  return (
+    <span className="sx-cp-tile" data-tone={info.tone} data-size={size} aria-hidden="true">
+      {glyph(info.icon, { size: size === "lg" ? 20 : 17 })}
+    </span>
+  );
+}
+
+export function updatedText(iso: string, ctx: Pick<VariantCtx, "labels" | "now">): string {
+  return ctx.now ? ctx.labels.ago(iso, ctx.now) : ctx.labels.date(iso);
 }
 
 export function titleColumn(ctx: VariantCtx, meta?: (row: RecordRow) => readonly ReactNode[]): SxColumn<RecordRow> {
@@ -222,7 +240,12 @@ export function sourceColumn(ctx: VariantCtx): SxColumn<RecordRow> {
     key: "source",
     header: ctx.t("sx.cpage.col.source"),
     hideBelow: "md",
-    cell: (row) => <span className="sx-cp-muted">{ctx.t(`sx.cpage.source.${row.rec.source}`)}</span>,
+    cell: (row) => (
+      <span className="sx-cp-src" data-src={row.rec.source}>
+        {glyph(row.rec.source === "runtime" ? GlobeIcon : LayersIcon, { size: 14 })}
+        {ctx.t(`sx.cpage.source.${row.rec.source}`)}
+      </span>
+    ),
   };
 }
 
@@ -242,9 +265,9 @@ export function updatedColumn(ctx: VariantCtx): SxColumn<RecordRow> {
     hideBelow: "md",
     cell: (row) =>
       row.rec.updatedAt ? (
-        <span className="sx-cp-muted" title={ctx.labels.dateTime(row.rec.updatedAt)}>
-          {ctx.labels.date(row.rec.updatedAt)}
-        </span>
+        <time className="sx-cp-when" dateTime={row.rec.updatedAt} title={ctx.labels.dateTime(row.rec.updatedAt)}>
+          {updatedText(row.rec.updatedAt, ctx)}
+        </time>
       ) : (
         DASH
       ),

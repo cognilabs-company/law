@@ -7,7 +7,7 @@ import type { UserEvent } from "@/lib/userSocket";
 import { useDebouncedValue } from "../hooks";
 import { studioEventCode, useStudioLive } from "../live";
 import type { CtorQuery } from "./CtorPage";
-import { ctorQueryString, EMPTY_CTOR_QUERY } from "./urlState";
+import { ctorQueryString, EMPTY_CTOR_QUERY, type CtorSort, type CtorView } from "./urlState";
 
 export type CtorRecordsState = {
   query: CtorQuery;
@@ -16,7 +16,10 @@ export type CtorRecordsState = {
   setSource: (s: "" | StudioRecordSource) => void;
   setPlacement: (p: string) => void;
   setPage: (p: number) => void;
+  setView: (v: CtorView) => void;
+  setSort: (s: CtorSort | "") => void;
   reset: () => void;
+  counts: CtorCounts;
   data: StudioRecords | null;
   rows: StudioRecord[];
   current: boolean;
@@ -29,6 +32,8 @@ export type CtorRecordsState = {
   limit: number;
 };
 
+export type CtorCounts = { all: number | null; runtime: number | null; studio: number | null };
+
 export type CtorRecordsOptions = { limit?: number; all?: boolean; local?: boolean };
 
 export const CTOR_PAGE = 50;
@@ -38,6 +43,8 @@ const LIVE_MS = 400;
 type ListState = { key: string; data: StudioRecords | null; error: unknown };
 
 const NONE: ListState = { key: "", data: null, error: null };
+
+type Tally = { key: string; all: number; runtime: number; studio: number };
 
 export function isRecordEvent(name: string): boolean {
   return name.startsWith("studio.object_") || name.startsWith("studio.approval_") || name === "studio.resync";
@@ -62,6 +69,7 @@ export function useCtorRecords(code: string, initial: CtorQuery, opts?: CtorReco
   const [query, setQuery] = useState<CtorQuery>(initial);
   const [list, setList] = useState<ListState>(NONE);
   const [retrying, setRetrying] = useState(false);
+  const [tally, setTally] = useState<Tally | null>(null);
   const seq = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const settled = useDebouncedValue(query.q.trim(), 350);
@@ -86,6 +94,7 @@ export function useCtorRecords(code: string, initial: CtorQuery, opts?: CtorReco
       const data = await listStudioRecords(code, { q: sent, status, source, limit, offset });
       if (my !== seq.current) return true;
       setList({ key: k, data, error: null });
+      if (!source) setTally({ key: `${code}|${status}|${sent}`, all: data.total, runtime: data.runtimeTotal, studio: data.studioTotal });
       return true;
     } catch (e) {
       if (my !== seq.current) return true;
@@ -119,7 +128,9 @@ export function useCtorRecords(code: string, initial: CtorQuery, opts?: CtorReco
   const setSource = useCallback((s: "" | StudioRecordSource) => setQuery((cur) => ({ ...cur, source: s, page: 0 })), []);
   const setPlacement = useCallback((p: string) => setQuery((cur) => ({ ...cur, placement: p })), []);
   const setPage = useCallback((p: number) => setQuery((cur) => ({ ...cur, page: Math.max(0, Math.floor(p) || 0) })), []);
-  const reset = useCallback(() => setQuery(EMPTY_CTOR_QUERY), []);
+  const setView = useCallback((v: CtorView) => setQuery((cur) => ({ ...cur, view: v === "cards" ? "cards" : undefined })), []);
+  const setSort = useCallback((s: CtorSort | "") => setQuery((cur) => ({ ...cur, sort: s || undefined })), []);
+  const reset = useCallback(() => setQuery((cur) => ({ ...EMPTY_CTOR_QUERY, ...(cur.view ? { view: cur.view } : {}), ...(cur.sort ? { sort: cur.sort } : {}) })), []);
 
   const retry = useCallback(async () => {
     setRetrying(true);
@@ -133,6 +144,13 @@ export function useCtorRecords(code: string, initial: CtorQuery, opts?: CtorReco
   const refetch = useCallback(() => void fetchRows(), [fetchRows]);
 
   const current = list.key === key;
+  const fresh = current ? list.data : null;
+  const known = tally && tally.key === `${code}|${status}|${sent}` ? tally : null;
+  const counts: CtorCounts = {
+    all: !source && fresh ? fresh.total : (known?.all ?? null),
+    runtime: source === "runtime" && fresh ? fresh.total : (known?.runtime ?? (fresh ? fresh.runtimeTotal : null)),
+    studio: source === "studio" && fresh ? fresh.total : (known?.studio ?? (fresh ? fresh.studioTotal : null)),
+  };
   return {
     query,
     setQ,
@@ -140,7 +158,10 @@ export function useCtorRecords(code: string, initial: CtorQuery, opts?: CtorReco
     setSource,
     setPlacement,
     setPage,
+    setView,
+    setSort,
     reset,
+    counts,
     data: list.data,
     rows: list.data?.items ?? [],
     current,

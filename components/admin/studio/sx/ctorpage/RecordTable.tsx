@@ -2,10 +2,13 @@
 
 import "../sx-core.css";
 import "../sx-layout.css";
+import "../sx-tones.css";
 import "./sx-ctorpage.css";
 import { useState, type ReactElement, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { ArrowDownAZIcon, ArrowDownZAIcon, CalendarArrowDownIcon, CalendarArrowUpIcon, Table2Icon } from "lucide-react";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import { aiId as aiIdOf } from "@/lib/ai/ids";
 import { useAiField } from "@/lib/ai/registry";
 import { logApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
@@ -13,20 +16,42 @@ import { archiveStudioRecord, studioObjectIdOf, type StudioConstructor, type Stu
 import { SxButton } from "../Button";
 import { useEditorErrorText } from "../editor/useEditorErrorText";
 import { Picker } from "../form/Picker";
-import { ArchiveIcon, RotateCcwIcon, RefreshCwIcon, CopyIcon, EyeIcon, SearchIcon, PencilIcon } from "../icons";
+import {
+  ArchiveIcon,
+  ArrowDownUpIcon,
+  CopyIcon,
+  EyeIcon,
+  GlobeIcon,
+  LayersIcon,
+  LayoutGridIcon,
+  LayoutPanelTopIcon,
+  ListFilterIcon,
+  ListOrderedIcon,
+  PencilIcon,
+  RefreshCwIcon,
+  RotateCcwIcon,
+  Rows3Icon,
+  SearchIcon,
+} from "../icons";
+import { useNow } from "../live";
 import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxPanel } from "../layout/Panel";
-import { SxPager, SxTable, type SxRowAction } from "../layout/Table";
+import { SxPager, SxTable, type SxColumn, type SxRowAction, type SxSort } from "../layout/Table";
 import { SxToolbar } from "../layout/Toolbar";
+import { SxSegmented, type SxSegItem } from "../shared/Segmented";
+import type { SxHue } from "../tones";
 import type { SxOption } from "../types";
 import { useStudioLabels, type SxTranslate } from "../useStudioLabels";
 import { CloneDialog } from "./CloneDialog";
+import { CtorEmpty } from "./CtorEmpty";
 import { usePromoInfo } from "./promoRows";
-import { isQuietRow, quietLast } from "./quiet";
+import { isQuietRow, quietBand, quietLast } from "./quiet";
+import { RecordCards } from "./RecordCards";
+import { RowTools } from "./RowTools";
 import { payloadKey, useRowPayloads } from "./rowPayloads";
 import type { CtorRecordsState } from "./useCtorRecords";
-import { PLACEMENT_VALUES, RUNTIME_STATUS_VALUES, STUDIO_STATUS_VALUES } from "./urlState";
+import { PLACEMENT_VALUES, RUNTIME_STATUS_VALUES, sortOf, STUDIO_STATUS_VALUES, viewOf, type CtorSort, type CtorView } from "./urlState";
 import { joinPromoRows, promoPlacementOf, rowTitle, type CtorVariant, type RecordRow, type VariantCtx } from "./variants";
 
 export type { RecordRow } from "./variants";
@@ -39,9 +64,14 @@ export type RecordTableProps = {
   canEdit: boolean;
   canArchive: boolean;
   createControl: ReactNode;
+  hue?: SxHue;
+  group?: string;
 };
 
+type SourceTab = "all" | StudioRecordSource;
+
 const STUDIO_CLONE = /^\/studio\/objects\/[^/?#]+\/clone$/;
+const TABLE_ID = "admin.studio.list.table";
 
 export function recordHref(code: string, url: string): string {
   const oid = studioObjectIdOf(url);
@@ -63,6 +93,54 @@ export function statusOptions(t: SxTranslate, labels: { status(raw: string, sour
     ...RUNTIME_STATUS_VALUES.map((s) => ({ value: s, label: labels.status(s, "runtime") })),
     ...STUDIO_STATUS_VALUES.map((s) => ({ value: s, label: labels.status(s) })),
   ];
+}
+
+export function sortOptions(t: SxTranslate): SxOption[] {
+  return [
+    { value: "", label: t("sx.cp2.sort.default"), icon: ListOrderedIcon },
+    { value: "-updated", label: t("sx.cp2.sort.updatedDesc"), icon: CalendarArrowDownIcon },
+    { value: "updated", label: t("sx.cp2.sort.updatedAsc"), icon: CalendarArrowUpIcon },
+    { value: "title", label: t("sx.cp2.sort.titleAsc"), icon: ArrowDownAZIcon },
+    { value: "-title", label: t("sx.cp2.sort.titleDesc"), icon: ArrowDownZAIcon },
+  ];
+}
+
+export function tableSortOf(sort: CtorSort | ""): SxSort | null {
+  if (!sort) return null;
+  return { key: sort.replace(/^-/, ""), dir: sort.startsWith("-") ? "desc" : "asc" };
+}
+
+export function sortFromTable(next: SxSort | null): CtorSort | "" {
+  if (!next || (next.key !== "title" && next.key !== "updated")) return "";
+  return sortOf(`${next.dir === "desc" ? "-" : ""}${next.key}`);
+}
+
+const timeOf = (iso: string): number => {
+  const n = Date.parse(iso);
+  return Number.isFinite(n) ? n : 0;
+};
+
+export function sortLoaded(rows: readonly RecordRow[], sort: CtorSort | "", locale: string, groupOf?: (row: RecordRow) => string): RecordRow[] {
+  if (!sort) return [...rows];
+  const key = sort.replace(/^-/, "");
+  const sign = sort.startsWith("-") ? -1 : 1;
+  const firstAt = new Map<string, number>();
+  rows.forEach((row, i) => {
+    const g = groupOf?.(row) ?? "";
+    if (!firstAt.has(g)) firstAt.set(g, i);
+  });
+  const cmp = (a: string | number, b: string | number): number =>
+    typeof a === "number" && typeof b === "number" ? a - b : String(a).localeCompare(String(b), locale, { numeric: true, sensitivity: "base" });
+  return rows
+    .map((row, index) => ({
+      row,
+      index,
+      g: firstAt.get(groupOf?.(row) ?? "") ?? 0,
+      band: quietBand(row.rec.title, row.rec.status),
+      v: key === "title" ? rowTitle(row.rec) : timeOf(row.rec.updatedAt),
+    }))
+    .sort((a, b) => a.g - b.g || a.band - b.band || cmp(a.v, b.v) * sign || a.index - b.index)
+    .map((x) => x.row);
 }
 
 export type RecordActions = {
@@ -100,8 +178,9 @@ export function useRecordActions({ code, canEdit, canArchive, refetch }: { code:
     const edit = recordHref(code, rec.actions.edit);
     const clone = cloneTargetOf(code, rec);
     const out: SxRowAction<T>[] = [];
-    if (view) out.push({ key: "view", label: t("sx.ui.view"), icon: EyeIcon, href: () => view });
-    if (canEdit && edit) out.push({ key: "edit", label: t("sx.ui.edit"), icon: PencilIcon, href: () => edit });
+    const canOpenEdit = canEdit && !!edit;
+    if (view && (!canOpenEdit || edit !== view)) out.push({ key: "view", label: t("sx.ui.view"), icon: EyeIcon, href: () => view });
+    if (canOpenEdit) out.push({ key: "edit", label: edit === view ? t("sx.ui.open") : t("sx.ui.edit"), icon: PencilIcon, href: () => edit });
     out.push(...extra);
     if (canEdit && clone.href) out.push({ key: "clone", label: t("sx.ui.clone"), icon: CopyIcon, href: () => clone.href });
     else if (canEdit && clone.studio) out.push({ key: "clone", label: t("sx.ui.clone"), icon: CopyIcon, onSelect: () => setCloneOf(rec) });
@@ -111,6 +190,16 @@ export function useRecordActions({ code, canEdit, canArchive, refetch }: { code:
 
   const dialog = <CloneDialog key={cloneOf ? `${cloneOf.source}-${cloneOf.id}` : "none"} rec={cloneOf} onClose={() => setCloneOf(null)} onCloned={refetch} />;
   return { actionsFor, dialog };
+}
+
+export function toolsColumn<T>(t: SxTranslate, actionsOf: (row: T) => readonly SxRowAction<T>[], keyOf: (row: T) => string, titleOf: (row: T) => string, base = TABLE_ID): SxColumn<T> {
+  return {
+    key: "actions",
+    header: t("sx.table.actions"),
+    srOnlyHeader: true,
+    align: "end",
+    cell: (row) => <RowTools row={row} actions={actionsOf(row)} base={aiIdOf(base, "row", keyOf(row))} label={t("sx.table.actionsFor", { name: titleOf(row) })} />,
+  };
 }
 
 export function hasFilters(q: { q: string; status: string; source: string; placement: string }): boolean {
@@ -141,9 +230,20 @@ export function LoadError({ error, onRetry, busy, compact = false }: { error: un
   );
 }
 
-export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, createControl }: RecordTableProps): ReactElement {
+export function ViewToggle({ value, onChange }: { value: CtorView; onChange: (v: CtorView) => void }): ReactElement {
+  const t = useTranslations("studio");
+  const items: SxSegItem<CtorView>[] = [
+    { value: "table", label: t("sx.cp2.view.table"), icon: Table2Icon, aiId: "admin.studio.list.view.table" },
+    { value: "cards", label: t("sx.cp2.view.cards"), icon: LayoutGridIcon, aiId: "admin.studio.list.view.cards" },
+  ];
+  return <SxSegmented items={items} value={value} onChange={onChange} label={t("sx.cp2.view.label")} size="sm" className="sx-cp-view" aiId="admin.studio.list.view" />;
+}
+
+export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, createControl, hue, group }: RecordTableProps): ReactElement {
   const t = useTranslations("studio") as SxTranslate;
   const labels = useStudioLabels();
+  const locale = useLocale();
+  const now = useNow();
   const name = labels.ctorName(code, ctor?.title);
   const k12 = variant.kind === "k12promo";
   const payloads = useRowPayloads(st.rows, variant.needsPayload);
@@ -151,7 +251,10 @@ export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, crea
   const acts = useRecordActions({ code, canEdit, canArchive, refetch: st.refetch });
   useAiField("admin.studio.list.search.input", { get: () => st.query.q, set: (v) => st.setQ(String(v ?? "")) });
 
-  const ctx: VariantCtx = { code, labels, t, placements: promo.placements };
+  const q = st.query;
+  const view = viewOf(q.view);
+  const sort = sortOf(q.sort);
+  const ctx: VariantCtx = { code, labels, t, placements: promo.placements, now };
   let rows: RecordRow[] = st.rows.map((rec) => {
     if (!variant.needsPayload) return { rec };
     const k = payloadKey(rec);
@@ -160,64 +263,116 @@ export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, crea
   if (k12) {
     rows = joinPromoRows(rows, promo.byId);
     if (promo.loading) rows = rows.map((r) => ({ ...r, extra: { ...r.extra, promoLoading: true } }));
-    if (st.query.placement) rows = rows.filter((r) => promoPlacementOf(r) === st.query.placement);
+    if (q.placement) rows = rows.filter((r) => promoPlacementOf(r) === q.placement);
   }
   const ready = (!variant.needsPayload || rows.every((r) => r.payload !== undefined)) && (!k12 || !promo.loading);
-  const shown = shapeRows(rows, variant, ctx, ready);
   const groupBy = ready && variant.groupBy ? variant.groupBy(ctx) : undefined;
-  const columns = variant.columns(ctx);
+  const shown = sortLoaded(shapeRows(rows, variant, ctx, ready), sort, locale, groupBy ? (r) => groupBy(r).key : undefined);
+  const keyOf = (r: RecordRow) => `${r.rec.source}-${r.rec.id}`;
+  const titleOf = (r: RecordRow) => rowTitle(r.rec) || t("sx.ui.untitled");
+  const actionsOf = (r: RecordRow) => acts.actionsFor<RecordRow>(r.rec);
+  const hrefOf = (r: RecordRow) => recordHref(code, r.rec.actions.view);
+  const columns = [...variant.columns(ctx), toolsColumn<RecordRow>(t, actionsOf, keyOf, titleOf)];
 
-  const q = st.query;
   const filtered = hasFilters(q);
   const data = st.data;
   const total = data?.total ?? 0;
   const shownTotal = k12 && q.placement ? shown.length : total;
+  const caption = t("sx.cpage.caption", { name });
 
   const reset = (
     <SxButton variant="ghost" size="sm" icon={RotateCcwIcon} onClick={st.reset} aiId="admin.studio.list.reset">
       {t("sx.table.reset")}
     </SxButton>
   );
-  const empty =
-    !filtered && q.page === 0 ? (
-      <SxEmpty title={t("sx.table.empty")} text={canEdit ? t("sx.cpage.emptyText", { name }) : undefined} action={canEdit ? createControl : undefined} />
-    ) : (
-      <SxEmpty compact icon={SearchIcon} title={t("sx.table.noMatch")} action={reset} />
-    );
+  const noMatch = <SxEmpty compact icon={SearchIcon} title={t("sx.table.noMatch")} action={reset} />;
+  const blank = !filtered && q.page === 0 && !!data && st.current && !st.error && !shown.length;
 
   const from = q.page * st.limit;
-  const split =
-    data && (data.runtimeTotal || data.studioTotal) ? (
-      <p className="sx-cp-split">{t("sx.cpage.split", { runtime: labels.num(data.runtimeTotal), studio: labels.num(data.studioTotal) })}</p>
-    ) : null;
   const footer =
-    data && (st.paged || split) ? (
-      <div className="sx-cp-foot">
-        {st.paged ? (
-          <SxPager
-            from={from + 1}
-            to={from + st.rows.length}
-            total={total}
-            busy={!st.current}
-            onPrev={() => st.setPage(Math.max(0, q.page - 1))}
-            onNext={() => st.setPage(q.page + 1)}
-            aiId="admin.studio.list"
-          />
-        ) : null}
-        {split}
-      </div>
+    data && st.paged ? (
+      <SxPager
+        from={from + 1}
+        to={from + st.rows.length}
+        total={total}
+        busy={!st.current}
+        onPrev={() => st.setPage(Math.max(0, q.page - 1))}
+        onNext={() => st.setPage(q.page + 1)}
+        aiId="admin.studio.list"
+      />
     ) : undefined;
 
   const statusOpts = statusOptions(t, labels);
-  const sourceOpts: SxOption[] = [
-    { value: "", label: t("sx.cpage.filter.all") },
-    { value: "runtime", label: t("sx.cpage.source.runtime") },
-    { value: "studio", label: t("sx.cpage.source.studio") },
-  ];
   const placementOpts: SxOption[] = [{ value: "", label: t("sx.cpage.filter.all") }, ...PLACEMENT_VALUES.map((p) => ({ value: p, label: labels.placement(p) }))];
+  const tabs: SxSegItem<SourceTab>[] = [
+    { value: "all", label: t("sx.cpage.filter.all"), icon: Rows3Icon, count: st.counts.all, aiId: "admin.studio.list.filters.source.all" },
+    { value: "runtime", label: t("sx.cp2.tabs.runtime"), icon: GlobeIcon, count: st.counts.runtime, aiId: "admin.studio.list.filters.source.runtime" },
+    { value: "studio", label: t("sx.cp2.tabs.studio"), icon: LayersIcon, count: st.counts.studio, aiId: "admin.studio.list.filters.source.studio" },
+  ];
+  const loadError = st.error && !data ? <LoadError error={st.error} onRetry={() => void st.retry()} busy={st.retrying} /> : undefined;
+
+  let main: ReactNode;
+  if (blank) {
+    main = (
+      <SxPanel className="sx-cp-panel sx-cp-blank">
+        <CtorEmpty code={code} group={group} title={t("sx.cp2.empty.title")} text={canEdit ? t("sx.cpage.emptyText", { name }) : t("sx.cp2.empty.textView")} action={canEdit ? createControl : undefined} />
+      </SxPanel>
+    );
+  } else if (view === "cards") {
+    main = (
+      <RecordCards
+        rows={shown}
+        columns={variant.columns(ctx)}
+        ctx={ctx}
+        caption={caption}
+        hrefOf={hrefOf}
+        actionsOf={actionsOf}
+        groupBy={groupBy}
+        loading={st.loading}
+        busy={!st.current && !!data}
+        error={loadError}
+        empty={<SxPanel className="sx-cp-panel">{noMatch}</SxPanel>}
+        footer={footer}
+      />
+    );
+  } else {
+    main = (
+      <SxPanel flush className="sx-cp-panel">
+        <SxTable<RecordRow>
+          caption={caption}
+          aiId={TABLE_ID}
+          rows={shown}
+          columns={columns}
+          rowKey={keyOf}
+          rowHref={(r) => hrefOf(r) || undefined}
+          rowTitle={titleOf}
+          rowTone={(r) => (isQuietRow(r.rec.title, String(r.extra?.status ?? "") || r.rec.status) ? "muted" : undefined)}
+          sort={tableSortOf(sort)}
+          onSortChange={(next) => st.setSort(sortFromTable(next))}
+          groupBy={groupBy}
+          loading={st.loading}
+          busy={!st.current && !!data}
+          error={loadError}
+          empty={noMatch}
+          footer={footer}
+        />
+      </SxPanel>
+    );
+  }
 
   return (
-    <div className="sx-cp" data-variant={variant.kind}>
+    <div className="sx-cp" data-variant={variant.kind} data-view={view} data-hue={hue}>
+      <div className="sx-cp-bar">
+        <SxSegmented<SourceTab>
+          items={tabs}
+          value={q.source || "all"}
+          onChange={(v) => st.setSource(v === "runtime" || v === "studio" ? v : "")}
+          label={t("sx.cp2.tabs.label")}
+          className="sx-cp-tabs"
+          aiId="admin.studio.list.filters.source"
+        />
+        <ViewToggle value={view} onChange={st.setView} />
+      </div>
       <SxToolbar
         aiId="admin.studio.list.filters"
         search={{ value: q.q, onChange: st.setQ, placeholder: t("sx.cpage.searchPh"), label: t("sx.cpage.searchLabel"), aiId: "admin.studio.list.search.input" }}
@@ -233,17 +388,8 @@ export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, crea
           value={q.status}
           onChange={st.setStatus}
           searchable={false}
+          leadingIcon={ListFilterIcon}
           aiId="admin.studio.list.filters.status"
-        />
-        <Picker
-          size="sm"
-          label={t("sx.cpage.filter.source")}
-          placeholder={t("sx.cpage.filter.source")}
-          options={sourceOpts}
-          value={q.source}
-          onChange={(v) => st.setSource(v === "runtime" || v === "studio" ? v : "")}
-          searchable={false}
-          aiId="admin.studio.list.filters.source"
         />
         {k12 ? (
           <Picker
@@ -254,30 +400,24 @@ export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, crea
             value={q.placement}
             onChange={st.setPlacement}
             searchable={false}
+            leadingIcon={LayoutPanelTopIcon}
             aiId="admin.studio.list.filters.placement"
           />
         ) : null}
+        <Picker
+          size="sm"
+          label={t("sx.cp2.sort.label")}
+          placeholder={t("sx.cp2.sort.label")}
+          options={sortOptions(t)}
+          value={sort}
+          onChange={(v) => st.setSort(sortOf(v))}
+          searchable={false}
+          leadingIcon={ArrowDownUpIcon}
+          aiId="admin.studio.list.filters.sort"
+        />
       </SxToolbar>
       {st.error && data ? <LoadError error={st.error} onRetry={() => void st.retry()} busy={st.retrying} compact /> : null}
-      <SxPanel flush className="sx-cp-panel">
-        <SxTable<RecordRow>
-          caption={t("sx.cpage.caption", { name })}
-          aiId="admin.studio.list.table"
-          rows={shown}
-          columns={columns}
-          rowKey={(r) => `${r.rec.source}-${r.rec.id}`}
-          rowHref={(r) => recordHref(code, r.rec.actions.view) || undefined}
-          rowTitle={(r) => rowTitle(r.rec) || t("sx.ui.untitled")}
-          rowTone={(r) => (isQuietRow(r.rec.title, String(r.extra?.status ?? "") || r.rec.status) ? "muted" : undefined)}
-          rowActions={(r) => acts.actionsFor<RecordRow>(r.rec)}
-          groupBy={groupBy}
-          loading={st.loading}
-          busy={!st.current && !!data}
-          error={st.error && !data ? <LoadError error={st.error} onRetry={() => void st.retry()} busy={st.retrying} /> : undefined}
-          empty={empty}
-          footer={footer}
-        />
-      </SxPanel>
+      {main}
       {acts.dialog}
     </div>
   );
