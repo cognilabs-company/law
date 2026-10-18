@@ -15,6 +15,8 @@ const LOOK: Record<string, { icon: Ico; c0: string; c1: string; wide?: boolean }
   unread_messages: { icon: IconChat, c0: "#34C38F", c1: "#0E9D6A" },
   meetings: { icon: IconHourglass, c0: "#FF5F6D", c1: "#E5303F" },
   earnings: { icon: IconCoins, c0: "#B26CF5", c1: "#6E3BE0", wide: true },
+  // A client's money widget: what was spent on completed services.
+  spending: { icon: IconCoins, c0: "#2EC4B6", c1: "#0B7F8C", wide: true },
 };
 
 // The desktop's widgets (§15), drawn as a computer's own widgets: small

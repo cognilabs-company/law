@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { errDetail } from "@/lib/http";
 import Modal from "@/components/admin/Modal";
 import SearchSelect from "@/components/SearchSelect";
 import {
@@ -15,7 +16,7 @@ import {
   type ServiceScope,
   type ServiceSellerProfile,
 } from "@/lib/services/sellerServices";
-import { checkoutMarketplacePromotion, listPromotionPackages, promotionErrorCode, promotionErrorRetryable, uploadPromotionBanner, type PromotionPackage, type PromotionPlacement, type PromotionPlacementOption } from "@/lib/services/promotions";
+import { checkoutMarketplacePromotion, listPromotionPackages, promotionErrorCode, promotionErrorRetryable, uploadPromotionBanner, BANNER_REFERENCES, bannerReferenceUrl, type BannerAsset, type PromotionPackage, type PromotionPlacement, type PromotionPlacementOption } from "@/lib/services/promotions";
 import { IconAlert, IconArrowRight, IconCheck, IconCircleCheck, IconClock, IconCrown, IconEye, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconTrendingUp, IconUpload, IconUser } from "@/components/icons";
 import { useAuth } from "@/lib/auth";
 import { InBody, PlacementSketch, som, usePackageName } from "./bits";
@@ -25,7 +26,8 @@ import { newIdempotencyKey } from "@/lib/services/promoEvents";
 
 type Packs = { status: "loading" | "ready" | "error"; items: PromotionPackage[]; placements: PromotionPlacementOption[] };
 const TIER_ICON = [IconRocket, IconGem, IconCrown];
-const MAX_BANNER_MB = 10;
+// The backend takes up to 12 MB (2026-10-18), at least 720×720.
+const MAX_BANNER_MB = 12;
 const HTTP_URL = /^https?:\/\/\S+\.\S+/i;
 const FALLBACK_PLACEMENTS: PromotionPlacementOption[] = [
   { value: "service_boost", label: "", requiresService: true, requiresBanner: false, acceptsBanner: false, previewSurface: "category_search_sponsored_service" },
@@ -80,6 +82,8 @@ export default function PromoteModal({
   const [bannerFileUrl, setBannerFileUrl] = useState("");
   const [uploading, setUploading] = useState(false);
   const [bannerFileName, setBannerFileName] = useState("");
+  // What the backend's image check said about the uploaded picture.
+  const [bannerCheck, setBannerCheck] = useState<BannerAsset | null>(null);
   // The uploaded picture, shown from the browser's own copy: the preview must
   // not depend on the stored file being readable yet.
   const [bannerLocal, setBannerLocal] = useState("");
@@ -142,7 +146,9 @@ export default function PromoteModal({
   const missingBanner = needsBanner && !bannerImageUrl && !bannerFile;
   const missingService = needsService && !svc;
   const badImage = Boolean(bannerImageUrl.trim()) && !HTTP_URL.test(bannerImageUrl.trim());
-  const blocked = !chosen || chosen.placement !== placement || missingBanner || missingService || (acceptsBanner && badImage);
+  // An uploaded picture is used only once the check has passed it.
+  const bannerNotReady = acceptsBanner && !!bannerFile && (uploading || !bannerCheck || bannerCheck.status !== "active");
+  const blocked = !chosen || chosen.placement !== placement || missingBanner || missingService || (acceptsBanner && badImage) || bannerNotReady;
 
   useEffect(() => () => { if (bannerLocal) URL.revokeObjectURL(bannerLocal); }, [bannerLocal]);
 
@@ -152,19 +158,7 @@ export default function PromoteModal({
     setErr("");
     if (!attemptKey.current) attemptKey.current = newIdempotencyKey();
     try {
-      let fileUrl = acceptsBanner && bannerFile ? bannerFileUrl : "";
-      if (acceptsBanner && bannerFile && !fileUrl) {
-        setUploading(true);
-        try {
-          fileUrl = await uploadPromotionBanner(bannerFile);
-        } catch {
-          setErr(t("bannerUploadError"));
-          return;
-        } finally {
-          setUploading(false);
-        }
-        setBannerFileUrl(fileUrl);
-      }
+      const fileUrl = acceptsBanner && bannerFile && bannerCheck?.status === "active" ? bannerFileUrl : "";
       const req = await checkoutMarketplacePromotion(
         {
           packageId: chosen.id,
@@ -241,10 +235,22 @@ export default function PromoteModal({
     setErr("");
     setBannerFile(file);
     setBannerFileUrl("");
+    setBannerCheck(null);
     setBannerFileName(file.name);
     setBannerImageUrl("");
     // A HEIC picture is stored fine but most browsers cannot draw it.
     setBannerLocal(/\.heic$/i.test(file.name) ? "" : URL.createObjectURL(file));
+    // Checked as soon as it is picked: the backend looks at the picture
+    // itself (a clear close face, light, clothing, little text).
+    setUploading(true);
+    uploadPromotionBanner(file)
+      .then((asset) => {
+        setBannerCheck(asset);
+        setBannerFileUrl(asset.fileUrl);
+      })
+      // The backend's own reason (too small, too large, not an image).
+      .catch((e) => setErr(errDetail(e) || t("bannerUploadError")))
+      .finally(() => setUploading(false));
   }
 
   const title = item ? t("title") : t("titleAny");
@@ -438,6 +444,19 @@ export default function PromoteModal({
             {acceptsBanner ? (
               <div className="svprom__bannerform">
                 <b className="svprom__formt">{needsBanner ? t("bannerRequired") : t("bannerOptional")}</b>
+                <div className="svprom__refs">
+                  <p>{t("bannerRefsLead")}</p>
+                  <ul>
+                    {BANNER_REFERENCES.map((k) => (
+                      <li key={k}>
+                        {/* eslint-disable-next-line @next/next/no-img-element -- the backend's own example photo */}
+                        <img src={bannerReferenceUrl(k)} alt={t(`bannerRef.${k}`)} loading="lazy" />
+                        <small>{t(`bannerRef.${k}`)}</small>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="svprom__rules">{t("bannerRules")}</p>
+                </div>
                 <label className="svfile">
                   <span>{t("bannerFile")}</span>
                   <input className="svfile__in" type="file" accept=".jpg,.jpeg,.png,.webp,.heic" onChange={(e) => onBannerFile(e.target.files?.[0])} disabled={uploading || busy} />
@@ -449,6 +468,28 @@ export default function PromoteModal({
                     <small>{bannerFile ? bannerFileName : t("bannerNoFile", { mb: MAX_BANNER_MB })}</small>
                   </span>
                 </label>
+                {bannerFile && bannerCheck ? (
+                  <div className={`svprom__check svprom__check--${bannerCheck.status}`} role="status">
+                    <b>{t(`bannerStatus.${bannerCheck.status}`)}</b>
+                    {bannerCheck.reasons.length ? (
+                      <ul>
+                        {bannerCheck.reasons.map((r, i) => (
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {bannerCheck.suggestions.length ? (
+                      <>
+                        <small>{t("bannerSuggest")}</small>
+                        <ul>
+                          {bannerCheck.suggestions.map((r, i) => (
+                            <li key={i}>{r}</li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
                 <span className="svprom__or">{t("or")}</span>
                 <label className={badImage ? "is-bad" : undefined}>
                   <span>{t("bannerImageUrl")}</span>
@@ -460,6 +501,7 @@ export default function PromoteModal({
                       setBannerFileUrl("");
                       setBannerLocal("");
                       setBannerFileName("");
+                      setBannerCheck(null);
                     }}
                     placeholder="https://"
                     inputMode="url"

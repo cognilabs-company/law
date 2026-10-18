@@ -103,15 +103,17 @@ export function checklistOf(c: RuntimeConfig | null | undefined): ChecklistItem[
     .map((x) => x.item);
 }
 
-export type FactSection = "duration" | "guarantees" | "checklist" | "template" | "factors" | "requirements";
+export type FactSection = "duration" | "steps" | "guarantees" | "checklist" | "template" | "factors" | "requirements";
 
-export const DETAIL_SECTIONS: readonly FactSection[] = ["duration", "checklist", "template", "factors", "requirements"];
-export const ASSIST_SECTIONS: readonly FactSection[] = ["duration", "guarantees", "checklist", "template", "factors", "requirements"];
+export const DETAIL_SECTIONS: readonly FactSection[] = ["duration", "steps", "checklist", "template", "factors", "requirements"];
+export const ASSIST_SECTIONS: readonly FactSection[] = ["duration", "steps", "guarantees", "checklist", "template", "factors", "requirements"];
 
 function hasSection(c: RuntimeConfig, s: FactSection): boolean {
   switch (s) {
     case "duration":
       return !!durationParts(c.duration);
+    case "steps":
+      return c.usageSteps.length > 0;
     case "guarantees":
       return guaranteesOf(c).length > 0;
     case "checklist":

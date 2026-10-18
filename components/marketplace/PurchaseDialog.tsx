@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
@@ -13,6 +13,7 @@ import {
   PACKAGE_SELLER_ERRORS,
   PREFERRED_CHANNELS,
   PRICE_OPTION_ERRORS,
+  PURCHASE_URGENCIES,
   activePurchaseOf,
   marketChatHref,
   marketErrorCode,
@@ -24,7 +25,11 @@ import {
   type MarketService,
   type MarketTrackPhase,
   type PreferredChannel,
+  type PurchaseAttachment,
+  type PurchaseUrgency,
+  type PurchaseVoice,
 } from "@/lib/services/marketplace";
+import IntakeAttachments from "./IntakeAttachments";
 import { useMarketOrderTracker } from "@/lib/useMarketOrderTracker";
 import { deliveryLabel } from "./bits";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
@@ -70,6 +75,11 @@ export default function PurchaseDialog({
   const [note, setNote] = useState("");
   const [channel, setChannel] = useState<PreferredChannel>("chat");
   const [time, setTime] = useState("");
+  const [urgency, setUrgency] = useState<PurchaseUrgency | "">("");
+  const [files, setFiles] = useState<PurchaseAttachment[]>([]);
+  const [voices, setVoices] = useState<(PurchaseVoice & { url: string })[]>([]);
+  const [attaching, setAttaching] = useState(false);
+  const onAttachBusy = useCallback((b: boolean) => setAttaching(b), []);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState<MarketPurchase | null>(null);
@@ -85,6 +95,9 @@ export default function PurchaseDialog({
     setNote("");
     setChannel("chat");
     setTime("");
+    setUrgency("");
+    setFiles([]);
+    setVoices([]);
     setErr("");
     setDone(null);
     setActive(null);
@@ -134,7 +147,7 @@ export default function PurchaseDialog({
   }
 
   async function submit() {
-    if (busy || done || !service || price.pending || price.failed) return;
+    if (busy || done || !service || price.pending || price.failed || attaching) return;
     if (note.length > NOTE_MAX) {
       setErr(t("noteTooLong"));
       return;
@@ -142,7 +155,7 @@ export default function PurchaseDialog({
     setBusy(true);
     setErr("");
     try {
-      const input = { note, preferredChannel: channel, preferredTime: time, selectedOptionIds: price.ids };
+      const input = { note, preferredChannel: channel, preferredTime: time, selectedOptionIds: price.ids, urgency, attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })) };
       const r = pkg ? await requestPackagePurchase(pkg.purchaseUrl, input) : await requestMarketplacePurchase(sellerUserId, service.id, input);
       setDone(r);
       trackPromoContact(sellerUserId, "purchase");
@@ -380,6 +393,17 @@ export default function PurchaseDialog({
               />
               <em>{note.length}/{NOTE_MAX}</em>
             </label>
+            <fieldset className="mk-buy__ch">
+              <legend>{t("urgency")}</legend>
+              <div className="mk-seg">
+                {PURCHASE_URGENCIES.map((u) => (
+                  <button key={u} type="button" className="mk-seg__b" aria-pressed={urgency === u} onClick={() => setUrgency(urgency === u ? "" : u)}>
+                    {t(`urgencies.${u}`)}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <IntakeAttachments files={files} voices={voices} onFiles={setFiles} onVoices={setVoices} onBusy={onAttachBusy} />
             <label className="mk-in" data-ai-target="marketplace:purchase-time">
               <span>{t("time")}</span>
               <input value={time} onChange={(e) => setTime(e.target.value)} placeholder={t("timePh")} maxLength={120} data-ai-id="marketplace.purchase.time" data-ai-label={t("time")} />
@@ -393,7 +417,7 @@ export default function PurchaseDialog({
             </div>
             <p className="mk-buy__note">{t("totalNote")}</p>
             {err ? <Notice ok={false} msg={err} /> : null}
-            <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy || price.pending || price.failed} data-ai-target="button:marketplace-purchase-submit" data-ai-id="marketplace.purchase.submit" data-ai-entity-type={pkg ? "marketplace_package" : "marketplace_service"} data-ai-entity-id={service.id}>
+            <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy || price.pending || price.failed || attaching} data-ai-target="button:marketplace-purchase-submit" data-ai-id="marketplace.purchase.submit" data-ai-entity-type={pkg ? "marketplace_package" : "marketplace_service"} data-ai-entity-id={service.id}>
               {busy ? t("sending") : price.pending ? t("pricing") : t("submit")}
             </button>
           </form>

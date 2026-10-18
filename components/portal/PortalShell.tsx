@@ -313,7 +313,9 @@ export default function PortalShell({
   const profileHref = nav.find((n) => n.key === "profile")?.href ?? `/portal/${role}`;
 
   // The desktop view, for the accounts it is open to (see canUseDesk).
-  const deskAllowed = role !== "client" && canUseDesk(session);
+  // Clients have a desktop of their own (/client-desktop), the same shell
+  // with the apps their role is given.
+  const deskAllowed = canUseDesk(session);
   // Inside a desktop window: the page alone, no sidebar, header or assistant.
   // A cabinet page is dressed as the program it is (see DeskApp).
   if (embedded) {
@@ -336,7 +338,7 @@ export default function PortalShell({
   if (deskAllowed && deskMode === "desktop") {
     return (
       <>
-        {!limited ? <SellerHeaderSlot role={role} quiet desk /> : null}
+        {role !== "client" && !limited ? <SellerHeaderSlot role={role} quiet desk /> : null}
         <DesktopShell
           key={deskOs}
           os={deskOs}

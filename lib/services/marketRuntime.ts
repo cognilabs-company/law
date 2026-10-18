@@ -228,8 +228,19 @@ export type RuntimeConfig = {
   rules: ServiceRule[];
   guarantees: RuntimeGuarantee[];
   checklistPreview: ChecklistItem[];
+  // How the service is used, in order (Studio K02 usage_steps): text, or
+  // {title, description}.
+  usageSteps: UsageStep[];
   raw: Dict;
 };
+
+export type UsageStep = { title: string; text: string };
+
+function normUsageStep(v: unknown): UsageStep {
+  if (typeof v === "string") return { title: "", text: v.trim() };
+  const d = dictOf(v);
+  return { title: trimmed(d.title ?? d.label ?? d.name), text: trimmed(d.description ?? d.text ?? d.body ?? d.instruction) };
+}
 
 export function normRuntimeConfig(v: unknown, placement: RuntimePlacement = "service_detail"): RuntimeConfig {
   const d = dictOf(v);
@@ -244,6 +255,7 @@ export function normRuntimeConfig(v: unknown, placement: RuntimePlacement = "ser
     rules: asArr(d.rules).map(normServiceRule).filter((r) => r.id || r.title),
     guarantees: asArr(d.guarantees).map(normGuarantee).filter((g) => g.id || g.title),
     checklistPreview: asArr(d.checklist_preview).map(normChecklistItem).filter((i) => i.id || i.title),
+    usageSteps: asArr(d.usage_steps).map(normUsageStep).filter((x) => x.title || x.text),
     raw: d,
   };
 }

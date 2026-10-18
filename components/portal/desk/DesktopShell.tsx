@@ -13,6 +13,7 @@ import { asDict, asStr } from "@/lib/http";
 import {
   IconArrowRight,
   IconBell,
+  IconBriefcase,
   IconClipboardList,
   IconStar,
   IconChevronLeft,
@@ -46,6 +47,9 @@ import Palette, { type PaletteApp } from "./Palette";
 import ActivityPanel from "./ActivityPanel";
 import DeskWidgets from "./DeskWidgets";
 import SnippetsApp from "./SnippetsApp";
+import CopilotApp from "./CopilotApp";
+import WorkApp from "./WorkApp";
+import type { CopilotEntity } from "@/lib/services/aiCopilot";
 import { safeRoute, type DeskLink, type SearchHit, type WindowInput } from "@/lib/services/lawyerDesktop";
 import { DESK_FRAME, setDeskMode, setDeskOs, type DeskOs } from "./deskMode";
 
@@ -61,7 +65,9 @@ type Note = { title: string; rows: [string, string][]; icon: ReactNode };
 // Each computer style keeps its own desk: wallpaper, pins, open windows.
 const storeOf = (os: DeskOs) => (os === "mac" ? "lexgo_desk_state_mac" : "lexgo_desk_state");
 const DEFAULT_PINNED = ["dashboard", "cases", "calendar", "chat", "messages", "files"];
-const FIRST = ["dashboard", "cases", "tasks", "calendar", "clients", "chat", "messages", "ai", "assistant"];
+const FIRST = ["dashboard", "work", "copilot", "cases", "works", "tasks", "calendar", "clients", "chat", "messages", "ai", "assistant"];
+// The desktop's own apps, drawn here rather than opened as a page.
+const NATIVE = new Set(["snippets", "copilot", "work"]);
 const PHONE = 760;
 let seq = 0;
 // The time, for how recent a click is (read in handlers, never in render).
@@ -118,7 +124,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
   const [localFocus, setLocalFocus] = useState(false);
 
   // The backend's desktop feed (bootstrap, widgets, activity, presence…).
-  const backend = useDeskBackend(() => {
+  const backend = useDeskBackend(role, () => {
     const w = wins.find((x) => x.id === active && !x.min);
     return { appId: w && w.kind === "app" ? regOf(w.key) : "", busy: w?.key === "meetings" };
   });
@@ -126,14 +132,29 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
   const ready = backend.status === "ready";
   // The snippets app lives in the desktop itself, when the backend has it.
   const snippetsOn = ready && (!registry.size || registry.has("snippets"));
-  const apps = useMemo<DeskApp[]>(() => (snippetsOn ? [...navApps, { key: "snippets", href: "", label: t("snippets.title"), Icon: IconClipboardList, locked: false }] : navApps), [navApps, snippetsOn, t]);
+  // The copilot when the backend names a mode for this role; the work feed
+  // when the role has a work app (marketplace work, or a client's works).
+  const aiMode = backend.boot?.ai.mode === "client_copilot" || backend.boot?.ai.mode === "lawyer_copilot" ? backend.boot.ai.mode : "";
+  const workOn = ready && (!registry.size || registry.has("marketplace-work") || registry.has("my-works"));
+  const apps = useMemo<DeskApp[]>(
+    () => [
+      ...navApps,
+      ...(aiMode ? [{ key: "copilot", href: "", label: t("copilot.title"), Icon: IconSparkle, locked: false }] : []),
+      ...(workOn ? [{ key: "work", href: "", label: t("work.title"), Icon: IconBriefcase, locked: false }] : []),
+      ...(snippetsOn ? [{ key: "snippets", href: "", label: t("snippets.title"), Icon: IconClipboardList, locked: false }] : []),
+    ],
+    [navApps, aiMode, workOn, snippetsOn, t],
+  );
+  // What the copilot is focused on (a piece of work), set from the Work app.
+  const [copilotFocus, setCopilotFocus] = useState<CopilotEntity | null>(null);
   const focusMode = backend.prefs ? backend.prefs.focusMode : localFocus;
 
   const byKey = useMemo(() => new Map(apps.map((a) => [a.key, a])), [apps]);
   const folderApps = useCallback((id: FolderId) => (FOLDERS.find((f) => f.id === id)?.keys ?? []).map((k) => byKey.get(k)).filter((a): a is DeskApp => !!a), [byKey]);
   const folderName = (id: string) => t(`folder.${id}`);
   // The app a path inside a window belongs to: the longest href it starts with.
-  const appAt = useCallback((path: string) => [...apps].sort((a, b) => b.href.length - a.href.length).find((a) => path === a.href || path.startsWith(`${a.href}/`)), [apps]);
+  // The desktop's own apps have no page, so they never own one.
+  const appAt = useCallback((path: string) => (path ? [...apps].filter((a) => a.href).sort((a, b) => b.href.length - a.href.length).find((a) => path === a.href || path.startsWith(`${a.href}/`)) : undefined), [apps]);
 
   // ── the clock, the desk's size ────────────────────────────────────────────
   useEffect(() => {
@@ -336,9 +357,10 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
   // neither, the Activity Center. Nothing outside the site is ever opened.
   const openLink = (link: DeskLink) => {
     if (link.appId === "snippets") return openApp("snippets");
+    if ((link.appId === "lexgo-ai" || link.appId === "copilot") && byKey.has("copilot")) return openApp("copilot");
     const route = safeRoute(link.route);
     const owner = route ? appAt(route) : undefined;
-    if (owner && owner.key !== "snippets") return openApp(owner.key, false, route);
+    if (owner && !NATIVE.has(owner.key)) return openApp(owner.key, false, route);
     const key = navOfReg(link.appId, (k) => byKey.has(k));
     if (key && link.appId !== "activity-center") return openApp(key);
     setActOpen(true);
@@ -774,8 +796,8 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
     ];
   };
   const paletteApps: PaletteApp[] = [
-    ...FOLDERS.filter((f) => folderApps(f.id).length).map((f) => ({ id: `f-${f.id}`, label: folderName(f.id), icon: <FolderTile apps={folderApps(f.id)} size="sm" />, folder: true, open: () => openFolder(f.id) })),
-    ...apps.map((a) => ({ id: a.key, label: a.label, icon: <AppTile app={a} size="sm" />, open: () => openApp(a.key) })),
+    ...FOLDERS.filter((f) => folderApps(f.id).length).map((f) => ({ id: f.id, label: folderName(f.id), icon: <FolderTile apps={folderApps(f.id)} size="sm" />, folder: true })),
+    ...apps.map((a) => ({ id: a.key, label: a.label, icon: <AppTile app={a} size="sm" /> })),
   ];
   const winTitle = (w: Win) => (w.kind === "folder" ? folderName(w.key) : (appAt(w.path)?.label ?? byKey.get(w.key)?.label ?? ""));
 
@@ -871,7 +893,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
               onBusy={setBusy}
               onSnapHint={setHint}
               tools={
-                w.kind === "app" && w.key !== "snippets" ? (
+                w.kind === "app" && !NATIVE.has(w.key) ? (
                   <>
                     <button type="button" onClick={() => frames.current.get(w.id)?.contentWindow?.history.back()} aria-label={t("win.back")} title={t("win.back")}>
                       <IconChevronLeft />
@@ -888,6 +910,17 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
             >
               {w.kind === "app" && w.key === "snippets" ? (
                 <SnippetsApp />
+              ) : w.kind === "app" && w.key === "copilot" && aiMode ? (
+                <CopilotApp mode={aiMode} focus={copilotFocus} onFocus={setCopilotFocus} onOpenRoute={(r) => openLink({ appId: "", route: r })} />
+              ) : w.kind === "app" && w.key === "work" ? (
+                <WorkApp
+                  onOpen={(l) => openLink(l)}
+                  onChat={() => openApp(byKey.has("messages") ? "messages" : "chat")}
+                  onCopilot={(it) => {
+                    setCopilotFocus({ type: it.entityType, id: it.id, title: it.title || it.code });
+                    openApp("copilot");
+                  }}
+                />
               ) : w.kind === "app" && app ? (
                 <>
                   <iframe
@@ -1242,6 +1275,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
           apps={paletteApps}
           pinned={backend.pinned}
           recent={backend.recent}
+          onApp={(a) => (a.folder ? openFolder(a.id as FolderId) : openApp(a.id))}
           onLink={(l) => openLink(l)}
           onHit={openHit}
           onHitMenu={hitMenu}

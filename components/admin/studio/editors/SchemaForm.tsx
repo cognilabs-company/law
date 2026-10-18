@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, type DragEvent, type KeyboardEvent } from "react";
+import { createContext, useContext, useEffect, useId, useMemo, useState, type DragEvent, type KeyboardEvent } from "react";
 import { getStudioConstructorDetail, studioSectionsOf, type StudioConstructor, type StudioFieldErrors, type StudioSchemaField } from "@/lib/services/studio";
 import { emptyItem, joinPath, normErrorPaths, fieldVisible, pruneInvisible, targetErrors } from "@/lib/studioSchema";
 import DatePicker from "@/components/DatePicker";
@@ -11,6 +11,8 @@ import { PayloadSummary } from "../PayloadSummary";
 import { useStudioHuman } from "../human";
 import GenericEditor from "./GenericEditor";
 import RefSelect from "./parts/RefSelect";
+import DiscoverySuggest from "./parts/DiscoverySuggest";
+import FactorOverrides from "./parts/FactorOverrides";
 import { fieldGlyph, sectionGlyph } from "./parts/fieldIcon";
 import { ChipPick, RowTools, SelectIn, edAi, useEd } from "./parts/kit";
 import type { StudioEditorProps, StudioPayload } from "./types";
@@ -41,6 +43,10 @@ function spans(fields: StudioSchemaField[]): Set<string> {
 // nested form, with a key/value editor where the schema admits other keys;
 // every reference a search select. Errors — the form's own and the
 // backend's — sit next to the nested field they are about.
+// The whole payload, for a field that needs its neighbours (the AI
+// discovery-term suggestions read the title and description).
+const RootPayload = createContext<StudioPayload>({});
+
 export default function SchemaEditor(props: StudioEditorProps) {
   const { code, constructor } = props;
   const ctorCode = constructor?.code || code;
@@ -106,6 +112,7 @@ function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorPr
   };
 
   return (
+    <RootPayload.Provider value={payload}>
     <div className="stu-sf" data-ai-id={edAi(ctor.code)} data-ai-type="editor" data-ai-label={ctor.title}>
       {groups.length > 1 ? (
         <nav className="stu-sf__nav" aria-label={t("schema.sections")}>
@@ -178,6 +185,7 @@ function TypedForm({ ctor, payload, onChange, errors, readOnly }: StudioEditorPr
         </section>
       ) : null}
     </div>
+    </RootPayload.Provider>
   );
 }
 
@@ -281,6 +289,7 @@ function Control({ f, value, onChange, path, errs, ro, code, id, invalid, placeh
   const options = f.options.map((v) => ({ value: v, label: optionLabel(f, v) }));
   switch (f.type) {
     case "object":
+      if (f.key === "price_factor_overrides") return <OverridesField value={value} onChange={onChange} ro={ro} />;
       return <ObjectField f={f} value={value} onChange={onChange} path={path} errs={errs} ro={ro} code={code} />;
     case "list":
       if (f.source || f.item?.source) {
@@ -290,6 +299,7 @@ function Control({ f, value, onChange, path, errs, ro, code, id, invalid, placeh
       if (f.item && f.item.type === "select" && f.item.options.length) {
         return <ChipPick options={f.item.options.map((v) => ({ value: v, label: optionLabel(f.item!, v) }))} value={Array.isArray(value) ? value.map(text) : []} onChange={onChange} readOnly={ro} label={name} ai={ai} invalid={invalid} />;
       }
+      if (f.key === "discovery_terms" && !ro) return <DiscoveryList f={f} value={value} onChange={onChange} path={path} errs={errs} ro={ro} code={code} />;
       return <ListField f={f} value={value} onChange={onChange} path={path} errs={errs} ro={ro} code={code} />;
     case "multiselect":
       if (f.source) return <RefSelect multiple source={f.source} value={Array.isArray(value) ? value.map(text) : []} onChange={onChange} readOnly={ro} label={name} />;
@@ -642,6 +652,33 @@ function KeyValue({ entries, onChange, ro, path, errs, title }: { entries: [stri
 }
 
 // ── List ────────────────────────────────────────────────────────────────────
+
+// A package's own values for the price factors it picked (K03-M).
+function OverridesField({ value, onChange, ro }: { value: unknown; onChange: (v: unknown) => void; ro: boolean }) {
+  const root = useContext(RootPayload);
+  const ids = Array.isArray(root.price_factor_ids) ? root.price_factor_ids.map((x) => text(x)).filter(Boolean) : [];
+  return <FactorOverrides factorIds={ids} value={value} onChange={onChange} readOnly={ro} />;
+}
+
+// Discovery terms: the list, with AI suggestions from the form's own title,
+// description and parent above it.
+function DiscoveryList(props: Omit<BlockProps, "required">) {
+  const root = useContext(RootPayload);
+  const str = (v: unknown) => (typeof v === "string" ? v : "");
+  const current = Array.isArray(props.value) ? props.value.map((x) => (typeof x === "string" ? x : text(x))).filter(Boolean) : [];
+  return (
+    <>
+      <DiscoverySuggest
+        title={str(root.title) || str(root.name) || str(root.title_uz)}
+        description={str(root.description) || str(root.description_uz)}
+        parentTitle={str(root.parent_title)}
+        current={current}
+        onAdd={(terms) => props.onChange([...(Array.isArray(props.value) ? props.value : []), ...terms])}
+      />
+      <ListField {...props} />
+    </>
+  );
+}
 
 function ListField({ f, value, onChange, path, errs, ro, code }: Omit<BlockProps, "required">) {
   const { t, label, e, help, fieldLabel, value: say } = { ...useLabels(), ...useEd() };

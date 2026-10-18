@@ -7,7 +7,12 @@
 import { asArr, asDict, asNum, asStr, http, type Dict } from "@/lib/http";
 
 const enc = encodeURIComponent;
-const BASE = "/lawyer-desktop";
+// The same desktop contract lives under /lawyer-desktop for sellers and
+// /client-desktop for clients; the shell says which once, at start.
+let BASE = "/lawyer-desktop";
+export function setDeskRole(role: string) {
+  BASE = role === "client" ? "/client-desktop" : "/lawyer-desktop";
+}
 const send = (method: "POST" | "PUT" | "PATCH" | "DELETE", value?: unknown, signal?: AbortSignal): RequestInit => ({ method, body: value === undefined ? undefined : JSON.stringify(value), signal });
 const qs = (params: Record<string, string | number | boolean | undefined | null>) => {
   const q = new URLSearchParams();
@@ -78,7 +83,9 @@ export type SavedWindow = {
 };
 export type DeskItem = { id: string; kind: string; entityType: string; entityId: string; appId: string; title: string; subtitle: string; route: string; badge: string; at: string };
 export type DeskCounts = { activeOrders: number; pendingRequests: number; unreadNotifications: number; unreadMessages: number };
+export type DeskAi = { endpoint: string; mode: string; artifactsUrl: string };
 export type Bootstrap = {
+  ai: DeskAi;
   apps: RegistryApp[];
   prefs: DeskPrefs;
   wallpapers: string[];
@@ -186,7 +193,9 @@ const normCounts = (raw: unknown): DeskCounts => {
 export async function getBootstrap(device: string, signal?: AbortSignal): Promise<Bootstrap> {
   const d = asDict(await http(`${BASE}/bootstrap${qs({ device_key: device })}`, { signal }));
   const rt = asDict(d.realtime);
+  const ai = asDict(d.ai);
   return {
+    ai: { endpoint: asStr(ai.endpoint) || "/api/ai/assistant", mode: asStr(ai.mode), artifactsUrl: asStr(ai.artifacts_url) },
     apps: rows(d.apps).map(normApp).filter((x): x is RegistryApp => !!x),
     prefs: normPrefs(d.preferences),
     wallpapers: rows(d.wallpapers).map((w) => asStr(asDict(w).key ?? w)).filter(Boolean),
@@ -310,6 +319,61 @@ export async function getCommands(q: string, signal?: AbortSignal): Promise<Comm
       link: link(d.deep_link ?? d),
     };
   }).filter((c) => c.label);
+}
+
+// ── Work (§9) ───────────────────────────────────────────────────────────────
+
+export type WorkItem = {
+  id: string;
+  code: string;
+  title: string;
+  status: string;
+  payment: string;
+  client: string;
+  price: number;
+  currency: string;
+  deadline: string;
+  done: number;
+  total: number;
+  chatRoomId: string;
+  updatedAt: string;
+  link: DeskLink;
+  entityType: string;
+};
+export type WorkFeed = { items: WorkItem[]; total: number; hasMore: boolean; groups: Record<string, string[]> };
+export async function getWork(filter: { status?: string; offset?: number } = {}, signal?: AbortSignal): Promise<WorkFeed> {
+  const d = asDict(await http(`${BASE}/work${qs({ status: filter.status, limit: 30, offset: filter.offset ?? 0 })}`, { signal }));
+  const groups = Object.fromEntries(Object.entries(asDict(d.status_groups)).map(([k, v]) => [k, asArr(v).map((x) => asStr(x))]));
+  return {
+    items: rows(d)
+      .map((raw): WorkItem => {
+        const w = asDict(raw);
+        const dl = asDict(w.deep_link);
+        const cl = asDict(w.checklist);
+        const client = asDict(w.client);
+        return {
+          id: asStr(w.id),
+          code: asStr(w.work_id ?? w.code),
+          title: asStr(w.title),
+          status: asStr(w.status),
+          payment: asStr(w.payment_status),
+          client: asStr(client.name ?? client.display_name ?? (typeof w.client === "string" ? w.client : "")),
+          price: asNum(w.price, 0),
+          currency: asStr(w.currency) || "UZS",
+          deadline: asStr(w.deadline_at),
+          done: asNum(cl.completed, 0),
+          total: asNum(cl.total, 0),
+          chatRoomId: asStr(w.chat_room_id),
+          updatedAt: asStr(w.updated_at),
+          link: link(dl),
+          entityType: asStr(dl.entity_type) || "service_order",
+        };
+      })
+      .filter((w) => w.id),
+    total: asNum(d.total, 0),
+    hasMore: d.has_more === true,
+    groups,
+  };
 }
 
 // ── Pinned and recent ───────────────────────────────────────────────────────

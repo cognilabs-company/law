@@ -17,6 +17,7 @@ import {
   removeItem,
   savePrefs,
   saveWindows,
+  setDeskRole,
   type Activity,
   type Bootstrap,
   type DeskItem,
@@ -39,7 +40,7 @@ const errData = (e: unknown) => (e instanceof ApiError ? asDict(e.data.detail ??
 // are saved with the backend's revision, and a conflict takes the server's
 // copy. If the backend refuses (no desktop for this account) everything
 // here stays quiet and the desktop works from this browser alone.
-export function useDeskBackend(activeApp: () => { appId: string; entityType?: string; entityId?: string; busy?: boolean }) {
+export function useDeskBackend(role: string, activeApp: () => { appId: string; entityType?: string; entityId?: string; busy?: boolean }) {
   const [status, setStatus] = useState<Status>("loading");
   const [boot, setBoot] = useState<Bootstrap | null>(null);
   const [prefs, setPrefs] = useState<DeskPrefs | null>(null);
@@ -64,8 +65,9 @@ export function useDeskBackend(activeApp: () => { appId: string; entityType?: st
     getItems("recent").then(setRecent).catch(() => undefined);
   }, []);
 
-  // Bootstrap, once.
+  // Bootstrap, once, from this role's desktop.
   useEffect(() => {
+    setDeskRole(role);
     const c = new AbortController();
     const dev = deviceKey();
     const h = setTimeout(() => setDevice(dev), 0);
@@ -85,7 +87,7 @@ export function useDeskBackend(activeApp: () => { appId: string; entityType?: st
       clearTimeout(h);
       c.abort();
     };
-  }, [refreshFeeds]);
+  }, [refreshFeeds, role]);
 
   const ready = status === "ready";
 

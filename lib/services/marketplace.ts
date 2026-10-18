@@ -374,7 +374,9 @@ export async function getMarketplaceSellerServices(userId: string): Promise<Mark
 }
 
 export type PreferredChannel = "chat" | "audio" | "video" | "meeting";
-export const PREFERRED_CHANNELS: PreferredChannel[] = ["chat", "audio", "video", "meeting"];
+// The purchase request accepts chat, audio and video (2026-10-18 contract);
+// "meeting" stays in the type for orders made before it.
+export const PREFERRED_CHANNELS: PreferredChannel[] = ["chat", "audio", "video"];
 
 export type MarketPurchase = {
   workId: string;
@@ -385,15 +387,36 @@ export type MarketPurchase = {
   telegramSent: boolean;
 };
 
-export type PurchaseInput = { note: string; preferredChannel: PreferredChannel; preferredTime: string; selectedOptionIds?: string[] };
+// How soon the client needs it (2026-10-18 contract), and what they sent
+// with the request: workspace files uploaded first, by id — up to 20 files
+// and 10 voice messages.
+export const PURCHASE_URGENCIES = ["today", "tomorrow", "later"] as const;
+export type PurchaseUrgency = (typeof PURCHASE_URGENCIES)[number];
+export const MAX_PURCHASE_FILES = 20;
+export const MAX_PURCHASE_VOICES = 10;
+export type PurchaseAttachment = { fileId: string; title: string };
+export type PurchaseVoice = { fileId: string; seconds: number };
+export type PurchaseInput = {
+  note: string;
+  preferredChannel: PreferredChannel;
+  preferredTime: string;
+  selectedOptionIds?: string[];
+  urgency?: PurchaseUrgency | "";
+  attachments?: PurchaseAttachment[];
+  voiceMessages?: PurchaseVoice[];
+};
 
 function purchaseBody(input: PurchaseInput): string {
-  return JSON.stringify({
+  const body: Record<string, unknown> = {
     selected_option_ids: input.selectedOptionIds ?? [],
     note: input.note.trim(),
     preferred_channel: input.preferredChannel,
     preferred_time: input.preferredTime.trim(),
-  });
+  };
+  if (input.urgency) body.urgency = input.urgency;
+  if (input.attachments?.length) body.attachments = input.attachments.slice(0, MAX_PURCHASE_FILES).map((a) => ({ file_id: a.fileId, title: a.title }));
+  if (input.voiceMessages?.length) body.voice_messages = input.voiceMessages.slice(0, MAX_PURCHASE_VOICES).map((v) => ({ file_id: v.fileId, duration_seconds: Math.max(1, Math.round(v.seconds)) }));
+  return JSON.stringify(body);
 }
 
 export async function requestMarketplacePurchase(lawyerUserId: string, serviceId: string, input: PurchaseInput): Promise<MarketPurchase> {

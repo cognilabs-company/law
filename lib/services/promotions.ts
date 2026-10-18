@@ -1,4 +1,4 @@
-import { ApiError, asArr, asDict, asNum, asStr, http, type Dict } from "@/lib/http";
+import { API_BASE, ApiError, asArr, asDict, asNum, asStr, http, type Dict } from "@/lib/http";
 import { uzs } from "@/lib/money";
 import type { AdPackage, PromotionRequest, ServiceScope } from "@/lib/services/sellerServices";
 import { normPromotionSurface, type MarketPromotionSurface } from "@/lib/services/marketplace";
@@ -137,11 +137,31 @@ export async function listPromotionPackages(placement?: PromotionPlacement, sign
   }
 }
 
-export async function uploadPromotionBanner(file: File, signal?: AbortSignal): Promise<string> {
+// The three example photos a banner should look like (2026-10-18): a close
+// portrait, a balanced one and one in a professional setting. Public PNGs.
+export const BANNER_REFERENCES = ["close-professional", "balanced-professional", "environmental-professional"] as const;
+export const bannerReferenceUrl = (kind: (typeof BANNER_REFERENCES)[number]) => `${API_BASE}/promotions/banner-reference-images/${kind}`;
+
+// An uploaded banner and what the backend's image check said: "active" may
+// be used at checkout; "manual_review" waits for a person; "rejected" says
+// why and how to do better. A deployment without the check answers with a
+// file_url and no status, which counts as active.
+export type BannerStatus = "active" | "manual_review" | "rejected";
+export type BannerAsset = { fileUrl: string; status: BannerStatus; reasons: string[]; suggestions: string[] };
+export async function uploadPromotionBanner(file: File, signal?: AbortSignal): Promise<BannerAsset> {
   const form = new FormData();
   form.append("file", file);
   const raw = asDict(await http("/promotions/banner-assets", { method: "POST", body: form, signal }));
-  return asStr(raw.file_url ?? asDict(raw.asset).file_url ?? asDict(raw.data).file_url);
+  const asset = asDict(raw.asset ?? raw.data);
+  const v = asDict(raw.vision_validation ?? asset.vision_validation);
+  const st = asStr(raw.status ?? asset.status).toLowerCase();
+  const list = (x: unknown) => asArr(x).map((y) => (typeof y === "string" ? y : asStr(asDict(y).message ?? asDict(y).text ?? asDict(y).reason))).filter(Boolean);
+  return {
+    fileUrl: asStr(raw.file_url ?? asset.file_url),
+    status: st === "rejected" ? "rejected" : st === "manual_review" || st === "pending_review" ? "manual_review" : "active",
+    reasons: list(v.reasons ?? raw.reasons),
+    suggestions: list(v.suggestions ?? raw.suggestions),
+  };
 }
 
 export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput, scope: ServiceScope, currentUserId: string): Promise<PromotionRequest> {

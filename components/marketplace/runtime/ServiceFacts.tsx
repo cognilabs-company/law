@@ -6,6 +6,7 @@ import { ASSIST_SECTIONS, DETAIL_SECTIONS, checklistOf, factSections, guarantees
 import { DurationChip } from "./DurationChip";
 import { GuaranteeList } from "./Guarantees";
 import { ChecklistPreview } from "./ChecklistPreview";
+import { UsageSteps } from "./UsageSteps";
 import { TemplateNote } from "./TemplateNote";
 import { FactorList } from "./FactorList";
 import { RequirementsNote } from "./RequirementsNote";
@@ -55,6 +56,7 @@ export function ServiceFacts({
           <DurationChip duration={config.duration} tone={tone === "detail" ? "side" : "assist"} start />
         </div>
       ) : null}
+      {has("steps") ? <UsageSteps steps={config.usageSteps} idBase={`${uid}-st`} level={level} /> : null}
       {has("guarantees") ? <GuaranteeList items={guaranteesOf(config)} tone="assist" /> : null}
       {has("checklist") ? <ChecklistPreview items={checklistOf(config)} tone={tone} idBase={`${uid}-ck`} level={level} /> : null}
       {has("template") ? <TemplateNote template={config.template} /> : null}
