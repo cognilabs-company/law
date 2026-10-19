@@ -189,11 +189,17 @@ export function buildRow(d: StudioDetail, v: ApprViewer, reg: ApprRegistry): App
   };
 }
 
-const WORK_ORDER: Readonly<Record<ApprKind, number>> = { review: 0, publish: 1, returned: 2, done: 3 };
+const sentKey = (r: ApprRow): number => (r.since >= Number.MAX_SAFE_INTEGER ? Number.NEGATIVE_INFINITY : r.since);
 
 export function compareRows(a: ApprRow, b: ApprRow): number {
   if (a.section === "done" && b.section === "done") return Number(a.test) - Number(b.test) || b.since - a.since || a.title.localeCompare(b.title);
-  return WORK_ORDER[a.kind] - WORK_ORDER[b.kind] || Number(a.test) - Number(b.test) || a.rank - b.rank || a.since - b.since || a.title.localeCompare(b.title);
+  const ka = sentKey(a);
+  const kb = sentKey(b);
+  return (ka === kb ? 0 : kb > ka ? 1 : -1) || a.title.localeCompare(b.title);
+}
+
+export function needsViewer(r: ApprRow): boolean {
+  return r.section === "mine";
 }
 
 export function mergeDetails(...lists: readonly (readonly StudioDetail[])[]): StudioDetail[] {

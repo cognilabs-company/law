@@ -1,4 +1,5 @@
 import { studioErrorOf, type StudioConstructor, type StudioDecision, type StudioDetail } from "@/lib/services/studio";
+import type { SxStageKey } from "../../stage/stage";
 import { canDecideOf, canPublishOf, isAuthorOf, type ApprViewer } from "../model";
 
 export type ReviewKind = "approve" | "return" | "reject" | "publish";
@@ -84,4 +85,11 @@ export function toastKeyOf(kind: ReviewKind, statusAfter: string): string {
   if (kind === "return") return "sx.appr.toast.returned";
   if (kind === "reject") return "sx.appr.toast.rejected";
   return "sx.editor.toast.published";
+}
+
+export function stageAfter(kind: ReviewKind, statusAfter: string): SxStageKey {
+  if (kind === "publish") return "published";
+  if (kind === "return") return "returned";
+  if (kind === "reject") return "rejected";
+  return statusAfter === "published" ? "published" : "approved";
 }

@@ -472,7 +472,7 @@ export function EditorBelow({ st, narrow = false, onAlertAction }: { st: EditorS
         <section className="sx-ed-sp" data-solo={showRail ? undefined : ""} aria-label={t("sx.rail.label")}>
           {showRail ? (
             <div className="sx-ed__rail" data-ai-id={`${AI}.rail`} data-ai-type="section" data-ai-label={t("sx.rail.label")}>
-              <StatusRail status={st.status} direct={st.direct} variant="full" celebrateOnPublish />
+              <StatusRail status={st.status} direct={st.direct} variant="full" celebrateOnPublish announce />
             </div>
           ) : null}
           {info ? <StateCard st={st} /> : null}

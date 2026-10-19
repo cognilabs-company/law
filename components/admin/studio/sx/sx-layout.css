@@ -1327,12 +1327,175 @@ html[data-theme="dark"] .amodal--drawer:has(.sx-dw) {
   min-width: 0;
 }
 .sx-toolbar__search {
-  flex: 0 1 280px;
-  width: 280px;
+  flex: 0 1 320px;
+  width: 320px;
   min-width: 0;
+  transition: flex-grow var(--sx-mid) var(--sx-ease), max-width var(--sx-mid) var(--sx-ease);
 }
 .sx-toolbar__search .sx-input {
+  --sx-search-hi: rgba(255,255,255,.75);
+  --sx-search-drop: rgba(15,23,42,.06);
+  --sx-search-lift: rgba(15,23,42,.12);
   width: 100%;
+  height: 40px;
+  gap: 10px;
+  padding: 0 6px 0 14px;
+  background: var(--sx-surface);
+  border: 1.5px solid var(--sx-control-line);
+  border-radius: 999px;
+  font-size: 14px;
+  box-shadow: inset 0 1px 0 var(--sx-search-hi), 0 1px 2px var(--sx-search-drop);
+  transition: border-color var(--sx-fast) var(--sx-ease), box-shadow var(--sx-mid) var(--sx-ease), background-color var(--sx-fast) var(--sx-ease);
+}
+html[data-theme="dark"] .sx-toolbar__search .sx-input {
+  --sx-search-hi: rgba(255,255,255,.05);
+  --sx-search-drop: rgba(0,0,0,.35);
+  --sx-search-lift: rgba(0,0,0,.5);
+}
+.sx-toolbar__search .sx-input:hover {
+  border-color: var(--sx-muted);
+  box-shadow: inset 0 1px 0 var(--sx-search-hi), 0 4px 12px -6px var(--sx-search-lift);
+}
+.sx-toolbar__search .sx-input:focus-within,
+.sx-toolbar__search .sx-input:focus-within:hover {
+  border-color: var(--sx-accent);
+  box-shadow: inset 0 1px 0 var(--sx-search-hi), 0 0 0 4px color-mix(in srgb, var(--sx-accent) 18%, transparent), 0 8px 22px -10px color-mix(in srgb, var(--sx-accent) 55%, transparent);
+}
+.sx-toolbar__search[data-filled] .sx-input:not(:focus-within) {
+  border-color: color-mix(in srgb, var(--sx-accent) 55%, var(--sx-control-line));
+}
+.sx-toolbar__search .sx-input__lead {
+  color: var(--sx-muted);
+  transition: color var(--sx-fast) var(--sx-ease), scale var(--sx-mid) var(--sx-ease);
+}
+.sx-toolbar__search .sx-input:focus-within .sx-input__lead,
+.sx-toolbar__search[data-filled] .sx-input__lead {
+  color: var(--sx-accent);
+}
+.sx-toolbar__search .sx-input:focus-within .sx-input__lead {
+  scale: 1.08;
+}
+.sx-toolbar__search .sx-input__control {
+  font-size: 14px;
+}
+.sx-toolbar__kbd {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  margin-right: 4px;
+  padding: 0 6px;
+  border: 1px solid var(--sx-line-strong);
+  border-bottom-width: 2px;
+  border-radius: 7px;
+  background: var(--sx-surface-2);
+  color: var(--sx-muted);
+  font: 600 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  cursor: text;
+  user-select: none;
+  transition: opacity var(--sx-fast) var(--sx-ease), scale var(--sx-fast) var(--sx-ease);
+}
+.sx-toolbar__search .sx-input:focus-within .sx-toolbar__kbd {
+  opacity: 0;
+  scale: .7;
+}
+.sx-toolbar__clear {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sx-muted);
+  cursor: pointer;
+  animation: sx-search-pop var(--sx-mid) var(--sx-ease) both;
+  transition: background-color var(--sx-fast) var(--sx-ease), color var(--sx-fast) var(--sx-ease), rotate var(--sx-mid) var(--sx-ease);
+}
+.sx-toolbar__clear svg {
+  width: 16px;
+  height: 16px;
+}
+.sx-toolbar__clear:hover {
+  background: var(--sx-surface-2);
+  color: var(--sx-ink);
+  rotate: 90deg;
+}
+.sx-toolbar__clear:active {
+  background: var(--sx-accent-soft);
+  color: var(--sx-accent-ink);
+}
+.sx .sx-toolbar__clear:focus-visible {
+  outline: 2px solid var(--sx-accent);
+  outline-offset: 1px;
+}
+@keyframes sx-search-pop {
+  from {
+    opacity: 0;
+    scale: .5;
+  }
+}
+@media (min-width: 1100px) {
+  .sx-toolbar__search {
+    max-width: 320px;
+  }
+  .sx-toolbar__search:focus-within {
+    flex-grow: 1;
+    max-width: 360px;
+  }
+}
+@media (pointer: coarse) {
+  .sx-toolbar__search .sx-input {
+    height: 44px;
+  }
+  .sx-toolbar__search .sx-input__control {
+    font-size: 16px;
+  }
+  .sx-toolbar__clear {
+    width: 36px;
+    height: 36px;
+  }
+  .sx-toolbar__kbd {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-toolbar__search,
+  .sx-toolbar__search .sx-input,
+  .sx-toolbar__search .sx-input__lead,
+  .sx-toolbar__kbd,
+  .sx-toolbar__clear {
+    transition: none;
+  }
+  .sx-toolbar__clear {
+    animation: none;
+  }
+  .sx-toolbar__clear:hover,
+  .sx-toolbar__search .sx-input:focus-within .sx-input__lead {
+    rotate: none;
+    scale: none;
+  }
+}
+@media (forced-colors: active) {
+  .sx-toolbar__search .sx-input {
+    border-color: CanvasText;
+  }
+  .sx-toolbar__kbd {
+    border-color: GrayText;
+    color: GrayText;
+  }
+  .sx-toolbar__clear {
+    color: ButtonText;
+  }
+  .sx .sx-toolbar__clear:focus-visible {
+    outline-color: Highlight;
+  }
 }
 .sx-toolbar__filters {
   display: flex;

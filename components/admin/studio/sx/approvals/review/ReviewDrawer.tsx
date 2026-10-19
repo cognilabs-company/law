@@ -11,6 +11,7 @@ import { notify } from "@/lib/toast";
 import { downloadStudioVersionFile, exportStudioVersionsXlsx, isApprovalFree, studioErrorOf, useStudioRegistry, type StudioDetail } from "@/lib/services/studio";
 import { SxButton, SxLinkButton } from "../../Button";
 import { StatusRail } from "../../StatusRail";
+import { playStage, stageKeyOf, useStageText, type SxStageKey } from "../../stage/stage";
 import { SxDrawer } from "../../layout/Drawer";
 import { SxEmpty } from "../../layout/Empty";
 import { SxNote } from "../../layout/Note";
@@ -20,7 +21,7 @@ import { ExternalLinkIcon, Undo2Icon, CircleCheckIcon, DownloadIcon, FileDownIco
 import { reviewNoteOf } from "../../editor/model";
 import { schemaFieldAt } from "../../schema/model";
 import { REVIEW_STATUSES, sentAtOf, type ApprRow, type ApprViewer } from "../model";
-import { toastKeyOf, type ReviewKind } from "./actions";
+import { stageAfter, toastKeyOf, type ReviewKind } from "./actions";
 import { ActionDialog } from "./ActionDialog";
 import { ChangeList, WarningNote } from "./ChangeList";
 import { Comments } from "./Comments";
@@ -105,6 +106,7 @@ function ReviewPanel({ target, viewer, onClose, onChanged }: { target: ReviewTar
   const reg = useStudioRegistry();
   const uid = useId();
   const st = useReview(target, viewer);
+  const stageText = useStageText();
   const [dialog, setDialog] = useState<ReviewKind | null>(null);
   const [running, setRunning] = useState(false);
   const [settling, setSettling] = useState(false);
@@ -138,7 +140,11 @@ function ReviewPanel({ target, viewer, onClose, onChanged }: { target: ReviewTar
   const can = st.can;
   const ids = { state: `${uid}-st`, note: `${uid}-nt`, ch: `${uid}-ch`, steps: `${uid}-sp`, cmt: `${uid}-cm`, file: `${uid}-fl` };
 
-  async function onDone(kind: ReviewKind, after: StudioDetail | null) {
+  async function onDone(kind: ReviewKind, after: StudioDetail | null, origin: DOMRect | null) {
+    const from = stageKeyOf(status);
+    const play = (to: SxStageKey) => playStage({ to, from, steps: kind === "approve" && to === "published" ? ["approved", "published"] : undefined, origin, ...stageText(to) });
+    const early = kind !== "approve" || !!after?.status;
+    if (early) play(stageAfter(kind, after?.status ?? ""));
     setDialog(null);
     setSettling(true);
     if (kind === "approve" || kind === "publish") setArmed({ from: status });
@@ -150,6 +156,7 @@ function ReviewPanel({ target, viewer, onClose, onChanged }: { target: ReviewTar
     const msg = t(toastKeyOf(kind, statusAfter));
     setResult(msg);
     requestAnimationFrame(() => resultRef.current?.focus());
+    if (!early) play(stageAfter(kind, statusAfter));
   }
 
   async function download() {
@@ -330,7 +337,7 @@ function ReviewPanel({ target, viewer, onClose, onChanged }: { target: ReviewTar
           state={st}
           changed={changed}
           onClose={() => setDialog(null)}
-          onDone={(k, after) => void onDone(k, after)}
+          onDone={(k, after, origin) => void onDone(k, after, origin)}
           onStale={() => onChanged(id)}
           onRunning={setRunning}
         />

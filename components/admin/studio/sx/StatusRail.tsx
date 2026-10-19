@@ -2,14 +2,15 @@
 
 import "./sx-core.css";
 import "./sx-rail.css";
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { celebrate } from "./celebrate";
 import { prefersReducedMotion, useReducedMotion } from "./hooks";
 import { CheckIcon, glyph, STATUS_ICON } from "./icons";
+import { playStage, stageKeyOf, useStageText, type SxStageKey } from "./stage/stage";
 import { StatusPill } from "./StatusPill";
 import { stageCount, stageKey, stageOnLine, sxStatus } from "./status";
-import type { SxIcon, SxRecordSource, SxStage, SxStatusInfo, SxTone } from "./types";
+import type { SxIcon, SxRecordSource, SxStage, SxStatusInfo, SxStatusKey, SxTone } from "./types";
 import { useStudioLabels } from "./useStudioLabels";
 
 export type StatusRailProps = {
@@ -19,11 +20,12 @@ export type StatusRailProps = {
   variant?: "full" | "compact";
   note?: ReactNode;
   celebrateOnPublish?: boolean;
+  announce?: boolean;
   id?: string;
   className?: string;
 };
 
-type Seen = { status: string; from: number; run: number };
+type Seen = { status: string; prev: string; from: number; run: number };
 type StepState = "done" | "current" | "todo";
 
 const POP_DELAY = 60;
@@ -39,12 +41,19 @@ const STAGE_GLYPH = { size: 18 } as const;
 
 const STAGE_TONE: Readonly<Record<SxStage, SxTone>> = { draft: "draft", submitted: "submitted", in_review: "review", approved: "approved", published: "published" };
 
+const SCENE_ALIAS: Partial<Readonly<Record<SxStatusKey, SxStageKey>>> = { scheduled: "approved", active: "published" };
+
 const cx = (...parts: (string | false | null | undefined)[]) => parts.filter(Boolean).join(" ");
 
+function sceneOf(status: string, source: SxRecordSource | undefined): SxStageKey | null {
+  const key = sxStatus(status, source).key;
+  return SCENE_ALIAS[key] ?? stageKeyOf(key);
+}
+
 function useStatusMotion(status: string, source: SxRecordSource | undefined, direct: boolean): Seen {
-  const [seen, setSeen] = useState<Seen>({ status, from: -2, run: 0 });
+  const [seen, setSeen] = useState<Seen>({ status, prev: status, from: -2, run: 0 });
   if (seen.status !== status) {
-    const next: Seen = { status, from: stageOnLine(sxStatus(seen.status, source), direct), run: seen.run + 1 };
+    const next: Seen = { status, prev: seen.status, from: stageOnLine(sxStatus(seen.status, source), direct), run: seen.run + 1 };
     setSeen(next);
     return next;
   }
@@ -55,13 +64,15 @@ function currentIcon(info: SxStatusInfo, stage: SxStage): SxIcon {
   return info.branch || info.key === "scheduled" ? info.icon : STATUS_ICON[stage];
 }
 
-export function StatusRail({ status, source, direct = false, variant = "full", note, celebrateOnPublish = true, id, className }: StatusRailProps): ReactElement {
+export function StatusRail({ status, source, direct = false, variant = "full", note, celebrateOnPublish = true, announce = false, id, className }: StatusRailProps): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const reduced = useReducedMotion();
   const motion = useStatusMotion(status, source, direct);
   const wrapRef = useRef<HTMLDivElement>(null);
   const compactRef = useRef<HTMLSpanElement>(null);
+  const stageText = useStageText();
+  const playedRun = useRef(0);
 
   const info = sxStatus(status, source);
   const n = stageCount(direct);
@@ -74,7 +85,20 @@ export function StatusRail({ status, source, direct = false, variant = "full", n
   const stagger = steps ? Math.min(LINE_STAGGER, LINE_SPREAD / steps) : 0;
   const lastDelay = steps ? (steps - 1) * stagger : 0;
   const compact = variant === "compact";
-  const party = toLive && animate && celebrateOnPublish;
+  const sceneTo = announce && !compact && motion.run > 0 ? sceneOf(status, source) : null;
+  const sceneFrom = sceneTo ? sceneOf(motion.prev, source) : null;
+  const staged = !!sceneTo && sceneTo !== sceneFrom;
+  const party = toLive && animate && celebrateOnPublish && !staged;
+
+  useEffect(() => {
+    if (!staged || !sceneTo || playedRun.current === motion.run) return;
+    playedRun.current = motion.run;
+    const crossed = motion.from >= 0 && info.branch === null && to - motion.from > 1;
+    const steps = crossed ? Array.from({ length: to - motion.from }, (_, i) => stageKey(motion.from + 1 + i, direct)) : undefined;
+    const origin = wrapRef.current?.querySelector('[aria-current="step"] .sx-rail__dot') ?? null;
+    const { title, text } = stageText(sceneTo);
+    playStage({ to: sceneTo, from: sceneFrom, steps, origin, title, text });
+  }, [staged, sceneTo, sceneFrom, motion.run, motion.from, info.branch, to, direct, stageText]);
 
   useLayoutEffect(() => {
     if (!party) return;
@@ -138,7 +162,7 @@ export function StatusRail({ status, source, direct = false, variant = "full", n
     );
   }
 
-  const announce = motion.run > 0 ? (toLive ? t("sx.rail.live") : t("sx.rail.aria", { status: labels.status(status, source) })) : "";
+  const liveText = motion.run > 0 && !staged ? (toLive ? t("sx.rail.live") : t("sx.rail.aria", { status: labels.status(status, source) })) : "";
   const stepWord: Record<StepState, string> = { done: t("sx.rail.done"), current: t("sx.rail.current"), todo: t("sx.rail.ahead") };
   const liveFresh = animate && toLive;
 
@@ -196,7 +220,7 @@ export function StatusRail({ status, source, direct = false, variant = "full", n
       </div>
       {note ? <p className="sx-rail__note">{note}</p> : null}
       <span className="sx-vh" aria-live="polite">
-        {announce}
+        {liveText}
       </span>
     </div>
   );

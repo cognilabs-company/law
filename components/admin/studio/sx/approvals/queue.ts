@@ -24,6 +24,10 @@ export function sectionRows(rows: readonly ApprRow[], section: ApprSection): App
   return rows.filter((r) => r.section === section).sort(compareRows);
 }
 
+export function workRows(rows: readonly ApprRow[]): ApprRow[] {
+  return rows.filter((r) => r.section !== "done").sort(compareRows);
+}
+
 export function pageSlice<T>(rows: readonly T[], page: number, size: number = APPR_PAGE): { rows: T[]; from: number; to: number; total: number; page: number } {
   const per = Number.isFinite(size) && size > 0 ? Math.floor(size) : APPR_PAGE;
   const total = rows.length;

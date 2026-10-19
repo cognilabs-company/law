@@ -9,10 +9,10 @@ import { LoaderCircleIcon } from "lucide-react";
 import { logApiError } from "@/lib/http";
 import { publishStudioObject } from "@/lib/services/studio";
 import { SxButton } from "../Button";
-import { celebrate } from "../celebrate";
 import { SxDialog } from "../editor/SxDialog";
 import { CircleAlertIcon, CircleCheckIcon, CirclePauseIcon, RocketIcon, XIcon, ctorGlyph, glyph } from "../icons";
 import { SxProgress } from "../shared/Progress";
+import { playStage, useStageText } from "../stage/stage";
 import { useStudioLabels } from "../useStudioLabels";
 import type { ApprRow } from "./model";
 import { actionErrorOf } from "./review/actions";
@@ -55,6 +55,7 @@ export type BulkDialogProps = { items: readonly BulkItem[]; onClose: (published:
 export function BulkDialog({ items, onClose, onFinished }: BulkDialogProps): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
+  const stageText = useStageText();
   const [run, setRun] = useState<Run>(FRESH);
   const stop = useRef(false);
   const begun = useRef(false);
@@ -71,7 +72,7 @@ export function BulkDialog({ items, onClose, onFinished }: BulkDialogProps): Rea
     };
   }, []);
 
-  const start = async () => {
+  const start = async (origin: DOMRect | null) => {
     if (begun.current) return;
     begun.current = true;
     stop.current = false;
@@ -96,7 +97,7 @@ export function BulkDialog({ items, onClose, onFinished }: BulkDialogProps): Rea
       onFinished();
       return;
     }
-    if (ok.length && bar.current) celebrate(bar.current);
+    if (ok.length) playStage({ to: "published", from: "approved", count: ok.length, origin: origin ?? bar.current, ...stageText("published", ok.length) });
     setRun((r) => ({ ...r, phase: "result", current: "", stopped: done < total, stopping: false }));
     onFinished();
   };
@@ -134,7 +135,7 @@ export function BulkDialog({ items, onClose, onFinished }: BulkDialogProps): Rea
         <SxButton variant="secondary" onClick={() => onClose([])} aiId={`${AI}.cancel`}>
           {t("sx.ui.cancel")}
         </SxButton>
-        <SxButton variant="primary" icon={RocketIcon} onClick={() => void start()} aiId={`${AI}.confirm`}>
+        <SxButton variant="primary" icon={RocketIcon} onClick={(e) => void start(e.currentTarget.getBoundingClientRect())} aiId={`${AI}.confirm`}>
           {t("sx.ap2.dlg.confirm", { n: total })}
         </SxButton>
       </>

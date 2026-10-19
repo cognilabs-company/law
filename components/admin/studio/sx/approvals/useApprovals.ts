@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { logApiError } from "@/lib/http";
+import { isForbidden, logApiError } from "@/lib/http";
 import { listStudioApprovals, listStudioObjects, useStudioAccess, useStudioRegistry, type StudioDetail, type StudioObject } from "@/lib/services/studio";
 import { useStudioLive } from "../live";
 import { buildRow, isListEvent, mergeDetails, type ApprRegistry, type ApprRow, type ApprViewer } from "./model";
@@ -17,19 +17,34 @@ export type ApprData = {
   fetching: boolean;
   error: unknown;
   partial: boolean;
+  limited: boolean;
   doneLoading: boolean;
   doneError: unknown;
   reload: () => void;
 };
 
-type MainState = { ctor: string; tick: number; approvals: StudioDetail[] | null; returned: StudioDetail[] | null; errA: unknown; errR: unknown };
+type MainState = { ctor: string; tick: number; approvals: StudioDetail[] | null; returned: StudioDetail[] | null; errA: unknown; errR: unknown; limited: boolean };
+type QueueLoad = { items: StudioDetail[]; limited: boolean };
 type DoneState = { ctor: string; items: StudioDetail[] | null; error: unknown };
 
 const LIVE_MS = 400;
 export const DONE_LIMIT = 20;
 const RETURNED_LIMIT = 100;
+const OPEN_LIMIT = 200;
+const OPEN_STATUSES = new Set(["submitted", "in_review", "approved"]);
 
 const asDetail = (o: StudioObject): StudioDetail => ({ ...o, payload: {}, versions: [], steps: [] });
+
+async function loadQueue(code: string | undefined): Promise<QueueLoad> {
+  try {
+    const r = await listStudioApprovals({ constructorCode: code });
+    return { items: r.items, limited: false };
+  } catch (e) {
+    if (!isForbidden(e)) throw e;
+    const r = await listStudioObjects({ status: [...OPEN_STATUSES].join(","), constructorCode: code, limit: OPEN_LIMIT, offset: 0 });
+    return { items: r.items.filter((o) => OPEN_STATUSES.has(o.status)).map(asDetail), limited: true };
+  }
+}
 
 export function useApprViewer(): ApprViewer {
   const { session } = useAuth();
@@ -63,8 +78,8 @@ export function useApprovals(opts: { ctor: string; done: boolean }): ApprData {
     const my = ++seq.current;
     const code = ctor || undefined;
     let live = true;
-    const jobs: [Promise<StudioDetail[]>, Promise<StudioDetail[] | null>] = [
-      listStudioApprovals({ constructorCode: code }).then((r) => r.items),
+    const jobs: [Promise<QueueLoad>, Promise<StudioDetail[] | null>] = [
+      loadQueue(code),
       withReturned
         ? listStudioObjects({ status: "changes_requested", constructorCode: code, limit: RETURNED_LIMIT, offset: 0 }).then((r) => r.items.filter((o) => o.status === "changes_requested").map(asDetail))
         : Promise.resolve(null),
@@ -76,10 +91,11 @@ export function useApprovals(opts: { ctor: string; done: boolean }): ApprData {
       setMain((prev) => ({
         ctor,
         tick,
-        approvals: a.status === "fulfilled" ? a.value : (prev?.approvals ?? null),
+        approvals: a.status === "fulfilled" ? a.value.items : (prev?.approvals ?? null),
         returned: r.status === "fulfilled" ? r.value : withReturned ? (prev?.returned ?? null) : null,
         errA: a.status === "rejected" ? (a.reason ?? new Error("failed")) : null,
         errR: r.status === "rejected" ? (r.reason ?? new Error("failed")) : null,
+        limited: a.status === "fulfilled" ? a.value.limited : (prev?.limited ?? false),
       }));
     });
     return () => {
@@ -121,15 +137,17 @@ export function useApprovals(opts: { ctor: string; done: boolean }): ApprData {
   }, ready);
 
   const registry: ApprRegistry = { items: reg.items, groups: reg.groups };
+  const limited = !!main?.limited;
+  const shownViewer: ApprViewer = limited ? { ...viewer, access: { ...viewer.access, canReview: false, canPublish: false } } : viewer;
   const details = main ? mergeDetails(main.approvals ?? [], main.returned ?? []) : [];
-  const rows = details.map((d) => buildRow(d, viewer, registry));
-  const doneRows = done?.items ? done.items.map((d) => buildRow(d, viewer, registry)) : null;
+  const rows = details.map((d) => buildRow(d, shownViewer, registry));
+  const doneRows = done?.items ? done.items.map((d) => buildRow(d, shownViewer, registry)) : null;
   const shown = rows.length > 0;
   const errA = main?.errA ?? null;
   const errR = main?.errR ?? null;
 
   return {
-    viewer,
+    viewer: shownViewer,
     rows,
     doneRows,
     loading: ready ? !main : acc.avail === "checking",
@@ -137,6 +155,7 @@ export function useApprovals(opts: { ctor: string; done: boolean }): ApprData {
     fetching: ready && (!main || main.tick !== tick || main.ctor !== ctor),
     error: errA && !shown ? errA : null,
     partial: shown && !!(errA || errR),
+    limited,
     doneLoading: doneOn && !done?.items && !done?.error,
     doneError: doneOn ? (done?.error ?? null) : null,
     reload: () => setTick((n) => n + 1),

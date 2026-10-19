@@ -13,7 +13,7 @@ import { useStudioLabels } from "../useStudioLabels";
 
 const DAY_MS = 86_400_000;
 
-export type AgeTone = "fresh" | "warn" | "late";
+export type AgeTone = "new" | "fresh" | "warn" | "late";
 
 export function ageDays(since: number, now: number): number | null {
   if (!now || !Number.isFinite(since) || since >= Number.MAX_SAFE_INTEGER) return null;
@@ -24,7 +24,7 @@ export function ageTone(days: number | null): AgeTone | undefined {
   if (days === null) return undefined;
   if (days >= 7) return "late";
   if (days >= 3) return "warn";
-  return "fresh";
+  return days === 0 ? "new" : "fresh";
 }
 
 export function railAt(status: string): number {
@@ -60,9 +60,9 @@ export function AgeChip({ at, since, now }: { at: string; since: number; now: nu
   const full = labels.dateTime(at);
   return (
     <time className="sx-ap2-age" dateTime={at} title={t("sx.ap2.age.tip", { date: full })} data-tone={tone}>
-      {glyph(ClockIcon, { size: 13 })}
+      {tone === "new" ? <span className="sx-ap2-age__dot" aria-hidden="true" /> : glyph(ClockIcon, { size: 13 })}
       <span>{now ? labels.ago(at, now) : labels.date(at)}</span>
-      {tone === "late" || tone === "warn" ? <span className="sx-vh">{t(`sx.ap2.age.${tone}`)}</span> : null}
+      {tone === "late" || tone === "warn" || tone === "new" ? <span className="sx-vh">{t(`sx.ap2.age.${tone}`)}</span> : null}
     </time>
   );
 }

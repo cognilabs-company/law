@@ -25,7 +25,7 @@ export type ActionDialogProps = {
   state: ReviewState;
   changed: readonly string[];
   onClose: () => void;
-  onDone: (kind: ReviewKind, after: StudioDetail | null) => void;
+  onDone: (kind: ReviewKind, after: StudioDetail | null, origin: DOMRect | null) => void;
   onStale?: () => void;
   onRunning?: (running: boolean) => void;
 };
@@ -75,6 +75,8 @@ export function ActionDialog({ kind, state, changed, onClose, onDone, onStale, o
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (running || blocked) return;
+    const submitter = (e.nativeEvent as Partial<SubmitEvent>).submitter;
+    const origin = submitter instanceof Element ? submitter.getBoundingClientRect() : null;
     setTried(true);
     if (missing) {
       setErr(null);
@@ -87,7 +89,7 @@ export function ActionDialog({ kind, state, changed, onClose, onDone, onStale, o
       const note = text.trim();
       const res = kind === "publish" ? await publishStudioObject(state.id, { note }) : await reviewStudioObject(state.id, { decision: decisionOf(kind), comment: note });
       busy(false);
-      onDone(kind, res && res.id ? res : null);
+      onDone(kind, res && res.id ? res : null, origin);
     } catch (ex) {
       const a = actionErrorOf(ex);
       logApiError(`studio.sx.approvals.${kind}`, ex);

@@ -7,6 +7,7 @@ import "./sx-ap2.css";
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import Menu from "@/components/ui/Menu";
+import { useRouter } from "@/i18n/navigation";
 import { aiSeg } from "@/lib/ai/ids";
 import { useAuth } from "@/lib/auth";
 import { logApiError } from "@/lib/http";
@@ -25,16 +26,16 @@ import type { ApprRow } from "./model";
 import { NeedTabs } from "./NeedTabs";
 import { QueueFilters } from "./QueueFilters";
 import { QueueSection, type ApprPick } from "./QueueSection";
-import { isFiltered, rowMatches, sectionRows, showDone, showWork } from "./queue";
+import { isFiltered, rowMatches, sectionRows, showDone, showWork, workRows } from "./queue";
 import { ReviewDrawer, type ReviewTarget } from "./review/ReviewDrawer";
 import { apprQueryString, EMPTY_APPR_QUERY, type ApprQuery } from "./urlState";
 import { useApprovals } from "./useApprovals";
 
 export type ApprovalsPageProps = { initial: ApprQuery };
 
-type Pages = { mine: number; others: number; done: number };
+type Pages = { work: number; done: number };
 
-const FIRST_PAGES: Pages = { mine: 0, others: 0, done: 0 };
+const FIRST_PAGES: Pages = { work: 0, done: 0 };
 const NO_PICK: ReadonlySet<string> = new Set();
 
 function writeUrl(qs: string): void {
@@ -62,6 +63,7 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const { session } = useAuth();
+  const router = useRouter();
   const errorText = useEditorErrorText();
   const root = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState<ApprQuery>(initial);
@@ -92,24 +94,23 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
   const match = (r: ApprRow) => rowMatches(r, query, labels);
   const work = showWork(query);
   const doneShown = showDone(query);
-  const mine = work ? sectionRows(data.rows, "mine").filter(match) : [];
-  const others = work ? sectionRows(data.rows, "others").filter(match) : [];
+  const workAll = workRows(data.rows);
+  const queue = work ? workAll.filter(match) : [];
   const listDone = data.rows.filter((r) => r.section === "done");
   const doneAll = doneRowsOf(listDone, data.doneRows);
   const doneRows = doneAll ? sectionRows(doneAll, "done").filter(match) : null;
   const doneExpanded = doneShown && (doneOpen || locked);
   const filtered = isFiltered(query);
-  const workRows = data.rows.filter((r) => r.section !== "done");
-  const count = data.loading ? null : mine.length + others.length + (doneExpanded && doneRows ? doneRows.length : 0);
+  const count = data.loading ? null : queue.length + (doneExpanded && doneRows ? doneRows.length : 0);
 
-  const allEmpty = !data.loading && !data.error && !filtered && workRows.length === 0 && !doneExpanded;
-  const workEmpty = !work || (mine.length === 0 && others.length === 0);
+  const allEmpty = !data.loading && !data.error && !filtered && workAll.length === 0 && !doneExpanded;
+  const workEmpty = !work || queue.length === 0;
   const doneEmpty = !doneShown || !doneExpanded || (!!doneRows && doneRows.length === 0 && !data.doneLoading);
   const filteredEmpty = !data.loading && !data.error && filtered && workEmpty && doneEmpty;
 
   const bulkOn = data.viewer.access.canPublish;
   const canPick = (r: ApprRow): boolean => bulkOn && r.kind === "publish" && r.section === "mine";
-  const chosen = bulkOn ? [...mine, ...others].filter((r) => canPick(r) && picked.has(r.id)) : [];
+  const chosen = bulkOn ? queue.filter((r) => canPick(r) && picked.has(r.id)) : [];
   const pick: ApprPick | null = bulkOn
     ? {
         can: canPick,
@@ -151,6 +152,10 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
   const reset = () => changeFilters({ ...EMPTY_APPR_QUERY, open: query.open });
 
   const openRow = (row: ApprRow) => {
+    if (data.limited) {
+      router.push(`/admin/studio/o/${encodeURIComponent(row.id)}`);
+      return;
+    }
     setTarget({ id: row.id, row });
     setQuery((q) => ({ ...q, open: row.id }));
   };
@@ -265,25 +270,11 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
       <>
         {work ? (
           <QueueSection
-            section="mine"
-            rows={mine}
+            rows={queue}
             loading={data.loading}
             busy={data.busy}
-            page={pages.mine}
-            onPage={(p) => setPages((cur) => ({ ...cur, mine: p }))}
-            openId={target?.id ?? ""}
-            onOpen={openRow}
-            pick={pick}
-          />
-        ) : null}
-        {work && others.length > 0 ? (
-          <QueueSection
-            section="others"
-            rows={others}
-            loading={false}
-            busy={data.busy}
-            page={pages.others}
-            onPage={(p) => setPages((cur) => ({ ...cur, others: p }))}
+            page={pages.work}
+            onPage={(p) => setPages((cur) => ({ ...cur, work: p }))}
             openId={target?.id ?? ""}
             onOpen={openRow}
             pick={pick}
@@ -297,13 +288,18 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
   const found = target ? (data.rows.find((r) => r.id === target.id) ?? doneAll?.find((r) => r.id === target.id)) : undefined;
 
   return (
-    <SxPage title={t("sx.appr.title")} section="approvals" need="review" lead={t("sx.appr.lead")} aiId="admin.studio.approvals" actions={overflow}>
+    <SxPage title={t("sx.appr.title")} section="approvals" need="review" lead={t("sx.appr.leadNewest")} aiId="admin.studio.approvals" actions={overflow}>
       <div ref={root} className="sx-appr">
         <NeedTabs query={query} onChange={changeFilters} rows={data.rows} loading={data.loading} />
         <QueueFilters query={query} onChange={changeFilters} rows={data.rows} count={count} />
         {data.partial ? (
           <SxNote tone="error" action={retry}>
             {t("sx.appr.partial")}
+          </SxNote>
+        ) : null}
+        {data.limited ? (
+          <SxNote tone="warn" title={t("sx.appr.limitedTitle")}>
+            {t("sx.appr.limitedText")}
           </SxNote>
         ) : null}
         {body}

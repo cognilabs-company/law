@@ -351,6 +351,7 @@ export function Picker(props: PickerProps): ReactElement {
       data-invalid={invalid ? "" : undefined}
       data-disabled={disabled ? "" : undefined}
       data-multi={multi ? "" : undefined}
+      data-filled={hasValue ? "" : undefined}
     >
       <div ref={boxRef} className="sx-picker__box" data-clear={clearable ? "" : undefined}>
         <button
