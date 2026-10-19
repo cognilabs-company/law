@@ -15,6 +15,20 @@ export type DeskMode = "classic" | "desktop";
 // account's id, which does not change with its phone number or name.
 const DESK_USERS = new Set(["efeb656a-93c5-42fb-aaf0-1f572995e239"]);
 export const canUseDesk = (session: Session | null) => !!session?.id && DESK_USERS.has(session.id);
+
+// The desktop is for computers: a mouse or trackpad and a wide screen. A
+// phone or a tablet held by touch keeps the classic cabinet, and so does a
+// window narrowed below a laptop's width.
+const DESKTOP_DEVICE = "(min-width: 1024px) and (hover: hover) and (pointer: fine)";
+const readDevice = () => window.matchMedia(DESKTOP_DEVICE).matches;
+function subscribeDevice(cb: () => void) {
+  const mq = window.matchMedia(DESKTOP_DEVICE);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+export function useDesktopDevice(): boolean {
+  return useSyncExternalStore(subscribeDevice, readDevice, () => false);
+}
 const KEY = "lexgo_desk_mode";
 const EVENT = "lexgo-desk-mode";
 

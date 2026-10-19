@@ -1,0 +1,123 @@
+/* Tasks: Microsoft To Do on Windows, Reminders on the Mac. */
+
+.dx-app--tasks .dx-main{background:var(--x-bg)}
+.dxt-list{display:flex;flex:1;flex-direction:column;min-height:0}
+.dxt-list>.dx-list{flex:1;min-height:0;overflow:auto;align-content:start}
+.dxt-row{align-items:flex-start}
+.dxt-row .dx-check{margin-top:1px}
+.dxt-row .dx-row__t small{display:flex;flex-wrap:wrap;align-items:center;gap:2px 10px;white-space:normal}
+.dxt-row .dx-row__t small span{display:inline-flex;align-items:center;gap:4px}
+.dxt-row .dx-row__t small svg{width:12px;height:12px}
+.dxt-row.is-done .dx-row__t b{color:var(--x-ink3);text-decoration:line-through;text-decoration-color:var(--x-ink3)}
+.dxt-late{color:var(--x-err)!important}
+.dxt-blk{color:var(--x-err)}
+.dxt-stage{font-weight:600}
+.dxt-prio{flex:none;margin-top:1px;color:#ff9500;font-weight:800;letter-spacing:-.5px}
+.dxt-star{display:grid;place-items:center;flex:none;width:28px;height:28px;margin:-2px -6px -2px 0;border:0;border-radius:4px;background:none;color:var(--x-ink3);cursor:default}
+.dxt-star svg{width:16px;height:16px}
+.dxt-star:hover{background:var(--x-fill)}
+.dxt-star.is-on{color:var(--x-acc)}
+.dxt-star.is-on svg{fill:currentColor}
+
+/* quick add */
+.dxt-add{display:flex;align-items:center;gap:10px;flex:none}
+.dxt-add svg{width:16px;height:16px;color:var(--x-acc)}
+.dxt-add input{flex:1;min-width:0;border:0;background:none;color:var(--x-ink);font:inherit;outline:none}
+.dxt-add input::placeholder{color:var(--x-ink2)}
+.dx--mac .dxt-add{margin:0 18px 10px;padding:6px 0;border-top:1px solid var(--x-sep)}
+.dx--mac .dxt-add svg{width:18px;height:18px;padding:2px;border-radius:50%;background:var(--x-acc);color:#fff}
+.dx--win .dxt-add{height:52px;margin:6px 24px 20px;padding:0 16px;border:1px solid var(--x-layer-line);border-radius:4px;background:var(--x-ctl);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.dx--win .dxt-add:focus-within{border-bottom:2px solid var(--x-acc)}
+.dx--win .dxt-add input::placeholder{color:var(--x-acc)}
+
+/* Mac: rows like Reminders (hairlines, no pill) */
+.dx--mac .dxt-list>.dx-list{padding:4px 12px}
+.dx--mac .dxt-row{min-height:44px;padding:9px 8px;border-radius:0;box-shadow:0 1px 0 0 var(--x-sep)}
+.dx--mac .dxt-row.is-on{border-radius:8px;box-shadow:none}
+.dx--mac .dxt-row .dx-row__t b{font-weight:400}
+/* Windows: rows like To Do (cards) */
+.dx--win .dxt-list>.dx-list{gap:3px;padding:2px 24px}
+.dx--win .dxt-row{min-height:52px;padding:10px 16px;border:1px solid var(--x-layer-line);border-radius:4px;background:var(--x-ctl)}
+.dx--win .dxt-row:hover{background:var(--x-ctl-hover)}
+.dx--win .dxt-row.is-on{background:var(--x-acc-soft)}
+.dx--win .dxt-row .dx-row__t b{font-weight:400}
+
+/* Mac sidebar tiles (Today, Planned, Important, Overdue) */
+.dxt-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 0 4px}
+.dxt-tile{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;align-items:center;gap:4px 6px;padding:8px 9px;border:0;border-radius:10px;background:rgba(255,255,255,.75);box-shadow:0 .5px 1.5px rgba(0,0,0,.12);text-align:left;cursor:default}
+html[data-theme="dark"] .dxt-tile{background:rgba(255,255,255,.08)}
+.dxt-tile i{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;color:#fff}
+.dxt-tile i svg{width:14px;height:14px}
+.dxt-tile b{justify-self:end;font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
+.dxt-tile span{grid-column:1/-1;min-width:0;overflow:hidden;font-size:12px;font-weight:600;color:var(--x-ink2);text-overflow:ellipsis;white-space:nowrap}
+.dxt-tile{min-width:0}
+.dxt-tile--today i{background:#0a84ff}
+.dxt-tile--planned i{background:#ff3b30}
+.dxt-tile--important i{background:#ff9500}
+.dxt-tile--overdue i{background:#5e5ce6}
+.dxt-tile.is-on{background:var(--x-acc)}
+.dxt-tile.is-on i{background:#fff;color:var(--x-acc)}
+.dxt-tile.is-on b,.dxt-tile.is-on span{color:#fff}
+
+/* board */
+.dxt-board{display:grid;grid-auto-columns:minmax(220px,1fr);grid-auto-flow:column;gap:12px;flex:1;min-height:0;overflow:auto;padding:12px 16px 16px}
+.dxt-col{display:flex;flex-direction:column;min-height:0;border-radius:var(--x-r2);transition:background .12s,box-shadow .12s}
+.dxt-col header{display:flex;align-items:center;gap:7px;padding:8px 10px}
+.dxt-col header i{width:8px;height:8px;border-radius:50%}
+.dxt-col header b{font-weight:600}
+.dxt-col header small{margin-left:auto;color:var(--x-ink3);font-variant-numeric:tabular-nums}
+.dxt-col__cards{display:flex;flex-direction:column;gap:6px;flex:1;min-height:60px;overflow:auto;padding:0 8px 10px}
+.dxt-col.is-over{box-shadow:inset 0 0 0 2px var(--x-acc)}
+.dxt-card{display:flex;flex-direction:column;gap:4px;padding:10px 12px;cursor:default}
+.dxt-card b{font-weight:500}
+.dxt-card small{color:var(--x-ink2)}
+.dxt-card footer{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:4px;font-size:.86em;color:var(--x-ink2)}
+.dxt-card footer span{display:inline-flex;align-items:center;gap:4px}
+.dxt-card footer svg{width:12px;height:12px}
+.dxt-card.is-late{box-shadow:inset 3px 0 0 var(--x-err)}
+.dxt-pr{padding:1px 6px;border-radius:4px;background:var(--x-fill);font-weight:600}
+.dxt-pr--high{background:color-mix(in srgb,var(--x-err) 14%,transparent);color:var(--x-err)}
+.dxt-pr--low{color:var(--x-ink3)}
+.dxt-blkic{width:13px;height:13px;color:var(--x-err)}
+.dx--mac .dxt-col{background:var(--x-bg2)}
+html[data-theme="dark"] .dx--mac .dxt-col{background:rgba(255,255,255,.04)}
+.dx--mac .dxt-card{border-radius:8px;background:var(--x-bg);box-shadow:0 .5px 2px rgba(0,0,0,.14),0 0 0 .5px rgba(0,0,0,.06)}
+html[data-theme="dark"] .dx--mac .dxt-card{background:#2c2c2e}
+.dx--mac .dxt-card.is-on{box-shadow:0 0 0 2px var(--x-acc)}
+.dx--win .dxt-board{padding:4px 24px 20px}
+.dx--win .dxt-col{background:var(--x-fill)}
+.dx--win .dxt-card{border:1px solid var(--x-layer-line);border-radius:4px;background:var(--x-ctl)}
+.dx--win .dxt-card:hover{background:var(--x-ctl-hover)}
+.dx--win .dxt-card.is-on{border-color:var(--x-acc);box-shadow:inset 0 0 0 1px var(--x-acc)}
+
+/* details (inspector) */
+.dxt-insp{display:flex;flex-direction:column;width:320px;min-height:0;border-left:1px solid var(--x-sep);background:var(--x-bg2)}
+.dxt-insp__h{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none}
+.dxt-insp__b{display:flex;flex-direction:column;gap:14px;flex:1;min-height:0;overflow:auto;padding:4px 16px 16px}
+.dxt-insp__title{display:flex;align-items:flex-start;gap:10px}
+.dxt-insp__title input{flex:1;min-width:0;padding:0;border:0;background:none;color:var(--x-ink);font:inherit;font-size:1.25em;font-weight:600;outline:none}
+.dxt-insp__fields{display:flex;flex-direction:column;gap:14px}
+.dxt-insp__f{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:none;padding:8px 12px 8px 16px;border-top:1px solid var(--x-sep);color:var(--x-ink3)}
+.dxt-steps{display:flex;flex-direction:column}
+.dxt-step{display:flex;align-items:center;gap:10px;min-height:34px}
+.dxt-step span{flex:1;min-width:0}
+.dxt-step span.is-done{color:var(--x-ink3);text-decoration:line-through}
+.dxt-step button{display:grid;place-items:center;width:22px;height:22px;padding:0;border:0;border-radius:4px;background:none;color:var(--x-ink3);opacity:0;cursor:default}
+.dxt-step:hover button{opacity:1}
+.dxt-step button svg{width:11px;height:11px}
+.dxt-step--new svg{width:16px;height:16px;color:var(--x-acc)}
+.dxt-step--new input{flex:1;min-width:0;border:0;background:none;color:var(--x-ink);font:inherit;outline:none}
+.dxt-step--new input::placeholder{color:var(--x-acc)}
+.dxt-due,.dxt-case{display:flex;align-items:center;gap:6px}
+.dxt-case>svg{width:15px;height:15px;color:var(--x-ink3)}
+.dxt-blkrow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.dxt-blkrow span{display:flex;flex-direction:column}
+.dxt-blkrow b{font-weight:600}
+.dxt-blkrow small{font-size:.86em;color:var(--x-ink2)}
+.dx--mac .dxt-insp__h{height:52px;padding:0 10px 0 16px}
+.dx--mac .dxt-insp{background:var(--x-bg)}
+.dx--win .dxt-insp{width:360px;margin:0;border-left:1px solid var(--x-layer-line);background:var(--x-bg2)}
+.dx--win .dxt-insp__h{height:48px;padding:0 12px 0 20px;font-size:14px}
+.dx--win .dxt-insp__b{padding:4px 20px 20px}
+.dx--win .dxt-steps{padding:6px 12px;border:1px solid var(--x-layer-line);border-radius:4px;background:var(--x-ctl)}
+.dx--win .dxt-insp__title{padding:14px 12px;border:1px solid var(--x-layer-line);border-radius:4px;background:var(--x-ctl)}

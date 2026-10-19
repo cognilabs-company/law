@@ -1,0 +1,86 @@
+/* Home: the Windows 11 Settings home on Windows, widget panels on the Mac. */
+
+.dxh{display:flex;flex-direction:column;gap:18px;padding:20px 24px 28px}
+.dxh-hero{display:flex;align-items:center;gap:16px}
+.dxh-hero h2{margin:0;font-size:22px;font-weight:600}
+.dxh-hero p{margin:2px 0 0;color:var(--x-ink2)}
+.dxh-complete{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto;align-items:center;gap:6px 14px;min-width:260px;margin-left:auto;padding:10px 14px;border:0;text-align:left;cursor:default}
+.dxh-complete span{display:flex;flex-direction:column}
+.dxh-complete b{font-weight:600}
+.dxh-complete small{font-size:.86em;color:var(--x-ink2)}
+.dxh-complete em{font-size:20px;font-style:normal;font-weight:700;color:var(--x-acc)}
+.dxh-complete .dx-prog{grid-column:1/-1}
+
+.dxh-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.dxh-stat{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;align-items:center;gap:6px 10px;padding:14px;border:0;text-align:left;cursor:default}
+.dxh-stat i{grid-row:1/3;display:grid;place-items:center;width:36px;height:36px;border-radius:10px;color:#fff}
+.dxh-stat i svg{width:18px;height:18px}
+.dxh-stat b{font-size:24px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.dxh-stat span{font-size:12px;color:var(--x-ink2)}
+.dxh-stat--blue i{background:linear-gradient(180deg,#4f8bff,#1d5be0)}
+.dxh-stat--red i{background:linear-gradient(180deg,#ff6b6b,#d93d52)}
+.dxh-stat--green i{background:linear-gradient(180deg,#34c38f,#119a68)}
+.dxh-stat--orange i{background:linear-gradient(180deg,#f5a524,#e07b0b)}
+.dxh-stat--purple i{background:linear-gradient(180deg,#7c6cf2,#5435d6)}
+.dxh-stat--teal i{background:linear-gradient(180deg,#2ec4b6,#12907f)}
+
+.dxh-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;align-items:start}
+.dxh-panel{display:flex;flex-direction:column;min-width:0}
+.dxh-panel header{display:flex;align-items:center;gap:10px;padding:12px 14px 6px}
+.dxh-panel__ic{display:grid;place-items:center;color:var(--x-acc)}
+.dxh-panel__ic svg{width:16px;height:16px}
+.dxh-panel h2{flex:1;margin:0;font-size:inherit;font-weight:600}
+.dxh-panel header button{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 6px;border:0;border-radius:5px;background:none;color:var(--x-acc);font-size:.92em;cursor:default}
+.dxh-panel header button svg{width:13px;height:13px}
+.dxh-panel header button:hover{background:var(--x-fill)}
+.dxh-panel__b{padding:4px 14px 14px}
+.dxh-empty{margin:6px 0;color:var(--x-ink3)}
+
+.dxh-agenda,.dxh-cases,.dxh-notes{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.dxh-agenda li{display:grid;grid-template-columns:44px auto minmax(0,1fr);align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--x-sep)}
+.dxh-agenda li:last-child{border-bottom:0}
+.dxh-agenda time{font-variant-numeric:tabular-nums;color:var(--x-ink2)}
+.dxh-agenda time svg{width:13px;height:13px}
+.dxh-agenda span,.dxh-cases span,.dxh-notes span{display:flex;flex-direction:column;min-width:0}
+.dxh-agenda b,.dxh-cases b,.dxh-notes b{overflow:hidden;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
+.dxh-agenda small,.dxh-cases small,.dxh-notes small{overflow:hidden;font-size:.86em;color:var(--x-ink2);text-overflow:ellipsis;white-space:nowrap}
+.dxh-dot{width:4px;height:28px;border-radius:2px;background:#8e8e93}
+.dxh-dot--hearing{background:#ff3b30}.dxh-dot--meeting{background:#007aff}.dxh-dot--investigative{background:#af52de}.dxh-dot--filing_deadline{background:#ff9500}.dxh-dot--appeal_deadline{background:#34c759}.dxh-dot--task{background:#34c38f}
+.dxh-cases li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--x-sep)}
+.dxh-cases li:last-child,.dxh-notes li:last-child{border-bottom:0}
+.dxh-notes li{display:flex;align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid var(--x-sep)}
+.dxh-notes li i{flex:none;width:7px;height:7px;margin-top:6px;border-radius:50%;background:transparent}
+.dxh-notes li.is-new i{background:var(--x-acc)}
+
+.dxh-launch{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:4px 10px 12px}
+.dxh-app{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border:0;border-radius:8px;background:none;cursor:default}
+.dxh-app:hover{background:var(--x-fill)}
+.dxh-app i{display:grid;place-items:center;width:40px;height:40px;border-radius:11px;color:#fff;background:linear-gradient(180deg,#8e9bb0,#5c6a80)}
+.dxh-app i svg{width:20px;height:20px}
+.dxh-app span{font-size:12px}
+.dxh-app--tasks i{background:linear-gradient(180deg,#34c38f,#119a68)}
+.dxh-app--calendar i{background:linear-gradient(180deg,#ff6b6b,#d93d52)}
+.dxh-app--clients i{background:linear-gradient(180deg,#7c6cf2,#5435d6)}
+.dxh-app--files i{background:linear-gradient(180deg,#f2c14e,#d59a12)}
+.dxh-app--messages i{background:linear-gradient(180deg,#22c3e6,#0a8fc2)}
+.dxh-app--copilot i{background:linear-gradient(180deg,#a66cff,#5b3be0)}
+.dxh-unread{margin:0 14px 12px;font-size:.86em;color:var(--x-ink2)}
+
+/* Mac: widgets — big rounded translucent panels */
+.dx--mac .dxh{background:linear-gradient(180deg,var(--x-bg2),var(--x-bg))}
+.dx--mac .dxh-stat,.dx--mac .dxh-panel,.dx--mac .dxh-complete{border-radius:18px;background:var(--x-bg);box-shadow:0 0 0 .5px var(--x-sep),0 6px 18px -10px rgba(0,0,0,.25)}
+html[data-theme="dark"] .dx--mac .dxh-stat,html[data-theme="dark"] .dx--mac .dxh-panel,html[data-theme="dark"] .dx--mac .dxh-complete{background:#2a2a2c}
+.dx--mac .dxh-stat i{border-radius:50%}
+.dx--mac .dxh-panel h2{font-size:13px;font-weight:700}
+.dx--mac .dxh-hero h2{font-size:26px;font-weight:700;letter-spacing:-.01em}
+/* Windows: Settings-home cards */
+.dx--win .dxh{padding:4px 28px 28px}
+.dx--win .dxh-stat,.dx--win .dxh-panel,.dx--win .dxh-complete{border:1px solid var(--x-layer-line);border-radius:8px;background:var(--x-ctl)}
+.dx--win .dxh-stat:hover,.dx--win .dxh-complete:hover{background:var(--x-ctl-hover)}
+.dx--win .dxh-stat i{border-radius:6px}
+.dx--win .dxh-panel header{padding:14px 16px 6px}
+.dx--win .dxh-panel h2{font-size:14px}
+.dx--win .dxh-panel__b{padding:4px 16px 16px}
+.dx--win .dxh-hero h2{font-size:24px}
+.dx--win .dxh-app{border-radius:4px}
+.dx--win .dxh-app i{border-radius:6px}

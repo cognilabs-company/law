@@ -16,7 +16,7 @@ import SellerHeaderSlot from "./SellerHeaderSlot";
 import { listenToDesk, tellDesk } from "@/lib/deskBridge";
 import GrowthBanner from "./GrowthBanner";
 import GiftNudge from "./GiftNudge";
-import { canUseDesk, setDeskMode, useDeskEmbedOs, useDeskEmbedded, useDeskMode, useDeskOs } from "./desk/deskMode";
+import { canUseDesk, setDeskMode, useDeskEmbedOs, useDeskEmbedded, useDeskMode, useDeskOs, useDesktopDevice } from "./desk/deskMode";
 import DeskApp from "./desk/DeskApp";
 import OsPicker from "./desk/OsPicker";
 
@@ -223,6 +223,8 @@ export default function PortalShell({
   const embedded = useDeskEmbedded();
   const embedOs = useDeskEmbedOs();
   const deskOs = useDeskOs();
+  // The desktop only on a computer (never on a phone or by touch).
+  const desktopDevice = useDesktopDevice();
   const [picking, setPicking] = useState(false);
   useEffect(() => {
     if (embedded) tellDesk({ type: "lexgo-desk:path", path: pathname });
@@ -318,7 +320,7 @@ export default function PortalShell({
   // The desktop view, for the accounts it is open to (see canUseDesk).
   // Clients have a desktop of their own (/client-desktop), the same shell
   // with the apps their role is given.
-  const deskAllowed = canUseDesk(session);
+  const deskAllowed = canUseDesk(session) && (embedded || desktopDevice);
   // Inside a desktop window: the page alone, no sidebar, header or assistant.
   // A cabinet page is dressed as the program it is (see DeskApp).
   if (embedded) {

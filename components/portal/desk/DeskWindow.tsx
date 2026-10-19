@@ -2,6 +2,7 @@
 
 import { useRef, type CSSProperties, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { IconClose, IconMinus } from "@/components/icons";
+import { KitWindow } from "./kit/kit";
 
 export type Snap = "" | "l" | "r" | "max";
 export type Win = {
@@ -77,6 +78,7 @@ export default function DeskWindow({
   tools,
   labels,
   phone,
+  native,
   onFocus,
   onChange,
   onClose,
@@ -94,6 +96,9 @@ export default function DeskWindow({
   tools?: ReactNode;
   labels: { minimize: string; maximize: string; restore: string; close: string };
   phone: boolean;
+  // A desktop app of its own (not a page): on the Mac its toolbar is the
+  // title bar, and its empty spaces move the window.
+  native?: boolean;
   onFocus: () => void;
   onChange: (patch: Partial<Win>) => void;
   onClose: () => void;
@@ -172,13 +177,14 @@ export default function DeskWindow({
 
   return (
     <section
-      className={`wd-win${active ? " is-active" : ""}${win.min ? " is-min" : ""}${win.closing ? " is-closing" : ""}${full ? " is-max" : ""}${win.snap === "l" || win.snap === "r" ? " is-snap" : ""}${pip ? " is-pip" : ""}`}
+      className={`wd-win${active ? " is-active" : ""}${win.min ? " is-min" : ""}${win.closing ? " is-closing" : ""}${full ? " is-max" : ""}${win.snap === "l" || win.snap === "r" ? " is-snap" : ""}${pip ? " is-pip" : ""}${native ? " is-native" : ""}`}
       style={{ left: box.x, top: box.y, width: box.w, height: box.h, zIndex: pip ? 9000 : win.z, "--ox": `${win.ox ?? 0}px`, "--oy": `${win.oy ?? 0}px`, "--sx": (win.sx ?? 0.06).toFixed(4), "--sy": (win.sy ?? 0.06).toFixed(4) } as CSSProperties}
       role="dialog"
       aria-label={title}
       aria-hidden={win.min || win.closing || undefined}
       inert={win.min || win.closing || undefined}
       onPointerDownCapture={onFocus}
+      {...handlers}
     >
       <header
         className="wd-win__bar"
@@ -186,7 +192,6 @@ export default function DeskWindow({
           if ((e.target as HTMLElement).closest("button")) return;
           begin(e, "move");
         }}
-        {...handlers}
         onDoubleClick={(e) => {
           if ((e.target as HTMLElement).closest("button") || phone) return;
           if (pip) return onChange({ pip: undefined });
@@ -230,8 +235,8 @@ export default function DeskWindow({
           </button>
         </span>}
       </header>
-      <div className="wd-win__body">{children}</div>
-      {full ? null : EDGES.map((k) => <i key={k} className={`wd-win__edge wd-win__edge--${k}`} onPointerDown={(e) => begin(e, k)} {...handlers} aria-hidden />)}
+      <div className="wd-win__body">{native ? <KitWindow value={{ drag: (e) => begin(e, "move"), zoom: () => !phone && onChange({ snap: win.snap === "max" ? "" : "max" }) }}>{children}</KitWindow> : children}</div>
+      {full ? null : EDGES.map((k) => <i key={k} className={`wd-win__edge wd-win__edge--${k}`} onPointerDown={(e) => begin(e, k)} aria-hidden />)}
     </section>
   );
 }

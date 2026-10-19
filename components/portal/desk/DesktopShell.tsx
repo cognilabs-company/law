@@ -55,6 +55,8 @@ import WorkApp, { SHORTCUT_DRAG, workShortcut } from "./WorkApp";
 import type { CopilotEntity } from "@/lib/services/aiCopilot";
 import { safeRoute, type DeskLink, type SearchHit, type Shortcut, type ShortcutInput, type WindowInput } from "@/lib/services/lawyerDesktop";
 import { DESK_FRAME, setDeskMode, setDeskOs, type DeskOs } from "./deskMode";
+import { NATIVE_APPS } from "./native";
+import { KitMenu, KitOs } from "./kit/kit";
 import type { FromDesk, ToDesk } from "@/lib/deskBridge";
 
 const AiSystemAssistant = dynamic(() => import("../AiSystemAssistant"), { ssr: false });
@@ -926,6 +928,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
   const winTitle = (w: Win) => (w.kind === "folder" ? folderName(w.key) : (appAt(w.path)?.label ?? byKey.get(w.key)?.label ?? ""));
 
   return (
+    <KitMenu value={openMenu}>
     <div
       className={`wd wd--${os} wd--${wallpaper}${busy ? " is-busy" : ""}`}
       onContextMenu={(e) => e.preventDefault()}
@@ -1019,6 +1022,8 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
 
         {wins.map((w) => {
           const app = w.kind === "app" ? byKey.get(w.key) : undefined;
+          // A section that is a desktop program of its own (native.ts).
+          const Native = w.kind === "app" && app && !app.locked ? NATIVE_APPS[w.key] : undefined;
           const frameKey = `${w.id}-${w.tick}`;
           return (
             <DeskWindow
@@ -1031,6 +1036,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
               icon={appIcon(w)}
               labels={labels}
               phone={phone}
+              native={!!Native}
               onFocus={() => active !== w.id && focus(w.id)}
               onChange={(p) => patch(w.id, p)}
               onClose={() => close(w.id)}
@@ -1042,7 +1048,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
                   <button type="button" onClick={() => unpip(w.id)} aria-label={t("win.unpip")} title={t("win.unpip")}>
                     <IconExpand />
                   </button>
-                ) : w.kind === "app" && !NATIVE.has(w.key) ? (
+                ) : w.kind === "app" && !NATIVE.has(w.key) && !Native ? (
                   <>
                     {w.id in calls && !phone ? (
                       <button type="button" onClick={() => patch(w.id, { pip: pipBoxFor(area, pipLast.current, calls[w.id]) })} aria-label={t("win.pip")} title={t("win.pip")}>
@@ -1076,6 +1082,17 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
                     openApp("copilot");
                   }}
                 />
+              ) : Native ? (
+                <KitOs value={os}>
+                  <Native
+                    key={frameKey}
+                    base={`/portal/${role}`}
+                    route={w.path || w.href}
+                    onRoute={(r) => patch(w.id, { path: r })}
+                    openApp={(k, r) => openApp(k, false, r ?? "")}
+                    openLink={(l) => openLink(l)}
+                  />
+                </KitOs>
               ) : w.kind === "app" && app ? (
                 <>
                   <iframe
@@ -1486,6 +1503,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
         </div>
       ) : null}
     </div>
+    </KitMenu>
   );
 }
 
