@@ -36,6 +36,11 @@
       "file": "../../md/LEXGO_BACKEND_ASKS_STUDIO_2026-10-08.md",
       "title": "Studio konstruktorlari — backend uchun (08.10)",
       "description": "LEXGO_STUDIO_CONSTRUCTORS_FRONTEND_2026_10_07 bo'yicha: frontend to'liq tayyor (13 ekran, K05/K06/K14/K16/K20 muharrirlari), lekin /studio/* va /admin/studio/* production'da va GitHub'da yo'q (404). Ichida: deploy + sync so'rovi, /admin/studio/access shartnomasi, ro'yxat/detal/versiya shakllari, holatlar (reject, published save, rollback), tasdiqlash, fayl, 422 xato formati, har konstruktor bo'yicha savollar, heartbeat/monitoring, realtime kanal masalasi; 07.10 support MD hali deploy qilinmagani eslatmasi."
+    },
+    {
+      "file": "../../md/BACKEND_ASKS_STUDIO_2026_10_18.md",
+      "title": "Studio va marketplace — backend uchun qayta tekshiruv (18.10)",
+      "description": "Production API'ga 18.10 da real so'rovlar yuborib tekshirildi (GET, hamda faqat \"TEST 18.10\" nomli yozuvlar bilan yozish). 17.10 dagi so'rovlarning birortasi to'liq tuzatilmagan; B1, B5, I2, I6, I13 qisman. Yangi muhim muammolar: B6 — yuborilgan yozuvni baribir tahrirlash mumkin, arxivdagisi saqlansa qoralamaga qaytadi; tasdiqlash ro'yxati 418 KB, sahifalash va ommaviy e'lon yo'q; 57 ta tasdiqlangan yozuvda hech kimning qarori yo'q; studio_admin qaror qabul qila olmaydi (403); kuzatuv sessiyalari tugagach qayta ochiladi, 213 tadan 99 tasi 0 soniya, kunlar UTC; noto'g'ri object_id bilan heartbeat 500 qaytaradi; konstruktorni o'qish updated_at'ni o'zgartiradi. Eski id'lar saqlangan (17.10 hujjati bilan birga o'qiladi). Oxirida productionda qolgan TEST ma'lumotlar ro'yxati."
     }
   ]
 }
