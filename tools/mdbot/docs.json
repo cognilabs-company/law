@@ -41,6 +41,11 @@
       "file": "../../md/BACKEND_ASKS_STUDIO_2026_10_18.md",
       "title": "Studio va marketplace — backend uchun qayta tekshiruv (18.10)",
       "description": "Production API'ga 18.10 da real so'rovlar yuborib tekshirildi (GET, hamda faqat \"TEST 18.10\" nomli yozuvlar bilan yozish). 17.10 dagi so'rovlarning birortasi to'liq tuzatilmagan; B1, B5, I2, I6, I13 qisman. Yangi muhim muammolar: B6 — yuborilgan yozuvni baribir tahrirlash mumkin, arxivdagisi saqlansa qoralamaga qaytadi; tasdiqlash ro'yxati 418 KB, sahifalash va ommaviy e'lon yo'q; 57 ta tasdiqlangan yozuvda hech kimning qarori yo'q; studio_admin qaror qabul qila olmaydi (403); kuzatuv sessiyalari tugagach qayta ochiladi, 213 tadan 99 tasi 0 soniya, kunlar UTC; noto'g'ri object_id bilan heartbeat 500 qaytaradi; konstruktorni o'qish updated_at'ni o'zgartiradi. Eski id'lar saqlangan (17.10 hujjati bilan birga o'qiladi). Oxirida productionda qolgan TEST ma'lumotlar ro'yxati."
+    },
+    {
+      "file": "../../md/BACKEND_ASKS_STUDIO_MARKETPLACE_ALL_2026_10_19.md",
+      "title": "Studio va marketplace — backend uchun barcha so'rovlar bitta hujjatda (19.10)",
+      "description": "17.10 va 18.10 dagi ikki hujjat birlashtirildi, id'lar o'sha-o'sha: 6 ta bloklovchi (B1–B6), 22 ta muhim (I1–I22), 12 ta qo'shimcha (N1–N12) so'rov va 20 ta ochiq savol (Q1–Q20). Har bir so'rovda: nima kuzatildi (aniq so'rov, javob, vaqt), nima kerak va qaysi ekran kutyapti; holati 18.10 tekshiruvi bo'yicha (ochiq / qisman tuzatilgan / o'zgargan / yangi). Eng muhimlari: yaratish jarayonlari (B1), xizmat checklisti (B2), buyurtma amallari va complete_url (B3), qayta ulanishda o'qish (B4), sotuvchi narxlari (B5), yuborilgan yozuvni tahrirlash va arxivdan qaytish (B6). Oxirida: frontend tayanayotgan javob shakllari va productionda qolgan TEST ma'lumotlar (o'chirib berishingiz kerak). 18.10 da yuborgan approval stepper hujjatingiz hali hisobga olinmagan — alohida javob beramiz."
     }
   ]
 }
