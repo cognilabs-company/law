@@ -46,6 +46,11 @@
       "file": "../../md/BACKEND_ASKS_STUDIO_MARKETPLACE_ALL_2026_10_19.md",
       "title": "Studio va marketplace — backend uchun barcha so'rovlar bitta hujjatda (19.10)",
       "description": "17.10 va 18.10 dagi ikki hujjat birlashtirildi, id'lar o'sha-o'sha: 6 ta bloklovchi (B1–B6), 22 ta muhim (I1–I22), 12 ta qo'shimcha (N1–N12) so'rov va 20 ta ochiq savol (Q1–Q20). Har bir so'rovda: nima kuzatildi (aniq so'rov, javob, vaqt), nima kerak va qaysi ekran kutyapti; holati 18.10 tekshiruvi bo'yicha (ochiq / qisman tuzatilgan / o'zgargan / yangi). Eng muhimlari: yaratish jarayonlari (B1), xizmat checklisti (B2), buyurtma amallari va complete_url (B3), qayta ulanishda o'qish (B4), sotuvchi narxlari (B5), yuborilgan yozuvni tahrirlash va arxivdan qaytish (B6). Oxirida: frontend tayanayotgan javob shakllari va productionda qolgan TEST ma'lumotlar (o'chirib berishingiz kerak). 18.10 da yuborgan approval stepper hujjatingiz hali hisobga olinmagan — alohida javob beramiz."
+    },
+    {
+      "file": "../../md/BACKEND_ASKS_AFTER_AUDIT_FIXES_2026_10_19.md",
+      "title": "Audit tuzatishlaridan keyingi so'rovlar — backend uchun (19.10)",
+      "description": "19.10 dagi audit va AI copilot hujjatlaringizga javob. Frontend yangi kontraktga o'tdi (3c66810, a997080). Bloklovchi: A1 — studio_admin hisobiga /admin/studio/approvals ro'yxati va tafsiloti 403 qaytaryapti. Hujjat va production farqlari: A2 — categories kaliti 404, haqiqiysi service-categories; A3 — AI sahifalar reyestridagi 9 ta yo'l ilovada yo'q yoki noto'g'ri kabinetga olib boradi; A4 — yaratish jarayoni qadamlarida maydon qaysi konstruktor payload'ida saqlanishi noaniq. S1–S17: OpenAPI'da turi berilmagan, frontend taxmin qilgan javob shakllari (bulk-publish, status_counts, withdraw/restore bayroqlari, izohlar, reorder, summary, marketplace sozlamalari, AI execute va artifacts). Q1–Q4 savollar: xodim hisobiga mijoz copilot berilishi, ichki kanallarda qayta ulanish, page_id, bo'sh ma'lumotnomalar. T1–T2: test mijoz va yurist hisoblari hamda test buyurtmalar."
     }
   ]
 }
