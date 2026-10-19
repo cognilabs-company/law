@@ -52,7 +52,24 @@ export function OptionGroups({ sections, picked, onToggle, disabled }: { section
   );
 }
 
-export default function PriceOptions({
+export type PriceOptionsModel = {
+  status: FormState["status"];
+  sections: PriceOptionSection[];
+  picked: string[];
+  quote: PriceQuote | null;
+  pending: boolean;
+  quoteError: unknown;
+  toggle: (id: string) => void;
+  retryForm: () => void;
+  retryQuote: () => void;
+};
+
+// The extra options of a service or package and the quote for those picked:
+// the options load once per target, the quote follows each pick (a moment
+// after the last one), and the parent hears the ids, the quote and whether
+// the price can be trusted yet. The web form and the desktop's purchase
+// sheet both draw from this.
+export function usePriceOptions({
   target,
   targetId,
   lawyerUserId,
@@ -64,9 +81,7 @@ export default function PriceOptions({
   lawyerUserId?: string;
   reload?: number;
   onChange: (s: PriceState) => void;
-}) {
-  const t = useTranslations("marketplace.priceOptions");
-  const marketErr = useMarketError();
+}): PriceOptionsModel {
   const key = `${target}:${targetId}:${lawyerUserId ?? ""}`;
   const [form, setForm] = useState<FormState>({ key: "", status: "loading", sections: [] });
   const [picked, setPicked] = useState<string[]>([]);
@@ -146,22 +161,41 @@ export default function PriceOptions({
   }
 
   const mine = form.key === key;
-  const sections = mine ? form.sections : [];
-  const q = quote?.q ?? null;
+  return {
+    status: mine ? form.status : "loading",
+    sections: mine ? form.sections : [],
+    picked,
+    quote: quote?.q ?? null,
+    pending,
+    quoteError: qErr,
+    toggle,
+    retryForm: () => setFormTry((n) => n + 1),
+    retryQuote,
+  };
+}
+
+export default function PriceOptions(props: { target: PriceTarget; targetId: string; lawyerUserId?: string; reload?: number; onChange: (s: PriceState) => void }) {
+  const t = useTranslations("marketplace.priceOptions");
+  const marketErr = useMarketError();
+  const { target } = props;
+  const m = usePriceOptions(props);
+  const { sections, picked, pending, toggle, retryQuote } = m;
+  const qErr = m.quoteError;
+  const q = m.quote;
   const showSum = sections.length > 0 || (q?.breakdown.length ?? 0) > 0;
 
   return (
     <div className="pxo" data-ai-id={`marketplace.price-options.${target}`} data-ai-type="section" data-ai-label={t("title")}>
-      {!mine || form.status === "loading" ? (
+      {m.status === "loading" ? (
         <div className="pxo__sk" aria-busy="true">
           <span />
           <span />
         </div>
-      ) : form.status === "error" ? (
+      ) : m.status === "error" ? (
         <p className="pxo__err" role="alert">
           <IconAlert aria-hidden />
           <span>{t("optionsFailed")}</span>
-          <button type="button" onClick={() => setFormTry((n) => n + 1)}>
+          <button type="button" onClick={m.retryForm}>
             {t("retry")}
           </button>
         </p>

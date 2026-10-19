@@ -184,7 +184,14 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
   const folderName = (id: string) => t(`folder.${id}`);
   // The app a path inside a window belongs to: the longest href it starts with.
   // The desktop's own apps have no page, so they never own one.
-  const appAt = useCallback((path: string) => (path ? [...apps].filter((a) => a.href).sort((a, b) => b.href.length - a.href.length).find((a) => path === a.href || path.startsWith(`${a.href}/`)) : undefined), [apps]);
+  // A query on the path (?q=, ?join=) never changes its owner.
+  const appAt = useCallback(
+    (raw: string) => {
+      const path = raw.split(/[?#]/)[0];
+      return path ? [...apps].filter((a) => a.href).sort((a, b) => b.href.length - a.href.length).find((a) => path === a.href || path.startsWith(`${a.href}/`)) : undefined;
+    },
+    [apps],
+  );
 
   // ── the clock, the desk's size ────────────────────────────────────────────
   useEffect(() => {
@@ -395,10 +402,13 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
     if (link.appId === "snippets") return openApp("snippets");
     if ((link.appId === "lexgo-ai" || link.appId === "copilot") && byKey.has("copilot")) return openApp("copilot");
     const route = safeRoute(link.route);
+    // The query a cabinet link carries (?q=, ?service=, ?join=, ?buy=) goes
+    // with it to the window; which app owns it is read from the path alone.
+    const full = route ? route + (/^[^?#]*(\?[^#]*)/.exec(String(link.route))?.[1] ?? "") : "";
     // A chat room's own page is the Messages app's.
-    if (route && /^\/portal\/chat\/[^/?#]+/.test(route) && NATIVE_APPS.messages && byKey.has("messages")) return openApp("messages", false, route);
+    if (route && /^\/portal\/chat\/[^/?#]+/.test(route) && NATIVE_APPS.messages && byKey.has("messages")) return openApp("messages", false, full);
     const owner = route ? appAt(route) : undefined;
-    if (owner && !NATIVE.has(owner.key)) return openApp(owner.key, false, route);
+    if (owner && !NATIVE.has(owner.key)) return openApp(owner.key, false, full);
     const key = navOfReg(link.appId, (k) => byKey.has(k));
     if (key && link.appId !== "activity-center") return openApp(key);
     setActOpen(true);

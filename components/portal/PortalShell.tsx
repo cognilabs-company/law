@@ -319,7 +319,9 @@ export default function PortalShell({
 
   // The desktop view, for the accounts it is open to (see canUseDesk).
   // Clients have a desktop of their own (/client-desktop), the same shell
-  // with the apps their role is given.
+  // with the apps their role is given. The client's pages without a sidebar
+  // row (document analysis, requests) are programs of their own there, so
+  // a link to one opens its window rather than the dashboard's.
   const deskAllowed = canUseDesk(session) && (embedded || desktopDevice);
   // Inside a desktop window: the page alone, no sidebar, header or assistant.
   // A cabinet page is dressed as the program it is (see DeskApp).
@@ -348,7 +350,7 @@ export default function PortalShell({
           key={deskOs}
           os={deskOs}
           role={role}
-          apps={nav.map((n) => ({ ...n, label: t(`sidebar.${role}.${n.key}`), locked: isLocked(role, n.key, limited, actions) }))}
+          apps={nav.concat(role === "client" ? CLIENT_TITLE_ONLY : []).map((n) => ({ ...n, label: t(`sidebar.${role}.${n.key}`), locked: isLocked(role, n.key, limited, actions) }))}
           name={session.name}
           isAdmin={hasAdminAccess(session)}
           onLogout={logout}

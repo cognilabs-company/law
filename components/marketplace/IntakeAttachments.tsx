@@ -14,7 +14,19 @@ const MAX_VOICE_SECONDS = 300;
 // they reach the order with it. Up to 20 files and 10 voice messages; a
 // voice message is recorded here, in the browser, and can be listened to
 // before it is sent.
-export default function IntakeAttachments({
+export type Voice = PurchaseVoice & { url: string };
+export type IntakeModel = {
+  uploading: number;
+  err: string;
+  rec: { started: number; secs: number } | null;
+  addFiles: (list: FileList | null) => Promise<void>;
+  startVoice: () => Promise<void>;
+  stopVoice: () => void;
+};
+
+// The upload and the recording behind the attachments — the web form and
+// the desktop's purchase sheet each draw their own controls over it.
+export function useIntakeAttachments({
   files,
   voices,
   onFiles,
@@ -22,13 +34,12 @@ export default function IntakeAttachments({
   onBusy,
 }: {
   files: PurchaseAttachment[];
-  voices: (PurchaseVoice & { url: string })[];
+  voices: Voice[];
   onFiles: (f: PurchaseAttachment[]) => void;
-  onVoices: (v: (PurchaseVoice & { url: string })[]) => void;
+  onVoices: (v: Voice[]) => void;
   onBusy: (busy: boolean) => void;
-}) {
+}): IntakeModel {
   const t = useTranslations("marketplace.purchase.intake");
-  const pick = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(0);
   const [err, setErr] = useState("");
   const [rec, setRec] = useState<{ started: number; secs: number } | null>(null);
@@ -114,7 +125,22 @@ export default function IntakeAttachments({
     setRec({ started, secs: 0 });
   }
 
-  const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  return { uploading, err, rec, addFiles, startVoice, stopVoice: () => recorder.current?.mr.stop() };
+}
+
+export const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+export default function IntakeAttachments(props: {
+  files: PurchaseAttachment[];
+  voices: Voice[];
+  onFiles: (f: PurchaseAttachment[]) => void;
+  onVoices: (v: Voice[]) => void;
+  onBusy: (busy: boolean) => void;
+}) {
+  const { files, voices, onFiles, onVoices } = props;
+  const t = useTranslations("marketplace.purchase.intake");
+  const pick = useRef<HTMLInputElement>(null);
+  const { uploading, err, rec, addFiles, startVoice, stopVoice } = useIntakeAttachments(props);
 
   return (
     <fieldset className="mk-att">
@@ -129,7 +155,7 @@ export default function IntakeAttachments({
           </small>
         </button>
         {rec ? (
-          <button type="button" className="mk-chip mk-chip--sm mk-att__rec" onClick={() => recorder.current?.mr.stop()}>
+          <button type="button" className="mk-chip mk-chip--sm mk-att__rec" onClick={stopVoice}>
             <IconRecord aria-hidden />
             {t("stop", { t: mmss(rec.secs) })}
           </button>

@@ -11,6 +11,7 @@ import { IconAlert, IconArrowRight, IconBriefcase, IconCheck, IconRefresh, IconS
 import { App, Avatar, Btn, Empty, Loading, Select, Sidebar, Spinner, Tag, Tool, Toolbar, useOs, type NavSection } from "../../kit/kit";
 import type { NativeProps } from "../../native";
 import { StarsView } from "./bits";
+import SellerPage from "./SellerPage";
 import "./client.css";
 
 // Advocates and lawyers as a desktop program — a directory like the Mac's
@@ -18,14 +19,14 @@ import "./client.css";
 // advocates, lawyers), the region, category and rating in the toolbar, the
 // verified specialists as cards; typing what happened asks the AI to rank
 // them, with its reasons on each card. The chosen one opens on the right
-// with their numbers, about, services and prices, and reviews; ordering a
-// service opens their own page in this window.
+// with their numbers, about, services and prices, and reviews; "Order"
+// opens their page (SellerPage) in this window.
 
 type Who = "all" | "advokat" | "yurist";
 
 export default function LawyersApp(props: NativeProps) {
   const id = /\/lawyers\/([^/?#]+)/.exec(props.route)?.[1];
-  if (id) return <ProfilePage {...props} userId={decodeURIComponent(id)} />;
+  if (id) return <SellerPage {...props} userId={decodeURIComponent(id)} />;
   return <Directory {...props} />;
 }
 
@@ -315,18 +316,3 @@ function Profile({ s, onOrder, reasons }: { s: MarketSeller; onOrder: () => void
     </aside>
   );
 }
-
-// The specialist's own page — where a service is bought, with its options,
-// the pricing explained and the payment — in this window.
-function ProfilePage({ base, openApp, userId }: NativeProps & { userId: string }) {
-  const d = useTranslations("portal.desk.client");
-  const locale = useLocale();
-  const os = useOs();
-  return (
-    <App name="clawyer">
-      <Toolbar title={d("profile")} back={{ label: d("back"), onClick: () => openApp("lawyers", `${base}/lawyers`) }} />
-      <iframe className="dxcl-page" name={`lexgo-desk:${os}:lawyer`} src={`/${locale}${base}/lawyers/${encodeURIComponent(userId)}`} title={d("profile")} />
-    </App>
-  );
-}
-

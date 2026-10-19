@@ -11,8 +11,9 @@ import { IconFileText, IconDownload, IconExternal } from "./icons";
 // Prefers the inlined base64 payload; otherwise fetches GET /contracts/{id}/file
 // with the bearer token as a blob (the authed file route is never used as a
 // plain link).
-export default function ContractCard({ c }: { c: Contract }) {
-  const t = useTranslations("chatPage");
+// The contract's file — the inlined copy or GET /contracts/{id}/file —
+// opened in a tab or saved; the web card and the desktop's both use it.
+export function useContractFile(c: Contract) {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -43,6 +44,12 @@ export default function ContractCard({ c }: { c: Contract }) {
       setBusy(false);
     }
   }
+  return { ext, name, hasFile, busy, failed, deliver };
+}
+
+export default function ContractCard({ c }: { c: Contract }) {
+  const t = useTranslations("chatPage");
+  const { ext, name, hasFile, busy, failed, deliver } = useContractFile(c);
 
   return (
     <div className="aifile">
