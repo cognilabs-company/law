@@ -1,6 +1,7 @@
 import dynamic from "next/dynamic";
 import type { ComponentType } from "react";
 import type { DeskLink } from "@/lib/services/lawyerDesktop";
+import type { ToDesk } from "@/lib/deskBridge";
 
 // The cabinet's sections that are desktop programs of their own, drawn
 // with the desktop's app kit (kit/kit.tsx) as a Windows or a Mac program;
@@ -16,6 +17,11 @@ export type NativeProps = {
   // Another app, at a page of its own or at one of the backend's links.
   openApp: (key: string, route?: string) => void;
   openLink: (link: DeskLink) => void;
+  // Tell the desktop what the page would tell it from a frame (a call on
+  // or off, the copilot wanted) — and whether the window floats as
+  // picture-in-picture.
+  tell: (msg: ToDesk) => void;
+  pip: boolean;
 };
 
 const load = (f: () => Promise<{ default: ComponentType<NativeProps> }>) => dynamic(f, { ssr: false });
@@ -39,4 +45,8 @@ export const NATIVE_APPS: Partial<Record<string, ComponentType<NativeProps>>> = 
   subscription: load(() => import("./apps/SubscriptionApp")),
   profile: load(() => import("./apps/ProfileApp")),
   assistant: load(() => import("./apps/AssistantApp")),
+  messages: load(() => import("./apps/messages/MessagesApp")),
+  meetings: load(() => import("./apps/MeetingsApp")),
+  support: load(() => import("./apps/SupportApp")),
+  snippets: load(() => import("./apps/SnippetsApp")),
 };

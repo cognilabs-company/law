@@ -475,8 +475,11 @@ html[data-theme="dark"] .dx--win .dx-dlg__box{border-color:rgba(255,255,255,.08)
 
 /* ── the window around a native app ───────────────────────────────────── */
 .wd--mac .wd-win.is-native{grid-template-rows:minmax(0,1fr)}
-.wd--mac .wd-win.is-native>.wd-win__bar{position:absolute;inset:0 auto auto 0;z-index:5;width:84px;height:52px;padding-left:16px;border:0;background:none}
-.wd--mac .wd-win.is-native>.wd-win__bar .wd-win__icon,.wd--mac .wd-win.is-native>.wd-win__bar .wd-win__title,.wd--mac .wd-win.is-native>.wd-win__bar .wd-win__tools{display:none}
+.wd--mac .wd-win.is-native>.wd-win__bar{position:absolute;inset:0 auto auto 0;z-index:5;width:auto;min-width:84px;height:52px;padding-left:16px;border:0;background:none}
+.wd--mac .wd-win.is-native>.wd-win__bar .wd-win__icon,.wd--mac .wd-win.is-native>.wd-win__bar .wd-win__title{display:none}
+/* A native window has tools only while it holds a call (picture-in-picture):
+   they sit next to the traffic lights. */
+.wd--mac .wd-win.is-native>.wd-win__bar .wd-win__tools{margin-left:6px}
 .wd--mac .wd-win.is-native>.wd-win__body{grid-row:1}
 .wd--win .wd-win.is-native{background:var(--x-win-mica,#f3f3f3)}
 html[data-theme="dark"] .wd--win .wd-win.is-native{--x-win-mica:#202020}

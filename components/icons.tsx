@@ -619,6 +619,14 @@ export const IconPaperclip = (p: P) => (
   </svg>
 );
 
+// A reply: the arrow that bends back to the message it answers.
+export const IconReply = (p: P) => (
+  <svg {...base} {...p}>
+    <path d="M9 14L4 9l5-5" />
+    <path d="M4 9h10.5a5.5 5.5 0 010 11H11" />
+  </svg>
+);
+
 // iOS's record control (SF Symbol `record.circle`): a thin ring with a solid
 // disc inside it. Drawn as two elements rather than one stroked circle so the
 // disc stays solid at every size — that fill is the whole signal.

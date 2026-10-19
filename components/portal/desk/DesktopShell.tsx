@@ -49,9 +49,8 @@ import { useDeskBackend } from "./useDeskBackend";
 import Palette, { type PaletteApp } from "./Palette";
 import ActivityPanel from "./ActivityPanel";
 import DeskWidgets from "./DeskWidgets";
-import SnippetsApp from "./SnippetsApp";
-import CopilotApp from "./CopilotApp";
-import WorkApp, { SHORTCUT_DRAG, workShortcut } from "./WorkApp";
+import CopilotApp from "./apps/CopilotApp";
+import WorkApp, { SHORTCUT_DRAG, workShortcut } from "./apps/WorkApp";
 import type { CopilotEntity } from "@/lib/services/aiCopilot";
 import { safeRoute, type DeskLink, type SearchHit, type Shortcut, type ShortcutInput, type WindowInput } from "@/lib/services/lawyerDesktop";
 import { DESK_FRAME, setDeskMode, setDeskOs, type DeskOs } from "./deskMode";
@@ -386,6 +385,8 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
     if (link.appId === "snippets") return openApp("snippets");
     if ((link.appId === "lexgo-ai" || link.appId === "copilot") && byKey.has("copilot")) return openApp("copilot");
     const route = safeRoute(link.route);
+    // A chat room's own page is the Messages app's.
+    if (route && /^\/portal\/chat\/[^/?#]+/.test(route) && NATIVE_APPS.messages && byKey.has("messages")) return openApp("messages", false, route);
     const owner = route ? appAt(route) : undefined;
     if (owner && !NATIVE.has(owner.key)) return openApp(owner.key, false, route);
     const key = navOfReg(link.appId, (k) => byKey.has(k));
@@ -1036,7 +1037,7 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
               icon={appIcon(w)}
               labels={labels}
               phone={phone}
-              native={!!Native}
+              native={!!Native || (w.kind === "app" && NATIVE.has(w.key))}
               onFocus={() => active !== w.id && focus(w.id)}
               onChange={(p) => patch(w.id, p)}
               onClose={() => close(w.id)}
@@ -1047,6 +1048,10 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
                 w.pip ? (
                   <button type="button" onClick={() => unpip(w.id)} aria-label={t("win.unpip")} title={t("win.unpip")}>
                     <IconExpand />
+                  </button>
+                ) : w.kind === "app" && Native && w.id in calls && !phone ? (
+                  <button type="button" onClick={() => patch(w.id, { pip: pipBoxFor(area, pipLast.current, calls[w.id]) })} aria-label={t("win.pip")} title={t("win.pip")}>
+                    <IconPip />
                   </button>
                 ) : w.kind === "app" && !NATIVE.has(w.key) && !Native ? (
                   <>
@@ -1068,20 +1073,22 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
                 ) : null
               }
             >
-              {w.kind === "app" && w.key === "snippets" ? (
-                <SnippetsApp />
-              ) : w.kind === "app" && w.key === "copilot" && aiMode ? (
-                <CopilotApp mode={aiMode} focus={copilotFocus} onFocus={setCopilotFocus} onOpenRoute={(r) => openLink({ appId: "", route: r })} />
+              {w.kind === "app" && w.key === "copilot" && aiMode ? (
+                <KitOs value={os}>
+                  <CopilotApp mode={aiMode} focus={copilotFocus} onFocus={setCopilotFocus} onOpenRoute={(r) => openLink({ appId: "", route: r })} />
+                </KitOs>
               ) : w.kind === "app" && w.key === "work" ? (
+                <KitOs value={os}>
                 <WorkApp
                   onOpen={(l) => openLink(l)}
-                  onChat={() => openApp(byKey.has("messages") ? "messages" : "chat")}
+                  onChat={(room) => (byKey.has("messages") ? openApp("messages", false, `/portal/chat/${room}`) : openApp("chat"))}
                   onShortcut={ready ? (it) => addShortcut(workShortcut(it)) : undefined}
                   onCopilot={(it) => {
                     setCopilotFocus({ type: it.entityType, id: it.id, title: it.title || it.code });
                     openApp("copilot");
                   }}
                 />
+                </KitOs>
               ) : Native ? (
                 <KitOs value={os}>
                   <Native
@@ -1091,6 +1098,8 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
                     onRoute={(r) => patch(w.id, { path: r })}
                     openApp={(k, r) => openApp(k, false, r ?? "")}
                     openLink={(l) => openLink(l)}
+                    tell={(m) => onPage.current(w.id, m)}
+                    pip={!!w.pip}
                   />
                 </KitOs>
               ) : w.kind === "app" && app ? (

@@ -1,0 +1,72 @@
+/* The copilot: a calm assistant window — the focus in the sidebar, the
+   conversation centred, the composer as a floating pill (Mac) or a field
+   card (Windows). */
+
+.dxa2-brand{display:flex;align-items:center;gap:10px;padding:2px 2px 6px}
+.dxa2-brand i{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#a259ff,#5b8def);color:#fff}
+.dxa2-brand i svg{width:17px;height:17px}
+.dxa2-brand span{display:flex;flex-direction:column;min-width:0}
+.dxa2-brand small{color:var(--x-ink2);font-size:.86em}
+.dxa2-none{margin:0;padding:0 6px;font-size:.88em;color:var(--x-ink3)}
+
+.dxa2{display:flex;flex:1;flex-direction:column;min-height:0}
+.dxa2-log{display:flex;flex:1;flex-direction:column;gap:18px;min-height:0;overflow:auto;padding:20px max(20px,calc((100% - 760px) / 2)) 12px;user-select:text}
+.dxa2-hello{display:flex;flex-direction:column;align-items:center;gap:8px;margin:auto;max-width:420px;text-align:center}
+.dxa2-hello i{display:grid;place-items:center;width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#a259ff,#5b8def);color:#fff;box-shadow:0 10px 24px rgba(120,90,255,.3)}
+.dxa2-hello i svg{width:28px;height:28px}
+.dxa2-hello b{font-size:17px}
+.dxa2-hello small{color:var(--x-ink2)}
+.dxa2-turn{display:flex;flex-direction:column;gap:10px}
+.dxa2-me{align-self:flex-end;max-width:78%;margin:0;padding:8px 14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.dx--mac .dxa2-me{border-radius:18px;background:var(--x-acc);color:#fff}
+.dx--win .dxa2-me{border-radius:6px;background:color-mix(in srgb,var(--x-acc) 14%,var(--x-bg2))}
+.dxa2-ai{display:flex;gap:10px;align-items:flex-start}
+.dxa2-ai__av{display:grid;place-items:center;flex:none;width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#a259ff,#5b8def);color:#fff}
+.dxa2-ai__av svg{width:14px;height:14px}
+.dxa2-ai__body{display:flex;flex:1;flex-direction:column;align-items:flex-start;gap:10px;min-width:0}
+.dxa2-hl{margin:0;padding:8px 12px;border-left:3px solid #a259ff;border-radius:4px;background:rgba(162,89,255,.1);font-weight:600}
+.dxa2-text{margin:0;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.dxa2-act{display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border:1px solid var(--x-ctl-line);border-radius:10px;background:var(--x-ctl)}
+.dxa2-act>svg{width:18px;height:18px;color:var(--x-acc)}
+.dxa2-act span{display:flex;flex:1;flex-direction:column;min-width:0}
+.dxa2-act small{color:var(--x-ink3);font-size:.86em}
+.dx--win .dxa2-act{border-radius:6px}
+.dxa2-src{font-size:.9em;color:var(--x-ink2)}
+.dxa2-src summary{cursor:default}
+.dxa2-src ul{margin:6px 0 0;padding-left:18px}
+.dx .dxa2-src button{padding:0;border:0;background:none;color:var(--x-acc);cursor:default}
+.dxa2-fb{color:var(--x-ink3)}
+.dxa2-err{margin:0;padding:8px 12px;border-radius:8px;background:var(--x-err-bg);color:var(--x-err)}
+.dxa2-typing{display:flex;gap:4px;padding:10px 0 0 38px}
+.dxa2-typing i{width:7px;height:7px;border-radius:50%;background:var(--x-ink3);animation:dxa2Dot 1.2s infinite ease-in-out}
+.dxa2-typing i:nth-child(2){animation-delay:.15s}
+.dxa2-typing i:nth-child(3){animation-delay:.3s}
+@keyframes dxa2Dot{40%{opacity:.25;transform:translateY(-3px)}}
+
+.dxa2-chips{display:flex;flex:none;gap:6px;overflow-x:auto;padding:4px max(20px,calc((100% - 760px) / 2)) 8px;scrollbar-width:none}
+.dx .dxa2-chips button{flex:none;height:28px;padding:0 12px;border:1px solid var(--x-ctl-line);border-radius:14px;background:var(--x-ctl);color:var(--x-ink);font-size:12.5px;cursor:default}
+.dx .dxa2-chips button:hover:not(:disabled){border-color:#a259ff}
+.dx .dxa2-chips button:disabled{opacity:.5}
+.dx--win .dxa2-chips button{border-radius:4px}
+.dxa2-in{display:flex;flex:none;align-items:flex-end;gap:6px;margin:0 max(20px,calc((100% - 760px) / 2)) 16px;padding:5px 5px 5px 14px;border:1px solid var(--x-ctl-line);background:var(--x-ctl)}
+.dxa2-in textarea{flex:1;min-height:30px;max-height:160px;margin:0;padding:5px 0;border:0;background:transparent;color:var(--x-ink);font:inherit;line-height:1.4;resize:none;outline:none}
+.dx .dxa2-in textarea:focus-visible{outline:none}
+.dx .dxa2-in button{display:grid;place-items:center;flex:none;width:32px;height:32px;border:0;background:linear-gradient(135deg,#a259ff,#5b8def);color:#fff;cursor:default}
+.dx .dxa2-in button:disabled{opacity:.4}
+.dxa2-in button svg{width:15px;height:15px}
+.dx--mac .dxa2-in{border-radius:20px;box-shadow:0 4px 16px rgba(0,0,0,.06)}
+.dx--mac .dxa2-in:focus-within{border-color:color-mix(in srgb,var(--x-acc) 55%,transparent);box-shadow:0 0 0 3px color-mix(in srgb,var(--x-acc) 20%,transparent)}
+.dx--mac .dxa2-in button{border-radius:50%}
+.dx--win .dxa2-in{border-bottom-color:var(--x-ctl-bottom);border-radius:6px}
+.dx--win .dxa2-in:focus-within{border-bottom-color:transparent;box-shadow:inset 0 -2px 0 var(--x-acc)}
+.dx--win .dxa2-in button{border-radius:4px}
+
+.dxa2-drafts{display:flex;flex:1;flex-direction:column;gap:10px;min-height:0;overflow:auto;padding:16px 20px}
+.dxa2-draft{padding:14px 16px;border:1px solid var(--x-ctl-line);border-radius:10px;background:var(--x-ctl)}
+.dxa2-draft header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.dxa2-draft header svg{width:16px;height:16px;color:var(--x-acc)}
+.dxa2-draft header b{flex:1}
+.dxa2-draft p{margin:0;color:var(--x-ink2);white-space:pre-wrap;user-select:text}
+.dx--win .dxa2-draft{border-radius:6px}
+.dxa2-for{margin:0 0 8px;color:var(--x-ink2)}
+.dxa2-pre{max-height:240px;margin:0;padding:10px 12px;overflow:auto;border-radius:6px;background:var(--x-fill);font:inherit;font-size:.92em;white-space:pre-wrap}

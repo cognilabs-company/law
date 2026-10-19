@@ -1,0 +1,51 @@
+/* Snippets: Notes on the Mac (a yellow-accented note list, the note as a
+   page), a OneNote-like page list on Windows. */
+
+.dxp{display:grid;grid-template-columns:minmax(240px,320px) minmax(0,1fr);flex:1;min-height:0}
+.dxp-list{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--x-sep)}
+.dxp-q{padding:4px 12px 8px}
+.dxp-scroll{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:2px 0 10px}
+.dxp-row{display:flex;flex-direction:column;gap:2px;margin:0 8px;padding:9px 12px;cursor:default;outline:none}
+.dxp-row:focus-visible{outline:2px solid var(--x-acc);outline-offset:-2px}
+.dxp-row b{display:flex;align-items:center;gap:5px;overflow:hidden;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.dxp-star{width:13px;height:13px;color:#f5b301;fill:#f5b301}
+.dxp-row small{display:-webkit-box;overflow:hidden;font-size:.9em;color:var(--x-ink2);-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.dxp-row small em{margin-right:6px;font-style:normal;font-weight:600;color:var(--x-ink)}
+.dx--mac .dxp-row{border-radius:8px}
+.dx--mac .dxp-row+.dxp-row{box-shadow:0 -1px 0 0 var(--x-sep)}
+.dx--mac .dxp-row.is-on,.dx--mac .dxp-row.is-on+.dxp-row{box-shadow:none}
+.dx--mac .dxp-row.is-on{background:#ffd52e}
+.dx--mac .dxp-row.is-on,.dx--mac .dxp-row.is-on *{color:#1d1d1f}
+html[data-theme="dark"] .dx--mac .dxp-row.is-on{background:#a8870f}
+html[data-theme="dark"] .dx--mac .dxp-row.is-on,html[data-theme="dark"] .dx--mac .dxp-row.is-on *{color:#fff}
+.dx--win .dxp{padding-left:20px}
+.dx--win .dxp-list{border-right:1px solid var(--x-layer-line)}
+.dx--win .dxp-row{position:relative;margin:2px 8px;border-radius:4px}
+.dx--win .dxp-row:hover{background:var(--x-fill)}
+.dx--win .dxp-row.is-on{background:var(--x-acc-soft)}
+.dx--win .dxp-row.is-on::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:2px;background:var(--x-acc)}
+
+.dxp-page{display:flex;flex-direction:column;min-height:0;overflow:auto;padding:28px 36px}
+.dxp-page>.dx-empty{margin:auto}
+.dxp-page__head h1{margin:0 0 8px;font-size:22px;font-weight:700;line-height:1.25;user-select:text}
+.dxp-page__head p{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 18px;color:var(--x-ink2);font-size:.92em}
+.dxp-text{flex:1;margin:0;font:inherit;font-size:1.05em;line-height:1.65;white-space:pre-wrap;user-select:text}
+.dxp-page__foot{display:flex;justify-content:flex-end;padding-top:16px}
+.dx--mac .dxp-page{background:var(--x-bg2)}
+.dx--mac .dxp-page__head h1{font-family:-apple-system,"SF Pro Display",var(--x-font)}
+.dx--win .dxp-page{margin:0 20px 20px 0;padding:24px 28px;border:1px solid var(--x-layer-line);border-radius:8px;background:var(--x-ctl)}
+
+.dxp-form{display:flex;flex:1;flex-direction:column;gap:12px}
+.dxp-form__title{padding:0 0 6px;border:0;border-bottom:1px solid var(--x-sep);background:transparent;color:var(--x-ink);font:inherit;font-size:22px;font-weight:700;outline:none}
+.dx .dxp-form__title:focus-visible{outline:none;border-bottom-color:var(--x-acc)}
+.dxp-form__title::placeholder{color:var(--x-ink3)}
+.dxp-form__row{display:flex;align-items:flex-end;gap:16px}
+.dxp-form__row>:first-child{flex:1}
+.dxp-form__row .dx-check{margin-bottom:6px}
+.dxp-cats{display:flex;flex-wrap:wrap;gap:6px}
+.dx .dxp-cats button{height:24px;padding:0 10px;border:1px solid var(--x-ctl-line);border-radius:12px;background:transparent;color:var(--x-ink2);font-size:12px;cursor:default}
+.dx .dxp-cats button.is-on{border-color:var(--x-acc);background:var(--x-acc-soft);color:var(--x-ink)}
+.dxp-form textarea{flex:1;min-height:200px}
+.dxp-hint{margin:0;font-size:.88em;color:var(--x-ink3)}
+.dxp-err{margin:0;padding:8px 10px;border-radius:6px;background:var(--x-err-bg);color:var(--x-err)}
+.dxp-form__acts{display:flex;justify-content:flex-end;gap:8px}

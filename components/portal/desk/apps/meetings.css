@@ -1,0 +1,80 @@
+/* Meetings: FaceTime on the Mac (a day-by-day list, an info pane), Teams'
+   Meet on Windows (a "live now" card over a table). */
+
+.dxk-body{display:flex;flex:1;flex-direction:column;min-height:0;overflow:auto}
+.dxk-ban{padding:10px 16px 0}
+.dxk-new{width:100%;justify-content:center}
+.dx--mac .dx-side__head .dxk-new{height:30px;margin-top:2px;border-radius:7px}
+
+.dxk-ic{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:50%;background:#8e9bb0;color:#fff}
+.dxk-ic svg{width:16px;height:16px}
+.dxk-ic--active{background:#34c759}
+.dxk-ic--scheduled{background:#0a84ff}
+.dxk-ic--cancelled,.dxk-ic--expired{background:#ff9f0a}
+.dxk-ic--big{width:64px;height:64px}
+.dxk-ic--big svg{width:28px;height:28px}
+.dx--win .dxk-ic{border-radius:6px}
+.dx--win .dxk-ic--active{background:#0f7b0f}
+.dx--win .dxk-ic--scheduled{background:var(--x-acc);color:var(--x-acc-ink)}
+
+/* The Mac's list. */
+.dxk-list{padding:4px 0 16px}
+.dxk-group h3{position:sticky;top:0;z-index:1;margin:0;padding:12px 20px 6px;background:var(--x-bg);font-size:13px;font-weight:700;color:var(--x-ink)}
+.dxk-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:12px;margin:0 10px;padding:9px 10px;border-radius:8px;cursor:default;outline:none}
+.dxk-row+.dxk-row{box-shadow:0 -1px 0 0 var(--x-sep)}
+.dxk-row:focus-visible{outline:2px solid var(--x-acc);outline-offset:-2px}
+.dxk-row.is-on,.dxk-row.is-on+.dxk-row{box-shadow:none}
+.dxk-row.is-on{background:var(--x-side-sel)}
+.dxk-row__t{display:flex;flex-direction:column;min-width:0}
+.dxk-row__t b{overflow:hidden;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.dxk-row__t small,.dxk-row__when small{overflow:hidden;font-size:.9em;color:var(--x-ink2);text-overflow:ellipsis;white-space:nowrap}
+.dxk-row__when{display:flex;flex-direction:column;align-items:flex-end;min-width:80px}
+.dxk-row__when time{font-variant-numeric:tabular-nums}
+
+.dxk-insp{display:flex;flex-direction:column;align-items:center;gap:10px;width:280px;min-height:0;padding:28px 18px 18px;overflow:auto;border-left:1px solid var(--x-sep);background:var(--x-bg2);text-align:center}
+.dxk-insp h2{margin:4px 0 0;font-size:17px;font-weight:600;line-height:1.3}
+.dxk-insp dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px;width:100%;margin:8px 0 4px;padding:12px;border-radius:10px;background:var(--x-ctl);box-shadow:var(--x-ctl-shadow);text-align:left}
+.dxk-insp dt{color:var(--x-ink3)}
+.dxk-insp dd{margin:0;font-variant-numeric:tabular-nums}
+.dxk-host{display:flex;align-items:center;gap:8px;margin:0 0 6px;color:var(--x-ink2)}
+.dxk-insp .dx-btn{width:100%;justify-content:center}
+.dxk-why{color:var(--x-ink2)}
+
+/* Windows: what is live, as cards over the table. */
+.dx--win .dxk-body{padding:0 20px 20px}
+.dxk-now{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:4px 0 14px}
+.dxk-now__card{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--x-ctl-line);border-left:3px solid #0f7b0f;border-radius:8px;background:var(--x-ctl)}
+.dxk-now__t{display:flex;flex:1;flex-direction:column;min-width:0}
+.dxk-now__t b{overflow:hidden;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.dxk-now__t small{color:var(--x-ink2)}
+.dxk-cell{display:flex;align-items:center;gap:10px;min-width:0}
+.dx-table__r .dxk-cell>span:last-child{display:flex;flex-direction:column;align-items:flex-start;gap:0;min-width:0}
+.dx-table__r .dxk-cell>span:last-child>*{max-width:100%}
+.dxk-cell b{overflow:hidden;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.dxk-cell small{overflow:hidden;font-size:.88em;color:var(--x-ink2);text-overflow:ellipsis;white-space:nowrap}
+
+/* The invitation. */
+.dxk-pick{display:flex;flex-direction:column;gap:8px}
+.dxk-chips{display:flex;flex-wrap:wrap;gap:6px}
+.dxk-chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 4px 0 4px;border-radius:14px;background:var(--x-acc-soft);font-size:.92em}
+.dx .dxk-chip button{display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--x-ink2);cursor:default}
+.dx .dxk-chip button:hover{background:var(--x-fill2);color:var(--x-ink)}
+.dxk-chip button svg{width:11px;height:11px}
+.dx--win .dxk-chip{border-radius:4px}
+.dxk-q{width:100%}
+.dxk-q input{flex:1}
+.dxk-found{display:flex;flex-direction:column;max-height:220px;overflow:auto;padding:4px;border:1px solid var(--x-ctl-line);border-radius:var(--x-r2);background:var(--x-ctl);box-shadow:0 8px 24px rgba(0,0,0,.08)}
+.dx .dxk-found button{display:flex;align-items:center;gap:10px;padding:6px 8px;border:0;border-radius:var(--x-r);background:transparent;text-align:left;cursor:default}
+.dx .dxk-found button:hover{background:var(--x-fill)}
+.dx .dxk-found button.is-on{background:var(--x-acc-soft)}
+.dxk-found button>span{display:flex;flex:1;flex-direction:column;min-width:0}
+.dxk-found b{overflow:hidden;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
+.dxk-found small{overflow:hidden;font-size:.86em;color:var(--x-ink2);text-overflow:ellipsis;white-space:nowrap}
+.dxk-found__none{margin:0;padding:10px;color:var(--x-ink2);text-align:center}
+
+/* A meeting fills the window: the meeting's fixed layer is held inside it. */
+.dxk-incall{display:flex}
+.dxk-call{position:relative;flex:1;min-height:0;contain:layout paint;transform:translateZ(0)}
+.dxk-call .mtg{position:absolute}
+.dx--mac .dxk-call .mtg__top{padding-left:124px}
+.dx-app--meets .dx-table__r{min-height:52px}
