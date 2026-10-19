@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type KeyboardEvent, type MouseEvent, type ReactNode, type RefObject } from "react";
 import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -54,7 +54,7 @@ import WorkApp, { SHORTCUT_DRAG, workShortcut } from "./apps/WorkApp";
 import type { CopilotEntity } from "@/lib/services/aiCopilot";
 import { safeRoute, type DeskLink, type SearchHit, type Shortcut, type ShortcutInput, type WindowInput } from "@/lib/services/lawyerDesktop";
 import { DESK_FRAME, setDeskMode, setDeskOs, type DeskOs } from "./deskMode";
-import { NATIVE_APPS } from "./native";
+import { NATIVE_APPS, type NativeProps } from "./native";
 import { KitMenu, KitOs } from "./kit/kit";
 import type { FromDesk, ToDesk } from "@/lib/deskBridge";
 
@@ -64,7 +64,7 @@ type IconSize = "lg" | "md" | "sm";
 type Sort = "default" | "name" | "type";
 type Saved = { wallpaper: WallpaperId; icons: IconSize; sort: Sort; pinned: string[]; wins: Omit<Win, "id" | "z" | "tick">[] };
 type Item = { kind: "app"; id: string; app: DeskApp } | { kind: "folder"; id: FolderId; apps: DeskApp[] } | { kind: "link"; id: string; sc: Shortcut; app: DeskApp };
-type Menu = { at: { x: number; y: number }; items: MenuItem[]; label: string };
+type Menu = { at: { x: number; y: number; up?: boolean }; items: MenuItem[]; label: string };
 type Note = { title: string; rows: [string, string][]; icon: ReactNode };
 
 // Each computer style keeps its own desk: wallpaper, pins, open windows.
@@ -81,6 +81,15 @@ const newId = () => `w${Date.now().toString(36)}${(seq++).toString(36)}`;
 const without = <T,>(rec: Record<string, T>, key: string): Record<string, T> => Object.fromEntries(Object.entries(rec).filter(([k]) => k !== key));
 // Where a call floats as picture-in-picture: where it was last left, kept
 // on the desk, else the bottom-right corner; a video call a little larger.
+// A native app in its window, with a `tell` that stays the same function
+// for the window's life — apps announce a call from an effect that depends
+// on it, and a new one on every desktop render would end and restart the
+// call's announcement each time.
+function NativeWindow({ app: App, id, pageRef, ...rest }: Omit<NativeProps, "tell"> & { app: ComponentType<NativeProps>; id: string; pageRef: RefObject<(id: string, d: ToDesk) => void> }) {
+  const tell = useCallback((m: ToDesk) => pageRef.current(id, m), [id, pageRef]);
+  return <App {...rest} tell={tell} />;
+}
+
 function pipBoxFor(area: Area, last: Box | null, video: boolean): Box {
   const w = last?.w ?? (video ? 360 : 320);
   const h = last?.h ?? (video ? 240 : 180);
@@ -636,13 +645,13 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
   }, [apps, folderApps, sort, t, shortcuts, appAt, byKey]);
 
   // ── menus ─────────────────────────────────────────────────────────────────
-  const openMenu = (e: MouseEvent | { clientX: number; clientY: number }, label: string, list: MenuItem[]) => {
+  const openMenu = (e: MouseEvent | { clientX: number; clientY: number; up?: boolean }, label: string, list: MenuItem[]) => {
     if ("preventDefault" in e) {
       e.preventDefault();
       e.stopPropagation();
     }
     setStart(false);
-    setMenu({ at: { x: e.clientX, y: e.clientY }, items: list, label });
+    setMenu({ at: { x: e.clientX, y: e.clientY, up: "up" in e && e.up }, items: list, label });
   };
   const relatedItems = (key: string): MenuItem[] => {
     const rel = (RELATED[key] ?? []).map((k) => byKey.get(k)).filter((a): a is DeskApp => !!a);
@@ -1091,14 +1100,16 @@ export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, o
                 </KitOs>
               ) : Native ? (
                 <KitOs value={os}>
-                  <Native
+                  <NativeWindow
                     key={frameKey}
+                    app={Native}
+                    id={w.id}
+                    pageRef={onPage}
                     base={`/portal/${role}`}
                     route={w.path || w.href}
                     onRoute={(r) => patch(w.id, { path: r })}
                     openApp={(k, r) => openApp(k, false, r ?? "")}
                     openLink={(l) => openLink(l)}
-                    tell={(m) => onPage.current(w.id, m)}
                     pip={!!w.pip}
                   />
                 </KitOs>

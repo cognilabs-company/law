@@ -61,7 +61,7 @@ export default function CallBackgroundPicker({ camOn, onClose, onPick }: { camOn
     };
     const onDown = (e: PointerEvent) => {
       const target = e.target;
-      if (!(target instanceof Element) || wrap.current?.contains(target) || target.closest(".mtg__bar")) return;
+      if (!(target instanceof Element) || wrap.current?.contains(target) || target.closest(".mtg__bar,[data-call-bar]")) return;
       closeRef.current();
     };
     document.addEventListener("keydown", onKey);

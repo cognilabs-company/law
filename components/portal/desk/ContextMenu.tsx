@@ -10,7 +10,8 @@ export type MenuItem =
 
 // The right-click menu: at the pointer, kept on screen, driven by the
 // arrow keys as well, and gone on a click elsewhere, Escape or a choice.
-export default function ContextMenu({ at, items, label, onClose }: { at: { x: number; y: number }; items: MenuItem[]; label: string; onClose: () => void }) {
+// `up` opens it above the point — for a button at the bottom of a window.
+export default function ContextMenu({ at, items, label, onClose }: { at: { x: number; y: number; up?: boolean }; items: MenuItem[]; label: string; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState(at);
 
@@ -19,7 +20,7 @@ export default function ContextMenu({ at, items, label, onClose }: { at: { x: nu
     if (!el) return;
     const r = el.getBoundingClientRect();
     const x = Math.max(6, Math.min(at.x, window.innerWidth - r.width - 6));
-    const y = at.y + r.height > window.innerHeight - 6 ? Math.max(6, at.y - r.height) : at.y;
+    const y = at.up || at.y + r.height > window.innerHeight - 6 ? Math.max(6, at.y - r.height) : at.y;
     setPos({ x, y });
     el.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus({ preventScroll: true });
   }, [at]);

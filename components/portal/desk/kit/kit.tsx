@@ -20,7 +20,7 @@ export const useOs = () => useContext(OsCtx);
 // What the desktop lends an app: its right-click menu (drawn by the
 // desktop, in its style), and from the window around it, dragging that
 // window by the app's own toolbar (the Mac's unified title bar).
-export type DeskMenu = (e: MouseEvent | { clientX: number; clientY: number }, label: string, items: MenuItem[]) => void;
+export type DeskMenu = (e: MouseEvent | { clientX: number; clientY: number; up?: boolean }, label: string, items: MenuItem[]) => void;
 const MenuCtx = createContext<DeskMenu | null>(null);
 export const KitMenu = MenuCtx.Provider;
 type WinCtl = { drag: (e: PointerEvent<HTMLElement>) => void; zoom: () => void };

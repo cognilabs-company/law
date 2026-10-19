@@ -10,6 +10,7 @@ import { makeInviteSearch } from "@/lib/inviteSearch";
 import { regionLabel } from "@/lib/labels";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import CallRoom from "@/components/chat/CallRoom";
+import DeskCall from "./call/DeskCall";
 import { IconAlert, IconCalendar, IconClock, IconClose, IconPhone, IconPlus, IconRefresh, IconSearch, IconVideo } from "@/components/icons";
 import { App, Avatar, Banner, Btn, Dialog, Empty, Field, Input, Loading, Sidebar, Spinner, Table, Tag, Tool, Toolbar, useOs, useToast, type Col, type NavSection, type Tone } from "../kit/kit";
 import type { NativeProps } from "../native";
@@ -154,7 +155,7 @@ export default function MeetingsApp({ tell, pip }: NativeProps) {
     return (
       <div className={`dx dx--${os} dx-app--meets dxk-incall${pip ? " is-pip" : ""}`} data-os={os}>
         <div className="dxk-call">
-          <CallRoom roomId={active.roomId} callId={active.callId} callType={active.callType} isCaller={active.isCaller} title={active.title} lk={active.lk} onEnd={() => setActive(null)} />
+          <CallRoom roomId={active.roomId} callId={active.callId} callType={active.callType} isCaller={active.isCaller} title={active.title} lk={active.lk} skin={DeskCall} onEnd={() => setActive(null)} />
         </div>
       </div>
     );

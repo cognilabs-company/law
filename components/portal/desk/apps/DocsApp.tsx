@@ -13,6 +13,8 @@ import { humanizeSlug } from "@/lib/lawyers";
 import { IconAlert, IconBriefcase, IconCheck, IconClipboardCheck, IconDownload, IconEdit, IconFileText, IconInbox, IconLayers, IconPaperclip, IconPhone, IconRefresh, IconTag, IconUpload, IconUser } from "@/components/icons";
 import { App, Banner, Btn, Empty, Field, Loading, Search, Sidebar, Tag, TextArea, Tool, Toolbar, useOs, useToast, type NavSection } from "../kit/kit";
 import type { NativeProps } from "../native";
+import DocumentEditorWorkspace from "@/components/portal/DocumentEditorWorkspace";
+import DeskEditor, { EditorBack } from "./editor/DeskEditor";
 import "./docs.css";
 
 // Document requests as a desktop program, a work queue: new requests from
@@ -31,17 +33,16 @@ export default function DocsApp(props: NativeProps) {
   return <Queue {...props} />;
 }
 
-// A record's editor, in this window, with the way back to the queue. The
-// editor itself is the cabinet's document workspace.
+// A record's editor, in this window, with the way back to the queue: the
+// cabinet's document workspace, drawn as this desktop's Word or Pages.
 function EditorWindow({ route, base, openApp }: NativeProps) {
   const d = useTranslations("portal.desk.docs");
-  const locale = useLocale();
-  const os = useOs();
+  const recordId = decodeURIComponent(/\/document-requests\/([^/?#]+)\/editor/.exec(route)?.[1] ?? "");
+  const lawyer = base.endsWith("/lawyer");
   return (
-    <App name="docs-editor">
-      <Toolbar title={d("editorTitle")} back={{ label: d("back"), onClick: () => openApp("documentRequests", `${base}/document-requests`) }} />
-      <iframe className="dxd-editor" name={`lexgo-desk:${os}:docs-editor`} src={`/${locale}${route}`} title={d("editorTitle")} />
-    </App>
+    <EditorBack.Provider value={{ label: d("back"), go: () => openApp("documentRequests", `${base}/document-requests`) }}>
+      <DocumentEditorWorkspace key={recordId} ns={lawyer ? "portal.lawyer.documentRequests" : "portal.advocate.documentRequests"} recordId={recordId} backHref={`${base}/document-requests`} skin={DeskEditor} />
+    </EditorBack.Provider>
   );
 }
 

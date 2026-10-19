@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ComponentType, type ReactNode, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import {
   Room,
@@ -58,7 +58,7 @@ import { backoffMs, refreshAccessToken } from "@/lib/http";
 import { useAuth, canMakeCalls } from "@/lib/auth";
 import { initials } from "@/lib/lawyers";
 import { makeInviteSearch, type InviteSearch } from "@/lib/inviteSearch";
-import SearchSelect from "@/components/SearchSelect";
+import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
 import { playRingback, playEndTone, playJoinTone, playLeaveTone, playRecTone, primeCallAudio } from "@/lib/callSounds";
 import { MeetingRecorder, canRecord, canRecordScreen, saveRecording, type RecordingFile, type RecordingMode } from "@/lib/meetingRecorder";
 import { useFlip } from "@/lib/useFlip";
@@ -92,6 +92,10 @@ type Props = {
   // empty room after the other side hung up.
   keepAlone?: boolean;
   aiScope?: string;
+  // Draw the call with another screen — the virtual desktop's own Windows
+  // and macOS call windows. The room, its media and every rule stay here;
+  // the skin only draws what it is handed and calls the actions back.
+  skin?: ComponentType<{ v: CallView; refs: CallRefs }>;
   onEnd: () => void;
 };
 
@@ -100,17 +104,17 @@ const FLOAT_MIN_H = 190;
 type FloatBox = { right: number; bottom: number; w: number; h: number };
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-type ChatMsg = { id: string; from: string; name: string; text: string; at: number; system?: boolean };
-type Toast = { id: number; text: string; kind: "join" | "leave" | "info" };
+export type ChatMsg = { id: string; from: string; name: string; text: string; at: number; system?: boolean };
+export type Toast = { id: number; text: string; kind: "join" | "leave" | "info" };
 // A client's pending "may I record?" (approver side) / my own request (requester side).
-type RecAsk = { id: string; name: string; mode: RecordingMode; at: number };
-type RecReq = { mode: RecordingMode; left: number };
+export type RecAsk = { id: string; name: string; mode: RecordingMode; at: number };
+export type RecReq = { mode: RecordingMode; left: number };
 // FULL_DOCS §23 L887-891 wants a client-side confirm/cancel for a paid
 // extension. Both answers are keyed by the request they belong to, so a second
 // request after a first one lapsed starts with a clean card instead of
 // inheriting the previous decision — `mine` is this side's press, `peer` is
 // what the other side said over the data channel.
-type ExtAnswer = { id: string; mine?: "yes" | "no"; peer?: "yes" | "no" };
+export type ExtAnswer = { id: string; mine?: "yes" | "no"; peer?: "yes" | "no" };
 type SayTone = "success" | "info" | "warning" | "error";
 
 function say(tone: SayTone, text: string, opts: NotifyOptions = {}): void {
@@ -303,11 +307,62 @@ let mountedRooms = 0;
 export function isCallRoomMounted(): boolean { return mountedRooms > 0; }
 export { CALLROOM_EVENT };
 
+// Everything a skin needs to draw a call: the state, the people, the
+// overlays' data and the actions. The refs (handed separately) must be attached — the room's
+// audio goes into `audio`, the recorder films `stage`, and `grid`/`strip`
+// animate tiles moving.
+export type CallRefs = { root: RefObject<HTMLDivElement | null>; top: RefObject<HTMLElement | null>; audio: RefObject<HTMLDivElement | null>; stage: RefObject<HTMLElement | null>; grid: RefObject<HTMLDivElement | null>; strip: RefObject<HTMLDivElement | null>; chatEnd: RefObject<HTMLDivElement | null> };
+export type CallView = {
+  title: string;
+  status: "connecting" | "ringing" | "live" | "ended" | "error";
+  statusLabel: string;
+  mmss: (s: number) => string;
+  elapsed: number;
+  remaining: number | null;
+  paused: boolean;
+  video: boolean;
+  isCaller: boolean;
+  selfId: string;
+  participants: Participant[];
+  count: number;
+  stage: Participant | null;
+  stageIsShare: boolean;
+  strip: Participant[];
+  nameOf: (p: Participant) => string;
+  isRecording: (p: Participant) => boolean;
+  mirror: boolean;
+  layout: "grid" | "speaker";
+  setLayout: (v: "grid" | "speaker") => void;
+  pin: (identity: string) => void;
+  panel: "" | "chat" | "people";
+  openPanel: (p: "" | "chat" | "people") => void;
+  toasts: Toast[];
+  audioBlocked: boolean;
+  enableSound: () => void;
+  guard: { shielded: boolean; reason: GuardTrip | ""; captured: boolean };
+  wmLabel: string;
+  declinedName: string;
+  roster: CallParticipant[];
+  perms: CallPermissions | null;
+  mute: (userId: string, mute: boolean) => void;
+  kick: (userId: string) => void;
+  rec: { can: boolean; canScreen: boolean; on: boolean; label: string; byNames: string[]; mode: RecordingMode; file: RecordingFile | null; url: string; save: () => void; dismiss: () => void; picking: boolean; setPicking: (v: boolean) => void; toggle: (mode?: RecordingMode) => void; req: RecReq | null; cancelReq: () => void; asks: RecAsk[]; answer: (id: string, ok: boolean) => void };
+  ext: { can: boolean; open: boolean; setOpen: (v: boolean) => void; minutes: number; setMinutes: (n: number) => void; price: number; free: number; extendFree: () => void; extendPaid: () => void; busy: boolean; pending: { minutes: number; amount: number } | null; isPayer: boolean; answer: ExtAnswer; left: number; hasDeadline: boolean; respond: (ok: boolean) => void };
+  pause: { show: boolean; busy: boolean; toggle: () => void; minutes: number };
+  chat: { messages: ChatMsg[]; draft: string; setDraft: (v: string) => void; send: () => void; unread: number };
+  invite: { picks: string[]; setPicks: (v: string[]) => void; search: (q: string) => Promise<SearchOption[]>; send: () => void; busy: boolean };
+  mic: { on: boolean; toggle: () => void; hostMuted: boolean };
+  cam: { control: boolean; on: boolean; toggle: () => void; busy: boolean; upgrade: boolean; canSwitch: boolean; switchCam: () => void };
+  bg: { ok: boolean; open: boolean; setOpen: (v: boolean) => void; active: boolean; pick: (e: BgEffect) => void; close: () => void };
+  share: { can: boolean; on: boolean; toggle: () => void };
+  hangUp: () => void;
+};
+
 // In-app audio/video meeting over LiveKit (managed SFU + coturn on the
 // backend). Everything stays inside LexGo: a tile per participant with name,
 // mic state and speaking ring, screen share on a stage, in-call chat over the
 // LiveKit data channel, and host controls from the backend roster.
-export default function CallRoom({ roomId, callId, callType, isCaller, title, lk, float, keepAlone: keepAloneProp, aiScope, onEnd }: Props) {
+export default function CallRoom({ roomId, callId, callType, isCaller, title, lk, float, keepAlone: keepAloneProp, aiScope, skin, onEnd }: Props) {
   const t = useTranslations("call");
   const te = useTranslations("enums");
   const tn = useTranslations("common.notify");
@@ -604,7 +659,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     setBgEffect(next);
     syncBg();
   }, [syncBg]);
-  const closeBg = useCallback(() => setBgOpen(false), []);
+  const closeBg = useCallback(() => setBgOpen(false), [setBgOpen]);
   useEffect(() => {
     setBgOwner(session?.id ?? null);
   }, [session?.id]);
@@ -1584,7 +1639,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
     const r = roomRef.current;
     const text = draft.trim();
     if (!r || !text) return;
-    const at = Date.now();
+    const at = stamp();
     r.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ t: "chat", text, at })), { reliable: true }).catch(() => {});
     setMessages((m) => [...m, { id: `me-${at}`, from: r.localParticipant.identity, name: t("you"), text, at }]);
     setDraft("");
@@ -2021,6 +2076,103 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // the answer over the data channel.
   const showPause = canPause && !(paused && !!pendExt && extFor.peer !== "no");
   const aiAt = (part?: string) => (aiScope ? (part ? `${aiScope}.${part}` : aiScope) : undefined);
+
+  const Skin = skin;
+  if (Skin)
+    return (
+      <Skin
+        refs={{ root: rootRef, top: topRef, audio: audioRef, stage: stageRef, grid: gridRef, strip: stripRef, chatEnd: chatEndRef }}
+        v={{
+      title: title || t("meetingTitle"),
+      status,
+      statusLabel,
+      mmss,
+      elapsed,
+      remaining,
+      paused,
+      video: videoAllowed,
+      isCaller,
+      selfId: room?.localParticipant.identity ?? "",
+      participants,
+      count,
+      stage: stageP,
+      stageIsShare,
+      strip,
+      nameOf,
+      isRecording,
+      mirror,
+      layout: view,
+      setLayout: setView,
+      pin: (id) => {
+        setPinned(id);
+        setView("speaker");
+      },
+      panel,
+      openPanel,
+      toasts,
+      audioBlocked,
+      enableSound: () => void enableSound(),
+      guard,
+      wmLabel,
+      declinedName: declined.length && count <= 1 ? roster.find((p) => p.userId === declined[0])?.name || t("someone") : "",
+      roster: activeRoster,
+      perms,
+      mute: (id, m) => void muteParticipant(id, m),
+      kick: (id) => void kickParticipant(id),
+      rec: {
+        can: canRecord(),
+        canScreen: canRecordScreen(),
+        on: recOn,
+        label: recLabel,
+        byNames: recByNames,
+        mode: recMode,
+        file: recFile,
+        url: recUrl,
+        save: () => void saveRec(),
+        dismiss: () => {
+          setRecFile(null);
+          if (recUrl) {
+            URL.revokeObjectURL(recUrl);
+            setRecUrl("");
+          }
+        },
+        picking: recPick,
+        setPicking: setRecPick,
+        toggle: (m) => void toggleRec(m),
+        req: recReq,
+        cancelReq: cancelRecReq,
+        asks: recAsks,
+        answer: (id, ok) => void answerRecAsk(id, ok),
+      },
+      ext: {
+        can: canExtend,
+        open: extOpen,
+        setOpen: setExtOpen,
+        minutes: extMinutes,
+        setMinutes: setExtMinutes,
+        price: limits?.paidExtensionPricePerMinute || 2000,
+        free: canExtend && limits?.freeExtensionAvailable && !limits.freeExtensionUsed ? limits.freeExtensionMaxMinutes || 3 : 0,
+        extendFree: () => void extendFree(),
+        extendPaid: () => void extendPaid(),
+        busy: extBusy,
+        pending: pendExt ? { minutes: pendExt.minutes, amount: pendExt.amount } : null,
+        isPayer,
+        answer: extFor,
+        left: extLeft,
+        hasDeadline: !!extDeadline,
+        respond: answerExtension,
+      },
+      pause: { show: showPause, busy: pauseBusy, toggle: () => void togglePause(), minutes: PAUSE_MINUTES },
+      chat: { messages, draft, setDraft, send: sendChat, unread },
+      invite: { picks: invitePicks, setPicks: setInvitePicks, search: inviteSearch, send: () => void sendInvites(), busy: inviteBusy },
+      mic: { on: micOn, toggle: () => void toggleMic(), hostMuted },
+      cam: { control: camControl, on: camOn, toggle: () => void toggleCam(), busy: camBusy, upgrade: canUpgradeToVideo, canSwitch: videoAllowed && camOn && canSwitchCam, switchCam: () => void switchCam() },
+      bg: { ok: camControl && bgOk, open: bgOpen, setOpen: (o) => setBgOpen(o), active: bgEffect.kind !== "none", pick: pickBg, close: closeBg },
+      share: { can: canShare, on: sharing, toggle: () => void toggleShare() },
+      hangUp: () => void hangUp(),
+        }}
+      />
+    );
 
   return (
     <div

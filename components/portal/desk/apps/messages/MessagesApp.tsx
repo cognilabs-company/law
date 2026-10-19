@@ -9,6 +9,7 @@ import { CALL_LINK_RE, isMachineFileName, maskContacts } from "@/lib/chatFilter"
 import { canRecordVoice } from "@/lib/voiceRecorder";
 import { roomOrderLock, subscribeOrderLock } from "@/components/marketplace/order/lock";
 import CallRoom from "@/components/chat/CallRoom";
+import DeskCall from "../call/DeskCall";
 import { getLawyerClients, getUrgentRequest, listAssignedUrgentRequests, listLawyers, listMyUrgentRequests, listSecureChats, mergeSecureRoom, normSecureRoom, type SecureRoom, type UrgentRequest } from "@/lib/services/backend";
 import { IconAlert, IconChat, IconCheck, IconClock, IconClose, IconCopy, IconLock, IconMic, IconMoreHorizontal, IconPaperclip, IconPhone, IconReply, IconSend, IconShieldCheck, IconSparkle, IconTag, IconTrash, IconUsers, IconVideo } from "@/components/icons";
 import { Avatar, Btn, Dialog, Empty, Loading, Search, Spinner, TextArea, useConfirm, useHost, useOs, useToast } from "../../kit/kit";
@@ -276,7 +277,14 @@ export default function MessagesApp({ base, route, onRoute, openApp, tell, pip }
   );
 }
 
-function Conversation({ roomId, room, title, urgentId, service, workId, join, pip, tell, openOrder, onGone }: { roomId: string; room: SecureRoom | null; title: string; urgentId: string; service: string; workId: string; join: string; pip: boolean; tell: NativeProps["tell"]; openOrder?: () => void; onGone: () => void }) {
+// A conversation inside another program's pane (the editor's Chat tab):
+// the bubbles and the composer, no header and no calls of its own.
+const quiet = () => undefined;
+export function ChatPane({ roomId, title }: { roomId: string; title: string }) {
+  return <Conversation roomId={roomId} room={null} title={title} urgentId="" service="" workId="" join="" pip={false} tell={quiet} onGone={quiet} pane />;
+}
+
+function Conversation({ roomId, room, title, urgentId, service, workId, join, pip, tell, openOrder, onGone, pane }: { roomId: string; room: SecureRoom | null; title: string; urgentId: string; service: string; workId: string; join: string; pip: boolean; tell: NativeProps["tell"]; openOrder?: () => void; onGone: () => void; pane?: boolean }) {
   const t = useTranslations("secureChat");
   const d = useTranslations("portal.desk.messages");
   const locale = useLocale();
@@ -444,19 +452,19 @@ function Conversation({ roomId, room, title, urgentId, service, workId, join, pi
       ...(m.failed && m.messageType === "text" ? [{ id: "again", label: d("resend"), icon: <IconSend />, onSelect: () => void chat.send(m.filteredContent, null) }] : []),
     ]);
   };
-  const calls = canMakeCalls(session) && !callsOff;
+  const calls = !pane && canMakeCalls(session) && !callsOff;
   const sub = chat.conn === "online" ? [service, workId ? `#${workId}` : ""].filter(Boolean).join(" · ") || t("secured") : chat.conn === "connecting" ? t("connecting") : t("offline");
   const drag = (e: React.PointerEvent<HTMLElement>) => !(e.target as HTMLElement).closest("button,input,textarea,a") && dragWindow?.(e);
 
   if (call && session)
     return (
       <div className={`dxm-call${pip ? " is-pip" : ""}`}>
-        <CallRoom roomId={roomId} callId={call.callId} callType={call.callType} isCaller={call.isCaller} lk={call.lk} title={title} onEnd={() => chat.setActive(null)} />
+        <CallRoom roomId={roomId} callId={call.callId} callType={call.callType} isCaller={call.isCaller} lk={call.lk} title={title} skin={DeskCall} onEnd={() => chat.setActive(null)} />
       </div>
     );
 
   return (
-    <section className="dxm-conv" aria-label={title}>
+    <section className={`dxm-conv${pane ? " is-pane" : ""}`} aria-label={title}>
       <header className="dxm-head" onPointerDown={drag} onDoubleClick={(e) => !(e.target as HTMLElement).closest("button") && zoomWindow?.()}>
         {os === "win" ? <Avatar name={title} size={32} /> : null}
         <div className="dxm-head__t">
@@ -483,7 +491,7 @@ function Conversation({ roomId, room, title, urgentId, service, workId, join, pi
         </div>
       </header>
 
-      {chat.incoming && !call ? (
+      {chat.incoming && !call && !pane ? (
         <div className="dxm-ring" role="alert">
           <span className="dxm-ring__ic">{chat.incoming.callType === "video" ? <IconVideo /> : <IconPhone />}</span>
           <span className="dxm-ring__t">

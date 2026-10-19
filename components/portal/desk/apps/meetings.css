@@ -75,6 +75,4 @@
 /* A meeting fills the window: the meeting's fixed layer is held inside it. */
 .dxk-incall{display:flex}
 .dxk-call{position:relative;flex:1;min-height:0;contain:layout paint;transform:translateZ(0)}
-.dxk-call .mtg{position:absolute}
-.dx--mac .dxk-call .mtg__top{padding-left:124px}
 .dx-app--meets .dx-table__r{min-height:52px}

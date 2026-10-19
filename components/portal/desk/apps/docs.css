@@ -43,7 +43,6 @@
 .dxd-file{display:flex;align-items:center;gap:10px}
 .dxd-file>span{display:inline-flex;align-items:center;gap:6px;min-width:0;color:var(--x-ink2)}
 .dxd-file svg{width:13px;height:13px}
-.dxd-editor{flex:1;width:100%;min-height:0;border:0;background:var(--x-bg)}
 .dx--mac .dxd-facts,.dx--mac .dxd-box{border-radius:10px;background:var(--x-bg2);box-shadow:inset 0 0 0 .5px var(--x-sep)}
 html[data-theme="dark"] .dx--mac .dxd-facts,html[data-theme="dark"] .dx--mac .dxd-box{background:rgba(255,255,255,.04)}
 .dx--win .dxd-detail{padding:8px 24px 24px}

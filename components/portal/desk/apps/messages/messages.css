@@ -199,5 +199,8 @@ html[data-theme="dark"] .dx--mac .dxm-msg:not(.is-me) .dxm-voice__b>svg{color:#3
 
 /* A call fills the window: the meeting's fixed layer is held inside it. */
 .dxm-call{position:relative;flex:1;min-height:0;contain:layout paint;transform:translateZ(0)}
-.dxm-call .mtg{position:absolute}
-.dx--mac .dxm-call .mtg__top{padding-left:124px}
+/* A call takes the whole window: the conversations step aside. */
+.dx-app--messages:has(.dxm-call){grid-template-columns:minmax(0,1fr)}
+.dx-app--messages:has(.dxm-call) .dxm-side{display:none}
+/* In another program's pane: that pane has its own header. */
+.dxm-conv.is-pane .dxm-head{display:none}

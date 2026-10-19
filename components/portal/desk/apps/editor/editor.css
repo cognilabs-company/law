@@ -1,0 +1,154 @@
+/* The document editor window (DeskEditor.tsx): Word on Windows, Pages on
+   the Mac. */
+.dx-app--editor{container:dxe/inline-size}
+.dx-app--editor .dx-main{background:var(--x-bg)}
+.dxe-sub{margin:-4px 0 0;padding:0 20px 8px;color:var(--x-ink2);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dxe-status{display:inline-flex;align-items:center;gap:8px;flex:none}
+.dxe-save{display:inline-flex;align-items:center;gap:5px;color:var(--x-ink2);font-size:12px;white-space:nowrap}
+.dxe-save svg{width:13px;height:13px}
+.dxe-save.is-saved svg{color:var(--x-ok)}
+.dxe-save.is-error{color:var(--x-err)}
+
+/* ── the page ────────────────────────────────────────────────────────── */
+/* Under the toolbar: the page, and the inspector beside it (Word's panes
+   and Pages' inspector both sit below the toolbar, not beside it). */
+.dxe-body{position:relative;display:flex;flex:1;min-height:0;overflow:clip;border-top:1px solid var(--x-sep)}
+.dx--win .dxe-body{gap:8px;padding:0 8px 8px;border-top:0}
+.dxe-page{position:relative;display:flex;flex-direction:column;flex:1;min-width:0;min-height:0;overflow:hidden;background:var(--x-bg2)}
+.dx--win .dxe-page{border:1px solid var(--x-layer-line,var(--x-sep));border-radius:8px;background:var(--x-layer,var(--x-bg2))}
+.dxe-oo,.dxe-page>iframe{flex:1;width:100%;min-height:0;border:0}
+.dxe-page>.dx-empty,.dxe-page>.dx-loading{margin:auto}
+.dxe-acts{display:flex;flex-wrap:wrap;gap:8px}
+.dx-empty .dxe-acts{justify-content:center}
+
+/* How to start: Word's "New" gallery, Pages' template chooser. */
+.dxe-start{display:flex;flex-direction:column;gap:22px;width:min(760px,100%);margin:auto;padding:28px}
+.dxe-start header h2{margin:0 0 4px;font-size:20px;font-weight:600}
+.dx--mac .dxe-start header{text-align:center}
+.dxe-start header p{margin:0;color:var(--x-ink2)}
+.dxe-start__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}
+.dx .dxe-opt{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:12px 12px 14px;border:1px solid var(--x-ctl-line);border-radius:var(--x-r2);background:var(--x-ctl);text-align:left;cursor:default;transition:border-color .12s,box-shadow .12s,background .12s}
+.dx .dxe-opt:hover:not(:disabled){border-color:var(--x-acc);box-shadow:0 0 0 1px var(--x-acc)}
+.dx .dxe-opt:disabled{opacity:.5}
+.dx--mac .dxe-opt{align-items:center;text-align:center;border:0;background:none;box-shadow:none}
+.dx--mac .dxe-opt:hover:not(:disabled){box-shadow:none}
+.dx--mac .dxe-opt:hover:not(:disabled) .dxe-opt__art{box-shadow:0 0 0 3px var(--x-acc)}
+.dxe-opt b{font-size:14px;font-weight:600}
+.dxe-opt small{color:var(--x-ink2);font-size:12px;line-height:1.4}
+.dxe-opt__art{display:grid;place-items:center;align-self:stretch;height:132px;margin-bottom:6px;border-radius:6px;background:linear-gradient(160deg,var(--x-acc-soft),transparent 70%),var(--x-fill);transition:box-shadow .12s}
+.dx--mac .dxe-opt__art{border-radius:8px}
+.dxe-opt__sheet{position:relative;display:grid;place-items:center;width:78px;height:100px;border-radius:3px;background:#fff;color:var(--x-acc);box-shadow:0 1px 3px rgba(0,0,0,.18),0 6px 16px rgba(0,0,0,.08)}
+.dxe-opt__sheet::before{content:"";position:absolute;left:12px;right:12px;top:14px;height:30px;background:repeating-linear-gradient(rgba(0,0,0,.12) 0 2px,transparent 2px 7px)}
+.dxe-opt__sheet svg{position:relative;top:16px;width:24px;height:24px}
+.dxe-opt__art.is-ai_draft .dxe-opt__sheet{color:#8e5cf7}
+.dxe-opt__art.is-upload .dxe-opt__sheet{color:var(--x-ok)}
+.dxe-opt.is-rec .dxe-opt__art{box-shadow:0 0 0 2px var(--x-acc)}
+
+/* ── the request (sidebar) ───────────────────────────────────────────── */
+.dx-app--editor .dxe-side{--x-side-w:280px;overflow:auto}
+.dx--win.dx-app--editor .dxe-side{--x-side-w:290px}
+.dxe-side__in{display:flex;flex-direction:column;gap:16px;padding:6px 16px 20px}
+.dxe-client{display:flex;align-items:center;gap:10px}
+.dxe-client>span{display:flex;flex-direction:column;min-width:0}
+.dxe-client b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:600}
+.dxe-client a,.dxe-client small{display:inline-flex;align-items:center;gap:5px;color:var(--x-acc);font-size:12px;text-decoration:none}
+.dxe-client small{color:var(--x-ink3)}
+.dxe-client svg{width:12px;height:12px}
+.dxe-when{display:flex;align-items:center;gap:6px;margin:-8px 0 0;color:var(--x-ink3);font-size:12px}
+.dxe-when svg{width:13px;height:13px}
+.dxe-sec{display:flex;flex-direction:column;gap:8px}
+.dxe-sec h3{display:flex;align-items:center;gap:6px;margin:0;color:var(--x-ink2);font-size:11px;font-weight:600;letter-spacing:.02em;text-transform:uppercase}
+.dx--win .dxe-sec h3{text-transform:none;letter-spacing:0;font-size:13px;color:var(--x-ink)}
+.dxe-sec h3 svg{width:14px;height:14px}
+.dxe-need{margin:0;padding:10px 12px;border-radius:var(--x-r2);background:var(--x-fill);font-size:13px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
+.dx--win .dxe-need{border-left:3px solid var(--x-acc);border-radius:4px}
+.dxe-facts{display:flex;flex-direction:column;gap:6px;margin:0}
+.dxe-facts div{display:flex;flex-direction:column;gap:1px}
+.dxe-facts dt{color:var(--x-ink3);font-size:11px}
+.dxe-facts dd{margin:0;font-size:13px;overflow-wrap:anywhere;user-select:text}
+.dxe-n{min-width:18px;padding:0 6px;border-radius:9px;background:var(--x-fill2);color:var(--x-ink2);font-size:11px;text-align:center;text-transform:none}
+
+/* ── the inspector ───────────────────────────────────────────────────── */
+.dxe-insp{display:flex;flex-direction:column;flex:none;width:340px;min-height:0;overflow:hidden;border-left:1px solid var(--x-sep);background:var(--x-bg2)}
+.dx--win .dxe-insp{border:1px solid var(--x-layer-line,var(--x-sep));border-radius:8px;background:var(--x-layer,var(--x-bg2))}
+.dxe-insp__h{display:flex;align-items:center;gap:6px;flex:none;padding:10px 12px}
+.dx .dxe-insp__x{display:grid;place-items:center;flex:none;width:26px;height:26px;border:0;border-radius:var(--x-r);background:none;color:var(--x-ink2)}
+.dx .dxe-insp__x:hover{background:var(--x-fill)}
+.dxe-insp__x svg{width:13px;height:13px}
+.dxe-insp__h .dx-seg{flex:1;min-width:0}
+.dxe-insp__h .dx-seg button{flex:1 1 auto;min-width:0;overflow:hidden}
+.dx--win .dxe-insp__h .dx-seg button{padding:0 6px;font-size:13px}
+.dx--win .dxe-insp{width:370px}
+.dxe-insp__h .dx-seg button span{overflow:hidden;text-overflow:ellipsis}
+.dxe-insp__b{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto}
+.dxe-insp__b.is-chat{overflow:hidden}
+.dxe-insp__b.is-chat .dxm-conv{flex:1;min-height:0;border:0}
+.dxe-insp__b>.dx-empty{margin:auto}
+.dxe-pane{display:flex;flex-direction:column;gap:14px;padding:4px 14px 16px}
+.dxe-card{display:flex;align-items:center;gap:12px;padding:12px;border-radius:var(--x-r2);background:var(--x-fill)}
+.dxe-card>span:last-child{display:flex;flex-direction:column;gap:2px;min-width:0}
+.dxe-card b{font-size:13px;font-weight:600}
+.dxe-card small{color:var(--x-ink2);font-size:12px;line-height:1.4}
+.dxe-card__ic{display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:50%;background:var(--x-fill2);color:var(--x-ink2)}
+.dxe-card__ic svg{width:18px;height:18px}
+.dxe-card.is-live .dxe-card__ic{background:var(--x-ok);color:#fff}
+.dxe-card.is-idle .dxe-card__ic{background:var(--x-acc);color:var(--x-acc-ink,#fff)}
+.dxe-pane>.dx-btn{align-self:stretch;justify-content:center}
+.dxe-people{display:flex;flex-direction:column;gap:2px;margin:0;padding:0;list-style:none}
+.dxe-people li{display:flex;align-items:center;gap:8px;padding:4px 2px;font-size:13px}
+.dxe-muted{display:flex;align-items:flex-start;gap:6px;margin:0;color:var(--x-ink2);font-size:12px;line-height:1.45}
+.dxe-muted svg{flex:none;width:14px;height:14px;margin-top:1px}
+.dxe-vers{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.dxe-vers li{position:relative;display:flex;gap:12px;padding:0 0 16px}
+.dxe-vers li:not(:last-child)::after{content:"";position:absolute;left:15px;top:32px;bottom:2px;width:2px;background:var(--x-sep)}
+.dxe-vers li>span:last-child{display:flex;flex-direction:column;gap:2px;padding-top:6px}
+.dxe-vers b{font-size:13px;font-weight:600}
+.dxe-vers small{color:var(--x-ink2);font-size:12px}
+.dxe-vers__ic{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:50%;background:var(--x-fill2);color:var(--x-ink3)}
+.dxe-vers li.is-ok .dxe-vers__ic{background:var(--x-ok);color:#fff}
+.dxe-vers__ic svg{width:15px;height:15px}
+.dxe-ids{display:flex;flex-direction:column;gap:10px;margin:0}
+.dxe-ids div{display:flex;flex-direction:column;gap:2px}
+.dxe-ids dt{color:var(--x-ink3);font-size:11px}
+.dxe-ids dd{margin:0}
+.dxe-ids code{font:12px/1.4 ui-monospace,"SF Mono","Cascadia Mono",Consolas,monospace;overflow-wrap:anywhere;user-select:text}
+
+/* ── the meeting, floating over the document ────────────────────────── */
+.dxe-call{position:absolute;right:16px;bottom:16px;z-index:20;width:380px;height:250px;overflow:hidden;border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.35),0 0 0 1px rgba(0,0,0,.2);contain:layout paint;transform:translateZ(0);transition:width .2s,height .2s}
+.dx--win .dxe-call{border-radius:8px}
+.dxe-call.is-big{width:min(720px,calc(100% - 32px));height:min(460px,calc(100% - 32px))}
+.dx .dxe-call__size{position:absolute;right:8px;bottom:8px;z-index:30;display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;backdrop-filter:blur(10px)}
+.dx .dxe-call__size:hover{background:rgba(0,0,0,.75)}
+.dxe-call__size svg{width:14px;height:14px}
+.dxe-call .dxc-dock{bottom:10px}
+/* No traffic lights to clear inside the document window. */
+.dx--mac .dxe-call .dxc-top{padding-left:14px}
+.dxe-call .dxc-tile.is-self{right:44px}
+
+/* ── dialogs ─────────────────────────────────────────────────────────── */
+.dxe-src{display:flex;flex-direction:column;gap:6px}
+.dx .dxe-src__o{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--x-ctl-line);border-radius:var(--x-r2);background:var(--x-ctl);text-align:left;cursor:default}
+.dx .dxe-src__o:hover:not(:disabled){background:var(--x-fill)}
+.dx .dxe-src__o.is-on{border-color:var(--x-acc);background:var(--x-acc-soft)}
+.dx .dxe-src__o:disabled{opacity:.5}
+.dxe-src__ic{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:8px;background:var(--x-fill2);color:var(--x-acc)}
+.dxe-src__ic svg{width:16px;height:16px}
+.dxe-src__t{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.dxe-src__t b{font-size:13px;font-weight:600}
+.dxe-src__t small{color:var(--x-ink2);font-size:12px}
+.dxe-src__ok{width:16px;height:16px;color:var(--x-acc)}
+.dxe-src__lock{width:14px;height:14px;color:var(--x-ink3)}
+.dxe-file{display:flex;align-items:center;gap:10px;min-width:0}
+.dxe-file>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--x-ink2);font-size:12px}
+
+/* A narrower window: the panes float over the page instead of squeezing
+   it — the inspector first, then the request. */
+@container dxe (max-width:1240px){
+  .dxe-insp{position:absolute;top:0;right:0;bottom:0;z-index:15;box-shadow:-12px 0 32px rgba(0,0,0,.18)}
+  .dx--win .dxe-insp{top:0;right:8px;bottom:8px;background:var(--x-bg)}
+  .dx--mac .dxe-insp{background:var(--x-bg)}
+}
+@container dxe (max-width:860px){
+  .dxe-side{position:absolute;top:0;left:0;bottom:0;z-index:14;box-shadow:12px 0 32px rgba(0,0,0,.18)}
+  .dx--win .dxe-side{background:var(--x-bg)}
+}

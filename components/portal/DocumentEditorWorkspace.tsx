@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -79,9 +79,9 @@ declare global {
   }
 }
 
-type RightTab = "chat" | "meeting" | "versions" | "info";
+export type RightTab = "chat" | "meeting" | "versions" | "info";
 type EditorState = "loading" | "ready" | "needsClaim" | "error";
-type SaveState = "" | "saving" | "saved" | "error";
+export type SaveState = "" | "saving" | "saved" | "error";
 type Meeting = { roomId: string; callId: string; lk: LiveKitJoin | null; open: boolean; isCaller: boolean };
 
 // MD2's five documented states: Yangi / Olingan / Jarayonda / Tayyor / Yuborilgan.
@@ -163,7 +163,7 @@ function storedRightW(): number {
 // read end to end from here: all 13 live lawyer records are `open_pool`, and
 // it answers 409 "Editor ochishdan oldin ishni pooldan olish kerak" until one
 // is claimed. Fold it in once a claimed record can be observed.
-type StartChoice = "upload" | "client_file" | "ai_draft";
+export type StartChoice = "upload" | "client_file" | "ai_draft";
 const START_KEY = "lexgo_deditor_start";
 // Stored per RECORD, not globally: the advocate answers "how do we start?"
 // once for this document, and a reload — including the automatic one this
@@ -178,14 +178,59 @@ function storedStarted(recordId: string): boolean {
   }
 }
 
+// Everything a skin needs to draw the workspace — the virtual desktop's
+// own Windows and macOS editor windows. The record, the editor session,
+// OnlyOffice, the meeting and finalizing all stay here; the skin draws
+// them and calls the actions back. The OnlyOffice frame mounts into the
+// element with id EDITOR_MOUNT, which the skin renders when `stage` is
+// "editor".
+export const EDITOR_MOUNT = "onlyoffice-editor";
+export type EditorFile = "template" | "editorFile" | "final";
+export type EditorView = {
+  ns: string;
+  recordId: string;
+  ai: string;
+  req: LawyerDocumentRequest | null;
+  reqStatus: "loading" | "ready" | "error";
+  reqErr: unknown;
+  reloadReq: () => void;
+  stage: "blocked" | "loading" | "claim" | "error" | "start" | "editor" | "unconfigured";
+  blockReason: string;
+  systemEditorSupported: boolean | null;
+  claim: { busy: boolean; taken: boolean; run: () => void };
+  editorErr: { title: string; error: unknown };
+  reloadEditor: () => void;
+  startOptions: { key: StartChoice; title: string; text: string; enabled: boolean; recommended: boolean }[];
+  start: (k: StartChoice) => void;
+  canChangeStart: boolean;
+  changeStart: () => void;
+  badge: "new" | "taken" | "progress" | "ready" | "sent";
+  badgeLabel: string;
+  save: SaveState;
+  savedAt: string;
+  isSent: boolean;
+  answers: [string, unknown][];
+  templateLabel: string;
+  chatRoomId: string;
+  panels: { left: boolean; setLeft: (v: boolean) => void; right: boolean; setRight: (v: boolean) => void; tab: RightTab; setTab: (t: RightTab) => void };
+  files: { template: boolean; editorFile: boolean; final: { format: string } | null; download: (k: EditorFile) => void; preview: EditorFile | ""; setPreview: (k: EditorFile | "") => void; fetch: (k: EditorFile) => (() => Promise<Blob>) | null; fileName: (k: EditorFile) => string };
+  source: { can: boolean; open: boolean; setOpen: (v: boolean) => void; picked: () => void };
+  upload: { open: boolean; setOpen: (v: boolean) => void; done: () => void };
+  meeting: { has: boolean; open: boolean; busy: boolean; ended: boolean; canStart: boolean; start: () => void; rejoin: () => void; roster: CallParticipant[]; call: { roomId: string; callId: string; isCaller: boolean; lk: LiveKitJoin | null; title: string } | null; end: () => void };
+  finalize: { can: boolean; open: boolean; setOpen: (v: boolean) => void; notes: string; setNotes: (v: string) => void; busy: boolean; run: () => void };
+  ids: [string, string][];
+};
+
 export default function DocumentEditorWorkspace({
   ns,
   recordId,
   backHref,
+  skin,
 }: {
   ns: string;
   recordId: string;
   backHref: string;
+  skin?: ComponentType<{ v: EditorView }>;
 }) {
   const t = useTranslations(ns);
   const tc = useTranslations("cta");
@@ -485,7 +530,7 @@ export default function DocumentEditorWorkspace({
     function init() {
       if (cancelled || !window.DocsAPI) return;
       try {
-        ooRef.current = new window.DocsAPI.DocEditor("onlyoffice-editor", cfg);
+        ooRef.current = new window.DocsAPI.DocEditor(EDITOR_MOUNT, cfg);
       } catch {
         /* the fallback view stays visible if this throws */
       }
@@ -789,6 +834,83 @@ export default function DocumentEditorWorkspace({
     },
   ];
 
+  const Skin = skin;
+  if (Skin) {
+    const fileFetch = (k: EditorFile): (() => Promise<Blob>) | null => {
+      if (k === "template") return req?.templateFile?.hasFile ? () => getServiceTemplateSourceFile(req.templateFile!.downloadUrl || req.templateFile!.inlineUrl) : null;
+      if (k === "editorFile") return editor?.editorFileDownloadUrl ? () => getServiceTemplateSourceFile(editor.editorFileDownloadUrl) : null;
+      return finalFile?.inline || finalFile?.download ? () => getServiceTemplateSourceFile(finalFile.inline || finalFile.download) : null;
+    };
+    const meetTitle = req?.clientName ? `${t("meetingTitle")} · ${req.clientName}` : t("meetingTitle");
+    return (
+      <Skin
+        v={{
+          ns,
+          recordId,
+          ai,
+          req,
+          reqStatus,
+          reqErr,
+          reloadReq: () => setReqReloadKey((k) => k + 1),
+          stage: blocked ? "blocked" : editorState === "loading" ? "loading" : editorState === "needsClaim" ? "claim" : editorState === "error" ? "error" : !started && !delivered ? "start" : configured ? "editor" : "unconfigured",
+          blockReason,
+          systemEditorSupported,
+          claim: { busy: claimBusy, taken: claimErr === "taken", run: () => void claimAndRetry() },
+          editorErr: { title: editorErrTitle, error: editorErr },
+          reloadEditor: () => setReloadKey((k) => k + 1),
+          startOptions: startOptions.map((o) => ({ key: o.key, title: o.title, text: o.text, enabled: o.enabled, recommended: o.recommended })),
+          start,
+          canChangeStart: started && !blocked && !isSent,
+          changeStart: reopenStart,
+          badge,
+          badgeLabel,
+          save: saveState,
+          savedAt,
+          isSent,
+          answers: answerEntries,
+          templateLabel,
+          chatRoomId,
+          panels: { left: leftOpen, setLeft: setLeftOpen, right: rightOpen, setRight: setRightOpen, tab: rightTab, setTab: setRightTab },
+          files: {
+            template: !!req?.templateFile?.hasFile,
+            editorFile: !!editor?.editorFileDownloadUrl,
+            final: finalFile ? { format: finalFile.format || "docx" } : null,
+            download: (k) => void (k === "template" ? downloadTemplate() : k === "editorFile" ? downloadEditorFile() : downloadFinalFile()),
+            preview,
+            setPreview,
+            fetch: fileFetch,
+            fileName: (k) => (k === "template" ? req?.templateFile?.fileName || "shablon.docx" : k === "editorFile" ? req?.templateFile?.fileName || "loyiha.docx" : `${req?.clientName || "hujjat"}.${finalFile?.format || "docx"}`),
+          },
+          source: { can: !isSent && editorState !== "needsClaim", open: srcOpen, setOpen: setSrcOpen, picked: () => setReloadKey((k) => k + 1) },
+          upload: { open: uploadOpen, setOpen: setUploadOpen, done: () => setReqReloadKey((k) => k + 1) },
+          meeting: {
+            has: !!meeting,
+            open: !!meeting?.open,
+            busy: meetBusy,
+            ended: meetEnded,
+            canStart: !meetBusy && !!req?.meetingUrl && !isSent && !meeting,
+            start: () => void startMeeting(),
+            rejoin: () => void rejoinMeeting(),
+            roster,
+            call: meeting && meeting.open ? { roomId: meeting.roomId, callId: meeting.callId, isCaller: meeting.isCaller, lk: meeting.lk, title: meetTitle } : null,
+            end: () => {
+              setMeeting(null);
+              setRoster([]);
+              setMeetEnded(true);
+            },
+          },
+          finalize: { can: !isSent && editorState === "ready" && !finalizeBusy, open: finalizeConfirmOpen, setOpen: setFinalizeConfirmOpen, notes: finalizeNotes, setNotes: setFinalizeNotes, busy: finalizeBusy, run: () => void doFinalize() },
+          ids: [
+            [t("infoLawyerRequestId"), req?.id || ""],
+            [t("infoDocumentRequestId"), req?.request.id || ""],
+            [t("infoServiceId"), req?.serviceId || ""],
+            [t("infoTemplateId"), req?.templateId || req?.request.templateId || ""],
+          ],
+        }}
+      />
+    );
+  }
+
   return (
     // The right panel's width lives on the ROOT, not on the body, so the top
     // bar can read it too: the two actions line up with the chat column below
@@ -1086,7 +1208,7 @@ export default function DocumentEditorWorkspace({
               </div>
             </div>
           ) : configured ? (
-            <div id="onlyoffice-editor" className="deditor__oo" />
+            <div id={EDITOR_MOUNT} className="deditor__oo" />
           ) : (
             <div className="deditor__mainState">
               <b>{t("editorNotConfigured")}</b>
