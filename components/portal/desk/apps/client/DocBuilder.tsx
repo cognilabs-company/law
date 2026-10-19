@@ -7,15 +7,17 @@ import { DocChromeContext, clearDraft, hasDraftAnswers, type DocChrome } from "@
 import { IconClose, IconEye } from "@/components/icons";
 import { App, Btn, Dialog, Tool, Toolbar } from "../../kit/kit";
 import DeskFill from "./DeskFill";
+import DeskRequest from "./DeskRequest";
+import DeskService from "./DeskService";
 
 // The document builder as a desktop program: the window's own toolbar (back,
 // the document's name, a look at the template, close) around the builder.
-// Its fill screen is drawn natively (DeskFill, a skin over DocFill); the
-// steps around it — choosing how to fill, the payment, the finished file —
-// are the web's, on the desktop's tokens. Leaving with answers typed asks
-// first, as on the web.
+// Every step is drawn natively by skins over the web builder's logic: how to
+// fill it and the intro (DeskService), the form (DeskFill), and the
+// payment, the waits and the finished file (DeskRequest). Leaving with
+// answers typed asks first, as on the web.
 
-export default function DocBuilder({ serviceId, lawyer, back, preview }: { serviceId: string; lawyer: boolean; back: () => void; preview: () => void }) {
+export default function DocBuilder({ serviceId, lawyer, back, preview, openRoute }: { serviceId: string; lawyer: boolean; back: () => void; preview: () => void; openRoute: (route: string) => void }) {
   const td = useTranslations("portal.client.documents");
   const t = useTranslations("portal.client.services");
   const d = useTranslations("portal.desk.client");
@@ -23,7 +25,19 @@ export default function DocBuilder({ serviceId, lawyer, back, preview }: { servi
   const [draftId, setDraftId] = useState("");
   const [exit, setExit] = useState(false);
   const ask = useCallback(() => (hasDraftAnswers(draftId) ? setExit(true) : back()), [draftId, back]);
-  const chrome = useMemo<DocChrome>(() => ({ onBack: ask, onExit: ask, fillSkin: DeskFill }), [ask]);
+  const chrome = useMemo<DocChrome>(
+    () => ({
+      onBack: ask,
+      onExit: ask,
+      fillSkin: DeskFill,
+      requestSkin: DeskRequest,
+      serviceSkin: DeskService,
+      // A payment page opens beside the desktop; the window keeps polling.
+      openUrl: (url) => void window.open(url, "_blank", "noopener"),
+      openRoute,
+    }),
+    [ask, openRoute],
+  );
   return (
     <App name="cbuilder">
       <Toolbar title={title || t("docViewTitle")} back={{ label: d("back"), onClick: ask }}>

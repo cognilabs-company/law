@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { previewDocumentRequest, getServiceTemplateSourceFile, requestServiceDocumentLawyerGated, type DocumentPreview, type DocumentRequest, type ServiceDocumentFields } from "@/lib/services/backend";
+import { previewDocumentRequest, getServiceTemplateSourceFile, requestServiceDocumentLawyerGated, type DocLawyerFlow, type DocPaymentGate, type DocumentPreview, type DocumentRequest, type ServiceDocumentFields } from "@/lib/services/backend";
 import { preopenTab, showBlob, saveBlob, closeTab } from "@/lib/download";
 import { useIsFreeAiTier } from "@/lib/useAiTier";
 import { docxToDoc, type DocPage } from "@/lib/docxParse";
@@ -147,7 +147,88 @@ export function lawyerPendingNote(t: DocT, statusText: string, workId: string): 
 // lays itself out as the advocate's document editor (DocumentEditorWorkspace)
 // and owns the top bar — back, exit, generate — instead of sitting under the
 // page's own. Not given (the catalog's modal), it keeps its two-pane layout.
-export type DocChrome = { onBack: () => void; onExit: () => void; fillSkin?: ComponentType<{ v: DocFillView; refs: DocFillRefs }> };
+export type DocChrome = {
+  onBack: () => void;
+  onExit: () => void;
+  fillSkin?: ComponentType<{ v: DocFillView; refs: DocFillRefs }>;
+  // The request's other screens (payment, waiting, the finished file) and
+  // the steps before it (how to fill, the intro), drawn by the host.
+  requestSkin?: ComponentType<{ v: DocRequestView }>;
+  // Where a payment page opens instead of replacing this one, and where a
+  // cabinet link goes (a chat, the documents list).
+  openUrl?: (url: string) => void;
+  openRoute?: (route: string) => void;
+  serviceSkin?: ComponentType<{ v: DocServiceView }>;
+};
+
+// The steps before a request exists (ServiceDocumentRequest): loading,
+// the plan gate, how to fill it, the intro with the price, the advocate
+// already holding it, the advocate-help form, then the request itself.
+export type DocServiceView = {
+  state: "loading" | "plan" | "error" | "choose" | "held" | "assist" | "unavailable" | "request" | "intro";
+  title: string;
+  description: string;
+  price: number;
+  plan: string;
+  retry: () => void;
+  busy: boolean;
+  resumed: boolean;
+  start: () => void;
+  canBack: boolean;
+  back: () => void;
+  chooseManual: () => void;
+  chooseLawyer: () => void;
+  canSendLawyer: boolean;
+  lawyerBlock: string;
+  heldStatus: string;
+  heldWorkId: string;
+  gate: { open: boolean; title: string; message: string; close: () => void; wait: () => void; openConstructor: () => void };
+  constructorOffer: boolean;
+  request: ReactNode;
+  lawyerFlow: DocLawyerFlow | null;
+  sourceFile: ServiceDocumentFields | null;
+};
+
+// The request's screens other than the form, for a skin (DocumentRequestPanel).
+export type DocRequestStage = "" | "answers" | "pay" | "generating" | "lawyerReview" | "claimed" | "pending" | "payGate" | "payCancelled" | "done";
+export type DocRequestView = {
+  stage: DocRequestStage;
+  fatal: "" | "noAccess" | "notFound";
+  req: DocumentRequest;
+  fill: ReactNode;
+  busy: boolean;
+  pdfBusy: boolean;
+  pollStopped: boolean;
+  isStale: boolean;
+  monthDownloads: number;
+  offerPrice: number;
+  gate: DocPaymentGate | null;
+  gateKnown: boolean;
+  pay: () => void;
+  refresh: () => void;
+  getFile: (download: boolean) => void;
+  backToAnswers?: () => void;
+  onRetry?: () => void;
+  onStartNew?: () => void;
+  onOpenConstructor?: () => void;
+  lawyerHeldNote: string;
+  review: {
+    open: boolean;
+    setOpen: (v: boolean) => void;
+    need: string;
+    setNeed: (v: string) => void;
+    type: string;
+    setType: (v: string) => void;
+    busy: boolean;
+    sent: boolean;
+    refused: string;
+    gate: DocPaymentGate | null;
+    outcome: "" | "pooled" | "rejected";
+    send: () => void;
+  };
+  viewer: { blob: Blob; name: string } | null;
+  closeViewer: () => void;
+};
 
 // What the fill workspace knows and can do, for a skin that draws it its
 // own way (the desktop's builder window). Everything is computed here; the

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   getServiceDocumentTemplate,
@@ -18,7 +18,7 @@ import {
 import DocumentRequestPanel from "./DocumentRequestPanel";
 import DocumentLawyerAssist from "./DocumentLawyerAssist";
 import ManualDocPlanGate from "./ManualDocPlanGate";
-import { lawyerPendingNote } from "./DocFill";
+import { DocChromeContext, lawyerPendingNote } from "./DocFill";
 import { ErrorState, Skeleton } from "./DataState";
 import Modal from "@/components/admin/Modal";
 import { notify } from "@/lib/toast";
@@ -99,6 +99,7 @@ export default function ServiceDocumentRequest({
 }) {
   const t = useTranslations("portal.client.documents");
   const tc = useTranslations("portal.common");
+  const chrome = useContext(DocChromeContext);
   const [tpl, setTpl] = useState<BackendTemplate | null>(null);
   const [sourceFile, setSourceFile] = useState<ServiceDocumentFields | null>(null);
   const [req, setReq] = useState<DocumentRequest | null>(null);
@@ -374,6 +375,69 @@ export default function ServiceDocumentRequest({
   const heldFacts = [blockReason, heldStatus ? t("lawyerPendingStatus", { status: heldStatus }) : "", lawyerHeld?.workId ? t("lawyerPendingWork", { id: lawyerHeld.workId }) : ""].filter(Boolean);
   const heldNote = blockReason ? heldFacts.join(" · ") : lawyerHeld ? lawyerPendingNote(t, heldStatus, lawyerHeld.workId) : "";
 
+  // A host that draws these steps itself (the desktop's builder window).
+  const Skin = chrome?.serviceSkin;
+  if (Skin) {
+    const held = lawyerHeld && mode === "lawyer";
+    const state =
+      loading || (tpl && mode === "manual" && tpl.questionnaire.length === 0 && !req && !err)
+        ? "loading"
+        : planRequired
+          ? "plan"
+          : !tpl
+            ? "error"
+            : mode === "choose"
+              ? "choose"
+              : held
+                ? "held"
+                : mode === "lawyer" && sourceFile?.lawyerFlow
+                  ? "assist"
+                  : initialMode === "lawyer"
+                    ? "unavailable"
+                    : req
+                      ? "request"
+                      : "intro";
+    return (
+      <Skin
+        v={{
+          state,
+          title: tpl?.name || "",
+          description: tpl?.description || "",
+          price: tpl?.price || 0,
+          plan: planRequired,
+          retry: () => (setLoading(true), setLoadErr(null), setErr(false), setLoadKey((k) => k + 1)),
+          busy,
+          resumed,
+          start: () => void start(),
+          canBack: !initialMode && !!sourceFile?.lawyerFlow,
+          back: () => setMode("choose"),
+          chooseManual: () => (askFirst ? setGateOpen(true) : setMode("manual")),
+          chooseLawyer: () => setMode("lawyer"),
+          canSendLawyer,
+          lawyerBlock: blockReason,
+          heldStatus,
+          heldWorkId: lawyerHeld?.workId || "",
+          gate: { open: gateOpen, title: gateTitle, message: gateMessage, close: () => setGateOpen(false), wait: () => (setGateOpen(false), setMode("lawyer")), openConstructor },
+          constructorOffer: !!(ca?.available && (heldGate?.constructorUrls.continueUrl || ca.continueUrl)),
+          request: held ? (
+            <DocumentRequestPanel key={lawyerHeld.id} initialReq={lawyerHeld} fields={[]} sourceFile={sourceFile} />
+          ) : req && tpl ? (
+            <DocumentRequestPanel
+              key={req.id}
+              initialReq={req}
+              fields={tpl.questionnaire}
+              templateText={tpl.templateText}
+              sourceFile={sourceFile}
+              lawyerHeldNote={heldNote}
+              onStartNew={tpl.questionnaire.length ? () => ((starting.current = false), void start()) : undefined}
+            />
+          ) : null,
+          lawyerFlow: sourceFile?.lawyerFlow ?? null,
+          sourceFile,
+        }}
+      />
+    );
+  }
   if (loading || (tpl && mode === "manual" && tpl.questionnaire.length === 0 && !req && !err)) return <Skeleton rows={3} />;
 
   if (planRequired)

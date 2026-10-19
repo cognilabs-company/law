@@ -48,16 +48,12 @@ export default function DocOrderDialog({ onClose, openLink }: { onClose: () => v
   const [mainFile, setMainFile] = useState<File | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [voices, setVoices] = useState<Voice[]>([]);
-  // The voice note being recorded: the recorder, and its running time.
-  const recorder = useRef<VoiceRecorder | null>(null);
-  const [rec, setRec] = useState<{ ms: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [missing, setMissing] = useState<"" | "main" | "need">("");
   const [result, setResult] = useState<DocLawyerSubmitResult | null>(null);
   const [plan, setPlan] = useState("");
   const mainPick = useRef<HTMLInputElement>(null);
-  const filePick = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let alive = true;
@@ -68,44 +64,11 @@ export default function DocOrderDialog({ onClose, openLink }: { onClose: () => v
       alive = false;
     };
   }, []);
-  // The running clock of a voice note being recorded.
-  const recording = !!rec;
-  useEffect(() => {
-    if (!recording) return;
-    const h = setInterval(() => setRec({ ms: recorder.current?.elapsedMs ?? 0 }), 500);
-    return () => clearInterval(h);
-  }, [recording]);
-  useEffect(() => () => recorder.current?.cancel(), []);
 
   const docType = typePick === CUSTOM ? typeOwn.trim() : typePick;
   const showTypes = flow === "scratch" && !!types && docTypeApplies(types, "custom_from_scratch") && types.items.length > 0;
   const described = !!need.trim() || files.length > 0 || voices.length > 0 || flow === "review";
 
-  async function startVoice() {
-    const r = new VoiceRecorder();
-    try {
-      await r.start();
-      recorder.current = r;
-      setRec({ ms: 0 });
-    } catch {
-      setErr(t("micDenied"));
-    }
-  }
-  async function stopVoice() {
-    const r = recorder.current;
-    if (!r) return;
-    recorder.current = null;
-    const note = await r.stop();
-    setRec(null);
-    if (note) setVoices((v) => [...v, { blob: note.blob, ms: note.durationMs }]);
-  }
-  function addFiles(list: FileList | null) {
-    const picked = Array.from(list || []);
-    if (!picked.length) return;
-    if (picked.some((f) => f.size > MAX_FILE_MB * 1024 * 1024)) return setErr(t("fileTooBig", { mb: MAX_FILE_MB }));
-    setErr("");
-    setFiles((cur) => [...cur, ...picked].slice(0, MAX_FILES));
-  }
 
   async function submit() {
     if (busy) return;
@@ -252,48 +215,7 @@ export default function DocOrderDialog({ onClose, openLink }: { onClose: () => v
           <Field label={t("needLabel")} error={missing === "need" ? t("needRequired") : undefined}>
             <TextArea value={need} onChange={(v) => (setNeed(v), v.trim() && setMissing(""))} placeholder={t("needPlaceholder")} rows={5} />
           </Field>
-          <div className="dx-field">
-            <span className="dx-field__l">{t("extrasLabel")}</span>
-            <span className="dxcp-att__bar">
-              <Btn small icon={<IconPaperclip />} disabled={files.length >= MAX_FILES || !!rec} onClick={() => filePick.current?.click()}>
-                {t("addFiles")}
-              </Btn>
-              {canRecordVoice() ? (
-                rec ? (
-                  <Btn small kind="danger" icon={<IconRecord />} onClick={() => void stopVoice()}>
-                    {voiceDuration(rec.ms)}
-                  </Btn>
-                ) : (
-                  <Btn small icon={<IconMic />} onClick={() => void startVoice()}>
-                    {t("addVoice")}
-                  </Btn>
-                )
-              ) : null}
-            </span>
-            <input ref={filePick} type="file" multiple hidden onChange={(e) => (addFiles(e.target.files), (e.target.value = ""))} />
-            {files.length || voices.length ? (
-              <ul className="dxcp-att__list">
-                {files.map((f, i) => (
-                  <li key={`${f.name}-${i}`}>
-                    <IconPaperclip aria-hidden />
-                    <span>{f.name}</span>
-                    <button type="button" onClick={() => setFiles((cur) => cur.filter((_, j) => j !== i))} aria-label={t("remove")}>
-                      <IconClose />
-                    </button>
-                  </li>
-                ))}
-                {voices.map((v, i) => (
-                  <li key={`v${i}`}>
-                    <IconMic aria-hidden />
-                    <span>{t("voiceItem", { time: voiceDuration(v.ms) })}</span>
-                    <button type="button" onClick={() => setVoices((cur) => cur.filter((_, j) => j !== i))} aria-label={t("remove")}>
-                      <IconClose />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
+          <Attach files={files} voices={voices} onFiles={setFiles} onVoices={setVoices} onError={setErr} />
           <Field label={t("langHint")}>
             <Select value={lang} onChange={setLang} ariaLabel={t("langHint")} options={docLangOptions(lang).map((o) => ({ value: o.value, label: o.key ? td(o.key) : o.value }))} />
           </Field>
@@ -304,3 +226,89 @@ export default function DocOrderDialog({ onClose, openLink }: { onClose: () => v
   );
 }
 
+export type VoiceNote = Voice;
+
+// Files and voice notes to send along: add a file, record a note (with its
+// running time), and the list to take things back out of.
+export function Attach({ files, voices, onFiles, onVoices, onError }: { files: File[]; voices: Voice[]; onFiles: (f: File[]) => void; onVoices: (v: Voice[]) => void; onError: (m: string) => void }) {
+  const t = useTranslations("portal.client.newDoc");
+  const pick = useRef<HTMLInputElement>(null);
+  const recorder = useRef<VoiceRecorder | null>(null);
+  const [rec, setRec] = useState<{ ms: number } | null>(null);
+  const recording = !!rec;
+  useEffect(() => {
+    if (!recording) return;
+    const h = setInterval(() => setRec({ ms: recorder.current?.elapsedMs ?? 0 }), 500);
+    return () => clearInterval(h);
+  }, [recording]);
+  useEffect(() => () => recorder.current?.cancel(), []);
+  async function startVoice() {
+    const r = new VoiceRecorder();
+    try {
+      await r.start();
+      recorder.current = r;
+      setRec({ ms: 0 });
+    } catch {
+      onError(t("micDenied"));
+    }
+  }
+  async function stopVoice() {
+    const r = recorder.current;
+    if (!r) return;
+    recorder.current = null;
+    const note = await r.stop();
+    setRec(null);
+    if (note) onVoices([...voices, { blob: note.blob, ms: note.durationMs }]);
+  }
+  function addFiles(list: FileList | null) {
+    const picked = Array.from(list || []);
+    if (!picked.length) return;
+    if (picked.some((f) => f.size > MAX_FILE_MB * 1024 * 1024)) return onError(t("fileTooBig", { mb: MAX_FILE_MB }));
+    onError("");
+    onFiles([...files, ...picked].slice(0, MAX_FILES));
+  }
+  return (
+    <div className="dx-field">
+      <span className="dx-field__l">{t("extrasLabel")}</span>
+      <span className="dxcp-att__bar">
+        <Btn small icon={<IconPaperclip />} disabled={files.length >= MAX_FILES || !!rec} onClick={() => pick.current?.click()}>
+          {t("addFiles")}
+        </Btn>
+        {canRecordVoice() ? (
+          rec ? (
+            <Btn small kind="danger" icon={<IconRecord />} onClick={() => void stopVoice()}>
+              {voiceDuration(rec.ms)}
+            </Btn>
+          ) : (
+            <Btn small icon={<IconMic />} onClick={() => void startVoice()}>
+              {t("addVoice")}
+            </Btn>
+          )
+        ) : null}
+      </span>
+      <input ref={pick} type="file" multiple hidden onChange={(e) => (addFiles(e.target.files), (e.target.value = ""))} />
+      {files.length || voices.length ? (
+        <ul className="dxcp-att__list">
+          {files.map((f, i) => (
+            <li key={`${f.name}-${i}`}>
+              <IconPaperclip aria-hidden />
+              <span>{f.name}</span>
+              <button type="button" onClick={() => onFiles(files.filter((_, j) => j !== i))} aria-label={t("remove")}>
+                <IconClose />
+              </button>
+            </li>
+          ))}
+          {voices.map((v, i) => (
+            <li key={`v${i}`}>
+              <IconMic aria-hidden />
+              <span>{t("voiceItem", { time: voiceDuration(v.ms) })}</span>
+              <button type="button" onClick={() => onVoices(voices.filter((_, j) => j !== i))} aria-label={t("remove")}>
+                <IconClose />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}

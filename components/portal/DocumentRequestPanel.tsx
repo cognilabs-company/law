@@ -288,7 +288,8 @@ export default function DocumentRequestPanel({
   // constructor?" a second time — and pressing Back then put a third dialog
   // on top of the two already stacked. Reproduced on 2026-09-29 against the
   // held row df415fdb…: two .amodal elements on screen at once.
-  const inConstructor = useContext(DocChromeContext) !== null;
+  const chrome = useContext(DocChromeContext);
+  const inConstructor = chrome !== null;
   const router = useRouter();
   const [pdfBusy, setPdfBusy] = useState(false);
   // MD §"Error states": 403 ("User bu requestga kira olmaydi") and 404
@@ -424,6 +425,12 @@ export default function DocumentRequestPanel({
     try {
       let r = await payDocumentRequest(req.id, "payme", req.price);
       if (r.paymentUrl) {
+        // A desktop window opens the payment beside itself and keeps polling.
+        if (chrome?.openUrl) {
+          chrome.openUrl(r.paymentUrl);
+          setStage("pending");
+          return;
+        }
         leaving = true;
         window.location.assign(r.paymentUrl);
         return;
@@ -749,6 +756,53 @@ export default function DocumentRequestPanel({
     setAskCtor(true);
   }, [req.id, req.constructorAction, stage, inConstructor]);
 
+  const Skin = chrome?.requestSkin;
+  if (Skin)
+    return (
+      <Skin
+        v={{
+          stage: shown,
+          fatal,
+          req,
+          fill:
+            shown === "answers" ? (
+              <DocFill req={req} fields={qs} templateText={templateText || ""} sourceFile={sourceFile} answers={answers} onChange={setAnswers} onSubmit={saveAnswers} busy={busy} submitLabel={t("generate")} lawyerHeldNote={lawyerHeldNote} />
+            ) : null,
+          busy,
+          pdfBusy,
+          pollStopped,
+          isStale,
+          monthDownloads,
+          offerPrice: policies?.documentAnalysis.ranges[0]?.amount || 149000,
+          gate: shownGate,
+          gateKnown: !!knownGate,
+          pay: () => void pay(),
+          refresh: () => void refresh(),
+          getFile: (download) => void getFile(download),
+          backToAnswers: qs.length ? () => setStage("answers") : undefined,
+          onRetry,
+          onStartNew,
+          onOpenConstructor,
+          lawyerHeldNote: lawyerHeldNote || "",
+          review: {
+            open: reviewOpen,
+            setOpen: setReviewOpen,
+            need: reviewNeed,
+            setNeed: setReviewNeed,
+            type: reviewType,
+            setType: setReviewType,
+            busy: reviewBusy,
+            sent: reviewSent,
+            refused: reviewRefused,
+            gate,
+            outcome: gateOutcome,
+            send: () => void sendToLawyerReview(),
+          },
+          viewer: viewerFile,
+          closeViewer: () => setViewerFile(null),
+        }}
+      />
+    );
   const stoppedNote = pollStopped ? (
     <InlineAlert tone="info" compact role="status">
       {t("stillPending")}

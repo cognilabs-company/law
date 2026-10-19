@@ -75,7 +75,7 @@ export default function CatalogApp(props: NativeProps) {
     const id = decodeURIComponent(m[1]);
     if (m[2]) return <DocPreview key={id} serviceId={id} base={base} openApp={openApp} back={toCatalog} />;
     const lawyer = new URLSearchParams(route.split("?")[1] ?? "").get("mode") === "lawyer";
-    return <DocBuilder key={`${id}:${lawyer}`} serviceId={id} lawyer={lawyer} back={toCatalog} preview={() => openApp("services", `${base}/services/document/${encodeURIComponent(id)}/view`)} />;
+    return <DocBuilder key={`${id}:${lawyer}`} serviceId={id} lawyer={lawyer} back={toCatalog} preview={() => openApp("services", `${base}/services/document/${encodeURIComponent(id)}/view`)} openRoute={(route) => props.openLink({ appId: "", route })} />;
   }
   return <Browse {...props} />;
 }
