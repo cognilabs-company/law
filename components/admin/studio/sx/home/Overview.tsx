@@ -101,7 +101,7 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
             const body = (
               <>
                 <span className="sx-kpi__ic sx-kpi__ic--art">
-                  <Image src={k.art} alt="" width={34} height={34} />
+                  <Image src={k.art} alt="" width={52} height={52} />
                 </span>
                 <SxCount value={k.value} format={fmt} className="sx-kpi__n" />
                 <span className="sx-kpi__l">{label}</span>

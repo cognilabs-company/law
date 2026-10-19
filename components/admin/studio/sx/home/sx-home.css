@@ -234,25 +234,37 @@ html[data-theme="dark"] .sx .sx-sq {
 html[data-theme="dark"] .sx .sx-kpi__ic {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08), inset 0 0 0 1px color-mix(in srgb, var(--hue-6) 70%, transparent);
 }
-
-.sx .sx-kpi__ic--art,
-html[data-theme="dark"] .sx .sx-kpi__ic--art,
-.sx .sx-kpi[data-tone] .sx-kpi__ic--art {
-  width: 38px;
-  height: 38px;
-  margin-bottom: 6px;
-  background: none;
-  box-shadow: none;
-}
-.sx .sx-kpi__ic--art > img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
 .sx .sx-kpi[data-tone] .sx-kpi__ic {
   background: linear-gradient(150deg, var(--t-bg) 0%, color-mix(in srgb, var(--t-line) 55%, var(--t-bg)) 100%);
   color: var(--t-fg);
   box-shadow: inset 0 0 0 1px var(--t-line);
+}
+.sx .sx-kpi .sx-kpi__ic--art,
+.sx .sx-kpi[data-tone] .sx-kpi__ic--art,
+html[data-theme="dark"] .sx .sx-kpi .sx-kpi__ic--art {
+  width: 52px;
+  height: 52px;
+  margin: -6px 0 4px -6px;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.sx .sx-kpi .sx-kpi__ic--art > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform .2s cubic-bezier(.2, .8, .2, 1);
+}
+.sx .sx-kpi:hover .sx-kpi__ic--art > img {
+  transform: scale(1.07);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx .sx-kpi .sx-kpi__ic--art > img {
+    transition: none;
+  }
+  .sx .sx-kpi:hover .sx-kpi__ic--art > img {
+    transform: none;
+  }
 }
 .sx .sx-kpi__n {
   color: var(--sx-ink);
