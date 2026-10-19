@@ -1,0 +1,26 @@
+.ccp-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 12px;
+}
+.ccp-top > .mk-back {
+  align-self: center;
+}
+.ccp-acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+@media (max-width: 640px) {
+  .ccp-acts--head {
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+  .ccp-acts--head > .btn {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}

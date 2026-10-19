@@ -30,6 +30,7 @@ import {
   type MarketStage,
 } from "@/lib/services/marketplace";
 import CompleteOrderDialog from "./CompleteOrderDialog";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import SupplementalDialog from "./SupplementalDialog";
 import { OptionLines, RatingPanel, ResultBlock, SupplementalPanel } from "./OrderExtras";
 import "./order/cards.css";
@@ -188,10 +189,15 @@ export default function MarketOrders({ view }: { view: View }) {
           <h1 className="mk-orders__t">{view === "client" ? t("clientTitle") : t("sellerTitle")}</h1>
           <p className="mk-orders__l">{view === "client" ? t("clientLead") : t("sellerLead")}</p>
         </div>
-        <button type="button" className="btn btn--line btn--sm" onClick={() => void load(true)} disabled={refreshing || status === "loading"}>
-          <IconRefresh className={refreshing ? "mk-spin" : undefined} />
-          {t("refresh")}
-        </button>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10 }}>
+          {view === "seller" ? (
+            <CopilotLauncher surface="lawyer_work_queue" context={{ label: t("sellerTitle"), status_filter: tab, count: status === "ready" ? shown.length : undefined }} />
+          ) : null}
+          <button type="button" className="btn btn--line btn--sm" onClick={() => void load(true)} disabled={refreshing || status === "loading"}>
+            <IconRefresh className={refreshing ? "mk-spin" : undefined} />
+            {t("refresh")}
+          </button>
+        </div>
       </header>
 
       {flash ? (
@@ -381,6 +387,7 @@ function OrderCard({
   return (
     <article
       className={`mk-order mk-order--${stage}`}
+      data-ai-target={o.id ? `orders.item.${o.id}` : undefined}
       data-ai-id={item}
       data-ai-type="card"
       data-ai-entity-type="marketplace_order"

@@ -14,6 +14,7 @@ export type LayerOptions = {
   onEscape?: () => void;
   onOutside?: () => void;
   scrim?: boolean;
+  passive?: boolean | (() => boolean);
   id?: string;
 };
 
@@ -111,15 +112,30 @@ function disarm(): void {
   window.clearTimeout(disarmTimer);
 }
 
+function passiveOf(l: LayerOptions): boolean {
+  return typeof l.passive === "function" ? l.passive() : !!l.passive;
+}
+
+function escapes(layer: Layer, src: Node | null, act: Element | null): boolean {
+  if (!layer.onEscape) return false;
+  if (ignoredFor(layer, src) || ignoredFor(layer, act)) return false;
+  if (layer.kind === "overlay" && (elementOf(src)?.closest(LAYER_SOFT) || elementOf(act)?.closest(LAYER_SOFT))) return false;
+  return claims(layer, src) || claims(layer, act);
+}
+
+function escapeLayer(src: Node | null, act: Element | null): Layer | undefined {
+  for (let i = stack.length - 1; i >= 0; i--) {
+    const layer = stack[i];
+    if (escapes(layer, src, act)) return layer;
+    if (!passiveOf(layer)) return undefined;
+  }
+  return undefined;
+}
+
 function onKeyCapture(e: KeyboardEvent): void {
   if (e.key !== "Escape" || e.defaultPrevented || e.isComposing) return;
-  const layer = top();
+  const layer = escapeLayer(sourceOf(e), document.activeElement);
   if (!layer?.onEscape) return;
-  const src = sourceOf(e);
-  const act = document.activeElement;
-  if (ignoredFor(layer, src) || ignoredFor(layer, act)) return;
-  if (layer.kind === "overlay" && (elementOf(src)?.closest(LAYER_SOFT) || elementOf(act)?.closest(LAYER_SOFT))) return;
-  if (!claims(layer, src) && !claims(layer, act)) return;
   if (layer.kind === "overlay") {
     pending = { event: e, id: layer.id };
     return;
@@ -134,8 +150,9 @@ function onKeyBubble(e: KeyboardEvent): void {
   if (!p || p.event !== e) return;
   pending = null;
   if (e.defaultPrevented) return;
-  const layer = top();
-  if (!layer || layer.id !== p.id || !layer.onEscape) return;
+  const at = stack.findIndex((l) => l.id === p.id);
+  const layer = at < 0 ? undefined : stack[at];
+  if (!layer || !layer.onEscape || stack.slice(at + 1).some((l) => !passiveOf(l))) return;
   e.preventDefault();
   e.stopPropagation();
   layer.onEscape();
@@ -270,6 +287,7 @@ export function useLayer(open: boolean, opts: LayerOptions): number {
       el: () => resolve(latest.current.el),
       trigger: () => resolve(latest.current.trigger),
       backdrop: () => resolve(latest.current.backdrop),
+      passive: () => passiveOf(latest.current),
       onEscape: escape ? () => latest.current.onEscape?.() : undefined,
       onOutside: outside ? () => latest.current.onOutside?.() : undefined,
     });

@@ -7,6 +7,8 @@ import { Link } from "@/i18n/navigation";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { IconArrowRight, IconAward, IconBriefcase, IconCard, IconClose, IconFileText, IconGavel, IconHeadset, IconLayers, IconMapPin, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconStar, IconUser, IconUsers } from "@/components/icons";
 import HeroShowcase from "./HeroShowcase";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
+import { useCopilotAvailable } from "@/components/copilot/store";
 import { aiSearchMarketplace, listMarketplace, marketAiAvailable, peekSeller, rememberSellers, type MarketAiMatch, type MarketMeta, type MarketPromotionSurface, type MarketSeller } from "@/lib/services/marketplace";
 import { matchesSearch, normalizeSearchText, searchTerms } from "@/lib/searchText";
 import { regionKeyOf, regionLabel } from "@/lib/labels";
@@ -102,6 +104,8 @@ export default function MarketDirectory({
 }) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
+  const tp = useTranslations("portal.client.copilot");
+  const copilotOn = useCopilotAvailable(false);
   const locale = useLocale();
   const base = variant === "portal" ? "/portal/client/lawyers" : "/lawyers";
 
@@ -564,6 +568,11 @@ export default function MarketDirectory({
           </span>
           <h1 className="mk-hero__t">{t.rich("title", { hl: (chunks) => <span className="mk-hero__hl">{chunks}</span> })}</h1>
           <p className="mk-hero__l">{t("lead")}</p>
+          {variant === "portal" && !preview && copilotOn ? (
+            <div>
+              <CopilotLauncher surface="lawyer_marketplace" label={tp("findLawyer")} context={{ query: q.trim() || undefined }} />
+            </div>
+          ) : null}
           <label
             className={`mk-search mk-search--ai${aiThinking ? " is-thinking" : ""}`}
             data-ai-target="marketplace:ai-search"

@@ -24,6 +24,8 @@ import FieldError from "@/components/ui/FieldError";
 import InlineAlert from "@/components/ui/InlineAlert";
 import Modal from "@/components/admin/Modal";
 import DocTemplateViewer from "./DocTemplateViewer";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
+import { useCopilotAvailable } from "@/components/copilot/store";
 import { statusLabel } from "@/lib/labels";
 import { shortDateTime } from "@/lib/date";
 import { IconFileText, IconUser, IconPhone, IconCheck, IconClock, IconEye, IconDownload, IconUpload, IconAlert, IconTag, IconLock, IconLayers, IconInbox, IconBriefcase, IconClipboardCheck } from "@/components/icons";
@@ -240,6 +242,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
     >
       <div className="ppanel__h">
         <b>{t("title")}</b>
+        <CopilotLauncher surface="lawyer_document_request" context={{ label: t("title"), tab }} />
       </div>
 
       {/* Its own class, not just .docb__tabs: that one is the document
@@ -524,6 +527,8 @@ export function FulfillModal({
   const t = useTranslations(ns);
   const tf = useTranslations("portal.client.documents.fields");
   const tn = useTranslations("common.notify");
+  const copilotRoom = target?.secureChatRoomId ? { type: "secure_chat", id: target.secureChatRoomId, code: target.request.workId || undefined, title: target.requestedDocumentType || target.title || target.serviceName || undefined } : null;
+  const copilotOn = useCopilotAvailable(copilotRoom ?? false);
   const [file, setFile] = useState<File | null>(null);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -591,6 +596,16 @@ export function FulfillModal({
 
   return (
     <Modal open={!!target} onClose={onClose} title={target?.clientName || target?.title || t("title")} wide>
+      {target && copilotOn ? (
+        <div style={{ display: "flex", marginBottom: 14 }}>
+          <CopilotLauncher
+            surface="lawyer_document_request"
+            entity={copilotRoom}
+            title={[target.request.workId ? `#${target.request.workId}` : "", target.requestedDocumentType || target.title || target.serviceName].filter(Boolean).join(" · ") || undefined}
+            context={{ label: target.requestedDocumentType || target.title || target.serviceName || t("title"), work_id: target.request.workId || undefined, status: target.status || undefined }}
+          />
+        </div>
+      ) : null}
       {target ? (
         <div className="cform docassist" style={{ maxWidth: "none" }} data-ai-id={`${AI}.upload-modal`} data-ai-type="modal" data-ai-label={t("fileLabel")} data-ai-private>
           {target.clientPhone ? (

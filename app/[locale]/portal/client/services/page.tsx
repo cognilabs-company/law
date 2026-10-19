@@ -36,6 +36,7 @@ import ServiceDocumentRequest from "@/components/portal/ServiceDocumentRequest";
 import NewDocumentOrder from "@/components/portal/NewDocumentOrder";
 import ManualDocPlanGate from "@/components/portal/ManualDocPlanGate";
 import AiPlanUpgradeGate from "@/components/portal/AiPlanUpgradeGate";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import { useResource, useResourceOne } from "@/lib/useResource";
 import { normalizeSearchText } from "@/lib/searchText";
 import { useIsFreeAiTier } from "@/lib/useAiTier";
@@ -1211,6 +1212,7 @@ export default function ClientServices() {
             {/* Nothing in the catalog fits every case — this is the way out
                 of it: an advocate writes the document from scratch, or
                 checks one the client already has. */}
+            <CopilotLauncher surface="service_catalog" context={{ category: subcat || catName || undefined, query: query || undefined }} />
             <button type="button" className="btn btn--grad btn--sm" onClick={() => setNewDocOpen(true)} data-ai-target="button:create-document" data-ai-id="documents.create.open">
               <IconPlus />
               {t("newDocOrder")}

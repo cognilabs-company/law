@@ -19,6 +19,7 @@ import { shortDateTime } from "@/lib/date";
 import { matchesSearch } from "@/lib/searchText";
 import { Link } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { Skeleton, EmptyState } from "./DataState";
 import {
@@ -314,7 +315,10 @@ export default function ClientWorks() {
     <div className="ppanel" data-ai-target={status === "ready" && shown.length ? undefined : "works:list"}>
       <div className="ppanel__h">
         <b className="ppanel__t"><span className="pico"><IconBriefcase /></span>{t("title")}</b>
-        <span className="advmuted">{total}</span>
+        <span className="ppanel__hact">
+          <span className="advmuted">{total}</span>
+          <CopilotLauncher surface="client_work_detail" title={t("title")} />
+        </span>
       </div>
       {/* §9's separation, said once where a client might otherwise wonder why
           their documents are not here. */}
@@ -360,6 +364,7 @@ export default function ClientWorks() {
                     className="cwork"
                     key={r.id}
                     onClick={() => setOpenId(r.workId)}
+                    data-ai-target={r.id ? `works.item.${r.id}` : undefined}
                     data-ai-id={rowId || undefined}
                     data-ai-type="list_item"
                     data-ai-label={[typeName(r.type), st].filter(Boolean).join(" · ")}
@@ -422,6 +427,7 @@ export default function ClientWorks() {
 // the screen that actually works on it.
 function WorkDetail({ row, typeName }: { row: ClientWork; typeName: (k: string) => string }) {
   const t = useTranslations("portal.client.works");
+  const tp = useTranslations("portal.client.copilot");
   const tcm = useTranslations("portal.common");
   const locale = useLocale();
   const [detail, setDetail] = useState<ClientWorkDetail | null>(null);
@@ -464,6 +470,10 @@ function WorkDetail({ row, typeName }: { row: ClientWork; typeName: (k: string) 
 
   const base = TYPE_HREF[row.type] || "";
   const href = base && (row.type === "quality_complaint" || row.type === "complaint") && row.workId ? profileTabHref("complaints", { work: row.workId }) : base;
+  const workTitle = row.title || typeName(row.type);
+  const entityType = row.type === "service_order" || row.type === "legal_case" ? row.type : roomId ? "secure_chat" : "";
+  const entityId = entityType === "secure_chat" ? roomId : row.id;
+  const copilotEntity = entityType && entityId ? { type: entityType, id: entityId, code: row.workId || undefined, title: workTitle } : null;
 
   return (
     <div className="cwdet">
@@ -503,6 +513,13 @@ function WorkDetail({ row, typeName }: { row: ClientWork; typeName: (k: string) 
       )}
 
       <div className="cwdet__acts">
+        <CopilotLauncher
+          surface={row.hasMeeting ? "client_meeting" : "client_work_detail"}
+          entity={copilotEntity}
+          title={workTitle}
+          label={row.hasMeeting ? tp("meetingPrep") : undefined}
+          context={copilotEntity ? undefined : { label: [row.workId, workTitle].filter(Boolean).join(" · "), work_id: row.workId || undefined }}
+        />
         {roomId ? (
           <Link href={`/portal/chat/${roomId}`} className="btn btn--line btn--sm">
             <IconChat />{t("openChat")}

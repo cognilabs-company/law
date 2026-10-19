@@ -9,6 +9,8 @@ import type { Role } from "@/lib/auth";
 import { useAuth } from "@/lib/auth";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import Select from "@/components/Select";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
+import { useCopilotAvailable } from "@/components/copilot/store";
 import SellerDashboard from "./SellerDashboard";
 import { useSellerCabinet } from "./SellerCabinet";
 import MiniCalendar, { type MiniCalEvent } from "./MiniCalendar";
@@ -56,6 +58,8 @@ const CHECKLIST = [
 export default function SellerRichDashboard({ role }: { role: "advocate" | "lawyer" }) {
   const t = useTranslations("portal.advocate.dashboard");
   const tt = useTranslations("portal.tasks");
+  const tcp = useTranslations("copilot");
+  const copilotOn = useCopilotAvailable(false);
   const locale = useLocale();
   const { session } = useAuth();
   const cabinet = useSellerCabinet();
@@ -121,6 +125,11 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
           <span className="dhero__k">{t("kicker")}</span>
           <h2 className="psec-h" style={{ color: "#fff" }}>{t("heroTitle")}</h2>
           <p>{t("heroSub")}</p>
+          {copilotOn ? (
+            <div style={{ marginTop: 16 }}>
+              <CopilotLauncher surface="lawyer_dashboard" context={{ label: t("kicker"), cabinet: role }} />
+            </div>
+          ) : null}
         </div>
         <div className="dhero__quote">
           <div className="dhero__quoteImg">
@@ -201,14 +210,23 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
         <div className="ppanel" data-ai-target="seller-dashboard:tasks" data-ai-id="advocate.dashboard.tasks" data-ai-label={t("myTasks")}>
           <div className="ppanel__h">
             <b>{t("myTasks")}</b>
-            <div className="wsel" data-ai-id="advocate.dashboard.tasks.filters.period" data-ai-type="select" data-ai-label={tt("due")}>
-              <Select
-                value={taskTab}
-                onChange={(v) => {
-                  if (isTaskTab(v)) setTaskTab(v);
-                }}
-                ariaLabel={tt("due")}
-                options={TASK_TABS.map((k) => ({ value: k, label: t(`tab_${k}`, { n: taskGroups[k].length }) }))}
+            <div className="ppanel__hact">
+              <div className="wsel" data-ai-id="advocate.dashboard.tasks.filters.period" data-ai-type="select" data-ai-label={tt("due")}>
+                <Select
+                  value={taskTab}
+                  onChange={(v) => {
+                    if (isTaskTab(v)) setTaskTab(v);
+                  }}
+                  ariaLabel={tt("due")}
+                  options={TASK_TABS.map((k) => ({ value: k, label: t(`tab_${k}`, { n: taskGroups[k].length }) }))}
+                />
+              </div>
+              <CopilotLauncher
+                surface="lawyer_work_queue"
+                variant="icon"
+                label={tcp("seller.prioritize")}
+                context={{ label: t("myTasks"), period: taskTab, count: shownTasks.length }}
+                prompt={tcp("prompt.prioritize")}
               />
             </div>
           </div>

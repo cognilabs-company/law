@@ -3,6 +3,7 @@
 import type { ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { SxButton, SxLinkButton } from "@/components/admin/studio/sx/Button";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import type { SxIcon } from "@/components/admin/studio/sx/types";
 import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
@@ -186,9 +187,16 @@ export default function OrderHeader({
         <SxLinkButton variant="ghost" size="sm" icon={ArrowLeftIcon} href={listHref} aiId={`${aiBase}.back`}>
           {view === "client" ? t("backClient") : t("backSeller")}
         </SxLinkButton>
-        <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} busy={refreshing} onClick={onRefresh} aiId={`${aiBase}.refresh`}>
-          {t("refresh")}
-        </SxButton>
+        <div className="mod-head__tools">
+          <CopilotLauncher
+            surface={view === "client" ? "client_work_detail" : "lawyer_work_detail"}
+            entity={{ type: "service_order", id: o.id, title: [o.workId ? `#${o.workId}` : "", o.serviceTitle || o.packageTitle].filter(Boolean).join(" · ") }}
+            context={{ work_id: o.workId || undefined, phase }}
+          />
+          <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} busy={refreshing} onClick={onRefresh} aiId={`${aiBase}.refresh`}>
+            {t("refresh")}
+          </SxButton>
+        </div>
       </div>
       <div className="mod-head__main">
         <div className="mod-head__titles">

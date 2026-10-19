@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { SxPanel } from "@/components/admin/studio/sx/layout/Panel";
 import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { SxButton } from "@/components/admin/studio/sx/Button";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import { SxProgress } from "@/components/admin/studio/sx/shared/Progress";
 import { Field } from "@/components/admin/studio/sx/form/Field";
 import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
@@ -82,6 +83,7 @@ export default function OrderChecklist({
   onRetry: () => void;
 }): ReactElement | null {
   const t = useTranslations("marketplace.orderDetail");
+  const tc = useTranslations("copilot");
   const [openId, setOpenId] = useState("");
   const [live, setLive] = useState("");
   const sig = signatureOf(checklist);
@@ -186,7 +188,24 @@ export default function OrderChecklist({
 
   return (
     <div id={SECTION_ID.checklist} className="mck" tabIndex={-1}>
-      <SxPanel title={t("checklist.title")} lead={editable ? t("checklist.leadSeller") : view === "client" ? t("checklist.leadClient") : undefined} aiId={`${aiBase}.checklist`} className="mck-panel">
+      <SxPanel
+        title={t("checklist.title")}
+        lead={editable ? t("checklist.leadSeller") : view === "client" ? t("checklist.leadClient") : undefined}
+        actions={
+          view === "seller" && items.length > 0 && phase !== "cancelled" ? (
+            <CopilotLauncher
+              surface="lawyer_checklist"
+              entity={{ type: "service_order", id: o.id, title: [o.workId ? `#${o.workId}` : "", o.serviceTitle || o.packageTitle].filter(Boolean).join(" · ") }}
+              context={{ work_id: o.workId || undefined, phase }}
+              prompt={tc("prompt.completionCheck")}
+              label={tc("place.checkReady")}
+              aiId={`${aiBase}.checklist.copilot`}
+            />
+          ) : undefined
+        }
+        aiId={`${aiBase}.checklist`}
+        className="mck-panel"
+      >
         <p className="sx-vh" role="status" aria-live="polite">
           {live}
         </p>

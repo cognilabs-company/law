@@ -27,6 +27,7 @@ import OrderMilestones from "@/components/portal/OrderMilestones";
 import OrderStatusPanel from "@/components/portal/OrderStatusPanel";
 import { notify } from "@/lib/toast";
 import Modal from "@/components/admin/Modal";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import Select from "@/components/Select";
 import { IconFileText, IconArrowRight, IconDocLines } from "@/components/icons";
 import { statusLabel } from "@/lib/labels";
@@ -51,6 +52,7 @@ type Item = { key: string; case?: BackendCase; order?: BackendOrder };
 export default function ClientCases() {
   const t = useTranslations("portal.client.cases");
   const tcCommon = useTranslations("portal.common");
+  const tcp = useTranslations("copilot");
   const orderLabel = useOrderStatusLabel();
   const res = useResource(listCases, []);
   const orders = useResource(listOrders, []);
@@ -153,7 +155,10 @@ export default function ClientCases() {
     <div className="ppanel" data-ai-target="cases:list">
       <div className="ppanel__h">
         <b>{t("title")}</b>
-        <span className="advmuted">{t("count", { n: items.length })}</span>
+        <span className="ppanel__hact">
+          <span className="advmuted">{t("count", { n: items.length })}</span>
+          <CopilotLauncher surface="client_case_detail" title={t("title")} />
+        </span>
       </div>
       {loading ? (
         <Skeleton rows={3} />
@@ -164,8 +169,14 @@ export default function ClientCases() {
           const orderId = c?.orderId || o?.id || "";
           const status = o?.status || "";
           const stage = status ? clientStageOf(status) : null;
+          const rowTitle = c ? c.caseType || c.title || t("title") : o?.serviceName || o?.title || t("orderItem");
+          const rowEntity = c?.id
+            ? { type: "legal_case", id: c.id, code: c.caseNumber || undefined, title: c.caseType || c.title || undefined }
+            : o?.id
+              ? { type: "service_order", id: o.id, code: o.workId || undefined, title: o.serviceName || o.title || undefined }
+              : null;
           return (
-            <div className="creq ocase" key={key}>
+            <div className="creq ocase" key={key} data-ai-target={c?.id ? `cases.item.${c.id}` : o?.id ? `orders.item.${o.id}` : undefined}>
               <span className="creq__st" />
               <div className="creq__m">
                 <b>{c ? c.caseType || c.title || t("title") : o?.serviceName || o?.title || t("orderItem")}</b>
@@ -197,6 +208,7 @@ export default function ClientCases() {
                 ) : c?.status ? (
                   <span className="creq__badge">{caseStatus(c.status)}</span>
                 ) : null}
+                {rowEntity ? <CopilotLauncher variant="icon" surface="client_case_detail" entity={rowEntity} title={rowTitle} label={tcp("place.aboutItem", { title: rowTitle })} aiId={`cases.item.${rowEntity.id}.copilot`} /> : null}
                 {orderId ? (
                   <button className="btn btn--line btn--sm" type="button" aria-expanded={openMilestones === key} onClick={() => setOpenMilestones((k) => (k === key ? "" : key))}>
                     {openMilestones === key ? t("hideMilestones") : t("milestonesCta")}

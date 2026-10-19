@@ -9,6 +9,8 @@ import Select from "@/components/Select";
 import { IconUser } from "@/components/icons";
 import OrderStatusPanel from "@/components/portal/OrderStatusPanel";
 import CaseAiTools from "@/components/portal/CaseAiTools";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
+import { useCopilotAvailable } from "@/components/copilot/store";
 
 const STATUSES = ["new", "active", "investigation", "court", "appeal", "completed", "archived"];
 
@@ -27,6 +29,8 @@ export default function CaseManageModal({
   const [stage, setStage] = useState(target?.stage || "");
   const [nextAction, setNextAction] = useState(target?.nextAction || "");
   const [busy, setBusy] = useState(false);
+  const copilotCase = target ? { type: "legal_case", id: target.id, code: target.caseNumber || undefined, title: target.caseType || target.title || undefined } : null;
+  const copilotOn = useCopilotAvailable(copilotCase ?? false);
 
   // Reset the form when a different case is opened (during render, not in an effect).
   const [prevTarget, setPrevTarget] = useState(target);
@@ -70,6 +74,16 @@ export default function CaseManageModal({
             {target.clientName ? <span className="pcase__client"><IconUser />{target.clientName}</span> : null}
             <b>{target.caseType || target.title || "—"}</b>
             {target.description ? <p className="advmuted">{target.description}</p> : null}
+            {copilotOn ? (
+              <div style={{ marginTop: 8 }}>
+                <CopilotLauncher
+                  surface="lawyer_case_detail"
+                  entity={copilotCase}
+                  title={[target.caseNumber, target.caseType || target.title].filter(Boolean).join(" · ") || undefined}
+                  context={{ status: target.status || undefined }}
+                />
+              </div>
+            ) : null}
           </div>
           <div data-ai-target="case:status">
             <label>{t("status")}</label>

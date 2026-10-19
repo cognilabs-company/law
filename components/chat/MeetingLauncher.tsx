@@ -15,6 +15,8 @@ import { useAiSelection } from "@/lib/ai/registry";
 import SearchSelect from "@/components/SearchSelect";
 import FilterBar from "@/components/filters/FilterBar";
 import CallRoom from "@/components/chat/CallRoom";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
+import { useCopilotAvailable } from "@/components/copilot/store";
 import Modal from "@/components/admin/Modal";
 import DatePicker from "@/components/DatePicker";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
@@ -303,6 +305,9 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
   const tn = useTranslations("common.notify");
   const tpc = useTranslations("portal.common");
   const te = useTranslations("enums");
+  const tcp = useTranslations("copilot");
+  const copilotOn = useCopilotAvailable(true);
+  const copilotHero = useCopilotAvailable(false);
   const locale = useLocale();
   const { session } = useAuth();
   const sessionId = session?.id ?? "";
@@ -1124,9 +1129,23 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         </td>
         <td><StatusBadge status={c.callStatus} map={callMap} size="sm" /></td>
         <td>
-          {join ?? (
-            <span style={{ display: "inline-flex", color: "var(--gray2)" }}><IconMoreHorizontal /></span>
-          )}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            {join ?? (copilotOn ? null : (
+              <span style={{ display: "inline-flex", color: "var(--gray2)" }}><IconMoreHorizontal /></span>
+            ))}
+            {copilotOn ? (
+              <CopilotLauncher
+                surface="lawyer_meeting"
+                variant="icon"
+                entity={{ type: "secure_chat", id: c.roomId, title: c.title || t("untitled") }}
+                title={[t(`formatLabel.${c.callType}`), c.startedAt ? when(c.startedAt) : ""].filter(Boolean).join(" · ")}
+                label={tcp("seller.aboutMeeting", { title: c.title || t("untitled") })}
+                context={{ call_status: c.callStatus || undefined, call_type: c.callType }}
+                prompt={LIVE.has(c.callStatus) ? tcp("prompt.meetingAgenda") : tcp("prompt.meetingSummary")}
+                aiId={`copilot.launcher.lawyer_meeting.${c.callId}`}
+              />
+            ) : null}
+          </span>
         </td>
       </tr>
     );
@@ -1139,6 +1158,11 @@ export default function MeetingLauncher({ rich = false }: { rich?: boolean }) {
         <div className="mhero__t">
           <h2 className="psec-h">{t("title")}</h2>
           <p>{t("subtitle")}</p>
+          {copilotHero ? (
+            <div style={{ marginTop: 14 }}>
+              <CopilotLauncher surface="lawyer_meeting" context={{ label: t("title"), live: live.length, today: todayItems.length }} />
+            </div>
+          ) : null}
         </div>
         <span className="mhero__art">
           <span className="mhero__art-cal"><IconCalendar /></span>

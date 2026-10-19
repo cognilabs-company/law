@@ -5,3 +5,4 @@
 .mkc__pending .mkc__open{justify-self:start;display:inline-flex;align-items:center;gap:6px}
 .mkc__pending .mkc__open svg{width:15px;height:15px}
 @media (pointer: coarse){.mkc__pending .mkc__open{min-height:44px}}
+.mkc .mk-act__head .mkc__ai{margin-left:auto}

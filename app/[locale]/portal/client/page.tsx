@@ -16,6 +16,8 @@ import ReferralProgress from "@/components/portal/ReferralProgress";
 import LawyerPromo from "@/components/portal/LawyerPromo";
 import DashboardSearch, { DashboardSearchShell } from "@/components/portal/DashboardSearch";
 import Modal from "@/components/admin/Modal";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
+import { useCopilotAvailable } from "@/components/copilot/store";
 import {
   IconSparkle,
   IconSend,
@@ -96,6 +98,8 @@ export default function ClientDashboard() {
   const t = useTranslations("portal.client.dashboard");
   const ta = useTranslations("portal.client.actions");
   const tc = useTranslations("portal.common");
+  const tp = useTranslations("portal.client.copilot");
+  const copilotOn = useCopilotAvailable(false);
   const { session } = useAuth();
   const router = useRouter();
   const [ask, setAsk] = useState("");
@@ -272,6 +276,11 @@ export default function ClientDashboard() {
               {t("sideAiCta")}
               <IconArrowRight />
             </Link>
+            {copilotOn ? (
+              <div>
+                <CopilotLauncher surface="client_dashboard" label={tp("askHere")} />
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

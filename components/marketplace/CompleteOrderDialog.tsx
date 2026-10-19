@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconAlert, IconCheck, IconClose, IconFileText, IconClipboardCheck, IconPaperclip } from "@/components/icons";
 import { Link } from "@/i18n/navigation";
@@ -37,6 +38,7 @@ export default function CompleteOrderDialog({
 }): ReactElement {
   const t = useTranslations("marketplace.complete");
   const td = useTranslations("marketplace.orderDetail.complete");
+  const tc = useTranslations("copilot");
   const marketErr = useMarketError();
   const [text, setText] = useState("");
   const [files, setFiles] = useState<Attachment[]>([]);
@@ -158,6 +160,16 @@ export default function CompleteOrderDialog({
         <div className="mk-act__head">
           {target.workId ? <span className="wid">{target.workId}</span> : null}
           <b>{target.serviceTitle}</b>
+          <CopilotLauncher
+            variant="icon"
+            surface="lawyer_checklist"
+            entity={{ type: "service_order", id: target.id, title: [target.workId ? `#${target.workId}` : "", target.serviceTitle || target.packageTitle].filter(Boolean).join(" · ") }}
+            context={{ work_id: target.workId || undefined }}
+            prompt={tc("prompt.completionCheck")}
+            label={tc("place.checkReady")}
+            className="mkc__ai"
+            aiId="advocate.marketplace-orders.complete.copilot"
+          />
         </div>
         <p>{t("lead")}</p>
         {checking ? (

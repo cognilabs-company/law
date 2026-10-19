@@ -61,6 +61,7 @@ import {
   IconUpload,
 } from "@/components/icons";
 import InstructorButton from "@/components/guide/InstructorButton";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 
 // LEXGO_FRONTEND_WORD_EDITOR_DESIGN_GUIDE.md: a dedicated full-page
 // workspace, not a small in-card iframe/modal ("Editor sahifa card ichida
@@ -962,6 +963,13 @@ export default function DocumentEditorWorkspace({
               has a source opens straight into it, which is every record that
               worked before this shipped. */}
           <InstructorButton className="deditor__act deditor__act--ai" labelClassName="deditor__actLabel" size={18} />
+          <CopilotLauncher
+            surface="lawyer_editor"
+            variant="icon"
+            entity={chatRoomId ? { type: "secure_chat", id: chatRoomId, code: req?.request.workId || undefined, title: req?.requestedDocumentType || req?.title || req?.serviceName || undefined } : null}
+            title={[req?.request.workId ? `#${req.request.workId}` : "", req?.requestedDocumentType || req?.title || req?.serviceName].filter(Boolean).join(" · ") || undefined}
+            context={{ label: req?.requestedDocumentType || req?.title || req?.serviceName || t("title"), work_id: req?.request.workId || undefined, editor: editorState }}
+          />
           <button
             type="button"
             className="deditor__act"

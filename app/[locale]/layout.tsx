@@ -31,6 +31,7 @@ import Toaster from "@/components/Toaster";
 import ConfirmHost from "@/components/ui/ConfirmDialog";
 import GuideHost from "@/components/guide/GuideHost";
 import AiRuntimeHost from "@/components/guide/AiRuntimeHost";
+import CopilotHost from "@/components/copilot/CopilotHost";
 import { THEME_SCRIPT } from "@/lib/themeScript";
 
 const inter = Inter({
@@ -125,6 +126,7 @@ export default async function LocaleLayout({ children, params }: Props) {
             <ChromeGate>
               <GuideHost />
               <AiRuntimeHost />
+              <CopilotHost />
             </ChromeGate>
           </AuthProvider>
         </IntlProvider>

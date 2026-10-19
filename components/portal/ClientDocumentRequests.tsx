@@ -26,6 +26,8 @@ import DocRatingBox, { DocRatedStars } from "./DocRatingBox";
 import { fetchAndDeliver } from "@/lib/download";
 import { notify } from "@/lib/toast";
 import Modal from "@/components/admin/Modal";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
+import { useCopilotAvailable } from "@/components/copilot/store";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { EmptyState, ErrorState } from "./DataState";
 import { shortDateTime } from "@/lib/date";
@@ -155,9 +157,12 @@ export default function ClientDocumentRequests() {
   const tcommon = useTranslations("portal.client.documents");
   const tcm = useTranslations("portal.common");
   const tn = useTranslations("common.notify");
+  const tcp = useTranslations("copilot");
   const locale = useLocale();
   const router = useRouter();
   const params = useSearchParams();
+  const copilotFree = useCopilotAvailable(false);
+  const copilotChat = useCopilotAvailable(true);
   const nextActionText = (raw: string) => {
     const key = docNextActionKey(raw);
     if (!key) return raw;
@@ -559,11 +564,28 @@ export default function ClientDocumentRequests() {
                 : null;
     const nowTitle = phase ? t(`pay.${phase}.title`) : item.nextAction ? nextActionText(item.nextAction) : "";
     const nowText = phase ? t(`pay.${phase}.text`) : "";
-    type ActKey = "download" | "continue" | "chat" | "send";
+    type ActKey = "download" | "continue" | "chat" | "send" | "copilot";
     const reviewing = flow?.state.review === "now";
     const primary: ActKey | "" = reviewing && room ? "chat" : ready ? "download" : canContinue && (tone === "you" || !room) ? "continue" : room ? "chat" : canSend ? "send" : "";
     const btn = (key: ActKey) => `btn ${primary === key ? "btn--grad" : "btn--line"} btn--sm mdc__btn`;
     const acts: { key: ActKey; node: ReactNode }[] = [];
+    const docTitle = item.title || t("title");
+    if (room ? copilotChat : copilotFree)
+      acts.push({
+        key: "copilot",
+        node: (
+          <CopilotLauncher
+            key="copilot"
+            variant="icon"
+            surface="client_document_detail"
+            entity={room ? { type: "secure_chat", id: room, code: workId || undefined, title: docTitle } : null}
+            title={docTitle}
+            label={tcp("place.aboutItem", { title: docTitle })}
+            context={room ? undefined : { label: [workId, docTitle].filter(Boolean).join(" · "), work_id: workId || undefined }}
+            aiId={aiId(itemAi, "copilot")}
+          />
+        ),
+      });
     if (ready)
       acts.push({
         key: "download",
@@ -640,6 +662,7 @@ export default function ClientDocumentRequests() {
       <article
         className={cls}
         key={item.id}
+        data-ai-target={`documents.item.${item.id}`}
         data-ai-id={itemAi}
         data-ai-type="list_item"
         data-ai-label={[modeText, statusText].filter(Boolean).join(" · ")}
@@ -807,6 +830,7 @@ export default function ClientDocumentRequests() {
           <b>{t("title")}</b>
           <span>{t("lead")}</span>
         </div>
+        <CopilotLauncher surface="client_document_detail" title={t("title")} />
       </div>
 
       <div className="mydocs__views" role="group" aria-label={t("views")} data-ai-target="documents:my-stats" data-ai-id="documents.my.stats" data-ai-type="section">

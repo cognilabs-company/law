@@ -19,6 +19,8 @@ import {
 import { listActivePromotions } from "@/lib/services/promotions";
 import { IconArrowRight, IconChevronLeft, IconClock, IconLock, IconRefresh, IconShieldCheck, IconStar, IconBriefcase } from "@/components/icons";
 import PurchaseDialog from "./PurchaseDialog";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
+import "@/components/portal/clientCopilot.css";
 import PricingExplainer from "./PricingExplainer";
 import { Stars, deliveryLabel } from "./bits";
 import { SellerAbout, SellerHero, SellerServiceRow } from "./SellerParts";
@@ -226,10 +228,13 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
 
   return (
     <section className="mk mk-prof">
-      <Link href={listHref} className="mk-back">
-        <IconChevronLeft />
-        {t("detail.back")}
-      </Link>
+      <div className="ccp-top">
+        <Link href={listHref} className="mk-back">
+          <IconChevronLeft />
+          {t("detail.back")}
+        </Link>
+        {variant === "portal" && !preview ? <CopilotLauncher surface="lawyer_marketplace" title={seller.name} context={{ label: seller.name }} /> : null}
+      </div>
 
       <SellerHero seller={seller} top={profileTop} />
 

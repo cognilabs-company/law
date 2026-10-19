@@ -43,6 +43,8 @@ import {
   IconTag,
 } from "@/components/icons";
 import ComplaintRow from "./ComplaintRow";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
+import "@/components/portal/clientCopilot.css";
 import ComplaintDetail from "./ComplaintDetail";
 import NewComplaintForm, { emptyDraft, type ComplaintDraft, type WorksState } from "./NewComplaintForm";
 import { EmptyArt, rowDomId, useComplaintLabels } from "./bits";
@@ -86,6 +88,7 @@ function pickOption(options: Option[], raw: string): string | null {
 
 export default function ClientComplaints() {
   const t = useTranslations("portal.client.complaints");
+  const tp = useTranslations("portal.client.copilot");
   const locale = useLocale();
   const tc = useTranslations("common");
   const tcm = useTranslations("portal.common");
@@ -353,17 +356,20 @@ export default function ClientComplaints() {
             </h2>
             <p className="shk__lead">{t("lead")}</p>
           </div>
-          <button
-            type="button"
-            className="btn btn--grad shk__new"
-            data-ai-target="button:new-complaint"
-            data-ai-id="complaints.new"
-            aria-haspopup="dialog"
-            onClick={openForm}
-          >
-            <IconPlus aria-hidden />
-            {t("new")}
-          </button>
+          <div className="ccp-acts ccp-acts--head">
+            <CopilotLauncher variant="icon" surface="client_support" title={t("title")} label={tp("draftWithAi")} aiId="complaints.copilot" />
+            <button
+              type="button"
+              className="btn btn--grad shk__new"
+              data-ai-target="button:new-complaint"
+              data-ai-id="complaints.new"
+              aria-haspopup="dialog"
+              onClick={openForm}
+            >
+              <IconPlus aria-hidden />
+              {t("new")}
+            </button>
+          </div>
         </div>
         <ol className="shk__flow" aria-label={t("stepsLabel")}>
           {FLOW.map(({ key, Icon }, i) => (
@@ -526,10 +532,19 @@ export default function ClientComplaints() {
               ) : (
                 <span />
               )}
-              <Link href="/portal/client/support" className="btn btn--pri">
-                <IconChat aria-hidden />
-                {t("chatShort")}
-              </Link>
+              <div className="ccp-acts">
+                <CopilotLauncher
+                  surface="client_support"
+                  title={t("detailTitle")}
+                  label={tp("draftWithAi")}
+                  context={{ label: openItem.workId || t("detailTitle"), work_id: openItem.workId || undefined }}
+                  aiId="complaints.detail.copilot"
+                />
+                <Link href="/portal/client/support" className="btn btn--pri">
+                  <IconChat aria-hidden />
+                  {t("chatShort")}
+                </Link>
+              </div>
             </div>
           ) : null
         }

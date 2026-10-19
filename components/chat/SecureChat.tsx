@@ -53,7 +53,8 @@ import { VoiceNotePlayer } from "@/components/portal/AttachmentPreview";
 import { fetchAndDeliver } from "@/lib/download";
 import ImageLightbox from "./ImageLightbox";
 import CallRoom from "./CallRoom";
-import { tellDesk, useInDesk } from "@/lib/deskBridge";
+import { openCopilot, useCopilotAvailable } from "@/components/copilot/store";
+import { copilotModeFor } from "@/lib/services/copilotPanel";
 import {
   IconSparkle,
   IconSend,
@@ -670,7 +671,7 @@ export default function SecureChat({
   const tr = useTranslations("portal.client.rate");
   // In a virtual desktop window the copilot can be pointed at this chat;
   // the backend loads the history it may see, nothing is copied from here.
-  const inDesk = useInDesk();
+  const copilotOn = useCopilotAvailable(!!roomId);
   const tn = useTranslations("common.notify");
   const locale = useLocale();
   const { session, ready } = useAuth();
@@ -1526,11 +1527,11 @@ export default function SecureChat({
             <span>{t("completeChat")}</span>
           </button>
         ) : null}
-        {inDesk && !compact ? (
+        {copilotOn && !compact ? (
           <button
             className="schat__call schat__cop"
             type="button"
-            onClick={() => tellDesk({ type: "lexgo-desk:copilot", entity: { type: "secure_chat", id: roomId, title: headService || (headWorkId ? `#${headWorkId}` : t("title")) } })}
+            onClick={(e) => openCopilot({ surface: copilotModeFor(session) === "lawyer_copilot" ? "lawyer_chat" : "client_chat", entity: { type: "secure_chat", id: roomId, title: [headWorkId ? `#${headWorkId}` : "", headService].filter(Boolean).join(" · ") || t("title") }, trigger: e.currentTarget })}
             aria-label={t("askCopilot")}
             title={t("askCopilot")}
             data-ai-target="button:chat-copilot"

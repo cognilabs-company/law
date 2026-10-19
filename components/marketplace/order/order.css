@@ -27,6 +27,12 @@
   gap: 8px;
   margin: 0 -8px;
 }
+.mod .mod-head__tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
 .mod .mod-head__main {
   display: flex;
   flex-wrap: wrap;
@@ -465,6 +471,19 @@
   .mod .mod-facts__row {
     grid-template-columns: minmax(0, 1fr);
     gap: 2px;
+  }
+  .mod .mod-head__tools .cpl-launch {
+    justify-content: center;
+    width: 38px;
+    padding: 0;
+  }
+  .mod .mod-head__tools .cpl-launch__t {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }
 

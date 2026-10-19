@@ -51,6 +51,7 @@ import {
   IconSparkle,
 } from "@/components/icons";
 import SupportChat from "./SupportChat";
+import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import { SupportStatus, TicketCard, agoText, lastPreview, useMinuteNow, useSupportHours, useSupportLabels } from "./bits";
 import { useMyChats } from "./useMyChats";
 import { SUPPORT_PHONE, SUPPORT_TEL } from "./contact";
@@ -183,6 +184,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
   const t = useTranslations("support");
   const tc = useTranslations("common");
   const tf = useTranslations("filterBar");
+  const tp = useTranslations("portal.client.copilot");
   const { session } = useAuth();
   const params = useSearchParams();
   const router = useRouter();
@@ -671,6 +673,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
         <div className="suphead__hours">
           <BusinessHoursBadge />
         </div>
+        {client ? <CopilotLauncher surface="client_support" title={t("hub.title")} label={tp("draftWithAi")} /> : null}
       </header>
 
       {ongoing.length ? (
@@ -827,6 +830,7 @@ export default function SupportHub({ role, ticketId }: { role: Role; ticketId?: 
                 <h4 id="supnew-title">{resumeFirst ? t("compose.resumeTitle") : t("compose.title")}</h4>
                 <p>{resumeFirst ? t("compose.resumeText") : t("compose.lead")}</p>
               </div>
+              {client ? <CopilotLauncher variant="icon" surface="client_support" title={t("compose.title")} label={tp("draftWithAi")} aiId="support.new-ticket.copilot" /> : null}
               <button type="button" className="supnew__x" onClick={closeComposer} aria-label={t("cancel")} title={t("cancel")}>
                 <IconClose />
               </button>
