@@ -26,7 +26,10 @@ export type NativeProps = {
 
 const load = (f: () => Promise<{ default: ComponentType<NativeProps> }>) => dynamic(f, { ssr: false });
 
-export const NATIVE_APPS: Partial<Record<string, ComponentType<NativeProps>>> = {
+type Registry = Partial<Record<string, ComponentType<NativeProps>>>;
+
+// The seller's (advocate's, lawyer's) programs.
+const SELLER_APPS: Registry = {
   dashboard: load(() => import("./apps/DashboardApp")),
   tasks: load(() => import("./apps/TasksApp")),
   calendar: load(() => import("./apps/CalendarApp")),
@@ -50,3 +53,19 @@ export const NATIVE_APPS: Partial<Record<string, ComponentType<NativeProps>>> = 
   support: load(() => import("./apps/SupportApp")),
   snippets: load(() => import("./apps/SnippetsApp")),
 };
+
+// The client's programs. The client cabinet reuses some section keys
+// (services, cases, profile…) for pages of its own, so it never gets the
+// seller's programs by key — only these, and the rest open as pages.
+const CLIENT_APPS: Registry = {
+  dashboard: load(() => import("./apps/client/HomeApp")),
+  cases: load(() => import("./apps/client/WorksApp")),
+  marketplaceOrders: load(() => import("./apps/client/OrdersApp")),
+  lawyers: load(() => import("./apps/client/LawyersApp")),
+  documentRequests: load(() => import("./apps/client/DocumentsApp")),
+  messages: SELLER_APPS.messages,
+  notifications: SELLER_APPS.notifications,
+  support: SELLER_APPS.support,
+};
+
+export const nativeAppsFor = (role: string): Registry => (role === "client" ? CLIENT_APPS : SELLER_APPS);

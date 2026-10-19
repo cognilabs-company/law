@@ -54,7 +54,7 @@ import WorkApp, { SHORTCUT_DRAG, workShortcut } from "./apps/WorkApp";
 import type { CopilotEntity } from "@/lib/services/aiCopilot";
 import { safeRoute, type DeskLink, type SearchHit, type Shortcut, type ShortcutInput, type WindowInput } from "@/lib/services/lawyerDesktop";
 import { DESK_FRAME, setDeskMode, setDeskOs, type DeskOs } from "./deskMode";
-import { NATIVE_APPS, type NativeProps } from "./native";
+import { nativeAppsFor, type NativeProps } from "./native";
 import { KitMenu, KitOs } from "./kit/kit";
 import type { FromDesk, ToDesk } from "@/lib/deskBridge";
 
@@ -106,6 +106,7 @@ function pipBoxFor(area: Area, last: Box | null, video: boolean): Box {
 // sorting, wallpaper, show the desktop), an icon (open, the apps used with
 // it, pin, properties), a window's title bar and a taskbar button.
 export default function DesktopShell({ os, role, apps: navApps, name, isAdmin, onLogout }: { os: DeskOs; role: Role; apps: DeskApp[]; name: string; isAdmin: boolean; onLogout: () => void }) {
+  const NATIVE_APPS = nativeAppsFor(role);
   const t = useTranslations("portal.desk");
   const locale = useLocale();
   const pathname = usePathname();

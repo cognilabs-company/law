@@ -58,6 +58,7 @@ export default function MessagesApp({ base, route, onRoute, openApp, tell, pip }
   const os = useOs();
   const { session } = useAuth();
   const me = session?.id ?? "";
+  const role = session?.role ?? "";
   const [rooms, setRooms] = useState<SecureRoom[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [tick, setTick] = useState(0);
@@ -93,14 +94,16 @@ export default function MessagesApp({ base, route, onRoute, openApp, tell, pip }
   }, [tick]);
   useEffect(() => {
     let alive = true;
-    Promise.allSettled([listLawyers({ includeUnverified: true }), getLawyerClients()]).then(([lawyers, clients]) => {
+    // A client has no client list or assigned urgent requests to ask for.
+    const seller = role !== "client";
+    Promise.allSettled([listLawyers({ includeUnverified: true }), seller ? getLawyerClients() : Promise.resolve([])]).then(([lawyers, clients]) => {
       if (!alive) return;
       const m = new Map<string, string>();
       if (lawyers.status === "fulfilled") for (const l of lawyers.value) if (l.userId) m.set(l.userId, l.name || l.phone);
       if (clients.status === "fulfilled") for (const c of clients.value) if (c.id) m.set(c.id, c.name || c.phone);
       setDir(m);
     });
-    Promise.allSettled([listAssignedUrgentRequests(), listMyUrgentRequests()]).then((res) => {
+    Promise.allSettled([seller ? listAssignedUrgentRequests() : Promise.resolve([]), listMyUrgentRequests()]).then((res) => {
       if (!alive) return;
       const m = new Map<string, UrgentRequest>();
       for (const r of res) if (r.status === "fulfilled") for (const x of r.value) if (x.secureChatRoomId) m.set(x.secureChatRoomId, pick(m.get(x.secureChatRoomId), x));
@@ -109,7 +112,7 @@ export default function MessagesApp({ base, route, onRoute, openApp, tell, pip }
     return () => {
       alive = false;
     };
-  }, []);
+  }, [role]);
   // New messages move their room to the top and count as unread there —
   // except in the room that is open.
   const selRef = useRef(sel);
