@@ -10,7 +10,7 @@ import { logApiError } from "@/lib/http";
 import { startCreationJourney, type StudioCreationJourney, type StudioJourneyType } from "@/lib/services/studio";
 import { SxButton, type SxButtonVariant } from "../Button";
 import { SxDialog, SxDialogError } from "../editor/SxDialog";
-import { useEditorErrorText } from "../editor/useEditorErrorText";
+import { useJourneyErrorText } from "../journey/journeyErrors";
 import { ChoiceCards, type ChoiceCard } from "../form/ChoiceCards";
 import { Field, FormGrid } from "../form/Field";
 import { TextInput } from "../form/TextInput";
@@ -123,7 +123,7 @@ export type StartJourneyButtonProps = { type: StudioJourneyType; variant?: SxBut
 function StartJourneyDialog({ type, label, aiId, onClose }: { type: StudioJourneyType; label: string; aiId: string; onClose: () => void }): ReactElement {
   const t = useTranslations("studio");
   const router = useRouter();
-  const errText = useEditorErrorText();
+  const errText = useJourneyErrorText();
   const uid = useId();
   const formId = `${uid}-form`;
   const modalAi = `${aiId}-modal`;

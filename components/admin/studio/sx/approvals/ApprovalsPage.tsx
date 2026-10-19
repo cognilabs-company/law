@@ -20,7 +20,7 @@ import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxPage } from "../layout/Page";
 import { useStudioLabels } from "../useStudioLabels";
-import { BulkBar, BulkDialog, bulkItemOf, type BulkItem } from "./Bulk";
+import { BulkBar, BulkDialog, bulkItemOf, type BulkFail, type BulkItem } from "./Bulk";
 import { DoneSection } from "./DoneSection";
 import type { ApprRow } from "./model";
 import { NeedTabs } from "./NeedTabs";
@@ -37,6 +37,7 @@ type Pages = { work: number; done: number };
 
 const FIRST_PAGES: Pages = { work: 0, done: 0 };
 const NO_PICK: ReadonlySet<string> = new Set();
+const NO_FAILS: ReadonlyMap<string, string> = new Map();
 
 function writeUrl(qs: string): void {
   if (typeof window === "undefined") return;
@@ -45,7 +46,7 @@ function writeUrl(qs: string): void {
   if (next !== now) window.history.replaceState(window.history.state, "", next);
 }
 
-const sameFilters = (a: ApprQuery, b: ApprQuery): boolean => a.status === b.status && a.ctor === b.ctor && a.group === b.group && a.need === b.need && a.q === b.q;
+const sameFilters = (a: ApprQuery, b: ApprQuery): boolean => a.status === b.status && a.ctor === b.ctor && a.group === b.group && a.need === b.need && a.q === b.q && a.mine === b.mine;
 
 function doneRowsOf(fromLists: readonly ApprRow[], loaded: readonly ApprRow[] | null): ApprRow[] | null {
   if (!loaded) return null;
@@ -73,6 +74,7 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
   const [overdueBusy, setOverdueBusy] = useState(false);
   const [picked, setPicked] = useState<ReadonlySet<string>>(NO_PICK);
   const [bulk, setBulk] = useState<readonly BulkItem[] | null>(null);
+  const [fails, setFails] = useState<ReadonlyMap<string, string>>(NO_FAILS);
   const [seenInitial, setSeenInitial] = useState(initial);
   if (seenInitial !== initial) {
     setSeenInitial(initial);
@@ -84,14 +86,14 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
     }
   }
   const locked = query.status === "published";
-  const data = useApprovals({ ctor: query.ctor, done: doneOpen || locked });
+  const data = useApprovals({ ctor: query.ctor, status: query.status, q: query.q, mine: query.mine, done: doneOpen || locked });
 
   const qs = apprQueryString(query);
   useEffect(() => {
     writeUrl(qs);
   }, [qs]);
 
-  const match = (r: ApprRow) => rowMatches(r, query, labels);
+  const match = (r: ApprRow) => rowMatches(r, query, labels, data.served);
   const work = showWork(query);
   const doneShown = showDone(query);
   const workAll = workRows(data.rows);
@@ -134,8 +136,9 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
       }
     : null;
 
-  const closeBulk = (published: readonly string[]) => {
+  const closeBulk = (published: readonly string[], failed: readonly BulkFail[]) => {
     setBulk(null);
+    if (published.length || failed.length) setFails(new Map(failed.map((f) => [f.item.id, f.reason])));
     if (!published.length) return;
     setPicked((cur) => {
       const next = new Set(cur);
@@ -278,6 +281,12 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
             openId={target?.id ?? ""}
             onOpen={openRow}
             pick={pick}
+            fails={fails}
+            more={
+              data.hasMore || data.moreBusy
+                ? { has: true, loaded: data.loaded, total: data.total, busy: data.moreBusy, error: data.moreError, onMore: data.loadMore }
+                : null
+            }
           />
         ) : null}
         {doneSection}
@@ -290,8 +299,8 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
   return (
     <SxPage title={t("sx.appr.title")} section="approvals" need="review" lead={t("sx.appr.leadNewest")} aiId="admin.studio.approvals" actions={overflow}>
       <div ref={root} className="sx-appr">
-        <NeedTabs query={query} onChange={changeFilters} rows={data.rows} loading={data.loading} />
-        <QueueFilters query={query} onChange={changeFilters} rows={data.rows} count={count} />
+        <NeedTabs query={query} onChange={changeFilters} rows={data.rows} loading={data.loading} counts={data.hasMore ? data.counts : null} served={data.served} />
+        <QueueFilters query={query} onChange={changeFilters} rows={data.rows} count={count} mineOn={!data.limited} />
         {data.partial ? (
           <SxNote tone="error" action={retry}>
             {t("sx.appr.partial")}
@@ -303,7 +312,16 @@ export function ApprovalsPage({ initial }: ApprovalsPageProps): ReactElement {
           </SxNote>
         ) : null}
         {body}
-        {chosen.length ? <BulkBar count={chosen.length} onPublish={() => setBulk(chosen.map(bulkItemOf))} onClear={() => setPicked(NO_PICK)} /> : null}
+        {chosen.length ? (
+          <BulkBar
+            count={chosen.length}
+            onPublish={() => {
+              setFails(NO_FAILS);
+              setBulk(chosen.map(bulkItemOf));
+            }}
+            onClear={() => setPicked(NO_PICK)}
+          />
+        ) : null}
       </div>
       <ReviewDrawer target={target ? { id: target.id, row: found ?? target.row } : null} viewer={data.viewer} onClose={close} onChanged={() => data.reload()} />
       {bulk ? <BulkDialog items={bulk} onClose={closeBulk} onFinished={data.reload} /> : null}

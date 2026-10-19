@@ -60,7 +60,8 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
   const ai = `${aiBase}.cancel-review`;
   const showReview = (phase === "review" || (!!review && !resolved)) && !(held && !resolved);
   const showResolution = resolved || !!held;
-  const showRequest = view === "seller" && (phase === "paid" || phase === "in_progress") && !(review && !resolved) && !showReview;
+  const allowed = o.canRequestCancellation ?? (view === "seller" && (phase === "paid" || phase === "in_progress"));
+  const showRequest = allowed && !(review && !resolved) && !showReview;
 
   if (!showReview && !showResolution && !showRequest) return null;
 

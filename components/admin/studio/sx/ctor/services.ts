@@ -1,4 +1,4 @@
-import type { SxCtorLayout, SxLayoutCtx, SxValues } from "../contract";
+import type { SxCtorLayout, SxLayoutCtx, SxPayload, SxValues } from "../contract";
 import { LibraryBigIcon, BriefcaseBusinessIcon, CoinsIcon, FileQuestionMarkIcon, FilesIcon, FileTextIcon, FileXIcon, FolderOpenIcon, GlobeIcon, PackageIcon, PercentIcon, UploadIcon } from "../icons";
 import type { SxIcon } from "../types";
 import type { StudioLabels } from "../useStudioLabels";
@@ -61,12 +61,13 @@ export const K34_LAYOUT: SxCtorLayout = {
 export const K31_LAYOUT: SxCtorLayout = {
   code: "K31",
   sections: [
-    { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "version", "scope_type", "service_id", "category_id", "effective_at"] },
+    { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "rule_key", "version", "scope_type", "service_id", "category_id", "effective_at"] },
     { id: "kontent", titleKey: "sx.section.kontent", fields: ["body"] },
     { id: "faollik_va_muddat", titleKey: "sx.section.faollik_va_muddat", fields: ["is_active"] },
   ],
   fields: [
     { path: "title", placeholder: "sx.ph.K31__title" },
+    { path: "rule_key", control: "mono", placeholder: "sx.ph.K31__rule_key", help: "sx.help.K31__rule_key", locked: (ctx) => (ctx.recordId ? "sx.k31.ruleKeyLocked" : false) },
     { path: "version", placeholder: "sx.ph.K31__version", help: "sx.help.K31__version" },
     {
       path: "scope_type",
@@ -112,6 +113,16 @@ export const K33_LAYOUT: SxCtorLayout = {
     { path: "conditions", flatten: true },
   ],
 };
+
+const NO_EXECUTOR: ReadonlySet<string> = new Set(["none", "null", "undefined"]);
+
+export function k02Transform(next: SxPayload): SxPayload {
+  const v = next.executor_type;
+  if (typeof v !== "string" || !NO_EXECUTOR.has(v.trim().toLowerCase())) return next;
+  const out: SxPayload = { ...next };
+  delete out.executor_type;
+  return out;
+}
 
 export const K02_LAYOUT: SxCtorLayout = {
   code: "K02",
@@ -172,6 +183,7 @@ export const K02_LAYOUT: SxCtorLayout = {
     { path: "checklist_template_id", help: "sx.help.K02__checklist_template_id" },
     { path: "guarantee_ids", help: "sx.help.K02__guarantee_ids" },
   ],
+  transform: k02Transform,
 };
 
 export const K29_LAYOUT: SxCtorLayout = {

@@ -15,7 +15,9 @@ import type { SxHue } from "../tones";
 import type { SxIcon } from "../types";
 import { useStudioLabels } from "../useStudioLabels";
 import { GroupTile } from "./GroupTile";
+import { LastActivity } from "./LastActivity";
 import { StepMap, type StepMapStep } from "./StepMap";
+import type { LastActivity as LastActivityData } from "./summary";
 
 export type GroupCardKind = "returned" | "review" | "publish";
 export type GroupCardModel = {
@@ -28,6 +30,9 @@ export type GroupCardModel = {
   total: number;
   blocked: number;
   records: number | null;
+  runtime?: number | null;
+  last?: LastActivityData | null;
+  lastSlot?: boolean;
   steps: readonly StepMapStep[];
   next: { code: string; name: string } | null;
   counts: Readonly<Record<GroupCardKind, number>>;
@@ -51,13 +56,13 @@ export function GroupCard({ model, loadingCounts, index = 0 }: GroupCardProps): 
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const acc = useStudioAccess();
-  const { key, order, hue, name, what, done, total, blocked, records, steps, next, counts } = model;
+  const { key, order, hue, name, what, done, total, blocked, records, runtime = null, last = null, lastSlot = false, steps, next, counts } = model;
   const base = aiId("admin.studio.home.group", key);
   const href = groupHref(key);
   const pct = pctOf(done, total);
   const needHref = (k: GroupCardKind) => (acc.canReview ? approvalsHref({ group: key, need: k }) : groupHref(key, k));
   const nextLabel = next ? t("sx.home.card.next", { name: next.name }) : "";
-  const meta = [t("sx.hm.card.ctors", { n: total }), records === null ? "" : t("sx.hm.card.records", { n: records })].filter(Boolean).join(" · ");
+  const meta = [t("sx.hm.card.ctors", { n: total }), records === null ? "" : t("sx.hm.card.records", { n: records }), runtime ? t("sx.hm.card.runtime", { n: runtime }) : ""].filter(Boolean);
   return (
     <li className="sx-gcard sx-lift sx-enter" data-hue={hue} data-done={next ? undefined : ""} style={enterStyle(Math.min(index, 12))}>
       <div className="sx-gcard__top">
@@ -68,13 +73,20 @@ export function GroupCard({ model, loadingCounts, index = 0 }: GroupCardProps): 
               {name}
             </Link>
           </h3>
-          <p className="sx-gcard__meta sx-num">{meta}</p>
+          <p className="sx-gcard__meta sx-num">
+            {meta.map((m) => (
+              <span key={m} className="sx-gcard__mpart">
+                {m}
+              </span>
+            ))}
+          </p>
         </div>
         <SxRing value={pct} size={46} stroke={4} label={t("sx.home.card.progressLabel", { name, done, total })} className="sx-gcard__ring">
           <span className="sx-gcard__pct">{t("sx.journeyRun.percent", { n: pct })}</span>
         </SxRing>
       </div>
       <p className="sx-gcard__what">{what}</p>
+      {last ? <LastActivity last={last} aiId={aiId(base, "last")} className="sx-gcard__last" /> : lastSlot ? <span className="sx-gcard__last sx-gcard__last--none" aria-hidden="true" /> : null}
       <div className="sx-gcard__mapbox">
         <div className="sx-gcard__maphead">
           <span className="sx-gcard__count sx-num">{t("sx.home.card.progress", { done, total })}</span>

@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { logApiError } from "@/lib/http";
-import { findCreationJourney, normCreationJourney, peekCreationJourney, rememberCreationJourney, saveCreationJourney, type StudioCreationJourney } from "@/lib/services/studio";
-import { JOURNEY_EVENT, studioEventJourneyId, studioEventObjectId, useStudioLive } from "../live";
+import { normCreationJourney, peekCreationJourney, rememberCreationJourney, saveCreationJourney, type StudioCreationJourney } from "@/lib/services/studio";
+import { studioEventJourneyId, studioEventObjectId, useStudioLive } from "../live";
+import { getCreationJourney, isJourneyEvent, runJourneyAction, type JourneyAction } from "./journeyApi";
 import { isFullJourneyPayload, isOlderJourney, mergeJourney, stepsKey, unionSteps } from "./model";
 import { journeyEventData } from "./useCreationJourneys";
 
@@ -15,10 +16,13 @@ export type WizardJourney = {
   error: unknown;
   remoteChanged: boolean;
   adopt: () => void;
-  patch: (input: JourneyPatch) => Promise<boolean>;
+  patch: (input: JourneyPatch) => Promise<StudioCreationJourney | null>;
   patching: boolean;
   patchError: unknown;
-  retryPatch: () => Promise<boolean>;
+  retryPatch: () => Promise<StudioCreationJourney | null>;
+  act: (action: JourneyAction) => Promise<StudioCreationJourney | null>;
+  acting: JourneyAction | "";
+  actError: unknown;
   reload: () => void;
 };
 
@@ -35,17 +39,29 @@ export function useWizardJourney(id: string): WizardJourney {
   const [candidate, setCandidate] = useState<StudioCreationJourney | null>(null);
   const [patching, setPatching] = useState(false);
   const [patchError, setPatchError] = useState<unknown>(null);
+  const [acting, setActing] = useState<JourneyAction | "">("");
+  const [actError, setActError] = useState<unknown>(null);
   const journeyRef = useRef<StudioCreationJourney | null>(load.journey);
   const sentRef = useRef<string>("");
   const failedRef = useRef<JourneyPatch | null>(null);
   const seq = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const patchingRef = useRef(false);
+  const actingRef = useRef(false);
   const firstDone = useRef(false);
 
   useEffect(() => {
     journeyRef.current = load.journey;
   });
+
+  const accept = useCallback((next: StudioCreationJourney) => {
+    const merged = mergeJourney(journeyRef.current, next);
+    journeyRef.current = merged;
+    rememberCreationJourney(merged);
+    setCandidate(null);
+    setLoad((s) => ({ ...s, journey: merged, error: null, done: true }));
+    return merged;
+  }, []);
 
   const consider = useCallback((next: StudioCreationJourney) => {
     const local = journeyRef.current;
@@ -57,7 +73,7 @@ export function useWizardJourney(id: string): WizardJourney {
     if (isOlderJourney(next, local)) return;
     const merged = mergeJourney(local, next);
     const remote = stepsKey(merged);
-    if (remote === stepsKey(local) || remote === sentRef.current) {
+    if (remote === stepsKey(local) || remote === sentRef.current || merged.status !== local.status) {
       journeyRef.current = merged;
       setLoad((s) => ({ ...s, journey: merged, error: null, done: true }));
       return;
@@ -68,7 +84,7 @@ export function useWizardJourney(id: string): WizardJourney {
   const lookup = useCallback(
     (initial: boolean) => {
       const my = ++seq.current;
-      findCreationJourney(id)
+      getCreationJourney(id)
         .then((found) => {
           if (my !== seq.current) return;
           if (initial) firstDone.current = true;
@@ -83,7 +99,7 @@ export function useWizardJourney(id: string): WizardJourney {
           } else consider(found);
         })
         .catch((e: unknown) => {
-          logApiError("studio.journeys.find", e);
+          logApiError("studio.journeys.get", e);
           if (my !== seq.current) return;
           if (initial) firstDone.current = true;
           setLoad((s) => ({ ...s, error: e, done: true }));
@@ -122,7 +138,7 @@ export function useWizardJourney(id: string): WizardJourney {
       if (objectId && typeof own === "string" && own === objectId) lookupSoon();
       return;
     }
-    if (e.event !== JOURNEY_EVENT) return;
+    if (!isJourneyEvent(e.event)) return;
     const d = journeyEventData(e);
     const full = isFullJourneyPayload(d);
     const jid = studioEventJourneyId(e) || (full ? normCreationJourney(d).id : "");
@@ -133,48 +149,78 @@ export function useWizardJourney(id: string): WizardJourney {
     } else lookupSoon();
   });
 
-  const send = useCallback(async (raw: JourneyPatch): Promise<boolean> => {
-    if (patchingRef.current) return false;
-    const failed = failedRef.current;
-    const input: JourneyPatch =
-      failed && failed !== raw ? { completedSteps: unionSteps(failed.completedSteps, raw.completedSteps), currentStep: raw.currentStep, context: { ...failed.context, ...raw.context } } : raw;
-    patchingRef.current = true;
-    seq.current += 1;
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-    setPatching(true);
-    sentRef.current = stepsKey(input);
-    try {
-      const res = await saveCreationJourney(id, input);
-      const local = journeyRef.current;
-      const sentJ = local
-        ? { ...local, completedSteps: input.completedSteps, currentStep: input.currentStep, context: input.context, completedCount: Math.max(local.completedCount, input.completedSteps.length) }
-        : null;
-      const merged = mergeJourney(sentJ, res.id ? res : { ...res, id });
-      rememberCreationJourney(merged);
-      firstDone.current = true;
-      journeyRef.current = merged;
-      failedRef.current = null;
-      setPatchError(null);
-      setCandidate(null);
-      setLoad((s) => ({ ...s, journey: merged, error: null, done: true }));
-      return true;
-    } catch (e) {
-      logApiError("studio.journeys.patch", e);
-      failedRef.current = input;
-      setPatchError(e);
-      return false;
-    } finally {
-      patchingRef.current = false;
-      setPatching(false);
-    }
-  }, [id]);
+  const send = useCallback(
+    async (raw: JourneyPatch): Promise<StudioCreationJourney | null> => {
+      if (patchingRef.current) return null;
+      const failed = failedRef.current;
+      const input: JourneyPatch =
+        failed && failed !== raw ? { completedSteps: unionSteps(failed.completedSteps, raw.completedSteps), currentStep: raw.currentStep, context: { ...failed.context, ...raw.context } } : raw;
+      patchingRef.current = true;
+      seq.current += 1;
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = null;
+      setPatching(true);
+      sentRef.current = stepsKey(input);
+      try {
+        const res = await saveCreationJourney(id, input);
+        const local = journeyRef.current;
+        const sentJ = local
+          ? { ...local, completedSteps: input.completedSteps, currentStep: input.currentStep, context: input.context, completedCount: Math.max(local.completedCount, input.completedSteps.length) }
+          : null;
+        const merged = mergeJourney(sentJ, res.id ? res : { ...res, id });
+        rememberCreationJourney(merged);
+        firstDone.current = true;
+        journeyRef.current = merged;
+        failedRef.current = null;
+        setPatchError(null);
+        setCandidate(null);
+        setLoad((s) => ({ ...s, journey: merged, error: null, done: true }));
+        return merged;
+      } catch (e) {
+        logApiError("studio.journeys.patch", e);
+        failedRef.current = input;
+        setPatchError(e);
+        return null;
+      } finally {
+        patchingRef.current = false;
+        setPatching(false);
+      }
+    },
+    [id],
+  );
 
-  const retryPatch = useCallback(async (): Promise<boolean> => {
+  const retryPatch = useCallback(async (): Promise<StudioCreationJourney | null> => {
     const input = failedRef.current;
-    if (!input) return true;
+    if (!input) return journeyRef.current;
     return send(input);
   }, [send]);
+
+  const act = useCallback(
+    async (action: JourneyAction): Promise<StudioCreationJourney | null> => {
+      if (actingRef.current || patchingRef.current) return null;
+      actingRef.current = true;
+      seq.current += 1;
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = null;
+      setActing(action);
+      setActError(null);
+      try {
+        const res = await runJourneyAction(id, action);
+        failedRef.current = null;
+        setPatchError(null);
+        firstDone.current = true;
+        return accept(res);
+      } catch (e) {
+        logApiError(`studio.journeys.${action}`, e);
+        setActError(e);
+        return null;
+      } finally {
+        actingRef.current = false;
+        setActing("");
+      }
+    },
+    [id, accept],
+  );
 
   const adopt = () => {
     if (!candidate) return;
@@ -201,6 +247,9 @@ export function useWizardJourney(id: string): WizardJourney {
     patching,
     patchError,
     retryPatch,
+    act,
+    acting,
+    actError,
     reload,
   };
 }

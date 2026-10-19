@@ -15,7 +15,7 @@ import { SxFormContext, useSxFormPolicy } from "../form/formPolicy";
 import { SxDrawer } from "../layout/Drawer";
 import { SxNote } from "../layout/Note";
 import { useStudioLabels, type StudioLabels } from "../useStudioLabels";
-import { RotateCcwIcon, CopyIcon, SaveIcon, GitBranchIcon, SendIcon, RocketIcon, TriangleAlertIcon, glyph } from "../icons";
+import { RotateCcwIcon, CopyIcon, SaveIcon, GitBranchIcon, SendIcon, RocketIcon, TriangleAlertIcon, RefreshCwIcon, glyph } from "../icons";
 import type { SxLayoutCtx, SxTranslate, SxWarning } from "../contract";
 import { useSchemaModel } from "../schema/useSchemaModel";
 import { SchemaForm } from "../schema/SchemaForm";
@@ -556,6 +556,73 @@ export function EditorDialogs({
     default:
       return null;
   }
+}
+
+export function ConflictDialog({ st }: { st: EditorState }): ReactElement | null {
+  const t = useTr();
+  const labels = useStudioLabels();
+  const aiId = "admin.studio.editor.conflict-modal";
+  const conflict = st.conflict;
+  if (!conflict) return null;
+  const names = fieldNamesOf(st, conflict.fields, labels, t);
+  const saving = st.busy === "save";
+  return (
+    <SxDialog
+      open
+      onClose={st.closeConflict}
+      title={t("sx.editor.conflictDlg.title")}
+      description={t("sx.editor.conflictDlg.lead")}
+      busy={saving}
+      size="sm"
+      aiId={aiId}
+      footer={
+        <>
+          <SxButton variant="secondary" icon={RefreshCwIcon} onClick={st.loadRemote} disabled={saving} aiId={`${aiId}.reload`}>
+            {t("sx.editor.conflictDlg.reload")}
+          </SxButton>
+          <SxButton variant="primary" icon={SaveIcon} busy={saving} onClick={() => void st.overwrite()} aiId={`${aiId}.overwrite`}>
+            {t("sx.editor.conflictDlg.overwrite")}
+          </SxButton>
+        </>
+      }
+    >
+      <section className="sx-dlg__sec" aria-label={t("sx.editor.conflictDlg.fields")}>
+        <p className="sx-dlg__h">{t("sx.editor.conflictDlg.fields")}</p>
+        {names.length ? (
+          <ul className="sx-dlg__list">
+            {names.map((n) => (
+              <li key={n}>{n}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="sx-dlg__muted">{t("sx.editor.conflictDlg.same")}</p>
+        )}
+      </section>
+      <p className="sx-dlg__muted">{t("sx.editor.conflictDlg.note")}</p>
+    </SxDialog>
+  );
+}
+
+export async function confirmWithdraw(st: EditorState, t: SxTranslate): Promise<void> {
+  await confirmDialog({
+    title: t("sx.editor.withdrawDlg.title"),
+    text: t("sx.editor.withdrawDlg.text"),
+    confirmLabel: t("sx.editor.withdrawDlg.confirm"),
+    cancelLabel: t("sx.ui.cancel"),
+    tone: "primary",
+    onConfirm: () => st.withdraw().then(noop, noop),
+  });
+}
+
+export async function confirmRestore(st: EditorState, t: SxTranslate): Promise<void> {
+  await confirmDialog({
+    title: t("sx.editor.restoreDlg.title"),
+    text: t("sx.editor.restoreDlg.text"),
+    confirmLabel: t("sx.editor.restoreDlg.confirm"),
+    cancelLabel: t("sx.ui.cancel"),
+    tone: "primary",
+    onConfirm: () => st.restore().then(noop, noop),
+  });
 }
 
 export async function confirmArchive(st: EditorState, t: SxTranslate): Promise<void> {

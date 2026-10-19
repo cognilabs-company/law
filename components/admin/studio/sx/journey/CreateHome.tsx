@@ -6,67 +6,162 @@ import "../sx-form.css";
 import "./sx-journey.css";
 import { useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { useRouter } from "@/i18n/navigation";
-import { JOURNEY_STATUS, useStudioAccess, useStudioRegistry, type StudioConstructor, type StudioJourneyType } from "@/lib/services/studio";
+import { logApiError } from "@/lib/http";
+import { useStudioAccess, useStudioRegistry, type StudioConstructor, type StudioCreationJourney, type StudioJourneyType } from "@/lib/services/studio";
+import { notify } from "@/lib/toast";
 import { SxButton, SxLinkButton } from "../Button";
-import { useEditorErrorText } from "../editor/useEditorErrorText";
 import { prefersReducedMotion } from "../hooks";
-import { ArrowRightIcon, RefreshCwIcon, ChevronDownIcon, ChevronUpIcon } from "../icons";
+import { ArrowRightIcon, RefreshCwIcon } from "../icons";
 import { SxNote } from "../layout/Note";
 import { SxPage } from "../layout/Page";
 import { SxPanel } from "../layout/Panel";
 import { SxPager } from "../layout/Table";
+import { SxSegmented, type SxSegItem } from "../shared/Segmented";
 import { StartJourneyFields, useStartJourney } from "../shared/StartJourney";
 import { creationJourneyHref, JOURNEY_CODE } from "../shared/journeyLinks";
 import { useStudioLabels } from "../useStudioLabels";
-import { JourneyTable, type JourneyListKind } from "./JourneyTable";
+import { JOURNEY_STATUSES, journeyStatusOf, runJourneyAction, type JourneyAction, type JourneyStatus } from "./journeyApi";
+import { useJourneyErrorText } from "./journeyErrors";
+import { JourneyTable } from "./JourneyTable";
 import { useCreationJourneys } from "./useCreationJourneys";
 
 export const JOURNEY_PAGE = 20;
 const INCOMPLETE_ID = "incomplete";
+const DEFAULT_STATUS: JourneyStatus = "draft";
+const AI = "admin.studio.create";
+const LIST_AI: Readonly<Record<JourneyStatus, string>> = { draft: "drafts", completed: "completed", abandoned: "abandoned", archived: "archived" };
 
-type ListProps = {
-  list: JourneyListKind;
-  status: string;
-  title: string;
-  emptyText: string;
-  id?: string;
-  showCount?: boolean;
+export function journeyStatusParam(raw: string | null | undefined): JourneyStatus {
+  return journeyStatusOf(String(raw ?? "")) || DEFAULT_STATUS;
+}
+
+function writeStatus(status: JourneyStatus): void {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (status === DEFAULT_STATUS) url.searchParams.delete("status");
+  else url.searchParams.set("status", status);
+  const next = `${url.pathname}${url.search}${url.hash}`;
+  const now = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (next !== now) window.history.replaceState(window.history.state, "", next);
+}
+
+const EMPTY_KEY: Readonly<Record<JourneyStatus, string>> = {
+  draft: "sx.home.resume.empty",
+  completed: "sx.journeyRun.emptyCompleted",
+  abandoned: "sx.journeyRun.emptyAbandoned",
+  archived: "sx.journeyRun.emptyArchived",
 };
 
-function JourneyList({ list, status, title, emptyText, id, showCount = false }: ListProps): ReactElement {
+export function useJourneyActionRunner(onDone: (j: StudioCreationJourney) => void): {
+  acting: string;
+  error: unknown;
+  clear: () => void;
+  run: (j: StudioCreationJourney, action: JourneyAction) => Promise<StudioCreationJourney | null>;
+} {
   const t = useTranslations("studio");
-  const labels = useStudioLabels();
-  const errText = useEditorErrorText();
+  const [acting, setActing] = useState("");
+  const [error, setError] = useState<unknown>(null);
+  const running = useRef(false);
+  const run = async (j: StudioCreationJourney, action: JourneyAction): Promise<StudioCreationJourney | null> => {
+    if (running.current) return null;
+    if (action !== "restore") {
+      const ok = await confirmDialog({
+        title: t(`sx.journeyRun.confirm.${action}Title`, { name: j.title || t("sx.ui.untitled") }),
+        text: t(`sx.journeyRun.confirm.${action}Text`),
+        confirmLabel: t(`sx.journeyRun.act.${action}`),
+        cancelLabel: t("sx.ui.cancel"),
+        tone: action === "abandon" ? "danger" : "primary",
+      });
+      if (!ok) return null;
+    }
+    running.current = true;
+    setActing(j.id);
+    setError(null);
+    try {
+      const next = await runJourneyAction(j.id, action);
+      onDone(next);
+      notify.success(t(`sx.journeyRun.toast.${action}`));
+      return next;
+    } catch (e) {
+      logApiError(`studio.journeys.${action}`, e);
+      setError(e);
+      return null;
+    } finally {
+      running.current = false;
+      setActing("");
+    }
+  };
+  return { acting, error, clear: () => setError(null), run };
+}
+
+function JourneysPanel(): ReactElement {
+  const t = useTranslations("studio");
+  const errText = useJourneyErrorText();
+  const access = useStudioAccess();
+  const params = useSearchParams();
+  const [status, setStatus] = useState<JourneyStatus>(() => journeyStatusParam(params.get("status")));
   const [page, setPage] = useState(0);
   const data = useCreationJourneys({ status, limit: JOURNEY_PAGE, offset: page * JOURNEY_PAGE });
+  const actions = useJourneyActionRunner(data.apply);
   const from = page * JOURNEY_PAGE + 1;
   const to = page * JOURNEY_PAGE + data.items.length;
   const hasRows = data.items.length > 0;
   const failed = data.error && !hasRows ? errText(data.error) : null;
-  const count = showCount && data.incompleteCount !== null ? data.incompleteCount : null;
+  const actFailed = actions.error ? errText(actions.error) : null;
+  const count = data.incompleteCount;
+  const title = t("sx.journeyRun.listTitle");
+
+  const pick = (next: JourneyStatus) => {
+    if (next === status) return;
+    setStatus(next);
+    setPage(0);
+    actions.clear();
+    writeStatus(next);
+  };
+
+  const items: SxSegItem<JourneyStatus>[] = JOURNEY_STATUSES.map((s) => ({
+    value: s,
+    label: t(`sx.journeyRun.filter.${s}`),
+    count: s === "draft" && count !== null ? count : undefined,
+    aiId: `${AI}.status.${s}`,
+  }));
+
   return (
     <SxPanel
       as="section"
-      id={id}
+      id={INCOMPLETE_ID}
       flush
       title={title}
       className="sx-jr-list"
-      actions={count !== null ? <span className="sx-num sx-jr-list__count">{labels.num(count)}</span> : undefined}
+      aiId={`${AI}.list`}
     >
+      <div className="sx-jr-list__bar">
+        <SxSegmented<JourneyStatus> items={items} value={status} onChange={pick} label={t("sx.journeyRun.filterLabel")} size="sm" aiId={`${AI}.status`} />
+      </div>
+      {actFailed ? (
+        <div className="sx-jr-list__note">
+          <SxNote tone="error" title={actFailed.title}>
+            {actFailed.text}
+          </SxNote>
+        </div>
+      ) : null}
       <JourneyTable
-        list={list}
         rows={data.items}
-        caption={title}
+        caption={`${title}: ${t(`sx.journeyRun.filter.${status}`)}`}
         loading={data.loading && !hasRows}
         busy={data.loading && hasRows}
+        actingId={actions.acting}
+        onAction={access.canEdit ? (j, a) => void actions.run(j, a) : undefined}
         error={
           failed ? (
             <SxNote
               tone="error"
               title={failed.title}
               action={
-                <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={data.reload} aiId={`admin.studio.create.${list}.retry`}>
+                <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={data.reload} aiId={`${AI}.${LIST_AI[status]}.retry`}>
                   {t("sx.ui.retry")}
                 </SxButton>
               }
@@ -75,7 +170,11 @@ function JourneyList({ list, status, title, emptyText, id, showCount = false }: 
             </SxNote>
           ) : undefined
         }
-        empty={<p className="sx-jr-list__empty" role="status">{emptyText}</p>}
+        empty={
+          <p className="sx-jr-list__empty" role="status">
+            {t(EMPTY_KEY[status])}
+          </p>
+        }
         footer={
           data.total > JOURNEY_PAGE || page > 0 ? (
             <SxPager
@@ -85,37 +184,13 @@ function JourneyList({ list, status, title, emptyText, id, showCount = false }: 
               busy={data.loading}
               onPrev={() => setPage((p) => Math.max(0, p - 1))}
               onNext={() => setPage((p) => p + 1)}
-              aiId={`admin.studio.create.${list}`}
+              aiId={`${AI}.${LIST_AI[status]}`}
             />
           ) : undefined
         }
+        aiId={`${AI}.${LIST_AI[status]}`}
       />
     </SxPanel>
-  );
-}
-
-function CompletedList(): ReactElement {
-  const t = useTranslations("studio");
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="sx-jr-done">
-      <SxButton
-        variant="ghost"
-        size="sm"
-        iconEnd={open ? ChevronUpIcon : ChevronDownIcon}
-        aria-expanded={open}
-        aria-controls="sx-jr-completed"
-        onClick={() => setOpen((v) => !v)}
-        aiId="admin.studio.create.completed.toggle"
-      >
-        {t(open ? "sx.journeyRun.hideCompleted" : "sx.journeyRun.showCompleted")}
-      </SxButton>
-      {open ? (
-        <div id="sx-jr-completed">
-          <JourneyList list="completed" status={JOURNEY_STATUS.completed} title={t("sx.journeyRun.completed")} emptyText={t("sx.journeyRun.emptyCompleted")} />
-        </div>
-      ) : null}
-    </div>
   );
 }
 
@@ -134,7 +209,7 @@ function StartPanel({ initialType }: { initialType: StudioJourneyType | null }):
   const reg = useStudioRegistry();
   const blockedId = `${useId().replace(/[^a-zA-Z0-9_-]/g, "")}-blocked`;
   const router = useRouter();
-  const errText = useEditorErrorText();
+  const errText = useJourneyErrorText();
   const starter = useStartJourney();
   const [type, setType] = useState<StudioJourneyType>(initialType ?? "service");
   const [title, setTitle] = useState("");
@@ -235,9 +310,7 @@ export function CreateHome({ initialType }: { initialType: StudioJourneyType | n
             {t("sx.journeyRun.needEdit")}
           </SxNote>
         )}
-        <JourneyList list="drafts" status={JOURNEY_STATUS.drafts} title={t("sx.journeyRun.drafts")} emptyText={t("sx.home.resume.empty")} />
-        <JourneyList list="incomplete" id={INCOMPLETE_ID} status={JOURNEY_STATUS.incomplete} title={t("sx.journeyRun.incomplete")} emptyText={t("sx.journeyRun.emptyIncomplete")} showCount />
-        <CompletedList />
+        <JourneysPanel />
       </div>
     </SxPage>
   );

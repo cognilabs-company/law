@@ -56,18 +56,30 @@ export function StepSkeleton(): ReactElement {
   );
 }
 
+export function useStepLinkLabel(): (code: string) => string {
+  const t = useTranslations("studio");
+  const labels = useStudioLabels();
+  const reg = useStudioRegistry();
+  return (code: string) => {
+    if (code.toUpperCase() === "K01") return t("sx.journeyRun.newCategory");
+    return t("sx.journeyRun.newOf", { name: labels.ctorName(code, reg.items.find((x) => x.code === code)?.title) });
+  };
+}
+
 export function StepShell({ step, children }: { step: JourneyStep; children: ReactNode }): ReactElement {
   const t = useTranslations("studio");
+  const linkLabel = useStepLinkLabel();
   return (
     <SxPanel as="div" id={step.key} className="sx-jr__panel">
       <SxSectionHeader
         as="h2"
         id={stepHeadingId(step.key)}
         title={step.label}
+        lead={step.known && !step.required && !step.submit ? t("sx.journeyRun.optionalLead") : undefined}
         actions={
           step.link ? (
             <SxLinkButton variant="ghost" size="sm" href={step.link.href} target="_blank" iconEnd={ExternalLinkIcon} aiId={`admin.studio.wizard.link.${step.key}`}>
-              {t(step.link.labelKey)}
+              {linkLabel(step.link.code)}
             </SxLinkButton>
           ) : undefined
         }
@@ -128,6 +140,8 @@ export function StepProblem({ st }: { st: EditorState }): ReactElement | null {
 
 function ExtraStep({ step, objectId, onSaved, onLater, register }: WizardStepProps): ReactElement {
   const t = useTranslations("studio");
+  const labels = useStudioLabels();
+  const reg = useStudioRegistry();
   const [running, setRunning] = useState(false);
   const runningRef = useRef(false);
 
@@ -151,7 +165,7 @@ function ExtraStep({ step, objectId, onSaved, onLater, register }: WizardStepPro
   return (
     <StepShell step={step}>
       <SxNote tone="info" role="note">
-        {t("sx.journeyRun.stepOtherText")}
+        {step.known && step.link ? t("sx.journeyRun.stepNoFields", { name: labels.ctorName(step.link.code, reg.items.find((x) => x.code === step.link?.code)?.title) }) : t("sx.journeyRun.stepOtherText")}
       </SxNote>
     </StepShell>
   );
@@ -270,6 +284,6 @@ function FormStep({ journey, step, objectId, code, onSaved, onLater, register }:
 }
 
 export function WizardStep(props: WizardStepProps): ReactElement {
-  if (!props.step.known) return <ExtraStep {...props} />;
+  if (!props.step.form) return <ExtraStep {...props} />;
   return <FormStep {...props} />;
 }

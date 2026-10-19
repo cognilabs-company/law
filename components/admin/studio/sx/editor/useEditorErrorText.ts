@@ -17,6 +17,17 @@ const KIND_KEY: Partial<Record<StudioErrorKind, string>> = {
   publish_requires_approved: "sx.editor.err.publishRequiresApproved",
 };
 
+const CODE_KEY: Readonly<Record<string, string>> = {
+  studio_edit_conflict: "sx.editor.err.conflict",
+  studio_version_locked: "sx.editor.err.versionLocked",
+  studio_object_archived: "sx.editor.err.objectArchived",
+  studio_submit_invalid: "sx.editor.err.submitInvalid",
+  studio_publish_requires_approved: "sx.editor.err.publishRequiresApproved",
+  category_cycle: "sx.editor.err.categoryCycle",
+  rule_version_duplicate: "sx.editor.err.ruleVersionDuplicate",
+  reference_not_found: "sx.editor.err.referenceNotFound",
+};
+
 const JARGON = /[`{}<>\[\]=]|_|\b(runtime|payload|schema|null|undefined|none|true|false|json|api|http|https|uuid|id|traceback|exception|error|object|constructor|studio_\w+)\b/i;
 const CYRILLIC = /[Ѐ-ӿ]/;
 const EN_STOP = /\b(the|a|an|is|are|was|were|be|been|not|no|for|of|to|in|on|with|by|and|or|failed|fail|invalid|required|error|found|forbidden|denied|missing|allowed|must|should|cannot|unable|already|exists|does|please|server|request|unknown)\b/i;
@@ -35,7 +46,9 @@ export function plainUzMessage(message: string): string {
 }
 
 export function editorErrorKey(e: unknown): string {
-  return KIND_KEY[studioErrorOf(e).kind] ?? "sx.editor.err.other";
+  const se = studioErrorOf(e);
+  if (se.kind !== "network" && Object.prototype.hasOwnProperty.call(CODE_KEY, se.code)) return CODE_KEY[se.code];
+  return KIND_KEY[se.kind] ?? "sx.editor.err.other";
 }
 
 export function useEditorErrorText(): (e: unknown) => { title: string; text: string } {
@@ -44,7 +57,8 @@ export function useEditorErrorText(): (e: unknown) => { title: string; text: str
   return useCallback(
     (e: unknown) => {
       const se = studioErrorOf(e);
-      const own = locale === "uz" ? plainUzMessage(se.message) : "";
+      const coded = Object.prototype.hasOwnProperty.call(CODE_KEY, se.code);
+      const own = locale === "uz" && !coded ? plainUzMessage(se.message) : "";
       return { title: t("sx.editor.alert.actionTitle"), text: own || t(editorErrorKey(e)) };
     },
     [t, locale],

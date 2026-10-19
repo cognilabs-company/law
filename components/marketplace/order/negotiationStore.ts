@@ -70,9 +70,9 @@ function priceOf(dicts: Dict[]): Dict {
   return out;
 }
 
-export function noteNegotiationEvent(ev: UserEvent, owner = ""): void {
+export function negotiationOfEvent(ev: UserEvent): Negotiation | null {
   const sig = marketSignalOf(ev);
-  if (!sig || sig.kind !== "negotiation") return;
+  if (!sig || sig.kind !== "negotiation") return null;
   const roots: Dict[] = [ev];
   if (ev.event === "notification.created") roots.push(dictOf(dictOf(ev.notification).data));
   const cands = roots.flatMap(candidatesOf);
@@ -80,9 +80,14 @@ export function noteNegotiationEvent(ev: UserEvent, owner = ""): void {
     const n = normNegotiation(x);
     if (!n.id && !(n.amount > 0)) continue;
     const orderId = n.orderId || sig.orderId;
-    if (!orderId) return;
+    if (!orderId) return null;
     const status = n.status || (sig.outcome ?? "").trim().toLowerCase();
-    noteNegotiation({ ...n, orderId, status, raw: { ...priceOf(cands), ...n.raw } }, owner);
-    return;
+    return { ...n, orderId, status, raw: { ...priceOf(cands), ...n.raw } };
   }
+  return null;
+}
+
+export function noteNegotiationEvent(ev: UserEvent, owner = ""): void {
+  const n = negotiationOfEvent(ev);
+  if (n) noteNegotiation(n, owner);
 }

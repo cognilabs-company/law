@@ -11,9 +11,10 @@ import { StatusPill } from "../StatusPill";
 import type { SxColumn, SxRowGroup } from "../layout/Table";
 import type { StudioLabels, SxTranslate } from "../useStudioLabels";
 import { promoJoinId, sortByPlacement, type PromoInfo } from "./promoRows";
-import { quietLast } from "./quiet";
+import { isTestTitle, quietLast } from "./quiet";
+import type { CtorRecord } from "./recordsApi";
 
-export type RecordRow = { rec: StudioRecord; payload?: Readonly<Record<string, unknown>> | null; extra?: Readonly<Record<string, unknown>> };
+export type RecordRow = { rec: CtorRecord; payload?: Readonly<Record<string, unknown>> | null; extra?: Readonly<Record<string, unknown>> };
 
 export type VariantCtx = { code: string; labels: StudioLabels; t: SxTranslate; placements?: readonly string[]; now?: number };
 
@@ -49,6 +50,22 @@ export function rowTitle(r: StudioRecord): string {
   return r.title.trim();
 }
 
+export function recTest(r: CtorRecord): boolean | null {
+  return r.meta?.isTest ?? null;
+}
+
+export function isTestRow(r: CtorRecord): boolean {
+  return recTest(r) ?? isTestTitle(r.title);
+}
+
+export function TestBadge({ t }: { t: SxTranslate }): ReactElement {
+  return (
+    <span className="sx-cp-tag sx-cp-tag--test" title={t("sx.cpage.testHint")}>
+      {t("sx.cpage.test")}
+    </span>
+  );
+}
+
 export function compareVersions(a: string, b: string): number {
   const pa = str(a).replace(/^v/i, "").split(/[.\-_ ]+/);
   const pb = str(b).replace(/^v/i, "").split(/[.\-_ ]+/);
@@ -79,7 +96,7 @@ function isActiveFlag(v: unknown): boolean {
 }
 
 export function sortK31(rows: readonly RecordRow[]): RecordRow[] {
-  const ordered = quietLast(rows, (r) => r.rec.title, (r) => r.rec.status);
+  const ordered = quietLast(rows, (r) => r.rec.title, (r) => r.rec.status, (r) => recTest(r.rec));
   const buckets = new Map<string, RecordRow[]>();
   for (const row of ordered) {
     const k = k31RuleKey(row);
@@ -117,7 +134,7 @@ function k12GroupOf(row: RecordRow, order: readonly string[]): string {
 }
 
 export function sortK12(rows: readonly RecordRow[], order: readonly string[]): RecordRow[] {
-  const ordered = quietLast(rows, (r) => r.rec.title, (r) => str((r.extra as Partial<PromoInfo> | undefined)?.status) || r.rec.status);
+  const ordered = quietLast(rows, (r) => r.rec.title, (r) => str((r.extra as Partial<PromoInfo> | undefined)?.status) || r.rec.status, (r) => recTest(r.rec));
   const placed = sortByPlacement(ordered, promoPlacementOf, order).map((row) => ({ row, key: k12GroupOf(row, order) }));
   const sorted = [...placed.filter((x) => x.key !== K12_DELETED_GROUP), ...placed.filter((x) => x.key === K12_DELETED_GROUP)];
   const sizes = new Map<string, number>();
@@ -181,6 +198,7 @@ function TitleCell({ row, ctx, meta }: { row: RecordRow; ctx: VariantCtx; meta?:
   const r = row.rec;
   const title = rowTitle(r) || ctx.t("sx.ui.untitled");
   const parts: ReactNode[] = [];
+  if (isTestRow(r)) parts.push(<TestBadge t={ctx.t} />);
   if (meta) parts.push(...meta);
   if (r.version) parts.push(ctx.t("sx.layout.version", { n: r.version }));
   if (r.owner) parts.push(r.owner);

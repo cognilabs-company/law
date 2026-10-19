@@ -1,6 +1,7 @@
 "use client";
 
-import { findMarketplaceOrder, marketSignalOf, peekMarketOrder, type MarketOrder } from "@/lib/services/marketplace";
+import { ApiError } from "@/lib/http";
+import { findMarketplaceOrder, getMarketplaceOrder, marketSignalOf, peekMarketOrder, type MarketOrder } from "@/lib/services/marketplace";
 import { subscribeUserEvents } from "@/lib/userSocket";
 
 export type OrderLock = { chatReadOnly: boolean; callsAllowed: boolean };
@@ -50,6 +51,14 @@ export async function roomOrderLock(room: { orderId: string; clientUserId?: stri
   if (seen) {
     const l = lockOfOrder(seen);
     if (l.chatReadOnly || !l.callsAllowed || peekMarketOrder(room.orderId, viewerId, SEEN_FRESH_MS)) return l;
+  }
+  try {
+    const o = await getMarketplaceOrder(room.orderId, { signal, owner: viewerId });
+    if (signal?.aborted) return null;
+    if (o) return lockOfOrder(o);
+  } catch (e) {
+    if (signal?.aborted) return null;
+    if (e instanceof ApiError && (e.status === 403 || (e.status === 404 && !!e.code))) return null;
   }
   const role = viewerId && viewerId === room.clientUserId ? "client" : viewerId && viewerId === room.sellerUserId ? "seller" : null;
   const views: ("client" | "seller")[] = role ? [role] : ["client", "seller"];

@@ -10,7 +10,7 @@ import { useTranslations } from "next-intl";
 import { aiId } from "@/lib/ai/ids";
 import { useStudioAccess, useStudioRegistry } from "@/lib/services/studio";
 import { SxButton, SxLinkButton } from "../Button";
-import { ArrowRightIcon, RefreshCwIcon, CircleCheckIcon, CircleDashedIcon, FilesIcon, LayersIcon, LockIcon, SearchIcon, ctorGlyph, ctorIcon, glyph } from "../icons";
+import { ArrowRightIcon, RefreshCwIcon, CircleCheckIcon, CircleDashedIcon, FilesIcon, GlobeIcon, LayersIcon, LockIcon, SearchIcon, ctorGlyph, ctorIcon, glyph } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxPage } from "../layout/Page";
@@ -28,7 +28,8 @@ import { GroupTile } from "./GroupTile";
 import { HealthCard, QuickLinks } from "./group/SidePanels";
 import { BlockedLine, StepTimeline } from "./group/StepTimeline";
 import { groupQueryOf, matchesGroupQuery, stateCounts, writeGroupQuery, type GroupFilter, type GroupQuery, type GroupView } from "./group/urlState";
-import { ctorRecords, sumRecords, useStudioSummary } from "./summary";
+import { LastActivity } from "./LastActivity";
+import { ctorRecords, ctorSummary, groupTotalsOf, lastActivityOf, needCountsOf, sumRecords, useStudioSummary, type NeedCounts } from "./summary";
 import { useActionItems } from "./useActionItems";
 import { WaitingPanel } from "./WaitingPanel";
 
@@ -81,12 +82,19 @@ export function GroupPage({ groupKey, need }: { groupKey: string; need: GroupNee
   const pct = pctOf(done, total);
   const next = g ? groupNext(g, rows) : null;
   const nextName = next ? labels.ctorName(next.code, next.ctor?.title) : "";
-  const counts = g ? actions.byGroup[g.key] : undefined;
-  const hasItems = !!counts && counts.returned + counts.review + counts.publish > 0;
+  const actionCounts = g ? actions.byGroup[g.key] : undefined;
+  const hasItems = !!actionCounts && actionCounts.returned + actionCounts.review + actionCounts.publish > 0;
+  const allow: Readonly<Record<keyof NeedCounts, boolean>> = { returned: acc.canEdit, review: acc.canReview, publish: acc.canPublish };
+  const summaryCounts = g ? needCountsOf(g.key, rows.map((r) => r.code), summary.data, allow) : null;
+  const counts = summaryCounts ?? actionCounts;
+  const countsLoading = !summaryCounts && (actions.loading || summary.loading);
   const name = g ? labels.groupName(g.key, g.title) : "";
   const tally = stateCounts(rows);
-  const records = sumRecords(rows, summary.data);
+  const totals = g ? groupTotalsOf(g.key, rows.map((r) => r.code), summary.data) : null;
+  const records = totals ? totals.total : sumRecords(rows, summary.data);
+  const last = g ? lastActivityOf(rows.map((r) => r.code), summary.data, g.key) : null;
   const recordsOf = (r: GroupStepRow) => ctorRecords(r.code, r.ctor, summary.data);
+  const statsOf = (r: GroupStepRow) => ctorSummary(r.code, summary.data);
   const searchText = (r: GroupStepRow) => [labels.ctorName(r.code, r.ctor?.title), r.code, labels.ctorWhat(r.code, { description: r.ctor?.description })].join(" ");
   const shown = rows.filter((r) => matchesGroupQuery(r, query, searchText));
   const filtered = !!query.f || !!query.q.trim();
@@ -141,6 +149,15 @@ export function GroupPage({ groupKey, need }: { groupKey: string; need: GroupNee
         return n === null ? "—" : labels.num(n);
       },
     },
+    {
+      key: "last",
+      header: t("sx.hm.last.label"),
+      hideBelow: "lg",
+      cell: (r) => {
+        const c = statsOf(r);
+        return c?.lastAt ? <LastActivity last={{ at: c.lastAt, objectId: c.lastObjectId, code: c.code }} compact aiId={aiId("admin.studio.group.step", r.code, "last")} /> : "—";
+      },
+    },
   ];
 
   const headActions =
@@ -178,6 +195,18 @@ export function GroupPage({ groupKey, need }: { groupKey: string; need: GroupNee
                   <span className="sx-num">{t("sx.hm.card.records", { n: records })}</span>
                 </li>
               ) : null}
+              {totals?.runtime ? (
+                <li className="sx-gp-chip">
+                  {glyph(GlobeIcon, { size: 14 })}
+                  <span className="sx-num">{t("sx.hm.card.runtime", { n: totals.runtime })}</span>
+                </li>
+              ) : null}
+              {totals && totals.active !== null ? (
+                <li className="sx-gp-chip">
+                  {glyph(CircleCheckIcon, { size: 14 })}
+                  <span className="sx-num">{t("sx.gp.activeN", { n: totals.active })}</span>
+                </li>
+              ) : null}
               {tally.blocked > 0 ? (
                 <li className="sx-gp-chip" data-kind="blocked">
                   {glyph(LockIcon, { size: 14 })}
@@ -185,6 +214,7 @@ export function GroupPage({ groupKey, need }: { groupKey: string; need: GroupNee
                 </li>
               ) : null}
             </ul>
+            {last ? <LastActivity last={last} aiId="admin.studio.group.last" className="sx-gp-hero__last" /> : null}
           </div>
         </div>
         <div className="sx-gp-hero__next">
@@ -286,7 +316,7 @@ export function GroupPage({ groupKey, need }: { groupKey: string; need: GroupNee
         />
       </SxPanel>
     ) : g ? (
-      <StepTimeline rows={shown} group={g.key} labels={labels} recordsOf={recordsOf} canEdit={acc.canEdit} label={t("sx.gpage.steps")} />
+      <StepTimeline rows={shown} group={g.key} labels={labels} recordsOf={recordsOf} statsOf={statsOf} canEdit={acc.canEdit} label={t("sx.gpage.steps")} />
     ) : null;
     body = (
       <div className="sx-gpage__grid" data-wait={waiting ? "" : undefined}>
@@ -312,7 +342,7 @@ export function GroupPage({ groupKey, need }: { groupKey: string; need: GroupNee
         {g ? (
           <aside className="sx-gpage__side" aria-label={t("sx.gp.side")}>
             <QuickLinks groupKey={g.key} name={name} />
-            <HealthCard groupKey={g.key} health={{ done, total, blocked: tally.blocked, counts: counts ?? null, loading: actions.loading }} />
+            <HealthCard groupKey={g.key} health={{ done, total, blocked: tally.blocked, counts: counts ?? null, loading: countsLoading }} />
           </aside>
         ) : null}
       </div>

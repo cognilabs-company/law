@@ -14,8 +14,13 @@ export type ApprAccess = Pick<StudioAccess, "any" | "isAdmin" | "canEdit" | "can
 export type ApprViewer = { id: string; access: ApprAccess };
 export type ApprRegistry = { items: readonly StudioConstructor[]; groups: readonly StudioGroup[] };
 
+export type ApprSrc = "queue" | "local";
+export type ApprProgress = { done: number; total: number };
+
 export type ApprRow = {
   id: string;
+  src: ApprSrc;
+  progress: ApprProgress | null;
   code: string;
   group: string;
   title: string;
@@ -55,7 +60,9 @@ export const LIST_EVENTS: ReadonlySet<string> = new Set([
   "studio.resync",
 ]);
 
-export const DETAIL_EVENTS: ReadonlySet<string> = new Set([...LIST_EVENTS, "studio.comment_created", "studio.file_uploaded"]);
+export const COMMENT_EVENTS: ReadonlySet<string> = new Set(["studio.comment_created", "studio.comment_updated", "studio.comment_deleted"]);
+
+export const DETAIL_EVENTS: ReadonlySet<string> = new Set([...LIST_EVENTS, ...COMMENT_EVENTS, "studio.file_uploaded"]);
 
 export const isListEvent = (name: string): boolean => LIST_EVENTS.has(name) || name.startsWith("studio.object_") || name.startsWith("studio.approval_");
 
@@ -92,9 +99,9 @@ export function currentStepOf(d: StudioDetail): StudioStep | null {
 
 export function canDecideOf(d: StudioDetail, v: ApprViewer): boolean {
   if (!REVIEW_STATUSES.has(d.status)) return false;
+  if (typeof d.raw.can_decide === "boolean") return d.raw.can_decide;
   const step = currentStepOf(d);
   if (step && step.canDecide !== null) return step.canDecide;
-  if (typeof d.raw.can_decide === "boolean") return d.raw.can_decide;
   if (!v.access.canReview) return false;
   if (v.access.isAdmin) return true;
   if (!step || !step.role) return true;
@@ -102,7 +109,19 @@ export function canDecideOf(d: StudioDetail, v: ApprViewer): boolean {
 }
 
 export function canPublishOf(d: StudioDetail, v: ApprViewer, ctor: StudioConstructor | null): boolean {
-  return d.status === "approved" && v.access.canPublish && !isApprovalFree(d.code, ctor);
+  if (d.status !== "approved") return false;
+  if (typeof d.raw.can_publish === "boolean") return d.raw.can_publish;
+  return v.access.canPublish && !isApprovalFree(d.code, ctor);
+}
+
+const countOf = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && /^\d+$/.test(v) ? parseInt(v, 10) : NaN);
+
+export function progressOf(d: StudioDetail): ApprProgress | null {
+  const p = dict(d.raw.approval_progress);
+  const total = countOf(p.total_steps ?? d.raw.total_steps);
+  const done = countOf(p.completed_steps ?? d.raw.completed_steps);
+  if (!Number.isFinite(total) || total < 1 || !Number.isFinite(done)) return null;
+  return { done: Math.min(total, Math.max(0, done)), total };
 }
 
 export function authorIdsOf(d: StudioDetail): string[] {
@@ -158,7 +177,7 @@ export function nextOf(d: StudioDetail, kind: ApprKind, section: ApprSection, st
   return { kind: "role", names: [], role: "studio_reviewer" };
 }
 
-export function buildRow(d: StudioDetail, v: ApprViewer, reg: ApprRegistry): ApprRow {
+export function buildRow(d: StudioDetail, v: ApprViewer, reg: ApprRegistry, src: ApprSrc = "local"): ApprRow {
   const ctor = reg.items.find((c) => c.code === d.code) ?? null;
   const kind = kindOf(d.status);
   const section = sectionOf(d, kind, v, ctor);
@@ -167,6 +186,8 @@ export function buildRow(d: StudioDetail, v: ApprViewer, reg: ApprRegistry): App
   const t = parseServerTime(at);
   return {
     id: d.id,
+    src,
+    progress: kind === "review" ? progressOf(d) : null,
     code: d.code,
     group: groupOfCode(d.code, reg.groups, reg.items),
     title: d.title,

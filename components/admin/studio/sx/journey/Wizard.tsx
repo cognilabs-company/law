@@ -6,14 +6,15 @@ import "./sx-journey.css";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import Menu, { type MenuEntry } from "@/components/ui/Menu";
 import { useRouter } from "@/i18n/navigation";
-import { getStudioConstructorDetail, studioDetailSnapshot, type StudioConstructor, type StudioJourneyType } from "@/lib/services/studio";
+import { getStudioConstructorDetail, studioDetailSnapshot, useStudioAccess, type StudioConstructor, type StudioCreationJourney, type StudioJourneyType } from "@/lib/services/studio";
+import { notify } from "@/lib/toast";
 import { SxButton, SxLinkButton } from "../Button";
-import { useEditorErrorText } from "../editor/useEditorErrorText";
 import { useLeaveGuard } from "../editor/useLeaveGuard";
 import { Picker } from "../form/Picker";
 import { prefersReducedMotion } from "../hooks";
-import { RefreshCwIcon, CircleCheckIcon, SearchIcon } from "../icons";
+import { ArchiveIcon, BanIcon, CircleCheckIcon, glyph, moreGlyph, RefreshCwIcon, RotateCcwIcon, SearchIcon } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxOutline } from "../layout/Outline";
@@ -21,8 +22,13 @@ import { SxPage } from "../layout/Page";
 import { SxPanel } from "../layout/Panel";
 import { SxProgress } from "../shared/Progress";
 import { CREATE_HOME_HREF, JOURNEY_CODE, journeyObjectId } from "../shared/journeyLinks";
+import { useStudioLabels } from "../useStudioLabels";
+import { isJourneyClosed, journeyActionsFor, journeyStatusOf, useJourneyDefinitions, type JourneyAction } from "./journeyApi";
+import { useJourneyErrorText } from "./journeyErrors";
+import { useJourneyOwnerLabel } from "./JourneyTable";
+import { JourneyStatusPill } from "./JourneyStatusPill";
 import { journeyPatchFor, laterPatchFor, outlineStateOf, unionSteps } from "./model";
-import { journeySteps, leftoverFields, nextStepKey, stepLabelKey, type JourneyStep } from "./steps";
+import { journeyStepKeys, journeySteps, leftoverFields, missingRequired, nextStepKey, stepDefsFor, stepLabel, type JourneyStep } from "./steps";
 import { useWizardJourney, type JourneyPatch } from "./useWizardJourney";
 import { WizardReview } from "./WizardReview";
 import { WizardStep, stepHeadingId, type StepApi } from "./WizardStep";
@@ -32,6 +38,8 @@ type After = { kind: "step"; key: string } | { kind: "home" } | { kind: "done" }
 type FullFor = { code: string; ctor: StudioConstructor | null };
 
 const NO_FLAGS: Flags = { changed: false, busy: false, ready: false, errorSteps: "" };
+const AI = "admin.studio.wizard";
+const ACTION_ICON = { abandon: BanIcon, archive: ArchiveIcon, restore: RotateCcwIcon } as const;
 
 function topLevelKeys(ctor: StudioConstructor | null): string[] {
   if (!ctor) return [];
@@ -46,14 +54,19 @@ function objectHref(id: string): string {
 export function Wizard({ id }: { id: string }): ReactElement {
   const t = useTranslations("studio");
   const router = useRouter();
-  const errText = useEditorErrorText();
+  const labels = useStudioLabels();
+  const access = useStudioAccess();
+  const errText = useJourneyErrorText();
+  const ownerOf = useJourneyOwnerLabel();
   const wj = useWizardJourney(id);
   const journey = wj.journey;
   const jtype: StudioJourneyType = journey?.type ?? "service";
   const code = JOURNEY_CODE[jtype];
+  const defsState = useJourneyDefinitions(journey !== null);
   const [createdId, setCreatedId] = useState("");
   const [picked, setPicked] = useState("");
   const [finished, setFinished] = useState(false);
+  const [unfinished, setUnfinished] = useState<string[]>([]);
   const [flags, setFlags] = useState<Flags>(NO_FLAGS);
   const [fullFor, setFullFor] = useState<FullFor>({ code: "", ctor: null });
   const apiRef = useRef<StepApi | null>(null);
@@ -76,16 +89,26 @@ export function Wizard({ id }: { id: string }): ReactElement {
 
   const full = fullFor.code === code ? fullFor.ctor : studioDetailSnapshot(code);
   const keysText = topLevelKeys(full).join("\n");
-  const leftovers = useMemo(() => leftoverFields(jtype, keysText ? keysText.split("\n") : []), [jtype, keysText]);
-  const steps: JourneyStep[] = useMemo(() => (journey ? journeySteps(jtype, journey, leftovers, (k) => t(stepLabelKey(k))) : []), [journey, jtype, leftovers, t]);
+  const journeyKeysText = journeyStepKeys(journey).join("\n");
+  const def = defsState.defs?.[jtype] ?? null;
+  const stepDefs = useMemo(() => stepDefsFor(jtype, def, journeyKeysText ? journeyKeysText.split("\n") : []), [jtype, def, journeyKeysText]);
+  const topKeys = useMemo(() => new Set(keysText ? keysText.split("\n") : []), [keysText]);
+  const leftovers = useMemo(() => leftoverFields(jtype, stepDefs, keysText ? keysText.split("\n") : []), [jtype, stepDefs, keysText]);
+  const steps: JourneyStep[] = useMemo(
+    () => (journey ? journeySteps({ defs: stepDefs, mainCode: code, journey, leftovers, topKeys, label: (k, title) => stepLabel(k, (key) => t(key), title) }) : []),
+    [journey, stepDefs, code, leftovers, topKeys, t],
+  );
 
   const fallback = steps.find((s) => s.state === "current")?.key ?? steps[0]?.key ?? "";
   const active = picked && steps.some((s) => s.key === picked) ? picked : fallback;
   const activeStep = steps.find((s) => s.key === active) ?? null;
-  const done = finished || journey?.status === "completed";
-  const busy = flags.busy || wj.patching;
+  const status = journeyStatusOf(journey?.status ?? "");
+  const closed = journey ? isJourneyClosed(journey.status) : false;
+  const done = !closed && (finished || status === "completed");
+  const busy = flags.busy || wj.patching || wj.acting !== "";
+  const missing = useMemo(() => (journey ? missingRequired(steps, journey.completedSteps) : []), [steps, journey]);
 
-  const guard = useLeaveGuard(flags.changed && !busy && !done, {
+  const guard = useLeaveGuard(flags.changed && !busy && !done && !closed, {
     title: t("sx.editor.leave.title"),
     text: t("sx.editor.leave.text"),
     confirmLabel: t("sx.editor.leave.confirm"),
@@ -139,26 +162,36 @@ export function Wizard({ id }: { id: string }): ReactElement {
     router.push(CREATE_HOME_HREF);
   };
 
-  const finish = async () => {
+  const finish = async (res: StudioCreationJourney | null) => {
     afterRef.current = null;
+    const st = journeyStatusOf(res?.status ?? "");
+    if (res && st && st !== "completed") {
+      const left = missingRequired(steps, res.completedSteps).map((s) => s.key);
+      const named = res.missingSteps.filter((k) => steps.some((s) => s.key === k && s.required && !s.submit));
+      const list = left.length ? left : named;
+      setUnfinished(list.length ? list : ["?"]);
+      if (list[0]) moveTo(list[0]);
+      return;
+    }
+    setUnfinished([]);
     await guard.release();
     setFinished(true);
   };
 
-  const runAfter = async (after: After) => {
+  const runAfter = async (after: After, res: StudioCreationJourney | null) => {
     if (!after) return;
     if (after.kind === "step") {
       afterRef.current = null;
       moveTo(after.key);
     } else if (after.kind === "home") await leaveHome();
-    else await finish();
+    else await finish(res);
   };
 
   const send = async (input: JourneyPatch, after: After): Promise<boolean> => {
     afterRef.current = after;
-    const ok = await wj.patch(input);
-    if (ok) await runAfter(after);
-    return ok;
+    const res = await wj.patch(input);
+    if (res) await runAfter(after, res);
+    return !!res;
   };
 
   const onSaved = async (step: JourneyStep, objId: string): Promise<boolean> => {
@@ -177,9 +210,9 @@ export function Wizard({ id }: { id: string }): ReactElement {
   const submitted = async (objId: string): Promise<void> => {
     if (!journey) return;
     if (objId && objId !== objectId) setCreatedId(objId);
-    const known = steps.filter((s) => s.known).map((s) => s.key);
+    const review = steps.find((s) => s.submit)?.key ?? "";
     const context = objId ? { ...journey.context, studio_object_id: objId, constructor_code: code } : { ...journey.context };
-    await send({ completedSteps: unionSteps(journey.completedSteps, known), currentStep: "", context }, { kind: "done" });
+    await send({ completedSteps: unionSteps(journey.completedSteps, review ? [review] : []), currentStep: "", context }, { kind: "done" });
   };
 
   const onReviewCreated = (objId: string, isSubmitted: boolean) => {
@@ -193,23 +226,94 @@ export function Wizard({ id }: { id: string }): ReactElement {
   };
 
   const retry = async () => {
-    const ok = await wj.retryPatch();
-    if (ok) await runAfter(afterRef.current);
+    const res = await wj.retryPatch();
+    if (res) await runAfter(afterRef.current, res);
+  };
+
+  const runAction = async (action: JourneyAction) => {
+    if (!journey || busy) return;
+    if (action !== "restore") {
+      const ok = await confirmDialog({
+        title: t(`sx.journeyRun.confirm.${action}Title`, { name: journey.title || t("sx.ui.untitled") }),
+        text: t(`sx.journeyRun.confirm.${action}Text`),
+        confirmLabel: t(`sx.journeyRun.act.${action}`),
+        cancelLabel: t("sx.ui.cancel"),
+        tone: action === "abandon" ? "danger" : "primary",
+      });
+      if (!ok) return;
+    }
+    const res = await wj.act(action);
+    if (!res) return;
+    notify.success(t(`sx.journeyRun.toast.${action}`));
+    if (action === "restore") {
+      setFinished(false);
+      setUnfinished([]);
+    }
   };
 
   const errorSteps = useMemo(() => new Set(flags.errorSteps ? flags.errorSteps.split("\n") : []), [flags.errorSteps]);
   const total = journey ? (journey.totalCount ?? steps.length) : 0;
   const percent = journey?.progress ?? null;
   const progressText = journey ? t("sx.journeyRun.progress", { done: journey.completedCount, total }) : "";
+  const canAct = access.canEdit && !!journey;
+  const menuActions = canAct ? journeyActionsFor(journey?.status ?? "").filter((a) => a !== "restore" || !closed) : [];
+  const actFailed = wj.actError ? errText(wj.actError) : null;
 
   const title = journey?.title || (wj.phase === "missing" ? t("sx.journeyRun.crumb") : wj.phase === "error" ? t("sx.ui.errorTitle") : "");
   const crumbs = [{ label: t("sx.journeyRun.crumb"), href: CREATE_HOME_HREF }];
+  const owner = journey ? ownerOf(journey) : null;
+  const pill = journey && wj.phase === "ready" ? <JourneyStatusPill status={finished && status !== "completed" && !closed ? "completed" : journey.status} size="sm" /> : null;
+  const meta = journey ? (
+    <span className="sx-jr-meta">
+      {pill}
+      {owner && owner.text !== "—" ? (
+        <span title={owner.title}>
+          {t("sx.journeyRun.ownerLine", { name: owner.text })}
+        </span>
+      ) : null}
+      {journey.createdAt ? <span>{t("sx.journeyRun.startedOn", { when: labels.date(journey.createdAt) })}</span> : null}
+    </span>
+  ) : undefined;
+
+  const menu = (items: readonly JourneyAction[]): ReactNode => {
+    if (!items.length) return null;
+    const entries: MenuEntry[] = items.map((a) => ({
+      key: a,
+      label: t(`sx.journeyRun.act.${a}`),
+      icon: glyph(ACTION_ICON[a], { size: 16 }),
+      danger: a === "abandon",
+      disabled: busy || undefined,
+      onSelect: () => void runAction(a),
+      aiId: `${AI}.menu.${a}`,
+    }));
+    return (
+      <Menu
+        items={entries}
+        label={t("sx.ui.more")}
+        className="sx-pop sx-menu"
+        triggerClassName="sx-ibtn"
+        icon={moreGlyph()}
+        align="end"
+        tipAlign="end"
+        busy={wj.acting !== ""}
+        aiId={`${AI}.menu`}
+      />
+    );
+  };
+
+  const actNote = actFailed ? (
+    <SxNote tone="error" title={actFailed.title}>
+      {actFailed.text}
+    </SxNote>
+  ) : null;
 
   let body: ReactNode;
   let actions: ReactNode;
   let below: ReactNode;
 
-  if (wj.phase === "loading") {
+  const waitingDefs = wj.phase === "ready" && defsState.phase === "loading";
+
+  if (wj.phase === "loading" || waitingDefs) {
     body = (
       <div className="sx-jr" data-loading="">
         <SxPanel as="div" className="sx-jr__panel">
@@ -228,7 +332,7 @@ export function Wizard({ id }: { id: string }): ReactElement {
         title={t("sx.journeyRun.missingTitle")}
         text={t("sx.journeyRun.missingText")}
         action={
-          <SxLinkButton variant="secondary" href={CREATE_HOME_HREF} aiId="admin.studio.wizard.back-list">
+          <SxLinkButton variant="secondary" href={CREATE_HOME_HREF} aiId={`${AI}.back-list`}>
             {t("sx.journeyRun.backList")}
           </SxLinkButton>
         }
@@ -241,7 +345,7 @@ export function Wizard({ id }: { id: string }): ReactElement {
         tone="error"
         title={e.title}
         action={
-          <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={wj.reload} aiId="admin.studio.wizard.retry">
+          <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={wj.reload} aiId={`${AI}.retry`}>
             {t("sx.ui.retry")}
           </SxButton>
         }
@@ -249,7 +353,36 @@ export function Wizard({ id }: { id: string }): ReactElement {
         {e.text}
       </SxNote>
     );
+  } else if (closed) {
+    actions = menu(menuActions);
+    below = actNote;
+    body = (
+      <SxEmpty
+        icon={status === "archived" ? ArchiveIcon : BanIcon}
+        title={t(status === "archived" ? "sx.journeyRun.archivedTitle" : "sx.journeyRun.abandonedTitle")}
+        text={t(canAct ? "sx.journeyRun.closedText" : "sx.journeyRun.closedTextRead")}
+        action={
+          <span className="sx-jr-doneacts">
+            {canAct ? (
+              <SxButton variant="primary" icon={RotateCcwIcon} busy={wj.acting === "restore"} aria-disabled={busy || undefined} onClick={() => void runAction("restore")} aiId={`${AI}.restore`}>
+                {t("sx.journeyRun.act.restore")}
+              </SxButton>
+            ) : null}
+            {objectId ? (
+              <SxLinkButton variant="secondary" href={objectHref(objectId)} aiId={`${AI}.open-record`}>
+                {t("sx.journeyRun.openRecord")}
+              </SxLinkButton>
+            ) : null}
+            <SxLinkButton variant="secondary" href={CREATE_HOME_HREF} aiId={`${AI}.back-list`}>
+              {t("sx.journeyRun.backList")}
+            </SxLinkButton>
+          </span>
+        }
+      />
+    );
   } else if (done) {
+    actions = menu(menuActions);
+    below = actNote;
     body = (
       <SxEmpty
         icon={CircleCheckIcon}
@@ -258,11 +391,11 @@ export function Wizard({ id }: { id: string }): ReactElement {
         action={
           <span className="sx-jr-doneacts">
             {objectId ? (
-              <SxLinkButton variant="primary" href={objectHref(objectId)} aiId="admin.studio.wizard.open-record">
+              <SxLinkButton variant="primary" href={objectHref(objectId)} aiId={`${AI}.open-record`}>
                 {t("sx.journeyRun.openRecord")}
               </SxLinkButton>
             ) : null}
-            <SxLinkButton variant="secondary" href={CREATE_HOME_HREF} aiId="admin.studio.wizard.back-list">
+            <SxLinkButton variant="secondary" href={CREATE_HOME_HREF} aiId={`${AI}.back-list`}>
               {t("sx.journeyRun.backList")}
             </SxLinkButton>
           </span>
@@ -270,12 +403,14 @@ export function Wizard({ id }: { id: string }): ReactElement {
       />
     );
   } else {
-    const outline = steps.map((s) => ({ id: s.key, label: s.label, state: outlineStateOf(s.state, s.key, errorSteps) }));
+    const outline = steps.map((s) => ({ id: s.key, label: s.required || s.submit ? s.label : t("sx.journeyRun.optionalLabel", { name: s.label }), state: outlineStateOf(s.state, s.key, errorSteps) }));
     const blockedByPatch = wj.patchError !== null && wj.patchError !== undefined;
+    const patchText = blockedByPatch ? errText(wj.patchError) : null;
     const isReview = !!activeStep?.submit;
+    const unfinishedNames = unfinished.filter((k) => k !== "?").map((k) => steps.find((s) => s.key === k)?.label ?? k);
     actions = (
       <>
-        <SxButton variant="secondary" className="sx-jr__later" disabled={busy} onClick={() => apiRef.current?.later()} aiId="admin.studio.wizard.later">
+        <SxButton variant="secondary" className="sx-jr__later" disabled={busy} onClick={() => apiRef.current?.later()} aiId={`${AI}.later`}>
           {t("sx.journeyRun.later")}
         </SxButton>
         <SxButton
@@ -285,10 +420,11 @@ export function Wizard({ id }: { id: string }): ReactElement {
           onClick={() => {
             if (!blockedByPatch && !busy && flags.ready) apiRef.current?.primary();
           }}
-          aiId="admin.studio.wizard.next"
+          aiId={`${AI}.next`}
         >
           {t(isReview ? "sx.editor.submit" : "sx.journeyRun.saveNext")}
         </SxButton>
+        {menu(menuActions)}
       </>
     );
     below = (
@@ -298,12 +434,23 @@ export function Wizard({ id }: { id: string }): ReactElement {
           <SxProgress value={percent} label={progressText} size="md" className="sx-jr-prog__bar" />
           <span className="sx-jr-prog__pct sx-num">{percent === null ? "—" : t("sx.journeyRun.percent", { n: Math.round(percent) })}</span>
         </div>
+        {defsState.phase === "fallback" ? (
+          <SxNote tone="info" role="note">
+            {t("sx.journeyRun.defsFallback")}
+          </SxNote>
+        ) : null}
+        {actNote}
+        {unfinished.length ? (
+          <SxNote tone="warn" role="status" title={t("sx.journeyRun.notCompletedTitle")}>
+            {unfinishedNames.length ? t("sx.journeyRun.notCompletedText", { list: labels.list(unfinishedNames) }) : t("sx.journeyRun.notCompletedGeneric")}
+          </SxNote>
+        ) : null}
         {wj.remoteChanged ? (
           <SxNote
             tone="info"
             role="status"
             action={
-              <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={wj.adopt} aiId="admin.studio.wizard.refresh">
+              <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={wj.adopt} aiId={`${AI}.refresh`}>
                 {t("sx.journeyRun.refresh")}
               </SxButton>
             }
@@ -313,13 +460,14 @@ export function Wizard({ id }: { id: string }): ReactElement {
         ) : blockedByPatch ? (
           <SxNote
             tone="error"
+            title={t("sx.journeyRun.patchFail")}
             action={
-              <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} busy={wj.patching} onClick={() => void retry()} aiId="admin.studio.wizard.retry">
+              <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} busy={wj.patching} onClick={() => void retry()} aiId={`${AI}.retry`}>
                 {t("sx.ui.retry")}
               </SxButton>
             }
           >
-            {t("sx.journeyRun.patchFail")}
+            {patchText?.text}
           </SxNote>
         ) : null}
       </div>
@@ -327,18 +475,18 @@ export function Wizard({ id }: { id: string }): ReactElement {
     body = (
       <div className="sx-jr">
         <aside className="sx-jr__aside">
-          <SxOutline items={outline} label={t("sx.journeyRun.steps")} activeId={active} onSelect={go} aiId="admin.studio.wizard.steps" />
+          <SxOutline items={outline} label={t("sx.journeyRun.steps")} activeId={active} onSelect={go} aiId={`${AI}.steps`} />
         </aside>
         <div className="sx-jr__main">
           <div className="sx-jr__pick">
             <Picker
               label={t("sx.journeyRun.stepPick")}
               size="sm"
-              options={steps.map((s) => ({ value: s.key, label: s.label }))}
+              options={outline.map((s) => ({ value: s.id, label: s.label }))}
               value={active}
               clearable={false}
               onChange={(v) => go(v)}
-              aiId="admin.studio.wizard.step-pick"
+              aiId={`${AI}.step-pick`}
             />
           </div>
           <div className="sx-jr__anchors">
@@ -354,6 +502,7 @@ export function Wizard({ id }: { id: string }): ReactElement {
                 key={`${objectId || "new"}:${activeStep.key}`}
                 journey={journey}
                 steps={steps}
+                missing={missing}
                 objectId={objectId}
                 code={code}
                 onSubmitted={() => submitted(objectId)}
@@ -382,7 +531,16 @@ export function Wizard({ id }: { id: string }): ReactElement {
   }
 
   return (
-    <SxPage layout="record" title={title} crumbs={crumbs} need="edit" aiId="admin.studio.wizard" actions={actions} below={below}>
+    <SxPage
+      layout="record"
+      title={title}
+      crumbs={crumbs}
+      need="edit"
+      aiId={AI}
+      meta={meta}
+      actions={actions}
+      below={below}
+    >
       {body}
     </SxPage>
   );

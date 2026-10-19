@@ -382,12 +382,12 @@ html[data-theme="dark"] .sx .sx-kpi__ic {
   outline-offset: 2px;
 }
 .sx .sx-gcard__meta {
+  display: flex;
+  flex-wrap: wrap;
   margin: 0;
   overflow: hidden;
   color: var(--sx-muted);
   font: 500 12px/16px var(--sx-font);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .sx-gcard__ring {
   margin-top: -2px;
@@ -1109,4 +1109,60 @@ html[data-theme="dark"] .sx .sx-kpi__ic {
 .sx :is(.sx-gcard__blocked, .sx-tl__mchip) > svg {
   width: 13px;
   height: 13px;
+}
+
+.sx .sx-last {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: 6px;
+  color: var(--sx-muted);
+  font: 500 12px/16px var(--sx-font);
+  text-decoration: none;
+  transition: color var(--sx-fast) var(--sx-ease);
+}
+.sx .sx-last > svg {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  color: var(--hue-11, var(--sx-muted));
+}
+.sx .sx-last__k {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sx .sx-last__t {
+  flex: none;
+  color: var(--sx-ink-2);
+  white-space: nowrap;
+}
+.sx a.sx-last:focus-visible {
+  outline: 2px solid var(--sx-accent);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  .sx a.sx-last:hover,
+  .sx a.sx-last:hover .sx-last__t {
+    color: var(--hue-11, var(--sx-accent-ink));
+  }
+}
+.sx .sx-gcard__last {
+  margin-top: -6px;
+}
+.sx .sx-gcard__last--none {
+  display: block;
+  height: 16px;
+}
+.sx .sx-gcard__mpart {
+  white-space: nowrap;
+}
+.sx .sx-gcard__mpart:not(:last-child)::after {
+  content: "·";
+  margin: 0 5px;
 }

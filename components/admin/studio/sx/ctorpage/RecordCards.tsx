@@ -11,7 +11,7 @@ import { groupRows } from "../layout/tableModel";
 import { StatusPill } from "../StatusPill";
 import { isQuietRow } from "./quiet";
 import { RowTools } from "./RowTools";
-import { rowTitle, StatusTile, updatedText, type RecordRow, type VariantCtx } from "./variants";
+import { isTestRow, recTest, rowTitle, StatusTile, TestBadge, updatedText, type RecordRow, type VariantCtx } from "./variants";
 
 const FACT_SKIP: ReadonlySet<string> = new Set(["title", "status", "updated"]);
 const FACTS_MAX = 3;
@@ -48,7 +48,7 @@ function Card({ row, index, columns, ctx, href, actions, level }: { row: RecordR
   const title = rowTitle(r) || ctx.t("sx.ui.untitled");
   const facts = columns.filter((c) => !FACT_SKIP.has(c.key)).slice(0, FACTS_MAX);
   const meta = metaOf(row, ctx);
-  const muted = isQuietRow(r.title, String(row.extra?.status ?? "") || r.status);
+  const muted = isQuietRow(r.title, String(row.extra?.status ?? "") || r.status, recTest(r));
   const key = `${r.source}-${r.id}`;
   const Heading = level;
   return (
@@ -64,7 +64,10 @@ function Card({ row, index, columns, ctx, href, actions, level }: { row: RecordR
     >
       <div className="sx-cp-card__top">
         <StatusTile status={r.status} source={r.source} size="lg" />
-        {r.status ? <StatusPill status={r.status} source={r.source} size="sm" /> : null}
+        <span className="sx-cp-card__pills">
+          {isTestRow(r) ? <TestBadge t={ctx.t} /> : null}
+          {r.status ? <StatusPill status={r.status} source={r.source} size="sm" /> : null}
+        </span>
       </div>
       <Heading className="sx-cp-card__title">
         {href ? (

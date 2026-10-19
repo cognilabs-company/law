@@ -94,7 +94,7 @@ export function EditorDrawer({
   }
 
   const versions = st.detail?.versions.length ?? 0;
-  const comments = st.comments.items?.length ?? 0;
+  const comments = st.comments.items?.filter((c) => !c.deleted).length ?? 0;
   const steps = st.detail?.steps.length ?? 0;
   const fileMissing = st.fileRequired && !st.hasFile;
 

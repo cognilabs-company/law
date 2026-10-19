@@ -14,7 +14,7 @@ import { focusFieldPath } from "../schema/focus";
 import { StatusRail } from "../StatusRail";
 import type { SxNeed } from "../types";
 import { useStudioLabels } from "../useStudioLabels";
-import { EditorDialogs, confirmArchive, confirmCascade, type EditorDialog } from "./EditorDialogs";
+import { ConflictDialog, EditorDialogs, confirmArchive, confirmCascade, confirmRestore, confirmWithdraw, type EditorDialog } from "./EditorDialogs";
 import { EditorDrawer, type EditorTab } from "./EditorDrawer";
 import { EditorForm } from "./EditorForm";
 import { EditorActions, EditorBelow, EditorMeta, editorCrumbs, type EditorMenuKey } from "./EditorHeader";
@@ -156,6 +156,9 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
       case "save":
         void onSave();
         return;
+      case "restore":
+        void confirmRestore(st, tr);
+        return;
       default:
         return;
     }
@@ -186,6 +189,12 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
       case "archive":
         void confirmArchive(st, tr);
         return;
+      case "withdraw":
+        void confirmWithdraw(st, tr);
+        return;
+      case "restore":
+        void confirmRestore(st, tr);
+        return;
     }
   };
 
@@ -197,6 +206,7 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
   const onAlertAction = (kind: NonNullable<EditorAlert>["kind"]) => {
     if (kind === "remote") st.loadRemote();
     else if (kind === "file") openDrawer("files");
+    else if (kind === "locked") void confirmWithdraw(st, tr);
   };
 
   const onPick = (path: string) => {
@@ -271,6 +281,7 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
         onCloned={onCloned}
         onRollback={(version: StudioVersion) => setDialog({ kind: "rollback", version })}
       />
+      <ConflictDialog st={st} />
     </SxPage>
   );
 }

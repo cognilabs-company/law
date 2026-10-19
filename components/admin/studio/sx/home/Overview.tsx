@@ -88,7 +88,7 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
         <ul className="sx-hov__kpis" aria-label={t("sx.hm.ov.kpis")}>
           {kpis.map((k, i) => {
             const label = t(`sx.hm.kpi.${k.key}`);
-            const hint = t(`sx.hm.kpi.${k.key}Hint`);
+            const hint = k.key === "total" && s && s.activeTotal !== null ? t("sx.hm.kpi.totalActive", { n: fmt(s.activeTotal) }) : t(`sx.hm.kpi.${k.key}Hint`);
             const body = (
               <>
                 <span className="sx-kpi__ic">{glyph(k.icon, { size: 18 })}</span>

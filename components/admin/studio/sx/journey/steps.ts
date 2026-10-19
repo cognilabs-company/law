@@ -1,26 +1,66 @@
 import type { StudioCreationJourney, StudioJourneyType } from "@/lib/services/studio";
+import type { JourneyDef, JourneyDefStep, JourneyDefs } from "./journeyApi";
 
-export type JourneyStepDef = { key: string; fields: readonly string[]; submit?: boolean; link?: { labelKey: string; href: string } };
+export type JourneyStepDef = { key: string; title: string; code: string; fields: readonly string[]; required: boolean };
 
-export const JOURNEY_STEPS: Readonly<Record<StudioJourneyType, readonly JourneyStepDef[]>> = {
-  service: [
-    { key: "category", fields: ["title", "slug", "category_id"], link: { labelKey: "sx.journeyRun.newCategory", href: "/admin/studio/o/new?new=K01" } },
-    { key: "pricing", fields: ["base_price", "max_price", "price_factor_ids", "negotiation_allowed"] },
-    { key: "requirements", fields: ["seller_requirements", "executor_type"] },
-    { key: "delivery", fields: ["duration_value", "duration_unit", "duration_calendar"] },
-    { key: "template", fields: ["template_mode", "template_source", "document_template_id"] },
-    { key: "checklist", fields: ["checklist_template_id", "guarantee_ids"] },
-    { key: "discovery", fields: ["description", "client_value", "discovery_terms"] },
-    { key: "review", fields: ["is_active"], submit: true },
-  ],
-  package: [
-    { key: "category", fields: ["title", "category_id", "description"] },
-    { key: "composition", fields: ["components", "custom_items", "duration"] },
-    { key: "tiers", fields: ["tiers"] },
-    { key: "pricing", fields: ["price_factor_ids"] },
-    { key: "eligibility", fields: ["eligibility_rule_ids", "visibility"] },
-    { key: "review", fields: ["is_active"], submit: true },
-  ],
+const REVIEW_KEY = "review";
+
+export const FALLBACK_STEP_KEYS: Readonly<Record<StudioJourneyType, readonly string[]>> = {
+  service: ["category", "pricing", "requirements", "duration", "template", "checklist", "rules", "guarantees", "review"],
+  package: ["category", "services", "tiers", "eligibility", "price_factors", "rules", "guarantees", "review"],
+};
+
+const FIELD_HINTS: Readonly<Record<StudioJourneyType, Readonly<Record<string, readonly string[]>>>> = {
+  service: {
+    category: ["title", "slug", "category_id"],
+    pricing: ["base_price", "max_price", "price_factor_ids", "negotiation_allowed"],
+    requirements: ["seller_requirements", "executor_type"],
+    duration: ["duration_value", "duration_unit", "duration_calendar"],
+    delivery: ["duration_value", "duration_unit", "duration_calendar"],
+    template: ["template_mode", "template_source", "document_template_id"],
+    checklist: ["checklist_template_id"],
+    guarantees: ["guarantee_ids"],
+    discovery: ["description", "client_value", "discovery_terms"],
+    review: ["is_active"],
+  },
+  package: {
+    category: ["title", "category_id", "description"],
+    services: ["components", "custom_items", "duration"],
+    composition: ["components", "custom_items", "duration"],
+    tiers: ["tiers"],
+    eligibility: ["eligibility_rule_ids", "visibility"],
+    price_factors: ["price_factor_ids"],
+    pricing: ["price_factor_ids"],
+    review: ["is_active"],
+  },
+};
+
+const FALLBACK_CODES: Readonly<Record<string, string>> = {
+  category: "K01",
+  checklist: "K09",
+  rules: "K31",
+  guarantees: "K32",
+  eligibility: "K26",
+  price_factors: "K34",
+};
+
+const LABEL_KEYS: Readonly<Record<string, string>> = {
+  category: "sx.journeyRun.step.category",
+  pricing: "sx.journeyRun.step.pricing",
+  requirements: "sx.journeyRun.step.requirements",
+  duration: "sx.journeyRun.step.duration",
+  delivery: "sx.journeyRun.step.delivery",
+  template: "sx.journeyRun.step.template",
+  checklist: "sx.journeyRun.step.checklistOnly",
+  rules: "sx.journeyRun.step.rules",
+  guarantees: "sx.journeyRun.step.guarantees",
+  discovery: "sx.journeyRun.step.discovery",
+  services: "sx.journeyRun.step.services",
+  composition: "sx.journeyRun.step.composition",
+  tiers: "sx.journeyRun.step.tiers",
+  eligibility: "sx.journeyRun.step.eligibility",
+  price_factors: "sx.journeyRun.step.priceFactors",
+  review: "sx.journeyRun.step.review",
 };
 
 const CONTEXT_FIELDS: Readonly<Record<StudioJourneyType, readonly string[]>> = {
@@ -28,28 +68,68 @@ const CONTEXT_FIELDS: Readonly<Record<StudioJourneyType, readonly string[]>> = {
   package: ["package_id"],
 };
 
-const KNOWN: ReadonlySet<string> = new Set([...JOURNEY_STEPS.service, ...JOURNEY_STEPS.package].map((s) => s.key));
-
 export type JourneyStep = {
   key: string;
   label: string;
   fields: readonly string[];
+  code: string;
+  required: boolean;
   submit: boolean;
   known: boolean;
+  form: boolean;
   state: "done" | "current" | "todo";
-  link?: { labelKey: string; href: string };
+  link?: { code: string; href: string };
 };
 
 export function stepLabelKey(key: string): string {
-  return KNOWN.has(key) ? `sx.journeyRun.step.${key}` : "sx.journeyRun.stepOther";
+  return LABEL_KEYS[key] ?? "sx.journeyRun.stepOther";
 }
 
-export function stepLabel(key: string, t: (key: string) => string): string {
-  return key ? t(stepLabelKey(key)) : "";
+export function stepTitleOf(defs: JourneyDefs | null | undefined, type: StudioJourneyType, key: string): string {
+  return defs?.[type]?.steps.find((s) => s.key === key)?.title ?? "";
 }
 
-export function leftoverFields(type: StudioJourneyType, topLevelKeys: readonly string[]): string[] {
-  const listed = new Set(JOURNEY_STEPS[type].flatMap((s) => s.fields));
+export function stepLabel(key: string, t: (key: string) => string, title = ""): string {
+  if (!key) return "";
+  if (LABEL_KEYS[key]) return t(LABEL_KEYS[key]);
+  return title.trim() || t("sx.journeyRun.stepOther");
+}
+
+function fromDef(type: StudioJourneyType, s: JourneyDefStep): JourneyStepDef {
+  const hint = FIELD_HINTS[type][s.key] ?? [];
+  return { key: s.key, title: s.title, code: s.code, fields: s.fields.length ? s.fields : hint, required: s.required };
+}
+
+function fallbackStep(type: StudioJourneyType, key: string): JourneyStepDef {
+  return { key, title: "", code: FALLBACK_CODES[key] ?? "", fields: FIELD_HINTS[type][key] ?? [], required: true };
+}
+
+export function stepDefsFor(type: StudioJourneyType, def: JourneyDef | null | undefined, journeyKeys: readonly string[] = []): JourneyStepDef[] {
+  if (def?.steps.length) return def.steps.map((s) => fromDef(type, s));
+  const keys = journeyKeys.map((k) => k.trim()).filter(Boolean);
+  const list = keys.length ? keys : FALLBACK_STEP_KEYS[type];
+  const out: JourneyStepDef[] = [];
+  for (const k of list) if (!out.some((s) => s.key === k)) out.push(fallbackStep(type, k));
+  return out;
+}
+
+export function journeyStepKeys(j: Pick<StudioCreationJourney, "raw"> | null | undefined): string[] {
+  const raw = j?.raw?.steps;
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    const k = typeof item === "string" ? item.trim() : item && typeof item === "object" ? String((item as Record<string, unknown>).key ?? "").trim() : "";
+    if (k && !out.includes(k)) out.push(k);
+  }
+  return out;
+}
+
+function submitKeyOf(defs: readonly JourneyStepDef[]): string {
+  return defs.find((d) => d.key === REVIEW_KEY)?.key ?? defs[defs.length - 1]?.key ?? "";
+}
+
+export function leftoverFields(type: StudioJourneyType, defs: readonly JourneyStepDef[], topLevelKeys: readonly string[]): string[] {
+  const listed = new Set(defs.flatMap((s) => s.fields));
   const skip = new Set(CONTEXT_FIELDS[type]);
   const out: string[] = [];
   for (const raw of topLevelKeys) {
@@ -61,35 +141,54 @@ export function leftoverFields(type: StudioJourneyType, topLevelKeys: readonly s
 
 type Draft = Omit<JourneyStep, "state">;
 
-export function journeySteps(
-  type: StudioJourneyType,
-  j: Pick<StudioCreationJourney, "completedSteps" | "missingSteps" | "currentStep">,
-  leftovers: readonly string[],
-  label: (key: string) => string,
-): JourneyStep[] {
-  const defs = JOURNEY_STEPS[type];
+export type JourneyStepsInput = {
+  defs: readonly JourneyStepDef[];
+  mainCode: string;
+  journey: Pick<StudioCreationJourney, "completedSteps" | "missingSteps" | "currentStep">;
+  leftovers: readonly string[];
+  topKeys: ReadonlySet<string>;
+  label: (key: string, title: string) => string;
+};
+
+function newHref(code: string): string {
+  return `/admin/studio/o/new?new=${encodeURIComponent(code)}`;
+}
+
+export function journeySteps({ defs, mainCode, journey: j, leftovers, topKeys, label }: JourneyStepsInput): JourneyStep[] {
   const own = new Set(defs.map((d) => d.key));
   const extra: string[] = [];
   for (const k of [...j.completedSteps, ...j.missingSteps, j.currentStep]) {
     const key = k.trim();
     if (key && !own.has(key) && !extra.includes(key)) extra.push(key);
   }
-  const unknown = (key: string): Draft => ({ key, label: label(key), fields: [], submit: false, known: false });
+  const submitKey = submitKeyOf(defs);
+  const main = mainCode.trim().toUpperCase();
+  const unknown = (key: string): Draft => ({ key, label: label(key, ""), fields: [], code: "", required: false, submit: false, known: false, form: false });
   const list: Draft[] = [];
   let placed = false;
   for (const d of defs) {
-    if (d.submit && !placed) {
+    const submit = d.key === submitKey;
+    if (submit && !placed) {
       list.push(...extra.map(unknown));
       placed = true;
     }
-    const fields = d.submit ? [...d.fields, ...leftovers.filter((f) => !d.fields.includes(f))] : d.fields;
-    list.push(d.link ? { key: d.key, label: label(d.key), fields, submit: !!d.submit, known: true, link: d.link } : { key: d.key, label: label(d.key), fields, submit: !!d.submit, known: true });
+    const fields = submit ? [...d.fields, ...leftovers.filter((f) => !d.fields.includes(f))] : [...d.fields];
+    const form = submit || (fields.length > 0 && (topKeys.size === 0 || fields.some((f) => topKeys.has(f))));
+    const code = d.code.trim();
+    const linked = code && code.toUpperCase() !== main && !submit;
+    const draft: Draft = { key: d.key, label: label(d.key, d.title), fields, code, required: d.required, submit, known: true, form };
+    list.push(linked ? { ...draft, link: { code, href: newHref(code) } } : draft);
   }
   if (!placed) list.push(...extra.map(unknown));
   const done = new Set(j.completedSteps.map((s) => s.trim()));
   const cur = j.currentStep.trim();
   const current = cur && !done.has(cur) && list.some((s) => s.key === cur) ? cur : (list.find((s) => !done.has(s.key))?.key ?? "");
   return list.map((s) => ({ ...s, state: done.has(s.key) ? "done" : s.key === current ? "current" : "todo" }));
+}
+
+export function missingRequired(steps: readonly JourneyStep[], completed: readonly string[]): JourneyStep[] {
+  const done = new Set(completed.map((s) => s.trim()));
+  return steps.filter((s) => s.known && s.required && !s.submit && !done.has(s.key));
 }
 
 export function stepOfPath(steps: readonly JourneyStep[], path: string): string | null {

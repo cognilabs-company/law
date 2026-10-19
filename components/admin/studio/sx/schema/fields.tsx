@@ -23,6 +23,7 @@ import { Switch } from "../form/Switch";
 import { TextArea } from "../form/TextArea";
 import { TextInput } from "../form/TextInput";
 import { firstReferencePage } from "../form/useReferenceOptions";
+import { producerOf } from "../ctor/sources";
 import { TriangleAlertIcon, glyph } from "../icons";
 import { SxSectionHeader } from "../layout/Panel";
 import type { SchemaFieldModel, SchemaModel, SxControlKind, SxEditMode, SxLayoutCtx, SxLayoutField, SxValues, SxWarning } from "../contract";
@@ -874,4 +875,36 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
   );
 }
 
-export const SchemaField = memo(SchemaFieldImpl);
+function SourceGate({ source, children }: { source: string; children: ReactNode }): ReactNode {
+  const [state, setState] = useState<{ source: string; empty: boolean } | null>(null);
+  useEffect(() => {
+    let live = true;
+    firstReferencePage(source).then(
+      (rows) => {
+        if (live) setState({ source, empty: rows.length === 0 });
+      },
+      () => {
+        if (live) setState({ source, empty: false });
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [source]);
+  if (!state || state.source !== source || state.empty) return null;
+  return children;
+}
+
+function GatedSchemaField(props: { node: SchemaFieldModel; path: string; scope: SxValues }): ReactElement | null {
+  const env = useEnv();
+  const source = props.node.field ? effectiveSource(env.model.code, props.node, props.scope) : "";
+  const gated = Boolean(source) && producerOf(source)?.kind === "notReady" && blankValue(getAt(env.root, props.path));
+  if (!gated) return <SchemaFieldImpl {...props} />;
+  return (
+    <SourceGate key={source} source={source}>
+      <SchemaFieldImpl {...props} />
+    </SourceGate>
+  );
+}
+
+export const SchemaField = memo(GatedSchemaField);

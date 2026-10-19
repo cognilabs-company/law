@@ -15,7 +15,7 @@ import { shortDateTime } from "@/lib/date";
 import { saveBlob } from "@/lib/download";
 import { getSecureMessageFileAt } from "@/lib/services/backend";
 import type { MarketOrder, MarketPhase } from "@/lib/services/marketplace";
-import { checklistStatusOf, marketErrorInfo, updateChecklistItem, type ChecklistItem, type ChecklistStatus, type MarketFileRef, type OrderChecklist as OrderChecklistData } from "@/lib/services/marketRuntime";
+import { checklistItemRef, checklistStatusOf, marketErrorInfo, updateChecklistItem, type ChecklistItem, type ChecklistStatus, type MarketFileRef, type OrderChecklist as OrderChecklistData } from "@/lib/services/marketRuntime";
 import { useMarketError } from "../useMarketError";
 import { canEditChecklist, draftOf, itemProblems, mergeChecklistItem, sortedItems, type ItemDraft } from "./checklistRules";
 import { ForwardIcon, CircleCheckIcon, CircleDashedIcon, DownloadIcon, FileTextIcon, PaperclipIcon, PencilIcon, CircleAlertIcon, XIcon, glyph } from "./icons";
@@ -352,9 +352,10 @@ function ItemEditor({
   const fileCount = draft.files.length + adds.length;
   const canAttach = !!o.roomId && !busy && fileCount < ORDER_FILES_MAX;
 
+  const skippable = item.skipAllowed || item.status === "skipped_with_reason";
   const options: ChoiceCard[] = [
     { value: "done", title: t("opt.done"), icon: CircleCheckIcon },
-    { value: "skipped_with_reason", title: t("opt.skip"), icon: ForwardIcon },
+    ...(skippable ? [{ value: "skipped_with_reason", title: t("opt.skip"), icon: ForwardIcon }] : []),
     { value: "pending", title: t("opt.pending"), icon: CircleDashedIcon },
   ];
 
@@ -392,6 +393,7 @@ function ItemEditor({
       if (problems.includes("reason")) found.comment = t("needReason");
       if (problems.includes("comment")) found.comment = t("needComment");
       if (problems.includes("file")) found.file = t("needFile");
+      if (problems.includes("skip")) found.status = t("noSkipRequired");
       place(found);
       return;
     }
@@ -419,7 +421,7 @@ function ItemEditor({
       }
       const files = done ? [...draft.files, ...uploaded] : [];
       const comment = draft.comment.trim();
-      const r = await updateChecklistItem(o.id, item.id, { status: draft.status, comment, files: files.map(({ id: fid, name }) => ({ id: fid, name })) });
+      const r = await updateChecklistItem(o.id, checklistItemRef(item), { status: draft.status, comment, files: files.map(({ id: fid, name }) => ({ id: fid, name })) });
       const local: ChecklistItem = {
         ...item,
         status: draft.status,
@@ -460,7 +462,7 @@ function ItemEditor({
               setErrs({});
             }}
             options={options}
-            columns={3}
+            columns={options.length === 3 ? 3 : 2}
             aria-describedby={a["aria-describedby"]}
             aria-invalid={a["aria-invalid"]}
             aiId={`${itemAi}.status`}

@@ -25,6 +25,7 @@ import { StepProblem, StepShell, StepSkeleton, type StepApi } from "./WizardStep
 export type WizardReviewProps = {
   journey: StudioCreationJourney;
   steps: readonly JourneyStep[];
+  missing?: readonly JourneyStep[];
   objectId: string;
   code: string;
   onSubmitted: () => Promise<void>;
@@ -35,7 +36,9 @@ export type WizardReviewProps = {
 };
 
 const noop = () => undefined;
+const MISSING_ID = "sx-jr-review-missing";
 const NO_FIELDS: readonly string[] = [];
+const NO_STEPS: readonly JourneyStep[] = [];
 
 export function reviewErrorSteps(steps: readonly JourneyStep[], paths: readonly string[]): string[] {
   const out: string[] = [];
@@ -46,7 +49,7 @@ export function reviewErrorSteps(steps: readonly JourneyStep[], paths: readonly 
   return steps.filter((s) => out.includes(s.key)).map((s) => s.key);
 }
 
-export function WizardReview({ journey, steps, objectId, code, onSubmitted, onGoStep, register, onCreated, onLater }: WizardReviewProps): ReactElement {
+export function WizardReview({ journey, steps, missing = NO_STEPS, objectId, code, onSubmitted, onGoStep, register, onCreated, onLater }: WizardReviewProps): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const step = steps.find((s) => s.submit) ?? steps[steps.length - 1];
@@ -64,6 +67,7 @@ export function WizardReview({ journey, steps, objectId, code, onSubmitted, onGo
   const [dialog, setDialog] = useState(false);
   const [tried, setTried] = useState(false);
   const [sent, setSent] = useState<{ from: string } | null>(null);
+  const [blockedTry, setBlockedTry] = useState(false);
 
   const st = useEditorState(
     { code, id: objectId || null, initialPayload },
@@ -100,6 +104,11 @@ export function WizardReview({ journey, steps, objectId, code, onSubmitted, onGo
   const primary = () =>
     run(async () => {
       if (!ready) return;
+      if (missing.length) {
+        setBlockedTry(true);
+        document.getElementById(MISSING_ID)?.focus();
+        return;
+      }
       if (objectId && st.detail && stage >= 1 && !st.dirty) {
         firedRef.current = true;
         await onSubmitted();
@@ -161,6 +170,7 @@ export function WizardReview({ journey, steps, objectId, code, onSubmitted, onGo
   };
 
   const others = steps.filter((s) => !s.submit);
+  const missingNames = missing.map((s) => s.label);
   const errorNames = errorSteps.map((k) => steps.find((s) => s.key === k)?.label ?? k);
 
   let body: ReactNode;
@@ -200,11 +210,25 @@ export function WizardReview({ journey, steps, objectId, code, onSubmitted, onGo
             <button type="button" className="sx-jr-review__step" data-state={s.state === "done" ? "done" : "todo"} onClick={() => onGoStep(s.key)} data-ai-id={`admin.studio.wizard.review.step.${s.key}`} data-ai-type="button" data-ai-label={s.label}>
               {glyph(s.state === "done" ? CircleCheckIcon : CircleDashedIcon, { size: 16, className: "sx-jr-review__mark" })}
               <span className="sx-jr-review__name">{s.label}</span>
+              {s.known && !s.required ? <span className="sx-jr-review__opt">{t("sx.ui.optional")}</span> : null}
               <span className="sx-vh">{t(s.state === "done" ? "sx.guide.done" : "sx.guide.notDone")}</span>
             </button>
           </li>
         ))}
       </ul>
+      {missing.length ? (
+        <div id={MISSING_ID} tabIndex={-1} className="sx-jr-review__missing">
+          <SxNote tone={blockedTry ? "error" : "warn"} role={blockedTry ? "alert" : undefined} title={t("sx.journeyRun.requiredLeft", { list: labels.list(missingNames) })}>
+            <span className="sx-jr-review__fix">
+              {missing.map((s) => (
+                <SxButton key={s.key} variant="ghost" size="sm" onClick={() => onGoStep(s.key)} aiId={`admin.studio.wizard.review.todo.${s.key}`}>
+                  {s.label}
+                </SxButton>
+              ))}
+            </span>
+          </SxNote>
+        </div>
+      ) : null}
       {errorSteps.length ? (
         <SxNote tone="error" title={t("sx.journeyRun.reviewErrors", { list: labels.list(errorNames) })}>
           <span className="sx-jr-review__fix">

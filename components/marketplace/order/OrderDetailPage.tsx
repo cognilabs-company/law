@@ -113,10 +113,10 @@ function Sections({ d, o, phase, view, aiBase, listHref }: { d: OrderDetail; o: 
       ) : null,
       documents,
       supplemental,
-      !client ? cancel : null,
+      !client || o.canRequestCancellation ? cancel : null,
     ];
   } else if (phase === "in_progress") {
-    parts = [start, checklist, documents, supplemental, opinion, !client ? cancel : null];
+    parts = [start, checklist, documents, supplemental, opinion, !client || o.canRequestCancellation ? cancel : null];
   } else if (phase === "review") {
     parts = [cancel, checklist, documents, opinion];
   } else if (phase === "completed" || phase === "rated") {

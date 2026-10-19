@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { logApiError } from "@/lib/http";
-import { listStudioRecords, type StudioRecord, type StudioRecordSource, type StudioRecords } from "@/lib/services/studio";
+import type { StudioRecordSource } from "@/lib/services/studio";
 import type { UserEvent } from "@/lib/userSocket";
 import { useDebouncedValue } from "../hooks";
 import { studioEventCode, useStudioLive } from "../live";
 import type { CtorQuery } from "./CtorPage";
+import { fetchCtorRecords, type CtorRecord, type CtorRecords } from "./recordsApi";
 import { ctorQueryString, EMPTY_CTOR_QUERY, type CtorSort, type CtorView } from "./urlState";
 
 export type CtorRecordsState = {
@@ -20,8 +21,8 @@ export type CtorRecordsState = {
   setSort: (s: CtorSort | "") => void;
   reset: () => void;
   counts: CtorCounts;
-  data: StudioRecords | null;
-  rows: StudioRecord[];
+  data: CtorRecords | null;
+  rows: CtorRecord[];
   current: boolean;
   loading: boolean;
   error: unknown;
@@ -40,7 +41,7 @@ export const CTOR_PAGE = 50;
 export const CTOR_ALL = 200;
 const LIVE_MS = 400;
 
-type ListState = { key: string; data: StudioRecords | null; error: unknown };
+type ListState = { key: string; data: CtorRecords | null; error: unknown };
 
 const NONE: ListState = { key: "", data: null, error: null };
 
@@ -91,7 +92,7 @@ export function useCtorRecords(code: string, initial: CtorQuery, opts?: CtorReco
     const k = recordsKey(code, status, source, sent, offset, limit);
     const my = ++seq.current;
     try {
-      const data = await listStudioRecords(code, { q: sent, status, source, limit, offset });
+      const data = await fetchCtorRecords(code, { q: sent, status, source, limit, offset });
       if (my !== seq.current) return true;
       setList({ key: k, data, error: null });
       if (!source) setTally({ key: `${code}|${status}|${sent}`, all: data.total, runtime: data.runtimeTotal, studio: data.studioTotal });

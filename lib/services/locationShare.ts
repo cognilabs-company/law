@@ -3,13 +3,14 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { ApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
-import { DEFAULT_LOCATION_POLICY, LOCATION_DURATIONS, marketErrorInfo, setLocationSharing, type LocationDuration, type LocationPolicy } from "@/lib/services/marketRuntime";
+import { DEFAULT_LOCATION_POLICY, LOCATION_DURATIONS, getLocationSharing, marketErrorInfo, setLocationSharing, type LocationDuration, type LocationPolicy, type LocationShareState } from "@/lib/services/marketRuntime";
 
 export type ShareMode = "off" | "on" | "unknown" | "starting" | "stopping";
 export type ShareErrorKind = "denied" | "unavailable" | "timeout" | "insecure" | "unsupported" | "server" | "stop";
 export type ShareError = { kind: ShareErrorKind; code: string; message: string };
 export type SharePermission = "granted" | "prompt" | "denied" | "unsupported" | "unknown";
 export type GeoFix = { latitude: number; longitude: number; accuracy: number; at: number };
+export type ServerShare = { enabled: boolean; until: number | null; manual: boolean; updatedAt: number | null; accuracy: number | null; at: number };
 export type ShareSnapshot = {
   uid: string;
   mode: ShareMode;
@@ -20,6 +21,7 @@ export type ShareSnapshot = {
   policy: LocationPolicy;
   error: ShareError | null;
   permission: SharePermission;
+  server: ServerShare | null;
 };
 
 export const SHARE_STORE_KEY = (uid: string): string => `lexgo_loc_share_${uid}`;
@@ -47,6 +49,7 @@ const BLANK: ShareSnapshot = {
   policy: DEFAULT_LOCATION_POLICY,
   error: null,
   permission: "unknown",
+  server: null,
 };
 
 let state: ShareSnapshot = BLANK;
@@ -54,6 +57,8 @@ let generation = 0;
 let inflight: Promise<unknown> | null = null;
 let lastAttemptAt: number | null = null;
 let runnerToken = 0;
+let syncedUid = "";
+let syncing: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 
 let clockNow = 0;
@@ -131,6 +136,8 @@ function fromStorage(uid: string): ShareSnapshot {
 
 function adopt(uid: string): void {
   if (state.uid === uid) return;
+  syncedUid = "";
+  syncing = null;
   generation++;
   inflight = null;
   lastAttemptAt = null;
@@ -251,6 +258,55 @@ function expiryOf(expiresAt: string, hours: LocationDuration, now: number): numb
   return Number.isFinite(parsed) && parsed > now ? parsed : now + hours * HOUR_MS;
 }
 
+function serverOf(res: LocationShareState, now: number): ServerShare {
+  const exp = res.expiresAt ? Date.parse(res.expiresAt) : NaN;
+  const live = res.enabled && (!Number.isFinite(exp) || exp > now);
+  const upd = res.updatedAt ? Date.parse(res.updatedAt) : NaN;
+  return {
+    enabled: live,
+    until: live && Number.isFinite(exp) ? exp : null,
+    manual: live && !Number.isFinite(exp),
+    updatedAt: Number.isFinite(upd) ? upd : null,
+    accuracy: res.accuracyMeters,
+    at: now,
+  };
+}
+
+export function syncLocationShare(uid: string, opts: { force?: boolean } = {}): Promise<void> {
+  if (!uid) return Promise.resolve();
+  adopt(uid);
+  if (!opts.force && syncedUid === uid) return syncing ?? Promise.resolve();
+  syncedUid = uid;
+  const gen = generation;
+  const run = (async () => {
+    try {
+      const res = await getLocationSharing();
+      if (state.uid !== uid) return;
+      const server = serverOf(res, Date.now());
+      if (gen !== generation || state.mode === "starting" || state.mode === "stopping") {
+        set({ server });
+        return;
+      }
+      if (state.mode === "on" && !server.enabled) {
+        stopLocally(uid);
+        set({ server, policy: res.policy });
+        return;
+      }
+      if (state.mode === "on") {
+        const until = state.manual ? state.until : (server.until ?? state.until);
+        if (!state.manual && until !== state.until) writeStored(uid, { until, manual: false });
+        set({ server, policy: res.policy, until });
+        return;
+      }
+      set({ server, policy: res.policy, mode: state.mode === "unknown" ? "off" : state.mode });
+    } catch {
+      return;
+    }
+  })();
+  syncing = run;
+  return run;
+}
+
 export async function startSharing(uid: string, durationHours: LocationDuration, fix: GeoFix): Promise<void> {
   adopt(uid);
   const prev = state.mode === "starting" || state.mode === "stopping" ? "unknown" : state.mode;
@@ -264,7 +320,7 @@ export async function startSharing(uid: string, durationHours: LocationDuration,
     const until = expiryOf(res.expiresAt, durationHours, now);
     writeStored(uid, { until, manual });
     lastAttemptAt = now;
-    set({ mode: "on", until, manual, policy: res.policy, lastSentAt: now, lastAccuracy: fix.accuracy, error: null, permission: "granted" });
+    set({ mode: "on", until, manual, policy: res.policy, lastSentAt: now, lastAccuracy: fix.accuracy, error: null, permission: "granted", server: { enabled: true, until, manual, updatedAt: now, accuracy: fix.accuracy, at: now } });
   } catch (e) {
     if (gen === generation && state.uid === uid) set({ mode: prev, error: serverError(e, "server") });
     throw e;
@@ -286,7 +342,7 @@ export async function stopSharing(uid: string): Promise<boolean> {
   const gen = generation;
   try {
     await setLocationSharing({ enabled: false });
-    if (gen === generation && state.uid === uid) set({ mode: "off", error: null });
+    if (gen === generation && state.uid === uid) set({ mode: "off", error: null, server: state.server ? { ...state.server, enabled: false, until: null, manual: false, at: Date.now() } : null });
     return true;
   } catch (e) {
     if (gen === generation && state.uid === uid) set({ mode: "off", error: serverError(e, "stop") });
@@ -436,6 +492,8 @@ export function useLocationRunner(uid: string, enabled: boolean, expiredText?: s
 }
 
 export function resetLocationShare(): void {
+  syncedUid = "";
+  syncing = null;
   generation++;
   inflight = null;
   lastAttemptAt = null;

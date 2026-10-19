@@ -5,7 +5,7 @@ import "../sx-layout.css";
 import "./sx-editor.css";
 import "./sx-editor-neon.css";
 import { useId, type ReactElement } from "react";
-import { EllipsisVerticalIcon } from "lucide-react";
+import { ArchiveRestoreIcon, EllipsisVerticalIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import IconButton from "@/components/ui/IconButton";
 import Menu, { menuSeparator, tidyMenu, type MenuEntry } from "@/components/ui/Menu";
@@ -25,6 +25,7 @@ import {
   RocketIcon,
   BadgeCheckIcon,
   ClockIcon,
+  Undo2Icon,
   XIcon,
   glyph,
 } from "../icons";
@@ -39,7 +40,7 @@ import { useEditorErrorText } from "./useEditorErrorText";
 import { SAVE_SHORTCUT } from "./model";
 import type { EditorAlert, EditorPrimary, EditorState } from "./useEditorState";
 
-export type EditorMenuKey = "save" | "saveNote" | "versions" | "comments" | "files" | "steps" | "guide" | "clone" | "newVersion" | "archive";
+export type EditorMenuKey = "save" | "saveNote" | "versions" | "comments" | "files" | "steps" | "guide" | "clone" | "newVersion" | "archive" | "withdraw" | "restore";
 
 const AI = "admin.studio.editor";
 const NOW_MS = 30_000;
@@ -54,6 +55,7 @@ const PRIMARY: Readonly<Record<Exclude<EditorPrimary, null>, PrimaryLook>> = {
   openReview: { key: "sx.editor.openReview", icon: SendIcon, ai: `${AI}.open-review` },
   edit: { key: "sx.ui.edit", icon: PencilIcon, ai: `${AI}.edit` },
   save: { key: "sx.ui.save", icon: SaveIcon, ai: `${AI}.save` },
+  restore: { key: "sx.editor.restore", icon: ArchiveRestoreIcon, ai: `${AI}.restore` },
 };
 
 const RUNTIME_PILL = new Set(["active", "inactive", "archived", "deleted"]);
@@ -143,7 +145,7 @@ function menuEntries(st: EditorState, narrow: boolean, t: (key: string, values?:
   out.push(menuSeparator("s1"));
   if (obj) {
     const versions = st.detail?.versions.length ?? 0;
-    const comments = st.comments.items?.length ?? 0;
+    const comments = st.comments.items?.filter((c) => !c.deleted).length ?? 0;
     out.push({
       key: "versions",
       label: t("sx.editor.tab.versions"),
@@ -213,6 +215,27 @@ function menuEntries(st: EditorState, narrow: boolean, t: (key: string, values?:
     });
   }
   out.push(menuSeparator("s3"));
+  if (st.can.withdraw) {
+    out.push({
+      key: "withdraw",
+      label: st.busy === "withdraw" ? t("sx.editor.withdrawing") : t("sx.editor.withdraw"),
+      icon: glyph(Undo2Icon, { size: 16 }),
+      description: t("sx.editor.withdrawHint"),
+      disabled: busy || undefined,
+      onSelect: () => onMenu("withdraw"),
+      aiId: `${AI}.menu.withdraw`,
+    });
+  }
+  if (st.can.restore && st.primary !== "restore") {
+    out.push({
+      key: "restore",
+      label: t("sx.editor.restore"),
+      icon: glyph(ArchiveRestoreIcon, { size: 16 }),
+      disabled: busy || undefined,
+      onSelect: () => onMenu("restore"),
+      aiId: `${AI}.menu.restore`,
+    });
+  }
   if (st.can.archive) {
     out.push({
       key: "archive",
@@ -251,7 +274,7 @@ export function EditorActions({
   const saveWhy = off && !busy;
   const risky = (st.full ?? st.ctor)?.experience.risk === "high";
   const items = menuEntries(st, narrow, t, onMenu);
-  const primaryBusy = st.busy === "check" || (st.primary === "save" && st.busy === "save");
+  const primaryBusy = st.busy === "check" || (st.primary === "save" && st.busy === "save") || (st.primary === "restore" && st.busy === "restore");
   const unlockable = st.readOnlyReason === "live" && st.access.canEdit && st.phase === "ready";
   const onUnlock = () => {
     st.unlock();
@@ -365,6 +388,27 @@ function AlertSlot({ alert, st, onAction }: { alert: NonNullable<EditorAlert>; s
       </SxNote>
     );
   }
+  if (alert.kind === "locked") {
+    return (
+      <SxNote
+        tone="warn"
+        role="alert"
+        title={t("sx.editor.alert.lockedTitle")}
+        action={
+          <span className="sx-ed__alert-acts">
+            {alert.withdraw ? (
+              <SxButton variant="ghost" size="sm" icon={Undo2Icon} busy={st.busy === "withdraw"} onClick={() => onAction("locked")} aiId={`${AI}.locked.withdraw`}>
+                {t("sx.editor.withdraw")}
+              </SxButton>
+            ) : null}
+            <DismissButton onClick={st.dismissAlert} />
+          </span>
+        }
+      >
+        {t(alert.withdraw ? "sx.editor.alert.lockedText" : "sx.editor.alert.lockedNoWithdraw")}
+      </SxNote>
+    );
+  }
   if (alert.kind === "publishFail") {
     return (
       <SxNote tone="error" role="alert" title={t("sx.editor.alert.publishFailTitle")} action={<DismissButton onClick={st.dismissAlert} />}>
@@ -379,12 +423,19 @@ function AlertSlot({ alert, st, onAction }: { alert: NonNullable<EditorAlert>; s
         role="status"
         title={t(alert.conflict ? "sx.editor.alert.conflictTitle" : "sx.editor.alert.remoteTitle")}
         action={
-          <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={() => onAction("remote")} aiId={`${AI}.remote.load`}>
-            {t("sx.editor.alert.loadNew")}
-          </SxButton>
+          <span className="sx-ed__alert-acts">
+            {alert.conflict && st.can.save ? (
+              <SxButton variant="ghost" size="sm" icon={SaveIcon} busy={st.busy === "save"} onClick={() => void st.overwrite()} aiId={`${AI}.remote.overwrite`}>
+                {t("sx.editor.conflictDlg.overwrite")}
+              </SxButton>
+            ) : null}
+            <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={() => onAction("remote")} aiId={`${AI}.remote.load`}>
+              {t("sx.editor.alert.loadNew")}
+            </SxButton>
+          </span>
         }
       >
-        {t(alert.conflict ? "sx.editor.alert.conflictText" : "sx.editor.alert.remoteText")}
+        {t(alert.conflict ? "sx.editor.alert.conflictKeep" : "sx.editor.alert.remoteText")}
       </SxNote>
     );
   }

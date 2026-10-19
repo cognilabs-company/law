@@ -530,7 +530,10 @@ export type MarketOrder = {
   cancellationReview: CancellationReview | null;
   checklistProgress: ChecklistProgress | null;
   canStart: boolean;
-  urls: { start: string; checklist: string; negotiations: string; cancellationReview: string; secondOpinion: string };
+  canRequestCancellation: boolean | null;
+  canNegotiate: boolean | null;
+  explicit: { start: boolean; complete: boolean; cancel: boolean };
+  urls: { start: string; checklist: string; negotiations: string; cancellationReview: string; secondOpinion: string; complete: string; cancel: string; chat: string; callCreate: string };
 };
 
 export type OrderOption = { id: string; label: string; amount: number };
@@ -595,7 +598,7 @@ function normSupplemental(v: unknown): SupplementalPayment | null {
 }
 
 export function ratingOf(d: Dict, details: Dict = asDict(d.details), now = Date.now()): OrderRating {
-  const r = asDict(d.rating);
+  const r = filledDict(d.rating) ?? asDict(d.rating_window ?? details.rating_window);
   const available = typeof r.available === "boolean" ? r.available : r.can_rate === true;
   const closed = r.closed === true;
   const remaining = asNum(r.remaining_seconds, -1);
@@ -687,9 +690,19 @@ export function normMarketOrder(v: unknown): MarketOrder {
   const done = MARKET_DONE.has(status);
   const stopped = MARKET_STOPPED.has(status);
   const startedAt = asStr(d.started_at ?? details.started_at ?? details.work_started_at);
-  const readOnlyFlag = firstBool(d.chat_read_only, details.chat_read_only, asDict(d.chat).read_only);
-  const callsFlag = firstBool(d.calls_allowed, details.calls_allowed);
+  const chatState = asDict(d.chat ?? d.chat_state ?? details.chat_state);
+  const readOnlyFlag = firstBool(d.chat_read_only, details.chat_read_only, chatState.read_only);
+  const callsDisabled = firstBool(chatState.calls_disabled, d.calls_disabled);
+  const callsFlag = firstBool(d.calls_allowed, details.calls_allowed, chatState.calls_allowed, callsDisabled === null ? null : !callsDisabled);
   const reviewRaw = filledDict(d.cancellation_review) ?? filledDict(d.cancellation_review_request) ?? filledDict(details.cancellation_review);
+  const url = (k: string) => asStr(d[k]).trim();
+  const flag = (k: string): boolean | null => (typeof d[k] === "boolean" ? (d[k] as boolean) : null);
+  const urlGate = (k: string) => !(k in d) || !!url(k);
+  const startFlag = flag("can_start");
+  const completeFlag = flag("can_complete");
+  const cancelFlag = flag("can_cancel");
+  const reviewFlag = flag("can_request_cancellation");
+  const negotiateFlag = flag("can_negotiate");
   return {
     id: asStr(d.id ?? d.order_id),
     workId: asStr(d.work_id),
@@ -708,10 +721,10 @@ export function normMarketOrder(v: unknown): MarketOrder {
     lawyerPhone: asStr(lawyer.phone ?? d.lawyer_phone).trim(),
     lawyerUserId: asStr(d.lawyer_user_id ?? lawyer.id),
     roomId,
-    canStartChat: d.can_start_chat === true && !!roomId,
-    canCreateCall: d.can_create_call === true && !!roomId,
-    canCancel: !!asStr(d.cancel_url),
-    canComplete: !!asStr(d.complete_url),
+    canStartChat: d.can_start_chat === true && !!roomId && urlGate("chat_url"),
+    canCreateCall: d.can_create_call === true && !!roomId && urlGate("call_create_url"),
+    canCancel: !!url("cancel_url") && cancelFlag !== false,
+    canComplete: !!url("complete_url") && completeFlag !== false,
     createdAt: asStr(d.created_at),
     serviceId: asStr(d.service_id ?? details.service_id),
     packageId: asStr(d.package_id ?? details.package_id ?? pkg.id),
@@ -737,15 +750,59 @@ export function normMarketOrder(v: unknown): MarketOrder {
     negotiationAvailable: firstBool(d.negotiation_available ?? d.negotiation_allowed ?? details.negotiation_available),
     cancellationReview: reviewRaw ? normCancellationReview(reviewRaw) : null,
     checklistProgress: progressOfRow(d.checklist_progress ?? asDict(d.checklist).progress ?? details.checklist_progress),
-    canStart: paymentStatus === "paid" && !startedAt && !done && !stopped && (status === "paid" || (!!asStr(d.start_url) && status !== "in_progress" && status !== "cancellation_review")),
+    canStart:
+      startFlag !== null
+        ? startFlag && !!url("start_url")
+        : paymentStatus === "paid" && !startedAt && !done && !stopped && (status === "paid" || (!!url("start_url") && status !== "in_progress" && status !== "cancellation_review")),
+    canRequestCancellation: reviewFlag !== null ? reviewFlag && !!url("cancellation_review_url") : null,
+    canNegotiate: negotiateFlag !== null ? negotiateFlag && !!asStr(d.negotiations_url ?? d.negotiation_url) : null,
+    explicit: { start: startFlag !== null, complete: completeFlag !== null, cancel: cancelFlag !== null },
     urls: {
-      start: asStr(d.start_url),
-      checklist: asStr(d.checklist_url),
+      start: url("start_url"),
+      checklist: url("checklist_url"),
       negotiations: asStr(d.negotiations_url ?? d.negotiation_url),
-      cancellationReview: asStr(d.cancellation_review_url),
-      secondOpinion: asStr(d.second_opinion_url),
+      cancellationReview: url("cancellation_review_url"),
+      secondOpinion: url("second_opinion_url"),
+      complete: url("complete_url"),
+      cancel: url("cancel_url"),
+      chat: url("chat_url"),
+      callCreate: url("call_create_url"),
     },
   };
+}
+
+function orderIn(v: unknown, orderId: string): Dict | null {
+  const d = asDict(v);
+  const direct = filledDict(d.order) ?? d;
+  if (asStr(direct.id ?? direct.order_id) === orderId) return direct;
+  const hit = asArr(d.items).find((x) => asStr(asDict(x).id ?? asDict(x).order_id) === orderId);
+  return hit ? asDict(hit) : null;
+}
+
+export async function getMarketplaceOrder(orderId: string, opts: { signal?: AbortSignal; owner?: string } = {}): Promise<MarketOrder | null> {
+  if (!orderId) return null;
+  const raw = orderIn(await http(`/marketplace/me/orders/${encodeURIComponent(orderId)}`, { signal: opts.signal }), orderId);
+  if (!raw) return null;
+  const order = normMarketOrder(raw);
+  rememberMarketOrders([order], opts.owner ?? "");
+  return order;
+}
+
+function detailRouteMissing(e: unknown): boolean {
+  if (!(e instanceof ApiError) || e.code) return false;
+  if (e.status === 405) return true;
+  return e.status === 404 && (!e.detail || /^not found$/i.test(e.detail.trim()));
+}
+
+export async function loadMarketplaceOrder(orderId: string, roleView: "client" | "seller", opts: { signal?: AbortSignal; owner?: string } = {}): Promise<MarketOrder | null> {
+  try {
+    const hit = await getMarketplaceOrder(orderId, opts);
+    if (hit) return hit;
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404 && !detailRouteMissing(e)) return null;
+    if (!detailRouteMissing(e)) throw e;
+  }
+  return findMarketplaceOrder(orderId, roleView, opts);
 }
 
 export async function listMarketplaceOrders(roleView: "client" | "seller", opts: { signal?: AbortSignal } = {}): Promise<MarketOrder[]> {

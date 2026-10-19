@@ -1,0 +1,21 @@
+.sx-picker__opt[data-depth] {
+  padding-inline-start: calc(10px + var(--sx-depth, 0) * 18px);
+}
+.sx-picker__more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+  margin: 6px 0 0;
+  padding: 6px 2px 2px 10px;
+  border-top: 1px solid var(--sx-line);
+}
+.sx-picker__more-count {
+  font: 400 12px/16px var(--sx-font);
+  color: var(--sx-muted);
+  font-variant-numeric: tabular-nums;
+}
+.sx-picker__more[data-tone="error"] .sx-picker__more-count {
+  color: var(--sx-danger);
+}

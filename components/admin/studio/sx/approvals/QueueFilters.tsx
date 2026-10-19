@@ -3,12 +3,13 @@
 import "../sx-core.css";
 import "../sx-layout.css";
 import "./sx-approvals.css";
+import "./sx-ap3.css";
 import type { ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { studioCtorRank, useStudioRegistry } from "@/lib/services/studio";
 import { Picker } from "../form/Picker";
 import { groupOfCode } from "../home/groupModel";
-import { GROUP_ICON, ctorIcon } from "../icons";
+import { GROUP_ICON, UserCheckIcon, ctorIcon, glyph } from "../icons";
 import { SxToolbar } from "../layout/Toolbar";
 import type { SxOption } from "../types";
 import { useStudioLabels } from "../useStudioLabels";
@@ -16,11 +17,11 @@ import type { ApprRow } from "./model";
 import { isFiltered } from "./queue";
 import { APPR_Q_MAX, APPR_STATUS_VALUES, EMPTY_APPR_QUERY, type ApprQuery, type ApprStatus } from "./urlState";
 
-export type QueueFiltersProps = { query: ApprQuery; onChange: (next: ApprQuery) => void; rows: readonly ApprRow[]; count: number | null };
+export type QueueFiltersProps = { query: ApprQuery; onChange: (next: ApprQuery) => void; rows: readonly ApprRow[]; count: number | null; mineOn?: boolean };
 
 const asStatus = (v: string): ApprStatus => ((APPR_STATUS_VALUES as readonly string[]).includes(v) ? (v as ApprStatus) : "");
 
-export function QueueFilters({ query, onChange, rows, count }: QueueFiltersProps): ReactElement {
+export function QueueFilters({ query, onChange, rows, count, mineOn = true }: QueueFiltersProps): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const reg = useStudioRegistry();
@@ -99,6 +100,20 @@ export function QueueFilters({ query, onChange, rows, count }: QueueFiltersProps
         searchable={false}
         aiId="admin.studio.approvals.filters.status"
       />
+      {mineOn || query.mine ? (
+        <button
+          type="button"
+          className="sx-ap3-mine"
+          aria-pressed={query.mine}
+          onClick={() => onChange({ ...query, mine: !query.mine })}
+          data-ai-id="admin.studio.approvals.filters.mine"
+          data-ai-type="toggle"
+          data-ai-label={t("sx.ap3.mine")}
+        >
+          {glyph(UserCheckIcon, { size: 15 })}
+          <span>{t("sx.ap3.mine")}</span>
+        </button>
+      ) : null}
     </SxToolbar>
   );
 }

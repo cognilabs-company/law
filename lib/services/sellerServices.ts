@@ -36,6 +36,7 @@ export type ManagedService = {
   ownPromotion: ServicePromotion | null;
   profileBoost: ServicePromotion | null;
   limits: PriceBand | null;
+  rulesPending?: boolean;
 };
 
 export type ServiceSeller = { id: string; name: string; lexgoId: string; role: string; accountStatus: string };
@@ -89,9 +90,17 @@ export function scopeKey(scope: ServiceScope): string {
   return scope.kind === "org" ? `org:${scope.orgId}:${scope.memberId}` : "me";
 }
 
+const RULES_PENDING_RE = /^(rules?_pending|pending_rules?|rules?_acceptance_required)$/;
+
 function statusOf(v: unknown): ServiceStatus {
   const s = asStr(v).trim().toLowerCase();
+  if (RULES_PENDING_RE.test(s)) return "paused";
   return s === "active" || s === "paused" ? s : "inactive";
+}
+
+function rulesPendingOf(d: Record<string, unknown>): boolean {
+  const rules = asStr(d.rules_status ?? d.rules_state).trim().toLowerCase();
+  return d.rules_pending === true || d.rules_accepted === false || RULES_PENDING_RE.test(asStr(d.status).trim().toLowerCase()) || rules === "pending" || RULES_PENDING_RE.test(rules);
 }
 
 function normPromotion(v: unknown): ServicePromotion | null {
@@ -151,6 +160,7 @@ function normManaged(v: unknown, locale: string): ManagedService {
     ownPromotion: promo && promo.serviceId === service.id ? promo : null,
     profileBoost: promo && !promo.serviceId ? promo : null,
     limits: normLimits(d.pricing_limits, locale),
+    rulesPending: rulesPendingOf(d),
   };
 }
 
@@ -329,13 +339,14 @@ export function profileVerified(p: ServiceSellerProfile): boolean {
   return p.isVerified && VERIFIED.has(p.verificationStatus.toLowerCase());
 }
 
-export type HiddenReason = "catalogOff" | "paused" | "inactive" | "noPrice" | "unverified" | "other";
+export type HiddenReason = "catalogOff" | "rulesPending" | "paused" | "inactive" | "noPrice" | "unverified" | "other";
 
 export function hiddenReasons(item: ManagedService, profile: ServiceSellerProfile): HiddenReason[] {
   if (item.visible) return [];
   const out: HiddenReason[] = [];
   if (!item.service.isActive) out.push("catalogOff");
-  if (item.status === "paused") out.push("paused");
+  if (item.rulesPending) out.push("rulesPending");
+  else if (item.status === "paused") out.push("paused");
   if (item.status === "inactive") out.push("inactive");
   if (!item.effectivePrice) out.push("noPrice");
   if (!profileVerified(profile)) out.push("unverified");

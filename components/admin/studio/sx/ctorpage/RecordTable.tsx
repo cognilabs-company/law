@@ -4,7 +4,7 @@ import "../sx-core.css";
 import "../sx-layout.css";
 import "../sx-tones.css";
 import "./sx-ctorpage.css";
-import { useState, type ReactElement, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ArrowDownAZIcon, ArrowDownZAIcon, CalendarArrowDownIcon, CalendarArrowUpIcon, Table2Icon } from "lucide-react";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
@@ -19,6 +19,7 @@ import { Picker } from "../form/Picker";
 import {
   ArchiveIcon,
   ArrowDownUpIcon,
+  GripVerticalIcon,
   CopyIcon,
   EyeIcon,
   GlobeIcon,
@@ -48,11 +49,13 @@ import { CtorEmpty } from "./CtorEmpty";
 import { usePromoInfo } from "./promoRows";
 import { isQuietRow, quietBand, quietLast } from "./quiet";
 import { RecordCards } from "./RecordCards";
+import { canReorderRecord } from "./recordsApi";
+import { ReorderPanel } from "./ReorderPanel";
 import { RowTools } from "./RowTools";
 import { payloadKey, useRowPayloads } from "./rowPayloads";
 import type { CtorRecordsState } from "./useCtorRecords";
 import { PLACEMENT_VALUES, RUNTIME_STATUS_VALUES, sortOf, STUDIO_STATUS_VALUES, viewOf, type CtorSort, type CtorView } from "./urlState";
-import { joinPromoRows, promoPlacementOf, rowTitle, type CtorVariant, type RecordRow, type VariantCtx } from "./variants";
+import { joinPromoRows, promoPlacementOf, recTest, rowTitle, type CtorVariant, type RecordRow, type VariantCtx } from "./variants";
 
 export type { RecordRow } from "./variants";
 
@@ -136,7 +139,7 @@ export function sortLoaded(rows: readonly RecordRow[], sort: CtorSort | "", loca
       row,
       index,
       g: firstAt.get(groupOf?.(row) ?? "") ?? 0,
-      band: quietBand(row.rec.title, row.rec.status),
+      band: quietBand(row.rec.title, row.rec.status, recTest(row.rec)),
       v: key === "title" ? rowTitle(row.rec) : timeOf(row.rec.updatedAt),
     }))
     .sort((a, b) => a.g - b.g || a.band - b.band || cmp(a.v, b.v) * sign || a.index - b.index)
@@ -208,7 +211,7 @@ export function hasFilters(q: { q: string; status: string; source: string; place
 
 export function shapeRows(rows: readonly RecordRow[], variant: CtorVariant, ctx: VariantCtx, ready: boolean): RecordRow[] {
   if (ready && variant.sort) return variant.sort(rows, ctx);
-  return quietLast(rows, (r) => r.rec.title, (r) => r.rec.status);
+  return quietLast(rows, (r) => r.rec.title, (r) => r.rec.status, (r) => recTest(r.rec));
 }
 
 export function LoadError({ error, onRetry, busy, compact = false }: { error: unknown; onRetry: () => void; busy: boolean; compact?: boolean }): ReactElement {
@@ -249,6 +252,14 @@ export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, crea
   const payloads = useRowPayloads(st.rows, variant.needsPayload);
   const promo = usePromoInfo(k12);
   const acts = useRecordActions({ code, canEdit, canArchive, refetch: st.refetch });
+  const [reordering, setReordering] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const refocus = useRef(false);
+  useEffect(() => {
+    if (reordering || !refocus.current) return;
+    refocus.current = false;
+    toggleRef.current?.focus();
+  }, [reordering]);
   useAiField("admin.studio.list.search.input", { get: () => st.query.q, set: (v) => st.setQ(String(v ?? "")) });
 
   const q = st.query;
@@ -309,6 +320,26 @@ export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, crea
     { value: "runtime", label: t("sx.cp2.tabs.runtime"), icon: GlobeIcon, count: st.counts.runtime, aiId: "admin.studio.list.filters.source.runtime" },
     { value: "studio", label: t("sx.cp2.tabs.studio"), icon: LayersIcon, count: st.counts.studio, aiId: "admin.studio.list.filters.source.studio" },
   ];
+  const reorderable = canEdit && st.rows.some(canReorderRecord);
+  const closeReorder = (changed: boolean) => {
+    refocus.current = true;
+    setReordering(false);
+    if (changed) st.refetch();
+  };
+  const reorderButton =
+    reorderable ? (
+      <SxButton
+        ref={toggleRef}
+        variant="secondary"
+        size="sm"
+        icon={GripVerticalIcon}
+        onClick={() => setReordering(true)}
+        aiId="admin.studio.list.reorder.toggle"
+        aiLabel={t("sx.cp2.reorder.toggle")}
+      >
+        {t("sx.cp2.reorder.toggle")}
+      </SxButton>
+    ) : null;
   const loadError = st.error && !data ? <LoadError error={st.error} onRetry={() => void st.retry()} busy={st.retrying} /> : undefined;
 
   let main: ReactNode;
@@ -346,7 +377,7 @@ export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, crea
           rowKey={keyOf}
           rowHref={(r) => hrefOf(r) || undefined}
           rowTitle={titleOf}
-          rowTone={(r) => (isQuietRow(r.rec.title, String(r.extra?.status ?? "") || r.rec.status) ? "muted" : undefined)}
+          rowTone={(r) => (isQuietRow(r.rec.title, String(r.extra?.status ?? "") || r.rec.status, recTest(r.rec)) ? "muted" : undefined)}
           sort={tableSortOf(sort)}
           onSortChange={(next) => st.setSort(sortFromTable(next))}
           groupBy={groupBy}
@@ -360,6 +391,13 @@ export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, crea
     );
   }
 
+  if (reordering)
+    return (
+      <div className="sx-cp" data-variant={variant.kind} data-view="reorder" data-hue={hue}>
+        <ReorderPanel code={code} name={name} onClose={closeReorder} />
+      </div>
+    );
+
   return (
     <div className="sx-cp" data-variant={variant.kind} data-view={view} data-hue={hue}>
       <div className="sx-cp-bar">
@@ -371,7 +409,10 @@ export function RecordTable({ code, ctor, st, variant, canEdit, canArchive, crea
           className="sx-cp-tabs"
           aiId="admin.studio.list.filters.source"
         />
-        <ViewToggle value={view} onChange={st.setView} />
+        <span className="sx-cp-bar__end">
+          {reorderButton}
+          <ViewToggle value={view} onChange={st.setView} />
+        </span>
       </div>
       <SxToolbar
         aiId="admin.studio.list.filters"

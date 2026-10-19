@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { isForbidden } from "@/lib/http";
 import { listStudioApprovals, listStudioConstructors, listStudioObjects, useStudioAccess, useStudioRegistry, type StudioObject } from "@/lib/services/studio";
 import type { UserEvent } from "@/lib/userSocket";
 import { useStudioLive } from "../live";
@@ -24,6 +25,15 @@ const REVIEW_STATUSES = new Set(["submitted", "in_review"]);
 
 type Lists = Record<ActionKind, StudioObject[] | null>;
 type Loaded = { lists: Lists; errors: Partial<Record<ActionKind, unknown>> };
+
+async function loadReview(status: string): Promise<StudioObject[]> {
+  try {
+    return (await listStudioApprovals({ status })).items;
+  } catch (e) {
+    if (!isForbidden(e)) throw e;
+    return (await listStudioObjects({ status, limit: 100, offset: 0 })).items;
+  }
+}
 
 const timeOf = (o: Pick<StudioObject, "updatedAt" | "createdAt">): number => {
   const v = Date.parse(o.updatedAt || o.createdAt || "");
@@ -98,7 +108,7 @@ export function useActionItems(): ActionItems {
     let live = true;
     const jobs: Promise<StudioObject[] | null>[] = [
       canEdit ? listStudioObjects({ status: "changes_requested", limit: 100, offset: 0 }).then((r) => r.items.filter((o) => o.status === "changes_requested")) : Promise.resolve(null),
-      canReview ? listStudioApprovals({}).then((r) => r.items.filter((o) => REVIEW_STATUSES.has(o.status))) : Promise.resolve(null),
+      canReview ? Promise.all([...REVIEW_STATUSES].map(loadReview)).then((rs) => rs.flat().filter((o) => REVIEW_STATUSES.has(o.status))) : Promise.resolve(null),
       canPublish ? listStudioObjects({ status: "approved", limit: 100, offset: 0 }).then((r) => r.items.filter((o) => o.status === "approved")) : Promise.resolve(null),
     ];
     void Promise.allSettled(jobs).then((res) => {

@@ -2009,11 +2009,7 @@ export type StudioCreationJourney = {
 export type StudioCreationJourneys = { items: StudioCreationJourney[]; total: number; incompleteCount: number | null };
 export type StudioJourneyQuery = { status?: string; type?: StudioJourneyType; limit?: number; offset?: number };
 
-export const JOURNEY_STATUS = { drafts: "draft", incomplete: "incomplete", completed: "completed" } as const;
-
 const JOURNEY_LIST_KEYS = ["items", "journeys", "results", "data"];
-const JOURNEY_FIND_PAGE = 50;
-const JOURNEY_FIND_PAGES = 10;
 const journeyMemory = new Map<string, StudioCreationJourney>();
 
 function journeyStepKey(v: unknown): string {
@@ -2110,26 +2106,4 @@ export async function saveCreationJourney(id: string, input: { completedSteps: s
   const out: StudioCreationJourney = j.id ? j : { ...j, id };
   if (j.id || j.raw.completed_steps !== undefined) rememberCreationJourney(out);
   return out;
-}
-
-export async function findCreationJourney(id: string, signal?: AbortSignal): Promise<StudioCreationJourney | null> {
-  if (!id) return null;
-  const hit = (list: StudioCreationJourney[]): StudioCreationJourney | null => {
-    const j = list.find((x) => x.id === id) ?? null;
-    if (j) rememberCreationJourney(j);
-    return j;
-  };
-  for (let page = 0; page < JOURNEY_FIND_PAGES; page++) {
-    const offset = page * JOURNEY_FIND_PAGE;
-    const res = await listCreationJourneys({ limit: JOURNEY_FIND_PAGE, offset }, signal);
-    const j = hit(res.items);
-    if (j) return j;
-    if (res.items.length < JOURNEY_FIND_PAGE || offset + res.items.length >= res.total) break;
-  }
-  for (const status of [JOURNEY_STATUS.drafts, JOURNEY_STATUS.incomplete, JOURNEY_STATUS.completed]) {
-    const res = await listCreationJourneys({ status, limit: JOURNEY_FIND_PAGE, offset: 0 }, signal);
-    const j = hit(res.items);
-    if (j) return j;
-  }
-  return null;
 }

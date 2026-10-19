@@ -32,6 +32,7 @@ function mergeSame(older: Negotiation, newer: Negotiation): Negotiation {
     status: newer.status || older.status,
     amount: newer.amount || older.amount,
     counterAmount: newer.counterAmount || older.counterAmount,
+    maxAmount: newer.maxAmount || older.maxAmount,
     note: newer.note || older.note,
     responseNote: newer.responseNote || older.responseNote,
     proposedBy: newer.proposedBy || older.proposedBy,
@@ -97,6 +98,17 @@ export function negotiationErrorKey(code: string): NegotiationErrorKey | null {
   return null;
 }
 
-export function showNegotiation(o: Pick<MarketOrder, "negotiationAvailable" | "negotiation">, phase: MarketPhase, runtime: RuntimeConfig | null, noted: Negotiation | null): boolean {
-  return phase === "pending" && (runtime?.negotiationAvailable === true || o.negotiationAvailable === true || !!o.negotiation || !!noted);
+export function showNegotiation(o: Pick<MarketOrder, "negotiationAvailable" | "negotiation"> & Partial<Pick<MarketOrder, "canNegotiate">>, phase: MarketPhase, runtime: RuntimeConfig | null, noted: Negotiation | null): boolean {
+  if (phase !== "pending") return false;
+  if (o.negotiation || noted) return true;
+  if (typeof o.canNegotiate === "boolean") return o.canNegotiate;
+  return runtime?.negotiationAvailable === true || o.negotiationAvailable === true;
+}
+
+export function canProposeNegotiation(o: Partial<Pick<MarketOrder, "canNegotiate">>): boolean {
+  return o.canNegotiate !== false;
+}
+
+export function negotiationCap(runtimeCap: number | null, n: Negotiation | null): number | null {
+  return n && n.maxAmount > 0 ? n.maxAmount : runtimeCap;
 }

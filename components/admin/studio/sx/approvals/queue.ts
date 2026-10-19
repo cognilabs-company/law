@@ -5,18 +5,23 @@ import type { ApprQuery } from "./urlState";
 
 export const APPR_PAGE = 20;
 
-export type ApprFilter = Pick<ApprQuery, "status" | "ctor" | "group" | "need" | "q">;
+export type ApprFilter = Pick<ApprQuery, "status" | "ctor" | "group" | "need" | "q" | "mine">;
+export type ApprServed = { q: boolean; mine: boolean };
+
+export const NOT_SERVED: ApprServed = { q: false, mine: false };
 
 export function isFiltered(f: ApprFilter): boolean {
-  return !!(f.status || f.ctor || f.group || f.need || f.q.trim());
+  return !!(f.status || f.ctor || f.group || f.need || f.q.trim() || f.mine);
 }
 
-export function rowMatches(row: ApprRow, f: ApprFilter, labels: Pick<StudioLabels, "ctorName" | "status">): boolean {
+export function rowMatches(row: ApprRow, f: ApprFilter, labels: Pick<StudioLabels, "ctorName" | "status">, served: ApprServed = NOT_SERVED): boolean {
+  const byServer = row.src === "queue";
   if (f.status && row.status !== f.status) return false;
   if (f.ctor && row.code !== f.ctor) return false;
   if (f.group && row.group !== f.group) return false;
   if (f.need && row.kind !== f.need) return false;
-  if (!f.q.trim()) return true;
+  if (f.mine && !(byServer && served.mine) && row.section !== "mine") return false;
+  if (!f.q.trim() || (byServer && served.q)) return true;
   return matchesSearch([row.title, labels.ctorName(row.code), row.code, row.by, row.version, labels.status(row.statusRaw)].join(" "), f.q);
 }
 
@@ -45,7 +50,7 @@ export function workCounts(rows: readonly ApprRow[]): Readonly<Record<ApprWork, 
 }
 
 export function showDone(f: ApprFilter): boolean {
-  return !f.need && (!f.status || f.status === "published");
+  return !f.need && !f.mine && (!f.status || f.status === "published");
 }
 
 export function showWork(f: ApprFilter): boolean {

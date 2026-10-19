@@ -2,21 +2,44 @@
 
 import { useEffect, useRef, useState } from "react";
 import { logApiError } from "@/lib/http";
-import { JOURNEY_STATUS, listCreationJourneys, normCreationJourney, type StudioCreationJourney, type StudioCreationJourneys, type StudioJourneyQuery } from "@/lib/services/studio";
+import { listCreationJourneys, normCreationJourney, rememberCreationJourney, type StudioCreationJourney, type StudioCreationJourneys, type StudioJourneyQuery } from "@/lib/services/studio";
 import type { UserEvent } from "@/lib/userSocket";
-import { JOURNEY_EVENT, useStudioLive } from "../live";
+import { useStudioLive } from "../live";
+import { isJourneyEvent } from "./journeyApi";
 import { isFullJourneyPayload, mergeJourney } from "./model";
 
-export type CreationJourneysState = { items: StudioCreationJourney[]; total: number; incompleteCount: number | null; loading: boolean; error: unknown; reload: () => void };
+export type CreationJourneysState = {
+  items: StudioCreationJourney[];
+  total: number;
+  incompleteCount: number | null;
+  loading: boolean;
+  error: unknown;
+  reload: () => void;
+  apply: (j: StudioCreationJourney) => void;
+};
 
 type Loaded = { key: string; data: StudioCreationJourneys | null; error: unknown };
 
 const EVENT_DEBOUNCE_MS = 300;
 const NO_ITEMS: StudioCreationJourney[] = [];
+const DRAFT = "draft";
 
 export function journeyEventData(e: UserEvent): Record<string, unknown> {
   const d = e.data;
   return d && typeof d === "object" && !Array.isArray(d) ? (d as Record<string, unknown>) : e;
+}
+
+export function applyJourneyTo(data: StudioCreationJourneys, next: StudioCreationJourney, status: string): StudioCreationJourneys | null {
+  const at = data.items.findIndex((x) => x.id === next.id);
+  if (at < 0) return null;
+  const prev = data.items[at];
+  const merged = mergeJourney(prev, next);
+  const keep = !status || !merged.status || merged.status === status;
+  const items = keep ? data.items.map((x, n) => (n === at ? merged : x)) : data.items.filter((_, n) => n !== at);
+  const wasDraft = prev.status === DRAFT;
+  const isDraft = merged.status === DRAFT;
+  const count = data.incompleteCount === null || wasDraft === isDraft ? data.incompleteCount : Math.max(0, data.incompleteCount + (isDraft ? 1 : -1));
+  return { items, total: keep ? data.total : Math.max(0, data.total - 1), incompleteCount: count };
 }
 
 export function useCreationJourneys(q: StudioJourneyQuery, enabled = true): CreationJourneysState {
@@ -71,12 +94,23 @@ export function useCreationJourneys(q: StudioJourneyQuery, enabled = true): Crea
     }, EVENT_DEBOUNCE_MS);
   };
 
+  const applyLocal = (j: StudioCreationJourney): boolean => {
+    const cur = latest.current.key === key ? latest.current.data : null;
+    if (!cur || !cur.items.some((x) => x.id === j.id)) return false;
+    setLoaded((s) => {
+      if (s.key !== key || !s.data) return s;
+      const next = applyJourneyTo(s.data, j, status);
+      return next ? { ...s, data: next } : s;
+    });
+    return true;
+  };
+
   useStudioLive((e) => {
     if (e.event === "studio.resync") {
       setTick((n) => n + 1);
       return;
     }
-    if (e.event !== JOURNEY_EVENT) return;
+    if (!isJourneyEvent(e.event)) return;
     const d = journeyEventData(e);
     const cur = latest.current.key === key ? latest.current.data : null;
     if (!isFullJourneyPayload(d) || !cur) {
@@ -84,23 +118,14 @@ export function useCreationJourneys(q: StudioJourneyQuery, enabled = true): Crea
       return;
     }
     const j = normCreationJourney(d);
-    const at = cur.items.findIndex((x) => x.id === j.id);
-    if (at < 0) {
-      if (!status || !j.status || j.status === status) refetchSoon();
-      return;
-    }
-    const merged = mergeJourney(cur.items[at], j);
-    const incompleteView = status === JOURNEY_STATUS.incomplete;
-    const keep = incompleteView || !status || !merged.status || merged.status === status;
-    setLoaded((s) => {
-      if (s.key !== key || !s.data) return s;
-      const i = s.data.items.findIndex((x) => x.id === merged.id);
-      if (i < 0) return s;
-      const items = keep ? s.data.items.map((x, n) => (n === i ? merged : x)) : s.data.items.filter((_, n) => n !== i);
-      return { ...s, data: { ...s.data, items, total: keep ? s.data.total : Math.max(0, s.data.total - 1) } };
-    });
-    if (incompleteView) refetchSoon();
+    rememberCreationJourney(j);
+    if (!applyLocal(j)) refetchSoon();
   }, enabled);
+
+  const apply = (j: StudioCreationJourney) => {
+    rememberCreationJourney(j);
+    if (!applyLocal(j)) refetchSoon();
+  };
 
   const current = enabled && loaded.key === key;
   const data = current ? loaded.data : null;
@@ -111,5 +136,6 @@ export function useCreationJourneys(q: StudioJourneyQuery, enabled = true): Crea
     loading: enabled && (!current || (!loaded.data && !loaded.error)),
     error: current ? loaded.error : null,
     reload: () => setTick((n) => n + 1),
+    apply,
   };
 }

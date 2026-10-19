@@ -10,7 +10,7 @@ import { SxLinkButton } from "../Button";
 import { producerOf } from "../ctor/sources";
 import { PlusIcon, TriangleAlertIcon, glyph } from "../icons";
 import { Picker } from "../form/Picker";
-import { firstReferencePage, useReferenceOptions } from "../form/useReferenceOptions";
+import { firstReferenceInfo, firstReferencePage, useReferenceOptions } from "../form/useReferenceOptions";
 import type { SxControlA11y, SxOption } from "../types";
 import { useStudioLabels } from "../useStudioLabels";
 import { useCategoryOptions } from "./categoryOptions";
@@ -65,8 +65,6 @@ export function useSourceEmpty(source: string, enabled: boolean): SourceEmptySta
   return { kind: "create", text: t("sx.form.emptySource", { name: t(key) }), link: t("sx.form.createFirst", { name: labels.ctorName(producer.code) }), href: producer.href };
 }
 
-const FIRST_PAGE_LIMIT = 100;
-
 export function useMissingRefs(source: string, values: readonly string[], enabled: boolean): boolean {
   const key = values.join("");
   const [state, setState] = useState<{ source: string; key: string; missing: boolean } | null>(null);
@@ -74,11 +72,11 @@ export function useMissingRefs(source: string, values: readonly string[], enable
     if (!enabled || !source || !key) return;
     const wanted = key.split("");
     let live = true;
-    firstReferencePage(source).then(
-      (rows) => {
+    firstReferenceInfo(source).then(
+      (page) => {
         if (!live) return;
-        const complete = rows.length < FIRST_PAGE_LIMIT;
-        const known = new Set(rows.map((r) => r.value));
+        const complete = !page.hasMore;
+        const known = new Set(page.items.map((r) => r.value));
         setState({ source, key, missing: complete && wanted.some((v) => !known.has(v)) });
       },
       () => {
@@ -110,14 +108,14 @@ export function RefPicker(props: RefPickerProps): ReactElement {
   const { a11y, label, source, required, readOnly, invalid, placeholder, onBlur, aiId, code, pattern, recordId, emptyId } = props;
   const plain = useReferenceOptions(source);
   const tree = isCategorySource(source);
-  const cat = useCategoryOptions({ selfId: recordId, guardCycle: tree && code.toUpperCase() === "K01" && pattern === "parent_id" });
+  const cat = useCategoryOptions({ source, selfId: recordId, guardCycle: tree && code.toUpperCase() === "K01" && pattern === "parent_id" });
   const empty = useSourceEmpty(source, !readOnly);
   const t = useTranslations("studio");
   const picked = props.multiple === true ? props.value : props.value ? [props.value] : [];
   const missing = useMissingRefs(source, picked, !tree);
   const missingId = `${a11y.id}-gone`;
   const binding = useMemo(() => {
-    if (!tree) return plain;
+    if (!tree) return { ...plain, indentOf: undefined };
     const fallback = <T,>(primary: () => Promise<T>, second: () => Promise<T>, signal: AbortSignal) =>
       primary().catch((e: unknown) => {
         if (signal.aborted) throw e;
@@ -125,7 +123,9 @@ export function RefPicker(props: RefPickerProps): ReactElement {
       });
     return {
       loadOptions: (q: string, signal: AbortSignal) => fallback<SxOption[]>(() => cat.loadOptions(q, signal), () => plain.loadOptions(q, signal), signal),
+      loadPage: (q: string, offset: number, signal: AbortSignal) => fallback(() => cat.loadPage(q, offset, signal), () => plain.loadPage(q, offset, signal), signal),
       resolveOptions: (v: readonly string[], signal: AbortSignal) => fallback<SxOption[]>(() => cat.resolveOptions(v, signal), () => plain.resolveOptions(v, signal), signal),
+      indentOf: cat.indentOf,
       leadingIcon: cat.leadingIcon,
     };
   }, [tree, plain, cat]);
@@ -136,6 +136,8 @@ export function RefPicker(props: RefPickerProps): ReactElement {
     label,
     placeholder,
     loadOptions: binding.loadOptions,
+    loadPage: binding.loadPage,
+    indentOf: binding.indentOf,
     resolveOptions: binding.resolveOptions,
     leadingIcon: binding.leadingIcon,
     searchable: true,

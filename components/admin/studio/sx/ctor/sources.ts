@@ -1,6 +1,5 @@
-import { findStudioConstructor, studioReferenceKey } from "@/lib/services/studio";
+import { studioReferenceKey } from "@/lib/services/studio";
 import type { SxSourceProducer, SxValues } from "../contract";
-import { ctorVariant } from "../labels";
 
 const REF = "/studio/reference/";
 const SRC = {
@@ -72,12 +71,13 @@ export function fieldSource(code: string, pattern: string, scope: SxValues, sche
   return base;
 }
 
-type Producer = { code: string; to: "new" | "list"; when?: (runtimeTarget: string) => boolean };
+type Producer = { code: string; to: "new" | "list" };
 
 export const SOURCE_PRODUCER: Readonly<Record<string, Producer>> = {
   "price-factors": { code: "K34", to: "new" },
   "client-guarantees": { code: "K32", to: "new" },
-  checklists: { code: "K29", to: "new", when: (rt) => ctorVariant("K29", rt) === "checklist" },
+  checklists: { code: "K09", to: "new" },
+  "package-eligibility-rules": { code: "K26", to: "new" },
   "service-categories": { code: "K01", to: "new" },
   services: { code: "K02", to: "list" },
   "service-packages": { code: "K03-M", to: "list" },
@@ -87,7 +87,7 @@ export const SOURCE_PRODUCER: Readonly<Record<string, Producer>> = {
   "subscription-plans": { code: "K17", to: "new" },
 };
 
-const NOT_READY: ReadonlySet<string> = new Set(["package-eligibility-rules", "refund-policies"]);
+const NOT_READY: ReadonlySet<string> = new Set(["refund-policies"]);
 
 export function producerOf(source: string): SxSourceProducer | null {
   const raw = String(source ?? "").trim();
@@ -96,7 +96,6 @@ export function producerOf(source: string): SxSourceProducer | null {
   if (NOT_READY.has(key)) return { kind: "notReady" };
   if (!own.call(SOURCE_PRODUCER, key)) return null;
   const p = SOURCE_PRODUCER[key];
-  if (p.when && !p.when(findStudioConstructor(p.code)?.runtimeTarget ?? "")) return { kind: "notReady" };
   const code = encodeURIComponent(p.code);
   return { kind: "create", code: p.code, href: p.to === "new" ? `/admin/studio/o/new?new=${code}` : `/admin/studio/c/${code}` };
 }

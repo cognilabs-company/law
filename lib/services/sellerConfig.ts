@@ -18,11 +18,12 @@ import {
   type SellerServiceConfig,
 } from "@/lib/services/marketRuntime";
 
-export type ConfigErrorCode = "seller_price_above_maximum" | "seller_price_negative" | "service_rules_acceptance_required" | "other";
-export type ConfigError = { code: ConfigErrorCode; field: "price" | "status" | "form"; missingRuleIds: string[]; maximum: number | null; message: string; status: number };
+export type ConfigErrorCode = "seller_price_above_maximum" | "seller_price_below_minimum" | "seller_price_negative" | "service_rules_acceptance_required" | "other";
+export type ConfigError = { code: ConfigErrorCode; field: "price" | "status" | "form"; missingRuleIds: string[]; maximum: number | null; minimum: number | null; message: string; status: number };
 export type PriceVerdict = "ok" | "negative" | "aboveMax";
 
-const KNOWN_CODES: readonly ConfigErrorCode[] = ["seller_price_above_maximum", "seller_price_negative", "service_rules_acceptance_required"];
+const KNOWN_CODES: readonly ConfigErrorCode[] = ["seller_price_above_maximum", "seller_price_below_minimum", "seller_price_negative", "service_rules_acceptance_required"];
+const BELOW_MIN_RE = /^seller_price_(below_min(imum)?|too_low|under_min(imum)?)$/;
 
 let support: "unknown" | "yes" | "no" = "unknown";
 
@@ -49,13 +50,14 @@ const positive = (v: unknown): number | null => {
 export function configErrorOf(e: unknown): ConfigError {
   const info = marketErrorInfo(e);
   const raw = info?.code ?? "";
-  const code: ConfigErrorCode = (KNOWN_CODES as readonly string[]).includes(raw) ? (raw as ConfigErrorCode) : "other";
+  const code: ConfigErrorCode = BELOW_MIN_RE.test(raw) ? "seller_price_below_minimum" : (KNOWN_CODES as readonly string[]).includes(raw) ? (raw as ConfigErrorCode) : "other";
   const detail = info?.detail ?? {};
   return {
     code,
-    field: code === "seller_price_above_maximum" || code === "seller_price_negative" ? "price" : code === "service_rules_acceptance_required" ? "status" : "form",
+    field: code === "seller_price_above_maximum" || code === "seller_price_below_minimum" || code === "seller_price_negative" ? "price" : code === "service_rules_acceptance_required" ? "status" : "form",
     missingRuleIds: info?.missingRuleIds ?? [],
     maximum: positive(detail.maximum_price ?? detail.max_price),
+    minimum: positive(detail.minimum_price ?? detail.min_price ?? detail.minimum_allowed_price),
     message: info?.message || (e instanceof ApiError ? (e.detail ?? "") : ""),
     status: info?.status ?? 0,
   };

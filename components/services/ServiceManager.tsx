@@ -543,7 +543,13 @@ export default function ServiceManager({
                 sellerId={sellerId}
                 pending={x.ownPromotion ? null : (pending[pendingPromoKey(sc, x.id)] ?? null)}
                 busy={Boolean(busyIds[x.id])}
-                enableLock={self && gate.closed && x.status !== "active" ? { reason: t("rules.lockReason"), onOpen: () => openRulesDrawer({ serviceId: x.id }) } : null}
+                enableLock={
+                  self && x.rulesPending
+                    ? { reason: t("rules.pendingReason"), onOpen: () => openRulesDrawer({ serviceId: x.id }) }
+                    : self && gate.closed && x.status !== "active"
+                      ? { reason: t("rules.lockReason"), onOpen: () => openRulesDrawer({ serviceId: x.id }) }
+                      : null
+                }
                 statusError={statusErr[x.id] ?? ""}
                 showNegotiation={self}
                 onStatus={(s) => void changeStatus(x, s)}

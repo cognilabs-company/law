@@ -1,23 +1,27 @@
 "use client";
 
 import "../sx-core.css";
+import "../sx-form.css";
 import "../editor/sx-editor-panels.css";
 import "./sx-ap2.css";
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import "./sx-ap3.css";
+import { useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { LoaderCircleIcon } from "lucide-react";
 import { logApiError } from "@/lib/http";
-import { publishStudioObject } from "@/lib/services/studio";
 import { SxButton } from "../Button";
 import { SxDialog } from "../editor/SxDialog";
+import { Field } from "../form/Field";
+import { TextArea } from "../form/TextArea";
 import { CircleAlertIcon, CircleCheckIcon, CirclePauseIcon, RocketIcon, XIcon, ctorGlyph, glyph } from "../icons";
 import { SxProgress } from "../shared/Progress";
 import { playStage, useStageText } from "../stage/stage";
 import { useStudioLabels } from "../useStudioLabels";
+import { BULK_MAX, BULK_NOTE_MAX, bulkPublish, isBulkMissing, publishApproval, publishUrlOf, type BulkFailure } from "./approvalsApi";
 import type { ApprRow } from "./model";
-import { actionErrorOf } from "./review/actions";
+import { actionErrorOf, publishFailKey } from "./review/actions";
 
-export type BulkItem = { id: string; title: string; code: string; group: string };
+export type BulkItem = { id: string; title: string; code: string; group: string; url: string };
 export type BulkFail = { item: BulkItem; reason: string };
 type Phase = "confirm" | "running" | "result";
 type Run = { phase: Phase; done: number; ok: string[]; fails: BulkFail[]; current: string; stopped: boolean; stopping: boolean };
@@ -26,7 +30,13 @@ const AI = "admin.studio.approvals.bulk";
 const PREVIEW = 5;
 const FRESH: Run = { phase: "confirm", done: 0, ok: [], fails: [], current: "", stopped: false, stopping: false };
 
-export const bulkItemOf = (r: ApprRow): BulkItem => ({ id: r.id, title: r.title, code: r.code, group: r.group });
+export const bulkItemOf = (r: ApprRow): BulkItem => ({ id: r.id, title: r.title, code: r.code, group: r.group, url: publishUrlOf(r.detail, r.id) });
+
+function chunksOf<T>(list: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
+  return out;
+}
 
 export type BulkBarProps = { count: number; onPublish: () => void; onClear: () => void };
 
@@ -50,13 +60,15 @@ export function BulkBar({ count, onPublish, onClear }: BulkBarProps): ReactEleme
   );
 }
 
-export type BulkDialogProps = { items: readonly BulkItem[]; onClose: (published: readonly string[]) => void; onFinished: () => void };
+export type BulkDialogProps = { items: readonly BulkItem[]; onClose: (published: readonly string[], fails: readonly BulkFail[]) => void; onFinished: () => void };
 
 export function BulkDialog({ items, onClose, onFinished }: BulkDialogProps): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const stageText = useStageText();
+  const uid = useId();
   const [run, setRun] = useState<Run>(FRESH);
+  const [note, setNote] = useState("");
   const stop = useRef(false);
   const begun = useRef(false);
   const alive = useRef(true);
@@ -72,26 +84,77 @@ export function BulkDialog({ items, onClose, onFinished }: BulkDialogProps): Rea
     };
   }, []);
 
+  const reasonOf = (f: BulkFailure): string => {
+    const key = publishFailKey(f.code);
+    if (key) return t(key);
+    return f.message || t("sx.editor.err.other");
+  };
+
   const start = async (origin: DOMRect | null) => {
     if (begun.current) return;
     begun.current = true;
     stop.current = false;
+    const text = note.trim();
     const ok: string[] = [];
     const fails: BulkFail[] = [];
     setRun({ ...FRESH, phase: "running", current: items[0]?.id ?? "" });
     let done = 0;
-    for (const it of items) {
-      if (stop.current) break;
+    let loop = false;
+    const tick = () => {
+      if (alive.current) setRun((r) => ({ ...r, done, ok: [...ok], fails: [...fails] }));
+    };
+    const one = async (it: BulkItem) => {
       if (alive.current) setRun((r) => ({ ...r, current: it.id }));
       try {
-        await publishStudioObject(it.id, { note: "" });
+        await publishApproval(it.id, it.url, text);
         ok.push(it.id);
       } catch (e) {
         logApiError("studio.sx.approvals.bulk-publish", e);
         fails.push({ item: it, reason: t(actionErrorOf(e).key) });
       }
       done += 1;
-      if (alive.current) setRun((r) => ({ ...r, done, ok: [...ok], fails: [...fails] }));
+      tick();
+    };
+    for (const chunk of chunksOf(items, BULK_MAX)) {
+      if (stop.current) break;
+      if (loop) {
+        for (const it of chunk) {
+          if (stop.current) break;
+          await one(it);
+        }
+        continue;
+      }
+      if (alive.current) setRun((r) => ({ ...r, current: chunk[0]?.id ?? "" }));
+      try {
+        const res = await bulkPublish(
+          chunk.map((it) => it.id),
+          text,
+        );
+        const gotOk = new Set(res.published);
+        const gotFail = new Map(res.failed.map((f) => [f.id, f]));
+        for (const it of chunk) {
+          const f = gotFail.get(it.id);
+          if (f) fails.push({ item: it, reason: reasonOf(f) });
+          else if (gotOk.has(it.id)) ok.push(it.id);
+          else fails.push({ item: it, reason: t("sx.ap3.dlg.unknown") });
+        }
+        done += chunk.length;
+        tick();
+      } catch (e) {
+        if (isBulkMissing(e)) {
+          loop = true;
+          for (const it of chunk) {
+            if (stop.current) break;
+            await one(it);
+          }
+          continue;
+        }
+        logApiError("studio.sx.approvals.bulk-publish", e);
+        const reason = t(actionErrorOf(e).key);
+        for (const it of chunk) fails.push({ item: it, reason });
+        done += chunk.length;
+        tick();
+      }
     }
     if (!alive.current) {
       onFinished();
@@ -111,6 +174,7 @@ export function BulkDialog({ items, onClose, onFinished }: BulkDialogProps): Rea
   const pct = total ? (run.done / total) * 100 : 0;
   const current = items.find((it) => it.id === run.current);
   const skipped = total - run.done;
+  const noteId = `${uid}-note`;
 
   let body: ReactElement;
   let footer: ReactElement;
@@ -128,11 +192,28 @@ export function BulkDialog({ items, onClose, onFinished }: BulkDialogProps): Rea
           ))}
         </ul>
         {total > PREVIEW ? <p className="sx-ap2-dlg__more">{t("sx.ap2.dlg.more", { n: total - PREVIEW })}</p> : null}
+        <div className="sx-ap3-note">
+          <Field id={noteId} label={t("sx.ap3.dlg.note")} labelAside={<span className="sx-dlg__opt">{t("sx.ui.optional")}</span>}>
+            {(a11y) => (
+              <TextArea
+                {...a11y}
+                value={note}
+                onChange={(v) => setNote(v.slice(0, BULK_NOTE_MAX))}
+                maxLength={BULK_NOTE_MAX}
+                counter
+                minRows={2}
+                placeholder={t("sx.ap3.dlg.notePh")}
+                aiId={`${AI}.note`}
+                aiLabel={t("sx.ap3.dlg.note")}
+              />
+            )}
+          </Field>
+        </div>
       </div>
     );
     footer = (
       <>
-        <SxButton variant="secondary" onClick={() => onClose([])} aiId={`${AI}.cancel`}>
+        <SxButton variant="secondary" onClick={() => onClose([], [])} aiId={`${AI}.cancel`}>
           {t("sx.ui.cancel")}
         </SxButton>
         <SxButton variant="primary" icon={RocketIcon} onClick={(e) => void start(e.currentTarget.getBoundingClientRect())} aiId={`${AI}.confirm`}>
@@ -188,7 +269,7 @@ export function BulkDialog({ items, onClose, onFinished }: BulkDialogProps): Rea
       </div>
     );
     footer = (
-      <SxButton variant="primary" onClick={() => onClose(run.ok)} aiId={`${AI}.close`}>
+      <SxButton variant="primary" onClick={() => onClose(run.ok, run.fails)} aiId={`${AI}.close`}>
         {t("sx.ui.close")}
       </SxButton>
     );
@@ -197,10 +278,11 @@ export function BulkDialog({ items, onClose, onFinished }: BulkDialogProps): Rea
   return (
     <SxDialog
       open
-      onClose={() => onClose(run.ok)}
+      onClose={() => onClose(run.ok, run.fails)}
       title={t("sx.ap2.dlg.title")}
-      description={t("sx.ap2.dlg.lead", { n: total })}
+      description={t("sx.ap3.dlg.lead", { n: total })}
       busy={running}
+      dirty={run.phase === "confirm" && !!note.trim()}
       size="md"
       aiId={AI}
       footer={footer}

@@ -2,18 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { useAuth } from "@/lib/auth";
 import { logApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { cleanPayload, normErrorPaths, normPath, pruneInvisible, targetErrors } from "@/lib/studioSchema";
 import {
-  addStudioComment,
   archiveStudioObject,
   cloneStudioObject,
   createStudioObject,
   getStudioConstructorDetail,
   getStudioFormContext,
   getStudioObject,
-  listStudioComments,
   publishStudioObject,
   rollbackStudioObject,
   saveStudioObject,
@@ -30,7 +29,6 @@ import {
   useStudioRegistry,
   validateStudioDraft,
   type StudioAccess,
-  type StudioComment,
   type StudioConstructor,
   type StudioDetail,
   type StudioFormContext,
@@ -52,6 +50,22 @@ import { focusFieldPath } from "../schema/focus";
 import { studioEventCode, studioEventObjectId, useStudioLive } from "../live";
 import { useEditorErrorText } from "./useEditorErrorText";
 import {
+  commentFromEvent,
+  createComment,
+  deleteComment,
+  lifecycleOf,
+  listComments,
+  lockErrorOf,
+  runLifecycle,
+  structuredFieldOf,
+  updateComment,
+  upsertComment,
+  type SxComment,
+  type SxLifecycle,
+  type SxLifecycleAction,
+} from "./objectApi";
+import {
+  LOCKED_STATUSES,
   actionsOf,
   changedKeys,
   currentVersionOf,
@@ -71,14 +85,15 @@ import {
 
 export type EditorMode = "create" | "clone" | "runtime-view" | "runtime-edit" | "object";
 export type EditorPhase = "loading" | "ready" | "not-found" | "unknown-ctor" | "load-error";
-export type EditorBusy = "" | "save" | "check" | "submit" | "publish" | "rollback" | "archive" | "clone" | "upload" | "comment";
+export type EditorBusy = "" | "save" | "check" | "submit" | "publish" | "rollback" | "archive" | "clone" | "upload" | "comment" | "withdraw" | "restore";
 export type EditorAlert =
   | { kind: "action"; error: unknown }
+  | { kind: "locked"; code: string; withdraw: boolean }
   | { kind: "publishFail"; text: string }
   | { kind: "remote"; conflict: boolean }
   | { kind: "file"; isNew: boolean }
   | null;
-export type EditorPrimary = "saveSubmit" | "submit" | "publishDirect" | "publish" | "openReview" | "edit" | "save" | null;
+export type EditorPrimary = "saveSubmit" | "submit" | "publishDirect" | "publish" | "openReview" | "edit" | "save" | "restore" | null;
 export type EditorInit = { code: string; id: string | null; ctx?: string; initialPayload?: SxPayload; initialTitle?: string; focus?: string };
 export type EditorOptions = {
   onCreated?: (detail: StudioDetail) => void;
@@ -121,7 +136,22 @@ export type EditorState = {
   runtimeStatus: string;
   direct: boolean;
   access: StudioAccess;
-  can: { save: boolean; submit: boolean; publish: boolean; archive: boolean; review: boolean; rollback: boolean; clone: boolean; newVersion: boolean; comment: boolean; upload: boolean; exportVersions: boolean; edit: boolean };
+  can: {
+    save: boolean;
+    submit: boolean;
+    publish: boolean;
+    archive: boolean;
+    review: boolean;
+    rollback: boolean;
+    clone: boolean;
+    newVersion: boolean;
+    comment: boolean;
+    upload: boolean;
+    exportVersions: boolean;
+    edit: boolean;
+    withdraw: boolean;
+    restore: boolean;
+  };
   primary: EditorPrimary;
   editHref: string;
   next: { key: string; values?: Readonly<Record<string, string>> };
@@ -138,7 +168,10 @@ export type EditorState = {
   changedPaths: string[] | null;
   alert: EditorAlert;
   busy: EditorBusy;
-  comments: { items: StudioComment[] | null; error: unknown };
+  comments: { items: SxComment[] | null; error: unknown };
+  me: string;
+  lifecycle: SxLifecycle;
+  conflict: { fields: string[] } | null;
   descendants: number;
   fileRequired: boolean;
   hasFile: boolean;
@@ -155,10 +188,16 @@ export type EditorState = {
   publish: (note: string) => Promise<boolean>;
   rollback: (version: StudioVersion, note: string) => Promise<boolean>;
   archive: () => Promise<boolean>;
+  withdraw: () => Promise<boolean>;
+  restore: () => Promise<boolean>;
+  overwrite: () => Promise<boolean>;
+  closeConflict: () => void;
   clone: (title: string) => Promise<string | null>;
   cloneHref: () => string;
   upload: (file: File) => Promise<boolean>;
   addComment: (text: string) => Promise<boolean>;
+  editComment: (commentId: string, text: string) => Promise<boolean>;
+  removeComment: (commentId: string) => Promise<boolean>;
   reloadComments: () => void;
   refresh: (force?: boolean) => Promise<void>;
   loadRemote: () => void;
@@ -174,10 +213,24 @@ type FullState = { code: string; ctor: StudioConstructor | null; done: boolean }
 
 const EMPTY_PAYLOAD: SxPayload = {};
 const EMPTY_ERRORS: SxErrors = {};
-const REVIEWING: ReadonlySet<string> = new Set(["submitted", "in_review"]);
 const LIVE: ReadonlySet<string> = new Set(["approved", "published"]);
 const SUBMIT_PRIMARY: ReadonlySet<EditorPrimary> = new Set<EditorPrimary>(["saveSubmit", "submit", "publishDirect", "save"]);
-const NO_CAN: EditorState["can"] = { save: false, submit: false, publish: false, archive: false, review: false, rollback: false, clone: false, newVersion: false, comment: false, upload: false, exportVersions: false, edit: false };
+const NO_CAN: EditorState["can"] = {
+  save: false,
+  submit: false,
+  publish: false,
+  archive: false,
+  review: false,
+  rollback: false,
+  clone: false,
+  newVersion: false,
+  comment: false,
+  upload: false,
+  exportVersions: false,
+  edit: false,
+  withdraw: false,
+  restore: false,
+};
 const TITLE_MAX = 200;
 type RefreshMode = boolean | "own";
 
@@ -187,6 +240,14 @@ const sameServerVersion = (a: StudioDetail, b: StudioDetail | null): boolean => 
   return Boolean(a.currentVersionId) && a.currentVersionId === b.currentVersionId && a.updatedAt === b.updatedAt;
 };
 
+const stripPayload = (errors: Readonly<Record<string, string>>): Record<string, string> => {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(errors)) {
+    const key = k.replace(/^(body|payload)\./, "");
+    out[key] = out[key] ? `${out[key]}; ${v}` : v;
+  }
+  return out;
+};
 const str = (v: unknown): string => (typeof v === "string" ? v : typeof v === "number" && Number.isFinite(v) ? String(v) : "");
 const draftOf = (d: StudioDetail): Draft => ({ title: d.title, payload: { ...d.payload } });
 const omit = (errors: SxErrors, key: string): SxErrors => {
@@ -232,6 +293,8 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const errText = useEditorErrorText();
   const reg = useStudioRegistry();
   const access = useStudioAccess();
+  const { session } = useAuth();
+  const me = session?.id ?? "";
 
   const id = init.id || null;
   const ctx = id ? "" : init.ctx ?? "";
@@ -255,7 +318,9 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const [publishFail, setPublishFail] = useState<string | null>(null);
   const [remote, setRemote] = useState<{ conflict: boolean } | null>(null);
   const [busy, setBusy] = useState<EditorBusy>("");
-  const [comments, setComments] = useState<{ items: StudioComment[] | null; error: unknown }>({ items: null, error: null });
+  const [comments, setComments] = useState<{ items: SxComment[] | null; error: unknown }>({ items: null, error: null });
+  const [locked, setLocked] = useState<{ code: string; withdrawUrl: string } | null>(null);
+  const [conflictOpen, setConflictOpen] = useState(false);
   const [dialogError, setDialogError] = useState<EditorDialogError | null>(null);
   const [fileError, setFileError] = useState("");
   const [desc, setDesc] = useState<{ id: string; n: number }>({ id: "", n: 0 });
@@ -281,7 +346,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const liveKey = `${statusNorm}:${detail?.currentVersionId ?? ""}`;
   const liveLocked = !!opts.lockLive && mode === "object" && LIVE.has(statusNorm) && unlockedFor !== "*" && unlockedFor !== liveKey;
   const readOnlyReason: EditorState["readOnlyReason"] =
-    statusNorm === "archived" ? "archived" : REVIEWING.has(statusNorm) ? "locked" : !access.canEdit ? "access" : mode === "runtime-view" ? "view" : liveLocked ? "live" : "";
+    statusNorm === "archived" ? "archived" : LOCKED_STATUSES.has(statusNorm) ? "locked" : !access.canEdit ? "access" : mode === "runtime-view" ? "view" : liveLocked ? "live" : "";
   const readOnly = readOnlyReason !== "";
   const formMode: SxEditMode = readOnly ? "view" : mode === "create" || mode === "clone" ? "create" : "edit";
   const gate = regCtor ?? full;
@@ -390,7 +455,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const loadComments = useCallback(async () => {
     if (!id) return;
     try {
-      const items = await listStudioComments(id);
+      const items = await listComments(id);
       setComments({ items, error: null });
     } catch (e) {
       logApiError("studio.sx.comments", e);
@@ -418,7 +483,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   useEffect(() => {
     if (!id) return;
     let alive = true;
-    listStudioComments(id)
+    listComments(id)
       .then((items) => {
         if (alive) setComments({ items, error: null });
       })
@@ -555,7 +620,12 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       return;
     }
     if (studioEventObjectId(e) !== id) return;
-    if (e.event === "studio.comment_created") void loadComments();
+    if (e.event === "studio.comment_created" || e.event === "studio.comment_updated" || e.event === "studio.comment_deleted") {
+      const c = commentFromEvent(e.data ?? e);
+      const gone = e.event === "studio.comment_deleted";
+      if (c) setComments((s) => ({ items: upsertComment(s.items, gone ? { ...c, deleted: true, text: "" } : c), error: null }));
+      else void loadComments();
+    }
     else if (e.event.startsWith("studio.object_") || e.event.startsWith("studio.approval_") || e.event === "studio.file_uploaded") void refresh();
   }, opts.live !== false);
 
@@ -593,6 +663,8 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     [formReady, code, payload, basePayload, descendants, isNew],
   );
   const changedPaths = useMemo(() => (prevPayload ? changedKeys(prevPayload, payload) : null), [prevPayload, payload]);
+  const serverPayload = detail?.payload ?? null;
+  const conflict = useMemo(() => (conflictOpen && serverPayload ? { fields: changedKeys(serverPayload, payload) } : null), [conflictOpen, serverPayload, payload]);
 
   const clientErrors = useMemo(
     () => (model && formReady && !readOnly ? validatePayload(model, payload, titleField ? null : recordTitle) : EMPTY_ERRORS),
@@ -602,6 +674,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const showSummary = policy.submitted || Object.keys(serverErrors).length > 0;
 
   const reviewNote = statusNorm === "changes_requested" ? reviewNoteOf(detail, comments.items) : null;
+  const lifecycle = useMemo(() => lifecycleOf(detail), [detail]);
   const actionsInput = {
     mode,
     status: statusNorm,
@@ -615,6 +688,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     hasObject: Boolean(id && detail),
     versions: detail?.versions.length ?? 0,
     newVersion: Boolean(layout.newVersion),
+    lifecycle,
   };
   const acts = actionsOf(actionsInput);
   let can = acts.can;
@@ -636,13 +710,15 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
 
   const alert: EditorAlert = actionError
     ? { kind: "action", error: actionError.error }
-    : publishFail !== null
-      ? { kind: "publishFail", text: publishFail }
-      : remote
-        ? { kind: "remote", conflict: remote.conflict }
-        : fileRequired && !hasFile && !readOnly && phase === "ready"
-          ? { kind: "file", isNew: !id }
-          : null;
+    : locked
+      ? { kind: "locked", code: locked.code, withdraw: Boolean(locked.withdrawUrl) || can.withdraw }
+      : publishFail !== null
+        ? { kind: "publishFail", text: publishFail }
+        : remote
+          ? { kind: "remote", conflict: remote.conflict }
+          : fileRequired && !hasFile && !readOnly && phase === "ready"
+            ? { kind: "file", isNew: !id }
+            : null;
 
   const focusFirst = (paths: readonly string[]) => {
     if (!paths.length || typeof window === "undefined") return;
@@ -662,8 +738,17 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
 
   const fail = (scope: string, e: unknown) => {
     logApiError(scope, e);
+    const lock = lockErrorOf(e);
+    if (lock?.code === "studio_version_locked") {
+      setActionError(null);
+      setLocked({ code: lock.code, withdrawUrl: lock.withdrawUrl });
+      void refresh(false);
+      return;
+    }
     const se = studioErrorOf(e);
-    const raw = Object.keys(se.fieldErrors).length ? targetErrors(normErrorPaths(se.fieldErrors), latestRef.current?.draft.payload ?? payload) : {};
+    const one = Object.keys(se.fieldErrors).length ? null : structuredFieldOf(e);
+    const found: Record<string, string> = one ? { [one.field]: `@code:${one.code}` } : se.fieldErrors;
+    const raw = Object.keys(found).length ? targetErrors(normErrorPaths(stripPayload(found)), latestRef.current?.draft.payload ?? payload) : {};
     if (Object.keys(raw).length) {
       setActionError(null);
       showServer(raw);
@@ -692,6 +777,13 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     return "";
   };
 
+  const lockVersionFor = async (objectId: string): Promise<number | null> => {
+    const known = detailRef.current?.lockVersion ?? null;
+    if (known !== null) return known;
+    const fresh = await getStudioObject(objectId).catch(() => null);
+    return fresh?.lockVersion ?? null;
+  };
+
   const persist = async (meta?: { summary?: string; version?: string }): Promise<{ id: string; created: StudioDetail | null } | null> => {
     const cur = latestRef.current?.draft ?? draft;
     if (!cur) return null;
@@ -713,13 +805,15 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
         seedDetail(seeded);
         return { id: created.id, created: seeded };
       }
-      await saveStudioObject(id, { title: objTitle, payload: body, summary: meta?.summary, version: meta?.version, expectedLockVersion: detail?.lockVersion ?? null });
+      const expectedLockVersion = await lockVersionFor(id);
+      await saveStudioObject(id, { title: objTitle, payload: body, summary: meta?.summary, version: meta?.version, expectedLockVersion });
       hb.markSaved();
       return { id, created: null };
     } catch (e) {
       if (studioErrorOf(e).kind === "edit_conflict") {
         logApiError("studio.sx.object.save", e);
         setRemote({ conflict: true });
+        setConflictOpen(true);
         await refresh(false);
         return null;
       }
@@ -889,6 +983,39 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     }
   };
 
+  const lifecycleRun = async (action: SxLifecycleAction): Promise<boolean> => {
+    if (!id || busy) return false;
+    setBusy(action);
+    setActionError(null);
+    try {
+      const url = action === "withdraw" ? locked?.withdrawUrl || lifecycle.withdrawUrl : lifecycle.restoreUrl;
+      await runLifecycle(id, action, url);
+      setLocked(null);
+      notify.success(t(action === "withdraw" ? "sx.editor.toast.withdrawn" : "sx.editor.toast.restored"));
+      await refresh(action === "withdraw" && changedRef.current ? "own" : true);
+      return true;
+    } catch (e) {
+      logApiError(`studio.sx.object.${action}`, e);
+      notify.error(errText(e).text);
+      setActionError({ error: e });
+      void refresh(false);
+      return false;
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const withdraw = () => lifecycleRun("withdraw");
+  const restore = () => lifecycleRun("restore");
+
+  const overwrite = async (): Promise<boolean> => {
+    setConflictOpen(false);
+    setRemote(null);
+    return save();
+  };
+
+  const closeConflict = () => setConflictOpen(false);
+
   const clone = async (name: string): Promise<string | null> => {
     if (mode !== "object" || !id || busy) return null;
     const wanted = name.trim().slice(0, TITLE_MAX);
@@ -944,12 +1071,48 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     if (!id || !text.trim() || busy) return false;
     setBusy("comment");
     try {
-      const c = await addStudioComment(id, text);
+      const c = await createComment(id, text);
       setComments((s) => ({ items: [c, ...(s.items ?? []).filter((x) => !c.id || x.id !== c.id)], error: null }));
       void loadComments();
       return true;
     } catch (e) {
       logApiError("studio.sx.comment.add", e);
+      notify.error(errText(e).text);
+      return false;
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const editComment = async (commentId: string, text: string): Promise<boolean> => {
+    const v = text.trim();
+    if (!id || !commentId || !v || busy) return false;
+    setBusy("comment");
+    try {
+      const c = await updateComment(id, commentId, v);
+      setComments((s) => ({ items: upsertComment(s.items, c), error: null }));
+      return true;
+    } catch (e) {
+      logApiError("studio.sx.comment.edit", e);
+      notify.error(errText(e).text);
+      return false;
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const removeComment = async (commentId: string): Promise<boolean> => {
+    if (!id || !commentId || busy) return false;
+    setBusy("comment");
+    try {
+      const c = await deleteComment(id, commentId);
+      const prev = comments.items?.find((x) => x.id === commentId) ?? null;
+      const gone = c ?? prev;
+      if (gone) setComments((s) => ({ items: upsertComment(s.items, { ...gone, id: gone.id || commentId, deleted: true, text: "", editedAt: "" }), error: null }));
+      else void loadComments();
+      return true;
+    } catch (e) {
+      logApiError("studio.sx.comment.delete", e);
       notify.error(errText(e).text);
       return false;
     } finally {
@@ -998,11 +1161,13 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
 
   const loadRemote = () => {
     setRemote(null);
+    setConflictOpen(false);
     void refresh(true);
   };
 
   const dismissAlert = () => {
     if (actionError) setActionError(null);
+    else if (locked) setLocked(null);
     else if (publishFail !== null) setPublishFail(null);
     else if (remote) setRemote(null);
   };
@@ -1069,6 +1234,9 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     alert,
     busy,
     comments,
+    me,
+    lifecycle,
+    conflict,
     descendants,
     fileRequired,
     hasFile,
@@ -1085,10 +1253,16 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     publish,
     rollback,
     archive,
+    withdraw,
+    restore,
+    overwrite,
+    closeConflict,
     clone,
     cloneHref,
     upload,
     addComment,
+    editComment,
+    removeComment,
     reloadComments,
     refresh,
     loadRemote,

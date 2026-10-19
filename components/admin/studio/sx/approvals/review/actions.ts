@@ -40,7 +40,8 @@ export function needsComment(kind: ReviewKind): boolean {
 
 export type ActionError = { key: string; field: "comment" | null; stale: boolean; code: string };
 
-const NOT_YOURS: ReadonlySet<string> = new Set(["studio_step_not_assigned", "studio_not_approver", "studio_approval_forbidden", "studio_cannot_decide"]);
+const NOT_YOURS: ReadonlySet<string> = new Set(["studio_step_not_assigned", "studio_not_approver", "studio_approval_forbidden", "studio_approval_step_forbidden", "studio_cannot_decide"]);
+const STALE_CODES: ReadonlySet<string> = new Set(["studio_approval_duplicate_decision", "studio_approval_step_not_pending", "studio_approval_step_missing", "studio_approval_step_not_found"]);
 const COMMENT_FIELDS = ["comment", "note", "reason"];
 
 function hasCommentError(fieldErrors: Record<string, string>): boolean {
@@ -58,8 +59,11 @@ export function actionErrorOf(e: unknown): ActionError {
   if (hasCommentError(se.fieldErrors)) return out("sx.appr.err.comment", "comment", false);
   if (lc === "studio_publish_requires_approved") return out("sx.editor.err.publishRequiresApproved", null, true);
   if (lc === "studio_publish_failed") return out("sx.editor.alert.publishFailText", null, true);
+  if (lc === "studio_object_archived") return out("sx.ap3.err.archived", null, true);
+  if (lc === "studio_version_locked") return out("sx.ap3.err.locked", null, true);
   if (lc.includes("self_approval")) return out("sx.appr.err.self", null, true);
   if (NOT_YOURS.has(lc)) return out("sx.appr.err.notYours", null, true);
+  if (STALE_CODES.has(lc)) return out("sx.appr.err.changed", null, true);
   if (lc.includes("comment_required")) return out("sx.appr.err.comment", "comment", false);
   switch (se.kind) {
     case "edit_conflict":
@@ -92,4 +96,17 @@ export function stageAfter(kind: ReviewKind, statusAfter: string): SxStageKey {
   if (kind === "return") return "returned";
   if (kind === "reject") return "rejected";
   return statusAfter === "published" ? "published" : "approved";
+}
+
+export function publishFailKey(code: string): string {
+  const lc = code.trim().toLowerCase();
+  if (!lc) return "";
+  if (lc === "studio_publish_requires_approved") return "sx.editor.err.publishRequiresApproved";
+  if (lc === "studio_publish_failed") return "sx.editor.alert.publishFailText";
+  if (lc === "studio_object_archived") return "sx.ap3.err.archived";
+  if (lc === "studio_version_locked") return "sx.ap3.err.locked";
+  if (lc === "studio_object_not_found" || lc === "not_found") return "sx.editor.err.notFound";
+  if (lc === "studio_edit_conflict" || lc.includes("conflict")) return "sx.appr.err.changed";
+  if (NOT_YOURS.has(lc) || lc.includes("forbidden") || lc.includes("permission")) return "sx.editor.err.forbidden";
+  return "";
 }

@@ -4,13 +4,14 @@ import "../sx-core.css";
 import "../sx-layout.css";
 import "./sx-approvals.css";
 import "./sx-ap2.css";
+import "./sx-ap3.css";
 import type { ReactElement, ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { ArrowDownWideNarrowIcon } from "lucide-react";
 import { aiId } from "@/lib/ai/ids";
 import { useStudioRegistry } from "@/lib/services/studio";
 import { SxButton, SxLinkButton } from "../Button";
-import { MessageSquareTextIcon, PaperclipIcon, BadgeCheckIcon, EyeIcon, PencilIcon, RocketIcon, glyph } from "../icons";
+import { MessageSquareTextIcon, PaperclipIcon, BadgeCheckIcon, ChevronDownIcon, CircleAlertIcon, EyeIcon, ListChecksIcon, PencilIcon, RocketIcon, glyph } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxPanel } from "../layout/Panel";
 import { SxPager, SxTable, type SxColumn } from "../layout/Table";
@@ -28,7 +29,8 @@ export type ApprPick = {
   setMany: (ids: readonly string[], on: boolean) => void;
 };
 
-export type QueueColumnOpts = { onOpen?: (row: ApprRow) => void; pick?: ApprPick | null };
+export type QueueColumnOpts = { onOpen?: (row: ApprRow) => void; pick?: ApprPick | null; fails?: ReadonlyMap<string, string> };
+export type QueueMore = { has: boolean; loaded: number; total: number; busy: boolean; error: unknown; onMore: () => void };
 export type QueueMode = "work" | "done";
 
 export type QueueSectionProps = {
@@ -40,6 +42,8 @@ export type QueueSectionProps = {
   openId: string;
   onOpen: (row: ApprRow) => void;
   pick?: ApprPick | null;
+  more?: QueueMore | null;
+  fails?: ReadonlyMap<string, string>;
 };
 
 const ACT = "admin.studio.approvals.act";
@@ -50,7 +54,7 @@ export function useQueueColumns(mode: QueueMode, openId: string, opts: QueueColu
   const labels = useStudioLabels();
   const reg = useStudioRegistry();
   const now = useNow();
-  const { onOpen, pick } = opts;
+  const { onOpen, pick, fails } = opts;
   const done = mode === "done";
 
   const groupOf = (key: string) => (key ? reg.groups.find((x) => x.key === key) : undefined);
@@ -67,6 +71,13 @@ export function useQueueColumns(mode: QueueMode, openId: string, opts: QueueColu
       );
     if (r.code) parts.push(<span key="c">{labels.ctorName(r.code)}</span>);
     if (r.version) parts.push(<span key="v">{t("sx.editor.versionTag", { v: r.version })}</span>);
+    if (!done && r.progress)
+      parts.push(
+        <span key="p">
+          {glyph(ListChecksIcon, { size: 14 })}
+          <span>{t("sx.ap3.row.steps", { done: r.progress.done, total: r.progress.total })}</span>
+        </span>,
+      );
     if (r.comments > 0)
       parts.push(
         <span key="m">
@@ -86,6 +97,14 @@ export function useQueueColumns(mode: QueueMode, openId: string, opts: QueueColu
       parts.push(
         <span key="o" data-late="">
           {t("sx.editor.steps.overdue")}
+        </span>,
+      );
+    const failed = !done ? fails?.get(r.id) : undefined;
+    if (failed)
+      parts.push(
+        <span key="x" className="sx-ap3-fail">
+          {glyph(CircleAlertIcon, { size: 14 })}
+          <span>{t("sx.ap3.row.failed", { reason: failed })}</span>
         </span>,
       );
     return (
@@ -192,12 +211,12 @@ export function useQueueColumns(mode: QueueMode, openId: string, opts: QueueColu
   return done ? cols.filter((c) => c.key !== "next") : cols;
 }
 
-export function QueueSection({ rows, loading, busy, page, onPage, openId, onOpen, pick }: QueueSectionProps): ReactElement | null {
+export function QueueSection({ rows, loading, busy, page, onPage, openId, onOpen, pick, more, fails }: QueueSectionProps): ReactElement | null {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const pickable = pick ? rows.filter((r) => pick.can(r)) : [];
   const pickOn = pick && pickable.length ? pick : null;
-  const columns = useQueueColumns("work", openId, { onOpen, pick: pickOn });
+  const columns = useQueueColumns("work", openId, { onOpen, pick: pickOn, fails });
   const picked = pickOn ? pickable.filter((r) => pickOn.has(r.id)).length : 0;
   const slice = pageSlice(rows, page, APPR_PAGE);
   const title = t("sx.appr.sec.queue");
@@ -270,8 +289,25 @@ export function QueueSection({ rows, loading, busy, page, onPage, openId, onOpen
         busy={busy}
         empty={<SxEmpty compact icon={BadgeCheckIcon} title={t("sx.home.waiting.empty")} />}
         footer={
-          slice.total > APPR_PAGE ? (
-            <SxPager from={slice.from} to={slice.to} total={slice.total} onPrev={() => onPage(slice.page - 1)} onNext={() => onPage(slice.page + 1)} aiId={`${SEC}.pager`} />
+          slice.total > APPR_PAGE || more?.has ? (
+            <>
+              {slice.total > APPR_PAGE ? (
+                <SxPager from={slice.from} to={slice.to} total={slice.total} onPrev={() => onPage(slice.page - 1)} onNext={() => onPage(slice.page + 1)} aiId={`${SEC}.pager`} />
+              ) : null}
+              {more?.has ? (
+                <div className="sx-ap3-more">
+                  <span className="sx-ap3-more__n sx-num">{t("sx.ap3.more.shown", { n: more.loaded, total: more.total })}</span>
+                  {more.error && !more.busy ? (
+                    <span className="sx-ap3-more__err" role="alert">
+                      {t("sx.ap3.more.fail")}
+                    </span>
+                  ) : null}
+                  <SxButton variant="secondary" size="sm" icon={ChevronDownIcon} busy={more.busy} onClick={more.onMore} aiId={`${SEC}.more`}>
+                    {t("sx.ap3.more.load", { n: Math.max(0, more.total - more.loaded) })}
+                  </SxButton>
+                </div>
+              ) : null}
+            </>
           ) : undefined
         }
       />

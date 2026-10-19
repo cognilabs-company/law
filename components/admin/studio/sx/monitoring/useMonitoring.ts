@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { subscribeInternalEvents } from "@/lib/internalSocket";
-import { getStudioMonitoring, listStudioAudit, normStudioActivity, type StudioAuditEvent, type StudioMonitoringSummary, type StudioMonitoringUser } from "@/lib/services/studio";
+import { logApiError } from "@/lib/http";
+import { listStudioAudit, normStudioActivity, type StudioAuditEvent, type StudioMonitoringSummary, type StudioMonitoringUser } from "@/lib/services/studio";
 import type { UserEvent } from "@/lib/userSocket";
 import { useStudioLive } from "../live";
-import { POLL_MS, auditQueryOf, channelEvent, eventRaw, queryOf, rangeIsOpen, rangeOf, sessionKey, type MonPeriod, type MonRange, type MonRow } from "./model";
+import { auditQueryOf, channelEvent, eventRaw, queryOf, rangeIsOpen, rangeOf, sessionKey, type MonPeriod, type MonRange, type MonRow } from "./model";
+import { MON_PAGE, MON_PAGE_MAX, fetchMonitoring } from "./monitoringApi";
 
 export type MonPhase = "loading" | "ready" | "error";
 
@@ -19,32 +21,45 @@ export type MonState = {
   range: MonRange;
   loadedAt: number;
   key: string;
+  total: number;
+  hasMore: boolean;
 };
 
-const EMPTY: MonState = { phase: "loading", rows: [], users: [], summary: null, events: null, error: null, range: { from: null, to: null }, loadedAt: 0, key: "" };
+const EMPTY: MonState = { phase: "loading", rows: [], users: [], summary: null, events: null, error: null, range: { from: null, to: null }, loadedAt: 0, key: "", total: 0, hasMore: false };
+
+function mergeRows(prev: readonly MonRow[], next: readonly MonRow[]): MonRow[] {
+  const seen = new Set(prev.map((r) => r.a.sessionId).filter(Boolean));
+  return [...prev, ...next.filter((r) => !r.a.sessionId || !seen.has(r.a.sessionId))];
+}
 
 export function useMonitoring(period: MonPeriod, dateFrom: string, dateTo: string, enabled: boolean) {
   const [st, setSt] = useState<MonState>(EMPTY);
   const [busy, setBusy] = useState(false);
+  const [moreBusy, setMoreBusy] = useState(false);
+  const [moreError, setMoreError] = useState<unknown>(null);
   const seq = useRef(0);
-  const live = useRef<{ rows: MonRow[]; range: MonRange }>({ rows: [], range: EMPTY.range });
+  const live = useRef<{ rows: MonRow[]; range: MonRange; key: string }>({ rows: [], range: EMPTY.range, key: "" });
   const soon = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const key = `${period}|${dateFrom}|${dateTo}`;
 
   const load = useCallback(async () => {
     if (!enabled) return;
     const my = ++seq.current;
     const range = rangeOf(period, dateFrom, dateTo, Date.now());
-    const key = `${period}|${dateFrom}|${dateTo}`;
+    const same = live.current.key === key;
+    const limit = Math.min(MON_PAGE_MAX, Math.max(MON_PAGE, same ? live.current.rows.length : 0));
     try {
-      const [m, events] = await Promise.all([getStudioMonitoring(queryOf(range)), listStudioAudit(auditQueryOf(range)).catch(() => null)]);
+      const [m, events] = await Promise.all([fetchMonitoring({ ...queryOf(range), limit, offset: 0 }), listStudioAudit(auditQueryOf(range)).catch(() => null)]);
       if (my !== seq.current) return;
       const at = Date.now();
-      setSt({ phase: "ready", rows: m.items.map((a) => ({ a, at })), users: m.users, summary: m.summary, events, error: null, range, loadedAt: at, key });
+      setMoreError(null);
+      setSt({ phase: "ready", rows: m.items.map((a) => ({ a, at })), users: m.users, summary: m.summary, events, error: null, range, loadedAt: at, key, total: m.total, hasMore: m.hasMore });
     } catch (e) {
       if (my !== seq.current) return;
+      logApiError("studio.sx.monitoring.load", e);
       setSt((cur) => (cur.phase === "ready" && cur.key === key ? { ...cur, error: e } : { ...EMPTY, phase: "error", error: e, range, key }));
     }
-  }, [period, dateFrom, dateTo, enabled]);
+  }, [period, dateFrom, dateTo, enabled, key]);
 
   useEffect(() => {
     void load();
@@ -52,17 +67,32 @@ export function useMonitoring(period: MonPeriod, dateFrom: string, dateTo: strin
   }, [load]);
 
   useEffect(() => {
-    live.current = { rows: st.phase === "ready" ? st.rows : [], range: st.range };
+    live.current = { rows: st.phase === "ready" ? st.rows : [], range: st.range, key: st.key };
   });
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      if (!rangeIsOpen(live.current.range, Date.now())) return;
-      void load();
-    }, POLL_MS);
-    return () => clearInterval(id);
-  }, [load]);
+  const more = useCallback(async () => {
+    if (!enabled || moreBusy || st.phase !== "ready" || st.key !== key || !st.hasMore) return;
+    const my = seq.current;
+    const range = st.range;
+    setMoreBusy(true);
+    setMoreError(null);
+    try {
+      const m = await fetchMonitoring({ ...queryOf(range), limit: MON_PAGE, offset: st.rows.length });
+      if (my !== seq.current) return;
+      const at = Date.now();
+      setSt((cur) => {
+        if (cur.key !== key || cur.phase !== "ready") return cur;
+        const rows = mergeRows(cur.rows, m.items.map((a) => ({ a, at })));
+        const grew = rows.length > cur.rows.length;
+        return { ...cur, rows, total: Math.max(m.total, rows.length), hasMore: m.hasMore && grew, summary: m.summary, users: m.users.length ? m.users : cur.users };
+      });
+    } catch (e) {
+      logApiError("studio.sx.monitoring.more", e);
+      if (my === seq.current) setMoreError(e);
+    } finally {
+      setMoreBusy(false);
+    }
+  }, [enabled, moreBusy, st, key]);
 
   const refetchSoon = useCallback(() => {
     clearTimeout(soon.current);
@@ -76,15 +106,15 @@ export function useMonitoring(period: MonPeriod, dateFrom: string, dateTo: strin
     }
     if (e.event !== "studio.activity" && e.event !== "studio.activity_ended") return;
     const raw = eventRaw(e);
-    const key = sessionKey(raw);
+    const sid = sessionKey(raw);
     const ended = e.event === "studio.activity_ended";
-    if (!key || !live.current.rows.some((r) => r.a.sessionId === key)) {
+    if (!sid || !live.current.rows.some((r) => r.a.sessionId === sid)) {
       if (rangeIsOpen(live.current.range, Date.now())) refetchSoon();
       return;
     }
     const at = Date.now();
     setSt((cur) => {
-      const idx = cur.rows.findIndex((r) => r.a.sessionId === key);
+      const idx = cur.rows.findIndex((r) => r.a.sessionId === sid);
       if (cur.phase !== "ready" || idx < 0) return cur;
       const prevRow = cur.rows[idx];
       const merged: Record<string, unknown> = { ...prevRow.a.raw, ...raw };
@@ -124,6 +154,6 @@ export function useMonitoring(period: MonPeriod, dateFrom: string, dateTo: strin
     setBusy(false);
   }, [load]);
 
-  const settled = st.key === `${period}|${dateFrom}|${dateTo}`;
-  return { ...st, busy, refresh, settled };
+  const settled = st.key === key;
+  return { ...st, busy, refresh, settled, more, moreBusy, moreError };
 }

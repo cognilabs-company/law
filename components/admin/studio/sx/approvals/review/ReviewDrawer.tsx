@@ -27,6 +27,7 @@ import { ChangeList, WarningNote } from "./ChangeList";
 import { Comments } from "./Comments";
 import { changedNames, payloadDiff } from "./diff";
 import { StepList } from "./StepList";
+import { Timeline } from "./Timeline";
 import { useReview, type ReviewState } from "./useReview";
 
 export type ReviewTarget = { id: string; row: ApprRow | null };
@@ -138,7 +139,7 @@ function ReviewPanel({ target, viewer, onClose, onChanged }: { target: ReviewTar
   const version = detail?.currentVersion || row?.version || "";
   const description = code ? [labels.ctorName(code), version ? t("sx.editor.versionTag", { v: version }) : ""].filter(Boolean).join(" · ") : undefined;
   const can = st.can;
-  const ids = { state: `${uid}-st`, note: `${uid}-nt`, ch: `${uid}-ch`, steps: `${uid}-sp`, cmt: `${uid}-cm`, file: `${uid}-fl` };
+  const ids = { state: `${uid}-st`, note: `${uid}-nt`, ch: `${uid}-ch`, steps: `${uid}-sp`, cmt: `${uid}-cm`, file: `${uid}-fl`, tl: `${uid}-tl` };
 
   async function onDone(kind: ReviewKind, after: StudioDetail | null, origin: DOMRect | null) {
     const from = stageKeyOf(status);
@@ -300,6 +301,9 @@ function ReviewPanel({ target, viewer, onClose, onChanged }: { target: ReviewTar
               return ok;
             }}
           />
+        </Block>
+        <Block id={ids.tl} title={t("sx.ap3.tl.title")} ai={`${AI}.history`}>
+          <Timeline history={st.history} versions={detail.versions} onRetry={st.retry} />
         </Block>
         {detail.hasFile ? (
           <Block id={ids.file} title={t("sx.appr.dw.file")}>

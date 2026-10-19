@@ -19,7 +19,7 @@ import { groupNext, groupProgress, groupSteps } from "./groupModel";
 import { LaunchPaths } from "./LaunchPaths";
 import { Overview } from "./Overview";
 import { ResumePanel } from "./ResumePanel";
-import { sumRecords, useStudioSummary, type StudioSummary } from "./summary";
+import { groupTotalsOf, lastActivityOf, needCountsOf, sumRecords, useStudioSummary, type NeedCounts, type StudioSummary } from "./summary";
 import { useActionItems } from "./useActionItems";
 import { WaitingPanel } from "./WaitingPanel";
 
@@ -36,6 +36,8 @@ export function groupCardModel(
   const rows = groupSteps(g, items);
   const { done, total } = groupProgress(rows);
   const next = groupNext(g, rows);
+  const codes = rows.map((r) => r.code);
+  const totals = groupTotalsOf(g.key, codes, summary ?? null);
   return {
     key: g.key,
     order: g.order,
@@ -45,7 +47,10 @@ export function groupCardModel(
     done,
     total,
     blocked: rows.filter((r) => r.state === "blocked").length,
-    records: sumRecords(rows, summary ?? null),
+    records: totals ? totals.total : sumRecords(rows, summary ?? null),
+    runtime: totals?.runtime ?? null,
+    last: lastActivityOf(codes, summary ?? null, g.key),
+    lastSlot: !!summary?.detailed,
     steps: rows.map((r) => ({ code: r.code, step: r.step, name: labels.ctorName(r.code, r.ctor?.title), state: r.state })),
     next: next ? { code: next.code, name: labels.ctorName(next.code, next.ctor?.title) } : null,
     counts: counts ?? ZERO,
@@ -93,7 +98,11 @@ export function Home(): ReactElement {
       </>
     ) : undefined;
 
-  const cards = reg.groups.map((g) => groupCardModel(g, reg.items, labels, actions.byGroup[g.key], summary.data));
+  const allow: Readonly<Record<keyof NeedCounts, boolean>> = { returned: acc.canEdit, review: acc.canReview, publish: acc.canPublish };
+  const fromSummary = !!summary.data?.detailed;
+  const countsOf = (g: StudioGroup) => (fromSummary ? (needCountsOf(g.key, groupSteps(g, reg.items).map((r) => r.code), summary.data, allow) ?? undefined) : actions.byGroup[g.key]);
+  const cards = reg.groups.map((g) => groupCardModel(g, reg.items, labels, countsOf(g), summary.data));
+  const countsLoading = !fromSummary && (actions.loading || summary.loading);
   const sumDone = cards.reduce((a, c) => a + c.done, 0);
   const sumTotal = cards.reduce((a, c) => a + c.total, 0);
   const groupsDone = cards.filter((c) => c.total > 0 && c.done >= c.total).length;
@@ -118,7 +127,7 @@ export function Home(): ReactElement {
             {cards.length ? (
               <ol className="sx-ggrid" aria-label={t("sx.home.groups.title")} data-ai-id="admin.studio.home.groups" data-ai-type="list" data-ai-label={t("sx.home.groups.title")}>
                 {cards.map((m, i) => (
-                  <GroupCard key={m.key} model={m} index={i} loadingCounts={actions.loading} />
+                  <GroupCard key={m.key} model={m} index={i} loadingCounts={countsLoading} />
                 ))}
               </ol>
             ) : reg.error ? (

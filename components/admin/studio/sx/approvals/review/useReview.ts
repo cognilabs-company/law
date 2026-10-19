@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { logApiError } from "@/lib/http";
+import { isForbidden, isRouteMissing, logApiError } from "@/lib/http";
 import { descendantIds, flattenCategoryTree, getCategoryTree } from "@/lib/services/categoryTree";
 import {
   addStudioComment,
@@ -21,12 +21,14 @@ import { ctorWarnings } from "../../ctor/warnings";
 import { currentVersionOf, liveVersionOf } from "../../editor/model";
 import { studioEventObjectId, useStudioLive } from "../../live";
 import { useSchemaModel } from "../../schema/useSchemaModel";
-import { DETAIL_EVENTS, buildRow, isListEvent, type ApprRow, type ApprViewer } from "../model";
+import { fetchApprovalDetail, type ApprEvent, type ApprSummaryItem } from "../approvalsApi";
+import { COMMENT_EVENTS, DETAIL_EVENTS, buildRow, isListEvent, type ApprRow, type ApprViewer } from "../model";
 import { NO_REVIEW, reviewCan, type ReviewCan } from "./actions";
 import type { ReviewTarget } from "./ReviewDrawer";
 
 export type ReviewBase = "live" | "prev" | "first" | "none" | "unknown";
 export type ReviewComments = { items: StudioComment[] | null; error: unknown; sending: boolean; sendError: unknown };
+export type ReviewHistory = { events: ApprEvent[] | null; summary: ApprSummaryItem[]; error: unknown; closed: boolean };
 export type ReviewState = {
   id: string;
   detail: StudioDetail | null;
@@ -43,6 +45,7 @@ export type ReviewState = {
   warnings: SxWarning[];
   can: ReviewCan;
   comments: ReviewComments;
+  history: ReviewHistory;
   addComment: (text: string) => Promise<boolean>;
   reloadComments: () => void;
   refresh: () => Promise<StudioDetail | null>;
@@ -54,6 +57,7 @@ export const REVIEW_DEBOUNCE_MS = 300;
 type Dict = Record<string, unknown>;
 type Got = { id: string; detail: StudioDetail | null; error: unknown };
 type Notes = { id: string; items: StudioComment[] | null; error: unknown };
+type Hist = { id: string; events: ApprEvent[] | null; summary: ApprSummaryItem[]; flags: Dict; error: unknown; closed: boolean };
 
 const EMPTY: SxValues = Object.freeze({});
 const STALE_KEYS = ["can_decide", "current_step"];
@@ -80,6 +84,13 @@ export function mergeReviewDetail(base: StudioDetail | null, fresh: StudioDetail
     hasFile: fresh.hasFile || base.hasFile,
     raw: { ...baseRaw, ...fresh.raw },
   };
+}
+
+export function withFlags(d: StudioDetail | null, flags: Dict | null): StudioDetail | null {
+  if (!d || !flags || !Object.keys(flags).length) return d;
+  const rest: Dict = {};
+  for (const [k, v] of Object.entries(flags)) if (k !== "status") rest[k] = v;
+  return { ...d, raw: { ...d.raw, ...rest } };
 }
 
 export function liveOf(d: StudioDetail | null): StudioVersion | null {
@@ -110,6 +121,8 @@ export function useReview(target: ReviewTarget | null, viewer: ApprViewer): Revi
   const reg = useStudioRegistry();
   const [got, setGot] = useState<Got>({ id: "", detail: null, error: null });
   const [notes, setNotes] = useState<Notes>({ id: "", items: null, error: null });
+  const [hist, setHist] = useState<Hist>({ id: "", events: null, summary: [], flags: {}, error: null, closed: false });
+  const hseq = useRef(0);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<unknown>(null);
   const [full, setFull] = useState<{ code: string; ctor: StudioConstructor | null } | null>(null);
@@ -119,8 +132,24 @@ export function useReview(target: ReviewTarget | null, viewer: ApprViewer): Revi
   const detailTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const notesTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  const loadHistory = useCallback((): Promise<void> => {
+    if (!id) return Promise.resolve();
+    const n = ++hseq.current;
+    return fetchApprovalDetail(id).then(
+      (h) => {
+        if (n === hseq.current) setHist({ id, events: h.events, summary: h.summary, flags: h.flags, error: null, closed: false });
+      },
+      (e: unknown) => {
+        const closed = isForbidden(e) || isRouteMissing(e);
+        if (!closed) logApiError("studio.sx.approvals.history", e);
+        if (n === hseq.current) setHist((h) => (h.id === id ? { ...h, error: e, closed } : { id, events: null, summary: [], flags: {}, error: e, closed }));
+      },
+    );
+  }, [id]);
+
   const refresh = useCallback((): Promise<StudioDetail | null> => {
     if (!id) return Promise.resolve(null);
+    void loadHistory();
     const n = ++seq.current;
     return getStudioObject(id).then(
       (d) => {
@@ -133,7 +162,7 @@ export function useReview(target: ReviewTarget | null, viewer: ApprViewer): Revi
         return null;
       },
     );
-  }, [id]);
+  }, [id, loadHistory]);
 
   const loadComments = useCallback((): Promise<void> => {
     if (!id) return Promise.resolve();
@@ -173,11 +202,14 @@ export function useReview(target: ReviewTarget | null, viewer: ApprViewer): Revi
     }
     const oid = studioEventObjectId(e);
     if (oid && oid !== id) return;
-    if (e.event === "studio.comment_created") {
+    if (COMMENT_EVENTS.has(e.event)) {
       clearTimeout(notesTimer.current);
-      notesTimer.current = setTimeout(() => void loadComments(), REVIEW_DEBOUNCE_MS);
+      notesTimer.current = setTimeout(() => {
+        void loadComments();
+        void loadHistory();
+      }, REVIEW_DEBOUNCE_MS);
     }
-    if (DETAIL_EVENTS.has(e.event) || isListEvent(e.event)) {
+    if (!COMMENT_EVENTS.has(e.event) && (DETAIL_EVENTS.has(e.event) || isListEvent(e.event))) {
       clearTimeout(detailTimer.current);
       detailTimer.current = setTimeout(() => void refresh(), REVIEW_DEBOUNCE_MS);
     }
@@ -185,7 +217,8 @@ export function useReview(target: ReviewTarget | null, viewer: ApprViewer): Revi
 
   const fresh = got.id === id ? got.detail : null;
   const error = got.id === id ? got.error : null;
-  const detail = useMemo(() => mergeReviewDetail(baseDetail, fresh), [baseDetail, fresh]);
+  const flags = hist.id === id ? hist.flags : null;
+  const detail = useMemo(() => withFlags(mergeReviewDetail(baseDetail, fresh), flags), [baseDetail, fresh, flags]);
   const code = detail?.code ?? target?.row?.code ?? "";
   const regCtor = useMemo(() => reg.items.find((c) => c.code === code) ?? null, [reg.items, code]);
 
@@ -263,6 +296,9 @@ export function useReview(target: ReviewTarget | null, viewer: ApprViewer): Revi
     void loadComments();
   }, [refresh, loadComments]);
 
+  const history: ReviewHistory =
+    hist.id === id ? { events: hist.events, summary: hist.summary, error: hist.error, closed: hist.closed } : { events: null, summary: [], error: null, closed: false };
+
   const comments: ReviewComments = {
     items: notes.id === id ? notes.items : null,
     error: notes.id === id ? notes.error : null,
@@ -286,6 +322,7 @@ export function useReview(target: ReviewTarget | null, viewer: ApprViewer): Revi
     warnings,
     can,
     comments,
+    history,
     addComment,
     reloadComments,
     refresh,

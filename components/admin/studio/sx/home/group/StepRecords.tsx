@@ -6,19 +6,21 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { aiId } from "@/lib/ai/ids";
 import { logApiError } from "@/lib/http";
-import { listStudioRecords, studioObjectIdOf, type StudioRecord, type StudioRecords } from "@/lib/services/studio";
+import { studioObjectIdOf, type StudioRecord } from "@/lib/services/studio";
 import { SxButton } from "../../Button";
 import { enterStyle } from "../../hooks";
 import { ArrowRightIcon, ChevronRightIcon, RefreshCwIcon, glyph } from "../../icons";
 import { useNow } from "../../live";
 import { StatusPill } from "../../StatusPill";
-import { useStudioLabels } from "../../useStudioLabels";
+import { fetchCtorRecords, type CtorRecords } from "../../ctorpage/recordsApi";
+import { isTestRow, TestBadge } from "../../ctorpage/variants";
+import { useStudioLabels, type SxTranslate } from "../../useStudioLabels";
 
 const enc = encodeURIComponent;
 const LIMIT = 3;
 const SK = [0, 1, 2];
 
-type Loaded = { tick: number; data: StudioRecords | null; error: unknown };
+type Loaded = { tick: number; data: CtorRecords | null; error: unknown };
 
 function viewHref(code: string, url: string): string {
   const oid = studioObjectIdOf(url);
@@ -45,7 +47,7 @@ export function StepRecords({ code, id, name }: { code: string; id: string; name
 
   useEffect(() => {
     const ctl = new AbortController();
-    listStudioRecords(code, { source: "", limit: LIMIT, offset: 0 }, ctl.signal).then(
+    fetchCtorRecords(code, { source: "", limit: LIMIT, offset: 0 }, ctl.signal).then(
       (data) => {
         if (!ctl.signal.aborted) setGot({ tick, data, error: null });
       },
@@ -98,7 +100,10 @@ export function StepRecords({ code, id, name }: { code: string; id: string; name
           return (
             <li key={`${r.source}-${r.id}`} className="sx-enter" data-enter="fade" style={enterStyle(i)}>
               <Link href={stepRecordHref(code, r)} className="sx-tlr__row" data-ai-id={aiId(base, "item", r.id)} data-ai-type="list_item" data-ai-label={title}>
-                <span className="sx-tlr__title">{title}</span>
+                <span className="sx-tlr__name">
+                  <span className="sx-tlr__title">{title}</span>
+                  {isTestRow(r) ? <TestBadge t={t as SxTranslate} /> : null}
+                </span>
                 <StatusPill status={r.status} source={r.source} size="sm" />
                 {when ? (
                   <span className="sx-tlr__when sx-num" title={labels.dateTime(r.updatedAt)}>

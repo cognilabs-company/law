@@ -115,19 +115,38 @@ export function priceCapOf(p: Pick<RuntimePricing, "maximumPrice">): number | nu
   return p.maximumPrice > 0 ? p.maximumPrice : null;
 }
 
-export type ServiceRule = { id: string; ruleKey: string; title: string; version: string; body: string; scopeType: string; scopeId: string; effectiveAt: string; accepted: boolean; acceptedAt: string; raw: Dict };
+export type ServiceRule = {
+  id: string;
+  ruleKey: string;
+  title: string;
+  version: string;
+  body: string;
+  scopeType: string;
+  scopeId: string;
+  serviceId: string;
+  categoryId: string;
+  effectiveAt: string;
+  accepted: boolean;
+  acceptedAt: string;
+  raw: Dict;
+};
 
 export function normServiceRule(v: unknown): ServiceRule {
   const d = dictOf(v);
   const acceptedAt = trimmed(d.accepted_at);
+  const serviceId = trimmed(d.service_id);
+  const categoryId = trimmed(d.category_id);
+  const scope = trimmed(d.scope_type ?? d.scope).toLowerCase();
   return {
     id: trimmed(d.id ?? d.rule_id),
     ruleKey: trimmed(d.rule_key ?? d.key),
     title: trimmed(d.title ?? d.name),
     version: trimmed(d.version ?? d.rule_version),
     body: asStr(d.body ?? d.content ?? d.text ?? d.description),
-    scopeType: trimmed(d.scope_type ?? d.scope).toLowerCase(),
-    scopeId: trimmed(d.scope_id),
+    scopeType: scope || (serviceId ? "service" : categoryId ? "category" : ""),
+    scopeId: trimmed(d.scope_id) || serviceId || categoryId,
+    serviceId,
+    categoryId,
     effectiveAt: trimmed(d.effective_at ?? d.effective_from),
     accepted: typeof d.accepted === "boolean" ? d.accepted : !!acceptedAt,
     acceptedAt,
@@ -183,6 +202,7 @@ export function checklistStatusOf(v: unknown): ChecklistStatus {
 
 export type ChecklistItem = {
   id: string;
+  key: string;
   title: string;
   description: string;
   status: ChecklistStatus;
@@ -190,6 +210,7 @@ export type ChecklistItem = {
   required: boolean;
   commentRequired: boolean;
   fileRequired: boolean;
+  skipAllowed: boolean;
   comment: string;
   files: MarketFileRef[];
   sortOrder: number;
@@ -200,21 +221,30 @@ export type ChecklistItem = {
 export function normChecklistItem(v: unknown): ChecklistItem {
   const d = dictOf(v);
   const statusRaw = trimmed(d.status);
+  const key = trimmed(d.key ?? d.item_key);
+  const required = d.required === true || d.is_required === true;
+  const skip = d.skip_allowed ?? d.can_skip ?? d.allow_skip ?? d.skippable;
   return {
-    id: trimmed(d.id ?? d.item_id ?? d.checklist_item_id),
+    id: trimmed(d.id ?? d.item_id ?? d.checklist_item_id) || key,
+    key,
     title: trimmed(d.title ?? d.name ?? d.label ?? d.text),
     description: trimmed(d.description ?? d.hint),
     status: checklistStatusOf(statusRaw),
     statusRaw,
-    required: d.required === true || d.is_required === true,
+    required,
     commentRequired: d.comment_required === true,
     fileRequired: d.file_required === true,
+    skipAllowed: typeof skip === "boolean" ? skip : !required,
     comment: asStr(d.comment ?? d.reason ?? d.note),
     files: asArr(d.files ?? d.attachments).map(normFileRef).filter((f) => f.id || f.url),
     sortOrder: asNum(d.sort_order ?? d.position),
     updatedAt: trimmed(d.updated_at ?? d.completed_at),
     raw: d,
   };
+}
+
+export function checklistItemRef(item: Pick<ChecklistItem, "id" | "key">): string {
+  return item.key || item.id;
 }
 
 export type RuntimeConfig = {
@@ -357,7 +387,20 @@ export async function acceptServiceRule(ruleId: string, device: string = deviceL
 }
 
 export type SellerServiceConfigInput = { enabled?: boolean; selectedPrice?: number; negotiationAllowed?: boolean };
-export type SellerServiceConfig = { serviceId: string; enabled: boolean | null; selectedPrice: number; negotiationAllowed: boolean | null; priceExplanation: string; priceExplanationLines: string[]; raw: Dict };
+export type SellerServiceConfig = {
+  serviceId: string;
+  enabled: boolean | null;
+  selectedPrice: number;
+  recommendedPrice: number;
+  maximumPrice: number;
+  negotiationAllowed: boolean | null;
+  negotiationAvailable: boolean | null;
+  rulesAccepted: boolean | null;
+  missingRuleIds: string[];
+  priceExplanation: string;
+  priceExplanationLines: string[];
+  raw: Dict;
+};
 
 export function sellerConfigBody(input: SellerServiceConfigInput): Dict {
   const body: Dict = {};
@@ -384,20 +427,51 @@ export function explanationOf(v: unknown): { text: string; lines: string[] } {
   return { text: trimmed(d.text ?? d.message ?? d.summary ?? d.explanation) || lines.join(" "), lines };
 }
 
+function rulesStateOf(...vals: unknown[]): { accepted: boolean | null; missing: string[] } {
+  for (const v of vals) {
+    if (typeof v === "boolean") return { accepted: v, missing: [] };
+    if (Array.isArray(v)) {
+      const rules = v.map(normServiceRule).filter((r) => r.id || r.title);
+      if (!rules.length) continue;
+      const missing = rules.filter((r) => !r.accepted).map((r) => r.id).filter(Boolean);
+      return { accepted: rules.every((r) => r.accepted), missing };
+    }
+    const d = dictOf(v);
+    if (!Object.keys(d).length) continue;
+    const flag = boolOrNull(d.all_accepted ?? d.accepted ?? d.rules_accepted);
+    const missing = firstArr(d.missing_rule_ids, d.pending_rule_ids, d.missing)
+      .map((x) => (typeof x === "string" || typeof x === "number" ? String(x).trim() : trimmed(dictOf(x).id ?? dictOf(x).rule_id)))
+      .filter(Boolean);
+    if (flag !== null || missing.length) return { accepted: flag ?? !missing.length, missing };
+  }
+  return { accepted: null, missing: [] };
+}
+
 export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfig {
   const d = dictOf(v);
   const c = dictOf(d.configuration ?? d.config ?? d.seller_service);
   const src = Object.keys(c).length ? c : d;
   const ex = explanationOf(d.price_explanation ?? src.price_explanation);
+  const lim = dictOf(src.limits ?? src.price_limits ?? src.pricing ?? d.limits ?? d.price_limits ?? d.pricing);
+  const rules = rulesStateOf(src.rules_accepted, d.rules_accepted, src.rules_acceptance, d.rules_acceptance, src.rules, d.rules);
   return {
     serviceId: trimmed(src.service_id ?? d.service_id) || serviceId,
     enabled: boolOrNull(src.enabled ?? src.is_enabled ?? src.is_active),
     selectedPrice: uzs(src, "selected_price", "configured_price", "price"),
-    negotiationAllowed: boolOrNull(src.negotiation_allowed),
+    recommendedPrice: uzs(src, "recommended_price", "recommended_minimum_price") || uzs(lim, "recommended_price", "recommended_minimum_price", "recommended"),
+    maximumPrice: uzs(src, "maximum_price", "max_price", "seller_maximum_price") || uzs(lim, "maximum_price", "max_price", "maximum"),
+    negotiationAllowed: boolOrNull(src.negotiation_allowed ?? src.negotiation_enabled),
+    negotiationAvailable: boolOrNull(src.negotiation_available ?? d.negotiation_available),
+    rulesAccepted: rules.accepted,
+    missingRuleIds: rules.missing,
     priceExplanation: ex.text,
     priceExplanationLines: ex.lines,
     raw: d,
   };
+}
+
+export async function getSellerServiceConfig(serviceId: string, signal?: AbortSignal): Promise<SellerServiceConfig> {
+  return normSellerConfig(await http(`/marketplace/me/services/${enc(serviceId)}/configuration`, { signal }), serviceId);
 }
 
 export async function updateSellerServiceConfig(serviceId: string, input: SellerServiceConfigInput): Promise<SellerServiceConfig> {
@@ -411,7 +485,7 @@ export type LocationShareInput =
   | { enabled: true; durationHours: LocationDuration; latitude: number; longitude: number; accuracyMeters?: number; source?: "foreground" | "background" }
   | { enabled: false };
 export type LocationPolicy = { foregroundIntervalSec: number; backgroundIntervalSec: number; staleAfterSec: number; retentionDays: number };
-export type LocationShareState = { enabled: boolean; durationHours: number | null; expiresAt: string; updatedAt: string; policy: LocationPolicy; raw: Dict };
+export type LocationShareState = { enabled: boolean; durationHours: number | null; expiresAt: string; updatedAt: string; accuracyMeters: number | null; policy: LocationPolicy; raw: Dict };
 
 export const DEFAULT_LOCATION_POLICY: LocationPolicy = { foregroundIntervalSec: 300, backgroundIntervalSec: 600, staleAfterSec: 1200, retentionDays: 30 };
 
@@ -438,20 +512,26 @@ export function normLocationState(v: unknown): LocationShareState {
   const src = Object.keys(s).length ? s : d;
   const p = dictOf(d.policy ?? src.policy ?? d.location_policy);
   const pol = Object.keys(p).length ? p : d;
-  const enabled = src.enabled ?? src.is_enabled ?? src.active;
+  const enabled = src.enabled ?? src.is_enabled ?? src.active ?? src.sharing_enabled;
+  const last = dictOf(src.last_location ?? src.location ?? d.last_location);
   return {
     enabled: typeof enabled === "boolean" ? enabled : trimmed(src.status).toLowerCase() === "active",
     durationHours: numOrNull(src.duration_hours),
-    expiresAt: trimmed(src.expires_at ?? src.active_until ?? src.sharing_until),
-    updatedAt: trimmed(src.updated_at ?? src.last_seen_at),
+    expiresAt: trimmed(src.expires_at ?? src.active_until ?? src.sharing_until ?? src.expiration_at),
+    updatedAt: trimmed(src.last_updated_at ?? src.last_location_at ?? src.location_updated_at ?? last.updated_at ?? last.recorded_at ?? src.updated_at ?? src.last_seen_at),
+    accuracyMeters: numOrNull(src.accuracy_meters ?? last.accuracy_meters),
     policy: {
-      foregroundIntervalSec: secondsOf(pol, ["foreground_update_interval_seconds", "foreground_interval_seconds", "foreground_update_interval", "foreground_interval"], DEFAULT_LOCATION_POLICY.foregroundIntervalSec),
+      foregroundIntervalSec: secondsOf(pol, ["foreground_update_interval_seconds", "foreground_interval_seconds", "foreground_update_interval", "foreground_interval", "update_interval_seconds"], DEFAULT_LOCATION_POLICY.foregroundIntervalSec),
       backgroundIntervalSec: secondsOf(pol, ["background_update_interval_seconds", "background_interval_seconds", "background_update_interval", "background_interval"], DEFAULT_LOCATION_POLICY.backgroundIntervalSec),
       staleAfterSec: secondsOf(pol, ["stale_after_seconds", "stale_after", "stale_seconds"], DEFAULT_LOCATION_POLICY.staleAfterSec),
       retentionDays: secondsOf(pol, ["retention_days", "retention_period_days", "retention"], DEFAULT_LOCATION_POLICY.retentionDays),
     },
     raw: d,
   };
+}
+
+export async function getLocationSharing(signal?: AbortSignal): Promise<LocationShareState> {
+  return normLocationState(await http("/marketplace/me/location-sharing", { signal }));
 }
 
 export async function setLocationSharing(input: LocationShareInput): Promise<LocationShareState> {
@@ -532,6 +612,7 @@ export type Negotiation = {
   status: string;
   amount: number;
   counterAmount: number;
+  maxAmount: number;
   note: string;
   responseNote: string;
   proposedBy: string;
@@ -552,6 +633,7 @@ export function normNegotiation(v: unknown): Negotiation {
     status: trimmed(src.status ?? src.state).toLowerCase(),
     amount: uzs(src, "amount", "proposed_amount"),
     counterAmount: uzs(src, "counter_amount"),
+    maxAmount: uzs(src, "maximum_price", "max_price", "seller_maximum_price") || uzs(d, "maximum_price", "max_price"),
     note: asStr(src.note ?? src.client_note),
     responseNote: asStr(src.response_note ?? src.seller_note),
     proposedBy: trimmed(src.proposed_by ?? src.created_by ?? src.client_user_id),
@@ -569,7 +651,34 @@ export async function proposeNegotiation(orderId: string, input: { amount: numbe
   return normNegotiation(await http(`/marketplace/orders/${enc(orderId)}/negotiations`, { method: "POST", body: JSON.stringify(body) }));
 }
 
-export type NegotiationResponse = { action: "accept" | "reject"; note?: string } | { action: "counter"; amount: number; note?: string };
+export type NegotiationList = { items: Negotiation[]; count: number; raw: Dict };
+
+const negotiationTime = (n: Negotiation): number => {
+  const at = Date.parse(n.updatedAt || n.createdAt);
+  return Number.isFinite(at) ? at : 0;
+};
+
+export function latestNegotiation(list: readonly Negotiation[]): Negotiation | null {
+  let best: Negotiation | null = null;
+  for (const n of list) if (!best || negotiationTime(n) >= negotiationTime(best)) best = n;
+  return best;
+}
+
+export async function listOrderNegotiations(orderId: string, signal?: AbortSignal): Promise<NegotiationList> {
+  const raw = await http(`/marketplace/orders/${enc(orderId)}/negotiations?limit=20&offset=0`, { signal });
+  const d = dictOf(raw);
+  const items = firstArr(raw, d.items, d.negotiations)
+    .map(normNegotiation)
+    .filter((n) => n.id || n.amount > 0)
+    .map((n) => (n.orderId ? n : { ...n, orderId }));
+  return { items, count: asNum(d.count ?? d.total, items.length), raw: d };
+}
+
+export async function getNegotiation(negotiationId: string, signal?: AbortSignal): Promise<Negotiation> {
+  return normNegotiation(await http(`/marketplace/negotiations/${enc(negotiationId)}`, { signal }));
+}
+
+export type NegotiationResponse ={ action: "accept" | "reject"; note?: string } | { action: "counter"; amount: number; note?: string };
 
 export async function respondNegotiation(negotiationId: string, input: NegotiationResponse): Promise<Negotiation> {
   const body: Dict = { action: input.action };
@@ -848,6 +957,10 @@ export function normCancellationReview(v: unknown): CancellationReview {
 
 export async function requestCancellationReview(orderId: string, reason: string): Promise<CancellationReview> {
   return normCancellationReview(await http(`/marketplace/orders/${enc(orderId)}/cancellation-review`, { method: "POST", body: JSON.stringify({ reason: reason.trim() }) }));
+}
+
+export async function getCancellationReview(reviewId: string, signal?: AbortSignal): Promise<CancellationReview> {
+  return normCancellationReview(await http(`/call-center/marketplace/cancellation-reviews/${enc(reviewId)}`, { signal }));
 }
 
 export type ReviewList = { items: CancellationReview[]; count: number; total: number; raw: Dict };

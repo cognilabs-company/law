@@ -1,14 +1,14 @@
 import type { ApprNeed } from "./model";
 
 export type ApprStatus = "" | "submitted" | "in_review" | "approved" | "changes_requested" | "published";
-export type ApprQuery = { status: ApprStatus; ctor: string; group: string; need: ApprNeed; q: string; open: string };
+export type ApprQuery = { status: ApprStatus; ctor: string; group: string; need: ApprNeed; q: string; mine: boolean; open: string };
 export type ApprSearchParams = Record<string, string | string[] | undefined>;
 
 export const APPR_STATUS_VALUES: readonly Exclude<ApprStatus, "">[] = ["submitted", "in_review", "approved", "changes_requested", "published"];
 export const APPR_NEED_VALUES: readonly Exclude<ApprNeed, "">[] = ["review", "publish", "returned"];
 export const APPR_Q_MAX = 200;
 
-export const EMPTY_APPR_QUERY: ApprQuery = { status: "", ctor: "", group: "", need: "", q: "", open: "" };
+export const EMPTY_APPR_QUERY: ApprQuery = { status: "", ctor: "", group: "", need: "", q: "", mine: false, open: "" };
 
 const BASE = "/admin/studio/approvals";
 const CTOR_RE = /^[A-Za-z0-9][A-Za-z0-9-]{0,31}$/;
@@ -44,6 +44,7 @@ function normQuery(q: Partial<ApprQuery>): ApprQuery {
     group: matchOr(q.group, GROUP_RE),
     need: needOf(q.need),
     q: typeof q.q === "string" ? q.q.slice(0, APPR_Q_MAX) : "",
+    mine: q.mine === true,
     open: matchOr(q.open, OPEN_RE),
   };
 }
@@ -55,6 +56,7 @@ export function apprQueryOf(sp: ApprSearchParams): ApprQuery {
     group: first(sp.group),
     need: first(sp.need) as ApprNeed,
     q: first(sp.q),
+    mine: first(sp.mine) === "1",
     open: first(sp.open),
   });
 }
@@ -67,6 +69,7 @@ export function apprQueryString(q: Partial<ApprQuery>): string {
   if (n.ctor) p.set("ctor", n.ctor);
   if (n.status) p.set("status", n.status);
   if (n.q.trim()) p.set("q", n.q);
+  if (n.mine) p.set("mine", "1");
   if (n.open) p.set("open", n.open);
   return p.toString();
 }

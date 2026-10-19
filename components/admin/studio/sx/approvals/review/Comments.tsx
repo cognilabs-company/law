@@ -4,6 +4,7 @@ import "../../sx-core.css";
 import "../../sx-form.css";
 import "../../editor/sx-editor-panels.css";
 import "./sx-review.css";
+import "../sx-ap3.css";
 import { useId, useState, type FormEvent, type KeyboardEvent, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { studioErrorOf, type StudioVersion } from "@/lib/services/studio";
@@ -119,8 +120,10 @@ export function Comments({ state, canWrite, versions, onSend, onRetry }: Comment
             const ver = c.versionId ? verOf(c.versionId) : "";
             const who = c.author || t("sx.editor.comments.someone");
             const role = roleName(labels, c.authorRole);
+            const gone = c.raw.is_deleted === true || (typeof c.raw.deleted_at === "string" && !!c.raw.deleted_at);
+            const edited = !gone && (c.raw.is_edited === true || (typeof c.raw.edited_at === "string" && !!c.raw.edited_at));
             return (
-              <li key={c.id || `${c.createdAt}-${i}`} className="sx-ed-cmt__item">
+              <li key={c.id || `${c.createdAt}-${i}`} className="sx-ed-cmt__item" data-deleted={gone ? "" : undefined}>
                 <span className="sx-ed-av" aria-hidden="true">
                   {initials(c.author || "?")}
                 </span>
@@ -129,6 +132,7 @@ export function Comments({ state, canWrite, versions, onSend, onRetry }: Comment
                     <span className="sx-ed-cmt__who">{who}</span>
                     {role ? <span className="sx-ed-cmt__role">{role}</span> : null}
                     {ver ? <span className="sx-code">{t("sx.editor.versionTag", { v: ver })}</span> : null}
+                    {gone ? <span className="sx-ap3-tl__del">{t("sx.ap3.tl.deleted")}</span> : edited ? <span className="sx-ap3-cmt__ed">{t("sx.ap3.cmt.edited")}</span> : null}
                   </div>
                   <p className="sx-ed-cmt__text">{commentText(c.text, labels.stepDecision)}</p>
                   {c.createdAt ? (

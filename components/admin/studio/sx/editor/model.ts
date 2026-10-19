@@ -5,6 +5,7 @@ import type { SxErrors, SxStatusKey } from "../types";
 import { EN_WORDS, codeLike, isEnglishLooking } from "../labels";
 import type { StudioLabels } from "../useStudioLabels";
 import type { EditorMode, EditorPrimary, EditorState } from "./useEditorState";
+import type { SxLifecycle } from "./objectApi";
 
 export const SAVE_SHORTCUT = "Control+S Meta+S";
 
@@ -193,7 +194,7 @@ export function versionRollbackable(v: StudioVersion, d: StudioDetail | null): b
 
 const BACK_RE = /change|reject|declin|return|rework/;
 
-export function newestFirst(list: readonly StudioComment[]): StudioComment[] {
+export function newestFirst<T extends StudioComment>(list: readonly T[]): T[] {
   return list
     .map((c, i) => ({ c, i, t: parseServerTime(c.createdAt) }))
     .sort((a, b) => {
@@ -211,7 +212,7 @@ export function reviewNoteOf(d: StudioDetail | null, comments: readonly StudioCo
     .sort((a, b) => (parseServerTime(b.decidedAt) || 0) - (parseServerTime(a.decidedAt) || 0));
   const s = steps[0];
   if (s) return { text: s.comment, by: s.decidedBy, at: s.decidedAt, rejected: /reject|declin/.test(s.status) };
-  const c = newestFirst(comments ?? []).find((x) => /review|publish|admin/.test(x.authorRole.toLowerCase())) ?? null;
+  const c = newestFirst(comments ?? []).find((x) => Boolean(x.text) && /review|publish|admin/.test(x.authorRole.toLowerCase())) ?? null;
   if (c) return { text: c.text, by: c.author, at: c.createdAt, rejected: false };
   return null;
 }
@@ -254,9 +255,11 @@ export type ActionsInput = {
   hasObject: boolean;
   versions: number;
   newVersion: boolean;
+  lifecycle?: SxLifecycle;
 };
 
 const REVIEWING: ReadonlySet<string> = new Set(["submitted", "in_review"]);
+export const LOCKED_STATUSES: ReadonlySet<string> = new Set(["submitted", "in_review", "approved"]);
 const OPEN: ReadonlySet<string> = new Set(["draft", "changes_requested"]);
 
 export function actionsOf(input: ActionsInput): { can: EditorState["can"]; primary: EditorPrimary } {
@@ -266,6 +269,9 @@ export function actionsOf(input: ActionsInput): { can: EditorState["can"]; prima
   const publish = hasObject && status === "approved" && access.canPublish && !direct;
   const review = hasObject && REVIEWING.has(status) && access.canReview;
   const clone = access.canEdit && (mode === "object" || mode === "runtime-view" || mode === "runtime-edit");
+  const life = input.lifecycle;
+  const withdraw = hasObject && LOCKED_STATUSES.has(status) && (life?.canWithdraw ?? (Boolean(life?.withdrawUrl) || access.canEdit));
+  const restore = hasObject && status === "archived" && (life?.canRestore ?? (Boolean(life?.restoreUrl) || access.canEdit));
   const can: EditorState["can"] = {
     save,
     submit,
@@ -279,6 +285,8 @@ export function actionsOf(input: ActionsInput): { can: EditorState["can"]; prima
     upload: hasObject && access.canEdit && !readOnly,
     exportVersions: hasObject && access.canReview && input.versions > 0,
     edit: mode === "runtime-view" && access.canEdit,
+    withdraw,
+    restore,
   };
   let primary: EditorPrimary = null;
   if (blocked) primary = null;
@@ -287,6 +295,7 @@ export function actionsOf(input: ActionsInput): { can: EditorState["can"]; prima
   else if (publish && !dirty) primary = "publish";
   else if (review) primary = "openReview";
   else if (save && dirty) primary = "save";
+  else if (restore) primary = "restore";
   return { can, primary };
 }
 

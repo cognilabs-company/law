@@ -9,7 +9,7 @@ import { notify } from "@/lib/toast";
 import { IconMapPin } from "@/components/icons";
 import Menu, { menuHeading, menuSeparator, type MenuEntry } from "@/components/ui/Menu";
 import { useDeskEmbedded } from "@/components/portal/desk/deskMode";
-import { locationShareSnapshot, stopSharing, useLocationRunner, useLocationShare, useShareNow } from "@/lib/services/locationShare";
+import { locationShareSnapshot, stopSharing, syncLocationShare, useLocationRunner, useLocationShare, useShareNow } from "@/lib/services/locationShare";
 
 function clock(ms: number): string {
   const mins = Math.max(1, Math.round(ms / 60_000));
@@ -24,10 +24,16 @@ export default function LocationPill({ quiet, desk }: { quiet?: boolean; desk?: 
   const embedded = useDeskEmbedded();
   useLocationRunner(uid, !embedded, t("sellerSlot.locExpired"));
   const share = useLocationShare(uid);
-  const on = share.mode === "on";
+  const local = share.mode === "on";
+  const server = share.server;
+  const remote = !local && share.mode !== "stopping" && server?.enabled === true;
+  const on = local || remote;
   const stopFailed = share.error?.kind === "stop" && share.mode === "off";
   const now = useShareNow(on && !quiet);
-  const deskStop = Boolean(desk) && !embedded && on && !!uid;
+  useEffect(() => {
+    if (uid && !embedded) void syncLocationShare(uid);
+  }, [uid, embedded]);
+  const deskStop = Boolean(desk) && !embedded && local && !!uid;
   const deskText = t("sellerSlot.locDeskStopped");
   const failText = t("sellerSlot.locStopFailed");
   useEffect(() => {
@@ -46,8 +52,9 @@ export default function LocationPill({ quiet, desk }: { quiet?: boolean; desk?: 
     else notify.error(t("sellerSlot.locStopFailed"));
   };
 
-  const timed = on && !share.manual && share.until !== null;
-  const leftMs = timed && share.until !== null ? Math.max(60_000, share.until - now) : 0;
+  const until = remote ? (server?.until ?? null) : share.until;
+  const timed = on && (remote ? !server?.manual : !share.manual) && until !== null;
+  const leftMs = timed && until !== null ? Math.max(60_000, until - now) : 0;
   const left = timed ? fmtDuration(leftMs / 1000, locale) : "";
   const every = fmtDuration(share.policy.foregroundIntervalSec, locale);
   const label = stopFailed ? t("sellerSlot.locStopFailed") : timed ? t("sellerSlot.locPill", { time: left }) : t("sellerSlot.locPillManual");

@@ -60,8 +60,8 @@ export default function OrderActions({
   const chat = o.canStartChat ? "open" : o.roomId && o.chatReadOnly ? "view" : "";
   const calls = o.canCreateCall && o.callsAllowed && !CLOSED_PHASES.has(phase);
   const supplemental = seller && WORK_PHASES.has(phase) && !o.workPaused && !!(o.serviceId || o.packageId);
-  const complete = seller && o.canComplete && (phase === "in_progress" || (phase === "paid" && !o.canStart));
-  const cancel = view === "client" && o.canCancel && phase === "pending";
+  const complete = seller && o.canComplete && (o.explicit.complete ? !CLOSED_PHASES.has(phase) : phase === "in_progress" || (phase === "paid" && !o.canStart));
+  const cancel = o.canCancel && (o.explicit.cancel ? !CLOSED_PHASES.has(phase) && phase !== "review" : view === "client" && phase === "pending");
 
   if (!chat && !calls && !supplemental && !complete && !cancel) return null;
 
@@ -181,7 +181,7 @@ export default function OrderActions({
           open={cancelOpen}
           onClose={closeCancel}
           title={to("cancelTitle")}
-          description={to("cancelLead")}
+          description={o.paymentStatus === "paid" ? t("actions.cancelPaidLead") : to("cancelLead")}
           busy={cancelBusy}
           dirty={!!reason.trim()}
           size="sm"

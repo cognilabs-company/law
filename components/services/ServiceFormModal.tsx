@@ -26,6 +26,8 @@ import PriceField, { bandRecommended, digitsOf, priceAboveCap } from "./PriceFie
 import MarketPreviewModal from "./MarketPreviewModal";
 import { RequirementsLine } from "./RuntimeFactors";
 import { useRuntimeConfig } from "./useRuntimeConfig";
+import { useSellerConfig } from "./useSellerConfig";
+import type { RuntimePricing, SellerServiceConfig } from "@/lib/services/marketRuntime";
 import type { PreviewDraft } from "@/lib/marketPreview";
 import "./config.css";
 
@@ -53,6 +55,16 @@ function rememberPolicy(uid: string): void {
   } catch {
     return;
   }
+}
+
+function pricingWithConfig(p: RuntimePricing | null, cfg: SellerServiceConfig | null): RuntimePricing | null {
+  if (!cfg || (cfg.maximumPrice <= 0 && cfg.recommendedPrice <= 0)) return p;
+  const base: RuntimePricing = p ?? { recommendedPrice: 0, maximumPrice: 0, currency: "UZS", sellerCanPriceBelowRecommended: true, factors: [], formula: "" };
+  return {
+    ...base,
+    recommendedPrice: cfg.recommendedPrice > 0 ? cfg.recommendedPrice : base.recommendedPrice,
+    maximumPrice: cfg.maximumPrice > 0 ? cfg.maximumPrice : base.maximumPrice,
+  };
 }
 
 type BandLoad = { key: string; band: PriceBand | null; failed: boolean; advocate: boolean };
@@ -104,6 +116,8 @@ export default function ServiceFormModal({
   const editing = Boolean(persisted);
   const [service, setService] = useState<BackendService | null>(item?.service ?? null);
   const [price, setPrice] = useState(item?.selectedPrice ? String(item.selectedPrice) : "");
+  const [priceTouched, setPriceTouched] = useState(false);
+  const [seeded, setSeeded] = useState("");
   const [note, setNote] = useState(item?.experienceNote ?? "");
   const [status, setStatus] = useState<ServiceStatus>(item?.status ?? (rules?.closed ? "paused" : "active"));
   const [checking, setChecking] = useState(false);
@@ -127,7 +141,13 @@ export default function ServiceFormModal({
   const savedBand = persisted && persisted.id === serviceId ? persisted.limits : null;
   const runtimeLoad = useRuntimeConfig(serviceId);
   const runtime = runtimeLoad.config;
-  const pricing = runtime?.pricing ?? null;
+  const cfgLoad = useSellerConfig(serviceId, uid, self && Boolean(persisted) && persisted?.id === serviceId);
+  const cfg = cfgLoad.config;
+  const pricing = pricingWithConfig(runtime?.pricing ?? null, cfg);
+  if (cfg && seeded !== cfg.serviceId) {
+    setSeeded(cfg.serviceId);
+    if (cfg.selectedPrice > 0 && !priceTouched) setPrice(String(cfg.selectedPrice));
+  }
   const savedComplete = Boolean(savedBand && savedBand.base !== null && savedBand.modifiers !== null);
 
   useEffect(() => {
@@ -155,12 +175,14 @@ export default function ServiceFormModal({
   const advocateBlocked = Boolean(loaded?.advocate) || err?.kind === "advocateOnly";
   const remembered = serviceId ? lastSellerConfig(uid, serviceId) : null;
   const explanation = remembered && remembered.selectedPrice === n && (remembered.priceExplanation || remembered.priceExplanationLines.length) ? { text: remembered.priceExplanation, lines: remembered.priceExplanationLines } : null;
-  const showNeg = self && Boolean(runtime?.negotiationAvailable) && configSupport() !== "no";
-  const negInitial = persisted && persisted.id === serviceId && persisted.negotiationAllowed !== null ? persisted.negotiationAllowed : (remembered?.negotiationAllowed ?? null);
+  const showNeg = self && Boolean(cfg?.negotiationAvailable ?? runtime?.negotiationAvailable) && configSupport() !== "no";
+  const negInitial = cfg && cfg.negotiationAllowed !== null ? cfg.negotiationAllowed : persisted && persisted.id === serviceId && persisted.negotiationAllowed !== null ? persisted.negotiationAllowed : (remembered?.negotiationAllowed ?? null);
   const negTouched = neg !== null && neg.key === serviceId;
   const negOn = negTouched ? neg.on : negInitial === true;
   const sendNeg = showNeg && (negTouched || negInitial !== null);
-  const activeLocked = Boolean(rules?.closed) && status !== "active";
+  const cfgRulesOpen = cfg?.rulesAccepted === false;
+  const rulesClosed = Boolean(rules?.closed) || cfgRulesOpen;
+  const activeLocked = rulesClosed && status !== "active";
 
   const errText = (e: ServiceError) => {
     if (e.kind === "range") return t("limits.serverRange", { min: som(e.min), max: som(e.max) });
@@ -179,7 +201,14 @@ export default function ServiceFormModal({
 
   const applyConfigError = (error: ConfigError, rolledBack: boolean, id: string) => {
     if (error.field === "price") {
-      const text = error.code === "seller_price_above_maximum" && error.maximum ? t("config.aboveMax", { max: som(error.maximum) }) : codeText(error.code) || error.message || t("config.configFailed");
+      const text =
+        error.code === "seller_price_above_maximum" && error.maximum
+          ? t("config.aboveMax", { max: som(error.maximum) })
+          : error.code === "seller_price_below_minimum"
+            ? error.minimum
+              ? t("config.belowMin", { min: som(error.minimum) })
+              : error.message || t("config.belowMinNoValue")
+            : codeText(error.code) || error.message || t("config.configFailed");
       setCfgErr({ price: text, form: t("config.partialSaved") });
       return;
     }
@@ -208,9 +237,9 @@ export default function ServiceFormModal({
     setStatusErr("");
     const enabling = status === "active" && (!persisted || persisted.status !== "active");
     if (self && rules && enabling) {
-      if (rules.closed) {
+      if (rulesClosed) {
         setStatusErr(t("rules.lockReason"));
-        rules.open(undefined, service.id);
+        rules.open(cfgRulesOpen && cfg?.missingRuleIds.length ? cfg.missingRuleIds : undefined, service.id);
         return;
       }
       setChecking(true);
@@ -346,6 +375,7 @@ export default function ServiceFormModal({
               value={price}
               onChange={(v) => {
                 setPrice(digitsOf(v));
+                setPriceTouched(true);
                 setPriceReq(false);
                 if (err?.kind === "range") setErr(null);
                 if (cfgErr?.price) setCfgErr(null);
@@ -355,7 +385,7 @@ export default function ServiceFormModal({
               basePrice={service?.price ?? 0}
               error={priceErr}
               runtime={pricing}
-              runtimeState={runtimeLoad.state}
+              runtimeState={runtimeLoad.state === "failed" && pricing ? "ready" : runtimeLoad.state}
               explanation={explanation}
             />
           </section>
@@ -456,7 +486,7 @@ export default function ServiceFormModal({
               <p id={`${ids}-lock`} className="svcfg-lock">
                 <IconLock aria-hidden="true" />
                 <span>{t("rules.lockReason")}</span>
-                <button type="button" className="svcfg-lock__btn" onClick={() => rules.open(undefined, serviceId)}>
+                <button type="button" className="svcfg-lock__btn" onClick={() => rules.open(cfgRulesOpen && cfg?.missingRuleIds.length ? cfg.missingRuleIds : undefined, serviceId)}>
                   {t("rules.lockAction")}
                 </button>
               </p>

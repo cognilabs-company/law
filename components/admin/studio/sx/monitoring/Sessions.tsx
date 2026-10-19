@@ -48,7 +48,10 @@ export type SessionsProps = {
   loading: boolean;
   whatOf: (s: MonSession) => string;
   roleOf: (role: string) => string;
+  server?: MonServerPage;
 };
+
+export type MonServerPage = { has: boolean; loaded: number; total: number; busy: boolean; error: unknown; onMore: () => void };
 
 type Row = { s: MonSession; objId: string; objName: string; acts: { k: string; n: number }[]; saves: number };
 
@@ -247,6 +250,17 @@ export function Sessions(p: SessionsProps): ReactElement {
         <div className="sx-mon-sessions__more">
           <SxButton variant="secondary" size="sm" icon={ChevronDownIcon} onClick={() => setLimit((v) => v + PAGE)} aiId={aiId(AI, "more")}>
             {t("sx.mon.more", { n: filtered.length - rows.length })}
+          </SxButton>
+        </div>
+      ) : p.server?.has && !p.loading ? (
+        <div className="sx-mon-sessions__more">
+          {p.server.error && !p.server.busy ? (
+            <p className="sx-mon-sessions__err" role="alert">
+              {t("sx.ap3.more.fail")}
+            </p>
+          ) : null}
+          <SxButton variant="secondary" size="sm" icon={ChevronDownIcon} busy={p.server.busy} onClick={p.server.onMore} aiId={aiId(AI, "server-more")}>
+            {t("sx.mon.page.more", { n: Math.max(0, p.server.total - p.server.loaded) })}
           </SxButton>
         </div>
       ) : null}

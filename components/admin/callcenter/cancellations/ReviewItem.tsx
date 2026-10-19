@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type ReactElement } from "react";
+import { useEffect, useId, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { SxButton, SxLinkButton } from "@/components/admin/studio/sx/Button";
 import { aiId } from "@/lib/ai/ids";
@@ -9,7 +9,7 @@ import { saveBlob } from "@/lib/download";
 import { humanize } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import { getSecureMessageFileAt } from "@/lib/services/backend";
-import { reviewOrderOf, reviewPaymentOf, reviewResolutionOf, type CancellationReview, type ChecklistItem, type MarketFileRef, type ReviewAction } from "@/lib/services/marketRuntime";
+import { getCancellationReview, reviewOrderOf, reviewPaymentOf, reviewResolutionOf, type CancellationReview, type ChecklistItem, type MarketFileRef, type ReviewAction } from "@/lib/services/marketRuntime";
 import type { SxIcon } from "@/components/admin/studio/sx/types";
 import {
   RotateCcwIcon,
@@ -32,7 +32,7 @@ import {
   ArrowRightLeftIcon,
   glyph,
 } from "./icons";
-import { CCX_AI, checklistSummary, isOpenReview, orderPhaseKey, orderPhaseTone, reviewTone, staffChatHref } from "./model";
+import { CCX_AI, checklistSummary, isOpenReview, mergeReview, orderPhaseKey, orderPhaseTone, reviewTone, staffChatHref } from "./model";
 
 export const REVIEW_ACTION_ICON: Readonly<Record<ReviewAction, SxIcon>> = {
   continue: ArrowRightIcon,
@@ -123,7 +123,29 @@ function ResultFile({ f, ai }: { f: MarketFileRef; ai: string }): ReactElement {
   );
 }
 
-export function ReviewItem({ review, onResolve }: ReviewItemProps): ReactElement {
+type Detail = { key: string; state: "loading" | "ready" | "error"; review: CancellationReview | null };
+
+function useReviewDetail(row: CancellationReview, active: boolean): Detail | null {
+  const key = `${row.id}|${row.status}|${row.action}|${row.resolvedAt}`;
+  const [detail, setDetail] = useState<Detail | null>(null);
+  useEffect(() => {
+    if (!active || !row.id) return;
+    const ctrl = new AbortController();
+    getCancellationReview(row.id, ctrl.signal).then(
+      (r) => {
+        if (!ctrl.signal.aborted) setDetail({ key, state: "ready", review: r });
+      },
+      () => {
+        if (!ctrl.signal.aborted) setDetail({ key, state: "error", review: null });
+      },
+    );
+    return () => ctrl.abort();
+  }, [active, row.id, key]);
+  if (!active) return detail && detail.key === key ? detail : null;
+  return detail && detail.key === key ? detail : { key, state: "loading", review: null };
+}
+
+export function ReviewItem({ review: row, onResolve }: ReviewItemProps): ReactElement {
   const t = useTranslations("admin.callCenter.cancellations");
   const tp = useTranslations("marketplace.orderDetail.phase");
   const troles = useTranslations("marketplace.roles");
@@ -132,6 +154,9 @@ export function ReviewItem({ review, onResolve }: ReviewItemProps): ReactElement
   const remaining = useRemaining();
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [expanded, setExpanded] = useState(false);
+  const [wanted, setWanted] = useState(false);
+  const detail = useReviewDetail(row, expanded || wanted);
+  const review = mergeReview(row, detail?.review ?? null);
   const ctx = reviewOrderOf(review);
   const pay = reviewPaymentOf(review);
   const res = reviewResolutionOf(review);
@@ -282,7 +307,10 @@ export function ReviewItem({ review, onResolve }: ReviewItemProps): ReactElement
         </dl>
         <div className="ccx-acts">
           {open ? (
-            <SxButton variant="primary" icon={ArrowRightIcon} aria-label={t("item.resolveAria", { work })} aiId={`${ai}.resolve`} aiLabel={t("item.resolve")} onClick={() => onResolve(review)}>
+            <SxButton variant="primary" icon={ArrowRightIcon} aria-label={t("item.resolveAria", { work })} aiId={`${ai}.resolve`} aiLabel={t("item.resolve")} onClick={() => {
+                setWanted(true);
+                onResolve(review);
+              }}>
               {t("item.resolve")}
             </SxButton>
           ) : null}
@@ -317,7 +345,8 @@ export function ReviewItem({ review, onResolve }: ReviewItemProps): ReactElement
         >
           {expanded ? t("item.less") : t("item.more")}
         </SxButton>
-        <div id={detailsId} className="ccx-details" hidden={!expanded}>
+        <div id={detailsId} className="ccx-details" hidden={!expanded} aria-busy={expanded && detail?.state === "loading" ? true : undefined}>
+          {expanded && detail?.state === "error" ? <p className="ccx-muted">{t("item.detailError")}</p> : null}
           <section aria-labelledby={`${uid}-ck`} className="ccx-sec">
             <h4 id={`${uid}-ck`} className="ccx-sec__title">
               {glyph(ListChecksIcon, { size: 16 })}

@@ -153,6 +153,21 @@ export function resolveFailureOf(e: unknown): ResolveFailure {
   return { kind: "generic", key: "dialog.errorText", server, refresh: false };
 }
 
+const hasValue = (v: unknown): boolean => {
+  if (v === "" || v === null || v === undefined || v === 0) return false;
+  if (Array.isArray(v)) return v.length > 0;
+  if (typeof v === "object") return Object.keys(v as object).length > 0;
+  return true;
+};
+
+export function mergeReview(base: CancellationReview, full: CancellationReview | null): CancellationReview {
+  if (!full || (full.id && full.id !== base.id)) return base;
+  const out: Record<string, unknown> = { ...base };
+  for (const [k, v] of Object.entries(full)) if (k !== "raw" && hasValue(v)) out[k] = v;
+  out.raw = { ...base.raw, ...full.raw };
+  return out as CancellationReview;
+}
+
 export function staffChatHref(roomId: string, workId: string, serviceTitle: string): string {
   const room = roomId.trim();
   if (!room) return "";

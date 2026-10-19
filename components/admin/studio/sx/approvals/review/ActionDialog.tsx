@@ -7,7 +7,7 @@ import "./sx-review.css";
 import { useId, useState, type FormEvent, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { logApiError } from "@/lib/http";
-import { publishStudioObject, reviewStudioObject, type StudioDetail } from "@/lib/services/studio";
+import { reviewStudioObject, type StudioDetail } from "@/lib/services/studio";
 import { SxButton, type SxButtonVariant } from "../../Button";
 import { Field } from "../../form/Field";
 import { TextArea } from "../../form/TextArea";
@@ -16,6 +16,7 @@ import type { SxIcon } from "../../types";
 import { Undo2Icon, CircleCheckIcon, BanIcon, RocketIcon } from "../../icons";
 import { SxDialog, SxDialogError } from "../../editor/SxDialog";
 import { VersionLine } from "../../editor/drawer/VersionsTab";
+import { publishApproval, publishUrlOf } from "../approvalsApi";
 import { actionErrorOf, allowedBy, decisionOf, needsComment, type ActionError, type ReviewKind } from "./actions";
 import { WarningNote } from "./ChangeList";
 import type { ReviewState } from "./useReview";
@@ -87,7 +88,7 @@ export function ActionDialog({ kind, state, changed, onClose, onDone, onStale, o
     setErr(null);
     try {
       const note = text.trim();
-      const res = kind === "publish" ? await publishStudioObject(state.id, { note }) : await reviewStudioObject(state.id, { decision: decisionOf(kind), comment: note });
+      const res = kind === "publish" ? await publishApproval(state.id, publishUrlOf(state.detail, state.id), note) : await reviewStudioObject(state.id, { decision: decisionOf(kind), comment: note });
       busy(false);
       onDone(kind, res && res.id ? res : null, origin);
     } catch (ex) {

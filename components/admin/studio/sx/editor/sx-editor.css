@@ -254,3 +254,9 @@
     min-height: 44px;
   }
 }
+
+.sx-ed__alert-acts {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

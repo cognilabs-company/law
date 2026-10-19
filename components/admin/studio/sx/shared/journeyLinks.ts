@@ -9,6 +9,7 @@ const LOCALE_PREFIX = /^\/(uz|ru|en)(?=[/?#]|$)/i;
 const STUDIO_PREFIX = "/admin/studio/";
 const SCHEME = /[a-z][a-z0-9+.-]*:/i;
 const UNSAFE = /[\\\s\p{Cc}]/u;
+const BACKEND_RESUME = /^\/admin\/studio\/journeys(?:[/?#]|$)/i;
 
 export function journeyTypeOfCode(code: string): StudioJourneyType | null {
   const c = String(code ?? "").trim().toUpperCase();
@@ -26,6 +27,7 @@ export function creationJourneyHref(j: Pick<StudioCreationJourney, "id" | "resum
   const path = raw.replace(LOCALE_PREFIX, "");
   if (!path.startsWith(STUDIO_PREFIX) || path.length === STUDIO_PREFIX.length) return fallbackHref(j.id);
   if (path.includes("..") || path.includes("//") || SCHEME.test(path) || UNSAFE.test(path)) return fallbackHref(j.id);
+  if (BACKEND_RESUME.test(path)) return fallbackHref(j.id);
   return path;
 }
 

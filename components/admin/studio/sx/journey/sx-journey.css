@@ -23,11 +23,6 @@
 .sx-jr-list {
   scroll-margin-top: 96px;
 }
-.sx-jr-list__count {
-  font-size: 13px;
-  line-height: 18px;
-  color: var(--sx-muted);
-}
 .sx-jr-list__empty {
   margin: 0;
   padding: 16px 20px;
@@ -36,14 +31,41 @@
   color: var(--sx-muted);
 }
 
-.sx-jr-done {
-  display: grid;
-  gap: 12px;
-  justify-items: start;
-}
-.sx-jr-done > div {
-  width: 100%;
+.sx-jr-list__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--sx-line);
   min-width: 0;
+  overflow-x: auto;
+}
+.sx-jr-list__note {
+  padding: 12px 20px 0;
+}
+
+.sx-jr-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--sx-muted);
+}
+
+.sx-jr-review__opt {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--sx-muted);
+}
+.sx-jr-review__missing {
+  border-radius: var(--sx-r-sm);
+}
+.sx-jr-review__missing:focus-visible {
+  outline: none;
+  box-shadow: var(--sx-ring);
 }
 
 .sx-jr-cell__title {
@@ -248,6 +270,12 @@
 @media (max-width: 640px) {
   .sx .sx-jr__panel.sx-panel {
     padding: 16px;
+  }
+  .sx-jr-list__bar {
+    padding: 12px 16px;
+  }
+  .sx-jr-list__note {
+    padding: 12px 16px 0;
   }
   .sx-jr-cellprog__bar {
     inline-size: 64px;

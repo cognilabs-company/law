@@ -10,13 +10,16 @@ import { aiId } from "@/lib/ai/ids";
 import type { StudioConstructor } from "@/lib/services/studio";
 import { SxLinkButton } from "../../Button";
 import { enterStyle } from "../../hooks";
-import { ArrowRightIcon, CheckIcon, ChevronDownIcon, CircleCheckIcon, CircleDashedIcon, LayersIcon, LockIcon, PlusIcon, ShieldCheckIcon, ctorIcon, glyph } from "../../icons";
+import { ArrowRightIcon, CheckIcon, ChevronDownIcon, CircleCheckIcon, CircleDashedIcon, GlobeIcon, LayersIcon, LockIcon, PlusIcon, ShieldCheckIcon, ctorIcon, glyph } from "../../icons";
 import { SxGuideButton } from "../../layout/Guide";
 import { journeyTypeOfCode } from "../../shared/journeyLinks";
 import { StartJourneyButton } from "../../shared/StartJourney";
+import { sxStatus } from "../../status";
 import type { StudioLabels } from "../../useStudioLabels";
 import type { GroupStepRow } from "../groupModel";
+import { LastActivity } from "../LastActivity";
 import { useStepStateText } from "../StepMap";
+import type { CtorSummary } from "../summary";
 import { StepRecords } from "./StepRecords";
 
 const enc = encodeURIComponent;
@@ -66,8 +69,16 @@ function Node({ row, labels }: { row: GroupStepRow; labels: StudioLabels }) {
 }
 
 const STATE_ICON = { done: CircleCheckIcon, next: ArrowRightIcon, blocked: LockIcon, open: CircleDashedIcon } as const;
+const STATUS_ORDER: readonly string[] = ["draft", "changes_requested", "submitted", "in_review", "approved", "published"];
 
-function StepItem({ row, after, index, group, labels, records, canEdit }: { row: GroupStepRow; after: GroupStepRow | null; index: number; group: string; labels: StudioLabels; records: number | null; canEdit: boolean }) {
+export function statusChipsOf(stats: CtorSummary | null): { status: string; n: number }[] {
+  if (!stats) return [];
+  return STATUS_ORDER.map((status) => ({ status, n: stats.byStatus[status] ?? 0 })).filter((x) => x.n > 0);
+}
+
+type StepItemProps = { row: GroupStepRow; after: GroupStepRow | null; index: number; group: string; labels: StudioLabels; records: number | null; stats: CtorSummary | null; canEdit: boolean };
+
+function StepItem({ row, after, index, group, labels, records, stats, canEdit }: StepItemProps) {
   const t = useTranslations("studio");
   const stateText = useStepStateText();
   const [open, setOpen] = useState(false);
@@ -78,6 +89,7 @@ function StepItem({ row, after, index, group, labels, records, canEdit }: { row:
   const jt = journeyTypeOfCode(row.code);
   const canCreate = canEdit && row.state !== "blocked";
   const href = `/admin/studio/c/${enc(row.code)}`;
+  const chips = statusChipsOf(stats);
   return (
     <li className="sx-tl__item sx-enter" data-state={row.state} style={enterStyle(Math.min(index, 12))}>
       <div className="sx-tl__rail" aria-hidden="true">
@@ -112,6 +124,18 @@ function StepItem({ row, after, index, group, labels, records, canEdit }: { row:
               <span>{t("sx.hm.card.records", { n: records })}</span>
             </span>
           ) : null}
+          {stats?.runtime ? (
+            <span className="sx-tl__mchip sx-num">
+              {glyph(GlobeIcon, { size: 13 })}
+              <span>{t("sx.hm.card.runtime", { n: stats.runtime })}</span>
+            </span>
+          ) : null}
+          {chips.map((c) => (
+            <span key={c.status} className="sx-tl__mchip sx-tl__schip sx-num" data-tone={sxStatus(c.status).tone} title={t("sx.gp.statusN", { label: labels.status(c.status), n: c.n })}>
+              <span>{labels.status(c.status)}</span>
+              <span className="sx-tl__schip-n">{labels.num(c.n)}</span>
+            </span>
+          ))}
           {row.ctor?.approvalRequired ? (
             <span className="sx-tl__mchip">
               {glyph(ShieldCheckIcon, { size: 13 })}
@@ -120,6 +144,7 @@ function StepItem({ row, after, index, group, labels, records, canEdit }: { row:
           ) : null}
           <span className="sx-tl__mchip sx-tl__code">{row.code}</span>
         </div>
+        {stats?.lastAt ? <LastActivity last={{ at: stats.lastAt, objectId: stats.lastObjectId, code: stats.code }} aiId={aiId(base, "last")} className="sx-tl__last" /> : null}
         {row.state === "blocked" ? <BlockedLine row={row} labels={labels} group={group} /> : null}
         <div className="sx-tl__actions">
           <SxLinkButton variant={row.state === "next" ? "primary" : "secondary"} size="sm" href={href} iconEnd={ArrowRightIcon} aiId={aiId(base, "open")} aiLabel={`${t("sx.ui.open")}: ${name}`}>
@@ -157,11 +182,21 @@ function StepItem({ row, after, index, group, labels, records, canEdit }: { row:
   );
 }
 
-export function StepTimeline({ rows, group, labels, recordsOf, canEdit, label }: { rows: readonly GroupStepRow[]; group: string; labels: StudioLabels; recordsOf: (row: GroupStepRow) => number | null; canEdit: boolean; label: string }): ReactElement {
+export type StepTimelineProps = {
+  rows: readonly GroupStepRow[];
+  group: string;
+  labels: StudioLabels;
+  recordsOf: (row: GroupStepRow) => number | null;
+  statsOf?: (row: GroupStepRow) => CtorSummary | null;
+  canEdit: boolean;
+  label: string;
+};
+
+export function StepTimeline({ rows, group, labels, recordsOf, statsOf, canEdit, label }: StepTimelineProps): ReactElement {
   return (
     <ol className="sx-tl" aria-label={label} data-ai-id="admin.studio.group.steps" data-ai-type="list" data-ai-label={label}>
       {rows.map((r, i) => (
-        <StepItem key={r.code} row={r} after={rows[i + 1] ?? null} index={i} group={group} labels={labels} records={recordsOf(r)} canEdit={canEdit} />
+        <StepItem key={r.code} row={r} after={rows[i + 1] ?? null} index={i} group={group} labels={labels} records={recordsOf(r)} stats={statsOf?.(r) ?? null} canEdit={canEdit} />
       ))}
     </ol>
   );

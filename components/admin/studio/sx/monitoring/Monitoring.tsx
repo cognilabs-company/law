@@ -115,13 +115,14 @@ function Body({ m, now, open, loading, period, dateFrom, dateTo, setPeriod, setD
   const evScoped = evRange ? evRange.filter((e) => (!user || e.userId === user) && (!ctor || objCtor.get(e.targetId) === ctor)) : null;
   const plain = !user && !ctor;
 
+  const whole = plain && m.hasMore && m.summary ? m.summary : null;
   const kpi: MonKpiData = {
-    users: new Set(scoped.map(uidOf)).size,
-    online: new Set(scoped.filter((s) => s.live).map(uidOf)).size,
-    sessions: scoped.filter((s) => !s.short).length,
+    users: whole ? whole.users : new Set(scoped.map(uidOf)).size,
+    online: whole ? whole.online : new Set(scoped.filter((s) => s.live).map(uidOf)).size,
+    sessions: whole ? Math.max(0, whole.sessions - shortCount) : scoped.filter((s) => !s.short).length,
     short: shortCount,
-    sec: scoped.reduce((n, s) => n + s.sec, 0),
-    saves: scoped.reduce((n, s) => n + s.a.saveCount, 0),
+    sec: whole ? whole.durationSeconds : scoped.reduce((n, s) => n + s.sec, 0),
+    saves: whole ? whole.saveCount : scoped.reduce((n, s) => n + s.a.saveCount, 0),
     savedObjects: new Set(scoped.filter((s) => s.a.saveCount > 0 && s.a.objectId).map((s) => s.a.objectId)).size,
     objects: evScoped ? evScoped.filter((e) => e.action === "create").length : plain && m.summary ? m.summary.objectsCreated : null,
     submitted: evScoped ? evScoped.filter((e) => e.action === "submit").length : plain && m.summary ? m.summary.submittedForApproval : null,
@@ -268,6 +269,11 @@ function Body({ m, now, open, loading, period, dateFrom, dateTo, setPeriod, setD
           {t("sx.ui.loadFail")}
         </SxNote>
       ) : null}
+      {m.hasMore && !loading ? (
+        <SxNote tone="info" title={t("sx.mon.page.title", { n: m.rows.length, total: m.total })}>
+          {t("sx.mon.page.text")}
+        </SxNote>
+      ) : null}
       <div className="sx-mon-bento">
         <NowCard open={open} live={live} lastOff={lastOff} recent={recent} people={topPeople} now={now} loading={loading} whatOf={whatOf} />
         <MonKpis data={kpi} loading={loading} />
@@ -298,6 +304,7 @@ function Body({ m, now, open, loading, period, dateFrom, dateTo, setPeriod, setD
         loading={loading}
         whatOf={whatOf}
         roleOf={roleOf}
+        server={{ has: m.hasMore, loaded: m.rows.length, total: m.total, busy: m.moreBusy, error: m.moreError, onMore: () => void m.more() }}
       />
     </div>
   );

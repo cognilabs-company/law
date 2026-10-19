@@ -19,7 +19,7 @@ import { parseServerTime } from "@/lib/http";
 import { marketErrorInfo, priceCapOf, proposeNegotiation, respondNegotiation, type Negotiation, type NegotiationResponse } from "@/lib/services/marketRuntime";
 import { CheckIcon, CircleCheckIcon, TimerIcon, CoinsIcon, HandCoinsIcon, HourglassIcon, BanIcon, XIcon, glyph } from "./icons";
 import { SECTION_ID, type OrderSectionProps } from "./types";
-import { counterProblem, negotiationActions, negotiationErrorKey, negotiationStateOf, pickNegotiation, proposalProblem, showNegotiation, type NegotiationState } from "./negotiationRules";
+import { canProposeNegotiation, counterProblem, negotiationActions, negotiationCap, negotiationErrorKey, negotiationStateOf, pickNegotiation, proposalProblem, showNegotiation, type NegotiationState } from "./negotiationRules";
 import { noteNegotiation, useNotedNegotiation } from "./negotiationStore";
 
 const NOTE_MAX = 500;
@@ -89,7 +89,8 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
 
   const ai = `${aiBase}.negotiation`;
   const cur = (v: number) => `${fmtUzs(v)} ${!o.currency || o.currency === "UZS" ? te("currency") : o.currency}`;
-  const cap = runtime ? priceCapOf(runtime.pricing) : null;
+  const cap = negotiationCap(runtime ? priceCapOf(runtime.pricing) : null, n);
+  const mayPropose = canProposeNegotiation(o);
   const errParams = { price: cur(o.price), max: cap !== null ? cur(cap) : "—" };
   const amountId = `${uid}-amount`;
   const noteId = `${uid}-note`;
@@ -320,7 +321,13 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
               {t(st === "rejected" ? "negotiation.rejectedText" : "negotiation.expiredText")}
             </SxNote>
           ) : null}
-          {proposeForm}
+          {mayPropose ? (
+            proposeForm
+          ) : (
+            <SxNote tone="info" role="note">
+              {t("negotiation.closedText")}
+            </SxNote>
+          )}
         </>
       );
     } else if (st === "proposed" && n) {
@@ -338,6 +345,7 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
                 {t("negotiation.acceptCounter")}
               </SxButton>
             ) : null}
+            {mayPropose ? (
             <SxButton
               variant={canAccept ? "secondary" : "primary"}
               icon={HandCoinsIcon}
@@ -351,6 +359,7 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
             >
               {t("negotiation.proposeAgain")}
             </SxButton>
+            ) : null}
           </div>
         </>
       );

@@ -2,6 +2,7 @@
 
 import "../sx-core.css";
 import "../sx-form.css";
+import "./sx-picker-more.css";
 import {
   Fragment,
   useEffect,
@@ -15,6 +16,7 @@ import {
   type ReactElement,
   type ReactNode,
   type RefObject,
+  type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
@@ -26,7 +28,8 @@ import { useDebouncedValue } from "../hooks";
 import { RefreshCwIcon, ChevronDownIcon, CheckIcon, SearchIcon, XIcon, glyph } from "../icons";
 import type { SxIcon, SxOption } from "../types";
 import { useStudioLabels } from "../useStudioLabels";
-import { filterOptions, isNavKey, navIndex, optionRuns, remoteOptions, toggleValue, typeAhead, type OptionPages, type TypeBuffer } from "./logic";
+import { dedupeOptions, filterOptions, isNavKey, navIndex, optionRuns, remoteOptions, toggleValue, typeAhead, type OptionPages, type TypeBuffer } from "./logic";
+import type { SxOptionPage } from "./useReferenceOptions";
 
 type PickerBase = {
   id?: string;
@@ -34,6 +37,8 @@ type PickerBase = {
   placeholder?: string;
   options?: readonly SxOption[];
   loadOptions?: (query: string, signal: AbortSignal) => Promise<SxOption[]>;
+  loadPage?: (query: string, offset: number, signal: AbortSignal) => Promise<SxOptionPage>;
+  indentOf?: (o: SxOption) => number;
   resolveOptions?: (values: readonly string[], signal: AbortSignal) => Promise<SxOption[]>;
   searchable?: boolean;
   clearable?: boolean;
@@ -81,6 +86,9 @@ function codeTag(o: SxOption | undefined): string {
   return code && code !== o?.label.trim() ? code : "";
 }
 
+type PageMeta = { total: number | null; hasMore: boolean };
+type MoreInfo = { shown: number; total: number | null; hasMore: boolean; loading: boolean; failed: boolean; onMore: () => void };
+
 function omit(map: Readonly<Record<string, true>>, keys: readonly string[]): Record<string, true> {
   const out: Record<string, true> = {};
   for (const [k, v] of Object.entries(map)) if (!keys.includes(k)) out[k] = v;
@@ -94,6 +102,8 @@ export function Picker(props: PickerProps): ReactElement {
     placeholder,
     options,
     loadOptions,
+    loadPage,
+    indentOf,
     resolveOptions,
     searchable: searchableProp,
     clearable: clearableProp,
@@ -119,7 +129,7 @@ export function Picker(props: PickerProps): ReactElement {
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const baseId = id ?? `sxp-${uid}`;
   const listId = `${baseId}-list`;
-  const isAsync = !!loadOptions;
+  const isAsync = !!loadOptions || !!loadPage;
   const searchable = searchableProp ?? (isAsync || (options?.length ?? 0) > 7);
 
   const [open, setOpen] = useState(false);
@@ -130,6 +140,10 @@ export function Picker(props: PickerProps): ReactElement {
   const [failed, setFailed] = useState<Readonly<Record<string, true>>>({});
   const [retry, setRetry] = useState(0);
   const [resolved, setResolved] = useState<Readonly<Record<string, SxOption>>>({});
+  const [meta, setMeta] = useState<Readonly<Record<string, PageMeta>>>({});
+  const [more, setMore] = useState<{ key: string; state: "loading" | "failed" } | null>(null);
+  const pageRef = useRef(loadPage);
+  const moreCtrl = useRef<AbortController | null>(null);
   const boxRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const tagsRef = useRef<HTMLUListElement>(null);
@@ -140,8 +154,11 @@ export function Picker(props: PickerProps): ReactElement {
 
   useLayoutEffect(() => {
     loadRef.current = loadOptions;
+    pageRef.current = loadPage;
     resolveRef.current = resolveOptions;
   });
+
+  useEffect(() => () => moreCtrl.current?.abort(), []);
 
   const values = valuesOf(props);
   const valuesKey = values.join(SEP);
@@ -154,11 +171,15 @@ export function Picker(props: PickerProps): ReactElement {
 
   useEffect(() => {
     const load = loadRef.current;
-    if (!open || !isAsync || !load || haveFirst || failedFirst) return;
+    const page = pageRef.current;
+    if (!open || !isAsync || (!load && !page) || haveFirst || failedFirst) return;
     const ctrl = new AbortController();
-    load("", ctrl.signal).then(
-      (rows) => {
-        if (!ctrl.signal.aborted) setPages((p) => ({ ...p, "": rows }));
+    const run: Promise<SxOptionPage> = page ? page("", 0, ctrl.signal) : (load as NonNullable<typeof load>)("", ctrl.signal).then((rows) => ({ options: rows, total: null, hasMore: false }));
+    run.then(
+      (res) => {
+        if (ctrl.signal.aborted) return;
+        setPages((p) => ({ ...p, "": res.options }));
+        setMeta((m) => ({ ...m, "": { total: res.total, hasMore: res.hasMore } }));
       },
       () => {
         if (!ctrl.signal.aborted) setFailed((f) => ({ ...f, "": true }));
@@ -169,11 +190,15 @@ export function Picker(props: PickerProps): ReactElement {
 
   useEffect(() => {
     const load = loadRef.current;
-    if (!open || !isAsync || !load || !dq || haveQuery || failedQuery) return;
+    const page = pageRef.current;
+    if (!open || !isAsync || (!load && !page) || !dq || haveQuery || failedQuery) return;
     const ctrl = new AbortController();
-    load(dq, ctrl.signal).then(
-      (rows) => {
-        if (!ctrl.signal.aborted) setPages((p) => ({ ...p, [dq]: rows }));
+    const run: Promise<SxOptionPage> = page ? page(dq, 0, ctrl.signal) : (load as NonNullable<typeof load>)(dq, ctrl.signal).then((rows) => ({ options: rows, total: null, hasMore: false }));
+    run.then(
+      (res) => {
+        if (ctrl.signal.aborted) return;
+        setPages((p) => ({ ...p, [dq]: res.options }));
+        setMeta((m) => ({ ...m, [dq]: { total: res.total, hasMore: res.hasMore } }));
       },
       () => {
         if (!ctrl.signal.aborted) setFailed((f) => ({ ...f, [dq]: true }));
@@ -235,6 +260,41 @@ export function Picker(props: PickerProps): ReactElement {
   );
   const pending = isAsync && !failed[q] && !(q ? pages[q] : pages[""]);
   const loadFailed = isAsync && !!failed[q];
+  const metaKey = q ? (q === dq && pages[dq] ? dq : null) : "";
+  const metaNow = metaKey !== null ? meta[metaKey] : undefined;
+
+  const loadMore = (key: string) => {
+    const page = pageRef.current;
+    const have = pages[key];
+    if (!page || !have || more?.state === "loading") return;
+    moreCtrl.current?.abort();
+    const ctrl = new AbortController();
+    moreCtrl.current = ctrl;
+    setMore({ key, state: "loading" });
+    page(key, have.length, ctrl.signal).then(
+      (res) => {
+        if (ctrl.signal.aborted) return;
+        setPages((p) => ({ ...p, [key]: dedupeOptions([...(p[key] ?? []), ...res.options]) }));
+        setMeta((m) => ({ ...m, [key]: { total: res.total ?? m[key]?.total ?? null, hasMore: res.hasMore && res.options.length > 0 } }));
+        setMore(null);
+      },
+      () => {
+        if (!ctrl.signal.aborted) setMore({ key, state: "failed" });
+      },
+    );
+  };
+
+  const moreInfo: MoreInfo | null =
+    metaKey !== null && metaNow && pages[metaKey] && (metaNow.hasMore || (metaNow.total !== null && metaNow.total > pages[metaKey].length))
+      ? {
+          shown: pages[metaKey].length,
+          total: metaNow.total,
+          hasMore: metaNow.hasMore,
+          loading: more?.key === metaKey && more.state === "loading",
+          failed: more?.key === metaKey && more.state === "failed",
+          onMore: () => loadMore(metaKey),
+        }
+      : null;
 
   const nameOf = (v: string): string => known.get(v)?.label || labels.unknownRef(v);
   const selectedOption = !multi && values[0] ? known.get(values[0]) : undefined;
@@ -438,6 +498,8 @@ export function Picker(props: PickerProps): ReactElement {
           keyboard={viaKeys}
           onPick={pick}
           onClose={hide}
+          more={moreInfo}
+          indentOf={q ? undefined : indentOf}
         />
       ) : null}
     </div>
@@ -464,6 +526,8 @@ type PopProps = {
   keyboard: boolean;
   onPick: (o: SxOption) => "close" | "stay";
   onClose: (reason: PopoverCloseReason) => void;
+  more?: MoreInfo | null;
+  indentOf?: (o: SxOption) => number;
 };
 
 function initialAct(start: Start, shown: readonly SxOption[], enabled: readonly number[]): { act: Act; buffer: TypeBuffer } {
@@ -501,6 +565,8 @@ function PickerPop({
   keyboard,
   onPick,
   onClose,
+  more,
+  indentOf,
 }: PopProps): ReactNode {
   const t = useTranslations("studio");
   const popRef = useRef<HTMLDivElement>(null);
@@ -669,6 +735,7 @@ function PickerPop({
     const why = typeof o.disabled === "string" ? o.disabled : "";
     const desc = [o.description, why].filter(Boolean).join(" · ");
     const code = codeTag(o);
+    const depth = indentOf ? Math.max(0, Math.min(8, Math.floor(indentOf(o) || 0))) : 0;
     return (
       <li
         key={o.value}
@@ -677,6 +744,8 @@ function PickerPop({
         aria-selected={on}
         aria-disabled={off ? true : undefined}
         data-active={i === activeIdx ? "" : undefined}
+        data-depth={depth || undefined}
+        style={depth ? ({ "--sx-depth": depth } as CSSProperties) : undefined}
         className="sx-picker__opt"
         onMouseDown={keepFocus}
         onPointerMove={() => {
@@ -788,6 +857,18 @@ function PickerPop({
           >
             {t("sx.ui.retry")}
           </SxButton>
+        </div>
+      ) : null}
+      {more && !skeleton ? (
+        <div className="sx-picker__more" data-tone={more.failed ? "error" : undefined}>
+          <span className="sx-picker__more-count" role="status">
+            {more.failed ? t("sx.form.loadFail") : more.total !== null ? t("sx.form.shownOf", { n: more.shown, total: more.total }) : t("sx.form.shownSome", { n: more.shown })}
+          </span>
+          {more.hasMore ? (
+            <SxButton variant="ghost" size="sm" icon={more.failed ? RefreshCwIcon : undefined} busy={more.loading} onClick={more.onMore} aiId="admin.studio.picker.more">
+              {more.failed ? t("sx.ui.retry") : t("sx.form.loadMore")}
+            </SxButton>
+          ) : null}
         </div>
       ) : null}
       {maxed ? (

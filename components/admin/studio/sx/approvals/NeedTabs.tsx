@@ -7,15 +7,18 @@ import { useTranslations } from "next-intl";
 import { EyeIcon, ListChecksIcon, RocketIcon, Undo2Icon } from "../icons";
 import { SxSegmented, type SxSegItem } from "../shared/Segmented";
 import { useStudioLabels } from "../useStudioLabels";
-import type { ApprNeed, ApprRow } from "./model";
-import { rowMatches } from "./queue";
+import type { ApprCounts } from "./approvalsApi";
+import type { ApprNeed, ApprRow, ApprWork } from "./model";
+import { rowMatches, type ApprServed } from "./queue";
 import type { ApprQuery } from "./urlState";
 
-export type NeedTabsProps = { query: ApprQuery; onChange: (next: ApprQuery) => void; rows: readonly ApprRow[]; loading: boolean };
+export type NeedTabsProps = { query: ApprQuery; onChange: (next: ApprQuery) => void; rows: readonly ApprRow[]; loading: boolean; counts?: ApprCounts | null; served?: ApprServed };
+
+const KIND_STATUSES: Readonly<Record<Exclude<ApprWork, "returned">, readonly string[]>> = { review: ["submitted", "in_review"], publish: ["approved"] };
 
 type NeedValue = "all" | Exclude<ApprNeed, "">;
 
-export function NeedTabs({ query, onChange, rows, loading }: NeedTabsProps): ReactElement {
+export function NeedTabs({ query, onChange, rows, loading, counts = null, served }: NeedTabsProps): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const box = useRef<HTMLDivElement>(null);
@@ -27,8 +30,11 @@ export function NeedTabs({ query, onChange, rows, loading }: NeedTabsProps): Rea
     seg.scrollLeft = Math.max(0, on.offsetLeft - (seg.clientWidth - on.offsetWidth) / 2);
   }, [need, loading]);
   const base = { ...query, need: "" as ApprNeed };
-  const work = rows.filter((r) => r.section !== "done" && rowMatches(r, base, labels));
-  const count = (k: ApprNeed): number | null => (loading ? null : k ? work.filter((r) => r.kind === k).length : work.length);
+  const work = rows.filter((r) => r.section !== "done" && rowMatches(r, base, labels, served));
+  const server = counts && !query.group && served?.q ? counts : null;
+  const fromServer = (k: Exclude<ApprWork, "returned">): number => KIND_STATUSES[k].filter((s) => !query.status || s === query.status).reduce((n, s) => n + (server?.[s] ?? 0), 0);
+  const ofKind = (k: ApprWork): number => (server && k !== "returned" ? fromServer(k) : work.filter((r) => r.kind === k).length);
+  const count = (k: ApprNeed): number | null => (loading ? null : k ? ofKind(k) : ofKind("review") + ofKind("publish") + ofKind("returned"));
   const items: SxSegItem<NeedValue>[] = [
     { value: "publish", label: t("sx.appr.grp.mine.publish"), icon: RocketIcon, count: count("publish"), aiId: "admin.studio.approvals.filters.need.publish" },
     { value: "review", label: t("sx.appr.need.review"), icon: EyeIcon, count: count("review"), aiId: "admin.studio.approvals.filters.need.review" },

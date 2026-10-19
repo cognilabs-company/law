@@ -383,6 +383,10 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
           return tr("sx.err.duplicate");
         case "reference_not_found":
           return tr("sx.err.reference");
+        case "category_cycle":
+          return tr("sx.err.categoryCycle");
+        case "rule_version_duplicate":
+          return tr("sx.err.ruleVersionDuplicate");
         case "promotion_package_placement_mismatch":
           return tr("sx.err.k12Mismatch");
       }

@@ -9,9 +9,8 @@ export const MON_PERIODS: readonly Exclude<MonPeriod, "custom">[] = ["today", "y
 export const HOUR_MS = 3_600_000;
 export const DAY_MS = 86_400_000;
 export const TZ_OFFSET_MS = 5 * HOUR_MS;
-export const STALE_MS = 5 * 60_000;
+export const STALE_MS = 2 * 60_000;
 export const SHORT_SEC = 5;
-export const POLL_MS = 60_000;
 
 export type MonRange = { from: number | null; to: number | null };
 export type MonQuery = { date?: string; dateFrom?: string; dateTo?: string };
@@ -65,15 +64,19 @@ export function rangeOf(period: MonPeriod, dateFrom: string, dateTo: string, now
   return { from: null, to: null };
 }
 
-export function queryOf(r: MonRange): MonQuery {
-  const a = r.from === null ? "" : utcDayKey(r.from);
-  const b = r.to === null ? "" : utcDayKey(r.to - 1);
+function daysOf(r: MonRange, key: (ms: number) => string): MonQuery {
+  const a = r.from === null ? "" : key(r.from);
+  const b = r.to === null ? "" : key(r.to - 1);
   if (a && b && a === b) return { date: a };
   return { dateFrom: a || undefined, dateTo: b || undefined };
 }
 
+export function queryOf(r: MonRange): MonQuery {
+  return daysOf(r, localDayKey);
+}
+
 export function auditQueryOf(r: MonRange): { dateFrom?: string; dateTo?: string } {
-  const q = queryOf(r);
+  const q = daysOf(r, utcDayKey);
   return { dateFrom: q.date ?? q.dateFrom, dateTo: q.date ?? q.dateTo };
 }
 

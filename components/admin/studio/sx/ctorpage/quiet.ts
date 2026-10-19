@@ -9,9 +9,9 @@ export function isQuietStatus(status: string): boolean {
   return QUIET_STATUSES.has(String(status ?? "").trim().toLowerCase());
 }
 
-export function quietBand(title: string, status: string): 0 | 1 | 2 {
+export function quietBand(title: string, status: string, isTest: boolean | null = null): 0 | 1 | 2 {
   if (isQuietStatus(status)) return 2;
-  if (isTestTitle(title)) return 1;
+  if (isTest ?? isTestTitle(title)) return 1;
   return 0;
 }
 
@@ -22,10 +22,10 @@ export function quietLastBy<T>(rows: readonly T[], band: (r: T) => number): T[] 
     .map((x) => x.row);
 }
 
-export function quietLast<T>(rows: readonly T[], title: (r: T) => string, status: (r: T) => string): T[] {
-  return quietLastBy(rows, (r) => quietBand(title(r), status(r)));
+export function quietLast<T>(rows: readonly T[], title: (r: T) => string, status: (r: T) => string, isTest?: (r: T) => boolean | null): T[] {
+  return quietLastBy(rows, (r) => quietBand(title(r), status(r), isTest?.(r) ?? null));
 }
 
-export function isQuietRow(title: string, status: string): boolean {
-  return quietBand(title, status) > 0;
+export function isQuietRow(title: string, status: string, isTest: boolean | null = null): boolean {
+  return quietBand(title, status, isTest) > 0;
 }

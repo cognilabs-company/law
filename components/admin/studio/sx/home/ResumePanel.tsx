@@ -5,11 +5,12 @@ import type { ReactElement, ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { aiId } from "@/lib/ai/ids";
-import { JOURNEY_STATUS, useStudioAccess } from "@/lib/services/studio";
+import { useStudioAccess } from "@/lib/services/studio";
 import { SxButton, SxLinkButton } from "../Button";
 import { enterStyle } from "../hooks";
 import { RefreshCwIcon, ChevronRightIcon, TimerIcon, PlusIcon, BriefcaseBusinessIcon, PackageIcon, ctorGlyph, glyph } from "../icons";
-import { stepLabelKey } from "../journey/steps";
+import { useJourneyDefinitions } from "../journey/journeyApi";
+import { stepLabel, stepTitleOf } from "../journey/steps";
 import { useCreationJourneys } from "../journey/useCreationJourneys";
 import { SxNote } from "../layout/Note";
 import { SxPanel } from "../layout/Panel";
@@ -22,7 +23,7 @@ import { useMyObjects } from "./useActionItems";
 import { WaitingSkeleton } from "./WaitingPanel";
 
 const BASE = "admin.studio.home.resume";
-const DRAFTS = { status: JOURNEY_STATUS.drafts, limit: 3, offset: 0 } as const;
+const DRAFTS = { status: "draft", limit: 3, offset: 0 } as const;
 const enc = encodeURIComponent;
 
 export function ResumePanel(): ReactElement {
@@ -31,6 +32,8 @@ export function ResumePanel(): ReactElement {
   const acc = useStudioAccess();
   const now = useNow();
   const journeys = useCreationJourneys(DRAFTS, acc.canEdit);
+  const defs = useJourneyDefinitions(acc.canEdit && journeys.items.length > 0).defs;
+  const tr = (key: string) => t(key);
   const mine = useMyObjects(3);
   const jItems = acc.canEdit ? journeys.items.slice(0, 3) : [];
   const jLoading = acc.canEdit && journeys.loading;
@@ -86,7 +89,7 @@ export function ResumePanel(): ReactElement {
             {jItems.map((j, i) => {
               const title = j.title || t("sx.ui.untitled");
               const pct = j.progress === null ? "—" : t("sx.journeyRun.percent", { n: Math.round(j.progress) });
-              const meta = [t(j.type === "package" ? "sx.journeyRun.package" : "sx.journeyRun.service"), j.currentStep ? t(stepLabelKey(j.currentStep)) : ""].filter(Boolean).join(" · ");
+              const meta = [t(j.type === "package" ? "sx.journeyRun.package" : "sx.journeyRun.service"), stepLabel(j.currentStep, tr, stepTitleOf(defs, j.type, j.currentStep))].filter(Boolean).join(" · ");
               return (
                 <li key={j.id} className="sx-enter" style={enterStyle(Math.min(i, 12))}>
                   <Link href={creationJourneyHref(j)} className="sx-hrow" data-ai-id={aiId(BASE, "item", j.id)} data-ai-type="list_item" data-ai-label={title}>

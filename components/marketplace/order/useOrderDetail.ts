@@ -4,8 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { ApiError, isAborted } from "@/lib/http";
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
-import { findMarketplaceOrder, marketPhaseOf, marketSignalOf, peekMarketOrder, type MarketOrder, type MarketPhase, type MarketSignal } from "@/lib/services/marketplace";
-import { getOrderChecklist, getRuntimeConfig, getSecondOpinion, type OrderChecklist, type RuntimeConfig, type RuntimePlacement, type SecondOpinion } from "@/lib/services/marketRuntime";
+import { loadMarketplaceOrder, marketPhaseOf, marketSignalOf, peekMarketOrder, type MarketOrder, type MarketPhase, type MarketSignal } from "@/lib/services/marketplace";
+import { getNegotiation, getOrderChecklist, getRuntimeConfig, getSecondOpinion, latestNegotiation, listOrderNegotiations, type OrderChecklist, type RuntimeConfig, type RuntimePlacement, type SecondOpinion } from "@/lib/services/marketRuntime";
+import { negotiationOfEvent, noteNegotiation } from "./negotiationStore";
 import type { LoadState, OrderView } from "./types";
 
 export type OrderDetail = {
@@ -21,12 +22,12 @@ export type OrderDetail = {
   lastSignal: MarketSignal | null;
   changed: number;
   fresh: boolean;
-  refresh: (what?: "all" | "order" | "checklist" | "opinion") => void;
+  refresh: (what?: "all" | "order" | "checklist" | "opinion" | "negotiation") => void;
   patchOrder: (patch: Partial<MarketOrder>) => void;
   setChecklist: (next: OrderChecklist) => void;
 };
 
-type Res = "order" | "checklist" | "opinion";
+type Res = "order" | "checklist" | "opinion" | "negotiation";
 
 const SETTLE_MS = 400;
 const WORK_PHASES: ReadonlySet<MarketPhase> = new Set<MarketPhase>(["in_progress", "review", "completed", "rated"]);
@@ -39,12 +40,15 @@ export function placementOf(phase: MarketPhase | null): RuntimePlacement {
 
 const phaseOfOrder = (o: MarketOrder | null): MarketPhase | null => (o ? marketPhaseOf(o) : null);
 
-const isMissing = (e: unknown) => e instanceof ApiError && e.status === 404;
+const isMissing = (e: unknown) => e instanceof ApiError && (e.status === 404 || e.status === 405);
+
+const wantsNegotiation = (o: MarketOrder | null): boolean => !!o && marketPhaseOf(o) === "pending" && (o.canNegotiate === true || !!o.negotiation || !!o.urls.negotiations || o.negotiationAvailable === true);
 
 function routeOf(sig: MarketSignal): Res[] {
   if (sig.kind === "checklist") return ["checklist"];
   if (sig.kind === "started") return ["order", "checklist"];
   if (sig.kind === "completed") return ["order", "checklist", "opinion"];
+  if (sig.kind === "negotiation") return ["negotiation", "order"];
   return ["order"];
 }
 
@@ -89,12 +93,14 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
   const checklistLoadRef = useRef<LoadState>("idle");
   const opinionLoadRef = useRef<LoadState>("idle");
   const inflight = useRef<Promise<void> | null>(null);
-  const seqs = useRef<Record<Res, number>>({ order: 0, checklist: 0, opinion: 0 });
+  const seqs = useRef<Record<Res, number>>({ order: 0, checklist: 0, opinion: 0, negotiation: 0 });
   const ctrls = useRef<Partial<Record<Res, AbortController>>>({});
   const timers = useRef<Partial<Record<Res, ReturnType<typeof setTimeout>>>>({});
   const alive = useRef(false);
   const runRef = useRef<(r: Res) => void>(() => {});
-  const waiting = useRef<Record<Res, boolean>>({ order: false, checklist: false, opinion: false });
+  const waiting = useRef<Record<Res, boolean>>({ order: false, checklist: false, opinion: false, negotiation: false });
+  const negotiationLoaded = useRef(false);
+  const negotiationId = useRef("");
 
   const begin = useCallback((r: Res) => {
     ctrls.current[r]?.abort();
@@ -125,7 +131,7 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
     const shown = orderRef.current;
     if (shown) setRefreshing(true);
     try {
-      const found = await findMarketplaceOrder(orderId, view, { signal: ctrl.signal, owner: ownerRef.current });
+      const found = await loadMarketplaceOrder(orderId, view, { signal: ctrl.signal, owner: ownerRef.current });
       if (!ok()) return;
       setFresh(true);
       if (!found) {
@@ -138,6 +144,7 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
       setStatus("ready");
       if (before && visibleChange(before, found)) setChanged((n) => n + 1);
       const phase = marketPhaseOf(found);
+      if (!negotiationLoaded.current && wantsNegotiation(found) && !queued("negotiation")) schedule("negotiation", 0);
       if (WORK_PHASES.has(phase)) {
         if (checklistLoadRef.current === "idle" && !queued("checklist")) schedule("checklist", 0);
         if (view === "client" && opinionLoadRef.current === "idle" && !queued("opinion")) schedule("opinion", 0);
@@ -208,8 +215,37 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
     }
   }, [orderId, view, begin, setOp]);
 
+  const loadNegotiation = useCallback(async () => {
+    waiting.current.negotiation = true;
+    if (inflight.current) await inflight.current.catch(() => {});
+    waiting.current.negotiation = false;
+    if (!alive.current) return;
+    const cur = orderRef.current;
+    const id = negotiationId.current;
+    negotiationId.current = "";
+    if (!id && !wantsNegotiation(cur)) return;
+    const { ctrl, ok } = begin("negotiation");
+    try {
+      const n = id ? await getNegotiation(id, ctrl.signal) : latestNegotiation((await listOrderNegotiations(orderId, ctrl.signal)).items);
+      if (!ok()) return;
+      negotiationLoaded.current = true;
+      if (!n || (!n.id && !(n.amount > 0))) return;
+      const filled = n.orderId ? n : { ...n, orderId };
+      noteNegotiation(filled, ownerRef.current);
+      const shown = orderRef.current;
+      if (shown) commitOrder({ ...shown, negotiation: filled });
+    } catch (e) {
+      if (!ok() || isAborted(e)) return;
+      if (isMissing(e)) negotiationLoaded.current = true;
+    }
+  }, [orderId, begin, commitOrder]);
+
   useEffect(() => {
     runRef.current = (r: Res) => {
+      if (r === "negotiation") {
+        void loadNegotiation();
+        return;
+      }
       if (r === "order") {
         const p = loadOrder();
         inflight.current = p;
@@ -219,7 +255,7 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
       } else if (r === "checklist") void loadChecklist();
       else void loadOpinion();
     };
-  }, [loadOrder, loadChecklist, loadOpinion]);
+  }, [loadOrder, loadChecklist, loadOpinion, loadNegotiation]);
 
   const refresh = useCallback(
     (what: "all" | Res = "all") => {
@@ -243,7 +279,9 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
     checklistLoadRef.current = "idle";
     opinionLoadRef.current = "idle";
     inflight.current = null;
-    waiting.current = { order: false, checklist: false, opinion: false };
+    waiting.current = { order: false, checklist: false, opinion: false, negotiation: false };
+    negotiationLoaded.current = false;
+    negotiationId.current = "";
     const ctl = ctrls.current;
     const tm = timers.current;
     schedule("order", 0);
@@ -256,9 +294,21 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
       const ours = sig.orderId ? sig.orderId === orderId : !!(cur && sig.workId && sig.workId === cur.workId);
       if (!ours) return;
       setLastSignal(sig);
+      if (sig.kind === "negotiation") {
+        const full = negotiationOfEvent(ev);
+        if (full && full.amount > 0) {
+          noteNegotiation(full, ownerRef.current);
+          const shown = orderRef.current;
+          if (shown) commitOrder({ ...shown, negotiation: full });
+          schedule("order");
+          return;
+        }
+        negotiationId.current = sig.negotiationId ?? "";
+      }
       for (const r of routeOf(sig)) schedule(r);
     });
     const offResync = onUserSocketResync(() => {
+      negotiationLoaded.current = false;
       schedule("order", 0);
       schedule("checklist", 0);
       schedule("opinion", 0);
@@ -277,7 +327,7 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
         delete ctl[r];
       }
     };
-  }, [orderId, view, schedule]);
+  }, [orderId, view, schedule, commitOrder]);
 
   const serviceId = order?.serviceId ?? "";
   const phase = phaseOfOrder(order);
