@@ -1,35 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";
 import { addOrgMember, createOrganization, listLawyers, listOrgMembers, listOrganizations, type BackendLawyer, type OrgMember, type Organization } from "@/lib/services/backend";
 import { IconAlert, IconBriefcase, IconBuilding, IconChartBar, IconPlus, IconRefresh, IconUserPlus, IconUsers } from "@/components/icons";
 import { App, Avatar, Banner, Btn, Dialog, Empty, Field, Input, Loading, Search, Sidebar, Tag, TextArea, Tool, Toolbar, useOs, useToast, type NavSection } from "../kit/kit";
 import type { NativeProps } from "../native";
+import { OrgDashboard, OrgMember as MemberWindow, orgRouteOf } from "./org/OrgOwner";
 import "./org.css";
 
 // The advocate's organization as a desktop program: the organizations on
 // the side, the chosen one's card and its members, adding a member found
-// among LexGo's lawyers, creating a new organization. The owner's dashboard
-// and a member's services open in this window.
+// among LexGo's lawyers, creating a new organization. The owner's dashboard,
+// the workload and a member's services open in this window (org/OrgOwner).
 
 export default function OrgApp(props: NativeProps) {
-  const deep = /\/organization\/[^/]+/.test(props.route);
-  return deep ? <Deep {...props} /> : <Orgs {...props} />;
-}
-
-function Deep({ route, base, openApp }: NativeProps) {
-  const t = useTranslations("portal.org");
-  const d = useTranslations("portal.desk.org");
-  const locale = useLocale();
-  const os = useOs();
-  return (
-    <App name="org-deep">
-      <Toolbar title={t("title")} back={{ label: d("back"), onClick: () => openApp("organization", `${base}/organization`) }} />
-      <iframe className="dxg-deep" name={`lexgo-desk:${os}:org`} src={`/${locale}${route}`} title={t("title")} />
-    </App>
-  );
+  const r = orgRouteOf(props.route);
+  if (r?.memberId) return <MemberWindow key={`${r.orgId}|${r.memberId}`} orgId={r.orgId} memberId={r.memberId} start={r.view} base={props.base} openApp={props.openApp} />;
+  if (r) return <OrgDashboard key={`${r.orgId}|${r.view}`} orgId={r.orgId} start={r.view} base={props.base} openApp={props.openApp} />;
+  return <Orgs {...props} />;
 }
 
 function Orgs({ base, openApp }: NativeProps) {

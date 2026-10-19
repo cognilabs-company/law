@@ -21,7 +21,6 @@
 .dxg-hits{display:flex;flex-direction:column;gap:2px;max-height:240px;overflow:auto;margin-top:6px}
 .dxg-hits button{display:flex;align-items:center;gap:10px;padding:7px 8px;border:0;border-radius:6px;background:none;text-align:left;cursor:default}
 .dxg-hits button:hover{background:var(--x-fill)}
-.dxg-deep{flex:1;width:100%;min-height:0;border:0;background:var(--x-bg)}
 .dx--mac .dxg-card,.dx--mac .dxg-box{border-radius:12px;background:var(--x-bg2);box-shadow:inset 0 0 0 .5px var(--x-sep)}
 html[data-theme="dark"] .dx--mac .dxg-card,html[data-theme="dark"] .dx--mac .dxg-box{background:rgba(255,255,255,.04)}
 .dx--win .dxg{padding:4px 28px 28px}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";
 import { fmtUzs } from "@/lib/money";
@@ -24,12 +24,22 @@ import "./services.css";
 // edit, promote and remove. Adding searches the catalogue.
 
 const ME: ServiceScope = { kind: "me" };
-type View = "all" | ServiceStatus | "packages";
+type View = string;
 const TONE: Record<ServiceStatus, Tone> = { active: "ok", paused: "warn", inactive: "neutral" };
 const som = (n: number) => fmtUzs(n);
 
 export default function ServicesApp(_props: NativeProps) {
   void _props;
+  return <ServicesBoard scope={ME} />;
+}
+
+// The same board for another seller: an organization owner managing a
+// member's services (`owner`). The owner cannot accept the member's
+// service rules or promote for them, so those are left out; `head` tops the
+// sidebar (whose services these are) and `extra` adds sidebar items that
+// draw their own view (the member's workload).
+export type BoardExtra = { section: NavSection; render: (id: string) => ReactNode };
+export function ServicesBoard({ scope, owner = false, head, extra, back, start = "all", title }: { scope: ServiceScope; owner?: boolean; head?: ReactNode; extra?: BoardExtra; back?: { label: string; onClick: () => void }; start?: string; title?: string }) {
   const t = useTranslations("sellerServices");
   const tp = useTranslations("sellerPackages");
   const d = useTranslations("portal.desk.services");
@@ -39,7 +49,7 @@ export default function ServicesApp(_props: NativeProps) {
   const uid = useAuth().session?.id ?? "";
   const [data, setData] = useState<ManagedServices | null>(null);
   const [failed, setFailed] = useState(false);
-  const [view, setView] = useState<View>("all");
+  const [view, setView] = useState<View>(start);
   const [q, setQ] = useState("");
   const [sel, setSel] = useState("");
   const [busy, setBusy] = useState("");
@@ -52,11 +62,11 @@ export default function ServicesApp(_props: NativeProps) {
 
   useEffect(() => {
     const c = new AbortController();
-    listManagedServices(ME, locale, c.signal)
+    listManagedServices(scope, locale, c.signal)
       .then((x) => !c.signal.aborted && (setData(x), setFailed(false)))
       .catch(() => !c.signal.aborted && setFailed(true));
     return () => c.abort();
-  }, [locale, tick]);
+  }, [scope, locale, tick]);
 
   const items = useMemo(() => data?.items ?? [], [data]);
   const shown = items.filter((x) => (view === "all" || x.status === view) && (!q.trim() || matchesSearch(`${x.service.name} ${x.service.categoryTitle ?? ""}`, q)));
@@ -67,7 +77,7 @@ export default function ServicesApp(_props: NativeProps) {
     if (busy) return;
     setBusy(item.id);
     try {
-      if (status === "active") {
+      if (status === "active" && !owner) {
         const chk = await ensureServiceRules(item.id);
         if (chk.allAccepted === false) {
           setRules({ serviceId: item.id, focus: chk.missingIds });
@@ -77,13 +87,15 @@ export default function ServicesApp(_props: NativeProps) {
           if (!isConfigUnsupported(e)) throw e;
         });
       }
-      const saved = await setManagedServiceStatus(ME, item.id, status, locale);
+      const saved = await setManagedServiceStatus(scope, item.id, status, locale);
       replace(saved);
-      if (status !== "active" && configSupport() !== "no") void updateSellerServiceConfig(item.id, { enabled: false }).catch(() => undefined);
+      if (!owner && status !== "active" && configSupport() !== "no") void updateSellerServiceConfig(item.id, { enabled: false }).catch(() => undefined);
       say(t(`statusSaved.${status}`));
     } catch (e) {
       const ids = rulesBlockOf(e);
-      if (ids) setRules({ serviceId: item.id, focus: ids });
+      if (ids && owner) say(t("rules.ownerNote"), "err");
+      else if (ids) setRules({ serviceId: item.id, focus: ids });
+      else if (owner && serviceErrorOf(e).kind === "forbidden") say(t("errors.forbiddenOwner"), "err");
       else say(t.has(`errors.${serviceErrorOf(e).kind}`) ? t(`errors.${serviceErrorOf(e).kind}`) : t("errors.unknown"), "err");
     } finally {
       setBusy("");
@@ -93,7 +105,7 @@ export default function ServicesApp(_props: NativeProps) {
     const ok = await confirm({ title: t("remove.title"), text: `${t("remove.text", { title: item.service.name })}${item.ownPromotion ? ` ${t("remove.promoWarn")}` : ""}`, ok: t("remove.confirm"), cancel: t("form.cancel"), danger: true });
     if (!ok) return;
     try {
-      await removeManagedService(ME, item.id);
+      await removeManagedService(scope, item.id);
       setData((cur) => (cur ? { ...cur, items: cur.items.filter((y) => y.id !== item.id) } : cur));
       setSel("");
       say(d("removed"));
@@ -105,7 +117,7 @@ export default function ServicesApp(_props: NativeProps) {
     menu?.(e, x.service.name, [
       { id: "edit", label: t("card.edit"), icon: <IconEdit />, onSelect: () => setEdit({ item: x }) },
       x.status === "active" ? { id: "pause", label: d("pause"), icon: <IconPause />, onSelect: () => void setStatus(x, "paused") } : { id: "on", label: d("activate"), icon: <IconPlay />, onSelect: () => void setStatus(x, "active") },
-      { id: "promo", label: t("card.promote"), icon: <IconMegaphone />, disabled: x.status !== "active", onSelect: () => setPromote(x) },
+      ...(owner ? [] : [{ id: "promo", label: t("card.promote"), icon: <IconMegaphone />, disabled: x.status !== "active", onSelect: () => setPromote(x) }]),
       { sep: true, id: "s" },
       { id: "del", label: t("card.remove"), icon: <IconTrash />, danger: true, onSelect: () => void remove(x) },
     ]);
@@ -113,7 +125,7 @@ export default function ServicesApp(_props: NativeProps) {
   const sections: NavSection[] = [
     {
       id: "s",
-      title: os === "mac" ? t("title") : undefined,
+      title: os === "mac" ? title || t("title") : undefined,
       items: [
         { id: "all", label: t("filters.all"), icon: <IconBriefcase />, count: count("all") || undefined },
         { id: "active", label: t("filters.active"), icon: <IconPlay />, count: count("active") || undefined },
@@ -121,19 +133,42 @@ export default function ServicesApp(_props: NativeProps) {
         { id: "inactive", label: t("filters.inactive"), icon: <IconPower />, count: count("inactive") || undefined },
       ],
     },
-    { id: "p", title: os === "mac" ? tp("tabPackages") : undefined, items: [{ id: "packages", label: tp("tabPackages"), icon: <IconPackage /> }] },
+    ...(owner ? [] : [{ id: "p", title: os === "mac" ? tp("tabPackages") : undefined, items: [{ id: "packages", label: tp("tabPackages"), icon: <IconPackage /> }] }]),
+    ...(extra ? [extra.section] : []),
   ];
+  const extraView = !!extra && extra.section.items.some((it) => it.id === view);
+  const search = os === "win" ? <Search value={q} onChange={setQ} placeholder={t("search")} wide /> : null;
 
   return (
-    <App name="services" sidebar={<Sidebar label={t("title")} sections={sections} value={view} onChange={(id) => (setView(id as View), setSel(""))} header={os === "win" ? <Search value={q} onChange={setQ} placeholder={t("search")} wide /> : undefined} />}>
+    <App
+      name="services"
+      sidebar={
+        <Sidebar
+          label={t("title")}
+          sections={sections}
+          value={view}
+          onChange={(id) => (setView(id), setSel(""))}
+          header={
+            head || search ? (
+              <>
+                {head}
+                {search}
+              </>
+            ) : undefined
+          }
+        />
+      }
+    >
       {view === "packages" ? (
         <Packages />
+      ) : extraView && extra ? (
+        extra.render(view)
       ) : (
         <>
-          <Toolbar title={t("title")} subtitle={data ? d("count", { n: shown.length }) : undefined} end={os === "mac" ? <Search value={q} onChange={setQ} placeholder={t("search")} /> : undefined}>
+          <Toolbar title={title || t("title")} subtitle={data ? d("count", { n: shown.length }) : undefined} back={back} end={os === "mac" ? <Search value={q} onChange={setQ} placeholder={t("search")} /> : undefined}>
             <Tool icon={<IconPlus />} label={t("add")} primary onClick={() => setEdit({ item: null })} />
-            <Tool icon={<IconMegaphone />} label={t("promoteProfile")} onClick={() => setPromote(items.find((x) => x.status === "active") ?? items[0] ?? null)} disabled={!items.length} />
-            <Tool icon={<IconShieldCheck />} label={t("rules.drawerTitle")} onClick={() => setRules({ serviceId: "", focus: [] })} />
+            {owner ? null : <Tool icon={<IconMegaphone />} label={t("promoteProfile")} onClick={() => setPromote(items.find((x) => x.status === "active") ?? items[0] ?? null)} disabled={!items.length} />}
+            {owner ? null : <Tool icon={<IconShieldCheck />} label={t("rules.drawerTitle")} onClick={() => setRules({ serviceId: "", focus: [] })} />}
             <Tool icon={<IconRefresh />} label={t("refresh")} onClick={() => setTick((n) => n + 1)} />
           </Toolbar>
           <div className="dxv-body">
@@ -145,7 +180,7 @@ export default function ServicesApp(_props: NativeProps) {
                   <Loading label={d("loading")} />
                 )
               ) : !items.length ? (
-                <Empty icon={<IconBriefcase />} title={t.has("empty.title") ? t("empty.title") : d("empty")} action={<Btn kind="primary" icon={<IconPlus />} onClick={() => setEdit({ item: null })}>{t("addFirst")}</Btn>} />
+                <Empty icon={<IconBriefcase />} title={t.has("empty.title") ? t("empty.title") : d("empty")} text={owner ? t("empty.textOwner") : undefined} action={<Btn kind="primary" icon={<IconPlus />} onClick={() => setEdit({ item: null })}>{t("addFirst")}</Btn>} />
               ) : !shown.length ? (
                 <Empty icon={<IconSearch />} title={d("noResults")} />
               ) : (
@@ -176,10 +211,10 @@ export default function ServicesApp(_props: NativeProps) {
               )}
             </section>
             {current && data ? (
-              <Sheet key={current.id} x={current} data={data} busy={busy === current.id} onStatus={(s) => void setStatus(current, s)} onEdit={() => setEdit({ item: current })} onPromote={() => setPromote(current)} onRemove={() => void remove(current)} />
+              <Sheet key={current.id} x={current} data={data} busy={busy === current.id} onStatus={(s) => void setStatus(current, s)} onEdit={() => setEdit({ item: current })} onPromote={owner ? undefined : () => setPromote(current)} onRemove={() => void remove(current)} />
             ) : (
               <div className="dxv-none">
-                <Empty icon={<IconBriefcase />} title={d("pick")} text={t("lead")} />
+                <Empty icon={<IconBriefcase />} title={d("pick")} text={owner ? t("leadOwner") : t("lead")} />
               </div>
             )}
           </div>
@@ -190,6 +225,7 @@ export default function ServicesApp(_props: NativeProps) {
           item={edit.item}
           data={data}
           uid={uid}
+          scope={scope}
           onClose={() => setEdit(null)}
           onSaved={(x, msg) => {
             replace(x);
@@ -200,15 +236,15 @@ export default function ServicesApp(_props: NativeProps) {
           onRules={(ids, id) => setRules({ serviceId: id, focus: ids })}
         />
       ) : null}
-      <PromoteDialog open={!!promote} start={promote ? "service_boost" : "profile_boost"} services={items.filter((x) => x.status === "active")} onClose={() => setPromote(null)} onSent={() => setTick((n) => n + 1)} />
-      {rules ? <RulesDialog serviceId={rules.serviceId} focus={rules.focus} onClose={() => (setRules(null), void refreshRulesGate({ force: true }))} /> : null}
+      {owner ? null : <PromoteDialog open={!!promote} start={promote ? "service_boost" : "profile_boost"} services={items.filter((x) => x.status === "active")} onClose={() => setPromote(null)} onSent={() => setTick((n) => n + 1)} />}
+      {rules && !owner ? <RulesDialog serviceId={rules.serviceId} focus={rules.focus} onClose={() => (setRules(null), void refreshRulesGate({ force: true }))} /> : null}
       {confirmNode}
       {toast}
     </App>
   );
 }
 
-function Sheet({ x, data, busy, onStatus, onEdit, onPromote, onRemove }: { x: ManagedService; data: ManagedServices; busy: boolean; onStatus: (s: ServiceStatus) => void; onEdit: () => void; onPromote: () => void; onRemove: () => void }) {
+function Sheet({ x, data, busy, onStatus, onEdit, onPromote, onRemove }: { x: ManagedService; data: ManagedServices; busy: boolean; onStatus: (s: ServiceStatus) => void; onEdit: () => void; onPromote?: () => void; onRemove: () => void }) {
   const t = useTranslations("sellerServices");
   const d = useTranslations("portal.desk.services");
   const reasons = hiddenReasons(x, data.profile);
@@ -238,9 +274,11 @@ function Sheet({ x, data, busy, onStatus, onEdit, onPromote, onRemove }: { x: Ma
         <Btn icon={<IconEdit />} onClick={onEdit} disabled={!x.service.isActive}>
           {t("card.edit")}
         </Btn>
-        <Btn icon={<IconMegaphone />} onClick={onPromote} disabled={x.status !== "active"} title={x.status !== "active" ? t("card.promoteInactive") : undefined}>
-          {t("card.promote")}
-        </Btn>
+        {onPromote ? (
+          <Btn icon={<IconMegaphone />} onClick={onPromote} disabled={x.status !== "active"} title={x.status !== "active" ? t("card.promoteInactive") : undefined}>
+            {t("card.promote")}
+          </Btn>
+        ) : null}
         {x.status !== "inactive" ? (
           <Btn icon={<IconPower />} onClick={() => onStatus("inactive")}>
             {d("deactivate")}
@@ -285,7 +323,7 @@ function Sheet({ x, data, busy, onStatus, onEdit, onPromote, onRemove }: { x: Ma
 
 // Adding a service from the catalogue, or editing one: its price within the
 // allowed range, negotiation, the experience note, the status.
-function ServiceDialog({ item, data, uid, onClose, onSaved, onRules }: { item: ManagedService | null; data: ManagedServices; uid: string; onClose: () => void; onSaved: (x: ManagedService, msg: string) => void; onRules: (ids: string[], serviceId: string) => void }) {
+function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { item: ManagedService | null; data: ManagedServices; uid: string; scope: ServiceScope; onClose: () => void; onSaved: (x: ManagedService, msg: string) => void; onRules: (ids: string[], serviceId: string) => void }) {
   const t = useTranslations("sellerServices");
   const tf = useTranslations("sellerServices.form");
   const d = useTranslations("portal.desk.services");
@@ -330,7 +368,7 @@ function ServiceDialog({ item, data, uid, onClose, onSaved, onRules }: { item: M
     if (out && band) return setErr(tf("priceOut", { min: som(band.min), max: som(band.max) }));
     setBusy(true);
     setErr("");
-    const r = await saveSellerService({ scope: ME, locale, uid, persisted: item, input: { serviceId: svc.id, selectedPrice: value, experienceNote: note.trim(), status }, negotiation: neg, runtime, fallbackPrice: band?.recommended ?? 0 });
+    const r = await saveSellerService({ scope, locale, uid, persisted: item, input: { serviceId: svc.id, selectedPrice: value, experienceNote: note.trim(), status }, negotiation: neg, runtime, fallbackPrice: band?.recommended ?? 0 });
     setBusy(false);
     if (r.ok) return onSaved(r.saved, r.created ? tf("added") : d("saved"));
     if (r.stage === "config" && r.error.code === "service_rules_acceptance_required") {
