@@ -40,6 +40,18 @@ html[data-theme="dark"] .sx .sx-sq {
   border-radius: 18px;
 }
 
+.sx .sx-gtile.sx-gtile--art,
+html[data-theme="dark"] .sx .sx-gtile.sx-gtile--art {
+  background: none;
+  box-shadow: none;
+}
+.sx .sx-gtile--art > img {
+  width: 118%;
+  height: 118%;
+  max-width: none;
+  object-fit: contain;
+}
+
 .sx-home {
   container-type: inline-size;
   display: grid;

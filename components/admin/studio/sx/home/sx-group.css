@@ -43,6 +43,10 @@
 html[data-theme="dark"] .sx-page:has(> .sx-page__below > .sx-gp-hero) > .sx-head .sx-gtile[data-size="xl"] {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09), inset 0 0 0 1px color-mix(in srgb, var(--hue-6) 70%, transparent), 0 10px 28px -12px color-mix(in srgb, var(--hue-9) 70%, transparent);
 }
+.sx-page:has(> .sx-page__below > .sx-gp-hero) > .sx-head .sx-gtile--art[data-size="xl"],
+html[data-theme="dark"] .sx-page:has(> .sx-page__below > .sx-gp-hero) > .sx-head .sx-gtile--art[data-size="xl"] {
+  box-shadow: none;
+}
 
 .sx .sx-gp-hero {
   display: flex;
