@@ -24,21 +24,19 @@ import { humanizeSlug } from "@/lib/lawyers";
 import { fmtUzs } from "@/lib/money";
 import { dateOnly } from "@/lib/date";
 import { isProfileTab } from "@/lib/profileTabs";
-import IdentityVerify from "@/components/portal/IdentityVerify";
-import ClientComplaints from "@/components/complaints/ClientComplaints";
-import ClientWarranty from "@/components/portal/ClientWarranty";
 import { IconBell, IconCard, IconClipboardCheck, IconDownload, IconMail, IconPhone, IconPlus, IconShieldCheck, IconSparkle, IconTrash, IconUser, IconUsers } from "@/components/icons";
 import { App, Avatar, Btn, Dialog, Empty, Field, Group, Input, Loading, Select, SettingRow, Sidebar, Table, Tag, Toggle, Toolbar, useConfirm, useOs, useToast, type Col, type NavSection } from "../../kit/kit";
 import type { NativeProps } from "../../native";
 import { Notes, Security } from "../ProfileApp";
 import { toneOf } from "./bits";
+import Complaints from "./Complaints";
+import Identity from "./Identity";
+import Warranty from "./Warranty";
 import "./client.css";
 
 // The client's profile as a desktop program, the way a computer's
 // settings are: the sections on the side (account, family, payments,
-// complaints, security, notifications), each a page of grouped rows. The
-// identity check, complaints and warranty claims are the web's own forms
-// on the desktop's look; everything else is drawn here.
+// complaints, security, notifications), each a page of grouped rows.
 
 type Sec = "account" | "family" | "payments" | "complaints" | "security" | "notes";
 const SECS: Sec[] = ["account", "family", "payments", "complaints", "security", "notes"];
@@ -57,7 +55,7 @@ const uzPhone = (raw: string) => {
   return d.length === 9 ? `+998${d}` : d.length === 12 && d.startsWith("998") ? `+${d}` : null;
 };
 
-export default function CProfileApp({ route, onRoute, openApp }: NativeProps) {
+export default function CProfileApp({ route, onRoute, openApp, openLink }: NativeProps) {
   const t = useTranslations("portal.client.profile");
   const dp = useTranslations("portal.desk.profile");
   const os = useOs();
@@ -67,6 +65,9 @@ export default function CProfileApp({ route, onRoute, openApp }: NativeProps) {
   const [failed, setFailed] = useState(false);
   const [verified, setVerified] = useState(false);
   const [tick, setTick] = useState(0);
+  // A complaint link: the work it is about (?work=), or a new one (?new=1,
+  // ?about=).
+  const [link, setLink] = useState({ work: "", about: "", fresh: false, key: 0 });
   const [toast, say] = useToast();
 
   useEffect(() => {
@@ -84,9 +85,12 @@ export default function CProfileApp({ route, onRoute, openApp }: NativeProps) {
   // ?tab= (a complaint link, the subscription page) opens its section.
   useEffect(() => {
     if (!route.includes("?")) return;
-    const tab = new URLSearchParams(route.split("?")[1]).get("tab");
+    const sp = new URLSearchParams(route.split("?")[1]);
+    const tab = sp.get("tab");
     const h = setTimeout(() => {
       if (isProfileTab(tab)) setSec(tab === "personal" ? "account" : tab === "notifications" ? "notes" : (tab as Sec));
+      if (sp.get("work") || sp.get("about") || sp.get("new")) setLink((l) => ({ work: sp.get("work") ?? "", about: sp.get("about") ?? "", fresh: sp.get("new") === "1" || !!sp.get("about"), key: l.key + 1 }));
+      onRoute(route.split("?")[0]);
     }, 0);
     return () => clearTimeout(h);
   }, [route, onRoute]);
@@ -117,10 +121,10 @@ export default function CProfileApp({ route, onRoute, openApp }: NativeProps) {
         ) : sec === "payments" ? (
           <Payments prof={prof} openApp={openApp} say={say} />
         ) : sec === "complaints" ? (
-          <div className="dxce">
-            <ClientComplaints />
-            <ClientWarranty />
-          </div>
+          <>
+            <Complaints key={link.key} work={link.work} about={link.about} fresh={link.fresh} openLink={openLink} say={say} />
+            <Warranty say={say} />
+          </>
         ) : failed ? (
           <Empty icon={<IconUser />} title={t("loadError")} action={<Btn onClick={() => setTick((n) => n + 1)}>{t("edit")}</Btn>} />
         ) : !prof ? (
@@ -131,6 +135,7 @@ export default function CProfileApp({ route, onRoute, openApp }: NativeProps) {
             verified={verified}
             lexgoId={session?.lexgoId || ""}
             openApp={openApp}
+            say={say}
             onSaved={(p) => {
               setProf({ ...prof, ...p });
               if (p.name && session) update({ name: p.name });
@@ -144,7 +149,7 @@ export default function CProfileApp({ route, onRoute, openApp }: NativeProps) {
   );
 }
 
-function Account({ prof, verified, lexgoId, openApp, onSaved }: { prof: ClientProfile; verified: boolean; lexgoId: string; openApp: NativeProps["openApp"]; onSaved: (p: { name: string; email: string }) => void }) {
+function Account({ prof, verified, lexgoId, openApp, onSaved, say }: { prof: ClientProfile; verified: boolean; lexgoId: string; openApp: NativeProps["openApp"]; onSaved: (p: { name: string; email: string }) => void; say: (m: string, tone?: "err") => void }) {
   const t = useTranslations("portal.client.profile");
   const tc = useTranslations("common");
   const tcm = useTranslations("portal.common");
@@ -192,9 +197,7 @@ function Account({ prof, verified, lexgoId, openApp, onSaved }: { prof: ClientPr
         <SettingRow icon={<IconMail />} title={prof.email || t("emailMissing")} />
         <SettingRow icon={<IconSparkle />} title={prof.subscription ? prof.subscription.planName : t("noSub")} desc={prof.subscription ? statusLabel(tcm, prof.subscription.status) : t("noSubText")} onClick={() => openApp("subscription")} />
       </Group>
-      <div className="dxce">
-        <IdentityVerify />
-      </div>
+      <Identity say={say} />
       {edit ? (
         <Dialog
           open

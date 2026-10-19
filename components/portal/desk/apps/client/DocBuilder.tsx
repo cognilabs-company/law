@@ -6,11 +6,13 @@ import ServiceDocumentRequest from "@/components/portal/ServiceDocumentRequest";
 import { DocChromeContext, clearDraft, hasDraftAnswers, type DocChrome } from "@/components/portal/DocFill";
 import { IconClose, IconEye } from "@/components/icons";
 import { App, Btn, Dialog, Tool, Toolbar } from "../../kit/kit";
+import DeskFill from "./DeskFill";
 
 // The document builder as a desktop program: the window's own toolbar (back,
-// the document's name, a look at the template, close) around the builder —
-// the questions, the live page and the payment, which are the web's and
-// take the desktop's look from builder.css. Leaving with answers typed asks
+// the document's name, a look at the template, close) around the builder.
+// Its fill screen is drawn natively (DeskFill, a skin over DocFill); the
+// steps around it — choosing how to fill, the payment, the finished file —
+// are the web's, on the desktop's tokens. Leaving with answers typed asks
 // first, as on the web.
 
 export default function DocBuilder({ serviceId, lawyer, back, preview }: { serviceId: string; lawyer: boolean; back: () => void; preview: () => void }) {
@@ -21,7 +23,7 @@ export default function DocBuilder({ serviceId, lawyer, back, preview }: { servi
   const [draftId, setDraftId] = useState("");
   const [exit, setExit] = useState(false);
   const ask = useCallback(() => (hasDraftAnswers(draftId) ? setExit(true) : back()), [draftId, back]);
-  const chrome = useMemo<DocChrome>(() => ({ onBack: ask, onExit: ask }), [ask]);
+  const chrome = useMemo<DocChrome>(() => ({ onBack: ask, onExit: ask, fillSkin: DeskFill }), [ask]);
   return (
     <App name="cbuilder">
       <Toolbar title={title || t("docViewTitle")} back={{ label: d("back"), onClick: ask }}>

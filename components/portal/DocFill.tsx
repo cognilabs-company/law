@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { previewDocumentRequest, getServiceTemplateSourceFile, requestServiceDocumentLawyerGated, type DocumentPreview, type DocumentRequest, type ServiceDocumentFields } from "@/lib/services/backend";
 import { preopenTab, showBlob, saveBlob, closeTab } from "@/lib/download";
@@ -42,7 +42,7 @@ const AI_FIELD_TR: Record<string, string> = {
   "ю": "yu", "я": "ya",
 };
 
-function aiFieldKey(name: string): string {
+export function aiFieldKey(name: string): string {
   let k = (name || "").trim();
   if (k.startsWith("{{")) k = k.slice(2);
   if (k.endsWith("}}")) k = k.slice(0, -2);
@@ -58,7 +58,7 @@ function aiFieldKey(name: string): string {
   return out.replace(/[^a-zA-Z0-9_]+/g, "_").replace(/^_+|_+$/g, "").toLowerCase();
 }
 
-function aiRowId(name: string): string {
+export function aiRowId(name: string): string {
   const key = aiFieldKey(name);
   return key ? aiId("documents.constructor.field", key) : "";
 }
@@ -66,11 +66,11 @@ function aiRowId(name: string): string {
 const AI_NO_FILL_KINDS: ReadonlySet<DocKind> = new Set<DocKind>(["phone", "email", "pinfl", "inn"]);
 const AI_NO_FILL_NAME = /pass?port|паспорт|pinfl|jshshir|жшшир|karta|карта|card|parol|password/i;
 
-function aiFillable(f: DocField, kind: DocKind): boolean {
+export function aiFillable(f: DocField, kind: DocKind): boolean {
   return !AI_NO_FILL_KINDS.has(kind) && !AI_NO_FILL_NAME.test(`${f.name} ${f.label}`);
 }
 
-function aiFieldValue(f: DocField, kind: DocKind, raw: string): string | null {
+export function aiFieldValue(f: DocField, kind: DocKind, raw: string): string | null {
   const v = String(raw ?? "");
   if (kind === "date") {
     const iso = isoDate(v);
@@ -147,7 +147,44 @@ export function lawyerPendingNote(t: DocT, statusText: string, workId: string): 
 // lays itself out as the advocate's document editor (DocumentEditorWorkspace)
 // and owns the top bar — back, exit, generate — instead of sitting under the
 // page's own. Not given (the catalog's modal), it keeps its two-pane layout.
-export type DocChrome = { onBack: () => void; onExit: () => void };
+export type DocChrome = { onBack: () => void; onExit: () => void; fillSkin?: ComponentType<{ v: DocFillView; refs: DocFillRefs }> };
+
+// What the fill workspace knows and can do, for a skin that draws it its
+// own way (the desktop's builder window). Everything is computed here; the
+// skin only lays it out.
+export type DocFillGroup = { id: string; title: string; items: DocField[] };
+export type DocFillView = {
+  req: DocumentRequest;
+  title: string;
+  fields: DocField[];
+  groups: DocFillGroup[];
+  answers: Record<string, string>;
+  values: Record<string, string>;
+  counts: Record<string, number>;
+  label: (f: DocField) => string;
+  active: string;
+  setActive: (name: string) => void;
+  touched: boolean;
+  done: number;
+  total: number;
+  requiredN: number;
+  pct: number;
+  missing: DocField[];
+  serverMissing: string[];
+  blocked: boolean;
+  busy: boolean;
+  submitLabel: string;
+  submit: () => void;
+  setVal: (f: DocField, v: string) => void;
+  aiSetVal: (name: string, v: string) => void;
+  focusField: (name: string) => void;
+  jump: (name: string) => void;
+  scrollIntoPane: (name: string) => void;
+  paper: ReactNode;
+  ask: { available: boolean; busy: boolean; sent: boolean; gated: string; err: boolean; heldNote: string; run: () => void };
+  hasDraft: boolean;
+};
+export type DocFillRefs = { formPane: RefObject<HTMLDivElement | null>; bind: (name: string, el: HTMLElement | null) => void };
 export const DocChromeContext = createContext<DocChrome | null>(null);
 
 // The form panel's draggable wall: the stored width is what the client chose,
@@ -874,6 +911,56 @@ export default function DocFill({
     />
   );
 
+  const Skin = chrome?.fillSkin;
+  if (Skin) {
+    const formPaneRef = formPane;
+    const inputsRef = inputs;
+    return (
+      <Skin
+        refs={{
+          formPane: formPaneRef,
+          bind: (name, el) => {
+            if (el) inputsRef.current.set(name, el);
+            else inputsRef.current.delete(name);
+          },
+        }}
+        v={{
+          req,
+          title: req.title || sourceFile?.title || t("fillTitle"),
+          fields,
+          groups,
+          answers,
+          values,
+          counts,
+          label,
+          active,
+          setActive,
+          touched,
+          done,
+          total,
+          requiredN: fields.filter((f) => f.required).length,
+          pct,
+          missing,
+          serverMissing,
+          blocked,
+          busy,
+          submitLabel,
+          submit,
+          setVal,
+          aiSetVal,
+          focusField,
+          jump: (name) => {
+            setActive(name);
+            setNavTick((n) => n + 1);
+          },
+          scrollIntoPane,
+          paper,
+          ask: { available: !!sourceFile?.lawyerFlow, busy: askBusy, sent: askSent, gated: askGated, err: askErr, heldNote: lawyerHeldNote || "", run: () => void askLawyer() },
+          hasDraft: Object.values(answers).some((x) => typeof x === "string" && x.trim() !== ""),
+        }}
+      />
+    );
+  }
   if (chrome) {
     const docTitle = req.title || sourceFile?.title || t("fillTitle");
     const requiredN = fields.filter((f) => f.required).length;
