@@ -1,0 +1,28 @@
+/* Profile as settings: System Settings on the Mac, Settings on Windows. */
+.dxq{display:flex;flex-direction:column;gap:6px;max-width:860px;width:100%;padding:16px 28px 32px}
+.dxq-me{display:flex;align-items:center;gap:10px;padding:4px 2px 8px}
+.dxq-me span{display:flex;flex-direction:column;min-width:0}
+.dxq-me b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dxq-me small{color:var(--x-ink2)}
+.dxq-save{display:flex;gap:6px}
+.dxq-pct{display:block;width:160px}
+.dxq-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.dxq-form--4{grid-template-columns:repeat(4,minmax(0,1fr));align-items:end}
+.dxq-rate{display:flex;flex-direction:column;padding-bottom:4px}
+.dxq-rate small{color:var(--x-ink2)}
+.dxq-rate b{font-size:22px;color:var(--x-ok)}
+.dxq-chips{display:flex;flex-wrap:wrap;gap:8px 18px}
+.dxq-note{margin:8px 2px 0;font-size:.86em;color:var(--x-ink3)}
+.dxq-days{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.dxq-days button{min-width:52px;height:30px;padding:0 10px;border:0;border-radius:15px;background:var(--x-fill);color:var(--x-ink);cursor:default}
+.dxq-days button.is-on{background:var(--x-acc);color:var(--x-acc-ink);font-weight:600}
+.dxq-row-btns{display:flex;flex-wrap:wrap;gap:6px}
+.dxq-2fa{display:flex;flex-direction:column;gap:12px}
+.dxq-qr{display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.dxq-qr img{border-radius:8px;background:#fff;padding:6px}
+.dxq-qr small{color:var(--x-ink2)}
+.dxq-qr code{padding:4px 8px;border-radius:5px;background:var(--x-fill);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;user-select:all}
+.dx--mac .dxq .dx-group>.dx-group__b:not(:has(.dx-srow)){padding:14px}
+.dx--win .dxq{padding:4px 28px 32px}
+.dx--win .dxq .dx-group>.dx-group__b:not(:has(.dx-srow)){padding:16px;border:1px solid var(--x-layer-line);border-radius:4px;background:var(--x-ctl)}
+.dx--win .dxq-days button{border-radius:4px}

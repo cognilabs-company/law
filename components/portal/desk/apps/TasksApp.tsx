@@ -5,7 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { createTask, deleteTask, listMyTasks, updateTask, type TaskCheckItem, type WorkTask } from "@/lib/services/backend";
 import { dateOnly } from "@/lib/date";
 import { IconAlert, IconCalendar, IconCheck, IconClipboardList, IconClose, IconFileText, IconFlag, IconGrid, IconList, IconPlus, IconStarRate, IconSun, IconTrash } from "@/components/icons";
-import { App, Btn, Check, Empty, Field, Input, Loading, Search, Seg, Select, Sidebar, TextArea, Toggle, Tool, Toolbar, useConfirm, useHost, useOs, useToast, type NavSection } from "../kit/kit";
+import { App, Btn, Check, Empty, Field, Loading, Search, Seg, Select, Sidebar, TextArea, Toggle, Tool, Toolbar, useConfirm, useHost, useOs, useToast, type NavSection } from "../kit/kit";
+import { DateField } from "../kit/pickers";
 import type { NativeProps } from "../native";
 import "./tasks.css";
 
@@ -111,13 +112,14 @@ export default function TasksApp(_props: NativeProps) {
   }
   const setStage = (x: WorkTask, s: Stage) => save(x, { status: s });
   const toggleDone = (x: WorkTask) => setStage(x, open(x) ? "done" : "todo");
-  async function add(title: string) {
+  async function add(title: string, stage?: Stage) {
     const name = title.trim();
     if (!name) return;
     const inherits: { due_date?: string; priority?: string; status?: string } = {};
-    if (list === "today" || list === "overdue") inherits.due_date = today;
-    if (list === "important") inherits.priority = "high";
-    if ((STAGES as readonly string[]).includes(list)) inherits.status = list;
+    if (!stage && (list === "today" || list === "overdue")) inherits.due_date = today;
+    if (!stage && list === "important") inherits.priority = "high";
+    if (stage) inherits.status = stage;
+    else if ((STAGES as readonly string[]).includes(list)) inherits.status = list;
     try {
       const x = await createTask({ title: name, priority: inherits.priority ?? "medium", ...inherits });
       setTasks((l) => [x, ...(l ?? [])]);
@@ -189,7 +191,7 @@ export default function TasksApp(_props: NativeProps) {
         <Loading label={d("loading")} />
       )
     ) : view === "board" && !needle ? (
-      <Board tasks={sorted(all.filter(matches))} selected={sel} onSelect={setSel} onMove={(x, s) => void setStage(x, s)} onMenu={rowMenu} overdue={overdue} />
+      <Board tasks={sorted(all.filter(matches))} selected={sel} onSelect={setSel} onMove={(x, s) => void setStage(x, s)} onMenu={rowMenu} overdue={overdue} onAdd={(title, s) => void add(title, s)} />
     ) : (
       <div className="dxt-list" onKeyDown={onListKey}>
         {shown.length ? (
@@ -317,9 +319,61 @@ function QuickAdd({ placeholder, onAdd }: { placeholder: string; onAdd: (v: stri
   );
 }
 
+// A new card at the foot of a column: "+ Add task", then a field.
+function ColumnAdd({ label, onAdd }: { label: string; onAdd: (v: string) => void }) {
+  const d = useTranslations("portal.desk.tasks");
+  const [open, setOpen] = useState(false);
+  const [v, setV] = useState("");
+  if (!open)
+    return (
+      <button type="button" className="dxt-coladd" onClick={() => setOpen(true)}>
+        <IconPlus aria-hidden />
+        {d("newWin")}
+      </button>
+    );
+  return (
+    <form
+      className="dxt-colform"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (v.trim()) onAdd(v);
+        setV("");
+      }}
+    >
+      <textarea
+        value={v}
+        onChange={(e) => setV(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            e.currentTarget.form?.requestSubmit();
+          }
+          if (e.key === "Escape") {
+            setOpen(false);
+            setV("");
+          }
+        }}
+        onBlur={() => !v.trim() && setOpen(false)}
+        placeholder={label}
+        aria-label={label}
+        rows={2}
+        maxLength={200}
+        autoFocus
+      />
+      <span>
+        <Btn kind="primary" small type="submit" disabled={!v.trim()}>
+          {d("add")}
+        </Btn>
+        <Btn kind="plain" small icon={<IconClose />} title={d("cancel")} onClick={() => (setOpen(false), setV(""))} />
+      </span>
+    </form>
+  );
+}
+
 // The stages side by side; a card is dragged from one to another.
-function Board({ tasks, selected, onSelect, onMove, onMenu, overdue }: { tasks: WorkTask[]; selected: string; onSelect: (id: string) => void; onMove: (x: WorkTask, s: Stage) => void; onMenu: (e: MouseEvent, x: WorkTask) => void; overdue: (x: WorkTask) => boolean }) {
+function Board({ tasks, selected, onSelect, onMove, onMenu, overdue, onAdd }: { tasks: WorkTask[]; selected: string; onSelect: (id: string) => void; onMove: (x: WorkTask, s: Stage) => void; onMenu: (e: MouseEvent, x: WorkTask) => void; overdue: (x: WorkTask) => boolean; onAdd: (title: string, s: Stage) => void }) {
   const t = useTranslations("portal.tasks");
+  const d = useTranslations("portal.desk.tasks");
   const locale = useLocale();
   const [over, setOver] = useState<Stage | null>(null);
   const drag = useRef<string>("");
@@ -381,6 +435,7 @@ function Board({ tasks, selected, onSelect, onMove, onMenu, overdue }: { tasks: 
                   </footer>
                 </article>
               ))}
+              <ColumnAdd label={d("addTo", { stage: t(`stages.${s}`) })} onAdd={(v) => onAdd(v, s)} />
             </div>
           </section>
         );
@@ -444,10 +499,7 @@ function Details({ x, onSave, onClose, onDelete, locale }: { x: WorkTask; onSave
             <Seg label={t("priorityLabel")} small value={(PRIOS as readonly string[]).includes(x.priority) ? (x.priority as (typeof PRIOS)[number]) : "medium"} onChange={(p) => onSave({ priority: p })} items={PRIOS.map((p) => ({ id: p, label: t(`priority.${p}`) }))} />
           </Field>
           <Field label={t("due")}>
-            <span className="dxt-due">
-              <Input type="date" value={(x.dueDate ?? "").slice(0, 10)} onChange={(v) => onSave({ dueDate: v })} ariaLabel={t("due")} />
-              {x.dueDate ? <Btn kind="plain" small icon={<IconClose />} title={d("noDue")} onClick={() => onSave({ dueDate: "" })} /> : null}
-            </span>
+            <DateField value={(x.dueDate ?? "").slice(0, 10)} onChange={(v) => onSave({ dueDate: v })} ariaLabel={t("due")} placeholder={d("noDueYet")} clearable />
           </Field>
           <Field label={t("caseTitle")}>
             <span className="dxt-case">

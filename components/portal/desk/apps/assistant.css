@@ -1,0 +1,22 @@
+/* The AI assistant workbench, Windows or Mac. */
+.dxa{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);flex:1;min-height:0}
+.dxa-case{display:flex;flex-direction:column;gap:8px;min-height:0;padding:16px 18px;border-right:1px solid var(--x-sep)}
+.dxa-case label{font-weight:600}
+.dxa-case textarea{flex:1;min-height:160px;padding:12px;border:0;border-radius:var(--x-r2);background:var(--x-bg2);color:var(--x-ink);font:inherit;line-height:1.55;resize:none;outline:none;box-shadow:inset 0 0 0 1px var(--x-sep);user-select:text}
+.dxa-case textarea:focus{box-shadow:inset 0 0 0 1px var(--x-acc),0 0 0 3px color-mix(in srgb,var(--x-acc) 25%,transparent)}
+.dxa-case footer{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.dxa-case footer small{color:var(--x-ink3)}
+.dxa-disc,.dxa-pii{margin:0;font-size:.82em;line-height:1.4;color:var(--x-ink3)}
+.dxa-out{display:flex;flex-direction:column;gap:10px;min-height:0;overflow:auto;padding:16px 18px}
+.dxa-run{display:flex;flex-direction:column;gap:8px;padding:14px 16px}
+.dxa-run header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.dxa-run header span{display:inline-flex;align-items:center;gap:6px;font-weight:600}
+.dxa-run header svg{width:14px;height:14px;color:#a66cff}
+.dxa-text{margin:0;line-height:1.6;white-space:pre-wrap;user-select:text}
+.dxa-wait{margin:0;color:var(--x-ink2)}
+.dx--mac .dxa-run{border-radius:12px;background:var(--x-bg2);box-shadow:inset 0 0 0 .5px var(--x-sep)}
+html[data-theme="dark"] .dx--mac .dxa-run{background:rgba(255,255,255,.04)}
+.dx--win .dxa{padding-left:12px}
+.dx--win .dxa-case textarea{border-radius:4px;background:var(--x-ctl);box-shadow:inset 0 0 0 1px var(--x-ctl-line),inset 0 -1px 0 color-mix(in srgb,var(--x-ink) 40%,transparent)}
+.dx--win .dxa-case textarea:focus{box-shadow:inset 0 0 0 1px var(--x-ctl-line),inset 0 -2px 0 var(--x-acc)}
+.dx--win .dxa-run{border:1px solid var(--x-layer-line);border-radius:8px;background:var(--x-ctl)}

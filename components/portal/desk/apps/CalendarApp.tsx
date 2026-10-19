@@ -7,6 +7,7 @@ import { dateOnly, monthNames, monthTitle, weekdays } from "@/lib/date";
 import { saveBlob } from "@/lib/download";
 import { IconAlert, IconBell, IconCalendar, IconChevronLeft, IconChevronRight, IconClock, IconClose, IconDownload, IconGavel, IconMapPin, IconPlus, IconScale, IconTrash } from "@/components/icons";
 import { App, Btn, Check, Dialog, Empty, Field, Input, Loading, Search, Seg, Select, Toggle, Tool, Toolbar, useConfirm, useHost, useOs, useToast } from "../kit/kit";
+import { DateField, TimeField } from "../kit/pickers";
 import type { NativeProps } from "../native";
 import "./calendar.css";
 
@@ -550,13 +551,13 @@ function NewEvent({ draft, onClose, onSaved, onFail }: { draft: { date: string; 
       </div>
       <div className="dxc-form3">
         <Field label={d("date")}>
-          <Input type="date" value={f.date} onChange={(v) => set({ date: v })} ariaLabel={d("date")} />
+          <DateField value={f.date} onChange={(v) => set({ date: v })} ariaLabel={d("date")} />
         </Field>
         <Field label={d("starts")}>
-          <Input type="time" value={f.time} onChange={(v) => set({ time: v })} ariaLabel={d("starts")} />
+          <TimeField value={f.time} onChange={(v) => set({ time: v })} ariaLabel={d("starts")} />
         </Field>
         <Field label={d("ends")}>
-          <Input type="time" value={f.end} onChange={(v) => set({ end: v })} ariaLabel={d("ends")} />
+          <TimeField value={f.end} onChange={(v) => set({ end: v })} ariaLabel={d("ends")} />
         </Field>
       </div>
       <Field label={t("locationLabel")}>
@@ -617,7 +618,7 @@ function Calculator({ open, onClose, onAdded }: { open: boolean; onClose: () => 
       </p>
       <div className="dxc-form2">
         <Field label={td("baseDate")}>
-          <Input type="date" value={base} onChange={setBase} ariaLabel={td("baseDate")} />
+          <DateField value={base} onChange={setBase} ariaLabel={td("baseDate")} />
         </Field>
         <Field label={td("eventTitle")}>
           <Input value={title} onChange={setTitle} placeholder={td("eventTitlePh")} maxLength={200} />

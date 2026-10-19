@@ -84,7 +84,7 @@ function tidy(s: string): string {
 
 // Title/body shown for a row: the client-side template for the event when
 // one exists (portal.notifications.events.<event>), else the backend text.
-function useNotifText() {
+export function useNotifText() {
   const t = useTranslations("portal.notifications");
   const statusLabel = useOrderStatusLabel();
   return useCallback(

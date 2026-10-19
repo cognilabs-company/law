@@ -1,0 +1,42 @@
+/* Notifications: read like mail — Mail on the Mac, Outlook on Windows. */
+
+.dxn-body{display:grid;grid-template-columns:minmax(280px,380px) minmax(0,1fr);flex:1;min-height:0}
+.dxn-list{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--x-sep)}
+.dxn-scroll{flex:1;min-height:0;overflow:auto}
+.dxn-row{position:relative;display:grid;grid-template-columns:10px 30px minmax(0,1fr);align-items:start;gap:8px;padding:10px 14px 10px 8px;cursor:default;outline:none}
+.dxn-dot{width:8px;height:8px;margin-top:10px;border-radius:50%}
+.dxn-row.is-new .dxn-dot{background:var(--x-acc)}
+.dxn-ic{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;color:#fff;background:#8e8e93}
+.dxn-ic svg{width:15px;height:15px}
+.dxn-ic.is-big{width:44px;height:44px;border-radius:12px}
+.dxn-ic.is-big svg{width:22px;height:22px}
+.dxn-ic--orders{background:#ff8a5b}.dxn-ic--payments{background:#34c38f}.dxn-ic--chat{background:#22a6e6}.dxn-ic--documents{background:#5b8def}.dxn-ic--system{background:#8e9bb0}.dxn-ic--marketing{background:#e86bd6}
+.dxn-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.dxn-top{display:flex;align-items:baseline;gap:8px}
+.dxn-top b{flex:1;min-width:0;overflow:hidden;font-weight:500;text-overflow:ellipsis;white-space:nowrap}
+.dxn-row.is-new .dxn-top b{font-weight:700}
+.dxn-top time{flex:none;font-size:11px;color:var(--x-ink3)}
+.dxn-t small{display:-webkit-box;overflow:hidden;font-size:.9em;color:var(--x-ink2);-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.dxn-more{display:flex;justify-content:center;padding:10px}
+.dx--mac .dxn-row{margin:0 8px;border-radius:8px;box-shadow:0 1px 0 0 var(--x-sep)}
+.dx--mac .dxn-row.is-on{background:var(--x-acc);box-shadow:none}
+.dx--mac .dxn-row.is-on *{color:#fff}
+.dx--mac .dxn-row.is-on .dxn-dot{background:#fff}
+.dx--win .dxn-body{padding-left:20px}
+.dx--win .dxn-list{border-right:1px solid var(--x-layer-line)}
+.dx--win .dxn-row{margin:2px 8px;border-radius:4px}
+.dx--win .dxn-row:hover{background:var(--x-fill)}
+.dx--win .dxn-row.is-on{background:var(--x-acc-soft)}
+.dx--win .dxn-row.is-new::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:2px;background:var(--x-acc)}
+.dx--win .dxn-row.is-new .dxn-dot{background:transparent}
+
+.dxn-read{display:flex;flex-direction:column;gap:16px;min-height:0;overflow:auto;padding:24px 28px}
+.dxn-read header{display:flex;align-items:center;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--x-sep)}
+.dxn-read h2{margin:0;font-size:20px;font-weight:600;line-height:1.25}
+.dxn-read header p{margin:3px 0 0;color:var(--x-ink2)}
+.dxn-body__text{margin:0;font-size:1.05em;line-height:1.6;white-space:pre-wrap;user-select:text}
+.dxn-via{display:flex;flex-direction:column;gap:6px}
+.dxn-via b{font-size:.9em;font-weight:600;color:var(--x-ink2)}
+.dxn-via span{display:flex;flex-wrap:wrap;gap:6px}
+.dxn-read footer{display:flex;gap:8px}
+.dx--win .dxn-read{margin:0 20px 20px 0;padding:24px;border:1px solid var(--x-layer-line);border-radius:8px;background:var(--x-ctl)}
