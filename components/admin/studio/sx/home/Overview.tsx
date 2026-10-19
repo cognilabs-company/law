@@ -3,6 +3,7 @@
 import "../sx-tones.css";
 import "./sx-home.css";
 import { useId, type ReactElement } from "react";
+import Image from "next/image";
 import { ArrowUpRightIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -19,7 +20,15 @@ import { pctOf } from "./GroupCard";
 import { statusCount, type StudioSummaryState } from "./summary";
 
 type KpiKey = "total" | "published" | "draft" | "submitted" | "approved";
-type Kpi = { key: KpiKey; icon: SxIcon; tone: SxTone | "accent"; value: number; href: string };
+type Kpi = { key: KpiKey; icon: SxIcon; art: string; tone: SxTone | "accent"; value: number; href: string };
+
+const ART: Record<KpiKey, string> = {
+  total: "/img/yozuvlar.png",
+  published: "/img/yuborildi.png",
+  draft: "/img/qoralama.png",
+  submitted: "/img/tekshiruvda.png",
+  approved: "/img/elon-kutilmoqda.png",
+};
 
 const BASE = "admin.studio.home.overview";
 const SK = [0, 1, 2, 3, 4];
@@ -35,11 +44,11 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
   const s = summary.data;
   const kpis: Kpi[] = s
     ? [
-        { key: "total", icon: LayersIcon, tone: "accent", value: s.total, href: "" },
-        { key: "published", icon: RadioIcon, tone: "published", value: statusCount(s, "published"), href: "" },
-        { key: "draft", icon: PencilLineIcon, tone: "draft", value: statusCount(s, "draft"), href: "" },
-        { key: "submitted", icon: HourglassIcon, tone: "submitted", value: statusCount(s, "submitted", "in_review"), href: acc.canReview ? approvalsHref({ need: "review" }) : "" },
-        { key: "approved", icon: RocketIcon, tone: "approved", value: statusCount(s, "approved"), href: acc.canReview ? approvalsHref({ need: "publish" }) : "" },
+        { key: "total", icon: LayersIcon, art: ART.total, tone: "accent", value: s.total, href: "" },
+        { key: "published", icon: RadioIcon, art: ART.published, tone: "published", value: statusCount(s, "published"), href: "" },
+        { key: "draft", icon: PencilLineIcon, art: ART.draft, tone: "draft", value: statusCount(s, "draft"), href: "" },
+        { key: "submitted", icon: HourglassIcon, art: ART.submitted, tone: "submitted", value: statusCount(s, "submitted", "in_review"), href: acc.canReview ? approvalsHref({ need: "review" }) : "" },
+        { key: "approved", icon: RocketIcon, art: ART.approved, tone: "approved", value: statusCount(s, "approved"), href: acc.canReview ? approvalsHref({ need: "publish" }) : "" },
       ]
     : [];
   const fmt = (n: number) => labels.num(n);
@@ -91,7 +100,9 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
             const hint = k.key === "total" && s && s.activeTotal !== null ? t("sx.hm.kpi.totalActive", { n: fmt(s.activeTotal) }) : t(`sx.hm.kpi.${k.key}Hint`);
             const body = (
               <>
-                <span className="sx-kpi__ic">{glyph(k.icon, { size: 18 })}</span>
+                <span className="sx-kpi__ic sx-kpi__ic--art">
+                  <Image src={k.art} alt="" width={34} height={34} />
+                </span>
                 <SxCount value={k.value} format={fmt} className="sx-kpi__n" />
                 <span className="sx-kpi__l">{label}</span>
                 <span className="sx-kpi__h">{hint}</span>
