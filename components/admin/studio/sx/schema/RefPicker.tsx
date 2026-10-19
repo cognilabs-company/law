@@ -35,7 +35,7 @@ type RefPickerBase = {
 export type RefPickerProps = RefPickerBase &
   ({ multiple?: false; value: string; onChange: (value: string | undefined) => void } | { multiple: true; value: readonly string[]; onChange: (value: string[]) => void });
 
-export type SourceEmptyState = { kind: "none" } | { kind: "create"; text: string; link: string; href: string } | { kind: "notReady"; text: string };
+export type SourceEmptyState = { kind: "none" } | { kind: "create"; text: string; link: string; href: string } | { kind: "plain"; text: string };
 
 export function useSourceEmpty(source: string, enabled: boolean): SourceEmptyState {
   const t = useTranslations("studio");
@@ -59,8 +59,8 @@ export function useSourceEmpty(source: string, enabled: boolean): SourceEmptySta
   if (!enabled || !empty || empty.source !== source || !empty.empty) return { kind: "none" };
   const producer = producerOf(source);
   if (!producer) return { kind: "none" };
-  if (producer.kind === "notReady") return { kind: "notReady", text: t("sx.form.sourceNotReady") };
   const key = `sx.srcname.${studioReferenceKey(source).key}`;
+  if (producer.kind === "notReady") return { kind: "plain", text: t.has(key) ? t("sx.form.emptySource", { name: t(key) }) : t("sx.form.emptyRecords") };
   if (!t.has(key)) return { kind: "none" };
   return { kind: "create", text: t("sx.form.emptySource", { name: t(key) }), link: t("sx.form.createFirst", { name: labels.ctorName(producer.code) }), href: producer.href };
 }

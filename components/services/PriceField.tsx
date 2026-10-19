@@ -74,6 +74,7 @@ export default function PriceField({
   runtime,
   runtimeState,
   explanation,
+  minimum = 0,
 }: {
   id: string;
   value: string;
@@ -85,6 +86,7 @@ export default function PriceField({
   runtime: RuntimePricing | null;
   runtimeState: "idle" | "loading" | "ready" | "failed";
   explanation: { text: string; lines: string[] } | null;
+  minimum?: number;
 }) {
   const t = useTranslations("sellerServices.form");
   const tl = useTranslations("sellerServices.limits");
@@ -109,6 +111,7 @@ export default function PriceField({
   const n = Number(value || "0");
   const cap = runtime ? priceCapOf(runtime) : null;
   const above = priceAboveCap(n, runtime);
+  const below = !above && priceVerdict(n, runtime, minimum) === "belowMin";
   const rec = runtimeRec || (band && !isZeroBand(band) ? bandRecommended(band) : 0);
   const limId = `${id}-lim`;
   const hi = cap ? cap * 1.1 : 1;
@@ -118,27 +121,29 @@ export default function PriceField({
   const base = runtimeOk ? rec : band?.base || basePrice || 0;
   const mods = runtimeState === "failed" ? (band?.modifiers ?? []) : [];
   const expl = explanation && (explanation.text || explanation.lines.length) ? explanation : null;
-  const showLimits = rec > 0 || Boolean(runtime);
-  const bad = above || Boolean(error);
+  const showLimits = rec > 0 || Boolean(runtime) || minimum > 0;
+  const bad = above || below || Boolean(error);
   const described = [hintId, expl ? explId : "", showLimits ? limId : ""].filter(Boolean).join(" ");
 
   const hint = error
     ? error
     : above && cap
       ? tc("aboveMax", { max: som(cap) })
-      : runtimeState === "loading"
-        ? tc("runtimeLoading")
-        : runtimeState === "failed"
-          ? tc("runtimeFailed")
-          : cap
-            ? tc("hintCap", { max: som(cap) })
-            : runtimeOk
-              ? tc("hintBelow")
-              : bandState === "loading"
-                ? t("bandLoading")
-                : basePrice
-                  ? t("priceHintBase", { price: som(basePrice) })
-                  : t("priceHint");
+      : below
+        ? tc("belowMin", { min: som(minimum) })
+        : runtimeState === "loading"
+          ? tc("runtimeLoading")
+          : runtimeState === "failed"
+            ? tc("runtimeFailed")
+            : cap
+              ? tc("hintCap", { max: som(cap) })
+              : runtimeOk
+                ? tc("hintBelow")
+                : bandState === "loading"
+                  ? t("bandLoading")
+                  : basePrice
+                    ? t("priceHintBase", { price: som(basePrice) })
+                    : t("priceHint");
 
   return (
     <div className={`svprice2${bad ? " is-bad" : ""}`}>
@@ -230,6 +235,14 @@ export default function PriceField({
               <span>{tl("recommended")}</span>
               <b>
                 {som(rec)} {t("som")}
+              </b>
+            </div>
+          ) : null}
+          {minimum > 0 ? (
+            <div className="svlim__row">
+              <span>{tc("minLabel")}</span>
+              <b>
+                {som(minimum)} {t("som")}
               </b>
             </div>
           ) : null}

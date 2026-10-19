@@ -11,7 +11,7 @@ import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
 import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
-import { REVIEW_ACTIONS, resolveCancellationReview, reviewOrderOf, type CancellationReview, type ReviewAction, type ReviewResolution } from "@/lib/services/marketRuntime";
+import { resolveCancellationReview, reviewActionsOf, reviewOrderOf, type CancellationReview, type ReviewAction, type ReviewResolution } from "@/lib/services/marketRuntime";
 import { MessagesSquareIcon } from "./icons";
 import { EMPTY_DRAFT, NOTE_MAX, resolveFailureOf, staffChatHref, toResolveInput, validateResolve, type ResolveDraft, type ResolveErrors, type ResolveFailure, type ResolveField } from "./model";
 import { REVIEW_ACTION_ICON } from "./ReviewItem";
@@ -113,7 +113,7 @@ export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveD
   const action = draft.action;
   const terminal = !!general && (general.kind === "resolved" || general.kind === "gone" || general.kind === "forbidden");
   const dirty = !done && !terminal && (action !== "" || draft.note.trim() !== "");
-  const options = REVIEW_ACTIONS.map((a) => ({ value: a, title: t(`action.${a}`), description: t(`actionHint.${a}`), icon: REVIEW_ACTION_ICON[a] }));
+  const options = reviewActionsOf(review).map((a) => ({ value: a, title: t(`action.${a}`), description: t(`actionHint.${a}`), icon: REVIEW_ACTION_ICON[a] }));
   const submitLabel = busy ? t("dialog.saving") : action ? t(`dialog.submit.${action}`) : t("dialog.submitAny");
 
   const footer = done || terminal ? (

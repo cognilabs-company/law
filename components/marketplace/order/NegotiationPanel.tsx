@@ -19,7 +19,7 @@ import { parseServerTime } from "@/lib/http";
 import { marketErrorInfo, priceCapOf, proposeNegotiation, respondNegotiation, type Negotiation, type NegotiationResponse } from "@/lib/services/marketRuntime";
 import { CheckIcon, CircleCheckIcon, TimerIcon, CoinsIcon, HandCoinsIcon, HourglassIcon, BanIcon, XIcon, glyph } from "./icons";
 import { SECTION_ID, type OrderSectionProps } from "./types";
-import { canProposeNegotiation, counterProblem, negotiationActions, negotiationCap, negotiationErrorKey, negotiationStateOf, pickNegotiation, proposalProblem, showNegotiation, type NegotiationState } from "./negotiationRules";
+import { canProposeNegotiation, counterProblem, dealAmount, negotiationActions, negotiationCap, negotiationErrorKey, negotiationGate, negotiationStateOf, pickNegotiation, proposalProblem, showNegotiation, type NegotiationState } from "./negotiationRules";
 import { noteNegotiation, useNotedNegotiation } from "./negotiationStore";
 
 const NOTE_MAX = 500;
@@ -75,7 +75,7 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
   const [busy, setBusy] = useState<Busy>("");
   const [live, setLive] = useState("");
 
-  const acceptedAmount = st === "accepted" && n ? n.counterAmount || n.amount : 0;
+  const acceptedAmount = st === "accepted" && n ? dealAmount(n) : 0;
   const acceptedKey = view === "client" && st === "accepted" && n && acceptedAmount > 0 ? `${n.id}:${acceptedAmount}` : "";
   const patched = useRef("");
   useEffect(() => {
@@ -152,7 +152,7 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
     setAmountErr("");
     setBusy("propose");
     try {
-      const r = withOrder(await proposeNegotiation(o.id, { amount, note }), { status: "pending", amount, note: note.trim() });
+      const r = withOrder(await proposeNegotiation(o.id, { amount, note }, o.urls.negotiations), { status: "pending", amount, note: note.trim() });
       setLast(r);
       noteNegotiation(r, owner);
       onChanged({ negotiation: r });
@@ -179,7 +179,7 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
       setLast(merged);
       noteNegotiation(merged, owner);
       const accepted = input.action === "accept";
-      onChanged({ negotiation: merged, ...(accepted ? { price: merged.counterAmount || merged.amount || n.counterAmount || n.amount } : {}) });
+      onChanged({ negotiation: merged, ...(accepted ? { price: dealAmount(merged) || dealAmount(n) } : {}) });
       setCounterOpen(false);
       setCounterAmount(undefined);
       setResponseNote("");
@@ -333,7 +333,9 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
     } else if (st === "proposed" && n) {
       body = offer(t("negotiation.yourOffer"), n.amount, n.note, st, expiry(n));
     } else if (st === "countered" && n) {
-      const canAccept = negotiationActions(n).includes("accept");
+      const gate = negotiationGate(n, "client", owner);
+      const canAccept = gate ? gate.accept : negotiationActions(n).includes("accept");
+      const canReject = gate?.reject === true;
       body = (
         <>
           {offer(t("negotiation.counterOffer"), n.counterAmount, n.responseNote, st, expiry(n))}
@@ -343,6 +345,11 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
             {canAccept ? (
               <SxButton variant="primary" icon={CheckIcon} busy={busy === "accept"} disabled={!!busy && busy !== "accept"} onClick={() => void respond({ action: "accept" }, "accept")} aiId={`${ai}.accept`}>
                 {t("negotiation.acceptCounter")}
+              </SxButton>
+            ) : null}
+            {canReject ? (
+              <SxButton variant="danger" icon={XIcon} busy={busy === "reject"} disabled={!!busy && busy !== "reject"} onClick={() => void respond({ action: "reject" }, "reject")} aiId={`${ai}.reject`}>
+                {t("negotiation.reject")}
               </SxButton>
             ) : null}
             {mayPropose ? (
@@ -365,6 +372,8 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
       );
     }
   } else if (n) {
+    const sellerGate = negotiationGate(n, "seller", owner);
+    const sellerMay = (a: "accept" | "counter" | "reject") => (sellerGate ? sellerGate[a] : true);
     if (st === "proposed") {
       body = (
         <>
@@ -430,25 +439,31 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
             <>
               {errNote}
               <div className="mng-actions" data-seller="">
-                <SxButton variant="primary" icon={CheckIcon} busy={busy === "accept"} disabled={!!busy && busy !== "accept"} onClick={() => void respond({ action: "accept" }, "accept")} aiId={`${ai}.accept`}>
-                  {t("negotiation.accept")}
-                </SxButton>
-                <SxButton
-                  variant="secondary"
-                  icon={CoinsIcon}
-                  disabled={!!busy}
-                  onClick={() => {
-                    setErr("");
-                    setCounterOpen(true);
-                    focusById(counterId);
-                  }}
-                  aiId={`${ai}.counter`}
-                >
-                  {t("negotiation.counter")}
-                </SxButton>
-                <SxButton variant="danger" icon={XIcon} busy={busy === "reject"} disabled={!!busy && busy !== "reject"} onClick={() => void respond({ action: "reject" }, "reject")} aiId={`${ai}.reject`}>
-                  {t("negotiation.reject")}
-                </SxButton>
+                {sellerMay("accept") ? (
+                  <SxButton variant="primary" icon={CheckIcon} busy={busy === "accept"} disabled={!!busy && busy !== "accept"} onClick={() => void respond({ action: "accept" }, "accept")} aiId={`${ai}.accept`}>
+                    {t("negotiation.accept")}
+                  </SxButton>
+                ) : null}
+                {sellerMay("counter") ? (
+                  <SxButton
+                    variant="secondary"
+                    icon={CoinsIcon}
+                    disabled={!!busy}
+                    onClick={() => {
+                      setErr("");
+                      setCounterOpen(true);
+                      focusById(counterId);
+                    }}
+                    aiId={`${ai}.counter`}
+                  >
+                    {t("negotiation.counter")}
+                  </SxButton>
+                ) : null}
+                {sellerMay("reject") ? (
+                  <SxButton variant="danger" icon={XIcon} busy={busy === "reject"} disabled={!!busy && busy !== "reject"} onClick={() => void respond({ action: "reject" }, "reject")} aiId={`${ai}.reject`}>
+                    {t("negotiation.reject")}
+                  </SxButton>
+                ) : null}
               </div>
             </>
           )}

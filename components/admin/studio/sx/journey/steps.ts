@@ -1,7 +1,7 @@
 import type { StudioCreationJourney, StudioJourneyType } from "@/lib/services/studio";
 import type { JourneyDef, JourneyDefStep, JourneyDefs } from "./journeyApi";
 
-export type JourneyStepDef = { key: string; title: string; code: string; fields: readonly string[]; required: boolean };
+export type JourneyStepDef = { key: string; title: string; code: string; fields: readonly string[]; required: boolean; formCode?: string };
 
 const REVIEW_KEY = "review";
 
@@ -97,7 +97,8 @@ export function stepLabel(key: string, t: (key: string) => string, title = ""): 
 
 function fromDef(type: StudioJourneyType, s: JourneyDefStep): JourneyStepDef {
   const hint = FIELD_HINTS[type][s.key] ?? [];
-  return { key: s.key, title: s.title, code: s.code, fields: s.fields.length ? s.fields : hint, required: s.required };
+  const out: JourneyStepDef = { key: s.key, title: s.title, code: s.code, fields: s.fields.length ? s.fields : hint, required: s.required };
+  return s.formCode ? { ...out, formCode: s.formCode } : out;
 }
 
 function fallbackStep(type: StudioJourneyType, key: string): JourneyStepDef {
@@ -173,7 +174,8 @@ export function journeySteps({ defs, mainCode, journey: j, leftovers, topKeys, l
       placed = true;
     }
     const fields = submit ? [...d.fields, ...leftovers.filter((f) => !d.fields.includes(f))] : [...d.fields];
-    const form = submit || (fields.length > 0 && (topKeys.size === 0 || fields.some((f) => topKeys.has(f))));
+    const ownForm = !d.formCode || d.formCode.trim().toUpperCase() === main;
+    const form = submit || (ownForm && fields.length > 0 && (topKeys.size === 0 || fields.some((f) => topKeys.has(f))));
     const code = d.code.trim();
     const linked = code && code.toUpperCase() !== main && !submit;
     const draft: Draft = { key: d.key, label: label(d.key, d.title), fields, code, required: d.required, submit, known: true, form };

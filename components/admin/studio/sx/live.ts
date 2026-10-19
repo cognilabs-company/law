@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { onUserSocketResync, subscribeUserEvents, type UserEvent } from "@/lib/userSocket";
+import { onUserSocketResync, subscribeUserEvents, userSocketConnection, userSocketSeen, type UserEvent } from "@/lib/userSocket";
 import { isStudioEvent } from "@/lib/services/studio";
 
 export const JOURNEY_EVENT = "studio.journey_updated";
+const RESYNC_EVENT = "studio.resync";
+const RESYNC_HOLD_MS = 3000;
 
 export function useStudioLive(onEvent: (e: UserEvent) => void, enabled = true): void {
   const ref = useRef(onEvent);
@@ -16,10 +18,23 @@ export function useStudioLive(onEvent: (e: UserEvent) => void, enabled = true): 
     const off = subscribeUserEvents((e) => {
       if (isStudioEvent(e.event)) ref.current(e);
     });
-    const offSync = onUserSocketResync(() => ref.current({ event: "studio.resync" }));
+    let hold: ReturnType<typeof setTimeout> | undefined;
+    const offSync = onUserSocketResync(() => {
+      clearTimeout(hold);
+      if (!userSocketSeen(RESYNC_EVENT)) {
+        ref.current({ event: RESYNC_EVENT });
+        return;
+      }
+      const conn = userSocketConnection();
+      hold = setTimeout(() => {
+        hold = undefined;
+        if (userSocketSeen(RESYNC_EVENT) !== conn) ref.current({ event: RESYNC_EVENT });
+      }, RESYNC_HOLD_MS);
+    });
     return () => {
       off();
       offSync();
+      clearTimeout(hold);
     };
   }, [enabled]);
 }

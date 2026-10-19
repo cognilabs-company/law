@@ -11,7 +11,7 @@ type Keyed = SellerConfigLoad & { key: string };
 const IDLE: SellerConfigLoad = { state: "idle", config: null };
 const LOADING: SellerConfigLoad = { state: "loading", config: null };
 
-export function useSellerConfig(serviceId: string, uid: string, enabled: boolean): SellerConfigLoad {
+export function useSellerConfig(serviceId: string, uid: string, enabled: boolean, version = ""): SellerConfigLoad {
   const id = serviceId.trim();
   const on = enabled && !!id && configSupport() !== "no";
   const [load, setLoad] = useState<Keyed | null>(null);
@@ -32,7 +32,7 @@ export function useSellerConfig(serviceId: string, uid: string, enabled: boolean
       },
     );
     return () => ac.abort();
-  }, [on, id, uid]);
+  }, [on, id, uid, version]);
 
   if (!on) return IDLE;
   if (!load || load.key !== id) return LOADING;

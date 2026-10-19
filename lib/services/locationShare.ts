@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { ApiError } from "@/lib/http";
+import { ApiError, parseServerTime } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { DEFAULT_LOCATION_POLICY, LOCATION_DURATIONS, getLocationSharing, marketErrorInfo, setLocationSharing, type LocationDuration, type LocationPolicy, type LocationShareState } from "@/lib/services/marketRuntime";
 
@@ -10,7 +10,7 @@ export type ShareErrorKind = "denied" | "unavailable" | "timeout" | "insecure" |
 export type ShareError = { kind: ShareErrorKind; code: string; message: string };
 export type SharePermission = "granted" | "prompt" | "denied" | "unsupported" | "unknown";
 export type GeoFix = { latitude: number; longitude: number; accuracy: number; at: number };
-export type ServerShare = { enabled: boolean; until: number | null; manual: boolean; updatedAt: number | null; accuracy: number | null; at: number };
+export type ServerShare = { enabled: boolean; until: number | null; manual: boolean; updatedAt: number | null; freshUntil: number | null; accuracy: number | null; at: number };
 export type ShareSnapshot = {
   uid: string;
   mode: ShareMode;
@@ -240,6 +240,10 @@ export async function queryPermission(): Promise<SharePermission> {
   }
 }
 
+export function shareStale(server: ServerShare | null, now: number): boolean {
+  return !!server && server.enabled && server.freshUntil !== null && now > server.freshUntil;
+}
+
 export function refreshHours(remainingMs: number): LocationDuration {
   if (!Number.isFinite(remainingMs)) return null;
   let pick: LocationDuration = LOCATION_DURATIONS[0];
@@ -254,19 +258,21 @@ function serverError(e: unknown, kind: ShareErrorKind): ShareError {
 
 function expiryOf(expiresAt: string, hours: LocationDuration, now: number): number | null {
   if (hours === null) return null;
-  const parsed = expiresAt ? Date.parse(expiresAt) : NaN;
+  const parsed = expiresAt ? parseServerTime(expiresAt) : NaN;
   return Number.isFinite(parsed) && parsed > now ? parsed : now + hours * HOUR_MS;
 }
 
 function serverOf(res: LocationShareState, now: number): ServerShare {
-  const exp = res.expiresAt ? Date.parse(res.expiresAt) : NaN;
+  const exp = res.expiresAt ? parseServerTime(res.expiresAt) : NaN;
   const live = res.enabled && (!Number.isFinite(exp) || exp > now);
-  const upd = res.updatedAt ? Date.parse(res.updatedAt) : NaN;
+  const upd = res.updatedAt ? parseServerTime(res.updatedAt) : NaN;
+  const fresh = res.freshUntil ? parseServerTime(res.freshUntil) : NaN;
   return {
     enabled: live,
     until: live && Number.isFinite(exp) ? exp : null,
     manual: live && !Number.isFinite(exp),
     updatedAt: Number.isFinite(upd) ? upd : null,
+    freshUntil: Number.isFinite(fresh) ? fresh : null,
     accuracy: res.accuracyMeters,
     at: now,
   };
@@ -320,7 +326,7 @@ export async function startSharing(uid: string, durationHours: LocationDuration,
     const until = expiryOf(res.expiresAt, durationHours, now);
     writeStored(uid, { until, manual });
     lastAttemptAt = now;
-    set({ mode: "on", until, manual, policy: res.policy, lastSentAt: now, lastAccuracy: fix.accuracy, error: null, permission: "granted", server: { enabled: true, until, manual, updatedAt: now, accuracy: fix.accuracy, at: now } });
+    set({ mode: "on", until, manual, policy: res.policy, lastSentAt: now, lastAccuracy: fix.accuracy, error: null, permission: "granted", server: { enabled: true, until, manual, updatedAt: now, freshUntil: null, accuracy: fix.accuracy, at: now } });
   } catch (e) {
     if (gen === generation && state.uid === uid) set({ mode: prev, error: serverError(e, "server") });
     throw e;

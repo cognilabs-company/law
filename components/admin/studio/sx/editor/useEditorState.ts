@@ -70,6 +70,7 @@ import {
   changedKeys,
   currentVersionOf,
   draftKey,
+  editableOf,
   editorModeOf,
   liveVersionOf,
   nextNoteOf,
@@ -345,9 +346,16 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const statusKey = statusKeyOf(status, "studio");
   const liveKey = `${statusNorm}:${detail?.currentVersionId ?? ""}`;
   const liveLocked = !!opts.lockLive && mode === "object" && LIVE.has(statusNorm) && unlockedFor !== "*" && unlockedFor !== liveKey;
+  const lifecycle = useMemo(() => lifecycleOf(detail), [detail]);
+  const editable = editableOf(access, lifecycle);
   const readOnlyReason: EditorState["readOnlyReason"] =
-    statusNorm === "archived" ? "archived" : LOCKED_STATUSES.has(statusNorm) ? "locked" : !access.canEdit ? "access" : mode === "runtime-view" ? "view" : liveLocked ? "live" : "";
+    statusNorm === "archived" ? "archived" : LOCKED_STATUSES.has(statusNorm) ? "locked" : !editable ? "access" : mode === "runtime-view" ? "view" : liveLocked ? "live" : "";
   const readOnly = readOnlyReason !== "";
+  const editMismatch = lifecycle.contract && access.known && access.canEdit && lifecycle.canEdit === false && (statusNorm === "draft" || statusNorm === "changes_requested");
+  const mismatchId = editMismatch ? detail?.id ?? "" : "";
+  useEffect(() => {
+    if (mismatchId) console.warn("[lexgo]", "studio.sx.object.can_edit", { id: mismatchId, canEdit: false, roleCanEdit: true });
+  }, [mismatchId]);
   const formMode: SxEditMode = readOnly ? "view" : mode === "create" || mode === "clone" ? "create" : "edit";
   const gate = regCtor ?? full;
   const blocked = mode === "create" && Boolean(gate && (gate.availability === "blocked" || gate.missingRequired.length));
@@ -674,7 +682,6 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const showSummary = policy.submitted || Object.keys(serverErrors).length > 0;
 
   const reviewNote = statusNorm === "changes_requested" ? reviewNoteOf(detail, comments.items) : null;
-  const lifecycle = useMemo(() => lifecycleOf(detail), [detail]);
   const actionsInput = {
     mode,
     status: statusNorm,
@@ -806,7 +813,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
         return { id: created.id, created: seeded };
       }
       const expectedLockVersion = await lockVersionFor(id);
-      await saveStudioObject(id, { title: objTitle, payload: body, summary: meta?.summary, version: meta?.version, expectedLockVersion });
+      await saveStudioObject(id, { title: objTitle, payload: body, summary: meta?.summary, version: meta?.version, expectedLockVersion }, lifecycle.saveUrl);
       hb.markSaved();
       return { id, created: null };
     } catch (e) {
@@ -888,7 +895,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       const r = id && !dirty ? { id, created: null } : await persist();
       if (!r) return false;
       try {
-        await submitStudioObject(r.id);
+        await submitStudioObject(r.id, r.id === id ? lifecycle.submitUrl : "");
         setServerErrors(EMPTY_ERRORS);
         notify.success(t(direct ? "sx.editor.toast.submittedDirect" : "sx.editor.toast.submitted"));
         if (!id) {

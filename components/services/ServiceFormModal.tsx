@@ -19,6 +19,7 @@ import {
   type ServiceStatus,
 } from "@/lib/services/sellerServices";
 import { configSupport, lastSellerConfig, saveSellerService, type ConfigError } from "@/lib/services/sellerConfig";
+import { useRulesGateState } from "@/lib/services/rulesGate";
 import { IconAlert, IconCheck, IconCoins, IconEdit, IconEye, IconLayers, IconLock, IconPause, IconPlay, IconPower, IconScale } from "@/components/icons";
 import { InBody, som } from "./bits";
 import ServicePicker from "./ServicePicker";
@@ -134,6 +135,8 @@ export default function ServiceFormModal({
   const [serverBand, setServerBand] = useState<{ key: string; band: PriceBand } | null>(null);
   const [live, setLive] = useState(false);
   const [warm, setWarm] = useState(false);
+  const rulesVersion = useRulesGateState().lastAccepted;
+  const [savedCfg, setSavedCfg] = useState<{ version: string; cfg: SellerServiceConfig } | null>(null);
 
   const region = profile.region;
   const serviceId = service?.id ?? "";
@@ -141,8 +144,8 @@ export default function ServiceFormModal({
   const savedBand = persisted && persisted.id === serviceId ? persisted.limits : null;
   const runtimeLoad = useRuntimeConfig(serviceId);
   const runtime = runtimeLoad.config;
-  const cfgLoad = useSellerConfig(serviceId, uid, self && Boolean(persisted) && persisted?.id === serviceId);
-  const cfg = cfgLoad.config;
+  const cfgLoad = useSellerConfig(serviceId, uid, self && Boolean(persisted) && persisted?.id === serviceId, rulesVersion);
+  const cfg = savedCfg && savedCfg.version === rulesVersion && savedCfg.cfg.serviceId === serviceId ? savedCfg.cfg : cfgLoad.config;
   const pricing = pricingWithConfig(runtime?.pricing ?? null, cfg);
   if (cfg && seeded !== cfg.serviceId) {
     setSeeded(cfg.serviceId);
@@ -172,6 +175,7 @@ export default function ServiceFormModal({
   const noPrice = isZeroBand(band) && !(pricing && pricing.recommendedPrice > 0);
   const n = noPrice ? 0 : Number(price || "0");
   const off = priceAboveCap(n, pricing);
+  const minPrice = !noPrice && cfg && cfg.minimumListingPrice > 0 ? cfg.minimumListingPrice : 0;
   const advocateBlocked = Boolean(loaded?.advocate) || err?.kind === "advocateOnly";
   const remembered = serviceId ? lastSellerConfig(uid, serviceId) : null;
   const explanation = remembered && remembered.selectedPrice === n && (remembered.priceExplanation || remembered.priceExplanationLines.length) ? { text: remembered.priceExplanation, lines: remembered.priceExplanationLines } : null;
@@ -180,7 +184,7 @@ export default function ServiceFormModal({
   const negTouched = neg !== null && neg.key === serviceId;
   const negOn = negTouched ? neg.on : negInitial === true;
   const sendNeg = showNeg && (negTouched || negInitial !== null);
-  const cfgRulesOpen = cfg?.rulesAccepted === false;
+  const cfgRulesOpen = cfg?.rulesPending === true;
   const rulesClosed = Boolean(rules?.closed) || cfgRulesOpen;
   const activeLocked = rulesClosed && status !== "active";
 
@@ -273,6 +277,15 @@ export default function ServiceFormModal({
       });
       if (res.ok) {
         rememberPolicy(uid);
+        const pend = res.config?.rulesPending === true && input.status === "active" ? res.config : null;
+        if (pend && rules) {
+          keep(res.saved);
+          setSavedCfg({ version: rulesVersion, cfg: { ...pend, serviceId: pend.serviceId || service.id } });
+          setStatus("paused");
+          setStatusErr([codeText("service_rules_acceptance_required", { n: pend.missingRuleIds.length }), t("rules.savedNotEnabled")].filter(Boolean).join(" "));
+          rules.open(pend.missingRuleIds, service.id);
+          return;
+        }
         onSaved(res.saved, res.created);
         return;
       }
@@ -387,6 +400,7 @@ export default function ServiceFormModal({
               runtime={pricing}
               runtimeState={runtimeLoad.state === "failed" && pricing ? "ready" : runtimeLoad.state}
               explanation={explanation}
+              minimum={minPrice}
             />
           </section>
 
@@ -412,6 +426,7 @@ export default function ServiceFormModal({
                     {t("config.negotiationHint")}
                     {!negTouched && negInitial === null ? <span className="svcfg-sw__m">{t("config.negotiationUnknown")}</span> : null}
                     {status !== "active" ? <span className="svcfg-sw__m">{t("config.negotiationActiveOnly")}</span> : null}
+                    {cfg && cfg.negotiationMinimumPrice > 0 ? <span className="svcfg-sw__m">{t("config.negotiationMin", { price: som(cfg.negotiationMinimumPrice) })}</span> : null}
                   </small>
                 </span>
                 <span className="svcfg-sw__track" aria-hidden="true">

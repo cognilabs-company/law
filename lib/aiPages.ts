@@ -1,46 +1,19 @@
-// The page registry, from this app's side.
-//
-// LEXGO_AI_SYSTEM_ASSISTANT_FRONTEND_BACKEND_2026-09-29.md asks for two
-// things: send the current page with every question, and check any route the
-// answer returns against a whitelist before pushing it.
-//
-// The whitelist has to be a MAPPING, not a filter. The backend's registry
-// names routes that do not exist in this app — measured against the live
-// /api/ai/pages on 2026-09-29, six of its sixteen are wrong for us:
-//
-//   marketplace_lawyers       /marketplace/lawyers             → /portal/client/lawyers
-//   urgent_advokat            /portal/client/urgent-advokat    → /portal/client/urgent
-//   notifications             /notifications                   → per-role notifications
-//   callcenter_urgent         /portal/call-center/urgent-advokat → /admin/call-center
-//   callcenter_quality        /portal/call-center/quality-complaints → /admin/call-center
-//   admin_service_catalog     /admin/service-categories        → /admin/services
-//   admin_document_templates  /admin/document-templates        → /admin/templates
-//
-// Pushing `navigation.route` straight through would 404 the client on the
-// single most likely question there is ("advokatni qayerdan tanlayman?" →
-// /marketplace/lawyers). So the page_id is what is trusted, and the route is
-// ours. A page_id we do not know yields no button at all rather than a guess.
-
 export type AiRole = "client" | "lawyer" | "advocate";
+export type AiRouteRole = AiRole | "staff";
 
-// page_id → the route in THIS app. A function where the answer depends on
-// who is asking.
-const PAGE_ROUTE: Record<string, string | ((role: AiRole) => string)> = {
+const notificationsFor = (role: AiRouteRole) => (role === "staff" ? "/admin/notifications" : `/portal/${role}/notifications`);
+
+const PAGE_ROUTE: Record<string, string | ((role: AiRouteRole) => string)> = {
   client_dashboard: "/portal/client",
   client_documents: "/portal/client/documents",
   client_works: "/portal/client/works",
   service_catalog: "/services",
-  // The client browses advocates at their own marketplace page; the public
-  // /lawyers page is the logged-out one.
   marketplace_lawyers: "/portal/client/lawyers",
   urgent_advokat: "/portal/client/urgent",
-  notifications: (role) => `/portal/${role}/notifications`,
-  // The registry calls the seller "lawyer" and routes to /portal/advocate.
-  // Both cabinets exist here and a yurist must not be sent to the advocate's.
+  notifications: notificationsFor,
   lawyer_dashboard: (role) => (role === "lawyer" ? "/portal/lawyer" : "/portal/advocate"),
   lawyer_document_requests: (role) => (role === "lawyer" ? "/portal/lawyer/document-requests" : "/portal/advocate/document-requests"),
   lawyer_clients: (role) => (role === "lawyer" ? "/portal/lawyer/clients" : "/portal/advocate/clients"),
-  // Both call-centre pages are one console here.
   callcenter_urgent: "/admin/call-center",
   callcenter_quality: "/admin/call-center",
   admin_dashboard: "/admin/dashboard",
@@ -49,26 +22,67 @@ const PAGE_ROUTE: Record<string, string | ((role: AiRole) => string)> = {
   admin_document_templates: "/admin/templates",
 };
 
-// A route the answer named directly, with no page_id we recognise. Allowed
-// only when it is one of ours — the assistant is not a way to reach an
-// arbitrary URL.
+const LEGACY_ROUTE: Record<string, string | ((role: AiRouteRole) => string)> = {
+  "/marketplace/lawyers": "/portal/client/lawyers",
+  "/portal/client/urgent-advokat": "/portal/client/urgent",
+  "/notifications": notificationsFor,
+  "/portal/call-center/urgent-advokat": "/admin/call-center",
+  "/portal/call-center/quality-complaints": "/admin/call-center",
+  "/admin/service-categories": "/admin/services",
+  "/admin/document-templates": "/admin/templates",
+};
+
+const LEGACY_LAWYER_PROFILE = /^\/marketplace\/lawyers\/([^/?#]+)(?:\/services)?$/;
+const ADVOCATE_CABINET = /^\/portal\/advocate(?=\/|$)/;
+
+function own<T>(o: Record<string, T>, k: string): T | undefined {
+  return k && Object.prototype.hasOwnProperty.call(o, k) ? o[k] : undefined;
+}
+
+export function legacyAiRoute(route: string, role: AiRouteRole): string {
+  const cut = route.search(/[?#]/);
+  const raw = cut < 0 ? route : route.slice(0, cut);
+  const rest = cut < 0 ? "" : route.slice(cut);
+  const path = raw.length > 1 ? raw.replace(/\/+$/, "") || "/" : raw;
+  const known = own(LEGACY_ROUTE, path);
+  if (known) return (typeof known === "function" ? known(role) : known) + rest;
+  const profile = role === "client" ? LEGACY_LAWYER_PROFILE.exec(path) : null;
+  if (profile) return `/portal/client/lawyers/${profile[1]}${rest}`;
+  if (role === "lawyer" && ADVOCATE_CABINET.test(path)) return path.replace(ADVOCATE_CABINET, "/portal/lawyer") + rest;
+  return route;
+}
+
+const DOT_SEGMENT = /(^|\/|%2f|%5c)(\.|%2e){1,2}(\/|%2f|%5c|$)/i;
+
+export function aiSafePath(route: string): boolean {
+  if (!route.startsWith("/") || route.startsWith("//") || /[\s\\]/.test(route)) return false;
+  const path = route.split(/[?#]/)[0];
+  if (DOT_SEGMENT.test(path)) return false;
+  try {
+    return new URL(path, "http://x").pathname === path;
+  } catch {
+    return false;
+  }
+}
+
 const ROUTE_ALLOW = [
   "/portal/client", "/portal/lawyer", "/portal/advocate", "/portal/chat",
   "/admin", "/services", "/lawyers", "/legal", "/academy", "/subscription",
 ];
 
-/**
- * Where a navigation or action should actually take the user, or "" when it
- * should not take them anywhere.
- */
-export function aiRouteFor(pageId: string, rawRoute: string, role: AiRole): string {
-  const known = PAGE_ROUTE[pageId];
-  if (known) return typeof known === "function" ? known(role) : known;
+const UNFILLED = /[{}[\]]|\/:/;
+
+function allowedRoute(route: string): string {
+  if (!aiSafePath(route) || UNFILLED.test(route.split(/[?#]/)[0])) return "";
+  return ROUTE_ALLOW.some((a) => route === a || route.startsWith(a + "/") || route.startsWith(a + "?")) ? route : "";
+}
+
+export function aiRouteFor(pageId: string, rawRoute: string, role: AiRouteRole): string {
   const r = (rawRoute || "").trim();
-  if (!r.startsWith("/") || r.startsWith("//")) return "";
-  // Exact match or a path segment under an allowed root — "/servicesX" must
-  // not pass because "/services" does.
-  if (ROUTE_ALLOW.some((a) => r === a || r.startsWith(a + "/") || r.startsWith(a + "?"))) return r;
+  const direct = r ? allowedRoute(legacyAiRoute(r, role)) : "";
+  if (direct) return direct;
+  const known = own(PAGE_ROUTE, pageId);
+  if (known) return typeof known === "function" ? known(role) : known;
   return "";
 }
 

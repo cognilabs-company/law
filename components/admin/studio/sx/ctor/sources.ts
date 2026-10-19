@@ -87,13 +87,13 @@ export const SOURCE_PRODUCER: Readonly<Record<string, Producer>> = {
   "subscription-plans": { code: "K17", to: "new" },
 };
 
-const NOT_READY: ReadonlySet<string> = new Set(["refund-policies"]);
+const NO_PRODUCER: ReadonlySet<string> = new Set(["refund-policies"]);
 
 export function producerOf(source: string): SxSourceProducer | null {
   const raw = String(source ?? "").trim();
   if (!raw) return null;
   const { key } = studioReferenceKey(raw);
-  if (NOT_READY.has(key)) return { kind: "notReady" };
+  if (NO_PRODUCER.has(key)) return { kind: "notReady" };
   if (!own.call(SOURCE_PRODUCER, key)) return null;
   const p = SOURCE_PRODUCER[key];
   const code = encodeURIComponent(p.code);

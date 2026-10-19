@@ -178,7 +178,7 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
     const { ctrl, ok } = begin("checklist");
     if (checklistLoadRef.current !== "ready") setCl("loading");
     try {
-      const c = await getOrderChecklist(orderId, ctrl.signal);
+      const c = await getOrderChecklist(orderId, ctrl.signal, orderRef.current?.urls.checklist);
       if (!ok()) return;
       setChecklistState(c);
       setCl(c.items.length ? "ready" : "none");
@@ -202,7 +202,7 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
     const { ctrl, ok } = begin("opinion");
     if (opinionLoadRef.current !== "ready") setOp("loading");
     try {
-      const op = await getSecondOpinion(orderId, ctrl.signal);
+      const op = await getSecondOpinion(orderId, ctrl.signal, orderRef.current?.urls.secondOpinion);
       if (!ok()) return;
       setOpinion(op);
       setOp("ready");
@@ -226,7 +226,7 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
     if (!id && !wantsNegotiation(cur)) return;
     const { ctrl, ok } = begin("negotiation");
     try {
-      const n = id ? await getNegotiation(id, ctrl.signal) : latestNegotiation((await listOrderNegotiations(orderId, ctrl.signal)).items);
+      const n = id ? await getNegotiation(id, ctrl.signal) : latestNegotiation((await listOrderNegotiations(orderId, ctrl.signal, cur?.urls.negotiations)).items);
       if (!ok()) return;
       negotiationLoaded.current = true;
       if (!n || (!n.id && !(n.amount > 0))) return;

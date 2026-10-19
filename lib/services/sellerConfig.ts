@@ -20,9 +20,10 @@ import {
 
 export type ConfigErrorCode = "seller_price_above_maximum" | "seller_price_below_minimum" | "seller_price_negative" | "service_rules_acceptance_required" | "other";
 export type ConfigError = { code: ConfigErrorCode; field: "price" | "status" | "form"; missingRuleIds: string[]; maximum: number | null; minimum: number | null; message: string; status: number };
-export type PriceVerdict = "ok" | "negative" | "aboveMax";
+export type PriceVerdict = "ok" | "negative" | "aboveMax" | "belowMin";
 
 const KNOWN_CODES: readonly ConfigErrorCode[] = ["seller_price_above_maximum", "seller_price_below_minimum", "seller_price_negative", "service_rules_acceptance_required"];
+const CONFIG_PAUSED_RE = /^(rules?_pending|pending_rules?|rules?_acceptance_required)$/;
 const BELOW_MIN_RE = /^seller_price_(below_min(imum)?|too_low|under_min(imum)?)$/;
 
 let support: "unknown" | "yes" | "no" = "unknown";
@@ -63,10 +64,11 @@ export function configErrorOf(e: unknown): ConfigError {
   };
 }
 
-export function priceVerdict(price: number, pricing: Pick<RuntimePricing, "maximumPrice"> | null): PriceVerdict {
+export function priceVerdict(price: number, pricing: Pick<RuntimePricing, "maximumPrice"> | null, minimum = 0): PriceVerdict {
   if (price < 0) return "negative";
   const cap = pricing ? priceCapOf(pricing) : null;
   if (cap !== null && price > cap) return "aboveMax";
+  if (minimum > 0 && price > 0 && price < minimum) return "belowMin";
   return "ok";
 }
 
@@ -77,6 +79,9 @@ export function applySellerConfig(item: ManagedService, cfg: SellerServiceConfig
     effectivePrice: cfg.selectedPrice > 0 ? cfg.selectedPrice : item.effectivePrice,
     priceCapped: cfg.selectedPrice > 0 ? false : item.priceCapped,
     negotiationAllowed: cfg.negotiationAllowed ?? item.negotiationAllowed,
+    status: CONFIG_PAUSED_RE.test(cfg.status) ? "paused" : item.status,
+    visible: cfg.rulesPending ? false : item.visible,
+    rulesPending: cfg.rulesPending ? true : cfg.rulesAccepted === true ? false : item.rulesPending,
   };
 }
 

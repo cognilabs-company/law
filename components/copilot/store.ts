@@ -1,14 +1,18 @@
-import { useSyncExternalStore } from "react";
-import { useAuth, type Role } from "@/lib/auth";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { useAuth, type Role, type Session } from "@/lib/auth";
 import { inDesk, tellDesk, useInDesk } from "@/lib/deskBridge";
 import {
   copilotClip,
   copilotEntity,
   copilotEntityKey,
   copilotModeFor,
+  copilotStaffSession,
   isCopilotSurface,
+  loadCopilotAccess,
   newCopilotId,
+  peekCopilotAccess,
   sanitizeCopilotContext,
+  type CopilotCapsAccess,
   type CopilotEntityRef,
   type CopilotErrorKind,
   type CopilotPageContext,
@@ -255,13 +259,38 @@ export function closeCopilot(): void {
   if (back && inside) window.requestAnimationFrame(() => back.focus({ preventScroll: true }));
 }
 
+const ownerOf = (session: Session | null | undefined) => (session ? session.id || session.phone || "" : "");
+
+export function copilotChatSurface(session: Session | null | undefined): CopilotSurface {
+  const owner = ownerOf(session);
+  const mode = owner && state.access.owner === owner && state.access.mode ? state.access.mode : copilotModeFor(session);
+  return mode === "lawyer_copilot" ? "lawyer_chat" : "client_chat";
+}
+
 export function useCopilotAvailable(entity?: CopilotOpenOptions["entity"] | boolean): boolean {
   const desk = useInDesk();
   const { session, ready } = useAuth();
   const hosted = useSyncExternalStore(subscribeCopilot, hostedAvailable, () => false);
+  const owner = desk && ready ? ownerOf(session) : "";
+  const staff = !!owner && copilotStaffSession(session);
+  const [caps, setCaps] = useState<{ owner: string; caps: CopilotCapsAccess } | null>(null);
+  useEffect(() => {
+    if (!owner || !staff) return;
+    let live = true;
+    void loadCopilotAccess(owner).then((c) => {
+      if (live) setCaps({ owner, caps: c });
+    });
+    return () => {
+      live = false;
+    };
+  }, [owner, staff]);
   if (!desk) return hosted;
   const has = typeof entity === "boolean" ? entity : !!copilotEntity(entity);
-  return has && ready && copilotModeFor(session) !== null;
+  if (!has || !ready || !owner) return false;
+  const known = caps && caps.owner === owner ? caps.caps : peekCopilotAccess(owner);
+  if (known?.status === "denied") return false;
+  if (known?.status === "ok" && known.role) return copilotModeFor({ backendRole: known.role }) !== null;
+  return !staff && copilotModeFor(session) !== null;
 }
 
 export function useCopilot(entity?: CopilotOpenOptions["entity"] | boolean): { open: (opts: CopilotOpenOptions) => void; close: () => void; available: boolean; isOpen: boolean } {

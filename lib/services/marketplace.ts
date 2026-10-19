@@ -3,7 +3,9 @@ import { uzs } from "@/lib/money";
 import { cleanDocTitle } from "@/lib/docTitle";
 import { sellerTrustOf, type RatingStatus } from "./trust";
 import { featureMissing, noteFeatureError } from "@/lib/endpointGate";
-import { RUNTIME_ERROR_CODES, completeOrderV2, normDuration, normNegotiation, normCancellationReview, type RuntimeDuration, type Negotiation, type CancellationReview, type ChecklistProgress } from "./marketRuntime";
+import { MARKET_ACTION_TAIL, RUNTIME_ERROR_CODES, completeOrderV2, completeV2Path, marketActionPath, normDuration, normNegotiation, normCancellationReview, type RuntimeDuration, type Negotiation, type CancellationReview, type ChecklistProgress } from "./marketRuntime";
+
+export { marketActionPath };
 
 export type MarketCategory = { id: string; title: string; slug: string };
 
@@ -695,7 +697,14 @@ export function normMarketOrder(v: unknown): MarketOrder {
   const callsDisabled = firstBool(chatState.calls_disabled, d.calls_disabled);
   const callsFlag = firstBool(d.calls_allowed, details.calls_allowed, chatState.calls_allowed, callsDisabled === null ? null : !callsDisabled);
   const reviewRaw = filledDict(d.cancellation_review) ?? filledDict(d.cancellation_review_request) ?? filledDict(details.cancellation_review);
-  const url = (k: string) => asStr(d[k]).trim();
+  const actions = filledDict(d.actions) ?? {};
+  const actionUrl = (k: string): string => {
+    const a = actions[k.replace(/_url$/, "")] ?? actions[k];
+    const s = (typeof a === "string" ? a : asStr(asDict(a).url ?? asDict(a).href)).trim();
+    return /^(https?:\/\/|\/)/i.test(s) ? s : "";
+  };
+  const url = (k: string) => (k in d ? asStr(d[k]).trim() : actionUrl(k));
+  const negotiationsUrl = "negotiations_url" in d || "negotiation_url" in d ? asStr(d.negotiations_url ?? d.negotiation_url).trim() : actionUrl("negotiations") || actionUrl("negotiation");
   const flag = (k: string): boolean | null => (typeof d[k] === "boolean" ? (d[k] as boolean) : null);
   const urlGate = (k: string) => !(k in d) || !!url(k);
   const startFlag = flag("can_start");
@@ -755,12 +764,12 @@ export function normMarketOrder(v: unknown): MarketOrder {
         ? startFlag && !!url("start_url")
         : paymentStatus === "paid" && !startedAt && !done && !stopped && (status === "paid" || (!!url("start_url") && status !== "in_progress" && status !== "cancellation_review")),
     canRequestCancellation: reviewFlag !== null ? reviewFlag && !!url("cancellation_review_url") : null,
-    canNegotiate: negotiateFlag !== null ? negotiateFlag && !!asStr(d.negotiations_url ?? d.negotiation_url) : null,
+    canNegotiate: negotiateFlag !== null ? negotiateFlag && !!negotiationsUrl : null,
     explicit: { start: startFlag !== null, complete: completeFlag !== null, cancel: cancelFlag !== null },
     urls: {
       start: url("start_url"),
       checklist: url("checklist_url"),
-      negotiations: asStr(d.negotiations_url ?? d.negotiation_url),
+      negotiations: negotiationsUrl,
       cancellationReview: url("cancellation_review_url"),
       secondOpinion: url("second_opinion_url"),
       complete: url("complete_url"),
@@ -871,9 +880,9 @@ function orderOf(v: unknown): Dict {
   return asDict(asDict(v).order);
 }
 
-export async function cancelMarketplaceOrder(orderId: string, reason: string): Promise<{ status: string; paymentStatus: string }> {
+export async function cancelMarketplaceOrder(orderId: string, reason: string, url = ""): Promise<{ status: string; paymentStatus: string }> {
   const o = orderOf(
-    await http(`/marketplace/me/orders/${encodeURIComponent(orderId)}/cancel`, {
+    await http(marketActionPath(url, `/marketplace/me/orders/${encodeURIComponent(orderId)}/cancel`, MARKET_ACTION_TAIL.cancel), {
       method: "POST",
       body: JSON.stringify({ reason: reason.trim() }),
     }),
@@ -889,12 +898,18 @@ export function isCompleteV2Missing(e: unknown): boolean {
   return e.status === 404 && (!e.detail || /^not found$/i.test(e.detail.trim()));
 }
 
-export async function completeMarketplaceOrder(orderId: string, input: { resultText: string; resultFiles: ResultFile[] }): Promise<MarketCompletion> {
-  try {
-    const r = await completeOrderV2(orderId, { resultText: input.resultText, resultFiles: input.resultFiles.map((f) => ({ id: f.fileId, name: f.fileName })) });
-    return { status: r.status || "completed", via: "v2", chatReadOnly: r.chatReadOnly, callsAllowed: r.callsAllowed, ratingDeadlineAt: r.ratingDeadlineAt };
-  } catch (e) {
-    if (!isCompleteV2Missing(e)) throw e;
+export async function completeMarketplaceOrder(orderId: string, input: { resultText: string; resultFiles: ResultFile[] }, url = ""): Promise<MarketCompletion> {
+  const built = completeV2Path(orderId);
+  const served = marketActionPath(url, built, MARKET_ACTION_TAIL.complete);
+  const paths = served === built ? [built] : [served, built];
+  const v2Input = { resultText: input.resultText, resultFiles: input.resultFiles.map((f) => ({ id: f.fileId, name: f.fileName })) };
+  for (const path of paths) {
+    try {
+      const r = await completeOrderV2(orderId, v2Input, path);
+      return { status: r.status || "completed", via: "v2", chatReadOnly: r.chatReadOnly, callsAllowed: r.callsAllowed, ratingDeadlineAt: r.ratingDeadlineAt };
+    } catch (e) {
+      if (!isCompleteV2Missing(e)) throw e;
+    }
   }
   const o = orderOf(
     await http(`/marketplace/me/orders/${encodeURIComponent(orderId)}/complete`, {

@@ -778,7 +778,7 @@ export default function AiSystemAssistant({
         page: { route: pathname, pageId: aiPageIdFor(pathname), title: headerTitle() || (typeof document !== "undefined" ? document.title : "") },
         locale,
       });
-      const route = ans.navigation ? aiRouteFor(ans.navigation.pageId, ans.navigation.route, role) : "";
+      const route = ans.navigation ? aiRouteFor(ans.navigation.pageId, ans.navigation.route, gRole) : "";
       const tour = route ? pageTour(route, ans.navigation?.title || ans.highlight || ans.answer.slice(0, 140)) : null;
       const at = new Date().toISOString();
       setMsgs((m) => [...m, { kind: "ai", id: ans.requestId || makeId(), at, ans, tour, rated: 0 }]);

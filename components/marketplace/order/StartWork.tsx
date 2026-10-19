@@ -61,7 +61,7 @@ export default function StartWork({ o, aiBase, runtime, onStarted, onRefresh }: 
     setBusy(true);
     setErr(null);
     try {
-      const r = await startMarketOrder(o.id);
+      const r = await startMarketOrder(o.id, o.urls.start);
       setOpen(false);
       setDone(r);
       onStarted(r);

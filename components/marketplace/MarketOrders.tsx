@@ -33,6 +33,7 @@ import CompleteOrderDialog from "./CompleteOrderDialog";
 import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import SupplementalDialog from "./SupplementalDialog";
 import { OptionLines, RatingPanel, ResultBlock, SupplementalPanel } from "./OrderExtras";
+import { dealAmount as dealOf } from "./order/negotiationRules";
 import "./order/cards.css";
 
 type View = "client" | "seller";
@@ -299,7 +300,7 @@ export default function MarketOrders({ view }: { view: View }) {
         danger
         onClose={() => setCancelFor(null)}
         run={async (o, text) => {
-          const r = await cancelMarketplaceOrder(o.id, text);
+          const r = await cancelMarketplaceOrder(o.id, text, o.urls.cancel);
           patch(o.id, { status: r.status, paymentStatus: r.paymentStatus });
           setFlash(t("updated"));
           void load(true);
@@ -357,7 +358,7 @@ function OrderCard({
   const stage = marketStageOf(o);
   const phase = marketPhaseOf(o);
   const dealOpen = phase === "pending" && !!o.negotiation && DEAL_OPEN.test(o.negotiation.status);
-  const dealAmount = o.negotiation ? o.negotiation.counterAmount || o.negotiation.amount : 0;
+  const dealAmount = o.negotiation ? dealOf(o.negotiation) : 0;
   const stageLabel = phase === "paid" ? tph("paid") : t(`stage.${stage}`);
   const currency = !o.currency || o.currency === "UZS" ? te("currency") : o.currency;
   const [calling, setCalling] = useState<"" | "audio" | "video">("");

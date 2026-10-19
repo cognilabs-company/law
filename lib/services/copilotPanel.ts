@@ -1,7 +1,7 @@
 import { ApiError, aiQuotaOf, asArr, asDict, asNum, asStr, http, isAborted, type Dict } from "@/lib/http";
 import { aiFeedback } from "@/lib/services/backend";
-import { listArtifacts, newRequestId, type Artifact, type CopilotMode } from "@/lib/services/aiCopilot";
-import { aiRouteFor } from "@/lib/aiPages";
+import { newRequestId, type CopilotMode } from "@/lib/services/aiCopilot";
+import { aiRouteFor, aiSafePath, legacyAiRoute } from "@/lib/aiPages";
 import type { Role } from "@/lib/auth";
 
 export const COPILOT_CLIENT_SURFACES = [
@@ -106,6 +106,15 @@ const LAWYER_ROLES = new Set(["advokat", "yurist", "advokat_tashkiloti"]);
 export function copilotModeFor(s: { backendRole?: string | null } | null | undefined): CopilotPanelMode | null {
   const backend = (s?.backendRole ?? "").trim().toLowerCase();
   return backend === "client" ? "client_copilot" : LAWYER_ROLES.has(backend) ? "lawyer_copilot" : null;
+}
+
+const STAFF_ROLES = new Set(["admin", "superadmin", "manager"]);
+
+export function copilotStaffSession(s: { roles?: string[] | null; backendRole?: string | null } | null | undefined): boolean {
+  return [...(s?.roles ?? []), s?.backendRole ?? ""].some((r) => {
+    const x = (r ?? "").trim().toLowerCase();
+    return STAFF_ROLES.has(x) || x.startsWith("call_center") || x.startsWith("sales");
+  });
 }
 
 export function copilotPortalRole(backendRole: string | null | undefined): Role | null {
@@ -406,11 +415,31 @@ export function sendCopilotFeedback(requestId: string, rating: number, opts?: { 
   return aiFeedback(requestId, r, { comment: (opts?.comment ?? "").trim().slice(0, 500), ...(opts?.useful === undefined ? {} : { useful: opts.useful }) });
 }
 
-export type CopilotDraft = Artifact;
+export type CopilotDraft = { id: string; type: string; title: string; content: string; at: string; status: string };
 
-export function listCopilotDrafts(entity: { type: string; id: string } | null, signal?: AbortSignal): Promise<CopilotDraft[]> {
+export function normCopilotDraft(v: unknown): CopilotDraft {
+  const a = asDict(v);
+  return {
+    id: asStr(a.id),
+    type: asStr(a.type ?? a.artifact_type ?? a.kind).trim(),
+    title: asStr(a.title),
+    content: asStr(a.content ?? a.body),
+    at: asStr(a.created_at ?? a.updated_at),
+    status: asStr(a.status).trim().toLowerCase(),
+  };
+}
+
+export async function listCopilotDrafts(entity: { type: string; id: string } | null, signal?: AbortSignal): Promise<CopilotDraft[]> {
   const type = entity?.id ? copilotEntityType(entity.type) : null;
-  return listArtifacts(type && entity ? { type, id: entity.id } : null, signal);
+  const q = new URLSearchParams({ limit: "50", offset: "0" });
+  if (type && entity) {
+    q.set("entity_type", type);
+    q.set("entity_id", entity.id);
+  }
+  const d = asDict(await http(`/api/ai/artifacts?${q}`, { signal }));
+  return asArr(d.items ?? d.artifacts)
+    .map(normCopilotDraft)
+    .filter((a) => a.id || a.title);
 }
 
 export type CopilotErrorKind = "aborted" | "timeout" | "network" | "auth" | "role" | "notFound" | "mode" | "content" | "quota" | "rate" | "server" | "other";
@@ -438,20 +467,8 @@ const LOCALE_PREFIX = /^\/(uz|ru|en)(?=\/|$|\?)/;
 const PLACEHOLDER = /\{([A-Za-z0-9_]+)\}|\[([A-Za-z0-9_]+)\]|(?<=\/):([A-Za-z_][A-Za-z0-9_]*)/g;
 const own = (o: Record<string, string> | undefined, k: string) => (o && Object.prototype.hasOwnProperty.call(o, k) && typeof o[k] === "string" ? o[k] : "");
 
-const DOT_SEGMENT = /(^|\/|%2f|%5c)(\.|%2e){1,2}(\/|%2f|%5c|$)/i;
-
-function normalPath(route: string): boolean {
-  const path = route.split(/[?#]/)[0];
-  if (DOT_SEGMENT.test(path)) return false;
-  try {
-    return new URL(path, "http://x").pathname === path;
-  } catch {
-    return false;
-  }
-}
-
 function inScope(route: string, role: Role): boolean {
-  if (!normalPath(route)) return false;
+  if (!aiSafePath(route)) return false;
   const path = route.split(/[?#]/)[0];
   if (path === "/admin" || path.startsWith("/admin/")) return false;
   const m = /^\/portal\/([^/?#]+)/.exec(path);
@@ -459,9 +476,7 @@ function inScope(route: string, role: Role): boolean {
 }
 
 function rewrite(route: string, role: Role): string {
-  let r = route.replace(LOCALE_PREFIX, "") || "/";
-  const lawyers = /^\/marketplace\/lawyers(?:\/([^/?#]+))?(?:\/services)?\/?$/.exec(r);
-  if (lawyers && role === "client") r = lawyers[1] ? `/portal/client/lawyers/${lawyers[1]}` : "/portal/client/lawyers";
+  let r = legacyAiRoute(route.replace(LOCALE_PREFIX, "") || "/", role);
   if (role === "lawyer") r = r.replace(/^\/portal\/(advocate|advokat|yurist)(?=\/|$|\?)/, "/portal/lawyer");
   if (role === "advocate") r = r.replace(/^\/portal\/(lawyer|advokat|yurist)(?=\/|$|\?)/, "/portal/advocate");
   return r;
@@ -482,7 +497,7 @@ export function copilotRoute(input: { route?: string; pageId?: string; params?: 
     });
     if (missing) raw = "";
   }
-  if (raw && !normalPath(raw)) raw = "";
+  if (raw && !aiSafePath(raw)) raw = "";
   if (raw) {
     const direct = aiRouteFor("", rewrite(raw, role), role);
     if (direct && inScope(direct, role)) return direct;

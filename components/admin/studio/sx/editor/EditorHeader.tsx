@@ -37,7 +37,7 @@ import { sxStatus } from "../status";
 import type { SxCrumb, SxIcon } from "../types";
 import { useStudioLabels, type StudioLabels } from "../useStudioLabels";
 import { useEditorErrorText } from "./useEditorErrorText";
-import { SAVE_SHORTCUT } from "./model";
+import { SAVE_SHORTCUT, editableOf } from "./model";
 import type { EditorAlert, EditorPrimary, EditorState } from "./useEditorState";
 
 export type EditorMenuKey = "save" | "saveNote" | "versions" | "comments" | "files" | "steps" | "guide" | "clone" | "newVersion" | "archive" | "withdraw" | "restore";
@@ -275,7 +275,7 @@ export function EditorActions({
   const risky = (st.full ?? st.ctor)?.experience.risk === "high";
   const items = menuEntries(st, narrow, t, onMenu);
   const primaryBusy = st.busy === "check" || (st.primary === "save" && st.busy === "save") || (st.primary === "restore" && st.busy === "restore");
-  const unlockable = st.readOnlyReason === "live" && st.access.canEdit && st.phase === "ready";
+  const unlockable = st.readOnlyReason === "live" && editableOf(st.access, st.lifecycle) && st.phase === "ready";
   const onUnlock = () => {
     st.unlock();
     if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") return;

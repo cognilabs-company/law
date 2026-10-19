@@ -19,6 +19,8 @@ const stateHandlers = new Set<(s: State) => void>();
 // the caller's own initial load already covered).
 const syncHandlers = new Set<() => void>();
 let everConnected = false;
+let connection = 0;
+const seenOn = new Map<string, number>();
 
 export function userSocketUrl(tok: string): string {
   return `${backendOrigin("ws")}/ws/users/me?token=${encodeURIComponent(tok)}`;
@@ -61,10 +63,13 @@ function open() {
     return;
   }
   ws = sock;
+  let mine = 0;
   sock.onopen = () => {
     if (ws !== sock) return;
     const reconnected = everConnected;
     everConnected = true;
+    connection += 1;
+    mine = connection;
     retry = 0;
     startPing(sock);
     setState("online");
@@ -80,6 +85,7 @@ function open() {
     const ev = o as UserEvent;
     if (typeof ev.event !== "string") return;
     if (ev.event === "pong") return; // keepalive answer, not an app event
+    if (mine) seenOn.set(ev.event, mine);
     for (const h of handlers) {
       try { h(ev); } catch { /* one bad handler must not break the rest */ }
     }
@@ -113,6 +119,7 @@ export function disconnectUserSocket(): void {
   clearTimeout(timer);
   clearInterval(ping);
   everConnected = false;
+  seenOn.clear();
   if (ws) { const old = ws; ws = null; old.close(); }
   setState("offline");
 }
@@ -130,6 +137,9 @@ export function onUserSocketResync(h: () => void): () => void {
   syncHandlers.add(h);
   return () => { syncHandlers.delete(h); };
 }
+
+export const userSocketConnection = () => connection;
+export const userSocketSeen = (name: string) => seenOn.get(name) ?? 0;
 
 // Reconnect promptly when the tab comes back / network returns.
 if (typeof window !== "undefined") {

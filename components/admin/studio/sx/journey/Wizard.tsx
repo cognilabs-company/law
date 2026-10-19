@@ -14,7 +14,7 @@ import { SxButton, SxLinkButton } from "../Button";
 import { useLeaveGuard } from "../editor/useLeaveGuard";
 import { Picker } from "../form/Picker";
 import { prefersReducedMotion } from "../hooks";
-import { ArchiveIcon, BanIcon, CircleCheckIcon, glyph, moreGlyph, RefreshCwIcon, RotateCcwIcon, SearchIcon } from "../icons";
+import { ArchiveIcon, ArrowRightIcon, BanIcon, CircleCheckIcon, glyph, moreGlyph, RefreshCwIcon, RotateCcwIcon, SearchIcon } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxOutline } from "../layout/Outline";
@@ -23,7 +23,7 @@ import { SxPanel } from "../layout/Panel";
 import { SxProgress } from "../shared/Progress";
 import { CREATE_HOME_HREF, JOURNEY_CODE, journeyObjectId } from "../shared/journeyLinks";
 import { useStudioLabels } from "../useStudioLabels";
-import { isJourneyClosed, journeyActionsFor, journeyStatusOf, useJourneyDefinitions, type JourneyAction } from "./journeyApi";
+import { canContinueJourney, isJourneyClosed, journeyActionsFor, journeyCapsOf, journeyConfirmTextKey, journeyStatusOf, useJourneyDefinitions, type JourneyAction } from "./journeyApi";
 import { useJourneyErrorText } from "./journeyErrors";
 import { useJourneyOwnerLabel } from "./JourneyTable";
 import { JourneyStatusPill } from "./JourneyStatusPill";
@@ -69,6 +69,7 @@ export function Wizard({ id }: { id: string }): ReactElement {
   const [unfinished, setUnfinished] = useState<string[]>([]);
   const [flags, setFlags] = useState<Flags>(NO_FLAGS);
   const [fullFor, setFullFor] = useState<FullFor>({ code: "", ctor: null });
+  const [reopened, setReopened] = useState(false);
   const apiRef = useRef<StepApi | null>(null);
   const afterRef = useRef<After>(null);
   const focusRef = useRef(false);
@@ -103,7 +104,10 @@ export function Wizard({ id }: { id: string }): ReactElement {
   const active = picked && steps.some((s) => s.key === picked) ? picked : fallback;
   const activeStep = steps.find((s) => s.key === active) ?? null;
   const status = journeyStatusOf(journey?.status ?? "");
-  const closed = journey ? isJourneyClosed(journey.status) : false;
+  const canAct = access.canEdit && !!journey;
+  const caps = journeyCapsOf(journey);
+  const canContinue = canAct && canContinueJourney(status, caps);
+  const closed = journey ? isJourneyClosed(journey.status) && !(reopened && canContinue) : false;
   const done = !closed && (finished || status === "completed");
   const busy = flags.busy || wj.patching || wj.acting !== "";
   const missing = useMemo(() => (journey ? missingRequired(steps, journey.completedSteps) : []), [steps, journey]);
@@ -235,7 +239,7 @@ export function Wizard({ id }: { id: string }): ReactElement {
     if (action !== "restore") {
       const ok = await confirmDialog({
         title: t(`sx.journeyRun.confirm.${action}Title`, { name: journey.title || t("sx.ui.untitled") }),
-        text: t(`sx.journeyRun.confirm.${action}Text`),
+        text: t(journeyConfirmTextKey(action, caps)),
         confirmLabel: t(`sx.journeyRun.act.${action}`),
         cancelLabel: t("sx.ui.cancel"),
         tone: action === "abandon" ? "danger" : "primary",
@@ -244,6 +248,7 @@ export function Wizard({ id }: { id: string }): ReactElement {
     }
     const res = await wj.act(action);
     if (!res) return;
+    setReopened(false);
     notify.success(t(`sx.journeyRun.toast.${action}`));
     if (action === "restore") {
       setFinished(false);
@@ -255,8 +260,9 @@ export function Wizard({ id }: { id: string }): ReactElement {
   const total = journey ? (journey.totalCount ?? steps.length) : 0;
   const percent = journey?.progress ?? null;
   const progressText = journey ? t("sx.journeyRun.progress", { done: journey.completedCount, total }) : "";
-  const canAct = access.canEdit && !!journey;
-  const menuActions = canAct ? journeyActionsFor(journey?.status ?? "").filter((a) => a !== "restore" || !closed) : [];
+  const allowed = canAct ? journeyActionsFor(journey?.status ?? "", caps) : [];
+  const menuActions = allowed.filter((a) => a !== "restore" || !closed);
+  const canRestore = allowed.includes("restore");
   const actFailed = wj.actError ? errText(wj.actError) : null;
 
   const title = journey?.title || (wj.phase === "missing" ? t("sx.journeyRun.crumb") : wj.phase === "error" ? t("sx.ui.errorTitle") : "");
@@ -360,10 +366,14 @@ export function Wizard({ id }: { id: string }): ReactElement {
       <SxEmpty
         icon={status === "archived" ? ArchiveIcon : BanIcon}
         title={t(status === "archived" ? "sx.journeyRun.archivedTitle" : "sx.journeyRun.abandonedTitle")}
-        text={t(canAct ? "sx.journeyRun.closedText" : "sx.journeyRun.closedTextRead")}
+        text={t(!canAct ? "sx.journeyRun.closedTextRead" : canContinue ? "sx.journeyRun.closedTextContinue" : canRestore ? "sx.journeyRun.closedText" : "sx.journeyRun.closedTextLocked")}
         action={
           <span className="sx-jr-doneacts">
-            {canAct ? (
+            {canContinue ? (
+              <SxButton variant="primary" iconEnd={ArrowRightIcon} aria-disabled={busy || undefined} onClick={() => !busy && setReopened(true)} aiId={`${AI}.continue`}>
+                {t("sx.journeyRun.resume")}
+              </SxButton>
+            ) : canRestore ? (
               <SxButton variant="primary" icon={RotateCcwIcon} busy={wj.acting === "restore"} aria-disabled={busy || undefined} onClick={() => void runAction("restore")} aiId={`${AI}.restore`}>
                 {t("sx.journeyRun.act.restore")}
               </SxButton>

@@ -13,7 +13,7 @@ import { useNow } from "../live";
 import { SxProgress } from "../shared/Progress";
 import { creationJourneyHref, journeyObjectId } from "../shared/journeyLinks";
 import { useStudioLabels } from "../useStudioLabels";
-import { journeyActionsFor, journeyOwnerOf, journeyStatusOf, useJourneyDefinitions, type JourneyAction } from "./journeyApi";
+import { canContinueJourney, journeyActionsFor, journeyCapsOf, journeyOwnerOf, journeyStatusOf, useJourneyDefinitions, type JourneyAction } from "./journeyApi";
 import { JourneyStatusPill } from "./JourneyStatusPill";
 import { stepLabel, stepTitleOf } from "./steps";
 
@@ -127,13 +127,14 @@ export function JourneyTable({ rows, caption, loading, busy, error, empty, foote
 
   const actionsOf = (j: StudioCreationJourney): SxRowAction<StudioCreationJourney>[] => {
     const s = journeyStatusOf(j.status);
+    const caps = journeyCapsOf(j);
     const open: SxRowAction<StudioCreationJourney> =
-      s === "draft" || s === ""
+      s === "draft" || s === "" || (!!onAction && canContinueJourney(j.status, caps))
         ? { key: "resume", label: t("sx.journeyRun.resume"), icon: ArrowRightIcon, href: journeyRowHref }
         : { key: "view", label: t("sx.ui.view"), icon: EyeIcon, href: journeyRowHref };
     if (!onAction) return [open];
     const busyNow = actingId === j.id;
-    const extra = journeyActionsFor(j.status).map(
+    const extra = journeyActionsFor(j.status, caps).map(
       (a): SxRowAction<StudioCreationJourney> => ({
         key: a,
         label: t(`sx.journeyRun.act.${a}`),

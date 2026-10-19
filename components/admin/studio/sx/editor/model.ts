@@ -258,20 +258,32 @@ export type ActionsInput = {
   lifecycle?: SxLifecycle;
 };
 
+export function editableOf(access: Pick<StudioAccess, "canEdit">, life: SxLifecycle | undefined): boolean {
+  return life?.contract === true ? life.canEdit === true && life.offered.save : access.canEdit;
+}
+
 const REVIEWING: ReadonlySet<string> = new Set(["submitted", "in_review"]);
 export const LOCKED_STATUSES: ReadonlySet<string> = new Set(["submitted", "in_review", "approved"]);
 const OPEN: ReadonlySet<string> = new Set(["draft", "changes_requested"]);
 
 export function actionsOf(input: ActionsInput): { can: EditorState["can"]; primary: EditorPrimary } {
   const { mode, status, dirty, readOnly, blocked, direct, access, hasObject } = input;
-  const save = access.canEdit && !readOnly && !blocked;
-  const submit = save && (mode !== "object" || OPEN.has(status) || dirty);
+  const life = input.lifecycle;
+  const contract = life?.contract === true;
+  const editable = editableOf(access, life);
+  const save = editable && !readOnly && !blocked;
+  const submit = contract
+    ? life.canSubmit === true && life.offered.submit && !blocked && (!dirty || save)
+    : save && (mode !== "object" || OPEN.has(status) || dirty);
   const publish = hasObject && status === "approved" && access.canPublish && !direct;
   const review = hasObject && REVIEWING.has(status) && access.canReview;
   const clone = access.canEdit && (mode === "object" || mode === "runtime-view" || mode === "runtime-edit");
-  const life = input.lifecycle;
-  const withdraw = hasObject && LOCKED_STATUSES.has(status) && (life?.canWithdraw ?? (Boolean(life?.withdrawUrl) || access.canEdit));
-  const restore = hasObject && status === "archived" && (life?.canRestore ?? (Boolean(life?.restoreUrl) || access.canEdit));
+  const withdraw = contract
+    ? hasObject && life.canWithdraw === true && life.offered.withdraw
+    : hasObject && LOCKED_STATUSES.has(status) && (life?.canWithdraw ?? (Boolean(life?.withdrawUrl) || access.canEdit));
+  const restore = contract
+    ? hasObject && life.canRestore === true && life.offered.restore
+    : hasObject && status === "archived" && (life?.canRestore ?? (Boolean(life?.restoreUrl) || access.canEdit));
   const can: EditorState["can"] = {
     save,
     submit,
@@ -282,7 +294,7 @@ export function actionsOf(input: ActionsInput): { can: EditorState["can"]; prima
     clone,
     newVersion: clone && mode === "object" && input.newVersion,
     comment: hasObject && access.any && status !== "archived",
-    upload: hasObject && access.canEdit && !readOnly,
+    upload: hasObject && editable && !readOnly,
     exportVersions: hasObject && access.canReview && input.versions > 0,
     edit: mode === "runtime-view" && access.canEdit,
     withdraw,
@@ -309,7 +321,7 @@ export function nextNoteOf(input: ActionsInput & { reviewNote: EditorState["revi
   if (status === "archived") return { key: "sx.editor.next.archived" };
   if (status === "submitted") return { key: "sx.editor.next.submitted" };
   if (status === "in_review") return { key: "sx.editor.next.inReview" };
-  if (readOnlyReason === "access") return { key: "sx.editor.next.readOnly" };
+  if (readOnlyReason === "access") return { key: input.lifecycle?.contract === true && access.canEdit ? "sx.editor.next.readOnlyServer" : "sx.editor.next.readOnly" };
   if (status === "changes_requested") {
     const rejected = reviewNote ? reviewNote.rejected || statusKey === "rejected" : statusKey === "rejected";
     if (reviewNote && reviewNote.text.trim()) return { key: rejected ? "sx.editor.next.rejected" : "sx.editor.next.returned", values: { note: reviewNote.text.trim() } };

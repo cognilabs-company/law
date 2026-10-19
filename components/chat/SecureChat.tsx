@@ -53,8 +53,7 @@ import { VoiceNotePlayer } from "@/components/portal/AttachmentPreview";
 import { fetchAndDeliver } from "@/lib/download";
 import ImageLightbox from "./ImageLightbox";
 import CallRoom from "./CallRoom";
-import { openCopilot, useCopilotAvailable } from "@/components/copilot/store";
-import { copilotModeFor } from "@/lib/services/copilotPanel";
+import { copilotChatSurface, openCopilot, useCopilotAvailable } from "@/components/copilot/store";
 import {
   IconSparkle,
   IconSend,
@@ -1531,7 +1530,7 @@ export default function SecureChat({
           <button
             className="schat__call schat__cop"
             type="button"
-            onClick={(e) => openCopilot({ surface: copilotModeFor(session) === "lawyer_copilot" ? "lawyer_chat" : "client_chat", entity: { type: "secure_chat", id: roomId, title: [headWorkId ? `#${headWorkId}` : "", headService].filter(Boolean).join(" · ") || t("title") }, trigger: e.currentTarget })}
+            onClick={(e) => openCopilot({ surface: copilotChatSurface(session), entity: { type: "secure_chat", id: roomId, title: [headWorkId ? `#${headWorkId}` : "", headService].filter(Boolean).join(" · ") || t("title") }, trigger: e.currentTarget })}
             aria-label={t("askCopilot")}
             title={t("askCopilot")}
             data-ai-target="button:chat-copilot"

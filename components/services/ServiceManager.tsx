@@ -301,6 +301,10 @@ export default function ServiceManager({
         if (configSupport() !== "no") {
           try {
             cfg = await updateSellerServiceConfig(item.id, { enabled: true });
+            if (cfg.rulesPending) {
+              rulesBlocked(item.id, cfg.missingRuleIds);
+              return;
+            }
           } catch (e) {
             if (!isConfigUnsupported(e)) {
               const ids = rulesBlockOf(e);

@@ -1,6 +1,6 @@
 import { parseServerTime } from "@/lib/http";
 import type { MarketOrder, MarketPhase } from "@/lib/services/marketplace";
-import type { Negotiation, RuntimeConfig } from "@/lib/services/marketRuntime";
+import { negotiationSideOf, type Negotiation, type NegotiationAction, type RuntimeConfig } from "@/lib/services/marketRuntime";
 
 export type NegotiationState = "none" | "proposed" | "countered" | "accepted" | "rejected" | "expired";
 export type NegotiationErrorKey = "notLower" | "aboveMax" | "expired" | "notAvailable" | "alreadyOpen" | "alreadyResolved";
@@ -31,11 +31,18 @@ function mergeSame(older: Negotiation, newer: Negotiation): Negotiation {
     orderId: newer.orderId || older.orderId,
     status: newer.status || older.status,
     amount: newer.amount || older.amount,
+    proposedAmount: newer.proposedAmount || older.proposedAmount,
     counterAmount: newer.counterAmount || older.counterAmount,
+    finalAmount: newer.finalAmount || older.finalAmount,
     maxAmount: newer.maxAmount || older.maxAmount,
     note: newer.note || older.note,
     responseNote: newer.responseNote || older.responseNote,
     proposedBy: newer.proposedBy || older.proposedBy,
+    currentProposer: newer.currentProposer || older.currentProposer,
+    clientUserId: newer.clientUserId || older.clientUserId,
+    sellerUserId: newer.sellerUserId || older.sellerUserId,
+    history: newer.history?.length ? newer.history : (older.history ?? []),
+    allowedStatuses: newer.allowedStatuses?.length ? newer.allowedStatuses : (older.allowedStatuses ?? []),
     expiresAt: newer.expiresAt || older.expiresAt,
     reminderAt: newer.reminderAt || older.reminderAt,
     createdAt: newer.createdAt || older.createdAt,
@@ -70,6 +77,30 @@ export function negotiationActions(n: Negotiation | null): string[] {
   const list = raw.available_actions ?? raw.actions ?? raw.allowed_actions ?? dictOf(raw.negotiation).available_actions;
   if (!Array.isArray(list)) return [];
   return list.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim().toLowerCase());
+}
+
+export function dealAmount(n: Pick<Negotiation, "amount" | "counterAmount"> & Partial<Pick<Negotiation, "finalAmount">>): number {
+  return n.finalAmount || n.counterAmount || n.amount || 0;
+}
+
+export function negotiationTurn(n: Negotiation | null, view: "client" | "seller", viewerId = ""): "mine" | "theirs" | null {
+  const who = (n?.currentProposer ?? "").trim();
+  if (!n || !who) return null;
+  const side = viewerId && who === viewerId ? view : negotiationSideOf(who, { clientUserId: n.clientUserId ?? "", sellerUserId: n.sellerUserId ?? "" });
+  if (!side) return null;
+  return side === view ? "theirs" : "mine";
+}
+
+export type NegotiationGate = Readonly<Record<NegotiationAction, boolean>>;
+
+export function negotiationGate(n: Negotiation | null, view: "client" | "seller", viewerId = ""): NegotiationGate | null {
+  if (!n || !(n.currentProposer ?? "").trim()) return null;
+  const list = negotiationActions(n);
+  if (list.length) return { accept: list.includes("accept"), reject: list.includes("reject"), counter: list.includes("counter") };
+  const turn = negotiationTurn(n, view, viewerId);
+  if (turn === null) return null;
+  const mine = turn === "mine";
+  return { accept: mine, reject: mine, counter: mine && view === "seller" };
 }
 
 export function proposalProblem(amount: number | undefined, currentPrice: number): "required" | "positive" | "notLower" | null {

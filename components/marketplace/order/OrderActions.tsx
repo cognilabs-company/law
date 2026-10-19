@@ -92,7 +92,7 @@ export default function OrderActions({
     setCancelBusy(true);
     setCancelErr(null);
     try {
-      const r = await cancelMarketplaceOrder(o.id, reason);
+      const r = await cancelMarketplaceOrder(o.id, reason, o.urls.cancel);
       setCancelOpen(false);
       setReason("");
       onChanged({ status: r.status, paymentStatus: r.paymentStatus, canCancel: false });

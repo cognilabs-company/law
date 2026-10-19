@@ -1202,14 +1202,30 @@ export async function createStudioObject(input: StudioCreateInput): Promise<Stud
   return normStudioDetail(res);
 }
 
-export async function saveStudioObject(id: string, input: StudioSaveInput): Promise<StudioDetail> {
+function objectActionPath(id: string, action: "save" | "submit", url?: string): string {
+  const built = `/studio/objects/${enc(id)}/${action}`;
+  const raw = (typeof url === "string" ? url.trim() : "").replace(/^https?:\/\/[^/]+/i, "").replace(/^\/api\/backend(?=\/)/, "");
+  if (!raw || raw.includes("..") || raw.startsWith("//")) return built;
+  const path = raw.split(/[?#]/)[0];
+  const m = new RegExp(`^/studio/objects/([^/]+)/${action}$`).exec(path);
+  if (!m) return built;
+  let seg = m[1];
+  try {
+    seg = decodeURIComponent(seg);
+  } catch {
+    return built;
+  }
+  return seg === id ? path : built;
+}
+
+export async function saveStudioObject(id: string, input: StudioSaveInput, url?: string): Promise<StudioDetail> {
   const body: Dict = {};
   if (input.title !== undefined) body.title = input.title;
   if (input.payload !== undefined) body.payload = input.payload;
   if (input.summary) body.summary = input.summary;
   if (input.version) body.version = input.version;
   if (typeof input.expectedLockVersion === "number") body.expected_lock_version = input.expectedLockVersion;
-  return normStudioDetail(await http(`/studio/objects/${enc(id)}/save`, { method: "POST", body: JSON.stringify(body) }));
+  return normStudioDetail(await http(objectActionPath(id, "save", url), { method: "POST", body: JSON.stringify(body) }));
 }
 
 export type StudioCheck = { ok: boolean; errors: StudioFieldErrors; raw: Dict };
@@ -1303,8 +1319,8 @@ export async function previewStudioDraft(code: string, payload: Dict, runtimeTar
   };
 }
 
-export async function submitStudioObject(id: string): Promise<StudioDetail> {
-  return normStudioDetail(await http(`/studio/objects/${enc(id)}/submit`, { method: "POST" }));
+export async function submitStudioObject(id: string, url?: string): Promise<StudioDetail> {
+  return normStudioDetail(await http(objectActionPath(id, "submit", url), { method: "POST" }));
 }
 
 export async function reviewStudioObject(id: string, input: { decision: StudioDecision; comment?: string }): Promise<StudioDetail> {

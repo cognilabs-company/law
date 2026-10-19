@@ -93,7 +93,7 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
     setError(null);
     setBusy(true);
     try {
-      const r = await requestCancellationReview(o.id, text);
+      const r = await requestCancellationReview(o.id, text, o.urls.cancellationReview);
       const filled: CancellationReview = { ...r, orderId: r.orderId || o.id, reason: r.reason || text, status: r.status || "open" };
       setOpen(false);
       setReason("");

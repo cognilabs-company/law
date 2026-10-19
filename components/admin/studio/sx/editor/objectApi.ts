@@ -4,7 +4,19 @@ import { normStudioDetail, type StudioComment, type StudioDetail } from "@/lib/s
 type Dict = Record<string, unknown>;
 
 export type SxLifecycleAction = "withdraw" | "restore";
-export type SxLifecycle = { withdrawUrl: string; restoreUrl: string; canWithdraw: boolean | null; canRestore: boolean | null };
+export type SxObjectAction = SxLifecycleAction | "save" | "submit";
+export type SxLifecycle = {
+  contract: boolean;
+  canEdit: boolean | null;
+  canSubmit: boolean | null;
+  canWithdraw: boolean | null;
+  canRestore: boolean | null;
+  saveUrl: string;
+  submitUrl: string;
+  withdrawUrl: string;
+  restoreUrl: string;
+  offered: Readonly<Record<SxObjectAction, boolean>>;
+};
 export type SxComment = StudioComment & { authorId: string; editedAt: string; deleted: boolean; deletedAt: string; deletedBy: string; canEdit: boolean | null; canDelete: boolean | null };
 export type SxLockError = { code: string; withdrawUrl: string; message: string };
 
@@ -24,7 +36,7 @@ const personOf = (v: unknown): string => {
   return first(d.full_name, d.name, d.display_name, [str(d.first_name), str(d.last_name)].filter(Boolean).join(" "));
 };
 
-export function objectPath(url: string, action: SxLifecycleAction): string {
+export function objectPath(url: string, action: SxObjectAction): string {
   const raw = str(url)
     .replace(/^https?:\/\/[^/]+/i, "")
     .replace(/^\/api\/backend(?=\/)/, "");
@@ -37,22 +49,29 @@ export function lifecycleUrl(id: string, action: SxLifecycleAction): string {
   return id ? `/studio/objects/${enc(id)}/${action}` : "";
 }
 
-function actionUrl(raw: Dict, action: SxLifecycleAction): string {
+function rawActionUrl(raw: Dict, action: SxObjectAction): string {
   const actions = asDict(raw.actions);
   const links = asDict(raw.links);
   const a = actions[action];
   const fromAction = typeof a === "string" ? a : first(asDict(a).url, asDict(a).href);
-  return objectPath(first(raw[`${action}_url`], fromAction, links[action]), action);
+  return first(raw[`${action}_url`], fromAction, links[action]);
 }
 
 export function lifecycleOf(detail: StudioDetail | null): SxLifecycle {
   const raw: Dict = detail?.raw ?? {};
   const caps = asDict(raw.capabilities ?? raw.permissions);
+  const urls = { save: rawActionUrl(raw, "save"), submit: rawActionUrl(raw, "submit"), withdraw: rawActionUrl(raw, "withdraw"), restore: rawActionUrl(raw, "restore") };
   return {
-    withdrawUrl: actionUrl(raw, "withdraw"),
-    restoreUrl: actionUrl(raw, "restore"),
+    contract: typeof raw.can_edit === "boolean" || typeof raw.can_submit === "boolean" || Boolean(urls.save) || Boolean(urls.submit),
+    canEdit: boolOf(raw.can_edit),
+    canSubmit: boolOf(raw.can_submit),
     canWithdraw: boolOf(raw.can_withdraw ?? caps.can_withdraw ?? caps.withdraw),
     canRestore: boolOf(raw.can_restore ?? caps.can_restore ?? caps.restore),
+    saveUrl: objectPath(urls.save, "save"),
+    submitUrl: objectPath(urls.submit, "submit"),
+    withdrawUrl: objectPath(urls.withdraw, "withdraw"),
+    restoreUrl: objectPath(urls.restore, "restore"),
+    offered: { save: Boolean(urls.save), submit: Boolean(urls.submit), withdraw: Boolean(urls.withdraw), restore: Boolean(urls.restore) },
   };
 }
 

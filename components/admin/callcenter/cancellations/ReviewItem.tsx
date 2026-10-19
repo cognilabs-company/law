@@ -46,7 +46,7 @@ export function isReviewAction(v: string): v is ReviewAction {
   return v in REVIEW_ACTION_ICON;
 }
 
-export type ReviewItemProps = { review: CancellationReview; onResolve: (r: CancellationReview) => void };
+export type ReviewItemProps = { review: CancellationReview; onResolve: (r: CancellationReview) => void; onFresh?: (r: CancellationReview) => void };
 
 function useRemaining(): (seconds: number) => string {
   const tdu = useTranslations("marketplace.orderDetail.duration");
@@ -145,7 +145,7 @@ function useReviewDetail(row: CancellationReview, active: boolean): Detail | nul
   return detail && detail.key === key ? detail : { key, state: "loading", review: null };
 }
 
-export function ReviewItem({ review: row, onResolve }: ReviewItemProps): ReactElement {
+export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps): ReactElement {
   const t = useTranslations("admin.callCenter.cancellations");
   const tp = useTranslations("marketplace.orderDetail.phase");
   const troles = useTranslations("marketplace.roles");
@@ -156,6 +156,10 @@ export function ReviewItem({ review: row, onResolve }: ReviewItemProps): ReactEl
   const [expanded, setExpanded] = useState(false);
   const [wanted, setWanted] = useState(false);
   const detail = useReviewDetail(row, expanded || wanted);
+  const fresh = detail?.state === "ready" ? detail.review : null;
+  useEffect(() => {
+    if (wanted && fresh && fresh.resolutionOptions.length) onFresh?.(mergeReview(row, fresh));
+  }, [wanted, fresh, row, onFresh]);
   const review = mergeReview(row, detail?.review ?? null);
   const ctx = reviewOrderOf(review);
   const pay = reviewPaymentOf(review);

@@ -2,11 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { ApiError, asArr, asDict, asStr, currentTokenOwner, http, isRouteMissing } from "@/lib/http";
-import { normCreationJourney, rememberCreationJourney, type StudioCreationJourney, type StudioJourneyType } from "@/lib/services/studio";
+import { normCreationJourney, rememberCreationJourney, saveCreationJourney, type StudioCreationJourney, type StudioJourneyType } from "@/lib/services/studio";
 
 export const JOURNEY_STATUSES = ["draft", "completed", "abandoned", "archived"] as const;
 export type JourneyStatus = (typeof JOURNEY_STATUSES)[number];
 export type JourneyAction = "abandon" | "archive" | "restore";
+export type JourneyMove = JourneyAction | "update";
+export type JourneyCaps = { known: boolean; allowed: ReadonlySet<string>; urls: Partial<Record<JourneyMove, string | null>> };
+
+const ACTIONS: readonly JourneyAction[] = ["abandon", "archive", "restore"];
+const MOVES: readonly JourneyMove[] = ["update", "abandon", "archive", "restore"];
+const API_ORIGIN = /^https?:\/\/[^/?#]+/i;
+const API_PREFIX = /^\/api\/backend(?=\/)/i;
+const JOURNEY_PATH = /^\/studio\/journeys\/([^/]+)(?:\/([a-z_]+))?\/?$/;
+const UNSAFE_PATH = /[\\\s\p{Cc}?#]/u;
 
 export const JOURNEY_EVENTS: ReadonlySet<string> = new Set(["studio.journey_updated", "studio.journey_abandoned", "studio.journey_archived", "studio.journey_draft"]);
 
@@ -19,8 +28,77 @@ export function journeyStatusOf(raw: string): JourneyStatus | "" {
   return (JOURNEY_STATUSES as readonly string[]).includes(s) ? (s as JourneyStatus) : "";
 }
 
-export function journeyActionsFor(status: string): JourneyAction[] {
+export function journeyApiPath(raw: unknown, id: string, move: JourneyMove): string | null {
+  if (typeof raw !== "string" || !id) return null;
+  const path = raw.trim().replace(API_ORIGIN, "").replace(API_PREFIX, "");
+  if (!path.startsWith("/") || path.includes("..") || path.includes("//") || UNSAFE_PATH.test(path)) return null;
+  const m = JOURNEY_PATH.exec(path);
+  if (!m) return null;
+  let seg = "";
+  try {
+    seg = decodeURIComponent(m[1]);
+  } catch {
+    return null;
+  }
+  const tail = m[2] ?? "";
+  if (seg !== id || tail !== (move === "update" ? "" : move)) return null;
+  return path.replace(/\/$/, "");
+}
+
+function actionSet(v: unknown): Set<string> | null {
+  const out = new Set<string>();
+  if (Array.isArray(v)) {
+    for (const x of v) {
+      const s = asStr(typeof x === "object" && x !== null ? (asDict(x).action ?? asDict(x).key ?? asDict(x).name) : x).trim().toLowerCase();
+      if (s) out.add(s);
+    }
+    return out;
+  }
+  if (v && typeof v === "object") {
+    for (const [k, on] of Object.entries(v)) if (on === true) out.add(k.trim().toLowerCase());
+    return out;
+  }
+  return null;
+}
+
+const present = (r: Record<string, unknown>, k: string): boolean => Object.prototype.hasOwnProperty.call(r, k) && r[k] !== undefined;
+
+export function journeyCapsOf(j: Pick<StudioCreationJourney, "id" | "raw"> | null | undefined): JourneyCaps {
+  const r = j?.raw ?? {};
+  const id = j?.id ?? "";
+  const urls: Partial<Record<JourneyMove, string | null>> = {};
+  for (const m of MOVES) {
+    const k = `${m}_url`;
+    if (!present(r, k)) continue;
+    const v = r[k];
+    urls[m] = v === null || (typeof v === "string" && !v.trim()) ? null : (journeyApiPath(v, id, m) ?? "");
+  }
+  const listed = actionSet(r.allowed_actions);
+  if (listed) return { known: true, allowed: listed, urls };
+  const derived = MOVES.filter((m) => typeof urls[m] === "string");
+  return { known: Object.keys(urls).length > 0, allowed: new Set(derived), urls };
+}
+
+function canMove(caps: JourneyCaps, m: JourneyMove): boolean {
+  const listed = caps.allowed.has(m) || (m === "update" && caps.allowed.has("resume"));
+  return listed && caps.urls[m] !== null;
+}
+
+export function canContinueJourney(status: string, caps: JourneyCaps | null | undefined): boolean {
+  return !!caps?.known && journeyStatusOf(status) === "abandoned" && canMove(caps, "update");
+}
+
+export function journeyConfirmTextKey(action: JourneyAction, caps: JourneyCaps | null | undefined): string {
+  return action === "abandon" && caps?.known ? "sx.journeyRun.confirm.abandonTextKeep" : `sx.journeyRun.confirm.${action}Text`;
+}
+
+export function journeyMovePath(j: Pick<StudioCreationJourney, "id" | "raw"> | null | undefined, m: JourneyMove): string | undefined {
+  return journeyCapsOf(j).urls[m] || undefined;
+}
+
+export function journeyActionsFor(status: string, caps?: JourneyCaps | null): JourneyAction[] {
   const s = journeyStatusOf(status);
+  if (caps?.known) return ACTIONS.filter((a) => canMove(caps, a) && (a !== "restore" || s === "archived"));
   if (s === "draft" || s === "") return ["abandon", "archive"];
   if (s === "completed") return ["archive"];
   if (s === "abandoned") return ["restore", "archive"];
@@ -32,7 +110,7 @@ export function isJourneyClosed(status: string): boolean {
   return s === "abandoned" || s === "archived";
 }
 
-export type JourneyDefStep = { key: string; title: string; code: string; fields: string[]; order: number; required: boolean };
+export type JourneyDefStep = { key: string; title: string; code: string; fields: string[]; order: number; required: boolean; formCode?: string };
 export type JourneyDef = { type: StudioJourneyType; steps: JourneyDefStep[]; totalCount: number | null; allowedStatuses: string[] };
 export type JourneyDefs = Partial<Record<StudioJourneyType, JourneyDef>>;
 
@@ -59,7 +137,10 @@ function normDefStep(raw: unknown, i: number): JourneyDefStep | null {
   const key = asStr(d.key ?? d.step).trim();
   if (!key) return null;
   const order = typeof d.order === "number" && Number.isFinite(d.order) ? d.order : i + 1;
-  return { key, title: asStr(d.title ?? d.label).trim(), code: asStr(d.constructor_code ?? d.code).trim(), fields: strList(d.fields), order, required: d.required !== false };
+  const formCode = asStr(d.form_constructor_code).trim();
+  const code = present(d, "source_constructor_code") ? asStr(d.source_constructor_code).trim() : formCode ? "" : asStr(d.constructor_code ?? d.code).trim();
+  const step: JourneyDefStep = { key, title: asStr(d.title ?? d.label).trim(), code, fields: strList(d.fields), order, required: d.required !== false };
+  return formCode ? { ...step, formCode } : step;
 }
 
 function normDef(raw: unknown, fallbackType: StudioJourneyType | null): JourneyDef | null {
@@ -184,11 +265,27 @@ export async function getCreationJourney(id: string, signal?: AbortSignal): Prom
   }
 }
 
-export async function runJourneyAction(id: string, action: JourneyAction): Promise<StudioCreationJourney> {
-  const res = await http(`/studio/journeys/${enc(id)}/${action}`, { method: "POST" });
+export async function runJourneyAction(id: string, action: JourneyAction, url?: string): Promise<StudioCreationJourney> {
+  const path = (url ? journeyApiPath(url, id, action) : null) ?? `/studio/journeys/${enc(id)}/${action}`;
+  const res = await http(path, { method: "POST" });
   const j = journeyOf(res, id);
   rememberCreationJourney(j);
   return j;
+}
+
+export type JourneySave = { completedSteps: string[]; currentStep: string; context: Record<string, unknown> };
+
+export async function saveJourney(id: string, input: JourneySave, url?: string): Promise<StudioCreationJourney> {
+  const path = url ? journeyApiPath(url, id, "update") : null;
+  if (!path) return saveCreationJourney(id, input);
+  const res = await http(path, {
+    method: "PATCH",
+    body: JSON.stringify({ completed_steps: input.completedSteps, current_step: input.currentStep, context: input.context }),
+  });
+  const j = normCreationJourney(res);
+  const out: StudioCreationJourney = j.id ? j : { ...j, id };
+  if (j.id || j.raw.completed_steps !== undefined) rememberCreationJourney(out);
+  return out;
 }
 
 export type JourneyOwner = { id: string; name: string };

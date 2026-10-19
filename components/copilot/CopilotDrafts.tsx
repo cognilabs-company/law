@@ -42,6 +42,7 @@ export default function CopilotDrafts({ entity, label, onReload }: { entity: Cop
   }
 
   const typeLabel = (x: string) => (x && t.has(`action.type.${x}`) ? t(`action.type.${x}`) : x.replace(/[_-]+/g, " "));
+  const statusLabel = (x: string) => (!x || x === "draft" ? t("drafts.status") : t.has(`drafts.statusName.${x}`) ? t(`drafts.statusName.${x}`) : x.replace(/[_-]+/g, " "));
 
   return (
     <div className="cpl-drafts" data-ai-private="">
@@ -90,7 +91,9 @@ export default function CopilotDrafts({ entity, label, onReload }: { entity: Cop
                     <b>{d.title || typeLabel(d.type) || t("drafts.untitled")}</b>
                     <small>{[typeLabel(d.type), when].filter(Boolean).join(" · ")}</small>
                   </span>
-                  <span className="cpl-tag">{t("drafts.status")}</span>
+                  <span className="cpl-tag" data-status={d.status || "draft"}>
+                    {statusLabel(d.status)}
+                  </span>
                 </header>
                 {d.content ? <p className={`cpl-draft__body${isOpen ? " is-open" : ""}`}>{d.content}</p> : null}
                 <footer className="cpl-draft__f">

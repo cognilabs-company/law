@@ -23,7 +23,7 @@ import { SxSegmented, type SxSegItem } from "../shared/Segmented";
 import { StartJourneyFields, useStartJourney } from "../shared/StartJourney";
 import { creationJourneyHref, JOURNEY_CODE } from "../shared/journeyLinks";
 import { useStudioLabels } from "../useStudioLabels";
-import { JOURNEY_STATUSES, journeyStatusOf, runJourneyAction, type JourneyAction, type JourneyStatus } from "./journeyApi";
+import { JOURNEY_STATUSES, journeyCapsOf, journeyConfirmTextKey, journeyMovePath, journeyStatusOf, runJourneyAction, type JourneyAction, type JourneyStatus } from "./journeyApi";
 import { useJourneyErrorText } from "./journeyErrors";
 import { JourneyTable } from "./JourneyTable";
 import { useCreationJourneys } from "./useCreationJourneys";
@@ -70,7 +70,7 @@ export function useJourneyActionRunner(onDone: (j: StudioCreationJourney) => voi
     if (action !== "restore") {
       const ok = await confirmDialog({
         title: t(`sx.journeyRun.confirm.${action}Title`, { name: j.title || t("sx.ui.untitled") }),
-        text: t(`sx.journeyRun.confirm.${action}Text`),
+        text: t(journeyConfirmTextKey(action, journeyCapsOf(j))),
         confirmLabel: t(`sx.journeyRun.act.${action}`),
         cancelLabel: t("sx.ui.cancel"),
         tone: action === "abandon" ? "danger" : "primary",
@@ -81,7 +81,7 @@ export function useJourneyActionRunner(onDone: (j: StudioCreationJourney) => voi
     setActing(j.id);
     setError(null);
     try {
-      const next = await runJourneyAction(j.id, action);
+      const next = await runJourneyAction(j.id, action, journeyMovePath(j, action));
       onDone(next);
       notify.success(t(`sx.journeyRun.toast.${action}`));
       return next;

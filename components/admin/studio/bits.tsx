@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type ComponentType, type CSSProperties, type ReactNode, type SVGProps } from "react";
+import { useEffect, useState, type ComponentType, type CSSProperties, type ReactNode, type SVGProps } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { dateOnly, dateTimeFull, fmtInt } from "@/lib/date";
 import { humanize } from "@/lib/labels";
 import { parseServerTime } from "@/lib/http";
-import { onUserSocketResync, subscribeUserEvents, type UserEvent } from "@/lib/userSocket";
-import { isStudioEvent, recheckStudio, studioErrorOf, type StudioStatus } from "@/lib/services/studio";
+import type { UserEvent } from "@/lib/userSocket";
+import { recheckStudio, studioErrorOf, type StudioStatus } from "@/lib/services/studio";
 import { ctorMeta, type StudioGroup } from "@/lib/studio/constructors";
 import { STUDIO_ERR } from "./editors/types";
 import {
@@ -360,23 +360,7 @@ export function StudioErrorNote({
   );
 }
 
-export function useStudioLive(onEvent: (e: UserEvent) => void, enabled = true): void {
-  const ref = useRef(onEvent);
-  useEffect(() => {
-    ref.current = onEvent;
-  });
-  useEffect(() => {
-    if (!enabled) return;
-    const off = subscribeUserEvents((e) => {
-      if (isStudioEvent(e.event)) ref.current(e);
-    });
-    const offSync = onUserSocketResync(() => ref.current({ event: "studio.resync" }));
-    return () => {
-      off();
-      offSync();
-    };
-  }, [enabled]);
-}
+export { useStudioLive } from "./sx/live";
 
 export function studioEventObjectId(e: UserEvent): string {
   const d = (e.data && typeof e.data === "object" ? e.data : e) as Record<string, unknown>;

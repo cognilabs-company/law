@@ -164,6 +164,10 @@
 .svm__notice.svloc-card .svloc-card__meta {
   font-size: .78rem;
 }
+.svm__notice.svloc-card .svloc-card__stale {
+  color: var(--dk-txt-warn, #B26A00);
+  font-weight: 600;
+}
 .svm__notice.svloc-card .svloc-card__err {
   color: var(--dk-txt-err, #B42318);
   font-weight: 600;

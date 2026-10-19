@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useId, useRef, useState, type ReactElement } from "react";
+import { Fragment, useCallback, useId, useRef, useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { SxButton } from "@/components/admin/studio/sx/Button";
 import { SxEmpty } from "@/components/admin/studio/sx/layout/Empty";
@@ -23,6 +23,7 @@ export default function CancellationQueue({ onCount }: { onCount?: (n: number) =
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [resolving, setResolving] = useState<CancellationReview | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const refreshResolving = useCallback((r: CancellationReview) => setResolving((cur) => (cur && cur.id === r.id ? r : cur)), []);
 
   if (q.state === "forbidden") return null;
 
@@ -98,7 +99,7 @@ export default function CancellationQueue({ onCount }: { onCount?: (n: number) =
         <ul className="ccx-list" aria-busy={q.busy || undefined}>
           {q.items.map((r) => (
             <li key={r.id}>
-              <ReviewItem review={r} onResolve={setResolving} />
+              <ReviewItem review={r} onResolve={setResolving} onFresh={refreshResolving} />
             </li>
           ))}
         </ul>

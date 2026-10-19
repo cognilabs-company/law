@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { logApiError } from "@/lib/http";
-import { normCreationJourney, peekCreationJourney, rememberCreationJourney, saveCreationJourney, type StudioCreationJourney } from "@/lib/services/studio";
+import { normCreationJourney, peekCreationJourney, rememberCreationJourney, type StudioCreationJourney } from "@/lib/services/studio";
 import { studioEventJourneyId, studioEventObjectId, useStudioLive } from "../live";
-import { getCreationJourney, isJourneyEvent, runJourneyAction, type JourneyAction } from "./journeyApi";
+import { getCreationJourney, isJourneyEvent, journeyMovePath, runJourneyAction, saveJourney, type JourneyAction } from "./journeyApi";
 import { isFullJourneyPayload, isOlderJourney, mergeJourney, stepsKey, unionSteps } from "./model";
 import { journeyEventData } from "./useCreationJourneys";
 
@@ -162,7 +162,7 @@ export function useWizardJourney(id: string): WizardJourney {
       setPatching(true);
       sentRef.current = stepsKey(input);
       try {
-        const res = await saveCreationJourney(id, input);
+        const res = await saveJourney(id, input, journeyMovePath(journeyRef.current, "update"));
         const local = journeyRef.current;
         const sentJ = local
           ? { ...local, completedSteps: input.completedSteps, currentStep: input.currentStep, context: input.context, completedCount: Math.max(local.completedCount, input.completedSteps.length) }
@@ -205,7 +205,7 @@ export function useWizardJourney(id: string): WizardJourney {
       setActing(action);
       setActError(null);
       try {
-        const res = await runJourneyAction(id, action);
+        const res = await runJourneyAction(id, action, journeyMovePath(journeyRef.current, action));
         failedRef.current = null;
         setPatchError(null);
         firstDone.current = true;

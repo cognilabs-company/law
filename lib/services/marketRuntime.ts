@@ -1,4 +1,4 @@
-import { ApiError, asArr, asNum, asStr, http, type Dict } from "@/lib/http";
+import { ApiError, asArr, asNum, asStr, http, parseServerTime, type Dict } from "@/lib/http";
 import { uzs } from "@/lib/money";
 
 const dictOf = (v: unknown): Dict => (v && typeof v === "object" && !Array.isArray(v) ? (v as Dict) : {});
@@ -14,6 +14,30 @@ const firstArr = (...vals: unknown[]): unknown[] => {
   for (const v of vals) if (Array.isArray(v)) return v;
   return [];
 };
+const idList = (v: unknown[]): string[] =>
+  v.map((x) => (typeof x === "string" || typeof x === "number" ? String(x).trim() : trimmed(dictOf(x).id ?? dictOf(x).rule_id))).filter(Boolean);
+
+export const MARKET_ACTION_TAIL = {
+  start: /\/start$/,
+  complete: /^\/marketplace\/orders\/[^/]+\/complete-v2$/,
+  cancel: /\/cancel$/,
+  cancellationReview: /\/cancellation-reviews?$/,
+  negotiations: /\/negotiations$/,
+  checklist: /\/checklist$/,
+  secondOpinion: /\/second-opinion$/,
+} as const;
+
+export function marketActionPath(url: unknown, fallback: string, allow?: RegExp): string {
+  const raw = trimmed(url)
+    .replace(/^https?:\/\/[^/]+/i, "")
+    .replace(/^\/api\/backend(?=\/)/, "");
+  if (!raw) return fallback;
+  const path = raw.split(/[?#]/)[0];
+  if (!/^\/(marketplace|call-center)\/[^/]/.test(path)) return fallback;
+  if (path.includes("..") || path.includes("//") || /[\\\s]|%2e|%2f|%5c/i.test(path)) return fallback;
+  if (allow && !allow.test(path)) return fallback;
+  return path;
+}
 
 function untilAborted<T>(p: Promise<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return p;
@@ -393,14 +417,23 @@ export type SellerServiceConfig = {
   selectedPrice: number;
   recommendedPrice: number;
   maximumPrice: number;
+  minimumListingPrice: number;
+  belowRecommendedAllowed: boolean | null;
+  maxListingDiscountPercent: number | null;
+  negotiationMinimumPrice: number;
   negotiationAllowed: boolean | null;
   negotiationAvailable: boolean | null;
+  status: string;
+  rulesStatus: string;
   rulesAccepted: boolean | null;
+  rulesPending: boolean;
   missingRuleIds: string[];
   priceExplanation: string;
   priceExplanationLines: string[];
   raw: Dict;
 };
+
+const CONFIG_RULES_PENDING_RE = /^(rules?_pending|pending_rules?|rules?_acceptance_required)$/;
 
 export function sellerConfigBody(input: SellerServiceConfigInput): Dict {
   const body: Dict = {};
@@ -439,9 +472,7 @@ function rulesStateOf(...vals: unknown[]): { accepted: boolean | null; missing: 
     const d = dictOf(v);
     if (!Object.keys(d).length) continue;
     const flag = boolOrNull(d.all_accepted ?? d.accepted ?? d.rules_accepted);
-    const missing = firstArr(d.missing_rule_ids, d.pending_rule_ids, d.missing)
-      .map((x) => (typeof x === "string" || typeof x === "number" ? String(x).trim() : trimmed(dictOf(x).id ?? dictOf(x).rule_id)))
-      .filter(Boolean);
+    const missing = idList(firstArr(d.missing_rule_ids, d.pending_rule_ids, d.missing));
     if (flag !== null || missing.length) return { accepted: flag ?? !missing.length, missing };
   }
   return { accepted: null, missing: [] };
@@ -454,16 +485,29 @@ export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfi
   const ex = explanationOf(d.price_explanation ?? src.price_explanation);
   const lim = dictOf(src.limits ?? src.price_limits ?? src.pricing ?? d.limits ?? d.price_limits ?? d.pricing);
   const rules = rulesStateOf(src.rules_accepted, d.rules_accepted, src.rules_acceptance, d.rules_acceptance, src.rules, d.rules);
+  const flatMissing = idList(firstArr(src.missing_rule_ids, d.missing_rule_ids));
+  const missingRuleIds = rules.missing.length ? rules.missing : flatMissing;
+  const rulesAccepted = rules.accepted ?? (flatMissing.length ? false : null);
+  const status = trimmed(src.status ?? d.status).toLowerCase();
+  const rulesStatus = trimmed(src.rules_status ?? d.rules_status).toLowerCase();
+  const discount = numOrNull(src.maximum_listing_discount_percent ?? d.maximum_listing_discount_percent);
   return {
     serviceId: trimmed(src.service_id ?? d.service_id) || serviceId,
     enabled: boolOrNull(src.enabled ?? src.is_enabled ?? src.is_active),
     selectedPrice: uzs(src, "selected_price", "configured_price", "price"),
     recommendedPrice: uzs(src, "recommended_price", "recommended_minimum_price") || uzs(lim, "recommended_price", "recommended_minimum_price", "recommended"),
     maximumPrice: uzs(src, "maximum_price", "max_price", "seller_maximum_price") || uzs(lim, "maximum_price", "max_price", "maximum"),
+    minimumListingPrice: Math.max(0, uzs(src, "minimum_listing_price") || uzs(lim, "minimum_listing_price")),
+    belowRecommendedAllowed: boolOrNull(src.below_recommended_allowed ?? d.below_recommended_allowed),
+    maxListingDiscountPercent: discount !== null && discount >= 0 ? discount : null,
+    negotiationMinimumPrice: Math.max(0, uzs(src, "negotiation_minimum_price") || uzs(d, "negotiation_minimum_price")),
     negotiationAllowed: boolOrNull(src.negotiation_allowed ?? src.negotiation_enabled),
     negotiationAvailable: boolOrNull(src.negotiation_available ?? d.negotiation_available),
-    rulesAccepted: rules.accepted,
-    missingRuleIds: rules.missing,
+    status,
+    rulesStatus,
+    rulesAccepted,
+    rulesPending: rulesStatus === "pending" || CONFIG_RULES_PENDING_RE.test(rulesStatus) || CONFIG_RULES_PENDING_RE.test(status) || rulesAccepted === false,
+    missingRuleIds,
     priceExplanation: ex.text,
     priceExplanationLines: ex.lines,
     raw: d,
@@ -485,7 +529,9 @@ export type LocationShareInput =
   | { enabled: true; durationHours: LocationDuration; latitude: number; longitude: number; accuracyMeters?: number; source?: "foreground" | "background" }
   | { enabled: false };
 export type LocationPolicy = { foregroundIntervalSec: number; backgroundIntervalSec: number; staleAfterSec: number; retentionDays: number };
-export type LocationShareState = { enabled: boolean; durationHours: number | null; expiresAt: string; updatedAt: string; accuracyMeters: number | null; policy: LocationPolicy; raw: Dict };
+export type LocationShareState = { enabled: boolean; durationHours: number | null; expiresAt: string; updatedAt: string; freshUntil: string; accuracyMeters: number | null; policy: LocationPolicy; raw: Dict };
+
+const STALE_KEYS = ["stale_after_seconds", "stale_after", "stale_seconds"];
 
 export const DEFAULT_LOCATION_POLICY: LocationPolicy = { foregroundIntervalSec: 300, backgroundIntervalSec: 600, staleAfterSec: 1200, retentionDays: 30 };
 
@@ -514,16 +560,22 @@ export function normLocationState(v: unknown): LocationShareState {
   const pol = Object.keys(p).length ? p : d;
   const enabled = src.enabled ?? src.is_enabled ?? src.active ?? src.sharing_enabled;
   const last = dictOf(src.last_location ?? src.location ?? d.last_location);
+  const updatedAt = trimmed(src.last_update_at ?? src.last_updated_at ?? src.last_location_at ?? src.location_updated_at ?? last.updated_at ?? last.recorded_at ?? src.updated_at ?? src.last_seen_at);
+  const staleAfterSec = secondsOf(pol, STALE_KEYS, DEFAULT_LOCATION_POLICY.staleAfterSec);
+  const staleKnown = STALE_KEYS.some((k) => (numOrNull(pol[k]) ?? 0) > 0);
+  const updatedMs = updatedAt ? parseServerTime(updatedAt) : NaN;
+  const derivedFresh = staleKnown && Number.isFinite(updatedMs) ? new Date(updatedMs + staleAfterSec * 1000).toISOString() : "";
   return {
     enabled: typeof enabled === "boolean" ? enabled : trimmed(src.status).toLowerCase() === "active",
     durationHours: numOrNull(src.duration_hours),
-    expiresAt: trimmed(src.expires_at ?? src.active_until ?? src.sharing_until ?? src.expiration_at),
-    updatedAt: trimmed(src.last_updated_at ?? src.last_location_at ?? src.location_updated_at ?? last.updated_at ?? last.recorded_at ?? src.updated_at ?? src.last_seen_at),
+    expiresAt: trimmed(src.expires_at ?? src.share_until ?? src.active_until ?? src.sharing_until ?? src.expiration_at),
+    updatedAt,
+    freshUntil: trimmed(src.fresh_until ?? d.fresh_until) || derivedFresh,
     accuracyMeters: numOrNull(src.accuracy_meters ?? last.accuracy_meters),
     policy: {
       foregroundIntervalSec: secondsOf(pol, ["foreground_update_interval_seconds", "foreground_interval_seconds", "foreground_update_interval", "foreground_interval", "update_interval_seconds"], DEFAULT_LOCATION_POLICY.foregroundIntervalSec),
       backgroundIntervalSec: secondsOf(pol, ["background_update_interval_seconds", "background_interval_seconds", "background_update_interval", "background_interval"], DEFAULT_LOCATION_POLICY.backgroundIntervalSec),
-      staleAfterSec: secondsOf(pol, ["stale_after_seconds", "stale_after", "stale_seconds"], DEFAULT_LOCATION_POLICY.staleAfterSec),
+      staleAfterSec,
       retentionDays: secondsOf(pol, ["retention_days", "retention_period_days", "retention"], DEFAULT_LOCATION_POLICY.retentionDays),
     },
     raw: d,
@@ -606,16 +658,24 @@ export async function getNearbySellers(q: { latitude: number; longitude: number;
 }
 
 export type NegotiationAction = "accept" | "counter" | "reject";
+export type NegotiationStep = { by: string; amount: number; status: string; note: string; at: string };
 export type Negotiation = {
   id: string;
   orderId: string;
   status: string;
   amount: number;
+  proposedAmount: number;
   counterAmount: number;
+  finalAmount: number;
   maxAmount: number;
   note: string;
   responseNote: string;
   proposedBy: string;
+  currentProposer: string;
+  clientUserId: string;
+  sellerUserId: string;
+  history: NegotiationStep[];
+  allowedStatuses: string[];
   expiresAt: string;
   reminderAt: string;
   createdAt: string;
@@ -623,20 +683,67 @@ export type Negotiation = {
   raw: Dict;
 };
 
+const SELLER_SIDE_RE = /^(seller|lawyer|yurist|advokat|advocate|advokat_tashkiloti|organization|provider|executor)$/;
+const CLIENT_SIDE_RE = /^(client|customer|buyer)$/;
+
+function partyOf(v: unknown): string {
+  if (typeof v === "string" || typeof v === "number") return String(v).trim();
+  const d = dictOf(v);
+  return trimmed(d.role ?? d.side ?? d.party ?? d.user_id ?? d.id);
+}
+
+export function negotiationSideOf(who: string, ids: { clientUserId: string; sellerUserId: string }): "client" | "seller" | null {
+  const w = who.trim();
+  if (!w) return null;
+  const low = w.toLowerCase();
+  if (CLIENT_SIDE_RE.test(low)) return "client";
+  if (SELLER_SIDE_RE.test(low)) return "seller";
+  if (ids.clientUserId && w === ids.clientUserId) return "client";
+  if (ids.sellerUserId && w === ids.sellerUserId) return "seller";
+  return null;
+}
+
+function normStep(v: unknown): NegotiationStep {
+  const d = dictOf(v);
+  return {
+    by: partyOf(d.by ?? d.proposed_by ?? d.actor ?? d.role ?? d.actor_role ?? d.user_id),
+    amount: uzs(d, "amount", "proposed_amount", "counter_amount", "final_amount"),
+    status: trimmed(d.status ?? d.action ?? d.event).toLowerCase(),
+    note: asStr(d.note ?? d.comment),
+    at: trimmed(d.at ?? d.created_at ?? d.timestamp),
+  };
+}
+
 export function normNegotiation(v: unknown): Negotiation {
   const d = dictOf(v);
   const n = dictOf(d.negotiation);
   const src = Object.keys(n).length ? n : d;
+  const amount = uzs(src, "amount", "proposed_amount");
+  const proposedAmount = uzs(src, "proposed_amount");
+  const ids = { clientUserId: trimmed(src.client_user_id), sellerUserId: trimmed(src.seller_user_id ?? src.lawyer_user_id) };
+  const currentProposer = partyOf(src.current_proposer);
+  const history = firstArr(src.history).map(normStep).filter((s) => s.amount > 0 || s.status || s.by);
+  const sellerSteps = history.filter((s) => s.amount > 0 && negotiationSideOf(s.by, ids) === "seller");
+  const lastSeller = sellerSteps[sellerSteps.length - 1];
+  const sellerTurn = negotiationSideOf(currentProposer, ids) === "seller";
+  const counterAmount = uzs(src, "counter_amount") || lastSeller?.amount || (sellerTurn && proposedAmount > 0 && proposedAmount !== uzs(src, "amount") ? proposedAmount : 0);
   return {
     id: trimmed(src.id ?? src.negotiation_id),
     orderId: trimmed(src.order_id ?? dictOf(d.order).id),
     status: trimmed(src.status ?? src.state).toLowerCase(),
-    amount: uzs(src, "amount", "proposed_amount"),
-    counterAmount: uzs(src, "counter_amount"),
+    amount,
+    proposedAmount,
+    counterAmount,
+    finalAmount: uzs(src, "final_amount"),
     maxAmount: uzs(src, "maximum_price", "max_price", "seller_maximum_price") || uzs(d, "maximum_price", "max_price"),
     note: asStr(src.note ?? src.client_note),
-    responseNote: asStr(src.response_note ?? src.seller_note),
-    proposedBy: trimmed(src.proposed_by ?? src.created_by ?? src.client_user_id),
+    responseNote: asStr(src.response_note ?? src.seller_note) || (lastSeller?.note ?? ""),
+    proposedBy: partyOf(src.proposed_by ?? src.created_by),
+    currentProposer,
+    clientUserId: ids.clientUserId,
+    sellerUserId: ids.sellerUserId,
+    history,
+    allowedStatuses: firstArr(src.allowed_statuses).map((x) => trimmed(x).toLowerCase()).filter(Boolean),
     expiresAt: trimmed(src.expires_at),
     reminderAt: trimmed(src.reminder_at),
     createdAt: trimmed(src.created_at),
@@ -645,10 +752,11 @@ export function normNegotiation(v: unknown): Negotiation {
   };
 }
 
-export async function proposeNegotiation(orderId: string, input: { amount: number; note?: string }): Promise<Negotiation> {
+export async function proposeNegotiation(orderId: string, input: { amount: number; note?: string }, url = ""): Promise<Negotiation> {
   const body: Dict = { amount: Math.round(input.amount) };
   if (input.note?.trim()) body.note = input.note.trim();
-  return normNegotiation(await http(`/marketplace/orders/${enc(orderId)}/negotiations`, { method: "POST", body: JSON.stringify(body) }));
+  const path = marketActionPath(url, `/marketplace/orders/${enc(orderId)}/negotiations`, MARKET_ACTION_TAIL.negotiations);
+  return normNegotiation(await http(path, { method: "POST", body: JSON.stringify(body) }));
 }
 
 export type NegotiationList = { items: Negotiation[]; count: number; raw: Dict };
@@ -664,8 +772,9 @@ export function latestNegotiation(list: readonly Negotiation[]): Negotiation | n
   return best;
 }
 
-export async function listOrderNegotiations(orderId: string, signal?: AbortSignal): Promise<NegotiationList> {
-  const raw = await http(`/marketplace/orders/${enc(orderId)}/negotiations?limit=20&offset=0`, { signal });
+export async function listOrderNegotiations(orderId: string, signal?: AbortSignal, url = ""): Promise<NegotiationList> {
+  const path = marketActionPath(url, `/marketplace/orders/${enc(orderId)}/negotiations`, MARKET_ACTION_TAIL.negotiations);
+  const raw = await http(`${path}?limit=20&offset=0`, { signal });
   const d = dictOf(raw);
   const items = firstArr(raw, d.items, d.negotiations)
     .map(normNegotiation)
@@ -707,8 +816,9 @@ export function normOrderStart(v: unknown, orderId = ""): OrderStart {
   };
 }
 
-export async function startMarketOrder(orderId: string): Promise<OrderStart> {
-  return normOrderStart(await http(`/marketplace/orders/${enc(orderId)}/start`, { method: "POST" }), orderId);
+export async function startMarketOrder(orderId: string, url = ""): Promise<OrderStart> {
+  const path = marketActionPath(url, `/marketplace/orders/${enc(orderId)}/start`, MARKET_ACTION_TAIL.start);
+  return normOrderStart(await http(path, { method: "POST" }), orderId);
 }
 
 export type ChecklistProgress = { done: number; total: number; requiredDone: number; requiredTotal: number; percent: number };
@@ -751,8 +861,9 @@ export function normOrderChecklist(v: unknown, orderId = ""): OrderChecklist {
   };
 }
 
-export async function getOrderChecklist(orderId: string, signal?: AbortSignal): Promise<OrderChecklist> {
-  return normOrderChecklist(await http(`/marketplace/orders/${enc(orderId)}/checklist`, { signal }), orderId);
+export async function getOrderChecklist(orderId: string, signal?: AbortSignal, url = ""): Promise<OrderChecklist> {
+  const path = marketActionPath(url, `/marketplace/orders/${enc(orderId)}/checklist`, MARKET_ACTION_TAIL.checklist);
+  return normOrderChecklist(await http(path, { signal }), orderId);
 }
 
 export type ChecklistUpdate = { status: ChecklistStatus; comment?: string; files?: { id: string; name: string }[] };
@@ -883,13 +994,17 @@ export function marketErrorParams(e: unknown): { n: number; list: string } {
   return { n, list: (info?.allowed.length ? info.allowed : [...NEARBY_RADII]).join(", ") };
 }
 
-export async function completeOrderV2(orderId: string, input: { resultText: string; resultFiles: { id: string; name: string }[] }): Promise<CompletionResult> {
+export function completeV2Path(orderId: string): string {
+  return `/marketplace/orders/${enc(orderId)}/complete-v2`;
+}
+
+export async function completeOrderV2(orderId: string, input: { resultText: string; resultFiles: { id: string; name: string }[] }, url = ""): Promise<CompletionResult> {
   const body = {
     result_text: input.resultText.trim(),
     result_files: input.resultFiles.filter((f) => f.id).map((f) => ({ id: f.id, name: f.name })),
   };
   try {
-    return normCompletion(await http(`/marketplace/orders/${enc(orderId)}/complete-v2`, { method: "POST", body: JSON.stringify(body) }), orderId);
+    return normCompletion(await http(marketActionPath(url, completeV2Path(orderId), MARKET_ACTION_TAIL.complete), { method: "POST", body: JSON.stringify(body) }), orderId);
   } catch (e) {
     const items = e instanceof ApiError && !(e instanceof ChecklistIncompleteError) ? checklistBlockOf(e) : null;
     if (items && e instanceof ApiError) throw new ChecklistIncompleteError(e, items);
@@ -918,29 +1033,40 @@ export type CancellationReview = {
   checklist: ChecklistItem[];
   additionalPayment: Dict | null;
   resultFiles: MarketFileRef[];
+  resolutionOptions: string[];
+  chatMessagesUrl: string;
   raw: Dict;
 };
+
+function optionOf(v: unknown): string {
+  if (typeof v === "string") return v.trim().toLowerCase();
+  const d = dictOf(v);
+  return trimmed(d.action ?? d.value ?? d.key ?? d.id ?? d.code).toLowerCase();
+}
 
 export function normCancellationReview(v: unknown): CancellationReview {
   const d = dictOf(v);
   const r = dictOf(d.review ?? d.cancellation_review);
   const src = Object.keys(r).length ? r : d;
-  const order = dictOf(src.order ?? d.order);
+  const ctx = dictOf(src.context ?? d.context);
+  const chat = dictOf(src.chat ?? d.chat);
+  const order = dictOf(src.order ?? ctx.order ?? d.order);
   const client = dictOf(order.client ?? src.client);
   const seller = dictOf(order.lawyer ?? src.seller ?? src.lawyer);
   const resolution = dictOf(src.resolution);
-  const addPay = src.additional_payment ?? src.additional_payment_context ?? order.additional_payment;
+  const resolutionWord = typeof src.resolution === "string" ? src.resolution.trim() : "";
+  const addPay = src.additional_payment ?? src.additional_payment_context ?? ctx.additional_payment ?? order.additional_payment;
   return {
     id: trimmed(src.id ?? src.review_id),
     orderId: trimmed(src.order_id ?? order.id),
     status: trimmed(src.status).toLowerCase(),
     reason: asStr(src.reason),
-    action: trimmed(src.action ?? resolution.action ?? src.resolution_action).toLowerCase(),
+    action: (trimmed(src.action ?? resolution.action ?? src.resolution_action) || resolutionWord).toLowerCase(),
     note: asStr(src.note ?? resolution.note ?? src.resolution_note),
     amount: uzs(src, "amount", "new_price") || uzs(resolution, "amount"),
     lawyerUserId: trimmed(src.lawyer_user_id ?? resolution.lawyer_user_id),
     groupChatRoomId: trimmed(src.group_chat_room_id ?? d.group_chat_room_id ?? resolution.group_chat_room_id),
-    serviceChatRoomId: trimmed(src.service_chat_room_id ?? src.secure_chat_room_id ?? order.secure_chat_room_id ?? src.chat_room_id),
+    serviceChatRoomId: trimmed(src.service_chat_room_id ?? src.secure_chat_room_id ?? ctx.secure_chat_room_id ?? order.secure_chat_room_id ?? src.chat_room_id ?? chat.room_id),
     workId: trimmed(src.work_id ?? order.work_id),
     serviceTitle: trimmed(src.service_title ?? order.service_title),
     clientName: trimmed(src.client_name ?? client.name),
@@ -948,15 +1074,23 @@ export function normCancellationReview(v: unknown): CancellationReview {
     createdAt: trimmed(src.created_at),
     resolvedAt: trimmed(src.resolved_at),
     order,
-    checklist: firstArr(src.checklist, dictOf(src.checklist).items, order.checklist).map(normChecklistItem).filter((i) => i.id || i.title),
+    checklist: firstArr(src.checklist, dictOf(src.checklist).items, ctx.checklist, dictOf(ctx.checklist).items, order.checklist).map(normChecklistItem).filter((i) => i.id || i.title),
     additionalPayment: addPay && typeof addPay === "object" && !Array.isArray(addPay) ? (addPay as Dict) : null,
-    resultFiles: firstArr(src.result_files, order.result_files).map(normFileRef).filter((f) => f.id || f.url || f.name),
+    resultFiles: firstArr(src.result_files, ctx.result_files, order.result_files).map(normFileRef).filter((f) => f.id || f.url || f.name),
+    resolutionOptions: [...new Set(firstArr(src.resolution_options, d.resolution_options).map(optionOf).filter(Boolean))],
+    chatMessagesUrl: trimmed(chat.messages_url),
     raw: d,
   };
 }
 
-export async function requestCancellationReview(orderId: string, reason: string): Promise<CancellationReview> {
-  return normCancellationReview(await http(`/marketplace/orders/${enc(orderId)}/cancellation-review`, { method: "POST", body: JSON.stringify({ reason: reason.trim() }) }));
+export function reviewActionsOf(r: Pick<CancellationReview, "resolutionOptions">): ReviewAction[] {
+  const offered = REVIEW_ACTIONS.filter((a) => r.resolutionOptions.includes(a));
+  return offered.length ? offered : [...REVIEW_ACTIONS];
+}
+
+export async function requestCancellationReview(orderId: string, reason: string, url = ""): Promise<CancellationReview> {
+  const path = marketActionPath(url, `/marketplace/orders/${enc(orderId)}/cancellation-review`, MARKET_ACTION_TAIL.cancellationReview);
+  return normCancellationReview(await http(path, { method: "POST", body: JSON.stringify({ reason: reason.trim() }) }));
 }
 
 export async function getCancellationReview(reviewId: string, signal?: AbortSignal): Promise<CancellationReview> {
@@ -1048,6 +1182,7 @@ export function reviewOrderOf(r: CancellationReview): ReviewOrderContext {
   const seller = dictOf(o.lawyer ?? o.seller ?? src.seller);
   const status = lowered(o.status ?? src.order_status);
   const serviceChat = dictOf(src.service_chat);
+  const parties = dictOf(src.parties);
   const fullName = [trimmed(client.first_name), trimmed(client.last_name)].filter(Boolean).join(" ");
   return {
     orderId: r.orderId,
@@ -1059,10 +1194,10 @@ export function reviewOrderOf(r: CancellationReview): ReviewOrderContext {
     paymentStatus: lowered(o.payment_status),
     price: uzs(o, "price", "final_price") || uzs(src, "order_price", "price"),
     currency: trimmed(o.currency) || "UZS",
-    clientUserId: trimmed(o.client_user_id ?? client.id ?? src.client_user_id),
+    clientUserId: trimmed(o.client_user_id ?? client.id ?? src.client_user_id ?? parties.client_user_id),
     clientName: r.clientName || trimmed(det.client_name) || fullName,
     clientPhone: trimmed(client.phone ?? src.client_phone),
-    sellerUserId: trimmed(o.lawyer_user_id ?? seller.id ?? src.seller_user_id),
+    sellerUserId: trimmed(o.lawyer_user_id ?? seller.id ?? src.seller_user_id ?? parties.lawyer_user_id ?? parties.seller_user_id),
     sellerName: r.sellerName || trimmed(det.lawyer_name),
     sellerPhone: trimmed(seller.phone),
     sellerType: lowered(det.seller_type ?? seller.role),
@@ -1160,6 +1295,7 @@ export function normSecondOpinion(v: unknown): SecondOpinion {
   };
 }
 
-export async function getSecondOpinion(orderId: string, signal?: AbortSignal): Promise<SecondOpinion> {
-  return normSecondOpinion(await http(`/marketplace/orders/${enc(orderId)}/second-opinion`, { signal }));
+export async function getSecondOpinion(orderId: string, signal?: AbortSignal, url = ""): Promise<SecondOpinion> {
+  const path = marketActionPath(url, `/marketplace/orders/${enc(orderId)}/second-opinion`, MARKET_ACTION_TAIL.secondOpinion);
+  return normSecondOpinion(await http(path, { signal }));
 }

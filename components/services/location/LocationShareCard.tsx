@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";
 import { fmtDuration } from "@/lib/date";
 import { IconMapPin } from "@/components/icons";
-import { stopSharing, syncLocationShare, useLocationShare, useShareNow, type ShareErrorKind } from "@/lib/services/locationShare";
+import { shareStale, stopSharing, syncLocationShare, useLocationShare, useShareNow, type ShareErrorKind } from "@/lib/services/locationShare";
 import LocationShareDialog from "./LocationShareDialog";
 
 const ERR_KEY: Readonly<Record<ShareErrorKind, string>> = {
@@ -79,6 +79,7 @@ export default function LocationShareCard({ role }: { role: "lawyer" | "advocate
         : sinceMs < 60_000
           ? t("location.lastSentNow", { m: meters })
           : t("location.lastSent", { time: fmtDuration(sinceMs / 1000, locale), m: meters });
+  const stale = remote && shareStale(server, now);
   const policy = on || remote ? t("location.policyLine", { time: fmtDuration(share.policy.foregroundIntervalSec, locale), days: share.policy.retentionDays }) : "";
   const err = share.error;
   const errText = !err ? "" : err.kind === "stop" ? tp("sellerSlot.locStopFailed") : on ? t(ERR_KEY[err.kind]) : "";
@@ -96,6 +97,7 @@ export default function LocationShareCard({ role }: { role: "lawyer" | "advocate
         <b id={titleId}>{t("location.title")}</b>
         <p>{line}</p>
         {sent ? <p className="svloc-card__meta">{sent}</p> : null}
+        {stale ? <p className="svloc-card__meta svloc-card__stale">{t("location.stale")}</p> : null}
         {policy ? <p className="svloc-card__meta">{policy}</p> : null}
         {errText ? (
           <p className="svloc-card__err" id={errId} role="alert">

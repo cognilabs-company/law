@@ -68,10 +68,11 @@ export default function CompleteOrderDialog({
     setFetched(null);
   }
   const needList = checklist === undefined && !!key;
+  const checklistUrl = order?.urls.checklist ?? "";
   useEffect(() => {
     if (!needList || !key) return;
     const ctrl = new AbortController();
-    getOrderChecklist(key, ctrl.signal)
+    getOrderChecklist(key, ctrl.signal, checklistUrl)
       .then((list) => {
         if (!ctrl.signal.aborted) setFetched({ id: key, list });
       })
@@ -79,7 +80,7 @@ export default function CompleteOrderDialog({
         if (!ctrl.signal.aborted) setFetched({ id: key, list: null });
       });
     return () => ctrl.abort();
-  }, [needList, key]);
+  }, [needList, key, checklistUrl]);
   if (!order) return <Modal open={false} onClose={onClose} title="">{null}</Modal>;
   const target = order;
   const canAttach = !!target.roomId;
@@ -140,7 +141,7 @@ export default function CompleteOrderDialog({
           throw e;
         }
       }
-      const r = await completeMarketplaceOrder(target.id, { resultText: text.slice(0, TEXT_MAX), resultFiles: out });
+      const r = await completeMarketplaceOrder(target.id, { resultText: text.slice(0, TEXT_MAX), resultFiles: out }, target.urls.complete);
       noteOrderLock(target.id, { chatReadOnly: r.chatReadOnly ?? true, callsAllowed: r.callsAllowed ?? false });
       onDone(r.status, r);
       onClose();
