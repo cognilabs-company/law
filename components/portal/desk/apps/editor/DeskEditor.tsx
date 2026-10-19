@@ -16,7 +16,7 @@ import {
   type RightTab,
   type StartChoice,
 } from "@/components/portal/DocumentEditorWorkspace";
-import DocTemplateViewer from "@/components/portal/DocTemplateViewer";
+import FileViewer from "../FileViewer";
 import CallRoom from "@/components/chat/CallRoom";
 import { ApiError } from "@/lib/http";
 import { shortDateTime } from "@/lib/date";
@@ -286,7 +286,7 @@ export default function DeskEditor({ v }: { v: EditorView }) {
       {v.source.open ? <SourceDialog v={v} /> : null}
       {v.upload.open && req ? <UploadDialog v={v} /> : null}
       {(["template", "editorFile", "final"] as EditorFile[]).map((k) => (
-        <DocTemplateViewer
+        <FileViewer
           key={k}
           open={v.files.preview === k}
           onClose={() => v.files.setPreview("")}

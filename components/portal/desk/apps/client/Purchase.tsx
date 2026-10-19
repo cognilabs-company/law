@@ -60,6 +60,8 @@ type Props = {
   openLink: NativeProps["openLink"];
   onClose: () => void;
   onStale: (what: "seller" | "service") => void;
+  // Back to choosing the advocate (a package's sheet comes from that list).
+  onBack?: () => void;
 };
 
 export default function PurchaseSheet(props: Props) {
@@ -67,7 +69,7 @@ export default function PurchaseSheet(props: Props) {
   return <Sheet key={`${props.pkg ? "pkg" : "svc"}:${props.service.id}:${props.sellerUserId}`} {...props} />;
 }
 
-function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onStale }: Props) {
+function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onStale, onBack }: Props) {
   const t = useTranslations("marketplace.purchase");
   const tm = useTranslations("marketplace");
   const te = useTranslations("enums");
@@ -174,9 +176,15 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   );
   const actions = !phase
     ? [
-        <Btn key="cancel" onClick={onClose}>
-          {t("close")}
-        </Btn>,
+        onBack ? (
+          <Btn key="back" onClick={onBack}>
+            {t("changeSeller")}
+          </Btn>
+        ) : (
+          <Btn key="cancel" onClick={onClose}>
+            {t("close")}
+          </Btn>
+        ),
         <Btn key="send" kind="primary" type="submit" icon={<IconSend />} busy={busy} disabled={price.pending || price.failed || attaching}>
           {price.pending ? t("pricing") : t("submit")}
         </Btn>,

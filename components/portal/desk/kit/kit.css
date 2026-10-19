@@ -380,7 +380,9 @@ html[data-theme="dark"] .dx--mac .dx-group__b{background:rgba(255,255,255,.04)}
 .dx-table__r{min-height:28px;cursor:default;outline:none}
 .dx-table__r span{display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .dx-table__r span svg{width:16px;height:16px}
-.dx-table__r span.dx-av{display:grid;place-items:center;flex:none}
+/* An avatar keeps its centred initials inside any row or column that lays
+   out its spans (a header's "span{display:flex}", a table cell). */
+.dx-table__r span.dx-av,.dx span.dx-av.dx-av{display:grid;place-items:center;flex:none}
 .dx--mac .dx-table__h{border-bottom:1px solid var(--x-sep)}
 .dx--mac .dx-table__h span+span{box-shadow:-7px 0 0 -6px var(--x-sep)}
 .dx--mac .dx-table__r{margin:0 8px;padding:0 6px;border-radius:5px}

@@ -1,7 +1,8 @@
 /* Profile as settings: System Settings on the Mac, Settings on Windows. */
 .dxq{display:flex;flex-direction:column;gap:6px;max-width:860px;width:100%;padding:16px 28px 32px}
 .dxq-me{display:flex;align-items:center;gap:10px;padding:4px 2px 8px}
-.dxq-me span{display:flex;flex-direction:column;min-width:0}
+.dxq-me>span:not(.dx-av){display:flex;flex-direction:column;min-width:0}
+.dxq-me>.dx-av{display:grid;place-items:center;flex:none}
 .dxq-me b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dxq-me small{color:var(--x-ink2)}
 .dxq-save{display:flex;gap:6px}

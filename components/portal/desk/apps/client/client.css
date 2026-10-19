@@ -703,13 +703,16 @@ html[data-theme="dark"] .dxcg-canvas{background:#1b1b1d}
 
 /* ── the document builder: the web builder on the desktop's tokens ──── */
 .dx-app--cbuilder .dx-main{display:flex;flex-direction:column}
-.dxcb{flex:1;min-height:0;overflow:auto;padding:12px 16px 16px;--b50:var(--x-fill);--b100:var(--x-acc-soft);--b200:var(--x-sep);--b300:color-mix(in srgb,var(--x-acc) 45%,transparent);--b400:var(--x-acc);--b500:var(--x-acc);--b600:var(--x-acc);--b700:var(--x-acc);--ink:var(--x-ink);--gray:var(--x-ink2);--gray2:var(--x-ink3);--line:var(--x-sep);--grad:var(--x-acc);--sblue:none;--s1:none;--s2:0 4px 14px rgba(0,0,0,.08);--r:var(--x-r2);--rl:12px;--rx:14px;--fd:var(--x-font);--fb:var(--x-font);--dk-surface:var(--x-bg);--dk-surface-2:var(--x-bg2);--dk-acc:var(--x-acc);--dk-acc-strong:var(--x-acc);color:var(--x-ink);font-family:var(--x-font)}
-.dx--win .dxcb{--rl:8px;--rx:8px}
-.dxcb .btn{font-family:var(--x-font);cursor:default}
-.dxcb .btn--grad,.dxcb .btn--pri{background:var(--x-acc);color:var(--x-acc-ink,#fff);box-shadow:none}
-.dx--mac .dxcb .btn{border-radius:7px}
-.dx--win .dxcb .btn{border-radius:4px}
-.dxcb input,.dxcb textarea,.dxcb select{font-family:var(--x-font)}
+.dxcb{flex:1;min-height:0;overflow:auto;padding:12px 16px 16px}
+/* The web's own forms shown in a desktop window (the builder; the identity
+   check, complaints and warranty in Profile) take the desktop's tokens. */
+.dxcb,.dxce{--b50:var(--x-fill);--b100:var(--x-acc-soft);--b200:var(--x-sep);--b300:color-mix(in srgb,var(--x-acc) 45%,transparent);--b400:var(--x-acc);--b500:var(--x-acc);--b600:var(--x-acc);--b700:var(--x-acc);--ink:var(--x-ink);--gray:var(--x-ink2);--gray2:var(--x-ink3);--line:var(--x-sep);--grad:var(--x-acc);--sblue:none;--s1:none;--s2:0 4px 14px rgba(0,0,0,.08);--r:var(--x-r2);--rl:12px;--rx:14px;--fd:var(--x-font);--fb:var(--x-font);--dk-surface:var(--x-bg);--dk-surface-2:var(--x-bg2);--dk-acc:var(--x-acc);--dk-acc-strong:var(--x-acc);color:var(--x-ink);font-family:var(--x-font)}
+.dx--win .dxcb,.dx--win .dxce{--rl:8px;--rx:8px}
+.dxcb .btn,.dxce .btn{font-family:var(--x-font);cursor:default}
+.dxcb .btn--grad,.dxcb .btn--pri,.dxce .btn--grad,.dxce .btn--pri{background:var(--x-acc);color:var(--x-acc-ink,#fff);box-shadow:none}
+.dx--mac .dxcb .btn,.dx--mac .dxce .btn{border-radius:7px}
+.dx--win .dxcb .btn,.dx--win .dxce .btn{border-radius:4px}
+.dxcb input,.dxcb textarea,.dxcb select,.dxce input,.dxce textarea,.dxce select{font-family:var(--x-font)}
 .dxcb .docbuild__top,.dxcb .dfws__top{display:none}
 /* In the fill workspace its own bar (progress, generate, exit) is the
    window's toolbar: the kit's steps aside, the bar takes its place. */
@@ -728,3 +731,71 @@ html[data-theme="dark"] .dxcg-canvas{background:#1b1b1d}
 .dx--win .dxcg-filters{padding:0 16px 10px;border-bottom:0}
 .dxcg-pass__body li{display:flex;align-items:flex-start;gap:6px}
 .dxcg-pass__body li svg{flex:none;margin-top:2px}
+
+.dxce{display:flex;flex-direction:column;gap:14px}
+.dxce .ppanel{margin:0;border-radius:var(--x-r2);background:var(--x-bg2);box-shadow:inset 0 0 0 .5px var(--x-sep)}
+.dx--win .dxce .ppanel{border:1px solid var(--x-layer-line);border-radius:8px;background:var(--x-ctl);box-shadow:none}
+
+/* ── packages (in-app purchase tiers) ───────────────────────────────── */
+.dxck{display:flex;flex-direction:column;gap:20px;flex:1;min-height:0;padding:14px 20px 24px;overflow:auto}
+.dxck-group{display:flex;flex-direction:column;gap:12px}
+.dxck-group>header{display:flex;align-items:center;gap:10px}
+.dxck-group__ic{display:grid;place-items:center;flex:none;width:34px;height:34px;border-radius:9px;background:var(--x-acc-soft);color:var(--x-acc)}
+.dx--mac .dxck-group__ic{border-radius:50%}
+.dxck-group__ic svg{width:17px;height:17px}
+.dxck-group h2{margin:0;font-size:16px;font-weight:700}
+.dxck-group header small{color:var(--x-ink2);font-size:12px}
+.dxck-tiers{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.dxck-tier{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:16px}
+.dx--mac .dxck-tier{border-radius:14px;background:var(--x-bg2);box-shadow:inset 0 0 0 .5px var(--x-sep)}
+.dx--win .dxck-tier{border:1px solid var(--x-layer-line);border-radius:8px;background:var(--x-ctl)}
+.dx--mac .dxck-tier.is-best{box-shadow:inset 0 0 0 2px var(--x-acc)}
+.dx--win .dxck-tier.is-best{border-color:var(--x-acc);box-shadow:0 0 0 1px var(--x-acc)}
+.dxck-tier__h{display:flex;align-items:center;gap:8px;width:100%}
+.dxck-tier__h b{flex:1;font-weight:600}
+.dxck-tier__ic{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--x-fill);color:var(--x-ink2)}
+.dxck-tier.is-standard .dxck-tier__ic{background:var(--x-acc-soft);color:var(--x-acc)}
+.dxck-tier.is-premium .dxck-tier__ic{background:rgba(142,92,247,.15);color:#8e5cf7}
+.dxck-tier__ic svg{width:15px;height:15px}
+.dxck-tier__price{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.dxck-tier__price small{color:var(--x-ink2);font-size:12px;font-weight:500}
+.dxck-tier__save{padding:2px 8px;border-radius:10px;background:rgba(52,199,89,.14);color:var(--x-ok);font-size:11px;font-weight:600}
+.dxck-inc{display:flex;flex-direction:column;gap:4px;margin:4px 0 0;padding:0;list-style:none;font-size:12px}
+.dxck-inc li{display:flex;align-items:flex-start;gap:6px;line-height:1.4}
+.dxck-inc li svg{flex:none;width:12px;height:12px;margin-top:2px;color:var(--x-ok)}
+.dxck-inc li.is-no{color:var(--x-ink3)}
+.dxck-inc li.is-no svg{color:var(--x-ink3)}
+.dxck-tier__acts{display:flex;gap:6px;margin-top:auto;padding-top:8px}
+.dx .dxco-pick button:disabled{opacity:.55}
+
+/* ── gifts and profile ──────────────────────────────────────────────── */
+.dxcf-qr{align-self:center;border-radius:8px;background:#fff;padding:6px}
+.dxcf-share{display:flex;gap:8px}
+.dxcf-share .dx-in{flex:1;min-width:0}
+.dxcq-card{display:flex;align-items:center;gap:14px;margin-bottom:16px;padding:16px}
+.dx--mac .dxcq-card{border-radius:14px;background:var(--x-bg2);box-shadow:inset 0 0 0 .5px var(--x-sep)}
+.dx--win .dxcq-card{border:1px solid var(--x-layer-line);border-radius:8px;background:var(--x-ctl)}
+.dxcq-card>.dx-av{display:grid;place-items:center;flex:none}
+.dxcq-card__who{display:flex;flex-direction:column;gap:3px;flex:1;min-width:0}
+.dxcq-card__who b{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:17px;font-weight:700}
+.dxcq-card__who small{color:var(--x-ink2);font-size:12px;user-select:text}
+.dxcq-h{margin:18px 0 8px;font-size:13px;font-weight:600}
+.dxcq-table{display:flex;flex-direction:column;min-height:160px;border-radius:10px;overflow:hidden;box-shadow:inset 0 0 0 .5px var(--x-sep)}
+.dx--win .dxcq-table{border:1px solid var(--x-layer-line);border-radius:8px;box-shadow:none}
+.dx-app--cprofile .dx-table__r{min-height:44px}
+.dx-app--cgifts .dx-table__r{min-height:46px}
+
+/* ── academy (a gallery of courses) ─────────────────────────────────── */
+.dxcy{flex:1;min-height:0;padding:16px 20px 24px;overflow:auto}
+.dxcy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
+.dxcy-course{display:flex;flex-direction:column;gap:5px}
+.dxcy-cover{position:relative;display:grid;place-items:center;aspect-ratio:16/10;margin-bottom:6px;border-radius:12px;background:linear-gradient(135deg,var(--k),color-mix(in srgb,var(--k) 55%,#000));color:#fff;box-shadow:0 6px 16px -8px rgba(0,0,0,.4)}
+.dx--win .dxcy-cover{border-radius:6px}
+.dxcy-cover>svg{width:40px;height:40px;opacity:.9}
+.dxcy-cover .dx-tag{position:absolute;top:8px;left:8px;background:rgba(255,255,255,.85);color:#222}
+.dxcy-course>small{color:var(--x-ink2);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.03em}
+.dxcy-course>b{font-weight:600;line-height:1.3}
+.dxcy-meta{display:flex;gap:12px;color:var(--x-ink2);font-size:12px}
+.dxcy-meta span{display:inline-flex;align-items:center;gap:4px}
+.dxcy-meta svg{width:12px;height:12px}
+.dxcy-course>em{color:var(--x-ink3);font-size:11px;font-style:normal}

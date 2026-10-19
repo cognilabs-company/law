@@ -362,7 +362,7 @@ function Hours({ draft, set, vacation, setVacation, deadlines }: { draft: Draft;
 }
 
 // Two-step sign-in, the Telegram link, the sessions and what happened.
-function Security({ say }: { say: (text: string, tone?: "ok" | "err") => void }) {
+export function Security({ say }: { say: (text: string, tone?: "ok" | "err") => void }) {
   const t = useTranslations("portal.common.twofa");
   const tg = useTranslations("portal.common.telegram");
   const ta = useTranslations("portal.accountAudit");
@@ -567,7 +567,7 @@ function Security({ say }: { say: (text: string, tone?: "ok" | "err") => void })
   );
 }
 
-function Notes() {
+export function Notes() {
   const t = useTranslations("portal.client.profile");
   const { session } = useAuth();
   const [prefs, setPrefs] = useState<NotifPrefs | null>(null);

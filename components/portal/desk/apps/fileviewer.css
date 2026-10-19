@@ -1,0 +1,5 @@
+/* Quick Look: a file's pages on a grey canvas inside a dialog (FileViewer). */
+.dxfv{display:flex;flex-direction:column;align-items:center;gap:8px;margin:-4px;padding:16px;border-radius:var(--x-r);background:var(--x-bg3,#e9e9ec)}
+html[data-theme="dark"] .dxfv{background:#1b1b1d}
+.dxfv-paper{position:relative;width:100%;max-width:780px}
+.dxfv-paper .docpaper__sheet{margin:0 auto;box-shadow:0 1px 3px rgba(0,0,0,.12),0 12px 30px -10px rgba(0,0,0,.25)}
