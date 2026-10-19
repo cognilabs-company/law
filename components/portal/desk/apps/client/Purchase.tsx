@@ -35,7 +35,7 @@ import { durationParts, guaranteesOf } from "@/components/marketplace/runtime/fa
 import { useDurationText } from "@/components/marketplace/runtime/DurationChip";
 import { deliveryLabel } from "@/components/marketplace/bits";
 import { CLIENT_ORDERS_HREF, type PackagePurchaseTarget } from "@/components/marketplace/PurchaseDialog";
-import { IconAlert, IconChat, IconCheck, IconClock, IconClose, IconHourglass, IconMic, IconPaperclip, IconPhone, IconRecord, IconRefresh, IconSend, IconShieldCheck, IconUsers, IconVideo } from "@/components/icons";
+import { IconChat, IconCheck, IconClock, IconClose, IconHourglass, IconMic, IconPaperclip, IconPhone, IconRecord, IconRefresh, IconSend, IconShieldCheck, IconUsers, IconVideo } from "@/components/icons";
 import { Banner, Btn, Check, Dialog, Field, Input, Seg, Spinner, TextArea } from "../../kit/kit";
 import type { NativeProps } from "../../native";
 
@@ -252,7 +252,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
           {phase === "pending" && done && !done.telegramSent ? <Banner tone="warn">{t("notDelivered")}</Banner> : null}
           {track?.offline && !ended && (phase === "pending" || phase === "paid") ? (
             <Banner tone="warn">
-              <IconAlert aria-hidden /> {t("offline")}
+              {t("offline")}
             </Banner>
           ) : null}
         </div>

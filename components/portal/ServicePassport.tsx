@@ -41,7 +41,10 @@ function Block({ title, rows }: { title: string; rows: Row[] }) {
   );
 }
 
-export function PassportView({ passport: p }: { passport: Passport }) {
+export type PassportBlock = { title: string; rows: Row[] };
+// The passport's facts as titled blocks, with the catalog's words for its
+// values — the web view and the desktop's both draw these.
+export function usePassportBlocks(p: Passport): PassportBlock[] {
   const t = useTranslations("portal.passport");
   // Catalog durations are day counts as text: "10" or a range like "3-5".
   // Some rows already carry the unit ("3 kun", "1-2 иш куни"): show those as is.
@@ -56,40 +59,32 @@ export function PassportView({ passport: p }: { passport: Passport }) {
     return k && t.has(`${group}.${k}`) ? t(`${group}.${k}`) : raw;
   };
   const group = p.group && p.group !== p.family ? `${p.family} · ${p.group}` : p.family;
+  return [
+    {
+      title: t("blockIdentity"),
+      rows: [
+        [t("code"), p.catalogCode],
+        [t("family"), group],
+        [t("subcategory"), p.subcategory && p.subcategory !== p.family ? p.subcategory : ""],
+        [t("executor"), val("executorValues", p.executorType)],
+        [t("advokat"), p.advokatRequired ? t("advokatYes") : ""],
+        [t("format"), val("formatValues", p.format)],
+      ],
+    },
+    { title: t("blockDuration"), rows: [[t("standardTerm"), days(p.standardDuration, p.standardDays)], [t("urgentTerm"), days(p.urgentDuration, p.urgentDays)]] },
+    { title: t("blockPricing"), rows: [[t("price"), p.standardPrice ? `${fmtUzs(p.standardPrice)} ${t("som")}` : ""], [t("pricingTier"), val("tierValues", p.pricingTier)]] },
+    { title: t("blockSla"), rows: [[t("sla"), p.slaCode], [t("refund"), p.refundCode]] },
+  ];
+}
+
+export function PassportView({ passport: p }: { passport: Passport }) {
+  const t = useTranslations("portal.passport");
+  const blocks = usePassportBlocks(p);
   return (
     <div className="spass">
-      <Block
-        title={t("blockIdentity")}
-        rows={[
-          [t("code"), p.catalogCode],
-          [t("family"), group],
-          [t("subcategory"), p.subcategory && p.subcategory !== p.family ? p.subcategory : ""],
-          [t("executor"), val("executorValues", p.executorType)],
-          [t("advokat"), p.advokatRequired ? t("advokatYes") : ""],
-          [t("format"), val("formatValues", p.format)],
-        ]}
-      />
-      <Block
-        title={t("blockDuration")}
-        rows={[
-          [t("standardTerm"), days(p.standardDuration, p.standardDays)],
-          [t("urgentTerm"), days(p.urgentDuration, p.urgentDays)],
-        ]}
-      />
-      <Block
-        title={t("blockPricing")}
-        rows={[
-          [t("price"), p.standardPrice ? `${fmtUzs(p.standardPrice)} ${t("som")}` : ""],
-          [t("pricingTier"), val("tierValues", p.pricingTier)],
-        ]}
-      />
-      <Block
-        title={t("blockSla")}
-        rows={[
-          [t("sla"), p.slaCode],
-          [t("refund"), p.refundCode],
-        ]}
-      />
+      {blocks.map((b) => (
+        <Block key={b.title} title={b.title} rows={b.rows} />
+      ))}
       <section className="spass__blk spass__docs">
         <h4 className="spass__bh">{t("documents")}</h4>
         {p.requiredDocuments.length ? (

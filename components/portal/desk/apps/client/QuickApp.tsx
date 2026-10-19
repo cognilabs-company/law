@@ -643,7 +643,7 @@ function OrderSheet({
       ) : null}
       {svc.requiresPriorPurchase ? (
         <Banner tone="warn">
-          <IconLock aria-hidden /> {t("priorPurchaseNote")}
+          {t("priorPurchaseNote")}
         </Banner>
       ) : null}
       <div className="dx-field">

@@ -69,6 +69,7 @@ const CLIENT_APPS: Registry = {
   requests: load(() => import("./apps/client/RequestsApp")),
   ai: load(() => import("./apps/client/AiChatApp")),
   urgent: load(() => import("./apps/client/QuickApp")),
+  services: load(() => import("./apps/client/CatalogApp")),
   messages: SELLER_APPS.messages,
   notifications: SELLER_APPS.notifications,
   support: SELLER_APPS.support,
