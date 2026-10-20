@@ -8765,6 +8765,18 @@
         "lawyersTitle": "Eng yaxshi advokatlarni toping",
         "lawyersText": "Reytingi yuqori, tasdiqlangan advokat va yuristlar bilan bevosita bog'laning.",
         "lawyersCta": "Advokatlarni ko'rish",
+        "promoteTitle": "Profilingizni TOP'ga chiqaring",
+        "promoteText": "Oltin ramka va TOP belgisi bilan ro'yxatda yuqorida chiqing — sizni ko'proq mijoz topadi.",
+        "promoteCta": "Reklamani boshlash",
+        "aiTitle": "LexGo.AI siz uchun {pct}% arzon",
+        "aiText": "Tasdiqlangan advokat va yuristlarga LexGo.AI tariflari chegirma bilan: hujjat tahlili, sud amaliyoti va eksport.",
+        "aiCta": "Tariflarni ko'rish",
+        "servicesTitle": "Xizmatlaringizni sotuvga qo'ying",
+        "servicesText": "Narxi oldindan ma'lum xizmat va paketlar mijozga tezroq buyurtma berishga yordam beradi.",
+        "servicesCta": "Xizmat qo'shish",
+        "referralsTitle": "Hamkasblaringizni taklif qiling",
+        "referralsText": "Havolangiz orqali kelgan har bir do'st va hamkasb uchun bonus oling.",
+        "referralsCta": "Taklif qilish",
         "dismiss": "Yopish"
       },
       "reminder": {

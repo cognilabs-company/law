@@ -19,7 +19,7 @@ import {
   type BackendPlan,
   type ManualDocBillingPeriod,
 } from "@/lib/services/backend";
-import { loadAutopay, readAutopay, saveAutopay, type AutopayState } from "@/lib/services/plans";
+import { SELLER_DISCOUNT, loadAutopay, readAutopay, saveAutopay, type AutopayState } from "@/lib/services/plans";
 import { useAuth } from "@/lib/auth";
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { aiId } from "@/lib/ai/ids";
@@ -76,8 +76,6 @@ const AI_LIMIT_BY_SLUG: Record<string, number> = { "lexgo-ai-free": 5, "lexgo-ai
 const TERM_DISCOUNT: Record<Term, number> = { 1: 0, 3: 5, 6: 10, 12: 15 };
 const UPFRONT_DISCOUNT = 5;
 const MAX_DISCOUNT = 20;
-// T1-03 §6: verified advocates / lawyers get 50 % off LexGo.AI automatically.
-const SELLER_DISCOUNT = 50;
 const AI_TERM_ID: Record<Term, string> = {
   1: "pricing.billing.monthly",
   3: "pricing.billing.three-month",

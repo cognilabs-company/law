@@ -8759,6 +8759,18 @@
         "lawyersTitle": "Find top-rated lawyers",
         "lawyersText": "Connect directly with verified, highly-rated advocates and lawyers.",
         "lawyersCta": "Browse lawyers",
+        "promoteTitle": "Take your profile to the top",
+        "promoteText": "A gold frame and a TOP badge lift you higher in the list, so more clients find you.",
+        "promoteCta": "Start promoting",
+        "aiTitle": "LexGo.AI, {pct}% off for you",
+        "aiText": "Verified advocates and lawyers get LexGo.AI plans at a discount: document analysis, case law and export.",
+        "aiCta": "See plans",
+        "servicesTitle": "Put your services on sale",
+        "servicesText": "Services and packages with an upfront price help clients order faster.",
+        "servicesCta": "Add a service",
+        "referralsTitle": "Invite your colleagues",
+        "referralsText": "Earn a bonus for every friend and colleague who joins through your link.",
+        "referralsCta": "Invite",
         "dismiss": "Dismiss"
       },
       "reminder": {

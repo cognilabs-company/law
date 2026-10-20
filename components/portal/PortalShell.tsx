@@ -14,7 +14,6 @@ import SupportMenu from "./SupportMenu";
 import MarketWatcher from "../marketplace/MarketWatcher";
 import SellerHeaderSlot from "./SellerHeaderSlot";
 import { listenToDesk, tellDesk } from "@/lib/deskBridge";
-import GrowthBanner from "./GrowthBanner";
 import GiftNudge from "./GiftNudge";
 import { canUseDesk, setDeskMode, useDeskEmbedOs, useDeskEmbedded, useDeskMode, useDeskOs, useDesktopDevice } from "./desk/deskMode";
 import DeskApp from "./desk/DeskApp";
@@ -510,10 +509,12 @@ export default function PortalShell({
                   <p>{t("pending.text")}</p>
                 </div>
               </div>
-            ) : role !== "client" ? (
-              pathname === `/portal/${role}/profile` ? null : <GrowthBanner role={role} completeness={session.completeness} />
             ) : (
-              <GiftNudge />
+              <GiftNudge
+                role={role}
+                completeness={session.completeness}
+                verified={cabinet.data ? cabinet.data.verification.verified === true : cabinet.status === "loading" ? null : false}
+              />
             )}
             <CabinetProvider value={cabinet}>{gated}</CabinetProvider>
           </div>

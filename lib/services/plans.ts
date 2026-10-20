@@ -19,6 +19,9 @@ import {
 
 export type { PlanAudience };
 
+// T1-03 §6: verified advocates / lawyers get 50 % off LexGo.AI automatically.
+export const SELLER_DISCOUNT = 50;
+
 // ── Billing periods ───────────────────────────────────────────────
 export type BillingPeriod = "monthly" | "six_month" | "yearly" | "prepaid_yearly";
 export const BILLING_PERIODS: BillingPeriod[] = ["monthly", "six_month", "yearly", "prepaid_yearly"];

@@ -10,7 +10,7 @@ const HIDDEN_KEY = "lexgo_lawyer_promo_hidden";
 const HIDE_MS = 3 * 24 * 60 * 60 * 1000;
 const DELAY_MS = 2200;
 
-function hiddenRecently() {
+export function hiddenRecently() {
   try {
     const at = Number(localStorage.getItem(HIDDEN_KEY) || 0);
     return at > 0 && Date.now() - at < HIDE_MS;
