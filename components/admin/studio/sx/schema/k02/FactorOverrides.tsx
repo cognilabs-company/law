@@ -39,12 +39,14 @@ export type FactorOverridesProps = {
   formCode: string;
   owner: string;
   categoryId: string;
+  forPackage?: boolean;
 };
 
 const NO_SHARED: SharedFactor = { type: "", value: null };
 
-export function FactorOverrides({ id, label, ai, readOnly, source, ids, value, errors, policy, onChange, onDraftError, formCode, owner, categoryId }: FactorOverridesProps): ReactElement | null {
+export function FactorOverrides({ id, label, ai, readOnly, source, ids, value, errors, policy, onChange, onDraftError, formCode, owner, categoryId, forPackage = false }: FactorOverridesProps): ReactElement | null {
   const t = useTranslations("studio");
+  const own = forPackage ? "sx.k02.fo.p" : "sx.k02.fo";
   const labels = useStudioLabels();
   const depth = useInlineDepth();
   const [nonce, setNonce] = useState(0);
@@ -94,7 +96,7 @@ export function FactorOverrides({ id, label, ai, readOnly, source, ids, value, e
   };
   const ownText = (mode: OverrideMode, v: number | undefined): string => {
     if (mode === "shared" || v === undefined) return "";
-    return t("sx.k02.fo.own", { value: mode === "percent" ? `+${labels.num(v)}%` : `+${labels.money(v)}` });
+    return t(`${own}.own`, { value: mode === "percent" ? `+${labels.num(v)}%` : `+${labels.money(v)}` });
   };
   const errText = (tok: string, path: string): string => labels.error(tok, { type: "number", key: "value", ctor: formCode, path, min: 0, max: null });
 
@@ -106,7 +108,7 @@ export function FactorOverrides({ id, label, ai, readOnly, source, ids, value, e
           const name = info?.label || labels.unknownRef(fid);
           const shared = info?.shared ?? NO_SHARED;
           const mode = modeOf(value, fid);
-          const own = overrideValueOf(value, fid);
+          const mine = overrideValueOf(value, fid);
           const rowPath = `${FACTOR_OVERRIDES}.${fid}`;
           const valuePath = `${rowPath}.value`;
           const base = `${id}-${fid}`;
@@ -148,20 +150,20 @@ export function FactorOverrides({ id, label, ai, readOnly, source, ids, value, e
                 </span>
               </div>
               {readOnly ? (
-                <p className="sx-k2fo__ro">{mode === "shared" ? t("sx.k02.fo.usesShared") : ownText(mode, own) || t("sx.ui.notSet")}</p>
+                <p className="sx-k2fo__ro">{mode === "shared" ? t("sx.k02.fo.usesShared") : ownText(mode, mine) || t("sx.ui.notSet")}</p>
               ) : (
                 <div className="sx-k2fo__ctl">
-                  <SxSegmented<OverrideMode> items={items} value={mode} onChange={pick} label={t("sx.k02.fo.modeLabel", { name })} size="sm" aiId={makeAiId(rowAi, "mode")} />
+                  <SxSegmented<OverrideMode> items={items} value={mode} onChange={pick} label={t(`${own}.modeLabel`, { name })} size="sm" aiId={makeAiId(rowAi, "mode")} />
                   {mode !== "shared" ? (
                     <div className="sx-k2fo__val" data-path={valuePath}>
                       {mode === "fixed" ? (
                         <MoneyInput
                           id={`${base}-value`}
-                          value={own}
+                          value={mine}
                           onChange={setValue}
                           onDraftInvalid={(bad) => onDraftError?.(valuePath, bad)}
                           onBlur={() => policy.touch(valuePath)}
-                          aria-label={t("sx.k02.fo.valueLabel", { name })}
+                          aria-label={t(`${own}.valueLabel`, { name })}
                           aria-describedby={valueBad ? errId : undefined}
                           aria-invalid={valueBad ? true : undefined}
                           aria-required
@@ -170,7 +172,7 @@ export function FactorOverrides({ id, label, ai, readOnly, source, ids, value, e
                       ) : (
                         <NumberInput
                           id={`${base}-value`}
-                          value={own}
+                          value={mine}
                           onChange={setValue}
                           onDraftInvalid={(bad) => onDraftError?.(valuePath, bad)}
                           onBlur={() => policy.touch(valuePath)}
@@ -178,7 +180,7 @@ export function FactorOverrides({ id, label, ai, readOnly, source, ids, value, e
                           max={PERCENT_MAX}
                           suffix="%"
                           placeholder={t("sx.k02.fo.percentHint")}
-                          aria-label={t("sx.k02.fo.valueLabel", { name })}
+                          aria-label={t(`${own}.valueLabel`, { name })}
                           aria-describedby={valueBad ? errId : undefined}
                           aria-invalid={valueBad ? true : undefined}
                           aria-required

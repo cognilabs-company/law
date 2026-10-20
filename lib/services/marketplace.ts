@@ -394,6 +394,11 @@ export type MarketPurchase = {
 // and 10 voice messages.
 export const PURCHASE_URGENCIES = ["today", "tomorrow", "later"] as const;
 export type PurchaseUrgency = (typeof PURCHASE_URGENCIES)[number];
+export const CONTACT_SPEEDS = ["within_15_min", "within_1_hour", "today", "tomorrow"] as const;
+export type ContactSpeed = (typeof CONTACT_SPEEDS)[number];
+export function isContactSpeed(v: unknown): v is ContactSpeed {
+  return typeof v === "string" && (CONTACT_SPEEDS as readonly string[]).includes(v);
+}
 export const MAX_PURCHASE_FILES = 20;
 export const MAX_PURCHASE_VOICES = 10;
 export type PurchaseAttachment = { fileId: string; title: string };
@@ -401,24 +406,38 @@ export type PurchaseVoice = { fileId: string; seconds: number };
 export type PurchaseInput = {
   note: string;
   preferredChannel: PreferredChannel;
-  preferredTime: string;
+  preferredTime?: string;
+  contactSpeed?: ContactSpeed | "";
   selectedOptionIds?: string[];
   urgency?: PurchaseUrgency | "";
   attachments?: PurchaseAttachment[];
   voiceMessages?: PurchaseVoice[];
 };
 
-function purchaseBody(input: PurchaseInput): string {
+export function purchaseBodyOf(input: PurchaseInput): Record<string, unknown> {
+  const note = input.note.trim();
   const body: Record<string, unknown> = {
     selected_option_ids: input.selectedOptionIds ?? [],
-    note: input.note.trim(),
+    note,
     preferred_channel: input.preferredChannel,
-    preferred_time: input.preferredTime.trim(),
   };
+  const time = (input.preferredTime ?? "").trim();
+  if (time) body.preferred_time = time;
+  if (input.contactSpeed) body.contact_speed = input.contactSpeed;
+  if (input.contactSpeed !== undefined) {
+    const details: Record<string, unknown> = { note, contact_channel: input.preferredChannel };
+    if (input.contactSpeed) details.contact_speed = input.contactSpeed;
+    if (input.urgency) details.urgency = input.urgency;
+    body.details = details;
+  }
   if (input.urgency) body.urgency = input.urgency;
   if (input.attachments?.length) body.attachments = input.attachments.slice(0, MAX_PURCHASE_FILES).map((a) => ({ file_id: a.fileId, title: a.title }));
   if (input.voiceMessages?.length) body.voice_messages = input.voiceMessages.slice(0, MAX_PURCHASE_VOICES).map((v) => ({ file_id: v.fileId, duration_seconds: Math.max(1, Math.round(v.seconds)) }));
-  return JSON.stringify(body);
+  return body;
+}
+
+function purchaseBody(input: PurchaseInput): string {
+  return JSON.stringify(purchaseBodyOf(input));
 }
 
 export async function requestMarketplacePurchase(lawyerUserId: string, serviceId: string, input: PurchaseInput): Promise<MarketPurchase> {
@@ -495,6 +514,8 @@ export type MarketOrder = {
   note: string;
   preferredChannel: string;
   preferredTime: string;
+  contactSpeed: string;
+  contactSpeedLabel: string;
   clientName: string;
   clientPhone: string;
   clientUserId: string;
@@ -535,7 +556,7 @@ export type MarketOrder = {
   canRequestCancellation: boolean | null;
   canNegotiate: boolean | null;
   explicit: { start: boolean; complete: boolean; cancel: boolean };
-  urls: { start: string; checklist: string; negotiations: string; cancellationReview: string; secondOpinion: string; complete: string; cancel: string; chat: string; callCreate: string };
+  urls: { start: string; checklist: string; negotiations: string; cancellationReview: string; secondOpinion: string; complete: string; cancel: string; chat: string; callCreate: string; secondOpinionPromotion?: string };
 };
 
 export type OrderOption = { id: string; label: string; amount: number };
@@ -723,6 +744,8 @@ export function normMarketOrder(v: unknown): MarketOrder {
     note: asStr(details.client_note ?? d.note).trim(),
     preferredChannel: asStr(details.preferred_channel ?? d.preferred_channel).toLowerCase(),
     preferredTime: asStr(details.preferred_time ?? d.preferred_time).trim(),
+    contactSpeed: asStr(details.contact_speed ?? d.contact_speed).trim().toLowerCase(),
+    contactSpeedLabel: asStr(d.contact_speed_label ?? details.contact_speed_label).trim(),
     clientName: asStr(client.name ?? d.client_name).trim(),
     clientPhone: asStr(client.phone ?? d.client_phone).trim(),
     clientUserId: asStr(d.client_user_id ?? client.id),
@@ -776,6 +799,7 @@ export function normMarketOrder(v: unknown): MarketOrder {
       cancel: url("cancel_url"),
       chat: url("chat_url"),
       callCreate: url("call_create_url"),
+      ...("second_opinion_promotion_url" in d || "second_opinion_promotion" in actions ? { secondOpinionPromotion: url("second_opinion_promotion_url") } : {}),
     },
   };
 }

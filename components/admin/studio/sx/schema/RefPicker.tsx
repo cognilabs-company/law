@@ -3,12 +3,13 @@
 import "../sx-core.css";
 import "../sx-form.css";
 import "./sx-schema.css";
+import "./sx-schema-hints.css";
 import { useEffect, useMemo, useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
-import { studioReferenceKey } from "@/lib/services/studio";
+import { studioReferenceKey, useStudioRegistry } from "@/lib/services/studio";
 import { SxLinkButton } from "../Button";
-import { producerOf } from "../ctor/sources";
-import { PlusIcon, TriangleAlertIcon, glyph } from "../icons";
+import { isEligibilitySource, producerOf } from "../ctor/sources";
+import { InfoIcon, PlusIcon, TriangleAlertIcon, glyph } from "../icons";
 import { Picker } from "../form/Picker";
 import { firstReferenceInfo, firstReferencePage, useReferenceOptions } from "../form/useReferenceOptions";
 import type { InlineContext } from "../inline/model";
@@ -47,6 +48,7 @@ const NO_CONTEXT: InlineContext = { categoryId: "" };
 export function useSourceEmpty(source: string, enabled: boolean, nonce = 0): SourceEmptyState {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
+  const reg = useStudioRegistry();
   const [empty, setEmpty] = useState<{ source: string; empty: boolean } | null>(null);
   useEffect(() => {
     if (!enabled || !source) return;
@@ -64,7 +66,7 @@ export function useSourceEmpty(source: string, enabled: boolean, nonce = 0): Sou
     };
   }, [source, enabled, nonce]);
   if (!enabled || !empty || empty.source !== source || !empty.empty) return { kind: "none" };
-  const producer = producerOf(source);
+  const producer = producerOf(source, reg.items);
   if (!producer) return { kind: "none" };
   const key = `sx.srcname.${studioReferenceKey(source).key}`;
   if (producer.kind === "notReady") return { kind: "plain", text: t.has(key) ? t("sx.form.emptySource", { name: t(key) }) : t("sx.form.emptyRecords") };
@@ -111,6 +113,31 @@ export function SourceEmptyLine({ state, id, aiId }: { state: SourceEmptyState; 
   );
 }
 
+export function EligibilityHint({ id, aiId }: { id?: string; aiId?: string }): ReactElement {
+  const t = useTranslations("studio");
+  const labels = useStudioLabels();
+  const reg = useStudioRegistry();
+  const producer = producerOf("/studio/reference/package-eligibility-rules", reg.items);
+  if (producer?.kind === "create") {
+    const name = labels.ctorName(producer.code, reg.items.find((c) => c.code === producer.code)?.title);
+    return (
+      <p className="sx-sf-elig" id={id}>
+        {glyph(InfoIcon, { size: 14 })}
+        <span>{t("sx.elig.from", { name })}</span>
+        <SxLinkButton variant="ghost" size="sm" icon={PlusIcon} href={producer.href} aiId={aiId ? `${aiId}.create` : undefined}>
+          {t("sx.elig.create")}
+        </SxLinkButton>
+      </p>
+    );
+  }
+  return (
+    <p className="sx-sf-elig" id={id}>
+      {glyph(InfoIcon, { size: 14 })}
+      <span>{t("sx.elig.soon")}</span>
+    </p>
+  );
+}
+
 export function RefPicker(props: RefPickerProps): ReactElement {
   const { a11y, label, source, required, readOnly, invalid, placeholder, onBlur, aiId, code, pattern, recordId, emptyId, inlineContext, inlineOwner, inlineAddKey } = props;
   const plain = useReferenceOptions(source);
@@ -134,8 +161,10 @@ export function RefPicker(props: RefPickerProps): ReactElement {
     aiId: aiId ?? a11y.id,
     addKey: inlineAddKey,
   });
-  const empty = useSourceEmpty(source, !readOnly, inline?.refresh ?? 0);
+  const eligibility = isEligibilitySource(source);
+  const empty = useSourceEmpty(source, !readOnly && !eligibility, inline?.refresh ?? 0);
   const emptyLine: SourceEmptyState = inline && empty.kind === "create" ? { kind: "plain", text: empty.text } : empty;
+  const hintId = `${a11y.id}-elig`;
   const missing = useMissingRefs(source, picked, !tree);
   const missingId = `${a11y.id}-gone`;
   const binding = useMemo(() => {
@@ -154,7 +183,7 @@ export function RefPicker(props: RefPickerProps): ReactElement {
     };
   }, [tree, plain, cat]);
   const emptyText = empty.kind === "none" ? undefined : empty.text;
-  const describedBy = [a11y["aria-describedby"], empty.kind !== "none" && emptyId ? emptyId : "", missing ? missingId : ""].filter(Boolean).join(" ") || undefined;
+  const describedBy = [a11y["aria-describedby"], empty.kind !== "none" && emptyId ? emptyId : "", missing ? missingId : "", eligibility && !readOnly ? hintId : ""].filter(Boolean).join(" ") || undefined;
   const common = {
     id: a11y.id,
     label,
@@ -201,7 +230,7 @@ export function RefPicker(props: RefPickerProps): ReactElement {
           <span>{t("sx.err.reference")}</span>
         </p>
       ) : null}
-      {readOnly ? null : <SourceEmptyLine state={emptyLine} id={emptyId} aiId={aiId ? `${aiId}.create` : undefined} />}
+      {readOnly ? null : eligibility ? <EligibilityHint id={hintId} aiId={aiId} /> : <SourceEmptyLine state={emptyLine} id={emptyId} aiId={aiId ? `${aiId}.create` : undefined} />}
       {inline?.drawer ?? null}
     </div>
   );

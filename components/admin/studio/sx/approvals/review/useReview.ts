@@ -19,6 +19,7 @@ import type { SchemaModel, SxValues, SxWarning } from "../../contract";
 import { ctorLayoutOf } from "../../ctor/layouts";
 import { ctorWarnings } from "../../ctor/warnings";
 import { currentVersionOf, liveVersionOf } from "../../editor/model";
+import { editInReviewOf, missingRequired } from "../../editor/reviewEdit";
 import { studioEventObjectId, useStudioLive } from "../../live";
 import { useSchemaModel } from "../../schema/useSchemaModel";
 import { fetchApprovalDetail, type ApprEvent, type ApprSummaryItem } from "../approvalsApi";
@@ -43,6 +44,8 @@ export type ReviewState = {
   before: SxValues | null;
   after: SxValues;
   warnings: SxWarning[];
+  missing: string[];
+  editInReview: boolean;
   can: ReviewCan;
   comments: ReviewComments;
   history: ReviewHistory;
@@ -266,6 +269,10 @@ export function useReview(target: ReviewTarget | null, viewer: ApprViewer): Revi
   const { base, before } = useMemo(() => reviewBaseOf(detail, current, live), [detail, current, live]);
   const after: SxValues = current && Object.keys(current.payload).length ? current.payload : (detail?.payload ?? EMPTY);
   const warnings = useMemo(() => (detail && detail.status !== "published" && detail.status !== "archived" ? ctorWarnings(code, after, before, { descendants, isNew: before === null }) : []), [detail, code, after, before, descendants]);
+  const reviewOpen = !!detail && detail.status !== "published" && detail.status !== "archived";
+  const fileMissing = code === "K06" && after.mode === "upload" && !(detail?.hasFile || current?.hasFile);
+  const missing = useMemo(() => (reviewOpen && model ? missingRequired(model, after, { fileMissing }) : []), [reviewOpen, model, after, fileMissing]);
+  const editInReview = useMemo(() => editInReviewOf(detail?.raw), [detail]);
   const row = useMemo(() => (detail ? buildRow(detail, viewer, { items: reg.items, groups: reg.groups }) : (target?.row ?? null)), [detail, viewer, reg.items, reg.groups, target?.row]);
   const can = useMemo(() => (detail ? reviewCan(detail, viewer, regCtor) : NO_REVIEW), [detail, viewer, regCtor]);
 
@@ -320,6 +327,8 @@ export function useReview(target: ReviewTarget | null, viewer: ApprViewer): Revi
     before,
     after,
     warnings,
+    missing,
+    editInReview,
     can,
     comments,
     history,

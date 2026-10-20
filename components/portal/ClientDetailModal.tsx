@@ -9,8 +9,9 @@ import { useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import ScrollCue from "@/components/ui/ScrollCue";
-import { IconBriefcase, IconFileText, IconChat, IconCard, IconClock, IconUsers } from "@/components/icons";
+import { IconBriefcase, IconFileText, IconChat, IconCard, IconClock, IconUsers, IconLock } from "@/components/icons";
 import { statusLabel, regionLabel } from "@/lib/labels";
+import "./clientPhone.css";
 
 const fmtNum = (n: number, locale: string) => fmtInt(n, locale);
 
@@ -20,6 +21,7 @@ const fmtNum = (n: number, locale: string) => fmtInt(n, locale);
 export default function ClientDetailModal({ id, onClose }: { id: string | null; onClose: () => void }) {
   const t = useTranslations("portal.clientDetail");
   const tc = useTranslations("portal.common");
+  const tt = useTranslations("portal.clientsTools");
   const te = useTranslations("enums");
   const locale = useLocale();
   const router = useRouter();
@@ -59,7 +61,17 @@ export default function ClientDetailModal({ id, onClose }: { id: string | null; 
             <span className="pclient__av">{(d.client.name || "?").split(/\s+/).map((s) => s[0]).join("").slice(0, 2).toUpperCase()}</span>
             <div className="cdet__m">
               <b>{d.client.name || "—"}</b>
-              <span>{[d.client.phone, regionLabel(te, d.client.region), d.client.company, d.type === "manual" ? t("manual") : null].filter(Boolean).join(" · ")}</span>
+              {d.client.phoneVisible === false || (d.type !== "manual" && !d.client.phone.trim()) ? (
+                <span>
+                  <em className="pclient__lock" data-ai-id="advocate.clients.detail-modal.phone-locked">
+                    <IconLock aria-hidden="true" />
+                    {tt("phoneLocked")}
+                  </em>
+                  {[regionLabel(te, d.client.region), d.client.company].filter(Boolean).map((x) => ` · ${x}`).join("")}
+                </span>
+              ) : (
+                <span>{[d.client.phone, regionLabel(te, d.client.region), d.client.company, d.type === "manual" ? t("manual") : null].filter(Boolean).join(" · ")}</span>
+              )}
               {d.client.createdAt ? <small>{t("since", { date: fmt(d.client.createdAt) })}</small> : null}
             </div>
           </div>

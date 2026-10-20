@@ -8,9 +8,10 @@ import { useTranslations } from "next-intl";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import Menu, { type MenuEntry } from "@/components/ui/Menu";
 import { useRouter } from "@/i18n/navigation";
-import { getStudioConstructorDetail, studioDetailSnapshot, useStudioAccess, type StudioConstructor, type StudioCreationJourney, type StudioJourneyType } from "@/lib/services/studio";
+import { getStudioConstructorDetail, studioDetailSnapshot, useStudioAccess, useStudioRegistry, type StudioConstructor, type StudioCreationJourney, type StudioJourneyType } from "@/lib/services/studio";
 import { notify } from "@/lib/toast";
 import { SxButton, SxLinkButton } from "../Button";
+import { eligibilityProducerOf } from "../ctor/sources";
 import { useLeaveGuard } from "../editor/useLeaveGuard";
 import { Picker } from "../form/Picker";
 import { prefersReducedMotion } from "../hooks";
@@ -92,7 +93,9 @@ export function Wizard({ id }: { id: string }): ReactElement {
   const keysText = topLevelKeys(full).join("\n");
   const journeyKeysText = journeyStepKeys(journey).join("\n");
   const def = defsState.defs?.[jtype] ?? null;
-  const stepDefs = useMemo(() => stepDefsFor(jtype, def, journeyKeysText ? journeyKeysText.split("\n") : []), [jtype, def, journeyKeysText]);
+  const registry = useStudioRegistry();
+  const eligibilityCode = eligibilityProducerOf(registry.items);
+  const stepDefs = useMemo(() => stepDefsFor(jtype, def, journeyKeysText ? journeyKeysText.split("\n") : [], { eligibilityCode }), [jtype, def, journeyKeysText, eligibilityCode]);
   const topKeys = useMemo(() => new Set(keysText ? keysText.split("\n") : []), [keysText]);
   const leftovers = useMemo(() => leftoverFields(jtype, stepDefs, keysText ? keysText.split("\n") : []), [jtype, stepDefs, keysText]);
   const steps: JourneyStep[] = useMemo(

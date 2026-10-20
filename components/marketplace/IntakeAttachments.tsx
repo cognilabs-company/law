@@ -136,15 +136,16 @@ export default function IntakeAttachments(props: {
   onFiles: (f: PurchaseAttachment[]) => void;
   onVoices: (v: Voice[]) => void;
   onBusy: (busy: boolean) => void;
+  compact?: boolean;
 }) {
-  const { files, voices, onFiles, onVoices } = props;
+  const { files, voices, onFiles, onVoices, compact = false } = props;
   const t = useTranslations("marketplace.purchase.intake");
   const pick = useRef<HTMLInputElement>(null);
   const { uploading, err, rec, addFiles, startVoice, stopVoice } = useIntakeAttachments(props);
 
   return (
-    <fieldset className="mk-att">
-      <legend>{t("title")}</legend>
+    <fieldset className={`mk-att${compact ? " mk-att--compact" : ""}`}>
+      <legend className={compact ? "sr-only" : undefined}>{t("title")}</legend>
       <p className="mk-att__hint">{t("hint")}</p>
       <div className="mk-att__bar">
         <button type="button" className="mk-chip mk-chip--sm" onClick={() => pick.current?.click()} disabled={files.length >= MAX_PURCHASE_FILES || !!rec}>

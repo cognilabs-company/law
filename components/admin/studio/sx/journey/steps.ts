@@ -31,8 +31,8 @@ const FIELD_HINTS: Readonly<Record<StudioJourneyType, Readonly<Record<string, re
     composition: ["components", "custom_items", "duration"],
     tiers: ["tiers"],
     eligibility: ["eligibility_rule_ids", "visibility"],
-    price_factors: ["price_factor_ids"],
-    pricing: ["price_factor_ids"],
+    price_factors: ["price_factor_ids", "price_factor_overrides"],
+    pricing: ["price_factor_ids", "price_factor_overrides"],
     rules: ["rule_ids"],
     guarantees: ["guarantee_ids"],
     review: ["is_active"],
@@ -41,7 +41,7 @@ const FIELD_HINTS: Readonly<Record<StudioJourneyType, Readonly<Record<string, re
 
 const COMPANIONS: Readonly<Record<StudioJourneyType, Readonly<Record<string, string>>>> = {
   service: { price_factor_ids: "price_factor_overrides", rule_ids: "inline_rules", guarantee_ids: "inline_guarantees" },
-  package: {},
+  package: { price_factor_ids: "price_factor_overrides" },
 };
 
 export function withCompanions(type: StudioJourneyType, fields: readonly string[]): string[] {
@@ -81,9 +81,19 @@ const FALLBACK_CODES: Readonly<Record<string, string>> = {
   category: "K01",
   rules: "K31",
   guarantees: "K32",
-  eligibility: "K26",
   price_factors: "K34",
 };
+
+const ELIGIBILITY_STEP = "eligibility";
+const WRONG_ELIGIBILITY_CODES: ReadonlySet<string> = new Set(["K26"]);
+
+export type StepDefsOptions = { eligibilityCode?: string };
+
+function eligibilityCodeOf(key: string, code: string, opts: StepDefsOptions): string {
+  if (key !== ELIGIBILITY_STEP) return code;
+  if (code && !WRONG_ELIGIBILITY_CODES.has(code.trim().toUpperCase())) return code;
+  return (opts.eligibilityCode ?? "").trim();
+}
 
 const LABEL_KEYS: Readonly<Record<string, string>> = {
   category: "sx.journeyRun.step.category",
@@ -136,23 +146,23 @@ export function stepLabel(key: string, t: (key: string) => string, title = ""): 
   return title.trim() || t("sx.journeyRun.stepOther");
 }
 
-function fromDef(type: StudioJourneyType, s: JourneyDefStep): JourneyStepDef {
+function fromDef(type: StudioJourneyType, s: JourneyDefStep, opts: StepDefsOptions): JourneyStepDef {
   const hint = FIELD_HINTS[type][s.key] ?? [];
-  const code = isRetiredCode(s.code) ? "" : s.code;
+  const code = eligibilityCodeOf(s.key, isRetiredCode(s.code) ? "" : s.code, opts);
   const out: JourneyStepDef = { key: s.key, title: s.title, code, fields: s.fields.length ? withCompanions(type, s.fields) : hint, required: s.required };
   return s.formCode && !isRetiredCode(s.formCode) ? { ...out, formCode: s.formCode } : out;
 }
 
-function fallbackStep(type: StudioJourneyType, key: string): JourneyStepDef {
-  return { key, title: "", code: FALLBACK_CODES[key] ?? "", fields: FIELD_HINTS[type][key] ?? [], required: true };
+function fallbackStep(type: StudioJourneyType, key: string, opts: StepDefsOptions): JourneyStepDef {
+  return { key, title: "", code: eligibilityCodeOf(key, FALLBACK_CODES[key] ?? "", opts), fields: FIELD_HINTS[type][key] ?? [], required: true };
 }
 
-export function stepDefsFor(type: StudioJourneyType, def: JourneyDef | null | undefined, journeyKeys: readonly string[] = []): JourneyStepDef[] {
-  if (def?.steps.length) return withHomes(type, def.steps.map((s) => fromDef(type, s)));
+export function stepDefsFor(type: StudioJourneyType, def: JourneyDef | null | undefined, journeyKeys: readonly string[] = [], opts: StepDefsOptions = {}): JourneyStepDef[] {
+  if (def?.steps.length) return withHomes(type, def.steps.map((s) => fromDef(type, s, opts)));
   const keys = journeyKeys.map((k) => k.trim()).filter(Boolean);
   const list = keys.length ? keys : FALLBACK_STEP_KEYS[type];
   const out: JourneyStepDef[] = [];
-  for (const k of list) if (!out.some((s) => s.key === k)) out.push(fallbackStep(type, k));
+  for (const k of list) if (!out.some((s) => s.key === k)) out.push(fallbackStep(type, k, opts));
   return out;
 }
 

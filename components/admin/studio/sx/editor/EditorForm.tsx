@@ -5,9 +5,11 @@ import "../sx-layout.css";
 import "../sx-form.css";
 import "./sx-editor.css";
 import "./sx-editor-neon.css";
-import type { ReactElement } from "react";
+import { useEffect, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { useStudioRegistry } from "@/lib/services/studio";
+import { MissingFields } from "../approvals/review/MissingFields";
+import type { SxWarning } from "../contract";
 import { SxButton, SxLinkButton } from "../Button";
 import { SxFormContext } from "../form/formPolicy";
 import { Picker } from "../form/Picker";
@@ -26,6 +28,39 @@ import type { EditorState } from "./useEditorState";
 
 const AI = "admin.studio.editor";
 const SK_FIELDS = [0, 1, 2, 3];
+const MISS_ATTR = "data-rv-miss";
+const NO_PATHS: readonly string[] = [];
+
+function cellFor(form: Element, path: string): Element | null {
+  const parts = path.split(".");
+  while (parts.length) {
+    const el = form.querySelector(`[data-path="${parts.join(".").replace(/["\\]/g, "\\$&")}"]`);
+    if (el) return el;
+    parts.pop();
+  }
+  return null;
+}
+
+function ReviewMarks({ idPrefix, paths }: { idPrefix: string; paths: readonly string[] }): null {
+  const key = paths.join("|");
+  useEffect(() => {
+    if (!key) return;
+    const form = document.getElementById(`${idPrefix}-form`);
+    if (!form) return;
+    const marked: Element[] = [];
+    for (const p of key.split("|")) {
+      const el = cellFor(form, p);
+      if (el && !marked.includes(el)) {
+        el.setAttribute(MISS_ATTR, "");
+        marked.push(el);
+      }
+    }
+    return () => {
+      for (const el of marked) el.removeAttribute(MISS_ATTR);
+    };
+  });
+  return null;
+}
 
 function FormSkeleton() {
   const t = useTranslations("studio");
@@ -143,6 +178,9 @@ export function EditorForm({ st, onPick }: { st: EditorState; onPick: (path: str
   const multi = items.length > 1;
   const sectionOptions = items.map((i) => ({ value: i.id, label: i.label }));
   const recordTitle = model.titleField ? null : { value: st.recordTitle, onChange: st.setRecordTitle, placeholderKey: st.layout.recordTitlePlaceholderKey };
+  const miss = st.reviewMissing ?? NO_PATHS;
+  const markRo = st.readOnly && miss.length > 0;
+  const warnings: SxWarning[] = markRo ? [...st.warnings, ...miss.map((path): SxWarning => ({ key: "sx.ap4.miss.field", tone: "warn", path }))] : st.warnings;
 
   return (
     <SxFormContext.Provider value={st.policy}>
@@ -167,7 +205,7 @@ export function EditorForm({ st, onPick }: { st: EditorState; onPick: (path: str
               />
             </div>
           ) : null}
-          {st.showSummary ? <SchemaErrorSummary model={model} errors={st.errors} onPick={onPick} /> : null}
+          {st.showSummary ? <SchemaErrorSummary model={model} errors={st.errors} onPick={onPick} /> : miss.length ? <MissingFields model={model} paths={miss} aiId={`${AI}.missing`} lead={t("sx.ap4.miss.leadEditor")} onPick={onPick} className="sx-ed-miss" /> : null}
           <SxPanel as="div" className="sx-ed__panel">
             <SchemaForm
               model={model}
@@ -175,7 +213,7 @@ export function EditorForm({ st, onPick }: { st: EditorState; onPick: (path: str
               onChange={st.setPayload}
               onDraftError={st.setDraftError}
               errors={st.errors}
-              warnings={st.warnings}
+              warnings={warnings}
               readOnly={st.readOnly}
               mode={st.formMode}
               recordId={st.recordId}
@@ -183,6 +221,7 @@ export function EditorForm({ st, onPick }: { st: EditorState; onPick: (path: str
               file={st.fileSlot}
               look="neon"
             />
+            {markRo ? <ReviewMarks idPrefix={st.idPrefix} paths={miss} /> : null}
           </SxPanel>
         </div>
       </div>

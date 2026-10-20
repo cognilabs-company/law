@@ -393,7 +393,7 @@ function AlertSlot({ alert, st, onAction }: { alert: NonNullable<EditorAlert>; s
       <SxNote
         tone="warn"
         role="alert"
-        title={t("sx.editor.alert.lockedTitle")}
+        title={t(alert.review ? "sx.ap4.ed.lockedTitle" : "sx.editor.alert.lockedTitle")}
         action={
           <span className="sx-ed__alert-acts">
             {alert.withdraw ? (
@@ -405,7 +405,7 @@ function AlertSlot({ alert, st, onAction }: { alert: NonNullable<EditorAlert>; s
           </span>
         }
       >
-        {t(alert.withdraw ? "sx.editor.alert.lockedText" : "sx.editor.alert.lockedNoWithdraw")}
+        {t(alert.review ? "sx.ap4.ed.lockedText" : alert.withdraw ? "sx.editor.alert.lockedText" : "sx.editor.alert.lockedNoWithdraw")}
       </SxNote>
     );
   }

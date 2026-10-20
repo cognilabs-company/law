@@ -14,8 +14,10 @@ import { fmtUzs } from "@/lib/money";
 import { NEARBY_RADII, type NearbyRadius, type NearbyResult, type NearbySeller } from "@/lib/services/marketRuntime";
 import type { MarketSeller } from "@/lib/services/marketplace";
 import { approxDistance, findNearby, geoFailureOf, locateClient, nearbyFailureOf, nearbyKey, precisionMeters, sortNearby, type GeoFailure, type NearbyFailure, type NearbyMode, type Spot } from "@/lib/services/marketDiscovery";
+import { getMapConfig, type MapConfig } from "@/lib/services/sellersMap";
 import { Monogram, sellerTypeLabel } from "./bits";
 import NearbyMap from "./NearbyMap";
+import SellersYandexMap, { MapPlaceholder } from "./map/SellersYandexMap";
 import "./nearbySellers.css";
 
 export type NearbyServiceOption = { value: string; label: string };
@@ -38,6 +40,7 @@ export function MarketModeSwitch({ mode, onChange }: { mode: NearbyMode; onChang
 
 type GeoState = { busy: boolean; fail: GeoFailure | null };
 type ResState = { key: string; result: NearbyResult | null; fail: NearbyFailure | null };
+type YandexState = { cfg: MapConfig | null; off: boolean };
 
 export default function NearbySellers({
   base,
@@ -57,6 +60,7 @@ export default function NearbySellers({
   onChange: (s: { radius: NearbyRadius; serviceId: string }) => void;
 }) {
   const t = useTranslations("marketplace.nearby");
+  const ty = useTranslations("marketplace.ymap");
   const tm = useTranslations("marketplace");
   const te = useTranslations("enums");
   const locale = useLocale();
@@ -71,12 +75,34 @@ export default function NearbySellers({
   const [res, setRes] = useState<ResState | null>(null);
   const [tick, setTick] = useState(0);
   // The results as a list, or on the map around the client.
-  const [view, setView] = useState<"list" | "map">("list");
+  const [view, setView] = useState<"list" | "map" | null>(null);
+  const [yandex, setYandex] = useState<YandexState>({ cfg: null, off: false });
+
+  useEffect(() => {
+    let dead = false;
+    getMapConfig().then(
+      (cfg) => {
+        if (!dead) setYandex(cfg.usable ? { cfg, off: false } : { cfg: null, off: true });
+      },
+      () => {
+        if (!dead) setYandex({ cfg: null, off: true });
+      },
+    );
+    return () => {
+      dead = true;
+    };
+  }, []);
+
+  const yCfg = yandex.off ? null : yandex.cfg;
+  const yPending = !yandex.cfg && !yandex.off;
+  const shownView = view ?? (yCfg || yPending ? "map" : "list");
+  const yMapOn = !!yCfg && shownView === "map";
+  const listWanted = !(yCfg || yPending) || shownView === "list";
 
   const key = `${nearbyKey(spot, radius, serviceId)}#${tick}`;
 
   useEffect(() => {
-    if (!spot) return;
+    if (!spot || !listWanted) return;
     const c = new AbortController();
     findNearby(spot, radius, serviceId, c.signal).then(
       (result) => {
@@ -87,7 +113,7 @@ export default function NearbySellers({
       },
     );
     return () => c.abort();
-  }, [key, spot, radius, serviceId]);
+  }, [key, spot, radius, serviceId, listWanted]);
 
   const loading = !!spot && res?.key !== key;
   const current = !loading && res?.key === key ? res : null;
@@ -195,8 +221,45 @@ export default function NearbySellers({
     );
   };
 
+  const viewToggle = (
+    <div className="mknb-view" role="group" aria-label={t("map.view")}>
+      <button type="button" aria-pressed={shownView === "list"} onClick={() => setView("list")} data-ai-id="marketplace.nearby.view.list">
+        <IconList aria-hidden="true" />
+        {t("map.list")}
+      </button>
+      <button type="button" aria-pressed={shownView === "map"} onClick={() => setView("map")} data-ai-id="marketplace.nearby.view.map">
+        <IconMap aria-hidden="true" />
+        {t("map.map")}
+      </button>
+    </div>
+  );
+  const mapWaiting = yPending && shownView === "map";
+
   let body: ReactNode = null;
-  if (geo.fail) {
+  if (yMapOn && yCfg) {
+    body = (
+      <>
+        {geo.fail ? (
+          <div className="mknb-msg" role="alert">
+            <p>{t(`geo.${geo.fail}`)}</p>
+          </div>
+        ) : null}
+        <SellersYandexMap
+          config={yCfg}
+          spot={spot}
+          serviceId={serviceId}
+          base={base}
+          known={known}
+          locating={geo.busy}
+          onLocate={locate}
+          onFail={() => setYandex({ cfg: null, off: true })}
+          onShowAll={onShowAll}
+        />
+      </>
+    );
+  } else if (mapWaiting) {
+    body = <MapPlaceholder label={ty("loadingMap")} />;
+  } else if (geo.fail) {
     const canRetry = geo.fail !== "insecure" && geo.fail !== "unsupported";
     body = (
       <div className="mknb-msg" role="alert">
@@ -258,16 +321,7 @@ export default function NearbySellers({
           <span className="mknb-meta__n">{result.fallbackNearest ? t("countNearest", { n: rows.length }) : t("count", { n: rows.length, r: shownR })}</span>
           <span className="mknb-prec">{precText}</span>
           <p className="mknb-note">{t("approxNote")}</p>
-          <div className="mknb-view" role="group" aria-label={t("map.view")}>
-            <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")} data-ai-id="marketplace.nearby.view.list">
-              <IconList aria-hidden="true" />
-              {t("map.list")}
-            </button>
-            <button type="button" aria-pressed={view === "map"} onClick={() => setView("map")} data-ai-id="marketplace.nearby.view.map">
-              <IconMap aria-hidden="true" />
-              {t("map.map")}
-            </button>
-          </div>
+          {yCfg ? null : viewToggle}
         </div>
         {result.fallbackNearest ? (
           <p className="mknb-fallback">
@@ -275,8 +329,8 @@ export default function NearbySellers({
             <span>{t("fallback", { r: shownR })}</span>
           </p>
         ) : null}
-        {view === "map" && spot ? <NearbyMap spot={spot} radiusKm={shownR} items={rows} base={base} label={t("map.label", { n: rows.length, r: shownR })} /> : null}
-        <ul className="mknb-list" aria-label={t("listLabel")} data-ai-id="marketplace.nearby.results" data-ai-type="list" hidden={view === "map"}>
+        {shownView === "map" && spot ? <NearbyMap spot={spot} radiusKm={shownR} items={rows} base={base} label={t("map.label", { n: rows.length, r: shownR })} /> : null}
+        <ul className="mknb-list" aria-label={t("listLabel")} data-ai-id="marketplace.nearby.results" data-ai-type="list" hidden={shownView === "map"}>
           {rows.map(renderRow)}
         </ul>
       </>
@@ -310,30 +364,33 @@ export default function NearbySellers({
           <p>{t("lead")}</p>
           <p className="mknb-privacy">
             <IconLock aria-hidden="true" />
-            <span>{t("privacy")}</span>
+            <span>{yMapOn || mapWaiting ? ty("privacy") : t("privacy")}</span>
           </p>
         </div>
       </div>
 
       <div className="mknb-bar" data-ai-target="marketplace:filters">
-        <div className="mknb-radius">
-          <div className="mknb-chips" role="group" aria-label={t("radiusLabel")}>
-            {NEARBY_RADII.map((r) => (
-              <button key={r} type="button" className="mk-chip mk-chip--sm" aria-pressed={radius === r} onClick={() => pickRadius(r)} aria-describedby={radiusFail ? radiusErrId : undefined} data-ai-id={`marketplace.nearby.radius.${r}`}>
-                {t("radiusKm", { n: r })}
-              </button>
-            ))}
+        {yMapOn || mapWaiting ? null : (
+          <div className="mknb-radius">
+            <div className="mknb-chips" role="group" aria-label={t("radiusLabel")}>
+              {NEARBY_RADII.map((r) => (
+                <button key={r} type="button" className="mk-chip mk-chip--sm" aria-pressed={radius === r} onClick={() => pickRadius(r)} aria-describedby={radiusFail ? radiusErrId : undefined} data-ai-id={`marketplace.nearby.radius.${r}`}>
+                  {t("radiusKm", { n: r })}
+                </button>
+              ))}
+            </div>
+            {radiusFail ? (
+              <p className="mknb-err" role="alert" id={radiusErrId}>
+                {tm("errors.radius_invalid", { list: radiusFail.allowed.join(", ") })}
+              </p>
+            ) : null}
           </div>
-          {radiusFail ? (
-            <p className="mknb-err" role="alert" id={radiusErrId}>
-              {tm("errors.radius_invalid", { list: radiusFail.allowed.join(", ") })}
-            </p>
-          ) : null}
-        </div>
+        )}
         <div className="mknb-svc" data-ai-id="marketplace.nearby.service" data-ai-type="select">
           <Select value={serviceId} onChange={pickService} options={serviceOptions} ariaLabel={t("serviceLabel")} search />
         </div>
-        {spot ? (
+        {yCfg || mapWaiting ? <div className="ymk-switch">{viewToggle}</div> : null}
+        {spot && !yMapOn && !mapWaiting ? (
           <button type="button" className="btn btn--line btn--sm mknb-relocate" onClick={locate} disabled={geo.busy} aria-busy={geo.busy || undefined} data-ai-id="marketplace.nearby.relocate">
             <IconRefresh aria-hidden="true" />
             {geo.busy ? t("locating") : t("relocate")}

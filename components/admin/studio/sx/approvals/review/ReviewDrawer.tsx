@@ -17,8 +17,9 @@ import { SxEmpty } from "../../layout/Empty";
 import { SxNote } from "../../layout/Note";
 import { useNow } from "../../live";
 import { useStudioLabels } from "../../useStudioLabels";
-import { ExternalLinkIcon, Undo2Icon, CircleCheckIcon, DownloadIcon, FileDownIcon, PaperclipIcon, PencilIcon, BanIcon, RocketIcon, glyph } from "../../icons";
+import { Undo2Icon, CircleCheckIcon, DownloadIcon, FileDownIcon, PaperclipIcon, PencilIcon, BanIcon, RocketIcon, glyph } from "../../icons";
 import { reviewNoteOf } from "../../editor/model";
+import { reviewFocusHref } from "../../editor/reviewEdit";
 import { schemaFieldAt } from "../../schema/model";
 import { REVIEW_STATUSES, sentAtOf, type ApprRow, type ApprViewer } from "../model";
 import { stageAfter, toastKeyOf, type ReviewKind } from "./actions";
@@ -26,6 +27,7 @@ import { ActionDialog } from "./ActionDialog";
 import { ChangeList, WarningNote } from "./ChangeList";
 import { Comments } from "./Comments";
 import { changedNames, payloadDiff } from "./diff";
+import { MissingFields } from "./MissingFields";
 import { StepList } from "./StepList";
 import { Timeline } from "./Timeline";
 import { useReview, type ReviewState } from "./useReview";
@@ -281,6 +283,7 @@ function ReviewPanel({ target, viewer, onClose, onChanged }: { target: ReviewTar
           </figure>
         ) : null}
         <WarningNote warnings={st.warnings} />
+        {model && st.missing.length ? <MissingFields model={model} paths={st.missing} aiId={`${AI}.missing`} lead={t("sx.ap4.miss.leadDrawer")} hrefOf={(p) => reviewFocusHref(id, p)} /> : null}
         <Block id={ids.ch} title={t("sx.appr.dw.changes")}>
           <ChangeList key={`${detail.currentVersionId}|${st.base}`} base={st.base} entries={entries} model={model} code={code} root={st.after} pending={!model} />
         </Block>
@@ -317,7 +320,7 @@ function ReviewPanel({ target, viewer, onClose, onChanged }: { target: ReviewTar
           </Block>
         ) : null}
         <div className="sx-rv-links">
-          <SxLinkButton variant="ghost" size="sm" icon={ExternalLinkIcon} href={`/admin/studio/o/${encodeURIComponent(id)}`} aiId={`${AI}.open-editor`}>
+          <SxLinkButton variant={st.editInReview ? "secondary" : "ghost"} size="sm" icon={PencilIcon} href={reviewFocusHref(id, "")} aiId={`${AI}.open-editor`}>
             {t("sx.appr.dw.openEditor")}
           </SxLinkButton>
           {can.exportVersions ? (

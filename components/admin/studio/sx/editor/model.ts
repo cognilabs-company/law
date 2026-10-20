@@ -256,6 +256,8 @@ export type ActionsInput = {
   versions: number;
   newVersion: boolean;
   lifecycle?: SxLifecycle;
+  reviewEdit?: boolean;
+  reviewNeedsPermission?: boolean;
 };
 
 export function editableOf(access: Pick<StudioAccess, "canEdit">, life: SxLifecycle | undefined): boolean {
@@ -270,11 +272,14 @@ export function actionsOf(input: ActionsInput): { can: EditorState["can"]; prima
   const { mode, status, dirty, readOnly, blocked, direct, access, hasObject } = input;
   const life = input.lifecycle;
   const contract = life?.contract === true;
-  const editable = editableOf(access, life);
+  const reviewEdit = input.reviewEdit === true && mode === "object" && REVIEWING.has(status);
+  const editable = reviewEdit || editableOf(access, life);
   const save = editable && !readOnly && !blocked;
-  const submit = contract
-    ? life.canSubmit === true && life.offered.submit && !blocked && (!dirty || save)
-    : save && (mode !== "object" || OPEN.has(status) || dirty);
+  const submit = reviewEdit
+    ? false
+    : contract
+      ? life.canSubmit === true && life.offered.submit && !blocked && (!dirty || save)
+      : save && (mode !== "object" || OPEN.has(status) || dirty);
   const publish = hasObject && status === "approved" && access.canPublish && !direct;
   const review = hasObject && REVIEWING.has(status) && access.canReview;
   const clone = access.canEdit && (mode === "object" || mode === "runtime-view" || mode === "runtime-edit");
@@ -303,6 +308,7 @@ export function actionsOf(input: ActionsInput): { can: EditorState["can"]; prima
   let primary: EditorPrimary = null;
   if (blocked) primary = null;
   else if (mode === "runtime-view") primary = can.edit ? "edit" : null;
+  else if (reviewEdit) primary = save && dirty ? "save" : review ? "openReview" : null;
   else if (submit) primary = direct ? "publishDirect" : mode !== "object" || dirty ? "saveSubmit" : "submit";
   else if (publish && !dirty) primary = "publish";
   else if (review) primary = "openReview";
@@ -319,6 +325,8 @@ export function nextNoteOf(input: ActionsInput & { reviewNote: EditorState["revi
   if (mode === "runtime-view") return { key: "sx.editor.next.runtimeView" };
   if (mode === "runtime-edit") return { key: readOnlyReason === "access" ? "sx.editor.next.readOnly" : "sx.editor.next.runtimeEdit" };
   if (status === "archived") return { key: "sx.editor.next.archived" };
+  if (REVIEWING.has(status) && input.reviewEdit === true) return { key: "sx.ap4.ed.on" };
+  if (REVIEWING.has(status) && input.reviewNeedsPermission === true) return { key: "sx.ap4.ed.needPerm" };
   if (status === "submitted") return { key: "sx.editor.next.submitted" };
   if (status === "in_review") return { key: "sx.editor.next.inReview" };
   if (readOnlyReason === "access") return { key: input.lifecycle?.contract === true && access.canEdit ? "sx.editor.next.readOnlyServer" : "sx.editor.next.readOnly" };

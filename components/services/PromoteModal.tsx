@@ -18,6 +18,7 @@ import {
 } from "@/lib/services/sellerServices";
 import { checkoutMarketplacePromotion, listPromotionPackages, promotionCampaignEnded, promotionErrorCode, promotionErrorRetryable, uploadPromotionBanner, BANNER_REFERENCES, bannerReferenceUrl, type BannerAsset, type PromotionCheckout, type PromotionPackage, type PromotionPlacement, type PromotionPlacementOption } from "@/lib/services/promotions";
 import { IconAlert, IconArrowRight, IconCheck, IconCircleCheck, IconClock, IconCrown, IconEye, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconTrendingUp, IconUpload, IconUser } from "@/components/icons";
+import { CameraIcon, ImageIcon, ScanFaceIcon, ShirtIcon, TrendingUpIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { InBody, PlacementSketch, som, usePackageName } from "./bits";
 import MarketPreviewModal from "./MarketPreviewModal";
@@ -29,7 +30,12 @@ type Packs = { status: "loading" | "ready" | "error"; items: PromotionPackage[];
 const TIER_ICON = [IconRocket, IconGem, IconCrown];
 // The backend takes up to 12 MB (2026-10-18), at least 720×720.
 const MAX_BANNER_MB = 12;
-const HTTP_URL = /^https?:\/\/\S+\.\S+/i;
+const PHOTO_RULES = [
+  { key: "close", Icon: CameraIcon },
+  { key: "face", Icon: ScanFaceIcon },
+  { key: "clothes", Icon: ShirtIcon },
+  { key: "tech", Icon: ImageIcon },
+] as const;
 const FALLBACK_PLACEMENTS: PromotionPlacementOption[] = [
   { value: "service_boost", label: "", requiresService: true, requiresBanner: false, acceptsBanner: false, previewSurface: "category_search_sponsored_service" },
   { value: "profile_boost", label: "", requiresService: false, requiresBanner: false, acceptsBanner: false, previewSurface: "marketplace_list_card" },
@@ -78,7 +84,6 @@ export default function PromoteModal({
   const [placement, setPlacement] = useState<PromotionPlacement>(startPlacement ?? (item ? "service_boost" : "profile_boost"));
   const [picked, setPicked] = useState("");
   const [svcId, setSvcId] = useState(item?.id ?? "");
-  const [bannerImageUrl, setBannerImageUrl] = useState("");
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [bannerFileUrl, setBannerFileUrl] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -144,12 +149,11 @@ export default function PromoteModal({
   const needsService = Boolean(chosen?.requiresService || selectedPlacement?.requiresService || placement === "service_boost");
   const svcOptions = services?.length ? services : item ? [item] : [];
   const svc = svcOptions.find((s) => s.id === svcId) ?? null;
-  const missingBanner = needsBanner && !bannerImageUrl && !bannerFile;
+  const missingBanner = needsBanner && !bannerFile;
   const missingService = needsService && !svc;
-  const badImage = Boolean(bannerImageUrl.trim()) && !HTTP_URL.test(bannerImageUrl.trim());
   // An uploaded picture is used only once the check has passed it.
   const bannerNotReady = acceptsBanner && !!bannerFile && (uploading || !bannerCheck || bannerCheck.status !== "active");
-  const blocked = !chosen || chosen.placement !== placement || missingBanner || missingService || (acceptsBanner && badImage) || bannerNotReady;
+  const blocked = !chosen || chosen.placement !== placement || missingBanner || missingService || bannerNotReady;
 
   useEffect(() => () => { if (bannerLocal) URL.revokeObjectURL(bannerLocal); }, [bannerLocal]);
 
@@ -166,7 +170,6 @@ export default function PromoteModal({
           days: chosen.days,
           placement,
           serviceId: needsService && svc ? svc.id : undefined,
-          bannerImageUrl: acceptsBanner ? bannerImageUrl.trim() : "",
           bannerFileUrl: fileUrl,
           idempotencyKey: attemptKey.current,
           previewContext: {
@@ -221,7 +224,7 @@ export default function PromoteModal({
   const discounted = !!priced && (priced.discountAmount > 0 || !!priced.campaign);
   const unit = (c: string) => (c === "UZS" ? tc("card.som") : c);
   const sellerName = profile?.name || session?.name || t("previewSeller");
-  const previewImage = bannerLocal || (HTTP_URL.test(bannerImageUrl.trim()) ? bannerImageUrl.trim() : "");
+  const previewImage = bannerLocal;
   const draft: PreviewDraft = {
     kind: "ad",
     sellerId: profile?.userId || (scope.kind === "org" ? scope.memberId : uid),
@@ -246,7 +249,6 @@ export default function PromoteModal({
     setBannerFileUrl("");
     setBannerCheck(null);
     setBannerFileName(file.name);
-    setBannerImageUrl("");
     // A HEIC picture is stored fine but most browsers cannot draw it.
     setBannerLocal(/\.heic$/i.test(file.name) ? "" : URL.createObjectURL(file));
     // Checked as soon as it is picked: the backend looks at the picture
@@ -356,6 +358,13 @@ export default function PromoteModal({
         ) : (
           <div className="svprom" data-ai-id={aiId} data-ai-type={aiId ? "modal" : undefined} data-ai-label={aiId ? title : undefined}>
             <p className="svprom__lead">{item ? t("lead") : t("leadAny")}</p>
+            <p className="svprom__boost" data-ai-id={aiId ? `${aiId}.multiplier` : undefined}>
+              <TrendingUpIcon size={18} strokeWidth={1.75} aria-hidden="true" />
+              <span>
+                <b>{t("multiplier")}</b>
+                {chosen && chosen.reach > 1 ? <span className="svprom__boostx">{t("multiplierUpTo", { x: chosen.reach })}</span> : null}
+              </span>
+            </p>
 
             <span className="svprom__step">{t("step1")}</span>
             <div className="svprom__placements" role="radiogroup" aria-label={t("placementTitle")}>
@@ -493,19 +502,31 @@ export default function PromoteModal({
                       </li>
                     ))}
                   </ul>
-                  <p className="svprom__rules">{t("bannerRules")}</p>
                 </div>
-                <label className="svfile">
-                  <span>{t("bannerFile")}</span>
-                  <input className="svfile__in" type="file" accept=".jpg,.jpeg,.png,.webp,.heic" onChange={(e) => onBannerFile(e.target.files?.[0])} disabled={uploading || busy} />
-                  <span className={`svfile__box${bannerFile ? " is-on" : ""}`}>
-                    <span className="btn btn--line btn--sm svfile__btn">
-                      <IconUpload aria-hidden="true" />
-                      {uploading ? t("bannerUploading") : t("bannerPick")}
+                <div className="svprom__drop">
+                  <div className="svprom__photorules" data-ai-id={aiId ? `${aiId}.photo-rules` : undefined}>
+                    <b>{t("photoRulesTitle")}</b>
+                    <ul>
+                      {PHOTO_RULES.map(({ key, Icon }) => (
+                        <li key={key} data-rule={key}>
+                          <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+                          <span>{t(`photoRule.${key}`, { mb: MAX_BANNER_MB })}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <label className="svfile">
+                    <span>{t("bannerFile")}</span>
+                    <input className="svfile__in" type="file" accept=".jpg,.jpeg,.png,.webp,.heic" onChange={(e) => onBannerFile(e.target.files?.[0])} disabled={uploading || busy} data-ai-id={aiId ? `${aiId}.banner-file` : undefined} />
+                    <span className={`svfile__box${bannerFile ? " is-on" : ""}`}>
+                      <span className="btn btn--line btn--sm svfile__btn">
+                        <IconUpload aria-hidden="true" />
+                        {uploading ? t("bannerUploading") : t("bannerPick")}
+                      </span>
+                      <small>{bannerFile ? bannerFileName : t("bannerNoFile", { mb: MAX_BANNER_MB })}</small>
                     </span>
-                    <small>{bannerFile ? bannerFileName : t("bannerNoFile", { mb: MAX_BANNER_MB })}</small>
-                  </span>
-                </label>
+                  </label>
+                </div>
                 {bannerFile && bannerCheck ? (
                   <div className={`svprom__check svprom__check--${bannerCheck.status}`} role="status">
                     <b>{t(`bannerStatus.${bannerCheck.status}`)}</b>
@@ -528,25 +549,6 @@ export default function PromoteModal({
                     ) : null}
                   </div>
                 ) : null}
-                <span className="svprom__or">{t("or")}</span>
-                <label className={badImage ? "is-bad" : undefined}>
-                  <span>{t("bannerImageUrl")}</span>
-                  <input
-                    value={bannerImageUrl}
-                    onChange={(e) => {
-                      setBannerImageUrl(e.target.value);
-                      setBannerFile(null);
-                      setBannerFileUrl("");
-                      setBannerLocal("");
-                      setBannerFileName("");
-                      setBannerCheck(null);
-                    }}
-                    placeholder="https://"
-                    inputMode="url"
-                    aria-invalid={badImage || undefined}
-                  />
-                  {badImage ? <small className="svprom__ferr">{t("badUrl")}</small> : null}
-                </label>
               </div>
             ) : null}
 

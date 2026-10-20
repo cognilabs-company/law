@@ -1,0 +1,28 @@
+.sx-sf-dt__done {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--sx-ink-2);
+  font: 500 12px/16px var(--sx-font);
+}
+.sx-sf-dt__done svg {
+  flex: none;
+  color: var(--sx-accent-ink);
+}
+
+.sx-sf-elig {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  color: var(--sx-muted);
+  font: 400 12px/16px var(--sx-font);
+}
+.sx-sf-elig > svg {
+  flex: none;
+}
+.sx-sf-dt__live:empty {
+  display: none;
+}

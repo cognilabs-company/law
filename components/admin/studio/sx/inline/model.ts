@@ -3,14 +3,14 @@ import type { UserEvent } from "@/lib/userSocket";
 import type { SxPayload } from "../contract";
 import { slugify } from "../editor/slug";
 
-export type InlineKind = "factor" | "rule" | "guarantee" | "checklist";
+export type InlineKind = "factor" | "rule" | "guarantee" | "checklist" | "template";
 
 export type InlineTarget =
   | { kind: "new"; code: string; title: string; context: InlineContext }
   | { kind: "edit"; code: string; ctx: string; label: string; value: string }
   | { kind: "object"; code: string; id: string; label: string; value: string; isNew: boolean };
 
-export type InlineContext = { categoryId: string; list?: boolean };
+export type InlineContext = { categoryId: string; list?: boolean; serviceId?: string };
 
 export type InlinePending = {
   objectId: string;
@@ -22,7 +22,8 @@ export type InlinePending = {
   at: number;
 };
 
-const KIND_OF: Readonly<Record<string, InlineKind>> = { K34: "factor", K31: "rule", K32: "guarantee" };
+const KIND_OF: Readonly<Record<string, InlineKind>> = { K34: "factor", K31: "rule", K32: "guarantee", K06: "template" };
+const TEMPLATE_LANGUAGE = "uz-latn";
 const LIVE: ReadonlySet<string> = new Set(["published", "active"]);
 const GONE: ReadonlySet<string> = new Set(["archived", "deleted"]);
 const RULE_KEY_MAX = 64;
@@ -73,6 +74,13 @@ export function prefillOf(code: string, keys: ReadonlySet<string>, title: string
   const name = title.trim();
   if (name && keys.has("title")) out.title = name;
   if (keys.has("is_active")) out.is_active = true;
+  if (inlineKindOf(code) === "template") {
+    if (keys.has("mode")) out.mode = "upload";
+    if (keys.has("language")) out.language = TEMPLATE_LANGUAGE;
+    const service = String(context.serviceId ?? "").trim();
+    if (service && keys.has("service_id")) out.service_id = service;
+    return out;
+  }
   if (inlineKindOf(code) !== "rule") return out;
   if (name && keys.has("rule_key")) {
     const key = ruleKeyOf(name);

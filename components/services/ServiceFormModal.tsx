@@ -17,19 +17,25 @@ import {
   type ServiceScope,
   type ServiceSellerProfile,
   type ServiceStatus,
+  type CatalogItem,
+  type CatalogPricing,
+  type PriceExplanation,
 } from "@/lib/services/sellerServices";
-import { configSupport, lastSellerConfig, saveSellerService, type ConfigError } from "@/lib/services/sellerConfig";
+import { configSupport, lastSellerConfig, priceVerdict, saveSellerService, type ConfigError } from "@/lib/services/sellerConfig";
+import { readPriceModifiers } from "@/lib/services/marketplacePricing";
 import { useRulesGateState } from "@/lib/services/rulesGate";
 import { IconAlert, IconCheck, IconCoins, IconEdit, IconEye, IconLayers, IconLock, IconPause, IconPlay, IconPower, IconScale } from "@/components/icons";
 import { InBody, som } from "./bits";
-import ServicePicker from "./ServicePicker";
+import CatalogPicker from "./CatalogPicker";
+import PriceWhy, { type PriceWhyFacts } from "./PriceWhy";
+import RuleChoice from "./RuleChoice";
 import PriceField, { bandRecommended, digitsOf, priceAboveCap } from "./PriceField";
 import MarketPreviewModal from "./MarketPreviewModal";
 import { RequirementsLine } from "./RuntimeFactors";
 import SellerTermsPreview from "./SellerTermsPreview";
 import { useRuntimeConfig } from "./useRuntimeConfig";
 import { useSellerConfig } from "./useSellerConfig";
-import type { RuntimePricing, SellerServiceConfig } from "@/lib/services/marketRuntime";
+import { priceCapOf, type RuntimePricing, type SellerServiceConfig } from "@/lib/services/marketRuntime";
 import type { PreviewDraft } from "@/lib/marketPreview";
 import "./config.css";
 
@@ -59,14 +65,24 @@ function rememberPolicy(uid: string): void {
   }
 }
 
-function pricingWithConfig(p: RuntimePricing | null, cfg: SellerServiceConfig | null): RuntimePricing | null {
-  if (!cfg || (cfg.maximumPrice <= 0 && cfg.recommendedPrice <= 0)) return p;
+function pricingWithConfig(p: RuntimePricing | null, cfg: SellerServiceConfig | null, catalog: CatalogPricing | null = null): RuntimePricing | null {
+  const rec = cfg && cfg.recommendedPrice > 0 ? cfg.recommendedPrice : catalog && catalog.recommended > 0 ? catalog.recommended : 0;
+  const max = cfg && cfg.maximumPrice > 0 ? cfg.maximumPrice : catalog && catalog.maximum > 0 ? catalog.maximum : 0;
+  if (rec <= 0 && max <= 0) return p;
   const base: RuntimePricing = p ?? { recommendedPrice: 0, maximumPrice: 0, currency: "UZS", sellerCanPriceBelowRecommended: true, factors: [], formula: "" };
   return {
     ...base,
-    recommendedPrice: cfg.recommendedPrice > 0 ? cfg.recommendedPrice : base.recommendedPrice,
-    maximumPrice: cfg.maximumPrice > 0 ? cfg.maximumPrice : base.maximumPrice,
+    recommendedPrice: rec > 0 ? rec : base.recommendedPrice,
+    maximumPrice: max > 0 ? max : base.maximumPrice,
   };
+}
+
+export function priceFloor(cfg: SellerServiceConfig | null, catalog: CatalogPricing | null, runtime: RuntimePricing | null, recommended: number): { min: number; pct: number | null } {
+  const pct = cfg?.maxListingDiscountPercent ?? catalog?.discountPercent ?? runtime?.maxListingDiscountPercent ?? null;
+  const direct = (cfg && cfg.minimumListingPrice > 0 ? cfg.minimumListingPrice : 0) || (catalog && catalog.minimum > 0 ? catalog.minimum : 0) || (runtime?.minimumListingPrice ?? 0);
+  if (direct > 0) return { min: direct, pct };
+  if (pct !== null && pct < 100 && recommended > 0) return { min: Math.ceil((recommended * (100 - pct)) / 100), pct };
+  return { min: 0, pct: null };
 }
 
 type BandLoad = { key: string; band: PriceBand | null; failed: boolean; advocate: boolean };
@@ -117,6 +133,9 @@ export default function ServiceFormModal({
   const [persisted, setPersisted] = useState<ManagedService | null>(item);
   const editing = Boolean(persisted);
   const [service, setService] = useState<BackendService | null>(item?.service ?? null);
+  const [picked, setPicked] = useState<CatalogItem | null>(null);
+  const [ruleSel, setRuleSel] = useState<{ key: string; ids: string[] } | null>(null);
+  const [serverMin, setServerMin] = useState<{ key: string; min: number } | null>(null);
   const [price, setPrice] = useState(item?.selectedPrice ? String(item.selectedPrice) : "");
   const [priceTouched, setPriceTouched] = useState(false);
   const [seeded, setSeeded] = useState("");
@@ -147,7 +166,8 @@ export default function ServiceFormModal({
   const runtime = runtimeLoad.config;
   const cfgLoad = useSellerConfig(serviceId, uid, self && Boolean(persisted) && persisted?.id === serviceId, rulesVersion);
   const cfg = savedCfg && savedCfg.version === rulesVersion && savedCfg.cfg.serviceId === serviceId ? savedCfg.cfg : cfgLoad.config;
-  const pricing = pricingWithConfig(runtime?.pricing ?? null, cfg);
+  const catalogPricing = picked && picked.service.id === serviceId ? picked.pricing : null;
+  const pricing = pricingWithConfig(runtime?.pricing ?? null, cfg, catalogPricing);
   if (cfg && seeded !== cfg.serviceId) {
     setSeeded(cfg.serviceId);
     if (cfg.selectedPrice > 0 && !priceTouched) setPrice(String(cfg.selectedPrice));
@@ -176,7 +196,11 @@ export default function ServiceFormModal({
   const noPrice = isZeroBand(band) && !(pricing && pricing.recommendedPrice > 0);
   const n = noPrice ? 0 : Number(price || "0");
   const off = priceAboveCap(n, pricing);
-  const minPrice = !noPrice && cfg && cfg.minimumListingPrice > 0 ? cfg.minimumListingPrice : 0;
+  const floorRec = pricing && pricing.recommendedPrice > 0 ? pricing.recommendedPrice : band && !isZeroBand(band) ? bandRecommended(band) : 0;
+  const floor = priceFloor(cfg, catalogPricing, runtime?.pricing ?? null, floorRec);
+  const knownMin = Math.max(floor.min, serverMin && serverMin.key === serviceId ? serverMin.min : 0);
+  const minPrice = noPrice ? 0 : knownMin;
+  const belowMin = priceVerdict(n, pricing, minPrice) === "belowMin";
   const advocateBlocked = Boolean(loaded?.advocate) || err?.kind === "advocateOnly";
   const remembered = serviceId ? lastSellerConfig(uid, serviceId) : null;
   const explanation = remembered && remembered.selectedPrice === n && (remembered.priceExplanation || remembered.priceExplanationLines.length) ? { text: remembered.priceExplanation, lines: remembered.priceExplanationLines } : null;
@@ -185,12 +209,26 @@ export default function ServiceFormModal({
   const negTouched = neg !== null && neg.key === serviceId;
   const negOn = negTouched ? neg.on : negInitial === true;
   const sendNeg = showNeg && (negTouched || negInitial !== null);
+  const ruleOptions = self && cfg?.selectableRules && cfg.selectableRules.length ? cfg.selectableRules : null;
+  const ruleIds = ruleSel && ruleSel.key === serviceId ? ruleSel.ids : (cfg?.selectedRuleIds ?? []);
+  const sendRuleIds = ruleOptions ? ruleIds.filter((id) => ruleOptions.some((r) => r.id === id)) : null;
+  const why: PriceExplanation | null = catalogPricing?.explanation ?? (explanation ? { ...explanation, factors: [] } : null);
+  const runtimeMods = runtime?.pricing.raw && runtime.pricing.raw.modifiers != null ? readPriceModifiers(runtime.pricing.raw.modifiers, locale) : null;
+  const whyFacts: PriceWhyFacts = {
+    recommended: noPrice ? 0 : floorRec,
+    minimum: minPrice,
+    pct: minPrice > 0 ? floor.pct : null,
+    maximum: !noPrice && pricing ? (priceCapOf(pricing) ?? 0) : 0,
+    base: noPrice ? 0 : (band?.base ?? 0),
+    modifiers: band?.modifiers?.length ? band.modifiers : runtimeMods,
+  };
   const cfgRulesOpen = cfg?.rulesPending === true;
   const rulesClosed = Boolean(rules?.closed) || cfgRulesOpen;
   const activeLocked = rulesClosed && status !== "active";
 
   const errText = (e: ServiceError) => {
     if (e.kind === "range") return t("limits.serverRange", { min: som(e.min), max: som(e.max) });
+    if (e.kind === "belowMin") return e.min ? t("config.belowMin", { min: som(e.min) }) : t("config.belowMinNoValue");
     if (e.kind === "invalid" && e.detail) return e.detail;
     if (e.kind === "forbidden" && owner) return t("errors.forbiddenOwner");
     if (e.kind === "pendingAccount" && owner) return t("errors.pendingAccountOwner");
@@ -217,6 +255,10 @@ export default function ServiceFormModal({
       setCfgErr({ price: text, form: t("config.partialSaved") });
       return;
     }
+    if (error.code === "rule_not_selectable") {
+      setCfgErr({ price: "", form: t("ruleChoice.notSelectable") });
+      return;
+    }
     if (error.code === "service_rules_acceptance_required") {
       const head = codeText(error.code, { n: error.missingRuleIds.length });
       setStatusErr([head, rolledBack ? t("rules.savedNotEnabled") : ""].filter(Boolean).join(" "));
@@ -237,6 +279,10 @@ export default function ServiceFormModal({
       return;
     }
     if (off || advocateBlocked) return;
+    if (belowMin) {
+      document.getElementById(`${ids}-price`)?.focus();
+      return;
+    }
     setErr(null);
     setCfgErr(null);
     setStatusErr("");
@@ -275,6 +321,7 @@ export default function ServiceFormModal({
         negotiation: sendNeg ? negOn : null,
         runtime: runtimeLoad.state === "ready" ? runtime : null,
         fallbackPrice: persisted ? persisted.legacyPrice : band && !isZeroBand(band) ? bandRecommended(band) : 0,
+        ruleIds: sendRuleIds,
       });
       if (res.ok) {
         rememberPolicy(uid);
@@ -294,6 +341,7 @@ export default function ServiceFormModal({
         const se = res.error;
         setErr(se);
         if ((se.kind === "range" || se.kind === "noPrice") && se.limits) setServerBand({ key: service.id, band: se.limits });
+        if (se.kind === "belowMin" && se.min > 0) setServerMin({ key: service.id, min: se.min });
         if (res.persisted && res.persisted !== persisted) keep(res.persisted);
         if (se.kind === "notFound") onStale?.();
         return;
@@ -310,7 +358,7 @@ export default function ServiceFormModal({
   const close = () => {
     if (!busy && !checking) onClose();
   };
-  const priceErr = err?.kind === "range" ? errText(err) : cfgErr?.price ? cfgErr.price : priceReq ? t("errors.priceRequired") : "";
+  const priceErr = err?.kind === "range" || err?.kind === "belowMin" ? errText(err) : cfgErr?.price ? cfgErr.price : priceReq ? t("errors.priceRequired") : "";
   const draft: PreviewDraft = {
     kind: "service",
     sellerId,
@@ -321,7 +369,7 @@ export default function ServiceFormModal({
     ad: null,
     profile: null,
   };
-  const formErr = err && err.kind !== "range" && err.kind !== "noPrice" && err.kind !== "advocateOnly" ? errText(err) : (cfgErr?.form ?? "");
+  const formErr = err && err.kind !== "range" && err.kind !== "belowMin" && err.kind !== "noPrice" && err.kind !== "advocateOnly" ? errText(err) : (cfgErr?.form ?? "");
   const stDescribed = [activeLocked ? `${ids}-lock` : "", statusErr ? `${ids}-sterr` : ""].filter(Boolean).join(" ") || undefined;
 
   return (
@@ -356,15 +404,18 @@ export default function ServiceFormModal({
                 </span>
               </div>
             ) : (
-              <ServicePicker
+              <CatalogPicker
                 inputId={`${ids}-svc`}
                 value={service}
-                onChange={(s) => {
+                onChange={(s, it) => {
                   setService(s);
+                  setPicked(it);
                   setErr(null);
                 }}
                 taken={taken}
                 lawyer={lawyer}
+                scope={scope}
+                aiId={aiId ? `${aiId}.catalog` : undefined}
                 invalid={advocateBlocked ? t("errors.advocateOnly") : undefined}
               />
             )}
@@ -392,7 +443,7 @@ export default function ServiceFormModal({
                 setPrice(digitsOf(v));
                 setPriceTouched(true);
                 setPriceReq(false);
-                if (err?.kind === "range") setErr(null);
+                if (err?.kind === "range" || err?.kind === "belowMin") setErr(null);
                 if (cfgErr?.price) setCfgErr(null);
               }}
               band={band}
@@ -401,9 +452,11 @@ export default function ServiceFormModal({
               error={priceErr}
               runtime={pricing}
               runtimeState={runtimeLoad.state === "failed" && pricing ? "ready" : runtimeLoad.state}
-              explanation={explanation}
+              explanation={null}
               minimum={minPrice}
+              floorPct={minPrice > 0 ? floor.pct : null}
             />
+            {service && !noPrice ? <PriceWhy explanation={why} facts={whyFacts} aiId={aiId ? `${aiId}.why` : undefined} /> : null}
           </section>
 
           {showNeg ? (
@@ -437,6 +490,8 @@ export default function ServiceFormModal({
               </button>
             </section>
           ) : null}
+
+          {ruleOptions ? <RuleChoice rules={ruleOptions} value={ruleIds} onChange={(next) => setRuleSel({ key: serviceId, ids: next })} aiId={aiId ? `${aiId}.rules` : undefined} /> : null}
 
           <section className="svform__sec">
             <label className="svform__lbl" htmlFor={`${ids}-note`}>
@@ -552,7 +607,7 @@ export default function ServiceFormModal({
             <button type="button" className="btn btn--line" onClick={close} disabled={busy || checking}>
               {t("form.cancel")}
             </button>
-            <button type="submit" className="btn btn--pri" disabled={busy || checking || !service || off || advocateBlocked} aria-busy={busy || checking || undefined}>
+            <button type="submit" className="btn btn--pri" disabled={busy || checking || !service || off || belowMin || advocateBlocked} aria-busy={busy || checking || undefined}>
               {checking ? t("rules.checking") : busy ? t("form.saving") : t("form.save")}
               {busy || checking ? null : <IconCheck aria-hidden="true" />}
             </button>

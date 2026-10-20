@@ -244,7 +244,7 @@ export function summaryOf(raw: unknown): ApprSummaryItem[] {
   return out;
 }
 
-const FLAG_KEYS = ["can_decide", "can_publish", "publish_url", "history_url", "current_step", "approval_steps", "approval_progress", "effective_route", "status"];
+const FLAG_KEYS = ["can_decide", "can_publish", "publish_url", "history_url", "current_step", "approval_steps", "approval_progress", "effective_route", "status", "can_edit_in_review", "allowed_actions"];
 
 export async function fetchApprovalDetail(id: string): Promise<ApprHistory> {
   const res = asDict(await http(`/admin/studio/approvals/${enc(id)}`));

@@ -21,6 +21,7 @@ import OrderFacts from "./OrderFacts";
 import OrderHeader from "./OrderHeader";
 import SecondOpinion from "./SecondOpinion";
 import StartWork from "./StartWork";
+import StayInLexGo from "./StayInLexGo";
 import { ArrowLeftIcon, RefreshCwIcon, ClipboardListIcon, SearchIcon, SxIconScope, CircleAlertIcon } from "./icons";
 import { SECTION_ID, orderAiBase, type OrderSectionProps, type OrderView } from "./types";
 import { useOrderDetail, type OrderDetail } from "./useOrderDetail";
@@ -73,9 +74,10 @@ function Sections({ d, o, phase, view, aiBase, listHref }: { d: OrderDetail; o: 
   const section: OrderSectionProps = { o, phase, view, aiBase, runtime: d.runtime, onChanged: (patch) => d.patchOrder(patch ?? {}) };
   const checklist = <OrderChecklist key="checklist" o={o} phase={phase} view={view} aiBase={aiBase} checklist={d.checklist} state={d.checklistState} onChange={d.setChecklist} onRetry={() => d.refresh("checklist")} />;
   const documents = <OrderDocuments key="documents" o={o} phase={phase} view={view} aiBase={aiBase} runtime={d.runtime} listHref={listHref} />;
-  const opinion = client ? <SecondOpinion key="opinion" o={o} phase={phase} aiBase={aiBase} opinion={d.opinion} state={d.opinionState} onRetry={() => d.refresh("opinion")} /> : null;
+  const opinion = client ? <SecondOpinion key="opinion" o={o} phase={phase} aiBase={aiBase} opinion={d.opinion} state={d.opinionState} onRetry={() => d.refresh("opinion")} onOrderStale={() => d.refresh("order")} /> : null;
   const cancel = <CancellationRequest key="cancel" {...section} lastSignal={d.lastSignal} />;
   const supplemental = <SupplementalPanel key="supplemental" o={o} view={view} />;
+  const retain = client ? <StayInLexGo key="retain" phase={phase} runtime={d.runtime} aiBase={aiBase} /> : null;
   const onStarted = (r: OrderStart) => {
     d.patchOrder({
       status: r.status || "in_progress",
@@ -113,12 +115,13 @@ function Sections({ d, o, phase, view, aiBase, listHref }: { d: OrderDetail; o: 
       ) : null,
       documents,
       supplemental,
+      retain,
       !client || o.canRequestCancellation ? cancel : null,
     ];
   } else if (phase === "in_progress") {
-    parts = [start, checklist, documents, supplemental, opinion, !client || o.canRequestCancellation ? cancel : null];
+    parts = [start, checklist, documents, supplemental, opinion, retain, !client || o.canRequestCancellation ? cancel : null];
   } else if (phase === "review") {
-    parts = [cancel, checklist, documents, opinion];
+    parts = [cancel, checklist, documents, opinion, retain];
   } else if (phase === "completed" || phase === "rated") {
     parts = [
       <section key="result" id={SECTION_ID.result} tabIndex={-1} className="mod-sec mod-sec--legacy">

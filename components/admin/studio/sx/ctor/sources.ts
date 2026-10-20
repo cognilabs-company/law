@@ -79,7 +79,6 @@ type Producer = { code: string; to: "new" | "list" };
 export const SOURCE_PRODUCER: Readonly<Record<string, Producer>> = {
   "price-factors": { code: "K34", to: "new" },
   "client-guarantees": { code: "K32", to: "new" },
-  "package-eligibility-rules": { code: "K26", to: "new" },
   "service-categories": { code: "K01", to: "new" },
   services: { code: "K02", to: "list" },
   "service-packages": { code: "K03-M", to: "list" },
@@ -96,8 +95,11 @@ const INLINE_FIELDS: Readonly<Record<string, string>> = {
   rule_ids: "K31",
   guarantee_ids: "K32",
 };
+const INLINE_BY_FIELD: Readonly<Record<string, string>> = { document_template_id: "K06" };
 
 export function inlineCodeOf(source: string, pattern: string): string {
+  const field = normPattern(pattern);
+  if (own.call(INLINE_BY_FIELD, field)) return INLINE_BY_FIELD[field];
   const raw = String(source ?? "").trim();
   if (raw && !raw.startsWith("local:")) {
     const { key } = studioReferenceKey(raw);
@@ -111,12 +113,34 @@ export function inlineCodeOf(source: string, pattern: string): string {
 }
 
 const NO_PRODUCER: ReadonlySet<string> = new Set(["refund-policies"]);
+export const ELIGIBILITY_SOURCE_KEY = "package-eligibility-rules";
+const ELIGIBILITY_TARGET = /(package|tier|tarif).*(eligib|condition|criteria)|(eligib|condition|criteria).*(package|tier|tarif)/;
+const ELIGIBILITY_CODE = "K35";
 
-export function producerOf(source: string): SxSourceProducer | null {
+export type ProducerCtor = { code: string; runtimeTarget: string; title?: string };
+
+export function eligibilityProducerOf(items: readonly ProducerCtor[]): string {
+  const target = (c: ProducerCtor) => String(c.runtimeTarget ?? "").trim().toLowerCase();
+  const byTarget = items.find((c) => ELIGIBILITY_TARGET.test(target(c)));
+  if (byTarget) return byTarget.code;
+  const byCode = items.find((c) => c.code.trim().toUpperCase() === ELIGIBILITY_CODE && (!target(c) || /eligib|tier|tarif/.test(`${target(c)} ${String(c.title ?? "").toLowerCase()}`)));
+  return byCode?.code ?? "";
+}
+
+export function isEligibilitySource(source: string): boolean {
+  const raw = String(source ?? "").trim();
+  return !!raw && !raw.startsWith("local:") && studioReferenceKey(raw).key === ELIGIBILITY_SOURCE_KEY;
+}
+
+export function producerOf(source: string, items: readonly ProducerCtor[] = []): SxSourceProducer | null {
   const raw = String(source ?? "").trim();
   if (!raw) return null;
   const { key } = studioReferenceKey(raw);
   if (NO_PRODUCER.has(key)) return { kind: "notReady" };
+  if (key === ELIGIBILITY_SOURCE_KEY) {
+    const found = eligibilityProducerOf(items);
+    return found ? { kind: "create", code: found, href: `/admin/studio/o/new?new=${encodeURIComponent(found)}` } : { kind: "notReady" };
+  }
   if (!own.call(SOURCE_PRODUCER, key)) return null;
   const p = SOURCE_PRODUCER[key];
   const code = encodeURIComponent(p.code);

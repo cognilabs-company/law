@@ -9,6 +9,7 @@ import { marketPhaseOf, type MarketOrder } from "@/lib/services/marketplace";
 import type { RuntimeConfig, RuntimeDuration } from "@/lib/services/marketRuntime";
 import { OptionLines } from "../OrderExtras";
 import { durationParts } from "./deadline";
+import { useContactSpeedText } from "./contactSpeed";
 import type { OrderView } from "./types";
 
 export function useDurationText(): (d: RuntimeDuration | null) => string {
@@ -37,6 +38,7 @@ export default function OrderFacts({ o, view, aiBase, runtime }: { o: MarketOrde
   const te = useTranslations("enums");
   const locale = useLocale();
   const durationText = useDurationText();
+  const speed = useContactSpeedText()(o);
   const counterpart = view === "client" ? o.lawyerName : o.clientName;
   const paid = o.paymentStatus === "paid";
   const phone = view === "seller" ? o.clientPhone : "";
@@ -61,6 +63,7 @@ export default function OrderFacts({ o, view, aiBase, runtime }: { o: MarketOrde
         </Row>
         {pkgLine ? <Row label={t("facts.package")}>{pkgLine}</Row> : null}
         {o.preferredChannel ? <Row label={to("channel")}>{tch.has(o.preferredChannel) ? tch(o.preferredChannel) : o.preferredChannel}</Row> : null}
+        {speed ? <Row label={to("contactSpeed")}>{speed}</Row> : null}
         {o.preferredTime ? <Row label={to("time")}>{o.preferredTime}</Row> : null}
         {o.createdAt ? <Row label={t("facts.created")}>{when(o.createdAt)}</Row> : null}
         {o.startedAt ? <Row label={t("facts.started")}>{when(o.startedAt)}</Row> : null}

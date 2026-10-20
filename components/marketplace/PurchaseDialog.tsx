@@ -5,15 +5,15 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconAlert, IconChat, IconCheck, IconChevronLeft, IconClock, IconClose, IconHourglass, IconPhone, IconRefresh, IconSend, IconUsers, IconVideo } from "@/components/icons";
+import { IconAlert, IconChat, IconCheck, IconChevronDown, IconChevronLeft, IconClock, IconClose, IconHourglass, IconPhone, IconRefresh, IconSend, IconUsers, IconVideo } from "@/components/icons";
 import { ApiError, errDetail } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { setReturnTo } from "@/lib/returnTo";
 import {
+  CONTACT_SPEEDS,
   PACKAGE_SELLER_ERRORS,
   PREFERRED_CHANNELS,
   PRICE_OPTION_ERRORS,
-  PURCHASE_URGENCIES,
   activePurchaseOf,
   marketChatHref,
   marketErrorCode,
@@ -21,6 +21,7 @@ import {
   requestMarketplacePurchase,
   requestPackagePurchase,
   type ActivePurchase,
+  type ContactSpeed,
   type MarketPurchase,
   type MarketService,
   type MarketTrackPhase,
@@ -40,6 +41,10 @@ import { useRuntimeFacts } from "./runtime/useRuntimeFacts";
 import { durationParts, guaranteesOf } from "./runtime/facts";
 import { DurationChip } from "./runtime/DurationChip";
 import { GuaranteeList } from "./runtime/Guarantees";
+import { UsageSteps } from "./runtime/UsageSteps";
+import { FactorList } from "./runtime/FactorList";
+import "./runtime/checkout.css";
+import ContactAdvocate from "./order/ContactAdvocate";
 
 export type PackagePurchaseTarget = { id: string; purchaseUrl: string; duration: string };
 
@@ -47,6 +52,7 @@ const CHANNEL_ICON = { chat: IconChat, audio: IconPhone, video: IconVideo, meeti
 const NOTE_MAX = 1000;
 const STEPS = ["request", "confirm", "chat"] as const;
 const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, paid: 2, chat: 2, completed: 3, cancelled: 1 };
+const URGENCY_OF: Record<ContactSpeed, PurchaseUrgency> = { within_15_min: "today", within_1_hour: "today", today: "today", tomorrow: "tomorrow" };
 export const CLIENT_ORDERS_HREF = "/portal/client/marketplace-orders";
 
 export default function PurchaseDialog({
@@ -74,8 +80,8 @@ export default function PurchaseDialog({
   const router = useRouter();
   const [note, setNote] = useState("");
   const [channel, setChannel] = useState<PreferredChannel>("chat");
-  const [time, setTime] = useState("");
-  const [urgency, setUrgency] = useState<PurchaseUrgency | "">("");
+  const [chOpen, setChOpen] = useState(false);
+  const [speed, setSpeed] = useState<ContactSpeed | "">("");
   const [files, setFiles] = useState<PurchaseAttachment[]>([]);
   const [voices, setVoices] = useState<(PurchaseVoice & { url: string })[]>([]);
   const [attaching, setAttaching] = useState(false);
@@ -94,8 +100,8 @@ export default function PurchaseDialog({
     setPrevKey(key);
     setNote("");
     setChannel("chat");
-    setTime("");
-    setUrgency("");
+    setChOpen(false);
+    setSpeed("");
     setFiles([]);
     setVoices([]);
     setErr("");
@@ -119,9 +125,13 @@ export default function PurchaseDialog({
     sensitive: true,
     fillable: true,
   });
-  useAiField(aiForm ? "marketplace.purchase.time" : "", {
-    get: () => time,
-    set: (v) => setTime(v.slice(0, 120)),
+  useAiField(aiForm ? "marketplace.purchase.contact-speed" : "", {
+    get: () => speed,
+    set: (v) => {
+      const w = v.trim().toLowerCase();
+      const hit = CONTACT_SPEEDS.find((c) => c === w || t(`speeds.${c}`).toLowerCase() === w);
+      if (hit) setSpeed(hit);
+    },
   });
   useAiSelection(aiForm ? "preferred_channel" : "", channel);
 
@@ -131,7 +141,6 @@ export default function PurchaseDialog({
 
   if (!service) return <Modal open={false} onClose={onClose} title="">{null}</Modal>;
 
-  const quick = [t("quick.today"), t("quick.evening"), t("quick.tomorrow"), t("quick.week")];
   const phase: MarketTrackPhase | null = tracked ? (track?.phase ?? phaseOfStatus(tracked.status)) : null;
   const step = phase ? STEP_OF[phase] : 0;
   const failed = phase === "cancelled";
@@ -155,7 +164,7 @@ export default function PurchaseDialog({
     setBusy(true);
     setErr("");
     try {
-      const input = { note, preferredChannel: channel, preferredTime: time, selectedOptionIds: price.ids, urgency, attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })) };
+      const input = { note, preferredChannel: channel, contactSpeed: speed, preferredTime: speed ? t(`speeds.${speed}`) : "", selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })) };
       const r = pkg ? await requestPackagePurchase(pkg.purchaseUrl, input) : await requestMarketplacePurchase(sellerUserId, service.id, input);
       setDone(r);
       trackPromoContact(sellerUserId, "purchase");
@@ -191,6 +200,9 @@ export default function PurchaseDialog({
   const rtDur = !pkg && durationParts(checkout.config?.duration) ? (checkout.config?.duration ?? null) : null;
   const delivery = pkg?.duration || (rtDur ? "" : deliveryLabel(tm, service.deliveryMinutes));
   const guarantees = pkg ? [] : guaranteesOf(checkout.config);
+  const steps = pkg ? [] : (checkout.config?.usageSteps ?? []);
+  const factors = pkg ? [] : (checkout.config?.pricing.factors ?? []);
+  const basePrice = price.quote?.basePrice || service.price;
   const chatHref = track?.roomId && tracked ? marketChatHref({ roomId: track.roomId, workId: tracked.workId, serviceTitle: service.title }) : "";
 
   const titles: Record<MarketTrackPhase, string> = {
@@ -235,10 +247,18 @@ export default function PurchaseDialog({
   const actions =
     phase === "chat" && chatHref
       ? [
-          <Link key="chat" href={chatHref} className="btn btn--grad" data-ai-id="marketplace.purchase.open-chat" data-ai-label={t("openChat")}>
-            <IconChat />
-            {t("openChat")}
-          </Link>,
+          <ContactAdvocate
+            key="contact"
+            tone="site"
+            chatHref={chatHref}
+            roomId={track?.roomId ?? ""}
+            callTitle={service.title || tracked?.workId || "LexGo"}
+            counterpartId={sellerUserId}
+            orderId={tracked?.orderId ?? ""}
+            calls={tracked?.orderId ? undefined : "unavailable"}
+            aiId="marketplace.purchase.contact"
+            chatAiId="marketplace.purchase.open-chat"
+          />,
           ordersLink(false),
         ]
       : phase === "cancelled"
@@ -364,56 +384,64 @@ export default function PurchaseDialog({
                 {t("changeSeller")}
               </button>
             ) : null}
-            <PriceOptions target={pkg ? "package" : "service"} targetId={service.id} lawyerUserId={pkg ? undefined : sellerUserId} reload={optReload} onChange={setPrice} />
-            <fieldset className="mk-buy__ch" data-ai-target="marketplace:purchase-channel" data-ai-id="marketplace.purchase.channel" data-ai-type="select">
-              <legend>{t("channel")}</legend>
-              <div className="mk-seg">
-                {PREFERRED_CHANNELS.map((c) => {
-                  const Icon = CHANNEL_ICON[c];
-                  return (
-                    <button key={c} type="button" className="mk-seg__b" aria-pressed={channel === c} onClick={() => setChannel(c)} data-ai-id={`marketplace.purchase.channel.${c}`}>
-                      <Icon />
-                      {t(`channels.${c}`)}
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-            <label className="mk-in" data-ai-target="marketplace:purchase-note" data-ai-private>
-              <span>{t("note")}</span>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                placeholder={t("notePh")}
-                maxLength={NOTE_MAX}
-                rows={3}
-                data-ai-id="marketplace.purchase.note"
-                data-ai-label={t("note")}
-                data-ai-private
-              />
-              <em>{note.length}/{NOTE_MAX}</em>
-            </label>
-            <fieldset className="mk-buy__ch">
-              <legend>{t("urgency")}</legend>
-              <div className="mk-seg">
-                {PURCHASE_URGENCIES.map((u) => (
-                  <button key={u} type="button" className="mk-seg__b" aria-pressed={urgency === u} onClick={() => setUrgency(urgency === u ? "" : u)}>
-                    {t(`urgencies.${u}`)}
+            <div className="mk-buy__compose">
+              <label className="mk-in mk-buy__main" data-ai-target="marketplace:purchase-note" data-ai-private>
+                <span>{t("note")}</span>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder={t("notePh")}
+                  maxLength={NOTE_MAX}
+                  rows={4}
+                  data-ai-id="marketplace.purchase.note"
+                  data-ai-label={t("note")}
+                  data-ai-private
+                />
+                <em>{note.length}/{NOTE_MAX}</em>
+              </label>
+              <IntakeAttachments files={files} voices={voices} onFiles={setFiles} onVoices={setVoices} onBusy={onAttachBusy} compact />
+            </div>
+            <fieldset className="mk-buy__ch" data-ai-target="marketplace:purchase-contact-speed" data-ai-id="marketplace.purchase.contact-speed" data-ai-type="select" data-ai-label={t("speed")}>
+              <legend>{t("speed")}</legend>
+              <div className="mk-seg mk-seg--speed">
+                {CONTACT_SPEEDS.map((c) => (
+                  <button key={c} type="button" className="mk-seg__b" aria-pressed={speed === c} onClick={() => setSpeed(speed === c ? "" : c)} data-ai-id={`marketplace.purchase.contact-speed.${c}`}>
+                    <IconClock />
+                    {t(`speeds.${c}`)}
                   </button>
                 ))}
               </div>
             </fieldset>
-            <IntakeAttachments files={files} voices={voices} onFiles={setFiles} onVoices={setVoices} onBusy={onAttachBusy} />
-            <label className="mk-in" data-ai-target="marketplace:purchase-time">
-              <span>{t("time")}</span>
-              <input value={time} onChange={(e) => setTime(e.target.value)} placeholder={t("timePh")} maxLength={120} data-ai-id="marketplace.purchase.time" data-ai-label={t("time")} />
-            </label>
-            <div className="mk-quick">
-              {quick.map((q) => (
-                <button key={q} type="button" className="mk-chip mk-chip--sm" aria-pressed={time === q} onClick={() => setTime(time === q ? "" : q)}>
-                  {q}
-                </button>
-              ))}
+            <PriceOptions target={pkg ? "package" : "service"} targetId={service.id} lawyerUserId={pkg ? undefined : sellerUserId} reload={optReload} onChange={setPrice} />
+            {factors.length || steps.length ? (
+              <div className="mk-buy__facts" data-ai-id="marketplace.purchase.service-facts" data-ai-type="section">
+                {factors.length ? <FactorList factors={factors} basePrice={basePrice} currency={service.currency} level={3} /> : null}
+                {steps.length ? <UsageSteps steps={steps} idBase={`mkbuy-${service.id}-st`} level={3} /> : null}
+              </div>
+            ) : null}
+            <div className={`mk-buy__chx${chOpen ? " is-open" : ""}`}>
+              <button type="button" className="mk-buy__chx-t" aria-expanded={chOpen} aria-controls="mk-buy-channel" onClick={() => setChOpen((v) => !v)} data-ai-id="marketplace.purchase.channel-toggle">
+                <span className="mk-buy__chx-l">{t("channelMore")}</span>
+                <span className="mk-buy__chx-v">{t(`channels.${channel}`)}</span>
+                <IconChevronDown aria-hidden="true" className="mk-buy__chx-c" />
+              </button>
+              {chOpen ? (
+                <fieldset id="mk-buy-channel" className="mk-buy__ch" data-ai-target="marketplace:purchase-channel" data-ai-id="marketplace.purchase.channel" data-ai-type="select">
+                  <legend className="sr-only">{t("channel")}</legend>
+                  <p className="mk-buy__chx-h">{t("channelHint")}</p>
+                  <div className="mk-seg mk-seg--ch">
+                    {PREFERRED_CHANNELS.map((c) => {
+                      const Icon = CHANNEL_ICON[c];
+                      return (
+                        <button key={c} type="button" className="mk-seg__b" aria-pressed={channel === c} onClick={() => setChannel(c)} data-ai-id={`marketplace.purchase.channel.${c}`}>
+                          <Icon />
+                          {t(`channels.${c}`)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              ) : null}
             </div>
             <p className="mk-buy__note">{t("totalNote")}</p>
             {err ? <Notice ok={false} msg={err} /> : null}

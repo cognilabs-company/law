@@ -1,0 +1,52 @@
+.sx-k2tpl {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.sx-k2tpl__pick {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.sx-k2tpl__sub {
+  color: var(--sx-ink-2);
+  font: 500 13px/18px var(--sx-font);
+}
+.sx-k2tpl__note,
+.sx-k2tpl__off {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  color: var(--sx-muted);
+  font: 400 12px/16px var(--sx-font);
+}
+.sx-k2tpl__off {
+  padding: 10px 12px;
+  border: 1px dashed var(--sx-line);
+  border-radius: var(--sx-r);
+  background: var(--sx-surface-2);
+  color: var(--sx-ink-2);
+  font-size: 13px;
+  line-height: 18px;
+}
+.sx-k2tpl__note svg,
+.sx-k2tpl__off svg {
+  flex: none;
+  margin-top: 1px;
+}
+.sx-k2tpl__skip {
+  display: grid;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--sx-line);
+}
+.sx-k2tpl[data-skip] .sx-k2tpl__skip {
+  padding-top: 0;
+  border-top: 0;
+}
+.sx-k2tpl__help {
+  margin: 0;
+  color: var(--sx-muted);
+  font: 400 12px/16px var(--sx-font);
+}

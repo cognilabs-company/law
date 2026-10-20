@@ -49,6 +49,7 @@ import { invalidOptionPaths, validatePayload } from "../schema/model";
 import { focusFieldPath } from "../schema/focus";
 import { studioEventCode, studioEventObjectId, useStudioLive } from "../live";
 import { withServerMessages } from "./serverMessages";
+import { REVIEWING_STATUSES, editInReviewOf, missingRequired } from "./reviewEdit";
 import { useEditorErrorText } from "./useEditorErrorText";
 import { inheritedSlugOf, noteInheritedSlug, slugErrorsOnTitle, slugOf, withGeneratedSlug } from "./slug";
 import {
@@ -91,7 +92,7 @@ export type EditorPhase = "loading" | "ready" | "not-found" | "unknown-ctor" | "
 export type EditorBusy = "" | "save" | "check" | "submit" | "publish" | "rollback" | "archive" | "clone" | "upload" | "comment" | "withdraw" | "restore";
 export type EditorAlert =
   | { kind: "action"; error: unknown }
-  | { kind: "locked"; code: string; withdraw: boolean }
+  | { kind: "locked"; code: string; withdraw: boolean; review?: boolean }
   | { kind: "publishFail"; text: string }
   | { kind: "remote"; conflict: boolean }
   | { kind: "file"; isNew: boolean }
@@ -107,6 +108,7 @@ export type EditorOptions = {
   only?: SchemaOnly;
   onFocusFail?: (path: string) => void;
   lockLive?: boolean;
+  reviewEdit?: boolean;
 };
 export type EditorDialogError = { title: string; text: string };
 
@@ -133,6 +135,8 @@ export type EditorState = {
   schemaFailed: boolean;
   readOnly: boolean;
   readOnlyReason: "" | "access" | "locked" | "view" | "archived" | "live";
+  editInReview: boolean;
+  reviewMissing: string[];
   blocked: boolean;
   missing: string[];
   status: string;
@@ -220,6 +224,7 @@ type FullState = { code: string; ctor: StudioConstructor | null; done: boolean }
 
 const EMPTY_PAYLOAD: SxPayload = {};
 const EMPTY_ERRORS: SxErrors = {};
+const EMPTY_PATHS: string[] = [];
 const LIVE: ReadonlySet<string> = new Set(["approved", "published"]);
 const SUBMIT_PRIMARY: ReadonlySet<EditorPrimary> = new Set<EditorPrimary>(["saveSubmit", "submit", "publishDirect", "save"]);
 const NO_CAN: EditorState["can"] = {
@@ -327,7 +332,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const [remote, setRemote] = useState<{ conflict: boolean } | null>(null);
   const [busy, setBusy] = useState<EditorBusy>("");
   const [comments, setComments] = useState<{ items: SxComment[] | null; error: unknown }>({ items: null, error: null });
-  const [locked, setLocked] = useState<{ code: string; withdrawUrl: string } | null>(null);
+  const [locked, setLocked] = useState<{ code: string; withdrawUrl: string; review: boolean } | null>(null);
   const [conflictOpen, setConflictOpen] = useState(false);
   const [dialogError, setDialogError] = useState<EditorDialogError | null>(null);
   const [fileError, setFileError] = useState("");
@@ -357,9 +362,12 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const liveKey = `${statusNorm}:${detail?.currentVersionId ?? ""}`;
   const liveLocked = !!opts.lockLive && mode === "object" && LIVE.has(statusNorm) && unlockedFor !== "*" && unlockedFor !== liveKey;
   const lifecycle = useMemo(() => lifecycleOf(detail), [detail]);
-  const editable = editableOf(access, lifecycle);
+  const reviewOpt = opts.reviewEdit === true;
+  const reviewing = mode === "object" && REVIEWING_STATUSES.has(statusNorm);
+  const editInReview = reviewOpt && reviewing && editInReviewOf(detail?.raw);
+  const editable = editInReview || editableOf(access, lifecycle);
   const readOnlyReason: EditorState["readOnlyReason"] =
-    statusNorm === "archived" ? "archived" : LOCKED_STATUSES.has(statusNorm) ? "locked" : !editable ? "access" : mode === "runtime-view" ? "view" : liveLocked ? "live" : "";
+    statusNorm === "archived" ? "archived" : LOCKED_STATUSES.has(statusNorm) && !editInReview ? "locked" : !editable ? "access" : mode === "runtime-view" ? "view" : liveLocked ? "live" : "";
   const readOnly = readOnlyReason !== "";
   const editMismatch = lifecycle.contract && access.known && access.canEdit && lifecycle.canEdit === false && (statusNorm === "draft" || statusNorm === "changes_requested");
   const mismatchId = editMismatch ? detail?.id ?? "" : "";
@@ -673,6 +681,12 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
 
   const currentVersion = currentVersionOf(detail);
   const hasFile = Boolean(detail?.hasFile || currentVersion?.hasFile);
+  const fileMissing = fileRequired && !hasFile && !pending;
+  const reviewMissing = useMemo(() => (reviewOpt && reviewing && formReady ? missingRequired(model, payload, { fileMissing }) : EMPTY_PATHS), [reviewOpt, reviewing, formReady, model, payload, fileMissing]);
+  const missingKey = editInReview ? reviewMissing.join("|") : "";
+  useEffect(() => {
+    if (missingKey) policy.markServer(missingKey.split("|"));
+  }, [missingKey, policy]);
 
   const prevPayload: SxValues | null = useMemo(() => {
     if (mode === "object") return liveVersionOf(detail)?.payload ?? null;
@@ -712,6 +726,8 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     versions: detail?.versions.length ?? 0,
     newVersion: Boolean(layout.newVersion),
     lifecycle,
+    reviewEdit: editInReview,
+    reviewNeedsPermission: reviewOpt && reviewing && !editInReview && access.canReview,
   };
   const acts = actionsOf(actionsInput);
   let can = acts.can;
@@ -734,7 +750,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const alert: EditorAlert = actionError
     ? { kind: "action", error: actionError.error }
     : locked
-      ? { kind: "locked", code: locked.code, withdraw: Boolean(locked.withdrawUrl) || can.withdraw }
+      ? { kind: "locked", code: locked.code, withdraw: !locked.review && (Boolean(locked.withdrawUrl) || can.withdraw), ...(locked.review ? { review: true } : {}) }
       : publishFail !== null
         ? { kind: "publishFail", text: publishFail }
         : remote
@@ -770,7 +786,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     const lock = lockErrorOf(e);
     if (lock?.code === "studio_version_locked") {
       setActionError(null);
-      setLocked({ code: lock.code, withdrawUrl: lock.withdrawUrl });
+      setLocked({ code: lock.code, withdrawUrl: lock.withdrawUrl, review: editInReview });
       void refresh(false);
       return;
     }
@@ -874,7 +890,8 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       hb.markSaved();
       return { id, created: null };
     } catch (e) {
-      if (studioErrorOf(e).kind === "edit_conflict") {
+      const se = studioErrorOf(e);
+      if (se.kind === "edit_conflict" || se.code === "studio_version_conflict") {
         logApiError("studio.sx.object.save", e);
         setRemote({ conflict: true });
         setConflictOpen(true);
@@ -918,7 +935,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       if (!r) return false;
       const uploaded = await sendPending(r.id);
       setServerErrors(EMPTY_ERRORS);
-      if (uploaded) notify.success(t(id ? "sx.editor.toast.saved" : "sx.editor.toast.created"));
+      if (uploaded) notify.success(t(id ? (editInReview ? "sx.ap4.ed.saved" : "sx.editor.toast.saved") : "sx.editor.toast.created"));
       if (!id) {
         if (r.created) optsRef.current.onCreated?.(r.created);
       } else {
@@ -1307,6 +1324,8 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     schemaFailed,
     readOnly,
     readOnlyReason,
+    editInReview,
+    reviewMissing,
     blocked,
     missing,
     status,

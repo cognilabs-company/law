@@ -1,0 +1,29 @@
+.mk-buy__compose{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:18px;background:var(--dk-surface-2, #F7FAFE);box-shadow:inset 0 0 0 1px var(--line)}
+.mk-buy__main>span{font-family:var(--fd);font-size:1rem;font-weight:700;letter-spacing:0;text-transform:none;line-height:1.3;color:var(--ink)}
+.mk-buy__compose .mk-in textarea{min-height:112px;background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1px var(--line)}
+.mk-buy__compose .mk-in textarea:focus{box-shadow:inset 0 0 0 1.5px var(--b400)}
+.mk-att--compact{gap:6px}
+.mk-att--compact .mk-att__hint{order:2}
+.mk-seg--speed .mk-seg__b svg{width:18px;height:18px}
+.mk-seg--ch{grid-template-columns:repeat(3,1fr)}
+.mk-buy__facts{display:flex;flex-direction:column;gap:14px;padding:14px;border-radius:18px;background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1px var(--line)}
+.mk-buy__facts .mkrt-h{margin-bottom:6px}
+.mk-buy__chx{display:flex;flex-direction:column;gap:10px}
+.mk-buy__chx-t{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:10px 12px;border:0;border-radius:14px;background:var(--dk-surface-2, #F2F6FC);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:box-shadow .2s,background-color .2s}
+.mk-buy__chx-t:hover{box-shadow:inset 0 0 0 1.5px var(--b300, #A9C8F8)}
+.mk-buy__chx-t:focus-visible{outline:2px solid var(--b400);outline-offset:2px}
+.mk-buy__chx-l{flex:1;min-width:0;font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--gray2)}
+.mk-buy__chx-v{flex:none;padding:3px 10px;border-radius:var(--pill);background:var(--dk-tint-blue, #EAF2FF);color:var(--dk-acc, var(--b600));font-size:.78rem;font-weight:700}
+.mk-buy__chx-c{flex:none;width:16px;height:16px;color:var(--gray);transition:transform .2s ease}
+.mk-buy__chx.is-open .mk-buy__chx-c{transform:rotate(180deg)}
+.mk-buy__chx .mk-buy__ch{animation:mk-chx-in .2s ease both}
+.mk-buy__chx-h{margin:0 0 8px;font-size:.8rem;line-height:1.4;color:var(--gray)}
+@keyframes mk-chx-in{from{opacity:0;transform:translateY(-4px)}}
+@media (max-width:560px){
+  .mk-seg--ch{grid-template-columns:repeat(3,1fr)}
+  .mk-buy__compose{padding:10px}
+}
+@media (prefers-reduced-motion:reduce){
+  .mk-buy__chx-c,.mk-buy__chx-t{transition:none}
+  .mk-buy__chx .mk-buy__ch{animation:none}
+}

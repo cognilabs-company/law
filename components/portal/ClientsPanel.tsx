@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
-import { getLawyerClients, createLawyerClient, checkConflict, type ConflictResult } from "@/lib/services/backend";
+import { getLawyerClients, createLawyerClient, checkConflict, type ConflictResult, type LawyerClient } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import { notify } from "@/lib/toast";
@@ -10,9 +10,12 @@ import InlineAlert from "@/components/ui/InlineAlert";
 import Modal from "@/components/admin/Modal";
 import ClientDetailModal from "@/components/portal/ClientDetailModal";
 import { initials } from "@/lib/lawyers";
-import { IconUsers, IconAlert, IconPlus, IconShieldCheck } from "@/components/icons";
+import { IconUsers, IconAlert, IconPlus, IconShieldCheck, IconLock } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 import { useAiModal } from "@/lib/ai/registry";
+import "./clientPhone.css";
+
+const phoneLocked = (c: Pick<LawyerClient, "phone" | "phoneVisible">, marketplace: boolean): boolean => c.phoneVisible === false || (marketplace && !c.phone.trim());
 
 // Client roster + manual client base (T1B-05 §3) + conflict check (§1–2),
 // shared by the advocate and lawyer portals.
@@ -72,7 +75,16 @@ export default function ClientsPanel({ ns }: { ns: string }) {
                 <div className="pclient__m">
                   <b>{c.name || "—"}</b>
                   <span>
-                    {[c.phone, t("casesCount", { n: c.casesCount }), c.ordersCount ? t("ordersCount", { n: c.ordersCount }) : tc("manual")]
+                    {phoneLocked(c, c.ordersCount > 0) ? (
+                      <>
+                        <em className="pclient__lock" data-ai-id={c.id ? `${aiId("advocate.clients.item", c.id)}.phone-locked` : undefined}>
+                          <IconLock aria-hidden="true" />
+                          {tc("phoneLocked")}
+                        </em>
+                        {" · "}
+                      </>
+                    ) : null}
+                    {[phoneLocked(c, c.ordersCount > 0) ? "" : c.phone, t("casesCount", { n: c.casesCount }), c.ordersCount ? t("ordersCount", { n: c.ordersCount }) : tc("manual")]
                       .filter(Boolean)
                       .join(" · ")}
                   </span>

@@ -250,10 +250,10 @@ export default function UrgentAdvocatePanel() {
   // The 402 second-opinion refusal, as its own modal rather than an inline
   // line — see the gate component below.
   const [gate, setGate] = useState("");
-  const [openId, setOpenId] = useState("");
+  const [openId, setOpenId] = useState(() => params.get("request") ?? "");
   // The request this visit created, highlighted in the list below so the
   // client can see the thing they just made.
-  const [fresh, setFresh] = useState("");
+  const [fresh, setFresh] = useState(() => params.get("request") ?? "");
   const [opIds, setOpIds] = useState<string[]>([]);
 
   useEffect(() => {

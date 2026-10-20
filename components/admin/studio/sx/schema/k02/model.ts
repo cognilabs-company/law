@@ -17,6 +17,11 @@ export type ServiceSuggest = { groups: SuggestGroup[]; autoSaved: boolean };
 export const FACTOR_IDS = "price_factor_ids";
 export const FACTOR_OVERRIDES = "price_factor_overrides";
 export const CHECKLIST = "completion_checklist";
+export const TEMPLATE_MODE = "template_mode";
+export const TEMPLATE_ID = "document_template_id";
+export const TEMPLATE_SOURCE = "template_source";
+export const TEMPLATE_SKIP = "not_required";
+export type TemplateMode = "required" | "optional" | typeof TEMPLATE_SKIP;
 export const CHECKLIST_LEGACY = "checklist_template_id";
 export const PROOF_METHODS: readonly ProofMethod[] = ["checkbox", "comment", "image", "file"];
 export const EVIDENCE_METHODS: readonly EvidenceMethod[] = ["comment", "image", "file"];
@@ -185,8 +190,43 @@ export function checklistErrors(payload: SxValues): Record<string, string> {
   return out;
 }
 
+export function templateModeOf(v: unknown): TemplateMode | "" {
+  const s = str(v).toLowerCase();
+  return s === "required" || s === "optional" || s === TEMPLATE_SKIP ? s : "";
+}
+
+export function templateSkipped(payload: SxValues): boolean {
+  return templateModeOf(payload[TEMPLATE_MODE]) === TEMPLATE_SKIP;
+}
+
+export function templateErrors(payload: SxValues): Record<string, string> {
+  if (templateSkipped(payload) || str(payload[TEMPLATE_ID])) return {};
+  return { [TEMPLATE_MODE]: "@code:template_required" };
+}
+
+export function templatePatch(payload: SxValues, change: { skip: boolean; remembered?: TemplateMode | "" } | { pick: string }): Dict {
+  const mode = templateModeOf(payload[TEMPLATE_MODE]);
+  if ("pick" in change) {
+    const out: Dict = { [TEMPLATE_ID]: change.pick || undefined };
+    if (change.pick && (!mode || mode === TEMPLATE_SKIP)) out[TEMPLATE_MODE] = "required";
+    if (change.pick && !str(payload[TEMPLATE_SOURCE])) out[TEMPLATE_SOURCE] = "catalog";
+    return out;
+  }
+  if (change.skip) return { [TEMPLATE_MODE]: TEMPLATE_SKIP };
+  const back = change.remembered && change.remembered !== TEMPLATE_SKIP ? change.remembered : "required";
+  return { [TEMPLATE_MODE]: back };
+}
+
 export function k02Validate(payload: SxValues): SxErrors {
   return { ...overrideErrors(payload), ...checklistErrors(payload), ...intakeErrors(payload) };
+}
+
+export function k02FormValidate(payload: SxValues): SxErrors {
+  return { ...k02Validate(payload), ...templateErrors(payload) };
+}
+
+export function k03mValidate(payload: SxValues): SxErrors {
+  return overrideErrors(payload);
 }
 
 const sameIds = (a: unknown, b: unknown) => idsOf(a).join("\n") === idsOf(b).join("\n");

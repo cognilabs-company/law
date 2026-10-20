@@ -1,0 +1,2 @@
+.pclient__lock{display:inline-flex;align-items:center;gap:4px;color:var(--dk-txt-warn,#8A5300);font-weight:600}
+.pclient__lock svg{flex:none;width:12px;height:12px}

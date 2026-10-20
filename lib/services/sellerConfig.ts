@@ -18,13 +18,13 @@ import {
   type SellerServiceConfig,
 } from "@/lib/services/marketRuntime";
 
-export type ConfigErrorCode = "seller_price_above_maximum" | "seller_price_below_minimum" | "seller_price_negative" | "service_rules_acceptance_required" | "other";
+export type ConfigErrorCode = "seller_price_above_maximum" | "seller_price_below_minimum" | "seller_price_negative" | "service_rules_acceptance_required" | "rule_not_selectable" | "other";
 export type ConfigError = { code: ConfigErrorCode; field: "price" | "status" | "form"; missingRuleIds: string[]; maximum: number | null; minimum: number | null; message: string; status: number };
 export type PriceVerdict = "ok" | "negative" | "aboveMax" | "belowMin";
 
-const KNOWN_CODES: readonly ConfigErrorCode[] = ["seller_price_above_maximum", "seller_price_below_minimum", "seller_price_negative", "service_rules_acceptance_required"];
+const KNOWN_CODES: readonly ConfigErrorCode[] = ["seller_price_above_maximum", "seller_price_below_minimum", "seller_price_negative", "service_rules_acceptance_required", "rule_not_selectable"];
 const CONFIG_PAUSED_RE = /^(rules?_pending|pending_rules?|rules?_acceptance_required)$/;
-const BELOW_MIN_RE = /^seller_price_(below_min(imum)?|too_low|under_min(imum)?)$/;
+const BELOW_MIN_RE = /^(seller_)?price_(below_min(imum)?|too_low|under_min(imum)?)$/;
 
 let support: "unknown" | "yes" | "no" = "unknown";
 
@@ -48,17 +48,20 @@ const positive = (v: unknown): number | null => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
+const plain = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+
 export function configErrorOf(e: unknown): ConfigError {
   const info = marketErrorInfo(e);
   const raw = info?.code ?? "";
   const code: ConfigErrorCode = BELOW_MIN_RE.test(raw) ? "seller_price_below_minimum" : (KNOWN_CODES as readonly string[]).includes(raw) ? (raw as ConfigErrorCode) : "other";
   const detail = info?.detail ?? {};
+  const ctx = { ...plain(e instanceof ApiError ? e.data.context : null), ...plain(detail.context) };
   return {
     code,
     field: code === "seller_price_above_maximum" || code === "seller_price_below_minimum" || code === "seller_price_negative" ? "price" : code === "service_rules_acceptance_required" ? "status" : "form",
     missingRuleIds: info?.missingRuleIds ?? [],
-    maximum: positive(detail.maximum_price ?? detail.max_price),
-    minimum: positive(detail.minimum_price ?? detail.min_price ?? detail.minimum_allowed_price),
+    maximum: positive(detail.maximum_price ?? detail.max_price ?? ctx.maximum_price),
+    minimum: positive(detail.minimum_listing_price ?? ctx.minimum_listing_price ?? detail.minimum_price ?? detail.min_price ?? detail.minimum_allowed_price ?? ctx.minimum_price),
     message: info?.message || (e instanceof ApiError ? (e.detail ?? "") : ""),
     status: info?.status ?? 0,
   };
@@ -111,6 +114,7 @@ export type SaveSellerServiceArgs = {
   negotiation: boolean | null;
   runtime: RuntimeConfig | null;
   fallbackPrice: number;
+  ruleIds?: string[] | null;
 };
 
 export type SaveSellerServiceResult =
@@ -155,6 +159,7 @@ export async function saveSellerService(a: SaveSellerServiceArgs): Promise<SaveS
       enabled: a.input.status === "active",
       selectedPrice: a.input.selectedPrice > 0 ? a.input.selectedPrice : undefined,
       negotiationAllowed: a.negotiation ?? undefined,
+      selectedRuleIds: a.ruleIds ?? undefined,
     });
     support = "yes";
     rememberSellerConfig(a.uid, cfg.serviceId ? cfg : { ...cfg, serviceId: saved.id });

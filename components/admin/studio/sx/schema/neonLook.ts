@@ -55,6 +55,7 @@ const SECTION_ICON: Readonly<Record<string, SxIcon>> = {
   K02__guarantees: ShieldCheckIcon,
   K02__search: SearchIcon,
   "K03-M__pricing": BadgePercentIcon,
+  K34__factor: BadgePercentIcon,
   "K12-PROMO__placement": LayoutPanelTopIcon,
   "K12-PROMO__name": FileTextIcon,
   "K12-PROMO__sale": MegaphoneIcon,

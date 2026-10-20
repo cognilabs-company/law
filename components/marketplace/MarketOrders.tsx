@@ -34,6 +34,8 @@ import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import SupplementalDialog from "./SupplementalDialog";
 import { OptionLines, RatingPanel, ResultBlock, SupplementalPanel } from "./OrderExtras";
 import { dealAmount as dealOf } from "./order/negotiationRules";
+import ContactAdvocate, { callStateOf } from "./order/ContactAdvocate";
+import { useContactSpeedText } from "./order/contactSpeed";
 import "./order/cards.css";
 
 type View = "client" | "seller";
@@ -354,6 +356,7 @@ function OrderCard({
   const tch = useTranslations("marketplace.purchase.channels");
   const tpk = useTranslations("portal.client.packages");
   const te = useTranslations("enums");
+  const speedText = useContactSpeedText();
   const router = useRouter();
   const stage = marketStageOf(o);
   const phase = marketPhaseOf(o);
@@ -368,6 +371,8 @@ function OrderCard({
   const paid = o.paymentStatus === "paid";
   const phone = view === "seller" ? o.clientPhone : o.lawyerPhone;
   const chatHref = marketChatHref(o);
+  const contact = view === "client" && o.canStartChat;
+  const speed = speedText(o);
   const stepAt = STEP_INDEX[stage];
   const item = o.id ? aiId(`${aiBaseOf(view)}.item`, o.id) : undefined;
   const sub = (s: string) => (item ? `${item}.${s}` : undefined);
@@ -477,6 +482,15 @@ function OrderCard({
               <dd>{tch.has(o.preferredChannel) ? tch(o.preferredChannel) : o.preferredChannel}</dd>
             </div>
           ) : null}
+          {speed ? (
+            <div>
+              <dt>{t("contactSpeed")}</dt>
+              <dd>
+                <IconClock />
+                {speed}
+              </dd>
+            </div>
+          ) : null}
           {o.preferredTime ? (
             <div>
               <dt>{t("time")}</dt>
@@ -515,13 +529,15 @@ function OrderCard({
         {callErr ? <Notice ok={false} msg={callErr} /> : null}
 
         <div className="mk-order__acts">
-          {o.canStartChat ? (
+          {contact ? (
+            <ContactAdvocate tone="site" size="sm" chatHref={chatHref} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={counterpartId} calls={stage === "cancelled" || stage === "completed" ? "closed" : callStateOf(o)} aiId={sub("contact") ?? "marketplace.orders.item.contact"} chatAiId={sub("chat")} />
+          ) : o.canStartChat ? (
             <Link href={chatHref} className="btn btn--pri btn--sm" data-ai-id={sub("chat")} data-ai-label={t("openChat")}>
               <IconChat />
               {t("openChat")}
             </Link>
           ) : null}
-          {o.canCreateCall && o.callsAllowed && stage !== "cancelled" && stage !== "completed" ? (
+          {!contact && o.canCreateCall && o.callsAllowed && stage !== "cancelled" && stage !== "completed" ? (
             <span className="mk-callgrp" role="group" aria-label={t("call")} data-ai-id={sub("call")} data-ai-type="call_button" data-ai-label={t("call")}>
               <button type="button" className="btn btn--line btn--sm" disabled={!!calling} onClick={() => void call("audio")}>
                 <IconPhone />

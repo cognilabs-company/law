@@ -22,6 +22,7 @@ import type { DirectoryPreview } from "@/lib/marketPreview";
 import { DEFAULT_NEARBY_RADIUS, modeOf, radiusOf, writeNearbyParams, type NearbyMode } from "@/lib/services/marketDiscovery";
 import type { NearbyRadius } from "@/lib/services/marketRuntime";
 import NearbySellers, { MarketModeSwitch, type NearbyServiceOption } from "./NearbySellers";
+import SecondOpinionEntry from "./order/SecondOpinionEntry";
 
 type Status = "loading" | "ready" | "error";
 
@@ -696,6 +697,8 @@ export default function MarketDirectory({
         </div>
         <HeroShowcase items={shownItems} promos={shownBanners} base={base} locale={locale} />
       </div>
+
+      {!isPreview ? <SecondOpinionEntry aiId="marketplace.second-opinion" /> : null}
 
       {!isPreview ? <MarketModeSwitch mode={mode} onChange={switchMode} /> : null}
 

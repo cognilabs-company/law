@@ -301,6 +301,7 @@ function InlineEditor({ target, keys, foot, onFlags, onSwap, onSettled, onClose 
             mode={st.formMode}
             recordId={st.recordId}
             recordTitle={model.titleField ? null : { value: st.recordTitle, onChange: st.setRecordTitle, placeholderKey: st.layout.recordTitlePlaceholderKey }}
+            file={st.fileSlot}
           />
         </div>
       </SxFormContext.Provider>

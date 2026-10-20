@@ -18,7 +18,7 @@ import {
   type ManagedServices,
   type ServiceScope,
 } from "@/lib/services/sellerServices";
-import type { PromotionPlacement } from "@/lib/services/promotions";
+import { listPromotionPackages, type PromotionPlacement } from "@/lib/services/promotions";
 import { useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import PromoteServicesSection from "@/components/services/PromoteServicesSection";
@@ -26,6 +26,7 @@ import PromoteModal from "@/components/services/PromoteModal";
 import { Skeleton } from "./DataState";
 import { IconRocket, IconEye, IconSearch, IconTarget, IconChat, IconClock, IconArrowRight } from "@/components/icons";
 import { PlacementSketch } from "@/components/services/bits";
+import { TrendingUpIcon } from "lucide-react";
 
 const PROFILE_KEY = pendingPromoKey("profile");
 const ME: ServiceScope = { kind: "me" };
@@ -64,6 +65,17 @@ export default function PromotionPanel() {
   const [svc, setSvc] = useState<ManagedServices | null>(null);
   const pendingRaw = useSyncExternalStore(subscribePendingPromos, () => pendingPromosRaw(uid), () => "");
   const pending = useMemo(() => parsePendingPromos(pendingRaw)[PROFILE_KEY] ?? null, [pendingRaw]);
+  const [maxReach, setMaxReach] = useState(0);
+
+  useEffect(() => {
+    const c = new AbortController();
+    listPromotionPackages(undefined, c.signal)
+      .then((catalog) => {
+        if (!c.signal.aborted) setMaxReach(catalog.items.reduce((m, x) => (x.reach > m ? x.reach : m), 0));
+      })
+      .catch(() => {});
+    return () => c.abort();
+  }, []);
 
   useEffect(() => {
     if (!uid) return;
@@ -117,6 +129,13 @@ export default function PromotionPanel() {
           </span>
           <h2 className="h2" style={{ color: "#fff" }}>{t("title")}</h2>
           <p className="lead" style={{ color: "#B7CDEC" }}>{t("intro")}</p>
+          <p className="promo__boost" data-ai-id="promotion.multiplier">
+            <TrendingUpIcon size={18} strokeWidth={1.75} aria-hidden="true" />
+            <span>
+              <b>{t("multiplier")}</b>
+              {maxReach > 1 ? <span className="promo__boostx">{t("multiplierUpTo", { x: maxReach })}</span> : null}
+            </span>
+          </p>
         </div>
         {profileDays !== null ? (
           <div className="promo__gauge">

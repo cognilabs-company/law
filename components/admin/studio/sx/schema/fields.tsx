@@ -33,7 +33,8 @@ import { useCategoryTitle } from "./categoryOptions";
 import { DiscoveryTerms } from "./DiscoveryTerms";
 import { ChecklistEditor } from "./k02/ChecklistEditor";
 import { FactorOverrides } from "./k02/FactorOverrides";
-import { FACTOR_IDS, canSuggest, suggestBody } from "./k02/model";
+import { FACTOR_IDS, TEMPLATE_ID, TEMPLATE_MODE, TEMPLATE_SKIP, canSuggest, suggestBody, templateModeOf } from "./k02/model";
+import { TemplateField } from "./k02/TemplateField";
 import { RefPicker } from "./RefPicker";
 import { NEON_WIDE_RO, fieldIcon, type SxLook } from "./neonLook";
 import { RichText, RichTextView } from "./RichText";
@@ -455,6 +456,52 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
       </div>
     );
 
+  if (model.code.toUpperCase() === "K02" && node.pattern === TEMPLATE_MODE) {
+    const tplField = model.ctor.typed.find((x) => x.key === TEMPLATE_ID) ?? null;
+    const tplSource = tplField ? effectiveSource(model.code, { pattern: TEMPLATE_ID, field: tplField }, root) : "";
+    if (tplSource) {
+      const mode = templateModeOf(value);
+      const picked = str(root[TEMPLATE_ID]).trim();
+      if (formRo) {
+        const shown: ReactNode =
+          mode === TEMPLATE_SKIP ? t("sx.k02.tpl.skip") : picked ? (
+            <>
+              {mode ? `${opt(mode)} · ` : ""}
+              <RefNames source={tplSource} values={[picked]} />
+            </>
+          ) : mode ? opt(mode) : "";
+        const empty = shown === "";
+        return neon ? cell(<NeonValue id={id} label={label} value={shown} empty={empty} />) : cell(<Field id={id} label={label} readOnly value={shown} span={span} />);
+      }
+      const tok = policy.visible(norm, errors) || policy.visible(TEMPLATE_ID, errors);
+      const tplError = tok ? labels.error(tok, { ...rule, key: TEMPLATE_ID, path: TEMPLATE_ID }) : "";
+      return cell(
+        <Field id={id} label={label} help={help} error={tplError} required as="fieldset" span={2}>
+          <TemplateField
+            id={id}
+            ai={ai}
+            root={root}
+            source={tplSource}
+            errorId={tplError ? `${id}-err` : undefined}
+            invalid={!!tplError}
+            formCode={model.code}
+            recordId={env.recordId}
+            owner={env.owner ?? ""}
+            categoryId={str(root.category_id).trim()}
+            serviceId={str(root.service_id).trim() || env.recordId}
+            onPatch={(patch) => {
+              for (const [k, v] of Object.entries(patch)) emit(k, v);
+            }}
+            onTouch={() => {
+              policy.touch(norm);
+              policy.touch(TEMPLATE_ID);
+            }}
+          />
+        </Field>,
+      );
+    }
+  }
+
   if (control === "factorOverrides") {
     const ids = strList(root[FACTOR_IDS]);
     if (!ids.length) return null;
@@ -477,6 +524,7 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
           formCode={model.code}
           owner={env.owner ?? ""}
           categoryId={str(root.category_id).trim()}
+          forPackage={model.code.toUpperCase() === "K03-M"}
         />
       </Field>,
     );

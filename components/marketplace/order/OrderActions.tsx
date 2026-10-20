@@ -16,6 +16,7 @@ import type { OrderChecklist } from "@/lib/services/marketRuntime";
 import CompleteOrderDialog from "../CompleteOrderDialog";
 import SupplementalDialog from "../SupplementalDialog";
 import { useMarketError } from "../useMarketError";
+import ContactAdvocate, { callStateOf } from "./ContactAdvocate";
 import { MessageSquareTextIcon, CircleCheckIcon, CoinsIcon, PhoneIcon, VideoIcon, XIcon } from "./icons";
 import type { OrderView } from "./types";
 
@@ -59,6 +60,7 @@ export default function OrderActions({
   const seller = view === "seller";
   const chat = o.canStartChat ? "open" : o.roomId && o.chatReadOnly ? "view" : "";
   const calls = o.canCreateCall && o.callsAllowed && !CLOSED_PHASES.has(phase);
+  const contact = !seller && chat === "open";
   const supplemental = seller && WORK_PHASES.has(phase) && !o.workPaused && !!(o.serviceId || o.packageId);
   const complete = seller && o.canComplete && (o.explicit.complete ? !CLOSED_PHASES.has(phase) : phase === "in_progress" || (phase === "paid" && !o.canStart));
   const cancel = o.canCancel && (o.explicit.cancel ? !CLOSED_PHASES.has(phase) && phase !== "review" : view === "client" && phase === "pending");
@@ -108,12 +110,14 @@ export default function OrderActions({
   return (
     <SxPanel title={t("actions.title")} className="mod-actions" as="section">
       <div className="mod-actions__list">
-        {chat ? (
+        {contact ? (
+          <ContactAdvocate tone="sx" chatHref={marketChatHref(o)} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={counterpartId} calls={CLOSED_PHASES.has(phase) ? "closed" : callStateOf(o)} aiId={`${aiBase}.contact`} chatAiId={`${aiBase}.chat`} />
+        ) : chat ? (
           <SxLinkButton variant={chat === "open" ? "primary" : "secondary"} icon={MessageSquareTextIcon} href={marketChatHref(o)} aiId={`${aiBase}.chat`}>
             {chat === "open" ? to("openChat") : t("actions.viewChat")}
           </SxLinkButton>
         ) : null}
-        {calls ? (
+        {calls && !contact ? (
           <div className="mod-actions__calls" role="group" aria-label={to("call")} data-ai-id={`${aiBase}.call`} data-ai-type="call_button" data-ai-label={to("call")}>
             <SxButton icon={PhoneIcon} disabled={!!calling} onClick={() => void call("audio")}>
               {calling === "audio" ? to("calling") : to("audio")}

@@ -64,8 +64,8 @@
     },
     {
       "file": "../../md/BACKEND_OWNER_CHECKLIST_ASKS_2026_10_21.md",
-      "title": "Egasining 25 bandlik ro'yxati — backend'dan kerakli ishlar (21.10)",
-      "description": "Egasining 25 bandlik ro'yxati tekshirildi. Backend'dan 11 ta ish kerak: mijoz telefoni faqat to'lovdan keyin (xavfsizlik), tasdiqlovchi in_review yozuvni tahrirlashi, advokat qoidalarni tanlashi, yangi xizmatda narx izohi, 50% chegara xato kodi, K02 shablon majburiy, K34 birinchi, tarif shartlari konstruktori, contact_speed, xaritada advokatlar va 5/10 daqiqa lokatsiya, targ'ib rasmi tekshiruvi."
+      "title": "Egasining 25 bandlik ro'yxati — backend'dan kerakli ishlar (21.10, YAKUNIY)",
+      "description": "Yakuniy versiya: frontend barcha bandlarni qurdi, endi backend'dan 11 ta ish va 8 ta shaklni tasdiqlash kerak. Shoshilinch: Yandex kaliti 403 (JS API + referer), mijoz telefoni to'lovgacha null + phone_visible, contact_speed va details saqlanmayapti. Keyin: can_edit_in_review, K02 template_required + K06 ni jarayonda tanlash, katalog pricing_limits va price_below_minimum, seller_selectable qoidalar, K34 birinchi, K35 tarif shartlari, xarita uchun ofis manzili va 5/10 daqiqa, targ'ib rasmi mezonlari."
     }
   ]
 }

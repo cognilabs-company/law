@@ -1,7 +1,7 @@
 import type { SxCtorLayout, SxLayoutCtx, SxLayoutField, SxPayload, SxTransformCtx, SxValues } from "../contract";
-import { FIELD_TYPE_ICON, LibraryBigIcon, BadgeCheckIcon, BriefcaseBusinessIcon, CalendarDaysIcon, ClockIcon, CoinsIcon, FileQuestionMarkIcon, FilesIcon, FileTextIcon, FileXIcon, FolderOpenIcon, GlobeIcon, HeadsetIcon, LockIcon, PackageIcon, PercentIcon, RefreshCwIcon, ShieldCheckIcon, UploadIcon } from "../icons";
+import { FIELD_TYPE_ICON, BadgeCheckIcon, BriefcaseBusinessIcon, CalendarDaysIcon, ClockIcon, CoinsIcon, FileQuestionMarkIcon, FileTextIcon, FileXIcon, FolderOpenIcon, GlobeIcon, HeadsetIcon, LockIcon, PackageIcon, PercentIcon, RefreshCwIcon, ShieldCheckIcon } from "../icons";
 import { INTAKE, INTAKE_CHOICE_KEYS, INTAKE_HIDDEN_KEYS, INTAKE_REQUIRED_KEYS, INTAKE_TEXT_KEYS, INTAKE_TYPE_KEYS, SERVICE_TERMS, intakeQuestionOf, intakeTidy, intakeTypeOf, showIntakeChoices } from "../schema/k02/intake";
-import { k02Prune, k02Validate } from "../schema/k02/model";
+import { k02FormValidate, k02Prune, k03mValidate } from "../schema/k02/model";
 import type { SxIcon } from "../types";
 import type { StudioLabels } from "../useStudioLabels";
 import { GUARANTEE_ICONS } from "./guaranteeIcons";
@@ -22,12 +22,6 @@ const ADJUSTMENT_CHOICES = {
   fixed: { icon: CoinsIcon, descriptionKey: "sx.optd.adjustment_type.fixed" },
   percent: { icon: PercentIcon, descriptionKey: "sx.optd.adjustment_type.percent" },
 } as const;
-
-const TEMPLATE_SOURCES: ReadonlySet<string> = new Set(["catalog", "catalog_or_upload"]);
-const templateNeeded = (ctx: SxLayoutCtx): boolean => {
-  const mode = str(ctx.root.template_mode);
-  return Boolean(mode) && mode !== "not_required";
-};
 
 const K32_ICONS: Readonly<Record<string, SxIcon>> = {
   "shield-check": ShieldCheckIcon,
@@ -55,11 +49,7 @@ export const K01_LAYOUT: SxCtorLayout = {
 
 export const K34_LAYOUT: SxCtorLayout = {
   code: "K34",
-  sections: [
-    { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "adjustment_type", "value", "discovery_terms"] },
-    { id: "kontent", titleKey: "sx.section.kontent", fields: ["description"] },
-    { id: "faollik_va_muddat", titleKey: "sx.section.faollik_va_muddat", fields: ["is_active"] },
-  ],
+  sections: [{ id: "K34__factor", titleKey: "sx.section.K34__factor", fields: ["title", "adjustment_type", "value", "description", "discovery_terms", "is_active"] }],
   fields: [
     { path: "title", placeholder: "sx.ph.K34__title" },
     { path: "adjustment_type", control: "choices", columns: 2, choices: ADJUSTMENT_CHOICES },
@@ -183,7 +173,7 @@ export const K02_LAYOUT: SxCtorLayout = {
     { id: "K02__requirements", titleKey: "sx.section.K02__requirements", fields: ["seller_requirements"] },
     { id: "K02__intake", titleKey: "sx.section.K02__intake", fields: [INTAKE] },
     { id: "K02__delivery", titleKey: "sx.section.K02__delivery", fields: ["duration_value", "duration_unit", "duration_calendar"] },
-    { id: "K02__template", titleKey: "sx.section.K02__template", fields: ["template_mode", "template_source", "document_template_id"] },
+    { id: "K02__template", titleKey: "sx.section.K02__template", fields: ["template_mode"] },
     { id: "K02__checklist", titleKey: "sx.section.K02__checklist", fields: ["completion_checklist", "checklist_template_id"] },
     { id: "K02__rules", titleKey: "sx.section.K02__rules", fields: ["rule_ids", "inline_rules", SERVICE_TERMS] },
     { id: "K02__guarantees", titleKey: "sx.section.K02__guarantees", fields: ["guarantee_ids", "inline_guarantees"] },
@@ -245,30 +235,21 @@ export const K02_LAYOUT: SxCtorLayout = {
     {
       path: "template_mode",
       label: "sx.field.K02__template_requirement",
+      help: false,
       control: "choices",
-      columns: 3,
+      required: true,
+      owns: ["document_template_id"],
       choices: {
         required: { icon: FileTextIcon, descriptionKey: "sx.optd.template_mode.required" },
         optional: { icon: FileQuestionMarkIcon, descriptionKey: "sx.optd.template_mode.optional" },
         not_required: { icon: FileXIcon, descriptionKey: "sx.optd.template_mode.not_required" },
       },
     },
-    {
-      path: "template_source",
-      control: "choices",
-      columns: 3,
-      help: false,
-      visible: templateNeeded,
-      choices: {
-        catalog: { icon: LibraryBigIcon, descriptionKey: "sx.optd.template_source.catalog" },
-        upload: { icon: UploadIcon, descriptionKey: "sx.optd.template_source.upload_edit" },
-        catalog_or_upload: { icon: FilesIcon, descriptionKey: "sx.optd.template_source.catalog_or_upload_edit" },
-      },
-    },
-    { path: "document_template_id", visible: (ctx) => templateNeeded(ctx) && TEMPLATE_SOURCES.has(str(ctx.root.template_source)) },
+    { path: "template_source", hidden: true },
+    { path: "document_template_id", hidden: true, label: "sx.k02.tpl.pick" },
   ],
   transform: k02Transform,
-  validate: k02Validate,
+  validate: k02FormValidate,
 };
 
 export const K29_LAYOUT: SxCtorLayout = {
@@ -298,7 +279,7 @@ export const K03M_LAYOUT: SxCtorLayout = {
   code: "K03-M",
   sections: [
     { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "category_id", "components", "custom_items", "tiers", "duration"] },
-    { id: "K03-M__pricing", titleKey: "sx.section.K03-M__pricing", fields: ["price_factor_ids", "eligibility_rule_ids"] },
+    { id: "K03-M__pricing", titleKey: "sx.section.K03-M__pricing", fields: ["price_factor_ids", "price_factor_overrides", "eligibility_rule_ids"] },
     { id: "kontent", titleKey: "sx.section.kontent", fields: ["description"] },
     { id: "kirish_va_auditoriya", titleKey: "sx.section.kirish_va_auditoriya", fields: ["visibility"] },
     { id: "faollik_va_muddat", titleKey: "sx.section.faollik_va_muddat", fields: ["is_active"] },
@@ -332,9 +313,12 @@ export const K03M_LAYOUT: SxCtorLayout = {
       },
     },
     { path: "tiers.*.included", control: "repeaterInline", addKey: "sx.form.add.line" },
-    { path: "price_factor_ids", help: "sx.help.price_factor_ids" },
+    { path: "price_factor_ids", help: "sx.help.price_factor_ids", inlineAddKey: "sx.k02.fo.addShared" },
+    { path: "price_factor_overrides", control: "factorOverrides", label: "sx.k03m.field.price_factor_overrides", help: "sx.k03m.help.price_factor_overrides", visible: hasFactors },
     { path: "description", help: false },
   ],
+  transform: (next, prev) => k02Prune(next, prev),
+  validate: k03mValidate,
 };
 
 export const K30_LAYOUT: SxCtorLayout = {

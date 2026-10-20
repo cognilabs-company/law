@@ -42,7 +42,7 @@ const RULES: [string, string, Kind][] = [
   ["marketplace.seller.{uid}", "marketplace:lawyer-card:{uid}", "x"],
   ["marketplace.purchase.channel", "marketplace:purchase-channel", "x"],
   ["marketplace.purchase.note", "marketplace:purchase-note", "x"],
-  ["marketplace.purchase.time", "marketplace:purchase-time", "x"],
+  ["marketplace.purchase.contact-speed", "marketplace:purchase-contact-speed", "x"],
   ["marketplace.purchase.submit", "button:marketplace-purchase-submit", "x"],
   ["urgent_advokat.services", "section:urgent-services", "x"],
   ["urgent_advokat.request.direction", "urgent:form-directions", "x"],

@@ -149,11 +149,23 @@ function normFactor(v: unknown): RuntimeFactor {
   };
 }
 
-export type RuntimePricing = { recommendedPrice: number; maximumPrice: number; currency: string; sellerCanPriceBelowRecommended: boolean; factors: RuntimeFactor[]; formula: string };
+export type RuntimePricing = {
+  recommendedPrice: number;
+  maximumPrice: number;
+  currency: string;
+  sellerCanPriceBelowRecommended: boolean;
+  factors: RuntimeFactor[];
+  formula: string;
+  minimumListingPrice?: number;
+  maxListingDiscountPercent?: number | null;
+  negotiationMinimumPrice?: number;
+  raw?: Dict;
+};
 
 function normPricing(v: unknown): RuntimePricing {
   const d = dictOf(v);
   const below = d.seller_can_price_below_recommended;
+  const discount = numOrNull(d.maximum_listing_discount_percent);
   return {
     recommendedPrice: uzs(d, "recommended_price", "base_price"),
     maximumPrice: uzs(d, "maximum_price", "max_price"),
@@ -161,6 +173,10 @@ function normPricing(v: unknown): RuntimePricing {
     sellerCanPriceBelowRecommended: typeof below === "boolean" ? below : true,
     factors: asArr(d.factors).map(normFactor).filter((f) => f.id || f.title),
     formula: trimmed(d.formula),
+    minimumListingPrice: Math.max(0, uzs(d, "minimum_listing_price")),
+    maxListingDiscountPercent: discount !== null && discount >= 0 && discount <= 100 ? discount : null,
+    negotiationMinimumPrice: Math.max(0, uzs(d, "negotiation_minimum_price")),
+    raw: d,
   };
 }
 
@@ -332,8 +348,6 @@ export type RuntimeConfig = {
   rules: ServiceRule[];
   guarantees: RuntimeGuarantee[];
   checklistPreview: ChecklistItem[];
-  // How the service is used, in order (Studio K02 usage_steps): text, or
-  // {title, description}.
   usageSteps: UsageStep[];
   raw: Dict;
 };
@@ -460,7 +474,8 @@ export async function acceptServiceRule(ruleId: string, device: string = deviceL
   };
 }
 
-export type SellerServiceConfigInput = { enabled?: boolean; selectedPrice?: number; negotiationAllowed?: boolean };
+export type SellerServiceConfigInput = { enabled?: boolean; selectedPrice?: number; negotiationAllowed?: boolean; selectedRuleIds?: string[] };
+export type SelectableRule = { id: string; title: string; bodyPreview: string; version: string };
 export type SellerServiceConfig = {
   serviceId: string;
   enabled: boolean | null;
@@ -480,6 +495,8 @@ export type SellerServiceConfig = {
   missingRuleIds: string[];
   priceExplanation: string;
   priceExplanationLines: string[];
+  selectableRules: SelectableRule[] | null;
+  selectedRuleIds: string[] | null;
   raw: Dict;
 };
 
@@ -490,7 +507,18 @@ export function sellerConfigBody(input: SellerServiceConfigInput): Dict {
   if (typeof input.enabled === "boolean") body.enabled = input.enabled;
   if (typeof input.selectedPrice === "number" && Number.isFinite(input.selectedPrice)) body.selected_price = Math.round(input.selectedPrice);
   if (typeof input.negotiationAllowed === "boolean") body.negotiation_allowed = input.negotiationAllowed;
+  if (Array.isArray(input.selectedRuleIds)) body.selected_rule_ids = [...new Set(input.selectedRuleIds.map((x) => x.trim()).filter(Boolean))];
   return body;
+}
+
+function normSelectableRule(v: unknown): SelectableRule {
+  const d = dictOf(v);
+  return {
+    id: trimmed(d.id ?? d.rule_id),
+    title: trimmed(d.title ?? d.name),
+    bodyPreview: trimmed(d.body_preview ?? d.preview ?? d.summary),
+    version: trimmed(d.version ?? d.rule_version),
+  };
 }
 
 function lineOf(v: unknown): string {
@@ -540,7 +568,9 @@ export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfi
   const rulesAccepted = rules.accepted ?? (flatMissing.length ? false : null);
   const status = trimmed(src.status ?? d.status).toLowerCase();
   const rulesStatus = trimmed(src.rules_status ?? d.rules_status).toLowerCase();
-  const discount = numOrNull(src.maximum_listing_discount_percent ?? d.maximum_listing_discount_percent);
+  const discount = numOrNull(src.maximum_listing_discount_percent ?? d.maximum_listing_discount_percent ?? lim.maximum_listing_discount_percent);
+  const selectable = src.selectable_rules ?? d.selectable_rules;
+  const chosen = src.selected_rule_ids ?? d.selected_rule_ids;
   return {
     serviceId: trimmed(src.service_id ?? d.service_id) || serviceId,
     enabled: boolOrNull(src.enabled ?? src.is_enabled ?? src.is_active),
@@ -560,6 +590,8 @@ export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfi
     missingRuleIds,
     priceExplanation: ex.text,
     priceExplanationLines: ex.lines,
+    selectableRules: Array.isArray(selectable) ? selectable.map(normSelectableRule).filter((r) => r.id) : null,
+    selectedRuleIds: Array.isArray(chosen) ? idList(chosen) : null,
     raw: d,
   };
 }

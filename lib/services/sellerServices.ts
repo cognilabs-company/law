@@ -92,6 +92,7 @@ export function scopeKey(scope: ServiceScope): string {
 }
 
 const RULES_PENDING_RE = /^(rules?_pending|pending_rules?|rules?_acceptance_required)$/;
+const BELOW_MIN_CODE_RE = /^(seller_)?price_(below_min(imum)?|too_low|under_min(imum)?)$/;
 
 function statusOf(v: unknown): ServiceStatus {
   const s = asStr(v).trim().toLowerCase();
@@ -330,6 +331,171 @@ export function isAdvocateOnly(s: Pick<BackendService, "advokatRequired" | "slug
   return [s.slug, s.catalogCode ?? ""].some((k) => ADVOCATE_ONLY_PREFIXES.some((p) => k.toLowerCase().startsWith(p)));
 }
 
+export type CatalogCrumb = { id: string; title: string };
+export type CatalogCategory = {
+  id: string;
+  title: string;
+  parentId: string;
+  crumbs: CatalogCrumb[];
+  directCount: number;
+  count: number;
+  directSelected: number;
+  selected: number;
+  children: CatalogCategory[];
+};
+export type CatalogTree = { items: CatalogCategory[]; count: number };
+export type PriceExplanationFactor = { key: string; label: string; effect: string };
+export type PriceExplanation = { text: string; lines: string[]; factors: PriceExplanationFactor[] };
+export type CatalogPricing = { recommended: number; minimum: number; maximum: number; discountPercent: number | null; explanation: PriceExplanation | null };
+export type CatalogItem = {
+  service: BackendService;
+  selected: boolean;
+  status: string;
+  selectedPrice: number;
+  selectable: boolean;
+  lockReason: string;
+  pricing: CatalogPricing | null;
+};
+export type CatalogPage = { items: CatalogItem[]; total: number | null; hasMore: boolean; offset: number };
+export type CatalogQuery = { categoryId?: string; q?: string; offset?: number; limit?: number };
+
+const CATALOG_PATH = "/lawyers/me/services/catalog";
+export const CATALOG_PAGE = 30;
+
+const textOf = (v: unknown): string => (typeof v === "string" || typeof v === "number" ? String(v).trim() : "");
+
+function catalogQs(scope: ServiceScope, qs = new URLSearchParams()): URLSearchParams {
+  if (scope.kind === "org") {
+    qs.set("target_user_id", scope.memberId);
+    qs.set("organization_id", scope.orgId);
+  }
+  return qs;
+}
+
+function normCrumb(v: unknown): CatalogCrumb {
+  if (typeof v === "string") return { id: "", title: v.trim() };
+  const d = asDict(v);
+  return { id: textOf(d.id ?? d.value), title: textOf(d.title ?? d.label ?? d.name) };
+}
+
+export function normCatalogCategory(v: unknown): CatalogCategory {
+  const d = asDict(v);
+  const direct = asNum(d.direct_services_count);
+  const directSelected = asNum(d.direct_selected_count);
+  return {
+    id: textOf(d.id ?? d.value),
+    title: textOf(d.title ?? d.label ?? d.name) || textOf(d.slug),
+    parentId: textOf(d.parent_id),
+    crumbs: asArr(d.breadcrumbs).map(normCrumb).filter((c) => c.title),
+    directCount: direct,
+    count: asNum(d.services_count, direct),
+    directSelected,
+    selected: asNum(d.selected_count, directSelected),
+    children: asArr(d.children).map(normCatalogCategory).filter((c) => c.id),
+  };
+}
+
+export async function getSellerCatalogTree(scope: ServiceScope, signal?: AbortSignal): Promise<CatalogTree> {
+  const qs = catalogQs(scope).toString();
+  const raw = await http(`${CATALOG_PATH}/categories${qs ? `?${qs}` : ""}`, { signal });
+  const d = asDict(raw);
+  const items = (Array.isArray(raw) ? raw : asArr(d.items ?? d.categories)).map(normCatalogCategory).filter((c) => c.id);
+  return { items, count: asNum(d.count, items.length) };
+}
+
+function factorOf(v: unknown): PriceExplanationFactor {
+  const d = asDict(v);
+  return { key: textOf(d.key ?? d.code), label: textOf(d.label ?? d.title ?? d.name), effect: textOf(d.effect ?? d.value ?? d.delta) };
+}
+
+export function priceExplanationOf(v: unknown): PriceExplanation | null {
+  let text = "";
+  let lines: string[] = [];
+  let factors: PriceExplanationFactor[] = [];
+  if (typeof v === "string") text = v.trim();
+  else if (Array.isArray(v)) {
+    for (const x of v) {
+      if (typeof x === "string" || typeof x === "number") {
+        lines.push(String(x).trim());
+        continue;
+      }
+      const f = factorOf(x);
+      if (f.label && f.effect) factors.push(f);
+      else lines.push(textOf(asDict(x).text ?? asDict(x).message) || f.label);
+    }
+  } else {
+    const d = asDict(v);
+    text = textOf(d.text ?? d.message ?? d.summary ?? d.explanation);
+    lines = asArr(d.lines ?? d.items ?? d.breakdown).map((x) => textOf(x) || textOf(asDict(x).text ?? asDict(x).label));
+    factors = asArr(d.factors).map(factorOf).filter((f) => f.label);
+  }
+  lines = lines.filter(Boolean);
+  if (!text && !lines.length && !factors.length) return null;
+  return { text, lines, factors };
+}
+
+export function catalogPricingOf(v: unknown): CatalogPricing | null {
+  const d = asDict(v);
+  if (!Object.keys(d).length || Array.isArray(v)) return null;
+  const pct = d.maximum_listing_discount_percent;
+  const discount = typeof pct === "number" || (typeof pct === "string" && pct.trim()) ? Number(pct) : NaN;
+  return {
+    recommended: Math.max(0, uzs(d, "recommended_price")),
+    minimum: Math.max(0, uzs(d, "minimum_listing_price")),
+    maximum: Math.max(0, uzs(d, "maximum_price")),
+    discountPercent: Number.isFinite(discount) && discount >= 0 && discount <= 100 ? discount : null,
+    explanation: priceExplanationOf(d.price_explanation),
+  };
+}
+
+export function normCatalogItem(v: unknown, locale = "uz"): CatalogItem {
+  const d = asDict(v);
+  const inner = asDict(d.service);
+  const nested = Object.keys(inner).length > 0 && !Array.isArray(d.service);
+  const service = normService(nested ? { ...d, ...inner } : d, locale);
+  const id = (nested ? textOf(inner.id) : "") || textOf(d.service_id) || service.id;
+  const lock = d.lock_reason;
+  const lockText = typeof lock === "string" ? lock.trim() : textOf(asDict(lock).message ?? asDict(lock).text ?? asDict(lock).title);
+  return {
+    service: { ...service, id },
+    selected: d.selected === true,
+    status: textOf(d.selection_status).toLowerCase(),
+    selectedPrice: uzs(d, "selected_price"),
+    selectable: d.selectable !== false,
+    lockReason: lockText,
+    pricing: catalogPricingOf(d.pricing_limits),
+  };
+}
+
+export async function getSellerCatalogPage(scope: ServiceScope, query: CatalogQuery, locale: string, signal?: AbortSignal): Promise<CatalogPage> {
+  const limit = Math.min(100, Math.max(1, query.limit ?? CATALOG_PAGE));
+  const offset = Math.max(0, query.offset ?? 0);
+  const qs = new URLSearchParams();
+  if (query.categoryId) {
+    qs.set("category_id", query.categoryId);
+    qs.set("include_descendants", "true");
+  }
+  const q = (query.q ?? "").trim().slice(0, 120);
+  if (q) qs.set("q", q);
+  qs.set("limit", String(limit));
+  qs.set("offset", String(offset));
+  catalogQs(scope, qs);
+  const raw = await http(`${CATALOG_PATH}?${qs}`, { signal });
+  const d = asDict(raw);
+  const rows = Array.isArray(raw) ? raw : asArr(d.items ?? d.services ?? d.data);
+  const items = rows.map((x) => normCatalogItem(x, locale)).filter((x) => x.service.id);
+  const totalRaw = d.total ?? d.total_count;
+  const total = typeof totalRaw === "number" || (typeof totalRaw === "string" && totalRaw.trim()) ? asNum(totalRaw) : null;
+  const count = asNum(d.count, -1);
+  const hasMore =
+    typeof d.has_more === "boolean"
+      ? d.has_more
+      : total !== null
+        ? offset + rows.length < total
+        : count > offset + rows.length || rows.length >= limit;
+  return { items, total: total ?? (count > rows.length ? count : null), hasMore, offset };
+}
+
 export function isLawyerSeller(sellerType: string, fallbackRole?: string): boolean {
   const t = sellerType.trim().toLowerCase();
   if (t) return t === "yurist" || t === "lawyer";
@@ -356,6 +522,7 @@ export function hiddenReasons(item: ManagedService, profile: ServiceSellerProfil
 
 export type ServiceErrorKind =
   | "range"
+  | "belowMin"
   | "noPrice"
   | "advocateOnly"
   | "pendingAccount"
@@ -373,6 +540,12 @@ export function serviceErrorOf(e: unknown, locale = "uz"): ServiceError {
   if (!(e instanceof ApiError)) return out(isOffline(e) ? "offline" : "unknown");
   const detail = asDict(e.data.detail);
   const text = e.detail ?? "";
+  const code = (e.code || asStr(detail.code) || asStr(e.data.code)).trim().toLowerCase();
+  if (BELOW_MIN_CODE_RE.test(code)) {
+    const ctx = { ...asDict(e.data.context), ...asDict(detail.context) };
+    const min = uzs(detail, "minimum_listing_price", "minimum_price", "min_price") || uzs(ctx, "minimum_listing_price", "minimum_price");
+    return out("belowMin", { min, detail: text });
+  }
   if (e.status === 422) {
     const limits = normLimits(detail.pricing_limits ?? detail.limits ?? asDict(e.data).pricing_limits ?? detail, locale);
     if (limits) return out(isZeroBand(limits) ? "noPrice" : "range", { min: limits.min, max: limits.max, limits });

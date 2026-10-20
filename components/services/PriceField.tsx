@@ -10,6 +10,7 @@ import { IconAward, IconBriefcase, IconCoins, IconInfo, IconMapPin, IconShieldCh
 import { som } from "./bits";
 import { RuntimeFactors } from "./RuntimeFactors";
 import "./config.css";
+import "./catalogPicker.css";
 
 export const digitsOf = (v: string) => v.replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(0, 12);
 
@@ -75,6 +76,7 @@ export default function PriceField({
   runtimeState,
   explanation,
   minimum = 0,
+  floorPct = null,
 }: {
   id: string;
   value: string;
@@ -87,6 +89,7 @@ export default function PriceField({
   runtimeState: "idle" | "loading" | "ready" | "failed";
   explanation: { text: string; lines: string[] } | null;
   minimum?: number;
+  floorPct?: number | null;
 }) {
   const t = useTranslations("sellerServices.form");
   const tl = useTranslations("sellerServices.limits");
@@ -123,7 +126,8 @@ export default function PriceField({
   const expl = explanation && (explanation.text || explanation.lines.length) ? explanation : null;
   const showLimits = rec > 0 || Boolean(runtime) || minimum > 0;
   const bad = above || below || Boolean(error);
-  const described = [hintId, expl ? explId : "", showLimits ? limId : ""].filter(Boolean).join(" ");
+  const floorId = `${id}-floor`;
+  const described = [hintId, minimum > 0 ? floorId : "", expl ? explId : "", showLimits ? limId : ""].filter(Boolean).join(" ");
 
   const hint = error
     ? error
@@ -214,6 +218,13 @@ export default function PriceField({
       <p id={hintId} className={`svprice2__hint${bad ? " is-bad" : ""}`} role={bad ? "alert" : undefined}>
         {hint}
       </p>
+
+      {minimum > 0 ? (
+        <p id={floorId} className="svfloor">
+          <IconInfo aria-hidden="true" />
+          <span>{floorPct !== null ? tc("floorLine", { min: som(minimum), pct: String(floorPct) }) : tc("floorLineNoPct", { min: som(minimum) })}</span>
+        </p>
+      ) : null}
 
       {showLimits ? (
         <div id={limId} className={`svlim${bad ? " is-bad" : ""}`}>

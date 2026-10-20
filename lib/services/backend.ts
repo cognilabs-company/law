@@ -4306,7 +4306,9 @@ export type LawyerClient = {
   activeCaseIds: string[];
   hasConflict: boolean;
   lastActiveAt?: string;
+  phoneVisible?: boolean | null;
 };
+const phoneVisibleOf = (d: Dict): boolean | null => (typeof d.phone_visible === "boolean" ? d.phone_visible : asStr(d.phone_hidden_reason) ? false : null);
 // T1B-05: a client outside LexGo, kept in the seller's own base (used by the
 // conflict check together with real orders/cases).
 export type LawyerClientInput = { name: string; phone?: string; pinfl?: string; company?: string; opponents?: string[]; representatives?: string[]; notes?: string };
@@ -4333,7 +4335,7 @@ export async function runCaseAiTool(caseId: string, tool: CaseAiTool, fileVersio
 // client never worked with this seller.
 export type LawyerClientDetail = {
   type: "user" | "manual";
-  client: { id: string; name: string; phone: string; region: string; company: string; notes: string; createdAt: string };
+  client: { id: string; name: string; phone: string; region: string; company: string; notes: string; createdAt: string; phoneVisible?: boolean | null };
   cases: BackendCase[];
   orders: BackendOrder[];
   chats: { id: string; status: string; orderId?: string; caseId?: string; createdAt: string }[];
@@ -4346,7 +4348,7 @@ export async function getLawyerClientDetail(id: string): Promise<LawyerClientDet
   const c = asDict(d.client);
   return {
     type: asStr(d.type) === "manual" ? "manual" : "user",
-    client: { id: asStr(c.id), name: asStr(c.name), phone: asStr(c.phone), region: asStr(c.region), company: asStr(c.company), notes: asStr(c.notes), createdAt: asStr(c.created_at) },
+    client: { id: asStr(c.id), name: asStr(c.name), phone: asStr(c.phone), region: asStr(c.region), company: asStr(c.company), notes: asStr(c.notes), createdAt: asStr(c.created_at), phoneVisible: phoneVisibleOf(c) ?? phoneVisibleOf(d) },
     cases: asArr(d.cases).map(normCase),
     orders: asArr(d.orders).map(normOrder),
     chats: asArr(d.chats).map((x) => { const r = asDict(x); return { id: asStr(r.id), status: asStr(r.status), orderId: asStr(r.order_id) || undefined, caseId: asStr(r.case_id) || undefined, createdAt: asStr(r.created_at) }; }),
@@ -4367,6 +4369,7 @@ export async function getLawyerClients(): Promise<LawyerClient[]> {
       activeCaseIds: asArr(d.active_case_ids).map((x) => asStr(x)),
       hasConflict: Boolean(d.has_conflict),
       lastActiveAt: asStr(d.last_active_at) || undefined,
+      phoneVisible: phoneVisibleOf(d),
     };
   });
 }

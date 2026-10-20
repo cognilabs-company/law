@@ -92,6 +92,7 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
 
   const st = useEditorState(init, {
     lockLive: true,
+    reviewEdit: true,
     onCreated: async (d) => {
       await guardRef.current?.release();
       router.replace(objectHref(d.id));

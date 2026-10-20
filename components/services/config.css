@@ -27,7 +27,7 @@
 .svcfg-neg.msv__tag{background:var(--dk-tint-ok,#E6F8EF);color:var(--dk-txt-ok,#006B47)}
 .svcfg-req{display:flex;flex-direction:column;gap:6px}
 .svcfg-req .svcfg-req__row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
-.svcfg-req .svcfg-req__h{font-size:.76rem;font-weight:700;color:var(--gray)}
+.svcfg-req .svcfg-req__h{flex-basis:100%;font-size:.76rem;font-weight:700;line-height:1.35;color:var(--gray)}
 .svcfg-req .svcfg-req__chips{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
 .svcfg-req .svcfg-req__c{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:var(--dk-surface-2,#F1F5FB);box-shadow:inset 0 0 0 1px var(--line);font-size:.74rem;font-weight:600;color:var(--ink)}
 .svcfg-req .svcfg-req__c svg{flex:none;width:12px;height:12px}

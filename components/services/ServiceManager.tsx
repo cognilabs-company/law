@@ -256,6 +256,7 @@ export default function ServiceManager({
 
   const errText = (e: ServiceError) => {
     if (e.kind === "range") return t("errors.range", { min: som(e.min), max: som(e.max) });
+    if (e.kind === "belowMin") return e.min ? t("config.belowMin", { min: som(e.min) }) : t("config.belowMinNoValue");
     if (owner && e.kind === "forbidden") return t("errors.forbiddenOwner");
     if (owner && e.kind === "pendingAccount") return t("errors.pendingAccountOwner");
     return t(`errors.${e.kind}`);

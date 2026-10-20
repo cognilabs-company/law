@@ -32,6 +32,7 @@ import { durationParts, guaranteesOf } from "./runtime/facts";
 import { DurationChip } from "./runtime/DurationChip";
 import { GuaranteeList } from "./runtime/Guarantees";
 import { ServiceFacts, ServiceFactsSkeleton } from "./runtime/ServiceFacts";
+import SecondOpinionEntry from "./order/SecondOpinionEntry";
 
 type Status = "loading" | "ready" | "notfound" | "error";
 
@@ -378,6 +379,7 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
               </>
             )}
           </div>
+          {live ? <SecondOpinionEntry layout="side" aiId={`${sellerAiId}.second-opinion`} /> : null}
         </aside>
       </div>
 

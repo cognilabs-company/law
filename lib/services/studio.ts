@@ -16,6 +16,20 @@ export const STUDIO_APPROVAL_FREE = ["K16"];
 export { STUDIO_RETIRED_CODES, isRetiredStudioCode };
 const liveCodes = (codes: readonly string[]): string[] => codes.filter((c) => !isRetiredStudioCode(c));
 const stillBlocked = (blocked: boolean, before: readonly string[], after: readonly string[]): boolean => blocked && (after.length > 0 || before.length === 0);
+const STUDIO_FACTORS_GROUP = "services_packages";
+const FACTOR_CODE = "K34";
+const CATEGORY_CODE = "K01";
+function factorsFirst<T>(list: readonly T[], codeOf: (x: T) => string): T[] | null {
+  const codes = list.map((x) => codeOf(x).trim().toUpperCase());
+  const f = codes.indexOf(FACTOR_CODE);
+  const c = codes.indexOf(CATEGORY_CODE);
+  if (f < 0 || c < 0 || f < c) return null;
+  const out = list.slice();
+  const [moved] = out.splice(f, 1);
+  out.splice(c, 0, moved);
+  return out;
+}
+const withoutCategoryGate = (code: string, groupKey: string, list: readonly string[]): string[] => (code === FACTOR_CODE && groupKey === STUDIO_FACTORS_GROUP ? list.filter((x) => x !== CATEGORY_CODE) : [...list]);
 export const STUDIO_FILE_EXT = [".docx", ".doc", ".pdf", ".xlsx", ".xls", ".txt"];
 export const STUDIO_FILE_ACCEPT = STUDIO_FILE_EXT.join(",");
 export const STUDIO_HEARTBEAT_MS = 25_000;
@@ -133,13 +147,15 @@ function experienceOf(r: Dict): StudioExperience {
 function navigationOf(r: Dict): StudioNavigation | null {
   const n = asDict(r.navigation);
   if (!Object.keys(n).length) return null;
+  const code = first(r.code, r.constructor_code, r.key, r.id).toUpperCase();
+  const groupKey = asStr(n.group_key);
   return {
-    groupKey: asStr(n.group_key),
+    groupKey,
     groupTitle: asStr(n.group_title),
     groupOrder: numOrNull(n.group_order) ?? 99,
     step: numOrNull(n.step_number) ?? 0,
     steps: numOrNull(n.step_count) ?? 0,
-    requiredBefore: liveCodes(strings(n.required_before)),
+    requiredBefore: withoutCategoryGate(code, groupKey, liveCodes(strings(n.required_before))),
     recommendedBefore: liveCodes(strings(n.recommended_before)),
     nextSteps: liveCodes(strings(n.next_steps)),
     reason: asStr(n.sequence_reason),
@@ -223,7 +239,8 @@ const pct = (v: unknown, done: number, all: number) => Math.max(0, Math.min(100,
 export function normStudioGroup(raw: unknown, i = 0): StudioGroup {
   const d = asDict(raw);
   const all = strings(d.codes).length ? strings(d.codes) : asArr(d.constructors).map((c) => first(asDict(c).code)).filter(Boolean);
-  const codes = liveCodes(all);
+  const live = liveCodes(all);
+  const codes = (first(d.key, d.id) === STUDIO_FACTORS_GROUP ? factorsFirst(live, (c) => c) : null) ?? live;
   const dropped = all.length - codes.length;
   const listed = asArr(d.constructors).map(normStudioConstructor).filter((c) => c.code && codes.includes(c.code));
   const recount = dropped > 0 && listed.length === codes.length;
@@ -260,18 +277,20 @@ export function normStudioJourney(raw: unknown, i = 0): StudioJourney {
     };
   });
   const dropped = all.some((s) => isRetiredStudioCode(s.code));
-  const steps = all
-    .filter((s) => !isRetiredStudioCode(s.code))
-    .map((s, j) => {
-      const missingRequired = liveCodes(s.missingRequired);
-      return { ...s, step: dropped ? j + 1 : s.step, missingRequired, blocked: stillBlocked(s.blocked, s.missingRequired, missingRequired) };
-    });
+  const kept = all.filter((s) => !isRetiredStudioCode(s.code));
+  const moved = factorsFirst(kept, (s) => s.code);
+  const nums = kept.map((s) => s.step).sort((a, b) => a - b);
+  const steps = (moved ?? kept).map((s, j) => {
+    const live = liveCodes(s.missingRequired);
+    const missingRequired = moved && s.code.trim().toUpperCase() === FACTOR_CODE ? live.filter((c) => c !== CATEGORY_CODE) : live;
+    return { ...s, step: dropped ? j + 1 : moved ? nums[j] : s.step, missingRequired, blocked: stillBlocked(s.blocked, s.missingRequired, missingRequired) };
+  });
   const completed = dropped ? steps.filter((s) => s.completed).length : (numOrNull(d.completed_count) ?? steps.filter((s) => s.completed).length);
   return {
     key: first(d.key, d.id) || `j${i}`,
     title: first(d.title, d.key),
     description: asStr(d.description),
-    codes: liveCodes(strings(d.codes).length ? strings(d.codes) : steps.map((s) => s.code)),
+    codes: strings(d.codes).length ? (factorsFirst(liveCodes(strings(d.codes)), (c) => c) ?? liveCodes(strings(d.codes))) : steps.map((s) => s.code),
     steps,
     completed,
     progress: dropped ? pct(null, completed, steps.length) : pct(d.progress_percent, completed, numOrNull(d.step_count) ?? steps.length),
@@ -688,7 +707,7 @@ export function normStudioConstructor(raw: unknown): StudioConstructor {
     .filter((x) => x.title);
   const operations = operationsOf(r);
   const missingAll = strings(r.missing_required);
-  const missingRequired = liveCodes(missingAll);
+  const missingRequired = withoutCategoryGate(code.toUpperCase(), asStr(asDict(r.navigation).group_key), liveCodes(missingAll));
   const availability = asStr(r.availability);
   return {
     code,
@@ -1043,6 +1062,18 @@ function renumbered(c: StudioConstructor, groups: readonly StudioGroup[], shrunk
   return at < 0 || !g ? c : { ...c, navigation: { ...nav, step: at + 1, steps: g.codes.length } };
 }
 
+function factorsFirstNav(c: StudioConstructor, groups: readonly StudioGroup[]): StudioConstructor {
+  const nav = c.navigation;
+  if (!nav || nav.groupKey !== STUDIO_FACTORS_GROUP) return c;
+  const g = groups.find((x) => x.key === STUDIO_FACTORS_GROUP);
+  const at = g ? g.codes.indexOf(c.code) : -1;
+  if (!g || at < 0 || nav.step === at + 1) return c;
+  const after = g.codes[at + 1] ?? "";
+  const code = c.code.toUpperCase();
+  const nextSteps = code === FACTOR_CODE ? (after ? [after] : []) : code === CATEGORY_CODE ? nav.nextSteps.map((x) => (x === FACTOR_CODE ? after : x)).filter((x) => !!x && x !== c.code) : nav.nextSteps;
+  return { ...c, navigation: { ...nav, step: at + 1, steps: g.codes.length, nextSteps } };
+}
+
 function parseRegistry(res: unknown): StudioRegistry {
   const d = asDict(res);
   const all = listOf(res, ["items", "constructors", "data", "results"]).map(normStudioConstructor).filter((c) => c.code);
@@ -1061,7 +1092,10 @@ function parseRegistry(res: unknown): StudioRegistry {
       .filter((g) => [...strings(g.codes), ...asArr(g.constructors).map((c) => first(asDict(c).code))].some(isRetiredStudioCode))
       .map((g) => first(g.key, g.id)),
   );
-  const items = all.filter((c) => !retired.has(c.code)).map((c) => renumbered(c, groups, shrunk));
+  const items = all
+    .filter((c) => !retired.has(c.code))
+    .map((c) => renumbered(c, groups, shrunk))
+    .map((c) => factorsFirstNav(c, groups));
   const listed = numOrNull(d.constructor_count);
   const constructorCount = listed === null ? null : Math.max(0, listed - retired.size);
   return { items, userRoles, groups, journeys, constructorCount };
