@@ -56,6 +56,11 @@
       "file": "../../md/BACKEND_ASKS_AFTER_AUDIT_FIXES_2026_10_19.md",
       "title": "Audit tuzatishlaridan keyingi so'rovlar — backend uchun (19.10)",
       "description": "19.10 dagi audit va AI copilot hujjatlaringizga javob. Frontend yangi kontraktga o'tdi (3c66810, a997080). Bloklovchi: A1 — studio_admin hisobiga /admin/studio/approvals ro'yxati va tafsiloti 403 qaytaryapti. Hujjat va production farqlari: A2 — categories kaliti 404, haqiqiysi service-categories; A3 — AI sahifalar reyestridagi 9 ta yo'l ilovada yo'q yoki noto'g'ri kabinetga olib boradi; A4 — yaratish jarayoni qadamlarida maydon qaysi konstruktor payload'ida saqlanishi noaniq. S1–S17: OpenAPI'da turi berilmagan, frontend taxmin qilgan javob shakllari (bulk-publish, status_counts, withdraw/restore bayroqlari, izohlar, reorder, summary, marketplace sozlamalari, AI execute va artifacts). Q1–Q4 savollar: xodim hisobiga mijoz copilot berilishi, ichki kanallarda qayta ulanish, page_id, bo'sh ma'lumotnomalar. T1–T2: test mijoz va yurist hisoblari hamda test buyurtmalar."
+    },
+    {
+      "file": "../../md/BACKEND_STUDIO_CONSTRUCTOR_USAGE_2026_10_20.md",
+      "title": "Studio — konstruktorlardan foydalanish statistikasi, backend uchun (20.10)",
+      "description": "Studio bosh sahifasidagi yuqori kartalar 4 taga qisqaryapti: Xizmatlar, Paketlar, bugun ishlatilgan Konstruktorlar va Tasdiq navbati. 3-karta uchun backend'da yangi ma'lumot kerak: har bir konstruktorga kuniga necha marta kirilgani. So'ralayotganlari: POST /studio/constructors/{code}/visits (sahifa ochilganda, 60 soniyalik dedup bilan), GET /studio/constructors/usage?date=… (used_count, total_opens, har bir konstruktor bo'yicha opens, users_count, last_opened_at; Asia/Tashkent vaqti), ixtiyoriy ravishda summary ichida constructor_usage_today va realtime hodisa. Ichida: javob shakli, xato kodlari, qabul qilish ro'yxati va backend chiqquncha frontend qanday ishlashi."
     }
   ]
 }

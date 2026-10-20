@@ -21,6 +21,7 @@ import { EditorActions, EditorBelow, EditorMeta, editorCrumbs, type EditorMenuKe
 import { ctxModeOf, isSaveShortcut } from "./model";
 import { useEditorState, type EditorAlert, type EditorInit, type EditorState } from "./useEditorState";
 import { useLeaveGuard, type LeaveGuard } from "./useLeaveGuard";
+import { useCtorVisit } from "../home/ctorUsage";
 
 export type EditorProps = { id: string; newCode: string; ctx: string; focus?: string; prefill?: Readonly<Record<string, string>> };
 
@@ -100,6 +101,7 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
       if (FILE_PATHS.has(path)) setDrawer({ open: true, tab: "files" });
     },
   });
+  useCtorVisit(st.code, init.id ? "editor" : "create");
 
   const guard = useLeaveGuard(st.changed && !st.readOnly, {
     title: t("sx.editor.leave.title"),

@@ -61,6 +61,7 @@ const nextConfig: NextConfig = {
   // /portal/yurist; send those links to the real routes instead of a 404.
   async redirects() {
     return [
+      { source: "/:locale(uz|ru|en)/admin/studio/j/:key", destination: "/:locale/admin/studio", permanent: false },
       { source: "/:locale(uz|ru|en)/portal/advokat/:path*", destination: "/:locale/portal/advocate/:path*", permanent: false },
       { source: "/:locale(uz|ru|en)/portal/yurist/:path*", destination: "/:locale/portal/lawyer/:path*", permanent: false },
       { source: "/:locale(uz|ru|en)/marketplace/lawyers", destination: "/:locale/lawyers", permanent: false },

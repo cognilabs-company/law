@@ -19,6 +19,7 @@ import { SxPage } from "../layout/Page";
 import { groupHue, type SxHue } from "../tones";
 import type { SxCrumb } from "../types";
 import { useStudioLabels, type StudioLabels, type SxTranslate } from "../useStudioLabels";
+import { useCtorVisit } from "../home/ctorUsage";
 import { groupOfCode } from "../home/groupModel";
 import { journeyTypeOfCode } from "../shared/journeyLinks";
 import { StartJourneyButton } from "../shared/StartJourney";
@@ -315,6 +316,7 @@ export function CtorPage({ code, initial }: CtorPageProps): ReactElement {
   const ctor = findCtor(reg.items, code);
   const realCode = ctor?.code ?? code;
   const missing = reg.avail === "on" && reg.items.length > 0 && !ctor;
+  useCtorVisit(ctor ? realCode : "", "records");
   if (missing) {
     return (
       <SxPage title={t("sx.editor.unknownTitle")} section="home" crumbs={[]} aiId="admin.studio.list">

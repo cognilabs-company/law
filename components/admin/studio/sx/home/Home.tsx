@@ -14,10 +14,8 @@ import { SxNote } from "../layout/Note";
 import { SxPage } from "../layout/Page";
 import { groupHue } from "../tones";
 import { useStudioLabels, type StudioLabels } from "../useStudioLabels";
-import { EntityCards } from "./EntityCards";
 import { GroupCard, GroupCardSkeleton, type GroupCardKind, type GroupCardModel } from "./GroupCard";
 import { groupNext, groupProgress, groupSteps } from "./groupModel";
-import { LaunchPaths } from "./LaunchPaths";
 import { Overview } from "./Overview";
 import { ResumePanel } from "./ResumePanel";
 import { groupTotalsOf, lastActivityOf, needCountsOf, sumRecords, useStudioSummary, type NeedCounts, type StudioSummary } from "./summary";
@@ -114,7 +112,6 @@ export function Home(): ReactElement {
       <>
         <div className="sx-home">
           <Overview done={sumDone} total={sumTotal} groups={cards.length} groupsDone={groupsDone} ready={cards.length > 0 || (reg.at > 0 && !reg.error)} summary={summary} />
-          {summary.data?.entityCards?.length ? <EntityCards cards={summary.data.entityCards} /> : null}
           <div className="sx-home__band">
             <WaitingPanel data={actions} max={3} aiId="admin.studio.home.waiting" />
             <ResumePanel />
@@ -152,7 +149,6 @@ export function Home(): ReactElement {
               </ol>
             ) : null}
           </section>
-          <LaunchPaths journeys={reg.journeys} items={reg.items} />
         </div>
       </>
     </SxPage>
