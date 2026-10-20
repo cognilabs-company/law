@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";
 import { logApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
@@ -48,6 +48,7 @@ import { useSchemaModel } from "../schema/useSchemaModel";
 import { invalidOptionPaths, validatePayload } from "../schema/model";
 import { focusFieldPath } from "../schema/focus";
 import { studioEventCode, studioEventObjectId, useStudioLive } from "../live";
+import { withServerMessages } from "./serverMessages";
 import { useEditorErrorText } from "./useEditorErrorText";
 import { inheritedSlugOf, noteInheritedSlug, slugErrorsOnTitle, slugOf, withGeneratedSlug } from "./slug";
 import {
@@ -292,6 +293,7 @@ function sortByDom(idPrefix: string, paths: readonly string[]): string[] {
 
 export function useEditorState(init: EditorInit, opts: EditorOptions = {}): EditorState {
   const t = useTranslations("studio");
+  const locale = useLocale();
   const errText = useEditorErrorText();
   const reg = useStudioRegistry();
   const access = useStudioAccess();
@@ -766,7 +768,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     const se = studioErrorOf(e);
     const one = Object.keys(se.fieldErrors).length ? null : structuredFieldOf(e);
     const found: Record<string, string> = one ? { [one.field]: `@code:${one.code}` } : se.fieldErrors;
-    const raw = Object.keys(found).length ? targetErrors(normErrorPaths(stripPayload(found)), latestRef.current?.draft.payload ?? payload) : {};
+    const raw = Object.keys(found).length ? withServerMessages(targetErrors(normErrorPaths(stripPayload(found)), latestRef.current?.draft.payload ?? payload), e, locale) : {};
     if (Object.keys(raw).length) {
       setActionError(null);
       showServer(raw);
@@ -910,7 +912,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       slugSentRef.current = slugOf(body);
       const check = await validateStudioDraft(code, body, undefined, recordId);
       if (!check.ok && Object.keys(check.errors).length) {
-        showServer(targetErrors(normErrorPaths(check.errors), cur.payload));
+        showServer(withServerMessages(targetErrors(normErrorPaths(check.errors), cur.payload), check.raw, locale));
         return false;
       }
       setServerErrors(EMPTY_ERRORS);

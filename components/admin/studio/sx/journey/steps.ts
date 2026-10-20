@@ -13,14 +13,14 @@ export const FALLBACK_STEP_KEYS: Readonly<Record<StudioJourneyType, readonly str
 const FIELD_HINTS: Readonly<Record<StudioJourneyType, Readonly<Record<string, readonly string[]>>>> = {
   service: {
     category: ["title", "category_id"],
-    pricing: ["base_price", "max_price", "price_factor_ids", "negotiation_allowed"],
+    pricing: ["base_price", "max_price", "price_factor_ids", "price_factor_overrides", "negotiation_allowed"],
     requirements: ["seller_requirements", "executor_type"],
     duration: ["duration_value", "duration_unit", "duration_calendar"],
     delivery: ["duration_value", "duration_unit", "duration_calendar"],
     template: ["template_mode", "template_source", "document_template_id"],
-    checklist: ["checklist_template_id"],
-    rules: ["rule_ids"],
-    guarantees: ["guarantee_ids"],
+    checklist: ["completion_checklist", "checklist_template_id"],
+    rules: ["rule_ids", "inline_rules"],
+    guarantees: ["guarantee_ids", "inline_guarantees"],
     discovery: ["description", "client_value", "discovery_terms"],
     review: ["is_active"],
   },
@@ -38,9 +38,24 @@ const FIELD_HINTS: Readonly<Record<StudioJourneyType, Readonly<Record<string, re
   },
 };
 
+const COMPANIONS: Readonly<Record<StudioJourneyType, Readonly<Record<string, string>>>> = {
+  service: { price_factor_ids: "price_factor_overrides", rule_ids: "inline_rules", guarantee_ids: "inline_guarantees" },
+  package: {},
+};
+
+export function withCompanions(type: StudioJourneyType, fields: readonly string[]): string[] {
+  const pairs = COMPANIONS[type];
+  const out: string[] = [];
+  for (const f of fields) {
+    if (!out.includes(f)) out.push(f);
+    const mate = Object.prototype.hasOwnProperty.call(pairs, f) ? pairs[f] : "";
+    if (mate && !fields.includes(mate) && !out.includes(mate)) out.push(mate);
+  }
+  return out;
+}
+
 const FALLBACK_CODES: Readonly<Record<string, string>> = {
   category: "K01",
-  checklist: "K09",
   rules: "K31",
   guarantees: "K32",
   eligibility: "K26",
@@ -100,7 +115,7 @@ export function stepLabel(key: string, t: (key: string) => string, title = ""): 
 
 function fromDef(type: StudioJourneyType, s: JourneyDefStep): JourneyStepDef {
   const hint = FIELD_HINTS[type][s.key] ?? [];
-  const out: JourneyStepDef = { key: s.key, title: s.title, code: s.code, fields: s.fields.length ? s.fields : hint, required: s.required };
+  const out: JourneyStepDef = { key: s.key, title: s.title, code: s.code, fields: s.fields.length ? withCompanions(type, s.fields) : hint, required: s.required };
   return s.formCode ? { ...out, formCode: s.formCode } : out;
 }
 

@@ -34,6 +34,7 @@ type RefPickerBase = {
   emptyId?: string;
   inlineContext?: InlineContext;
   inlineOwner?: string;
+  inlineAddKey?: string;
 };
 
 export type RefPickerProps = RefPickerBase &
@@ -111,7 +112,7 @@ export function SourceEmptyLine({ state, id, aiId }: { state: SourceEmptyState; 
 }
 
 export function RefPicker(props: RefPickerProps): ReactElement {
-  const { a11y, label, source, required, readOnly, invalid, placeholder, onBlur, aiId, code, pattern, recordId, emptyId, inlineContext, inlineOwner } = props;
+  const { a11y, label, source, required, readOnly, invalid, placeholder, onBlur, aiId, code, pattern, recordId, emptyId, inlineContext, inlineOwner, inlineAddKey } = props;
   const plain = useReferenceOptions(source);
   const tree = isCategorySource(source);
   const cat = useCategoryOptions({ source, selfId: recordId, guardCycle: tree && code.toUpperCase() === "K01" && pattern === "parent_id" });
@@ -131,6 +132,7 @@ export function RefPicker(props: RefPickerProps): ReactElement {
     context: inlineContext ?? NO_CONTEXT,
     enabled: !readOnly && !tree,
     aiId: aiId ?? a11y.id,
+    addKey: inlineAddKey,
   });
   const empty = useSourceEmpty(source, !readOnly, inline?.refresh ?? 0);
   const emptyLine: SourceEmptyState = inline && empty.kind === "create" ? { kind: "plain", text: empty.text } : empty;

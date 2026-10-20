@@ -31,6 +31,9 @@ import type { StudioLabels } from "../useStudioLabels";
 import { useStudioLabels } from "../useStudioLabels";
 import { useCategoryTitle } from "./categoryOptions";
 import { DiscoveryTerms } from "./DiscoveryTerms";
+import { ChecklistEditor } from "./k02/ChecklistEditor";
+import { FactorOverrides } from "./k02/FactorOverrides";
+import { FACTOR_IDS, canSuggest, suggestBody } from "./k02/model";
 import { RefPicker } from "./RefPicker";
 import { NEON_WIDE_RO, fieldIcon, type SxLook } from "./neonLook";
 import { RichText, RichTextView } from "./RichText";
@@ -40,6 +43,7 @@ import {
   effectiveSource,
   fieldLabelOf,
   getAt,
+  lastKey,
   layoutCtx,
   layoutFieldFor,
   optionTextOf,
@@ -49,6 +53,8 @@ import {
 } from "./model";
 
 type Dict = Record<string, unknown>;
+
+const FACTOR_SOURCE = "/studio/reference/price-factors";
 
 export type SfEnv = {
   model: SchemaModel;
@@ -251,7 +257,29 @@ function WarnLine({ id, list }: { id: string; list: readonly SxWarning[] }): Rea
   );
 }
 
-function TagsField({ id, a11y, value, label, readOnly, ai, suggest, onChange, onBlur }: { id: string; a11y: SxControlA11y; value: string[]; label: string; readOnly: boolean; ai: string; suggest: { title: string; description: string; parentId: string } | null; onChange: (v: string[]) => void; onBlur: () => void }): ReactElement {
+function TagsField({
+  id,
+  a11y,
+  value,
+  label,
+  readOnly,
+  ai,
+  suggest,
+  service,
+  onChange,
+  onBlur,
+}: {
+  id: string;
+  a11y: SxControlA11y;
+  value: string[];
+  label: string;
+  readOnly: boolean;
+  ai: string;
+  suggest: { title: string; description: string; parentId: string } | null;
+  service: { ready: boolean; body: Record<string, unknown> } | null;
+  onChange: (v: string[]) => void;
+  onBlur: () => void;
+}): ReactElement {
   const parentTitle = useCategoryTitle(suggest?.parentId ?? "");
   return (
     <DiscoveryTerms
@@ -263,6 +291,7 @@ function TagsField({ id, a11y, value, label, readOnly, ai, suggest, onChange, on
       a11y={a11y}
       aiId={ai}
       suggest={suggest ? { title: suggest.title, description: suggest.description, parentTitle } : null}
+      service={service}
       onBlur={onBlur}
     />
   );
@@ -342,6 +371,7 @@ function RowsField({ node, path, ai, id, label, ro, f }: { node: SchemaFieldMode
       rowErrors={(i) => policy.visibleCount(`${path}.${i}`, errors)}
       minItems={f.minItems || undefined}
       addLabel={t(lf?.addKey ?? "sx.rep.add")}
+      emptyText={lf?.emptyKey && t.has(lf.emptyKey) ? t(lf.emptyKey) : undefined}
       readOnly={ro}
       onTouched={() => policy.touch(path)}
       aiId={ai}
@@ -361,6 +391,8 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
 
   const norm = normPath(path);
   const value = getAt(root, path);
+  const legacy = !!lf?.legacyOf && model.ctor.typed.some((x) => x.key === lf.legacyOf);
+  if (legacy && blankValue(value)) return null;
   const control: SxControlKind = controlFor(model.code, node, value, ctx);
   const source = effectiveSource(model.code, node, scope);
   const id = `${model.idPrefix}-f-${aiSeg(path)}`;
@@ -372,8 +404,8 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
   const fieldRo = !!f?.readOnly || !!virtual?.readOnly || !!lockKey;
   const ro = formRo || fieldRo;
 
-  const label = fieldLabelOf(model, node.key, path, f, lf, labels, t, ctx);
-  const ownHelp = dyn(lf?.help, ctx);
+  const label = legacy && lf?.legacyLabel && t.has(lf.legacyLabel) ? t(lf.legacyLabel) : fieldLabelOf(model, node.key, path, f, lf, labels, t, ctx);
+  const ownHelp = legacy && lf?.legacyHelp ? lf.legacyHelp : dyn(lf?.help, ctx);
   let help = "";
   if (lockKey) help = t.has(lockKey) ? t(lockKey) : "";
   else if (ownHelp === false) help = "";
@@ -417,6 +449,53 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
         {extra}
       </div>
     );
+
+  if (control === "factorOverrides") {
+    const ids = strList(root[FACTOR_IDS]);
+    if (!ids.length) return null;
+    const factorField = model.ctor.typed.find((x) => x.key === FACTOR_IDS) ?? null;
+    const factorSource = factorField ? effectiveSource(model.code, { pattern: FACTOR_IDS, field: factorField }, root) : "";
+    return cell(
+      <Field id={id} label={label} help={help} error={error} as="fieldset" span={span}>
+        <FactorOverrides
+          id={`${id}-list`}
+          label={label}
+          ai={ai}
+          readOnly={ro}
+          source={factorSource || FACTOR_SOURCE}
+          ids={ids}
+          value={value}
+          errors={errors}
+          policy={policy}
+          onChange={(next) => set(next)}
+          onDraftError={env.onDraftError}
+          formCode={model.code}
+          owner={env.owner ?? ""}
+          categoryId={str(root.category_id).trim()}
+        />
+      </Field>,
+    );
+  }
+
+  if (control === "checklist") {
+    return cell(
+      <Field id={id} label={label} help={help} error={error} required={shown.required} as="fieldset" span={span}>
+        <ChecklistEditor
+          id={id}
+          path={norm}
+          label={label}
+          ai={ai}
+          readOnly={ro}
+          value={value}
+          item={f?.item ?? null}
+          errors={errors}
+          policy={policy}
+          onChange={(next) => set(next)}
+          errorText={(tok, p, type) => labels.error(tok, { type, key: lastKey(p), ctor: model.code, path: p })}
+        />
+      </Field>,
+    );
+  }
 
   if (control === "object" && f) {
     const kids = childNodes(model, f, node.pattern);
@@ -612,7 +691,8 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
   }
 
   if (control === "tags") {
-    const suggest = lf?.aiSuggest ? { title: str(root.title), description: str(root.description), parentId: str(root.parent_id) } : null;
+    const suggest = lf?.aiSuggest === true ? { title: str(root.title), description: str(root.description), parentId: str(root.parent_id) } : null;
+    const service = lf?.aiSuggest === "service" ? { ready: canSuggest(root), body: suggestBody(root) } : null;
     return cell(
       <Field id={id} label={label} help={help} error={error} required={shown.required} span={span}>
         {(a) => (
@@ -624,6 +704,7 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
             readOnly={ro}
             ai={ai}
             suggest={suggest}
+            service={service}
             onChange={(next) => {
               set(next);
               touch();
@@ -669,6 +750,7 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
             emptyId={emptyId}
             inlineContext={inlineContext}
             inlineOwner={env.owner ?? ""}
+            inlineAddKey={lf?.inlineAddKey}
           />
         ) : (
           <RefPicker
@@ -689,6 +771,7 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
             emptyId={emptyId}
             inlineContext={inlineContext}
             inlineOwner={env.owner ?? ""}
+            inlineAddKey={lf?.inlineAddKey}
           />
         ),
       ),

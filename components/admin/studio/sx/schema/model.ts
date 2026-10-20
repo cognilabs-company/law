@@ -493,7 +493,7 @@ export function controlFor(code: string, fm: Pick<SchemaFieldModel, "pattern" | 
   }
 }
 
-const WIDE: ReadonlySet<SxControlKind> = new Set<SxControlKind>(["textarea", "richtext", "object", "repeater", "repeaterInline", "pickerMulti", "tags", "keyValue", "choices", "switch"]);
+const WIDE: ReadonlySet<SxControlKind> = new Set<SxControlKind>(["textarea", "richtext", "object", "repeater", "repeaterInline", "pickerMulti", "tags", "keyValue", "choices", "switch", "factorOverrides", "checklist"]);
 
 export function spanFor(control: SxControlKind, key: string, lf: SxLayoutField | null): 1 | 2 {
   if (lf?.span) return lf.span;

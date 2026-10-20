@@ -27,7 +27,9 @@ export type SxControlKind =
   | "repeaterInline"
   | "keyValue"
   | "object"
-  | "display";
+  | "display"
+  | "factorOverrides"
+  | "checklist";
 
 export type SxLayoutCtx = { code: string; runtimeTarget: string; mode: SxEditMode; recordId: string; root: SxValues; scope: SxValues };
 export type SxDyn<T> = T | ((ctx: SxLayoutCtx) => T);
@@ -65,7 +67,12 @@ export type SxLayoutField = {
   addKey?: string;
   summary?: (item: SxValues, index: number, labels: StudioLabels) => string;
   meta?: (item: SxValues, index: number, labels: StudioLabels) => string;
-  aiSuggest?: boolean;
+  aiSuggest?: boolean | "service";
+  legacyOf?: string;
+  legacyLabel?: string;
+  legacyHelp?: string;
+  inlineAddKey?: string;
+  emptyKey?: string;
   virtual?: SxVirtualField;
 };
 

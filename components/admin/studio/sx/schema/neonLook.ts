@@ -15,6 +15,7 @@ import {
   LayoutPanelTopIcon,
   LetterTextIcon,
   LinkIcon,
+  ListChecksIcon,
   MailIcon,
   MegaphoneIcon,
   PercentIcon,
@@ -49,6 +50,9 @@ const SECTION_ICON: Readonly<Record<string, SxIcon>> = {
   K02__delivery: TimerIcon,
   K02__template: FileTextIcon,
   K02__quality: ShieldCheckIcon,
+  K02__checklist: ListChecksIcon,
+  K02__rules: ScrollTextIcon,
+  K02__guarantees: ShieldCheckIcon,
   K02__search: SearchIcon,
   "K03-M__pricing": BadgePercentIcon,
   "K12-PROMO__placement": LayoutPanelTopIcon,
@@ -78,6 +82,8 @@ const ADJUST_KEY = /(adjustment_type|adjustment|direction)$/;
 
 export function fieldIcon(key: string, type: string | undefined, control: SxControlKind): SxIcon {
   const k = key.toLowerCase();
+  if (control === "checklist") return ListChecksIcon;
+  if (control === "factorOverrides") return BadgePercentIcon;
   if (TITLE_KEY.test(k)) return FileTextIcon;
   if (TAG_KEY.test(k) || control === "tags") return TagsIcon;
   if (POWER_KEY.test(k)) return PowerIcon;
@@ -97,4 +103,4 @@ export function fieldIcon(key: string, type: string | undefined, control: SxCont
   return (type && FIELD_TYPE_ICON[type]) || FIELD_TYPE_ICON.text;
 }
 
-export const NEON_WIDE_RO: ReadonlySet<SxControlKind> = new Set<SxControlKind>(["textarea", "richtext", "object", "repeater", "keyValue"]);
+export const NEON_WIDE_RO: ReadonlySet<SxControlKind> = new Set<SxControlKind>(["textarea", "richtext", "object", "repeater", "keyValue", "factorOverrides", "checklist"]);

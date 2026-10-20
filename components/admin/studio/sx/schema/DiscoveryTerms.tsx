@@ -13,6 +13,7 @@ import { PlusIcon, SparklesIcon, XIcon, glyph } from "../icons";
 import { SxNote } from "../layout/Note";
 import { TagsInput, mergeTags } from "../form/TagsInput";
 import type { SxControlA11y } from "../types";
+import { ServiceSuggest } from "./k02/ServiceSuggest";
 
 export type DiscoveryTermsProps = {
   id: string;
@@ -23,6 +24,7 @@ export type DiscoveryTermsProps = {
   a11y: SxControlA11y;
   aiId: string;
   suggest?: { title: string; description: string; parentTitle: string } | null;
+  service?: { ready: boolean; body: Record<string, unknown> } | null;
   onBlur?: () => void;
 };
 
@@ -42,7 +44,8 @@ export function freshSuggestions(items: readonly string[], current: readonly str
   return out;
 }
 
-export function DiscoveryTerms({ id, value, onChange, label, readOnly, a11y, aiId, suggest, onBlur }: DiscoveryTermsProps): ReactElement {
+export function DiscoveryTerms({ id, value, onChange, label, readOnly, a11y, aiId, suggest: ownSuggest, service, onBlur }: DiscoveryTermsProps): ReactElement {
+  const suggest = service ? null : ownSuggest;
   const t = useTranslations("studio");
   const [ask, setAsk] = useState<Ask>({ state: "idle" });
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -98,6 +101,7 @@ export function DiscoveryTerms({ id, value, onChange, label, readOnly, a11y, aiI
         aria-required={a11y["aria-required"]}
         aiId={aiId}
       />
+      {service && !readOnly ? <ServiceSuggest id={id} ai={aiId} ready={service.ready} body={service.body} current={items} onAdd={(terms) => onChange(mergeTags(items, terms))} /> : null}
       {canSuggest ? (
         <div className="sx-sf-dt__ai">
           <div className="sx-sf-dt__row">

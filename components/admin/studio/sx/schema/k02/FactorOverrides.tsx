@@ -1,0 +1,223 @@
+"use client";
+
+import "../../sx-core.css";
+import "../../sx-form.css";
+import "./sx-k02.css";
+import { useEffect, useState, type ReactElement } from "react";
+import { useTranslations } from "next-intl";
+import { aiId as makeAiId } from "@/lib/ai/ids";
+import { notify } from "@/lib/toast";
+import { SxButton } from "../../Button";
+import type { SxFormPolicy } from "../../form/formPolicy";
+import { MoneyInput } from "../../form/MoneyInput";
+import { NumberInput } from "../../form/NumberInput";
+import { dropReferenceCache, firstReferenceInfo } from "../../form/useReferenceOptions";
+import { CircleAlertIcon, CoinsIcon, PencilIcon, PercentIcon, glyph } from "../../icons";
+import { useInlineDepth } from "../../inline/context";
+import { PendingChips } from "../../inline/PendingChips";
+import { useInlineEditing } from "../../inline/useInlineEditing";
+import { SxSegmented, type SxSegItem } from "../../shared/Segmented";
+import type { SxErrors } from "../../types";
+import { useStudioLabels } from "../../useStudioLabels";
+import { FACTOR_OVERRIDES, PERCENT_MAX, errorsUnder, modeOf, overrideValueOf, sharedFactorOf, switchMode, withOverride, type OverrideMode, type SharedFactor } from "./model";
+
+type Info = { label: string; shared: SharedFactor };
+type Loaded = { key: string; map: Readonly<Record<string, Info>> };
+
+export type FactorOverridesProps = {
+  id: string;
+  label: string;
+  ai: string;
+  readOnly: boolean;
+  source: string;
+  ids: readonly string[];
+  value: unknown;
+  errors: SxErrors;
+  policy: SxFormPolicy;
+  onChange: (next: Record<string, unknown>) => void;
+  onDraftError?: (path: string, invalid: boolean) => void;
+  formCode: string;
+  owner: string;
+  categoryId: string;
+};
+
+const NO_SHARED: SharedFactor = { type: "", value: null };
+
+export function FactorOverrides({ id, label, ai, readOnly, source, ids, value, errors, policy, onChange, onDraftError, formCode, owner, categoryId }: FactorOverridesProps): ReactElement | null {
+  const t = useTranslations("studio");
+  const labels = useStudioLabels();
+  const depth = useInlineDepth();
+  const [nonce, setNonce] = useState(0);
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const loadKey = `${source}#${nonce}`;
+
+  useEffect(() => {
+    if (!source) return;
+    let live = true;
+    const key = `${source}#${nonce}`;
+    firstReferenceInfo(source).then(
+      (page) => {
+        if (!live) return;
+        const map: Record<string, Info> = {};
+        for (const it of page.items) map[it.value] = { label: labels.refOption(source, it).label, shared: sharedFactorOf(it.raw) };
+        setLoaded({ key, map });
+      },
+      () => {
+        if (live) setLoaded({ key, map: {} });
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [source, nonce, labels]);
+
+  const ed = useInlineEditing({
+    code: "K34",
+    formCode,
+    owner,
+    pattern: FACTOR_OVERRIDES,
+    context: { categoryId },
+    enabled: !readOnly && depth === 0 && !!owner,
+    onPublished: (item) => {
+      dropReferenceCache(source);
+      setNonce((n) => n + 1);
+      notify.success(t("sx.inline.toast.updated", { name: item.title || t("sx.ui.untitled") }));
+    },
+  });
+
+  if (!ids.length) return null;
+  const map = loaded && loaded.key === loadKey ? loaded.map : loaded?.map ?? {};
+
+  const sharedText = (s: SharedFactor): string => {
+    if (s.value === null || !s.type) return t("sx.k02.fo.sharedUnknown");
+    return t("sx.k02.fo.sharedIs", { value: s.type === "percent" ? `+${labels.num(s.value)}%` : `+${labels.money(s.value)}` });
+  };
+  const ownText = (mode: OverrideMode, v: number | undefined): string => {
+    if (mode === "shared" || v === undefined) return "";
+    return t("sx.k02.fo.own", { value: mode === "percent" ? `+${labels.num(v)}%` : `+${labels.money(v)}` });
+  };
+  const errText = (tok: string, path: string): string => labels.error(tok, { type: "number", key: "value", ctor: formCode, path, min: 0, max: null });
+
+  return (
+    <div className="sx-k2fo" id={id} data-ai-id={ai} data-ai-type="section" data-ai-label={label}>
+      <ul className="sx-k2fo__list" aria-label={t("sx.k02.fo.listLabel")}>
+        {ids.map((fid) => {
+          const info = map[fid];
+          const name = info?.label || labels.unknownRef(fid);
+          const shared = info?.shared ?? NO_SHARED;
+          const mode = modeOf(value, fid);
+          const own = overrideValueOf(value, fid);
+          const rowPath = `${FACTOR_OVERRIDES}.${fid}`;
+          const valuePath = `${rowPath}.value`;
+          const base = `${id}-${fid}`;
+          const nameId = `${base}-name`;
+          const errId = `${base}-err`;
+          const rowAi = makeAiId(ai, fid);
+          const shown = errorsUnder(errors, rowPath)
+            .map(([k, tok]) => [k, policy.visible(k, errors) ? tok : ""] as const)
+            .filter(([, tok]) => !!tok);
+          const valueBad = shown.some(([k]) => k === valuePath);
+          const items: SxSegItem<OverrideMode>[] = [
+            { value: "shared", label: t("sx.k02.fo.shared"), aiId: makeAiId(rowAi, "shared") },
+            { value: "fixed", label: t("sx.k02.fo.fixed"), icon: CoinsIcon, aiId: makeAiId(rowAi, "fixed") },
+            { value: "percent", label: t("sx.k02.fo.percent"), icon: PercentIcon, aiId: makeAiId(rowAi, "percent") },
+          ];
+          const setValue = (v: number | undefined) => {
+            onChange(withOverride(value, fid, mode, v ?? null));
+            policy.touch(valuePath);
+          };
+          const pick = (m: OverrideMode) => {
+            onChange(switchMode(value, fid, m));
+            if (m === "shared") return;
+            requestAnimationFrame(() => {
+              const el = document.getElementById(`${base}-value`);
+              if (el instanceof HTMLInputElement) el.focus();
+            });
+          };
+          return (
+            <li key={fid} className="sx-k2fo__row" data-path={rowPath} data-mode={mode} data-ai-id={rowAi} data-ai-type="item" data-ai-label={name}>
+              <div className="sx-k2fo__head">
+                <span className="sx-k2fo__icon" aria-hidden="true" data-type={shared.type || undefined}>
+                  {glyph(shared.type === "percent" ? PercentIcon : CoinsIcon, { size: 16 })}
+                </span>
+                <span className="sx-k2fo__name" id={nameId} title={name}>
+                  {name}
+                </span>
+                <span className="sx-k2fo__shared" data-off={mode !== "shared" ? "" : undefined}>
+                  {sharedText(shared)}
+                </span>
+              </div>
+              {readOnly ? (
+                <p className="sx-k2fo__ro">{mode === "shared" ? t("sx.k02.fo.usesShared") : ownText(mode, own) || t("sx.ui.notSet")}</p>
+              ) : (
+                <div className="sx-k2fo__ctl">
+                  <SxSegmented<OverrideMode> items={items} value={mode} onChange={pick} label={t("sx.k02.fo.modeLabel", { name })} size="sm" aiId={makeAiId(rowAi, "mode")} />
+                  {mode !== "shared" ? (
+                    <div className="sx-k2fo__val" data-path={valuePath}>
+                      {mode === "fixed" ? (
+                        <MoneyInput
+                          id={`${base}-value`}
+                          value={own}
+                          onChange={setValue}
+                          onDraftInvalid={(bad) => onDraftError?.(valuePath, bad)}
+                          onBlur={() => policy.touch(valuePath)}
+                          aria-label={t("sx.k02.fo.valueLabel", { name })}
+                          aria-describedby={valueBad ? errId : undefined}
+                          aria-invalid={valueBad ? true : undefined}
+                          aria-required
+                          aiId={makeAiId(rowAi, "value")}
+                        />
+                      ) : (
+                        <NumberInput
+                          id={`${base}-value`}
+                          value={own}
+                          onChange={setValue}
+                          onDraftInvalid={(bad) => onDraftError?.(valuePath, bad)}
+                          onBlur={() => policy.touch(valuePath)}
+                          min={0}
+                          max={PERCENT_MAX}
+                          suffix="%"
+                          placeholder={t("sx.k02.fo.percentHint")}
+                          aria-label={t("sx.k02.fo.valueLabel", { name })}
+                          aria-describedby={valueBad ? errId : undefined}
+                          aria-invalid={valueBad ? true : undefined}
+                          aria-required
+                          aiId={makeAiId(rowAi, "value")}
+                        />
+                      )}
+                    </div>
+                  ) : null}
+                  {ed.canManage ? (
+                    <SxButton
+                      variant="ghost"
+                      size="sm"
+                      icon={PencilIcon}
+                      className="sx-k2fo__edit"
+                      onClick={() => ed.openEdit(fid, name)}
+                      aria-label={t("sx.k02.fo.editSharedOf", { name })}
+                      aiId={makeAiId(rowAi, "edit-shared")}
+                    >
+                      {t("sx.k02.fo.editShared")}
+                    </SxButton>
+                  ) : null}
+                </div>
+              )}
+              {shown.length ? (
+                <div className="sx-k2fo__errs" id={errId}>
+                  {shown.map(([k, tok]) => (
+                    <p key={k} className="sx-field__err" data-path={k === valuePath ? undefined : k}>
+                      {glyph(CircleAlertIcon, { size: 14 })}
+                      <span>{errText(tok === "@code:maximum" && mode === "percent" ? `@code:maximum:${PERCENT_MAX}` : tok, k)}</span>
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      {ed.canManage ? <PendingChips items={ed.pending} label={t("sx.inline.pendingList")} canEdit onOpen={ed.openPending} ai={ai} /> : null}
+      {ed.drawer}
+    </div>
+  );
+}

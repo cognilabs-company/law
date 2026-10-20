@@ -28,9 +28,10 @@ type Args = {
   context: InlineContext;
   enabled: boolean;
   aiId: string;
+  addKey?: string;
 };
 
-export function useRefInline({ source, formCode, owner, pattern, multiple, values, onChange, context, enabled, aiId }: Args): RefInline | null {
+export function useRefInline({ source, formCode, owner, pattern, multiple, values, onChange, context, enabled, aiId, addKey }: Args): RefInline | null {
   const t = useTranslations("studio");
   const depth = useInlineDepth();
   const code = inlineCodeOf(source, pattern);
@@ -65,7 +66,7 @@ export function useRefInline({ source, formCode, owner, pattern, multiple, value
   const kind = inlineKindOf(code);
   if (!on || !kind || !ed.canManage) return null;
   const k = inlineKeys(kind);
-  const add = t(k.add);
+  const add = addKey && t.has(addKey) ? t(addKey) : t(k.add);
   const manage: PickerManage = {
     editLabel: (name) => t("sx.inline.editOf", { name }),
     onEdit: (value, label) => ed.openEdit(value, label),

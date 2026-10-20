@@ -1,5 +1,6 @@
 import type { SxCtorLayout, SxLayoutCtx, SxPayload, SxValues } from "../contract";
-import { LibraryBigIcon, BriefcaseBusinessIcon, CoinsIcon, FileQuestionMarkIcon, FilesIcon, FileTextIcon, FileXIcon, FolderOpenIcon, GlobeIcon, PackageIcon, PercentIcon, UploadIcon } from "../icons";
+import { LibraryBigIcon, BadgeCheckIcon, BriefcaseBusinessIcon, CalendarDaysIcon, ClockIcon, CoinsIcon, FileQuestionMarkIcon, FilesIcon, FileTextIcon, FileXIcon, FolderOpenIcon, GlobeIcon, HeadsetIcon, LockIcon, PackageIcon, PercentIcon, RefreshCwIcon, ShieldCheckIcon, UploadIcon } from "../icons";
+import { k02Prune, k02Validate } from "../schema/k02/model";
 import type { SxIcon } from "../types";
 import type { StudioLabels } from "../useStudioLabels";
 import { GUARANTEE_ICONS } from "./guaranteeIcons";
@@ -27,7 +28,15 @@ const templateNeeded = (ctx: SxLayoutCtx): boolean => {
   return Boolean(mode) && mode !== "not_required";
 };
 
-const guaranteeIcon = (v: string): SxIcon | undefined => GUARANTEE_ICONS.find((g) => g.key === v)?.icon;
+const K32_ICONS: Readonly<Record<string, SxIcon>> = {
+  "shield-check": ShieldCheckIcon,
+  "badge-check": BadgeCheckIcon,
+  headphones: HeadsetIcon,
+  "rotate-ccw": RefreshCwIcon,
+  clock: ClockIcon,
+  "lock-keyhole": LockIcon,
+};
+const guaranteeIcon = (v: string): SxIcon | undefined => K32_ICONS[v] ?? GUARANTEE_ICONS.find((g) => g.key === v)?.icon;
 
 export const K01_LAYOUT: SxCtorLayout = {
   code: "K01",
@@ -94,8 +103,7 @@ export const K32_LAYOUT: SxCtorLayout = {
     {
       path: "icon",
       control: "picker",
-      options: GUARANTEE_ICONS.map((g) => g.key),
-      optionKey: (v) => GUARANTEE_ICONS.find((g) => g.key === v)?.labelKey ?? "",
+      optionKey: (v) => (K32_ICONS[v] ? `sx.opt.K32__icon.${v}` : (GUARANTEE_ICONS.find((g) => g.key === v)?.labelKey ?? "")),
       optionIcon: guaranteeIcon,
       help: "sx.help.K32__icon",
     },
@@ -116,23 +124,28 @@ export const K33_LAYOUT: SxCtorLayout = {
 
 const NO_EXECUTOR: ReadonlySet<string> = new Set(["none", "null", "undefined"]);
 
-export function k02Transform(next: SxPayload): SxPayload {
-  const v = next.executor_type;
-  if (typeof v !== "string" || !NO_EXECUTOR.has(v.trim().toLowerCase())) return next;
-  const out: SxPayload = { ...next };
+export function k02Transform(next: SxPayload, prev: SxValues = {}): SxPayload {
+  const pruned = k02Prune(next, prev);
+  const v = pruned.executor_type;
+  if (typeof v !== "string" || !NO_EXECUTOR.has(v.trim().toLowerCase())) return pruned;
+  const out: SxPayload = { ...pruned };
   delete out.executor_type;
   return out;
 }
+
+const hasFactors = (ctx: SxLayoutCtx): boolean => Array.isArray(ctx.root.price_factor_ids) && ctx.root.price_factor_ids.length > 0;
 
 export const K02_LAYOUT: SxCtorLayout = {
   code: "K02",
   sections: [
     { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "category_id", "description", "client_value", "executor_type"] },
-    { id: "K02__price", titleKey: "sx.section.K02__price", fields: ["base_price", "max_price", "price_factor_ids", "negotiation_allowed"] },
+    { id: "K02__price", titleKey: "sx.section.K02__price", fields: ["base_price", "max_price", "price_factor_ids", "price_factor_overrides", "negotiation_allowed"] },
     { id: "K02__requirements", titleKey: "sx.section.K02__requirements", fields: ["seller_requirements"] },
     { id: "K02__delivery", titleKey: "sx.section.K02__delivery", fields: ["duration_value", "duration_unit", "duration_calendar"] },
     { id: "K02__template", titleKey: "sx.section.K02__template", fields: ["template_mode", "template_source", "document_template_id"] },
-    { id: "K02__quality", titleKey: "sx.section.K02__quality", fields: ["checklist_template_id", "guarantee_ids"] },
+    { id: "K02__checklist", titleKey: "sx.section.K02__checklist", fields: ["completion_checklist", "checklist_template_id"] },
+    { id: "K02__rules", titleKey: "sx.section.K02__rules", fields: ["rule_ids", "inline_rules"] },
+    { id: "K02__guarantees", titleKey: "sx.section.K02__guarantees", fields: ["guarantee_ids", "inline_guarantees"] },
     { id: "K02__search", titleKey: "sx.section.K02__search", fields: ["discovery_terms"] },
     { id: "status", titleKey: "sx.section.status", fields: ["is_active"] },
   ],
@@ -142,7 +155,8 @@ export const K02_LAYOUT: SxCtorLayout = {
     { path: "slug", hidden: true },
     { path: "category_id", help: false },
     { path: "description", help: false },
-    { path: "price_factor_ids", help: "sx.help.price_factor_ids" },
+    { path: "price_factor_ids", help: "sx.help.price_factor_ids", inlineAddKey: "sx.k02.fo.addShared" },
+    { path: "price_factor_overrides", control: "factorOverrides", label: "sx.k02.field.price_factor_overrides", help: "sx.k02.help.price_factor_overrides", visible: hasFactors },
     { path: "negotiation_allowed", help: "sx.help.K02__negotiation_allowed" },
     { path: "seller_requirements", flatten: true },
     { path: "duration_value", span: 1 },
@@ -151,11 +165,40 @@ export const K02_LAYOUT: SxCtorLayout = {
       path: "duration_calendar",
       control: "choices",
       columns: 2,
+      help: "sx.k02.help.duration_calendar",
       choices: {
-        calendar: { descriptionKey: "sx.optd.duration_calendar.calendar" },
-        business: { descriptionKey: "sx.optd.duration_calendar.business" },
+        calendar: { icon: CalendarDaysIcon, descriptionKey: "sx.optd.duration_calendar.calendar" },
+        business_days: { icon: BriefcaseBusinessIcon, descriptionKey: "sx.optd.duration_calendar.business_days" },
+        business: { icon: BriefcaseBusinessIcon, descriptionKey: "sx.optd.duration_calendar.business" },
       },
     },
+    { path: "completion_checklist", control: "checklist", label: "sx.k02.field.completion_checklist", help: "sx.k02.help.completion_checklist" },
+    { path: "checklist_template_id", legacyOf: "completion_checklist", legacyLabel: "sx.k02.field.checklist_legacy", legacyHelp: "sx.k02.help.checklist_legacy", help: "sx.help.K02__checklist_template_id" },
+    { path: "rule_ids", label: "sx.k02.field.rule_ids", help: "sx.k02.help.rule_ids", inlineAddKey: "sx.k02.rules.addShared" },
+    {
+      path: "inline_rules",
+      control: "repeater",
+      label: "sx.k02.field.inline_rules",
+      help: "sx.k02.help.inline_rules",
+      addKey: "sx.k02.rules.add",
+      emptyKey: "sx.k02.rules.empty",
+      summary: (item) => str(item.title),
+    },
+    { path: "inline_rules.*.title", label: "sx.k02.f.inlineTitle", placeholder: "sx.k02.ph.ruleTitle", help: false },
+    { path: "inline_rules.*.body", control: "textarea", label: "sx.k02.f.inlineBody", placeholder: "sx.k02.ph.ruleBody", help: false },
+    { path: "guarantee_ids", label: "sx.k02.field.guarantee_ids", help: "sx.k02.help.guarantee_ids", inlineAddKey: "sx.k02.guarantees.addShared" },
+    {
+      path: "inline_guarantees",
+      control: "repeater",
+      label: "sx.k02.field.inline_guarantees",
+      help: "sx.k02.help.inline_guarantees",
+      addKey: "sx.k02.guarantees.add",
+      emptyKey: "sx.k02.guarantees.empty",
+      summary: (item) => str(item.title),
+    },
+    { path: "inline_guarantees.*.title", label: "sx.k02.f.inlineTitle", placeholder: "sx.k02.ph.guaranteeTitle", help: false },
+    { path: "inline_guarantees.*.description", control: "textarea", label: "sx.k02.f.inlineDescription", placeholder: "sx.k02.ph.guaranteeBody", help: false },
+    { path: "discovery_terms", aiSuggest: "service" },
     {
       path: "template_mode",
       label: "sx.field.K02__template_requirement",
@@ -180,10 +223,9 @@ export const K02_LAYOUT: SxCtorLayout = {
       },
     },
     { path: "document_template_id", visible: (ctx) => templateNeeded(ctx) && TEMPLATE_SOURCES.has(str(ctx.root.template_source)) },
-    { path: "checklist_template_id", help: "sx.help.K02__checklist_template_id" },
-    { path: "guarantee_ids", help: "sx.help.K02__guarantee_ids" },
   ],
   transform: k02Transform,
+  validate: k02Validate,
 };
 
 export const K29_LAYOUT: SxCtorLayout = {
