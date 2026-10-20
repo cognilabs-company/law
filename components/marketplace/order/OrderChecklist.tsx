@@ -19,7 +19,7 @@ import type { MarketOrder, MarketPhase } from "@/lib/services/marketplace";
 import { checklistItemRef, checklistStatusOf, marketErrorInfo, updateChecklistItem, uploadChecklistEvidence, type ChecklistItem, type ChecklistStatus, type MarketFileRef, type OrderChecklist as OrderChecklistData } from "@/lib/services/marketRuntime";
 import { useMarketError } from "../useMarketError";
 import { canEditChecklist, draftOf, evidenceOf, itemProblems, mergeChecklistItem, sortedItems, type ItemDraft } from "./checklistRules";
-import { ForwardIcon, CircleCheckIcon, CircleDashedIcon, DownloadIcon, FileTextIcon, ImageIcon, ImagePlusIcon, PaperclipIcon, PencilIcon, CircleAlertIcon, XIcon, glyph } from "./icons";
+import { ForwardIcon, CheckIcon, CircleCheckIcon, CircleDashedIcon, DownloadIcon, FileTextIcon, ImageIcon, ImagePlusIcon, MessageSquareTextIcon, PaperclipIcon, PencilIcon, CircleAlertIcon, XIcon, glyph } from "./icons";
 import { SECTION_ID, type LoadState, type OrderView } from "./types";
 import { ORDER_FILE_MB, ORDER_FILES_MAX, uploadOrderFile, type UploadedFile } from "./upload";
 import "./checklist.css";
@@ -36,6 +36,13 @@ const STATUS_TONE: Readonly<Record<ChecklistStatus, string>> = {
   pending: "draft",
   done: "published",
   skipped_with_reason: "submitted",
+};
+
+const MARK_ICON: Readonly<Record<string, SxIcon>> = {
+  required: CircleAlertIcon,
+  comment: MessageSquareTextIcon,
+  image: ImageIcon,
+  file: PaperclipIcon,
 };
 
 type Kind = "image" | "file";
@@ -268,20 +275,34 @@ function ChecklistRow({
   return (
     <li id={`mck-${item.id}`} className="mck-item" data-status={item.status} data-open={open ? "" : undefined} data-ai-id={itemAi} data-ai-type="list_item" data-ai-label={title}>
       <div className="mck-item__head">
-        <span className="mck-status" data-tone={STATUS_TONE[item.status]}>
-          {glyph(STATUS_ICON[item.status], { size: 16 })}
-          <span>{t(`status.${item.status}`)}</span>
+        <span className="mck-dot" data-tone={STATUS_TONE[item.status]} aria-hidden="true">
+          {glyph(STATUS_ICON[item.status], { size: 18 })}
         </span>
         <div className="mck-item__titles">
           <h3 className="mck-item__title">{title}</h3>
           {item.description ? <p className="mck-item__desc">{item.description}</p> : null}
+          <div className="mck-item__tags">
+            <span className="mck-status" data-tone={STATUS_TONE[item.status]}>
+              {t(`status.${item.status}`)}
+            </span>
+            {marks.length ? (
+              <ul className="mck-marks">
+                {marks.map((m) => (
+                  <li key={m} className="mck-mark" data-mark={m} data-tone={m === "required" ? "approved" : "draft"}>
+                    {glyph(MARK_ICON[m], { size: 13 })}
+                    {t(`mark.${m}`)}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         </div>
         {editable ? (
           <SxButton
             id={editBtnId(item)}
             size="sm"
-            variant="ghost"
-            icon={PencilIcon}
+            variant={item.status === "pending" && !open ? "primary" : "ghost"}
+            icon={item.status === "pending" ? CheckIcon : PencilIcon}
             aria-label={t("editAria", { title })}
             aria-expanded={open}
             aria-controls={open ? editorId : undefined}
@@ -290,19 +311,10 @@ function ChecklistRow({
             aiLabel={t("edit")}
             className="mck-item__edit"
           >
-            {t("edit")}
+            {item.status === "pending" ? t("act") : t("edit")}
           </SxButton>
         ) : null}
       </div>
-      {marks.length ? (
-        <ul className="mck-marks">
-          {marks.map((m) => (
-            <li key={m} className="mck-mark" data-tone={m === "required" ? "approved" : "draft"}>
-              {t(`mark.${m}`)}
-            </li>
-          ))}
-        </ul>
-      ) : null}
       {item.comment.trim() ? (
         <p className="mck-item__comment">
           {skipped ? <b>{t("reasonPrefix")}: </b> : null}

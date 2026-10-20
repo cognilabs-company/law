@@ -186,6 +186,18 @@
   --t-bg: var(--sx-draft-bg);
   --t-line: var(--sx-draft-line);
 }
+.sx span.sx-ecard__stat[data-k="active"],
+.sx span.sx-ecard__stat[data-k="inactive"],
+.sx span.sx-ecard__stat[data-k="incomplete"] {
+  --t-line: transparent;
+  background: color-mix(in srgb, var(--t-bg) 55%, transparent);
+}
+.sx a.sx-ecard__stat[data-k="incomplete"] {
+  --t-fg: var(--sx-submitted-fg);
+  --t-bg: var(--sx-submitted-bg);
+  --t-line: var(--sx-submitted-line);
+  box-shadow: 0 6px 16px -10px color-mix(in srgb, var(--sx-submitted-fg) 70%, transparent);
+}
 .sx .sx-ecard__stat[data-zero] {
   --t-fg: var(--sx-muted);
   --t-bg: transparent;
@@ -238,6 +250,13 @@
 }
 .sx a.sx-ecard__stat:active {
   transform: scale(.96);
+}
+.sx a.sx-ecard__stat[data-k="incomplete"] .sx-ecard__stat-go {
+  animation: sx-ecard-nudge 1.6s var(--sx-ease) 0.6s 2;
+}
+@keyframes sx-ecard-nudge {
+  0%, 100% { transform: none; }
+  50% { transform: translateX(3px); }
 }
 
 .sx .sx-ecard__foot {
@@ -299,7 +318,8 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sx .sx-ecard__seg {
+  .sx .sx-ecard__seg,
+  .sx a.sx-ecard__stat[data-k="incomplete"] .sx-ecard__stat-go {
     animation: none !important;
   }
   .sx .sx-ecard:hover .sx-ecard__tile,

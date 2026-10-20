@@ -11,17 +11,25 @@
 }
 .mod .mck-progress {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--sx-line);
+  border-radius: var(--sx-r);
+  background: var(--sx-surface-2);
 }
 .mod .mck-progress__text {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 16px;
+  gap: 6px 18px;
   margin: 0;
   font-size: 13px;
   line-height: 18px;
+  font-weight: 600;
   color: var(--sx-ink-2);
+}
+.mod .mck-progress__text > span:first-child {
+  color: var(--sx-ink);
 }
 .mod .mck-note {
   margin-bottom: 16px;
@@ -43,80 +51,168 @@
 }
 .mod .mck-item {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border: 1px solid var(--sx-line);
-  border-radius: var(--sx-r);
+  border-radius: var(--sx-r-lg, 16px);
   background: var(--sx-surface);
   scroll-margin-top: 16px;
+  animation: mck-rise var(--sx-mid, 0.3s) var(--sx-ease, ease) both;
+  transition: border-color var(--sx-fast, 0.15s) var(--sx-ease, ease), background-color var(--sx-fast, 0.15s) var(--sx-ease, ease), box-shadow var(--sx-fast, 0.15s) var(--sx-ease, ease);
+}
+.mod .mck-list > li:nth-child(2) {
+  animation-delay: 40ms;
+}
+.mod .mck-list > li:nth-child(3) {
+  animation-delay: 80ms;
+}
+.mod .mck-list > li:nth-child(n + 4) {
+  animation-delay: 120ms;
+}
+@keyframes mck-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes mck-pop {
+  0% {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.mod .mck-item[data-status="done"] {
+  border-color: color-mix(in srgb, var(--sx-published-fg) 30%, var(--sx-line));
+  background: color-mix(in srgb, var(--sx-published-bg) 45%, var(--sx-surface));
+}
+.mod .mck-item[data-status="skipped_with_reason"] {
+  border-color: color-mix(in srgb, var(--sx-submitted-fg) 28%, var(--sx-line));
+  background: color-mix(in srgb, var(--sx-submitted-bg) 40%, var(--sx-surface));
 }
 .mod .mck-item[data-open] {
   border-color: var(--sx-accent);
+  background: var(--sx-surface);
   box-shadow: var(--sx-ring);
 }
 .mod .mck-item__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 8px 12px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 4px 12px;
+}
+.mod .mck-dot {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--t-line, var(--sx-line));
+  background: var(--t-bg, var(--sx-surface-2));
+  color: var(--t-fg, var(--sx-muted));
+}
+.mod .mck-dot > svg {
+  width: 18px;
+  height: 18px;
+}
+.mod .mck-item[data-status="done"] .mck-dot {
+  border-color: var(--sx-published-fg);
+  background: var(--sx-published-fg);
+  color: #fff;
+  animation: mck-pop 0.4s var(--sx-ease, ease);
+}
+.mod .mck-item[data-status="pending"] .mck-dot {
+  border-style: dashed;
+  background: var(--sx-surface);
 }
 .mod .mck-item__titles {
   display: grid;
-  flex: 1 1 220px;
   gap: 2px;
   min-width: 0;
+  padding-top: 1px;
 }
 .mod .mck-item__title {
   margin: 0;
   color: var(--sx-ink);
-  font-size: 14px;
-  line-height: 20px;
-  font-weight: 600;
+  font-size: 15px;
+  line-height: 21px;
+  font-weight: 650;
   overflow-wrap: anywhere;
+}
+.mod .mck-item[data-status="done"] .mck-item__title {
+  color: var(--sx-ink-2);
 }
 .mod .mck-item__desc {
   margin: 0;
   color: var(--sx-muted);
   font-size: 13px;
-  line-height: 18px;
+  line-height: 19px;
   overflow-wrap: anywhere;
 }
+.mod .mck-item__tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
 .mod .mck-item__edit {
-  margin-inline-start: auto;
+  align-self: center;
+}
+.mod .mck-item > :not(.mck-item__head) {
+  margin-inline-start: 48px;
 }
 .mod .mck-status,
 .mod .mck-mark {
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 6px;
-  padding: 1px 8px;
+  gap: 5px;
+  padding: 2px 9px;
   border: 1px solid var(--t-line);
   border-radius: 999px;
   background: var(--t-bg);
   color: var(--t-fg);
   font-size: 12px;
   line-height: 18px;
-  font-weight: 600;
+  font-weight: 650;
   white-space: nowrap;
 }
 .mod .mck-mark {
-  font-weight: 500;
+  border-color: var(--sx-line);
+  background: var(--sx-surface-2);
+  color: var(--sx-ink-2);
+  font-weight: 550;
+}
+.mod .mck-mark > svg {
+  width: 13px;
+  height: 13px;
+  color: var(--sx-muted);
+}
+.mod .mck-mark[data-mark="required"] {
+  border-color: color-mix(in srgb, var(--sx-accent) 35%, var(--sx-line));
+  background: color-mix(in srgb, var(--sx-accent) 9%, var(--sx-surface));
+  color: var(--sx-accent-ink, var(--sx-accent));
+}
+.mod .mck-mark[data-mark="required"] > svg {
+  color: currentColor;
 }
 .mod .mck-marks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: contents;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .mod .mck-item__comment {
   margin: 0;
-  padding: 8px 10px;
-  border-inline-start: 3px solid var(--sx-line-strong);
-  border-radius: 0 var(--sx-r-sm) var(--sx-r-sm) 0;
+  padding: 9px 12px;
+  border: 1px solid var(--sx-line);
+  border-radius: var(--sx-r-sm);
   background: var(--sx-surface-2);
   color: var(--sx-ink);
   font-size: 13px;
@@ -261,9 +357,28 @@
   flex-wrap: wrap;
   gap: 8px;
 }
-@media (max-width: 480px) {
+@media (max-width: 560px) {
   .mod .mck-item {
     padding: 12px;
+  }
+  .mod .mck-item__head {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .mod .mck-item__edit {
+    grid-column: 1 / -1;
+    justify-self: start;
+    margin-top: 2px;
+  }
+  .mod .mck-item[data-status="pending"]:not([data-open]) .mck-item__edit {
+    justify-self: stretch;
+    margin-top: 6px;
+  }
+  .mod .mck-item > :not(.mck-item__head) {
+    margin-inline-start: 0;
+  }
+  .mod .mck-dot {
+    width: 32px;
+    height: 32px;
   }
   .mod .mck-editor__acts > .sx-btn {
     flex: 1 1 auto;
@@ -277,5 +392,11 @@
   .mod .mck-files > li,
   .mod .mck-flist > li {
     min-height: 48px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mod .mck-item,
+  .mod .mck-item[data-status="done"] .mck-dot {
+    animation: none !important;
   }
 }

@@ -57,7 +57,11 @@ html[data-theme="dark"] .svcfg-req .svcfg-req__c.is-unmet{box-shadow:inset 0 0 0
   .svcfg-locked.svsw__o{min-height:44px}
   .svcfg-chip.svchip{min-height:44px}
 }
-.svterms{margin-top:10px;border-radius:14px;background:var(--dk-surface-2,#F6F9FD);box-shadow:inset 0 0 0 1.5px var(--line)}
+.svterms{margin-top:10px;border-radius:14px;background:var(--dk-surface-2,#F6F9FD);box-shadow:inset 0 0 0 1.5px var(--line);transition:box-shadow .18s,background-color .18s}
+.svterms:hover{box-shadow:inset 0 0 0 1.5px var(--b300)}
+.svterms[open]{background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1.5px var(--dk-bd-blue,#C9DCF7)}
+.svterms[open]>.svterms__body{animation:svterms-in .25s ease both}
+@keyframes svterms-in{from{opacity:0;transform:translateY(-4px)}}
 .svterms>summary{display:flex;align-items:center;gap:10px;min-height:44px;padding:10px 14px;list-style:none;cursor:pointer;color:var(--ink)}
 .svterms>summary::-webkit-details-marker{display:none}
 .svterms>summary:focus-visible{outline:2px solid var(--b600);outline-offset:2px;border-radius:14px}
@@ -68,4 +72,4 @@ html[data-theme="dark"] .svcfg-req .svcfg-req__c.is-unmet{box-shadow:inset 0 0 0
 .svterms>summary>.svterms__chev{width:16px;height:16px;color:var(--gray);transition:transform .2s}
 .svterms[open]>summary>.svterms__chev{transform:rotate(180deg)}
 .svterms__body{padding:4px 14px 14px}
-@media (prefers-reduced-motion:reduce){.svterms>summary>.svterms__chev{transition:none}}
+@media (prefers-reduced-motion:reduce){.svterms>summary>.svterms__chev{transition:none}.svterms,.svterms[open]>.svterms__body{transition:none;animation:none}}
