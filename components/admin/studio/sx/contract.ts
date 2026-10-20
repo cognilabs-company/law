@@ -29,7 +29,11 @@ export type SxControlKind =
   | "object"
   | "display"
   | "factorOverrides"
-  | "checklist";
+  | "checklist"
+  | "legalUz"
+  | "legalRu"
+  | "docText"
+  | "file";
 
 export type SxLayoutCtx = { code: string; runtimeTarget: string; mode: SxEditMode; recordId: string; root: SxValues; scope: SxValues };
 export type SxDyn<T> = T | ((ctx: SxLayoutCtx) => T);
@@ -74,9 +78,11 @@ export type SxLayoutField = {
   inlineAddKey?: string;
   emptyKey?: string;
   virtual?: SxVirtualField;
+  owns?: readonly string[];
+  required?: boolean;
 };
 
-export type SxLayoutSection = { id: string; titleKey: string; fields: readonly string[]; visible?: (ctx: SxLayoutCtx) => boolean };
+export type SxLayoutSection = { id: string; titleKey: string; fields: readonly string[]; visible?: (ctx: SxLayoutCtx) => boolean; icon?: SxIcon };
 export type SxTransformCtx = { code: string; runtimeTarget: string; mode: SxEditMode };
 
 export type SxCtorLayout = {
@@ -89,13 +95,27 @@ export type SxCtorLayout = {
   transform?: (next: SxPayload, prev: SxValues, ctx: SxTransformCtx) => SxPayload;
   validate?: (payload: SxValues) => SxErrors;
   newVersion?: { focus: string };
+  adapt?: (ctor: StudioConstructor) => SxCtorLayout;
+  titleFrom?: (payload: SxValues) => SxDerivedTitle;
+};
+
+export type SxDerivedTitle = { value: string; path: string };
+
+export type SxFileSlot = {
+  name: string;
+  meta: string;
+  pending: boolean;
+  has: boolean;
+  busy: boolean;
+  canPick: boolean;
+  pick: (file: File | null) => void;
 };
 
 export type SxWarning = { key: string; tone: "warn" | "info"; values?: Readonly<Record<string, string | number>>; path?: string };
 export type SxSourceProducer = { kind: "create"; code: string; href: string } | { kind: "notReady" };
 
 export type SchemaFieldModel = { pattern: string; key: string; field: StudioSchemaField | null; layout: SxLayoutField | null; required: boolean };
-export type SchemaSectionModel = { id: string; domId: string; headingId: string; title: string; fields: readonly SchemaFieldModel[]; visible?: (ctx: SxLayoutCtx) => boolean };
+export type SchemaSectionModel = { id: string; domId: string; headingId: string; title: string; fields: readonly SchemaFieldModel[]; visible?: (ctx: SxLayoutCtx) => boolean; icon?: SxIcon };
 export type SchemaModel = {
   code: string;
   runtimeTarget: string;
@@ -123,4 +143,5 @@ export type SchemaFormProps = {
   only?: SchemaOnly;
   onDraftError?: (path: string, invalid: boolean) => void;
   footer?: ReactNode;
+  file?: SxFileSlot | null;
 };

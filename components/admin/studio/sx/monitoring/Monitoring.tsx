@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { CalendarRangeIcon, UserRoundIcon } from "lucide-react";
 import IconButton from "@/components/ui/IconButton";
 import { aiId } from "@/lib/ai/ids";
-import { studioErrorOf, studioCtorRank, useStudioAccess } from "@/lib/services/studio";
+import { isRetiredStudioCode, studioErrorOf, studioCtorRank, useStudioAccess } from "@/lib/services/studio";
 import { SxButton } from "../Button";
 import { DateField } from "../form/DateField";
 import { ActivityIcon, GlobeIcon, HistoryIcon, RefreshCwIcon, XIcon, glyph } from "../icons";
@@ -142,8 +142,8 @@ function Body({ m, now, open, loading, period, dateFrom, dateTo, setPeriod, setD
   for (const s of all) if (s.a.userId && s.a.userName && !names.has(s.a.userId)) names.set(s.a.userId, s.a.userName);
   const nameOf = (id: string) => names.get(id) || unknown;
 
-  const codes = [...new Set(all.map((s) => s.a.constructorCode).filter(Boolean))].sort((a, b) => studioCtorRank(a) - studioCtorRank(b) || a.localeCompare(b));
-  if (ctor && !codes.includes(ctor)) codes.push(ctor);
+  const codes = [...new Set(all.map((s) => s.a.constructorCode).filter((c) => c && !isRetiredStudioCode(c)))].sort((a, b) => studioCtorRank(a) - studioCtorRank(b) || a.localeCompare(b));
+  if (ctor && !codes.includes(ctor) && !isRetiredStudioCode(ctor)) codes.push(ctor);
   const ctorOptions: SxOption[] = [
     { value: "", label: t("sx.mon.all") },
     ...codes.map((c) => ({ value: c, label: `${labels.ctorName(c)} (${labels.num(all.filter((s) => s.a.constructorCode === c).length)})`, icon: look(c).icon })),

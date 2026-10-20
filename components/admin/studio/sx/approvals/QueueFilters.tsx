@@ -6,7 +6,7 @@ import "./sx-approvals.css";
 import "./sx-ap3.css";
 import type { ReactElement } from "react";
 import { useTranslations } from "next-intl";
-import { studioCtorRank, useStudioRegistry } from "@/lib/services/studio";
+import { isRetiredStudioCode, studioCtorRank, useStudioRegistry } from "@/lib/services/studio";
 import { Picker } from "../form/Picker";
 import { groupOfCode } from "../home/groupModel";
 import { GROUP_ICON, UserCheckIcon, ctorIcon, glyph } from "../icons";
@@ -36,6 +36,7 @@ export function QueueFilters({ query, onChange, rows, count, mineOn = true }: Qu
   for (const c of reg.items) if (c.approvalRequired && c.code) codes.add(c.code);
   for (const r of rows) if (r.code) codes.add(r.code);
   if (query.ctor) codes.add(query.ctor);
+  for (const c of [...codes]) if (isRetiredStudioCode(c)) codes.delete(c);
   const ctorOpts: SxOption[] = [
     all,
     ...[...codes]

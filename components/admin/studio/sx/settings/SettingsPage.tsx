@@ -80,7 +80,7 @@ function SettingsBody(): ReactElement {
   const countOf = (k: SetTab): number | null => {
     if (k === "access") return access.phase === "ready" ? access.items.length : null;
     if (k === "routes") return routes.count;
-    if (k === "registry") return reg.items.length || null;
+    if (k === "registry") return reg.constructorCount ?? (reg.items.length || null);
     return null;
   };
   const title = (k: SetTab) => t(`sx.set.nav.${k}.title`);

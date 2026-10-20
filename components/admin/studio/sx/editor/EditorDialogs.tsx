@@ -24,6 +24,7 @@ import { useEditorErrorText } from "./useEditorErrorText";
 import { changedKeys, nextMinor, versionOk } from "./model";
 import { isSlugPath } from "./slug";
 import { SxDialog, SxDialogError, type SxDialogErrorText } from "./SxDialog";
+import { SubmitPreview } from "./SubmitPreview";
 import { VersionLine, canRollbackVersion } from "./drawer/VersionsTab";
 
 export type EditorDialog =
@@ -193,6 +194,7 @@ function SubmitDialog({ st, onClose }: { st: EditorState; onClose: () => void })
         ) : null}
         <ChangeList st={st} paths={st.changedPaths} />
         <WarningList warnings={st.warnings} />
+        <SubmitPreview st={st} />
         <SxDialogError error={error} />
       </form>
     </SxDialog>

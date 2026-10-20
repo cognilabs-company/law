@@ -1,7 +1,8 @@
 import { API_BASE, ApiError, asArr, asDict, asNum, asStr, http, type Dict } from "@/lib/http";
-import { uzs } from "@/lib/money";
+import { uzs, uzsOpt } from "@/lib/money";
 import type { AdPackage, PromotionRequest, ServiceScope } from "@/lib/services/sellerServices";
 import { normPromotionSurface, type MarketPromotionSurface } from "@/lib/services/marketplace";
+import type { UserEvent } from "@/lib/userSocket";
 
 export const PROMOTION_PLACEMENTS = ["banner", "profile_boost", "service_boost"] as const;
 export type PromotionPlacement = (typeof PROMOTION_PLACEMENTS)[number];
@@ -43,6 +44,12 @@ export type PromotionCheckoutInput = {
   idempotencyKey?: string;
 };
 
+export type PromotionCampaignSnapshot = { id: string; title: string; discountType: string; discountValue: number | null };
+
+export type PromotionPriceBreakdown = { baseAmount: number | null; discountAmount: number; amount: number; campaign: PromotionCampaignSnapshot | null };
+
+export type PromotionCheckout = PromotionRequest & { breakdown: PromotionPriceBreakdown | null };
+
 export const PROMOTION_ERROR_CODES = [
   "promotion_already_exists",
   "promotion_package_placement_mismatch",
@@ -59,6 +66,39 @@ export function promotionErrorCode(error: unknown): PromotionErrorCode | "" {
   const detail = asDict(error.data?.detail);
   const raw = asStr(error.code ?? detail.code ?? detail.error ?? error.detail).trim();
   return (PROMOTION_ERROR_CODES as readonly string[]).includes(raw) ? (raw as PromotionErrorCode) : "";
+}
+
+const CAMPAIGN_LAPSE = /campaign|aksiya|chegirma/i;
+const LAPSE_WORDS = /expired|exhausted|ended|limit|unavailable|inactive|sold_out|used_up|not_active|tugadi|tugagan/i;
+
+function lapseText(...values: unknown[]): string {
+  return values
+    .map((v) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : asStr(asDict(v).code ?? asDict(v).reason ?? asDict(v).status)))
+    .filter(Boolean)
+    .join(" ");
+}
+
+export function promotionCampaignEnded(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false;
+  const detail = asDict(error.data?.detail);
+  const text = lapseText(error.code, detail.code, detail.error, detail.reason, error.data?.code, error.data?.reason, error.detail);
+  return CAMPAIGN_LAPSE.test(text) && LAPSE_WORDS.test(text);
+}
+
+export function promotionCheckoutLapse(ev: UserEvent): { requestId: string; serviceId: string } | null {
+  let name = asStr(ev.event);
+  let d = asDict(ev.data ?? ev.payload ?? ev);
+  if (name === "notification.created") {
+    d = asDict(asDict(ev.notification).data);
+    name = asStr(d.event);
+  }
+  if (!name.startsWith("promotion.checkout_") || name.endsWith("approved")) return null;
+  const campaign = asDict(d.campaign);
+  const status = asStr(d.campaign_status ?? campaign.status).toLowerCase();
+  const text = lapseText(d.reason, d.cancel_reason, d.cancellation_reason, d.rejection_reason, d.code, d.error_code, d.error);
+  const lapsed = (CAMPAIGN_LAPSE.test(text) && LAPSE_WORDS.test(text)) || (!!status && status !== "active" && LAPSE_WORDS.test(status));
+  if (!lapsed) return null;
+  return { requestId: asStr(d.request_id ?? d.checkout_request_id ?? ev.request_id), serviceId: asStr(d.service_id ?? ev.service_id) };
 }
 
 export function promotionErrorRetryable(error: unknown): boolean {
@@ -99,7 +139,7 @@ function normPlacement(value: unknown): PromotionPlacementOption {
 function normPackage(value: unknown): PromotionPackage {
   const d = asDict(value);
   const payload = asDict(d.payload);
-  const placement = placementOf(d.placement ?? payload.placement);
+  const placement = placementOf(d.placement ?? payload.placement ?? d.promotion_type ?? payload.promotion_type);
   return {
     id: asStr(d.id ?? d.package_id),
     title: asStr(d.title ?? d.name),
@@ -164,7 +204,38 @@ export async function uploadPromotionBanner(file: File, signal?: AbortSignal): P
   };
 }
 
-export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput, scope: ServiceScope, currentUserId: string): Promise<PromotionRequest> {
+function campaignOf(value: unknown): PromotionCampaignSnapshot | null {
+  const c = asDict(value);
+  const id = asStr(c.id ?? c.campaign_id);
+  const rawTitle = c.title ?? c.name;
+  const titles = asDict(rawTitle);
+  const title = typeof rawTitle === "string" ? rawTitle : asStr(titles.uz_latn ?? titles.uz ?? titles.ru ?? titles.en ?? Object.values(titles).find((v) => typeof v === "string"));
+  const code = asStr(c.code);
+  if (!id && !title.trim() && !code) return null;
+  const size = uzsOpt(c, "discount_value", "value");
+  return { id, title: title.trim() || code, discountType: asStr(c.discount_type ?? c.type).toLowerCase(), discountValue: size ?? null };
+}
+
+export function promotionBreakdownOf(raw: Dict): PromotionPriceBreakdown | null {
+  const gate = asDict(raw.payment_gate ?? raw.payment);
+  const places = [raw, gate, asDict(raw.pricing), asDict(raw.price_breakdown)];
+  const pick = (key: string): number | undefined => {
+    for (const d of places) {
+      const v = uzsOpt(d, key);
+      if (v !== undefined) return v;
+    }
+    return undefined;
+  };
+  const base = pick("base_amount");
+  const discount = pick("discount_amount");
+  const campaign = campaignOf(raw.campaign ?? gate.campaign ?? raw.discount_campaign);
+  if (base === undefined && discount === undefined && !campaign) return null;
+  const amount = pick("amount") ?? pick("final_amount");
+  if (amount === undefined) return null;
+  return { baseAmount: base ?? null, discountAmount: discount ?? 0, amount, campaign };
+}
+
+export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput, scope: ServiceScope, currentUserId: string): Promise<PromotionCheckout> {
   const body: Dict = {
     package_id: input.packageId,
     days: input.days,
@@ -184,11 +255,13 @@ export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput
   const requestId = asStr(raw.checkout_request_id ?? raw.request_id ?? gate.id);
   const status = asStr(raw.promotion_status ?? raw.status).toLowerCase();
   const activated = raw.payment_required === false || /^(active|activated|approved|paid)$/.test(status);
+  const breakdown = promotionBreakdownOf(raw);
   return {
     activated,
     requestId,
+    breakdown,
     // The documented answer carries the package, not an amount of its own.
-    amount: uzs(gate, "amount") || uzs(raw, "amount") || uzs(pack, "price"),
+    amount: breakdown ? breakdown.amount : uzs(gate, "amount") || uzs(raw, "amount") || uzs(pack, "price"),
     currency: asStr(gate.currency ?? raw.currency ?? pack.currency, "UZS") || "UZS",
     // The 10-09 answer has no telegram_sent: a request that is waiting for the
     // Telegram approval says so with promotion_status and a checkout_request_id.

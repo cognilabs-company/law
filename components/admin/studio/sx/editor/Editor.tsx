@@ -207,7 +207,9 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
 
   const onAlertAction = (kind: NonNullable<EditorAlert>["kind"]) => {
     if (kind === "remote") st.loadRemote();
-    else if (kind === "file") openDrawer("files");
+    else if (kind === "file") {
+      if (!focusFieldPath(st.idPrefix, "file")) openDrawer("files");
+    }
     else if (kind === "locked") void confirmWithdraw(st, tr);
   };
 

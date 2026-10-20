@@ -800,3 +800,16 @@
   justify-content: flex-end;
   gap: 8px;
 }
+.sx-dlg__pv {
+  padding: 10px 12px;
+  border: 1px solid var(--sx-line);
+  border-radius: var(--sx-r);
+  background: var(--sx-surface-2);
+}
+.sx-dlg__risk[data-risk="high"] {
+  color: var(--sx-danger);
+  font-weight: 600;
+}
+.sx-dlg__pverr svg {
+  color: var(--sx-danger);
+}

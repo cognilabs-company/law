@@ -25,6 +25,7 @@ import {
 } from "@/lib/services/sellerServices";
 import { IconArrowRight, IconBriefcase, IconClock, IconMegaphone } from "@/components/icons";
 import PromoteModal from "./PromoteModal";
+import { promotionCheckoutLapse } from "@/lib/services/promotions";
 import { som } from "./bits";
 import { useAutoRefresh } from "./useAutoRefresh";
 
@@ -33,7 +34,7 @@ const PROFILE_KEY = pendingPromoKey("profile");
 const ME_PREFIX = `${scopeKey(ME)}|`;
 const inScope = (k: string) => k === PROFILE_KEY || k.startsWith(ME_PREFIX);
 type Load = { key: string; data: ManagedServices | null };
-type Toasts = { approved: string; rejected: string; profileApproved: string; profileRejected: string };
+type Toasts = { approved: string; rejected: string; profileApproved: string; profileRejected: string; lapsed: string };
 
 function announce(out: PromoOutcome[], m: Toasts): void {
   const has = (profile: boolean, kind: PromoOutcome["kind"]) => out.some((o) => (o.key === PROFILE_KEY) === profile && o.kind === kind);
@@ -41,6 +42,7 @@ function announce(out: PromoOutcome[], m: Toasts): void {
   if (has(false, "rejected")) toast(m.rejected, { tone: "err" });
   if (has(true, "approved")) toast(m.profileApproved, { tone: "ok" });
   if (has(true, "rejected")) toast(m.profileRejected, { tone: "err" });
+  if (out.some((o) => o.kind === "lapsed")) toast(m.lapsed, { tone: "err" });
 }
 
 export default function PromoteServicesSection({ role, onData }: { role: "lawyer" | "advocate"; onData?: (d: ManagedServices) => void }) {
@@ -59,6 +61,7 @@ export default function PromoteServicesSection({ role, onData }: { role: "lawyer
     rejected: t("toast.rejected"),
     profileApproved: t("toast.profileApproved"),
     profileRejected: t("toast.profileRejected"),
+    lapsed: t("toast.campaignEnded"),
   });
 
   useEffect(() => {
@@ -99,11 +102,12 @@ export default function PromoteServicesSection({ role, onData }: { role: "lawyer
   useEffect(() => {
     if (!uid) return;
     return subscribeUserEvents((ev) => {
-      const s = promoSignalOf(ev);
+      const lapse = promotionCheckoutLapse(ev);
+      const s = lapse ? { kind: "rejected" as const, ...lapse } : promoSignalOf(ev);
       if (!s || s.kind === "pending" || !s.serviceId) return;
       const kind = s.kind;
       const out = dropPendingPromos(uid, (k, p) => k.startsWith(ME_PREFIX) && ((s.requestId !== "" && p.requestId === s.requestId) || k === pendingPromoKey(ME, s.serviceId)));
-      if (out.length) toast(kind === "approved" ? t("toast.approved") : t("toast.rejected"), { tone: kind === "approved" ? "ok" : "err" });
+      if (out.length) toast(kind === "approved" ? t("toast.approved") : lapse ? t("toast.campaignEnded") : t("toast.rejected"), { tone: kind === "approved" ? "ok" : "err" });
       setTick((n) => n + 1);
     });
   }, [uid, t]);

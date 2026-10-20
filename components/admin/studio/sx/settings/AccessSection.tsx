@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import IconButton from "@/components/ui/IconButton";
 import { aiId } from "@/lib/ai/ids";
 import { logApiError } from "@/lib/http";
-import { STUDIO_ROLES, saveStudioAccess, studioErrorOf, useStudioRegistry, type StudioAccessGrant } from "@/lib/services/studio";
+import { STUDIO_ROLES, isRetiredStudioCode, saveStudioAccess, studioErrorOf, useStudioRegistry, type StudioAccessGrant } from "@/lib/services/studio";
 import { toast } from "@/lib/toast";
 import { SxButton } from "../Button";
 import { SxDialog } from "../editor/SxDialog";
@@ -159,14 +159,14 @@ export function AccessSection({ list }: { list: AccessList }): ReactElement {
       width: "26%",
       cell: (g) => {
         const wild = g.constructorCodes.includes("*");
-        const listed = g.constructorCodes.filter((c) => c !== "*");
+        const listed = g.constructorCodes.filter((c) => c !== "*" && !isRetiredStudioCode(c));
         const all = (
           <span className="sx-st-scope" data-all="">
             {glyph(LayersIcon, { size: 14 })}
             {t("settings.access.allCtors")}
           </span>
         );
-        if (!listed.length) return all;
+        if (!listed.length) return wild || !g.constructorCodes.length ? all : <span className="sx-st-dim">—</span>;
         const codes = [...listed].sort(byCtorRank);
         const room = wild ? SCOPE_MAX - 1 : SCOPE_MAX;
         const rest = codes.slice(room);

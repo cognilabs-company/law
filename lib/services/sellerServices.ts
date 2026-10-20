@@ -5,6 +5,7 @@ import { normService, type BackendService } from "@/lib/services/backend";
 import { getPublicPricingPolicy, readPriceModifiers, type PriceModifier } from "@/lib/services/marketplacePricing";
 import { listNotificationsRich } from "@/lib/services/notify";
 import type { UserEvent } from "@/lib/userSocket";
+import { promotionCheckoutLapse } from "@/lib/services/promotions";
 
 export const SERVICE_STATUSES = ["active", "paused", "inactive"] as const;
 export type ServiceStatus = (typeof SERVICE_STATUSES)[number];
@@ -469,7 +470,7 @@ export function prunePendingPromos(uid: string): void {
   dropPendingPromos(uid, () => false);
 }
 
-export type PromoOutcome = { key: string; kind: "approved" | "rejected" };
+export type PromoOutcome = { key: string; kind: "approved" | "rejected" | "lapsed" };
 
 const INBOX_SCAN = 40;
 
@@ -485,7 +486,7 @@ export async function settlePendingFromInbox(uid: string, inScope: (key: string)
   if (!waiting) return [];
   const done = new Map<string, PromoOutcome["kind"]>();
   for (const n of await listNotificationsRich({ limit: INBOX_SCAN })) {
-    const kind = outcomeOf(n.event);
+    const kind = promotionCheckoutLapse({ event: n.event, data: n.data } as UserEvent) ? "lapsed" : outcomeOf(n.event);
     const id = asStr(n.data.request_id);
     if (kind && id && !done.has(id)) done.set(id, kind);
   }

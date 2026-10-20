@@ -64,6 +64,7 @@ import ServiceFormModal from "./ServiceFormModal";
 import PromoteModal from "./PromoteModal";
 import { RemoveServiceModal, som } from "./bits";
 import { useAutoRefresh } from "./useAutoRefresh";
+import { promotionCheckoutLapse } from "@/lib/services/promotions";
 
 type Filter = "all" | ServiceStatus;
 type Load = { key: string; data: ManagedServices | null; error: ServiceError | null };
@@ -80,9 +81,10 @@ const RANK: Record<ServiceStatus, number> = { active: 0, paused: 1, inactive: 2 
 const isFilter = (v: string): v is Filter => (FILTERS as string[]).includes(v);
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-function announce(out: Pick<PromoOutcome, "kind">[], approved: string, rejected: string): void {
+function announce(out: Pick<PromoOutcome, "kind">[], approved: string, rejected: string, lapsed: string): void {
   if (out.some((o) => o.kind === "approved")) toast(approved, { tone: "ok" });
   if (out.some((o) => o.kind === "rejected")) toast(rejected, { tone: "err" });
+  if (out.some((o) => o.kind === "lapsed")) toast(lapsed, { tone: "err" });
 }
 
 export default function ServiceManager({
@@ -195,20 +197,21 @@ export default function ServiceManager({
     const live = new Set(data.items.filter((x) => x.ownPromotion).map((x) => pendingPromoKey(sc, x.id)));
     if (!live.size) return;
     const out = dropPendingPromos(uid, (k) => live.has(k));
-    announce(out.map(() => ({ kind: "approved" as const })), t("toast.approved"), t("toast.rejected"));
+    announce(out.map(() => ({ kind: "approved" as const })), t("toast.approved"), t("toast.rejected"), t("toast.campaignEnded"));
   }, [uid, data, sc, t]);
 
   useEffect(() => {
     if (!uid) return;
     return subscribeUserEvents((ev) => {
-      const s = promoSignalOf(ev);
+      const lapse = promotionCheckoutLapse(ev);
+      const s = lapse ? { kind: "rejected" as const, ...lapse } : promoSignalOf(ev);
       if (!s || s.kind === "pending") return;
       const kind = s.kind;
       const out = dropPendingPromos(
         uid,
         (k, p) => k.startsWith(`${skey}|`) && ((s.requestId !== "" && p.requestId === s.requestId) || (s.serviceId !== "" && k === pendingPromoKey(sc, s.serviceId))),
       );
-      announce(out.map(() => ({ kind })), t("toast.approved"), t("toast.rejected"));
+      announce(out.map(() => ({ kind })), t("toast.approved"), lapse ? t("toast.campaignEnded") : t("toast.rejected"), t("toast.campaignEnded"));
       setPulse((n) => n + 1);
     });
   }, [uid, sc, skey, t]);
@@ -218,7 +221,7 @@ export default function ServiceManager({
     if (uid && hasPending) {
       prunePendingPromos(uid);
       const out = await settlePendingFromInbox(uid, (k) => k.startsWith(prefix)).catch(() => []);
-      announce(out, t("toast.approved"), t("toast.rejected"));
+      announce(out, t("toast.approved"), t("toast.rejected"), t("toast.campaignEnded"));
     }
     setTick((x) => ({ n: x.n + 1, quiet: true }));
   });

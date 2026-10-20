@@ -62,11 +62,8 @@ export const STUDIO_CODES = [
   "K29",
   "K03-M",
   "K04",
-  "K05",
   "K06",
   "K07",
-  "K08",
-  "K09",
   "K10",
   "K11",
   "K12-M",
@@ -93,7 +90,6 @@ export const STUDIO_CODES = [
   "MP01",
   "MP02",
   "MP03",
-  "MP04",
   "MP05",
   "MP06",
   "MP07",
@@ -106,7 +102,6 @@ export const STUDIO_CODES = [
   "INT03",
   "OPS01",
   "OPS02",
-  "OPS03",
   "OPS04",
   "OPS05",
   "OPS06",
@@ -128,11 +123,8 @@ export const CONSTRUCTOR_META: Record<string, ConstructorMeta> = {
   K29: { icon: IconTrendingUp, group: "marketplace", i18nKey: "k29" },
   "K03-M": { icon: IconPackage, group: "marketplace", i18nKey: "k03m" },
   K04: { icon: IconCoins, group: "marketplace", i18nKey: "k04" },
-  K05: { icon: IconClipboardList, group: "documents", i18nKey: "k05" },
   K06: { icon: IconDocLines, group: "documents", i18nKey: "k06" },
   K07: { icon: IconFileText, group: "documents", i18nKey: "k07" },
-  K08: { icon: IconList, group: "quality", i18nKey: "k08" },
-  K09: { icon: IconClipboardCheck, group: "quality", i18nKey: "k09" },
   K10: { icon: IconCalendar, group: "quality", i18nKey: "k10" },
   K11: { icon: IconShield, group: "documents", i18nKey: "k11" },
   "K12-M": { icon: IconUsers, group: "marketplace", i18nKey: "k12m" },
@@ -160,7 +152,6 @@ export const CONSTRUCTOR_META: Record<string, ConstructorMeta> = {
   MP01: { icon: IconUserPlus, group: "marketplace", i18nKey: "mp01" },
   MP02: { icon: IconTag, group: "marketplace", i18nKey: "mp02" },
   MP03: { icon: IconStore, group: "marketplace", i18nKey: "mp03" },
-  MP04: { icon: IconMegaphone, group: "marketplace", i18nKey: "mp04" },
   MP05: { icon: IconClipboardList, group: "marketplace", i18nKey: "mp05" },
   MP06: { icon: IconShieldCheck, group: "marketplace", i18nKey: "mp06" },
   MP07: { icon: IconChat, group: "marketplace", i18nKey: "mp07" },
@@ -173,7 +164,6 @@ export const CONSTRUCTOR_META: Record<string, ConstructorMeta> = {
   INT03: { icon: IconGlobe, group: "integrations", i18nKey: "int03" },
   OPS01: { icon: IconSliders, group: "operations", i18nKey: "ops01" },
   OPS02: { icon: IconClock, group: "operations", i18nKey: "ops02" },
-  OPS03: { icon: IconCalendar, group: "operations", i18nKey: "ops03" },
   OPS04: { icon: IconHistory, group: "operations", i18nKey: "ops04" },
   OPS05: { icon: IconDownload, group: "operations", i18nKey: "ops05" },
   OPS06: { icon: IconChartBar, group: "operations", i18nKey: "ops06" },
@@ -200,3 +190,5 @@ export function ctorOrder(code: string): number {
 }
 
 export const approvalFreeCodes: string[] = STUDIO_APPROVAL_FREE;
+
+export { RETIRED_MOVES, retiredGroupHref, retiredMoveOf, type RetiredMove } from "./retired";

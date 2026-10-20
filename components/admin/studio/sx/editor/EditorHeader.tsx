@@ -163,8 +163,8 @@ function menuEntries(st: EditorState, narrow: boolean, t: (key: string, values?:
       aiId: `${AI}.menu.comments`,
     });
   }
-  const fileMissing = st.fileRequired && !st.hasFile;
-  if (obj || fileMissing) {
+  const fileMissing = st.fileRequired && !st.hasFile && !st.pendingFile;
+  if (obj) {
     out.push({
       key: "files",
       label: t("sx.editor.tab.files"),
@@ -446,11 +446,11 @@ function AlertSlot({ alert, st, onAction }: { alert: NonNullable<EditorAlert>; s
       title={t("sx.editor.alert.fileTitle")}
       action={
         <SxButton variant="ghost" size="sm" icon={PaperclipIcon} onClick={() => onAction("file")} aiId={`${AI}.goto-file`}>
-          {t("sx.editor.alert.fileAction")}
+          {t("sx.k06.alert.action")}
         </SxButton>
       }
     >
-      {t(alert.isNew ? "sx.editor.alert.fileNew" : "sx.editor.alert.fileText")}
+      {t(alert.isNew ? "sx.k06.alert.new" : "sx.k06.alert.text")}
     </SxNote>
   );
 }

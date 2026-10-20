@@ -1,5 +1,6 @@
-import type { SxCtorLayout, SxLayoutCtx, SxPayload, SxValues } from "../contract";
-import { LibraryBigIcon, BadgeCheckIcon, BriefcaseBusinessIcon, CalendarDaysIcon, ClockIcon, CoinsIcon, FileQuestionMarkIcon, FilesIcon, FileTextIcon, FileXIcon, FolderOpenIcon, GlobeIcon, HeadsetIcon, LockIcon, PackageIcon, PercentIcon, RefreshCwIcon, ShieldCheckIcon, UploadIcon } from "../icons";
+import type { SxCtorLayout, SxLayoutCtx, SxLayoutField, SxPayload, SxTransformCtx, SxValues } from "../contract";
+import { FIELD_TYPE_ICON, LibraryBigIcon, BadgeCheckIcon, BriefcaseBusinessIcon, CalendarDaysIcon, ClockIcon, CoinsIcon, FileQuestionMarkIcon, FilesIcon, FileTextIcon, FileXIcon, FolderOpenIcon, GlobeIcon, HeadsetIcon, LockIcon, PackageIcon, PercentIcon, RefreshCwIcon, ShieldCheckIcon, UploadIcon } from "../icons";
+import { INTAKE, INTAKE_CHOICE_KEYS, INTAKE_HIDDEN_KEYS, INTAKE_REQUIRED_KEYS, INTAKE_TEXT_KEYS, INTAKE_TYPE_KEYS, SERVICE_TERMS, intakeQuestionOf, intakeTidy, intakeTypeOf, showIntakeChoices } from "../schema/k02/intake";
 import { k02Prune, k02Validate } from "../schema/k02/model";
 import type { SxIcon } from "../types";
 import type { StudioLabels } from "../useStudioLabels";
@@ -124,8 +125,47 @@ export const K33_LAYOUT: SxCtorLayout = {
 
 const NO_EXECUTOR: ReadonlySet<string> = new Set(["none", "null", "undefined"]);
 
-export function k02Transform(next: SxPayload, prev: SxValues = {}): SxPayload {
-  const pruned = k02Prune(next, prev);
+const INTAKE_TYPE_ALIAS: Readonly<Record<string, string>> = {
+  long_text: "textarea",
+  single_choice: "select",
+  choice: "select",
+  radio: "select",
+  dropdown: "select",
+  multiple_choice: "multiselect",
+  multi_select: "multiselect",
+  checkbox: "multiselect",
+  checkboxes: "multiselect",
+  yes_no: "boolean",
+  phone: "text",
+};
+const intakeTypeIcon = (v: string): SxIcon | undefined => FIELD_TYPE_ICON[INTAKE_TYPE_ALIAS[v] ?? v];
+
+const intakeTypeLabel = (v: string, labels: StudioLabels): string => labels.option(v, { ctor: "K02", field: "intake_type" });
+const intakeMeta = (item: SxValues, _i: number, labels: StudioLabels): string => {
+  const type = intakeTypeOf(item);
+  return type ? intakeTypeLabel(type, labels) : "";
+};
+
+const INTAKE_FIELDS: readonly SxLayoutField[] = [
+  {
+    path: INTAKE,
+    control: "repeater",
+    label: "sx.k02.field.intake_questions",
+    help: "sx.k02.help.intake_questions",
+    addKey: "sx.k02.iq.add",
+    emptyKey: "sx.k02.iq.empty",
+    summary: (item) => intakeQuestionOf(item),
+    meta: intakeMeta,
+  },
+  ...INTAKE_HIDDEN_KEYS.map((k): SxLayoutField => ({ path: `${INTAKE}.*.${k}`, hidden: true })),
+  ...INTAKE_TEXT_KEYS.map((k): SxLayoutField => ({ path: `${INTAKE}.*.${k}`, control: "text", label: "sx.k02.iq.question", placeholder: "sx.k02.iq.questionPh", help: false, span: 2 })),
+  ...INTAKE_TYPE_KEYS.map((k): SxLayoutField => ({ path: `${INTAKE}.*.${k}`, control: "picker", label: "sx.k02.iq.type", optionLabel: intakeTypeLabel, optionIcon: intakeTypeIcon, help: false, span: 1 })),
+  ...INTAKE_REQUIRED_KEYS.map((k): SxLayoutField => ({ path: `${INTAKE}.*.${k}`, label: "sx.k02.iq.required", help: "sx.k02.iq.requiredHelp", span: 1 })),
+  ...INTAKE_CHOICE_KEYS.map((k): SxLayoutField => ({ path: `${INTAKE}.*.${k}`, label: "sx.k02.iq.choices", help: "sx.k02.iq.choicesHelp", addKey: "sx.k02.iq.addChoice", visible: ({ scope }) => showIntakeChoices(scope) })),
+];
+
+export function k02Transform(next: SxPayload, prev: SxValues = {}, ctx?: SxTransformCtx): SxPayload {
+  const pruned = intakeTidy(k02Prune(next, prev), prev, ctx?.code || "K02");
   const v = pruned.executor_type;
   if (typeof v !== "string" || !NO_EXECUTOR.has(v.trim().toLowerCase())) return pruned;
   const out: SxPayload = { ...pruned };
@@ -141,10 +181,11 @@ export const K02_LAYOUT: SxCtorLayout = {
     { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "category_id", "description", "client_value", "executor_type"] },
     { id: "K02__price", titleKey: "sx.section.K02__price", fields: ["base_price", "max_price", "price_factor_ids", "price_factor_overrides", "negotiation_allowed"] },
     { id: "K02__requirements", titleKey: "sx.section.K02__requirements", fields: ["seller_requirements"] },
+    { id: "K02__intake", titleKey: "sx.section.K02__intake", fields: [INTAKE] },
     { id: "K02__delivery", titleKey: "sx.section.K02__delivery", fields: ["duration_value", "duration_unit", "duration_calendar"] },
     { id: "K02__template", titleKey: "sx.section.K02__template", fields: ["template_mode", "template_source", "document_template_id"] },
     { id: "K02__checklist", titleKey: "sx.section.K02__checklist", fields: ["completion_checklist", "checklist_template_id"] },
-    { id: "K02__rules", titleKey: "sx.section.K02__rules", fields: ["rule_ids", "inline_rules"] },
+    { id: "K02__rules", titleKey: "sx.section.K02__rules", fields: ["rule_ids", "inline_rules", SERVICE_TERMS] },
     { id: "K02__guarantees", titleKey: "sx.section.K02__guarantees", fields: ["guarantee_ids", "inline_guarantees"] },
     { id: "K02__search", titleKey: "sx.section.K02__search", fields: ["discovery_terms"] },
     { id: "status", titleKey: "sx.section.status", fields: ["is_active"] },
@@ -186,6 +227,8 @@ export const K02_LAYOUT: SxCtorLayout = {
     },
     { path: "inline_rules.*.title", label: "sx.k02.f.inlineTitle", placeholder: "sx.k02.ph.ruleTitle", help: false },
     { path: "inline_rules.*.body", control: "textarea", label: "sx.k02.f.inlineBody", placeholder: "sx.k02.ph.ruleBody", help: false },
+    { path: SERVICE_TERMS, control: "richtext", label: "sx.k02.field.service_terms_text", help: "sx.k02.help.service_terms_text" },
+    ...INTAKE_FIELDS,
     { path: "guarantee_ids", label: "sx.k02.field.guarantee_ids", help: "sx.k02.help.guarantee_ids", inlineAddKey: "sx.k02.guarantees.addShared" },
     {
       path: "inline_guarantees",

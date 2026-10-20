@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { ApiError, asArr, asDict, asNum, asStr, currentTokenOwner, errDetail, http, httpBlob, isForbidden, isRouteMissing, parseServerTime, type Dict } from "@/lib/http";
 import { saveBlob } from "@/lib/download";
 import { sessionRoles, useAuth } from "@/lib/auth";
+import { STUDIO_RETIRED_CODES, isRetiredStudioCode } from "@/lib/studio/retired";
 
 export type StudioStatus = "draft" | "submitted" | "in_review" | "changes_requested" | "approved" | "published" | "archived";
 export const STUDIO_STATUSES: StudioStatus[] = ["draft", "submitted", "in_review", "changes_requested", "approved", "published", "archived"];
@@ -12,6 +13,9 @@ export type StudioFieldErrors = Record<string, string>;
 export const STUDIO_ROLES = ["studio_editor", "studio_reviewer", "studio_publisher", "studio_admin"] as const;
 export type StudioRole = (typeof STUDIO_ROLES)[number];
 export const STUDIO_APPROVAL_FREE = ["K16"];
+export { STUDIO_RETIRED_CODES, isRetiredStudioCode };
+const liveCodes = (codes: readonly string[]): string[] => codes.filter((c) => !isRetiredStudioCode(c));
+const stillBlocked = (blocked: boolean, before: readonly string[], after: readonly string[]): boolean => blocked && (after.length > 0 || before.length === 0);
 export const STUDIO_FILE_EXT = [".docx", ".doc", ".pdf", ".xlsx", ".xls", ".txt"];
 export const STUDIO_FILE_ACCEPT = STUDIO_FILE_EXT.join(",");
 export const STUDIO_HEARTBEAT_MS = 25_000;
@@ -135,9 +139,9 @@ function navigationOf(r: Dict): StudioNavigation | null {
     groupOrder: numOrNull(n.group_order) ?? 99,
     step: numOrNull(n.step_number) ?? 0,
     steps: numOrNull(n.step_count) ?? 0,
-    requiredBefore: strings(n.required_before),
-    recommendedBefore: strings(n.recommended_before),
-    nextSteps: strings(n.next_steps),
+    requiredBefore: liveCodes(strings(n.required_before)),
+    recommendedBefore: liveCodes(strings(n.recommended_before)),
+    nextSteps: liveCodes(strings(n.next_steps)),
     reason: asStr(n.sequence_reason),
   };
 }
@@ -218,9 +222,16 @@ const pct = (v: unknown, done: number, all: number) => Math.max(0, Math.min(100,
 
 export function normStudioGroup(raw: unknown, i = 0): StudioGroup {
   const d = asDict(raw);
-  const codes = strings(d.codes).length ? strings(d.codes) : asArr(d.constructors).map((c) => first(asDict(c).code)).filter(Boolean);
-  const count = numOrNull(d.visible_constructor_count) ?? numOrNull(d.constructor_count) ?? codes.length;
-  const completed = numOrNull(d.completed_count) ?? 0;
+  const all = strings(d.codes).length ? strings(d.codes) : asArr(d.constructors).map((c) => first(asDict(c).code)).filter(Boolean);
+  const codes = liveCodes(all);
+  const dropped = all.length - codes.length;
+  const listed = asArr(d.constructors).map(normStudioConstructor).filter((c) => c.code && codes.includes(c.code));
+  const recount = dropped > 0 && listed.length === codes.length;
+  const count = Math.max(0, (numOrNull(d.visible_constructor_count) ?? numOrNull(d.constructor_count) ?? all.length) - dropped);
+  const completed = recount ? listed.filter((c) => c.completed).length : Math.min(count, numOrNull(d.completed_count) ?? 0);
+  const available = recount ? listed.filter((c) => !c.completed && c.availability !== "blocked").length : Math.min(count, numOrNull(d.available_count) ?? 0);
+  const next = asStr(d.next_constructor_code);
+  const nextCode = isRetiredStudioCode(next) ? (listed.find((c) => !c.completed && c.availability !== "blocked")?.code ?? "") : next;
   return {
     key: first(d.key, d.id) || `g${i}`,
     title: first(d.title, d.key),
@@ -229,15 +240,15 @@ export function normStudioGroup(raw: unknown, i = 0): StudioGroup {
     codes,
     count,
     completed,
-    available: numOrNull(d.available_count) ?? 0,
-    progress: pct(d.progress_percent, completed, count),
-    nextCode: asStr(d.next_constructor_code),
+    available,
+    progress: dropped > 0 ? pct(null, completed, count) : pct(d.progress_percent, completed, count),
+    nextCode,
   };
 }
 
 export function normStudioJourney(raw: unknown, i = 0): StudioJourney {
   const d = asDict(raw);
-  const steps = asArr(d.steps).map((x, j) => {
+  const all = asArr(d.steps).map((x, j) => {
     const s = asDict(x);
     return {
       step: numOrNull(s.step) ?? j + 1,
@@ -248,15 +259,22 @@ export function normStudioJourney(raw: unknown, i = 0): StudioJourney {
       missingRequired: strings(s.missing_required),
     };
   });
-  const completed = numOrNull(d.completed_count) ?? steps.filter((s) => s.completed).length;
+  const dropped = all.some((s) => isRetiredStudioCode(s.code));
+  const steps = all
+    .filter((s) => !isRetiredStudioCode(s.code))
+    .map((s, j) => {
+      const missingRequired = liveCodes(s.missingRequired);
+      return { ...s, step: dropped ? j + 1 : s.step, missingRequired, blocked: stillBlocked(s.blocked, s.missingRequired, missingRequired) };
+    });
+  const completed = dropped ? steps.filter((s) => s.completed).length : (numOrNull(d.completed_count) ?? steps.filter((s) => s.completed).length);
   return {
     key: first(d.key, d.id) || `j${i}`,
     title: first(d.title, d.key),
     description: asStr(d.description),
-    codes: strings(d.codes).length ? strings(d.codes) : steps.map((s) => s.code),
+    codes: liveCodes(strings(d.codes).length ? strings(d.codes) : steps.map((s) => s.code)),
     steps,
     completed,
-    progress: pct(d.progress_percent, completed, numOrNull(d.step_count) ?? steps.length),
+    progress: dropped ? pct(null, completed, steps.length) : pct(d.progress_percent, completed, numOrNull(d.step_count) ?? steps.length),
   };
 }
 
@@ -431,7 +449,7 @@ export type StudioAccessGrant = {
 export type StudioAccessInput = { userId: string; roles: string[]; constructorCodes?: string[]; active?: boolean; id?: string };
 
 export type StudioList<T> = { items: T[]; total: number };
-export type StudioRegistry = { items: StudioConstructor[]; userRoles: string[]; groups: StudioGroup[]; journeys: StudioJourney[] };
+export type StudioRegistry = { items: StudioConstructor[]; userRoles: string[]; groups: StudioGroup[]; journeys: StudioJourney[]; constructorCount: number | null };
 export type StudioListQuery = { constructorCode?: string; status?: string; assignedToMe?: boolean; limit?: number; offset?: number };
 export type StudioSaveInput = { title?: string; payload?: Dict; summary?: string; version?: string; expectedLockVersion?: number | null };
 export type StudioCreateInput = { constructorCode: string; title: string; payload: Dict; runtimeTargetId?: string; runtimeTargetType?: string };
@@ -669,6 +687,9 @@ export function normStudioConstructor(raw: unknown): StudioConstructor {
     })
     .filter((x) => x.title);
   const operations = operationsOf(r);
+  const missingAll = strings(r.missing_required);
+  const missingRequired = liveCodes(missingAll);
+  const availability = asStr(r.availability);
   return {
     code,
     title: first(r.title, r.name, r.label, code),
@@ -684,9 +705,9 @@ export function normStudioConstructor(raw: unknown): StudioConstructor {
     experience: experienceOf(r),
     navigation: navigationOf(r),
     completed: r.completed === true,
-    availability: asStr(r.availability),
-    missingRequired: strings(r.missing_required),
-    missingRecommended: strings(r.missing_recommended),
+    availability: availability === "blocked" && !stillBlocked(true, missingAll, missingRequired) ? "available" : availability,
+    missingRequired,
+    missingRecommended: liveCodes(strings(r.missing_recommended)),
     recordCount: numOrNull(r.record_count),
     operations,
     references: referencesOf(r.references),
@@ -826,8 +847,7 @@ export function normStudioDetail(raw: unknown): StudioDetail {
     listOf(outer.versions ?? base.versions ?? outer.version_history ?? base.version_history ?? base.history, ["items", "versions", "data"]).map(normStudioVersion),
   );
   const steps = listOf(outer.steps ?? base.steps ?? outer.approval_steps ?? base.approval_steps ?? base.approvals, ["items", "steps", "data"])
-    .map((s, i) => normStudioStep(s, i))
-    .sort((a, b) => a.order - b.order);
+    .map((s, i) => normStudioStep(s, i));
   const currentId = obj.currentVersionId || versions[0]?.id || "";
   const curVer = versions.find((v) => v.id === currentId) ?? null;
   const payloadRaw = base.payload ?? cur.payload ?? outer.payload ?? curVer?.payload;
@@ -965,11 +985,12 @@ type RegState = {
   userRoles: string[];
   groups: StudioGroup[];
   journeys: StudioJourney[];
+  constructorCount: number | null;
   error: unknown;
   at: number;
 };
 
-let reg: RegState = { avail: "checking", owner: "", items: [], userRoles: [], groups: [], journeys: [], error: null, at: 0 };
+let reg: RegState = { avail: "checking", owner: "", items: [], userRoles: [], groups: [], journeys: [], constructorCount: null, error: null, at: 0 };
 let inflight: Promise<StudioRegistry | null> | null = null;
 let offTimer: ReturnType<typeof setTimeout> | undefined;
 const listeners = new Set<() => void>();
@@ -985,7 +1006,7 @@ function ownerMatches(): boolean {
 
 function snapshot(): RegState {
   if (!ownerMatches() && reg.avail !== "checking") {
-    reg = { avail: "checking", owner: currentTokenOwner(), items: [], userRoles: [], groups: [], journeys: [], error: null, at: 0 };
+    reg = { avail: "checking", owner: currentTokenOwner(), items: [], userRoles: [], groups: [], journeys: [], constructorCount: null, error: null, at: 0 };
   }
   return reg;
 }
@@ -1003,7 +1024,7 @@ export function studioAvailable(): StudioAvailability {
 
 export function studioRegistrySnapshot(): StudioRegistry & { avail: StudioAvailability; error: unknown } {
   const s = snapshot();
-  return { avail: s.avail, items: s.items, userRoles: s.userRoles, groups: s.groups, journeys: s.journeys, error: s.error };
+  return { avail: s.avail, items: s.items, userRoles: s.userRoles, groups: s.groups, journeys: s.journeys, constructorCount: s.constructorCount, error: s.error };
 }
 
 function markOff(owner: string): void {
@@ -1011,22 +1032,39 @@ function markOff(owner: string): void {
   offTimer = setTimeout(() => {
     if (reg.avail === "off") setReg({ avail: "checking", at: 0 });
   }, OFF_TTL);
-  setReg({ avail: "off", owner, items: [], userRoles: [], groups: [], journeys: [], error: null, at: Date.now() });
+  setReg({ avail: "off", owner, items: [], userRoles: [], groups: [], journeys: [], constructorCount: null, error: null, at: Date.now() });
+}
+
+function renumbered(c: StudioConstructor, groups: readonly StudioGroup[], shrunk: ReadonlySet<string>): StudioConstructor {
+  const nav = c.navigation;
+  if (!nav || !shrunk.has(nav.groupKey)) return c;
+  const g = groups.find((x) => x.key === nav.groupKey);
+  const at = g ? g.codes.indexOf(c.code) : -1;
+  return at < 0 || !g ? c : { ...c, navigation: { ...nav, step: at + 1, steps: g.codes.length } };
 }
 
 function parseRegistry(res: unknown): StudioRegistry {
   const d = asDict(res);
-  const items = listOf(res, ["items", "constructors", "data", "results"]).map(normStudioConstructor).filter((c) => c.code);
+  const all = listOf(res, ["items", "constructors", "data", "results"]).map(normStudioConstructor).filter((c) => c.code);
   const userRoles = strings(d.user_roles ?? d.roles ?? d.userRoles).map((r) => r.toLowerCase());
-  const groups = asArr(d.groups).map(normStudioGroup).filter((g) => g.codes.length).sort((a, b) => a.order - b.order);
+  const groups = asArr(d.groups).map(normStudioGroup).filter((g) => g.codes.length);
   const journeys = asArr(d.journeys).map(normStudioJourney).filter((j) => j.steps.length);
-  // A constructor the flat list lacks but a group carries is still listed.
   for (const g of asArr(d.groups))
     for (const c of asArr(asDict(g).constructors)) {
       const n = normStudioConstructor(c);
-      if (n.code && !items.some((x) => x.code === n.code)) items.push(n);
+      if (n.code && !all.some((x) => x.code === n.code)) all.push(n);
     }
-  return { items, userRoles, groups, journeys };
+  const retired = new Set(all.filter((c) => isRetiredStudioCode(c.code)).map((c) => c.code));
+  const shrunk = new Set(
+    asArr(d.groups)
+      .map((g) => asDict(g))
+      .filter((g) => [...strings(g.codes), ...asArr(g.constructors).map((c) => first(asDict(c).code))].some(isRetiredStudioCode))
+      .map((g) => first(g.key, g.id)),
+  );
+  const items = all.filter((c) => !retired.has(c.code)).map((c) => renumbered(c, groups, shrunk));
+  const listed = numOrNull(d.constructor_count);
+  const constructorCount = listed === null ? null : Math.max(0, listed - retired.size);
+  return { items, userRoles, groups, journeys, constructorCount };
 }
 
 export async function listStudioConstructors(): Promise<StudioRegistry> {
@@ -1034,11 +1072,11 @@ export async function listStudioConstructors(): Promise<StudioRegistry> {
   try {
     const out = parseRegistry(await http("/studio/constructors"));
     clearTimeout(offTimer);
-    setReg({ avail: "on", owner, items: out.items, userRoles: out.userRoles, groups: out.groups, journeys: out.journeys, error: null, at: Date.now() });
+    setReg({ avail: "on", owner, items: out.items, userRoles: out.userRoles, groups: out.groups, journeys: out.journeys, constructorCount: out.constructorCount, error: null, at: Date.now() });
     return out;
   } catch (e) {
     if (isRouteMissing(e)) markOff(owner);
-    else if (isForbidden(e)) setReg({ avail: "on", owner, items: [], userRoles: [], groups: [], journeys: [], error: e, at: Date.now() });
+    else if (isForbidden(e)) setReg({ avail: "on", owner, items: [], userRoles: [], groups: [], journeys: [], constructorCount: null, error: e, at: Date.now() });
     else setReg({ avail: reg.avail === "checking" ? "on" : reg.avail, owner, error: e, at: Date.now() });
     throw e;
   }
@@ -1047,7 +1085,7 @@ export async function listStudioConstructors(): Promise<StudioRegistry> {
 export function ensureStudioRegistry(force = false): Promise<StudioRegistry | null> {
   const s = snapshot();
   if (!force && s.avail === "off") return Promise.resolve(null);
-  if (!force && s.avail === "on" && !s.error && Date.now() - s.at < FRESH_MS) return Promise.resolve({ items: s.items, userRoles: s.userRoles, groups: s.groups, journeys: s.journeys });
+  if (!force && s.avail === "on" && !s.error && Date.now() - s.at < FRESH_MS) return Promise.resolve({ items: s.items, userRoles: s.userRoles, groups: s.groups, journeys: s.journeys, constructorCount: s.constructorCount });
   if (inflight) return inflight;
   inflight = listStudioConstructors()
     .then((r) => r as StudioRegistry | null)
@@ -1064,7 +1102,7 @@ export function recheckStudio(): Promise<StudioRegistry | null> {
   return ensureStudioRegistry(true);
 }
 
-const serverReg: RegState = { avail: "checking", owner: "", items: [], userRoles: [], groups: [], journeys: [], error: null, at: 0 };
+const serverReg: RegState = { avail: "checking", owner: "", items: [], userRoles: [], groups: [], journeys: [], constructorCount: null, error: null, at: 0 };
 
 export function useStudioRegistry(enabled = true): RegState & { reload: () => Promise<StudioRegistry | null> } {
   const s = useSyncExternalStore(subscribeStudio, snapshot, () => serverReg);
@@ -1170,6 +1208,7 @@ export async function syncStudioConstructors(): Promise<{ count: number }> {
 }
 
 const enc = encodeURIComponent;
+const HOLIDAY_FIELDS = ["starts_on", "duration_days"];
 
 export async function listStudioObjects(q: StudioListQuery = {}): Promise<StudioList<StudioObject>> {
   const p = new URLSearchParams();
@@ -1184,8 +1223,21 @@ export async function listStudioObjects(q: StudioListQuery = {}): Promise<Studio
   return { items, total: totalOf(res, items.length) };
 }
 
-export async function getStudioObject(id: string): Promise<StudioDetail> {
-  return normStudioDetail(await http(`/studio/objects/${enc(id)}`));
+const objectInflight = new Map<string, Promise<StudioDetail>>();
+
+export function getStudioObject(id: string): Promise<StudioDetail> {
+  const hit = objectInflight.get(id);
+  if (hit) return hit;
+  const p = http(`/studio/objects/${enc(id)}`)
+    .then(normStudioDetail)
+    .finally(() => objectInflight.delete(id));
+  objectInflight.set(id, p);
+  return p;
+}
+
+export function isHolidayCalendarCtor(ctor: Pick<StudioConstructor, "typed" | "schema"> | null | undefined): boolean {
+  if (!ctor) return false;
+  return HOLIDAY_FIELDS.some((k) => ctor.schema.fields.includes(k) || ctor.typed.some((f) => f.key === k));
 }
 
 export async function createStudioObject(input: StudioCreateInput): Promise<StudioDetail> {
@@ -1790,11 +1842,13 @@ export async function listApprovalRoutes(): Promise<StudioRouteBoard> {
   const d = asDict(res);
   const sa = asDict(d.primary_superadmin);
   return {
-    items: listOf(res, ["items", "routes", "data", "results"]).map(normStudioRoute),
+    items: listOf(res, ["items", "routes", "data", "results"])
+      .map(normStudioRoute)
+      .filter((r) => r.scopeType !== "constructor" || !isRetiredStudioCode(r.constructorCode || r.scopeKey)),
     groups: asArr(d.groups)
       .map((g, i) => {
         const x = asDict(g);
-        return { key: asStr(x.key), title: asStr(x.title), description: asStr(x.description), codes: strings(x.codes), order: asNum(x.order, i + 1) };
+        return { key: asStr(x.key), title: asStr(x.title), description: asStr(x.description), codes: liveCodes(strings(x.codes)), order: asNum(x.order, i + 1) };
       })
       .filter((g) => g.key)
       .sort((a, b) => a.order - b.order),

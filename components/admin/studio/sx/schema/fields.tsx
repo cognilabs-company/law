@@ -25,7 +25,7 @@ import { TextInput } from "../form/TextInput";
 import { firstReferencePage } from "../form/useReferenceOptions";
 import { TriangleAlertIcon, glyph } from "../icons";
 import { SxSectionHeader } from "../layout/Panel";
-import type { SchemaFieldModel, SchemaModel, SxControlKind, SxEditMode, SxLayoutCtx, SxLayoutField, SxValues, SxWarning } from "../contract";
+import type { SchemaFieldModel, SchemaModel, SxControlKind, SxEditMode, SxFileSlot, SxLayoutCtx, SxLayoutField, SxValues, SxWarning } from "../contract";
 import type { SxControlA11y, SxErrors, SxIcon, SxOption, SxRule } from "../types";
 import type { StudioLabels } from "../useStudioLabels";
 import { useStudioLabels } from "../useStudioLabels";
@@ -37,6 +37,10 @@ import { FACTOR_IDS, canSuggest, suggestBody } from "./k02/model";
 import { RefPicker } from "./RefPicker";
 import { NEON_WIDE_RO, fieldIcon, type SxLook } from "./neonLook";
 import { RichText, RichTextView } from "./RichText";
+import { DocEditor } from "./legal/DocEditor";
+import { LegalRuBlock, LegalUzBlock } from "./legal/LegalText";
+import { docFieldsOf } from "./legal/model";
+import { TemplateFile } from "./legal/TemplateFile";
 import {
   controlFor,
   dyn,
@@ -71,6 +75,7 @@ export type SfEnv = {
   labels: StudioLabels;
   t: SchemaTr;
   look?: SxLook;
+  file?: SxFileSlot | null;
 };
 
 export const SfContext = createContext<SfEnv | null>(null);
@@ -493,6 +498,64 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
           onChange={(next) => set(next)}
           errorText={(tok, p, type) => labels.error(tok, { type, key: lastKey(p), ctor: model.code, path: p })}
         />
+      </Field>,
+    );
+  }
+
+  if (control === "legalUz" || control === "legalRu") {
+    const Block = control === "legalUz" ? LegalUzBlock : LegalRuBlock;
+    const errorAt = (p: string): string => {
+      const tok = policy.visible(p, errors);
+      return tok ? labels.error(tok, { type: "text", key: lastKey(p), ctor: model.code, path: p }) : "";
+    };
+    return cell(
+      <Block
+        id={id}
+        ai={ai}
+        label={label}
+        help={help}
+        required={shown.required}
+        readOnly={formRo}
+        root={root}
+        emit={(p, v) => emit(p, v)}
+        errorAt={errorAt}
+        touch={(p) => policy.touch(p)}
+      />,
+    );
+  }
+
+  if (control === "file") {
+    return cell(
+      <Field id={id} label={label} help={help} error={token === "@file" ? t("sx.k06.file.required") : error} required={shown.required && !formRo} span={span}>
+        {(a) => <TemplateFile id={id} ai={ai} label={label} slot={env.file ?? null} readOnly={formRo} error={error} describedBy={a["aria-describedby"]} />}
+      </Field>,
+    );
+  }
+
+  if (control === "docText") {
+    const docFields = node.pattern.includes(".") ? [] : docFieldsOf(root);
+    const compact = node.pattern.includes(".");
+    return cell(
+      <Field id={id} label={label} help={help} error={error} required={shown.required && !formRo} span={span}>
+        {(a) => (
+        <DocEditor
+          id={id}
+          value={str(value)}
+          onChange={(v) => set(v)}
+          label={label}
+          readOnly={formRo || ro}
+          invalid={!!error}
+          placeholder={placeholder ?? t("sx.doc.placeholder")}
+          fields={docFields}
+          compact={compact}
+          onBlur={touch}
+          aria-labelledby={a["aria-labelledby"]}
+          aria-describedby={a["aria-describedby"]}
+          aria-invalid={a["aria-invalid"]}
+          aria-required={a["aria-required"]}
+          aiId={ai}
+        />
+        )}
       </Field>,
     );
   }

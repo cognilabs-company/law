@@ -169,6 +169,10 @@ function layoutIndex(layout: SxCtorLayout): Map<string, SxLayoutField> {
   return map;
 }
 
+export function resolveLayout(layout: SxCtorLayout, ctor: StudioConstructor | null): SxCtorLayout {
+  return ctor && layout.adapt ? layout.adapt(ctor) : layout;
+}
+
 function sectionTitle(input: BuildSchemaInput, titleKey: string): string {
   const t = input.t;
   if (t && t.has(titleKey)) return t(titleKey);
@@ -177,7 +181,8 @@ function sectionTitle(input: BuildSchemaInput, titleKey: string): string {
 }
 
 export function buildSchemaModel(input: BuildSchemaInput): SchemaModel {
-  const { ctor, layout, runtimeTarget, idPrefix, only } = input;
+  const { ctor, runtimeTarget, idPrefix, only } = input;
+  const layout = resolveLayout(input.layout, ctor);
   const code = ctor.code || layout.code;
   const byPattern = layoutIndex(layout);
   const requiredTop = new Set(ctor.schema.required);
@@ -193,14 +198,16 @@ export function buildSchemaModel(input: BuildSchemaInput): SchemaModel {
     if (f?.hidden) return null;
     const parts = pattern.split(".");
     const key = parts[parts.length - 1];
-    const required = f ? (parts.length === 1 ? f.required || requiredTop.has(key) : f.required || parentRequired(ctor.typed, pattern, key)) : false;
+    const schemaRequired = f ? (parts.length === 1 ? f.required || requiredTop.has(key) : f.required || parentRequired(ctor.typed, pattern, key)) : false;
+    const required = schemaRequired || lf?.required === true;
     return { pattern, key, field: f, layout: lf, required };
   };
 
   const domOf = (id: string) => `${idPrefix}-sec-${aiSeg(id)}`;
-  const mkSection = (id: string, title: string, fields: SchemaFieldModel[], visible?: SchemaSectionModel["visible"]): SchemaSectionModel => {
+  const mkSection = (id: string, title: string, fields: SchemaFieldModel[], visible?: SchemaSectionModel["visible"], icon?: SchemaSectionModel["icon"]): SchemaSectionModel => {
     const domId = domOf(id);
-    return visible ? { id, domId, headingId: `${domId}-h`, title, fields, visible } : { id, domId, headingId: `${domId}-h`, title, fields };
+    const base: SchemaSectionModel = visible ? { id, domId, headingId: `${domId}-h`, title, fields, visible } : { id, domId, headingId: `${domId}-h`, title, fields };
+    return icon ? { ...base, icon } : base;
   };
 
   let sections: SchemaSectionModel[] = [];
@@ -211,7 +218,7 @@ export function buildSchemaModel(input: BuildSchemaInput): SchemaModel {
     for (const s of layout.sections) for (const p of s.fields) listed.add(patternOf(p).split(".")[0]);
     for (const s of layout.sections) {
       const fields = s.fields.map((p) => fieldModel(patternOf(p))).filter((x): x is SchemaFieldModel => !!x);
-      sections.push(mkSection(s.id, sectionTitle(input, s.titleKey), fields, s.visible));
+      sections.push(mkSection(s.id, sectionTitle(input, s.titleKey), fields, s.visible, s.icon));
     }
     for (const g of groups) {
       const rest = g.fields.filter((f) => visibleTop(f) && !listed.has(f.key)).map((f) => fieldModel(f.key)).filter((x): x is SchemaFieldModel => !!x);
@@ -294,12 +301,26 @@ function renderedFields(model: SchemaModel): { section: SchemaSectionModel; fiel
   return out;
 }
 
-function ownerOf(model: SchemaModel, path: string): { section: SchemaSectionModel; field: SchemaFieldModel } | null {
+const covers = (pattern: string, owner: string): boolean => pattern === owner || pattern.startsWith(`${owner}.`);
+
+export function ownedPatterns(field: Pick<SchemaFieldModel, "layout">): string[] {
+  return (field.layout?.owns ?? []).map(patternOf).filter(Boolean);
+}
+
+function ownerOf(model: SchemaModel, path: string): { section: SchemaSectionModel; field: SchemaFieldModel; owned: boolean } | null {
   const pat = patternOf(path);
-  let best: { section: SchemaSectionModel; field: SchemaFieldModel } | null = null;
+  let best: { section: SchemaSectionModel; field: SchemaFieldModel; owned: boolean } | null = null;
+  let size = -1;
   for (const r of renderedFields(model)) {
-    if (pat === r.field.pattern || pat.startsWith(`${r.field.pattern}.`)) {
-      if (!best || r.field.pattern.length > best.field.pattern.length) best = r;
+    if (covers(pat, r.field.pattern) && r.field.pattern.length > size) {
+      best = { ...r, owned: false };
+      size = r.field.pattern.length;
+    }
+    for (const own of ownedPatterns(r.field)) {
+      if (covers(pat, own) && own.length > size) {
+        best = { ...r, owned: true };
+        size = own.length;
+      }
     }
   }
   return best;
@@ -309,6 +330,7 @@ export function errorShown(model: SchemaModel, path: string, root: SxValues): bo
   const owner = ownerOf(model, path);
   if (!owner) return false;
   if (owner.section.visible && !owner.section.visible(layoutCtx(model, root, root))) return false;
+  if (owner.owned && !fieldIsShown(model, owner.field.pattern, owner.field.pattern, root)) return false;
   return fieldIsShown(model, patternOf(path), normPath(path), root);
 }
 
@@ -336,7 +358,7 @@ export function validatePayload(model: SchemaModel, payload: SxValues, recordTit
       if (errorShown(model, norm, payload)) out[norm] = token;
     } else if (!filtered || !knownPattern(model, norm)) out[norm] = token;
   }
-  if (recordTitle !== null && !String(recordTitle ?? "").trim()) out[RECORD_TITLE_PATH] = "@required";
+  if (recordTitle !== null && !model.layout.titleFrom && !String(recordTitle ?? "").trim()) out[RECORD_TITLE_PATH] = "@required";
   return out;
 }
 
@@ -407,6 +429,14 @@ export function outlineItems(
     const shown = s.fields.filter((f) => fieldIsShown(model, f.pattern, f.pattern, payload) && (!f.field || fieldVisible(f.field, payload as Dict)));
     for (const f of shown) {
       errs += policy.visibleCount(f.pattern, live);
+      const owns = ownedPatterns(f);
+      for (const own of owns) errs += policy.visibleCount(own, live);
+      if (owns.length) {
+        const parts = owns.map((own) => getAt(payload, own));
+        if (parts.some(filled)) any = true;
+        else if (f.required) missing = true;
+        continue;
+      }
       const v = getAt(payload, f.pattern);
       if (countsAsFilled(f, v, lctx)) any = true;
       else if (f.required && !filled(v)) missing = true;
@@ -493,7 +523,7 @@ export function controlFor(code: string, fm: Pick<SchemaFieldModel, "pattern" | 
   }
 }
 
-const WIDE: ReadonlySet<SxControlKind> = new Set<SxControlKind>(["textarea", "richtext", "object", "repeater", "repeaterInline", "pickerMulti", "tags", "keyValue", "choices", "switch", "factorOverrides", "checklist"]);
+const WIDE: ReadonlySet<SxControlKind> = new Set<SxControlKind>(["textarea", "richtext", "object", "repeater", "repeaterInline", "pickerMulti", "tags", "keyValue", "choices", "switch", "factorOverrides", "checklist", "legalUz", "legalRu", "docText", "file"]);
 
 export function spanFor(control: SxControlKind, key: string, lf: SxLayoutField | null): 1 | 2 {
   if (lf?.span) return lf.span;

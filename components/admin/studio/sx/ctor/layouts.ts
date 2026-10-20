@@ -1,7 +1,9 @@
 import type { SxCtorLayout, SxLayoutField } from "../contract";
 import { ctorVariant } from "../labels";
 import { GENERIC_LAYOUTS } from "./generic";
-import { K12_PROMO_LAYOUT } from "./k12";
+import { K10_LAYOUT } from "./calendar";
+import { K12_PROMO_LAYOUT, MP09_LAYOUT } from "./k12";
+import { K06_LAYOUT, K07_LAYOUT } from "./legal";
 import { K29_CHECKLIST_LAYOUT, SERVICE_LAYOUTS } from "./services";
 
 const own = Object.prototype.hasOwnProperty;
@@ -12,7 +14,7 @@ export function layoutKey(code: string, variant?: string): string {
   return v ? `${c}__${v}` : c;
 }
 
-const ALL: readonly SxCtorLayout[] = [...Object.values(GENERIC_LAYOUTS), ...Object.values(SERVICE_LAYOUTS), K29_CHECKLIST_LAYOUT, K12_PROMO_LAYOUT];
+const ALL: readonly SxCtorLayout[] = [...Object.values(GENERIC_LAYOUTS), ...Object.values(SERVICE_LAYOUTS), K29_CHECKLIST_LAYOUT, K12_PROMO_LAYOUT, MP09_LAYOUT, K07_LAYOUT, K06_LAYOUT, K10_LAYOUT];
 
 export const CTOR_LAYOUTS: Readonly<Record<string, SxCtorLayout>> = Object.freeze(Object.fromEntries(ALL.map((l) => [layoutKey(l.code, l.variant), l])));
 

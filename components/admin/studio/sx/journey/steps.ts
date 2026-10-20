@@ -1,4 +1,5 @@
 import type { StudioCreationJourney, StudioJourneyType } from "@/lib/services/studio";
+import { STUDIO_RETIRED_CODES, isRetiredStudioCode } from "@/lib/studio/retired";
 import type { JourneyDef, JourneyDefStep, JourneyDefs } from "./journeyApi";
 
 export type JourneyStepDef = { key: string; title: string; code: string; fields: readonly string[]; required: boolean; formCode?: string };
@@ -14,12 +15,12 @@ const FIELD_HINTS: Readonly<Record<StudioJourneyType, Readonly<Record<string, re
   service: {
     category: ["title", "category_id"],
     pricing: ["base_price", "max_price", "price_factor_ids", "price_factor_overrides", "negotiation_allowed"],
-    requirements: ["seller_requirements", "executor_type"],
+    requirements: ["seller_requirements", "executor_type", "intake_questions"],
     duration: ["duration_value", "duration_unit", "duration_calendar"],
     delivery: ["duration_value", "duration_unit", "duration_calendar"],
     template: ["template_mode", "template_source", "document_template_id"],
     checklist: ["completion_checklist", "checklist_template_id"],
-    rules: ["rule_ids", "inline_rules"],
+    rules: ["rule_ids", "inline_rules", "service_terms_text"],
     guarantees: ["guarantee_ids", "inline_guarantees"],
     discovery: ["description", "client_value", "discovery_terms"],
     review: ["is_active"],
@@ -52,6 +53,28 @@ export function withCompanions(type: StudioJourneyType, fields: readonly string[
     if (mate && !fields.includes(mate) && !out.includes(mate)) out.push(mate);
   }
   return out;
+}
+
+const HOMES: Readonly<Record<StudioJourneyType, Readonly<Record<string, string>>>> = {
+  service: { intake_questions: "requirements", service_terms_text: "rules" },
+  package: {},
+};
+
+export const RETIRED_CODES: ReadonlySet<string> = new Set(STUDIO_RETIRED_CODES);
+
+export function isRetiredCode(code: string): boolean {
+  return isRetiredStudioCode(code);
+}
+
+function withHomes(type: StudioJourneyType, defs: JourneyStepDef[]): JourneyStepDef[] {
+  const listed = new Set(defs.flatMap((d) => d.fields));
+  const add = new Map<string, string[]>();
+  for (const [field, home] of Object.entries(HOMES[type])) {
+    if (listed.has(field) || !defs.some((d) => d.key === home && d.fields.length > 0)) continue;
+    add.set(home, [...(add.get(home) ?? []), field]);
+  }
+  if (!add.size) return defs;
+  return defs.map((d) => (add.has(d.key) ? { ...d, fields: [...d.fields, ...(add.get(d.key) ?? [])] } : d));
 }
 
 const FALLBACK_CODES: Readonly<Record<string, string>> = {
@@ -115,8 +138,9 @@ export function stepLabel(key: string, t: (key: string) => string, title = ""): 
 
 function fromDef(type: StudioJourneyType, s: JourneyDefStep): JourneyStepDef {
   const hint = FIELD_HINTS[type][s.key] ?? [];
-  const out: JourneyStepDef = { key: s.key, title: s.title, code: s.code, fields: s.fields.length ? withCompanions(type, s.fields) : hint, required: s.required };
-  return s.formCode ? { ...out, formCode: s.formCode } : out;
+  const code = isRetiredCode(s.code) ? "" : s.code;
+  const out: JourneyStepDef = { key: s.key, title: s.title, code, fields: s.fields.length ? withCompanions(type, s.fields) : hint, required: s.required };
+  return s.formCode && !isRetiredCode(s.formCode) ? { ...out, formCode: s.formCode } : out;
 }
 
 function fallbackStep(type: StudioJourneyType, key: string): JourneyStepDef {
@@ -124,7 +148,7 @@ function fallbackStep(type: StudioJourneyType, key: string): JourneyStepDef {
 }
 
 export function stepDefsFor(type: StudioJourneyType, def: JourneyDef | null | undefined, journeyKeys: readonly string[] = []): JourneyStepDef[] {
-  if (def?.steps.length) return def.steps.map((s) => fromDef(type, s));
+  if (def?.steps.length) return withHomes(type, def.steps.map((s) => fromDef(type, s)));
   const keys = journeyKeys.map((k) => k.trim()).filter(Boolean);
   const list = keys.length ? keys : FALLBACK_STEP_KEYS[type];
   const out: JourneyStepDef[] = [];

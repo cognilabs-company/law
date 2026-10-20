@@ -10,7 +10,7 @@ import { useStudioText } from "@/components/admin/studio/bits";
 import { aiId } from "@/lib/ai/ids";
 import { logApiError } from "@/lib/http";
 import { searchUsers, type UserSearchResult } from "@/lib/services/backend";
-import { STUDIO_ROLES, saveStudioAccess, studioErrorOf, useStudioRegistry, type StudioAccessGrant, type StudioAccessInput } from "@/lib/services/studio";
+import { STUDIO_ROLES, isRetiredStudioCode, saveStudioAccess, studioErrorOf, useStudioRegistry, type StudioAccessGrant, type StudioAccessInput } from "@/lib/services/studio";
 import { STUDIO_CODES } from "@/lib/studio/constructors";
 import { SxButton } from "../Button";
 import { SxDialogError } from "../editor/SxDialog";
@@ -76,7 +76,7 @@ function GrantForm({ mode, grants, onClose, onSaved, onMissing }: GrantDrawerPro
   const [found, setFound] = useState<Found | null>(null);
   const [roles, setRoles] = useState<string[]>(() => startRoles(base));
   const [scope, setScope] = useState<Scope>(() => (base && base.constructorCodes.length && !base.constructorCodes.includes("*") ? "some" : "all"));
-  const [picks, setPicks] = useState<string[]>(() => (base ? base.constructorCodes.filter((c) => c !== "*") : []));
+  const [picks, setPicks] = useState<string[]>(() => (base ? base.constructorCodes.filter((c) => c !== "*" && !isRetiredStudioCode(c)) : []));
   const [active, setActive] = useState(base ? base.active : true);
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -107,7 +107,7 @@ function GrantForm({ mode, grants, onClose, onSaved, onMissing }: GrantDrawerPro
   const results = !picked && found?.q === term ? found.items.filter((u) => u.id) : [];
   const existing = picked && mode.kind === "new" ? (grants.find((g) => g.userId === picked.id) ?? null) : null;
 
-  const codes = [...new Set([...(reg.items.length ? reg.items.map((c) => c.code) : STUDIO_CODES), ...picks])].sort(byCtorRank);
+  const codes = [...new Set([...(reg.items.length ? reg.items.map((c) => c.code) : STUDIO_CODES), ...picks])].filter((c) => !isRetiredStudioCode(c)).sort(byCtorRank);
   const groupOrder = new Map(reg.groups.map((g) => [g.key, g.order]));
   const ctorOpts: SxOption[] = codes
     .map((code) => {

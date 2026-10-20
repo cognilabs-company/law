@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { dateOnly, dateTimeFull, fmtAge, fmtInt, fmtNum, MINUS } from "@/lib/date";
-import { findStudioConstructor, studioReferenceKey, type StudioReferenceItem } from "@/lib/services/studio";
+import { findStudioConstructor, isHolidayCalendarCtor, studioDetailSnapshot, studioReferenceKey, type StudioReferenceItem } from "@/lib/services/studio";
 import { ctorMeta } from "@/lib/studio/constructors";
 import { HELP_RULES, normText, SECTION_IDS, SURFACE_IDS, SURFACE_TITLE_IDS, WARN_IDS } from "@/lib/studio/humanText";
 import {
@@ -190,8 +190,11 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
   const split = (label: string): SxNameCode => splitCodeLabel(label, KNOWN_CODES);
   const variantKeys = (c: string, part: "name" | "what"): string[] => {
     if (!c) return [];
-    const v = ctorVariant(c, (findStudioConstructor(c) ?? findStudioConstructor(c.toUpperCase()))?.runtimeTarget ?? "");
-    return v ? [`sx.ctor.${c}__${v}.${part}`, `sx.ctor.${c.toUpperCase()}__${v}.${part}`] : [];
+    const upper = c.toUpperCase();
+    const reg = findStudioConstructor(c) ?? findStudioConstructor(upper);
+    if (upper === "K10" && (isHolidayCalendarCtor(reg) || isHolidayCalendarCtor(studioDetailSnapshot(upper)))) return [`sx.ctor.K10__holidays.${part}`];
+    const v = ctorVariant(c, reg?.runtimeTarget ?? "");
+    return v ? [`sx.ctor.${c}__${v}.${part}`, `sx.ctor.${upper}__${v}.${part}`] : [];
   };
 
   const ctorName = (code: string, backendTitle?: string): string => {

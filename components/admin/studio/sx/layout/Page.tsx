@@ -3,7 +3,7 @@
 import "../sx-core.css";
 import "../sx-layout.css";
 import "../editor/sx-record-head.css";
-import { useEffect, useLayoutEffect, useRef, type ReactElement, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { aiId as aiIdOf } from "@/lib/ai/ids";
@@ -44,6 +44,11 @@ const NAV: readonly { key: SxSection; href: string; need: SxNeed }[] = [
 ];
 
 const ROOT_HREF = "/admin/studio";
+const NoticeCtx = createContext<ReactNode>(null);
+
+export function SxPageNotice({ notice, children }: { notice: ReactNode; children: ReactNode }): ReactElement {
+  return <NoticeCtx.Provider value={notice}>{children}</NoticeCtx.Provider>;
+}
 const SK_TABS = [0, 1, 2];
 
 export function allowedBy(acc: Pick<StudioAccess, "any" | "canEdit" | "canReview" | "canPublish" | "isAdmin">, need: SxNeed): boolean {
@@ -323,6 +328,7 @@ export function SxPage({
   children,
 }: SxPageProps): ReactElement {
   const acc = useStudioAccess();
+  const notice = useContext(NoticeCtx);
   const gate = gateOf(acc, need);
   const open = gate === "open";
   const record = layout === "record";
@@ -470,6 +476,7 @@ export function SxPage({
             {below}
           </div>
         ) : null}
+        {open && notice ? <div className="sx-page__notice">{notice}</div> : null}
         <div className="sx-page__body">{body}</div>
       </div>
     </SxIconScope>

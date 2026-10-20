@@ -25,6 +25,7 @@ import { creationJourneyHref, JOURNEY_CODE } from "../shared/journeyLinks";
 import { useStudioLabels } from "../useStudioLabels";
 import { JOURNEY_STATUSES, journeyCapsOf, journeyConfirmTextKey, journeyMovePath, journeyStatusOf, runJourneyAction, type JourneyAction, type JourneyStatus } from "./journeyApi";
 import { useJourneyErrorText } from "./journeyErrors";
+import { isRetiredCode } from "./steps";
 import { JourneyTable } from "./JourneyTable";
 import { useCreationJourneys } from "./useCreationJourneys";
 
@@ -198,8 +199,9 @@ export function journeyBlockedBy(items: readonly StudioConstructor[], type: Stud
   const code = JOURNEY_CODE[type];
   const ctor = items.find((c) => c.code.toUpperCase() === code.toUpperCase());
   if (!ctor) return [];
-  if (ctor.missingRequired.length) return [...ctor.missingRequired];
-  if (ctor.availability === "blocked") return [...(ctor.navigation?.requiredBefore ?? [])];
+  const live = (list: readonly string[]) => list.filter((c) => !isRetiredCode(c));
+  if (ctor.missingRequired.length) return live(ctor.missingRequired);
+  if (ctor.availability === "blocked") return live(ctor.navigation?.requiredBefore ?? []);
   return [];
 }
 

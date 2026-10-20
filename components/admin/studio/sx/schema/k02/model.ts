@@ -1,6 +1,7 @@
 import { normPath } from "@/lib/studioSchema";
 import type { SxPayload, SxValues } from "../../contract";
 import type { SxErrors } from "../../types";
+import { intakeErrors } from "./intake";
 
 type Dict = Record<string, unknown>;
 
@@ -185,7 +186,7 @@ export function checklistErrors(payload: SxValues): Record<string, string> {
 }
 
 export function k02Validate(payload: SxValues): SxErrors {
-  return { ...overrideErrors(payload), ...checklistErrors(payload) };
+  return { ...overrideErrors(payload), ...checklistErrors(payload), ...intakeErrors(payload) };
 }
 
 const sameIds = (a: unknown, b: unknown) => idsOf(a).join("\n") === idsOf(b).join("\n");

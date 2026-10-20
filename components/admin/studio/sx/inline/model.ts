@@ -22,7 +22,7 @@ export type InlinePending = {
   at: number;
 };
 
-const KIND_OF: Readonly<Record<string, InlineKind>> = { K34: "factor", K31: "rule", K32: "guarantee", K09: "checklist" };
+const KIND_OF: Readonly<Record<string, InlineKind>> = { K34: "factor", K31: "rule", K32: "guarantee" };
 const LIVE: ReadonlySet<string> = new Set(["published", "active"]);
 const GONE: ReadonlySet<string> = new Set(["archived", "deleted"]);
 const RULE_KEY_MAX = 64;

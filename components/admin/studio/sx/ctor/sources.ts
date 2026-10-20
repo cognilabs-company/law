@@ -10,13 +10,11 @@ const SRC = {
   users: `${REF}users`,
   units: `${REF}organization-units`,
   permissions: `${REF}permissions`,
-  placements: `${REF}promotion-placements`,
 } as const;
 
 const PLAN_PATHS: ReadonlySet<string> = new Set(["K26:plan_requirements.plan_ids", "MP07:eligibility.plan_ids", "MP09:eligibility.plan_ids"]);
 
 const POLY: Readonly<Record<string, string>> = {
-  "K08:steps.*.assignee_id": "assignee_type",
   "K20:steps.*.assignee_id": "assignee_type",
   "K10:escalation_rules.*.target_id": "target_type",
   "K23:escalation_rules.*.target_id": "target_type",
@@ -28,6 +26,11 @@ const POLY_SOURCE: Readonly<Record<string, string>> = {
   role: SRC.roles,
   organization_unit: SRC.units,
   permission: SRC.permissions,
+};
+
+const REMOTE_FALLBACK: Readonly<Record<string, string>> = {
+  "MP09:package_ids": `${REF}promotion-packages`,
+  "K10:holiday_id": `${REF}business-holidays`,
 };
 
 const LOCAL_FALLBACK: Readonly<Record<string, string>> = {
@@ -63,9 +66,9 @@ export function fieldSource(code: string, pattern: string, scope: SxValues, sche
     const t = str(sc[POLY[id]]).toLowerCase();
     return t && own.call(POLY_SOURCE, t) ? POLY_SOURCE[t] : "";
   }
-  if (c === "MP04" && p === "placement") return SRC.placements;
   if (!base) {
     if (ROLE_KEY.test(key)) return SRC.roles;
+    if (own.call(REMOTE_FALLBACK, id)) return REMOTE_FALLBACK[id];
     if (own.call(LOCAL_FALLBACK, id)) return LOCAL_FALLBACK[id];
   }
   return base;
@@ -76,7 +79,6 @@ type Producer = { code: string; to: "new" | "list" };
 export const SOURCE_PRODUCER: Readonly<Record<string, Producer>> = {
   "price-factors": { code: "K34", to: "new" },
   "client-guarantees": { code: "K32", to: "new" },
-  checklists: { code: "K09", to: "new" },
   "package-eligibility-rules": { code: "K26", to: "new" },
   "service-categories": { code: "K01", to: "new" },
   services: { code: "K02", to: "list" },
@@ -88,12 +90,11 @@ export const SOURCE_PRODUCER: Readonly<Record<string, Producer>> = {
   "service-rules": { code: "K31", to: "new" },
 };
 
-const INLINE_CODES: ReadonlySet<string> = new Set(["K34", "K31", "K32", "K09"]);
+const INLINE_CODES: ReadonlySet<string> = new Set(["K34", "K31", "K32"]);
 const INLINE_FIELDS: Readonly<Record<string, string>> = {
   price_factor_ids: "K34",
   rule_ids: "K31",
   guarantee_ids: "K32",
-  checklist_template_id: "K09",
 };
 
 export function inlineCodeOf(source: string, pattern: string): string {

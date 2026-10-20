@@ -16,13 +16,14 @@ import {
   type ServiceScope,
   type ServiceSellerProfile,
 } from "@/lib/services/sellerServices";
-import { checkoutMarketplacePromotion, listPromotionPackages, promotionErrorCode, promotionErrorRetryable, uploadPromotionBanner, BANNER_REFERENCES, bannerReferenceUrl, type BannerAsset, type PromotionPackage, type PromotionPlacement, type PromotionPlacementOption } from "@/lib/services/promotions";
+import { checkoutMarketplacePromotion, listPromotionPackages, promotionCampaignEnded, promotionErrorCode, promotionErrorRetryable, uploadPromotionBanner, BANNER_REFERENCES, bannerReferenceUrl, type BannerAsset, type PromotionCheckout, type PromotionPackage, type PromotionPlacement, type PromotionPlacementOption } from "@/lib/services/promotions";
 import { IconAlert, IconArrowRight, IconCheck, IconCircleCheck, IconClock, IconCrown, IconEye, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconTrendingUp, IconUpload, IconUser } from "@/components/icons";
 import { useAuth } from "@/lib/auth";
 import { InBody, PlacementSketch, som, usePackageName } from "./bits";
 import MarketPreviewModal from "./MarketPreviewModal";
 import { previewServiceOf, type PreviewDraft } from "@/lib/marketPreview";
 import { newIdempotencyKey } from "@/lib/services/promoEvents";
+import "./promoCheckout.css";
 
 type Packs = { status: "loading" | "ready" | "error"; items: PromotionPackage[]; placements: PromotionPlacementOption[] };
 const TIER_ICON = [IconRocket, IconGem, IconCrown];
@@ -90,7 +91,7 @@ export default function PromoteModal({
   const { session } = useAuth();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [done, setDone] = useState<PromotionRequest | null>(null);
+  const [done, setDone] = useState<PromotionCheckout | null>(null);
   const [live, setLive] = useState(false);
   const [warm, setWarm] = useState(false);
   const attemptKey = useRef("");
@@ -191,6 +192,11 @@ export default function PromoteModal({
       onSent(req);
     } catch (e) {
       if (!promotionErrorRetryable(e)) attemptKey.current = "";
+      if (promotionCampaignEnded(e)) {
+        attemptKey.current = "";
+        setErr(t("errors.campaignEnded"));
+        return;
+      }
       const code = promotionErrorCode(e);
       if (code) {
         setErr(t(`errors.${code}`));
@@ -211,6 +217,9 @@ export default function PromoteModal({
 
   const activated = Boolean(done?.activated);
   const sent = Boolean(done?.telegramSent) || activated;
+  const priced = done?.breakdown ?? null;
+  const discounted = !!priced && (priced.discountAmount > 0 || !!priced.campaign);
+  const unit = (c: string) => (c === "UZS" ? tc("card.som") : c);
   const sellerName = profile?.name || session?.name || t("previewSeller");
   const previewImage = bannerLocal || (HTTP_URL.test(bannerImageUrl.trim()) ? bannerImageUrl.trim() : "");
   const draft: PreviewDraft = {
@@ -280,10 +289,33 @@ export default function PromoteModal({
                   <b>{packName(chosen.title, chosen.placement)}</b>
                 </>
               ) : null}
-              <span>{t("amount")}</span>
-              <b>
-                {som(done.amount || chosen?.price || 0)} {done.currency === "UZS" ? tc("card.som") : done.currency}
-              </b>
+              {priced && discounted ? (
+                <>
+                  {priced.baseAmount !== null ? (
+                    <>
+                      <span>{t("basePrice")}</span>
+                      <b className="svpdisc__base">
+                        {som(priced.baseAmount)} {unit(done.currency)}
+                      </b>
+                    </>
+                  ) : null}
+                  <span className="svpdisc__label">{priced.campaign?.title ? t("discountNamed", { name: priced.campaign.title }) : t("discount")}</span>
+                  <b className="svpdisc__minus">
+                    −{som(priced.discountAmount)} {unit(done.currency)}
+                  </b>
+                  <span>{t("toPay")}</span>
+                  <b className="svpdisc__total">
+                    {som(priced.amount)} {unit(done.currency)}
+                  </b>
+                </>
+              ) : (
+                <>
+                  <span>{t("amount")}</span>
+                  <b>
+                    {som(priced ? priced.amount : done.amount || chosen?.price || 0)} {unit(done.currency)}
+                  </b>
+                </>
+              )}
               {done.requestId ? (
                 <>
                   <span>{t("request")}</span>
@@ -291,6 +323,12 @@ export default function PromoteModal({
                 </>
               ) : null}
             </div>
+            {discounted && sent && !activated ? (
+              <p className="svpdisc__note">
+                <IconInfo aria-hidden="true" />
+                <span>{t("discountNote")}</span>
+              </p>
+            ) : null}
             {sent ? (
               <>
                 {activated ? null : (

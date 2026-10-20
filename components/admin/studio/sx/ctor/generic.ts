@@ -1,4 +1,4 @@
-import type { SxCtorLayout, SxLayoutField } from "../contract";
+import type { SxCtorLayout, SxLayoutField, SxPayload } from "../contract";
 
 export const DOC_CATEGORIES: readonly string[] = ["contract", "legal-doc-civil", "legal-doc-criminal", "legal-doc-economic", "legal-doc-administrative"];
 
@@ -19,28 +19,16 @@ function record(code: string, fields: readonly SxLayoutField[] = []): SxCtorLayo
   return { code, recordTitlePlaceholderKey: `sx.ph.${code}__recordTitle`, fields };
 }
 
+function withoutDocumentType(next: SxPayload): SxPayload {
+  if (!Object.prototype.hasOwnProperty.call(next, "document_type")) return next;
+  const out: SxPayload = { ...next };
+  delete out.document_type;
+  return out;
+}
+
 const LIST: readonly SxCtorLayout[] = [
-  titled("K07", [{ path: "version", placeholder: "sx.ph.K07__version" }, off("body")], true),
-  titled(
-    "K06",
-    [
-      helpOf("service_id", "sx.help.K06__service_id"),
-      noSlug,
-      { path: "category", label: "sx.field.K06__category", control: "picker", options: DOC_CATEGORIES, optionKey: (v) => `sx.doccat.${v}` },
-      off("language"),
-      off("description"),
-      helpOf("fields", "sx.help.K06__fields"),
-      off("template_text"),
-      off("clauses.*.content"),
-    ],
-    true,
-  ),
-  titled("K05", [helpOf("service_id", "sx.help.K05__service_id"), off("sections"), off("sections.*.description"), helpOf("sections.*.fields", "sx.help.K05__sections__fields"), off("language")], true),
-  record("K26"),
-  record("K11", [off("terms"), off("client_notice")]),
-  record("K08", [off("steps"), clears("steps.*.assignee_type", "assignee_id"), helpOf("transitions", "sx.help.transitions"), off("transitions.*.roles")]),
-  record("K10", [off("pause_rules.*.roles"), clears("escalation_rules.*.target_type", "target_id")]),
-  titled("K09", [], true),
+  { ...record("K26", [{ path: "document_type", hidden: true }]), transform: withoutDocumentType },
+  record("K11", [{ path: "terms", control: "richtext", help: false }, off("client_notice")]),
   record("K13"),
   record("K12-M"),
   record("MP05"),
@@ -66,7 +54,6 @@ const LIST: readonly SxCtorLayout[] = [
   record("MP06"),
   record("OPS01", [off("roles"), off("regions"), when("starts_at"), when("ends_at")]),
   record("OPS02", [labelOf("retry", "sx.field.retry")]),
-  record("OPS03", [off("regions")]),
   record("OPS04"),
   record("OPS05", [labelOf("columns", "sx.field.OPS05__columns"), off("roles")]),
   record("OPS06", [off("roles")]),
@@ -101,8 +88,6 @@ const LIST: readonly SxCtorLayout[] = [
   titled("M1", [], true),
   record("M2"),
   titled("M3", [labelOf("exports.*.format", "sx.field.M3__exports__format")], true),
-  record("MP04", [off("availability.starts_at"), off("availability.ends_at")]),
-  record("MP09", [off("eligibility.roles"), off("eligibility.regions"), when("starts_at"), when("ends_at")]),
 ];
 
 export const GENERIC_LAYOUTS: Readonly<Record<string, SxCtorLayout>> = Object.freeze(Object.fromEntries(LIST.map((l) => [l.code, l])));

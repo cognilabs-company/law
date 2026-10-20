@@ -96,7 +96,7 @@ export function EditorDrawer({
   const versions = st.detail?.versions.length ?? 0;
   const comments = st.comments.items?.filter((c) => !c.deleted).length ?? 0;
   const steps = st.detail?.steps.length ?? 0;
-  const fileMissing = st.fileRequired && !st.hasFile;
+  const fileMissing = st.fileRequired && !st.hasFile && !st.pendingFile;
 
   const body = (key: EditorTab): ReactNode => {
     switch (key) {

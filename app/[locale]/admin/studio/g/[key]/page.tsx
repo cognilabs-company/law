@@ -1,4 +1,5 @@
 import { GroupPage, type GroupNeed } from "@/components/admin/studio/sx/home/GroupPage";
+import { RetiredGroupFrame } from "@/components/admin/studio/sx/layout/Retired";
 
 type Props = {
   params: Promise<{ locale: string; key: string }>;
@@ -24,5 +25,10 @@ function safeDecode(raw: string): string {
 export default async function AdminStudioGroupPage({ params, searchParams }: Props) {
   const { key } = await params;
   const sp = await searchParams;
-  return <GroupPage groupKey={safeDecode(key)} need={needOf(first(sp.need))} />;
+  const groupKey = safeDecode(key);
+  return (
+    <RetiredGroupFrame code={first(sp.retired)} groupKey={groupKey}>
+      <GroupPage groupKey={groupKey} need={needOf(first(sp.need))} />
+    </RetiredGroupFrame>
+  );
 }

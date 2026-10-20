@@ -138,8 +138,8 @@ export function EditorForm({ st, onPick }: { st: EditorState; onPick: (path: str
   const model = st.model;
   if (!model) return <FormSkeleton />;
 
-  const sectionIds = new Map(model.sections.map((s) => [s.domId, s.id]));
-  const items = outlineItems(model, st.payload, st.errors, st.policy, { mode: st.formMode, recordId: st.recordId }, labels).map((it) => ({ ...it, icon: sectionIcon(sectionIds.get(it.id) ?? "") }));
+  const sectionIcons = new Map(model.sections.map((s) => [s.domId, s.icon ?? sectionIcon(s.id)]));
+  const items = outlineItems(model, st.payload, st.errors, st.policy, { mode: st.formMode, recordId: st.recordId }, labels).map((it) => ({ ...it, icon: sectionIcons.get(it.id) ?? sectionIcon("") }));
   const multi = items.length > 1;
   const sectionOptions = items.map((i) => ({ value: i.id, label: i.label }));
   const recordTitle = model.titleField ? null : { value: st.recordTitle, onChange: st.setRecordTitle, placeholderKey: st.layout.recordTitlePlaceholderKey };
@@ -180,6 +180,7 @@ export function EditorForm({ st, onPick }: { st: EditorState; onPick: (path: str
               mode={st.formMode}
               recordId={st.recordId}
               recordTitle={recordTitle}
+              file={st.fileSlot}
               look="neon"
             />
           </SxPanel>

@@ -36,7 +36,7 @@ import {
   type StudioVersion,
 } from "@/lib/services/studio";
 import { descendantIds, flattenCategoryTree, getCategoryTree } from "@/lib/services/categoryTree";
-import type { SchemaModel, SchemaOnly, SxCtorLayout, SxEditMode, SxPayload, SxValues, SxWarning } from "../contract";
+import type { SchemaModel, SchemaOnly, SxCtorLayout, SxEditMode, SxFileSlot, SxPayload, SxValues, SxWarning } from "../contract";
 import type { SxErrors } from "../types";
 import { useSxFormPolicy, type SxFormPolicy } from "../form/formPolicy";
 import { dropReferenceCache, firstReferencePage } from "../form/useReferenceOptions";
@@ -178,6 +178,9 @@ export type EditorState = {
   descendants: number;
   fileRequired: boolean;
   hasFile: boolean;
+  pendingFile: File | null;
+  fileSlot: SxFileSlot | null;
+  pickFile: (file: File | null) => void;
   currentVersion: StudioVersion | null;
   savedAt: string;
   dialogError: EditorDialogError | null;
@@ -187,6 +190,7 @@ export type EditorState = {
   setDraftError: (path: string, invalid: boolean) => void;
   save: (meta?: { summary?: string; version?: string }) => Promise<boolean>;
   prepareSubmit: () => Promise<boolean>;
+  previewBody: () => SxPayload | null;
   submit: () => Promise<boolean>;
   publish: (note: string) => Promise<boolean>;
   rollback: (version: StudioVersion, note: string) => Promise<boolean>;
@@ -327,6 +331,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const [conflictOpen, setConflictOpen] = useState(false);
   const [dialogError, setDialogError] = useState<EditorDialogError | null>(null);
   const [fileError, setFileError] = useState("");
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [desc, setDesc] = useState<{ id: string; n: number }>({ id: "", n: 0 });
   const [unlockedFor, setUnlockedFor] = useState<string | null>(() => (id && peekPatch(id) ? "*" : null));
 
@@ -340,8 +345,10 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   if (fc?.mode === "view" && (mode === "runtime-edit" || mode === "runtime-view")) mode = "runtime-view";
 
   const runtimeTarget = full?.runtimeTarget || regCtor?.runtimeTarget || "";
-  const layout = useMemo(() => ctorLayoutOf(code, runtimeTarget), [code, runtimeTarget]);
-  const model = useSchemaModel({ ctor: full, layout, runtimeTarget, idPrefix, only: opts.only });
+  const baseLayout = useMemo(() => ctorLayoutOf(code, runtimeTarget), [code, runtimeTarget]);
+  const model = useSchemaModel({ ctor: full, layout: baseLayout, runtimeTarget, idPrefix, only: opts.only });
+  const layout = model?.layout ?? baseLayout;
+  const derive = layout.titleFrom;
   const titleField = model?.titleField ?? null;
 
   const statusNorm: string = mode === "object" ? detail?.status ?? "draft" : mode === "create" || mode === "clone" ? "draft" : "";
@@ -398,8 +405,11 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const keyNow = useMemo(() => (draft ? draftKey(titleField ? "" : draft.title, draft.payload) : ""), [draft, titleField]);
   const keyBase = useMemo(() => (loaded?.base ? draftKey(titleField ? "" : loaded.base.title, loaded.base.payload) : null), [loaded?.base, titleField]);
   const keyStart = useMemo(() => (loaded?.start ? draftKey(titleField ? "" : loaded.start.title, loaded.start.payload) : null), [loaded?.start, titleField]);
-  const dirty = formReady && Boolean(draft) && (keyBase === null || keyNow !== keyBase);
-  const changed = formReady && Boolean(draft) && keyStart !== null && keyNow !== keyStart;
+  const fileRequired = code === "K06" && payload.mode === "upload";
+  const pending = fileRequired ? pendingFile : null;
+  const payloadDirty = formReady && Boolean(draft) && (keyBase === null || keyNow !== keyBase);
+  const dirty = payloadDirty || (formReady && Boolean(pending));
+  const changed = formReady && Boolean(draft) && ((keyStart !== null && keyNow !== keyStart) || Boolean(pending));
 
   const resetKey = `${id ?? ctx}:${detail?.currentVersionId ?? ""}`;
   const policy = useSxFormPolicy(resetKey);
@@ -650,7 +660,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   else phase = loaded?.prepared ? "ready" : !loaded && fcErr ? "load-error" : "loading";
   const loadError = mode === "object" ? loadErr : fcErr;
 
-  const title = (titleField ? str(payload[titleField]).trim() : recordTitle.trim()) || detail?.title || fc?.title || "";
+  const title = (derive ? derive(payload).value : titleField ? str(payload[titleField]).trim() : recordTitle.trim()) || detail?.title || fc?.title || "";
 
   const hb = useStudioHeartbeat({
     enabled: opts.heartbeat !== false && phase === "ready" && statusNorm !== "archived",
@@ -663,7 +673,6 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
 
   const currentVersion = currentVersionOf(detail);
   const hasFile = Boolean(detail?.hasFile || currentVersion?.hasFile);
-  const fileRequired = code === "K06" && payload.mode === "upload";
 
   const prevPayload: SxValues | null = useMemo(() => {
     if (mode === "object") return liveVersionOf(detail)?.payload ?? null;
@@ -730,7 +739,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
         ? { kind: "publishFail", text: publishFail }
         : remote
           ? { kind: "remote", conflict: remote.conflict }
-          : fileRequired && !hasFile && !readOnly && phase === "ready"
+          : fileRequired && !hasFile && !pending && !readOnly && phase === "ready"
             ? { kind: "file", isNew: !id }
             : null;
 
@@ -766,6 +775,11 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       return;
     }
     const se = studioErrorOf(e);
+    if (fileRequired && !Object.keys(se.fieldErrors).length && /file/i.test(se.code)) {
+      setActionError(null);
+      showServer({ file: "@file" });
+      return;
+    }
     const one = Object.keys(se.fieldErrors).length ? null : structuredFieldOf(e);
     const found: Record<string, string> = one ? { [one.field]: `@code:${one.code}` } : se.fieldErrors;
     const raw = Object.keys(found).length ? withServerMessages(targetErrors(normErrorPaths(stripPayload(found)), latestRef.current?.draft.payload ?? payload), e, locale) : {};
@@ -787,14 +801,15 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
 
   const titleNow = (): string => {
     const cur = latestRef.current?.draft ?? draft;
-    const typed = cur ? (titleField ? str(cur.payload[titleField]) : cur.title).trim() : "";
+    const typed = cur ? (derive ? derive(cur.payload).value : titleField ? str(cur.payload[titleField]) : cur.title).trim() : "";
     return typed || detail?.title || "";
   };
 
   const titleOrFail = (): string => {
     const value = titleNow();
     if (value) return value;
-    const p = titleField ?? "$title";
+    const cur = latestRef.current?.draft ?? draft;
+    const p = derive && cur ? derive(cur.payload).path : titleField ?? "$title";
     setServerErrors((s) => ({ ...s, [p]: "@required" }));
     policy.markServer([p]);
     focusFirst([p]);
@@ -826,6 +841,11 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   };
 
   const slugPending = (cur: Draft, objTitle: string): boolean => slugOf(bodyOf(cur.payload, objTitle)) !== slugOf(cur.payload);
+
+  const previewBody = (): SxPayload | null => {
+    const cur = latestRef.current?.draft ?? draft;
+    return cur ? bodyOf(cur.payload, titleNow()) : null;
+  };
 
   const persist = async (meta?: { summary?: string; version?: string }): Promise<{ id: string; created: StudioDetail | null } | null> => {
     const cur = latestRef.current?.draft ?? draft;
@@ -866,16 +886,39 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     }
   };
 
+  const sendPending = async (objectId: string): Promise<boolean> => {
+    if (!pending) return true;
+    try {
+      await uploadStudioFile(objectId, pending);
+      setPendingFile(null);
+      setFileError("");
+      hb.markSaved();
+      return true;
+    } catch (e) {
+      logApiError("studio.sx.object.file", e);
+      setFileError(errText(e).text || t("sx.editor.files.uploadFail"));
+      notify.error(t(objectId === id ? "sx.editor.files.uploadFail" : "sx.k06.toast.uploadAfterCreate"));
+      return false;
+    }
+  };
+
+  const pickFile = (file: File | null) => {
+    setPendingFile(file);
+    setFileError("");
+    if (file) setServerErrors((s) => omit(s, "file"));
+  };
+
   const save = async (meta?: { summary?: string; version?: string }): Promise<boolean> => {
     if (busy || !can.save || (id && !dirty)) return false;
     if (draftBlock()) return false;
     setBusy("save");
     const sent = latestRef.current?.draft;
     try {
-      const r = await persist(meta);
+      const r = id && !payloadDirty ? { id, created: null } : await persist(meta);
       if (!r) return false;
+      const uploaded = await sendPending(r.id);
       setServerErrors(EMPTY_ERRORS);
-      notify.success(t(id ? "sx.editor.toast.saved" : "sx.editor.toast.created"));
+      if (uploaded) notify.success(t(id ? "sx.editor.toast.saved" : "sx.editor.toast.created"));
       if (!id) {
         if (r.created) optsRef.current.onCreated?.(r.created);
       } else {
@@ -896,7 +939,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     const cur = latestRef.current?.draft ?? draft;
     if (!cur) return false;
     const local: Record<string, string> = { ...validatePayload(model, cur.payload, titleField ? null : cur.title) };
-    if (fileRequired && !hasFile) {
+    if (fileRequired && !hasFile && !pending) {
       local.file = "@file";
       setServerErrors((s) => ({ ...s, file: "@file" }));
       policy.markServer(["file"]);
@@ -933,8 +976,13 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     try {
       const cur = latestRef.current?.draft ?? draft;
       const stale = cur !== null && slugPending(cur, titleNow());
-      const r = id && !dirty && !stale ? { id, created: null } : await persist();
+      const r = id && !payloadDirty && !stale ? { id, created: null } : await persist();
       if (!r) return false;
+      if (!(await sendPending(r.id))) {
+        if (!id && r.created) optsRef.current.onCreated?.(r.created);
+        else if (id) await refresh("own");
+        return false;
+      }
       try {
         await submitStudioObject(r.id, r.id === id ? lifecycle.submitUrl : "");
         setServerErrors(EMPTY_ERRORS);
@@ -1289,6 +1337,19 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     descendants,
     fileRequired,
     hasFile,
+    pendingFile: pending,
+    fileSlot: fileRequired
+      ? {
+          name: pending?.name || currentVersion?.fileName || "",
+          meta: !pending && currentVersion?.version ? t("sx.editor.versionTag", { v: currentVersion.version }) : "",
+          pending: Boolean(pending),
+          has: hasFile,
+          busy: busy === "upload" || (Boolean(pending) && (busy === "save" || busy === "submit")),
+          canPick: !readOnly && phase === "ready",
+          pick: pickFile,
+        }
+      : null,
+    pickFile,
     currentVersion,
     savedAt: detail?.updatedAt ?? "",
     dialogError,
@@ -1298,6 +1359,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     setDraftError,
     save,
     prepareSubmit,
+    previewBody,
     submit,
     publish,
     rollback,

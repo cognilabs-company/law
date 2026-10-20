@@ -212,7 +212,7 @@ export function RegistrySection(): ReactElement {
         icon={TAB_ICON.registry}
         hue={TAB_HUE.registry}
         title={t("sx.set.nav.registry.title")}
-        lead={t("settings.registry.lead", { n: labels.num(total) })}
+        lead={t("settings.registry.lead", { n: labels.num(reg.constructorCount ?? total) })}
         actions={total ? syncBtn : null}
         titleId="sx-set-registry-title"
       >

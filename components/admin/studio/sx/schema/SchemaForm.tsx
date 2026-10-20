@@ -18,7 +18,7 @@ import { useFormOwner } from "../inline/owner";
 import { SxNote } from "../layout/Note";
 import { SxSectionHeader } from "../layout/Panel";
 import type { SchemaFormProps, SchemaRecordTitle, SxPayload, SxValues } from "../contract";
-import type { SxErrors } from "../types";
+import type { SxErrors, SxIcon } from "../types";
 import { useStudioLabels } from "../useStudioLabels";
 import { NeonCell, NeonValue, SfContext, SchemaField, type SfEnv } from "./fields";
 import { RECORD_TITLE_PATH, layoutCtx, parentPath, scopeAt, setAt, type SchemaTr } from "./model";
@@ -91,12 +91,12 @@ function RecordTitleField({ rt, readOnly, idPrefix, errors, neon }: { rt: Schema
   );
 }
 
-function NeonSection({ id, domId, headingId, title, lead, index, children }: { id: string; domId: string; headingId: string; title: string; lead: string; index: number; children: ReactNode }): ReactElement {
+function NeonSection({ id, domId, headingId, title, lead, index, icon, children }: { id: string; domId: string; headingId: string; title: string; lead: string; index: number; icon?: SxIcon; children: ReactNode }): ReactElement {
   return (
     <section id={domId} aria-labelledby={headingId} className="sx-sf__sec sx-sfn sx-enter" data-section={id} style={{ "--i": Math.min(index, 8) } as CSSProperties}>
       <div className="sx-sfn__head">
         <span className="sx-sfn__icon" aria-hidden="true">
-          {glyph(sectionIcon(id), { size: 20 })}
+          {glyph(icon ?? sectionIcon(id), { size: 20 })}
         </span>
         <SxSectionHeader as="h2" id={headingId} title={title} lead={lead || undefined} />
       </div>
@@ -106,10 +106,10 @@ function NeonSection({ id, domId, headingId, title, lead, index, children }: { i
 }
 
 export function SchemaForm(props: SxSchemaFormProps): ReactElement {
-  const { model, payload, onChange, errors, warnings, readOnly, mode, recordId, recordTitle, onDraftError, footer, look, inlineOwner } = props;
+  const { model, payload, onChange, errors, warnings, readOnly, mode, recordId, recordTitle, onDraftError, footer, look, inlineOwner, file } = props;
   const t = useTranslations("studio") as unknown as SchemaTr;
   const labels = useStudioLabels();
-  const titleNow = model.titleField ? payload[model.titleField] : recordTitle?.value;
+  const titleNow = model.layout.titleFrom ? model.layout.titleFrom(payload).value : model.titleField ? payload[model.titleField] : recordTitle?.value;
   const owner = useFormOwner(inlineOwner, model.code, typeof titleNow === "string" ? titleNow : "");
   const ctxPolicy = useSxFormContext();
   const ownPolicy = useSxFormPolicy();
@@ -136,13 +136,13 @@ export function SchemaForm(props: SxSchemaFormProps): ReactElement {
   );
 
   const env = useMemo<SfEnv>(
-    () => ({ model, root: payload, errors, warnings: warnings ?? [], readOnly: ro, mode, recordId, owner, emit, onDraftError, policy, labels, t, look }),
-    [model, payload, errors, warnings, ro, mode, recordId, owner, emit, onDraftError, policy, labels, t, look],
+    () => ({ model, root: payload, errors, warnings: warnings ?? [], readOnly: ro, mode, recordId, owner, emit, onDraftError, policy, labels, t, look, file }),
+    [model, payload, errors, warnings, ro, mode, recordId, owner, emit, onDraftError, policy, labels, t, look, file],
   );
 
   const ctx = layoutCtx(model, payload, payload, mode, recordId);
   const sections = model.sections.filter((s) => !s.visible || s.visible(ctx));
-  const showTitle = !!recordTitle && model.titleField === null;
+  const showTitle = !!recordTitle && model.titleField === null && !model.layout.titleFrom;
   const leadOf = (id: string): string => {
     const key = sectionLeadKey(id);
     return t.has(key) ? t(key) : t("sx.ed2.sec.fallback");
@@ -210,7 +210,7 @@ export function SchemaForm(props: SxSchemaFormProps): ReactElement {
               </FormGrid>
             );
             return neon ? (
-              <NeonSection key={s.id} id={s.id} domId={s.domId} headingId={s.headingId} title={s.title} lead={leadOf(s.id)} index={i}>
+              <NeonSection key={s.id} id={s.id} domId={s.domId} headingId={s.headingId} title={s.title} lead={leadOf(s.id)} index={i} icon={s.icon}>
                 {body}
               </NeonSection>
             ) : (

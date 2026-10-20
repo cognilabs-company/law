@@ -29,7 +29,7 @@ export function promoInfoOf(raw: unknown): PromoInfo {
   const payload = asDict(d.payload);
   return {
     id: asStr(d.id ?? d.package_id ?? d.value).trim(),
-    placement: asStr(d.placement ?? payload.placement).trim(),
+    placement: asStr(d.placement ?? payload.placement).trim() || asStr(d.promotion_type ?? payload.promotion_type).trim(),
     days: numberOf(d.days, payload.days),
     price: numberOf(d.price, payload.price),
     currency: asStr(d.currency ?? payload.currency).trim() || "UZS",
