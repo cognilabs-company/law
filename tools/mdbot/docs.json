@@ -61,6 +61,11 @@
       "file": "../../md/BACKEND_STUDIO_CONSTRUCTOR_USAGE_2026_10_20.md",
       "title": "Studio — konstruktorlardan foydalanish statistikasi, backend uchun (20.10)",
       "description": "Studio bosh sahifasidagi yuqori kartalar 4 taga qisqaryapti: Xizmatlar, Paketlar, bugun ishlatilgan Konstruktorlar va Tasdiq navbati. 3-karta uchun backend'da yangi ma'lumot kerak: har bir konstruktorga kuniga necha marta kirilgani. So'ralayotganlari: POST /studio/constructors/{code}/visits (sahifa ochilganda, 60 soniyalik dedup bilan), GET /studio/constructors/usage?date=… (used_count, total_opens, har bir konstruktor bo'yicha opens, users_count, last_opened_at; Asia/Tashkent vaqti), ixtiyoriy ravishda summary ichida constructor_usage_today va realtime hodisa. Ichida: javob shakli, xato kodlari, qabul qilish ro'yxati va backend chiqquncha frontend qanday ishlashi."
+    },
+    {
+      "file": "../../md/BACKEND_OWNER_CHECKLIST_ASKS_2026_10_21.md",
+      "title": "Egasining 25 bandlik ro'yxati — backend'dan kerakli ishlar (21.10)",
+      "description": "Egasining 25 bandlik ro'yxati tekshirildi. Backend'dan 11 ta ish kerak: mijoz telefoni faqat to'lovdan keyin (xavfsizlik), tasdiqlovchi in_review yozuvni tahrirlashi, advokat qoidalarni tanlashi, yangi xizmatda narx izohi, 50% chegara xato kodi, K02 shablon majburiy, K34 birinchi, tarif shartlari konstruktori, contact_speed, xaritada advokatlar va 5/10 daqiqa lokatsiya, targ'ib rasmi tekshiruvi."
     }
   ]
 }
