@@ -441,7 +441,7 @@ function ItemEditor({
   const statusId = `${base}-status`;
   const commentId = `${base}-comment`;
   const noteId = `${base}-note`;
-  const [draft, setDraft] = useState<ItemDraft>(() => draftOf(item));
+  const [draft, setDraft] = useState<ItemDraft>(() => (item.status === "pending" ? { ...draftOf(item), status: "done" } : draftOf(item)));
   const [adds, setAdds] = useState<Add[]>([]);
   const [errs, setErrs] = useState<Errs>({});
   const [note, setNote] = useState("");

@@ -16,15 +16,15 @@ export function durationParts(d: RuntimeDuration | null | undefined): DurationPa
   return { key, n, unit, business };
 }
 
-const WEEKDAY_ANCHOR = Date.UTC(2024, 0, 1);
+const WEEKDAYS: Readonly<Record<string, readonly string[]>> = {
+  uz: ["dushanba", "seshanba", "chorshanba", "payshanba", "juma", "shanba", "yakshanba"],
+  ru: ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"],
+  en: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+};
 
 function weekdayName(day: number, locale: string): string {
-  try {
-    const s = new Intl.DateTimeFormat(locale === "uz" ? "uz-Latn" : locale, { weekday: "long", timeZone: "UTC" }).format(new Date(WEEKDAY_ANCHOR + (day - 1) * 86400000));
-    return locale === "en" ? s : s.toLocaleLowerCase(locale === "uz" ? "uz-Latn" : locale);
-  } catch {
-    return String(day);
-  }
+  const names = WEEKDAYS[locale] ?? WEEKDAYS.en;
+  return names[day - 1] ?? String(day);
 }
 
 export function businessWeekdays(d: RuntimeDuration | null | undefined): number[] {
