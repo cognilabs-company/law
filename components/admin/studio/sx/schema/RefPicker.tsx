@@ -11,6 +11,8 @@ import { producerOf } from "../ctor/sources";
 import { PlusIcon, TriangleAlertIcon, glyph } from "../icons";
 import { Picker } from "../form/Picker";
 import { firstReferenceInfo, firstReferencePage, useReferenceOptions } from "../form/useReferenceOptions";
+import type { InlineContext } from "../inline/model";
+import { useRefInline } from "../inline/RefInline";
 import type { SxControlA11y, SxOption } from "../types";
 import { useStudioLabels } from "../useStudioLabels";
 import { useCategoryOptions } from "./categoryOptions";
@@ -30,6 +32,8 @@ type RefPickerBase = {
   pattern: string;
   recordId: string;
   emptyId?: string;
+  inlineContext?: InlineContext;
+  inlineOwner?: string;
 };
 
 export type RefPickerProps = RefPickerBase &
@@ -37,7 +41,9 @@ export type RefPickerProps = RefPickerBase &
 
 export type SourceEmptyState = { kind: "none" } | { kind: "create"; text: string; link: string; href: string } | { kind: "plain"; text: string };
 
-export function useSourceEmpty(source: string, enabled: boolean): SourceEmptyState {
+const NO_CONTEXT: InlineContext = { categoryId: "" };
+
+export function useSourceEmpty(source: string, enabled: boolean, nonce = 0): SourceEmptyState {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const [empty, setEmpty] = useState<{ source: string; empty: boolean } | null>(null);
@@ -55,7 +61,7 @@ export function useSourceEmpty(source: string, enabled: boolean): SourceEmptySta
     return () => {
       live = false;
     };
-  }, [source, enabled]);
+  }, [source, enabled, nonce]);
   if (!enabled || !empty || empty.source !== source || !empty.empty) return { kind: "none" };
   const producer = producerOf(source);
   if (!producer) return { kind: "none" };
@@ -105,13 +111,29 @@ export function SourceEmptyLine({ state, id, aiId }: { state: SourceEmptyState; 
 }
 
 export function RefPicker(props: RefPickerProps): ReactElement {
-  const { a11y, label, source, required, readOnly, invalid, placeholder, onBlur, aiId, code, pattern, recordId, emptyId } = props;
+  const { a11y, label, source, required, readOnly, invalid, placeholder, onBlur, aiId, code, pattern, recordId, emptyId, inlineContext, inlineOwner } = props;
   const plain = useReferenceOptions(source);
   const tree = isCategorySource(source);
   const cat = useCategoryOptions({ source, selfId: recordId, guardCycle: tree && code.toUpperCase() === "K01" && pattern === "parent_id" });
-  const empty = useSourceEmpty(source, !readOnly);
   const t = useTranslations("studio");
   const picked = props.multiple === true ? props.value : props.value ? [props.value] : [];
+  const inline = useRefInline({
+    source,
+    formCode: code,
+    owner: inlineOwner ?? "",
+    pattern,
+    multiple: props.multiple === true,
+    values: picked,
+    onChange: (next) => {
+      if (props.multiple === true) props.onChange(next);
+      else (props.onChange as (value: string | undefined) => void)(next[0] || undefined);
+    },
+    context: inlineContext ?? NO_CONTEXT,
+    enabled: !readOnly && !tree,
+    aiId: aiId ?? a11y.id,
+  });
+  const empty = useSourceEmpty(source, !readOnly, inline?.refresh ?? 0);
+  const emptyLine: SourceEmptyState = inline && empty.kind === "create" ? { kind: "plain", text: empty.text } : empty;
   const missing = useMissingRefs(source, picked, !tree);
   const missingId = `${a11y.id}-gone`;
   const binding = useMemo(() => {
@@ -151,13 +173,17 @@ export function RefPicker(props: RefPickerProps): ReactElement {
     "aria-required": a11y["aria-required"],
     "aria-invalid": a11y["aria-invalid"],
     aiId,
+    manage: inline?.manage,
+    tail: inline?.tail,
   };
+  const pickerKey = inline?.refresh ?? 0;
   return (
     <div className="sx-sf__ref">
       {props.multiple === true ? (
-        <Picker {...common} multiple value={props.value} onChange={props.onChange} />
+        <Picker key={pickerKey} {...common} multiple value={props.value} onChange={props.onChange} />
       ) : (
         <Picker
+          key={pickerKey}
           {...common}
           clearable={!required && !readOnly}
           value={props.value}
@@ -173,7 +199,8 @@ export function RefPicker(props: RefPickerProps): ReactElement {
           <span>{t("sx.err.reference")}</span>
         </p>
       ) : null}
-      {readOnly ? null : <SourceEmptyLine state={empty} id={emptyId} aiId={aiId ? `${aiId}.create` : undefined} />}
+      {readOnly ? null : <SourceEmptyLine state={emptyLine} id={emptyId} aiId={aiId ? `${aiId}.create` : undefined} />}
+      {inline?.drawer ?? null}
     </div>
   );
 }

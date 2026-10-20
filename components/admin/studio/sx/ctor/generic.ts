@@ -8,7 +8,7 @@ const labelOf = (path: string, key: string): SxLayoutField => ({ path, label: ke
 const clears = (path: string, sibling: string): SxLayoutField => ({ path, clears: [sibling] });
 const when = (path: string): SxLayoutField => ({ path, control: "datetime", help: false });
 const noPlaceholder = (path: string): SxLayoutField => ({ path, placeholder: false });
-const slug = (code: string): SxLayoutField => ({ path: "slug", placeholder: `sx.ph.${code}__slug`, help: "sx.help.slug" });
+const noSlug: SxLayoutField = { path: "slug", hidden: true };
 
 function titled(code: string, fields: readonly SxLayoutField[] = [], ownLabel = false): SxCtorLayout {
   const title: SxLayoutField = ownLabel ? { path: "title", label: `sx.field.${code}__title`, placeholder: `sx.ph.${code}__title` } : { path: "title", placeholder: `sx.ph.${code}__title` };
@@ -25,7 +25,7 @@ const LIST: readonly SxCtorLayout[] = [
     "K06",
     [
       helpOf("service_id", "sx.help.K06__service_id"),
-      slug("K06"),
+      noSlug,
       { path: "category", label: "sx.field.K06__category", control: "picker", options: DOC_CATEGORIES, optionKey: (v) => `sx.doccat.${v}` },
       off("language"),
       off("description"),
@@ -49,7 +49,7 @@ const LIST: readonly SxCtorLayout[] = [
   record("CALL01"),
   record("K22", [labelOf("base_price", "sx.field.K22__base_price")]),
   record("MP08"),
-  titled("K17", [slug("K17"), off("description")], true),
+  titled("K17", [noSlug, off("description")], true),
   record("K04", [labelOf("seller_requirements", "sx.field.K04__seller_requirements")]),
   record("K18"),
   record("K25"),

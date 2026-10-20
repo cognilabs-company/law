@@ -58,6 +58,7 @@ export type SfEnv = {
   readOnly: boolean;
   mode: SxEditMode;
   recordId: string;
+  owner?: string;
   emit: (path: string, value: unknown, clears?: readonly string[]) => void;
   onDraftError?: (path: string, invalid: boolean) => void;
   policy: SxFormPolicy;
@@ -642,6 +643,7 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
 
   if ((control === "picker" || control === "pickerMulti") && source) {
     const emptyId = `${id}-src`;
+    const inlineContext = { categoryId: str(root.category_id).trim() };
     return cell(
       field((a) =>
         control === "pickerMulti" ? (
@@ -665,6 +667,8 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
             pattern={node.pattern}
             recordId={env.recordId}
             emptyId={emptyId}
+            inlineContext={inlineContext}
+            inlineOwner={env.owner ?? ""}
           />
         ) : (
           <RefPicker
@@ -683,6 +687,8 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
             pattern={node.pattern}
             recordId={env.recordId}
             emptyId={emptyId}
+            inlineContext={inlineContext}
+            inlineOwner={env.owner ?? ""}
           />
         ),
       ),

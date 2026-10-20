@@ -32,13 +32,13 @@ const guaranteeIcon = (v: string): SxIcon | undefined => GUARANTEE_ICONS.find((g
 export const K01_LAYOUT: SxCtorLayout = {
   code: "K01",
   sections: [
-    { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "parent_id", "slug", "discovery_terms"] },
+    { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "parent_id", "discovery_terms"] },
     { id: "faollik_va_muddat", titleKey: "sx.section.faollik_va_muddat", fields: ["is_active"] },
   ],
   fields: [
     { path: "title", placeholder: "sx.ph.K01__title" },
     { path: "parent_id", label: "sx.field.K01__parent_id" },
-    { path: "slug", placeholder: "sx.ph.K01__slug", help: "sx.help.slug" },
+    { path: "slug", hidden: true },
     { path: "discovery_terms", aiSuggest: true },
   ],
 };
@@ -127,7 +127,7 @@ export function k02Transform(next: SxPayload): SxPayload {
 export const K02_LAYOUT: SxCtorLayout = {
   code: "K02",
   sections: [
-    { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "slug", "category_id", "description", "client_value", "executor_type"] },
+    { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "category_id", "description", "client_value", "executor_type"] },
     { id: "K02__price", titleKey: "sx.section.K02__price", fields: ["base_price", "max_price", "price_factor_ids", "negotiation_allowed"] },
     { id: "K02__requirements", titleKey: "sx.section.K02__requirements", fields: ["seller_requirements"] },
     { id: "K02__delivery", titleKey: "sx.section.K02__delivery", fields: ["duration_value", "duration_unit", "duration_calendar"] },
@@ -139,7 +139,7 @@ export const K02_LAYOUT: SxCtorLayout = {
   fields: [
     { path: "service_id", hidden: true },
     { path: "title", placeholder: "sx.ph.K02__title" },
-    { path: "slug", placeholder: "sx.ph.K02__slug", help: "sx.help.slug" },
+    { path: "slug", hidden: true },
     { path: "category_id", help: false },
     { path: "description", help: false },
     { path: "price_factor_ids", help: "sx.help.price_factor_ids" },

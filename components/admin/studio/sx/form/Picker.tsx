@@ -25,11 +25,18 @@ import { isCoarsePointer, nextTabbable, usePopover, type PopoverCloseReason } fr
 import { useSwipeDismiss } from "@/lib/useSwipeDismiss";
 import { SxButton } from "../Button";
 import { useDebouncedValue } from "../hooks";
-import { RefreshCwIcon, ChevronDownIcon, CheckIcon, SearchIcon, XIcon, glyph } from "../icons";
+import { RefreshCwIcon, ChevronDownIcon, CheckIcon, PencilIcon, PlusIcon, SearchIcon, XIcon, glyph } from "../icons";
 import type { SxIcon, SxOption } from "../types";
 import { useStudioLabels } from "../useStudioLabels";
 import { dedupeOptions, filterOptions, isNavKey, navIndex, optionRuns, remoteOptions, toggleValue, typeAhead, type OptionPages, type TypeBuffer } from "./logic";
 import type { SxOptionPage } from "./useReferenceOptions";
+
+export type PickerManage = {
+  editLabel: (name: string) => string;
+  onEdit?: (value: string, label: string) => void;
+  createLabel?: (query: string) => string;
+  onCreate?: (query: string) => void;
+};
 
 type PickerBase = {
   id?: string;
@@ -56,6 +63,8 @@ type PickerBase = {
   "aria-required"?: true;
   aiId?: string;
   className?: string;
+  manage?: PickerManage;
+  tail?: ReactNode;
 };
 
 export type PickerProps = PickerBase &
@@ -68,6 +77,7 @@ type Start = "selected" | "first" | "last" | { key: string; at: number };
 type Act = "selected" | "first" | "last" | { v: string };
 
 const SEP = "\u0001";
+const EDIT_KEY = "F2";
 const DEBOUNCE_MS = 250;
 const PAGE = 8;
 const SKELETON = [62, 48, 70];
@@ -117,6 +127,8 @@ export function Picker(props: PickerProps): ReactElement {
     onBlur,
     aiId,
     className,
+    manage,
+    tail,
   } = props;
   const labelledBy = props["aria-labelledby"];
   const describedBy = props["aria-describedby"];
@@ -301,6 +313,9 @@ export function Picker(props: PickerProps): ReactElement {
   const selectedCode = codeTag(selectedOption);
   const hasValue = values.length > 0;
   const clearable = (clearableProp ?? (!required && !multi)) && hasValue && !disabled && !readOnly;
+  const onEdit = manage?.onEdit;
+  const editable = !!onEdit && !disabled && !readOnly;
+  const editOne = editable && !multi && hasValue;
 
   const emit = (next: string[]) => {
     if (props.multiple === true) props.onChange(next);
@@ -413,7 +428,7 @@ export function Picker(props: PickerProps): ReactElement {
       data-multi={multi ? "" : undefined}
       data-filled={hasValue ? "" : undefined}
     >
-      <div ref={boxRef} className="sx-picker__box" data-clear={clearable ? "" : undefined}>
+      <div ref={boxRef} className="sx-picker__box" data-clear={clearable ? "" : undefined} data-edit={editOne ? "" : undefined}>
         <button
           ref={triggerRef}
           type="button"
@@ -457,6 +472,17 @@ export function Picker(props: PickerProps): ReactElement {
             onClick={clear}
           />
         ) : null}
+        {editOne && manage ? (
+          <IconButton
+            className="sx-ibtn sx-picker__edit"
+            size="sm"
+            tip={false}
+            icon={glyph(PencilIcon, { size: 15 })}
+            label={manage.editLabel(nameOf(values[0]))}
+            onClick={() => onEdit(values[0], nameOf(values[0]))}
+            aiId={aiId ? `${aiId}.edit` : undefined}
+          />
+        ) : null}
       </div>
       {multi && hasValue ? (
         <ul ref={tagsRef} className="sx-picker__tags" aria-label={label}>
@@ -467,6 +493,11 @@ export function Picker(props: PickerProps): ReactElement {
                 <span className="sx-picker__tag-text" title={name}>
                   {name}
                 </span>
+                {editable && manage ? (
+                  <button type="button" className="sx-picker__tag-edit" aria-label={manage.editLabel(name)} title={manage.editLabel(name)} onClick={() => onEdit(v, name)} data-ai-id={aiId ? `${aiId}.edit.${i}` : undefined}>
+                    {glyph(PencilIcon, { size: 13 })}
+                  </button>
+                ) : null}
                 {disabled ? null : (
                   <button type="button" className="sx-picker__tag-x" aria-label={t("sx.form.remove", { name })} onClick={() => removeTag(v, i)}>
                     {glyph(XIcon, { size: 14 })}
@@ -477,6 +508,7 @@ export function Picker(props: PickerProps): ReactElement {
           })}
         </ul>
       ) : null}
+      {tail}
       {open ? (
         <PickerPop
           label={label}
@@ -500,6 +532,8 @@ export function Picker(props: PickerProps): ReactElement {
           onClose={hide}
           more={moreInfo}
           indentOf={q ? undefined : indentOf}
+          manage={manage}
+          aiId={aiId}
         />
       ) : null}
     </div>
@@ -528,6 +562,8 @@ type PopProps = {
   onClose: (reason: PopoverCloseReason) => void;
   more?: MoreInfo | null;
   indentOf?: (o: SxOption) => number;
+  manage?: PickerManage;
+  aiId?: string;
 };
 
 function initialAct(start: Start, shown: readonly SxOption[], enabled: readonly number[]): { act: Act; buffer: TypeBuffer } {
@@ -567,6 +603,8 @@ function PickerPop({
   onClose,
   more,
   indentOf,
+  manage,
+  aiId,
 }: PopProps): ReactNode {
   const t = useTranslations("studio");
   const popRef = useRef<HTMLDivElement>(null);
@@ -642,11 +680,18 @@ function PickerPop({
     setAct({ v: shown[index].value });
   };
 
+  const afterClose = (fn: () => void) => {
+    pop.close("select");
+    requestAnimationFrame(fn);
+  };
+
   const choose = (o: SxOption) => {
     if (isOff(o)) return;
     setAct({ v: o.value });
     if (onPick(o) === "close") pop.close("select");
   };
+
+  const editRow = manage?.onEdit;
 
   const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
     if (e.nativeEvent.isComposing) return;
@@ -676,6 +721,12 @@ function PickerPop({
       return;
     }
     if (target && !inSearch && target.closest("button")) return;
+    if (e.key === EDIT_KEY && editRow && activeIdx >= 0 && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      e.preventDefault();
+      const o = shown[activeIdx];
+      afterClose(() => editRow(o.value, o.label));
+      return;
+    }
     if (isNavKey(e.key)) {
       if (inSearch && (e.key === "Home" || e.key === "End")) return;
       e.preventDefault();
@@ -729,6 +780,9 @@ function PickerPop({
   const q = query.trim();
   const skeleton = pending && shown.length === 0;
 
+  const onCreate = manage?.onCreate;
+  const keyHintId = editRow ? `${listId}-keys` : undefined;
+
   const row = ({ option: o, index: i }: { option: SxOption; index: number }) => {
     const off = isOff(o);
     const on = selected.has(o.value);
@@ -743,6 +797,7 @@ function PickerPop({
         role="option"
         aria-selected={on}
         aria-disabled={off ? true : undefined}
+        aria-keyshortcuts={editRow ? EDIT_KEY : undefined}
         data-active={i === activeIdx ? "" : undefined}
         data-depth={depth || undefined}
         style={depth ? ({ "--sx-depth": depth } as CSSProperties) : undefined}
@@ -766,6 +821,28 @@ function PickerPop({
           {desc ? <span className="sx-picker__opt-desc">{desc}</span> : null}
         </span>
         {code ? <span className="sx-code">{code}</span> : null}
+        {editRow ? (
+          <span
+            className="sx-picker__opt-edit"
+            aria-hidden="true"
+            title={`${manage?.editLabel(o.label) ?? ""} (${EDIT_KEY})`}
+            onMouseDown={keepFocus}
+            onClick={(e) => {
+              e.stopPropagation();
+              afterClose(() => editRow(o.value, o.label));
+            }}
+            data-ai-id={aiId ? `${aiId}.option-edit.${i}` : undefined}
+            data-ai-type="button"
+            data-ai-label={manage?.editLabel(o.label)}
+          >
+            {glyph(PencilIcon, { size: 15 })}
+            {kb && i === activeIdx ? (
+              <kbd className="sx-picker__opt-key" title={t("sx.inline.editKeyHint")}>
+                {EDIT_KEY}
+              </kbd>
+            ) : null}
+          </span>
+        ) : null}
         <span className="sx-picker__check" aria-hidden="true">
           {on ? glyph(CheckIcon, { size: 16 }) : null}
         </span>
@@ -808,6 +885,7 @@ function PickerPop({
         aria-expanded={true}
         aria-controls={listId}
         aria-activedescendant={activeId}
+        aria-describedby={keyHintId}
         autoComplete="off"
         spellCheck={false}
         enterKeyHint="search"
@@ -818,6 +896,11 @@ function PickerPop({
 
   const body = (
     <>
+      {keyHintId ? (
+        <span id={keyHintId} className="sx-vh">
+          {t("sx.inline.editKeyHintSr")}
+        </span>
+      ) : null}
       {search}
       <ul
         ref={listRef}
@@ -828,6 +911,7 @@ function PickerPop({
         aria-multiselectable={multi ? true : undefined}
         aria-activedescendant={activeId}
         aria-busy={skeleton ? true : undefined}
+        aria-describedby={keyHintId}
         tabIndex={-1}
       >
         {skeleton
@@ -869,6 +953,13 @@ function PickerPop({
               {more.failed ? t("sx.ui.retry") : t("sx.form.loadMore")}
             </SxButton>
           ) : null}
+        </div>
+      ) : null}
+      {onCreate && manage?.createLabel && !skeleton ? (
+        <div className="sx-picker__create">
+          <SxButton variant="ghost" size="sm" icon={PlusIcon} onMouseDown={keepFocus} onClick={() => afterClose(() => onCreate(q))} aiId={aiId ? `${aiId}.create` : undefined}>
+            {manage.createLabel(q)}
+          </SxButton>
         </div>
       ) : null}
       {maxed ? (

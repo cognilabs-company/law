@@ -14,6 +14,7 @@ import { KeyValue } from "../form/KeyValue";
 import { TextCount } from "../form/TextArea";
 import { TextInput } from "../form/TextInput";
 import { FileTextIcon, glyph } from "../icons";
+import { useFormOwner } from "../inline/owner";
 import { SxNote } from "../layout/Note";
 import { SxSectionHeader } from "../layout/Panel";
 import type { SchemaFormProps, SchemaRecordTitle, SxPayload, SxValues } from "../contract";
@@ -25,7 +26,7 @@ import { sectionIcon, sectionLeadKey, type SxLook } from "./neonLook";
 
 const TITLE_MAX = 200;
 
-export type SxSchemaFormProps = SchemaFormProps & { look?: SxLook };
+export type SxSchemaFormProps = SchemaFormProps & { look?: SxLook; inlineOwner?: string };
 
 function RecordTitleField({ rt, readOnly, idPrefix, errors, neon }: { rt: SchemaRecordTitle; readOnly: boolean; idPrefix: string; errors: SxErrors; neon: boolean }): ReactElement {
   const t = useTranslations("studio");
@@ -105,9 +106,11 @@ function NeonSection({ id, domId, headingId, title, lead, index, children }: { i
 }
 
 export function SchemaForm(props: SxSchemaFormProps): ReactElement {
-  const { model, payload, onChange, errors, warnings, readOnly, mode, recordId, recordTitle, onDraftError, footer, look } = props;
+  const { model, payload, onChange, errors, warnings, readOnly, mode, recordId, recordTitle, onDraftError, footer, look, inlineOwner } = props;
   const t = useTranslations("studio") as unknown as SchemaTr;
   const labels = useStudioLabels();
+  const titleNow = model.titleField ? payload[model.titleField] : recordTitle?.value;
+  const owner = useFormOwner(inlineOwner, model.code, typeof titleNow === "string" ? titleNow : "");
   const ctxPolicy = useSxFormContext();
   const ownPolicy = useSxFormPolicy();
   const policy = ctxPolicy ?? ownPolicy;
@@ -133,8 +136,8 @@ export function SchemaForm(props: SxSchemaFormProps): ReactElement {
   );
 
   const env = useMemo<SfEnv>(
-    () => ({ model, root: payload, errors, warnings: warnings ?? [], readOnly: ro, mode, recordId, emit, onDraftError, policy, labels, t, look }),
-    [model, payload, errors, warnings, ro, mode, recordId, emit, onDraftError, policy, labels, t, look],
+    () => ({ model, root: payload, errors, warnings: warnings ?? [], readOnly: ro, mode, recordId, owner, emit, onDraftError, policy, labels, t, look }),
+    [model, payload, errors, warnings, ro, mode, recordId, owner, emit, onDraftError, policy, labels, t, look],
   );
 
   const ctx = layoutCtx(model, payload, payload, mode, recordId);

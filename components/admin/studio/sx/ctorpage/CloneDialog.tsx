@@ -9,6 +9,7 @@ import { logApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { cloneStudioObject, type StudioRecord } from "@/lib/services/studio";
 import { SxButton } from "../Button";
+import { noteInheritedSlug } from "../editor/slug";
 import { SxDialog, SxDialogError } from "../editor/SxDialog";
 import { useEditorErrorText } from "../editor/useEditorErrorText";
 import { Field } from "../form/Field";
@@ -40,6 +41,7 @@ export function CloneDialog({ rec, onClose, onCloned }: CloneDialogProps): React
     setError(null);
     try {
       const made = await cloneStudioObject(rec.actions.clone, name.trim().slice(0, CLONE_NAME_MAX));
+      noteInheritedSlug(made.id, made.payload);
       notify.success(t("sx.editor.toast.cloned"));
       onClose();
       if (made.id) router.push(`/admin/studio/o/${encodeURIComponent(made.id)}`);

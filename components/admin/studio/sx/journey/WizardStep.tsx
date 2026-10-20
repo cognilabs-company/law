@@ -7,7 +7,7 @@ import "../editor/sx-editor.css";
 import "./sx-journey.css";
 import { useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { useStudioRegistry, type StudioCreationJourney } from "@/lib/services/studio";
+import { getStudioConstructorDetail, studioDetailSnapshot, useStudioRegistry, type StudioCreationJourney } from "@/lib/services/studio";
 import { SxButton, SxLinkButton } from "../Button";
 import type { SchemaOnly } from "../contract";
 import { useEditorErrorText } from "../editor/useEditorErrorText";
@@ -19,6 +19,11 @@ import { SxPanel, SxSectionHeader } from "../layout/Panel";
 import { SchemaErrorSummary } from "../schema/ErrorSummary";
 import { focusFieldPath } from "../schema/focus";
 import { SchemaForm } from "../schema/SchemaForm";
+import { inlineCodeOf } from "../ctor/sources";
+import { ManagePanel } from "../inline/ManagePanel";
+import { inlineKindOf, newDraftOwner, objectOwner, topKeysOf } from "../inline/model";
+import { movePendingOwner } from "../inline/pending";
+import { useInlineAccess } from "../inline/useInlineEditing";
 import { useStudioLabels } from "../useStudioLabels";
 import type { JourneyStep } from "./steps";
 
@@ -66,7 +71,7 @@ export function useStepLinkLabel(): (code: string) => string {
   };
 }
 
-export function StepShell({ step, children }: { step: JourneyStep; children: ReactNode }): ReactElement {
+export function StepShell({ step, hideLink = false, children }: { step: JourneyStep; hideLink?: boolean; children: ReactNode }): ReactElement {
   const t = useTranslations("studio");
   const linkLabel = useStepLinkLabel();
   return (
@@ -77,7 +82,7 @@ export function StepShell({ step, children }: { step: JourneyStep; children: Rea
         title={step.label}
         lead={step.known && !step.required && !step.submit ? t("sx.journeyRun.optionalLead") : undefined}
         actions={
-          step.link ? (
+          step.link && !hideLink ? (
             <SxLinkButton variant="ghost" size="sm" href={step.link.href} target="_blank" iconEnd={ExternalLinkIcon} aiId={`admin.studio.wizard.link.${step.key}`}>
               {linkLabel(step.link.code)}
             </SxLinkButton>
@@ -138,7 +143,15 @@ export function StepProblem({ st }: { st: EditorState }): ReactElement | null {
   return null;
 }
 
-function ExtraStep({ step, objectId, onSaved, onLater, register }: WizardStepProps): ReactElement {
+const PANEL_KINDS: ReadonlySet<string> = new Set(["rule", "guarantee"]);
+
+function panelCodeOf(step: JourneyStep): string {
+  const code = (step.link?.code || step.code || "").trim().toUpperCase();
+  const kind = inlineKindOf(code);
+  return kind && PANEL_KINDS.has(kind) ? code : "";
+}
+
+function ExtraStep({ step, objectId, code, onSaved, onLater, register }: WizardStepProps): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const reg = useStudioRegistry();
@@ -162,11 +175,17 @@ function ExtraStep({ step, objectId, onSaved, onLater, register }: WizardStepPro
   });
   useEffect(() => () => register(null), [register]);
 
+  const note = (
+    <SxNote tone="info" role="note">
+      {step.known && step.link ? t("sx.journeyRun.stepNoFields", { name: labels.ctorName(step.link.code, reg.items.find((x) => x.code === step.link?.code)?.title) }) : t("sx.journeyRun.stepOtherText")}
+    </SxNote>
+  );
+  const panelCode = step.known ? panelCodeOf(step) : "";
+  const managed = useInlineAccess(panelCode);
+
   return (
-    <StepShell step={step}>
-      <SxNote tone="info" role="note">
-        {step.known && step.link ? t("sx.journeyRun.stepNoFields", { name: labels.ctorName(step.link.code, reg.items.find((x) => x.code === step.link?.code)?.title) }) : t("sx.journeyRun.stepOtherText")}
-      </SxNote>
+    <StepShell step={step} hideLink={!!panelCode && managed}>
+      {panelCode ? <ManagePanel code={panelCode} mainCode={code} objectId={objectId} stepKey={step.key} fallback={note} /> : note}
     </StepShell>
   );
 }
@@ -179,6 +198,8 @@ function FormStep({ journey, step, objectId, code, onSaved, onLater, register }:
   const createdRef = useRef("");
   const runningRef = useRef(false);
   const [running, setRunning] = useState(false);
+  const [draft] = useState(newDraftOwner);
+  const owner = objectOwner(objectId) || draft;
 
   const st = useEditorState(
     { code, id: objectId || null, initialPayload },
@@ -189,6 +210,7 @@ function FormStep({ journey, step, objectId, code, onSaved, onLater, register }:
       live: true,
       onCreated: (d) => {
         createdRef.current = d.id;
+        movePendingOwner(draft, objectOwner(d.id));
       },
     },
   );
@@ -274,16 +296,45 @@ function FormStep({ journey, step, objectId, code, onSaved, onLater, register }:
             recordId={st.recordId}
             recordTitle={model.titleField ? null : { value: st.recordTitle, onChange: st.setRecordTitle, placeholderKey: st.layout.recordTitlePlaceholderKey }}
             only={only}
+            inlineOwner={owner}
           />
         </div>
       </SxFormContext.Provider>
     );
   }
 
-  return <StepShell step={step}>{body}</StepShell>;
+  const linkCode = step.link?.code.trim().toUpperCase() ?? "";
+  const inlineHere = !!linkCode && step.fields.some((f) => inlineCodeOf("", f) === linkCode);
+  const managed = useInlineAccess(inlineHere ? linkCode : "");
+
+  return (
+    <StepShell step={step} hideLink={inlineHere && managed}>
+      {body}
+    </StepShell>
+  );
+}
+
+function useSchemaHas(code: string, fields: readonly string[], enabled: boolean): boolean {
+  const [loaded, setLoaded] = useState<{ code: string; keys: ReadonlySet<string> } | null>(null);
+  useEffect(() => {
+    if (!enabled || !code) return;
+    let live = true;
+    void getStudioConstructorDetail(code).then((c) => {
+      if (live && c) setLoaded({ code, keys: topKeysOf(c) });
+    });
+    return () => {
+      live = false;
+    };
+  }, [code, enabled]);
+  if (!enabled) return false;
+  const snap = loaded && loaded.code === code ? null : studioDetailSnapshot(code);
+  const keys = loaded && loaded.code === code ? loaded.keys : snap ? topKeysOf(snap) : null;
+  return !!keys && fields.some((f) => keys.has(f));
 }
 
 export function WizardStep(props: WizardStepProps): ReactElement {
-  if (!props.step.form) return <ExtraStep {...props} />;
+  const panel = props.step.form && props.step.known && !props.step.submit && !!panelCodeOf(props.step);
+  const has = useSchemaHas(props.code, props.step.fields, panel);
+  if (!props.step.form || (panel && !has)) return <ExtraStep {...props} />;
   return <FormStep {...props} />;
 }

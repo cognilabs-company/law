@@ -85,7 +85,29 @@ export const SOURCE_PRODUCER: Readonly<Record<string, Producer>> = {
   "consent-documents": { code: "K07", to: "new" },
   "promotion-packages": { code: "K12-PROMO", to: "list" },
   "subscription-plans": { code: "K17", to: "new" },
+  "service-rules": { code: "K31", to: "new" },
 };
+
+const INLINE_CODES: ReadonlySet<string> = new Set(["K34", "K31", "K32", "K09"]);
+const INLINE_FIELDS: Readonly<Record<string, string>> = {
+  price_factor_ids: "K34",
+  rule_ids: "K31",
+  guarantee_ids: "K32",
+  checklist_template_id: "K09",
+};
+
+export function inlineCodeOf(source: string, pattern: string): string {
+  const raw = String(source ?? "").trim();
+  if (raw && !raw.startsWith("local:")) {
+    const { key } = studioReferenceKey(raw);
+    if (own.call(SOURCE_PRODUCER, key)) {
+      const code = SOURCE_PRODUCER[key].code;
+      return INLINE_CODES.has(code) ? code : "";
+    }
+  }
+  const p = normPattern(pattern);
+  return !p.includes(".") && own.call(INLINE_FIELDS, p) ? INLINE_FIELDS[p] : "";
+}
 
 const NO_PRODUCER: ReadonlySet<string> = new Set(["refund-policies"]);
 

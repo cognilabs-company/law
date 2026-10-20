@@ -8,6 +8,7 @@ import { logApiError } from "@/lib/http";
 import { syncStudioConstructors, useStudioRegistry, type StudioConstructor } from "@/lib/services/studio";
 import { toast } from "@/lib/toast";
 import { SxButton } from "../Button";
+import { isSlugPath } from "../editor/slug";
 import { SxDialog } from "../editor/SxDialog";
 import { useEditorErrorText } from "../editor/useEditorErrorText";
 import { Picker } from "../form/Picker";
@@ -158,7 +159,7 @@ export function RegistrySection(): ReactElement {
       hideBelow: "lg",
       width: "26%",
       cell: (r) => {
-        const req = r.ctor.schema.required;
+        const req = r.ctor.schema.required.filter((f) => !isSlugPath(f));
         if (!req.length) return <span className="sx-st-dim">{t("common.none")}</span>;
         const names = req.map((f) => labels.field(f, { ctor: r.ctor.code }));
         return (

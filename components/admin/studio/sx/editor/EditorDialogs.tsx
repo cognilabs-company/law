@@ -22,6 +22,7 @@ import { SchemaForm } from "../schema/SchemaForm";
 import type { EditorAlert, EditorState } from "./useEditorState";
 import { useEditorErrorText } from "./useEditorErrorText";
 import { changedKeys, nextMinor, versionOk } from "./model";
+import { isSlugPath } from "./slug";
 import { SxDialog, SxDialogError, type SxDialogErrorText } from "./SxDialog";
 import { VersionLine, canRollbackVersion } from "./drawer/VersionsTab";
 
@@ -72,6 +73,7 @@ export function fieldNameOf(st: LabelSource, key: string, labels: StudioLabels, 
 export function fieldNamesOf(st: LabelSource, keys: readonly string[], labels: StudioLabels, t: SxTranslate): string[] {
   const out: string[] = [];
   for (const k of keys) {
+    if (isSlugPath(k)) continue;
     const name = fieldNameOf(st, k, labels, t);
     if (name && !out.includes(name)) out.push(name);
   }

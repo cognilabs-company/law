@@ -1,5 +1,6 @@
 import { WARN_IDS, normText } from "@/lib/studio/humanText";
 import { normStudioRoute, type StudioConstructor, type StudioRoute, type StudioRouteStep, type StudioSchemaField } from "@/lib/services/studio";
+import { isSlugPath } from "../editor/slug";
 import { isEnglishLooking } from "../labels";
 import type { StudioLabels } from "../useStudioLabels";
 
@@ -81,7 +82,7 @@ export function buildGuide(code: string, ctor: StudioConstructor, registry: read
   );
   const surfaces = surfaceNames.length ? t("sx.guide.surfaces", { list: labels.list(surfaceNames, LIST_MAX) }) : "";
 
-  const shown = ctor.typed.filter((f) => !f.hidden);
+  const shown = ctor.typed.filter((f) => !f.hidden && !isSlugPath(f.key));
   const need = new Set(ctor.schema.required);
   const picks = shown.filter((f) => !!f.source || !!f.item?.source);
   const required = shown.filter((f) => f.required || need.has(f.key));

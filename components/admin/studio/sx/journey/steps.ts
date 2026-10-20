@@ -12,13 +12,14 @@ export const FALLBACK_STEP_KEYS: Readonly<Record<StudioJourneyType, readonly str
 
 const FIELD_HINTS: Readonly<Record<StudioJourneyType, Readonly<Record<string, readonly string[]>>>> = {
   service: {
-    category: ["title", "slug", "category_id"],
+    category: ["title", "category_id"],
     pricing: ["base_price", "max_price", "price_factor_ids", "negotiation_allowed"],
     requirements: ["seller_requirements", "executor_type"],
     duration: ["duration_value", "duration_unit", "duration_calendar"],
     delivery: ["duration_value", "duration_unit", "duration_calendar"],
     template: ["template_mode", "template_source", "document_template_id"],
     checklist: ["checklist_template_id"],
+    rules: ["rule_ids"],
     guarantees: ["guarantee_ids"],
     discovery: ["description", "client_value", "discovery_terms"],
     review: ["is_active"],
@@ -31,6 +32,8 @@ const FIELD_HINTS: Readonly<Record<StudioJourneyType, Readonly<Record<string, re
     eligibility: ["eligibility_rule_ids", "visibility"],
     price_factors: ["price_factor_ids"],
     pricing: ["price_factor_ids"],
+    rules: ["rule_ids"],
+    guarantees: ["guarantee_ids"],
     review: ["is_active"],
   },
 };

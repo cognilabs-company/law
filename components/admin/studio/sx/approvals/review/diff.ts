@@ -1,5 +1,6 @@
 import type { SchemaModel, SxValues } from "../../contract";
 import { stableJson } from "../../editor/model";
+import { isSlugPath } from "../../editor/slug";
 import { codeLike } from "../../labels";
 import { effectiveSource, labelTrail, layoutFieldFor, optionTextOf, patternOf, rowSummaryText, schemaFieldAt, scopeAt, type SchemaTr } from "../../schema/model";
 import type { StudioLabels } from "../../useStudioLabels";
@@ -39,7 +40,7 @@ function changeOf(before: unknown, after: unknown): DiffChange {
 export function payloadDiff(before: SxValues | null, after: SxValues, skip?: (top: string) => boolean): DiffEntry[] {
   const out: DiffEntry[] = [];
   const cur: Dict = isDict(after) ? after : {};
-  const keep = (k: string) => !hidden(k) && !(skip && skip(k));
+  const keep = (k: string) => !hidden(k) && !isSlugPath(k) && !(skip && skip(k));
   if (before === null) {
     for (const k of Object.keys(cur)) if (keep(k) && !isEmptyValue(cur[k])) out.push({ path: k, top: k, change: "added", before: undefined, after: cur[k] });
     return out;

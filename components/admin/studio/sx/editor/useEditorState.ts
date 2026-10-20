@@ -49,6 +49,7 @@ import { invalidOptionPaths, validatePayload } from "../schema/model";
 import { focusFieldPath } from "../schema/focus";
 import { studioEventCode, studioEventObjectId, useStudioLive } from "../live";
 import { useEditorErrorText } from "./useEditorErrorText";
+import { inheritedSlugOf, noteInheritedSlug, slugErrorsOnTitle, slugOf, withGeneratedSlug } from "./slug";
 import {
   commentFromEvent,
   createComment,
@@ -409,6 +410,10 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   const optsRef = useRef(opts);
   const initRef = useRef(init);
   const regCtorRef = useRef(regCtor);
+  const slugForceRef = useRef(false);
+  const slugRejectedRef = useRef("");
+  const slugSentRef = useRef("");
+  const slugMadeRef = useRef<string[]>([]);
   useEffect(() => {
     latestRef.current = loaded;
     changedRef.current = changed;
@@ -736,7 +741,13 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     });
   };
 
-  const showServer = (fe: SxErrors) => {
+  const showServer = (raw: SxErrors) => {
+    const moved = slugErrorsOnTitle(raw, titleField ?? "$title");
+    if (moved.moved) {
+      slugForceRef.current = true;
+      slugRejectedRef.current = slugSentRef.current;
+    }
+    const fe = moved.errors;
     const keys = Object.keys(fe);
     setServerErrors(fe);
     policy.markServer(keys);
@@ -772,10 +783,14 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     return true;
   };
 
-  const titleOrFail = (): string => {
+  const titleNow = (): string => {
     const cur = latestRef.current?.draft ?? draft;
     const typed = cur ? (titleField ? str(cur.payload[titleField]) : cur.title).trim() : "";
-    const value = typed || detail?.title || "";
+    return typed || detail?.title || "";
+  };
+
+  const titleOrFail = (): string => {
+    const value = titleNow();
     if (value) return value;
     const p = titleField ?? "$title";
     setServerErrors((s) => ({ ...s, [p]: "@required" }));
@@ -791,6 +806,25 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     return fresh?.lockVersion ?? null;
   };
 
+  const bodyOf = (values: SxPayload, objTitle: string): SxPayload => {
+    const clean = full?.typed.length ? cleanPayload(full.typed, values) : values;
+    const serverTitle = detailRef.current?.title ?? "";
+    const inheritedSlug = inheritedSlugOf(id);
+    const out = withGeneratedSlug(full, clean, objTitle, {
+      force: slugForceRef.current,
+      keep: Boolean(recordId) || Boolean(detailRef.current?.publishedVersionId),
+      fresh: mode === "create" || mode === "clone",
+      rejected: slugRejectedRef.current,
+      generated: inheritedSlug ? [...slugMadeRef.current, inheritedSlug] : slugMadeRef.current,
+      titles: serverTitle ? [serverTitle] : [],
+    });
+    const made = slugOf(out);
+    if (made && made !== slugOf(clean) && !slugMadeRef.current.includes(made)) slugMadeRef.current = [...slugMadeRef.current, made];
+    return out;
+  };
+
+  const slugPending = (cur: Draft, objTitle: string): boolean => slugOf(bodyOf(cur.payload, objTitle)) !== slugOf(cur.payload);
+
   const persist = async (meta?: { summary?: string; version?: string }): Promise<{ id: string; created: StudioDetail | null } | null> => {
     const cur = latestRef.current?.draft ?? draft;
     if (!cur) return null;
@@ -798,7 +832,8 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     if (!objTitle) return null;
     setActionError(null);
     setPublishFail(null);
-    const body = full?.typed.length ? cleanPayload(full.typed, cur.payload) : cur.payload;
+    const body = bodyOf(cur.payload, objTitle);
+    slugSentRef.current = slugOf(body);
     try {
       if (!id) {
         const target = mode === "runtime-edit" && fc ? { runtimeTargetId: fc.runtimeTargetId, runtimeTargetType: fc.runtimeTargetType } : {};
@@ -854,7 +889,8 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     if (busy || !can.submit || !model) return false;
     policy.markSubmitted();
     if (draftBlock()) return false;
-    if (!titleOrFail()) return false;
+    const objTitle = titleOrFail();
+    if (!objTitle) return false;
     const cur = latestRef.current?.draft ?? draft;
     if (!cur) return false;
     const local: Record<string, string> = { ...validatePayload(model, cur.payload, titleField ? null : cur.title) };
@@ -870,7 +906,8 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     }
     setBusy("check");
     try {
-      const body = full?.typed.length ? cleanPayload(full.typed, cur.payload) : cur.payload;
+      const body = bodyOf(cur.payload, objTitle);
+      slugSentRef.current = slugOf(body);
       const check = await validateStudioDraft(code, body, undefined, recordId);
       if (!check.ok && Object.keys(check.errors).length) {
         showServer(targetErrors(normErrorPaths(check.errors), cur.payload));
@@ -892,7 +929,9 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     setDialogError(null);
     setActionError(null);
     try {
-      const r = id && !dirty ? { id, created: null } : await persist();
+      const cur = latestRef.current?.draft ?? draft;
+      const stale = cur !== null && slugPending(cur, titleNow());
+      const r = id && !dirty && !stale ? { id, created: null } : await persist();
       if (!r) return false;
       try {
         await submitStudioObject(r.id, r.id === id ? lifecycle.submitUrl : "");
@@ -1036,6 +1075,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
         notify.error(t("sx.editor.toast.noId"));
         return null;
       }
+      noteInheritedSlug(copy.id, copy.payload);
       notify.success(t("sx.editor.toast.cloned"));
       if (titleField && wanted !== str(payload[titleField]).trim()) seedPatch(copy.id, { [titleField]: wanted });
       return copy.id;

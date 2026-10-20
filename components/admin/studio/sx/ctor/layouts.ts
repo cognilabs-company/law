@@ -1,4 +1,4 @@
-import type { SxCtorLayout } from "../contract";
+import type { SxCtorLayout, SxLayoutField } from "../contract";
 import { ctorVariant } from "../labels";
 import { GENERIC_LAYOUTS } from "./generic";
 import { K12_PROMO_LAYOUT } from "./k12";
@@ -17,12 +17,13 @@ const ALL: readonly SxCtorLayout[] = [...Object.values(GENERIC_LAYOUTS), ...Obje
 export const CTOR_LAYOUTS: Readonly<Record<string, SxCtorLayout>> = Object.freeze(Object.fromEntries(ALL.map((l) => [layoutKey(l.code, l.variant), l])));
 
 const fallbacks = new Map<string, SxCtorLayout>();
+const HIDDEN_SLUG: readonly SxLayoutField[] = [{ path: "slug", hidden: true }];
 
 function fallback(code: string, variant: string): SxCtorLayout {
   const key = layoutKey(code, variant);
   let hit = fallbacks.get(key);
   if (!hit) {
-    hit = variant ? { code, variant } : { code };
+    hit = variant ? { code, variant, fields: HIDDEN_SLUG } : { code, fields: HIDDEN_SLUG };
     fallbacks.set(key, hit);
   }
   return hit;

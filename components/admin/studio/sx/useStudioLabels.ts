@@ -461,7 +461,7 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
     };
     switch (key) {
       case "service-categories":
-        return base({ label, description: str(r.description), code: str(r.slug), icon: SOURCE_ICON["service-categories"] });
+        return base({ label, description: str(r.description), icon: SOURCE_ICON["service-categories"] });
       case "services": {
         const price = numOf(r.base_price);
         return base({ label, description: joinDot([str(r.category_title), price === null ? "" : money(price, str(r.currency))]), icon: BriefcaseBusinessIcon });
@@ -476,9 +476,9 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
         return base({ label, description: str(r.category_title), code: str(r.code), icon: SOURCE_ICON["service-packages"] });
       case "consent-documents":
       case "local:consent-documents": {
-        const [slugPart = "", versionPart = ""] = str(r.code).split(" · ");
+        const versionPart = str(r.code).split(" · ")[1] ?? "";
         const version = str(r.version) || versionPart.trim();
-        return base({ label: label.replace(VERSION_TAIL, "").trim() || label, description: version ? `v${version}` : "", code: str(r.slug) || slugPart.trim(), icon: ScrollTextIcon });
+        return base({ label: label.replace(VERSION_TAIL, "").trim() || label, description: version ? `v${version}` : "", icon: ScrollTextIcon });
       }
       case "promotion-packages": {
         const d = numOf(r.days);
@@ -497,7 +497,7 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
       case "subscription-plans": {
         const monthly = numOf(r.monthly_price);
         const price = monthly === null ? "" : tr("sx.ui.perMonth", { price: money(monthly) });
-        return base({ label: plan(str(r.slug), label), description: joinDot([str(r.audience) ? audience(str(r.audience)) : "", price]), code: str(r.slug), icon: CrownIcon });
+        return base({ label: plan(str(r.slug), label), description: joinDot([str(r.audience) ? audience(str(r.audience)) : "", price]), icon: CrownIcon });
       }
       case "studio-constructors": {
         const nav = findStudioConstructor(value)?.navigation ?? null;
