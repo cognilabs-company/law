@@ -2,6 +2,7 @@ import { aiId, aiSeg } from "@/lib/ai/ids";
 import { studioSectionsOf, studioReferenceKey, type StudioConstructor, type StudioSchemaField } from "@/lib/services/studio";
 import { fieldVisible, isEmpty, normPath, schemaValidate } from "@/lib/studioSchema";
 import { fieldSource } from "../ctor/sources";
+import { carryRowKey } from "../form/logic";
 import { codeLike } from "../labels";
 import type { SxOutlineItem } from "../layout/Outline";
 import type { SxFormPolicy } from "../form/formPolicy";
@@ -72,10 +73,14 @@ function setIn(cur: unknown, parts: readonly string[], value: unknown): unknown 
     const out = cur.slice();
     if (!rest.length) {
       if (value === undefined) out.splice(index, 1);
-      else out[index] = value;
+      else {
+        out[index] = value;
+        carryRowKey(cur[index], value);
+      }
       return out;
     }
     out[index] = setIn(cur[index], rest, value);
+    carryRowKey(cur[index], out[index]);
     return out;
   }
   const base: Dict = isDict(cur) ? { ...cur } : {};
