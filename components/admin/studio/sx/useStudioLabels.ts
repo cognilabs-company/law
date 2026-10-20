@@ -101,6 +101,25 @@ const NUM_TYPES: ReadonlySet<string> = new Set(["number", "money", "integer", "d
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_STAMP = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/;
 const VERSION_TAIL = /\s+v\d+(?:\.\d+)*\s*$/i;
+const CODE_WORDS = /^[A-Za-z][A-Za-z0-9]*(?:[_-][A-Za-z0-9]+)*$/;
+const DEV = process.env.NODE_ENV !== "production";
+const warnedLabels = new Set<string>();
+
+export function humanizeCode(value: string): string {
+  const v = String(value ?? "").trim();
+  if (!CODE_WORDS.test(v) || UUID.test(v)) return v;
+  if (!/[_-]/.test(v) && v !== v.toLowerCase()) return v;
+  const s = v.split(/[_-]+/).join(" ").toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function warnMissingLabel(key: string, locale: string): void {
+  if (!DEV) return;
+  const id = `${locale}:${key}`;
+  if (warnedLabels.has(id)) return;
+  warnedLabels.add(id);
+  console.warn(`[studio] missing label "studio.${key}" (${locale})`);
+}
 
 const own = Object.prototype.hasOwnProperty;
 const lookup = (map: Readonly<Record<string, string>>, key: string): string => (key && own.call(map, key) ? map[key] : "");
@@ -320,15 +339,26 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
     if (/(^|_)phone$/.test(k)) return pick(["sx.ph.phone"]);
     return "";
   };
+  const optionFallback = (v: string, c: string, f: string): string => {
+    if (!v || UUID.test(v) || !CODE_WORDS.test(v)) return unknownRef(v);
+    warnMissingLabel(c && f ? `sx.opt.${c}__${f}.${v}` : f ? `sx.opt.${f}.${v}` : `option.${v}`, locale);
+    return humanizeCode(v);
+  };
   const option = (value: string, scope?: SxScope & { field?: string }): string => {
     const v = str(value);
     const f = str(scope?.field);
     const c = str(scope?.ctor);
     const hit = pick([c && f && `sx.opt.${c}__${f}.${v}`, f && `sx.opt.${f}.${v}`]);
     if (hit) return hit;
-    if (f === "tier" || f === "package_tiers") return tier(v);
-    if (f === "placement") return placement(v, scope?.backend);
-    return pick([v && `option.${v}`]) || vocab(scope?.backend, v) || unknownRef(v);
+    if (f === "tier" || f === "package_tiers") {
+      const shown = tier(v);
+      if (shown !== v) return shown;
+    }
+    if (f === "placement") {
+      const shown = placement(v, scope?.backend);
+      if (shown !== v) return shown;
+    }
+    return pick([v && `option.${v}`]) || vocab(scope?.backend, v) || optionFallback(v, c, f);
   };
 
   const error = (token: string, rule?: SxRule): string => {

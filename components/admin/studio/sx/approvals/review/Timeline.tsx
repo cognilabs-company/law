@@ -33,6 +33,7 @@ import {
   Undo2Icon,
   glyph,
 } from "../../icons";
+import { stepName } from "../../editor/model";
 import type { ApprEvent, ApprEventKind } from "../approvalsApi";
 import type { ReviewHistory } from "./useReview";
 
@@ -133,8 +134,9 @@ export function Timeline({ history, versions, onRetry }: TimelineProps): ReactEl
       return v ? t("sx.ap3.ev.versionN", { v }) : t("sx.ap3.ev.version");
     }
     if (e.kind !== "other") return t(`sx.ap3.ev.${e.kind}`);
-    return e.title && !RAW_KEY.test(e.title) ? e.title : t("sx.ap3.ev.other");
+    return labels.locale === "uz" && e.title && !RAW_KEY.test(e.title) ? e.title : t("sx.ap3.ev.other");
   };
+  const stageOf = (e: ApprEvent): string => (e.stage || e.stageRole ? stepName(labels, { role: e.stageRole, title: e.stage }) : "");
 
   const main = events.filter((e) => !e.audit);
   const counts: Record<Cat, number> = { all: main.length, decisions: 0, comments: 0, versions: 0, release: 0, audit: 0 };
@@ -166,6 +168,7 @@ export function Timeline({ history, versions, onRetry }: TimelineProps): ReactEl
         {shown.map((e) => {
           const v = e.kind === "version" ? "" : verOf(e);
           const tone = TONE[e.kind];
+          const stage = stageOf(e);
           return (
             <li key={e.id} className="sx-ap3-tl__item" data-tone={tone} data-deleted={e.deleted ? "" : undefined}>
               <span className="sx-ap3-tl__dot" aria-hidden="true">
@@ -179,7 +182,7 @@ export function Timeline({ history, versions, onRetry }: TimelineProps): ReactEl
                 </p>
                 <p className="sx-ap3-tl__meta">
                   {e.actor ? <span>{e.actorCode ? `${e.actor} · ${e.actorCode}` : e.actor}</span> : null}
-                  {e.stage ? <span>{t("sx.ap3.tl.stage", { name: e.stage })}</span> : null}
+                  {stage ? <span>{t("sx.ap3.tl.stage", { name: stage })}</span> : null}
                   {e.at ? (
                     <time dateTime={e.at} title={now ? labels.ago(e.at, now) : undefined}>
                       {labels.dateTime(e.at)}

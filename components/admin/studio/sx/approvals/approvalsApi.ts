@@ -43,6 +43,7 @@ export type ApprEvent = {
   actor: string;
   actorCode: string;
   stage: string;
+  stageRole: string;
   versionId: string;
   version: string;
   stepId: string;
@@ -219,6 +220,7 @@ function normEvent(raw: unknown, i: number): ApprEvent {
     actor: firstText(r.actor_name, personName(r.actor), personName(r.user), meta.actor_name, personName(meta.actor), r.user_name),
     actorCode: firstText(asDict(r.actor).lexgo_id, asDict(r.user).lexgo_id, asDict(meta.actor).lexgo_id),
     stage: firstText(meta.step_title, meta.step_name, meta.stage_title),
+    stageRole: firstText(meta.step_role, meta.stage_role),
     versionId: firstText(r.version_id, meta.version_id),
     version: firstText(meta.version, meta.version_label, r.version_label, typeof r.version === "string" ? r.version : ""),
     stepId: firstText(r.step_id, meta.step_id),

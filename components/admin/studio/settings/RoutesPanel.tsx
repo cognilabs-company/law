@@ -11,6 +11,7 @@ import { STUDIO_CODES, ctorOrder } from "@/lib/studio/constructors";
 import { ConstructorIcon, StudioEmpty, StudioLoading, useStudioLive } from "../bits";
 import { useStudioHuman } from "../human";
 import RouteChain from "../RouteChain";
+import { useStudioLabels } from "../sx/useStudioLabels";
 import RouteModal, { type RouteMode, type RouteSaved } from "./RouteModal";
 import { LoadProblem, PanelHead, matchesTerms, type Phase } from "./ui";
 import { IconEdit, IconFolder, IconGlobe, IconPlus, IconRefresh, IconSearch, IconShieldCheck, IconSliders } from "@/components/icons";
@@ -25,8 +26,12 @@ const live = (r: StudioRoute) => r.status === "active";
 // section, an override per constructor — and, below, which of them a given
 // constructor is approved by today.
 export default function RoutesPanel() {
-  const { t, option, ctorName, num, day, groupTitle, groupText } = useStudioHuman();
+  const { t, num, day } = useStudioHuman();
+  const labels = useStudioLabels();
   const reg = useStudioRegistry();
+  const ctorName = (code: string, title?: string) => labels.ctorName(code, title || reg.items.find((c) => c.code === code)?.title);
+  const groupTitle = (key: string, title?: string) => labels.groupName(key, title);
+  const groupText = (key: string, text?: string) => labels.groupWhat(key, text);
   const [st, setSt] = useState<State>({ phase: "loading", board: EMPTY, error: null });
   const [busy, setBusy] = useState(false);
   const [modal, setModal] = useState<RouteMode | null>(null);
@@ -76,7 +81,7 @@ export default function RoutesPanel() {
     setPulse((n) => n + 1);
   }
 
-  const statusLabel = (s: string) => (t.has(`settings.routes.status_${s}`) ? t(`settings.routes.status_${s}`) : option(s));
+  const statusLabel = (s: string) => (t.has(`settings.routes.status_${s}`) ? t(`settings.routes.status_${s}`) : labels.status(s, "runtime"));
   const ctors = (reg.items.length ? reg.items.map((c) => ({ code: c.code, title: c.title })) : STUDIO_CODES.map((c) => ({ code: c as string, title: "" }))).sort((a, b) => ctorOrder(a.code) - ctorOrder(b.code));
   const codeChoices = ctors.map((c) => ({ code: c.code, label: ctorName(c.code, c.title) }));
   const taken = items.map((r) => `${r.scopeType}:${r.scopeKey}`);

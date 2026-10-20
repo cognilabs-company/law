@@ -567,7 +567,11 @@
         "category_search_sponsored_service": "Qidiruvdagi homiylik xizmati"
       },
       "opt": {
-        "K07__document_type": {"terms":"Foydalanish shartlari","privacy":"Maxfiylik siyosati","privacy_policy":"Maxfiylik siyosati","legal_disclaimer":"Huquqiy ogohlantirish","public_offer":"Ommaviy oferta","marketing":"Reklama xabarlariga rozilik"},
+        "verification_methods": {"checkbox":"Belgilash","comment":"Izoh","image":"Rasm","file":"Fayl"},
+        "K32__icon": {"shield-check":"Kafolat","badge-check":"Tekshirilgan ijrochi","headphones":"Qo'llab-quvvatlash","rotate-ccw":"Qaytarish va qayta ishlash","clock":"Muddatida bajarish","lock-keyhole":"Maxfiylik"},
+        "MP09__type": {"fixed":"Qat'iy summa","percent":"Foiz"},
+        "MP09__period": {"day":"Kuniga","week":"Haftasiga","month":"Oyiga","campaign":"Butun kampaniya davomida"},
+        "K07__document_type": {"terms_of_service": "Foydalanish shartlari", "consent": "Rozilik matni", "refund_policy": "Pulni qaytarish tartibi", "marketplace_rules": "Marketplace qoidalari", "terms":"Foydalanish shartlari","privacy":"Maxfiylik siyosati","privacy_policy":"Maxfiylik siyosati","legal_disclaimer":"Huquqiy ogohlantirish","public_offer":"Ommaviy oferta","marketing":"Reklama xabarlariga rozilik"},
         "match": {"all":"Barcha shartlar bajarilsa","any":"Kamida bitta shart bajarilsa"},
         "order_statuses": {"new":"Yangi","pending_payment":"To'lov kutilmoqda","paid":"To'langan","accepted":"Qabul qilingan","in_progress":"Bajarilmoqda","completed":"Yakunlangan","cancelled":"Bekor qilingan","refunded":"Pul qaytarilgan"},
         "duration_unit": {"minute":"daqiqa","hour":"soat","day":"kun"},
@@ -601,6 +605,16 @@
         }
       },
       "field": {
+        "usage_steps": "Xizmatdan foydalanish tartibi",
+        "verification_methods": "Qanday tasdiqlanadi",
+        "comment_required": "Izoh majburiy",
+        "image_required": "Rasm majburiy",
+        "file_required": "Fayl majburiy",
+        "K03-M__price_factor_overrides": "Shu paket uchun qiymat",
+        "K22__promotion": "Ikkinchi fikr reklamasi",
+        "CORE__release_policy": "E'lon qilish tartibi",
+        "K25__tax_rules__included": "Soliq narx ichida",
+        "MP03__deliverables__format": "Natija formati",
         "K02__template_requirement": "Shablon talabi",
         "visibility": "Kimga ko'rinadi",
         "K32__conditions__match": "Shartlar qanday birlashadi",
@@ -733,6 +747,8 @@
         "INT01__enabled": "Ulangan"
       },
       "help": {
+        "usage_steps": "Mijoz xarid qilishdan oldin va keyin ko'radigan qadamlar, tartib bilan.",
+        "K03-M__price_factor_overrides": "Umumiy qiymat qoldirilsa, omil hamma joyda bir xil ishlaydi. O'z qiymatingiz faqat shu paketga ta'sir qiladi, umumiy omil o'zgarmaydi.",
         "K32__conditions__match": "Kafolat barcha shartlar bajarilganda yoki kamida bittasi bajarilganda qo'llanadi.",
         "K33__conditions__match": "Kafolatlar to'plami barcha shartlar bajarilganda yoki kamida bittasi bajarilganda ko'rsatiladi.",
         "K02__base_price": "Ijrochi bundan arzonroq narx qo'yishi mumkin.",
@@ -1301,7 +1317,7 @@
       "interval": "Oraliq bilan",
       "is_empty": "Bo'sh",
       "is_not_empty": "Bo'sh emas",
-      "jwt": "Imzolangan ruxsatnoma",
+      "jwt": "JWT token",
       "least_loaded": "Eng kam band xodimga",
       "left": "Hammasi, mos kelmasa ham",
       "less_than": "Kichik",
@@ -3253,7 +3269,7 @@
       "region_modifiers": "Hudud koeffitsiyentlari",
       "region_rules": "Hudud qoidalari",
       "regions": "Hududlar",
-      "release_policy": "Pulni chiqarish siyosati",
+      "release_policy": "E'lon qilish tartibi",
       "reminders": "Eslatmalar",
       "reopen_policy": "Qayta ochish siyosati",
       "required_documents": "Majburiy hujjatlar",

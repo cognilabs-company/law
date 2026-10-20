@@ -93,7 +93,7 @@ export function ExportSection(): ReactElement {
     const st = sxStatus(o.statusRaw || o.status);
     return {
       value: o.id,
-      label: o.title || o.id,
+      label: o.title || t("sx.ui.untitled"),
       description: [labels.status(o.statusRaw || o.status), o.currentVersion ? `v${o.currentVersion}` : "", o.updatedAt ? labels.date(o.updatedAt) : ""].filter(Boolean).join(" · "),
       icon: STATUS_ICON[st.key],
     };

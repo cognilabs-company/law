@@ -11,6 +11,7 @@ import { LoaderCircleIcon } from "lucide-react";
 import { logApiError } from "@/lib/http";
 import { SxButton } from "../Button";
 import { SxDialog } from "../editor/SxDialog";
+import { plainUzMessage } from "../editor/useEditorErrorText";
 import { Field } from "../form/Field";
 import { TextArea } from "../form/TextArea";
 import { CircleAlertIcon, CircleCheckIcon, CirclePauseIcon, RocketIcon, XIcon, ctorGlyph, glyph } from "../icons";
@@ -87,7 +88,7 @@ export function BulkDialog({ items, onClose, onFinished }: BulkDialogProps): Rea
   const reasonOf = (f: BulkFailure): string => {
     const key = publishFailKey(f.code);
     if (key) return t(key);
-    return f.message || t("sx.editor.err.other");
+    return (labels.locale === "uz" ? plainUzMessage(f.message) : "") || t("sx.editor.err.other");
   };
 
   const start = async (origin: DOMRect | null) => {

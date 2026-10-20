@@ -20,6 +20,7 @@ import {
 } from "@/lib/services/studio";
 import { StudioErrorNote } from "../bits";
 import { useStudioHuman } from "../human";
+import { useStudioLabels } from "../sx/useStudioLabels";
 import { IconAlert, IconChevronLeft, IconChevronRight, IconCircleCheck, IconMinus, IconPlus } from "@/components/icons";
 
 // A route is written for one of three levels (contract §16): everything, a
@@ -59,7 +60,8 @@ export default function RouteModal({ mode, ...rest }: Omit<Props, "mode"> & { mo
 const whole = (v: string) => (/^\d+$/.test(v.trim()) ? Number(v.trim()) : NaN);
 
 function RouteForm({ mode, codes, groups, taken, superadmin, onClose, onSaved }: Props) {
-  const { t, fieldErr, groupTitle, role } = useStudioHuman();
+  const { t, fieldErr, role } = useStudioHuman();
+  const labels = useStudioLabels();
   const uid = useId();
   const base = mode.kind === "edit" ? mode.route : null;
   const locked = Boolean(base) || (mode.kind === "new" && Boolean(mode.scope));
@@ -171,7 +173,7 @@ function RouteForm({ mode, codes, groups, taken, superadmin, onClose, onSaved }:
     void save();
   }
 
-  const groupOpts = groups.map((g) => ({ value: g.key, label: groupTitle(g.key, g.title) }));
+  const groupOpts = groups.map((g) => ({ value: g.key, label: labels.groupName(g.key, g.title) }));
   const codeOpts = codes.map((c) => ({ value: c.code, label: c.label }));
   const statusOpts = ROUTE_STATUSES.map((s) => ({ value: s, label: t(`settings.routes.status_${s}`) }));
   const unitOpts = UNITS.map((u) => ({ value: u, label: t(`settings.routes.slaUnit.${u}`) }));
