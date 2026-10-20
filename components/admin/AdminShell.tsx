@@ -56,7 +56,7 @@ type SvgC = ComponentType<{ className?: string }>;
 // perm: one code, or a list where any one code is enough. Codes outside
 // ADMIN_PERMISSIONS (b2b.manage, meetings.manage) only gate the item; they
 // don't grant admin access on their own.
-type NavPerm = AdminPermission | "b2b.manage" | "meetings.manage" | "orders.manage";
+type NavPerm = AdminPermission | "b2b.manage" | "meetings.manage" | "orders.manage" | "tasks.view";
 type NavItem = { href: string; key: string; Icon: SvgC; perm?: NavPerm | NavPerm[]; hidden?: boolean };
 // CRM modules grouped per the platform plan. `perm` = the backend permission a
 // page needs; items without a perm (overview, ceo, bootstrap…) are full-admin
@@ -69,6 +69,7 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       { href: "/admin/profile", key: "profile", Icon: NavOverview, hidden: true },
       { href: "/admin/ceo", key: "ceo", Icon: NavCeo },
       { href: "/admin/live-office", key: "liveOffice", Icon: NavLiveOffice, perm: "users.manage" },
+      { href: "/admin/team-tasks", key: "teamTasks", Icon: NavApprovals, perm: "tasks.view" },
     ],
   },
   {

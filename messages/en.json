@@ -9257,7 +9257,8 @@
         "files": "Files",
         "profile": "Profile",
         "referrals": "Referral",
-        "meetings": "Meetings"
+        "meetings": "Meetings",
+        "teamTasks": "Team tasks"
       },
       "client": {
         "requests": "My requests",
@@ -9286,7 +9287,8 @@
         "documentRequests": "My documents",
         "messages": "Messages",
         "notifications": "Notifications",
-        "packages": "Services"
+        "packages": "Services",
+        "teamTasks": "Team tasks"
       },
       "advocate": {
         "services": "My services",
@@ -9310,7 +9312,8 @@
         "files": "Files",
         "assistant": "AI assistant",
         "referrals": "Referral",
-        "meetings": "Meetings"
+        "meetings": "Meetings",
+        "teamTasks": "Team tasks"
       }
     },
     "lawyer": {
@@ -14885,7 +14888,8 @@
       "registerRequests": "Register requests",
       "e2e": "E2E readiness",
       "legal": "Legal documents",
-      "policies": "Platform policies"
+      "policies": "Platform policies",
+      "teamTasks": "Team tasks"
     },
     "overview": {
       "seedDone": "Demo data seeded",
@@ -21803,5 +21807,156 @@
     "errorTitle": "Couldn't load packages",
     "errorText": "Check your connection and try again.",
     "retry": "Try again"
+  },
+  "teamTasks": {
+    "title": "Team tasks",
+    "lead": "Every task in the team: status, deadline and who it is assigned to.",
+    "refresh": "Refresh",
+    "create": "New task",
+    "retry": "Try again",
+    "loading": "Loading…",
+    "empty": "No tasks yet",
+    "emptyFiltered": "No tasks match these filters",
+    "clearFilters": "Clear filters",
+    "denied": "You don't have access to tasks.",
+    "allStatuses": "All",
+    "updated": "Updated {when}",
+    "openTask": "Open task {code} — {title}",
+    "moved": "{code} moved to “{status}”",
+    "returned": "{code} sent back for rework",
+    "deletedOk": "{code} deleted",
+    "created": "{code} created",
+    "saved": "{code} saved",
+    "noDeadline": "No deadline",
+    "overdue": "Overdue",
+    "unassigned": "Unassigned",
+    "deleted": "Deleted",
+    "edit": "Edit",
+    "assign": "Assignees",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "reasonNeeded": "Write a comment — it is required.",
+    "status": {
+      "new": "New",
+      "in_progress": "In progress",
+      "testing": "Testing",
+      "ready": "Ready"
+    },
+    "act": {
+      "new": "New",
+      "in_progress": "Start",
+      "testing": "Send to testing",
+      "ready": "Approve as ready",
+      "return": "Send back for rework"
+    },
+    "filter": {
+      "status": "Status",
+      "assignee": "Assignee",
+      "anyone": "Everyone",
+      "me": "Assigned to me",
+      "unassigned": "Unassigned",
+      "deadline": "Deadline",
+      "from": "From",
+      "to": "To",
+      "search": "Search by code, title or description"
+    },
+    "err": {
+      "load": "Couldn't load tasks",
+      "save": "Couldn't save. Please try again.",
+      "network": "No connection. Your input is kept — please try again.",
+      "unavailable": "The service is temporarily unavailable. Your input is kept — try again shortly.",
+      "missing": "The task was not found or has been deleted.",
+      "forbidden": "You don't have permission for this action.",
+      "conflict": "The task changed elsewhere — its latest state is loaded.",
+      "conflictNotice": "This task was updated on another device. Review the changes and repeat your action."
+    },
+    "form": {
+      "createTitle": "New task",
+      "editTitle": "{code} — edit",
+      "assignTitle": "{code} — assignees",
+      "create": "Create",
+      "save": "Save",
+      "title": "Title",
+      "titleNeeded": "Enter a task title.",
+      "description": "Description",
+      "deadline": "Deadline",
+      "date": "Date",
+      "datePh": "Pick a date",
+      "time": "Time",
+      "timePh": "Pick a time",
+      "deadlineNeeded": "Pick a deadline.",
+      "deadlineFuture": "The deadline must be in the future.",
+      "assignees": "Assignees",
+      "assigneesPh": "Choose assignees",
+      "assigneesSearch": "Name, LexGo ID or phone",
+      "assigneesEmpty": "No one found",
+      "unassignedHint": "A task created without assignees sends the person in charge of assignment a Telegram request.",
+      "quick": "Quick pick",
+      "preset": {
+        "today": "Today 18:00",
+        "tomorrow": "Tomorrow 10:00",
+        "days3": "In 3 days",
+        "week": "In a week"
+      }
+    },
+    "detail": {
+      "title": "Task",
+      "returned": "Sent back for rework",
+      "deadline": "Deadline",
+      "assignees": "Assignees",
+      "creator": "Created by",
+      "updated": "Last change",
+      "readyBy": "Approved by",
+      "deleteReason": "Deletion reason",
+      "noDescription": "No description.",
+      "history": "History",
+      "noHistory": "No history yet."
+    },
+    "history": {
+      "created": "Created",
+      "updated": "Edited",
+      "assignees_changed": "Assignees changed",
+      "status_changed": "Status changed",
+      "returned": "Sent back",
+      "deleted": "Deleted"
+    },
+    "returnTitle": "{code} — send back for rework",
+    "returnLead": "The task returns to “In progress”. Assignees get the comment in Telegram, and it stays in the history.",
+    "returnLabel": "What needs fixing",
+    "deleteTitle": "{code} — delete",
+    "deleteLead": "The task leaves the list; its history is kept.",
+    "deleteLabel": "Deletion reason",
+    "due": {
+      "today": "Today {time}",
+      "tomorrow": "Tomorrow {time}",
+      "yesterday": "Yesterday {time}"
+    },
+    "peopleCount": "{n} assignees",
+    "today": "Today: {date}",
+    "kpi": {
+      "created": "Given today",
+      "createdHint": "Created today",
+      "done": "Done today",
+      "doneHint": "Became ready today",
+      "open": "Not done",
+      "openHint": "Open right now",
+      "openLate": "{n} overdue",
+      "unassigned": "{n} tasks unassigned"
+    },
+    "progress": {
+      "title": "Completion rate",
+      "foot": "{done} of {total} tasks ready",
+      "late": "{n} tasks overdue"
+    },
+    "weekday": {
+      "mon": "Monday",
+      "tue": "Tuesday",
+      "wed": "Wednesday",
+      "thu": "Thursday",
+      "fri": "Friday",
+      "sat": "Saturday",
+      "sun": "Sunday"
+    }
   }
 }

@@ -9263,7 +9263,8 @@
         "files": "Fayllar",
         "profile": "Profil",
         "referrals": "Referal",
-        "meetings": "Uchrashuvlar"
+        "meetings": "Uchrashuvlar",
+        "teamTasks": "Jamoa vazifalari"
       },
       "client": {
         "requests": "So'rovlarim",
@@ -9292,7 +9293,8 @@
         "documentRequests": "Mening hujjatlarim",
         "messages": "Xabarlar",
         "notifications": "Bildirishnomalar",
-        "packages": "Xizmatlar"
+        "packages": "Xizmatlar",
+        "teamTasks": "Jamoa vazifalari"
       },
       "advocate": {
         "services": "Xizmatlarim",
@@ -9316,7 +9318,8 @@
         "files": "Fayllar",
         "assistant": "Sun'iy intellekt yordamchi",
         "referrals": "Referal",
-        "meetings": "Uchrashuvlar"
+        "meetings": "Uchrashuvlar",
+        "teamTasks": "Jamoa vazifalari"
       }
     },
     "lawyer": {
@@ -14891,7 +14894,8 @@
       "registerRequests": "Ro‘yxatdan o‘tish so‘rovlari",
       "e2e": "E2E tayyorlik",
       "legal": "Huquqiy hujjatlar",
-      "policies": "Platforma qoidalari"
+      "policies": "Platforma qoidalari",
+      "teamTasks": "Jamoa vazifalari"
     },
     "overview": {
       "seedDone": "Demo ma'lumotlar yuklandi",
@@ -21809,5 +21813,156 @@
     "errorTitle": "Paketlar yuklanmadi",
     "errorText": "Internetni tekshirib, qayta urinib ko'ring.",
     "retry": "Qayta urinish"
+  },
+  "teamTasks": {
+    "title": "Jamoa vazifalari",
+    "lead": "Jamoadagi barcha vazifalar: holati, muddati va kimga biriktirilgani.",
+    "refresh": "Yangilash",
+    "create": "Yangi vazifa",
+    "retry": "Qayta urinish",
+    "loading": "Yuklanmoqda…",
+    "empty": "Hali vazifa yo'q",
+    "emptyFiltered": "Bu filtrlar bo'yicha vazifa topilmadi",
+    "clearFilters": "Filtrlarni tozalash",
+    "denied": "Sizda vazifalarni ko'rish huquqi yo'q.",
+    "allStatuses": "Barchasi",
+    "updated": "Yangilandi: {when}",
+    "openTask": "{code} — {title} vazifasini ochish",
+    "moved": "{code}: «{status}» holatiga o'tkazildi",
+    "returned": "{code} qayta ishlashga qaytarildi",
+    "deletedOk": "{code} o'chirildi",
+    "created": "{code} yaratildi",
+    "saved": "{code} saqlandi",
+    "noDeadline": "Muddat yo'q",
+    "overdue": "Muddati o'tgan",
+    "unassigned": "Biriktirilmagan",
+    "deleted": "O'chirilgan",
+    "edit": "Tahrirlash",
+    "assign": "Ijrochilar",
+    "delete": "O'chirish",
+    "cancel": "Bekor qilish",
+    "saving": "Saqlanmoqda…",
+    "reasonNeeded": "Izoh yozing — u bo'sh bo'lishi mumkin emas.",
+    "status": {
+      "new": "Yangi",
+      "in_progress": "Bajarilmoqda",
+      "testing": "Testlanmoqda",
+      "ready": "Tayyor"
+    },
+    "act": {
+      "new": "Yangi",
+      "in_progress": "Boshlash",
+      "testing": "Testga yuborish",
+      "ready": "Tayyor deb tasdiqlash",
+      "return": "Qayta ishlashga qaytarish"
+    },
+    "filter": {
+      "status": "Holat",
+      "assignee": "Ijrochi",
+      "anyone": "Hammasi",
+      "me": "Menga biriktirilgan",
+      "unassigned": "Biriktirilmagan",
+      "deadline": "Muddat",
+      "from": "Dan",
+      "to": "Gacha",
+      "search": "Kod, nom yoki tavsif bo'yicha qidirish"
+    },
+    "err": {
+      "load": "Vazifalarni yuklab bo'lmadi",
+      "save": "Saqlab bo'lmadi. Qayta urinib ko'ring.",
+      "network": "Internet aloqasi yo'q. Ma'lumotlaringiz saqlanib turibdi — qayta urinib ko'ring.",
+      "unavailable": "Xizmat vaqtincha ishlamayapti. Ma'lumotlaringiz saqlanib turibdi — birozdan so'ng qayta urinib ko'ring.",
+      "missing": "Vazifa topilmadi yoki o'chirilgan.",
+      "forbidden": "Bu amal uchun ruxsatingiz yo'q.",
+      "conflict": "Vazifa boshqa joyda o'zgartirilgan — yangi holati yuklandi.",
+      "conflictNotice": "Bu vazifa boshqa qurilmada yangilangan. O'zgarishlarni ko'rib chiqing va amalni qaytadan bajaring."
+    },
+    "form": {
+      "createTitle": "Yangi vazifa",
+      "editTitle": "{code} — tahrirlash",
+      "assignTitle": "{code} — ijrochilar",
+      "create": "Yaratish",
+      "save": "Saqlash",
+      "title": "Nomi",
+      "titleNeeded": "Vazifa nomini yozing.",
+      "description": "Tavsif",
+      "deadline": "Muddat",
+      "date": "Sana",
+      "datePh": "Sanani tanlang",
+      "time": "Vaqt",
+      "timePh": "Vaqtni tanlang",
+      "deadlineNeeded": "Muddatni tanlang.",
+      "deadlineFuture": "Muddat kelajakdagi vaqt bo'lishi kerak.",
+      "assignees": "Ijrochilar",
+      "assigneesPh": "Ijrochilarni tanlang",
+      "assigneesSearch": "Ism, LexGo ID yoki telefon",
+      "assigneesEmpty": "Hech kim topilmadi",
+      "unassignedHint": "Ijrochisiz vazifa yaratilsa, biriktirish uchun mas'ul xodimga Telegram orqali so'rov yuboriladi.",
+      "quick": "Tez tanlash",
+      "preset": {
+        "today": "Bugun 18:00",
+        "tomorrow": "Ertaga 10:00",
+        "days3": "3 kundan keyin",
+        "week": "1 haftadan keyin"
+      }
+    },
+    "detail": {
+      "title": "Vazifa",
+      "returned": "Qayta ishlashga qaytarilgan",
+      "deadline": "Muddat",
+      "assignees": "Ijrochilar",
+      "creator": "Yaratgan",
+      "updated": "Oxirgi o'zgarish",
+      "readyBy": "Tasdiqlagan",
+      "deleteReason": "O'chirish sababi",
+      "noDescription": "Tavsif yozilmagan.",
+      "history": "Tarix",
+      "noHistory": "Tarix bo'sh."
+    },
+    "history": {
+      "created": "Yaratildi",
+      "updated": "Tahrirlandi",
+      "assignees_changed": "Ijrochilar o'zgardi",
+      "status_changed": "Holat o'zgardi",
+      "returned": "Qaytarildi",
+      "deleted": "O'chirildi"
+    },
+    "returnTitle": "{code} — qayta ishlashga qaytarish",
+    "returnLead": "Vazifa «Bajarilmoqda» holatiga qaytadi. Izoh ijrochilarga Telegram orqali yuboriladi va tarixda ko'rinadi.",
+    "returnLabel": "Nima tuzatilishi kerak",
+    "deleteTitle": "{code} — o'chirish",
+    "deleteLead": "Vazifa ro'yxatdan olib tashlanadi, tarixi saqlanib qoladi.",
+    "deleteLabel": "O'chirish sababi",
+    "due": {
+      "today": "Bugun {time}",
+      "tomorrow": "Ertaga {time}",
+      "yesterday": "Kecha {time}"
+    },
+    "peopleCount": "{n} ta ijrochi",
+    "today": "Bugun: {date}",
+    "kpi": {
+      "created": "Bugun berilgan",
+      "createdHint": "Bugun yaratilgan vazifalar",
+      "done": "Bugun bajarilgan",
+      "doneHint": "Bugun tayyor bo'lganlar",
+      "open": "Bajarilmagan",
+      "openHint": "Hozir ochiq vazifalar",
+      "openLate": "{n} tasining muddati o'tgan",
+      "unassigned": "{n} ta vazifa biriktirilmagan"
+    },
+    "progress": {
+      "title": "Bajarilish darajasi",
+      "foot": "Jami {total} ta vazifadan {done} tasi tayyor",
+      "late": "{n} ta vazifaning muddati o'tgan"
+    },
+    "weekday": {
+      "mon": "Dushanba",
+      "tue": "Seshanba",
+      "wed": "Chorshanba",
+      "thu": "Payshanba",
+      "fri": "Juma",
+      "sat": "Shanba",
+      "sun": "Yakshanba"
+    }
   }
 }

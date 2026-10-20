@@ -80,8 +80,8 @@ type NavItem = { href: string; key: string; Icon: SvgC };
 // (the backend also returns 403 on those endpoints until approval).
 const PENDING_ALLOWED: Record<Role, Set<string>> = {
   client: new Set(),
-  lawyer: new Set(["dashboard", "profile", "services", "subscription", "notifications", "support"]),
-  advocate: new Set(["dashboard", "profile", "subscription", "notifications", "support"]),
+  lawyer: new Set(["dashboard", "profile", "services", "subscription", "notifications", "support", "teamTasks"]),
+  advocate: new Set(["dashboard", "profile", "subscription", "notifications", "support", "teamTasks"]),
 };
 
 // Nav items that also need a specific cabinet action (available_actions).
@@ -305,8 +305,8 @@ export default function PortalShell({
   const hideBody = routeLocked || routeUnknown;
   const gated = hideBody ? <div className="portal--gated" aria-busy="true"><span className="rf__spinner" /></div> : children;
 
-  const nav =
-    role === "advocate" ? ADVOCATE_NAV : role === "lawyer" ? LAWYER_NAV : CLIENT_NAV;
+  const baseNav = role === "advocate" ? ADVOCATE_NAV : role === "lawyer" ? LAWYER_NAV : CLIENT_NAV;
+  const nav = (session.permissions ?? []).includes("tasks.view") ? [...baseNav, { href: `/portal/${role}/team-tasks`, key: "teamTasks", Icon: IconClipboardCheck }] : baseNav;
   // Title lookup spans the title-only routes too, so a page that is not in
   // the sidebar is still named correctly and does not light a wrong row.
   const active = nav
