@@ -3,15 +3,28 @@ import type { ChecklistItem, ChecklistProgress, ChecklistStatus, OrderChecklist 
 import type { OrderView } from "./types";
 import type { UploadedFile } from "./upload";
 
-export type ItemDraft = { status: ChecklistStatus; comment: string; files: UploadedFile[] };
-export type ItemProblem = "reason" | "comment" | "file" | "skip";
+export type ItemDraft = { status: ChecklistStatus; comment: string; files: UploadedFile[]; images?: UploadedFile[] };
+export type ItemProblem = "reason" | "comment" | "file" | "image" | "skip";
+export type ItemEvidence = { comment: boolean; image: boolean; file: boolean };
+
+export function evidenceOf(item: ChecklistItem): ItemEvidence {
+  const methods = item.verificationMethods ?? [];
+  if (!methods.length) return { comment: true, image: item.imageRequired === true, file: true };
+  return {
+    comment: methods.includes("comment") || item.commentRequired,
+    image: methods.includes("image") || item.imageRequired === true,
+    file: methods.includes("file") || item.fileRequired,
+  };
+}
 
 export function draftOf(item: ChecklistItem): ItemDraft {
-  return {
+  const draft: ItemDraft = {
     status: item.status,
     comment: item.comment,
     files: item.files.map((f) => ({ id: f.id, name: f.name, url: f.url })),
   };
+  if (item.images?.length) draft.images = item.images.map((f) => ({ id: f.id, name: f.name, url: f.url }));
+  return draft;
 }
 
 export function itemProblems(item: ChecklistItem, draft: ItemDraft): ItemProblem[] {
@@ -21,6 +34,7 @@ export function itemProblems(item: ChecklistItem, draft: ItemDraft): ItemProblem
   if (draft.status === "skipped_with_reason" && !item.skipAllowed && item.status !== "skipped_with_reason") out.push("skip");
   if (draft.status === "done") {
     if (item.commentRequired && !said) out.push("comment");
+    if (item.imageRequired && !draft.images?.length) out.push("image");
     if (item.fileRequired && !draft.files.length) out.push("file");
   }
   return out;
@@ -44,10 +58,13 @@ function mergedItem(old: ChecklistItem, next: ChecklistItem): ChecklistItem {
     required: has(raw, "required", "is_required") ? next.required : old.required,
     commentRequired: has(raw, "comment_required") ? next.commentRequired : old.commentRequired,
     fileRequired: has(raw, "file_required") ? next.fileRequired : old.fileRequired,
-    skipAllowed: has(raw, "skip_allowed", "can_skip", "allow_skip", "skippable", "required", "is_required") ? next.skipAllowed : old.skipAllowed,
+    imageRequired: has(raw, "image_required") ? next.imageRequired : old.imageRequired,
+    verificationMethods: has(raw, "verification_methods") ? next.verificationMethods : old.verificationMethods,
+    skipAllowed: has(raw, "skip_allowed", "can_skip", "allow_skip", "skippable", "required", "is_required", "verification_methods") ? next.skipAllowed : old.skipAllowed,
     key: next.key || old.key,
     comment: has(raw, "comment", "reason", "note") ? next.comment : old.comment,
     files: has(raw, "files", "attachments") ? next.files : old.files,
+    images: has(raw, "images", "image_files", "photos") ? next.images : old.images,
     sortOrder: has(raw, "sort_order", "position") ? next.sortOrder : old.sortOrder,
     updatedAt: next.updatedAt || old.updatedAt,
   };

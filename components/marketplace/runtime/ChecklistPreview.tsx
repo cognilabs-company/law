@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import type { ChecklistItem } from "@/lib/services/marketRuntime";
 import { IconChevronDown } from "@/components/icons";
-import type { HeadingLevel } from "./facts";
+import { proofsOf, type HeadingLevel } from "./facts";
 import "./runtime.css";
 
 export function FactHeading({ level = 3, id, children }: { level?: HeadingLevel; id?: string; children: ReactNode }) {
@@ -42,15 +42,19 @@ export function ChecklistPreview({ items, limit = 4, tone = "detail", idBase, le
       </FactHeading>
       {tone === "detail" ? <p className="mkrt-lead">{t("checklistLead")}</p> : null}
       <ol className="mkrt-ck__list" id={listId} aria-labelledby={`${idBase}-title`}>
-        {shown.map((item, i) => (
-          <li key={item.id || `${item.title}-${i}`}>
-            <span className="mkrt-ck__t">
-              {item.title}
-              {item.required ? <em className="mkrt-ck__req">{t("checklistRequired")}</em> : null}
-            </span>
-            {item.description ? <small>{item.description}</small> : null}
-          </li>
-        ))}
+        {shown.map((item, i) => {
+          const proofs = proofsOf(item);
+          return (
+            <li key={item.id || `${item.title}-${i}`}>
+              <span className="mkrt-ck__t">
+                {item.title}
+                {item.required ? <em className="mkrt-ck__req">{t("checklistRequired")}</em> : null}
+              </span>
+              {item.description ? <small>{item.description}</small> : null}
+              {proofs.length ? <small className="mkrt-ck__proof">{t("checklistProof", { list: proofs.map((k) => t(`proof.${k}`)).join(", ") })}</small> : null}
+            </li>
+          );
+        })}
       </ol>
       {extra > 0 ? (
         <button type="button" className="mkrt-more" aria-expanded={open} aria-controls={listId} onClick={() => setOpen((v) => !v)}>

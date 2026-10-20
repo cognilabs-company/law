@@ -4,6 +4,7 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import { http, logApiError } from "@/lib/http";
 import { useStudioAccess, type StudioConstructor } from "@/lib/services/studio";
 import { useStudioLive } from "../live";
+import { normEntityCards, type EntityCard } from "./entityModel";
 import { touchesStudioObjects } from "./useActionItems";
 
 export type CtorSummary = {
@@ -29,6 +30,7 @@ export type StudioSummary = {
   byCtor: Readonly<Record<string, number>>;
   ctors: Readonly<Record<string, CtorSummary>>;
   groups: Readonly<Record<string, GroupSummary>>;
+  entityCards: readonly EntityCard[] | null;
   detailed: boolean;
 };
 export type StudioSummaryState = { data: StudioSummary | null; error: unknown; loading: boolean; reload: () => void };
@@ -146,6 +148,7 @@ export function normStudioSummary(raw: unknown): StudioSummary {
     byCtor,
     ctors,
     groups,
+    entityCards: normEntityCards(d.entity_cards),
     detailed: Array.isArray(d.by_constructor_detail),
   };
 }

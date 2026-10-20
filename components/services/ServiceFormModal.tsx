@@ -26,6 +26,7 @@ import ServicePicker from "./ServicePicker";
 import PriceField, { bandRecommended, digitsOf, priceAboveCap } from "./PriceField";
 import MarketPreviewModal from "./MarketPreviewModal";
 import { RequirementsLine } from "./RuntimeFactors";
+import SellerTermsPreview from "./SellerTermsPreview";
 import { useRuntimeConfig } from "./useRuntimeConfig";
 import { useSellerConfig } from "./useSellerConfig";
 import type { RuntimePricing, SellerServiceConfig } from "@/lib/services/marketRuntime";
@@ -374,6 +375,7 @@ export default function ServiceFormModal({
               </p>
             ) : null}
             {runtime ? <RequirementsLine req={runtime.minimumRequirements} verified={profileVerified(profile)} id={`${ids}-req`} /> : null}
+            {runtime && service ? <SellerTermsPreview key={service.id} config={runtime} basePrice={runtime.pricing.recommendedPrice > 0 ? runtime.pricing.recommendedPrice : (service.price ?? 0)} currency={runtime.pricing.currency} aiId={aiId ? `${aiId}.terms` : undefined} /> : null}
           </section>
 
           <section className={`svform__sec${service ? "" : " is-dim"}`}>

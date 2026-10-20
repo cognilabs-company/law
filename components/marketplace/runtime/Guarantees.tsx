@@ -45,7 +45,7 @@ export function GuaranteeBadges({ items, max = 2 }: { items: readonly RuntimeGua
   );
 }
 
-export function GuaranteeList({ items, tone, max, aiId }: { items: readonly RuntimeGuarantee[]; tone: "side" | "ticket" | "assist"; max?: number; aiId?: string }) {
+export function GuaranteeList({ items, tone, max, aiId, showScope = false }: { items: readonly RuntimeGuarantee[]; tone: "side" | "ticket" | "assist"; max?: number; aiId?: string; showScope?: boolean }) {
   const t = useTranslations("marketplace.runtime");
   if (!items.length) return null;
   const limit = max && max > 0 ? max : items.length;
@@ -57,7 +57,10 @@ export function GuaranteeList({ items, tone, max, aiId }: { items: readonly Runt
         <li key={g.id || `${g.title}-${i}`}>
           <GIcon icon={g.icon} />
           <span>
-            <b>{g.title}</b>
+            <b>
+              {g.title}
+              {showScope && g.inline ? <em className="mkrt-tag">{t("serviceOnly")}</em> : null}
+            </b>
             {g.description ? <small>{g.description}</small> : null}
           </span>
         </li>

@@ -178,6 +178,61 @@
 .mod .mck-flist > li[data-state="fail"] em {
   color: var(--sx-danger);
 }
+.mod .mck-thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mod .mck-thumb {
+  display: grid;
+  gap: 4px;
+  width: 88px;
+  min-width: 0;
+}
+.mod .mck-thumb__btn {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--sx-line);
+  border-radius: var(--sx-r-sm);
+  background: var(--sx-surface-2);
+  color: var(--sx-muted);
+  cursor: pointer;
+}
+.mod span.mck-thumb__btn {
+  cursor: default;
+}
+.mod .mck-thumb__btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.mod .mck-thumb__btn:focus-visible {
+  outline: 2px solid var(--sx-accent);
+  outline-offset: 2px;
+}
+.mod .mck-thumb__name {
+  overflow: hidden;
+  color: var(--sx-ink-2);
+  font-size: 12px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mod .mck-flist__pv {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--sx-surface);
+}
 .mod .mck-editor {
   display: grid;
   gap: 14px;

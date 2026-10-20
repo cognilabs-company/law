@@ -5,8 +5,9 @@ import { useAuth } from "@/lib/auth";
 import { ApiError, isAborted } from "@/lib/http";
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { loadMarketplaceOrder, marketPhaseOf, marketSignalOf, peekMarketOrder, type MarketOrder, type MarketPhase, type MarketSignal } from "@/lib/services/marketplace";
-import { getNegotiation, getOrderChecklist, getRuntimeConfig, getSecondOpinion, latestNegotiation, listOrderNegotiations, type OrderChecklist, type RuntimeConfig, type RuntimePlacement, type SecondOpinion } from "@/lib/services/marketRuntime";
+import { checklistOfEvent, getNegotiation, getOrderChecklist, getRuntimeConfig, getSecondOpinion, latestNegotiation, listOrderNegotiations, type OrderChecklist, type RuntimeConfig, type RuntimePlacement, type SecondOpinion } from "@/lib/services/marketRuntime";
 import { negotiationOfEvent, noteNegotiation } from "./negotiationStore";
+import { orderChannelOf, subscribeOrderChannel } from "./orderChannel";
 import type { LoadState, OrderView } from "./types";
 
 export type OrderDetail = {
@@ -31,6 +32,17 @@ type Res = "order" | "checklist" | "opinion" | "negotiation";
 
 const SETTLE_MS = 400;
 const WORK_PHASES: ReadonlySet<MarketPhase> = new Set<MarketPhase>(["in_progress", "review", "completed", "rated"]);
+const LIVE_PHASES: ReadonlySet<MarketPhase> = new Set<MarketPhase>(["in_progress", "review"]);
+
+export function mergeLiveChecklist(cur: OrderChecklist | null, next: OrderChecklist): OrderChecklist {
+  if (!cur) return next;
+  return {
+    ...next,
+    realtimeChannel: next.realtimeChannel || cur.realtimeChannel,
+    fileUpload: next.fileUpload ?? cur.fileUpload ?? null,
+    snapshotLocked: next.snapshotLocked ?? cur.snapshotLocked ?? null,
+  };
+}
 
 export function placementOf(phase: MarketPhase | null): RuntimePlacement {
   if (phase === "pending") return "negotiation";
@@ -101,6 +113,7 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
   const waiting = useRef<Record<Res, boolean>>({ order: false, checklist: false, opinion: false, negotiation: false });
   const negotiationLoaded = useRef(false);
   const negotiationId = useRef("");
+  const onEventRef = useRef<(ev: Record<string, unknown> & { event: string }) => void>(() => {});
 
   const begin = useCallback((r: Res) => {
     ctrls.current[r]?.abort();
@@ -287,13 +300,24 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
     schedule("order", 0);
     schedule("checklist", 0);
     schedule("opinion", 0);
-    const offEvents = subscribeUserEvents((ev) => {
+    const offEvents = subscribeUserEvents((ev) => onEventRef.current(ev));
+    onEventRef.current = (ev) => {
       const sig = marketSignalOf(ev);
       if (!sig) return;
       const cur = orderRef.current;
       const ours = sig.orderId ? sig.orderId === orderId : !!(cur && sig.workId && sig.workId === cur.workId);
       if (!ours) return;
       setLastSignal(sig);
+      if (sig.kind === "checklist") {
+        const live = checklistOfEvent(ev, orderId);
+        if (live) {
+          ctrls.current.checklist?.abort();
+          seqs.current.checklist += 1;
+          setChecklistState((prev) => mergeLiveChecklist(prev, live));
+          setCl(live.items.length ? "ready" : "none");
+          return;
+        }
+      }
       if (sig.kind === "negotiation") {
         const full = negotiationOfEvent(ev);
         if (full && full.amount > 0) {
@@ -306,7 +330,7 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
         negotiationId.current = sig.negotiationId ?? "";
       }
       for (const r of routeOf(sig)) schedule(r);
-    });
+    };
     const offResync = onUserSocketResync(() => {
       negotiationLoaded.current = false;
       schedule("order", 0);
@@ -315,6 +339,7 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
     });
     return () => {
       alive.current = false;
+      onEventRef.current = () => {};
       offEvents();
       offResync();
       for (const r of Object.keys(tm) as Res[]) {
@@ -327,7 +352,7 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
         delete ctl[r];
       }
     };
-  }, [orderId, view, schedule, commitOrder]);
+  }, [orderId, view, schedule, commitOrder, setCl]);
 
   const serviceId = order?.serviceId ?? "";
   const phase = phaseOfOrder(order);
@@ -369,6 +394,13 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
     },
     [setCl],
   );
+
+  const liveChannel = phase && LIVE_PHASES.has(phase) ? orderChannelOf(checklist?.realtimeChannel ?? "", orderId) : "";
+
+  useEffect(() => {
+    if (!liveChannel) return;
+    return subscribeOrderChannel(liveChannel, (ev) => onEventRef.current(ev));
+  }, [liveChannel]);
 
   return {
     status,

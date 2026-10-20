@@ -72,7 +72,19 @@ export function calendarKindOf(v: unknown): CalendarKind {
   return /^(business|work|working)([_\s-]?days?)?$/.test(s) ? "business" : "calendar";
 }
 
-export type RuntimeDuration = { value: number; unit: string; calendar: CalendarKind; calendarRaw: string; startsOn: string };
+export type RuntimeDuration = { value: number; unit: string; calendar: CalendarKind; calendarRaw: string; startsOn: string; businessWeekdays?: number[]; businessDaysLabel?: string };
+
+export const DEFAULT_BUSINESS_WEEKDAYS: readonly number[] = [1, 2, 3, 4, 5];
+
+function weekdaysOf(v: unknown): number[] {
+  if (!Array.isArray(v)) return [];
+  const out = new Set<number>();
+  for (const x of v) {
+    const n = typeof x === "number" ? x : parseInt(String(x), 10);
+    if (Number.isInteger(n) && n >= 1 && n <= 7) out.add(n);
+  }
+  return [...out].sort((a, b) => a - b);
+}
 
 function unitOf(v: unknown): string {
   const s = trimmed(v).toLowerCase();
@@ -88,13 +100,18 @@ function unitOf(v: unknown): string {
 export function normDuration(v: unknown): RuntimeDuration {
   const d = dictOf(v);
   const calendarRaw = trimmed(d.calendar ?? d.calendar_type ?? d.duration_calendar);
-  return {
+  const weekdays = weekdaysOf(d.business_weekdays ?? d.weekdays);
+  const label = trimmed(d.business_days_label);
+  const out: RuntimeDuration = {
     value: asNum(d.value ?? d.amount ?? d.duration_value),
     unit: unitOf(d.unit ?? d.duration_unit),
     calendar: calendarKindOf(calendarRaw),
     calendarRaw,
     startsOn: trimmed(d.starts_on ?? d.start_on),
   };
+  if (weekdays.length) out.businessWeekdays = weekdays;
+  if (label) out.businessDaysLabel = label;
+  return out;
 }
 
 export const TEMPLATE_MODES = ["required", "optional", "not_required"] as const;
@@ -105,7 +122,18 @@ function normTemplate(v: unknown): RuntimeTemplate {
   return { mode: trimmed(d.mode ?? d.template_mode).toLowerCase(), source: trimmed(d.source ?? d.template_source).toLowerCase(), documentTemplateId: trimmed(d.document_template_id ?? d.template_id) };
 }
 
-export type RuntimeFactor = { id: string; title: string; description: string; adjustmentType: "fixed" | "percent"; value: number; raw: Dict };
+export type RuntimeFactor = { id: string; title: string; description: string; adjustmentType: "fixed" | "percent"; value: number; overridden?: boolean; raw: Dict };
+
+const SERVICE_SCOPE_RE = /^(inline|service[_-](only|inline|override|specific)|override|per[_-]?service)$/;
+
+function serviceScoped(d: Dict, ...flags: string[]): boolean {
+  for (const f of flags) if (d[f] === true) return true;
+  for (const k of ["source", "origin", "kind", "scope", "scope_type", "override_source"]) {
+    const s = trimmed(d[k]).toLowerCase();
+    if (s && SERVICE_SCOPE_RE.test(s)) return true;
+  }
+  return false;
+}
 
 function normFactor(v: unknown): RuntimeFactor {
   const d = dictOf(v);
@@ -116,6 +144,7 @@ function normFactor(v: unknown): RuntimeFactor {
     description: trimmed(d.description),
     adjustmentType: /percent|%/.test(type) ? "percent" : "fixed",
     value: asNum(d.value ?? d.amount),
+    overridden: serviceScoped(d, "overridden", "is_override", "service_override", "has_override"),
     raw: d,
   };
 }
@@ -152,6 +181,7 @@ export type ServiceRule = {
   effectiveAt: string;
   accepted: boolean;
   acceptedAt: string;
+  inline?: boolean;
   raw: Dict;
 };
 
@@ -174,21 +204,23 @@ export function normServiceRule(v: unknown): ServiceRule {
     effectiveAt: trimmed(d.effective_at ?? d.effective_from),
     accepted: typeof d.accepted === "boolean" ? d.accepted : !!acceptedAt,
     acceptedAt,
+    inline: serviceScoped(d, "inline", "is_inline", "service_only"),
     raw: d,
   };
 }
 
-export type RuntimeGuarantee = { id: string; title: string; description: string; icon: string; refundPolicyId: string; conditions: Dict; raw: Dict };
+export type RuntimeGuarantee = { id: string; title: string; description: string; icon: string; refundPolicyId: string; conditions: Dict; inline?: boolean; raw: Dict };
 
 function normGuarantee(v: unknown): RuntimeGuarantee {
   const d = dictOf(v);
   return {
     id: trimmed(d.id ?? d.guarantee_id ?? d.key),
     title: trimmed(d.title ?? d.label ?? d.name),
-    description: trimmed(d.description ?? d.text),
+    description: trimmed(d.description ?? d.text ?? d.body),
     icon: trimmed(d.icon),
     refundPolicyId: trimmed(d.refund_policy_id),
     conditions: dictOf(d.conditions),
+    inline: serviceScoped(d, "inline", "is_inline", "service_only"),
     raw: d,
   };
 }
@@ -234,13 +266,25 @@ export type ChecklistItem = {
   required: boolean;
   commentRequired: boolean;
   fileRequired: boolean;
+  imageRequired?: boolean;
+  verificationMethods?: VerificationMethod[];
   skipAllowed: boolean;
   comment: string;
   files: MarketFileRef[];
+  images?: MarketFileRef[];
   sortOrder: number;
   updatedAt: string;
   raw: Dict;
 };
+
+export const VERIFICATION_METHODS = ["checkbox", "comment", "image", "file"] as const;
+export type VerificationMethod = (typeof VERIFICATION_METHODS)[number];
+
+function methodsOf(v: unknown): VerificationMethod[] {
+  if (!Array.isArray(v)) return [];
+  const got = new Set(v.map((x) => trimmed(x).toLowerCase()));
+  return VERIFICATION_METHODS.filter((m) => got.has(m));
+}
 
 export function normChecklistItem(v: unknown): ChecklistItem {
   const d = dictOf(v);
@@ -248,6 +292,8 @@ export function normChecklistItem(v: unknown): ChecklistItem {
   const key = trimmed(d.key ?? d.item_key);
   const required = d.required === true || d.is_required === true;
   const skip = d.skip_allowed ?? d.can_skip ?? d.allow_skip ?? d.skippable;
+  const methods = methodsOf(d.verification_methods);
+  const methodShape = Array.isArray(d.verification_methods);
   return {
     id: trimmed(d.id ?? d.item_id ?? d.checklist_item_id) || key,
     key,
@@ -258,17 +304,21 @@ export function normChecklistItem(v: unknown): ChecklistItem {
     required,
     commentRequired: d.comment_required === true,
     fileRequired: d.file_required === true,
-    skipAllowed: typeof skip === "boolean" ? skip : !required,
+    imageRequired: d.image_required === true,
+    verificationMethods: methods,
+    skipAllowed: typeof skip === "boolean" ? skip : methodShape || !required,
     comment: asStr(d.comment ?? d.reason ?? d.note),
     files: asArr(d.files ?? d.attachments).map(normFileRef).filter((f) => f.id || f.url),
+    images: asArr(d.images ?? d.image_files ?? d.photos).map(normFileRef).filter((f) => f.id || f.url),
     sortOrder: asNum(d.sort_order ?? d.position),
     updatedAt: trimmed(d.updated_at ?? d.completed_at),
     raw: d,
   };
 }
 
-export function checklistItemRef(item: Pick<ChecklistItem, "id" | "key">): string {
-  return item.key || item.id;
+export function checklistItemRef(item: Pick<ChecklistItem, "id" | "key"> & { raw?: Dict }): string {
+  const own = item.raw ? trimmed(item.raw.id ?? item.raw.item_id ?? item.raw.checklist_item_id) : "";
+  return own || item.id || item.key;
 }
 
 export type RuntimeConfig = {
@@ -822,9 +872,9 @@ export async function startMarketOrder(orderId: string, url = ""): Promise<Order
 }
 
 export type ChecklistProgress = { done: number; total: number; requiredDone: number; requiredTotal: number; percent: number };
-export type OrderChecklist = { orderId: string; items: ChecklistItem[]; progress: ChecklistProgress; realtimeChannel: string; raw: Dict };
+export type OrderChecklist = { orderId: string; items: ChecklistItem[]; progress: ChecklistProgress; realtimeChannel: string; fileUpload?: ChecklistFileUpload | null; snapshotLocked?: boolean | null; raw: Dict };
 
-function progressOf(v: unknown, items: ChecklistItem[]): ChecklistProgress {
+function progressOf(v: unknown, items: ChecklistItem[], top: Dict = {}): ChecklistProgress {
   const settled = items.filter((i) => i.status !== "pending");
   const required = items.filter((i) => i.required);
   const derived = {
@@ -834,16 +884,65 @@ function progressOf(v: unknown, items: ChecklistItem[]): ChecklistProgress {
     requiredTotal: required.length,
     percent: items.length ? Math.round((settled.length / items.length) * 100) : 0,
   };
-  if (typeof v === "number" && Number.isFinite(v)) return { ...derived, percent: v };
-  const d = dictOf(v);
-  if (!Object.keys(d).length) return derived;
   const pick = (val: unknown, fallback: number) => numOrNull(val) ?? fallback;
+  const flat = {
+    done: pick(top.completed_count, derived.done),
+    total: pick(top.total_count, derived.total),
+    requiredDone: derived.requiredDone,
+    requiredTotal: derived.requiredTotal,
+    percent: pick(top.progress_percent, derived.percent),
+  };
+  if (typeof v === "number" && Number.isFinite(v)) return { ...flat, percent: v };
+  const d = dictOf(v);
+  if (!Object.keys(d).length) return flat;
   return {
-    done: pick(d.done ?? d.completed ?? d.done_count, derived.done),
-    total: pick(d.total ?? d.total_count, derived.total),
-    requiredDone: pick(d.required_done ?? d.required_completed, derived.requiredDone),
-    requiredTotal: pick(d.required_total ?? d.required_count, derived.requiredTotal),
-    percent: pick(d.percent ?? d.progress_percent ?? d.percentage, derived.percent),
+    done: pick(d.done ?? d.completed ?? d.done_count ?? d.completed_count, flat.done),
+    total: pick(d.total ?? d.total_count, flat.total),
+    requiredDone: pick(d.required_done ?? d.required_completed ?? d.required_completed_count, derived.requiredDone),
+    requiredTotal: pick(d.required_total ?? d.required_count ?? d.required_total_count, derived.requiredTotal),
+    percent: pick(d.percent ?? d.progress_percent ?? d.percentage, flat.percent),
+  };
+}
+
+export type ChecklistFileUpload = { url: string; method: string; field: string; fields: Record<string, string>; maxBytes: number; accept: string[]; raw: Dict };
+
+const UPLOAD_PATH_RE = /^\/[a-z][a-z0-9_-]*(\/[A-Za-z0-9._~:@-]+)*\/?$/;
+
+export function uploadPathOf(url: unknown): string {
+  const raw = trimmed(url)
+    .replace(/^https?:\/\/[^/]+/i, "")
+    .replace(/^\/api\/backend(?=\/)/, "");
+  const path = raw.split(/[?#]/)[0];
+  if (!path || path.includes("..") || path.includes("//") || /[\\\s]|%2e|%2f|%5c/i.test(path)) return "";
+  return UPLOAD_PATH_RE.test(path) ? path : "";
+}
+
+function stringDict(v: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, x] of Object.entries(dictOf(v))) if (typeof x === "string" || typeof x === "number" || typeof x === "boolean") out[k] = String(x);
+  return out;
+}
+
+export function normFileUpload(v: unknown): ChecklistFileUpload | null {
+  if (typeof v === "string") {
+    const url = uploadPathOf(v);
+    return url ? { url, method: "POST", field: "file", fields: {}, maxBytes: 0, accept: [], raw: {} } : null;
+  }
+  const d = dictOf(v);
+  const url = uploadPathOf(d.url ?? d.upload_url ?? d.endpoint ?? d.href);
+  if (!url) return null;
+  const mb = numOrNull(d.max_size_mb ?? d.max_file_size_mb ?? d.max_mb);
+  const bytes = numOrNull(d.max_size_bytes ?? d.max_file_size_bytes ?? d.max_bytes ?? d.max_size);
+  const accept = firstArr(d.accept, d.allowed_mime_types, d.mime_types, d.allowed_extensions, d.allowed_types).map((x) => trimmed(x)).filter(Boolean);
+  const method = trimmed(d.method).toUpperCase();
+  return {
+    url,
+    method: method === "PUT" ? "PUT" : "POST",
+    field: trimmed(d.field ?? d.field_name ?? d.form_field ?? d.file_field) || "file",
+    fields: stringDict(d.fields ?? d.form_fields ?? d.extra_fields),
+    maxBytes: bytes && bytes > 0 ? bytes : mb && mb > 0 ? Math.round(mb * 1024 * 1024) : 0,
+    accept,
+    raw: d,
   };
 }
 
@@ -852,11 +951,14 @@ export function normOrderChecklist(v: unknown, orderId = ""): OrderChecklist {
   const nested = dictOf(d.checklist);
   const src = Object.keys(nested).length ? nested : d;
   const items = firstArr(v, src.items, d.checklist, src.checklist_items).map(normChecklistItem).filter((i) => i.id || i.title);
+  const locked = src.snapshot_locked ?? d.snapshot_locked;
   return {
     orderId: trimmed(src.order_id ?? d.order_id) || orderId,
     items,
-    progress: progressOf(src.progress ?? d.progress, items),
+    progress: progressOf(src.progress ?? d.progress, items, src),
     realtimeChannel: trimmed(src.realtime_channel ?? d.realtime_channel ?? d.channel),
+    fileUpload: normFileUpload(src.file_upload ?? d.file_upload),
+    snapshotLocked: typeof locked === "boolean" ? locked : null,
     raw: d,
   };
 }
@@ -866,13 +968,64 @@ export async function getOrderChecklist(orderId: string, signal?: AbortSignal, u
   return normOrderChecklist(await http(path, { signal }), orderId);
 }
 
-export type ChecklistUpdate = { status: ChecklistStatus; comment?: string; files?: { id: string; name: string }[] };
+function firstStr(...vals: unknown[]): string {
+  for (const v of vals) {
+    const s = trimmed(v);
+    if (s) return s;
+  }
+  return "";
+}
+
+function uploadedRefOf(v: unknown, fallbackName: string): MarketFileRef {
+  const d = dictOf(v);
+  const inner = dictOf(d.file ?? d.upload ?? d.attachment ?? d.data);
+  const meta = dictOf(d.meta);
+  const msg = dictOf(d.message);
+  const msgFile = dictOf(msg.file);
+  const msgMeta = dictOf(msg.meta);
+  const id = firstStr(d.file_id, inner.id, inner.file_id, d.id, msg.id);
+  const name = firstStr(d.name, d.file_name, d.filename, d.original_name, inner.name, inner.file_name, inner.filename, meta.file_name, msgFile.file_name, msgMeta.file_name) || fallbackName;
+  const url = firstStr(d.download_url, d.url, d.file_url, inner.download_url, inner.url, meta.download_url, msgFile.download_url, msgMeta.download_url);
+  return { id, name, url };
+}
+
+const SECURE_UPLOAD_RE = /^\/secure-chats\/[^/]+\/messages\/upload$/;
+
+export async function uploadChecklistEvidence(upload: ChecklistFileUpload, file: File, caption = ""): Promise<MarketFileRef> {
+  const form = new FormData();
+  form.append(upload.field || "file", file, file.name);
+  const fields: Record<string, string> = { ...upload.fields };
+  if (SECURE_UPLOAD_RE.test(upload.url)) {
+    if (!fields.message_type) fields.message_type = "file";
+    if (caption && !fields.content) fields.content = caption;
+  }
+  for (const [k, v] of Object.entries(fields)) form.append(k, v);
+  const ref = uploadedRefOf(await http(upload.url, { method: upload.method || "POST", body: form }), file.name);
+  if (!ref.id) throw new ApiError(502, "upload_without_id");
+  return ref;
+}
+
+export type ChecklistUpdate = { status: ChecklistStatus; comment?: string; files?: { id: string; name: string }[]; images?: { id: string; name: string }[] };
 
 export function checklistUpdateBody(input: ChecklistUpdate): Dict {
   const body: Dict = { status: input.status };
   if (input.comment !== undefined) body.comment = input.comment.trim();
+  if (input.images) body.images = input.images.filter((f) => f.id).map((f) => ({ id: f.id, name: f.name }));
   if (input.files) body.files = input.files.filter((f) => f.id).map((f) => ({ id: f.id, name: f.name }));
   return body;
+}
+
+export function checklistOfEvent(ev: unknown, orderId = ""): OrderChecklist | null {
+  const root = dictOf(ev);
+  const data = dictOf(root.data);
+  const payload = dictOf(root.payload);
+  for (const src of [root, data, payload, dictOf(data.payload), dictOf(root.checklist), dictOf(data.checklist)]) {
+    if (!Array.isArray(src.items)) continue;
+    const own = trimmed(src.order_id ?? root.order_id ?? data.order_id);
+    if (orderId && own && own !== orderId) return null;
+    return normOrderChecklist({ ...src, order_id: own || orderId }, own || orderId);
+  }
+  return null;
 }
 
 export async function updateChecklistItem(orderId: string, itemId: string, input: ChecklistUpdate): Promise<{ item: ChecklistItem | null; checklist: OrderChecklist | null; raw: Dict }> {

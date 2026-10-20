@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { SxPanel } from "@/components/admin/studio/sx/layout/Panel";
 import { SxNote } from "@/components/admin/studio/sx/layout/Note";
@@ -16,10 +16,10 @@ import { shortDateTime } from "@/lib/date";
 import { saveBlob } from "@/lib/download";
 import { getSecureMessageFileAt } from "@/lib/services/backend";
 import type { MarketOrder, MarketPhase } from "@/lib/services/marketplace";
-import { checklistItemRef, checklistStatusOf, marketErrorInfo, updateChecklistItem, type ChecklistItem, type ChecklistStatus, type MarketFileRef, type OrderChecklist as OrderChecklistData } from "@/lib/services/marketRuntime";
+import { checklistItemRef, checklistStatusOf, marketErrorInfo, updateChecklistItem, uploadChecklistEvidence, type ChecklistItem, type ChecklistStatus, type MarketFileRef, type OrderChecklist as OrderChecklistData } from "@/lib/services/marketRuntime";
 import { useMarketError } from "../useMarketError";
-import { canEditChecklist, draftOf, itemProblems, mergeChecklistItem, sortedItems, type ItemDraft } from "./checklistRules";
-import { ForwardIcon, CircleCheckIcon, CircleDashedIcon, DownloadIcon, FileTextIcon, PaperclipIcon, PencilIcon, CircleAlertIcon, XIcon, glyph } from "./icons";
+import { canEditChecklist, draftOf, evidenceOf, itemProblems, mergeChecklistItem, sortedItems, type ItemDraft } from "./checklistRules";
+import { ForwardIcon, CircleCheckIcon, CircleDashedIcon, DownloadIcon, FileTextIcon, ImageIcon, ImagePlusIcon, PaperclipIcon, PencilIcon, CircleAlertIcon, XIcon, glyph } from "./icons";
 import { SECTION_ID, type LoadState, type OrderView } from "./types";
 import { ORDER_FILE_MB, ORDER_FILES_MAX, uploadOrderFile, type UploadedFile } from "./upload";
 import "./checklist.css";
@@ -38,12 +38,13 @@ const STATUS_TONE: Readonly<Record<ChecklistStatus, string>> = {
   skipped_with_reason: "submitted",
 };
 
-type Add = { key: string; file: File; state: "wait" | "up" | "done" | "fail"; uploaded: UploadedFile | null };
-type Errs = { status?: string; comment?: string; file?: string };
+type Kind = "image" | "file";
+type Add = { key: string; file: File; kind: Kind; preview: string; state: "wait" | "up" | "done" | "fail"; uploaded: UploadedFile | null };
+type Errs = { status?: string; comment?: string; file?: string; image?: string };
 
 function signatureOf(c: OrderChecklistData | null): string {
   if (!c) return "";
-  return c.items.map((i) => `${i.id}:${i.status}:${i.updatedAt}:${i.comment.length}:${i.files.length}`).join("|");
+  return c.items.map((i) => `${i.id}:${i.status}:${i.updatedAt}:${i.comment.length}:${i.files.length}:${(i.images ?? []).length}`).join("|");
 }
 
 function editBtnId(item: ChecklistItem): string {
@@ -58,9 +59,30 @@ function focusById(id: string) {
 function fieldOf(key: string): keyof Errs | "" {
   const k = key.toLowerCase();
   if (/comment|reason|note/.test(k)) return "comment";
+  if (/image|photo/.test(k)) return "image";
   if (/file/.test(k)) return "file";
   if (/status/.test(k)) return "status";
   return "";
+}
+
+function isImageFile(f: File): boolean {
+  return /^image\//i.test(f.type) || /\.(png|jpe?g|gif|webp|heic|heif|bmp)$/i.test(f.name);
+}
+
+function previewOf(f: File): string {
+  if (typeof URL === "undefined" || typeof URL.createObjectURL !== "function") return "";
+  try {
+    return URL.createObjectURL(f);
+  } catch {
+    return "";
+  }
+}
+
+function dropPreview(url: string) {
+  if (!url || typeof URL === "undefined" || typeof URL.revokeObjectURL !== "function") return;
+  try {
+    URL.revokeObjectURL(url);
+  } catch {}
 }
 
 export default function OrderChecklist({
@@ -241,7 +263,8 @@ function ChecklistRow({
   const editorId = `mck-${item.id}-editor`;
   const title = item.title || "—";
   const skipped = item.status === "skipped_with_reason";
-  const marks = [item.required ? "required" : "", item.commentRequired ? "comment" : "", item.fileRequired ? "file" : ""].filter(Boolean);
+  const images = item.images ?? [];
+  const marks = [item.required ? "required" : "", item.commentRequired ? "comment" : "", item.imageRequired ? "image" : "", item.fileRequired ? "file" : ""].filter(Boolean);
   return (
     <li id={`mck-${item.id}`} className="mck-item" data-status={item.status} data-open={open ? "" : undefined} data-ai-id={itemAi} data-ai-type="list_item" data-ai-label={title}>
       <div className="mck-item__head">
@@ -286,6 +309,13 @@ function ChecklistRow({
           {item.comment}
         </p>
       ) : null}
+      {images.length ? (
+        <ul className="mck-thumbs" aria-label={t("images")}>
+          {images.map((f, i) => (
+            <ItemImage key={`${f.id || f.url}-${i}`} f={f} />
+          ))}
+        </ul>
+      ) : null}
       {item.files.length ? (
         <ul className="mck-files">
           {item.files.map((f, i) => (
@@ -329,6 +359,52 @@ function ItemFile({ f }: { f: MarketFileRef }) {
   );
 }
 
+function ItemImage({ f }: { f: MarketFileRef }) {
+  const t = useTranslations("marketplace.orderDetail.checklist");
+  const name = f.name || t("imageFallback");
+  const [shown, setShown] = useState<{ url: string; src: string } | null>(null);
+  const src = shown && shown.url === f.url ? shown.src : "";
+  useEffect(() => {
+    if (!f.url) return;
+    let alive = true;
+    let made = "";
+    getSecureMessageFileAt(f.url).then(
+      (blob) => {
+        if (!alive) return;
+        made = typeof URL !== "undefined" && typeof URL.createObjectURL === "function" ? URL.createObjectURL(blob) : "";
+        setShown({ url: f.url, src: made });
+      },
+      () => {
+        if (alive) setShown({ url: f.url, src: "" });
+      },
+    );
+    return () => {
+      alive = false;
+      dropPreview(made);
+    };
+  }, [f.url]);
+  async function get() {
+    if (!f.url) return;
+    try {
+      saveBlob(await getSecureMessageFileAt(f.url), name);
+    } catch {}
+  }
+  return (
+    <li className="mck-thumb">
+      {f.url ? (
+        <button type="button" className="mck-thumb__btn" onClick={() => void get()} aria-label={t("imageDownload", { name })}>
+          {src ? <img src={src} alt="" /> : glyph(ImageIcon, { size: 20 })}
+        </button>
+      ) : (
+        <span className="mck-thumb__btn" role="img" aria-label={name}>
+          {glyph(ImageIcon, { size: 20 })}
+        </span>
+      )}
+      <span className="mck-thumb__name">{name}</span>
+    </li>
+  );
+}
+
 function ItemEditor({
   id,
   o,
@@ -352,24 +428,36 @@ function ItemEditor({
   const base = `mck-${item.id}`;
   const statusId = `${base}-status`;
   const commentId = `${base}-comment`;
-  const filesLabelId = `${base}-files-label`;
-  const attachId = `${base}-attach`;
-  const hintId = `${base}-files-hint`;
-  const fileErrId = `${base}-files-err`;
   const noteId = `${base}-note`;
   const [draft, setDraft] = useState<ItemDraft>(() => draftOf(item));
   const [adds, setAdds] = useState<Add[]>([]);
   const [errs, setErrs] = useState<Errs>({});
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
+  const addsRef = useRef<Add[]>([]);
 
+  useEffect(() => {
+    addsRef.current = adds;
+  });
+  useEffect(
+    () => () => {
+      for (const a of addsRef.current) dropPreview(a.preview);
+    },
+    [],
+  );
+
+  const upload = checklist.fileUpload ?? null;
+  const ev = evidenceOf(item);
   const done = draft.status === "done";
   const skip = draft.status === "skipped_with_reason";
+  const showComment = skip || ev.comment || draft.comment.trim().length > 0 || !!errs.comment;
   const commentNeeded = skip || (done && item.commentRequired);
   const commentLabel = skip ? t("reason") : done && item.commentRequired ? t("commentRequired") : t("comment");
-  const fileCount = draft.files.length + adds.length;
-  const canAttach = !!o.roomId && !busy && fileCount < ORDER_FILES_MAX;
+  const maxMb = upload && upload.maxBytes > 0 ? Math.max(1, Math.round(upload.maxBytes / (1024 * 1024))) : ORDER_FILE_MB;
+  const maxBytes = upload && upload.maxBytes > 0 ? upload.maxBytes : ORDER_FILE_MB * 1024 * 1024;
+  const canUpload = !!upload || !!o.roomId;
+  const imageAdds = adds.filter((a) => a.kind === "image");
+  const fileAdds = adds.filter((a) => a.kind === "file");
 
   const skippable = item.skipAllowed || item.status === "skipped_with_reason";
   const options: ChoiceCard[] = [
@@ -378,39 +466,64 @@ function ItemEditor({
     { value: "pending", title: t("opt.pending"), icon: CircleDashedIcon },
   ];
 
-  function add(list: FileList | null) {
+  function add(kind: Kind, list: FileList | null) {
     if (!list) return;
-    const next = [...adds];
+    const saved = kind === "image" ? (draft.images ?? []).length : draft.files.length;
+    const next: Add[] = [];
     let tooBig = false;
+    let notImage = false;
     for (const f of Array.from(list)) {
-      if (draft.files.length + next.length >= ORDER_FILES_MAX) break;
-      if (f.size > ORDER_FILE_MB * 1024 * 1024) {
+      if (saved + adds.filter((a) => a.kind === kind).length + next.length >= ORDER_FILES_MAX) break;
+      if (f.size > maxBytes) {
         tooBig = true;
         continue;
       }
-      next.push({ key: `${f.name}-${f.size}-${f.lastModified}-${next.length}`, file: f, state: "wait", uploaded: null });
+      if (kind === "image" && !isImageFile(f)) {
+        notImage = true;
+        continue;
+      }
+      next.push({ key: `${kind}-${f.name}-${f.size}-${f.lastModified}-${adds.length + next.length}`, file: f, kind, preview: kind === "image" ? previewOf(f) : "", state: "wait", uploaded: null });
     }
-    setAdds(next);
-    setErrs((e) => ({ ...e, file: tooBig ? tc("tooBig", { mb: ORDER_FILE_MB }) : undefined }));
-    if (input.current) input.current.value = "";
+    setAdds((cur) => [...cur, ...next]);
+    const msg = tooBig ? tc("tooBig", { mb: maxMb }) : notImage ? t("imageOnly") : undefined;
+    setErrs((e) => ({ ...e, [kind]: msg }));
+  }
+
+  function removeAdd(key: string) {
+    setAdds((cur) => {
+      const hit = cur.find((x) => x.key === key);
+      if (hit) dropPreview(hit.preview);
+      return cur.filter((x) => x.key !== key);
+    });
   }
 
   function place(found: Errs) {
     setErrs(found);
     setNote("");
     if (found.comment) focusById(commentId);
-    else if (found.file) focusById(attachId);
+    else if (found.image) focusById(`${base}-image-attach`);
+    else if (found.file) focusById(`${base}-attach`);
     else if (found.status && typeof document !== "undefined") document.querySelector<HTMLInputElement>(`[id="${statusId}"] input`)?.focus();
+  }
+
+  async function send(a: Add): Promise<UploadedFile> {
+    if (upload) {
+      const r = await uploadChecklistEvidence(upload, a.file, tc("caption"));
+      return { id: r.id, name: r.name || a.file.name, url: r.url };
+    }
+    return uploadOrderFile(o.roomId, a.file, tc("caption"));
   }
 
   async function save() {
     if (busy) return;
-    const planned: ItemDraft = { ...draft, files: [...draft.files, ...adds.map((a) => a.uploaded ?? { id: "", name: a.file.name, url: "" })] };
+    const pending = (kind: Kind) => adds.filter((a) => a.kind === kind).map((a) => a.uploaded ?? { id: "", name: a.file.name, url: "" });
+    const planned: ItemDraft = { ...draft, files: [...draft.files, ...pending("file")], images: [...(draft.images ?? []), ...pending("image")] };
     const problems = itemProblems(item, planned);
     if (problems.length) {
       const found: Errs = {};
       if (problems.includes("reason")) found.comment = t("needReason");
       if (problems.includes("comment")) found.comment = t("needComment");
+      if (problems.includes("image")) found.image = t("needImage");
       if (problems.includes("file")) found.file = t("needFile");
       if (problems.includes("skip")) found.status = t("noSkipRequired");
       place(found);
@@ -420,17 +533,17 @@ function ItemEditor({
     setErrs({});
     setNote("");
     try {
-      const uploaded: UploadedFile[] = [];
+      const got: Record<Kind, UploadedFile[]> = { image: [], file: [] };
       if (done) {
         for (const a of adds) {
           if (a.uploaded) {
-            uploaded.push(a.uploaded);
+            got[a.kind].push(a.uploaded);
             continue;
           }
           setAdds((cur) => cur.map((x) => (x.key === a.key ? { ...x, state: "up" } : x)));
           try {
-            const u = await uploadOrderFile(o.roomId, a.file, tc("caption"));
-            uploaded.push(u);
+            const u = await send(a);
+            got[a.kind].push(u);
             setAdds((cur) => cur.map((x) => (x.key === a.key ? { ...x, state: "done", uploaded: u } : x)));
           } catch (e) {
             setAdds((cur) => cur.map((x) => (x.key === a.key ? { ...x, state: "fail" } : x)));
@@ -438,16 +551,20 @@ function ItemEditor({
           }
         }
       }
-      const files = done ? [...draft.files, ...uploaded] : [];
+      const files = done ? [...draft.files, ...got.file] : [];
+      const images = done ? [...(draft.images ?? []), ...got.image] : [];
+      const sendImages = ev.image || images.length > 0 || (item.images ?? []).length > 0;
       const comment = draft.comment.trim();
-      const r = await updateChecklistItem(o.id, checklistItemRef(item), { status: draft.status, comment, files: files.map(({ id: fid, name }) => ({ id: fid, name })) });
+      const pick = (list: UploadedFile[]) => list.map(({ id: fid, name }) => ({ id: fid, name }));
+      const r = await updateChecklistItem(o.id, checklistItemRef(item), { status: draft.status, comment, files: pick(files), images: sendImages ? pick(images) : undefined });
       const local: ChecklistItem = {
         ...item,
         status: draft.status,
         statusRaw: draft.status,
         comment,
         files: files.map((f) => ({ id: f.id, name: f.name, url: f.url })),
-        raw: { id: item.id, status: draft.status, comment, files },
+        images: images.map((f) => ({ id: f.id, name: f.name, url: f.url })),
+        raw: sendImages ? { id: item.id, status: draft.status, comment, files, images } : { id: item.id, status: draft.status, comment, files },
       };
       const next = r.checklist ?? mergeChecklistItem(checklist, r.item ?? local);
       onSaved(next);
@@ -457,17 +574,20 @@ function ItemEditor({
       const code = (info?.code ?? "").toLowerCase();
       const found: Errs = {};
       if (/comment|reason/.test(code)) found.comment = skip ? t("needReason") : t("needComment");
+      else if (/image|photo/.test(code)) found.image = t("needImage");
       else if (/file/.test(code)) found.file = t("needFile");
       for (const [k, v] of Object.entries(info?.fieldErrors ?? {})) {
         const key = k === "field" ? fieldOf(v) : fieldOf(k);
         if (key && !found[key]) found[key] = k === "field" ? msg : v;
       }
-      if (found.comment || found.file || found.status) place(found);
+      if (found.comment || found.file || found.image || found.status) place(found);
       else setNote(msg);
     } finally {
       setBusy(false);
     }
   }
+
+  const hint = !canUpload ? t("noRoom") : upload ? t("uploadHint", { mb: maxMb }) : t("filesHint", { mb: maxMb });
 
   return (
     <div id={id} className="mck-editor">
@@ -488,87 +608,64 @@ function ItemEditor({
           />
         )}
       </Field>
-      <Field id={commentId} label={commentLabel} error={errs.comment}>
-        {(a) => (
-          <TextArea
-            {...a}
-            aria-required={commentNeeded || undefined}
-            value={draft.comment}
-            onChange={(v) => {
-              setDraft((d) => ({ ...d, comment: v.slice(0, COMMENT_MAX) }));
-              if (errs.comment) setErrs((e) => ({ ...e, comment: undefined }));
-            }}
-            maxLength={COMMENT_MAX}
-            counter
-            minRows={2}
-            placeholder={skip ? t("reasonPh") : t("commentPh")}
-            aiId={`${itemAi}.comment`}
-            aiLabel={commentLabel}
-          />
-        )}
-      </Field>
-      {done ? (
-        <div className="mck-fileset" role="group" aria-labelledby={filesLabelId}>
-          <div className="mck-fileset__top">
-            <span className="sx-field__label" id={filesLabelId}>
-              {item.fileRequired ? t("filesRequired") : t("files")}
-            </span>
-            <SxButton
-              id={attachId}
-              size="sm"
-              variant="secondary"
-              icon={PaperclipIcon}
-              aria-disabled={!canAttach || undefined}
-              aria-invalid={errs.file ? true : undefined}
-              aria-describedby={[errs.file ? fileErrId : "", hintId].filter(Boolean).join(" ")}
-              onClick={() => {
-                if (canAttach) input.current?.click();
+      {showComment ? (
+        <Field id={commentId} label={commentLabel} error={errs.comment}>
+          {(a) => (
+            <TextArea
+              {...a}
+              aria-required={commentNeeded || undefined}
+              value={draft.comment}
+              onChange={(v) => {
+                setDraft((d) => ({ ...d, comment: v.slice(0, COMMENT_MAX) }));
+                if (errs.comment) setErrs((e) => ({ ...e, comment: undefined }));
               }}
-              aiId={`${itemAi}.attach`}
-            >
-              {t("attach")}
-            </SxButton>
-            <input ref={input} type="file" multiple hidden tabIndex={-1} onChange={(e) => add(e.target.files)} />
-          </div>
-          <p className="sx-field__help" id={hintId}>
-            {o.roomId ? t("filesHint", { mb: ORDER_FILE_MB }) : t("noRoom")}
-          </p>
-          {fileCount ? (
-            <ul className="mck-flist">
-              {draft.files.map((f, i) => (
-                <li key={`k-${f.id}-${i}`} data-state="done">
-                  {glyph(FileTextIcon, { size: 16 })}
-                  <span>{f.name || f.id}</span>
-                  {busy ? null : (
-                    <SxButton
-                      size="sm"
-                      variant="ghost"
-                      icon={XIcon}
-                      aria-label={`${tc("remove")}: ${f.name || f.id}`}
-                      onClick={() => setDraft((d) => ({ ...d, files: d.files.filter((_, j) => j !== i) }))}
-                    />
-                  )}
-                </li>
-              ))}
-              {adds.map((a) => (
-                <li key={a.key} data-state={a.state}>
-                  {glyph(FileTextIcon, { size: 16 })}
-                  <span>{a.file.name}</span>
-                  <em>{tc(`state.${a.state}`)}</em>
-                  {a.state === "done" || busy ? null : (
-                    <SxButton size="sm" variant="ghost" icon={XIcon} aria-label={`${tc("remove")}: ${a.file.name}`} onClick={() => setAdds((cur) => cur.filter((x) => x.key !== a.key))} />
-                  )}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {errs.file ? (
-            <p className="sx-field__err" id={fileErrId}>
-              {glyph(CircleAlertIcon, { size: 14 })}
-              <span>{errs.file}</span>
-            </p>
-          ) : null}
-        </div>
+              maxLength={COMMENT_MAX}
+              counter
+              minRows={2}
+              placeholder={skip ? t("reasonPh") : t("commentPh")}
+              aiId={`${itemAi}.comment`}
+              aiLabel={commentLabel}
+            />
+          )}
+        </Field>
+      ) : null}
+      {done && (ev.image || !!errs.image) ? (
+        <EvidenceSet
+          kind="image"
+          base={base}
+          itemAi={itemAi}
+          label={item.imageRequired ? t("imagesRequired") : t("images")}
+          attachLabel={t("attachImage")}
+          accept={(upload?.accept ?? []).filter((x) => /^image\//i.test(x)).join(",") || "image/*"}
+          saved={draft.images ?? []}
+          adds={imageAdds}
+          busy={busy}
+          canAttach={canUpload && !busy && (draft.images ?? []).length + imageAdds.length < ORDER_FILES_MAX}
+          hint={hint}
+          error={errs.image}
+          onPick={(l) => add("image", l)}
+          onRemoveSaved={(i) => setDraft((d) => ({ ...d, images: (d.images ?? []).filter((_, j) => j !== i) }))}
+          onRemoveAdd={removeAdd}
+        />
+      ) : null}
+      {done && (ev.file || !!errs.file) ? (
+        <EvidenceSet
+          kind="file"
+          base={base}
+          itemAi={itemAi}
+          label={item.fileRequired ? t("filesRequired") : t("files")}
+          attachLabel={t("attach")}
+          accept={(upload?.accept ?? []).join(",")}
+          saved={draft.files}
+          adds={fileAdds}
+          busy={busy}
+          canAttach={canUpload && !busy && draft.files.length + fileAdds.length < ORDER_FILES_MAX}
+          hint={hint}
+          error={errs.file}
+          onPick={(l) => add("file", l)}
+          onRemoveSaved={(i) => setDraft((d) => ({ ...d, files: d.files.filter((_, j) => j !== i) }))}
+          onRemoveAdd={removeAdd}
+        />
       ) : null}
       {note ? (
         <SxNote tone="error" id={noteId}>
@@ -583,6 +680,115 @@ function ItemEditor({
           {t("cancel")}
         </SxButton>
       </div>
+    </div>
+  );
+}
+
+function EvidenceSet({
+  kind,
+  base,
+  itemAi,
+  label,
+  attachLabel,
+  accept,
+  saved,
+  adds,
+  busy,
+  canAttach,
+  hint,
+  error,
+  onPick,
+  onRemoveSaved,
+  onRemoveAdd,
+}: {
+  kind: Kind;
+  base: string;
+  itemAi: string;
+  label: string;
+  attachLabel: string;
+  accept: string;
+  saved: UploadedFile[];
+  adds: Add[];
+  busy: boolean;
+  canAttach: boolean;
+  hint: string;
+  error?: string;
+  onPick: (list: FileList | null) => void;
+  onRemoveSaved: (i: number) => void;
+  onRemoveAdd: (key: string) => void;
+}) {
+  const tc = useTranslations("marketplace.complete");
+  const input = useRef<HTMLInputElement>(null);
+  const image = kind === "image";
+  const slot = image ? "images" : "files";
+  const labelId = `${base}-${slot}-label`;
+  const attachId = image ? `${base}-image-attach` : `${base}-attach`;
+  const hintId = `${base}-${slot}-hint`;
+  const errId = `${base}-${slot}-err`;
+  const icon = image ? ImageIcon : FileTextIcon;
+  const count = saved.length + adds.length;
+  return (
+    <div className="mck-fileset" data-kind={kind} role="group" aria-labelledby={labelId}>
+      <div className="mck-fileset__top">
+        <span className="sx-field__label" id={labelId}>
+          {label}
+        </span>
+        <SxButton
+          id={attachId}
+          size="sm"
+          variant="secondary"
+          icon={image ? ImagePlusIcon : PaperclipIcon}
+          aria-disabled={!canAttach || undefined}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={[error ? errId : "", hintId].filter(Boolean).join(" ")}
+          onClick={() => {
+            if (canAttach) input.current?.click();
+          }}
+          aiId={`${itemAi}.${image ? "attach-image" : "attach"}`}
+        >
+          {attachLabel}
+        </SxButton>
+        <input
+          ref={input}
+          type="file"
+          multiple
+          hidden
+          tabIndex={-1}
+          accept={accept || undefined}
+          onChange={(e) => {
+            onPick(e.target.files);
+            e.target.value = "";
+          }}
+        />
+      </div>
+      <p className="sx-field__help" id={hintId}>
+        {hint}
+      </p>
+      {count ? (
+        <ul className={image ? "mck-flist mck-flist--img" : "mck-flist"}>
+          {saved.map((f, i) => (
+            <li key={`k-${f.id}-${i}`} data-state="done">
+              {glyph(icon, { size: 16 })}
+              <span>{f.name || f.id}</span>
+              {busy ? null : <SxButton size="sm" variant="ghost" icon={XIcon} aria-label={`${tc("remove")}: ${f.name || f.id}`} onClick={() => onRemoveSaved(i)} />}
+            </li>
+          ))}
+          {adds.map((a) => (
+            <li key={a.key} data-state={a.state}>
+              {image && a.preview ? <img className="mck-flist__pv" src={a.preview} alt="" /> : glyph(icon, { size: 16 })}
+              <span>{a.file.name}</span>
+              <em>{tc(`state.${a.state}`)}</em>
+              {a.state === "done" || busy ? null : <SxButton size="sm" variant="ghost" icon={XIcon} aria-label={`${tc("remove")}: ${a.file.name}`} onClick={() => onRemoveAdd(a.key)} />}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {error ? (
+        <p className="sx-field__err" id={errId}>
+          {glyph(CircleAlertIcon, { size: 14 })}
+          <span>{error}</span>
+        </p>
+      ) : null}
     </div>
   );
 }

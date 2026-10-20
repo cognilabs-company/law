@@ -14,6 +14,7 @@ import { SxNote } from "../layout/Note";
 import { SxPage } from "../layout/Page";
 import { groupHue } from "../tones";
 import { useStudioLabels, type StudioLabels } from "../useStudioLabels";
+import { EntityCards } from "./EntityCards";
 import { GroupCard, GroupCardSkeleton, type GroupCardKind, type GroupCardModel } from "./GroupCard";
 import { groupNext, groupProgress, groupSteps } from "./groupModel";
 import { LaunchPaths } from "./LaunchPaths";
@@ -113,6 +114,7 @@ export function Home(): ReactElement {
       <>
         <div className="sx-home">
           <Overview done={sumDone} total={sumTotal} groups={cards.length} groupsDone={groupsDone} ready={cards.length > 0 || (reg.at > 0 && !reg.error)} summary={summary} />
+          {summary.data?.entityCards?.length ? <EntityCards cards={summary.data.entityCards} /> : null}
           <div className="sx-home__band">
             <WaitingPanel data={actions} max={3} aiId="admin.studio.home.waiting" />
             <ResumePanel />

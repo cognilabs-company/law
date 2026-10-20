@@ -1,9 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { RuntimeDuration } from "@/lib/services/marketRuntime";
 import { IconClock } from "@/components/icons";
-import { durationParts, durationStart } from "./facts";
+import { businessWeekdays, durationParts, durationStart, weekdayRange } from "./facts";
 import "./runtime.css";
 
 export function useDurationText(): (d: RuntimeDuration) => string {
@@ -16,15 +16,23 @@ export function useDurationText(): (d: RuntimeDuration) => string {
   };
 }
 
+export function useBusinessDaysText(): (d: RuntimeDuration) => string {
+  const t = useTranslations("marketplace.runtime");
+  const locale = useLocale();
+  return (d: RuntimeDuration) => (d.calendar === "business" ? t("businessDays", { range: weekdayRange(businessWeekdays(d), locale) }) : "");
+}
+
 function useDurationNotes() {
   const t = useTranslations("marketplace.runtime");
+  const businessText = useBusinessDaysText();
   return (d: RuntimeDuration) => {
     const start = durationStart(d);
     const p = durationParts(d);
     const startText = start === "afterAccept" ? t("startsAfterAccept") : start === "afterPayment" ? t("startsAfterPayment") : "";
-    const startNote = start === "afterAccept" ? t("startNote") : start === "afterPayment" ? t("startNotePayment") : "";
-    const calNote = p?.business ? t("businessNote") : t("calendarNote");
-    return { startText, note: [startNote, calNote].filter(Boolean).join(" "), label: t("durationLabel") };
+    const startNote = start === "afterAccept" ? t("startsOnSeller") : start === "afterPayment" ? t("startNotePayment") : "";
+    const business = p?.business ? businessText(d) : "";
+    const calNote = business ? t("businessSkip") : t("calendarNote");
+    return { startText, business, note: [startNote, calNote].filter(Boolean).join(" "), label: t("durationLabel") };
   };
 }
 
@@ -34,9 +42,10 @@ export function DurationChip({ duration, tone, start }: { duration: RuntimeDurat
   if (!text) return null;
   const startText = start && notes.startText ? notes.startText : "";
   const lead = <span className="sr-only">{`${notes.label}: `}</span>;
+  const badge = notes.business ? <em className="mkrt-dur__cal">{notes.business}</em> : null;
   if (tone === "row") {
     return (
-      <span className="mk-eta mkrt-dur" title={notes.note}>
+      <span className="mk-eta mkrt-dur" title={notes.business ? `${notes.business}. ${notes.note}` : notes.note}>
         <IconClock aria-hidden="true" />
         {lead}
         {text}
@@ -51,6 +60,7 @@ export function DurationChip({ duration, tone, start }: { duration: RuntimeDurat
           {lead}
           <b>{text}</b>
           {startText ? ` · ${startText}` : null}
+          {badge}
           <small>{notes.note}</small>
         </span>
       </span>
@@ -64,6 +74,7 @@ export function DurationChip({ duration, tone, start }: { duration: RuntimeDurat
           {lead}
           {text}
           {startText ? ` · ${startText}` : null}
+          {notes.business ? ` · ${notes.business}` : null}
           <span className="sr-only">{`. ${notes.note}`}</span>
         </span>
       </span>
@@ -76,6 +87,7 @@ export function DurationChip({ duration, tone, start }: { duration: RuntimeDurat
         {lead}
         <b>{text}</b>
         {startText ? ` · ${startText}` : null}
+        {badge}
         <small>{notes.note}</small>
       </span>
     </span>

@@ -1,4 +1,4 @@
-import type { ChecklistItem, MinimumRequirements, RuntimeConfig, RuntimeDuration, RuntimeFactor, RuntimeGuarantee, RuntimeTemplate } from "@/lib/services/marketRuntime";
+import { DEFAULT_BUSINESS_WEEKDAYS, type ChecklistItem, type MinimumRequirements, type RuntimeConfig, type RuntimeDuration, type RuntimeFactor, type RuntimeGuarantee, type RuntimeTemplate, type ServiceRule } from "@/lib/services/marketRuntime";
 
 export type DurationKey = "minute" | "hour" | "day" | "businessDay" | "week" | "month" | "other";
 export type DurationParts = { key: DurationKey; n: number; unit: string; business: boolean };
@@ -16,6 +16,29 @@ export function durationParts(d: RuntimeDuration | null | undefined): DurationPa
   return { key, n, unit, business };
 }
 
+const WEEKDAY_ANCHOR = Date.UTC(2024, 0, 1);
+
+function weekdayName(day: number, locale: string): string {
+  try {
+    const s = new Intl.DateTimeFormat(locale === "uz" ? "uz-Latn" : locale, { weekday: "long", timeZone: "UTC" }).format(new Date(WEEKDAY_ANCHOR + (day - 1) * 86400000));
+    return locale === "en" ? s : s.toLocaleLowerCase(locale === "uz" ? "uz-Latn" : locale);
+  } catch {
+    return String(day);
+  }
+}
+
+export function businessWeekdays(d: RuntimeDuration | null | undefined): number[] {
+  const list = (d?.businessWeekdays ?? []).filter((n) => Number.isInteger(n) && n >= 1 && n <= 7);
+  return list.length ? [...new Set(list)].sort((a, b) => a - b) : [...DEFAULT_BUSINESS_WEEKDAYS];
+}
+
+export function weekdayRange(days: readonly number[], locale: string): string {
+  if (!days.length) return "";
+  const contiguous = days.every((n, i) => i === 0 || n === days[i - 1] + 1);
+  if (contiguous && days.length > 2) return `${weekdayName(days[0], locale)}–${weekdayName(days[days.length - 1], locale)}`;
+  return days.map((n) => weekdayName(n, locale)).join(", ");
+}
+
 export type DurationStart = "afterAccept" | "afterPayment";
 
 export function durationStart(d: RuntimeDuration): DurationStart | null {
@@ -30,8 +53,14 @@ export function orderedFactors(list: readonly RuntimeFactor[] | null | undefined
   return [...valid.filter((f) => f.adjustmentType !== "percent"), ...valid.filter((f) => f.adjustmentType === "percent")];
 }
 
+const AMOUNT_KEYS = ["effective_amount", "estimated_amount", "amount_uzs", "price_delta"];
+
 export function factorAmount(base: number, f: RuntimeFactor): number {
   if (!(f.value > 0)) return 0;
+  for (const k of AMOUNT_KEYS) {
+    const n = Number(f.raw?.[k]);
+    if (Number.isFinite(n) && n > 0) return Math.round(n);
+  }
   if (f.adjustmentType === "percent") return Math.max(0, Math.round((Math.max(0, Number(base) || 0) * f.value) / 100));
   return Math.max(0, f.value);
 }
@@ -103,10 +132,35 @@ export function checklistOf(c: RuntimeConfig | null | undefined): ChecklistItem[
     .map((x) => x.item);
 }
 
-export type FactSection = "duration" | "steps" | "guarantees" | "checklist" | "template" | "factors" | "requirements";
+export function rulesOf(c: RuntimeConfig | null | undefined): ServiceRule[] {
+  const seen = new Set<string>();
+  const out: ServiceRule[] = [];
+  for (const r of c?.rules ?? []) {
+    if (!r.title.trim() && !r.body.trim()) continue;
+    const key = r.id || r.ruleKey || r.title;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(r);
+  }
+  return out;
+}
 
-export const DETAIL_SECTIONS: readonly FactSection[] = ["duration", "steps", "checklist", "template", "factors", "requirements"];
-export const ASSIST_SECTIONS: readonly FactSection[] = ["duration", "steps", "guarantees", "checklist", "template", "factors", "requirements"];
+export type ProofKind = "comment" | "image" | "file";
+
+export function proofsOf(item: ChecklistItem): ProofKind[] {
+  const methods = item.verificationMethods ?? [];
+  const out: ProofKind[] = [];
+  if (methods.includes("comment") || item.commentRequired) out.push("comment");
+  if (methods.includes("image") || item.imageRequired) out.push("image");
+  if (methods.includes("file") || item.fileRequired) out.push("file");
+  return out;
+}
+
+export type FactSection = "duration" | "steps" | "guarantees" | "checklist" | "rules" | "template" | "factors" | "requirements";
+
+export const DETAIL_SECTIONS: readonly FactSection[] = ["duration", "steps", "checklist", "rules", "template", "factors", "requirements"];
+export const ASSIST_SECTIONS: readonly FactSection[] = ["duration", "steps", "guarantees", "checklist", "rules", "template", "factors", "requirements"];
+export const SELLER_PREVIEW_SECTIONS: readonly FactSection[] = ["duration", "guarantees", "checklist", "rules"];
 
 function hasSection(c: RuntimeConfig, s: FactSection): boolean {
   switch (s) {
@@ -118,6 +172,8 @@ function hasSection(c: RuntimeConfig, s: FactSection): boolean {
       return guaranteesOf(c).length > 0;
     case "checklist":
       return checklistOf(c).length > 0;
+    case "rules":
+      return rulesOf(c).length > 0;
     case "template":
       return !!templateInfo(c.template);
     case "factors":
