@@ -111,8 +111,8 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
           {SK.map((i) => (
             <li key={i} className="sx-kpi" data-sk="">
               <span className="sx-sk sx-kpi__sk-ic" />
-              <span className="sx-sk sx-kpi__sk-l" />
               <span className="sx-sk sx-kpi__sk-n" />
+              <span className="sx-sk sx-kpi__sk-l" />
             </li>
           ))}
         </ul>
@@ -128,10 +128,10 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
                   <span className="sx-kpi__ic" aria-hidden="true">
                     <Image src={`/img/studio/kpi/${k.key}.webp`} alt="" width={96} height={96} unoptimized />
                   </span>
-                  <span className="sx-kpi__l">{label}</span>
                   {go ? <span className="sx-kpi__go">{glyph(k.open ? ChevronRightIcon : ArrowUpRightIcon, { size: 15 })}</span> : null}
                 </span>
                 <SxCount value={k.key === "ctors" && usage.loading ? null : k.value} format={fmt} className="sx-kpi__n" />
+                <span className="sx-kpi__l">{label}</span>
                 <span className="sx-kpi__h">{k.hint}</span>
               </>
             );

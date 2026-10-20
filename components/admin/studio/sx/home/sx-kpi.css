@@ -39,7 +39,8 @@
 }
 .sx-kpi__top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 10px;
   min-width: 0;
   margin-bottom: 12px;
@@ -60,7 +61,6 @@
   transition: transform var(--sx-mid) var(--sx-spring);
 }
 .sx .sx-kpi__l {
-  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   color: var(--sx-ink-2);
@@ -84,11 +84,14 @@
   letter-spacing: -0.02em;
 }
 .sx .sx-kpi__h {
+  display: -webkit-box;
   overflow: hidden;
+  margin-top: 2px;
   color: var(--sx-muted);
   font: 400 12px/16px var(--sx-font);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 @media (hover: hover) and (pointer: fine) {
   .sx .sx-kpi[data-link]:hover {
@@ -118,14 +121,14 @@
   margin-bottom: 12px;
   border-radius: 12px;
 }
-.sx-kpi__sk-l {
-  width: 60%;
-  height: 12px;
-  margin-bottom: 8px;
-}
 .sx-kpi__sk-n {
   width: 44px;
   height: 24px;
+  margin-bottom: 8px;
+}
+.sx-kpi__sk-l {
+  width: 60%;
+  height: 12px;
 }
 
 .sx-use {
