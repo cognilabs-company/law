@@ -12,7 +12,8 @@ import { aiId } from "@/lib/ai/ids";
 import { useStudioAccess, useStudioRegistry } from "@/lib/services/studio";
 import { approvalsHref } from "../approvals/urlState";
 import { enterStyle } from "../hooks";
-import { ChevronRightIcon, ctorIcon, glyph } from "../icons";
+import { ChevronRightIcon, RefreshCwIcon, ctorIcon, glyph } from "../icons";
+import { SxButton } from "../Button";
 import { SxDrawer } from "../layout/Drawer";
 import { SxNote } from "../layout/Note";
 import { useNow } from "../live";
@@ -20,7 +21,7 @@ import { SxCount } from "../shared/Count";
 import { SxRing } from "../shared/Ring";
 import { groupHue, type SxHue } from "../tones";
 import { useStudioLabels } from "../useStudioLabels";
-import { useCtorUsage, type CtorUsage } from "./ctorUsage";
+import { useCtorUsage, type CtorUsageState, type CtorUsageToday } from "./ctorUsage";
 import { createTypeOf, recordsHrefOf, type EntityCard } from "./entityModel";
 import { pctOf } from "./GroupCard";
 import { groupOfCode } from "./groupModel";
@@ -52,9 +53,10 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
   const headingId = useId();
   const [usageOpen, setUsageOpen] = useState(false);
   const [usageNonce, setUsageNonce] = useState(0);
-  const usage = useCtorUsage(acc.isAdmin, summary.data, usageNonce);
-  const pct = pctOf(done, total);
   const s = summary.data;
+  const usage = useCtorUsage(usageOpen || (!!s && !s.usageToday), usageNonce);
+  const today: CtorUsageToday | null = s?.usageToday ?? usage.data;
+  const pct = pctOf(done, total);
   const fmt = (n: number) => labels.num(n);
   const kpis: Kpi[] = [];
   if (s) {
@@ -62,11 +64,11 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
     const pkg = entityOf(s, "package");
     const review = statusCount(s, "submitted", "in_review");
     const publish = statusCount(s, "approved");
-    const opens = usage.data?.totalOpens ?? null;
+    const opens = today ? today.totalOpens : null;
     kpis.push(
       { key: "services", hue: HUE.services, value: svc.total, hint: svc.active !== null ? t("sx.hm.kpi.activeN", { n: fmt(svc.active) }) : t("sx.hm.kpi.servicesHint"), href: svc.href, open: false },
       { key: "packages", hue: HUE.packages, value: pkg.total, hint: pkg.active !== null ? t("sx.hm.kpi.activeN", { n: fmt(pkg.active) }) : t("sx.hm.kpi.packagesHint"), href: pkg.href, open: false },
-      { key: "ctors", hue: HUE.ctors, value: usage.data ? usage.data.usedCount : null, hint: opens !== null ? t("sx.hm.kpi.ctorsOpens", { n: fmt(opens) }) : t("sx.hm.kpi.ctorsHint"), href: "", open: true },
+      { key: "ctors", hue: HUE.ctors, value: today ? today.usedCount : null, hint: opens !== null ? t("sx.hm.kpi.ctorsOpens", { n: fmt(opens) }) : t("sx.hm.kpi.ctorsHint"), href: "", open: true },
       { key: "queue", hue: HUE.queue, value: review + publish, hint: t("sx.hm.kpi.queueHint", { review: fmt(review), publish: fmt(publish) }), href: acc.canReview ? approvalsHref() : "", open: false },
     );
   }
@@ -130,7 +132,7 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
                   </span>
                   {go ? <span className="sx-kpi__go">{glyph(k.open ? ChevronRightIcon : ArrowUpRightIcon, { size: 15 })}</span> : null}
                 </span>
-                <SxCount value={k.key === "ctors" && usage.loading ? null : k.value} format={fmt} className="sx-kpi__n" />
+                <SxCount value={k.value} format={fmt} className="sx-kpi__n" />
                 <span className="sx-kpi__l">{label}</span>
                 <span className="sx-kpi__h">{k.hint}</span>
               </>
@@ -156,32 +158,37 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
           })}
         </ul>
       ) : null}
-      <UsageDrawer open={usageOpen} onClose={() => setUsageOpen(false)} usage={usage.data} loading={usage.loading} />
+      <UsageDrawer open={usageOpen} onClose={() => setUsageOpen(false)} usage={usage} today={today} />
     </section>
   );
 }
 
-function UsageDrawer({ open, onClose, usage, loading }: { open: boolean; onClose: () => void; usage: CtorUsage | null; loading: boolean }): ReactElement {
+function UsageDrawer({ open, onClose, usage, today }: { open: boolean; onClose: () => void; usage: CtorUsageState; today: CtorUsageToday | null }): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const reg = useStudioRegistry();
   const now = useNow();
-  const items = usage?.items ?? [];
+  const data = usage.data;
+  const items = data?.items ?? [];
+  const head = data ?? today;
   const fmt = (n: number) => labels.num(n);
-  const description = usage
-    ? usage.totalOpens !== null
-      ? t("sx.hm.use.leadOpens", { n: fmt(usage.usedCount), opens: fmt(usage.totalOpens) })
-      : t("sx.hm.use.lead", { n: fmt(usage.usedCount) })
-    : undefined;
+  const description = head ? t("sx.hm.use.leadOpens", { n: fmt(head.usedCount), opens: fmt(head.totalOpens) }) : undefined;
   return (
     <SxDrawer open={open} onClose={onClose} title={t("sx.hm.use.title")} description={description} aiId={aiId(BASE, "usage")}>
       <div className="sx-use">
-        {usage && usage.source !== "usage" ? (
-          <SxNote tone="info" className="sx-use__note">
-            {t(usage.source === "sessions" ? "sx.hm.use.sessions" : "sx.hm.use.changes")}
+        {usage.error ? (
+          <SxNote
+            tone="error"
+            title={t("sx.ui.errorTitle")}
+            action={
+              <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={usage.reload} aiId={aiId(BASE, "usage", "retry")}>
+                {t("sx.ui.retry")}
+              </SxButton>
+            }
+          >
+            {t("sx.ui.loadFail")}
           </SxNote>
-        ) : null}
-        {loading && !usage ? (
+        ) : usage.loading && !data ? (
           <ul className="sx-use__list" aria-hidden="true">
             {SK.map((i) => (
               <li key={i} className="sx-use__sk">
@@ -194,10 +201,10 @@ function UsageDrawer({ open, onClose, usage, loading }: { open: boolean; onClose
           <ol className="sx-use__list" aria-label={t("sx.hm.use.title")}>
             {items.map((it, i) => {
               const ctor = reg.items.find((x) => x.code === it.code);
-              const group = it.groupKey || groupOfCode(it.code, reg.groups, reg.items);
+              const group = groupOfCode(it.code, reg.groups, reg.items) || it.groupKey;
               const name = labels.ctorName(it.code, it.title || ctor?.title);
               const when = it.lastAt && now ? t("sx.mon.ago", { v: labels.ago(it.lastAt, now) }) : "";
-              const sub = [group ? labels.groupName(group) : "", it.users ? t("sx.hm.use.users", { n: fmt(it.users) }) : "", when].filter(Boolean).join(" · ");
+              const sub = [group ? labels.groupName(group) : "", it.users ? t("sx.hm.use.users", { n: fmt(it.users) }) : "", it.lastBy, when].filter(Boolean).join(" · ");
               return (
                 <li key={it.code} className="sx-enter" style={enterStyle(Math.min(i, 12))}>
                   <Link href={`/admin/studio/c/${enc(it.code)}`} className="sx-use__row" aria-label={t("sx.hm.use.open", { name })} data-ai-id={aiId(BASE, "usage", it.code)} data-ai-type="link" data-ai-label={name}>
@@ -208,7 +215,7 @@ function UsageDrawer({ open, onClose, usage, loading }: { open: boolean; onClose
                       <span className="sx-use__t">{name}</span>
                       {sub ? <span className="sx-use__s sx-num">{sub}</span> : null}
                     </span>
-                    {it.opens !== null ? <span className="sx-use__n sx-num">{t("sx.hm.use.times", { n: fmt(it.opens) })}</span> : null}
+                    <span className="sx-use__n sx-num">{t("sx.hm.use.times", { n: fmt(it.opens) })}</span>
                     <span className="sx-use__go" aria-hidden="true">
                       {glyph(ChevronRightIcon, { size: 16 })}
                     </span>

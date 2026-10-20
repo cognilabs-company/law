@@ -4,6 +4,7 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import { http, logApiError } from "@/lib/http";
 import { useStudioAccess, type StudioConstructor } from "@/lib/services/studio";
 import { useStudioLive } from "../live";
+import { isCtorVisited, normCtorUsageToday, type CtorUsageToday } from "./ctorUsage";
 import { normEntityCards, type EntityCard } from "./entityModel";
 import { touchesStudioObjects } from "./useActionItems";
 
@@ -31,6 +32,7 @@ export type StudioSummary = {
   ctors: Readonly<Record<string, CtorSummary>>;
   groups: Readonly<Record<string, GroupSummary>>;
   entityCards: readonly EntityCard[] | null;
+  usageToday: CtorUsageToday | null;
   detailed: boolean;
 };
 export type StudioSummaryState = { data: StudioSummary | null; error: unknown; loading: boolean; reload: () => void };
@@ -149,6 +151,7 @@ export function normStudioSummary(raw: unknown): StudioSummary {
     ctors,
     groups,
     entityCards: normEntityCards(d.entity_cards),
+    usageToday: normCtorUsageToday(d.constructor_usage_today),
     detailed: Array.isArray(d.by_constructor_detail),
   };
 }
@@ -273,7 +276,7 @@ export function useStudioSummary(): StudioSummaryState {
   useEffect(() => () => clearTimeout(timer.current), []);
 
   useStudioLive((e) => {
-    if (!touchesStudioObjects(e)) return;
+    if (!touchesStudioObjects(e) && !isCtorVisited(e)) return;
     clearTimeout(timer.current);
     timer.current = setTimeout(() => void loadStudioSummary(true), LIVE_MS);
   }, ready);

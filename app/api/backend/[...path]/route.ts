@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const BACKEND = process.env.BACKEND_ORIGIN || "https://lexgo.api.cognilabs.org";
+const NULL_BODY = new Set([101, 103, 204, 205, 304]);
 
 // Same-origin proxy to the LawProject AI backend (avoids browser CORS and
 // private-network restrictions). Streams status/body/content-type through.
@@ -72,7 +73,7 @@ async function proxy(
     });
   }
 
-  const buf = await res.arrayBuffer();
+  const buf = NULL_BODY.has(res.status) ? null : await res.arrayBuffer();
   const out = new Headers();
   const passType = res.headers.get("content-type");
   if (passType) out.set("content-type", passType);
