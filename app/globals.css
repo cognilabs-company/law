@@ -14131,6 +14131,10 @@ body[data-guide-dock="top"] .gcap{top:max(80px,env(safe-area-inset-top));bottom:
 .svpick__field input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-size:.92rem}
 .svpick__clear{flex:none;display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:50%;background:var(--dk-surface-2,#F1F5FB);color:var(--gray);cursor:pointer}
 .svpick__clear svg{width:14px;height:14px}
+.svpick__caret{flex:none;display:grid;place-items:center;width:28px;height:28px;border:0;border-radius:50%;background:none;color:var(--gray);cursor:pointer;transition:transform .18s ease,color .18s ease}
+.svpick__caret svg{width:16px;height:16px}
+.svpick__field[data-open] .svpick__caret{transform:rotate(180deg);color:var(--ink)}
+@media (prefers-reduced-motion:reduce){.svpick__caret{transition:none}}
 .svpick__list{margin:0;padding:6px;max-height:280px;overflow:auto;list-style:none;border-radius:14px;background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1.5px var(--line),var(--s2)}
 .svpick__list[hidden]{display:none}
 .svpick__o{display:flex;align-items:center;gap:12px;padding:10px;border-radius:11px;cursor:pointer}

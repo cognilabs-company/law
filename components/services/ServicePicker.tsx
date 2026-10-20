@@ -2,9 +2,9 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { searchServices, type BackendService } from "@/lib/services/backend";
+import { getServices, type BackendService } from "@/lib/services/backend";
 import { isAdvocateOnly } from "@/lib/services/sellerServices";
-import { IconCheck, IconClose, IconLayers, IconLock, IconSearch } from "@/components/icons";
+import { IconCheck, IconChevronDown, IconClose, IconLayers, IconLock, IconSearch } from "@/components/icons";
 import { som } from "./bits";
 
 type Hit = { service: BackendService; blocked: "" | "taken" | "advocate" };
@@ -34,34 +34,37 @@ export default function ServicePicker({
   const [q, setQ] = useState("");
   const [res, setRes] = useState<Result | null>(null);
   const [active, setActive] = useState(0);
+  const [browsing, setBrowsing] = useState(false);
   const query = q.trim();
-  const enough = query.length >= 2;
+  const open = browsing && !value;
 
   useEffect(() => {
-    if (!enough) return;
+    if (!open) return;
     let alive = true;
-    const h = window.setTimeout(() => {
-      searchServices(query, { limit: 20 }, locale)
-        .then((rows) => {
-          if (alive) setRes({ q: query, hits: rows.map((row) => row.service).filter(visibleResult), failed: false });
-        })
-        .catch(() => {
-          if (alive) setRes({ q: query, hits: [], failed: true });
-        });
-    }, 260);
+    const h = window.setTimeout(
+      () => {
+        getServices({ q: query || undefined, limit: 20 }, locale)
+          .then((rows) => {
+            if (alive) setRes({ q: query, hits: rows.filter(visibleResult), failed: false });
+          })
+          .catch(() => {
+            if (alive) setRes({ q: query, hits: [], failed: true });
+          });
+      },
+      query ? 260 : 0,
+    );
     return () => {
       alive = false;
       window.clearTimeout(h);
     };
-  }, [query, enough, locale]);
+  }, [query, open, locale]);
 
-  const ready = enough && res?.q === query ? res : null;
-  const loading = enough && !ready;
+  const ready = res?.q === query ? res : null;
+  const loading = open && !ready;
   const hits: Hit[] = (ready?.hits ?? []).map((s) => ({
     service: s,
     blocked: taken.has(s.id) ? "taken" : lawyer && isAdvocateOnly(s) ? "advocate" : "",
   }));
-  const open = enough && !value;
   const pickable = hits.map((h, i) => (h.blocked ? -1 : i)).filter((i) => i >= 0);
   const cur = pickable.includes(active) ? active : (pickable[0] ?? -1);
 
@@ -69,12 +72,19 @@ export default function ServicePicker({
     onChange(s);
     setQ("");
     setActive(0);
+    setBrowsing(false);
   };
 
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Escape" && q) {
+    if (e.key === "Escape" && (q || open)) {
       e.preventDefault();
       setQ("");
+      setBrowsing(false);
+      return;
+    }
+    if (!open && (e.key === "ArrowDown" || e.key === "Enter")) {
+      e.preventDefault();
+      setBrowsing(true);
       return;
     }
     if (!open || !pickable.length) return;
@@ -108,6 +118,7 @@ export default function ServicePicker({
           className="btn btn--line btn--sm"
           onClick={() => {
             onChange(null);
+            setBrowsing(true);
             window.setTimeout(() => inputRef.current?.focus(), 0);
           }}
         >
@@ -118,16 +129,26 @@ export default function ServicePicker({
   }
 
   return (
-    <div className={`svpick${invalid ? " is-bad" : ""}`}>
-      <div className="svpick__field">
+    <div
+      className={`svpick${invalid ? " is-bad" : ""}`}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setBrowsing(false);
+      }}
+    >
+      <div className="svpick__field" data-open={open ? "" : undefined}>
         <IconSearch aria-hidden="true" />
         <input
           ref={inputRef}
           id={inputId}
           type="text"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setBrowsing(true);
+          }}
           onKeyDown={onKey}
+          onFocus={() => setBrowsing(true)}
+          onMouseDown={() => setBrowsing(true)}
           placeholder={t("searchPh")}
           autoComplete="off"
           role="combobox"
@@ -142,6 +163,21 @@ export default function ServicePicker({
             <IconClose />
           </button>
         ) : null}
+        <button
+          type="button"
+          className="svpick__caret"
+          tabIndex={-1}
+          aria-label={t("service")}
+          aria-expanded={open}
+          aria-controls={listId}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => {
+            setBrowsing((v) => !v);
+            inputRef.current?.focus();
+          }}
+        >
+          <IconChevronDown />
+        </button>
       </div>
       <ul className="svpick__list" id={listId} role="listbox" aria-label={t("service")} hidden={!open}>
         {loading ? <li className="svpick__msg">{t("searching")}</li> : null}
@@ -188,7 +224,7 @@ export default function ServicePicker({
             ))
           : null}
       </ul>
-      {!enough ? <p className="svpick__hint">{q ? t("typeMore") : t("serviceHint")}</p> : null}
+      {!open ? <p className="svpick__hint">{t("serviceHint")}</p> : null}
     </div>
   );
 }
