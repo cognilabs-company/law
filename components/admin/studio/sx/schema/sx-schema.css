@@ -96,15 +96,41 @@
 .sx-sf-rt__sp {
   flex: 1 1 auto;
 }
-.sx-sf-rt .sx-textarea {
-  border: 0;
-  border-radius: 0 0 var(--sx-r) var(--sx-r);
-  box-shadow: none;
+.sx-sf-rt__edit {
+  min-height: 108px;
+  padding: 10px 12px;
+  color: var(--sx-ink);
+  font: 400 14px/22px var(--sx-font);
+  overflow-wrap: anywhere;
+  outline: none;
 }
-.sx-sf-rt .sx-textarea:focus,
-.sx-sf-rt .sx-textarea:hover {
-  border: 0;
-  box-shadow: none;
+.sx-sf-rt__edit[data-empty]::before {
+  content: attr(data-ph);
+  color: var(--sx-placeholder);
+  pointer-events: none;
+}
+.sx-sf-rt__link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-bottom: 1px solid var(--sx-line);
+  background: var(--sx-surface-2);
+}
+.sx-sf-rt__url {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  color: var(--sx-ink);
+  font: 400 13px/30px var(--sx-font);
+  background: var(--sx-surface);
+  border: 1px solid var(--sx-control-line);
+  border-radius: 8px;
+  outline: none;
+}
+.sx-sf-rt__url:focus {
+  border-color: var(--sx-accent);
 }
 .sx-sf-rt__view {
   min-height: 78px;
@@ -116,26 +142,32 @@
 .sx-sf-rt__view[data-empty] {
   color: var(--sx-muted);
 }
-.sx-sf-rt__view > :first-child {
+.sx-sf-rt__view > :first-child,
+.sx-sf-rt__edit > :first-child {
   margin-top: 0;
 }
-.sx-sf-rt__view > :last-child {
+.sx-sf-rt__view > :last-child,
+.sx-sf-rt__edit > :last-child {
   margin-bottom: 0;
 }
-.sx-sf-rt__view :is(h3, h4) {
+.sx-sf-rt__view :is(h3, h4),
+.sx-sf-rt__edit :is(h3, h4) {
   margin: 12px 0 4px;
   font: 600 14px/20px var(--sx-font);
   letter-spacing: 0;
 }
-.sx-sf-rt__view :is(ul, ol) {
+.sx-sf-rt__view :is(ul, ol),
+.sx-sf-rt__edit :is(ul, ol) {
   margin: 6px 0;
   padding-left: 20px;
 }
-.sx-sf-rt__view a {
+.sx-sf-rt__view a,
+.sx-sf-rt__edit a {
   color: var(--sx-accent-ink);
   text-decoration: underline;
 }
-.sx-sf-rt__view blockquote {
+.sx-sf-rt__view blockquote,
+.sx-sf-rt__edit blockquote {
   margin: 8px 0;
   padding-left: 12px;
   border-left: 2px solid var(--sx-line-strong);

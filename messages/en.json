@@ -1064,7 +1064,7 @@
         "percentSuffix": "%",
         "rowName": "row",
         "add": {"tier":"Add a level","service":"Add a service","item":"Add an item","section":"Add a section","option":"Add an option","phrase":"Add a phrase","line":"Add a line"},
-        "rt": {"toolbar":"Text formatting","bold":"Bold","italic":"Italic","underline":"Underline","list":"List","heading":"Heading","link":"Link","preview":"Preview","write":"Write"},
+        "rt": {"toolbar":"Text formatting","bold":"Bold","italic":"Italic","underline":"Underline","list":"List","heading":"Heading","link":"Link","linkPh":"https://","linkApply":"Apply","preview":"Preview","write":"Write"},
         "pick": "Choose",
         "pickMany": "Choose one or more",
         "search": "Search",

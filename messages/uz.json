@@ -1064,7 +1064,7 @@
         "percentSuffix": "%",
         "rowName": "qator",
         "add": {"tier":"Daraja qo'shish","service":"Xizmat qo'shish","item":"Tarkib qo'shish","section":"Bo'lim qo'shish","option":"Tanlov qo'shish","phrase":"Ibora qo'shish","line":"Band qo'shish"},
-        "rt": {"toolbar":"Matnni bezash","bold":"Qalin","italic":"Kursiv","underline":"Tagiga chizish","list":"Ro'yxat","heading":"Sarlavha","link":"Havola","preview":"Ko'rinishi","write":"Yozish"},
+        "rt": {"toolbar":"Matnni bezash","bold":"Qalin","italic":"Kursiv","underline":"Tagiga chizish","list":"Ro'yxat","heading":"Sarlavha","link":"Havola","linkPh":"https://","linkApply":"Qo'yish","preview":"Ko'rinishi","write":"Yozish"},
         "pick": "Tanlang",
         "pickMany": "Bir nechtasini tanlang",
         "search": "Qidirish",
