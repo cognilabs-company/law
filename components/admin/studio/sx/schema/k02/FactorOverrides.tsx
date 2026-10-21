@@ -32,6 +32,8 @@ export type FactorOverridesProps = {
   source: string;
   ids: readonly string[];
   value: unknown;
+  path?: string;
+  pattern?: string;
   errors: SxErrors;
   policy: SxFormPolicy;
   onChange: (next: Record<string, unknown>) => void;
@@ -44,9 +46,9 @@ export type FactorOverridesProps = {
 
 const NO_SHARED: SharedFactor = { type: "", value: null };
 
-export function FactorOverrides({ id, label, ai, readOnly, source, ids, value, errors, policy, onChange, onDraftError, formCode, owner, categoryId, forPackage = false }: FactorOverridesProps): ReactElement | null {
+export function FactorOverrides({ id, label, ai, readOnly, source, ids, value, path = FACTOR_OVERRIDES, pattern = FACTOR_OVERRIDES, errors, policy, onChange, onDraftError, formCode, owner, categoryId, forPackage = false }: FactorOverridesProps): ReactElement | null {
   const t = useTranslations("studio");
-  const own = forPackage ? "sx.k02.fo.p" : "sx.k02.fo";
+  const own = !forPackage ? "sx.k02.fo" : path.includes(".") ? "sx.k02.fo.t" : "sx.k02.fo.p";
   const labels = useStudioLabels();
   const depth = useInlineDepth();
   const [nonce, setNonce] = useState(0);
@@ -77,7 +79,7 @@ export function FactorOverrides({ id, label, ai, readOnly, source, ids, value, e
     code: "K34",
     formCode,
     owner,
-    pattern: FACTOR_OVERRIDES,
+    pattern,
     context: { categoryId },
     enabled: !readOnly && depth === 0 && !!owner,
     onPublished: (item) => {
@@ -109,7 +111,7 @@ export function FactorOverrides({ id, label, ai, readOnly, source, ids, value, e
           const shared = info?.shared ?? NO_SHARED;
           const mode = modeOf(value, fid);
           const mine = overrideValueOf(value, fid);
-          const rowPath = `${FACTOR_OVERRIDES}.${fid}`;
+          const rowPath = `${path}.${fid}`;
           const valuePath = `${rowPath}.value`;
           const base = `${id}-${fid}`;
           const nameId = `${base}-name`;

@@ -1,13 +1,15 @@
 "use client";
 
 import "./contact.css";
-import { useId, useRef, useState, type KeyboardEvent, type ReactElement } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { errDetail } from "@/lib/http";
 import { startCall } from "@/lib/services/backend";
-import { loadMarketplaceOrder, marketPhaseOf, type MarketOrder } from "@/lib/services/marketplace";
+import { CALL_KINDS, loadMarketplaceOrder, marketPaymentSignalOf, marketPhaseOf, type CallKind, type MarketOrder } from "@/lib/services/marketplace";
+import { subscribeUserEvents } from "@/lib/userSocket";
+import { PAYMENT_SETTLE_MS } from "./lock";
 import { IconChat, IconChevronDown, IconLock, IconPhone, IconVideo } from "@/components/icons";
 
 export type CallState = "ok" | "afterPayment" | "unavailable" | "closed" | "checking";
@@ -29,13 +31,16 @@ export type ContactAdvocateProps = {
   callTitle: string;
   counterpartId: string;
   calls?: CallState;
+  callTypes?: readonly CallKind[];
   orderId?: string;
   aiId: string;
   chatAiId?: string;
   className?: string;
 };
 
-export default function ContactAdvocate({ tone, size = "md", chatHref, roomId, callTitle, counterpartId, calls, orderId = "", aiId, chatAiId, className }: ContactAdvocateProps): ReactElement {
+type LoadedCalls = { state: CallState; types: readonly CallKind[] };
+
+export default function ContactAdvocate({ tone, size = "md", chatHref, roomId, callTitle, counterpartId, calls, callTypes, orderId = "", aiId, chatAiId, className }: ContactAdvocateProps): ReactElement {
   const t = useTranslations("marketplace.contact");
   const router = useRouter();
   const owner = useAuth().session?.id ?? "";
@@ -44,21 +49,42 @@ export default function ContactAdvocate({ tone, size = "md", chatHref, roomId, c
   const noteId = `${uid}-note`;
   const trigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
-  const [loaded, setLoaded] = useState<CallState | null>(null);
+  const [loaded, setLoaded] = useState<LoadedCalls | null>(null);
+  const fetched = useRef(false);
   const [calling, setCalling] = useState<"" | "audio" | "video">("");
   const [err, setErr] = useState("");
   const lazy = calls === undefined && !!orderId;
-  const state: CallState = calls ?? (lazy ? (loaded ?? "checking") : "unavailable");
+  const state: CallState = calls ?? (lazy ? (loaded?.state ?? "checking") : "unavailable");
   const callsOk = state === "ok" && !!roomId;
+  const allowed = callTypes ?? loaded?.types ?? CALL_KINDS;
+  const kinds = callsOk ? CALL_KINDS.filter((k) => allowed.includes(k)) : CALL_KINDS;
+
+  const fetchCalls = useCallback(() => {
+    fetched.current = true;
+    loadMarketplaceOrder(orderId, "client", { owner })
+      .then((o) => setLoaded({ state: callStateOf(o), types: o?.callTypes ?? CALL_KINDS }))
+      .catch(() => setLoaded({ state: "unavailable", types: CALL_KINDS }));
+  }, [orderId, owner]);
+
+  useEffect(() => {
+    if (!lazy) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const off = subscribeUserEvents((ev) => {
+      const sig = marketPaymentSignalOf(ev);
+      if (!sig || sig.orderId !== orderId || !fetched.current) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(fetchCalls, PAYMENT_SETTLE_MS);
+    });
+    return () => {
+      off();
+      if (timer) clearTimeout(timer);
+    };
+  }, [lazy, orderId, fetchCalls]);
 
   function toggle() {
     const next = !open;
     setOpen(next);
-    if (next && lazy && loaded === null) {
-      loadMarketplaceOrder(orderId, "client", { owner })
-        .then((o) => setLoaded(callStateOf(o)))
-        .catch(() => setLoaded("unavailable"));
-    }
+    if (next && lazy && loaded === null && !fetched.current) fetchCalls();
   }
 
   function onKey(e: KeyboardEvent<HTMLDivElement>) {
@@ -115,7 +141,7 @@ export default function ContactAdvocate({ tone, size = "md", chatHref, roomId, c
               <small>{t("chatHint")}</small>
             </span>
           </Link>
-          {(["audio", "video"] as const).map((k) => (
+          {kinds.map((k) => (
             <button
               key={k}
               type="button"

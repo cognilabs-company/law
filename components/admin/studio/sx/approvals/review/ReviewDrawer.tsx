@@ -306,7 +306,7 @@ function ReviewPanel({ target, viewer, onClose, onChanged }: { target: ReviewTar
           />
         </Block>
         <Block id={ids.tl} title={t("sx.ap3.tl.title")} ai={`${AI}.history`}>
-          <Timeline history={st.history} versions={detail.versions} onRetry={st.retry} />
+          <Timeline history={st.history} versions={detail.versions} onRetry={st.retry} model={model} code={code} />
         </Block>
         {detail.hasFile ? (
           <Block id={ids.file} title={t("sx.appr.dw.file")}>

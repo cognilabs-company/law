@@ -1,7 +1,9 @@
 import { ApiError, asNum, asStr, http, type Dict } from "@/lib/http";
 import { normNearby, type NearbySeller } from "@/lib/services/marketRuntime";
+import { getMarketplaceSeller, type MarketSeller } from "@/lib/services/marketplace";
 
 export type LngLat = [number, number];
+export type LocationSource = "live" | "office" | "";
 export type MapBbox = { minLon: number; minLat: number; maxLon: number; maxLat: number };
 export type CoordOrder = "longitude_latitude" | "latitude_longitude";
 
@@ -19,7 +21,7 @@ export type MapConfig = {
   raw: Dict;
 };
 
-export type MapSeller = NearbySeller & { coords: LngLat };
+export type MapSeller = NearbySeller & { coords: LngLat; source: LocationSource };
 export type MapCluster = { id: string; coords: LngLat; count: number; bbox: MapBbox | null };
 export type SellersMapResult = { sellers: MapSeller[]; clusters: MapCluster[]; count: number; total: number; truncated: boolean; precision: string; raw: Dict };
 export type MapLayout = { singles: MapSeller[]; groups: MapCluster[] };
@@ -192,6 +194,12 @@ function isClusterFeature(f: Dict): boolean {
   return count !== null && count > 1 && !seller;
 }
 
+export function locationSourceOf(v: unknown): LocationSource {
+  const d = dictOf(v);
+  const s = trimmed(d.location_source ?? dictOf(d.location).source).toLowerCase();
+  return s === "live" || s === "office" ? s : "";
+}
+
 function sellerOf(v: unknown, order: CoordOrder, precision: string): MapSeller | null {
   const f = flatFeature(v);
   const seller = dictOf(f.seller ?? f.lawyer);
@@ -201,7 +209,7 @@ function sellerOf(v: unknown, order: CoordOrder, precision: string): MapSeller |
   const own = lngLatOf(f.coordinates, order);
   const coords = own ?? (base.longitude !== null && base.latitude !== null && validLngLat(base.longitude, base.latitude) ? ([base.longitude, base.latitude] as LngLat) : null);
   if (!coords) return null;
-  return { ...base, longitude: coords[0], latitude: coords[1], coords, exact: false };
+  return { ...base, longitude: coords[0], latitude: coords[1], coords, exact: false, source: locationSourceOf(f) };
 }
 
 function clusterOf(v: unknown, order: CoordOrder, i: number): MapCluster | null {
@@ -340,4 +348,115 @@ export function zoomForCluster(c: MapCluster, zoom: number): number {
     return clamp(Math.max(fit, clampZoom(zoom) + 1), 0, 19);
   }
   return clamp(clampZoom(zoom) + 2, 0, 19);
+}
+
+export type MapSellerView = { name: string; sellerType: string; region: string; rating: number; reviewsCount: number; verified: boolean; priceFrom: number };
+
+function firstText(own: string, more: readonly MarketSeller[], get: (m: MarketSeller) => string): string {
+  if (own) return own;
+  for (const m of more) {
+    const v = trimmed(get(m));
+    if (v) return v;
+  }
+  return "";
+}
+
+export function mapSellerView(s: MapSeller, ...more: (MarketSeller | null | undefined)[]): MapSellerView {
+  const src = more.filter((m): m is MarketSeller => !!m);
+  const rated = s.rating > 0 ? { rating: s.rating, reviewsCount: s.reviewsCount } : (src.find((m) => m.rating > 0) ?? null);
+  const priced = src.find((m) => m.priceFrom > 0);
+  return {
+    name: firstText(s.name, src, (m) => m.name),
+    sellerType: firstText(s.sellerType, src, (m) => m.sellerType).toLowerCase(),
+    region: firstText(s.region, src, (m) => m.region),
+    rating: rated ? rated.rating : 0,
+    reviewsCount: rated ? rated.reviewsCount : 0,
+    verified: s.verified || src.some((m) => m.verified),
+    priceFrom: priced ? priced.priceFrom : 0,
+  };
+}
+
+export type MapSellerInfo = ReadonlyMap<string, MarketSeller | null>;
+
+const INFO_PARALLEL = 3;
+const INFO_RETRY_MS = 30_000;
+const INFO_QUEUE_MAX = 40;
+const EMPTY_INFO: MapSellerInfo = new Map();
+let infoSnap: MapSellerInfo = EMPTY_INFO;
+let infoGen = 0;
+const infoBusy = new Set<string>();
+const infoQueue: string[] = [];
+const infoRetryAt = new Map<string, number>();
+const infoSubs = new Set<() => void>();
+
+function putInfo(id: string, v: MarketSeller | null): void {
+  infoSnap = new Map(infoSnap).set(id, v);
+  for (const fn of [...infoSubs]) fn();
+}
+
+export function subscribeMapSellerInfo(fn: () => void): () => void {
+  infoSubs.add(fn);
+  return () => {
+    infoSubs.delete(fn);
+  };
+}
+
+export function mapSellerInfoSnapshot(): MapSellerInfo {
+  return infoSnap;
+}
+
+export function mapSellerInfoServerSnapshot(): MapSellerInfo {
+  return EMPTY_INFO;
+}
+
+function infoDue(id: string, now: number): boolean {
+  if (!infoSnap.has(id)) return true;
+  const at = infoRetryAt.get(id);
+  return at !== undefined && at <= now;
+}
+
+function pumpInfo(): void {
+  while (infoBusy.size < INFO_PARALLEL && infoQueue.length) {
+    const id = infoQueue.shift() as string;
+    if (infoBusy.has(id) || !infoDue(id, Date.now())) continue;
+    infoBusy.add(id);
+    const gen = infoGen;
+    getMarketplaceSeller(id).then(
+      (s) => {
+        if (gen !== infoGen) return;
+        infoRetryAt.delete(id);
+        putInfo(id, s.name || s.userId ? s : null);
+      },
+      (e) => {
+        if (gen !== infoGen) return;
+        if (e instanceof ApiError && (e.status === 404 || e.status === 410)) infoRetryAt.delete(id);
+        else infoRetryAt.set(id, Date.now() + INFO_RETRY_MS);
+        putInfo(id, null);
+      },
+    ).finally(() => {
+      if (gen !== infoGen) return;
+      infoBusy.delete(id);
+      pumpInfo();
+    });
+  }
+}
+
+export function loadMapSellerInfo(ids: readonly string[]): void {
+  const now = Date.now();
+  for (const raw of ids) {
+    const id = trimmed(raw);
+    if (!id || infoBusy.has(id) || infoQueue.includes(id) || !infoDue(id, now)) continue;
+    infoQueue.push(id);
+  }
+  if (infoQueue.length > INFO_QUEUE_MAX) infoQueue.splice(0, infoQueue.length - INFO_QUEUE_MAX);
+  pumpInfo();
+}
+
+export function resetMapSellerInfo(): void {
+  infoGen++;
+  infoBusy.clear();
+  infoQueue.length = 0;
+  infoRetryAt.clear();
+  infoSnap = EMPTY_INFO;
+  for (const fn of [...infoSubs]) fn();
 }

@@ -50,3 +50,31 @@
   color: var(--sx-muted);
   font: 400 12px/16px var(--sx-font);
 }
+.sx-k2tpl__need {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  justify-items: start;
+}
+.sx-k2tpl__pick .sx-code {
+  border-color: var(--sx-review-line);
+  background: var(--sx-review-bg);
+  color: var(--sx-review-fg);
+  font-family: var(--sx-font);
+}
+.sx-k2tpl__pending {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--sx-review-line);
+  border-radius: var(--sx-r-sm);
+  background: var(--sx-review-bg);
+  color: var(--sx-review-fg);
+  font: 400 12px/16px var(--sx-font);
+}
+.sx-k2tpl__pending svg {
+  flex: none;
+  margin-top: 1px;
+}

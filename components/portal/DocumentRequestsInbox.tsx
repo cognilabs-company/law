@@ -24,6 +24,7 @@ import FieldError from "@/components/ui/FieldError";
 import InlineAlert from "@/components/ui/InlineAlert";
 import Modal from "@/components/admin/Modal";
 import DocTemplateViewer from "./DocTemplateViewer";
+import PhoneLock from "@/components/marketplace/order/PhoneLock";
 import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import { useCopilotAvailable } from "@/components/copilot/store";
 import { statusLabel } from "@/lib/labels";
@@ -147,7 +148,7 @@ export default function DocumentRequestsInbox({ ns, basePath }: { ns: string; ba
       if (e.event === "document_request.pool_created" || e.event === "document_request.claimed" || e.event === "document_request.pool_removed") {
         setPoolReloadKey((k) => k + 1);
       }
-      if (e.event === "document_request.claimed" || e.event === "document_request.completed") {
+      if (e.event === "document_request.claimed" || e.event === "document_request.completed" || e.event === "document_request.payment_approved") {
         setReloadKey((k) => k + 1);
       }
     });
@@ -612,6 +613,10 @@ export function FulfillModal({
             <p className="advmuted" style={{ margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
               <IconPhone style={{ width: 14, height: 14 }} />
               {target.clientPhone}
+            </p>
+          ) : target.clientPhoneVisible === false ? (
+            <p style={{ margin: 0 }}>
+              <PhoneLock reason={target.clientPhoneHiddenReason} aiId={`${AI}.upload-modal.phone-locked`} />
             </p>
           ) : null}
 

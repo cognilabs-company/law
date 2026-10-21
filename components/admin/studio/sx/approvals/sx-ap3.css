@@ -207,6 +207,33 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.sx-ap3-tl__fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin: 4px 0 0;
+  min-width: 0;
+}
+.sx-ap3-tl__fieldsl {
+  color: var(--sx-muted);
+  font-size: 12.5px;
+  line-height: 18px;
+}
+.sx-ap3-tl__field {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 22px;
+  padding: 1px 8px;
+  border: 1px solid var(--sx-line);
+  border-radius: 999px;
+  background: var(--sx-surface-2);
+  color: var(--sx-ink-2);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}
 .sx-ap3-tl__item[data-deleted] .sx-ap3-tl__text {
   color: var(--sx-muted);
   text-decoration: line-through;

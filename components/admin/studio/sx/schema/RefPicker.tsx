@@ -207,7 +207,7 @@ export function RefPicker(props: RefPickerProps): ReactElement {
     manage: inline?.manage,
     tail: inline?.tail,
   };
-  const pickerKey = inline?.refresh ?? 0;
+  const pickerKey = `picker-${inline?.refresh ?? 0}`;
   return (
     <div className="sx-sf__ref">
       {props.multiple === true ? (

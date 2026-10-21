@@ -7,9 +7,10 @@ import { toast } from "@/lib/toast";
 import { fmtUzs } from "@/lib/money";
 import { matchesSearch } from "@/lib/searchText";
 import { PACKAGE_SELLER_ERRORS, marketErrorCode } from "@/lib/services/marketplace";
-import { enableMyPackage, listMyPackages, setMyPackageStatus, type SellerPackage } from "@/lib/services/sellerPackages";
+import { enableMyPackage, failedRules, listMyPackages, setMyPackageStatus, tierFailureOf, type SellerPackage, type TierFailure } from "@/lib/services/sellerPackages";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import { useMarketError } from "@/components/marketplace/useMarketError";
+import TierRules from "./TierRules";
 import {
   IconAlert,
   IconCheck,
@@ -44,6 +45,7 @@ export default function SellerPackagesSection() {
   const [tick, setTick] = useState(0);
   const [load, setLoad] = useState<Load>({ key: -1, items: null, error: null });
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [fails, setFails] = useState<Record<string, TierFailure>>({});
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
 
@@ -85,6 +87,7 @@ export default function SellerPackagesSection() {
 
   const reload = () => setTick((n) => n + 1);
   const reasonText = (r: string) => (t.has(`reasons.${r}`) ? t(`reasons.${r}`) : r.replace(/_/g, " "));
+  const dropFail = (id: string) => setFails((f) => (f[id] ? Object.fromEntries(Object.entries(f).filter(([k]) => k !== id)) : f));
   const tierLabel = (tariff: string) => (tp.has(`tiers.${tariff}`) ? tp(`tiers.${tariff}`) : tariff);
 
   async function act(p: SellerPackage, next: "enable" | "active" | "disabled") {
@@ -94,11 +97,19 @@ export default function SellerPackagesSection() {
       const saved = next === "enable" ? await enableMyPackage(p.id) : await setMyPackageStatus(p.id, next);
       const merged: SellerPackage = saved ?? { ...p, enabled: true, status: next === "disabled" ? "disabled" : "active" };
       setLoad((cur) => (cur.items ? { ...cur, items: cur.items.map((x) => (x.id === p.id ? { ...merged, pkg: saved?.pkg.title ? saved.pkg : p.pkg } : x)) } : cur));
+      dropFail(p.id);
       toast(t(`toast.${next}`), { tone: "ok" });
       reload();
     } catch (e) {
-      toast(marketErr(e, t("actionFailed")), { tone: "err" });
-      if (PACKAGE_SELLER_ERRORS.includes(marketErrorCode(e))) reload();
+      const tier = tierFailureOf(e);
+      if (tier) {
+        setFails((f) => ({ ...f, [p.id]: tier }));
+        toast(t("tier.toast"), { tone: "err" });
+        reload();
+      } else {
+        toast(marketErr(e, t("actionFailed")), { tone: "err" });
+        if (PACKAGE_SELLER_ERRORS.includes(marketErrorCode(e))) reload();
+      }
     } finally {
       setBusy((b) => Object.fromEntries(Object.entries(b).filter(([k]) => k !== p.id)));
     }
@@ -233,6 +244,8 @@ export default function SellerPackagesSection() {
                 const tariff = p.pkg.tariff;
                 const TierIcon = TIER_ICON[tariff as keyof typeof TIER_ICON] ?? IconPackage;
                 const working = Boolean(busy[p.id]);
+                const fail = fails[p.id] ?? null;
+                const listRules = p.eligibility.eligible ? [] : failedRules(p.eligibility.ruleResults ?? []);
                 return (
                   <div key={p.id} className={`pkg__tier pkg__tier--${tariff.toLowerCase()} spk__tier is-${s}`} data-ai-id={`seller.packages.${p.id}`} data-ai-label={`${list[0].pkg.groupTitle} · ${tierLabel(tariff)}`}>
                     <div className="spk__top">
@@ -274,7 +287,7 @@ export default function SellerPackagesSection() {
                         {p.eligibility.extendedVerified ? t("extendedOk") : t("extendedNeeded")}
                       </span>
                     ) : null}
-                    {p.eligibility.eligible ? null : (
+                    {p.eligibility.eligible || listRules.length ? null : (
                       <div className="spk__why" role="note">
                         <b>
                           <IconAlert aria-hidden="true" />
@@ -290,6 +303,17 @@ export default function SellerPackagesSection() {
                         {p.eligibility.missingServiceIds.length ? <small>{t("missingServices", { n: p.eligibility.missingServiceIds.length })}</small> : null}
                       </div>
                     )}
+                    {fail ? (
+                      <TierRules rules={failedRules(fail.rules)} reasons={fail.reasons} message={fail.message} live onClose={() => dropFail(p.id)} aiId={`seller.packages.${p.id}.tier`} />
+                    ) : listRules.length ? (
+                      <TierRules
+                        rules={listRules}
+                        reasons={p.eligibility.reasons.map(reasonText)}
+                        message=""
+                        live={false}
+                        note={p.eligibility.missingServiceIds.length ? t("missingServices", { n: p.eligibility.missingServiceIds.length }) : ""}
+                      />
+                    ) : null}
                     <div className="pkg__acts spk__acts">
                       {s === "active" ? (
                         <button type="button" className="btn btn--line btn--sm" disabled={working} onClick={() => void act(p, "disabled")} data-ai-id={`seller.packages.${p.id}.disable`}>

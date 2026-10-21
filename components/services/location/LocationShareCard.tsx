@@ -82,7 +82,8 @@ export default function LocationShareCard({ role }: { role: "lawyer" | "advocate
   const stale = remote && shareStale(server, now);
   const policy = on || remote ? t("location.policyLine", { time: fmtDuration(share.policy.foregroundIntervalSec, locale), days: share.policy.retentionDays }) : "";
   const err = share.error;
-  const errText = !err ? "" : err.kind === "stop" ? tp("sellerSlot.locStopFailed") : on ? t(ERR_KEY[err.kind]) : "";
+  const errText = !err ? "" : err.kind === "stop" ? tp("sellerSlot.locStopFailed") : on ? t(ERR_KEY[err.kind]) : err.kind === "denied" && share.mode === "off" ? t("location.deniedStopped") : "";
+  const officeNote = !on && !remote && share.mode !== "unknown" && share.sources.includes("office") ? t("location.officeFallback") : "";
   const errId = `${titleId}-err`;
   const stopping = busy || share.mode === "stopping";
   const starting = share.mode === "starting";
@@ -99,6 +100,11 @@ export default function LocationShareCard({ role }: { role: "lawyer" | "advocate
         {sent ? <p className="svloc-card__meta">{sent}</p> : null}
         {stale ? <p className="svloc-card__meta svloc-card__stale">{t("location.stale")}</p> : null}
         {policy ? <p className="svloc-card__meta">{policy}</p> : null}
+        {officeNote ? (
+          <p className="svloc-card__meta" data-ai-id={`${AI}.office-note`}>
+            {officeNote}
+          </p>
+        ) : null}
         {errText ? (
           <p className="svloc-card__err" id={errId} role="alert">
             {errText}

@@ -111,7 +111,7 @@ export default function OrderActions({
     <SxPanel title={t("actions.title")} className="mod-actions" as="section">
       <div className="mod-actions__list">
         {contact ? (
-          <ContactAdvocate tone="sx" chatHref={marketChatHref(o)} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={counterpartId} calls={CLOSED_PHASES.has(phase) ? "closed" : callStateOf(o)} aiId={`${aiBase}.contact`} chatAiId={`${aiBase}.chat`} />
+          <ContactAdvocate tone="sx" chatHref={marketChatHref(o)} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={counterpartId} calls={CLOSED_PHASES.has(phase) ? "closed" : callStateOf(o)} callTypes={o.callTypes} aiId={`${aiBase}.contact`} chatAiId={`${aiBase}.chat`} />
         ) : chat ? (
           <SxLinkButton variant={chat === "open" ? "primary" : "secondary"} icon={MessageSquareTextIcon} href={marketChatHref(o)} aiId={`${aiBase}.chat`}>
             {chat === "open" ? to("openChat") : t("actions.viewChat")}
@@ -119,12 +119,16 @@ export default function OrderActions({
         ) : null}
         {calls && !contact ? (
           <div className="mod-actions__calls" role="group" aria-label={to("call")} data-ai-id={`${aiBase}.call`} data-ai-type="call_button" data-ai-label={to("call")}>
-            <SxButton icon={PhoneIcon} disabled={!!calling} onClick={() => void call("audio")}>
-              {calling === "audio" ? to("calling") : to("audio")}
-            </SxButton>
-            <SxButton icon={VideoIcon} disabled={!!calling} onClick={() => void call("video")}>
-              {calling === "video" ? to("calling") : to("video")}
-            </SxButton>
+            {o.callTypes.includes("audio") ? (
+              <SxButton icon={PhoneIcon} disabled={!!calling} onClick={() => void call("audio")}>
+                {calling === "audio" ? to("calling") : to("audio")}
+              </SxButton>
+            ) : null}
+            {o.callTypes.includes("video") ? (
+              <SxButton icon={VideoIcon} disabled={!!calling} onClick={() => void call("video")}>
+                {calling === "video" ? to("calling") : to("video")}
+              </SxButton>
+            ) : null}
           </div>
         ) : null}
         {callErr ? (

@@ -28,6 +28,7 @@ type Args = {
   context: InlineContext;
   enabled: boolean;
   onPublished: (item: InlinePending, runtimeId: string) => void;
+  onSettled?: (item: InlinePending) => void;
 };
 
 const handled = new Set<string>();
@@ -40,7 +41,7 @@ export function useInlineAccess(code: string): boolean {
   return reg.items.some((c) => c.code === code);
 }
 
-export function useInlineEditing({ code, formCode, owner, pattern, context, enabled, onPublished }: Args): InlineEditing {
+export function useInlineEditing({ code, formCode, owner, pattern, context, enabled, onPublished, onSettled }: Args): InlineEditing {
   const reg = useStudioRegistry();
   const allowed = useInlineAccess(code);
   const canManage = enabled && allowed && !!owner;
@@ -70,6 +71,11 @@ export function useInlineEditing({ code, formCode, owner, pattern, context, enab
 
   const openEdit = (value: string, label: string, ctxUrl?: string) => {
     if (!canManage || !value) return;
+    const picked = pending.find((p) => p.isNew && p.objectId === value);
+    if (picked) {
+      openPending(picked);
+      return;
+    }
     const own = pending.find((p) => !p.isNew && p.value === value && canReopen(p.status));
     if (own) {
       openPending(own);
@@ -79,8 +85,15 @@ export function useInlineEditing({ code, formCode, owner, pattern, context, enab
     show({ kind: "edit", code, ctx: ctxUrl || editContextUrl(ctor, code, value), label, value });
   };
 
+  const settledRef = useRef(onSettled);
+  useEffect(() => {
+    settledRef.current = onSettled;
+  });
+
   const settle = (r: InlineSettled) => {
-    putPending(slot, { objectId: r.objectId, code, title: r.title, isNew: r.isNew, value: r.value, status: r.status, at: Date.now() });
+    const item: InlinePending = { objectId: r.objectId, code, title: r.title, isNew: r.isNew, value: r.value, status: r.status, at: Date.now() };
+    putPending(slot, item);
+    settledRef.current?.(item);
   };
 
   const resolve = useCallback(

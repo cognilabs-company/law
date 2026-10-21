@@ -20,11 +20,12 @@ import {
   type CatalogItem,
   type CatalogPricing,
   type PriceExplanation,
+  priceExplanationOf,
 } from "@/lib/services/sellerServices";
 import { configSupport, lastSellerConfig, priceVerdict, saveSellerService, type ConfigError } from "@/lib/services/sellerConfig";
 import { readPriceModifiers } from "@/lib/services/marketplacePricing";
 import { useRulesGateState } from "@/lib/services/rulesGate";
-import { IconAlert, IconCheck, IconCoins, IconEdit, IconEye, IconLayers, IconLock, IconPause, IconPlay, IconPower, IconScale } from "@/components/icons";
+import { IconAlert, IconCheck, IconCoins, IconEdit, IconEye, IconInfo, IconLayers, IconLock, IconPause, IconPlay, IconPower, IconScale } from "@/components/icons";
 import { InBody, som } from "./bits";
 import CatalogPicker from "./CatalogPicker";
 import PriceWhy, { type PriceWhyFacts } from "./PriceWhy";
@@ -35,7 +36,7 @@ import { RequirementsLine } from "./RuntimeFactors";
 import SellerTermsPreview from "./SellerTermsPreview";
 import { useRuntimeConfig } from "./useRuntimeConfig";
 import { useSellerConfig } from "./useSellerConfig";
-import { priceCapOf, type RuntimePricing, type SellerServiceConfig } from "@/lib/services/marketRuntime";
+import { priceCapOf, selectableRuleTitles, type RuntimePricing, type SellerServiceConfig } from "@/lib/services/marketRuntime";
 import type { PreviewDraft } from "@/lib/marketPreview";
 import "./config.css";
 
@@ -86,6 +87,14 @@ export function priceFloor(cfg: SellerServiceConfig | null, catalog: CatalogPric
 }
 
 type BandLoad = { key: string; band: PriceBand | null; failed: boolean; advocate: boolean };
+type RuleErr = { key: string; text: string; invalid: string[] };
+
+const plainDict = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+
+function configExplanation(cfg: SellerServiceConfig | null): PriceExplanation | null {
+  if (!cfg) return null;
+  return priceExplanationOf(cfg.raw.price_explanation ?? plainDict(cfg.raw.configuration).price_explanation);
+}
 type NegState = { key: string; on: boolean };
 type RulesProp = {
   closed: boolean;
@@ -135,6 +144,8 @@ export default function ServiceFormModal({
   const [service, setService] = useState<BackendService | null>(item?.service ?? null);
   const [picked, setPicked] = useState<CatalogItem | null>(null);
   const [ruleSel, setRuleSel] = useState<{ key: string; ids: string[] } | null>(null);
+  const [ruleErr, setRuleErr] = useState<RuleErr | null>(null);
+  const [cfgTick, setCfgTick] = useState(0);
   const [serverMin, setServerMin] = useState<{ key: string; min: number } | null>(null);
   const [price, setPrice] = useState(item?.selectedPrice ? String(item.selectedPrice) : "");
   const [priceTouched, setPriceTouched] = useState(false);
@@ -164,7 +175,7 @@ export default function ServiceFormModal({
   const savedBand = persisted && persisted.id === serviceId ? persisted.limits : null;
   const runtimeLoad = useRuntimeConfig(serviceId);
   const runtime = runtimeLoad.config;
-  const cfgLoad = useSellerConfig(serviceId, uid, self && Boolean(persisted) && persisted?.id === serviceId, rulesVersion);
+  const cfgLoad = useSellerConfig(serviceId, uid, self && Boolean(serviceId), `${rulesVersion}|${cfgTick}`);
   const cfg = savedCfg && savedCfg.version === rulesVersion && savedCfg.cfg.serviceId === serviceId ? savedCfg.cfg : cfgLoad.config;
   const catalogPricing = picked && picked.service.id === serviceId ? picked.pricing : null;
   const pricing = pricingWithConfig(runtime?.pricing ?? null, cfg, catalogPricing);
@@ -212,15 +223,18 @@ export default function ServiceFormModal({
   const ruleOptions = self && cfg?.selectableRules && cfg.selectableRules.length ? cfg.selectableRules : null;
   const ruleIds = ruleSel && ruleSel.key === serviceId ? ruleSel.ids : (cfg?.selectedRuleIds ?? []);
   const sendRuleIds = ruleOptions ? ruleIds.filter((id) => ruleOptions.some((r) => r.id === id)) : null;
-  const why: PriceExplanation | null = catalogPricing?.explanation ?? (explanation ? { ...explanation, factors: [] } : null);
+  const why: PriceExplanation | null = catalogPricing?.explanation ?? configExplanation(cfg) ?? (explanation ? { ...explanation, factors: [] } : null);
+  const capNow = !noPrice && pricing ? (priceCapOf(pricing) ?? 0) : 0;
+  const shownRuleErr = ruleErr && ruleErr.key === serviceId ? ruleErr : null;
   const runtimeMods = runtime?.pricing.raw && runtime.pricing.raw.modifiers != null ? readPriceModifiers(runtime.pricing.raw.modifiers, locale) : null;
   const whyFacts: PriceWhyFacts = {
     recommended: noPrice ? 0 : floorRec,
     minimum: minPrice,
     pct: minPrice > 0 ? floor.pct : null,
-    maximum: !noPrice && pricing ? (priceCapOf(pricing) ?? 0) : 0,
+    maximum: capNow,
     base: noPrice ? 0 : (band?.base ?? 0),
     modifiers: band?.modifiers?.length ? band.modifiers : runtimeMods,
+    negotiation: showNeg && minPrice > 0,
   };
   const cfgRulesOpen = cfg?.rulesPending === true;
   const rulesClosed = Boolean(rules?.closed) || cfgRulesOpen;
@@ -229,6 +243,7 @@ export default function ServiceFormModal({
   const errText = (e: ServiceError) => {
     if (e.kind === "range") return t("limits.serverRange", { min: som(e.min), max: som(e.max) });
     if (e.kind === "belowMin") return e.min ? t("config.belowMin", { min: som(e.min) }) : t("config.belowMinNoValue");
+    if (e.kind === "aboveMax") return e.max ? t("config.aboveMax", { max: som(e.max) }) : t("errors.aboveMax");
     if (e.kind === "invalid" && e.detail) return e.detail;
     if (e.kind === "forbidden" && owner) return t("errors.forbiddenOwner");
     if (e.kind === "pendingAccount" && owner) return t("errors.pendingAccountOwner");
@@ -252,11 +267,18 @@ export default function ServiceFormModal({
               ? t("config.belowMin", { min: som(error.minimum) })
               : error.message || t("config.belowMinNoValue")
             : codeText(error.code) || error.message || t("config.configFailed");
+      if (error.code === "seller_price_below_minimum" && error.minimum) setServerMin({ key: id, min: error.minimum });
       setCfgErr({ price: text, form: t("config.partialSaved") });
       return;
     }
     if (error.code === "rule_not_selectable") {
-      setCfgErr({ price: "", form: t("ruleChoice.notSelectable") });
+      const invalid = error.invalidRuleIds ?? [];
+      const allowed = error.selectableRuleIds ?? [];
+      const names = selectableRuleTitles(cfg, invalid);
+      setRuleErr({ key: id, invalid, text: names.length ? t("ruleChoice.notSelectableNamed", { list: names.join(", "), n: names.length }) : t("ruleChoice.notSelectable") });
+      if (invalid.length || allowed.length) setRuleSel({ key: id, ids: ruleIds.filter((x) => !invalid.includes(x) && (!allowed.length || allowed.includes(x))) });
+      setCfgErr({ price: "", form: t("ruleChoice.partialSaved") });
+      setCfgTick((n) => n + 1);
       return;
     }
     if (error.code === "service_rules_acceptance_required") {
@@ -285,6 +307,7 @@ export default function ServiceFormModal({
     }
     setErr(null);
     setCfgErr(null);
+    setRuleErr(null);
     setStatusErr("");
     const enabling = status === "active" && (!persisted || persisted.status !== "active");
     if (self && rules && enabling) {
@@ -358,7 +381,7 @@ export default function ServiceFormModal({
   const close = () => {
     if (!busy && !checking) onClose();
   };
-  const priceErr = err?.kind === "range" || err?.kind === "belowMin" ? errText(err) : cfgErr?.price ? cfgErr.price : priceReq ? t("errors.priceRequired") : "";
+  const priceErr = err?.kind === "range" || err?.kind === "belowMin" || err?.kind === "aboveMax" ? errText(err) : cfgErr?.price ? cfgErr.price : priceReq ? t("errors.priceRequired") : "";
   const draft: PreviewDraft = {
     kind: "service",
     sellerId,
@@ -369,7 +392,7 @@ export default function ServiceFormModal({
     ad: null,
     profile: null,
   };
-  const formErr = err && err.kind !== "range" && err.kind !== "belowMin" && err.kind !== "noPrice" && err.kind !== "advocateOnly" ? errText(err) : (cfgErr?.form ?? "");
+  const formErr = err && err.kind !== "range" && err.kind !== "belowMin" && err.kind !== "aboveMax" && err.kind !== "noPrice" && err.kind !== "advocateOnly" ? errText(err) : (cfgErr?.form ?? "");
   const stDescribed = [activeLocked ? `${ids}-lock` : "", statusErr ? `${ids}-sterr` : ""].filter(Boolean).join(" ") || undefined;
 
   return (
@@ -443,7 +466,7 @@ export default function ServiceFormModal({
                 setPrice(digitsOf(v));
                 setPriceTouched(true);
                 setPriceReq(false);
-                if (err?.kind === "range" || err?.kind === "belowMin") setErr(null);
+                if (err?.kind === "range" || err?.kind === "belowMin" || err?.kind === "aboveMax") setErr(null);
                 if (cfgErr?.price) setCfgErr(null);
               }}
               band={band}
@@ -488,10 +511,31 @@ export default function ServiceFormModal({
                   <i />
                 </span>
               </button>
+              <p className="svcfg-negnote">
+                <IconInfo aria-hidden="true" />
+                <span>{capNow > 0 ? t("config.negotiationRange", { max: som(capNow) }) : t("config.negotiationRangeNoMax")}</span>
+              </p>
             </section>
           ) : null}
 
-          {ruleOptions ? <RuleChoice rules={ruleOptions} value={ruleIds} onChange={(next) => setRuleSel({ key: serviceId, ids: next })} aiId={aiId ? `${aiId}.rules` : undefined} /> : null}
+          {ruleOptions ? (
+            <RuleChoice
+              rules={ruleOptions}
+              value={ruleIds}
+              onChange={(next) => {
+                setRuleSel({ key: serviceId, ids: next });
+                setRuleErr(null);
+              }}
+              aiId={aiId ? `${aiId}.rules` : undefined}
+              error={shownRuleErr?.text ?? ""}
+              invalidIds={shownRuleErr?.invalid ?? []}
+            />
+          ) : shownRuleErr ? (
+            <p className="svcfg-err" role="alert">
+              <IconAlert aria-hidden="true" />
+              <span>{shownRuleErr.text}</span>
+            </p>
+          ) : null}
 
           <section className="svform__sec">
             <label className="svform__lbl" htmlFor={`${ids}-note`}>

@@ -1,0 +1,2 @@
+.mk-phonelock{display:inline-flex;align-items:center;gap:5px;min-width:0;color:var(--dk-txt-warn,#8A5300);font-size:.84rem;font-weight:600;line-height:1.35}
+.mk-phonelock svg{flex:none;width:13px;height:13px}

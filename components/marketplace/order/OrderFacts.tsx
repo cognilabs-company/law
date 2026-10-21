@@ -10,6 +10,7 @@ import type { RuntimeConfig, RuntimeDuration } from "@/lib/services/marketRuntim
 import { OptionLines } from "../OrderExtras";
 import { durationParts } from "./deadline";
 import { useContactSpeedText } from "./contactSpeed";
+import { clientPhoneShow, telHref } from "./phone";
 import type { OrderView } from "./types";
 
 export function useDurationText(): (d: RuntimeDuration | null) => string {
@@ -40,8 +41,7 @@ export default function OrderFacts({ o, view, aiBase, runtime }: { o: MarketOrde
   const durationText = useDurationText();
   const speed = useContactSpeedText()(o);
   const counterpart = view === "client" ? o.lawyerName : o.clientName;
-  const paid = o.paymentStatus === "paid";
-  const phone = view === "seller" ? o.clientPhone : "";
+  const phoneShow = clientPhoneShow(o);
   const duration = o.duration ?? (runtime && runtime.duration.value > 0 ? runtime.duration : null);
   const durationLine = durationText(duration);
   const pkgLine = [o.packageTitle, o.packageTier && tpk.has(`tiers.${o.packageTier}`) ? tpk(`tiers.${o.packageTier}`) : o.packageTier].filter(Boolean).join(" · ");
@@ -54,7 +54,7 @@ export default function OrderFacts({ o, view, aiBase, runtime }: { o: MarketOrde
       <dl className="mod-facts__list">
         {counterpart ? <Row label={view === "client" ? t("facts.seller") : t("facts.client")}>{counterpart}</Row> : null}
         {view === "seller" ? (
-          <Row label={to("phone")}>{paid && phone ? <a className="sx-link" href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{phone}</a> : <span className="mod-muted">{to("phoneHidden")}</span>}</Row>
+          <Row label={to("phone")}>{phoneShow === "show" ? <a className="sx-link" href={telHref(o.clientPhone)}>{o.clientPhone}</a> : <span className="mod-muted">{phoneShow === "none" ? "—" : phoneShow === "hidden" ? to("phoneConcealed") : to("phoneHidden")}</span>}</Row>
         ) : null}
         <Row label={t("facts.price")}>
           <span>
@@ -64,7 +64,7 @@ export default function OrderFacts({ o, view, aiBase, runtime }: { o: MarketOrde
         {pkgLine ? <Row label={t("facts.package")}>{pkgLine}</Row> : null}
         {o.preferredChannel ? <Row label={to("channel")}>{tch.has(o.preferredChannel) ? tch(o.preferredChannel) : o.preferredChannel}</Row> : null}
         {speed ? <Row label={to("contactSpeed")}>{speed}</Row> : null}
-        {o.preferredTime ? <Row label={to("time")}>{o.preferredTime}</Row> : null}
+        {o.preferredTime && !speed ? <Row label={to("time")}>{o.preferredTime}</Row> : null}
         {o.createdAt ? <Row label={t("facts.created")}>{when(o.createdAt)}</Row> : null}
         {o.startedAt ? <Row label={t("facts.started")}>{when(o.startedAt)}</Row> : null}
         {o.expectedCompletedAt ? <Row label={t("facts.due")}>{when(o.expectedCompletedAt)}</Row> : null}

@@ -31,6 +31,7 @@ import { notify } from "@/lib/toast";
 import InlineAlert from "@/components/ui/InlineAlert";
 import Modal from "@/components/admin/Modal";
 import DocTemplateViewer from "./DocTemplateViewer";
+import PhoneLock from "@/components/marketplace/order/PhoneLock";
 // §14 option 1 ("Advokat o'zi file upload qiladi") is the upload the inbox
 // already owns — the same DOCX → POST fulfill-file dialogue, not a second
 // copy of it. It lives in the inbox file because that is where it was first
@@ -471,7 +472,7 @@ export default function DocumentEditorWorkspace({
       if (e.event === "document_request.claimed") { setReloadKey((k) => k + 1); return; }
       // "sent" is the same status change under the name the doc-chat
       // contract uses for it (§5 user events).
-      if (e.event === "document_request.completed" || e.event === "document_request.sent" || e.event === "document_request.meeting_created") {
+      if (e.event === "document_request.completed" || e.event === "document_request.sent" || e.event === "document_request.meeting_created" || e.event === "document_request.payment_approved") {
         setReqReloadKey((k) => k + 1);
       }
     });
@@ -1043,6 +1044,8 @@ export default function DocumentEditorWorkspace({
                       <IconPhone />
                       {req.clientPhone}
                     </a>
+                  ) : req.clientPhoneVisible === false ? (
+                    <PhoneLock reason={req.clientPhoneHiddenReason} aiId={`${ai}.details.phone-locked`} />
                   ) : (
                     <small className="advmuted">{t("noPhone")}</small>
                   )}

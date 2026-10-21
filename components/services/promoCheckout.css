@@ -26,3 +26,19 @@
 .promo__boost b{font-weight:800}
 .promo__boostx{display:inline-flex;padding:1px 8px;border-radius:999px;background:rgba(255,255,255,.14);color:#fff;font-size:.76rem;font-weight:800;white-space:nowrap}
 @media (prefers-reduced-motion:reduce){.promo__boost{animation:none}}
+.svprom__checkmsg{margin:0;font-size:.8rem;line-height:1.45;color:inherit}
+.svprom__face{display:inline-flex;align-items:center;gap:6px;justify-self:start;padding:3px 9px;border-radius:999px;background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1px currentColor;font-size:.74rem;font-weight:700;line-height:1.3}
+.svprom__face>svg{flex:none}
+.svprom__clear{display:inline-flex;align-items:center;gap:6px;justify-self:start;padding:6px 11px;border:0;border-radius:999px;background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1px var(--line);color:var(--gray);font:inherit;font-size:.76rem;font-weight:700;cursor:pointer;transition:color .16s ease,box-shadow .16s ease}
+.svprom__clear:hover{color:var(--ink);box-shadow:inset 0 0 0 1px var(--gray2)}
+.svprom__clear:focus-visible{outline:2px solid var(--dk-acc,var(--b600));outline-offset:2px}
+.svprom__clear:disabled{opacity:.5;cursor:default}
+.svprom__bannerform .svprom__urlnote{font-size:.72rem;line-height:1.4;color:var(--gray)}
+.svprom__bannerform input:disabled{opacity:.6}
+.svpdone__rows .svpdisc__terms{min-width:0;overflow-wrap:anywhere;font-size:.8rem;font-weight:700;color:var(--ink)}
+.promo__lapse{display:grid;gap:8px;margin:0 0 14px;padding:12px 14px;border-radius:14px;background:var(--dk-tint-warn,#FFF6E0);box-shadow:inset 0 0 0 1px var(--dk-bd-warn,#F3D9A4);color:var(--ink);animation:svprom-boost-in .42s cubic-bezier(.16,1,.3,1) both}
+.promo__lapse>b{display:flex;align-items:center;gap:8px;font-size:.9rem;font-weight:800;color:var(--dk-txt-warn,#8A5A00)}
+.promo__lapse>b>svg{flex:none;width:18px;height:18px}
+.promo__lapse>p{margin:0;font-size:.84rem;line-height:1.5;color:var(--ink)}
+.promo__lapseacts{display:flex;flex-wrap:wrap;gap:8px}
+@media (prefers-reduced-motion:reduce){.promo__lapse{animation:none}}

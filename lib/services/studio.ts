@@ -1062,6 +1062,13 @@ function renumbered(c: StudioConstructor, groups: readonly StudioGroup[], shrunk
   return at < 0 || !g ? c : { ...c, navigation: { ...nav, step: at + 1, steps: g.codes.length } };
 }
 
+function factorsMoved(rawGroups: readonly unknown[]): boolean {
+  const g = rawGroups.map((x) => asDict(x)).find((x) => first(x.key, x.id) === STUDIO_FACTORS_GROUP);
+  if (!g) return false;
+  const all = strings(g.codes).length ? strings(g.codes) : asArr(g.constructors).map((c) => first(asDict(c).code)).filter(Boolean);
+  return factorsFirst(liveCodes(all), (c) => c) !== null;
+}
+
 function factorsFirstNav(c: StudioConstructor, groups: readonly StudioGroup[]): StudioConstructor {
   const nav = c.navigation;
   if (!nav || nav.groupKey !== STUDIO_FACTORS_GROUP) return c;
@@ -1092,10 +1099,11 @@ function parseRegistry(res: unknown): StudioRegistry {
       .filter((g) => [...strings(g.codes), ...asArr(g.constructors).map((c) => first(asDict(c).code))].some(isRetiredStudioCode))
       .map((g) => first(g.key, g.id)),
   );
+  const moved = factorsMoved(asArr(d.groups));
   const items = all
     .filter((c) => !retired.has(c.code))
     .map((c) => renumbered(c, groups, shrunk))
-    .map((c) => factorsFirstNav(c, groups));
+    .map((c) => (moved ? factorsFirstNav(c, groups) : c));
   const listed = numOrNull(d.constructor_count);
   const constructorCount = listed === null ? null : Math.max(0, listed - retired.size);
   return { items, userRoles, groups, journeys, constructorCount };
@@ -1310,7 +1318,10 @@ export async function saveStudioObject(id: string, input: StudioSaveInput, url?:
   if (input.payload !== undefined) body.payload = input.payload;
   if (input.summary) body.summary = input.summary;
   if (input.version) body.version = input.version;
-  if (typeof input.expectedLockVersion === "number") body.expected_lock_version = input.expectedLockVersion;
+  if (typeof input.expectedLockVersion === "number") {
+    body.lock_version = input.expectedLockVersion;
+    body.expected_lock_version = input.expectedLockVersion;
+  }
   return normStudioDetail(await http(objectActionPath(id, "save", url), { method: "POST", body: JSON.stringify(body) }));
 }
 
@@ -2013,7 +2024,7 @@ export function studioErrorOf(e: unknown): StudioError {
   else if (e.status === 403) kind = "forbidden";
   else if (isRouteMissing(e)) kind = "missing";
   else if (e.status === 404) kind = "not_found";
-  else if (code === "studio_edit_conflict") kind = "edit_conflict";
+  else if (code === "studio_edit_conflict" || code === "studio_version_conflict") kind = "edit_conflict";
   else if (e.status === 409) kind = "conflict";
   else if (e.status === 422) kind = "validation";
   return { status: e.status, code, kind, message, fieldErrors };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { getPromotionStatus, getPromotionAnalytics, type PromotionAnalytics, type PromotionAnalyticsFilter, type PromotionPlacementKey } from "@/lib/services/backend";
 import Select from "@/components/Select";
@@ -13,18 +13,17 @@ import {
   parsePendingPromos,
   pendingPromoKey,
   pendingPromosRaw,
-  promoSignalOf,
   subscribePendingPromos,
   type ManagedServices,
   type ServiceScope,
 } from "@/lib/services/sellerServices";
-import { listPromotionPackages, type PromotionPlacement } from "@/lib/services/promotions";
+import { listPromotionPackages, promotionCheckoutSignal, type PromotionPlacement } from "@/lib/services/promotions";
 import { useResourceOne } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import PromoteServicesSection from "@/components/services/PromoteServicesSection";
 import PromoteModal from "@/components/services/PromoteModal";
 import { Skeleton } from "./DataState";
-import { IconRocket, IconEye, IconSearch, IconTarget, IconChat, IconClock, IconArrowRight } from "@/components/icons";
+import { IconRocket, IconEye, IconSearch, IconTarget, IconChat, IconClock, IconArrowRight, IconAlert } from "@/components/icons";
 import { PlacementSketch } from "@/components/services/bits";
 import { TrendingUpIcon } from "lucide-react";
 
@@ -66,6 +65,8 @@ export default function PromotionPanel() {
   const pendingRaw = useSyncExternalStore(subscribePendingPromos, () => pendingPromosRaw(uid), () => "");
   const pending = useMemo(() => parsePendingPromos(pendingRaw)[PROFILE_KEY] ?? null, [pendingRaw]);
   const [maxReach, setMaxReach] = useState(0);
+  const [lapse, setLapse] = useState<"campaign" | "cancelled" | null>(null);
+  const lastPlace = useRef<PromotionPlacement>("profile_boost");
 
   useEffect(() => {
     const c = new AbortController();
@@ -80,11 +81,14 @@ export default function PromotionPanel() {
   useEffect(() => {
     if (!uid) return;
     return subscribeUserEvents((ev) => {
-      const s = promoSignalOf(ev);
+      const s = promotionCheckoutSignal(ev);
       if (!s || s.kind === "pending" || s.serviceId) return;
-      const out = dropPendingPromos(uid, (k, p) => k === PROFILE_KEY && (!s.requestId || !p.requestId || p.requestId === s.requestId));
-      if (out.some(([, p]) => !s.requestId || p.requestId === s.requestId)) {
-        toast(ts(s.kind === "approved" ? "toast.profileApproved" : "toast.profileRejected"), { tone: s.kind === "approved" ? "ok" : "err" });
+      const out = dropPendingPromos(uid, (k, p) => k === PROFILE_KEY && (!s.ids.length || !p.requestId || s.ids.includes(p.requestId)));
+      if (out.length) {
+        if (s.kind === "approved") toast(ts("toast.profileApproved"), { tone: "ok" });
+        else if (s.lapsed) toast(ts("toast.campaignEnded"), { tone: "err" });
+        else toast(ts(s.kind === "cancelled" ? "toast.cancelled" : "toast.profileRejected"), { tone: "err" });
+        setLapse(s.kind === "approved" ? null : s.lapsed ? "campaign" : s.kind === "cancelled" ? "cancelled" : null);
       }
       setReloadKey((n) => n + 1);
     });
@@ -211,6 +215,34 @@ export default function PromotionPanel() {
             approves it in Telegram — so this is the only thing standing
             between the seller and silence. telegramSent false is worth saying
             out loud: it means they are waiting on a message nobody received. */}
+        {lapse && !pending ? (
+          <div className="promo__lapse" role="alert" data-ai-id="promotion.checkout-lapsed">
+            <b>
+              <IconAlert aria-hidden="true" />
+              {t("lapsedTitle")}
+            </b>
+            <p>{t(lapse === "campaign" ? "lapsedText" : "cancelledText")}</p>
+            <div className="promo__lapseacts">
+              <button
+                type="button"
+                className="btn btn--grad btn--sm"
+                onClick={() => {
+                  setLapse(null);
+                  setOpen(lastPlace.current);
+                }}
+                data-ai-id="promotion.checkout-lapsed.new"
+                data-ai-type="button"
+                data-ai-label={t("newCheckout")}
+              >
+                {t("newCheckout")}
+              </button>
+              <button type="button" className="btn btn--line btn--sm" onClick={() => setLapse(null)} data-ai-id="promotion.checkout-lapsed.dismiss" data-ai-type="button" data-ai-label={t("dismiss")}>
+                {t("dismiss")}
+              </button>
+            </div>
+          </div>
+        ) : null}
+
         {pending ? (
           <div className="promo__pend" role="status">
             <b><IconClock />{t("pendingTitle")}</b>
@@ -225,7 +257,7 @@ export default function PromotionPanel() {
 
         <div className="promo__places">
           {PLACES.map((p) => (
-            <button key={p.value} type="button" className={`promo__place${placeState(p.value)}`} onClick={() => setOpen(p.value)} data-ai-id={`promotion.place.${p.value}`} data-ai-type="button" data-ai-label={ts(`promote.${p.title}`)}>
+            <button key={p.value} type="button" className={`promo__place${placeState(p.value)}`} onClick={() => { lastPlace.current = p.value; setOpen(p.value); }} data-ai-id={`promotion.place.${p.value}`} data-ai-type="button" data-ai-label={ts(`promote.${p.title}`)}>
               <PlacementSketch placement={p.value} />
               <b>{ts(`promote.${p.title}`)}</b>
               <span>{ts(`promote.${p.hint}`)}</span>
@@ -253,6 +285,7 @@ export default function PromotionPanel() {
           onStale={() => setReloadKey((n) => n + 1)}
           onSent={(req) => {
             if (req.telegramSent) toast(ts("toast.promoSent"), { tone: "ok" });
+            setLapse(null);
             setReloadKey((n) => n + 1);
           }}
         />

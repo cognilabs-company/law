@@ -198,8 +198,12 @@ export type ServiceRule = {
   accepted: boolean;
   acceptedAt: string;
   inline?: boolean;
+  source?: string;
+  sellerOwn?: boolean;
   raw: Dict;
 };
+
+const SELLER_RULE_SOURCE_RE = /^seller([_-](selected|chosen|rule|own))?$/;
 
 export function normServiceRule(v: unknown): ServiceRule {
   const d = dictOf(v);
@@ -207,6 +211,7 @@ export function normServiceRule(v: unknown): ServiceRule {
   const serviceId = trimmed(d.service_id);
   const categoryId = trimmed(d.category_id);
   const scope = trimmed(d.scope_type ?? d.scope).toLowerCase();
+  const source = trimmed(d.source ?? d.rule_source).toLowerCase();
   return {
     id: trimmed(d.id ?? d.rule_id),
     ruleKey: trimmed(d.rule_key ?? d.key),
@@ -221,6 +226,8 @@ export function normServiceRule(v: unknown): ServiceRule {
     accepted: typeof d.accepted === "boolean" ? d.accepted : !!acceptedAt,
     acceptedAt,
     inline: serviceScoped(d, "inline", "is_inline", "service_only"),
+    source,
+    sellerOwn: SELLER_RULE_SOURCE_RE.test(source),
     raw: d,
   };
 }
@@ -475,7 +482,7 @@ export async function acceptServiceRule(ruleId: string, device: string = deviceL
 }
 
 export type SellerServiceConfigInput = { enabled?: boolean; selectedPrice?: number; negotiationAllowed?: boolean; selectedRuleIds?: string[] };
-export type SelectableRule = { id: string; title: string; bodyPreview: string; version: string };
+export type SelectableRule = { id: string; title: string; bodyPreview: string; version: string; body?: string; sellerSelectable?: boolean | null; source?: string; selected?: boolean | null; accepted?: boolean | null };
 export type SellerServiceConfig = {
   serviceId: string;
   enabled: boolean | null;
@@ -497,6 +504,7 @@ export type SellerServiceConfig = {
   priceExplanationLines: string[];
   selectableRules: SelectableRule[] | null;
   selectedRuleIds: string[] | null;
+  requiredRules?: ServiceRule[] | null;
   raw: Dict;
 };
 
@@ -518,7 +526,19 @@ function normSelectableRule(v: unknown): SelectableRule {
     title: trimmed(d.title ?? d.name),
     bodyPreview: trimmed(d.body_preview ?? d.preview ?? d.summary),
     version: trimmed(d.version ?? d.rule_version),
+    body: asStr(d.body ?? d.content ?? d.text),
+    sellerSelectable: boolOrNull(d.seller_selectable),
+    source: trimmed(d.source).toLowerCase(),
+    selected: boolOrNull(d.selected),
+    accepted: boolOrNull(d.accepted),
   };
+}
+
+export function selectableRuleTitles(cfg: Pick<SellerServiceConfig, "selectableRules" | "requiredRules"> | null, ids: readonly string[]): string[] {
+  const known = new Map<string, string>();
+  for (const r of cfg?.requiredRules ?? []) if (r.id && r.title) known.set(r.id, r.title);
+  for (const r of cfg?.selectableRules ?? []) if (r.id && r.title) known.set(r.id, r.title);
+  return ids.map((id) => known.get(id) ?? id);
 }
 
 function lineOf(v: unknown): string {
@@ -562,15 +582,20 @@ export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfi
   const src = Object.keys(c).length ? c : d;
   const ex = explanationOf(d.price_explanation ?? src.price_explanation);
   const lim = dictOf(src.limits ?? src.price_limits ?? src.pricing ?? d.limits ?? d.price_limits ?? d.pricing);
-  const rules = rulesStateOf(src.rules_accepted, d.rules_accepted, src.rules_acceptance, d.rules_acceptance, src.rules, d.rules);
+  const requiredRaw = src.required_rules ?? d.required_rules;
+  const requiredRules = Array.isArray(requiredRaw) ? requiredRaw.map(normServiceRule).filter((r) => r.id || r.title) : null;
+  const rules = rulesStateOf(src.rules_accepted, d.rules_accepted, src.rules_acceptance, d.rules_acceptance, requiredRules?.length ? requiredRaw : null, src.rules, d.rules);
   const flatMissing = idList(firstArr(src.missing_rule_ids, d.missing_rule_ids));
-  const missingRuleIds = rules.missing.length ? rules.missing : flatMissing;
   const rulesAccepted = rules.accepted ?? (flatMissing.length ? false : null);
+  const requiredMissing = rulesAccepted === false && requiredRules ? requiredRules.filter((r) => !r.accepted && r.id).map((r) => r.id) : [];
+  const missingRuleIds = rules.missing.length ? rules.missing : flatMissing.length ? flatMissing : requiredMissing;
   const status = trimmed(src.status ?? d.status).toLowerCase();
   const rulesStatus = trimmed(src.rules_status ?? d.rules_status).toLowerCase();
   const discount = numOrNull(src.maximum_listing_discount_percent ?? d.maximum_listing_discount_percent ?? lim.maximum_listing_discount_percent);
   const selectable = src.selectable_rules ?? d.selectable_rules;
   const chosen = src.selected_rule_ids ?? d.selected_rule_ids;
+  const selectableRules = Array.isArray(selectable) ? selectable.map(normSelectableRule).filter((r) => r.id && r.sellerSelectable !== false) : null;
+  const selectedRuleIds = Array.isArray(chosen) ? idList(chosen) : selectableRules && selectableRules.some((r) => r.selected === true) ? selectableRules.filter((r) => r.selected === true).map((r) => r.id) : null;
   return {
     serviceId: trimmed(src.service_id ?? d.service_id) || serviceId,
     enabled: boolOrNull(src.enabled ?? src.is_enabled ?? src.is_active),
@@ -590,8 +615,9 @@ export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfi
     missingRuleIds,
     priceExplanation: ex.text,
     priceExplanationLines: ex.lines,
-    selectableRules: Array.isArray(selectable) ? selectable.map(normSelectableRule).filter((r) => r.id) : null,
-    selectedRuleIds: Array.isArray(chosen) ? idList(chosen) : null,
+    selectableRules,
+    selectedRuleIds,
+    requiredRules,
     raw: d,
   };
 }
@@ -613,7 +639,7 @@ export type LocationShareInput =
 export type LocationPolicy = { foregroundIntervalSec: number; backgroundIntervalSec: number; staleAfterSec: number; retentionDays: number };
 export type LocationShareState = { enabled: boolean; durationHours: number | null; expiresAt: string; updatedAt: string; freshUntil: string; accuracyMeters: number | null; policy: LocationPolicy; raw: Dict };
 
-const STALE_KEYS = ["stale_after_seconds", "stale_after", "stale_seconds"];
+const STALE_KEYS = ["stale_after_sec", "stale_after_seconds", "stale_after", "stale_seconds"];
 
 export const DEFAULT_LOCATION_POLICY: LocationPolicy = { foregroundIntervalSec: 300, backgroundIntervalSec: 600, staleAfterSec: 1200, retentionDays: 30 };
 
@@ -655,8 +681,8 @@ export function normLocationState(v: unknown): LocationShareState {
     freshUntil: trimmed(src.fresh_until ?? d.fresh_until) || derivedFresh,
     accuracyMeters: numOrNull(src.accuracy_meters ?? last.accuracy_meters),
     policy: {
-      foregroundIntervalSec: secondsOf(pol, ["foreground_update_interval_seconds", "foreground_interval_seconds", "foreground_update_interval", "foreground_interval", "update_interval_seconds"], DEFAULT_LOCATION_POLICY.foregroundIntervalSec),
-      backgroundIntervalSec: secondsOf(pol, ["background_update_interval_seconds", "background_interval_seconds", "background_update_interval", "background_interval"], DEFAULT_LOCATION_POLICY.backgroundIntervalSec),
+      foregroundIntervalSec: secondsOf(pol, ["foreground_interval_sec", "foreground_update_interval_seconds", "foreground_interval_seconds", "foreground_update_interval", "foreground_interval", "update_interval_seconds"], DEFAULT_LOCATION_POLICY.foregroundIntervalSec),
+      backgroundIntervalSec: secondsOf(pol, ["background_interval_sec", "background_update_interval_seconds", "background_interval_seconds", "background_update_interval", "background_interval"], DEFAULT_LOCATION_POLICY.backgroundIntervalSec),
       staleAfterSec,
       retentionDays: secondsOf(pol, ["retention_days", "retention_period_days", "retention"], DEFAULT_LOCATION_POLICY.retentionDays),
     },

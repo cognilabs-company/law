@@ -39,9 +39,22 @@ const LOCAL_FALLBACK: Readonly<Record<string, string>> = {
   "M2:object_id": "local:studio-objects",
 };
 
+const PENDING_PATHS: ReadonlySet<string> = new Set(["K02:document_template_id"]);
+export const PENDING_PARAM = "include_pending";
+
 const ROLE_KEY = /^(role|roles)$|_roles?$/;
 const own = Object.prototype.hasOwnProperty;
 const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+
+export function withPending(source: string): string {
+  const raw = String(source ?? "").trim();
+  if (!raw || raw.startsWith("local:")) return raw;
+  const [path, query = ""] = raw.split("?");
+  const params = new URLSearchParams(query);
+  if (params.get(PENDING_PARAM) === "true") return raw;
+  params.set(PENDING_PARAM, "true");
+  return `${path}?${params}`;
+}
 
 function normPattern(pattern: string): string {
   return String(pattern ?? "")
@@ -71,7 +84,7 @@ export function fieldSource(code: string, pattern: string, scope: SxValues, sche
     if (own.call(REMOTE_FALLBACK, id)) return REMOTE_FALLBACK[id];
     if (own.call(LOCAL_FALLBACK, id)) return LOCAL_FALLBACK[id];
   }
-  return base;
+  return PENDING_PATHS.has(id) ? withPending(base) : base;
 }
 
 type Producer = { code: string; to: "new" | "list" };

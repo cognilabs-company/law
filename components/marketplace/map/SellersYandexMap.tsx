@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useEffectEvent, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { IconClose, IconMapPin, IconMinus, IconPlus, IconRefresh, IconStarRate, IconTarget, IconUsers } from "@/components/icons";
+import { IconBuilding, IconClose, IconMapPin, IconMinus, IconPlus, IconRefresh, IconStarRate, IconTarget, IconUsers } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 import { regionLabel } from "@/lib/labels";
 import { humanizeSlug, initials } from "@/lib/lawyers";
@@ -20,10 +20,16 @@ import {
   isEmptyMap,
   layoutOf,
   lngLatOf,
+  loadMapSellerInfo,
+  mapSellerInfoServerSnapshot,
+  mapSellerInfoSnapshot,
+  mapSellerView,
   sellersMapFailureOf,
   SPOT_ZOOM,
+  subscribeMapSellerInfo,
   yandexLang,
   zoomForCluster,
+  type LocationSource,
   type MapBbox,
   type MapCluster,
   type MapConfig,
@@ -97,12 +103,15 @@ export default function SellersYandexMap({
   const [selected, setSelected] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
-  const nameOf = (s: MapSeller) => s.name || known(s.sellerUserId)?.name || tn("map.unnamed");
+  const info = useSyncExternalStore(subscribeMapSellerInfo, mapSellerInfoSnapshot, mapSellerInfoServerSnapshot);
+  const viewOf = (s: MapSeller) => mapSellerView(s, s.sellerUserId ? known(s.sellerUserId) : null, s.sellerUserId ? info.get(s.sellerUserId) : null);
+  const nameOf = (s: MapSeller) => viewOf(s).name || tn("map.unnamed");
+  const srcText = (src: LocationSource) => (src ? t(`src.${src}`) : "");
 
   const fail = useEffectEvent(() => onFail());
   const startup = useEffectEvent(() => ({ theme, center: config.center, zoom: config.zoom, debounce: config.debounceMs, lang: yandexLang(locale) }));
   const motion = useEffectEvent((ms: number) => (still ? 0 : ms));
-  const pinTitle = useEffectEvent((s: MapSeller) => t("approx", { name: nameOf(s) }));
+  const pinTitle = useEffectEvent((s: MapSeller) => (s.source ? t(`pin.${s.source}`, { name: nameOf(s) }) : t("approx", { name: nameOf(s) })));
   const pinText = useEffectEvent((s: MapSeller) => initials(nameOf(s)) || "LG");
   const groupTitle = useEffectEvent((n: number) => t("cluster", { n }));
   const meTitle = useEffectEvent(() => tn("map.you"));
@@ -219,7 +228,8 @@ export default function SellersYandexMap({
     const pins = new Map<string, HTMLElement>();
     for (const s of layout.singles) {
       const el = document.createElement("span");
-      el.className = s.sellerUserId ? "ymk-pin" : "ymk-pin ymk-pin--mute";
+      el.className = `ymk-pin${s.sellerUserId ? "" : " ymk-pin--mute"}${s.source === "office" ? " ymk-pin--office" : ""}`;
+      if (s.source) el.dataset.src = s.source;
       el.title = pinTitle(s);
       const inner = document.createElement("span");
       inner.className = "ymk-pin__in";
@@ -261,6 +271,18 @@ export default function SellersYandexMap({
       }
     };
   }, [ready, layout]);
+
+  useEffect(() => {
+    if (!ready || !layout) return;
+    void info;
+    for (const s of layout.singles) {
+      const el = s.sellerUserId ? pinsRef.current.get(s.sellerUserId) : undefined;
+      if (!el) continue;
+      el.title = pinTitle(s);
+      const inner = el.firstElementChild;
+      if (inner) inner.textContent = pinText(s);
+    }
+  }, [ready, layout, info]);
 
   useEffect(() => {
     for (const [id, el] of pinsRef.current) el.classList.toggle("is-on", id === selected);
@@ -306,14 +328,25 @@ export default function SellersYandexMap({
 
   const listed = shown ? shown.sellers.filter((s) => s.sellerUserId) : [];
   const precM = precisionMeters(shown?.precision || "approximate_500m");
+  const sources = new Set(listed.map((s) => s.source).filter(Boolean));
+  const wantKey = [...listed.slice(0, LIST_MAX), ...(sel ? [sel] : [])]
+    .filter((s) => !s.name && !known(s.sellerUserId)?.name)
+    .map((s) => s.sellerUserId)
+    .filter((id, i, all) => all.indexOf(id) === i)
+    .join("|");
+
+  useEffect(() => {
+    if (wantKey) loadMapSellerInfo(wantKey.split("|"));
+  }, [wantKey]);
 
   const renderCard = (s: MapSeller) => {
     const id = s.sellerUserId;
-    const k = known(id);
-    const name = nameOf(s);
-    const type = s.sellerType || k?.sellerType || "";
-    const region = s.region || k?.region || "";
-    const price = k && k.priceFrom > 0 ? k.priceFrom : 0;
+    const v = viewOf(s);
+    const name = v.name || tn("map.unnamed");
+    const type = v.sellerType;
+    const region = v.region;
+    const price = v.priceFrom;
+    const pending = !v.name && info.get(id) === undefined;
     const href = `${base}/${encodeURIComponent(id)}`;
     return (
       <section
@@ -321,6 +354,7 @@ export default function SellersYandexMap({
         tabIndex={-1}
         className="ymk-card"
         aria-label={t("selected")}
+        aria-busy={pending || undefined}
         onKeyDown={(e) => {
           if (e.key === "Escape") {
             e.stopPropagation();
@@ -332,23 +366,29 @@ export default function SellersYandexMap({
         data-ai-entity-type="seller"
         data-ai-entity-id={id}
       >
-        <Monogram name={name} rating={s.rating} showRing={s.rating > 0} />
+        <Monogram name={name} rating={v.rating} showRing={v.rating > 0} />
         <div className="ymk-card__who">
           <span className="ymk-card__title">
             <b>{name}</b>
-            {s.verified ? <VerifiedBadge label={false} name={name} subtitle={type ? sellerTypeLabel(tm, type) : undefined} /> : null}
+            {v.verified ? <VerifiedBadge label={false} name={name} subtitle={type ? sellerTypeLabel(tm, type) : undefined} /> : null}
           </span>
           <span className="ymk-card__sub">
             {type ? <span>{sellerTypeLabel(tm, type)}</span> : null}
             {region ? <span>{regionLabel(te, /[_-]/.test(region) ? humanizeSlug(region) : region)}</span> : null}
-            {s.rating > 0 ? (
+            {v.rating > 0 ? (
               <span className="ymk-card__rate">
                 <IconStarRate aria-hidden="true" />
-                {fmtRating(s.rating, locale)}
-                {s.reviewsCount > 0 ? <small>({tm("card.reviews", { count: s.reviewsCount })})</small> : null}
+                {fmtRating(v.rating, locale)}
+                {v.reviewsCount > 0 ? <small>({tm("card.reviews", { count: v.reviewsCount })})</small> : null}
               </span>
             ) : null}
           </span>
+          {s.source ? (
+            <span className="ymk-card__src" data-src={s.source} data-ai-id="marketplace.map.card.source">
+              {s.source === "office" ? <IconBuilding aria-hidden="true" /> : <IconMapPin aria-hidden="true" />}
+              {srcText(s.source)}
+            </span>
+          ) : null}
           {price ? <b className="ymk-card__price">{tm("card.priceFrom", { price: fmtUzs(price) })}</b> : null}
           <Link href={href} className="btn btn--grad btn--sm ymk-card__go" data-ai-id="marketplace.map.card.profile">
             {t("profile")}
@@ -366,6 +406,18 @@ export default function SellersYandexMap({
       <div className="ymk-status" aria-live="polite">
         {shown && !failed ? <b className="ymk-status__n">{t("count", { n: shown.total })}</b> : null}
         <span className="ymk-status__prec">{t("precision", { m: precM })}</span>
+        {sources.size && !failed ? (
+          <span className="ymk-legend" data-ai-id="marketplace.map.legend">
+            {(["live", "office"] as const)
+              .filter((src) => sources.has(src))
+              .map((src) => (
+                <span key={src} className="ymk-legend__i">
+                  <i className="ymk-legend__k" data-src={src} aria-hidden="true" />
+                  {srcText(src)}
+                </span>
+              ))}
+          </span>
+        ) : null}
         {shown?.truncated && !failed ? <span className="ymk-status__more">{t("truncated")}</span> : null}
       </div>
       <p className="sr-only" role="status">
@@ -431,27 +483,31 @@ export default function SellersYandexMap({
           <h3 id={`${uid}-l`}>{t("listTitle")}</h3>
           <ul ref={listRef} aria-labelledby={`${uid}-l`} data-ai-id="marketplace.map.list" data-ai-type="list">
             {listed.slice(0, LIST_MAX).map((s) => {
-              const name = nameOf(s);
+              const v = viewOf(s);
+              const name = v.name || tn("map.unnamed");
               return (
                 <li key={s.sellerUserId}>
                   <button
                     type="button"
                     aria-pressed={selected === s.sellerUserId}
                     onClick={() => setSelected(s.sellerUserId)}
+                    title={s.source ? srcText(s.source) : undefined}
+                    data-src={s.source || undefined}
                     data-seller={s.sellerUserId}
                     data-ai-id={aiId("marketplace.map.seller", s.sellerUserId)}
                     data-ai-type="list_item"
                     data-ai-entity-type="seller"
                     data-ai-entity-id={s.sellerUserId}
                   >
-                    <Monogram name={name} rating={s.rating} showRing={s.rating > 0} />
+                    <Monogram name={name} rating={v.rating} showRing={v.rating > 0} />
                     <span>{name}</span>
-                    {s.rating > 0 ? (
+                    {v.rating > 0 ? (
                       <small className="ymk-list__rate">
                         <IconStarRate aria-hidden="true" />
-                        {fmtRating(s.rating, locale)}
+                        {fmtRating(v.rating, locale)}
                       </small>
                     ) : null}
+                    {s.source ? <span className="sr-only">{srcText(s.source)}</span> : null}
                   </button>
                 </li>
               );

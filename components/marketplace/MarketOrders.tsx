@@ -36,6 +36,7 @@ import { OptionLines, RatingPanel, ResultBlock, SupplementalPanel } from "./Orde
 import { dealAmount as dealOf } from "./order/negotiationRules";
 import ContactAdvocate, { callStateOf } from "./order/ContactAdvocate";
 import { useContactSpeedText } from "./order/contactSpeed";
+import { clientPhoneShow, telHref } from "./order/phone";
 import "./order/cards.css";
 
 type View = "client" | "seller";
@@ -368,8 +369,7 @@ function OrderCard({
   const [callErr, setCallErr] = useState("");
   const counterpart = view === "client" ? o.lawyerName : o.clientName;
   const counterpartId = view === "client" ? o.lawyerUserId : o.clientUserId;
-  const paid = o.paymentStatus === "paid";
-  const phone = view === "seller" ? o.clientPhone : o.lawyerPhone;
+  const phoneShow = clientPhoneShow(o);
   const chatHref = marketChatHref(o);
   const contact = view === "client" && o.canStartChat;
   const speed = speedText(o);
@@ -473,7 +473,7 @@ function OrderCard({
           {view === "seller" ? (
             <div>
               <dt>{t("phone")}</dt>
-              <dd>{paid && phone ? <a href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{phone}</a> : <span className="mk-muted">{t("phoneHidden")}</span>}</dd>
+              <dd>{phoneShow === "show" ? <a href={telHref(o.clientPhone)}>{o.clientPhone}</a> : <span className="mk-muted">{phoneShow === "none" ? "—" : phoneShow === "hidden" ? t("phoneConcealed") : t("phoneHidden")}</span>}</dd>
             </div>
           ) : null}
           {o.preferredChannel ? (
@@ -491,7 +491,7 @@ function OrderCard({
               </dd>
             </div>
           ) : null}
-          {o.preferredTime ? (
+          {o.preferredTime && !speed ? (
             <div>
               <dt>{t("time")}</dt>
               <dd>
@@ -530,7 +530,7 @@ function OrderCard({
 
         <div className="mk-order__acts">
           {contact ? (
-            <ContactAdvocate tone="site" size="sm" chatHref={chatHref} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={counterpartId} calls={stage === "cancelled" || stage === "completed" ? "closed" : callStateOf(o)} aiId={sub("contact") ?? "marketplace.orders.item.contact"} chatAiId={sub("chat")} />
+            <ContactAdvocate tone="site" size="sm" chatHref={chatHref} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={counterpartId} calls={stage === "cancelled" || stage === "completed" ? "closed" : callStateOf(o)} callTypes={o.callTypes} aiId={sub("contact") ?? "marketplace.orders.item.contact"} chatAiId={sub("chat")} />
           ) : o.canStartChat ? (
             <Link href={chatHref} className="btn btn--pri btn--sm" data-ai-id={sub("chat")} data-ai-label={t("openChat")}>
               <IconChat />
@@ -539,14 +539,18 @@ function OrderCard({
           ) : null}
           {!contact && o.canCreateCall && o.callsAllowed && stage !== "cancelled" && stage !== "completed" ? (
             <span className="mk-callgrp" role="group" aria-label={t("call")} data-ai-id={sub("call")} data-ai-type="call_button" data-ai-label={t("call")}>
-              <button type="button" className="btn btn--line btn--sm" disabled={!!calling} onClick={() => void call("audio")}>
-                <IconPhone />
-                {calling === "audio" ? t("calling") : t("audio")}
-              </button>
-              <button type="button" className="btn btn--line btn--sm" disabled={!!calling} onClick={() => void call("video")}>
-                <IconVideo />
-                {calling === "video" ? t("calling") : t("video")}
-              </button>
+              {o.callTypes.includes("audio") ? (
+                <button type="button" className="btn btn--line btn--sm" disabled={!!calling} onClick={() => void call("audio")}>
+                  <IconPhone />
+                  {calling === "audio" ? t("calling") : t("audio")}
+                </button>
+              ) : null}
+              {o.callTypes.includes("video") ? (
+                <button type="button" className="btn btn--line btn--sm" disabled={!!calling} onClick={() => void call("video")}>
+                  <IconVideo />
+                  {calling === "video" ? t("calling") : t("video")}
+                </button>
+              ) : null}
             </span>
           ) : null}
           {view === "seller" && stage === "active" && !o.workPaused && (o.serviceId || o.packageId) ? (

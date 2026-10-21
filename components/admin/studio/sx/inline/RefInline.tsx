@@ -11,7 +11,7 @@ import type { PickerManage } from "../form/Picker";
 import { dropReferenceCache } from "../form/useReferenceOptions";
 import { PlusIcon } from "../icons";
 import { useInlineDepth } from "./context";
-import { inlineKeys, inlineKindOf, mergeValue, type InlineContext, type InlinePending } from "./model";
+import { inlineKeys, inlineKindOf, mergeValue, pendingPick, picksPending, publishedPick, type InlineContext, type InlinePending } from "./model";
 import { PendingChips } from "./PendingChips";
 import { useInlineEditing } from "./useInlineEditing";
 
@@ -44,6 +44,9 @@ export function useRefInline({ source, formCode, owner, pattern, multiple, value
     changeRef.current = onChange;
   });
 
+  const kind = inlineKindOf(code);
+  const keepsPending = picksPending(kind);
+
   const onPublished = (item: InlinePending, runtimeId: string) => {
     dropReferenceCache(source);
     setRefresh((n) => n + 1);
@@ -54,16 +57,26 @@ export function useRefInline({ source, formCode, owner, pattern, multiple, value
     }
     const cur = valuesRef.current;
     if (item.isNew) {
-      changeRef.current(mergeValue(multiple, cur, runtimeId));
-      notify.success(t("sx.inline.toast.selected", { name }));
+      const next = keepsPending ? publishedPick(multiple, cur, item, runtimeId) : mergeValue(multiple, cur, runtimeId);
+      if (next) changeRef.current(next);
+      notify.success(t(next ? "sx.inline.toast.selected" : "sx.inline.toast.published", { name }));
       return;
     }
     if (item.value && runtimeId !== item.value && cur.includes(item.value)) changeRef.current(cur.map((v) => (v === item.value ? runtimeId : v)));
     notify.success(t("sx.inline.toast.updated", { name }));
   };
 
-  const ed = useInlineEditing({ code, formCode, owner, pattern, context, enabled: on, onPublished });
-  const kind = inlineKindOf(code);
+  const onSettled = (item: InlinePending) => {
+    if (!keepsPending) return;
+    const next = pendingPick(multiple, valuesRef.current, item);
+    if (!next) return;
+    dropReferenceCache(source);
+    setRefresh((n) => n + 1);
+    changeRef.current(next);
+    notify.success(t("sx.inline.toast.pendingSelected", { name: item.title || t("sx.ui.untitled") }));
+  };
+
+  const ed = useInlineEditing({ code, formCode, owner, pattern, context, enabled: on, onPublished, onSettled });
   if (!on || !kind || !ed.canManage) return null;
   const k = inlineKeys(kind);
   const add = addKey && t.has(addKey) ? t(addKey) : t(k.add);

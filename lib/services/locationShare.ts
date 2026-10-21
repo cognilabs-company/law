@@ -19,10 +19,12 @@ export type ShareSnapshot = {
   lastSentAt: number | null;
   lastAccuracy: number | null;
   policy: LocationPolicy;
+  sources: string[];
   error: ShareError | null;
   permission: SharePermission;
   server: ServerShare | null;
 };
+export type ShareNotices = { expired?: () => void; denied?: () => void };
 
 export const SHARE_STORE_KEY = (uid: string): string => `lexgo_loc_share_${uid}`;
 export const FIX_MAX_AGE_MS = 60_000;
@@ -47,6 +49,7 @@ const BLANK: ShareSnapshot = {
   lastSentAt: null,
   lastAccuracy: null,
   policy: DEFAULT_LOCATION_POLICY,
+  sources: [],
   error: null,
   permission: "unknown",
   server: null,
@@ -262,17 +265,51 @@ function expiryOf(expiresAt: string, hours: LocationDuration, now: number): numb
   return Number.isFinite(parsed) && parsed > now ? parsed : now + hours * HOUR_MS;
 }
 
+type Raw = Record<string, unknown>;
+const rawDict = (v: unknown): Raw => (v && typeof v === "object" && !Array.isArray(v) ? (v as Raw) : {});
+const positive = (v: unknown): number | null => {
+  const n = typeof v === "number" ? v : typeof v === "string" && v.trim() ? Number(v) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+function policyDict(res: LocationShareState): Raw {
+  const raw = rawDict(res.raw);
+  const nested = rawDict(raw.location_sharing ?? raw.sharing ?? raw.state);
+  for (const v of [raw.policy, nested.policy, raw.location_policy]) {
+    const d = rawDict(v);
+    if (Object.keys(d).length) return d;
+  }
+  return raw;
+}
+
+export function policyOf(res: LocationShareState): LocationPolicy {
+  const p = policyDict(res);
+  return {
+    foregroundIntervalSec: positive(p.foreground_interval_sec) ?? res.policy.foregroundIntervalSec,
+    backgroundIntervalSec: positive(p.background_interval_sec) ?? res.policy.backgroundIntervalSec,
+    staleAfterSec: positive(p.stale_after_sec) ?? res.policy.staleAfterSec,
+    retentionDays: positive(p.retention_days) ?? res.policy.retentionDays,
+  };
+}
+
+export function policySourcesOf(res: LocationShareState): string[] {
+  const v = policyDict(res).sources;
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim().toLowerCase()) : [];
+}
+
 function serverOf(res: LocationShareState, now: number): ServerShare {
   const exp = res.expiresAt ? parseServerTime(res.expiresAt) : NaN;
   const live = res.enabled && (!Number.isFinite(exp) || exp > now);
   const upd = res.updatedAt ? parseServerTime(res.updatedAt) : NaN;
   const fresh = res.freshUntil ? parseServerTime(res.freshUntil) : NaN;
+  const staleSec = positive(policyDict(res).stale_after_sec);
+  const derived = staleSec !== null && Number.isFinite(upd) ? upd + staleSec * 1000 : NaN;
   return {
     enabled: live,
     until: live && Number.isFinite(exp) ? exp : null,
     manual: live && !Number.isFinite(exp),
     updatedAt: Number.isFinite(upd) ? upd : null,
-    freshUntil: Number.isFinite(fresh) ? fresh : null,
+    freshUntil: Number.isFinite(fresh) ? fresh : Number.isFinite(derived) ? derived : null,
     accuracy: res.accuracyMeters,
     at: now,
   };
@@ -289,22 +326,24 @@ export function syncLocationShare(uid: string, opts: { force?: boolean } = {}): 
       const res = await getLocationSharing();
       if (state.uid !== uid) return;
       const server = serverOf(res, Date.now());
+      const policy = policyOf(res);
+      const sources = policySourcesOf(res);
       if (gen !== generation || state.mode === "starting" || state.mode === "stopping") {
         set({ server });
         return;
       }
       if (state.mode === "on" && !server.enabled) {
         stopLocally(uid);
-        set({ server, policy: res.policy });
+        set({ server, policy, sources });
         return;
       }
       if (state.mode === "on") {
         const until = state.manual ? state.until : (server.until ?? state.until);
         if (!state.manual && until !== state.until) writeStored(uid, { until, manual: false });
-        set({ server, policy: res.policy, until });
+        set({ server, policy, sources, until });
         return;
       }
-      set({ server, policy: res.policy, mode: state.mode === "unknown" ? "off" : state.mode });
+      set({ server, policy, sources, mode: state.mode === "unknown" ? "off" : state.mode });
     } catch {
       return;
     }
@@ -326,7 +365,8 @@ export async function startSharing(uid: string, durationHours: LocationDuration,
     const until = expiryOf(res.expiresAt, durationHours, now);
     writeStored(uid, { until, manual });
     lastAttemptAt = now;
-    set({ mode: "on", until, manual, policy: res.policy, lastSentAt: now, lastAccuracy: fix.accuracy, error: null, permission: "granted", server: { enabled: true, until, manual, updatedAt: now, freshUntil: null, accuracy: fix.accuracy, at: now } });
+    const sources = policySourcesOf(res);
+    set({ mode: "on", until, manual, policy: policyOf(res), sources: sources.length ? sources : state.sources, lastSentAt: now, lastAccuracy: fix.accuracy, error: null, permission: "granted", server: { enabled: true, until, manual, updatedAt: now, freshUntil: null, accuracy: fix.accuracy, at: now } });
   } catch (e) {
     if (gen === generation && state.uid === uid) set({ mode: prev, error: serverError(e, "server") });
     throw e;
@@ -363,23 +403,36 @@ function stopLocally(uid: string): void {
   set({ mode: "off", until: null, manual: false });
 }
 
-async function expire(uid: string, notice: () => void): Promise<void> {
-  if (state.uid !== uid || state.mode !== "on") return;
-  stopLocally(uid);
-  notice();
+async function sendOff(uid: string): Promise<void> {
   const gen = generation;
   try {
     await setLocationSharing({ enabled: false });
+    if (gen === generation && state.uid === uid && state.server) set({ server: { ...state.server, enabled: false, until: null, manual: false, at: Date.now() } });
   } catch (e) {
     if (gen === generation && state.uid === uid && !(e instanceof ApiError && (e.status === 401 || e.status === 403))) set({ error: serverError(e, "stop") });
   }
 }
 
-async function tick(uid: string, notice: () => void): Promise<void> {
+async function expire(uid: string, notices: ShareNotices): Promise<void> {
+  if (state.uid !== uid || state.mode !== "on") return;
+  stopLocally(uid);
+  notices.expired?.();
+  await sendOff(uid);
+}
+
+async function deny(uid: string, notices: ShareNotices): Promise<void> {
+  if (state.uid !== uid || state.mode !== "on") return;
+  stopLocally(uid);
+  set({ permission: "denied", error: { kind: "denied", code: "", message: "" } });
+  notices.denied?.();
+  await sendOff(uid);
+}
+
+async function tick(uid: string, notices: ShareNotices): Promise<void> {
   if (state.uid !== uid || state.mode !== "on" || inflight) return;
   const now = Date.now();
   if (!state.manual && state.until !== null && now >= state.until) {
-    await expire(uid, notice);
+    await expire(uid, notices);
     return;
   }
   const gen = generation;
@@ -387,7 +440,11 @@ async function tick(uid: string, notice: () => void): Promise<void> {
   const run = (async () => {
     const perm = await queryPermission();
     if (gen !== generation) return;
-    if (perm === "prompt" || perm === "denied") {
+    if (perm === "denied") {
+      await deny(uid, notices);
+      return;
+    }
+    if (perm === "prompt") {
       set({ permission: perm, error: { kind: "denied", code: "", message: "" } });
       return;
     }
@@ -399,7 +456,10 @@ async function tick(uid: string, notice: () => void): Promise<void> {
     try {
       fix = await readPosition({ maximumAgeMs: 60_000 });
     } catch (e) {
-      if (gen === generation) set({ error: { kind: geoErrorKind(e), code: "", message: "" } });
+      if (gen !== generation) return;
+      const kind = geoErrorKind(e);
+      if (kind === "denied") await deny(uid, notices);
+      else set({ error: { kind, code: "", message: "" } });
       return;
     }
     if (gen !== generation || state.mode !== "on" || state.uid !== uid) return;
@@ -408,7 +468,8 @@ async function tick(uid: string, notice: () => void): Promise<void> {
     try {
       const res = await setLocationSharing({ enabled: true, durationHours: hours, latitude: fix.latitude, longitude: fix.longitude, accuracyMeters: fix.accuracy, source: "foreground" });
       if (gen !== generation || state.uid !== uid) return;
-      set({ lastSentAt: Date.now(), lastAccuracy: fix.accuracy, policy: res.policy, error: null, permission: perm === "unknown" ? state.permission : perm });
+      const sources = policySourcesOf(res);
+      set({ lastSentAt: Date.now(), lastAccuracy: fix.accuracy, policy: policyOf(res), sources: sources.length ? sources : state.sources, error: null, permission: perm === "unknown" ? state.permission : perm });
     } catch (e) {
       if (gen !== generation || state.uid !== uid) return;
       if (e instanceof ApiError && (e.status === 401 || e.status === 403)) {
@@ -430,7 +491,7 @@ function isVisible(): boolean {
   return typeof document === "undefined" || document.visibilityState !== "hidden";
 }
 
-function startRunner(uid: string, notice: () => void): () => void {
+function startRunner(uid: string, notices: ShareNotices): () => void {
   const token = ++runnerToken;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let expiryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -449,7 +510,7 @@ function startRunner(uid: string, notice: () => void): () => void {
   const fire = () => {
     timer = null;
     if (!live() || !isVisible()) return;
-    void tick(uid, notice).finally(() => {
+    void tick(uid, notices).finally(() => {
       if (live() && isVisible()) schedule(intervalMs());
     });
   };
@@ -467,7 +528,7 @@ function startRunner(uid: string, notice: () => void): () => void {
   if (!state.manual && state.until !== null) {
     expiryTimer = setTimeout(() => {
       expiryTimer = null;
-      if (!stopped && token === runnerToken) void expire(uid, notice);
+      if (!stopped && token === runnerToken) void expire(uid, notices);
     }, Math.min(MAX_TIMER_MS, Math.max(0, state.until - Date.now())));
   }
   document.addEventListener("visibilitychange", onVisibility);
@@ -480,7 +541,7 @@ function startRunner(uid: string, notice: () => void): () => void {
   };
 }
 
-export function useLocationRunner(uid: string, enabled: boolean, expiredText?: string): void {
+export function useLocationRunner(uid: string, enabled: boolean, expiredText?: string, deniedText?: string): void {
   const s = useLocationShare(uid);
   const active = enabled && !!uid && s.mode === "on";
   const until = s.until;
@@ -491,10 +552,15 @@ export function useLocationRunner(uid: string, enabled: boolean, expiredText?: s
     void until;
     void manual;
     void interval;
-    return startRunner(uid, () => {
-      if (expiredText) notify.info(expiredText);
+    return startRunner(uid, {
+      expired: () => {
+        if (expiredText) notify.info(expiredText);
+      },
+      denied: () => {
+        if (deniedText) notify.error(deniedText);
+      },
     });
-  }, [active, uid, until, manual, interval, expiredText]);
+  }, [active, uid, until, manual, interval, expiredText, deniedText]);
 }
 
 export function resetLocationShare(): void {

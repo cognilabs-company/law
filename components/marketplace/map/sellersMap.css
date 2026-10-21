@@ -30,6 +30,18 @@
 .ymk-pin:hover,.ymk-pin.is-on{z-index:2;transform:translate(-50%,-50%) scale(1.14);box-shadow:0 0 0 3px var(--dk-acc, var(--b600)),0 10px 22px -8px rgba(11,31,69,.6)}
 .ymk-pin--mute{cursor:default}
 .ymk-pin--mute .ymk-pin__in{background:var(--gray)}
+.ymk-pin--office{border-radius:12px;box-shadow:0 0 0 3px color-mix(in srgb,var(--dk-acc, var(--b600)) 40%,transparent),0 6px 14px -6px rgba(11,31,69,.55)}
+.ymk-pin--office .ymk-pin__in{border-radius:9px}
+
+.ymk-legend{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px 12px;font-size:.8rem;color:var(--gray)}
+.ymk-legend__i{display:inline-flex;align-items:center;gap:6px}
+.ymk-legend__k{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--grad, var(--b600));box-shadow:0 0 0 2px color-mix(in srgb,var(--dk-txt-ok, #12A37A) 45%,transparent)}
+.ymk-legend__k[data-src=office]{border-radius:3px;box-shadow:0 0 0 2px color-mix(in srgb,var(--dk-acc, var(--b600)) 40%,transparent)}
+.ymk-card__src{display:inline-flex;align-items:center;gap:5px;padding:2px 9px 2px 7px;border-radius:var(--pill, 999px);background:var(--dk-tint-blue, #EEF5FF);font-size:.76rem;font-weight:600;line-height:1.5;color:var(--dk-acc, var(--b600))}
+.ymk-card__src svg{width:13px;height:13px;flex:none}
+.ymk-card[aria-busy=true] .ymk-card__title b{color:var(--gray)}
+.mknb-row__src{display:inline-flex;align-items:center;gap:4px;font-size:.78rem;color:var(--gray)}
+.mknb-row__src svg{width:12px;height:12px;flex:none}
 .ymk-group{position:absolute;display:grid;place-items:center;min-width:40px;height:40px;padding:0 8px;border-radius:999px;transform:translate(-50%,-50%);background:var(--dk-acc, var(--b600));color:#fff;font-size:.86rem;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 0 0 6px color-mix(in srgb,var(--dk-acc, var(--b600)) 22%,transparent),0 6px 14px -6px rgba(11,31,69,.55);cursor:pointer;transition:transform .15s}
 .ymk-group[data-size=m]{min-width:48px;height:48px}
 .ymk-group[data-size=l]{min-width:56px;height:56px;font-size:.92rem}

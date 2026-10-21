@@ -93,6 +93,7 @@ export function scopeKey(scope: ServiceScope): string {
 
 const RULES_PENDING_RE = /^(rules?_pending|pending_rules?|rules?_acceptance_required)$/;
 const BELOW_MIN_CODE_RE = /^(seller_)?price_(below_min(imum)?|too_low|under_min(imum)?)$/;
+const ABOVE_MAX_CODE_RE = /^(seller_)?price_(above_max(imum)?|too_high|over_max(imum)?|exceeds_max(imum)?)$/;
 
 function statusOf(v: unknown): ServiceStatus {
   const s = asStr(v).trim().toLowerCase();
@@ -523,6 +524,7 @@ export function hiddenReasons(item: ManagedService, profile: ServiceSellerProfil
 export type ServiceErrorKind =
   | "range"
   | "belowMin"
+  | "aboveMax"
   | "noPrice"
   | "advocateOnly"
   | "pendingAccount"
@@ -545,6 +547,11 @@ export function serviceErrorOf(e: unknown, locale = "uz"): ServiceError {
     const ctx = { ...asDict(e.data.context), ...asDict(detail.context) };
     const min = uzs(detail, "minimum_listing_price", "minimum_price", "min_price") || uzs(ctx, "minimum_listing_price", "minimum_price");
     return out("belowMin", { min, detail: text });
+  }
+  if (ABOVE_MAX_CODE_RE.test(code)) {
+    const ctx = { ...asDict(e.data.context), ...asDict(detail.context) };
+    const max = uzs(detail, "maximum_price", "max_price", "max_allowed") || uzs(ctx, "maximum_price", "max_price");
+    return out("aboveMax", { max, detail: text });
   }
   if (e.status === 422) {
     const limits = normLimits(detail.pricing_limits ?? detail.limits ?? asDict(e.data).pricing_limits ?? detail, locale);
@@ -650,6 +657,7 @@ const INBOX_SCAN = 40;
 function outcomeOf(event: string): PromoOutcome["kind"] | null {
   if (event === "promotion.checkout_approved") return "approved";
   if (event === "promotion.checkout_rejected") return "rejected";
+  if (event === "promotion.checkout_cancelled") return "rejected";
   return null;
 }
 

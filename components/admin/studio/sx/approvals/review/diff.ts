@@ -9,6 +9,7 @@ export type DiffChange = "added" | "removed" | "changed";
 export type DiffEntry = { path: string; top: string; change: DiffChange; before: unknown; after: unknown };
 export type DiffLine = { path: string; label: string; change: DiffChange; before: string; after: string; long: boolean };
 export type DiffLabelCtx = { model: SchemaModel | null; code: string; labels: StudioLabels; t: SchemaTr; refName: (source: string, value: string) => string; root?: SxValues };
+export type FieldLabelCtx = Pick<DiffLabelCtx, "model" | "code" | "labels" | "t">;
 
 type Dict = Record<string, unknown>;
 
@@ -76,7 +77,7 @@ function cleanLabel(label: string, segs: readonly string[]): string | null {
   return s;
 }
 
-export function diffLabel(path: string, ctx: DiffLabelCtx): string | null {
+export function diffLabel(path: string, ctx: FieldLabelCtx): string | null {
   const segs = segsOf(path);
   const top = segs[0] ?? "";
   if (!top || hidden(top)) return null;
@@ -229,6 +230,35 @@ export function changedNames(entries: readonly DiffEntry[], ctx: DiffLabelCtx): 
       const head = label.split(" · ")[0];
       if (!out.includes(head)) out.push(head);
     }
+  }
+  if (other) out.push(ctx.t("sx.appr.dw.other"));
+  return out;
+}
+
+const RECORD_TITLE_KEYS: ReadonlySet<string> = new Set(["title", "$title"]);
+
+function fieldPath(raw: string): string {
+  return String(raw ?? "")
+    .trim()
+    .replace(/\[(\d+)\]/g, ".$1")
+    .replace(/^(body|payload)\./, "")
+    .replace(/^\.+|\.+$/g, "");
+}
+
+export function editedFieldNames(fields: readonly string[], ctx: FieldLabelCtx): string[] {
+  const out: string[] = [];
+  let other = false;
+  const add = (name: string) => {
+    if (!out.includes(name)) out.push(name);
+  };
+  for (const raw of fields) {
+    const path = fieldPath(raw);
+    const top = segsOf(path)[0] ?? "";
+    if (!top || hidden(top) || isSlugPath(path)) continue;
+    const label = diffLabel(path, ctx) ?? (ctx.model ? diffLabel(path, { ...ctx, model: null }) : null);
+    if (label !== null) add(label.split(" · ")[0]);
+    else if (RECORD_TITLE_KEYS.has(path)) add(ctx.t("sx.form.recordTitle"));
+    else other = true;
   }
   if (other) out.push(ctx.t("sx.appr.dw.other"));
   return out;

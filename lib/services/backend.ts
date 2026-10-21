@@ -7,6 +7,7 @@ import { http, httpBlob, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl
 import { cleanDocTitle, cleanDocText } from "@/lib/docTitle";
 import { mimeFromName } from "@/lib/download";
 import { sellerTrustOf, type RatingStatus } from "./trust";
+import { gatedPhone, phoneGateOf } from "./clientPhone";
 import { getToken } from "@/lib/client";
 import type { ProfessionalProfile } from "@/lib/types";
 import { uzs, uzsOpt, fmtUzs } from "@/lib/money";
@@ -2150,6 +2151,8 @@ export type LawyerDocumentRequest = {
   requestedDocumentTypeIsCustom: boolean;
   clientName: string;
   clientPhone: string;
+  clientPhoneVisible: boolean | null;
+  clientPhoneHiddenReason: string;
   serviceName: string;
   answers: Record<string, unknown>;
   createdAt: string;
@@ -2194,6 +2197,7 @@ function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
   const lawyer = asDict(lr.assigned_lawyer ?? d.assigned_lawyer);
   const room = asDict(lr.secure_chat_room ?? d.secure_chat_room);
   const status = asStr(lr.status ?? d.status);
+  const phoneGate = phoneGateOf([client, lr, d], [lr, d]);
   return {
     id: asStr(lr.id ?? d.id),
     need: asStr(lr.need ?? d.need),
@@ -2203,7 +2207,9 @@ function normLawyerDocRequest(v: unknown): LawyerDocumentRequest {
     requestedDocumentTypeIsCustom: Boolean(lr.requested_document_type_is_custom ?? d.requested_document_type_is_custom),
     flow: asStr(d.flow ?? lr.flow) || undefined,
     clientName: asStr(lr.client_name ?? client.name),
-    clientPhone: asStr(lr.client_phone ?? client.phone),
+    clientPhone: gatedPhone(phoneGate, client.phone, lr.client_phone, d.client_phone),
+    clientPhoneVisible: phoneGate.visible,
+    clientPhoneHiddenReason: phoneGate.reason,
     serviceName: cleanDocTitle(asStr(service.title ?? service.name)),
     answers: asDict(lr.answers ?? d.answers),
     createdAt: asStr(lr.created_at ?? d.created_at),
@@ -2282,6 +2288,8 @@ export type DocumentRequestPoolItem = {
   requestedDocumentTypeIsCustom: boolean;
   clientName: string;
   clientPhone: string;
+  clientPhoneVisible: boolean | null;
+  clientPhoneHiddenReason: string;
   serviceName: string;
   need: string;
   createdAt: string;
@@ -2296,6 +2304,7 @@ function normPoolItem(v: unknown): DocumentRequestPoolItem {
   const client = asDict(d.client);
   const service = asDict(d.service);
   const template = asDict(d.template);
+  const phoneGate = phoneGateOf([client, d], [d]);
   return {
     id: asStr(d.id),
     status: asStr(d.status),
@@ -2306,7 +2315,9 @@ function normPoolItem(v: unknown): DocumentRequestPoolItem {
     requestedDocumentTypeIsCustom: Boolean(d.requested_document_type_is_custom),
     flow: asStr(d.flow) || undefined,
     clientName: asStr(client.name),
-    clientPhone: asStr(client.phone),
+    clientPhone: gatedPhone(phoneGate, client.phone, d.client_phone),
+    clientPhoneVisible: phoneGate.visible,
+    clientPhoneHiddenReason: phoneGate.reason,
     // Cleaned like the card's own title above it: the pool card prints both,
     // and one clean line over one raw line reads as two different documents.
     serviceName: cleanDocTitle(asStr(service.title) || asStr(service.name)),
@@ -4307,8 +4318,8 @@ export type LawyerClient = {
   hasConflict: boolean;
   lastActiveAt?: string;
   phoneVisible?: boolean | null;
+  phoneHiddenReason?: string;
 };
-const phoneVisibleOf = (d: Dict): boolean | null => (typeof d.phone_visible === "boolean" ? d.phone_visible : asStr(d.phone_hidden_reason) ? false : null);
 // T1B-05: a client outside LexGo, kept in the seller's own base (used by the
 // conflict check together with real orders/cases).
 export type LawyerClientInput = { name: string; phone?: string; pinfl?: string; company?: string; opponents?: string[]; representatives?: string[]; notes?: string };
@@ -4335,7 +4346,7 @@ export async function runCaseAiTool(caseId: string, tool: CaseAiTool, fileVersio
 // client never worked with this seller.
 export type LawyerClientDetail = {
   type: "user" | "manual";
-  client: { id: string; name: string; phone: string; region: string; company: string; notes: string; createdAt: string; phoneVisible?: boolean | null };
+  client: { id: string; name: string; phone: string; region: string; company: string; notes: string; createdAt: string; phoneVisible?: boolean | null; phoneHiddenReason?: string };
   cases: BackendCase[];
   orders: BackendOrder[];
   chats: { id: string; status: string; orderId?: string; caseId?: string; createdAt: string }[];
@@ -4346,9 +4357,10 @@ export type LawyerClientDetail = {
 export async function getLawyerClientDetail(id: string): Promise<LawyerClientDetail> {
   const d = asDict(await http(`/lawyers/me/clients/${encodeURIComponent(id)}`));
   const c = asDict(d.client);
+  const phoneGate = phoneGateOf([c, d], [d]);
   return {
     type: asStr(d.type) === "manual" ? "manual" : "user",
-    client: { id: asStr(c.id), name: asStr(c.name), phone: asStr(c.phone), region: asStr(c.region), company: asStr(c.company), notes: asStr(c.notes), createdAt: asStr(c.created_at), phoneVisible: phoneVisibleOf(c) ?? phoneVisibleOf(d) },
+    client: { id: asStr(c.id), name: asStr(c.name), phone: gatedPhone(phoneGate, c.phone), region: asStr(c.region), company: asStr(c.company), notes: asStr(c.notes), createdAt: asStr(c.created_at), phoneVisible: phoneGate.visible, phoneHiddenReason: phoneGate.reason },
     cases: asArr(d.cases).map(normCase),
     orders: asArr(d.orders).map(normOrder),
     chats: asArr(d.chats).map((x) => { const r = asDict(x); return { id: asStr(r.id), status: asStr(r.status), orderId: asStr(r.order_id) || undefined, caseId: asStr(r.case_id) || undefined, createdAt: asStr(r.created_at) }; }),
@@ -4360,16 +4372,18 @@ export async function getLawyerClientDetail(id: string): Promise<LawyerClientDet
 export async function getLawyerClients(): Promise<LawyerClient[]> {
   return listFrom(await http("/lawyers/me/clients"), "items", "data").map((v) => {
     const d = asDict(v);
+    const phoneGate = phoneGateOf([d, d.client], [d]);
     return {
       id: asStr(d.id),
       name: asStr(d.name),
-      phone: asStr(d.phone),
+      phone: gatedPhone(phoneGate, d.phone),
       casesCount: asNum(d.cases_count),
       ordersCount: asNum(d.orders_count),
       activeCaseIds: asArr(d.active_case_ids).map((x) => asStr(x)),
       hasConflict: Boolean(d.has_conflict),
       lastActiveAt: asStr(d.last_active_at) || undefined,
-      phoneVisible: phoneVisibleOf(d),
+      phoneVisible: phoneGate.visible,
+      phoneHiddenReason: phoneGate.reason,
     };
   });
 }
@@ -7699,12 +7713,13 @@ export function urgentChannels(s: UrgentService | undefined): string[] {
 }
 
 // ── The record ────────────────────────────────────────────────────
-export type UrgentPerson = { id: string; name: string; phone: string; role: string; lexgoId: string };
+export type UrgentPerson = { id: string; name: string; phone: string; role: string; lexgoId: string; phoneVisible?: boolean | null; phoneHiddenReason?: string };
 function normPerson(v: unknown): UrgentPerson | null {
   const d = asDict(v);
   const id = asStr(d.id ?? d.user_id);
   if (!id) return null;
-  return { id, name: personName(asStr(d.name)), phone: asStr(d.phone), role: asStr(d.role), lexgoId: asStr(d.lexgo_id) };
+  const gate = phoneGateOf([d]);
+  return { id, name: personName(asStr(d.name)), phone: gatedPhone(gate, d.phone), role: asStr(d.role), lexgoId: asStr(d.lexgo_id), phoneVisible: gate.visible, phoneHiddenReason: gate.reason };
 }
 function normPeople(v: unknown): UrgentPerson[] {
   return asArr(v).map(normPerson).filter((x): x is UrgentPerson => x !== null);
@@ -7808,6 +7823,8 @@ export type UrgentRequest = {
   clientUserId: string;
   clientName: string;
   clientPhone: string;
+  clientPhoneVisible: boolean | null;
+  clientPhoneHiddenReason: string;
   assignedLawyerUserId: string;
   assignedLawyerName: string;
   claimedByUserId: string;
@@ -7876,6 +7893,7 @@ function normUrgentRequest(v: unknown): UrgentRequest {
   const group = normPeople(d.group_lawyers);
   const groupIds = asArr(p.group_lawyer_user_ids ?? p.lawyer_user_ids).map((x) => asStr(x)).filter(Boolean);
   const strs = (x: unknown) => asArr(x).map((y) => asStr(y)).filter(Boolean);
+  const phoneGate = phoneGateOf([d.client, p.client, d, p], [d, p]);
   return {
     id: asStr(pick("id") ?? pick("record_id")),
     workId: asStr(pick("work_id")),
@@ -7901,7 +7919,9 @@ function normUrgentRequest(v: unknown): UrgentRequest {
     groupLawyers: group,
     clientUserId: client?.id || asStr(pick("client_user_id")),
     clientName: client?.name || asStr(pick("client_name")),
-    clientPhone: client?.phone || asStr(pick("client_phone")),
+    clientPhone: gatedPhone(phoneGate, client?.phone, pick("client_phone")),
+    clientPhoneVisible: phoneGate.visible,
+    clientPhoneHiddenReason: phoneGate.reason,
     assignedLawyerUserId: assigned?.id || asStr(pick("assigned_lawyer_user_id")),
     assignedLawyerName: assigned?.name || asStr(pick("assigned_lawyer_name")),
     claimedByUserId: claimed?.id || asStr(pick("claimed_by_user_id")),

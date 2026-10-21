@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { NearbySeller } from "@/lib/services/marketRuntime";
 import { precisionMeters, type Spot } from "@/lib/services/marketDiscovery";
+import { locationSourceOf } from "@/lib/services/sellersMap";
 
 // The nearby specialists on a map of their own (2026-10-18, location
 // privacy): drawn here, around the client's rounded position, with no map
@@ -19,6 +20,7 @@ const VIEW = 200;
 
 export default function NearbyMap({ spot, radiusKm, items, base, label }: { spot: Spot; radiusKm: number; items: readonly NearbySeller[]; base: string; label: string }) {
   const t = useTranslations("marketplace.nearby.map");
+  const ty = useTranslations("marketplace.ymap");
   const uid = useId();
   const placed = items
     .filter((s) => s.latitude !== null && s.longitude !== null)
@@ -63,7 +65,8 @@ export default function NearbyMap({ spot, radiusKm, items, base, label }: { spot
           const area = Math.max(5, (precisionMeters(s.precision) / 1000) * scale);
           const name = s.name || t("unnamed");
           const dist = s.distanceKm !== null ? t("away", { d: Math.round(s.distanceKm * 10) / 10 }) : "";
-          const tip = [name, dist, s.exact ? t("exact") : t("approx")].filter(Boolean).join(" · ");
+          const src = s.exact ? "" : locationSourceOf(s.raw);
+          const tip = [name, dist, s.exact ? t("exact") : src ? ty(`src.${src}`) : t("approx")].filter(Boolean).join(" · ");
           const mark = s.exact ? (
             <path d={`M${x} ${y}c-4-5-6-8-6-11a6 6 0 0 1 12 0c0 3-2 6-6 11z`} className="mknb-map__pin" />
           ) : (

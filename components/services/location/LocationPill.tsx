@@ -22,7 +22,7 @@ export default function LocationPill({ quiet, desk }: { quiet?: boolean; desk?: 
   const { session } = useAuth();
   const uid = session?.id ?? "";
   const embedded = useDeskEmbedded();
-  useLocationRunner(uid, !embedded, t("sellerSlot.locExpired"));
+  useLocationRunner(uid, !embedded, t("sellerSlot.locExpired"), t("sellerSlot.locDenied"));
   const share = useLocationShare(uid);
   const local = share.mode === "on";
   const server = share.server;

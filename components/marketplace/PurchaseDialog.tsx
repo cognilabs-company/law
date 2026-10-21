@@ -165,7 +165,7 @@ export default function PurchaseDialog({
     setErr("");
     try {
       const input = { note, preferredChannel: channel, contactSpeed: speed, preferredTime: speed ? t(`speeds.${speed}`) : "", selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })) };
-      const r = pkg ? await requestPackagePurchase(pkg.purchaseUrl, input) : await requestMarketplacePurchase(sellerUserId, service.id, input);
+      const r = pkg ? await requestPackagePurchase(pkg.purchaseUrl, input, { packageId: pkg.id, lawyerUserId: sellerUserId }) : await requestMarketplacePurchase(sellerUserId, service.id, input);
       setDone(r);
       trackPromoContact(sellerUserId, "purchase");
     } catch (e) {

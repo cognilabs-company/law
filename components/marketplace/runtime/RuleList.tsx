@@ -29,7 +29,7 @@ export function RuleList({ rules, idBase, level = 3, limit = 3, tone = "detail",
             <details className="mkrt-rl__item">
               <summary>
                 <span className="mkrt-rl__t">{r.title || t("ruleUntitled")}</span>
-                {showScope && r.inline ? <em className="mkrt-tag">{t("serviceOnly")}</em> : null}
+                {r.sellerOwn ? <em className="mkrt-tag mkrt-tag--own">{t("sellerOwn")}</em> : showScope && r.inline ? <em className="mkrt-tag">{t("serviceOnly")}</em> : null}
                 <IconChevronDown aria-hidden="true" className="mkrt-rl__chev" />
               </summary>
               <div className="mkrt-rl__body">

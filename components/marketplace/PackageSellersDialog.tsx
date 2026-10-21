@@ -176,7 +176,7 @@ export default function PackageSellersDialog({
             </p>
             <ul className="pks__list">
               {list.items.map((s, i) => {
-                const blocked = !s.packagePurchaseUrl || !s.eligibility.eligible;
+                const blocked = !s.eligibility.eligible;
                 return (
                   <li key={s.userId} className={`pks__card${blocked ? " is-off" : ""}`} style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
                     <span className="pks__av" aria-hidden>

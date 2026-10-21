@@ -20,7 +20,7 @@ const FIELD_HINTS: Readonly<Record<StudioJourneyType, Readonly<Record<string, re
     delivery: ["duration_value", "duration_unit", "duration_calendar"],
     template: ["template_mode", "template_source", "document_template_id"],
     checklist: ["completion_checklist", "checklist_template_id"],
-    rules: ["rule_ids", "inline_rules", "service_terms_text"],
+    rules: ["rule_ids", "seller_rules_allowed", "inline_rules", "service_terms_text"],
     guarantees: ["guarantee_ids", "inline_guarantees"],
     discovery: ["description", "client_value", "discovery_terms"],
     review: ["is_active"],
@@ -39,9 +39,9 @@ const FIELD_HINTS: Readonly<Record<StudioJourneyType, Readonly<Record<string, re
   },
 };
 
-const COMPANIONS: Readonly<Record<StudioJourneyType, Readonly<Record<string, string>>>> = {
-  service: { price_factor_ids: "price_factor_overrides", rule_ids: "inline_rules", guarantee_ids: "inline_guarantees" },
-  package: { price_factor_ids: "price_factor_overrides" },
+const COMPANIONS: Readonly<Record<StudioJourneyType, Readonly<Record<string, readonly string[]>>>> = {
+  service: { price_factor_ids: ["price_factor_overrides"], rule_ids: ["seller_rules_allowed", "inline_rules"], guarantee_ids: ["inline_guarantees"] },
+  package: { price_factor_ids: ["price_factor_overrides"] },
 };
 
 export function withCompanions(type: StudioJourneyType, fields: readonly string[]): string[] {
@@ -49,8 +49,8 @@ export function withCompanions(type: StudioJourneyType, fields: readonly string[
   const out: string[] = [];
   for (const f of fields) {
     if (!out.includes(f)) out.push(f);
-    const mate = Object.prototype.hasOwnProperty.call(pairs, f) ? pairs[f] : "";
-    if (mate && !fields.includes(mate) && !out.includes(mate)) out.push(mate);
+    const mates = Object.prototype.hasOwnProperty.call(pairs, f) ? pairs[f] : [];
+    for (const mate of mates) if (!fields.includes(mate) && !out.includes(mate)) out.push(mate);
   }
   return out;
 }

@@ -23,6 +23,7 @@ import { matchesSearch } from "@/lib/searchText";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiReveal } from "@/lib/guide/targets";
 import CallRoom from "@/components/chat/CallRoom";
+import PhoneLock from "@/components/marketplace/order/PhoneLock";
 import { Skeleton, EmptyState, ErrorState } from "./DataState";
 import IconButton from "@/components/ui/IconButton";
 import ScrollCue from "@/components/ui/ScrollCue";
@@ -573,7 +574,7 @@ function AssignedDetail({ id, recordId, fallback }: { id: string; recordId: stri
           {req.clientName || t("clientHidden")}
           {/* Withheld from an external advocate by the backend — absent, not
               empty, so it is simply not rendered. */}
-          {req.clientPhone ? <> · <a href={`tel:${req.clientPhone}`}><IconPhone />{req.clientPhone}</a></> : null}
+          {req.clientPhone ? <> · <a href={`tel:${req.clientPhone}`}><IconPhone />{req.clientPhone}</a></> : req.clientPhoneVisible === false ? <> · <PhoneLock reason={req.clientPhoneHiddenReason} aiId={recordId ? `${aiId("advocate.urgent.item", recordId)}.phone-locked` : undefined} /></> : null}
         </p>
         {req.region ? <span className="advmuted"><IconMapPin />{regionLabel(te, req.region)}</span> : null}
       </div>

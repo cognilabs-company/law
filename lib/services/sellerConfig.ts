@@ -19,12 +19,24 @@ import {
 } from "@/lib/services/marketRuntime";
 
 export type ConfigErrorCode = "seller_price_above_maximum" | "seller_price_below_minimum" | "seller_price_negative" | "service_rules_acceptance_required" | "rule_not_selectable" | "other";
-export type ConfigError = { code: ConfigErrorCode; field: "price" | "status" | "form"; missingRuleIds: string[]; maximum: number | null; minimum: number | null; message: string; status: number };
+export type ConfigError = {
+  code: ConfigErrorCode;
+  field: "price" | "status" | "form" | "rules";
+  missingRuleIds: string[];
+  maximum: number | null;
+  minimum: number | null;
+  message: string;
+  status: number;
+  requested?: number | null;
+  invalidRuleIds?: string[];
+  selectableRuleIds?: string[];
+};
 export type PriceVerdict = "ok" | "negative" | "aboveMax" | "belowMin";
 
 const KNOWN_CODES: readonly ConfigErrorCode[] = ["seller_price_above_maximum", "seller_price_below_minimum", "seller_price_negative", "service_rules_acceptance_required", "rule_not_selectable"];
 const CONFIG_PAUSED_RE = /^(rules?_pending|pending_rules?|rules?_acceptance_required)$/;
 const BELOW_MIN_RE = /^(seller_)?price_(below_min(imum)?|too_low|under_min(imum)?)$/;
+const ABOVE_MAX_RE = /^(seller_)?price_(above_max(imum)?|too_high|over_max(imum)?|exceeds_max(imum)?)$/;
 
 let support: "unknown" | "yes" | "no" = "unknown";
 
@@ -50,20 +62,27 @@ const positive = (v: unknown): number | null => {
 
 const plain = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
+const ids = (v: unknown): string[] =>
+  Array.isArray(v) ? [...new Set(v.map((x) => (typeof x === "string" || typeof x === "number" ? String(x).trim() : String(plain(x).id ?? plain(x).rule_id ?? "").trim())).filter(Boolean))] : [];
+
 export function configErrorOf(e: unknown): ConfigError {
   const info = marketErrorInfo(e);
   const raw = info?.code ?? "";
-  const code: ConfigErrorCode = BELOW_MIN_RE.test(raw) ? "seller_price_below_minimum" : (KNOWN_CODES as readonly string[]).includes(raw) ? (raw as ConfigErrorCode) : "other";
+  const code: ConfigErrorCode = BELOW_MIN_RE.test(raw) ? "seller_price_below_minimum" : ABOVE_MAX_RE.test(raw) ? "seller_price_above_maximum" : (KNOWN_CODES as readonly string[]).includes(raw) ? (raw as ConfigErrorCode) : "other";
   const detail = info?.detail ?? {};
-  const ctx = { ...plain(e instanceof ApiError ? e.data.context : null), ...plain(detail.context) };
+  const top = e instanceof ApiError ? e.data : {};
+  const ctx = { ...plain(top.context), ...plain(detail.context) };
   return {
     code,
-    field: code === "seller_price_above_maximum" || code === "seller_price_below_minimum" || code === "seller_price_negative" ? "price" : code === "service_rules_acceptance_required" ? "status" : "form",
+    field: code === "seller_price_above_maximum" || code === "seller_price_below_minimum" || code === "seller_price_negative" ? "price" : code === "service_rules_acceptance_required" ? "status" : code === "rule_not_selectable" ? "rules" : "form",
     missingRuleIds: info?.missingRuleIds ?? [],
-    maximum: positive(detail.maximum_price ?? detail.max_price ?? ctx.maximum_price),
+    maximum: positive(detail.maximum_price ?? detail.max_price ?? ctx.maximum_price ?? ctx.max_price),
     minimum: positive(detail.minimum_listing_price ?? ctx.minimum_listing_price ?? detail.minimum_price ?? detail.min_price ?? detail.minimum_allowed_price ?? ctx.minimum_price),
     message: info?.message || (e instanceof ApiError ? (e.detail ?? "") : ""),
     status: info?.status ?? 0,
+    requested: positive(detail.requested_price ?? ctx.requested_price),
+    invalidRuleIds: ids(detail.invalid_rule_ids ?? ctx.invalid_rule_ids ?? top.invalid_rule_ids),
+    selectableRuleIds: ids(detail.selectable_rule_ids ?? ctx.selectable_rule_ids ?? top.selectable_rule_ids),
   };
 }
 

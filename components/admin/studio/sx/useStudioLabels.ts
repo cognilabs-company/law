@@ -502,7 +502,8 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
       case "document-templates": {
         const cat = str(r.category);
         const lang = str(r.language);
-        return base({ label, description: joinDot([pick([cat && `sx.doccat.${cat}`]), pick([lang && `sx.lang.${lang}`])]), icon: FileTextIcon });
+        const pending = str(r.status).toLowerCase() === "pending";
+        return base({ label, description: joinDot([pick([cat && `sx.doccat.${cat}`]), pick([lang && `sx.lang.${lang}`])]), code: pending ? pick(["sx.ref.pending"]) : "", icon: FileTextIcon });
       }
       case "service-packages":
       case "local:service-packages":
@@ -561,8 +562,10 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
         return base({ label, description: str(r.description), icon: SOURCE_ICON["client-guarantees"] });
       case "checklists":
         return base({ label, description: str(r.description), icon: ListChecksIcon });
-      case "package-eligibility-rules":
-        return base({ label, description: str(r.description), icon: BadgeCheckIcon });
+      case "package-eligibility-rules": {
+        const level = str(r.tier);
+        return base({ label, description: joinDot([level ? tier(level) : "", str(r.description)]), icon: BadgeCheckIcon });
+      }
     }
     return base({ label: label || value, icon: sourceIcon(source) });
   };

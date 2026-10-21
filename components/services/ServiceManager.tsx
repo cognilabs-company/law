@@ -16,7 +16,6 @@ import {
   pendingPromoKey,
   pendingPromosRaw,
   profileVerified,
-  promoSignalOf,
   prunePendingPromos,
   removeManagedService,
   scopeKey,
@@ -64,7 +63,7 @@ import ServiceFormModal from "./ServiceFormModal";
 import PromoteModal from "./PromoteModal";
 import { RemoveServiceModal, som } from "./bits";
 import { useAutoRefresh } from "./useAutoRefresh";
-import { promotionCheckoutLapse } from "@/lib/services/promotions";
+import { promotionCheckoutSignal } from "@/lib/services/promotions";
 
 type Filter = "all" | ServiceStatus;
 type Load = { key: string; data: ManagedServices | null; error: ServiceError | null };
@@ -203,15 +202,14 @@ export default function ServiceManager({
   useEffect(() => {
     if (!uid) return;
     return subscribeUserEvents((ev) => {
-      const lapse = promotionCheckoutLapse(ev);
-      const s = lapse ? { kind: "rejected" as const, ...lapse } : promoSignalOf(ev);
+      const s = promotionCheckoutSignal(ev);
       if (!s || s.kind === "pending") return;
-      const kind = s.kind;
+      const kind = s.kind === "approved" ? "approved" : s.lapsed ? "lapsed" : "rejected";
       const out = dropPendingPromos(
         uid,
-        (k, p) => k.startsWith(`${skey}|`) && ((s.requestId !== "" && p.requestId === s.requestId) || (s.serviceId !== "" && k === pendingPromoKey(sc, s.serviceId))),
+        (k, p) => k.startsWith(`${skey}|`) && ((!!p.requestId && s.ids.includes(p.requestId)) || (s.serviceId !== "" && k === pendingPromoKey(sc, s.serviceId))),
       );
-      announce(out.map(() => ({ kind })), t("toast.approved"), lapse ? t("toast.campaignEnded") : t("toast.rejected"), t("toast.campaignEnded"));
+      announce(out.map(() => ({ kind })), t("toast.approved"), t(s.kind === "cancelled" ? "toast.cancelled" : "toast.rejected"), t("toast.campaignEnded"));
       setPulse((n) => n + 1);
     });
   }, [uid, sc, skey, t]);

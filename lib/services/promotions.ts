@@ -44,11 +44,19 @@ export type PromotionCheckoutInput = {
   idempotencyKey?: string;
 };
 
-export type PromotionCampaignSnapshot = { id: string; title: string; discountType: string; discountValue: number | null };
+export type PromotionCampaignSnapshot = {
+  id: string;
+  title: string;
+  discountType: string;
+  discountValue: number | null;
+  endsAt: string;
+  purchaseLimit: number | null;
+  purchasesUsed: number | null;
+};
 
 export type PromotionPriceBreakdown = { baseAmount: number | null; discountAmount: number; amount: number; campaign: PromotionCampaignSnapshot | null };
 
-export type PromotionCheckout = PromotionRequest & { breakdown: PromotionPriceBreakdown | null };
+export type PromotionCheckout = PromotionRequest & { breakdown: PromotionPriceBreakdown | null; paymentId: string };
 
 export const PROMOTION_ERROR_CODES = [
   "promotion_already_exists",
@@ -85,20 +93,47 @@ export function promotionCampaignEnded(error: unknown): boolean {
   return CAMPAIGN_LAPSE.test(text) && LAPSE_WORDS.test(text);
 }
 
-export function promotionCheckoutLapse(ev: UserEvent): { requestId: string; serviceId: string } | null {
+export type PromotionCheckoutSignal = {
+  kind: "pending" | "approved" | "rejected" | "cancelled";
+  lapsed: boolean;
+  requestId: string;
+  paymentId: string;
+  serviceId: string;
+  ids: string[];
+};
+
+const CHECKOUT_EVENT = "promotion.checkout_";
+
+function checkoutKind(suffix: string, d: Dict): PromotionCheckoutSignal["kind"] {
+  const of = (v: string): PromotionCheckoutSignal["kind"] | null =>
+    /^(approved|paid|activated)$/.test(v) ? "approved" : /^(rejected|declined)$/.test(v) ? "rejected" : /^(cancell?ed|expired|failed)$/.test(v) ? "cancelled" : v === "pending" ? "pending" : null;
+  return of(suffix) ?? of(asStr(d.payment_status).toLowerCase()) ?? "pending";
+}
+
+export function promotionCheckoutSignal(ev: UserEvent): PromotionCheckoutSignal | null {
   let name = asStr(ev.event);
-  let d = asDict(ev.data ?? ev.payload ?? ev);
+  let d: Dict = { ...ev, ...asDict(ev.payload), ...asDict(ev.data) };
   if (name === "notification.created") {
     d = asDict(asDict(ev.notification).data);
     name = asStr(d.event);
   }
-  if (!name.startsWith("promotion.checkout_") || name.endsWith("approved")) return null;
+  if (!name.startsWith(CHECKOUT_EVENT)) return null;
+  const kind = checkoutKind(name.slice(CHECKOUT_EVENT.length).toLowerCase(), d);
   const campaign = asDict(d.campaign);
-  const status = asStr(d.campaign_status ?? campaign.status).toLowerCase();
-  const text = lapseText(d.reason, d.cancel_reason, d.cancellation_reason, d.rejection_reason, d.code, d.error_code, d.error);
-  const lapsed = (CAMPAIGN_LAPSE.test(text) && LAPSE_WORDS.test(text)) || (!!status && status !== "active" && LAPSE_WORDS.test(status));
-  if (!lapsed) return null;
-  return { requestId: asStr(d.request_id ?? d.checkout_request_id ?? ev.request_id), serviceId: asStr(d.service_id ?? ev.service_id) };
+  const campaignStatus = asStr(d.campaign_status ?? campaign.status).toLowerCase();
+  const text = lapseText(d.reason, d.status, d.cancel_reason, d.cancellation_reason, d.rejection_reason, d.code, d.error_code, d.error);
+  const lapsed =
+    kind !== "approved" && ((CAMPAIGN_LAPSE.test(text) && LAPSE_WORDS.test(text)) || (!!campaignStatus && campaignStatus !== "active" && LAPSE_WORDS.test(campaignStatus)));
+  const requestId = asStr(d.request_id ?? d.checkout_request_id ?? d.promotion_request_id);
+  const paymentId = asStr(d.payment_id ?? asDict(d.payment_gate).payment_id);
+  const ids = [...new Set([requestId, asStr(d.checkout_request_id), paymentId].filter(Boolean))];
+  return { kind, lapsed, requestId, paymentId, serviceId: asStr(d.service_id), ids };
+}
+
+export function promotionCheckoutLapse(ev: UserEvent): { requestId: string; serviceId: string } | null {
+  const s = promotionCheckoutSignal(ev);
+  if (!s || !s.lapsed) return null;
+  return { requestId: s.requestId || s.paymentId, serviceId: s.serviceId };
 }
 
 export function promotionErrorRetryable(error: unknown): boolean {
@@ -182,26 +217,113 @@ export async function listPromotionPackages(placement?: PromotionPlacement, sign
 export const BANNER_REFERENCES = ["close-professional", "balanced-professional", "environmental-professional"] as const;
 export const bannerReferenceUrl = (kind: (typeof BANNER_REFERENCES)[number]) => `${API_BASE}/promotions/banner-reference-images/${kind}`;
 
-// An uploaded banner and what the backend's image check said: "active" may
-// be used at checkout; "manual_review" waits for a person; "rejected" says
-// why and how to do better. A deployment without the check answers with a
-// file_url and no status, which counts as active.
+export const BANNER_REASON_CODES = [
+  "low_resolution",
+  "image_too_large",
+  "face_too_small",
+  "face_blurry",
+  "uniform_detected",
+  "professional_clothing_required",
+  "multiple_people",
+  "text_overlay",
+  "unsafe_content",
+] as const;
+export type BannerReasonCode = (typeof BANNER_REASON_CODES)[number];
+export const isBannerReasonCode = (code: string): code is BannerReasonCode => (BANNER_REASON_CODES as readonly string[]).includes(code);
+
 export type BannerStatus = "active" | "manual_review" | "rejected";
-export type BannerAsset = { fileUrl: string; status: BannerStatus; reasons: string[]; suggestions: string[] };
+export type BannerVerdict = {
+  status: BannerStatus;
+  message: string;
+  reasonCodes: string[];
+  faceCoverage: number | null;
+  manualReview: boolean;
+  reasons: string[];
+  suggestions: string[];
+};
+export type BannerAsset = BannerVerdict & { id: string; fileUrl: string };
+
+const textList = (x: unknown) => asArr(x).map((y) => (typeof y === "string" ? y : asStr(asDict(y).message ?? asDict(y).text ?? asDict(y).reason))).filter(Boolean);
+const codeList = (...xs: unknown[]) =>
+  [...new Set(xs.flatMap((x) => asArr(x).map((y) => (typeof y === "string" ? y : asStr(asDict(y).code ?? asDict(y).reason_code))).map((c) => c.trim().toLowerCase()).filter(Boolean)))];
+
+function coverageOf(...xs: unknown[]): number | null {
+  for (const x of xs) {
+    if (x === null || x === undefined || x === "") continue;
+    const n = Number(x);
+    if (Number.isFinite(n)) return Math.round(n);
+  }
+  return null;
+}
+
+function statusOf(raw: string, v: Dict): BannerStatus {
+  const st = raw.trim().toLowerCase();
+  if (/^(active|approved|accepted)$/.test(st)) return "active";
+  if (/^(rejected|declined|failed|invalid|blocked)$/.test(st)) return "rejected";
+  if (st) return "manual_review";
+  if (v.manual_review === true) return "manual_review";
+  if (v.approved === false) return "rejected";
+  return "active";
+}
+
+function verdictOf(src: Dict, status: string, extraCodes: unknown[] = []): BannerVerdict {
+  const v = asDict(src.vision_validation);
+  const message = asStr(v.message ?? src.message).trim();
+  const st = statusOf(status, v);
+  const reasons = textList(v.reasons ?? src.reasons).filter((r) => r.trim() !== message);
+  return {
+    status: st,
+    message,
+    reasonCodes: codeList(v.reason_codes, src.reason_codes, extraCodes),
+    faceCoverage: coverageOf(v.face_coverage_percent, src.face_coverage_percent),
+    manualReview: v.manual_review === true || st === "manual_review",
+    reasons: reasons.length || st === "active" || !message ? reasons : [message],
+    suggestions: textList(v.suggestions ?? src.suggestions),
+  };
+}
+
+export function bannerRejectionOf(error: unknown): BannerVerdict | null {
+  if (!(error instanceof ApiError) || error.status < 400 || error.status >= 500) return null;
+  const data = asDict(error.data);
+  const detail = asDict(data.detail);
+  const ctx = asDict(detail.context);
+  const src: Dict = { ...ctx, ...data, ...detail };
+  const vision = asDict(detail.vision_validation ?? data.vision_validation ?? ctx.vision_validation);
+  if (Object.keys(vision).length) src.vision_validation = vision;
+  const code = asStr(error.code ?? detail.code ?? data.code).trim().toLowerCase();
+  const codes = codeList(vision.reason_codes, detail.reason_codes, data.reason_codes, ctx.reason_codes, isBannerReasonCode(code) ? [code] : []);
+  const bannerCode = /^(banner|promotion_banner|image|vision)_/.test(code);
+  if (!Object.keys(vision).length && !codes.length && !bannerCode) return null;
+  if (!asStr(src.message).trim() && !asStr(vision.message).trim() && error.detail) src.message = error.detail;
+  const verdict = verdictOf(src, vision.manual_review === true ? "manual_review" : "rejected", codes);
+  return { ...verdict, status: verdict.status === "active" ? "rejected" : verdict.status };
+}
+
 export async function uploadPromotionBanner(file: File, signal?: AbortSignal): Promise<BannerAsset> {
   const form = new FormData();
   form.append("file", file);
-  const raw = asDict(await http("/promotions/banner-assets", { method: "POST", body: form, signal }));
+  let raw: Dict;
+  try {
+    raw = asDict(await http("/promotions/banner-assets", { method: "POST", body: form, signal }));
+  } catch (e) {
+    const rejected = bannerRejectionOf(e);
+    if (rejected) return { ...rejected, id: "", fileUrl: "" };
+    throw e;
+  }
   const asset = asDict(raw.asset ?? raw.data);
-  const v = asDict(raw.vision_validation ?? asset.vision_validation);
-  const st = asStr(raw.status ?? asset.status).toLowerCase();
-  const list = (x: unknown) => asArr(x).map((y) => (typeof y === "string" ? y : asStr(asDict(y).message ?? asDict(y).text ?? asDict(y).reason))).filter(Boolean);
+  const src: Dict = { ...asset, ...raw, vision_validation: raw.vision_validation ?? asset.vision_validation };
   return {
+    ...verdictOf(src, asStr(raw.status ?? asset.status)),
+    id: asStr(raw.id ?? asset.id ?? raw.asset_id),
     fileUrl: asStr(raw.file_url ?? asset.file_url),
-    status: st === "rejected" ? "rejected" : st === "manual_review" || st === "pending_review" ? "manual_review" : "active",
-    reasons: list(v.reasons ?? raw.reasons),
-    suggestions: list(v.suggestions ?? raw.suggestions),
   };
+}
+
+function countOf(c: Dict, key: string): number | null {
+  const v = c[key];
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 function campaignOf(value: unknown): PromotionCampaignSnapshot | null {
@@ -213,7 +335,15 @@ function campaignOf(value: unknown): PromotionCampaignSnapshot | null {
   const code = asStr(c.code);
   if (!id && !title.trim() && !code) return null;
   const size = uzsOpt(c, "discount_value", "value");
-  return { id, title: title.trim() || code, discountType: asStr(c.discount_type ?? c.type).toLowerCase(), discountValue: size ?? null };
+  return {
+    id,
+    title: title.trim() || code,
+    discountType: asStr(c.discount_type ?? c.type).toLowerCase(),
+    discountValue: size ?? null,
+    endsAt: asStr(c.ends_at ?? c.end_at ?? c.expires_at),
+    purchaseLimit: countOf(c, "purchase_limit"),
+    purchasesUsed: countOf(c, "purchases_used"),
+  };
 }
 
 export function promotionBreakdownOf(raw: Dict): PromotionPriceBreakdown | null {
@@ -252,13 +382,16 @@ export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput
   const raw = asDict(await http("/promotions/checkout", { method: "POST", body: JSON.stringify(body) }));
   const gate = asDict(raw.payment_gate ?? raw.payment);
   const pack = asDict(raw.package);
-  const requestId = asStr(raw.checkout_request_id ?? raw.request_id ?? gate.id);
+  const paymentId = asStr(gate.payment_id ?? raw.payment_id);
+  const requestId = asStr(raw.checkout_request_id ?? raw.request_id ?? gate.id ?? gate.request_id);
   const status = asStr(raw.promotion_status ?? raw.status).toLowerCase();
+  const gateStatus = asStr(gate.status).toLowerCase();
   const activated = raw.payment_required === false || /^(active|activated|approved|paid)$/.test(status);
   const breakdown = promotionBreakdownOf(raw);
   return {
     activated,
     requestId,
+    paymentId,
     breakdown,
     // The documented answer carries the package, not an amount of its own.
     amount: breakdown ? breakdown.amount : uzs(gate, "amount") || uzs(raw, "amount") || uzs(pack, "price"),
@@ -271,7 +404,7 @@ export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput
       (gate.telegram_sent === true ||
       raw.telegram_sent === true ||
       status.startsWith("pending") ||
-      (raw.payment_required === true && !!requestId && gate.telegram_sent !== false && raw.telegram_sent !== false)),
+      ((raw.payment_required === true || gateStatus.startsWith("pending")) && !!(requestId || paymentId) && gate.telegram_sent !== false && raw.telegram_sent !== false)),
   };
 }
 

@@ -13,7 +13,6 @@ import {
   parsePendingPromos,
   pendingPromoKey,
   pendingPromosRaw,
-  promoSignalOf,
   prunePendingPromos,
   scopeKey,
   settlePendingFromInbox,
@@ -25,7 +24,7 @@ import {
 } from "@/lib/services/sellerServices";
 import { IconArrowRight, IconBriefcase, IconClock, IconMegaphone } from "@/components/icons";
 import PromoteModal from "./PromoteModal";
-import { promotionCheckoutLapse } from "@/lib/services/promotions";
+import { promotionCheckoutSignal } from "@/lib/services/promotions";
 import { som } from "./bits";
 import { useAutoRefresh } from "./useAutoRefresh";
 
@@ -102,13 +101,11 @@ export default function PromoteServicesSection({ role, onData }: { role: "lawyer
   useEffect(() => {
     if (!uid) return;
     return subscribeUserEvents((ev) => {
-      const lapse = promotionCheckoutLapse(ev);
-      const s = lapse ? { kind: "rejected" as const, ...lapse } : promoSignalOf(ev);
-      if (!s || s.kind === "pending" || !s.serviceId) return;
-      const kind = s.kind;
-      const out = dropPendingPromos(uid, (k, p) => k.startsWith(ME_PREFIX) && ((s.requestId !== "" && p.requestId === s.requestId) || k === pendingPromoKey(ME, s.serviceId)));
-      if (out.length) toast(kind === "approved" ? t("toast.approved") : lapse ? t("toast.campaignEnded") : t("toast.rejected"), { tone: kind === "approved" ? "ok" : "err" });
-      setTick((n) => n + 1);
+      const s = promotionCheckoutSignal(ev);
+      if (!s || s.kind === "pending") return;
+      const out = dropPendingPromos(uid, (k, p) => k.startsWith(ME_PREFIX) && ((!!p.requestId && s.ids.includes(p.requestId)) || (s.serviceId !== "" && k === pendingPromoKey(ME, s.serviceId))));
+      if (out.length) toast(s.kind === "approved" ? t("toast.approved") : s.lapsed ? t("toast.campaignEnded") : t(s.kind === "cancelled" ? "toast.cancelled" : "toast.rejected"), { tone: s.kind === "approved" ? "ok" : "err" });
+      if (out.length || s.serviceId) setTick((n) => n + 1);
     });
   }, [uid, t]);
 

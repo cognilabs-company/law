@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Select from "@/components/Select";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { IconInfo, IconList, IconLock, IconMap, IconMapPin, IconRefresh, IconStarRate, IconUsers } from "@/components/icons";
+import { IconBuilding, IconInfo, IconList, IconLock, IconMap, IconMapPin, IconRefresh, IconStarRate, IconUsers } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 import { regionLabel } from "@/lib/labels";
 import { humanizeSlug } from "@/lib/lawyers";
@@ -14,7 +14,7 @@ import { fmtUzs } from "@/lib/money";
 import { NEARBY_RADII, type NearbyRadius, type NearbyResult, type NearbySeller } from "@/lib/services/marketRuntime";
 import type { MarketSeller } from "@/lib/services/marketplace";
 import { approxDistance, findNearby, geoFailureOf, locateClient, nearbyFailureOf, nearbyKey, precisionMeters, sortNearby, type GeoFailure, type NearbyFailure, type NearbyMode, type Spot } from "@/lib/services/marketDiscovery";
-import { getMapConfig, type MapConfig } from "@/lib/services/sellersMap";
+import { getMapConfig, locationSourceOf, type MapConfig } from "@/lib/services/sellersMap";
 import { Monogram, sellerTypeLabel } from "./bits";
 import NearbyMap from "./NearbyMap";
 import SellersYandexMap, { MapPlaceholder } from "./map/SellersYandexMap";
@@ -172,6 +172,7 @@ export default function NearbySellers({
     const rowAi = aiId("marketplace.nearby.seller", id || name);
     const region = s.region || k?.region || "";
     const type = s.sellerType || k?.sellerType || "";
+    const src = s.exact ? "" : locationSourceOf(s.raw);
     return (
       <li key={id || name} className="mknb-row" data-ai-id={rowAi} data-ai-type="list_item" data-ai-entity-type="seller" data-ai-entity-id={id || undefined}>
         <Monogram name={name} rating={s.rating} showRing={s.rating > 0} />
@@ -201,6 +202,15 @@ export default function NearbySellers({
                   <IconStarRate aria-hidden="true" />
                   {fmtRating(s.rating, locale)}
                   {s.reviewsCount > 0 ? <small>({tm("card.reviews", { count: s.reviewsCount })})</small> : null}
+                </span>
+              </>
+            ) : null}
+            {src ? (
+              <>
+                {type || region || s.rating > 0 ? <i aria-hidden="true">·</i> : null}
+                <span className="mknb-row__src" data-src={src}>
+                  {src === "office" ? <IconBuilding aria-hidden="true" /> : <IconMapPin aria-hidden="true" />}
+                  {ty(`src.${src}`)}
                 </span>
               </>
             ) : null}

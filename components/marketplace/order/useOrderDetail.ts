@@ -305,7 +305,7 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
       const sig = marketSignalOf(ev);
       if (!sig) return;
       const cur = orderRef.current;
-      const ours = sig.orderId ? sig.orderId === orderId : !!(cur && sig.workId && sig.workId === cur.workId);
+      const ours = sig.orderId ? sig.orderId === orderId : !!(cur && ((sig.workId && sig.workId === cur.workId) || (sig.roomId && sig.roomId === cur.roomId)));
       if (!ours) return;
       setLastSignal(sig);
       if (sig.kind === "checklist") {

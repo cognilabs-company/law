@@ -801,11 +801,15 @@ export default function SecureChat({
   useEffect(() => {
     if (!roomOrder || urgentRecordId) return;
     const ctrl = new AbortController();
+    let closed = false;
     const apply = (l: OrderLock) => {
-      if (l.chatReadOnly) setFinished(true);
-      if (!l.callsAllowed) setCallsOff(true);
+      if (l.chatReadOnly) {
+        closed = true;
+        setFinished(true);
+      }
+      setCallsOff(closed || !l.callsAllowed);
     };
-    const off = subscribeOrderLock(roomOrder.orderId, apply);
+    const off = subscribeOrderLock(roomOrder.orderId, apply, { viewerId: session?.id ?? "", roomId });
     roomOrderLock(roomOrder, session?.id ?? "", ctrl.signal)
       .then((l) => {
         if (l && !ctrl.signal.aborted) apply(l);
@@ -815,7 +819,7 @@ export default function SecureChat({
       off();
       ctrl.abort();
     };
-  }, [roomOrder, urgentRecordId, session?.id]);
+  }, [roomOrder, urgentRecordId, session?.id, roomId]);
 
   // The glow is a one-shot: the timer clears it so a second jump to the same
   // bubble restarts the animation instead of doing nothing.

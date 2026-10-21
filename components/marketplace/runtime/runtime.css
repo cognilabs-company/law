@@ -123,3 +123,4 @@
 .mkrt-ck__list li:nth-child(n+4){animation-delay:120ms}
 @keyframes mkrt-in{from{opacity:0;transform:translateY(4px)}}
 @media (prefers-reduced-motion:reduce){.mkrt-ck__list li{animation:none}.mkrt-rl__item{transition:none}}
+.mkrt-tag--own{background:var(--dk-tint-violet, #F1ECFF);color:var(--dk-txt-violet, #6B46C1)}

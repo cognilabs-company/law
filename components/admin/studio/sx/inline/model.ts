@@ -36,6 +36,24 @@ export function inlineKindOf(code: string): InlineKind | null {
   return KIND_OF[String(code ?? "").trim().toUpperCase()] ?? null;
 }
 
+const PICKS_PENDING: ReadonlySet<InlineKind> = new Set<InlineKind>(["template"]);
+
+export function picksPending(kind: InlineKind | null): boolean {
+  return !!kind && PICKS_PENDING.has(kind);
+}
+
+export function pendingPick(multiple: boolean, current: readonly string[], item: Pick<InlinePending, "objectId" | "isNew">): string[] | null {
+  if (!item.isNew || !item.objectId || current.includes(item.objectId)) return null;
+  return mergeValue(multiple, current, item.objectId);
+}
+
+export function publishedPick(multiple: boolean, current: readonly string[], item: Pick<InlinePending, "objectId">, runtimeId: string): string[] | null {
+  if (!runtimeId) return null;
+  if (current.includes(item.objectId)) return current.map((v) => (v === item.objectId ? runtimeId : v)).filter((v, i, all) => all.indexOf(v) === i);
+  if (!multiple && current.length) return null;
+  return mergeValue(multiple, current, runtimeId);
+}
+
 export function inlineKeys(kind: InlineKind): { add: string; newTitle: string; editTitle: string; empty: string } {
   return {
     add: `sx.inline.add.${kind}`,

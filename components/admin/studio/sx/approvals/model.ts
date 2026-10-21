@@ -52,6 +52,7 @@ export const LIST_EVENTS: ReadonlySet<string> = new Set([
   "studio.object_rollback",
   "studio.object_archived",
   "studio.object_saved",
+  "studio.object_edited_in_review",
   "studio.object_created",
   "studio.approval_progress",
   "studio.approval_reassigned",

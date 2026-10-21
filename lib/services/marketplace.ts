@@ -3,6 +3,7 @@ import { uzs } from "@/lib/money";
 import { cleanDocTitle } from "@/lib/docTitle";
 import { sellerTrustOf, type RatingStatus } from "./trust";
 import { featureMissing, noteFeatureError } from "@/lib/endpointGate";
+import { gatedPhone, phoneGateOf } from "./clientPhone";
 import { MARKET_ACTION_TAIL, RUNTIME_ERROR_CODES, completeOrderV2, completeV2Path, marketActionPath, normDuration, normNegotiation, normCancellationReview, type RuntimeDuration, type Negotiation, type CancellationReview, type ChecklistProgress } from "./marketRuntime";
 
 export { marketActionPath };
@@ -449,8 +450,14 @@ export async function requestMarketplacePurchase(lawyerUserId: string, serviceId
   );
 }
 
-export async function requestPackagePurchase(packagePurchaseUrl: string, input: PurchaseInput): Promise<MarketPurchase> {
-  const path = packagePurchaseUrl.replace(/^https?:\/\/[^/]+/i, "");
+export function packagePurchasePath(packageId: string, lawyerUserId: string): string {
+  return `/marketplace/service-packages/${encodeURIComponent(packageId)}/lawyers/${encodeURIComponent(lawyerUserId)}/purchase-request`;
+}
+
+export async function requestPackagePurchase(packagePurchaseUrl: string, input: PurchaseInput, target?: { packageId: string; lawyerUserId: string }): Promise<MarketPurchase> {
+  const given = packagePurchaseUrl.trim().replace(/^https?:\/\/[^/]+/i, "");
+  const path = given || (target?.packageId && target.lawyerUserId ? packagePurchasePath(target.packageId, target.lawyerUserId) : "");
+  if (!path) throw new ApiError(404);
   return purchaseOf(await http(path, { method: "POST", body: purchaseBody(input) }));
 }
 
@@ -518,6 +525,8 @@ export type MarketOrder = {
   contactSpeedLabel: string;
   clientName: string;
   clientPhone: string;
+  clientPhoneVisible: boolean | null;
+  clientPhoneHiddenReason: string;
   clientUserId: string;
   lawyerName: string;
   lawyerPhone: string;
@@ -525,6 +534,7 @@ export type MarketOrder = {
   roomId: string;
   canStartChat: boolean;
   canCreateCall: boolean;
+  callTypes: CallKind[];
   canCancel: boolean;
   canComplete: boolean;
   createdAt: string;
@@ -558,6 +568,9 @@ export type MarketOrder = {
   explicit: { start: boolean; complete: boolean; cancel: boolean };
   urls: { start: string; checklist: string; negotiations: string; cancellationReview: string; secondOpinion: string; complete: string; cancel: string; chat: string; callCreate: string; secondOpinionPromotion?: string };
 };
+
+export type CallKind = "audio" | "video";
+export const CALL_KINDS: readonly CallKind[] = ["audio", "video"];
 
 export type OrderOption = { id: string; label: string; amount: number };
 export type ResultFile = { fileId: string; fileName: string; downloadUrl: string };
@@ -667,6 +680,15 @@ function firstBool(...vals: unknown[]): boolean | null {
   return null;
 }
 
+function callKindsOf(...vals: unknown[]): CallKind[] | null {
+  for (const v of vals) {
+    if (!Array.isArray(v)) continue;
+    const kinds = v.map((x) => asStr(x).trim().toLowerCase());
+    return CALL_KINDS.filter((k) => kinds.includes(k));
+  }
+  return null;
+}
+
 function durationOfRow(v: unknown): RuntimeDuration | null {
   if (!filledDict(v)) return null;
   const d = normDuration(v);
@@ -716,7 +738,11 @@ export function normMarketOrder(v: unknown): MarketOrder {
   const chatState = asDict(d.chat ?? d.chat_state ?? details.chat_state);
   const readOnlyFlag = firstBool(d.chat_read_only, details.chat_read_only, chatState.read_only);
   const callsDisabled = firstBool(chatState.calls_disabled, d.calls_disabled);
-  const callsFlag = firstBool(d.calls_allowed, details.calls_allowed, chatState.calls_allowed, callsDisabled === null ? null : !callsDisabled);
+  const callKinds = callKindsOf(d.allowed_call_types, d.calls_allowed, details.allowed_call_types, details.calls_allowed, chatState.allowed_call_types, chatState.calls_allowed);
+  const callsEnabled = firstBool(d.calls_enabled, details.calls_enabled, chatState.calls_enabled);
+  const callsFlag = firstBool(d.calls_allowed, details.calls_allowed, chatState.calls_allowed, callsEnabled, callKinds ? callKinds.length > 0 : null, callsDisabled === null ? null : !callsDisabled);
+  const createCallFlag = typeof d.can_create_call === "boolean" ? d.can_create_call : callsEnabled === true || !!callKinds?.length;
+  const phoneGate = phoneGateOf([client, details.client], [d, details]);
   const reviewRaw = filledDict(d.cancellation_review) ?? filledDict(d.cancellation_review_request) ?? filledDict(details.cancellation_review);
   const actions = filledDict(d.actions) ?? {};
   const actionUrl = (k: string): string => {
@@ -744,17 +770,20 @@ export function normMarketOrder(v: unknown): MarketOrder {
     note: asStr(details.client_note ?? d.note).trim(),
     preferredChannel: asStr(details.preferred_channel ?? d.preferred_channel).toLowerCase(),
     preferredTime: asStr(details.preferred_time ?? d.preferred_time).trim(),
-    contactSpeed: asStr(details.contact_speed ?? d.contact_speed).trim().toLowerCase(),
+    contactSpeed: asStr(d.contact_speed || details.contact_speed).trim().toLowerCase(),
     contactSpeedLabel: asStr(d.contact_speed_label ?? details.contact_speed_label).trim(),
     clientName: asStr(client.name ?? d.client_name).trim(),
-    clientPhone: asStr(client.phone ?? d.client_phone).trim(),
+    clientPhone: gatedPhone(phoneGate, client.phone, d.client_phone, details.client_phone),
+    clientPhoneVisible: phoneGate.visible,
+    clientPhoneHiddenReason: phoneGate.reason,
     clientUserId: asStr(d.client_user_id ?? client.id),
     lawyerName: asStr(d.lawyer_name ?? lawyer.name).trim(),
     lawyerPhone: asStr(lawyer.phone ?? d.lawyer_phone).trim(),
     lawyerUserId: asStr(d.lawyer_user_id ?? lawyer.id),
     roomId,
     canStartChat: d.can_start_chat === true && !!roomId && urlGate("chat_url"),
-    canCreateCall: d.can_create_call === true && !!roomId && urlGate("call_create_url"),
+    canCreateCall: createCallFlag && !!roomId && urlGate("call_create_url"),
+    callTypes: callKinds?.length ? callKinds : [...CALL_KINDS],
     canCancel: !!url("cancel_url") && cancelFlag !== false,
     canComplete: !!url("complete_url") && completeFlag !== false,
     createdAt: asStr(d.created_at),
@@ -1103,14 +1132,15 @@ export function marketSignalOf(ev: { event: string } & Record<string, unknown>):
     if (runtime) return runtimeSignal(runtime, ev, name);
     const special = specialKind(name);
     const kind = special ? special.kind : /paid|approved/.test(name) ? "paid" : /reject|cancel/.test(name) ? "rejected" : "other";
-    const chat = asStr(ev.chat_url);
+    const srcs = signalSources(ev);
+    const chat = pickStr(srcs, ["chat_url"]) || pickIn(srcs, ["order"], ["chat_url"]);
     return {
       kind,
       sub: special?.sub,
-      orderId: asStr(ev.order_id),
-      workId: asStr(ev.work_id) || asStr(asDict(ev.purchase_request).work_id),
-      roomId: asStr(ev.room_id) || (ROOM_RE.exec(chat)?.[1] ?? ""),
-      serviceTitle: asStr(ev.service_title),
+      orderId: pickStr(srcs, ["order_id", "marketplace_order_id"]) || pickIn(srcs, ["order"], ["id"]),
+      workId: pickStr(srcs, ["work_id"]) || pickIn(srcs, ["purchase_request", "order"], ["work_id"]),
+      roomId: pickStr(srcs, ["room_id", "secure_chat_room_id", "chat_room_id"]) || pickIn(srcs, ["chat", "order"], ["room_id", "secure_chat_room_id"]) || (ROOM_RE.exec(chat)?.[1] ?? ""),
+      serviceTitle: pickStr(srcs, ["service_title"]) || pickIn(srcs, ["order"], ["service_title"]),
     };
   }
   if (name !== "notification.created") return null;
@@ -1133,6 +1163,16 @@ export function marketSignalOf(ev: { event: string } & Record<string, unknown>):
   if (special) return { ...special, orderId: asStr(data.order_id), workId: asStr(data.work_id), roomId: asStr(data.room_id), serviceTitle: asStr(data.service_title) || asStr(n.body) };
   const kind = inner === "marketplace_purchase_approved" || inner === "marketplace_order_paid" ? "paid" : inner === "marketplace_purchase_rejected" ? "rejected" : inner === "marketplace_purchase_requested" ? "requested" : "other";
   return { kind, orderId: asStr(data.order_id), workId: asStr(data.work_id), roomId: asStr(data.room_id), serviceTitle: asStr(data.service_title) || asStr(n.body) };
+}
+
+const PAYMENT_NOTICES = new Set(["order_payment_updated", "payment_paid"]);
+
+export function marketPaymentSignalOf(ev: { event: string } & Record<string, unknown>): MarketSignal | null {
+  const sig = marketSignalOf(ev);
+  if (!sig || (!sig.orderId && !sig.workId && !sig.roomId)) return null;
+  if (sig.kind === "paid") return sig;
+  if (sig.kind !== "other" || ev.event !== "notification.created") return null;
+  return PAYMENT_NOTICES.has(asStr(asDict(asDict(ev.notification).data).event)) ? sig : null;
 }
 
 export function isOrderPending(o: Pick<MarketOrder, "status" | "paymentStatus">): boolean {

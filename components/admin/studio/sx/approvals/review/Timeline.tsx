@@ -5,6 +5,7 @@ import "../sx-ap3.css";
 import { useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import type { StudioVersion } from "@/lib/services/studio";
+import type { SchemaModel } from "../../contract";
 import { SxButton } from "../../Button";
 import { SxNote } from "../../layout/Note";
 import { useNow } from "../../live";
@@ -22,6 +23,7 @@ import {
   GitBranchIcon,
   HistoryIcon,
   MessageSquareTextIcon,
+  PencilIcon,
   PencilLineIcon,
   PlusIcon,
   RadioIcon,
@@ -35,9 +37,10 @@ import {
 } from "../../icons";
 import { stepName } from "../../editor/model";
 import type { ApprEvent, ApprEventKind } from "../approvalsApi";
+import { EditedFields } from "./EditedFields";
 import type { ReviewHistory } from "./useReview";
 
-export type TimelineProps = { history: ReviewHistory; versions: readonly StudioVersion[]; onRetry: () => void };
+export type TimelineProps = { history: ReviewHistory; versions: readonly StudioVersion[]; onRetry: () => void; model?: SchemaModel | null; code?: string };
 
 type Cat = "all" | "decisions" | "comments" | "versions" | "release" | "audit";
 
@@ -45,6 +48,7 @@ const AI = "admin.studio.approvals.drawer.timeline";
 const FIRST = 8;
 
 const ICON: Readonly<Record<ApprEventKind, SxIcon>> = {
+  edited_in_review: PencilIcon,
   comment: MessageSquareTextIcon,
   comment_updated: PencilLineIcon,
   comment_deleted: Trash2Icon,
@@ -67,6 +71,7 @@ const ICON: Readonly<Record<ApprEventKind, SxIcon>> = {
 };
 
 const TONE: Partial<Readonly<Record<ApprEventKind, string>>> = {
+  edited_in_review: "review",
   approved: "approved",
   auto: "approved",
   publish: "published",
@@ -83,14 +88,14 @@ export function catOf(e: Pick<ApprEvent, "kind" | "audit">): Exclude<Cat, "all">
   if (e.audit) return "audit";
   if (kind === "approved" || kind === "returned" || kind === "rejected" || kind === "auto" || kind === "reassign" || kind === "overdue" || kind === "submit") return "decisions";
   if (kind === "comment" || kind === "comment_updated" || kind === "comment_deleted") return "comments";
-  if (kind === "version" || kind === "save" || kind === "created" || kind === "withdraw") return "versions";
+  if (kind === "version" || kind === "save" || kind === "created" || kind === "withdraw" || kind === "edited_in_review") return "versions";
   if (kind === "publish" || kind === "rollback" || kind === "archive" || kind === "restore") return "release";
   return null;
 }
 
 const RAW_KEY = /^[a-z0-9_.:-]+$/;
 
-export function Timeline({ history, versions, onRetry }: TimelineProps): ReactElement | null {
+export function Timeline({ history, versions, onRetry, model = null, code = "" }: TimelineProps): ReactElement | null {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const now = useNow();
@@ -189,6 +194,7 @@ export function Timeline({ history, versions, onRetry }: TimelineProps): ReactEl
                     </time>
                   ) : null}
                 </p>
+                {e.kind === "edited_in_review" && e.changedFields.length ? <EditedFields fields={e.changedFields} model={model} code={code} aiId={`${AI}.edited`} /> : null}
                 {e.text ? <p className="sx-ap3-tl__text">{e.text}</p> : null}
               </div>
             </li>

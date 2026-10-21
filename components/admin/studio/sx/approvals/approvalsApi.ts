@@ -11,6 +11,7 @@ export type ApprQueueQuery = { constructorCode?: string; status?: string; q?: st
 export type ApprQueuePage = { items: StudioDetail[]; total: number; hasMore: boolean; counts: ApprCounts | null; offset: number };
 
 export type ApprEventKind =
+  | "edited_in_review"
   | "comment"
   | "comment_updated"
   | "comment_deleted"
@@ -49,6 +50,7 @@ export type ApprEvent = {
   stepId: string;
   deleted: boolean;
   audit: boolean;
+  changedFields: string[];
 };
 
 export type ApprSummaryItem = { key: string; n: number };
@@ -170,6 +172,7 @@ export async function bulkPublish(ids: readonly string[], note: string): Promise
 }
 
 const KIND_RULES: readonly [RegExp, ApprEventKind][] = [
+  [/edit(ed)?.?in.?review/, "edited_in_review"],
   [/comment.*(delet|remov)|(delet|remov).*comment/, "comment_deleted"],
   [/comment.*(updat|edit)|(updat|edit).*comment/, "comment_updated"],
   [/comment/, "comment"],
@@ -194,6 +197,16 @@ export function eventKindOf(parts: readonly string[]): ApprEventKind {
   const hay = parts.map((p) => p.toLowerCase()).join(" | ");
   for (const [re, kind] of KIND_RULES) if (re.test(hay)) return kind;
   return "other";
+}
+
+function fieldList(v: unknown): string[] {
+  const out: string[] = [];
+  for (const x of asArr(v)) {
+    const d = asDict(x);
+    const name = typeof x === "string" ? x.trim() : firstText(d.path, d.field, d.key, d.name);
+    if (name && !out.includes(name)) out.push(name);
+  }
+  return out;
 }
 
 function normEvent(raw: unknown, i: number): ApprEvent {
@@ -222,10 +235,11 @@ function normEvent(raw: unknown, i: number): ApprEvent {
     stage: firstText(meta.step_title, meta.step_name, meta.stage_title),
     stageRole: firstText(meta.step_role, meta.stage_role),
     versionId: firstText(r.version_id, meta.version_id),
-    version: firstText(meta.version, meta.version_label, r.version_label, typeof r.version === "string" ? r.version : ""),
+    version: firstText(meta.version, meta.version_label, r.version_label, typeof r.version === "string" ? r.version : "", r.version_number, meta.version_number),
     stepId: firstText(r.step_id, meta.step_id),
     deleted,
     audit: type === "audit_activity" || type === "audit" || r.is_audit === true || text(r.source) === "audit",
+    changedFields: fieldList(r.changed_fields ?? meta.changed_fields),
   };
 }
 

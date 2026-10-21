@@ -1,3 +1,4 @@
+import { studioDetailSnapshot } from "@/lib/services/studio";
 import { normPath } from "@/lib/studioSchema";
 import type { SxPayload, SxValues } from "../../contract";
 import type { SxErrors } from "../../types";
@@ -107,11 +108,11 @@ export function sharedFactorOf(raw: unknown): SharedFactor {
   return { type, value };
 }
 
-export function overrideErrors(payload: SxValues): Record<string, string> {
+export function overrideErrors(payload: SxValues, prefix = ""): Record<string, string> {
   const out: Record<string, string> = {};
   const ids = new Set(idsOf(payload[FACTOR_IDS]));
   for (const [id, raw] of Object.entries(overridesOf(payload[FACTOR_OVERRIDES]))) {
-    const base = `${FACTOR_OVERRIDES}.${id}`;
+    const base = `${prefix}${FACTOR_OVERRIDES}.${id}`;
     if (!ids.has(id)) {
       out[base] = "@code:factor_not_selected";
       continue;
@@ -199,9 +200,30 @@ export function templateSkipped(payload: SxValues): boolean {
   return templateModeOf(payload[TEMPLATE_MODE]) === TEMPLATE_SKIP;
 }
 
-export function templateErrors(payload: SxValues): Record<string, string> {
-  if (templateSkipped(payload) || str(payload[TEMPLATE_ID])) return {};
-  return { [TEMPLATE_MODE]: "@code:template_required" };
+const TEMPLATE_FILE_KEY = /templ.*file|file.*templ/;
+
+export function templateFileKeys(keys: readonly string[]): string[] {
+  return keys.filter((k) => TEMPLATE_FILE_KEY.test(k.toLowerCase()));
+}
+
+export function hasTemplate(payload: SxValues, fileKeys: readonly string[] = []): boolean {
+  if (str(payload[TEMPLATE_ID])) return true;
+  return fileKeys.some((k) => {
+    const v = payload[k];
+    return isDict(v) ? Object.keys(v).length > 0 : Array.isArray(v) ? v.length > 0 : !!str(v);
+  });
+}
+
+export function templateErrors(payload: SxValues, fileKeys: readonly string[] = []): Record<string, string> {
+  const mode = templateModeOf(payload[TEMPLATE_MODE]);
+  if (mode === TEMPLATE_SKIP) return {};
+  if (!hasTemplate(payload, fileKeys)) return { [TEMPLATE_MODE]: "@code:template_required" };
+  if (!mode) return { [TEMPLATE_MODE]: "@code:template_mode_required" };
+  return {};
+}
+
+export function templateModePatch(mode: Exclude<TemplateMode, typeof TEMPLATE_SKIP>): Dict {
+  return { [TEMPLATE_MODE]: mode };
 }
 
 export function templatePatch(payload: SxValues, change: { skip: boolean; remembered?: TemplateMode | "" } | { pick: string }): Dict {
@@ -221,12 +243,29 @@ export function k02Validate(payload: SxValues): SxErrors {
   return { ...overrideErrors(payload), ...checklistErrors(payload), ...intakeErrors(payload) };
 }
 
+function k02FileKeys(): string[] {
+  const ctor = studioDetailSnapshot("K02");
+  return ctor ? templateFileKeys(ctor.typed.map((f) => f.key)) : [];
+}
+
 export function k02FormValidate(payload: SxValues): SxErrors {
-  return { ...k02Validate(payload), ...templateErrors(payload) };
+  return { ...k02Validate(payload), ...templateErrors(payload, k02FileKeys()) };
+}
+
+export const TIERS = "tiers";
+
+export function tierOverrideErrors(payload: SxValues): Record<string, string> {
+  const out: Record<string, string> = {};
+  const rows = payload[TIERS];
+  if (!Array.isArray(rows)) return out;
+  rows.forEach((row, i) => {
+    if (isDict(row)) Object.assign(out, overrideErrors(row, `${TIERS}.${i}.`));
+  });
+  return out;
 }
 
 export function k03mValidate(payload: SxValues): SxErrors {
-  return overrideErrors(payload);
+  return { ...overrideErrors(payload), ...tierOverrideErrors(payload) };
 }
 
 const sameIds = (a: unknown, b: unknown) => idsOf(a).join("\n") === idsOf(b).join("\n");
@@ -235,6 +274,21 @@ export function k02Prune(next: SxPayload, prev: SxValues): SxPayload {
   if (sameIds(next[FACTOR_IDS], prev[FACTOR_IDS]) || !isDict(next[FACTOR_OVERRIDES])) return next;
   const pruned = pruneOverrides(next[FACTOR_OVERRIDES], idsOf(next[FACTOR_IDS]));
   return pruned ? { ...next, [FACTOR_OVERRIDES]: pruned } : next;
+}
+
+export function k03mPrune(next: SxPayload, prev: SxValues): SxPayload {
+  const rows = next[TIERS];
+  if (!Array.isArray(rows) || rows === prev[TIERS]) return next;
+  const before = Array.isArray(prev[TIERS]) ? (prev[TIERS] as unknown[]) : [];
+  let changed = false;
+  const out = rows.map((row, i) => {
+    if (!isDict(row)) return row;
+    const old = before[i];
+    const pruned = k02Prune(row, isDict(old) ? old : {});
+    if (pruned !== row) changed = true;
+    return pruned;
+  });
+  return changed ? { ...next, [TIERS]: out } : next;
 }
 
 export function checklistValueAfter(next: readonly unknown[], absentAtStart: boolean): unknown[] | undefined {

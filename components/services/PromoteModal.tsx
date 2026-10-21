@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { errDetail } from "@/lib/http";
 import Modal from "@/components/admin/Modal";
 import SearchSelect from "@/components/SearchSelect";
@@ -16,10 +16,31 @@ import {
   type ServiceScope,
   type ServiceSellerProfile,
 } from "@/lib/services/sellerServices";
-import { checkoutMarketplacePromotion, listPromotionPackages, promotionCampaignEnded, promotionErrorCode, promotionErrorRetryable, uploadPromotionBanner, BANNER_REFERENCES, bannerReferenceUrl, type BannerAsset, type PromotionCheckout, type PromotionPackage, type PromotionPlacement, type PromotionPlacementOption } from "@/lib/services/promotions";
+import {
+  bannerRejectionOf,
+  checkoutMarketplacePromotion,
+  isBannerReasonCode,
+  listPromotionPackages,
+  promotionCampaignEnded,
+  promotionCheckoutSignal,
+  promotionErrorCode,
+  promotionErrorRetryable,
+  uploadPromotionBanner,
+  BANNER_REFERENCES,
+  bannerReferenceUrl,
+  type BannerAsset,
+  type BannerVerdict,
+  type PromotionCampaignSnapshot,
+  type PromotionCheckout,
+  type PromotionPackage,
+  type PromotionPlacement,
+  type PromotionPlacementOption,
+} from "@/lib/services/promotions";
 import { IconAlert, IconArrowRight, IconCheck, IconCircleCheck, IconClock, IconCrown, IconEye, IconGem, IconInfo, IconMegaphone, IconRefresh, IconRocket, IconTrendingUp, IconUpload, IconUser } from "@/components/icons";
-import { CameraIcon, ImageIcon, ScanFaceIcon, ShirtIcon, TrendingUpIcon } from "lucide-react";
+import { CameraIcon, ImageIcon, ScanFaceIcon, ShirtIcon, Trash2Icon, TrendingUpIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { subscribeUserEvents } from "@/lib/userSocket";
+import { fmtDate, localDay } from "@/lib/date";
 import { InBody, PlacementSketch, som, usePackageName } from "./bits";
 import MarketPreviewModal from "./MarketPreviewModal";
 import { previewServiceOf, type PreviewDraft } from "@/lib/marketPreview";
@@ -27,9 +48,11 @@ import { newIdempotencyKey } from "@/lib/services/promoEvents";
 import "./promoCheckout.css";
 
 type Packs = { status: "loading" | "ready" | "error"; items: PromotionPackage[]; placements: PromotionPlacementOption[] };
+type Outcome = "approved" | "rejected" | "lapsed" | "cancelled";
 const TIER_ICON = [IconRocket, IconGem, IconCrown];
 // The backend takes up to 12 MB (2026-10-18), at least 720×720.
 const MAX_BANNER_MB = 12;
+const HTTP_URL = /^https?:\/\/\S+\.\S+/i;
 const PHOTO_RULES = [
   { key: "close", Icon: CameraIcon },
   { key: "face", Icon: ScanFaceIcon },
@@ -41,6 +64,57 @@ const FALLBACK_PLACEMENTS: PromotionPlacementOption[] = [
   { value: "profile_boost", label: "", requiresService: false, requiresBanner: false, acceptsBanner: false, previewSurface: "marketplace_list_card" },
   { value: "banner", label: "", requiresService: false, requiresBanner: false, acceptsBanner: true, previewSurface: "marketplace_top_banner" },
 ];
+
+function BannerVerdictBox({ verdict, aiId }: { verdict: BannerVerdict; aiId?: string }) {
+  const t = useTranslations("sellerServices.promote");
+  const reasons = verdict.reasons.filter((r) => r.trim() && r.trim() !== verdict.message);
+  const listed = verdict.reasonCodes.length + reasons.length;
+  return (
+    <div className={`svprom__check svprom__check--${verdict.status}`} role="status" data-ai-id={aiId}>
+      <b>{t(`bannerStatus.${verdict.status}`)}</b>
+      {verdict.message ? <p className="svprom__checkmsg">{verdict.message}</p> : null}
+      {listed ? (
+        <>
+          {verdict.status === "active" ? null : <small>{t("bannerReasonsTitle")}</small>}
+          <ul>
+            {verdict.reasonCodes.map((code) => (
+              <li key={code} data-reason={code}>
+                {isBannerReasonCode(code) ? t(`bannerReason.${code}`) : code.replace(/_/g, " ")}
+              </li>
+            ))}
+            {reasons.map((r, i) => (
+              <li key={`r${i}`}>{r}</li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+      {verdict.faceCoverage !== null ? (
+        <span className={`svprom__face${verdict.faceCoverage < 40 ? " is-low" : ""}`} data-face={verdict.faceCoverage}>
+          <ScanFaceIcon size={15} strokeWidth={1.75} aria-hidden="true" />
+          {t("bannerFace", { n: verdict.faceCoverage })}
+        </span>
+      ) : null}
+      {verdict.suggestions.length ? (
+        <>
+          <small>{t("bannerSuggest")}</small>
+          <ul>
+            {verdict.suggestions.map((r, i) => (
+              <li key={i}>{r}</li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function campaignTerms(c: PromotionCampaignSnapshot | null, locale: string, t: ReturnType<typeof useTranslations>): string {
+  if (!c) return "";
+  const day = c.endsAt ? localDay(c.endsAt) : "";
+  const until = day ? t("campaignUntil", { date: fmtDate(day, locale) }) : "";
+  const left = c.purchaseLimit !== null && c.purchaseLimit > 0 ? t("campaignLeft", { n: Math.max(0, c.purchaseLimit - (c.purchasesUsed ?? 0)) }) : "";
+  return [until, left].filter(Boolean).join(" · ");
+}
 
 // The promote dialog (10-09 §1–4, §11): placement first, then that
 // placement's packages, then whatever the package needs — a service for a
@@ -77,6 +151,7 @@ export default function PromoteModal({
   const t = useTranslations("sellerServices.promote");
   const tc = useTranslations("sellerServices");
   const tv = useTranslations("sellerServices.preview");
+  const locale = useLocale();
   const packName = usePackageName();
   const placementName = (value: PromotionPlacement) => t(value === "banner" ? "placementBanner" : value === "profile_boost" ? "placementProfile" : "placementService");
   const [packs, setPacks] = useState<Packs>({ status: "loading", items: [], placements: [] });
@@ -93,10 +168,13 @@ export default function PromoteModal({
   // The uploaded picture, shown from the browser's own copy: the preview must
   // not depend on the stored file being readable yet.
   const [bannerLocal, setBannerLocal] = useState("");
+  const [bannerUrl, setBannerUrl] = useState("");
+  const [urlCheck, setUrlCheck] = useState<BannerVerdict | null>(null);
   const { session } = useAuth();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [done, setDone] = useState<PromotionCheckout | null>(null);
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [live, setLive] = useState(false);
   const [warm, setWarm] = useState(false);
   const attemptKey = useRef("");
@@ -110,7 +188,7 @@ export default function PromoteModal({
       .then((catalog) => {
         if (!c.signal.aborted) {
           setPacks({ status: "ready", items: catalog.items, placements: catalog.placements });
-          setPicked("");
+          setPicked((cur) => (catalog.items.some((p) => p.id === cur) ? cur : ""));
         }
       })
       .catch(() => {
@@ -149,27 +227,64 @@ export default function PromoteModal({
   const needsService = Boolean(chosen?.requiresService || selectedPlacement?.requiresService || placement === "service_boost");
   const svcOptions = services?.length ? services : item ? [item] : [];
   const svc = svcOptions.find((s) => s.id === svcId) ?? null;
-  const missingBanner = needsBanner && !bannerFile;
+  const urlText = bannerUrl.trim();
+  const urlValid = HTTP_URL.test(urlText);
+  const badImage = !!urlText && !urlValid;
+  const usingUrl = acceptsBanner && !bannerFile && urlValid;
+  const urlBlocked = usingUrl && !!urlCheck && urlCheck.status !== "active";
+  const missingBanner = needsBanner && !bannerFile && !urlValid;
   const missingService = needsService && !svc;
   // An uploaded picture is used only once the check has passed it.
   const bannerNotReady = acceptsBanner && !!bannerFile && (uploading || !bannerCheck || bannerCheck.status !== "active");
-  const blocked = !chosen || chosen.placement !== placement || missingBanner || missingService || bannerNotReady;
+  const blocked = !chosen || chosen.placement !== placement || missingBanner || missingService || bannerNotReady || (acceptsBanner && badImage) || urlBlocked;
 
   useEffect(() => () => { if (bannerLocal) URL.revokeObjectURL(bannerLocal); }, [bannerLocal]);
+
+  const waitIds = done && !done.activated && done.telegramSent && !outcome ? [done.requestId, done.paymentId].filter(Boolean).join("|") : "";
+  useEffect(() => {
+    if (!waitIds) return;
+    const ids = waitIds.split("|");
+    return subscribeUserEvents((ev) => {
+      const s = promotionCheckoutSignal(ev);
+      if (!s || s.kind === "pending" || !s.ids.some((id) => ids.includes(id))) return;
+      setOutcome(s.kind === "approved" ? "approved" : s.lapsed ? "lapsed" : s.kind === "rejected" ? "rejected" : "cancelled");
+    });
+  }, [waitIds]);
+
+  const restart = () => {
+    attemptKey.current = "";
+    setDone(null);
+    setOutcome(null);
+    setErr("");
+    setPacks((cur) => ({ ...cur, status: "loading", items: [] }));
+    setTick((n) => n + 1);
+  };
+
+  const clearBanner = () => {
+    if (uploading || busy) return;
+    setBannerFile(null);
+    setBannerFileUrl("");
+    setBannerCheck(null);
+    setBannerFileName("");
+    setBannerLocal("");
+    setErr("");
+  };
 
   const send = async () => {
     if (!chosen || busy || blocked) return;
     setBusy(true);
     setErr("");
     if (!attemptKey.current) attemptKey.current = newIdempotencyKey();
+    const fileUrl = acceptsBanner && bannerFile && bannerCheck?.status === "active" ? bannerFileUrl : "";
+    const imageUrl = usingUrl ? urlText : "";
     try {
-      const fileUrl = acceptsBanner && bannerFile && bannerCheck?.status === "active" ? bannerFileUrl : "";
       const req = await checkoutMarketplacePromotion(
         {
           packageId: chosen.id,
           days: chosen.days,
           placement,
           serviceId: needsService && svc ? svc.id : undefined,
+          bannerImageUrl: imageUrl,
           bannerFileUrl: fileUrl,
           idempotencyKey: attemptKey.current,
           previewContext: {
@@ -200,6 +315,14 @@ export default function PromoteModal({
         setErr(t("errors.campaignEnded"));
         return;
       }
+      const verdict = imageUrl || fileUrl ? bannerRejectionOf(e) : null;
+      if (verdict) {
+        attemptKey.current = "";
+        if (imageUrl) setUrlCheck(verdict);
+        else setBannerCheck((cur) => ({ ...verdict, id: cur?.id ?? "", fileUrl: cur?.fileUrl ?? "" }));
+        setErr(t("bannerCheckFailed"));
+        return;
+      }
       const code = promotionErrorCode(e);
       if (code) {
         setErr(t(`errors.${code}`));
@@ -218,13 +341,29 @@ export default function PromoteModal({
     if (!busy) onClose();
   };
 
-  const activated = Boolean(done?.activated);
-  const sent = Boolean(done?.telegramSent) || activated;
+  const closedOut = outcome === "rejected" || outcome === "lapsed" || outcome === "cancelled";
+  const activated = Boolean(done?.activated) || outcome === "approved";
+  const sent = (Boolean(done?.telegramSent) || activated) && !closedOut;
   const priced = done?.breakdown ?? null;
   const discounted = !!priced && (priced.discountAmount > 0 || !!priced.campaign);
+  const campaign = priced?.campaign ?? null;
+  const pct = campaign && campaign.discountType === "percent" && campaign.discountValue ? ` ${t("discountPct", { v: campaign.discountValue })}` : "";
+  const terms = campaignTerms(campaign, locale, t);
   const unit = (c: string) => (c === "UZS" ? tc("card.som") : c);
   const sellerName = profile?.name || session?.name || t("previewSeller");
-  const previewImage = bannerLocal;
+  const previewImage = bannerLocal || (usingUrl ? urlText : "");
+  const doneTitle = activated ? t("activeTitle") : outcome === "lapsed" ? t("lapsedTitle") : outcome === "rejected" ? t("rejectedTitle") : outcome === "cancelled" ? t("cancelledTitle") : sent ? t("doneTitle") : t("failTitle");
+  const doneText = activated
+    ? t(outcome === "approved" ? "approvedText" : "activeText")
+    : outcome === "lapsed"
+      ? t("lapsedText")
+      : outcome === "rejected"
+        ? t("rejectedText")
+        : outcome === "cancelled"
+          ? t("cancelledText")
+          : sent
+            ? t("doneText")
+            : t("failText");
   const draft: PreviewDraft = {
     kind: "ad",
     sellerId: profile?.userId || (scope.kind === "org" ? scope.memberId : uid),
@@ -245,6 +384,8 @@ export default function PromoteModal({
       return;
     }
     setErr("");
+    setBannerUrl("");
+    setUrlCheck(null);
     setBannerFile(file);
     setBannerFileUrl("");
     setBannerCheck(null);
@@ -270,12 +411,12 @@ export default function PromoteModal({
     <InBody>
       <Modal open onClose={close} title={title}>
         {done ? (
-          <div className="svpdone" role="status" data-ai-id={aiId} data-ai-type={aiId ? "modal" : undefined} data-ai-label={aiId ? title : undefined}>
+          <div className="svpdone" role="status" data-ai-id={aiId} data-ai-type={aiId ? "modal" : undefined} data-ai-label={aiId ? title : undefined} data-outcome={outcome ?? undefined}>
             <span className={`svpdone__ic${sent ? (activated ? " is-ok" : "") : " is-bad"}`} aria-hidden="true">
               {activated ? <IconCircleCheck /> : sent ? <IconClock /> : <IconAlert />}
             </span>
-            <b className="svpdone__t">{activated ? t("activeTitle") : sent ? t("doneTitle") : t("failTitle")}</b>
-            <p className="svpdone__p">{activated ? t("activeText") : sent ? t("doneText") : t("failText")}</p>
+            <b className="svpdone__t">{doneTitle}</b>
+            <p className="svpdone__p">{doneText}</p>
             <div className="svpdone__rows">
               <span>{t("placementTitle")}</span>
               <b>{placementName(placement)}</b>
@@ -291,7 +432,7 @@ export default function PromoteModal({
                   <b>{packName(chosen.title, chosen.placement)}</b>
                 </>
               ) : null}
-              {priced && discounted ? (
+              {closedOut ? null : priced && discounted ? (
                 <>
                   {priced.baseAmount !== null ? (
                     <>
@@ -301,10 +442,21 @@ export default function PromoteModal({
                       </b>
                     </>
                   ) : null}
-                  <span className="svpdisc__label">{priced.campaign?.title ? t("discountNamed", { name: priced.campaign.title }) : t("discount")}</span>
+                  <span className="svpdisc__label">
+                    {campaign?.title ? t("discountNamed", { name: campaign.title }) : t("discount")}
+                    {pct}
+                  </span>
                   <b className="svpdisc__minus">
                     −{som(priced.discountAmount)} {unit(done.currency)}
                   </b>
+                  {terms ? (
+                    <>
+                      <span>{t("campaignTerms")}</span>
+                      <b className="svpdisc__terms" data-ai-id={aiId ? `${aiId}.campaign-terms` : undefined}>
+                        {terms}
+                      </b>
+                    </>
+                  ) : null}
                   <span>{t("toPay")}</span>
                   <b className="svpdisc__total">
                     {som(priced.amount)} {unit(done.currency)}
@@ -343,6 +495,16 @@ export default function PromoteModal({
                   {t("close")}
                 </button>
               </>
+            ) : closedOut ? (
+              <div className="svpdone__acts">
+                <button type="button" className="btn btn--line" onClick={onClose}>
+                  {t("close")}
+                </button>
+                <button type="button" className="btn btn--grad" onClick={restart} data-ai-id={aiId ? `${aiId}.new-checkout` : undefined}>
+                  <IconRefresh aria-hidden="true" />
+                  {t("newCheckout")}
+                </button>
+              </div>
             ) : (
               <div className="svpdone__acts">
                 <button type="button" className="btn btn--line" onClick={onClose}>
@@ -517,7 +679,17 @@ export default function PromoteModal({
                   </div>
                   <label className="svfile">
                     <span>{t("bannerFile")}</span>
-                    <input className="svfile__in" type="file" accept=".jpg,.jpeg,.png,.webp,.heic" onChange={(e) => onBannerFile(e.target.files?.[0])} disabled={uploading || busy} data-ai-id={aiId ? `${aiId}.banner-file` : undefined} />
+                    <input
+                      className="svfile__in"
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.webp,.heic"
+                      onChange={(e) => {
+                        onBannerFile(e.target.files?.[0]);
+                        e.target.value = "";
+                      }}
+                      disabled={uploading || busy}
+                      data-ai-id={aiId ? `${aiId}.banner-file` : undefined}
+                    />
                     <span className={`svfile__box${bannerFile ? " is-on" : ""}`}>
                       <span className="btn btn--line btn--sm svfile__btn">
                         <IconUpload aria-hidden="true" />
@@ -527,28 +699,33 @@ export default function PromoteModal({
                     </span>
                   </label>
                 </div>
-                {bannerFile && bannerCheck ? (
-                  <div className={`svprom__check svprom__check--${bannerCheck.status}`} role="status">
-                    <b>{t(`bannerStatus.${bannerCheck.status}`)}</b>
-                    {bannerCheck.reasons.length ? (
-                      <ul>
-                        {bannerCheck.reasons.map((r, i) => (
-                          <li key={i}>{r}</li>
-                        ))}
-                      </ul>
-                    ) : null}
-                    {bannerCheck.suggestions.length ? (
-                      <>
-                        <small>{t("bannerSuggest")}</small>
-                        <ul>
-                          {bannerCheck.suggestions.map((r, i) => (
-                            <li key={i}>{r}</li>
-                          ))}
-                        </ul>
-                      </>
-                    ) : null}
-                  </div>
+                {bannerFile && bannerCheck ? <BannerVerdictBox verdict={bannerCheck} aiId={aiId ? `${aiId}.banner-check` : undefined} /> : null}
+                {bannerFile ? (
+                  <button type="button" className="svprom__clear" onClick={clearBanner} disabled={uploading || busy} data-ai-id={aiId ? `${aiId}.banner-clear` : undefined}>
+                    <Trash2Icon size={14} strokeWidth={1.75} aria-hidden="true" />
+                    {t("bannerClear")}
+                  </button>
                 ) : null}
+                <span className="svprom__or">{t("or")}</span>
+                <label className={badImage || urlBlocked ? "is-bad" : undefined}>
+                  <span>{t("bannerImageUrl")}</span>
+                  <input
+                    value={bannerUrl}
+                    onChange={(e) => {
+                      setBannerUrl(e.target.value);
+                      setUrlCheck(null);
+                      setErr("");
+                      if (bannerFile) clearBanner();
+                    }}
+                    placeholder="https://"
+                    inputMode="url"
+                    aria-invalid={badImage || urlBlocked || undefined}
+                    disabled={uploading || busy}
+                    data-ai-id={aiId ? `${aiId}.banner-url` : undefined}
+                  />
+                  {badImage ? <small className="svprom__ferr">{t("badUrl")}</small> : <small className="svprom__urlnote">{t("bannerUrlNote")}</small>}
+                </label>
+                {usingUrl && urlCheck ? <BannerVerdictBox verdict={urlCheck} aiId={aiId ? `${aiId}.banner-url-check` : undefined} /> : null}
               </div>
             ) : null}
 

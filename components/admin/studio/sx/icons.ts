@@ -482,6 +482,7 @@ export const CTOR_ICON: Readonly<Record<string, SxIcon>> = {
   K33: LayoutTemplateIcon,
   K02: BriefcaseBusinessIcon,
   K29: ListPlusIcon,
+  K35: BadgeCheckIcon,
   "K03-M": PackageOpenIcon,
   K30: SignpostIcon,
   K07: FileSignatureIcon,

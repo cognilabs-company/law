@@ -53,6 +53,7 @@ import {
   layoutFieldFor,
   optionTextOf,
   rowSummaryText,
+  schemaFieldAt,
   spanFor,
   type SchemaTr,
 } from "./model";
@@ -503,10 +504,11 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
   }
 
   if (control === "factorOverrides") {
-    const ids = strList(root[FACTOR_IDS]);
+    const ids = strList(scope[FACTOR_IDS]);
     if (!ids.length) return null;
-    const factorField = model.ctor.typed.find((x) => x.key === FACTOR_IDS) ?? null;
-    const factorSource = factorField ? effectiveSource(model.code, { pattern: FACTOR_IDS, field: factorField }, root) : "";
+    const idsPattern = node.pattern.includes(".") ? `${node.pattern.slice(0, node.pattern.lastIndexOf("."))}.${FACTOR_IDS}` : FACTOR_IDS;
+    const factorField = schemaFieldAt(model.ctor.typed, idsPattern);
+    const factorSource = factorField ? effectiveSource(model.code, { pattern: idsPattern, field: factorField }, scope) : "";
     return cell(
       <Field id={id} label={label} help={help} error={error} as="fieldset" span={span}>
         <FactorOverrides
@@ -517,6 +519,8 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
           source={factorSource || FACTOR_SOURCE}
           ids={ids}
           value={value}
+          path={norm}
+          pattern={node.pattern}
           errors={errors}
           policy={policy}
           onChange={(next) => set(next)}

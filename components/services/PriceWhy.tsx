@@ -16,6 +16,7 @@ export type PriceWhyFacts = {
   maximum: number;
   base: number;
   modifiers: PriceModifier[] | null;
+  negotiation?: boolean;
 };
 
 export function hasPriceWhy(explanation: PriceExplanation | null, f: PriceWhyFacts): boolean {
@@ -31,6 +32,7 @@ export default function PriceWhy({ explanation, facts, aiId }: { explanation: Pr
   if (facts.recommended > 0) lines.push(t("rec", { price: som(facts.recommended) }));
   if (facts.minimum > 0) lines.push(facts.pct !== null ? t("floorPct", { min: som(facts.minimum), pct: String(facts.pct) }) : t("floor", { min: som(facts.minimum) }));
   if (facts.maximum > 0) lines.push(t("max", { max: som(facts.maximum) }));
+  if (facts.negotiation && facts.minimum > 0) lines.push(t("negotiation"));
   const textShown = explanation && explanation.text && !(explanation.lines.length > 1 && explanation.text === explanation.lines.join(" ")) ? explanation.text : "";
   return (
     <details className="svwhy" open data-ai-id={aiId} data-ai-type={aiId ? "section" : undefined} data-ai-label={aiId ? t("title") : undefined}>

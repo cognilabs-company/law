@@ -10,7 +10,9 @@ import { downloadStudioVersionFile, exportStudioVersionsXlsx, type StudioDetail,
 import { SxButton } from "../../Button";
 import { StatusPill } from "../../StatusPill";
 import { useStudioLabels } from "../../useStudioLabels";
-import { RotateCcwIcon, DownloadIcon, EyeIcon, PaperclipIcon, HistoryIcon, glyph } from "../../icons";
+import { RotateCcwIcon, DownloadIcon, EyeIcon, PaperclipIcon, PencilIcon, HistoryIcon, glyph } from "../../icons";
+import { timelineOf, type ApprEvent } from "../../approvals/approvalsApi";
+import { EditedFields } from "../../approvals/review/EditedFields";
 import type { EditorState } from "../useEditorState";
 import { useEditorErrorText } from "../useEditorErrorText";
 import { routeStepNames, versionRollbackable } from "../model";
@@ -26,6 +28,38 @@ export function versionsNewestFirst(list: readonly StudioVersion[]): StudioVersi
       return a.i - b.i;
     })
     .map((x) => x.v);
+}
+
+function eventsAt(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) return raw;
+  if (raw && typeof raw === "object") {
+    const d = raw as Record<string, unknown>;
+    if (Array.isArray(d.items)) return d.items;
+    if (Array.isArray(d.events)) return d.events;
+  }
+  return [];
+}
+
+export function reviewEditsOf(detail: StudioDetail | null): ApprEvent[] {
+  if (!detail) return [];
+  const out: ApprEvent[] = [];
+  const seen = new Set<string>();
+  for (const key of ["timeline", "approval_history", "activity_history"]) {
+    for (const e of timelineOf(eventsAt(detail.raw[key]))) {
+      if (e.kind !== "edited_in_review") continue;
+      const sig = `${e.versionId}|${e.at}|${e.actor}`;
+      if (seen.has(e.id) || seen.has(sig)) continue;
+      seen.add(e.id);
+      seen.add(sig);
+      out.push(e);
+    }
+    if (out.length) break;
+  }
+  return out;
+}
+
+export function editsForVersion(edits: readonly ApprEvent[], v: StudioVersion): ApprEvent[] {
+  return edits.filter((e) => (e.versionId ? e.versionId === v.id : Boolean(e.version) && e.version === v.version));
 }
 
 export function canRollbackVersion(canRollback: boolean, detail: StudioDetail | null, v: StudioVersion): boolean {
@@ -69,6 +103,7 @@ export function VersionsTab({ st, onPreview, onRollback }: { st: EditorState; on
   const saveFirstId = useId();
   const detail = st.detail;
   const list = detail ? versionsNewestFirst(detail.versions) : [];
+  const edits = reviewEditsOf(detail);
 
   async function doExport() {
     if (!detail || exporting) return;
@@ -132,6 +167,15 @@ export function VersionsTab({ st, onPreview, onRollback }: { st: EditorState; on
                   ) : null}
                 </div>
                 {meta ? <p className="sx-ed-vers__meta">{meta}</p> : null}
+                {editsForVersion(edits, v).map((e) => (
+                  <div key={e.id} className="sx-ed-vers__edit" data-ai-id="admin.studio.editor.versions.edited" data-ai-type="note" data-ai-label={t("sx.ap3.ev.edited_in_review")}>
+                    <p className="sx-ed-vers__editt">
+                      {glyph(PencilIcon, { size: 14 })}
+                      <span>{e.actor ? t("sx.ap3.tl.editedBy", { name: e.actor }) : t("sx.ap3.ev.edited_in_review")}</span>
+                    </p>
+                    <EditedFields fields={e.changedFields} model={st.model} code={st.code} aiId="admin.studio.editor.versions.edited.fields" />
+                  </div>
+                ))}
                 {v.summary ? <p className="sx-ed-vers__sum">{v.summary}</p> : <p className="sx-ed-vers__sum" data-muted="">{t("sx.editor.versions.noSummary")}</p>}
                 {steps.length ? (
                   <div className="sx-ed-vers__route">
