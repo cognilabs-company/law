@@ -625,45 +625,35 @@ html[data-theme="dark"] .sx .sx-gtile.sx-gtile--art {
   }
 }
 .sx .sx-hrow__icon {
-  --t-fg: var(--sx-ink-2);
-  --t-bg: var(--sx-surface-2);
-  --t-line: var(--sx-line);
-  display: inline-flex;
+  display: grid;
   flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: linear-gradient(150deg, var(--t-bg) 0%, color-mix(in srgb, var(--t-line) 45%, var(--t-bg)) 100%);
-  color: var(--t-fg);
-  box-shadow: inset 0 0 0 1px var(--t-line);
-  transition: transform var(--sx-mid) var(--sx-spring);
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 13px;
+  background: var(--sx-surface);
+  box-shadow: inset 0 0 0 1px var(--sx-line), 0 1px 2px rgba(16, 24, 40, .05);
+  transition: transform var(--sx-mid) var(--sx-spring), box-shadow var(--sx-fast) var(--sx-ease);
 }
-.sx .sx-hrow__icon[data-kind="returned"] {
-  --t-fg: var(--sx-returned-fg);
-  --t-bg: var(--sx-returned-bg);
-  --t-line: var(--sx-returned-line);
+.sx .sx-hrow__icon > img {
+  display: block;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
 }
-.sx .sx-hrow__icon[data-kind="review"] {
-  --t-fg: var(--sx-review-fg);
-  --t-bg: var(--sx-review-bg);
-  --t-line: var(--sx-review-line);
+.sx .sx-hrow__icon > .sx-hrow__tile {
+  width: 34px;
+  height: 34px;
 }
-.sx .sx-hrow__icon[data-kind="publish"] {
-  --t-fg: var(--sx-approved-fg);
-  --t-bg: var(--sx-approved-bg);
-  --t-line: var(--sx-approved-line);
+html[data-theme="dark"] .sx .sx-hrow__icon {
+  background: var(--sx-surface-2);
+  box-shadow: inset 0 0 0 1px var(--sx-line);
 }
-.sx .sx-hrow__icon[data-kind="journey"] {
-  --t-fg: var(--sx-accent-ink);
-  --t-bg: var(--sx-accent-soft);
-  --t-line: color-mix(in srgb, var(--sx-accent) 28%, transparent);
-}
-.sx .sx-hrow__icon[data-kind="timer"] {
-  --t-fg: var(--sx-submitted-fg);
-  --t-bg: var(--sx-submitted-bg);
-  --t-line: var(--sx-submitted-line);
+@media (hover: hover) and (pointer: fine) {
+  .sx .sx-hrow:hover .sx-hrow__icon {
+    box-shadow: inset 0 0 0 1px var(--sx-line-strong), 0 4px 10px -6px rgba(16, 24, 40, .25);
+  }
 }
 .sx-hrow__main {
   display: grid;

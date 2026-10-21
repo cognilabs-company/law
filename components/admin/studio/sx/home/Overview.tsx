@@ -4,7 +4,6 @@ import "../sx-tones.css";
 import "./sx-home.css";
 import "./sx-kpi.css";
 import { useId, useState, type ReactElement } from "react";
-import Image from "next/image";
 import { ArrowUpRightIcon } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -25,6 +24,7 @@ import { useCtorUsage, type CtorUsageState, type CtorUsageToday } from "./ctorUs
 import { createTypeOf, recordsHrefOf, type EntityCard } from "./entityModel";
 import { pctOf } from "./GroupCard";
 import { groupOfCode } from "./groupModel";
+import { HomeIcon } from "./homeIcons";
 import { statusCount, type StudioSummary, type StudioSummaryState } from "./summary";
 
 type KpiKey = "services" | "packages" | "ctors" | "queue";
@@ -112,9 +112,9 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
         <ul className="sx-hov__kpis sx-kpis" aria-hidden="true">
           {SK.map((i) => (
             <li key={i} className="sx-kpi" data-sk="">
+              <span className="sx-sk sx-kpi__sk-l" />
               <span className="sx-sk sx-kpi__sk-ic" />
               <span className="sx-sk sx-kpi__sk-n" />
-              <span className="sx-sk sx-kpi__sk-l" />
             </li>
           ))}
         </ul>
@@ -126,15 +126,17 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
             const go = !!k.href || k.open;
             const body = (
               <>
-                <span className="sx-kpi__top">
-                  <span className="sx-kpi__ic" aria-hidden="true">
-                    <Image src={`/img/studio/kpi/${k.key}.webp`} alt="" width={96} height={96} unoptimized />
-                  </span>
-                  {go ? <span className="sx-kpi__go">{glyph(k.open ? ChevronRightIcon : ArrowUpRightIcon, { size: 15 })}</span> : null}
+                <span className="sx-kpi__l">{label}</span>
+                <span className="sx-kpi__ic" aria-hidden="true">
+                  <HomeIcon name={k.key} size={56} />
                 </span>
                 <SxCount value={k.value} format={fmt} className="sx-kpi__n" />
-                <span className="sx-kpi__l">{label}</span>
                 <span className="sx-kpi__h">{k.hint}</span>
+                {go ? (
+                  <span className="sx-kpi__go" aria-hidden="true">
+                    {glyph(k.open ? ChevronRightIcon : ArrowUpRightIcon, { size: 15 })}
+                  </span>
+                ) : null}
               </>
             );
             const aria = `${label}: ${valueText}. ${k.hint}`;

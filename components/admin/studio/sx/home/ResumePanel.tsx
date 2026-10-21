@@ -8,7 +8,7 @@ import { aiId } from "@/lib/ai/ids";
 import { useStudioAccess } from "@/lib/services/studio";
 import { SxButton, SxLinkButton } from "../Button";
 import { enterStyle } from "../hooks";
-import { RefreshCwIcon, ChevronRightIcon, TimerIcon, PlusIcon, BriefcaseBusinessIcon, PackageIcon, ctorGlyph, glyph } from "../icons";
+import { RefreshCwIcon, ChevronRightIcon, PlusIcon, glyph } from "../icons";
 import { useJourneyDefinitions } from "../journey/journeyApi";
 import { stepLabel, stepTitleOf } from "../journey/steps";
 import { useCreationJourneys } from "../journey/useCreationJourneys";
@@ -19,6 +19,7 @@ import { CREATE_HOME_HREF, creationJourneyHref } from "../shared/journeyLinks";
 import { SxProgress } from "../shared/Progress";
 import { StatusPill } from "../StatusPill";
 import { useStudioLabels } from "../useStudioLabels";
+import { CtorArt, HomeIcon } from "./homeIcons";
 import { useMyObjects } from "./useActionItems";
 import { WaitingSkeleton } from "./WaitingPanel";
 
@@ -94,7 +95,7 @@ export function ResumePanel(): ReactElement {
                 <li key={j.id} className="sx-enter" style={enterStyle(Math.min(i, 12))}>
                   <Link href={creationJourneyHref(j)} className="sx-hrow" data-ai-id={aiId(BASE, "item", j.id)} data-ai-type="list_item" data-ai-label={title}>
                     <span className="sx-hrow__icon" data-kind="journey">
-                      {glyph(j.type === "package" ? PackageIcon : BriefcaseBusinessIcon, { size: 18 })}
+                      <HomeIcon name={j.type === "package" ? "packages" : "services"} size={28} />
                     </span>
                     <span className="sx-hrow__main">
                       <span className="sx-hrow__title">{title}</span>
@@ -112,7 +113,9 @@ export function ResumePanel(): ReactElement {
             {incomplete > 0 ? (
               <li className="sx-enter" style={enterStyle(jItems.length)}>
                 <Link href={`${CREATE_HOME_HREF}#incomplete`} className="sx-hrow" data-ai-id={aiId(BASE, "incomplete")} data-ai-type="link" data-ai-label={t("sx.home.resume.incomplete", { n: incomplete })}>
-                  <span className="sx-hrow__icon" data-kind="timer">{glyph(TimerIcon, { size: 18 })}</span>
+                  <span className="sx-hrow__icon" data-kind="timer">
+                    <HomeIcon name="incomplete" size={28} />
+                  </span>
                   <span className="sx-hrow__main">
                     <span className="sx-hrow__title">{t("sx.home.resume.incomplete", { n: incomplete })}</span>
                   </span>
@@ -140,7 +143,9 @@ export function ResumePanel(): ReactElement {
                       data-ai-label={title}
                       data-ai-entity-type="studio_object"
                     >
-                      <span className="sx-hrow__icon" data-kind="ctor">{ctorGlyph(o.code, undefined, { size: 18 })}</span>
+                      <span className="sx-hrow__icon" data-kind="ctor">
+                        <CtorArt code={o.code} size={28} />
+                      </span>
                       <span className="sx-hrow__main">
                         <span className="sx-hrow__title">{title}</span>
                         <span className="sx-hrow__meta">{meta}</span>

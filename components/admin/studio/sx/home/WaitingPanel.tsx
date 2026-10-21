@@ -14,7 +14,7 @@ import { SxNote } from "../layout/Note";
 import { SxPanel } from "../layout/Panel";
 import { useNow } from "../live";
 import { useStudioLabels } from "../useStudioLabels";
-import { NEED_ICON } from "./GroupCard";
+import { HomeIcon, NEED_ART } from "./homeIcons";
 import type { GroupNeed } from "./GroupPage";
 import type { ActionItem, ActionItems, ActionKind } from "./useActionItems";
 
@@ -113,7 +113,7 @@ export function WaitingPanel({ data, scope, max, aiId, headerAction }: { data: A
                   data-ai-entity-type="studio_object"
                 >
                   <span className="sx-hrow__icon" data-kind={it.kind}>
-                    {glyph(NEED_ICON[it.kind], { size: 18 })}
+                    <HomeIcon name={NEED_ART[it.kind]} size={28} />
                   </span>
                   <span className="sx-hrow__main">
                     <span className="sx-hrow__title">{title}</span>
