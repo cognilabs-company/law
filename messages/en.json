@@ -1377,6 +1377,8 @@
           "callBg": "Clients and performers see this in the video-call background list."
         }
       },
+      "agrp": {"public":{"title":"Public on the site","lead":"Even guests without an account and search engines see it."},"client":{"title":"Clients see","lead":"Shown on the service page, the order and the client app."},"shared":{"title":"Clients and performers see","lead":"Shown the same way to both sides."},"performer":{"title":"Lawyers and advocates only","lead":"The performer sees it while working; clients never do."},"internal":{"title":"Internal: staff and system","lead":"Neither the client nor the performer sees it."}},
+      "apv": {"title":"Who sees what","lead":"Check how the record looks to each side, one at a time.","client":"Client","performer":"Performer","asClient":"What the client sees","asPerformer":"What the lawyer or advocate sees","empty":"Not filled in","nothing":"Nothing is shown to this side.","hidden":"Hidden in this view: {n, plural, one {# field} other {# fields}}","untitled":"Untitled item","proof":{"comment":"Comment","image":"Photo","file":"File"}},
       "rtw": {"existing":"Existing rule","title":"A rule with this name already exists","lead":"Names are compared ignoring letter case, spaces and punctuation. Use the existing rule instead of creating a new one.","pick":"Use this rule","useShared":"Use the shared rule","usedShared":"Shared rule “{name}” selected; the duplicate was removed","picked":"Rule “{name}” selected","open":"Open","version":"v{v}"},
       "section": {
         "K35__tier": "Condition and tier",

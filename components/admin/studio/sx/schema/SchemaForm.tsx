@@ -24,6 +24,7 @@ import { NeonCell, NeonValue, SfContext, SchemaField, type SfEnv } from "./field
 import { RECORD_TITLE_PATH, layoutCtx, parentPath, scopeAt, setAt, type SchemaTr } from "./model";
 import { sectionIcon, sectionLeadKey, type SxLook } from "./neonLook";
 import { AudienceNote } from "./AudienceNote";
+import { AudienceGroup, audienceGroups } from "./AudienceGroup";
 
 const TITLE_MAX = 200;
 
@@ -202,12 +203,18 @@ export function SchemaForm(props: SxSchemaFormProps): ReactElement {
           )
         ) : (
           sections.map((s, i) => {
+            const field = (fm: (typeof s.fields)[number]) => <SchemaField key={fm.pattern} node={fm} path={fm.pattern} scope={scopeAt(payload, fm.pattern)} />;
+            const groups = audienceGroups(model, s.fields, payload);
             const body = (
               <FormGrid>
                 {i === 0 && showTitle && recordTitle ? <RecordTitleField rt={recordTitle} readOnly={ro} idPrefix={model.idPrefix} errors={errors} neon={neon} /> : null}
-                {s.fields.map((fm) => (
-                  <SchemaField key={fm.pattern} node={fm} path={fm.pattern} scope={scopeAt(payload, fm.pattern)} />
-                ))}
+                {groups
+                  ? groups.map((g) => (
+                      <AudienceGroup key={g.bucket} bucket={g.bucket} id={`${s.domId}-aud-${g.bucket}`}>
+                        {g.fields.map(field)}
+                      </AudienceGroup>
+                    ))
+                  : s.fields.map(field)}
               </FormGrid>
             );
             return neon ? (

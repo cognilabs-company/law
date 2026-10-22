@@ -393,7 +393,64 @@ const MAP: Readonly<Record<string, Entry>> = {
   "SEC05__preview__cta": ["staff", "buttonText"],
 };
 
+// The service form's non-text fields, so a section can be grouped and the
+// audience preview can show them; they get no note of their own.
+const K02_FIELDS: Readonly<Record<string, Entry>> = {
+  K02__service_id: ["system", "sysKey"],
+  K02__category_id: ["client", "catTitle"],
+  K02__intake_questions: ["client", "intakeQ"],
+  K02__base_price: ["client", "svcTitle"],
+  K02__max_price: ["performer", "staffText"],
+  K02__seller_requirements: ["performer", "staffText"],
+  K02__review_duration_value: ["both", "duration"],
+  K02__review_duration_unit: ["both", "duration"],
+  K02__duration_value: ["both", "duration"],
+  K02__duration_unit: ["both", "duration"],
+  K02__duration_calendar: ["both", "duration"],
+  K02__template_mode: ["performer", "tplField"],
+  K02__template_source: ["system", "sysValue"],
+  K02__document_template_id: ["performer", "tplField"],
+  K02__price_factor_ids: ["client", "factor"],
+  K02__price_factor_overrides: ["client", "factor"],
+  K02__seller_rules_allowed: ["performer", "staffText"],
+  K02__checklist_template_id: ["staff", "staffText"],
+  K02__completion_checklist: ["both", "checkClient"],
+  K02__rule_ids: ["both", "ruleTitle"],
+  K02__guarantee_ids: ["client", "guarantee"],
+  K02__inline_guarantees: ["client", "guarantee"],
+  K02__inline_rules: ["both", "ruleTitle"],
+  K02__negotiation_allowed: ["both", "staffText"],
+  K02__executor_types: ["both", "staffText"],
+  K02__is_active: ["staff", "staffText"],
+};
+
 const str = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+
+// Who a whole field is for, text or not: the note map first, then the
+// service form's other fields.
+export function audienceOfField(code: string, path: string, scope: SxValues, root: SxValues): SxFieldAudience | null {
+  const extra = K02_FIELDS[`${code.toUpperCase()}__${fieldPath(path)}`];
+  if (extra) return { who: extra[0] as SxAudience, use: extra[1] };
+  return fieldAudienceOf(code, path, scope, root);
+}
+
+// Fields grouped by reader, in the order a form shows them.
+export type AudienceBucket = "public" | "client" | "shared" | "performer" | "internal";
+export const BUCKET_ORDER: readonly AudienceBucket[] = ["public", "client", "shared", "performer", "internal"];
+
+export function bucketOf(who: SxFieldAudience["who"] | undefined): AudienceBucket | null {
+  if (who === "public" || who === "client" || who === "performer") return who;
+  if (who === "both") return "shared";
+  if (who === "staff" || who === "system") return "internal";
+  return null;
+}
+
+// Whether a field reaches a reader: the client sees what is public, theirs
+// or shared; the performer sees their own and the shared fields.
+export function seenBy(view: "client" | "performer", who: SxFieldAudience["who"] | undefined): boolean {
+  if (view === "client") return who === "client" || who === "public" || who === "both";
+  return who === "performer" || who === "both";
+}
 
 // A service rule is read by the side picked in its "audience" select.
 function ruleAudience(v: unknown): SxAudience | "unset" {

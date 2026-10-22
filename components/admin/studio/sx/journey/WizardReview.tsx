@@ -15,6 +15,7 @@ import { SxFormContext } from "../form/formPolicy";
 import { SxButton } from "../Button";
 import { CircleCheckIcon, CircleDashedIcon, glyph } from "../icons";
 import { SxNote } from "../layout/Note";
+import { AudiencePreview } from "../schema/AudiencePreview";
 import { SchemaForm } from "../schema/SchemaForm";
 import { useSchemaModel } from "../schema/useSchemaModel";
 import { sxStatus } from "../status";
@@ -194,6 +195,7 @@ export function WizardReview({ journey, steps, missing = NO_STEPS, objectId, cod
             recordTitle={null}
             only={only}
           />
+          {st.model ? <AudiencePreview model={st.model} payload={st.payload} /> : null}
         </div>
       </SxFormContext.Provider>
     );

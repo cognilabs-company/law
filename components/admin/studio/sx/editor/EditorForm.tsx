@@ -25,6 +25,7 @@ import { sectionIcon } from "../schema/neonLook";
 import { useStudioLabels } from "../useStudioLabels";
 import { useEditorErrorText } from "./useEditorErrorText";
 import type { EditorState } from "./useEditorState";
+import { AudiencePreview } from "../schema/AudiencePreview";
 
 const AI = "admin.studio.editor";
 const SK_FIELDS = [0, 1, 2, 3];
@@ -223,6 +224,7 @@ export function EditorForm({ st, onPick }: { st: EditorState; onPick: (path: str
             />
             {markRo ? <ReviewMarks idPrefix={st.idPrefix} paths={miss} /> : null}
           </SxPanel>
+          <AudiencePreview model={model} payload={st.payload} />
         </div>
       </div>
     </SxFormContext.Provider>

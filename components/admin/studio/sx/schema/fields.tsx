@@ -194,7 +194,7 @@ function useRefLabels(sources: readonly string[]): (source: string, value: strin
   };
 }
 
-function RefNames({ source, values }: { source: string; values: readonly string[] }): ReactElement {
+export function RefNames({ source, values }: { source: string; values: readonly string[] }): ReactElement {
   const labels = useStudioLabels();
   const name = useRefLabels([source]);
   return <>{labels.list(values.map((v) => name(source, v)?.label || labels.unknownRef(v)), values.length)}</>;
