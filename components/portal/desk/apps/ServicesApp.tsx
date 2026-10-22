@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { fmtUzs } from "@/lib/money";
 import { matchesSearch } from "@/lib/searchText";
 import { searchServices, type BackendService } from "@/lib/services/backend";
-import { hiddenReasons, listManagedServices, priceBandFor, removeManagedService, serviceErrorOf, setManagedServiceStatus, type ManagedService, type ManagedServices, type PriceBand, type ServiceScope, type ServiceStatus } from "@/lib/services/sellerServices";
+import { hiddenReasons, listManagedServices, priceBandFor, priceExplanationOf, profileVerified, removeManagedService, serviceErrorOf, setManagedServiceStatus, type ManagedService, type ManagedServices, type PriceBand, type ServiceScope, type ServiceStatus } from "@/lib/services/sellerServices";
 import { acceptServiceRule, getRuntimeConfig, listServiceRules, updateSellerServiceConfig, type RuntimeConfig, type ServiceRule } from "@/lib/services/marketRuntime";
 import { configSupport, isConfigUnsupported, saveSellerService } from "@/lib/services/sellerConfig";
 import { ensureServiceRules, refreshRulesGate, rulesBlockOf } from "@/lib/services/rulesGate";
@@ -16,6 +16,8 @@ import { App, Banner, Btn, Check, Dialog, Empty, Field, Input, Loading, Search, 
 import type { NativeProps } from "../native";
 import PromoteDialog from "./promote/PromoteDialog";
 import "./services.css";
+import PriceLimits from "@/components/services/PriceLimits";
+import { useSellerConfig } from "@/components/services/useSellerConfig";
 
 // The seller's services as a desktop program: the services by status and
 // the packages on the side; the chosen one's sheet — price and its allowed
@@ -338,6 +340,7 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { 
   const [policy, setPolicy] = useState(!!item);
   const [band, setBand] = useState<PriceBand | null>(item?.limits ?? null);
   const [runtime, setRuntime] = useState<RuntimeConfig | null>(null);
+  const cfg = useSellerConfig(svc?.id ?? "", uid, !!svc).config;
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const taken = new Set(data.items.map((x) => x.service.id));
@@ -433,6 +436,19 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { 
       )}
       {svc ? (
         <>
+          <PriceLimits
+            minimum={cfg?.minimumListingPrice || band?.min || 0}
+            recommended={cfg?.recommendedPrice || band?.recommended || 0}
+            sellerMax={cfg?.maximumPrice || band?.max || 0}
+            serviceMax={cfg?.serviceMaximumPrice || runtime?.pricing.maximumPrice || 0}
+            increasePct={cfg?.maxIncreasePercent ?? null}
+            price={value}
+            explanation={priceExplanationOf(cfg?.raw.price_explanation)}
+            modifiers={band?.modifiers ?? null}
+            requirements={cfg?.requirements ?? []}
+            fallback={{ req: runtime?.minimumRequirements ?? null, verified: profileVerified(data.profile) }}
+            aiId="portal.desk.services.limits"
+          />
           <Field label={tf("price")} hint={band && band.max ? tf("bandHint", { min: som(band.min), max: som(band.max) }) : tf("bandLoading")} error={out && band ? tf("priceOut", { min: som(band.min), max: som(band.max) }) : undefined}>
             <Input value={price ? som(value) : ""} onChange={(v) => setPrice(v.replace(/[^\d]/g, ""))} placeholder={tf("pricePh")} />
           </Field>

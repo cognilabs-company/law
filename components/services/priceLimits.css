@@ -1,0 +1,401 @@
+/* Price limits when a lawyer switches a service on. */
+.svcap {
+  --cap-acc: var(--dk-acc, var(--b600, #1d63c4));
+  --cap-ok: #0b7a52;
+  --cap-warn: #b4540a;
+  --cap-soft: var(--dk-surface-2, #f5f8fc);
+  display: grid;
+  gap: 14px;
+  margin: 4px 0 12px;
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--dk-surface, #fff);
+  box-shadow: inset 0 0 0 1px var(--line), 0 8px 24px -18px rgba(11, 31, 69, 0.35);
+  color: var(--ink);
+}
+html[data-theme="dark"] .svcap {
+  --cap-ok: #5fd6a4;
+  --cap-warn: #ffb871;
+}
+.svcap__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.svcap__ic {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--cap-acc) 12%, transparent);
+  color: var(--cap-acc);
+}
+.svcap__ic svg {
+  width: 18px;
+  height: 18px;
+}
+.svcap__ht {
+  display: grid;
+  gap: 1px;
+}
+.svcap__ht b {
+  font-size: 0.98rem;
+}
+.svcap__ht small {
+  color: var(--gray);
+  font-size: 0.78rem;
+}
+.svcap__tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+.svcap__tile {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding: 11px 12px;
+  border-radius: 14px;
+  background: var(--cap-soft);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.svcap__tile[data-k="mine"] {
+  background: color-mix(in srgb, var(--cap-acc) 9%, var(--dk-surface, #fff));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--cap-acc) 45%, transparent);
+}
+.svcap__tile dt {
+  color: var(--gray);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+.svcap__tile dd {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.svcap__tile[data-k="mine"] dd {
+  color: var(--cap-acc);
+}
+.svcap__tile dd small {
+  color: var(--gray);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.svcap__none {
+  color: var(--gray);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.svcap__up {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cap-ok) 14%, transparent);
+  color: var(--cap-ok);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.svcap__up svg {
+  width: 13px;
+  height: 13px;
+}
+.svcap__band {
+  display: grid;
+  gap: 6px;
+  padding: 6px 2px 0;
+}
+.svcap__track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--cap-soft);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.svcap__ok,
+.svcap__lock {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+}
+.svcap__ok {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cap-acc) 55%, transparent), var(--cap-acc));
+}
+.svcap__lock {
+  background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--cap-ok) 40%, transparent) 0 6px, transparent 6px 11px);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cap-ok) 45%, transparent);
+}
+.svcap__rec {
+  position: absolute;
+  top: -4px;
+  width: 2px;
+  height: 18px;
+  border-radius: 2px;
+  background: var(--ink);
+  transform: translateX(-1px);
+}
+.svcap__dot {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--dk-surface, #fff);
+  border-radius: 50%;
+  background: #dc2626;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transform: translate(-50%, -50%);
+  transition: left 0.25s ease;
+}
+.svcap__dot[data-ok] {
+  background: var(--cap-ok);
+}
+.svcap__marks {
+  position: relative;
+  height: 16px;
+  font-size: 0.7rem;
+  color: var(--gray);
+  font-variant-numeric: tabular-nums;
+}
+.svcap__marks span {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.svcap__marks span:first-child:not([data-strong]) {
+  transform: none;
+}
+.svcap__marks span:last-child {
+  transform: translateX(-100%);
+}
+.svcap__marks span[data-strong] {
+  color: var(--cap-acc);
+  font-weight: 800;
+}
+.svcap__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 2px 0 0;
+  color: var(--gray);
+  font-size: 0.72rem;
+}
+.svcap__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.svcap__legend span::before {
+  content: "";
+  width: 14px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--cap-acc);
+}
+.svcap__legend span[data-k="lock"]::before {
+  background: repeating-linear-gradient(135deg, var(--cap-ok) 0 3px, transparent 3px 6px);
+}
+.svcap__legend span[data-k="rec"]::before {
+  width: 2px;
+  height: 10px;
+  background: var(--ink);
+}
+.svcap__unlock {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--cap-ok) 9%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cap-ok) 28%, transparent);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+.svcap__unlock svg {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  margin-top: 1px;
+  color: var(--cap-ok);
+}
+.svcap__why,
+.svcap__reqs {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1.5px dashed var(--line);
+}
+.svcap__sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+.svcap__sub svg {
+  width: 16px;
+  height: 16px;
+  color: var(--cap-acc);
+}
+.svcap__count {
+  margin-inline-start: auto;
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: var(--cap-soft);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--gray);
+  font-size: 0.72rem;
+}
+.svcap__txt {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+.svcap__facts,
+.svcap__fx,
+.svcap__list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.svcap__facts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+.svcap__facts svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin-top: 2px;
+  color: var(--cap-ok);
+}
+.svcap__fx li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--cap-soft);
+  font-size: 0.82rem;
+}
+.svcap__fx b {
+  color: var(--cap-ok);
+  font-variant-numeric: tabular-nums;
+}
+.svcap__fx li[data-down] b {
+  color: #dc2626;
+}
+.svcap__src {
+  color: var(--gray);
+  font-size: 0.72rem;
+}
+.svcap__req {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--cap-soft);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.svcap__req[data-state="met"] {
+  --st: var(--cap-ok);
+}
+.svcap__req[data-state="unmet"] {
+  --st: var(--cap-warn);
+}
+.svcap__req[data-state="unknown"] {
+  --st: var(--gray);
+}
+.svcap__ric {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--st) 14%, transparent);
+  color: var(--st);
+}
+.svcap__ric svg {
+  width: 16px;
+  height: 16px;
+}
+.svcap__rb {
+  display: grid;
+  flex: 1;
+  gap: 5px;
+  min-width: 0;
+}
+.svcap__rt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+.svcap__rt b {
+  font-size: 0.86rem;
+}
+.svcap__rs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--st);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+.svcap__rs svg {
+  width: 13px;
+  height: 13px;
+}
+.svcap__bar {
+  display: block;
+  height: 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--st) 14%, var(--dk-surface, #fff));
+  overflow: hidden;
+}
+.svcap__bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--st);
+  transition: width 0.5s ease;
+}
+.svcap__rb small {
+  color: var(--gray);
+  font-size: 0.74rem;
+}
+@media (max-width: 560px) {
+  .svcap {
+    padding: 12px;
+  }
+  .svcap__tiles {
+    grid-template-columns: 1fr 1fr;
+  }
+  .svcap__tile[data-k="service"] {
+    grid-column: 1 / -1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .svcap__dot,
+  .svcap__bar i {
+    transition: none;
+  }
+}

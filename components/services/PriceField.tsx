@@ -77,6 +77,7 @@ export default function PriceField({
   explanation,
   minimum = 0,
   floorPct = null,
+  limits = true,
 }: {
   id: string;
   value: string;
@@ -90,6 +91,8 @@ export default function PriceField({
   explanation: { text: string; lines: string[] } | null;
   minimum?: number;
   floorPct?: number | null;
+  // false when a PriceLimits card above already shows the range and limits.
+  limits?: boolean;
 }) {
   const t = useTranslations("sellerServices.form");
   const tl = useTranslations("sellerServices.limits");
@@ -124,10 +127,10 @@ export default function PriceField({
   const base = runtimeOk ? rec : band?.base || basePrice || 0;
   const mods = runtimeState === "failed" ? (band?.modifiers ?? []) : [];
   const expl = explanation && (explanation.text || explanation.lines.length) ? explanation : null;
-  const showLimits = rec > 0 || Boolean(runtime) || minimum > 0;
+  const showLimits = limits && (rec > 0 || Boolean(runtime) || minimum > 0);
   const bad = above || below || Boolean(error);
   const floorId = `${id}-floor`;
-  const described = [hintId, minimum > 0 ? floorId : "", expl ? explId : "", showLimits ? limId : ""].filter(Boolean).join(" ");
+  const described = [hintId, minimum > 0 && limits ? floorId : "", expl ? explId : "", showLimits ? limId : ""].filter(Boolean).join(" ");
 
   const hint = error
     ? error
@@ -184,7 +187,7 @@ export default function PriceField({
         </div>
       ) : null}
 
-      {cap ? (
+      {cap && limits ? (
         <div className="svband" aria-hidden="true">
           <div className="svband__track">
             <span className="svband__range" style={{ left: "0%", right: `calc(100% - ${pos(cap)})` }} />
@@ -219,7 +222,7 @@ export default function PriceField({
         {hint}
       </p>
 
-      {minimum > 0 ? (
+      {minimum > 0 && limits ? (
         <p id={floorId} className="svfloor">
           <IconInfo aria-hidden="true" />
           <span>{floorPct !== null ? tc("floorLine", { min: som(minimum), pct: String(floorPct) }) : tc("floorLineNoPct", { min: som(minimum) })}</span>

@@ -28,11 +28,11 @@ import { useRulesGateState } from "@/lib/services/rulesGate";
 import { IconAlert, IconCheck, IconCoins, IconEdit, IconEye, IconInfo, IconLayers, IconLock, IconPause, IconPlay, IconPower, IconScale } from "@/components/icons";
 import { InBody, som } from "./bits";
 import CatalogPicker from "./CatalogPicker";
-import PriceWhy, { type PriceWhyFacts } from "./PriceWhy";
+import { type PriceWhyFacts } from "./PriceWhy";
+import PriceLimits from "./PriceLimits";
 import RuleChoice from "./RuleChoice";
 import PriceField, { bandRecommended, digitsOf, priceAboveCap } from "./PriceField";
 import MarketPreviewModal from "./MarketPreviewModal";
-import { RequirementsLine } from "./RuntimeFactors";
 import SellerTermsPreview from "./SellerTermsPreview";
 import { useRuntimeConfig } from "./useRuntimeConfig";
 import { useSellerConfig } from "./useSellerConfig";
@@ -448,7 +448,6 @@ export default function ServiceFormModal({
                 {t("errors.advocateOnly")}
               </p>
             ) : null}
-            {runtime ? <RequirementsLine req={runtime.minimumRequirements} verified={profileVerified(profile)} id={`${ids}-req`} /> : null}
             {runtime && service ? <SellerTermsPreview key={service.id} config={runtime} basePrice={runtime.pricing.recommendedPrice > 0 ? runtime.pricing.recommendedPrice : (service.price ?? 0)} currency={runtime.pricing.currency} aiId={aiId ? `${aiId}.terms` : undefined} /> : null}
           </section>
 
@@ -459,6 +458,21 @@ export default function ServiceFormModal({
               </span>
               {t("form.price")}
             </label>
+            {service && !noPrice ? (
+              <PriceLimits
+                minimum={minPrice}
+                recommended={floorRec}
+                sellerMax={capNow}
+                serviceMax={cfg?.serviceMaximumPrice || runtime?.pricing.maximumPrice || 0}
+                increasePct={cfg?.maxIncreasePercent ?? null}
+                price={n}
+                explanation={why}
+                modifiers={whyFacts.modifiers}
+                requirements={cfg?.requirements ?? []}
+                fallback={{ req: runtime?.minimumRequirements ?? null, verified: profileVerified(profile) }}
+                aiId={aiId ? `${aiId}.limits` : undefined}
+              />
+            ) : null}
             <PriceField
               id={`${ids}-price`}
               value={price}
@@ -478,8 +492,8 @@ export default function ServiceFormModal({
               explanation={null}
               minimum={minPrice}
               floorPct={minPrice > 0 ? floor.pct : null}
+              limits={!service || noPrice}
             />
-            {service && !noPrice ? <PriceWhy explanation={why} facts={whyFacts} aiId={aiId ? `${aiId}.why` : undefined} /> : null}
           </section>
 
           {showNeg ? (

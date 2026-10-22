@@ -543,8 +543,58 @@ export type SellerServiceConfig = {
   selectableRules: SelectableRule[] | null;
   selectedRuleIds: string[] | null;
   requiredRules?: ServiceRule[] | null;
+  // The service's own ceiling, above the seller's current maximum; 0 when
+  // the response does not say.
+  serviceMaximumPrice: number;
+  // How far (percent) the seller may raise the price once every requirement
+  // below is met; null when the response does not say.
+  maxIncreasePercent: number | null;
+  // What stands between the seller and that higher ceiling, each with the
+  // backend's own current/required values.
+  requirements: PriceRequirement[];
   raw: Dict;
 };
+
+// One criterion for a higher price, exactly as the backend measured it.
+export type PriceRequirement = {
+  key: string;
+  label: string;
+  current: number | boolean | null;
+  required: number | boolean | null;
+  unit: string;
+  met: boolean | null;
+  progress: number | null;
+  note: string;
+};
+
+function requirementOf(v: unknown): PriceRequirement | null {
+  const d = dictOf(v);
+  const key = trimmed(d.key ?? d.code ?? d.criterion ?? d.type);
+  const label = trimmed(d.label ?? d.title ?? d.name);
+  if (!key && !label) return null;
+  const val = (x: unknown): number | boolean | null => (typeof x === "boolean" ? x : numOrNull(x));
+  const progress = numOrNull(d.progress_percent ?? d.progress ?? d.percent);
+  return {
+    key,
+    label,
+    current: val(d.current ?? d.current_value ?? d.actual ?? d.value),
+    required: val(d.required ?? d.required_value ?? d.target ?? d.minimum),
+    unit: trimmed(d.unit),
+    met: boolOrNull(d.met ?? d.satisfied ?? d.passed ?? d.is_met),
+    progress: progress === null ? null : Math.max(0, Math.min(100, progress)),
+    note: trimmed(d.text ?? d.message ?? d.hint ?? d.description),
+  };
+}
+
+function requirementsOf(...sources: unknown[]): PriceRequirement[] {
+  for (const s of sources) {
+    const list = Array.isArray(s) ? s : Array.isArray(dictOf(s).items) ? (dictOf(s).items as unknown[]) : null;
+    if (!list?.length) continue;
+    const out = list.map(requirementOf).filter((r): r is PriceRequirement => r !== null);
+    if (out.length) return out;
+  }
+  return [];
+}
 
 const CONFIG_RULES_PENDING_RE = /^(rules?_pending|pending_rules?|rules?_acceptance_required)$/;
 
@@ -630,6 +680,7 @@ export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfi
   const status = trimmed(src.status ?? d.status).toLowerCase();
   const rulesStatus = trimmed(src.rules_status ?? d.rules_status).toLowerCase();
   const discount = numOrNull(src.maximum_listing_discount_percent ?? d.maximum_listing_discount_percent ?? lim.maximum_listing_discount_percent);
+  const increase = numOrNull(src.maximum_increase_percent ?? src.max_increase_percent ?? src.max_price_increase_percent ?? src.price_increase_percent ?? lim.maximum_increase_percent ?? lim.max_increase_percent);
   const selectable = src.selectable_rules ?? d.selectable_rules;
   const chosen = src.selected_rule_ids ?? d.selected_rule_ids;
   const selectableRules = Array.isArray(selectable) ? selectable.map(normSelectableRule).filter((r) => r.id && r.sellerSelectable !== false) : null;
@@ -656,6 +707,9 @@ export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfi
     selectableRules,
     selectedRuleIds,
     requiredRules,
+    serviceMaximumPrice: uzs(src, "service_maximum_price", "overall_maximum_price", "absolute_maximum_price", "price_ceiling", "max_price_cap") || uzs(lim, "service_maximum_price", "overall_maximum_price", "price_ceiling", "max_price_cap"),
+    maxIncreasePercent: increase !== null && increase >= 0 ? increase : null,
+    requirements: requirementsOf(src.requirements, src.price_requirements, src.unmet_requirements, dictOf(src.eligibility).requirements, d.requirements, d.price_requirements, lim.requirements),
     raw: d,
   };
 }
