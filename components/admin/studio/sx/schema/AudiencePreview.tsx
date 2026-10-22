@@ -3,12 +3,14 @@
 import "./sx-audience.css";
 import { useState, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { BriefcaseBusiness, Eye, EyeOff, FileText, Image as ImageIcon, MessageSquareText, UserRound } from "lucide-react";
+import { BriefcaseBusiness, Eye, EyeOff, FileText, Image as ImageIcon, List as ListIcon, MessageSquareText, Monitor, UserRound } from "lucide-react";
 import type { SchemaFieldModel, SchemaModel, SxValues } from "../contract";
 import { SxSegmented } from "../shared/Segmented";
 import { useStudioLabels } from "../useStudioLabels";
 import { audienceOfField, bucketOf, seenBy } from "./audience";
 import { BUCKET_ICON, fieldShown } from "./AudienceGroup";
+import { DevicePreview } from "./DevicePreview";
+import { ReaderPage } from "./ReaderPage";
 import { RefNames } from "./fields";
 import { effectiveSource, labelTrail, type SchemaTr } from "./model";
 
@@ -135,6 +137,9 @@ export function AudiencePreview({ model, payload }: { model: SchemaModel; payloa
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const [view, setView] = useState<View>("client");
+  // A service shows as its real page first; other records as the field list.
+  const paged = model.code.toUpperCase() === "K02";
+  const [mode, setMode] = useState<"page" | "fields">(paged ? "page" : "fields");
   const fields = model.sections.flatMap((s) => s.fields).filter((fm) => fieldShown(model, fm, payload));
   const sorted = fields.map((fm) => ({ fm, who: audienceOfField(model.code, fm.pattern, payload, payload)?.who }));
   const any = sorted.some((x) => seenBy("client", x.who) || seenBy("performer", x.who));
@@ -166,6 +171,24 @@ export function AudiencePreview({ model, payload }: { model: SchemaModel; payloa
           aiId="admin.studio.editor.audience"
         />
       </header>
+      {paged ? (
+        <SxSegmented<"page" | "fields">
+          items={[
+            { value: "page", label: t("sx.apv.modePage"), icon: Monitor, aiId: "admin.studio.editor.audience.page" },
+            { value: "fields", label: t("sx.apv.modeFields"), icon: ListIcon, aiId: "admin.studio.editor.audience.fields" },
+          ]}
+          value={mode}
+          onChange={setMode}
+          label={t("sx.apv.mode")}
+          size="sm"
+          aiId="admin.studio.editor.audience.mode"
+        />
+      ) : null}
+      {paged && mode === "page" ? (
+        <DevicePreview address={view === "client" ? "lexgo.uz/xizmatlar" : "lexgo.uz/ishlar"} label={t(view === "client" ? "sx.apv.asClient" : "sx.apv.asPerformer")}>
+          <ReaderPage reader={view} payload={payload} title={str(payload.title)} />
+        </DevicePreview>
+      ) : (
       <div className="sx-apv__frame" role="tabpanel" aria-label={t(view === "client" ? "sx.apv.client" : "sx.apv.performer")}>
         <p className="sx-apv__as">
           <Icon size={15} strokeWidth={2.1} aria-hidden />
@@ -195,6 +218,7 @@ export function AudiencePreview({ model, payload }: { model: SchemaModel; payloa
           <p className="sx-apv__none">{t("sx.apv.nothing")}</p>
         )}
       </div>
+      )}
       {hidden.length ? (
         <details className="sx-apv__hidden">
           <summary>
