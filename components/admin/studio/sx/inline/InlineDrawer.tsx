@@ -21,6 +21,7 @@ import { SxDrawer } from "../layout/Drawer";
 import { SxNote } from "../layout/Note";
 import { SchemaErrorSummary } from "../schema/ErrorSummary";
 import { focusFieldPath } from "../schema/focus";
+import { RulePickContext } from "../schema/RuleTwinNote";
 import { SchemaForm } from "../schema/SchemaForm";
 import { StatusPill } from "../StatusPill";
 import { useStudioLabels } from "../useStudioLabels";
@@ -29,7 +30,9 @@ import { inlineKeys, inlineKindOf, objectHref, prefillOf, topKeysOf, withRuleKey
 
 export type InlineSettled = { objectId: string; title: string; status: string; submitted: boolean; isNew: boolean; value: string };
 
-type Props = { target: InlineTarget; onClose: () => void; onSettled: (r: InlineSettled) => void };
+// onPickExisting: the field that opened the drawer takes an existing record
+// instead of the new one being written (a rule whose name is taken).
+type Props = { target: InlineTarget; onClose: () => void; onSettled: (r: InlineSettled) => void; onPickExisting?: (value: string, title: string) => void };
 type Flags = { busy: boolean; dirty: boolean };
 
 const AI = "admin.studio.inline";
@@ -113,7 +116,7 @@ function initOf(target: InlineTarget, keys: ReadonlySet<string>): EditorInit {
   return { code: target.code, id: target.id };
 }
 
-export function InlineDrawer({ target, onClose, onSettled }: Props): ReactElement {
+export function InlineDrawer({ target, onClose, onSettled, onPickExisting }: Props): ReactElement {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const reg = useStudioRegistry();
@@ -146,11 +149,22 @@ export function InlineDrawer({ target, onClose, onSettled }: Props): ReactElemen
       aiId={`${AI}.drawer`}
     >
       <InlineDepth.Provider value={1}>
-        {keys ? (
-          <InlineEditor key={cur.n} target={cur.target} keys={keys} foot={foot} onFlags={setFlags} onSwap={swap} onSettled={onSettled} onClose={onClose} />
-        ) : (
-          <Skeleton />
-        )}
+        <RulePickContext.Provider
+          value={
+            onPickExisting && cur.target.kind === "new"
+              ? (value, title) => {
+                  onPickExisting(value, title);
+                  onClose();
+                }
+              : null
+          }
+        >
+          {keys ? (
+            <InlineEditor key={cur.n} target={cur.target} keys={keys} foot={foot} onFlags={setFlags} onSwap={swap} onSettled={onSettled} onClose={onClose} />
+          ) : (
+            <Skeleton />
+          )}
+        </RulePickContext.Provider>
       </InlineDepth.Provider>
     </SxDrawer>
   );

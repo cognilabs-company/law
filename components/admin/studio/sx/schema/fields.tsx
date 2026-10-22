@@ -7,6 +7,7 @@ import "./sx-schema.css";
 import "./sx-schema-neon.css";
 import { createContext, memo, useContext, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import { aiId, aiSeg } from "@/lib/ai/ids";
+import { notify } from "@/lib/toast";
 import { studioReferenceKey, type StudioSchemaField } from "@/lib/services/studio";
 import { emptyItem, fieldVisible, normPath } from "@/lib/studioSchema";
 import { ChoiceCards, type ChoiceCard } from "../form/ChoiceCards";
@@ -31,6 +32,7 @@ import type { StudioLabels } from "../useStudioLabels";
 import { useStudioLabels } from "../useStudioLabels";
 import { useCategoryTitle } from "./categoryOptions";
 import { DiscoveryTerms } from "./DiscoveryTerms";
+import { RuleTwinNote } from "./RuleTwinNote";
 import { fieldAudienceOf } from "./audience";
 import { AudienceNote } from "./AudienceNote";
 import { ChecklistEditor } from "./k02/ChecklistEditor";
@@ -494,17 +496,46 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
   const set = (v: unknown) => emit(path, v, lf?.clears);
   const withWarn = (a: SxControlA11y): SxControlA11y => (warns.length ? { ...a, "aria-describedby": [a["aria-describedby"], warnId].filter(Boolean).join(" ") } : a);
 
+  // A rule name already taken by another rule: the existing one, offered
+  // instead. A service's own rule can be swapped for the shared one.
+  const upper = model.code.toUpperCase();
+  const inlineRule = upper === "K02" ? /^inline_rules\.(\d+)\.title$/.exec(norm) : null;
+  const twin =
+    !ro && ((upper === "K31" && norm === "title") || inlineRule) ? (
+      <RuleTwinNote
+        title={value}
+        self={upper === "K31" ? [env.recordId] : []}
+        aiId={aiId(ai, "twin")}
+        action={
+          inlineRule
+            ? {
+                label: t("sx.rtw.useShared"),
+                run: (x) => {
+                  const ids = strList(root.rule_ids);
+                  const rows = Array.isArray(root.inline_rules) ? root.inline_rules : [];
+                  if (!ids.includes(x.value)) emit("rule_ids", [...ids, x.value]);
+                  emit("inline_rules", rows.filter((_, k) => k !== Number(inlineRule[1])));
+                  notify.success(t("sx.rtw.usedShared", { name: x.title }));
+                },
+              }
+            : undefined
+        }
+      />
+    ) : null;
+
   const cell = (body: ReactNode, extra?: ReactNode) =>
     neon ? (
       <NeonCell icon={fieldIcon(node.key, f?.type ?? virtual?.type, control)} path={norm} span={span} ai={aiId(ai, "root")}>
         {body}
         <WarnLine id={warnId} list={warns} />
+        {twin}
         {extra}
       </NeonCell>
     ) : (
       <div className="sx-sf__f" data-path={norm} data-span={span} data-ai-id={aiId(ai, "root")}>
         {body}
         <WarnLine id={warnId} list={warns} />
+        {twin}
         {extra}
       </div>
     );

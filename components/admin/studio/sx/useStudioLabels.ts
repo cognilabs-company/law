@@ -422,6 +422,8 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
           return tr("sx.err.categoryCycle");
         case "rule_version_duplicate":
           return tr("sx.err.ruleVersionDuplicate");
+        case "rule_title_duplicate":
+          return tr("sx.err.ruleTitleDuplicate");
         case "promotion_package_placement_mismatch":
           return tr("sx.err.k12Mismatch");
       }

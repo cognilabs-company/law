@@ -76,7 +76,14 @@ export function useRefInline({ source, formCode, owner, pattern, multiple, value
     notify.success(t("sx.inline.toast.pendingSelected", { name: item.title || t("sx.ui.untitled") }));
   };
 
-  const ed = useInlineEditing({ code, formCode, owner, pattern, context, enabled: on, onPublished, onSettled });
+  // A new record whose name is taken: the existing one is picked instead.
+  const onPickExisting = (value: string, title: string) => {
+    const next = mergeValue(multiple, valuesRef.current, value);
+    changeRef.current(next);
+    notify.success(t("sx.rtw.picked", { name: title || t("sx.ui.untitled") }));
+  };
+
+  const ed = useInlineEditing({ code, formCode, owner, pattern, context, enabled: on, onPublished, onSettled, onPickExisting });
   if (!on || !kind || !ed.canManage) return null;
   const k = inlineKeys(kind);
   const add = addKey && t.has(addKey) ? t(addKey) : t(k.add);

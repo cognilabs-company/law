@@ -41,12 +41,13 @@ import type { SxErrors } from "../types";
 import { useSxFormPolicy, type SxFormPolicy } from "../form/formPolicy";
 import { dropReferenceCache, firstReferencePage } from "../form/useReferenceOptions";
 import { statusKeyOf } from "../status";
+import { RULE_TITLE_DUPLICATE, dropRuleTwins, duplicateFieldOf, duplicateNameOf, rememberDuplicate, ruleDuplicateErrors } from "../schema/ruleDuplicates";
 import { ctorLayoutOf } from "../ctor/layouts";
 import { k01LayoutOf, type CategoryKind } from "../ctor/services";
 import { ctorWarnings } from "../ctor/warnings";
 import { SOURCE_PRODUCER } from "../ctor/sources";
 import { useSchemaModel } from "../schema/useSchemaModel";
-import { invalidOptionPaths, validatePayload } from "../schema/model";
+import { getAt, invalidOptionPaths, validatePayload } from "../schema/model";
 import { focusFieldPath } from "../schema/focus";
 import { studioEventCode, studioEventObjectId, useStudioLive } from "../live";
 import { withServerMessages } from "./serverMessages";
@@ -794,6 +795,17 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       void refresh(false);
       return;
     }
+    // A name the backend says is taken lands on that name's field, and the
+    // rule it named is remembered for the note there.
+    const dup = code.toUpperCase() === "K31" || code.toUpperCase() === "K02" ? duplicateNameOf(e) : null;
+    const cur = latestRef.current?.draft.payload ?? payload;
+    const dupField = dup ? duplicateFieldOf(code, cur, dup) : "";
+    if (dup && dupField) {
+      rememberDuplicate(getAt(cur, dupField), dup);
+      setActionError(null);
+      showServer({ [dupField]: RULE_TITLE_DUPLICATE });
+      return;
+    }
     const se = studioErrorOf(e);
     if (fileRequired && !Object.keys(se.fieldErrors).length && /file/i.test(se.code)) {
       setActionError(null);
@@ -880,6 +892,13 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       focusFirst(["parent_id"]);
       return null;
     }
+    // A rule name another rule already has (once normalised) is refused here;
+    // the note under the field offers the existing rule instead.
+    const twins = ruleDuplicateErrors(code, cur.payload, [id ?? "", recordId]);
+    if (Object.keys(twins).length) {
+      showServer(twins);
+      return null;
+    }
     setActionError(null);
     setPublishFail(null);
     const body = bodyOf(cur.payload, objTitle);
@@ -893,6 +912,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
           return null;
         }
         hb.markSaved();
+        if (code.toUpperCase() === "K31") dropRuleTwins();
         const seeded: StudioDetail = { ...created, code: created.code || code, title: created.title || objTitle, payload: Object.keys(created.payload).length ? created.payload : body };
         seedDetail(seeded);
         return { id: created.id, created: seeded };
@@ -900,6 +920,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       const expectedLockVersion = await lockVersionFor(id);
       await saveStudioObject(id, { title: objTitle, payload: body, summary: meta?.summary, version: meta?.version, expectedLockVersion }, lifecycle.saveUrl);
       hb.markSaved();
+      if (code.toUpperCase() === "K31") dropRuleTwins();
       return { id, created: null };
     } catch (e) {
       const se = studioErrorOf(e);

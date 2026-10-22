@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { studioErrorOf, type StudioErrorKind } from "@/lib/services/studio";
 import { codeLike, isEnglishLooking } from "../labels";
+import { duplicateNameOf } from "../schema/ruleDuplicates";
 
 const KIND_KEY: Partial<Record<StudioErrorKind, string>> = {
   forbidden: "sx.editor.err.forbidden",
@@ -46,6 +47,7 @@ export function plainUzMessage(message: string): string {
 }
 
 export function editorErrorKey(e: unknown): string {
+  if (duplicateNameOf(e)) return "sx.editor.err.ruleTitleDuplicate";
   const se = studioErrorOf(e);
   if (se.kind !== "network" && Object.prototype.hasOwnProperty.call(CODE_KEY, se.code)) return CODE_KEY[se.code];
   return KIND_KEY[se.kind] ?? "sx.editor.err.other";
@@ -58,7 +60,7 @@ export function useEditorErrorText(): (e: unknown) => { title: string; text: str
     (e: unknown) => {
       const se = studioErrorOf(e);
       const coded = Object.prototype.hasOwnProperty.call(CODE_KEY, se.code);
-      const own = locale === "uz" && !coded ? plainUzMessage(se.message) : "";
+      const own = locale === "uz" && !coded && !duplicateNameOf(e) ? plainUzMessage(se.message) : "";
       return { title: t("sx.editor.alert.actionTitle"), text: own || t(editorErrorKey(e)) };
     },
     [t, locale],

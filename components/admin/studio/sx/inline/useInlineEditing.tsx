@@ -29,6 +29,7 @@ type Args = {
   enabled: boolean;
   onPublished: (item: InlinePending, runtimeId: string) => void;
   onSettled?: (item: InlinePending) => void;
+  onPickExisting?: (value: string, title: string) => void;
 };
 
 const handled = new Set<string>();
@@ -41,7 +42,7 @@ export function useInlineAccess(code: string): boolean {
   return reg.items.some((c) => c.code === code);
 }
 
-export function useInlineEditing({ code, formCode, owner, pattern, context, enabled, onPublished, onSettled }: Args): InlineEditing {
+export function useInlineEditing({ code, formCode, owner, pattern, context, enabled, onPublished, onSettled, onPickExisting }: Args): InlineEditing {
   const reg = useStudioRegistry();
   const allowed = useInlineAccess(code);
   const canManage = enabled && allowed && !!owner;
@@ -161,6 +162,7 @@ export function useInlineEditing({ code, formCode, owner, pattern, context, enab
       target={open.target}
       onClose={() => setOpen(null)}
       onSettled={settle}
+      onPickExisting={onPickExisting}
     />
   ) : null;
 
