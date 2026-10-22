@@ -1,6 +1,6 @@
 "use client";
 
-import { ApiError, asArr, asDict, asNum, asStr, errDetail, http } from "@/lib/http";
+import { ApiError, asArr, asDict, asNum, asStr, errDetail, http, httpBlob, httpBlobNamed } from "@/lib/http";
 
 type Dict = Record<string, unknown>;
 
@@ -28,6 +28,22 @@ export type TaskHistoryItem = {
   actor: TaskPerson | null;
   createdAt: string;
 };
+// A file attached to a task (GET /task-management/{id} → attachments).
+// Its URLs are API paths that need the signed-in user's token, so they are
+// fetched as blobs, never used as a plain src.
+export type TaskAttachment = {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  kind: string;
+  note: string;
+  isImage: boolean;
+  previewUrl: string;
+  downloadUrl: string;
+  uploader: TaskPerson | null;
+  createdAt: string;
+};
 export type Task = {
   id: string;
   code: string;
@@ -48,6 +64,9 @@ export type Task = {
   deleteReason: string;
   actions: TaskActions;
   history: TaskHistoryItem[] | null;
+  // Only the detail answer carries these; null on a list row.
+  attachments: TaskAttachment[] | null;
+  attachmentCount: number;
 };
 export type TaskCounts = Record<TaskStatus, number>;
 export type TaskPage = { items: Task[]; total: number; limit: number; offset: number; hasMore: boolean; counts: TaskCounts };
@@ -95,6 +114,33 @@ function historyItemOf(v: unknown): TaskHistoryItem {
   };
 }
 
+// An API path, with the API's own origin dropped when the backend sends an
+// absolute URL; anything that is not a path on the API is refused.
+const apiPath = (v: unknown): string => {
+  const s = asStr(v).trim().replace(/^https?:\/\/[^/]+/i, "");
+  return s.startsWith("/") && !s.startsWith("//") ? s : "";
+};
+
+function attachmentOf(v: unknown): TaskAttachment {
+  const d = asDict(v);
+  const mimeType = asStr(d.mime_type).toLowerCase();
+  const kind = asStr(d.kind).toLowerCase();
+  const previewUrl = apiPath(d.preview_url) || apiPath(d.inline_url);
+  return {
+    id: asStr(d.id),
+    fileName: asStr(d.file_name),
+    mimeType,
+    sizeBytes: asNum(d.size_bytes),
+    kind,
+    note: asStr(d.note),
+    isImage: (kind === "image" || mimeType.startsWith("image/")) && d.preview_supported !== false && !!previewUrl,
+    previewUrl,
+    downloadUrl: apiPath(d.download_url),
+    uploader: personOf(d.uploader),
+    createdAt: asStr(d.created_at),
+  };
+}
+
 export function normTask(v: unknown): Task {
   const d = asDict(v);
   return {
@@ -122,6 +168,8 @@ export function normTask(v: unknown): Task {
     deleteReason: asStr(d.delete_reason),
     actions: actionsOf(d.actions),
     history: Array.isArray(d.history) ? d.history.map(historyItemOf) : null,
+    attachments: Array.isArray(d.attachments) ? d.attachments.map(attachmentOf).filter((a) => a.id) : null,
+    attachmentCount: asNum(d.attachment_count, Array.isArray(d.attachments) ? d.attachments.length : 0),
   };
 }
 
@@ -185,6 +233,15 @@ const enc = encodeURIComponent;
 
 export async function getTask(id: string, signal?: AbortSignal): Promise<Task> {
   return normTask(await http(`/task-management/${enc(id)}`, { signal }));
+}
+
+// An attachment's bytes, with the user's token (preview_url / download_url).
+export function getTaskAttachmentBlob(path: string, signal?: AbortSignal): Promise<Blob> {
+  return httpBlob(path, { signal });
+}
+
+export function downloadTaskAttachment(path: string): Promise<{ blob: Blob; name: string }> {
+  return httpBlobNamed(path);
 }
 
 export async function getTaskHistory(id: string, signal?: AbortSignal): Promise<TaskHistoryItem[]> {

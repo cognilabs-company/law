@@ -22101,6 +22101,19 @@
       "history": "History",
       "noHistory": "No history yet."
     },
+    "attachments": {
+      "title": "Attachments",
+      "empty": "No attachments.",
+      "loading": "Loading image…",
+      "error": "Couldn’t load the image",
+      "open": "Open {name} full size",
+      "download": "Download",
+      "downloadName": "Download {name}",
+      "downloadError": "Couldn’t download, try again",
+      "prev": "Previous image",
+      "next": "Next image",
+      "position": "{n} of {total}"
+    },
     "history": {
       "created": "Created",
       "updated": "Edited",

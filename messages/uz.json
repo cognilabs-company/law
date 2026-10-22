@@ -22107,6 +22107,19 @@
       "history": "Tarix",
       "noHistory": "Tarix bo'sh."
     },
+    "attachments": {
+      "title": "Biriktirilgan fayllar",
+      "empty": "Biriktirilgan fayl yo'q.",
+      "loading": "Rasm yuklanmoqda…",
+      "error": "Rasmni yuklab bo'lmadi",
+      "open": "{name} — to'liq ko'rish",
+      "download": "Yuklab olish",
+      "downloadName": "{name} — yuklab olish",
+      "downloadError": "Yuklab bo'lmadi, qayta urinib ko'ring",
+      "prev": "Oldingi rasm",
+      "next": "Keyingi rasm",
+      "position": "{n} / {total}"
+    },
     "history": {
       "created": "Yaratildi",
       "updated": "Tahrirlandi",

@@ -5,6 +5,7 @@ import { CalendarClock, CircleCheckBig, FileText, Flag, History, Pencil, Plus, R
 import type { ComponentType, ReactNode } from "react";
 import type { Task, TaskHistoryItem, TaskStatus } from "@/lib/services/taskManagement";
 import { Deadline, Face, STROKE, StatusActions, StatusPill, useTaskText } from "./parts";
+import TaskAttachments from "./TaskAttachments";
 
 const EVENT_ICON: Record<string, ComponentType<LucideProps>> = { created: Plus, updated: Pencil, assignees_changed: Users, status_changed: Flag, returned: Undo2, deleted: Trash2 };
 
@@ -164,6 +165,7 @@ export default function TaskDetail({
               </p>
               {task.description ? <p className="ttk-desc__t">{task.description}</p> : <p className="ttk-muted">{t("detail.noDescription")}</p>}
             </section>
+            <TaskAttachments attachments={task.attachments} count={task.attachmentCount} loading={loading} />
             {hasActions ? (
               <div className="ttk-d__acts">
                 <StatusActions task={task} busy={busy} onPick={(to) => onStatus(task, to)} size="md" />
