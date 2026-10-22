@@ -503,6 +503,23 @@ export function isLawyerSeller(sellerType: string, fallbackRole?: string): boole
   return fallbackRole === "lawyer";
 }
 
+// The seller's own standing as GET /lawyers/me states it — the current side
+// of each price criterion (experience, rating, verification). Read as sent;
+// nothing here is scored or rounded.
+export type SellerStanding = { experienceYears: number | null; rating: number | null; reviews: number | null; verified: boolean | null };
+
+export async function getSellerStanding(signal?: AbortSignal): Promise<SellerStanding> {
+  const d = asDict(await http("/lawyers/me", { signal }));
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v.trim() !== "" && Number.isFinite(Number(v)) ? Number(v) : null);
+  const status = asStr(d.verification_status).toLowerCase();
+  return {
+    experienceYears: num(d.experience_years) ?? num(d.lawyer_experience_years),
+    rating: num(d.rating),
+    reviews: num(d.reviews_count),
+    verified: typeof d.is_verified === "boolean" ? d.is_verified && (!status || VERIFIED.has(status)) : status ? VERIFIED.has(status) : null,
+  };
+}
+
 export function profileVerified(p: ServiceSellerProfile): boolean {
   return p.isVerified && VERIFIED.has(p.verificationStatus.toLowerCase());
 }

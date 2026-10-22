@@ -16,7 +16,7 @@ import { App, Banner, Btn, Check, Dialog, Empty, Field, Input, Loading, Search, 
 import type { NativeProps } from "../native";
 import PromoteDialog from "./promote/PromoteDialog";
 import "./services.css";
-import PriceLimits from "@/components/services/PriceLimits";
+import PriceLimits, { useSellerStanding } from "@/components/services/PriceLimits";
 import { useSellerConfig } from "@/components/services/useSellerConfig";
 
 // The seller's services as a desktop program: the services by status and
@@ -341,6 +341,7 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { 
   const [band, setBand] = useState<PriceBand | null>(item?.limits ?? null);
   const [runtime, setRuntime] = useState<RuntimeConfig | null>(null);
   const cfg = useSellerConfig(svc?.id ?? "", uid, !!svc).config;
+  const standing = useSellerStanding();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const taken = new Set(data.items.map((x) => x.service.id));
@@ -447,6 +448,9 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { 
             modifiers={band?.modifiers ?? null}
             requirements={cfg?.requirements ?? []}
             fallback={{ req: runtime?.minimumRequirements ?? null, verified: profileVerified(data.profile) }}
+            standing={standing}
+            discountPct={cfg?.maxListingDiscountPercent ?? runtime?.pricing.maxListingDiscountPercent ?? null}
+            belowAllowed={cfg?.belowRecommendedAllowed ?? runtime?.pricing.sellerCanPriceBelowRecommended ?? null}
             aiId="portal.desk.services.limits"
           />
           <Field label={tf("price")} hint={band && band.max ? tf("bandHint", { min: som(band.min), max: som(band.max) }) : tf("bandLoading")} error={out && band ? tf("priceOut", { min: som(band.min), max: som(band.max) }) : undefined}>

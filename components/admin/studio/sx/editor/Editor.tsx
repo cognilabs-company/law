@@ -24,8 +24,9 @@ import { useLeaveGuard, type LeaveGuard } from "./useLeaveGuard";
 import { useCtorVisit } from "../home/ctorUsage";
 import type { CategoryKind } from "../ctor/services";
 import { CategoryKindBar, CategoryKindGate } from "../shared/CategoryKind";
+import { RuleKindBar, RuleKindGate } from "../shared/RuleKind";
 
-export type EditorProps = { id: string; newCode: string; ctx: string; focus?: string; prefill?: Readonly<Record<string, string>>; categoryKind?: CategoryKind };
+export type EditorProps = { id: string; newCode: string; ctx: string; focus?: string; prefill?: Readonly<Record<string, string>>; categoryKind?: CategoryKind; ruleNew?: boolean };
 
 type DrawerState = { open: boolean; tab: EditorTab | null };
 
@@ -273,6 +274,7 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
       below={
         <>
           {st.categoryKind ? <CategoryKindBar kind={st.categoryKind} base={newCategoryBase(init.ctx ?? "")} /> : null}
+          {st.mode === "create" && init.code.toUpperCase() === "K31" ? <RuleKindBar base={newRuleBase(init.ctx ?? "")} /> : null}
           <EditorBelow st={st} narrow={narrow} onAlertAction={onAlertAction} />
         </>
       }
@@ -299,13 +301,18 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
   );
 }
 
+// The plain "new rule" link, before the new-or-version choice.
+const newRuleBase = (ctx: string): string => `/admin/studio/o/new?new=K31${ctx ? `&ctx=${encodeURIComponent(ctx)}` : ""}`;
+
 // The plain "new category" link, before a kind is chosen.
 const newCategoryBase = (ctx: string): string => `/admin/studio/o/new?new=K01${ctx ? `&ctx=${encodeURIComponent(ctx)}` : ""}`;
 
-export function Editor({ id, newCode, ctx, focus, prefill, categoryKind }: EditorProps): ReactElement {
+export function Editor({ id, newCode, ctx, focus, prefill, categoryKind, ruleNew }: EditorProps): ReactElement {
   const labels = useStudioLabels();
-  const category = !!newCode && newCode.toUpperCase() === "K01" && (ctxModeOf(ctx) === "" || ctxModeOf(ctx) === "create");
+  const fresh = ctxModeOf(ctx) === "" || ctxModeOf(ctx) === "create";
+  const category = !!newCode && newCode.toUpperCase() === "K01" && fresh;
   if (category && !categoryKind) return <CategoryKindGate base={newCategoryBase(ctx)} listHref="/admin/studio/c/K01" listLabel={labels.ctorName("K01")} />;
+  if (!!newCode && newCode.toUpperCase() === "K31" && fresh && !ruleNew) return <RuleKindGate base={newRuleBase(ctx)} listHref="/admin/studio/c/K31" listLabel={labels.ctorName("K31")} />;
   const kind = category ? categoryKind : undefined;
   const init: EditorInit = newCode ? { code: newCode, id: null, ctx, focus, initialPayload: prefill ? { ...prefill } : undefined, categoryKind: kind } : { code: "", id, focus };
   return <EditorScreen key={newCode ? `new:${newCode}:${ctx}:${kind ?? ""}:${prefill ? JSON.stringify(prefill) : ""}` : `id:${id}`} init={init} />;

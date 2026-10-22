@@ -387,6 +387,171 @@ html[data-theme="dark"] .sx-seg__ind {
   outline-offset: 2px;
 }
 
+/* "Add rule": a new rule, or the next version of one. */
+.sx-rk {
+  display: grid;
+  gap: 12px;
+}
+.sx-rk-pick {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.sx-rk-list {
+  display: grid;
+  gap: 6px;
+  max-block-size: 300px;
+  overflow-y: auto;
+  padding: 2px;
+  overscroll-behavior: contain;
+}
+.sx-rk-list[aria-invalid] .sx-rk-row {
+  border-color: color-mix(in srgb, var(--sx-danger, #dc2626) 45%, var(--sx-line));
+}
+.sx-rk-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  inline-size: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1.5px solid var(--sx-line);
+  border-radius: var(--sx-r);
+  background: var(--sx-surface);
+  color: var(--sx-ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--sx-fast, 0.15s) var(--sx-ease), background var(--sx-fast, 0.15s) var(--sx-ease), box-shadow var(--sx-fast, 0.15s) var(--sx-ease);
+}
+.sx-rk-row:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--sx-accent) 45%, var(--sx-line));
+}
+.sx-rk-row[data-on] {
+  border-color: var(--sx-accent);
+  background: color-mix(in srgb, var(--sx-accent-soft) 55%, var(--sx-surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sx-accent) 14%, transparent);
+}
+.sx-rk-row:focus-visible {
+  outline: 2px solid var(--sx-ring);
+  outline-offset: 2px;
+}
+.sx-rk-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.sx-rk-row--ghost {
+  block-size: 58px;
+  border-style: dashed;
+  background: var(--sx-surface-2);
+  cursor: default;
+  animation: sx-rk-pulse 1.4s ease-in-out infinite;
+}
+.sx-rk-row__dot {
+  flex: none;
+  inline-size: 16px;
+  block-size: 16px;
+  border: 2px solid var(--sx-line-strong);
+  border-radius: 50%;
+  transition: border-color var(--sx-fast, 0.15s) var(--sx-ease), box-shadow var(--sx-fast, 0.15s) var(--sx-ease);
+}
+.sx-rk-row[data-on] .sx-rk-row__dot {
+  border-color: var(--sx-accent);
+  box-shadow: inset 0 0 0 3px var(--sx-surface), inset 0 0 0 8px var(--sx-accent);
+}
+.sx-rk-row__ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: var(--sx-r-sm);
+  background: var(--sx-accent-soft);
+  color: var(--sx-accent-ink);
+}
+.sx-rk-row__t {
+  display: grid;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+.sx-rk-row__t strong {
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sx-rk-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.sx-rk-chip {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--sx-surface-2);
+  color: var(--sx-ink-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 18px;
+}
+.sx-rk-chip--v {
+  background: var(--sx-accent-soft);
+  color: var(--sx-accent-ink);
+  font-family: var(--sx-mono, ui-monospace, monospace);
+}
+.sx-rk-chip[data-tone="ok"] {
+  background: color-mix(in srgb, #0b7a52 12%, transparent);
+  color: #0b7a52;
+}
+.sx-rk-chip[data-tone="draft"] {
+  background: color-mix(in srgb, #b45309 12%, transparent);
+  color: #b45309;
+}
+.sx-rk-chip[data-tone="muted"] {
+  color: var(--sx-muted);
+}
+html[data-theme="dark"] .sx-rk-chip[data-tone="ok"] {
+  color: #5fd6a4;
+}
+html[data-theme="dark"] .sx-rk-chip[data-tone="draft"] {
+  color: #f5b54a;
+}
+.sx-rk-empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 18px;
+  border: 1.5px dashed var(--sx-line-strong);
+  border-radius: var(--sx-r);
+  color: var(--sx-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.sx-rk-empty strong {
+  color: var(--sx-ink);
+}
+.sx-rk-nohit {
+  margin: 0;
+  padding: 12px;
+  color: var(--sx-muted);
+  font-size: 13px;
+  text-align: center;
+}
+.sx-rk-err {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--sx-r);
+  background: color-mix(in srgb, #dc2626 9%, transparent);
+  color: #dc2626;
+  font-size: 13px;
+}
+@keyframes sx-rk-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
 @keyframes sx-ck-in {
   from {
     opacity: 0;
@@ -406,6 +571,13 @@ html[data-theme="dark"] .sx-seg__ind {
   }
 }
 @media (prefers-reduced-motion: reduce) {
+  .sx-rk-row,
+  .sx-rk-row__dot {
+    transition: none;
+  }
+  .sx-rk-row--ghost {
+    animation: none;
+  }
   .sx-ck--page,
   .sx-ck-parent,
   .sx-ck-note {

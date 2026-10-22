@@ -399,3 +399,6 @@ html[data-theme="dark"] .svcap {
     transition: none;
   }
 }
+.svcap__facts--num svg {
+  color: var(--cap-acc);
+}

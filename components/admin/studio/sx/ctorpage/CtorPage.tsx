@@ -23,6 +23,7 @@ import { useCtorVisit } from "../home/ctorUsage";
 import { groupOfCode } from "../home/groupModel";
 import { journeyTypeOfCode } from "../shared/journeyLinks";
 import { AddCategoryButton } from "../shared/CategoryKind";
+import { AddRuleButton } from "../shared/RuleKind";
 import { StartJourneyButton } from "../shared/StartJourney";
 import { CategoryTreeTable } from "./CategoryTreeTable";
 import { RecordTable } from "./RecordTable";
@@ -81,6 +82,7 @@ function CreateControl({ code, ctor, createUrl, reason, aiId }: CreateProps): Re
   const type = journeyTypeOfCode(code);
   const label = type === "package" ? t("sx.journeyRun.newPackage") : type === "service" ? t("sx.journeyRun.newService") : t("sx.cpage.create");
   if (type) return <StartJourneyButton type={type} variant="primary" label={label} aiId={aiId} disabledReason={reason || undefined} />;
+  if (code.toUpperCase() === "K31") return <AddRuleButton base={createHrefOf(code, ctor, createUrl)} label={t("sx.k31kind.add")} aiId={aiId} disabledReason={reason || undefined} />;
   if (code.toUpperCase() === "K01") return <AddCategoryButton base={createHrefOf(code, ctor, createUrl)} label={t("sx.k01kind.add")} aiId={aiId} disabledReason={reason || undefined} />;
   if (!reason) {
     return (

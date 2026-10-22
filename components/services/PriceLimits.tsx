@@ -1,10 +1,10 @@
 "use client";
 
-import { useId, type ComponentType, type SVGProps } from "react";
+import { useEffect, useId, useState, type ComponentType, type SVGProps } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { MinimumRequirements, PriceRequirement } from "@/lib/services/marketRuntime";
 import type { PriceModifier } from "@/lib/services/marketplacePricing";
-import type { PriceExplanation } from "@/lib/services/sellerServices";
+import { getSellerStanding, type PriceExplanation, type SellerStanding } from "@/lib/services/sellerServices";
 import { IconAlert, IconAward, IconBriefcase, IconCheck, IconInfo, IconShieldCheck, IconSliders, IconStar, IconTrendingUp } from "@/components/icons";
 import { PriceModifiers } from "./PriceField";
 import { som } from "./bits";
@@ -41,20 +41,39 @@ export type PriceLimitsProps = {
   modifiers: PriceModifier[] | null;
   requirements: PriceRequirement[];
   fallback: { req: MinimumRequirements | null; verified: boolean };
+  // GET /lawyers/me: the seller's current experience, rating and
+  // verification, for the criteria the backend lists without them.
+  standing?: SellerStanding | null;
+  // How far below the recommended price a listing may go, and whether it may
+  // at all — both straight from the backend's pricing.
+  discountPct?: number | null;
+  belowAllowed?: boolean | null;
   aiId?: string;
 };
 
-// The backend's criteria, or — when it lists none — the service's minimum
-// requirements with the one current value the profile itself states.
-function criteriaOf(list: PriceRequirement[], fb: PriceLimitsProps["fallback"]): PriceRequirement[] {
-  if (list.length) return list;
+// The backend's criteria with its own verdicts, or — when it lists none —
+// the service's minimum requirements beside the seller's own values from
+// GET /lawyers/me. Only in that second case is met/unmet read here, by
+// setting one backend number against the other; `derived` says so on screen.
+function criteriaOf(list: PriceRequirement[], fb: PriceLimitsProps["fallback"], st: SellerStanding | null): { rows: PriceRequirement[]; derived: boolean } {
+  if (list.length) return { rows: list, derived: false };
   const r = fb.req;
-  if (!r || r.empty) return [];
+  if (!r || r.empty) return { rows: [], derived: false };
   const out: PriceRequirement[] = [];
-  if (r.verified === true) out.push({ key: "verified", label: "", current: fb.verified, required: true, unit: "", met: fb.verified, progress: null, note: "" });
-  if (r.minimumExperienceYears > 0) out.push({ key: "experience_years", label: "", current: null, required: r.minimumExperienceYears, unit: "year", met: null, progress: null, note: "" });
-  if (r.minimumRating > 0) out.push({ key: "rating", label: "", current: null, required: r.minimumRating, unit: "", met: null, progress: null, note: "" });
-  return out;
+  const atLeast = (cur: number | null, need: number) => (cur === null ? null : cur >= need);
+  if (r.verified === true) {
+    const v = st?.verified ?? fb.verified;
+    out.push({ key: "verified", label: "", current: v, required: true, unit: "", met: v, progress: null, note: "" });
+  }
+  if (r.minimumExperienceYears > 0) {
+    const cur = st?.experienceYears ?? null;
+    out.push({ key: "experience_years", label: "", current: cur, required: r.minimumExperienceYears, unit: "year", met: atLeast(cur, r.minimumExperienceYears), progress: null, note: "" });
+  }
+  if (r.minimumRating > 0) {
+    const cur = st?.rating ?? null;
+    out.push({ key: "rating", label: "", current: cur, required: r.minimumRating, unit: "", met: atLeast(cur, r.minimumRating), progress: null, note: "" });
+  }
+  return { rows: out, derived: true };
 }
 
 // How full a bar is: the backend's own percent, else the plain ratio of the
@@ -67,7 +86,22 @@ function fillOf(r: PriceRequirement): number | null {
   return null;
 }
 
-export default function PriceLimits({ minimum, recommended, sellerMax, serviceMax, increasePct, price, explanation, modifiers, requirements, fallback, aiId }: PriceLimitsProps) {
+// The seller's standing, read once per form; null until it arrives or when
+// the profile cannot be read (the criteria then show without current values).
+export function useSellerStanding(): SellerStanding | null {
+  const [st, setSt] = useState<SellerStanding | null>(null);
+  useEffect(() => {
+    const ctl = new AbortController();
+    getSellerStanding(ctl.signal).then(
+      (v) => !ctl.signal.aborted && setSt(v),
+      () => {},
+    );
+    return () => ctl.abort();
+  }, []);
+  return st;
+}
+
+export default function PriceLimits({ minimum, recommended, sellerMax, serviceMax, increasePct, price, explanation, modifiers, requirements, fallback, standing = null, discountPct = null, belowAllowed = null, aiId }: PriceLimitsProps) {
   const t = useTranslations("sellerServices.caps");
   const locale = useLocale();
   const uid = useId();
@@ -76,7 +110,7 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
   const top = Math.max(over || sellerMax, price, recommended) * 1.08 || 1;
   const at = (v: number) => `${Math.min(100, Math.max(0, (v / top) * 100))}%`;
   const inRange = price > 0 && (minimum <= 0 || price >= minimum) && (sellerMax <= 0 || price <= sellerMax);
-  const crit = criteriaOf(requirements, fallback);
+  const { rows: crit, derived } = criteriaOf(requirements, fallback, standing);
   const metN = crit.filter((r) => r.met === true).length;
   const known = crit.some((r) => r.met !== null);
   const reasons = explanation;
@@ -87,6 +121,22 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
     return unit === "year" || unit === "years" ? t("years", { n: v }) : unit ? `${num(v)} ${unit}` : num(v);
   };
   const reqLabel = (r: PriceRequirement) => r.label || (t.has(`req.${r.key}`) ? t(`req.${r.key}`) : r.key);
+  // The limits in words, each sentence carrying only numbers the backend sent.
+  const unmet = crit.filter((r) => r.met === false);
+  const facts: string[] = [];
+  if (recommended > 0) facts.push(t("fact.rec", { price: som(recommended) }));
+  if (minimum > 0)
+    facts.push(
+      belowAllowed === false
+        ? t("fact.minNoBelow", { min: som(minimum) })
+        : discountPct !== null && discountPct > 0 && recommended > 0
+          ? t("fact.minDiscount", { min: som(minimum), pct: num(discountPct) })
+          : t("fact.min", { min: som(minimum) }),
+    );
+  if (sellerMax > 0)
+    facts.push(over ? t("fact.capLocked", { mine: som(sellerMax), service: som(over) }) : serviceMax > 0 && sellerMax >= serviceMax ? t("fact.capFull", { max: som(sellerMax) }) : t("fact.cap", { max: som(sellerMax) }));
+  if (unmet.length) facts.push(t("fact.unmet", { n: unmet.length, list: unmet.map(reqLabel).join(", ") }));
+  else if (crit.length && crit.every((r) => r.met === true)) facts.push(t("fact.allMet"));
   return (
     <section className="svcap" aria-labelledby={`${uid}-h`} data-ai-id={aiId} data-ai-type={aiId ? "section" : undefined}>
       <header className="svcap__head">
@@ -154,13 +204,23 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
         </p>
       ) : null}
 
-      {reasons || (modifiers && modifiers.length) ? (
+      {reasons || facts.length || (modifiers && modifiers.length) ? (
         <div className="svcap__why">
           <p className="svcap__sub">
             <IconInfo aria-hidden="true" />
             {sellerMax > 0 ? t("whyMax", { max: som(sellerMax) }) : t("why")}
           </p>
           {reasons?.text && !(reasons.lines.length > 1 && reasons.text === reasons.lines.join(" ")) ? <p className="svcap__txt">{reasons.text}</p> : null}
+          {facts.length ? (
+            <ul className="svcap__facts svcap__facts--num">
+              {facts.map((f) => (
+                <li key={f}>
+                  <IconInfo aria-hidden="true" />
+                  <span>{f}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           {reasons?.lines.length ? (
             <ul className="svcap__facts">
               {reasons.lines.map((l, i) => (
@@ -229,6 +289,7 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
               );
             })}
           </ul>
+          {derived && crit.some((r) => r.met !== null) ? <small className="svcap__src">{t("derivedNote")}</small> : null}
         </div>
       ) : null}
     </section>
