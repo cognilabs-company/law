@@ -7,7 +7,7 @@ import "./sx-schema.css";
 import "./sx-schema-neon.css";
 import { createContext, memo, useContext, useEffect, useState, type ReactElement, type ReactNode } from "react";
 import { aiId, aiSeg } from "@/lib/ai/ids";
-import type { StudioSchemaField } from "@/lib/services/studio";
+import { studioReferenceKey, type StudioSchemaField } from "@/lib/services/studio";
 import { emptyItem, fieldVisible, normPath } from "@/lib/studioSchema";
 import { ChoiceCards, type ChoiceCard } from "../form/ChoiceCards";
 import { DateField } from "../form/DateField";
@@ -22,7 +22,7 @@ import { Repeater } from "../form/Repeater";
 import { Switch } from "../form/Switch";
 import { TextArea } from "../form/TextArea";
 import { TextInput } from "../form/TextInput";
-import { firstReferencePage } from "../form/useReferenceOptions";
+import { firstReferencePage, pendingReferenceNow, usePendingReferences } from "../form/useReferenceOptions";
 import { TriangleAlertIcon, glyph } from "../icons";
 import { SxSectionHeader } from "../layout/Panel";
 import type { SchemaFieldModel, SchemaModel, SxControlKind, SxEditMode, SxFileSlot, SxLayoutCtx, SxLayoutField, SxValues, SxWarning } from "../contract";
@@ -151,10 +151,15 @@ function optionsFor(lf: SxLayoutField | null, f: StudioSchemaField | null): stri
   return [];
 }
 
-function useRefLabels(sources: readonly string[]): (source: string, value: string) => string {
+type RefName = { label: string; meta: string; pending: boolean };
+
+// Names (and a short detail line) of picked references, from the published
+// list or, for one still awaiting approval, from its draft.
+function useRefLabels(sources: readonly string[]): (source: string, value: string) => RefName | null {
   const labels = useStudioLabels();
   const key = [...new Set(sources.filter(Boolean))].sort().join("\n");
-  const [maps, setMaps] = useState<Readonly<Record<string, Readonly<Record<string, string>>>>>({});
+  const [maps, setMaps] = useState<Readonly<Record<string, Readonly<Record<string, RefName>>>>>({});
+  usePendingReferences();
   useEffect(() => {
     if (!key) return;
     let live = true;
@@ -162,8 +167,11 @@ function useRefLabels(sources: readonly string[]): (source: string, value: strin
       firstReferencePage(s).then(
         (rows) => {
           if (!live) return;
-          const map: Record<string, string> = {};
-          for (const r of rows) map[r.value] = labels.refOption(s, r).label;
+          const map: Record<string, RefName> = {};
+          for (const r of rows) {
+            const o = labels.refOption(s, r);
+            map[r.value] = { label: o.label, meta: o.description ?? "", pending: false };
+          }
           setMaps((m) => ({ ...m, [s]: map }));
         },
         () => {},
@@ -173,20 +181,28 @@ function useRefLabels(sources: readonly string[]): (source: string, value: strin
       live = false;
     };
   }, [key, labels]);
-  return (source, value) => maps[source]?.[value] ?? "";
+  return (source, value) => {
+    const hit = maps[source]?.[value];
+    if (hit) return hit;
+    if (!maps[source]) return null;
+    const draft = pendingReferenceNow(value);
+    if (!draft) return null;
+    const o = labels.refOption(source, draft);
+    return { label: o.label, meta: o.description ?? "", pending: true };
+  };
 }
 
 function RefNames({ source, values }: { source: string; values: readonly string[] }): ReactElement {
   const labels = useStudioLabels();
   const name = useRefLabels([source]);
-  return <>{labels.list(values.map((v) => name(source, v) || labels.unknownRef(v)), values.length)}</>;
+  return <>{labels.list(values.map((v) => name(source, v)?.label || labels.unknownRef(v)), values.length)}</>;
 }
 
-function NeonChips({ items }: { items: readonly string[] }): ReactElement {
+function NeonChips({ items }: { items: readonly ReactNode[] }): ReactElement {
   return (
     <ul className="sx-nv__chips">
       {items.map((x, i) => (
-        <li key={`${i}-${x}`} className="sx-nv__chip">
+        <li key={i} className="sx-nv__chip">
           {x}
         </li>
       ))}
@@ -194,10 +210,30 @@ function NeonChips({ items }: { items: readonly string[] }): ReactElement {
   );
 }
 
+// Price factors keep their type and value beside the name, so several
+// picked ones stay told apart.
+const DETAILED_SOURCES = new Set(["price-factors"]);
+
 function RefChips({ source, values }: { source: string; values: readonly string[] }): ReactElement {
   const labels = useStudioLabels();
   const name = useRefLabels([source]);
-  return <NeonChips items={values.map((v) => name(source, v) || labels.unknownRef(v))} />;
+  const detailed = DETAILED_SOURCES.has(studioReferenceKey(source).key);
+  return (
+    <NeonChips
+      items={values.map((v) => {
+        const n = name(source, v);
+        if (!n) return labels.unknownRef(v);
+        const extra = [detailed ? n.meta : "", n.pending ? labels.pendingRef() : ""].filter(Boolean).join(" · ");
+        if (!extra) return n.label;
+        return (
+          <>
+            <span className="sx-nv__chip-name">{n.label}</span>
+            <span className="sx-nv__chip-meta">{extra}</span>
+          </>
+        );
+      })}
+    />
+  );
 }
 
 const TEXT_TYPES = new Set(["text", "textarea", "richtext"]);
@@ -322,7 +358,8 @@ function RowsField({ node, path, ai, id, label, ro, f }: { node: SchemaFieldMode
   const inline = f.item?.type !== "object";
   const props = f.item?.properties ?? [];
   const sources = inline ? [] : props.map((p) => effectiveSource(model.code, { pattern: `${node.pattern}.*.${p.key}`, field: p }, {}));
-  const refName = useRefLabels(sources);
+  const refLabel = useRefLabels(sources);
+  const refName = (source: string, value: string) => refLabel(source, value)?.label ?? "";
   const scopeSource = (pattern: string, p: StudioSchemaField) => effectiveSource(model.code, { pattern, field: p }, {});
   const children = inline ? [] : childNodes(model, f, node.pattern);
   const summary = (item: unknown, i: number): string =>

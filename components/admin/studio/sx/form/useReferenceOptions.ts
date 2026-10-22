@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { asDict, http } from "@/lib/http";
 import { getStudioObject, isLocalStudioReference, loadStudioReference, studioReferenceKey, type StudioReferenceItem } from "@/lib/services/studio";
 import { sourceIcon } from "../icons";
@@ -102,6 +102,40 @@ export function pendingReferenceItem(id: string): Promise<StudioReferenceItem | 
 
 export function isPendingReference(item: StudioReferenceItem | null | undefined): boolean {
   return item?.raw.pending === true;
+}
+
+// The same drafts for code that names references synchronously (read-only
+// views, review diffs): a cached draft, or a lookup started now whose
+// answer re-renders every usePendingReferences() caller.
+const pendingSeen = new Map<string, StudioReferenceItem | null>();
+const pendingWatchers = new Set<() => void>();
+let pendingVersion = 0;
+
+export function pendingReferenceNow(id: string): StudioReferenceItem | null {
+  const v = id.trim();
+  if (pendingSeen.has(v)) return pendingSeen.get(v) ?? null;
+  if (!UUID.test(v)) return null;
+  pendingSeen.set(v, null);
+  void pendingReferenceItem(v).then((item) => {
+    if (!item) return;
+    pendingSeen.set(v, item);
+    pendingVersion += 1;
+    for (const fn of pendingWatchers) fn();
+  });
+  return null;
+}
+
+export function usePendingReferences(): number {
+  return useSyncExternalStore(
+    (fn) => {
+      pendingWatchers.add(fn);
+      return () => {
+        pendingWatchers.delete(fn);
+      };
+    },
+    () => pendingVersion,
+    () => 0,
+  );
 }
 
 export async function fetchReferencePage(source: string, q: string, offset: number, limit: number, signal?: AbortSignal): Promise<SxReferencePage> {

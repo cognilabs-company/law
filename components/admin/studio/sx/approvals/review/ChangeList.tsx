@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { aiId } from "@/lib/ai/ids";
 import { SxButton } from "../../Button";
 import type { SchemaModel, SxValues, SxWarning } from "../../contract";
-import { firstReferencePage } from "../../form/useReferenceOptions";
+import { firstReferencePage, pendingReferenceNow, usePendingReferences } from "../../form/useReferenceOptions";
 import { SxNote } from "../../layout/Note";
 import { useStudioLabels } from "../../useStudioLabels";
 import { diffLines, diffSources, type DiffEntry, type DiffLine } from "./diff";
@@ -91,6 +91,8 @@ export function ChangeList({ base, entries, model, code, root, pending }: Change
   }, [srcKey, labels]);
 
   const map = refs?.key === srcKey ? refs.map : null;
+  // A picked record still awaiting approval is named from its draft.
+  const drafts = usePendingReferences();
   const { lines, other } = useMemo(
     () =>
       diffLines(entries, {
@@ -99,9 +101,15 @@ export function ChangeList({ base, entries, model, code, root, pending }: Change
         labels,
         t,
         root,
-        refName: (source, value) => map?.get(source)?.get(value) ?? labels.unknownRef(value),
+        refName: (source, value) => {
+          const known = map?.get(source)?.get(value);
+          if (known) return known;
+          const draft = map ? pendingReferenceNow(value) : null;
+          return draft ? labels.refOption(source, draft).label : labels.unknownRef(value);
+        },
       }),
-    [entries, model, code, labels, t, root, map],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- drafts only re-runs the names
+    [entries, model, code, labels, t, root, map, drafts],
   );
 
   const shown = all ? lines : lines.slice(0, DIFF_FIRST);
