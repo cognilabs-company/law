@@ -11358,6 +11358,8 @@
         "all": "All",
         "empty": "No services found",
         "emptyText": "Try another category or search.",
+        "catalogEmpty": "The document catalogue is empty for now",
+        "catalogEmptyText": "No document directions have been added yet. Use search, or order one with the “Order a new document” button.",
         "som": "UZS",
         "byRequest": "By request",
         "download": "Download",

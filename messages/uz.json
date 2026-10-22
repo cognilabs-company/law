@@ -11364,6 +11364,8 @@
         "all": "Barchasi",
         "empty": "Xizmat topilmadi",
         "emptyText": "Boshqa kategoriya yoki qidiruvni sinang.",
+        "catalogEmpty": "Hujjatlar katalogi hozircha bo'sh",
+        "catalogEmptyText": "Hujjat yo'nalishlari hali qo'shilmagan. Qidiruvdan foydalaning yoki «Yangi hujjatga buyurtma» tugmasi orqali buyurtma bering.",
         "som": "so'm",
         "byRequest": "So'rov bo'yicha",
         "download": "Yuklab olish",

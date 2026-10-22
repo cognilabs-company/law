@@ -640,7 +640,10 @@ function serviceTitle(d: Dict, locale: string): string {
       : locale === "en"
         ? d.title_uz_latn // no EN catalog title; latin is the closest neutral
         : d.title_uz_latn;
-  const raw = asStr(byLocale ?? d.title ?? d.name);
+  // `||`, not `??`: a Studio-made service sends its unfilled localized
+  // titles as "" rather than null, and an empty string must fall through
+  // to `title` instead of naming the card "".
+  const raw = asStr(byLocale) || asStr(d.title) || asStr(d.name);
   // cleanDocTitle() blanks a bare-UUID title (2 live services). The catalogue
   // card has no second name to fall back on — it renders `name` and nothing
   // else — so the raw string stays rather than leaving a nameless card: a

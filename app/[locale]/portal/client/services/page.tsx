@@ -1391,8 +1391,10 @@ export default function ClientServices() {
             )}
           </>
         ) : showFamilies ? (
+          // No direction at all is an empty catalogue, not a miss: there is
+          // no other category to try, so it says so.
           !famList.length ? (
-            <EmptyState icon={<IconBriefcase />} title={t("empty")} text={t("emptyText")} />
+            <EmptyState icon={<IconBriefcase />} title={t("catalogEmpty")} text={t("catalogEmptyText")} />
           ) : (
             <div className="svfam__grid" data-ai-target="documents:category-list" data-ai-id="documents.categories" data-ai-type="list">
               {famList.map((c, i) => {
