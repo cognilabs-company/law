@@ -195,7 +195,7 @@ export function WizardReview({ journey, steps, missing = NO_STEPS, objectId, cod
             recordTitle={null}
             only={only}
           />
-          {st.model ? <AudiencePreview model={st.model} payload={st.payload} /> : null}
+          {st.model ? <AudiencePreview model={st.model} payload={st.payload} title={st.title} /> : null}
         </div>
       </SxFormContext.Provider>
     );

@@ -224,7 +224,7 @@ export function EditorForm({ st, onPick }: { st: EditorState; onPick: (path: str
             />
             {markRo ? <ReviewMarks idPrefix={st.idPrefix} paths={miss} /> : null}
           </SxPanel>
-          <AudiencePreview model={model} payload={st.payload} />
+          <AudiencePreview model={model} payload={st.payload} title={st.title} />
         </div>
       </div>
     </SxFormContext.Provider>

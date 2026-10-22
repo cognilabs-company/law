@@ -10,7 +10,7 @@ import { useStudioLabels } from "../useStudioLabels";
 import { audienceOfField, bucketOf, seenBy } from "./audience";
 import { BUCKET_ICON, fieldShown } from "./AudienceGroup";
 import { DevicePreview } from "./DevicePreview";
-import { ReaderPage } from "./ReaderPage";
+import { PAGED, ReaderPage } from "./ReaderPage";
 import { RefNames } from "./fields";
 import { effectiveSource, labelTrail, type SchemaTr } from "./model";
 
@@ -125,6 +125,13 @@ const SPECIAL: Readonly<Partial<Record<string, (view: View, value: unknown) => R
   inline_guarantees: (view, value) => (rows(value).some((r) => meant(view, r, "client")) ? <OwnItems view={view} value={value} body="description" fallback="client" /> : null),
 };
 
+// The address bar above the page: where that reader would be.
+function addressOf(code: string, view: View, payload: SxValues): string {
+  if (view === "performer") return "lexgo.uz/ishlar";
+  const slug = str(payload.slug);
+  return code === "K01" && slug ? `lexgo.uz/xizmatlar/${slug}` : "lexgo.uz/xizmatlar";
+}
+
 function blank(value: unknown): boolean {
   if (value === undefined || value === null) return true;
   if (Array.isArray(value)) return value.length === 0;
@@ -133,12 +140,14 @@ function blank(value: unknown): boolean {
   return plain(value) === "";
 }
 
-export function AudiencePreview({ model, payload }: { model: SchemaModel; payload: SxValues }): ReactElement | null {
+export function AudiencePreview({ model, payload, title }: { model: SchemaModel; payload: SxValues; title?: string }): ReactElement | null {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const [view, setView] = useState<View>("client");
-  // A service shows as its real page first; other records as the field list.
-  const paged = model.code.toUpperCase() === "K02";
+  // A service or a category shows as its real page first; other records as
+  // the field list.
+  const code = model.code.toUpperCase();
+  const paged = PAGED.has(code);
   const [mode, setMode] = useState<"page" | "fields">(paged ? "page" : "fields");
   const fields = model.sections.flatMap((s) => s.fields).filter((fm) => fieldShown(model, fm, payload));
   const sorted = fields.map((fm) => ({ fm, who: audienceOfField(model.code, fm.pattern, payload, payload)?.who }));
@@ -185,8 +194,8 @@ export function AudiencePreview({ model, payload }: { model: SchemaModel; payloa
         />
       ) : null}
       {paged && mode === "page" ? (
-        <DevicePreview address={view === "client" ? "lexgo.uz/xizmatlar" : "lexgo.uz/ishlar"} label={t(view === "client" ? "sx.apv.asClient" : "sx.apv.asPerformer")}>
-          <ReaderPage reader={view} payload={payload} title={str(payload.title)} />
+        <DevicePreview address={addressOf(code, view, payload)} label={t(view === "client" ? "sx.apv.asClient" : "sx.apv.asPerformer")}>
+          <ReaderPage code={code} reader={view} payload={payload} title={str(payload.title) || str(title)} />
         </DevicePreview>
       ) : (
       <div className="sx-apv__frame" role="tabpanel" aria-label={t(view === "client" ? "sx.apv.client" : "sx.apv.performer")}>
