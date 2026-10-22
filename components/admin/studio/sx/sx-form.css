@@ -1217,6 +1217,30 @@ html[data-theme="dark"] .sx-picker__scrim {
   display: inline-flex;
   color: var(--sx-accent);
 }
+/* Several picks: a square mark on every card, filled when picked. */
+.sx-choice__box {
+  position: absolute;
+  top: 14px;
+  inset-inline-end: 14px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--sx-control-line);
+  border-radius: 6px;
+  background: var(--sx-surface);
+  color: var(--sx-on-accent, #fff);
+  transition: background-color var(--sx-fast) var(--sx-ease), border-color var(--sx-fast) var(--sx-ease);
+}
+.sx-choice[data-checked] .sx-choice__box {
+  border-color: var(--sx-accent);
+  background: var(--sx-accent);
+}
+.sx-choices__count {
+  margin: 8px 0 0;
+  color: var(--sx-muted);
+  font: 500 12px/16px var(--sx-font);
+}
 
 .sx-date {
   display: grid;

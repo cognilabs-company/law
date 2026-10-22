@@ -15,7 +15,7 @@ const FIELD_HINTS: Readonly<Record<StudioJourneyType, Readonly<Record<string, re
   service: {
     category: ["title", "category_id"],
     pricing: ["base_price", "max_price", "price_factor_ids", "price_factor_overrides", "negotiation_allowed"],
-    requirements: ["seller_requirements", "executor_type", "intake_questions"],
+    requirements: ["seller_requirements", "intake_questions"],
     duration: ["duration_value", "duration_unit", "duration_calendar"],
     delivery: ["duration_value", "duration_unit", "duration_calendar"],
     template: ["template_mode", "template_source", "document_template_id"],
@@ -181,9 +181,15 @@ function submitKeyOf(defs: readonly JourneyStepDef[]): string {
   return defs.find((d) => d.key === REVIEW_KEY)?.key ?? defs[defs.length - 1]?.key ?? "";
 }
 
+// Fields the review step does not ask for, though no other step holds them.
+const NOT_IN_REVIEW: Readonly<Record<StudioJourneyType, readonly string[]>> = {
+  service: ["usage_steps", "executor_type"],
+  package: [],
+};
+
 export function leftoverFields(type: StudioJourneyType, defs: readonly JourneyStepDef[], topLevelKeys: readonly string[]): string[] {
   const listed = new Set(defs.flatMap((s) => s.fields));
-  const skip = new Set(CONTEXT_FIELDS[type]);
+  const skip = new Set([...CONTEXT_FIELDS[type], ...NOT_IN_REVIEW[type]]);
   const out: string[] = [];
   for (const raw of topLevelKeys) {
     const k = raw.trim();

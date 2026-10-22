@@ -1,5 +1,5 @@
 import type { SxCtorLayout, SxLayoutCtx, SxLayoutField, SxPayload, SxTransformCtx, SxValues } from "../contract";
-import { FIELD_TYPE_ICON, BadgeCheckIcon, BriefcaseBusinessIcon, CalendarDaysIcon, ClockIcon, CoinsIcon, CrownIcon, FileQuestionMarkIcon, FileTextIcon, FileXIcon, FolderOpenIcon, GavelIcon, GlobeIcon, HeadsetIcon, LayersIcon, LockIcon, MedalIcon, PackageIcon, PercentIcon, RefreshCwIcon, ScaleIcon, ShieldCheckIcon } from "../icons";
+import { FIELD_TYPE_ICON, BadgeCheckIcon, BriefcaseBusinessIcon, CircleUserIcon, SparklesIcon, CalendarDaysIcon, ClockIcon, CoinsIcon, CrownIcon, FileQuestionMarkIcon, FileTextIcon, FileXIcon, FolderOpenIcon, GavelIcon, GlobeIcon, HeadsetIcon, LayersIcon, LockIcon, MedalIcon, PackageIcon, PercentIcon, RefreshCwIcon, ScaleIcon, ShieldCheckIcon } from "../icons";
 import { INTAKE, INTAKE_CHOICE_KEYS, INTAKE_HIDDEN_KEYS, INTAKE_PLACEHOLDER, INTAKE_REQUIRED_KEYS, INTAKE_TEXT_KEYS, INTAKE_TYPE_KEYS, SERVICE_TERMS, intakeQuestionOf, intakeTidy, intakeTypeOf, showIntakeChoices } from "../schema/k02/intake";
 import { k02FormValidate, k02Prune, k03mPrune, k03mValidate } from "../schema/k02/model";
 import type { SxErrors, SxIcon } from "../types";
@@ -202,21 +202,46 @@ const INTAKE_FIELDS: readonly SxLayoutField[] = [
   ...INTAKE_CHOICE_KEYS.map((k): SxLayoutField => ({ path: `${INTAKE}.*.${k}`, label: "sx.k02.iq.choices", help: "sx.k02.iq.choicesHelp", addKey: "sx.k02.iq.addChoice", visible: ({ scope, code }) => showIntakeChoices(scope, code) })),
 ];
 
+// Who may do the service is a list (executor_types). A draft from before
+// keeps a single executor_type: it moves into the list once, and the list is
+// kept clean (no blanks, no "none", no repeats) for save, preview and submit.
+export function executorTypesOf(payload: SxValues): string[] | null {
+  const list = Array.isArray(payload.executor_types) ? payload.executor_types : null;
+  const single = typeof payload.executor_type === "string" ? payload.executor_type : "";
+  if (!list && !single) return null;
+  const out: string[] = [];
+  for (const raw of [...(list ?? []), ...(list?.length ? [] : [single])]) {
+    const v = typeof raw === "string" ? raw.trim() : "";
+    if (v && !NO_EXECUTOR.has(v.toLowerCase()) && !out.includes(v)) out.push(v);
+  }
+  return out;
+}
+
 export function k02Transform(next: SxPayload, prev: SxValues = {}, ctx?: SxTransformCtx): SxPayload {
   const pruned = intakeTidy(k02Prune(next, prev), prev, ctx?.code || "K02");
-  const v = pruned.executor_type;
-  if (typeof v !== "string" || !NO_EXECUTOR.has(v.trim().toLowerCase())) return pruned;
-  const out: SxPayload = { ...pruned };
+  const types = executorTypesOf(pruned);
+  if (types === null) return pruned;
+  const out: SxPayload = { ...pruned, executor_types: types };
   delete out.executor_type;
   return out;
 }
+
+const EXECUTOR_CHOICES = {
+  advokat: { icon: ScaleIcon, descriptionKey: "sx.optd.executor_types.advokat" },
+  yurist: { icon: BriefcaseBusinessIcon, descriptionKey: "sx.optd.executor_types.yurist" },
+  yurist_advokat: { icon: GavelIcon, descriptionKey: "sx.optd.executor_types.yurist_advokat" },
+  call_center_lawyer: { icon: HeadsetIcon, descriptionKey: "sx.optd.executor_types.call_center_lawyer" },
+  ai_lawyer: { icon: SparklesIcon, descriptionKey: "sx.optd.executor_types.ai_lawyer" },
+  document_constructor: { icon: FileTextIcon, descriptionKey: "sx.optd.executor_types.document_constructor" },
+  client: { icon: CircleUserIcon, descriptionKey: "sx.optd.executor_types.client" },
+} as const;
 
 const hasFactors = (ctx: SxLayoutCtx): boolean => Array.isArray(ctx.scope.price_factor_ids) && ctx.scope.price_factor_ids.length > 0;
 
 export const K02_LAYOUT: SxCtorLayout = {
   code: "K02",
   sections: [
-    { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "category_id", "description", "client_value", "executor_type"] },
+    { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "category_id", "description", "client_value", "executor_types"] },
     { id: "K02__price", titleKey: "sx.section.K02__price", fields: ["base_price", "max_price", "price_factor_ids", "price_factor_overrides", "negotiation_allowed"] },
     { id: "K02__requirements", titleKey: "sx.section.K02__requirements", fields: ["seller_requirements"] },
     { id: "K02__intake", titleKey: "sx.section.K02__intake", fields: [INTAKE] },
@@ -234,6 +259,8 @@ export const K02_LAYOUT: SxCtorLayout = {
     { path: "slug", hidden: true },
     { path: "category_id", help: false },
     { path: "description", help: false },
+    { path: "executor_type", hidden: true },
+    { path: "executor_types", control: "choicesMulti", columns: 2, choices: EXECUTOR_CHOICES, help: "sx.help.K02__executor_types" },
     { path: "price_factor_ids", help: "sx.help.price_factor_ids", inlineAddKey: "sx.k02.fo.addShared" },
     { path: "price_factor_overrides", control: "factorOverrides", label: "sx.k02.field.price_factor_overrides", help: "sx.k02.help.price_factor_overrides", visible: hasFactors },
     { path: "negotiation_allowed", help: "sx.help.K02__negotiation_allowed" },

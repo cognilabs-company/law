@@ -10,7 +10,7 @@ import { aiId, aiSeg } from "@/lib/ai/ids";
 import { notify } from "@/lib/toast";
 import { studioReferenceKey, type StudioSchemaField } from "@/lib/services/studio";
 import { emptyItem, fieldVisible, normPath } from "@/lib/studioSchema";
-import { ChoiceCards, type ChoiceCard } from "../form/ChoiceCards";
+import { ChoiceCards, ChoiceCardsMulti, type ChoiceCard } from "../form/ChoiceCards";
 import { DateField } from "../form/DateField";
 import { Field, FormGrid } from "../form/Field";
 import type { SxFormPolicy } from "../form/formPolicy";
@@ -756,7 +756,7 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
           </span>
         ) : null;
     else if ((control === "picker" || control === "pickerMulti") && source) shownValue = control === "pickerMulti" ? <RefChips source={source} values={vals} /> : <RefNames source={source} values={vals} />;
-    else if (control === "pickerMulti" || control === "tags" || control === "repeaterInline" || (control === "choices" && vals.length > 1)) shownValue = <NeonChips items={control === "tags" || control === "repeaterInline" ? vals : vals.map(opt)} />;
+    else if (control === "pickerMulti" || control === "tags" || control === "repeaterInline" || control === "choicesMulti" || (control === "choices" && vals.length > 1)) shownValue = <NeonChips items={control === "tags" || control === "repeaterInline" ? vals : vals.map(opt)} />;
     else if (control === "picker" || control === "choices") shownValue = labels.list(vals.map(opt), vals.length);
     else if (control === "display") shownValue = virtual?.display ? virtual.display(ctx, labels) : labels.display(value, rule);
     else if (control === "money" && num(value) !== undefined) shownValue = labels.money(num(value) as number, str(scope.currency) || str(root.currency) || "UZS");
@@ -850,6 +850,43 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
             aria-describedby={withWarn(a)["aria-describedby"]}
             aria-invalid={a["aria-invalid"]}
             aria-required={a["aria-required"]}
+            aiId={ai}
+          />
+        )}
+      </Field>,
+    );
+  }
+
+  if (control === "choicesMulti") {
+    const opts = optionsFor(lf, f);
+    const cards: ChoiceCard[] = opts.map((v) => {
+      const meta = lf?.choices?.[v];
+      const card: ChoiceCard = { value: v, title: opt(v) };
+      const icon = meta?.icon ?? lf?.optionIcon?.(v);
+      if (icon) card.icon = icon;
+      if (meta?.descriptionKey && t.has(meta.descriptionKey)) card.description = t(meta.descriptionKey);
+      return card;
+    });
+    const cur = strList(value);
+    for (const v of cur) if (!opts.includes(v)) cards.push({ value: v, title: opt(v) });
+    return cell(
+      <Field id={id} label={label} help={help} hint={hint} error={error} required={shown.required} as="fieldset" span={span}>
+        {(a) => (
+          <ChoiceCardsMulti
+            id={id}
+            value={cur}
+            onChange={(v) => {
+              set(v.length ? v : []);
+              touch();
+            }}
+            options={cards}
+            columns={lf?.columns}
+            readOnly={ro}
+            aria-labelledby={a["aria-labelledby"]}
+            aria-describedby={withWarn(a)["aria-describedby"]}
+            aria-invalid={a["aria-invalid"]}
+            aria-required={a["aria-required"]}
+            countLabel={(n) => t("sx.form.pickedN", { n })}
             aiId={ai}
           />
         )}

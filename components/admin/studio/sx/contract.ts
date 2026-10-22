@@ -22,6 +22,7 @@ export type SxControlKind =
   | "picker"
   | "pickerMulti"
   | "choices"
+  | "choicesMulti"
   | "tags"
   | "repeater"
   | "repeaterInline"
