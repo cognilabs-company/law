@@ -1774,7 +1774,7 @@ export type BackendTemplate = {
   questionnaire: TemplateQuestion[];
 };
 
-function normTemplate(v: unknown): BackendTemplate {
+export function normTemplate(v: unknown): BackendTemplate {
   const d = asDict(v);
   const rawName = asStr(d.title ?? d.name);
   return {

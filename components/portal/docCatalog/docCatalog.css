@@ -1,0 +1,611 @@
+/* Ready legal documents: the template catalog and a template's own page. */
+.tcat,
+.tdp {
+  --tc-acc: var(--dk-acc, var(--b600, #1d63c4));
+  --tc-card: var(--dk-surface, #fff);
+  --tc-soft: var(--dk-surface-2, #f4f7fb);
+  --tc-ok: #0b7a52;
+}
+html[data-theme="dark"] .tcat,
+html[data-theme="dark"] .tdp {
+  --tc-ok: #5fd6a4;
+}
+
+/* ── Category strip ─────────────────────────────────────────── */
+.tcat__cats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.tcat__cat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 74px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  background: var(--tc-card);
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.tcat__cat:hover {
+  border-color: color-mix(in srgb, var(--tc-acc) 45%, var(--line));
+  transform: translateY(-1px);
+}
+.tcat__cat[aria-checked="true"] {
+  border-color: var(--tc-acc);
+  background: color-mix(in srgb, var(--tc-acc) 7%, var(--tc-card));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tc-acc) 12%, transparent), 0 14px 28px -22px var(--tc-acc);
+}
+.tcat__cat:focus-visible {
+  outline: 2px solid var(--tc-acc);
+  outline-offset: 2px;
+}
+.tcat__cat--ghost {
+  border-style: dashed;
+  background: var(--tc-soft);
+  cursor: default;
+  animation: tcat-pulse 1.4s ease-in-out infinite;
+}
+.tcat__cat-i {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--tc-acc) 10%, transparent);
+  color: var(--tc-acc);
+  overflow: hidden;
+}
+.tcat__cat-i svg {
+  width: 22px;
+  height: 22px;
+}
+.tcat__cat-t {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.tcat__cat-t b {
+  font-size: 0.92rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.tcat__cat-t small {
+  color: var(--gray);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+.tcat__hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 18px 0 6px;
+  padding: 18px;
+  border: 1.5px dashed var(--line);
+  border-radius: 16px;
+  color: var(--gray);
+  font-size: 0.9rem;
+  text-align: center;
+}
+.tcat__hint svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--tc-acc);
+}
+
+/* ── Template cards ─────────────────────────────────────────── */
+.tcat__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: 12px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.tcard {
+  display: flex;
+  gap: 12px;
+  height: 100%;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--tc-card);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.tcard:hover {
+  border-color: color-mix(in srgb, var(--tc-acc) 40%, var(--line));
+  box-shadow: 0 16px 34px -26px rgba(11, 31, 69, 0.55);
+  transform: translateY(-2px);
+}
+.tcard:focus-visible {
+  outline: 2px solid var(--tc-acc);
+  outline-offset: 2px;
+}
+.tcard--ghost {
+  min-height: 150px;
+  background: var(--tc-soft);
+  animation: tcat-pulse 1.4s ease-in-out infinite;
+}
+.tcard__img {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--tc-acc) 8%, var(--tc-soft));
+  color: var(--tc-acc);
+  overflow: hidden;
+}
+.tcard__img svg {
+  width: 24px;
+  height: 24px;
+}
+.tcard__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.tcard__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.tchip {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tc-acc) 11%, transparent);
+  color: var(--tc-acc);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.tchip--soft {
+  background: var(--tc-soft);
+  color: var(--gray);
+}
+.tchip--ok {
+  background: color-mix(in srgb, var(--tc-ok) 13%, transparent);
+  color: var(--tc-ok);
+}
+.tcard__t {
+  font-size: 0.93rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.tcard__d {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--gray);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+.tcard__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 6px;
+}
+.tcard__price {
+  color: var(--tc-ok);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.tcard__go {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--tc-acc);
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+.tcard__go svg {
+  width: 15px;
+  height: 15px;
+  transition: transform 0.2s ease;
+}
+.tcard:hover .tcard__go svg {
+  transform: translateX(3px);
+}
+.tcat__more {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+/* ── A template's own page ──────────────────────────────────── */
+.tdp {
+  display: grid;
+  gap: 16px;
+}
+.tdp__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  color: var(--gray);
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.tdp__back:hover {
+  color: var(--tc-acc);
+}
+.tdp__back svg {
+  width: 16px;
+  height: 16px;
+}
+.tdp__hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 22px;
+  border-radius: 24px;
+  background:
+    radial-gradient(110% 140% at 100% 0%, color-mix(in srgb, var(--tc-acc) 15%, transparent), transparent 60%),
+    var(--tc-card);
+  box-shadow: inset 0 0 0 1px var(--line), 0 18px 40px -32px rgba(11, 31, 69, 0.5);
+}
+.tdp__hero .tcard__img {
+  width: 68px;
+  height: 68px;
+  border-radius: 20px;
+}
+.tdp__hero-t {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.tdp__hero h1 {
+  margin: 0;
+  font-size: clamp(1.15rem, 2.2vw, 1.55rem);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+.tdp__hero p {
+  margin: 0;
+  color: var(--gray);
+  line-height: 1.55;
+}
+.tdp__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 18px;
+  align-items: start;
+}
+.tdp__aside {
+  position: sticky;
+  top: 84px;
+  display: grid;
+  gap: 12px;
+}
+.tdp__sec {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.tdp__sec-h {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+.tdp__sec-h b {
+  font-size: 1rem;
+}
+.tdp__sec-h small {
+  color: var(--gray);
+  font-size: 0.8rem;
+}
+
+/* The document itself: a page, not a card in a card (§18). */
+.tdoc {
+  width: 100%;
+  max-width: 820px;
+  min-height: 420px;
+  margin: 0 auto;
+  padding: clamp(22px, 5vw, 56px) clamp(18px, 5.5vw, 64px);
+  border-radius: 6px;
+  background: #fffdf8;
+  box-shadow: 0 1px 0 rgba(15, 22, 36, 0.06), 0 22px 50px -30px rgba(11, 31, 69, 0.45), 0 0 0 1px rgba(15, 22, 36, 0.08);
+  color: #1b2333;
+  font: 400 15px/1.7 "Times New Roman", Times, Georgia, serif;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tdoc__blank {
+  padding: 0 3px;
+  border-bottom: 1.5px dashed #c98a00;
+  border-radius: 3px;
+  background: #fff1c2;
+  color: #7a4d00;
+  font-family: var(--fb, system-ui, sans-serif);
+  font-size: 0.86em;
+  white-space: normal;
+}
+.tdoc--ghost {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  white-space: normal;
+}
+.tdoc--ghost span {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: #eef0f4;
+  animation: tcat-pulse 1.4s ease-in-out infinite;
+}
+.tdoc--ghost span:nth-child(3n) {
+  width: 62%;
+}
+.tdoc--ghost span:nth-child(4n + 1) {
+  width: 84%;
+  margin-left: auto;
+}
+
+/* Ways to make the document. */
+.tact {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--tc-card);
+  box-shadow: inset 0 0 0 1px var(--line), 0 14px 32px -28px rgba(11, 31, 69, 0.5);
+}
+.tact > b {
+  font-size: 0.98rem;
+}
+.tact__opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  background: var(--tc-card);
+  color: var(--ink);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+.tact__opt:hover:not(:disabled) {
+  border-color: var(--tc-acc);
+  background: color-mix(in srgb, var(--tc-acc) 5%, var(--tc-card));
+  transform: translateY(-1px);
+}
+.tact__opt:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.tact__opt[data-k="fill"] {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--tc-acc), color-mix(in srgb, var(--tc-acc) 60%, #00b4d8));
+  color: #fff;
+  box-shadow: 0 14px 28px -18px var(--tc-acc);
+}
+.tact__opt[data-k="fill"]:hover:not(:disabled) {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tc-acc) 90%, #000), color-mix(in srgb, var(--tc-acc) 55%, #00b4d8));
+}
+.tact__ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tc-acc) 11%, transparent);
+  color: var(--tc-acc);
+}
+.tact__opt[data-k="fill"] .tact__ic {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+.tact__ic svg {
+  width: 19px;
+  height: 19px;
+}
+.tact__t {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.tact__t b {
+  font-size: 0.92rem;
+}
+.tact__t small {
+  color: var(--gray);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+.tact__opt[data-k="fill"] .tact__t small {
+  color: rgba(255, 255, 255, 0.86);
+}
+.tact__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+  color: var(--gray);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+.tact__note svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin-top: 1px;
+  color: var(--tc-ok);
+}
+.tact--resume {
+  background: color-mix(in srgb, var(--tc-ok) 7%, var(--tc-card));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--tc-ok) 40%, transparent);
+}
+.tact--resume small {
+  color: var(--gray);
+  font-size: 0.8rem;
+}
+
+/* The duty-lawyer request. */
+.tlaw {
+  display: grid;
+  gap: 14px;
+  max-width: 760px;
+  padding: 20px;
+  border-radius: 22px;
+  background: var(--tc-card);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.tlaw h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 1.1rem;
+}
+.tlaw h2 svg {
+  width: 20px;
+  height: 20px;
+  color: var(--tc-acc);
+}
+.tlaw__pool {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--tc-acc) 7%, transparent);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.tlaw__pool svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--tc-acc);
+}
+.tlaw label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+.tlaw textarea,
+.tlaw input {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: var(--tc-card);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 400;
+}
+.tlaw textarea {
+  min-height: 130px;
+  resize: vertical;
+}
+.tlaw textarea:focus,
+.tlaw input:focus {
+  border-color: var(--tc-acc);
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--tc-acc) 14%, transparent);
+}
+.tlaw textarea[aria-invalid="true"] {
+  border-color: #dc2626;
+}
+.tlaw__guide {
+  margin: 0;
+  color: var(--gray);
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.tlaw__err {
+  color: #dc2626;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.tlaw__acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+@keyframes tcat-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+@media (max-width: 960px) {
+  .tdp__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tdp__aside {
+    position: static;
+    order: -1;
+  }
+}
+@media (max-width: 640px) {
+  .tcat__cats {
+    display: flex;
+    margin-inline: -4px;
+    padding: 2px 4px 6px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+  .tcat__cat {
+    flex: 0 0 auto;
+    min-height: 64px;
+    scroll-snap-align: start;
+  }
+  .tcat__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tdp__hero {
+    flex-direction: column;
+    padding: 16px;
+  }
+  .tdoc {
+    font-size: 14px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tcat__cat,
+  .tcard,
+  .tact__opt,
+  .tcard__go svg {
+    transition: none;
+  }
+  .tcat__cat--ghost,
+  .tcard--ghost,
+  .tdoc--ghost span {
+    animation: none;
+  }
+}
