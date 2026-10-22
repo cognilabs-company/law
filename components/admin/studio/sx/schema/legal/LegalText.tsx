@@ -17,6 +17,7 @@ import type { SxValues } from "../../contract";
 import { RichText, RichTextView } from "../RichText";
 import { isTranslitOff, transliterate, transliterateAvail, type TranslitAvail } from "./api";
 import { EMPTY_SNAP, applyGenerated, blankHtml, directionOf, editedParts, otherScript, scriptOf, textEmpty, textOf, type GenSnap, type LegalLang, type LegalText, type UzScript } from "./model";
+import { AudienceNote } from "../AudienceNote";
 
 export type LegalBlockProps = {
   id: string;
@@ -60,7 +61,7 @@ function PartEditors({ id, ai, lang, text, readOnly, errorAt, emit, touch, requi
   return (
     <div className="sx-lg__parts">
       <div className="sx-lg__part" data-path={titlePath}>
-        <Field id={tid} label={t("sx.k07.part.title")} required={required} error={titleErr}>
+        <Field id={tid} label={t("sx.k07.part.title")} required={required} error={titleErr} note={<AudienceNote aud={{ who: "both", use: "legalTitle" }} />}>
           {(a) => (
             <TextInput
               {...a}
@@ -76,7 +77,7 @@ function PartEditors({ id, ai, lang, text, readOnly, errorAt, emit, touch, requi
         </Field>
       </div>
       <div className="sx-lg__part" data-path={bodyPath}>
-        <Field id={bid} label={t("sx.k07.part.body")} required={required} error={bodyErr}>
+        <Field id={bid} label={t("sx.k07.part.body")} required={required} error={bodyErr} note={<AudienceNote aud={{ who: "both", use: "legalBody" }} />}>
           {(a) => (
             <RichText
               id={bid}

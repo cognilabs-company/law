@@ -31,6 +31,8 @@ import type { StudioLabels } from "../useStudioLabels";
 import { useStudioLabels } from "../useStudioLabels";
 import { useCategoryTitle } from "./categoryOptions";
 import { DiscoveryTerms } from "./DiscoveryTerms";
+import { fieldAudienceOf } from "./audience";
+import { AudienceNote } from "./AudienceNote";
 import { ChecklistEditor } from "./k02/ChecklistEditor";
 import { FactorOverrides } from "./k02/FactorOverrides";
 import { FACTOR_IDS, TEMPLATE_ID, TEMPLATE_MODE, TEMPLATE_SKIP, canSuggest, suggestBody, templateModeOf } from "./k02/model";
@@ -196,6 +198,14 @@ function RefChips({ source, values }: { source: string; values: readonly string[
   const labels = useStudioLabels();
   const name = useRefLabels([source]);
   return <NeonChips items={values.map((v) => name(source, v) || labels.unknownRef(v))} />;
+}
+
+const TEXT_TYPES = new Set(["text", "textarea", "richtext"]);
+
+// Text, descriptions and lists of text: the fields that get an audience note.
+function isTextField(f: StudioSchemaField | null): boolean {
+  if (!f) return false;
+  return TEXT_TYPES.has(f.type) || (f.type === "list" && !!f.item && TEXT_TYPES.has(f.item.type) && !f.item.properties.length);
 }
 
 function blankValue(v: unknown): boolean {
@@ -430,6 +440,11 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
     else if (virtual?.placeholderKey) placeholder = t.has(virtual.placeholderKey) ? t(virtual.placeholderKey) : undefined;
     else placeholder = labels.placeholder(node.key, { ctor: model.code, path, type: f?.type }) || undefined;
   }
+  // Who reads a text field and what it is for. The backend's generic help
+  // line for such a field adds nothing next to that, so it gives way.
+  const aud = !ro && isTextField(f) ? fieldAudienceOf(model.code, path, scope, root) : null;
+  if (aud && f?.help && help === str(f.help)) help = "";
+  const note = aud ? <AudienceNote aud={aud} /> : undefined;
   const rule = ruleOf(model, node, path, source);
   const hint = f && (f.type === "number" || f.type === "money" || f.type === "text" || f.type === "textarea") ? labels.hint({ type: f.type, min: f.min, max: f.max }) : "";
   const token = policy.visible(norm, errors);
@@ -588,7 +603,7 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
     const docFields = node.pattern.includes(".") ? [] : docFieldsOf(root);
     const compact = node.pattern.includes(".");
     return cell(
-      <Field id={id} label={label} help={help} error={error} required={shown.required && !formRo} span={span}>
+      <Field id={id} label={label} help={help} error={error} required={shown.required && !formRo} span={span} note={note}>
         {(a) => (
         <DocEditor
           id={id}
@@ -777,7 +792,7 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
   if (control === "repeater" || control === "repeaterInline") {
     if (!f) return null;
     return cell(
-      <Field id={id} label={label} help={help} error={error} required={shown.required} as="fieldset" span={span}>
+      <Field id={id} label={label} help={help} error={error} required={shown.required} as="fieldset" span={span} note={note}>
         <RowsField node={node} path={path} ai={ai} id={id} label={label} ro={ro} f={f} />
       </Field>,
     );
@@ -809,7 +824,7 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
     const suggest = lf?.aiSuggest === true ? { title: str(root.title), description: str(root.description), parentId: str(root.parent_id) } : null;
     const service = lf?.aiSuggest === "service" ? { ready: canSuggest(root), body: suggestBody(root) } : null;
     return cell(
-      <Field id={id} label={label} help={help} error={error} required={shown.required} span={span}>
+      <Field id={id} label={label} help={help} error={error} required={shown.required} span={span} note={note}>
         {(a) => (
           <TagsField
             id={id}
@@ -832,7 +847,7 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
   }
 
   const field = (render: (a: SxControlA11y) => ReactNode, aside?: ReactNode) => (
-    <Field id={id} label={label} help={help} hint={hint} error={error} required={shown.required} span={span} labelAside={aside}>
+    <Field id={id} label={label} help={help} hint={hint} error={error} required={shown.required} span={span} labelAside={aside} note={note}>
       {(a) => render(withWarn(a))}
     </Field>
   );

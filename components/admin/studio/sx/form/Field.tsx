@@ -20,6 +20,8 @@ export type FieldProps = {
   readOnly?: boolean;
   value?: ReactNode;
   labelAside?: ReactNode;
+  // A line under the control saying who reads the value and what for.
+  note?: ReactNode;
   className?: string;
   children?: ReactNode | ((a11y: SxControlA11y) => ReactNode);
 };
@@ -30,8 +32,8 @@ function isBlank(value: ReactNode): boolean {
   return value === undefined || value === null || value === false || value === "" || (Array.isArray(value) && value.length === 0);
 }
 
-export function fieldA11y(id: string, opts: { help?: string; hint?: string; error?: string; required?: boolean }): SxControlA11y {
-  const describedBy = [opts.error ? `${id}-err` : "", opts.help || opts.hint ? `${id}-help` : ""].filter(Boolean).join(" ");
+export function fieldA11y(id: string, opts: { help?: string; hint?: string; error?: string; required?: boolean; note?: boolean }): SxControlA11y {
+  const describedBy = [opts.error ? `${id}-err` : "", opts.note ? `${id}-note` : "", opts.help || opts.hint ? `${id}-help` : ""].filter(Boolean).join(" ");
   return {
     id,
     "aria-labelledby": `${id}-label`,
@@ -54,6 +56,7 @@ export function Field({
   readOnly = false,
   value,
   labelAside,
+  note,
   className,
   children,
 }: FieldProps): ReactElement {
@@ -82,9 +85,14 @@ export function Field({
     );
   }
 
-  const a11y = fieldA11y(id, { help, hint, error, required });
+  const a11y = fieldA11y(id, { help, hint, error, required, note: !!note });
   const helpText = [help, hint].filter(Boolean).join(" · ");
   const control = typeof children === "function" ? children(a11y) : children;
+  const noteEl = note ? (
+    <p className="sx-field__note" id={`${id}-note`}>
+      {note}
+    </p>
+  ) : null;
   const helpEl = helpText ? (
     <p className="sx-field__help" id={`${id}-help`}>
       {helpText}
@@ -113,6 +121,7 @@ export function Field({
         </legend>
         {labelAside ? <div className="sx-field__aside">{labelAside}</div> : null}
         {control}
+        {noteEl}
         {helpEl}
         {errEl}
       </fieldset>
@@ -129,6 +138,7 @@ export function Field({
         {labelAside}
       </div>
       {layout === "inline" ? <div className="sx-field__ctl">{control}</div> : control}
+      {noteEl}
       {helpEl}
       {errEl}
     </div>

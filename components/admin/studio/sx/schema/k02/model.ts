@@ -27,6 +27,9 @@ export const CHECKLIST_LEGACY = "checklist_template_id";
 export const PROOF_METHODS: readonly ProofMethod[] = ["checkbox", "comment", "image", "file"];
 export const EVIDENCE_METHODS: readonly EvidenceMethod[] = ["comment", "image", "file"];
 export const REQUIRED_KEY: Readonly<Record<EvidenceMethod, string>> = { comment: "comment_required", image: "image_required", file: "file_required" };
+// Whether the client sees the performer's evidence of each kind; off unless
+// turned on, and only for a method the item uses.
+export const SHOW_KEY: Readonly<Record<EvidenceMethod, string>> = { comment: "show_comment_to_client", image: "show_images_to_client", file: "show_files_to_client" };
 export const PERCENT_MAX = 100;
 export const SUGGEST_LANGS: readonly SuggestLang[] = ["uz_latn", "uz_cyrl", "ru"];
 
@@ -155,8 +158,35 @@ export function toggleMethod(row: Dict, m: EvidenceMethod, on: boolean): Dict {
   if (on) have.add(m);
   else have.delete(m);
   const out: Dict = { ...row, verification_methods: PROOF_METHODS.filter((x) => x === "checkbox" || have.has(x)) };
-  if (!on) out[REQUIRED_KEY[m]] = false;
-  else if (typeof out[REQUIRED_KEY[m]] !== "boolean") out[REQUIRED_KEY[m]] = false;
+  if (!on) {
+    out[REQUIRED_KEY[m]] = false;
+    out[SHOW_KEY[m]] = false;
+  } else if (typeof out[REQUIRED_KEY[m]] !== "boolean") out[REQUIRED_KEY[m]] = false;
+  return out;
+}
+
+export function isShownToClient(row: unknown, m: EvidenceMethod): boolean {
+  const r = isDict(row) ? row : {};
+  return r[SHOW_KEY[m]] === true && hasMethod(r, m);
+}
+
+export function setShownToClient(row: Dict, m: EvidenceMethod, on: boolean): Dict {
+  if (on && !hasMethod(row, m)) return row;
+  return { ...row, verification_methods: methodsOf(row), [SHOW_KEY[m]]: on };
+}
+
+// The performer's wording of an item. Items saved before the client wording
+// existed kept it under "title".
+export function executorTitleOf(row: unknown): string {
+  const r = isDict(row) ? row : {};
+  return str(r.executor_title) || str(r.title);
+}
+
+// Sets one of the item's texts; the old "title" key gives way to
+// executor_title the first time the item is edited.
+export function withCheckText(row: Dict, key: "executor_title" | "description" | "client_title" | "client_description", v: string): Dict {
+  const out: Dict = { ...row, executor_title: executorTitleOf(row), [key]: v };
+  delete out.title;
   return out;
 }
 
@@ -169,8 +199,12 @@ export function newCheckRow(defaults: unknown): Dict {
   const d = isDict(defaults) ? defaults : {};
   const out: Dict = { ...d };
   delete out.id;
-  out.title = str(d.title);
+  delete out.title;
+  out.executor_title = executorTitleOf(d);
   out.description = str(d.description);
+  out.client_title = str(d.client_title);
+  out.client_description = str(d.client_description);
+  for (const m of EVIDENCE_METHODS) out[SHOW_KEY[m]] = d[SHOW_KEY[m]] === true;
   out.required = typeof d.required === "boolean" ? d.required : true;
   out.verification_methods = methodsOf(d);
   for (const m of EVIDENCE_METHODS) out[REQUIRED_KEY[m]] = d[REQUIRED_KEY[m]] === true && hasMethod(d, m);

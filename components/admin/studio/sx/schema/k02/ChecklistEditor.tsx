@@ -14,19 +14,26 @@ import { Repeater } from "../../form/Repeater";
 import { Switch } from "../../form/Switch";
 import { TextArea } from "../../form/TextArea";
 import { TextInput } from "../../form/TextInput";
-import { CheckIcon, CircleAlertIcon, ImageIcon, ListChecksIcon, LockIcon, MessageSquareTextIcon, PaperclipIcon, glyph } from "../../icons";
+import { BriefcaseBusinessIcon, CheckIcon, CircleAlertIcon, ImageIcon, ListChecksIcon, LockIcon, MessageSquareTextIcon, PaperclipIcon, glyph } from "../../icons";
+import { UserRound as UserRoundIcon } from "lucide-react";
+import { AudienceNote } from "../AudienceNote";
 import type { SxErrors, SxIcon } from "../../types";
 import {
   EVIDENCE_METHODS,
   PROOF_METHODS,
   REQUIRED_KEY,
+  SHOW_KEY,
   checklistValueAfter,
   errorsUnder,
+  executorTitleOf,
   hasMethod,
   isMustHave,
+  isShownToClient,
   newCheckRow,
   setMustHave,
+  setShownToClient,
   toggleMethod,
+  withCheckText,
   type EvidenceMethod,
   type ProofMethod,
 } from "./model";
@@ -71,6 +78,7 @@ function MethodTile({ m, row, base, idBase, ai, readOnly, set }: { m: ProofMetho
   const name = t(`sx.k02.cl.m.${m}`);
   const descId = `${idBase}-m-${m}-d`;
   const must = !locked && isMustHave(row, m as EvidenceMethod);
+  const shown = !locked && isShownToClient(row, m as EvidenceMethod);
   const toggle = () => {
     if (locked || readOnly) return;
     set(toggleMethod(row, m as EvidenceMethod, !on));
@@ -105,16 +113,29 @@ function MethodTile({ m, row, base, idBase, ai, readOnly, set }: { m: ProofMetho
       {locked ? (
         <span className="sx-k2m__always">{t("sx.k02.cl.always")}</span>
       ) : (
-        <div className="sx-k2m__must" data-path={`${base}.${REQUIRED_KEY[m as EvidenceMethod]}`} title={on ? undefined : t("sx.k02.cl.mustOff")}>
-          <Switch
-            checked={must}
-            onChange={(v) => set(setMustHave(row, m as EvidenceMethod, v))}
-            disabled={!on}
-            readOnly={readOnly}
-            label={t("sx.k02.cl.mustHave")}
-            aria-label={t("sx.k02.cl.mustOf", { method: name })}
-            aiId={makeAiId(ai, m, "required")}
-          />
+        <div className="sx-k2m__switches">
+          <div className="sx-k2m__must" data-path={`${base}.${REQUIRED_KEY[m as EvidenceMethod]}`} title={on ? undefined : t("sx.k02.cl.mustOff")}>
+            <Switch
+              checked={must}
+              onChange={(v) => set(setMustHave(row, m as EvidenceMethod, v))}
+              disabled={!on}
+              readOnly={readOnly}
+              label={t("sx.k02.cl.mustHave")}
+              aria-label={t("sx.k02.cl.mustOf", { method: name })}
+              aiId={makeAiId(ai, m, "required")}
+            />
+          </div>
+          <div className="sx-k2m__show" data-path={`${base}.${SHOW_KEY[m as EvidenceMethod]}`} data-on={shown ? "" : undefined} title={on ? undefined : t("sx.k02.cl.mustOff")}>
+            <Switch
+              checked={shown}
+              onChange={(v) => set(setShownToClient(row, m as EvidenceMethod, v))}
+              disabled={!on}
+              readOnly={readOnly}
+              label={t("sx.k02.cl.showToClient")}
+              aria-label={t("sx.k02.cl.showOf", { method: name })}
+              aiId={makeAiId(ai, m, "show_to_client")}
+            />
+          </div>
         </div>
       )}
     </li>
@@ -127,53 +148,109 @@ function CheckRow({ row, base, idBase, ai, readOnly, errors, policy, set, errorT
     const tok = policy.visible(p, errors);
     return tok ? errorText(tok, p, type) : "";
   };
-  const titlePath = `${base}.title`;
+  const titlePath = `${base}.executor_title`;
   const descPath = `${base}.description`;
+  const clientTitlePath = `${base}.client_title`;
+  const clientDescPath = `${base}.client_description`;
   const reqPath = `${base}.required`;
   const methodsPath = `${base}.verification_methods`;
-  const methodKeys = new Set([methodsPath, `${base}.checkbox`, ...EVIDENCE_METHODS.map((m) => `${base}.${REQUIRED_KEY[m]}`)]);
+  const methodKeys = new Set([methodsPath, `${base}.checkbox`, ...EVIDENCE_METHODS.flatMap((m) => [`${base}.${REQUIRED_KEY[m]}`, `${base}.${SHOW_KEY[m]}`])]);
   const methodErrs = errorsUnder(errors, base).filter(([k]) => methodKeys.has(k) || k.startsWith(`${methodsPath}.`)).filter(([k]) => !!policy.visible(k, errors));
-  const handled = new Set([titlePath, descPath, reqPath, ...methodKeys]);
+  const handled = new Set([titlePath, `${base}.title`, descPath, clientTitlePath, clientDescPath, reqPath, ...methodKeys]);
   const restErrs = errorsUnder(errors, base).filter(([k]) => !handled.has(k) && !k.startsWith(`${methodsPath}.`) && !!policy.visible(k, errors));
   const helpId = `${idBase}-methods-help`;
   const errId = `${idBase}-methods-err`;
   const required = row.required !== false;
   return (
     <div className="sx-k2cl">
-      <FormGrid>
-        <div className="sx-sf__f" data-path={titlePath} data-span={2}>
-          <Field id={`${idBase}-title`} label={t("sx.k02.cl.title")} required error={shownAt(titlePath, "text")}>
-            {(a) => (
-              <TextInput
-                {...a}
-                value={str(row.title)}
-                onChange={(v) => set({ ...row, title: v })}
-                onBlur={() => policy.touch(titlePath)}
-                readOnly={readOnly}
-                placeholder={t("sx.k02.cl.titlePh")}
-                aiId={makeAiId(ai, "title")}
-                aiLabel={t("sx.k02.cl.title")}
-              />
-            )}
-          </Field>
-        </div>
-        <div className="sx-sf__f" data-path={descPath} data-span={2}>
-          <Field id={`${idBase}-desc`} label={t("sx.k02.cl.description")} error={shownAt(descPath, "textarea")}>
-            {(a) => (
-              <TextArea
-                {...a}
-                value={str(row.description)}
-                onChange={(v) => set({ ...row, description: v })}
-                onBlur={() => policy.touch(descPath)}
-                readOnly={readOnly}
-                placeholder={t("sx.k02.cl.descriptionPh")}
-                aiId={makeAiId(ai, "description")}
-                aiLabel={t("sx.k02.cl.description")}
-              />
-            )}
-          </Field>
-        </div>
-      </FormGrid>
+      <div className="sx-k2cl__voices">
+        <section className="sx-k2cl__voice" data-who="performer" aria-labelledby={`${idBase}-v-perf`}>
+          <h4 className="sx-k2cl__voice-h" id={`${idBase}-v-perf`}>
+            {glyph(BriefcaseBusinessIcon, { size: 15 })}
+            {t("sx.k02.cl.voicePerformer")}
+          </h4>
+          <FormGrid>
+            <div className="sx-sf__f" data-path={titlePath} data-span={2}>
+              <Field id={`${idBase}-title`} label={t("sx.k02.cl.execTitle")} required error={shownAt(titlePath, "text")} note={<AudienceNote aud={{ who: "performer", use: "checkExec" }} />}>
+                {(a) => (
+                  <TextInput
+                    {...a}
+                    value={executorTitleOf(row)}
+                    onChange={(v) => set(withCheckText(row, "executor_title", v))}
+                    onBlur={() => policy.touch(titlePath)}
+                    readOnly={readOnly}
+                    placeholder={t("sx.k02.cl.execTitlePh")}
+                    aiId={makeAiId(ai, "executor_title")}
+                    aiLabel={t("sx.k02.cl.execTitle")}
+                  />
+                )}
+              </Field>
+            </div>
+            <div className="sx-sf__f" data-path={descPath} data-span={2}>
+              <Field id={`${idBase}-desc`} label={t("sx.k02.cl.execDesc")} error={shownAt(descPath, "textarea")} note={<AudienceNote aud={{ who: "performer", use: "checkExecDesc" }} />}>
+                {(a) => (
+                  <TextArea
+                    {...a}
+                    value={str(row.description)}
+                    onChange={(v) => set(withCheckText(row, "description", v))}
+                    onBlur={() => policy.touch(descPath)}
+                    readOnly={readOnly}
+                    placeholder={t("sx.k02.cl.execDescPh")}
+                    aiId={makeAiId(ai, "description")}
+                    aiLabel={t("sx.k02.cl.execDesc")}
+                  />
+                )}
+              </Field>
+            </div>
+          </FormGrid>
+        </section>
+        <section className="sx-k2cl__voice" data-who="client" aria-labelledby={`${idBase}-v-client`}>
+          <h4 className="sx-k2cl__voice-h" id={`${idBase}-v-client`}>
+            {glyph(UserRoundIcon, { size: 15 })}
+            {t("sx.k02.cl.voiceClient")}
+          </h4>
+          <FormGrid>
+            <div className="sx-sf__f" data-path={clientTitlePath} data-span={2}>
+              <Field
+                id={`${idBase}-ctitle`}
+                label={t("sx.k02.cl.clientTitle")}
+                help={t("sx.k02.cl.clientTitleHelp")}
+                error={shownAt(clientTitlePath, "text")}
+                note={<AudienceNote aud={{ who: "client", use: "checkClient" }} />}
+              >
+                {(a) => (
+                  <TextInput
+                    {...a}
+                    value={str(row.client_title)}
+                    onChange={(v) => set(withCheckText(row, "client_title", v))}
+                    onBlur={() => policy.touch(clientTitlePath)}
+                    readOnly={readOnly}
+                    placeholder={executorTitleOf(row) || t("sx.k02.cl.clientTitlePh")}
+                    aiId={makeAiId(ai, "client_title")}
+                    aiLabel={t("sx.k02.cl.clientTitle")}
+                  />
+                )}
+              </Field>
+            </div>
+            <div className="sx-sf__f" data-path={clientDescPath} data-span={2}>
+              <Field id={`${idBase}-cdesc`} label={t("sx.k02.cl.clientDesc")} error={shownAt(clientDescPath, "textarea")} note={<AudienceNote aud={{ who: "client", use: "checkClientDesc" }} />}>
+                {(a) => (
+                  <TextArea
+                    {...a}
+                    value={str(row.client_description)}
+                    onChange={(v) => set(withCheckText(row, "client_description", v))}
+                    onBlur={() => policy.touch(clientDescPath)}
+                    readOnly={readOnly}
+                    placeholder={t("sx.k02.cl.clientDescPh")}
+                    aiId={makeAiId(ai, "client_description")}
+                    aiLabel={t("sx.k02.cl.clientDesc")}
+                  />
+                )}
+              </Field>
+            </div>
+          </FormGrid>
+        </section>
+      </div>
       <div className="sx-k2cl__req" data-path={reqPath} data-on={required ? "" : undefined}>
         <Field id={`${idBase}-req`} label={t("sx.k02.cl.required")} help={t("sx.k02.cl.requiredHelp")} layout="inline" error={shownAt(reqPath, "boolean")}>
           {(a) => (
@@ -224,7 +301,7 @@ export function ChecklistEditor({ id, path, label, ai, readOnly, value, item, er
   const t = useTranslations("studio");
   const [absent] = useState(() => !Array.isArray(value));
   const items: Dict[] = Array.isArray(value) ? value.map((x) => (isDict(x) ? x : {})) : [];
-  const summary = (row: Dict) => str(row.title).trim();
+  const summary = (row: Dict) => executorTitleOf(row).trim();
   const meta = (row: Dict): string => {
     const parts = [t(row.required === false ? "sx.k02.cl.metaOptional" : "sx.k02.cl.metaRequired")];
     const extra = EVIDENCE_METHODS.filter((m) => hasMethod(row, m)).map((m) => (isMustHave(row, m) ? t("sx.k02.cl.metaMust", { method: t(`sx.k02.cl.m.${m}`) }) : t(`sx.k02.cl.m.${m}`)));

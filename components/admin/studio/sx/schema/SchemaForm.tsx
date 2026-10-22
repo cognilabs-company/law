@@ -23,6 +23,7 @@ import { useStudioLabels } from "../useStudioLabels";
 import { NeonCell, NeonValue, SfContext, SchemaField, type SfEnv } from "./fields";
 import { RECORD_TITLE_PATH, layoutCtx, parentPath, scopeAt, setAt, type SchemaTr } from "./model";
 import { sectionIcon, sectionLeadKey, type SxLook } from "./neonLook";
+import { AudienceNote } from "./AudienceNote";
 
 const TITLE_MAX = 200;
 
@@ -55,7 +56,7 @@ function RecordTitleField({ rt, readOnly, idPrefix, errors, neon }: { rt: Schema
     <Field
       id={id}
       label={label}
-      help={t("sx.form.recordTitleHelp")}
+      note={<AudienceNote aud={{ who: "staff", use: "staffName" }} />}
       required
       error={(() => {
         const tok = policy.visible(RECORD_TITLE_PATH, errors);
