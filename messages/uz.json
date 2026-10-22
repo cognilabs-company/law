@@ -22681,6 +22681,24 @@
       "fri": "Juma",
       "sat": "Shanba",
       "sun": "Yakshanba"
+    },
+    "upload": {
+      "label": "Rasmlar va fayllar",
+      "count": "{n}/{max}",
+      "pick": "Rasm yoki fayl tanlash",
+      "full": "{max} ta fayl — chegaraga yetdi",
+      "hint": "Tortib tashlang yoki rasmni Ctrl+V bilan qo'ying · {images} · har biri {size} gacha",
+      "alsoFiles": "PDF, Word, Excel ham bo'ladi",
+      "remove": "«{name}» ni olib tashlash",
+      "why": {
+        "type": "«{name}» — bu turdagi fayl qabul qilinmaydi",
+        "size": "«{name}» {size} dan katta",
+        "count": "«{name}» qo'shilmadi — ko'pi bilan {max} ta fayl"
+      },
+      "failed": "Vazifa saqlandi, lekin fayllar yuklanmadi: {reason}. Qayta urinib ko'ring yoki fayllarsiz yoping.",
+      "skip": "Fayllarsiz yopish",
+      "retry": "Fayllarni qayta yuklash",
+      "uploading": "Fayllar yuklanmoqda ({n})…"
     }
   }
 }

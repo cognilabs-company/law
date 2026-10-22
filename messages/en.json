@@ -22675,6 +22675,24 @@
       "fri": "Friday",
       "sat": "Saturday",
       "sun": "Sunday"
+    },
+    "upload": {
+      "label": "Images and files",
+      "count": "{n}/{max}",
+      "pick": "Choose an image or file",
+      "full": "{max} files — limit reached",
+      "hint": "Drag in, or paste an image with Ctrl+V · {images} · up to {size} each",
+      "alsoFiles": "PDF, Word, Excel work too",
+      "remove": "Remove “{name}”",
+      "why": {
+        "type": "“{name}” — this file type is not accepted",
+        "size": "“{name}” is larger than {size}",
+        "count": "“{name}” was not added — at most {max} files"
+      },
+      "failed": "The task was saved, but the files did not upload: {reason}. Try again or close without the files.",
+      "skip": "Close without files",
+      "retry": "Upload the files again",
+      "uploading": "Uploading files ({n})…"
     }
   }
 }

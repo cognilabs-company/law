@@ -506,7 +506,7 @@ export default function TeamTasksPage() {
         />
       ) : null}
 
-      {form ? <TaskForm mode={form} onClose={() => setForm(null)} onSaved={saved} onError={(te, task) => (handleError(te, task) ? (setForm(null), true) : false)} /> : null}
+      {form ? <TaskForm mode={form} limits={meta?.attachments} onClose={() => setForm(null)} onSaved={saved} onError={(te, task) => (handleError(te, task) ? (setForm(null), true) : false)} /> : null}
 
       {reason ? (
         <ReasonDialog

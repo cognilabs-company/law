@@ -77,7 +77,32 @@ export type TaskMeta = {
   canApproveReady: boolean;
   canDeleteReady: boolean;
   events: string[];
+  attachments: TaskUploadLimits;
 };
+
+// What GET /task-management/meta allows a task to carry. The defaults are
+// the values it sent on 2026-10-22, used only until meta has loaded.
+export type TaskUploadLimits = { maxCount: number; maxBytes: number; extensions: string[]; multiple: boolean };
+export const TASK_UPLOAD_DEFAULTS: TaskUploadLimits = {
+  maxCount: 10,
+  maxBytes: 20 * 1024 * 1024,
+  extensions: [".csv", ".doc", ".docx", ".jpeg", ".jpg", ".pdf", ".png", ".ppt", ".pptx", ".txt", ".webp", ".xls", ".xlsx"],
+  multiple: true,
+};
+
+function uploadLimitsOf(v: unknown): TaskUploadLimits {
+  const d = asDict(v);
+  const ext = asArr(d.allowed_extensions)
+    .map((x) => asStr(x).toLowerCase().trim())
+    .filter(Boolean)
+    .map((x) => (x.startsWith(".") ? x : `.${x}`));
+  return {
+    maxCount: asNum(d.max_count) || TASK_UPLOAD_DEFAULTS.maxCount,
+    maxBytes: asNum(d.max_bytes_per_file) || TASK_UPLOAD_DEFAULTS.maxBytes,
+    extensions: ext.length ? ext : TASK_UPLOAD_DEFAULTS.extensions,
+    multiple: d.multiple_upload !== false,
+  };
+}
 
 const personOf = (v: unknown): TaskPerson | null => {
   const d = asDict(v);
@@ -193,6 +218,7 @@ export async function getTaskMeta(signal?: AbortSignal): Promise<TaskMeta> {
     canApproveReady: caps.approve_ready === true,
     canDeleteReady: caps.delete_ready === true,
     events: asArr(asDict(d.realtime).events).map((e) => asStr(e)).filter(Boolean),
+    attachments: uploadLimitsOf(d.attachments),
   };
 }
 
@@ -265,6 +291,19 @@ export type TaskDraft = { title: string; description: string; deadlineAt: string
 export async function createTask(draft: TaskDraft): Promise<Task> {
   const body = { title: draft.title.trim(), description: draft.description.trim(), deadline_at: draft.deadlineAt, assignee_user_ids: draft.assigneeIds };
   return normTask(await http("/task-management", { method: "POST", body: JSON.stringify(body) }));
+}
+
+// POST /task-management/{id}/attachments: several files in one multipart
+// call, guarded by the task's lock version like every other change. The
+// response shape is not documented, so the task is read back afterwards for
+// its new lock version and attachment count.
+export async function uploadTaskAttachments(task: Pick<Task, "id" | "lockVersion">, files: File[], note = ""): Promise<Task> {
+  const form = new FormData();
+  for (const f of files) form.append("files", f, f.name);
+  if (note.trim()) form.append("note", note.trim());
+  form.append("expected_lock_version", String(task.lockVersion));
+  await http(`/task-management/${encodeURIComponent(task.id)}/attachments`, { method: "POST", body: form });
+  return getTask(task.id);
 }
 
 export type TaskEdit = { title?: string; description?: string; deadlineAt?: string };

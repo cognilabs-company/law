@@ -7,7 +7,8 @@ import TimePicker from "@/components/TimePicker";
 import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
 import { CalendarClock, FileText, Pencil, Plus, Type, Users } from "lucide-react";
 import { STROKE } from "./parts";
-import { createTask, searchTaskUsers, setTaskAssignees, taskErrorOf, updateTask, type Task, type TaskError } from "@/lib/services/taskManagement";
+import { TASK_UPLOAD_DEFAULTS, createTask, searchTaskUsers, setTaskAssignees, taskErrorOf, updateTask, uploadTaskAttachments, type Task, type TaskError, type TaskUploadLimits } from "@/lib/services/taskManagement";
+import TaskFilePicker, { usePickedFiles } from "./TaskFilePicker";
 import { useTaskText } from "./parts";
 
 const pad = (n: number) => String(n).padStart(2, "0");
@@ -41,7 +42,19 @@ const optionOf = (p: { id: string; name: string; lexgoId: string }): SearchOptio
 
 export type TaskFormMode = { kind: "create" } | { kind: "edit"; task: Task } | { kind: "assign"; task: Task };
 
-export default function TaskForm({ mode, onClose, onSaved, onError }: { mode: TaskFormMode; onClose: () => void; onSaved: (task: Task | null) => void; onError: (e: TaskError, task: Task | null) => boolean }) {
+export default function TaskForm({
+  mode,
+  limits = TASK_UPLOAD_DEFAULTS,
+  onClose,
+  onSaved,
+  onError,
+}: {
+  mode: TaskFormMode;
+  limits?: TaskUploadLimits;
+  onClose: () => void;
+  onSaved: (task: Task | null) => void;
+  onError: (e: TaskError, task: Task | null) => boolean;
+}) {
   const { t } = useTaskText();
   const uid = useId();
   const task = mode.kind === "create" ? null : mode.task;
@@ -55,6 +68,13 @@ export default function TaskForm({ mode, onClose, onSaved, onError }: { mode: Ta
   const [err, setErr] = useState<{ message: string; fields: Record<string, string> } | null>(null);
   const [tried, setTried] = useState(false);
   const [pastFor, setPastFor] = useState("");
+  // Files go up after the task itself is saved. When that upload fails the
+  // saved task is kept here, the fields lock, and the next press only retries
+  // the files — never a second task.
+  const picked = usePickedFiles(limits);
+  const [savedTask, setSavedTask] = useState<Task | null>(null);
+  const [upErr, setUpErr] = useState("");
+  const [phase, setPhase] = useState<"" | "save" | "upload">("");
   const known = task?.assignees.map(optionOf) ?? [];
 
   const search = useCallback(async (q: string) => (await searchTaskUsers(q)).map(optionOf), []);
@@ -62,39 +82,67 @@ export default function TaskForm({ mode, onClose, onSaved, onError }: { mode: Ta
   const deadline = joinLocal(date, time);
   const showFields = mode.kind !== "assign";
   const showPeople = mode.kind !== "edit";
+  const showUpload = mode.kind !== "assign";
+  const locked = savedTask !== null;
   const titleBad = showFields && !title.trim();
   const deadlineBad = showFields && (!deadline || pastFor === deadline);
   const dirty =
     mode.kind === "create"
-      ? Boolean(title.trim() || description.trim() || date || people.length)
+      ? Boolean(title.trim() || description.trim() || date || people.length || picked.items.length)
       : mode.kind === "edit"
         ? title !== mode.task.title || description !== mode.task.description || deadline !== joinLocal(start.date, start.time)
         : people.join(",") !== mode.task.assignees.map((a) => a.id).join(",");
+  const dirtyAll = dirty || picked.items.length > 0;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setTried(true);
     const past = showFields && !!deadline && mode.kind === "create" && new Date(deadline).getTime() <= Date.now();
     setPastFor(past ? deadline : "");
-    if (titleBad || deadlineBad || past || busy) return;
+    if (!locked && (titleBad || deadlineBad || past)) return;
+    if (busy) return;
     setBusy(true);
     setErr(null);
+    setUpErr("");
+    let saved: Task | null = savedTask;
     try {
-      if (mode.kind === "create") onSaved(await createTask({ title, description, deadlineAt: deadline, assigneeIds: people }));
-      else if (mode.kind === "assign") onSaved(await setTaskAssignees(mode.task, people));
-      else {
-        const edit: { title?: string; description?: string; deadlineAt?: string } = {};
-        if (title !== mode.task.title) edit.title = title;
-        if (description !== mode.task.description) edit.description = description;
-        if (deadline !== joinLocal(start.date, start.time)) edit.deadlineAt = deadline;
-        onSaved(Object.keys(edit).length ? await updateTask(mode.task, edit) : null);
+      if (!saved) {
+        setPhase("save");
+        if (mode.kind === "create") saved = await createTask({ title, description, deadlineAt: deadline, assigneeIds: people });
+        else if (mode.kind === "assign") saved = await setTaskAssignees(mode.task, people);
+        else {
+          const edit: { title?: string; description?: string; deadlineAt?: string } = {};
+          if (title !== mode.task.title) edit.title = title;
+          if (description !== mode.task.description) edit.description = description;
+          if (deadline !== joinLocal(start.date, start.time)) edit.deadlineAt = deadline;
+          saved = Object.keys(edit).length ? await updateTask(mode.task, edit) : null;
+        }
       }
     } catch (x) {
       const te = taskErrorOf(x);
       if (!onError(te, task)) setErr({ message: te.kind === "unavailable" ? t("err.unavailable") : te.kind === "network" ? t("err.network") : te.message || t("err.save"), fields: te.fields });
-    } finally {
       setBusy(false);
+      setPhase("");
+      return;
     }
+    const files = showUpload ? picked.items.map((p) => p.file) : [];
+    const base = saved ?? (mode.kind === "edit" ? mode.task : null);
+    if (files.length && base) {
+      setPhase("upload");
+      try {
+        saved = await uploadTaskAttachments(base, files);
+      } catch (x) {
+        const te = taskErrorOf(x);
+        setSavedTask(base);
+        setUpErr(t("upload.failed", { reason: te.kind === "network" ? t("err.network") : te.message || t("err.save") }));
+        setBusy(false);
+        setPhase("");
+        return;
+      }
+    }
+    setBusy(false);
+    setPhase("");
+    onSaved(saved);
   };
 
   const fieldErr = (key: string, local: boolean, text: string) => (err?.fields[key] ? err.fields[key] : tried && local ? text : "");
@@ -109,27 +157,53 @@ export default function TaskForm({ mode, onClose, onSaved, onError }: { mode: Ta
       title={heading}
       icon={mode.kind === "create" ? <Plus aria-hidden strokeWidth={STROKE} /> : mode.kind === "edit" ? <Pencil aria-hidden strokeWidth={STROKE} /> : <Users aria-hidden strokeWidth={STROKE} />}
       busy={busy}
-      dirty={dirty}
+      dirty={dirtyAll && !locked}
       size="md"
       footer={
         <>
-          <button type="button" className="btn btn--line" onClick={onClose} disabled={busy}>
-            {t("cancel")}
-          </button>
+          {locked ? (
+            <button type="button" className="btn btn--line" onClick={() => onSaved(savedTask)} disabled={busy}>
+              {t("upload.skip")}
+            </button>
+          ) : (
+            <button type="button" className="btn btn--line" onClick={onClose} disabled={busy}>
+              {t("cancel")}
+            </button>
+          )}
           <button type="submit" form={`${uid}-f`} className="btn btn--pri" disabled={busy}>
-            {busy ? t("saving") : mode.kind === "create" ? t("form.create") : t("form.save")}
+            {phase === "upload"
+              ? t("upload.uploading", { n: picked.items.length })
+              : busy
+                ? t("saving")
+                : locked
+                  ? t("upload.retry")
+                  : mode.kind === "create"
+                    ? t("form.create")
+                    : t("form.save")}
           </button>
         </>
       }
     >
-      <form id={`${uid}-f`} className="cform ttk-form ttk-scope" onSubmit={submit} noValidate>
-        {err?.message ? (
+      <form
+        id={`${uid}-f`}
+        className="cform ttk-form ttk-scope"
+        onSubmit={submit}
+        noValidate
+        onPaste={(e) => {
+          // A screenshot pasted anywhere in the form joins the files.
+          const files = Array.from(e.clipboardData.files);
+          if (!showUpload || locked || busy || !files.length) return;
+          e.preventDefault();
+          picked.add(files);
+        }}
+      >
+        {err?.message || upErr ? (
           <p className="cform__bad" role="alert">
-            {err.message}
+            {err?.message || upErr}
           </p>
         ) : null}
         {showFields ? (
-          <>
+          <fieldset className="ttk-form__set" disabled={locked}>
             <div>
               <label htmlFor={`${uid}-t`} className="ttk-lbl">
                 <Type aria-hidden strokeWidth={STROKE} />
@@ -179,10 +253,10 @@ export default function TaskForm({ mode, onClose, onSaved, onError }: { mode: Ta
               </div>
               {deadlineMsg ? <p className="cform__bad">{deadlineMsg}</p> : null}
             </div>
-          </>
+          </fieldset>
         ) : null}
         {showPeople ? (
-          <div>
+          <fieldset className="ttk-form__set" disabled={locked}>
             <span className="ttk-form__lbl ttk-lbl" id={`${uid}-pl`}>
               <Users aria-hidden strokeWidth={STROKE} />
               {t("form.assignees")}
@@ -199,8 +273,9 @@ export default function TaskForm({ mode, onClose, onSaved, onError }: { mode: Ta
               hint={people.length ? undefined : t("form.unassignedHint")}
             />
             {err?.fields.assignee_user_ids || err?.fields.user_ids ? <p className="cform__bad">{err.fields.assignee_user_ids || err.fields.user_ids}</p> : null}
-          </div>
+          </fieldset>
         ) : null}
+        {showUpload ? <TaskFilePicker picked={picked} limits={limits} disabled={busy} error={err?.fields.files} /> : null}
       </form>
     </Modal>
   );
