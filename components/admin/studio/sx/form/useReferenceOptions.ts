@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { asDict, http } from "@/lib/http";
-import { isLocalStudioReference, loadStudioReference, studioReferenceKey, type StudioReferenceItem } from "@/lib/services/studio";
+import { getStudioObject, isLocalStudioReference, loadStudioReference, studioReferenceKey, type StudioReferenceItem } from "@/lib/services/studio";
 import { sourceIcon } from "../icons";
 import type { SxIcon, SxOption } from "../types";
 import { useStudioLabels } from "../useStudioLabels";
@@ -77,6 +77,33 @@ export function referencePageOf(raw: unknown, offset: number, limit: number): Sx
   return { items, total, hasMore };
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const pendingItems = new Map<string, Promise<StudioReferenceItem | null>>();
+
+// A record created right here and still awaiting approval is picked by its
+// Studio object id, which the published list does not hold yet. Its draft
+// stands in, marked pending, so it shows by name with its own settings.
+export function pendingReferenceItem(id: string): Promise<StudioReferenceItem | null> {
+  const v = id.trim();
+  if (!UUID.test(v)) return Promise.resolve(null);
+  let p = pendingItems.get(v);
+  if (!p) {
+    p = getStudioObject(v).then(
+      (d) => ({ id: v, value: v, label: d.title || text(d.payload.title) || v, raw: { ...d.payload, payload: d.payload, status: d.statusRaw || d.status, pending: true } }),
+      () => {
+        pendingItems.delete(v);
+        return null;
+      },
+    );
+    pendingItems.set(v, p);
+  }
+  return p;
+}
+
+export function isPendingReference(item: StudioReferenceItem | null | undefined): boolean {
+  return item?.raw.pending === true;
+}
+
 export async function fetchReferencePage(source: string, q: string, offset: number, limit: number, signal?: AbortSignal): Promise<SxReferencePage> {
   if (isLocalStudioReference(source)) {
     const items = await loadStudioReference(source, q, MAX_LIMIT * 10, signal);
@@ -127,6 +154,13 @@ export function useReferenceOptions(source: string): SxReferenceBinding {
       resolveOptions: async (values, signal) => {
         const rows = toOptions(await untilAborted(firstReferencePage(source), signal));
         const byValue = new Map(rows.map((o) => [o.value, o]));
+        const missing = values.filter((v) => !byValue.has(v));
+        const pending = await untilAborted(Promise.all(missing.map(pendingReferenceItem)), signal);
+        pending.forEach((item, i) => {
+          if (!item) return;
+          const o = labels.refOption(source, item);
+          byValue.set(missing[i], { ...o, description: [labels.pendingRef(), o.description].filter(Boolean).join(" · ") });
+        });
         return values.map((value) => byValue.get(value) ?? { value, label: labels.unknownRef(value) });
       },
       leadingIcon: sourceIcon(source),

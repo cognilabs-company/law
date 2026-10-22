@@ -62,6 +62,7 @@ export type StudioLabels = {
   display(value: unknown, rule?: SxRule): string;
   refOption(source: string, item: StudioReferenceItem): SxOption;
   unknownRef(value: string): string;
+  pendingRef(): string;
   splitCodeLabel(label: string): SxNameCode;
   num(n: number): string;
   money(n: number, currency?: string): string;
@@ -183,6 +184,7 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
     if (clean.length <= cap) return clean.join(", ");
     return `${clean.slice(0, cap).join(", ")} ${tr("sx.ui.andMore", { n: clean.length - cap })}`;
   };
+  const pendingRef = (): string => pick(["sx.form.pendingRef"]);
   const unknownRef = (value: string): string => {
     const v = str(value);
     return UUID.test(v) ? pick(["sx.form.unknownRef"]) || v : v;
@@ -553,8 +555,10 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
       case "permissions":
         return base({ label: permission(value, label), code: value, icon: SOURCE_ICON.permissions });
       case "price-factors": {
-        const kind = str(r.adjustment_type);
-        const amount = numOf(r.value);
+        // The list endpoint nests a factor's settings under payload.
+        const fp: Record<string, unknown> = r.payload && typeof r.payload === "object" && !Array.isArray(r.payload) ? (r.payload as Record<string, unknown>) : r;
+        const kind = str(fp.adjustment_type) || str(r.adjustment_type);
+        const amount = numOf(fp.value) ?? numOf(r.value);
         const shown = amount === null ? "" : kind === "percent" ? `${num(amount)}%` : money(amount);
         return base({ label, description: joinDot([kind ? option(kind, { field: "adjustment_type" }) : "", shown]), icon: SOURCE_ICON["price-factors"] });
       }
@@ -605,6 +609,7 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
     display,
     refOption,
     unknownRef,
+    pendingRef,
     splitCodeLabel: split,
     num,
     money,

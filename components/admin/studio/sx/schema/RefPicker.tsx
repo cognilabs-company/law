@@ -11,7 +11,7 @@ import { SxLinkButton } from "../Button";
 import { isEligibilitySource, producerOf } from "../ctor/sources";
 import { InfoIcon, PlusIcon, TriangleAlertIcon, glyph } from "../icons";
 import { Picker } from "../form/Picker";
-import { firstReferenceInfo, firstReferencePage, useReferenceOptions } from "../form/useReferenceOptions";
+import { firstReferenceInfo, firstReferencePage, pendingReferenceItem, useReferenceOptions } from "../form/useReferenceOptions";
 import type { InlineContext } from "../inline/model";
 import { useRefInline } from "../inline/RefInline";
 import type { SxControlA11y, SxOption } from "../types";
@@ -82,11 +82,14 @@ export function useMissingRefs(source: string, values: readonly string[], enable
     const wanted = key.split("");
     let live = true;
     firstReferenceInfo(source).then(
-      (page) => {
+      async (page) => {
         if (!live) return;
         const complete = !page.hasMore;
         const known = new Set(page.items.map((r) => r.value));
-        setState({ source, key, missing: complete && wanted.some((v) => !known.has(v)) });
+        const unknown = complete ? wanted.filter((v) => !known.has(v)) : [];
+        // A record still awaiting approval is not gone, only unpublished.
+        const drafts = await Promise.all(unknown.map(pendingReferenceItem));
+        if (live) setState({ source, key, missing: drafts.some((d) => !d) });
       },
       () => {
         if (live) setState(null);
