@@ -10,7 +10,8 @@ import { useStudioLabels } from "../useStudioLabels";
 import { audienceOfField, bucketOf, seenBy } from "./audience";
 import { BUCKET_ICON, fieldShown } from "./AudienceGroup";
 import { DevicePreview } from "./DevicePreview";
-import { PAGED, ReaderPage } from "./ReaderPage";
+import { CategoryReaderPage, PAGED } from "./ReaderPage";
+import { DraftServicePage, PortalFrame, performerRole, type DraftPage } from "./DraftPages";
 import { RefNames } from "./fields";
 import { effectiveSource, labelTrail, type SchemaTr } from "./model";
 
@@ -125,13 +126,6 @@ const SPECIAL: Readonly<Partial<Record<string, (view: View, value: unknown) => R
   inline_guarantees: (view, value) => (rows(value).some((r) => meant(view, r, "client")) ? <OwnItems view={view} value={value} body="description" fallback="client" /> : null),
 };
 
-// The address bar above the page: where that reader would be.
-function addressOf(code: string, view: View, payload: SxValues): string {
-  if (view === "performer") return "lexgo.uz/ishlar";
-  const slug = str(payload.slug);
-  return code === "K01" && slug ? `lexgo.uz/xizmatlar/${slug}` : "lexgo.uz/xizmatlar";
-}
-
 function blank(value: unknown): boolean {
   if (value === undefined || value === null) return true;
   if (Array.isArray(value)) return value.length === 0;
@@ -140,15 +134,31 @@ function blank(value: unknown): boolean {
   return plain(value) === "";
 }
 
+// The address bar above the page: where that reader would be.
+function addressOf(code: string, view: View, page: DraftPage, payload: SxValues): string {
+  if (code === "K01") {
+    const slug = str(payload.slug);
+    return view === "client" ? `lexgo.uz/portal/client/lawyers${slug ? `?category=${slug}` : ""}` : "lexgo.uz/portal/lawyer";
+  }
+  if (view === "client") return page === "service" ? "lexgo.uz/portal/client/lawyers/…" : "lexgo.uz/portal/client/marketplace-orders/…";
+  return `lexgo.uz/portal/${performerRole(payload)}/marketplace-orders/…`;
+}
+
+const READERS: readonly { v: View; icon: typeof UserRound; lead: string }[] = [
+  { v: "client", icon: UserRound, lead: "sx.apv.clientLead" },
+  { v: "performer", icon: BriefcaseBusiness, lead: "sx.apv.performerLead" },
+];
+
 export function AudiencePreview({ model, payload, title }: { model: SchemaModel; payload: SxValues; title?: string }): ReactElement | null {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const [view, setView] = useState<View>("client");
-  // A service or a category shows as its real page first; other records as
+  // A service or a category opens as its real page first; other records as
   // the field list.
   const code = model.code.toUpperCase();
   const paged = PAGED.has(code);
   const [mode, setMode] = useState<"page" | "fields">(paged ? "page" : "fields");
+  const [page, setPage] = useState<DraftPage>("service");
   const fields = model.sections.flatMap((s) => s.fields).filter((fm) => fieldShown(model, fm, payload));
   const sorted = fields.map((fm) => ({ fm, who: audienceOfField(model.code, fm.pattern, payload, payload)?.who }));
   const any = sorted.some((x) => seenBy("client", x.who) || seenBy("performer", x.who));
@@ -158,6 +168,8 @@ export function AudiencePreview({ model, payload, title }: { model: SchemaModel;
   const hidden = sorted.filter((x) => x.who && x.who !== "system" && !seenBy(view, x.who));
   const label = (fm: SchemaFieldModel) => labelTrail(model, fm.pattern, labels, t as unknown as SchemaTr);
   const Icon = view === "client" ? UserRound : BriefcaseBusiness;
+  const name = str(payload.title) || str(title);
+  const onPage = paged && mode === "page";
   return (
     <section className="sx-apv" aria-labelledby="sx-apv-h" data-view={view}>
       <header className="sx-apv__top">
@@ -168,35 +180,84 @@ export function AudiencePreview({ model, payload, title }: { model: SchemaModel;
           <h2 id="sx-apv-h">{t("sx.apv.title")}</h2>
           <span>{t("sx.apv.lead")}</span>
         </span>
-        <SxSegmented<View>
-          items={[
-            { value: "client", label: t("sx.apv.client"), icon: UserRound, count: count("client"), aiId: "admin.studio.editor.audience.client" },
-            { value: "performer", label: t("sx.apv.performer"), icon: BriefcaseBusiness, count: count("performer"), aiId: "admin.studio.editor.audience.performer" },
-          ]}
-          value={view}
-          onChange={setView}
-          label={t("sx.apv.title")}
-          size="sm"
-          aiId="admin.studio.editor.audience"
-        />
       </header>
+      <div className="sx-apv__readers" role="radiogroup" aria-label={t("sx.apv.title")}>
+        {READERS.map(({ v, icon: RIcon, lead }) => (
+          <button
+            key={v}
+            type="button"
+            role="radio"
+            aria-checked={view === v}
+            className="sx-apv__reader"
+            data-k={v}
+            onClick={() => setView(v)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") {
+                e.preventDefault();
+                const next = v === "client" ? "performer" : "client";
+                setView(next);
+                (e.currentTarget.parentElement?.querySelector(`[data-k="${next}"]`) as HTMLElement | null)?.focus();
+              }
+            }}
+            tabIndex={view === v ? 0 : -1}
+            data-ai-id={`admin.studio.editor.audience.${v}`}
+          >
+            <span className="sx-apv__ava" aria-hidden="true">
+              <RIcon size={19} strokeWidth={2} />
+            </span>
+            <span className="sx-apv__rt">
+              <b>{t(`sx.apv.${v}`)}</b>
+              <small>{t(lead)}</small>
+            </span>
+            <span className="sx-apv__n">{t("sx.apv.fieldsN", { n: count(v) })}</span>
+          </button>
+        ))}
+      </div>
       {paged ? (
-        <SxSegmented<"page" | "fields">
-          items={[
-            { value: "page", label: t("sx.apv.modePage"), icon: Monitor, aiId: "admin.studio.editor.audience.page" },
-            { value: "fields", label: t("sx.apv.modeFields"), icon: ListIcon, aiId: "admin.studio.editor.audience.fields" },
-          ]}
-          value={mode}
-          onChange={setMode}
-          label={t("sx.apv.mode")}
-          size="sm"
-          aiId="admin.studio.editor.audience.mode"
-        />
+        <div className="sx-apv__bar">
+          <SxSegmented<"page" | "fields">
+            items={[
+              { value: "page", label: t("sx.apv.modePage"), icon: Monitor, aiId: "admin.studio.editor.audience.page" },
+              { value: "fields", label: t("sx.apv.modeFields"), icon: ListIcon, aiId: "admin.studio.editor.audience.fields" },
+            ]}
+            value={mode}
+            onChange={setMode}
+            label={t("sx.apv.mode")}
+            size="sm"
+            aiId="admin.studio.editor.audience.mode"
+          />
+          {onPage && code === "K02" && view === "client" ? (
+            <SxSegmented<DraftPage>
+              items={[
+                { value: "service", label: t("sx.apv.pageService"), icon: UserRound, aiId: "admin.studio.editor.audience.page.service" },
+                { value: "order", label: t("sx.apv.pageOrder"), icon: ListIcon, aiId: "admin.studio.editor.audience.page.order" },
+              ]}
+              value={page}
+              onChange={setPage}
+              label={t("sx.apv.page")}
+              size="sm"
+              aiId="admin.studio.editor.audience.page"
+            />
+          ) : null}
+          {onPage ? <span className="sx-apv__real">{t("sx.apv.real")}</span> : null}
+        </div>
       ) : null}
-      {paged && mode === "page" ? (
-        <DevicePreview address={addressOf(code, view, payload)} label={t(view === "client" ? "sx.apv.asClient" : "sx.apv.asPerformer")}>
-          <ReaderPage code={code} reader={view} payload={payload} title={str(payload.title) || str(title)} />
-        </DevicePreview>
+      {onPage ? (
+        <div className="sx-apv__stage">
+          <DevicePreview address={addressOf(code, view, page, payload)} label={t(view === "client" ? "sx.apv.asClient" : "sx.apv.asPerformer")}>
+            {code === "K01" ? (
+              view === "client" ? (
+                <PortalFrame role="client" active="lawyers" name="Aziz Karimov">
+                  <CategoryReaderPage reader="client" payload={payload} title={name} />
+                </PortalFrame>
+              ) : (
+                <CategoryReaderPage reader="performer" payload={payload} title={name} />
+              )
+            ) : (
+              <DraftServicePage page={view === "client" ? page : "order"} reader={view} payload={payload} title={name} />
+            )}
+          </DevicePreview>
+        </div>
       ) : (
       <div className="sx-apv__frame" role="tabpanel" aria-label={t(view === "client" ? "sx.apv.client" : "sx.apv.performer")}>
         <p className="sx-apv__as">

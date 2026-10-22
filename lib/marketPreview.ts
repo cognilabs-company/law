@@ -1,6 +1,7 @@
 import { normMarketSeller, type MarketPromotionSurface, type MarketSeller, type MarketSellerDetail, type MarketService } from "@/lib/services/marketplace";
 import type { PromotionPlacement } from "@/lib/services/promotions";
 import type { ManagedService } from "@/lib/services/sellerServices";
+import type { RuntimeConfig } from "@/lib/services/marketRuntime";
 
 export const PREVIEW_PATH = "/marketplace-preview";
 export const PREVIEW_READY = "lexgo-pv:ready";
@@ -100,7 +101,10 @@ export function emptyService(): MarketService {
 
 export type DirectoryPreview = { seller: MarketSeller; first: boolean; banner: MarketPromotionSurface | null; tile: MarketPromotionSurface | null; phService: string };
 
-export type ProfilePreview = { seller: MarketSellerDetail; services: MarketService[]; picked: string; top: boolean; topServiceId: string; ph: { title: string; category: string; price: string } | null };
+// `facts`: the picked service's runtime config, when the preview already has
+// it (a Studio draft) rather than fetching it from a saved service.
+// `signedIn`: drawn as a signed-in client sees it, not as a visitor.
+export type ProfilePreview = { seller: MarketSellerDetail; services: MarketService[]; picked: string; top: boolean; topServiceId: string; ph: { title: string; category: string; price: string } | null; facts?: RuntimeConfig; signedIn?: boolean };
 
 export type MergedSeller ={ seller: MarketSeller; services: MarketService[]; serviceId: string };
 

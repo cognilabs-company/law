@@ -135,7 +135,8 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
             : "";
 
   const selected = useMemo(() => services.find((s) => s.id === picked) ?? services[0] ?? null, [services, picked]);
-  const detail = useRuntimeFacts(selected?.id ?? "", "service_detail", { enabled: live && !!selected && selected.id !== PH_SERVICE_ID });
+  const fetched = useRuntimeFacts(selected?.id ?? "", "service_detail", { enabled: live && !!selected && selected.id !== PH_SERVICE_ID });
+  const detail = preview?.facts ? { ...fetched, state: "ready" as const, config: preview.facts } : fetched;
   const detailDur = durationParts(detail.config?.duration) ? (detail.config?.duration ?? null) : null;
   const guarantees = guaranteesOf(detail.config);
 
@@ -178,7 +179,7 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
     return () => clearTimeout(h);
   }, [autoBuy, ready, services, seller, session, blocked]);
 
-  useAiSelection(seller ? "service_id" : "", selected?.id);
+  useAiSelection(seller && live ? "service_id" : "", selected?.id);
   useAiModal("marketplace.purchase-modal", () => {
     if (!ready || !session || blocked || !selected || selected.price <= 0) return;
     setBuying(selected);
@@ -352,7 +353,7 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
               data-ai-entity-type={selected ? "marketplace_service" : undefined}
               data-ai-entity-id={selected?.id}
             >
-              {ready && !session ? t("detail.loginToBuy") : t("detail.buy")}
+              {ready && !session && !preview?.signedIn ? t("detail.loginToBuy") : t("detail.buy")}
               <IconArrowRight />
             </button>
           </div>

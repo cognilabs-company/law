@@ -67,14 +67,15 @@ function Skeleton({ label }: { label: string }): ReactElement {
   );
 }
 
-function Sections({ d, o, phase, view, aiBase, listHref }: { d: OrderDetail; o: MarketOrder; phase: MarketPhase; view: OrderView; aiBase: string; listHref: string }): ReactElement {
+function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDetail; o: MarketOrder; phase: MarketPhase; view: OrderView; aiBase: string; listHref: string; preview: boolean }): ReactElement {
   const to = useTranslations("marketplace.orders");
   const t = useTranslations("marketplace.orderDetail");
   const client = view === "client";
   const section: OrderSectionProps = { o, phase, view, aiBase, runtime: d.runtime, onChanged: (patch) => d.patchOrder(patch ?? {}) };
   const checklist = <OrderChecklist key="checklist" o={o} phase={phase} view={view} aiBase={aiBase} checklist={d.checklist} state={d.checklistState} onChange={d.setChecklist} onRetry={() => d.refresh("checklist")} />;
   const documents = <OrderDocuments key="documents" o={o} phase={phase} view={view} aiBase={aiBase} runtime={d.runtime} listHref={listHref} />;
-  const opinion = client ? <SecondOpinion key="opinion" o={o} phase={phase} aiBase={aiBase} opinion={d.opinion} state={d.opinionState} onRetry={() => d.refresh("opinion")} onOrderStale={() => d.refresh("order")} /> : null;
+  // A preview has no real order to fetch an offer or log a view against.
+  const opinion = client && !preview ? <SecondOpinion key="opinion" o={o} phase={phase} aiBase={aiBase} opinion={d.opinion} state={d.opinionState} onRetry={() => d.refresh("opinion")} onOrderStale={() => d.refresh("order")} /> : null;
   const cancel = <CancellationRequest key="cancel" {...section} lastSignal={d.lastSignal} />;
   const supplemental = <SupplementalPanel key="supplemental" o={o} view={view} />;
   const retain = client ? <StayInLexGo key="retain" phase={phase} runtime={d.runtime} aiBase={aiBase} /> : null;
@@ -153,10 +154,31 @@ function Sections({ d, o, phase, view, aiBase, listHref }: { d: OrderDetail; o: 
 }
 
 export default function OrderDetailPage({ orderId, view, listHref }: { orderId: string; view: OrderView; listHref: string }): ReactElement {
-  const t = useTranslations("marketplace.orderDetail");
   const d = useOrderDetail(orderId, view);
   const owner = useAuth().session?.id ?? "";
   const noted = useNotedNegotiation(orderId, owner);
+  return <OrderDetailView orderId={orderId} view={view} listHref={listHref} d={d} noted={noted} />;
+}
+
+// The page itself, drawn from an order's loaded state. The Studio preview
+// hands it a draft's state, so a service is checked on the very page its
+// client and its lawyer will work on.
+export function OrderDetailView({
+  orderId,
+  view,
+  listHref,
+  d,
+  noted = null,
+  preview = false,
+}: {
+  orderId: string;
+  view: OrderView;
+  listHref: string;
+  d: OrderDetail;
+  noted?: ReturnType<typeof useNotedNegotiation>;
+  preview?: boolean;
+}): ReactElement {
+  const t = useTranslations("marketplace.orderDetail");
   const aiBase = orderAiBase(view);
   const phase = d.phase;
   const o = d.order;
@@ -250,7 +272,7 @@ export default function OrderDetailPage({ orderId, view, listHref }: { orderId: 
       <>
         <OrderHeader o={o} phase={phase} view={view} aiBase={aiBase} listHref={listHref} runtime={d.runtime} refreshing={d.refreshing} onRefresh={() => d.refresh("all")} />
         <div className="mod__grid">
-          <Sections d={d} o={o} phase={phase} view={view} aiBase={aiBase} listHref={listHref} />
+          <Sections d={d} o={o} phase={phase} view={view} aiBase={aiBase} listHref={listHref} preview={preview} />
           <aside className="mod__aside">
             <div className="mod__actions">
               <OrderActions o={o} phase={phase} view={view} aiBase={aiBase} listHref={listHref} checklist={d.checklist} onChanged={(patch) => d.patchOrder(patch ?? {})} onShowChecklist={() => {

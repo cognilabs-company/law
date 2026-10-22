@@ -217,14 +217,19 @@ html[data-theme="dark"] .sx-agrp[data-who="performer"] {
 .sx-apv {
   --v: #0b7a52;
   --v-soft: rgba(11, 122, 82, 0.07);
+  position: relative;
   display: grid;
-  gap: 14px;
+  gap: 16px;
   margin-top: 20px;
-  padding: 18px;
+  padding: 20px;
+  overflow: hidden;
   border: 1px solid var(--sx-line);
-  border-radius: 20px;
-  background: var(--sx-surface);
+  border-radius: 24px;
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--v) 9%, transparent), transparent 55%),
+    var(--sx-surface);
   box-shadow: var(--sx-lift-shadow);
+  transition: background 0.3s var(--sx-ease);
 }
 .sx-apv[data-view="performer"] {
   --v: #6a3fd1;
@@ -248,11 +253,13 @@ html[data-theme="dark"] .sx-apv[data-view="performer"] {
   display: grid;
   place-items: center;
   flex: none;
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
-  background: var(--sx-accent-soft);
-  color: var(--sx-accent-ink);
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--v), color-mix(in srgb, var(--v) 55%, #1d63c4));
+  box-shadow: 0 10px 22px -12px var(--v);
+  color: #fff;
+  transition: background 0.3s var(--sx-ease);
 }
 .sx-apv__intro {
   display: grid;
@@ -266,6 +273,117 @@ html[data-theme="dark"] .sx-apv[data-view="performer"] {
   margin: 0;
   color: var(--sx-ink);
   font: 700 16px/22px var(--sx-font);
+}
+/* The two readers, as cards: who they are, what they do, how much they see. */
+.sx-apv__readers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.sx-apv__reader {
+  --r: #0b7a52;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1.5px solid var(--sx-line);
+  border-radius: 18px;
+  background: var(--sx-surface);
+  color: var(--sx-ink);
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 0.2s var(--sx-ease), box-shadow 0.2s var(--sx-ease), transform 0.2s var(--sx-ease), background 0.2s var(--sx-ease);
+}
+.sx-apv__reader[data-k="performer"] {
+  --r: #6a3fd1;
+}
+html[data-theme="dark"] .sx-apv__reader {
+  --r: #5fd6a4;
+}
+html[data-theme="dark"] .sx-apv__reader[data-k="performer"] {
+  --r: #b9a2ff;
+}
+.sx-apv__reader:hover {
+  border-color: color-mix(in srgb, var(--r) 45%, var(--sx-line));
+  transform: translateY(-1px);
+}
+.sx-apv__reader[aria-checked="true"] {
+  border-color: var(--r);
+  background: color-mix(in srgb, var(--r) 7%, var(--sx-surface));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--r) 13%, transparent), 0 14px 30px -22px var(--r);
+}
+.sx-apv__reader:focus-visible {
+  outline: 2px solid var(--sx-ring);
+  outline-offset: 2px;
+}
+.sx-apv__ava {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--r) 13%, transparent);
+  color: var(--r);
+}
+.sx-apv__reader[aria-checked="true"] .sx-apv__ava {
+  background: var(--r);
+  color: #fff;
+}
+html[data-theme="dark"] .sx-apv__reader[aria-checked="true"] .sx-apv__ava {
+  color: #0b1220;
+}
+.sx-apv__rt {
+  display: grid;
+  flex: 1;
+  gap: 1px;
+  min-width: 0;
+}
+.sx-apv__rt b {
+  font: 700 14.5px/20px var(--sx-font);
+}
+.sx-apv__rt small {
+  color: var(--sx-muted);
+  font: 400 12px/16px var(--sx-font);
+}
+.sx-apv__n {
+  flex: none;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--sx-surface-2);
+  color: var(--sx-ink-2);
+  font: 700 11.5px/16px var(--sx-font);
+  font-variant-numeric: tabular-nums;
+}
+.sx-apv__reader[aria-checked="true"] .sx-apv__n {
+  background: color-mix(in srgb, var(--r) 16%, transparent);
+  color: var(--r);
+}
+.sx-apv__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+.sx-apv__real {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: auto;
+  color: var(--sx-muted);
+  font: 500 12px/16px var(--sx-font);
+}
+.sx-apv__real::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--v);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--v) 20%, transparent);
+}
+.sx-apv__stage {
+  animation: sx-apv-in 240ms var(--sx-ease) both;
 }
 .sx-apv__frame {
   display: grid;
@@ -439,13 +557,23 @@ html[data-theme="dark"] .sx-apv__empty {
   .sx-apv {
     padding: 14px;
   }
+  .sx-apv__readers {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sx-apv__real {
+    margin-inline-start: 0;
+  }
   .sx-apv__row {
     grid-template-columns: minmax(0, 1fr);
     gap: 4px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .sx-apv__frame {
+  .sx-apv__frame,
+  .sx-apv__stage {
     animation: none;
+  }
+  .sx-apv__reader {
+    transition: none;
   }
 }

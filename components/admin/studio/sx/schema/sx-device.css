@@ -170,69 +170,6 @@ html[data-theme="dark"] .sx-dev-body {
   --rp-card: var(--dk-surface, #fff);
   --rp-line: var(--line, #e3e9f2);
   --rp-muted: var(--gray, #5b6577);
-  min-height: 100vh;
-}
-.rp[data-reader="performer"] {
-  --rp-acc: #6a3fd1;
-}
-.rp-top {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 12px 28px;
-  border-bottom: 1px solid var(--rp-line);
-  background: color-mix(in srgb, var(--rp-card) 88%, transparent);
-  backdrop-filter: blur(10px);
-}
-.rp-logo {
-  font-weight: 900;
-  font-size: 18px;
-  color: var(--rp-acc);
-}
-.rp-logo i {
-  margin-inline-start: 6px;
-  color: var(--rp-muted);
-  font-style: normal;
-  font-weight: 600;
-  font-size: 13px;
-}
-.rp-nav {
-  display: flex;
-  gap: 16px;
-  color: var(--rp-muted);
-  font-size: 14px;
-  font-weight: 600;
-}
-.rp-search {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 8px;
-  max-width: 360px;
-  margin-inline-start: auto;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: var(--dk-surface-2, #f3f6fb);
-  color: var(--rp-muted);
-  font-size: 13px;
-}
-.rp-search i {
-  font-style: normal;
-}
-.rp-top--work .rp-me:first-of-type {
-  margin-inline-start: auto;
-}
-.rp-me {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--dk-surface-2, #f3f6fb);
-  color: var(--rp-muted);
 }
 .rp-main {
   display: grid;
@@ -308,46 +245,15 @@ html[data-theme="dark"] .sx-dev-body {
   margin: 0;
   line-height: 1.55;
 }
-.rp-value {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--rp-acc) 9%, var(--rp-card)), var(--rp-card));
-}
-.rp-buy {
-  gap: 8px;
-}
 .rp-from {
   color: var(--rp-muted);
   font-size: 12px;
   font-weight: 600;
 }
-.rp-price {
-  font-size: 26px;
-  letter-spacing: -0.02em;
-}
-.rp-cta {
-  display: grid;
-  place-items: center;
-  height: 46px;
-  border-radius: 14px;
-  background: var(--rp-acc);
-  color: #fff;
-  font-weight: 800;
-}
 .rp-note {
   color: var(--rp-muted);
   font-size: 12.5px;
   line-height: 1.45;
-}
-.rp-shared {
-  margin: 0;
-  color: var(--rp-muted);
-  font-size: 13px;
-}
-.rp-sticky {
-  display: none;
-}
-.rp-order {
-  display: grid;
-  gap: 8px;
 }
 .rp-chip {
   width: fit-content;
@@ -367,70 +273,6 @@ html[data-theme="dark"] .sx-dev-body {
   flex-wrap: wrap;
   gap: 6px;
   margin: 0;
-}
-.rp-brief {
-  background: color-mix(in srgb, var(--rp-acc) 7%, var(--rp-card));
-}
-.rp-todo {
-  display: grid;
-  gap: 8px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.rp-todo li {
-  display: flex;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: var(--dk-surface-2, #f5f8fc);
-}
-.rp-todo li > span:last-child {
-  display: grid;
-  gap: 3px;
-}
-.rp-todo small {
-  color: var(--rp-muted);
-}
-.rp-box {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
-  border: 2px solid var(--rp-line);
-  border-radius: 6px;
-}
-.rp-proofs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.rp-proofs i {
-  padding: 0 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--rp-acc) 12%, transparent);
-  color: var(--rp-acc);
-  font-style: normal;
-  font-size: 11.5px;
-  font-weight: 700;
-}
-.rp-limits dl {
-  display: grid;
-  gap: 6px;
-  margin: 0;
-}
-.rp-limits dl div {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 14px;
-}
-.rp-limits dt {
-  color: var(--rp-muted);
-}
-.rp-limits dd {
-  margin: 0;
-  font-weight: 800;
 }
 .rp-crumbs b {
   color: var(--ink, #0b1f45);
@@ -601,6 +443,14 @@ html[data-theme="dark"] .sx-dev-body {
   font-size: 13.5px;
   line-height: 1.5;
 }
+.rp--none {
+  min-height: 100vh;
+}
+/* The cabinet drawn around a draft: the real sidebar and header, inert. */
+.sx-dev-portal .rp-main {
+  max-width: none;
+  padding: 0;
+}
 @media (max-width: 900px) {
   .rp-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -608,23 +458,8 @@ html[data-theme="dark"] .sx-dev-body {
   .rp-side {
     position: static;
   }
-  .rp-search {
-    display: none;
-  }
 }
 @media (max-width: 600px) {
-  .rp-top {
-    padding: 12px 16px;
-  }
-  .rp-nav {
-    display: none;
-  }
-  .rp-me:first-of-type {
-    margin-inline-start: auto;
-  }
-  .rp-main {
-    padding: 16px 16px 96px;
-  }
   .rp-h1 {
     font-size: 24px;
   }
@@ -637,26 +472,5 @@ html[data-theme="dark"] .sx-dev-body {
   .rp-cat-hero {
     flex-direction: column;
     padding: 18px;
-  }
-  .rp[data-reader="client"] .rp-buy .rp-cta {
-    display: none;
-  }
-  .rp[data-reader="client"] .rp-sticky {
-    position: fixed;
-    right: 12px;
-    bottom: 12px;
-    left: 12px;
-    z-index: 3;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 10px 10px 16px;
-    border-radius: 18px;
-    background: var(--rp-card);
-    box-shadow: 0 12px 30px -10px rgba(11, 31, 69, 0.45), inset 0 0 0 1px var(--rp-line);
-  }
-  .rp-sticky .rp-cta {
-    padding: 0 20px;
   }
 }
