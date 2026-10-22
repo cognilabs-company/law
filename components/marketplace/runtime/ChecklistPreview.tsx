@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import type { ChecklistItem } from "@/lib/services/marketRuntime";
+import { clientChecklistItem, type ChecklistItem } from "@/lib/services/marketRuntime";
 import { IconChevronDown } from "@/components/icons";
 import { proofsOf, type HeadingLevel } from "./facts";
 import "./runtime.css";
@@ -27,7 +27,9 @@ export function FactHeading({ level = 3, id, children }: { level?: HeadingLevel;
   );
 }
 
-export function ChecklistPreview({ items, limit = 4, tone = "detail", idBase, level = 3 }: { items: readonly ChecklistItem[]; limit?: number; tone?: "detail" | "assist"; idBase: string; level?: HeadingLevel }) {
+export function ChecklistPreview({ items: given, limit = 4, tone = "detail", idBase, level = 3 }: { items: readonly ChecklistItem[]; limit?: number; tone?: "detail" | "assist"; idBase: string; level?: HeadingLevel }) {
+  // Clients read the preview: only the client wording of each item.
+  const items = given.map(clientChecklistItem);
   const t = useTranslations("marketplace.runtime");
   const [open, setOpen] = useState(false);
   if (!items.length) return null;

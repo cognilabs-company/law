@@ -16,10 +16,10 @@ import { shortDateTime } from "@/lib/date";
 import { saveBlob } from "@/lib/download";
 import { getSecureMessageFileAt } from "@/lib/services/backend";
 import type { MarketOrder, MarketPhase } from "@/lib/services/marketplace";
-import { checklistItemRef, checklistStatusOf, marketErrorInfo, updateChecklistItem, uploadChecklistEvidence, type ChecklistItem, type ChecklistStatus, type MarketFileRef, type OrderChecklist as OrderChecklistData } from "@/lib/services/marketRuntime";
+import { checklistItemRef, checklistStatusOf, clientChecklistItem, marketErrorInfo, updateChecklistItem, uploadChecklistEvidence, type ChecklistItem, type ChecklistStatus, type MarketFileRef, type OrderChecklist as OrderChecklistData } from "@/lib/services/marketRuntime";
 import { useMarketError } from "../useMarketError";
 import { canEditChecklist, draftOf, evidenceOf, itemProblems, mergeChecklistItem, sortedItems, type ItemDraft } from "./checklistRules";
-import { ForwardIcon, CheckIcon, CircleCheckIcon, CircleDashedIcon, DownloadIcon, FileTextIcon, ImageIcon, ImagePlusIcon, MessageSquareTextIcon, PaperclipIcon, PencilIcon, CircleAlertIcon, XIcon, glyph } from "./icons";
+import { ForwardIcon, CheckIcon, EyeIcon, EyeOffIcon, CircleCheckIcon, CircleDashedIcon, DownloadIcon, FileTextIcon, ImageIcon, ImagePlusIcon, MessageSquareTextIcon, PaperclipIcon, PencilIcon, CircleAlertIcon, XIcon, glyph } from "./icons";
 import { SECTION_ID, type LoadState, type OrderView } from "./types";
 import { ORDER_FILE_MB, ORDER_FILES_MAX, uploadOrderFile, type UploadedFile } from "./upload";
 import "./checklist.css";
@@ -49,9 +49,35 @@ type Kind = "image" | "file";
 type Add = { key: string; file: File; kind: Kind; preview: string; state: "wait" | "up" | "done" | "fail"; uploaded: UploadedFile | null };
 type Errs = { status?: string; comment?: string; file?: string; image?: string };
 
-function signatureOf(c: OrderChecklistData | null): string {
-  if (!c) return "";
-  return c.items.map((i) => `${i.id}:${i.status}:${i.updatedAt}:${i.comment.length}:${i.files.length}:${(i.images ?? []).length}`).join("|");
+function itemSig(i: ChecklistItem): string {
+  return `${i.status}:${i.updatedAt}:${i.comment.length}:${i.files.length}:${(i.images ?? []).length}:${i.title}`;
+}
+
+function signatureOf(items: readonly ChecklistItem[] | null): string {
+  if (!items) return "";
+  return items.map((i) => `${i.id}:${itemSig(i)}`).join("|");
+}
+
+function sigMap(items: readonly ChecklistItem[] | null): Readonly<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const i of items ?? []) if (i.id) out[i.id] = itemSig(i);
+  return out;
+}
+
+// How long a just-changed item stays highlighted for the client.
+const FRESH_MS = 6000;
+
+// Whether the client sees a piece of evidence, shown to the performer
+// beside it; nothing when the item does not say.
+function ClientSees({ shown }: { shown: boolean | undefined }) {
+  const t = useTranslations("marketplace.orderDetail.checklist");
+  if (shown === undefined) return null;
+  return (
+    <span className="mck-sees" data-shown={shown ? "" : undefined}>
+      {glyph(shown ? EyeIcon : EyeOffIcon, { size: 13 })}
+      {t(shown ? "seesYes" : "seesNo")}
+    </span>
+  );
 }
 
 function editBtnId(item: ChecklistItem): string {
@@ -115,15 +141,31 @@ export default function OrderChecklist({
   const tc = useTranslations("copilot");
   const [openId, setOpenId] = useState("");
   const [live, setLive] = useState("");
-  const sig = signatureOf(checklist);
+  // The client sees only the client wording and the evidence the service
+  // lets them see, live as the performer works.
+  const seen = checklist ? (view === "client" ? checklist.items.map(clientChecklistItem) : checklist.items) : null;
+  const sig = signatureOf(seen);
   const [prevSig, setPrevSig] = useState(sig);
+  const [prevMap, setPrevMap] = useState(() => sigMap(seen));
+  const [fresh, setFresh] = useState<readonly string[]>([]);
   if (sig !== prevSig) {
+    const now = sigMap(seen);
+    const changed = Object.keys(now).filter((k) => prevMap[k] !== undefined && prevMap[k] !== now[k]);
     setPrevSig(sig);
-    if (view === "client" && prevSig && sig) setLive(t("checklist.live"));
+    setPrevMap(now);
+    if (view === "client" && prevSig && sig) {
+      setLive(t("checklist.live"));
+      if (changed.length) setFresh(changed);
+    }
   }
+  useEffect(() => {
+    if (!fresh.length) return;
+    const tm = window.setTimeout(() => setFresh([]), FRESH_MS);
+    return () => window.clearTimeout(tm);
+  }, [fresh]);
 
   if (state === "none" || state === "idle") return null;
-  const items = checklist ? sortedItems(checklist.items) : [];
+  const items = seen ? sortedItems(seen) : [];
   const loading = state === "loading" && !checklist;
   const failed = state === "error" && !checklist;
   if (!loading && !failed && !items.length && (view === "client" || phase !== "in_progress")) return null;
@@ -208,6 +250,8 @@ export default function OrderChecklist({
               checklist={checklist}
               onSaved={(next) => saved(next, item)}
               onCancel={() => cancel(item)}
+              seller={view === "seller"}
+              fresh={fresh.includes(item.id)}
             />
           ))}
         </ol>
@@ -254,6 +298,8 @@ function ChecklistRow({
   checklist,
   onSaved,
   onCancel,
+  seller,
+  fresh,
 }: {
   o: MarketOrder;
   item: ChecklistItem;
@@ -264,27 +310,42 @@ function ChecklistRow({
   checklist: OrderChecklistData | null;
   onSaved: (next: OrderChecklistData) => void;
   onCancel: () => void;
+  seller: boolean;
+  fresh: boolean;
 }) {
   const t = useTranslations("marketplace.orderDetail.checklist");
   const locale = useLocale();
   const editorId = `mck-${item.id}-editor`;
+  const vis = seller ? item.showToClient : null;
+  const clientName = seller && item.clientTitle && item.clientTitle !== item.title ? item.clientTitle : "";
   const title = item.title || "—";
   const skipped = item.status === "skipped_with_reason";
   const images = item.images ?? [];
   const marks = [item.required ? "required" : "", item.commentRequired ? "comment" : "", item.imageRequired ? "image" : "", item.fileRequired ? "file" : ""].filter(Boolean);
   return (
-    <li id={`mck-${item.id}`} className="mck-item" data-status={item.status} data-open={open ? "" : undefined} data-ai-id={itemAi} data-ai-type="list_item" data-ai-label={title}>
+    <li id={`mck-${item.id}`} className="mck-item" data-status={item.status} data-open={open ? "" : undefined} data-fresh={fresh ? "" : undefined} data-ai-id={itemAi} data-ai-type="list_item" data-ai-label={title}>
       <div className="mck-item__head">
         <span className="mck-dot" data-tone={STATUS_TONE[item.status]} aria-hidden="true">
           {glyph(STATUS_ICON[item.status], { size: 18 })}
         </span>
         <div className="mck-item__titles">
           <h3 className="mck-item__title">{title}</h3>
+          {clientName ? (
+            <p className="mck-item__client">
+              {glyph(EyeIcon, { size: 13 })}
+              <span>{t("clientSees", { title: clientName })}</span>
+            </p>
+          ) : null}
           {item.description ? <p className="mck-item__desc">{item.description}</p> : null}
           <div className="mck-item__tags">
             <span className="mck-status" data-tone={STATUS_TONE[item.status]}>
               {t(`status.${item.status}`)}
             </span>
+            {fresh ? (
+              <span className="mck-fresh" role="status">
+                {t("fresh")}
+              </span>
+            ) : null}
             {marks.length ? (
               <ul className="mck-marks">
                 {marks.map((m) => (
@@ -319,8 +380,10 @@ function ChecklistRow({
         <p className="mck-item__comment">
           {skipped ? <b>{t("reasonPrefix")}: </b> : null}
           {item.comment}
+          {vis ? <ClientSees shown={vis.comment} /> : null}
         </p>
       ) : null}
+      {images.length && vis ? <ClientSees shown={vis.images} /> : null}
       {images.length ? (
         <ul className="mck-thumbs" aria-label={t("images")}>
           {images.map((f, i) => (
@@ -328,6 +391,7 @@ function ChecklistRow({
           ))}
         </ul>
       ) : null}
+      {item.files.length && vis ? <ClientSees shown={vis.files} /> : null}
       {item.files.length ? (
         <ul className="mck-files">
           {item.files.map((f, i) => (
@@ -621,7 +685,7 @@ function ItemEditor({
         )}
       </Field>
       {showComment ? (
-        <Field id={commentId} label={commentLabel} error={errs.comment}>
+        <Field id={commentId} label={commentLabel} error={errs.comment} labelAside={<ClientSees shown={item.showToClient?.comment} />}>
           {(a) => (
             <TextArea
               {...a}
@@ -647,6 +711,7 @@ function ItemEditor({
           base={base}
           itemAi={itemAi}
           label={item.imageRequired ? t("imagesRequired") : t("images")}
+          sees={item.showToClient?.images}
           attachLabel={t("attachImage")}
           accept={(upload?.accept ?? []).filter((x) => /^image\//i.test(x)).join(",") || "image/*"}
           saved={draft.images ?? []}
@@ -666,6 +731,7 @@ function ItemEditor({
           base={base}
           itemAi={itemAi}
           label={item.fileRequired ? t("filesRequired") : t("files")}
+          sees={item.showToClient?.files}
           attachLabel={t("attach")}
           accept={(upload?.accept ?? []).join(",")}
           saved={draft.files}
@@ -709,6 +775,7 @@ function EvidenceSet({
   canAttach,
   hint,
   error,
+  sees,
   onPick,
   onRemoveSaved,
   onRemoveAdd,
@@ -725,6 +792,7 @@ function EvidenceSet({
   canAttach: boolean;
   hint: string;
   error?: string;
+  sees?: boolean;
   onPick: (list: FileList | null) => void;
   onRemoveSaved: (i: number) => void;
   onRemoveAdd: (key: string) => void;
@@ -742,8 +810,11 @@ function EvidenceSet({
   return (
     <div className="mck-fileset" data-kind={kind} role="group" aria-labelledby={labelId}>
       <div className="mck-fileset__top">
-        <span className="sx-field__label" id={labelId}>
-          {label}
+        <span className="mck-fileset__name">
+          <span className="sx-field__label" id={labelId}>
+            {label}
+          </span>
+          <ClientSees shown={sees} />
         </span>
         <SxButton
           id={attachId}

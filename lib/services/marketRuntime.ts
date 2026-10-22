@@ -297,6 +297,14 @@ export type ChecklistItem = {
   images?: MarketFileRef[];
   sortOrder: number;
   updatedAt: string;
+  // The item as worded for each side. A seller's full item carries both; a
+  // client's item arrives already reduced to its own wording.
+  executorTitle: string;
+  clientTitle: string;
+  clientDescription: string;
+  // Which evidence the client may see; null when the item does not say
+  // (a client's item, already filtered by the backend).
+  showToClient: { comment: boolean; images: boolean; files: boolean } | null;
   raw: Dict;
 };
 
@@ -317,10 +325,13 @@ export function normChecklistItem(v: unknown): ChecklistItem {
   const skip = d.skip_allowed ?? d.can_skip ?? d.allow_skip ?? d.skippable;
   const methods = methodsOf(d.verification_methods);
   const methodShape = Array.isArray(d.verification_methods);
+  const executorTitle = trimmed(d.executor_title);
+  const clientTitle = trimmed(d.client_title);
+  const flags = ["show_comment_to_client", "show_images_to_client", "show_files_to_client"].some((k) => typeof d[k] === "boolean");
   return {
     id: trimmed(d.id ?? d.item_id ?? d.checklist_item_id) || key,
     key,
-    title: trimmed(d.title ?? d.name ?? d.label ?? d.text),
+    title: trimmed(d.title ?? d.name ?? d.label ?? d.text) || executorTitle || clientTitle,
     description: trimmed(d.description ?? d.hint),
     status: checklistStatusOf(statusRaw),
     statusRaw,
@@ -335,7 +346,34 @@ export function normChecklistItem(v: unknown): ChecklistItem {
     images: asArr(d.images ?? d.image_files ?? d.photos).map(normFileRef).filter((f) => f.id || f.url),
     sortOrder: asNum(d.sort_order ?? d.position),
     updatedAt: trimmed(d.updated_at ?? d.completed_at),
+    executorTitle,
+    clientTitle,
+    clientDescription: trimmed(d.client_description),
+    showToClient: flags ? { comment: d.show_comment_to_client === true, images: d.show_images_to_client === true, files: d.show_files_to_client === true } : null,
     raw: d,
+  };
+}
+
+// What the client is allowed to see of an item: its client wording (the
+// performer's only when no client wording was written) and only the evidence
+// the service lets the client see. An item already reduced by the backend
+// passes through; a full one (a stray event, a cached seller copy) is cut
+// down here so nothing internal reaches the client screen.
+export function clientChecklistItem(item: ChecklistItem): ChecklistItem {
+  const full = !!item.executorTitle || !!item.clientTitle || item.showToClient !== null;
+  if (!full) return item;
+  const show = item.showToClient ?? { comment: false, images: false, files: false };
+  const r = item.raw;
+  return {
+    ...item,
+    title: item.clientTitle || item.executorTitle || item.title,
+    description: item.clientDescription,
+    comment: show.comment ? item.comment : "",
+    images: show.images ? (item.images ?? []) : [],
+    files: show.files ? item.files : [],
+    executorTitle: "",
+    clientDescription: "",
+    raw: { id: r.id, item_id: r.item_id, checklist_item_id: r.checklist_item_id, key: r.key, status: r.status },
   };
 }
 

@@ -400,3 +400,98 @@
     animation: none !important;
   }
 }
+
+/* What the client sees of an item, told to the performer. */
+.mod .mck-item__client {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0 0;
+  color: #0b7a52;
+  font: 500 12.5px/17px var(--sx-font);
+}
+html[data-theme="dark"] .mod .mck-item__client {
+  color: #5fd6a4;
+}
+.mod .mck-item__client svg {
+  flex: none;
+}
+.mod .mck-sees {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  margin-inline-start: 8px;
+  padding: 1px 8px;
+  border: 1px solid var(--sx-line);
+  border-radius: 999px;
+  background: var(--sx-surface-2);
+  color: var(--sx-muted);
+  font: 600 11px/16px var(--sx-font);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.mod .mck-sees[data-shown] {
+  border-color: #bfe7d3;
+  background: #e6f6ee;
+  color: #0b7a52;
+}
+html[data-theme="dark"] .mod .mck-sees[data-shown] {
+  border-color: rgba(52, 199, 140, 0.32);
+  background: rgba(52, 199, 140, 0.14);
+  color: #5fd6a4;
+}
+.mod .mck-item > .mck-sees {
+  margin-block: 0 -4px;
+}
+.mod .mck-fileset__name {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  min-width: 0;
+}
+.mod .mck-fileset__name .mck-sees {
+  margin-inline-start: 0;
+}
+
+/* A step the performer just changed, seen live by the client. */
+.mod .mck-item[data-fresh] {
+  border-color: color-mix(in srgb, var(--sx-accent) 55%, var(--sx-line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sx-accent) 16%, transparent);
+  animation: mck-fresh 1.2s var(--sx-ease) both;
+}
+.mod .mck-fresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: var(--sx-accent-soft);
+  color: var(--sx-accent-ink);
+  font: 700 11.5px/18px var(--sx-font);
+}
+.mod .mck-fresh::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sx-accent);
+  animation: mck-pulse 1.4s ease-in-out infinite;
+}
+@keyframes mck-fresh {
+  from {
+    background-color: color-mix(in srgb, var(--sx-accent) 12%, var(--sx-surface));
+  }
+}
+@keyframes mck-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mod .mck-item[data-fresh],
+  .mod .mck-fresh::before {
+    animation: none;
+  }
+}
