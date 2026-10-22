@@ -215,3 +215,200 @@ html[data-theme="dark"] .sx-seg__ind {
     border: 2px solid Highlight;
   }
 }
+
+/* "Add category": top-level category or subcategory, chosen first. */
+.sx-ck {
+  min-width: 0;
+}
+.sx-ck--page {
+  display: grid;
+  gap: 20px;
+  max-inline-size: 760px;
+  padding: 24px;
+  border: 1px solid var(--sx-line);
+  border-radius: var(--sx-r-lg);
+  background: var(--sx-surface);
+  box-shadow: var(--sx-lift-shadow);
+  animation: sx-ck-in var(--sx-mid) var(--sx-ease) both;
+}
+.sx-ck__lead {
+  margin: 0;
+  color: var(--sx-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.sx-ck__acts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-block-start: 4px;
+  border-block-start: 1px solid var(--sx-line);
+  padding-top: 16px;
+}
+.sx-ck-parent {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--sx-accent-soft);
+  border-radius: var(--sx-r);
+  background: color-mix(in srgb, var(--sx-accent-soft) 45%, transparent);
+  animation: sx-ck-in var(--sx-mid) var(--sx-ease) both;
+}
+.sx-ck-note {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--sx-r);
+  background: var(--sx-surface-2);
+  color: var(--sx-ink-2);
+  font-size: 13px;
+  line-height: 1.45;
+  animation: sx-ck-in var(--sx-mid) var(--sx-ease) both;
+}
+.sx-ck-note svg {
+  flex: none;
+  margin-block-start: 1px;
+  color: var(--sx-accent);
+}
+.sx-ck-path {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.sx-ck-path__label {
+  color: var(--sx-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.sx-ck-path__trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--sx-line-strong);
+  border-radius: var(--sx-r);
+  list-style: none;
+  font-size: 13px;
+}
+.sx-ck-path__node {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  color: var(--sx-ink-2);
+}
+.sx-ck-path__node > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-inline-size: 260px;
+}
+.sx-ck-path__node.is-empty {
+  color: var(--sx-placeholder);
+  font-style: italic;
+}
+.sx-ck-path__node.is-new {
+  color: var(--sx-accent-ink);
+  font-weight: 600;
+}
+.sx-ck-path__node.is-new > span {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--sx-accent-soft);
+}
+.sx-ck-path__sep {
+  flex: none;
+  color: var(--sx-placeholder);
+}
+.sx-ck-path:not([data-kind]) .sx-ck-path__node.is-new {
+  color: var(--sx-muted);
+  font-weight: 500;
+}
+.sx-ck-path:not([data-kind]) .sx-ck-path__node.is-new > span {
+  background: var(--sx-surface-2);
+}
+
+.sx-ck-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--sx-line);
+  border-radius: var(--sx-r);
+  background: var(--sx-surface);
+  font-size: 13px;
+}
+.sx-ck-bar__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 32px;
+  block-size: 32px;
+  border-radius: var(--sx-r-sm);
+  background: var(--sx-accent-soft);
+  color: var(--sx-accent-ink);
+}
+.sx-ck-bar__text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 1px;
+}
+.sx-ck-bar__text strong {
+  color: var(--sx-ink);
+  font-weight: 650;
+}
+.sx-ck-bar__text span {
+  color: var(--sx-muted);
+}
+.sx-ck-bar__change {
+  flex: none;
+  color: var(--sx-accent-ink);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--sx-r-sm);
+  padding: 4px 6px;
+}
+.sx-ck-bar__change:hover {
+  text-decoration: underline;
+}
+.sx-ck-bar__change:focus-visible {
+  outline: 2px solid var(--sx-ring);
+  outline-offset: 2px;
+}
+
+@keyframes sx-ck-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@media (max-width: 640px) {
+  .sx-ck--page {
+    padding: 16px;
+  }
+  .sx-ck__acts > * {
+    flex: 1 1 0;
+    justify-content: center;
+  }
+  .sx-ck-path__node > span {
+    max-inline-size: 180px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-ck--page,
+  .sx-ck-parent,
+  .sx-ck-note {
+    animation: none;
+  }
+}

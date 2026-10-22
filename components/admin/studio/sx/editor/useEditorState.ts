@@ -42,6 +42,7 @@ import { useSxFormPolicy, type SxFormPolicy } from "../form/formPolicy";
 import { dropReferenceCache, firstReferencePage } from "../form/useReferenceOptions";
 import { statusKeyOf } from "../status";
 import { ctorLayoutOf } from "../ctor/layouts";
+import { k01LayoutOf, type CategoryKind } from "../ctor/services";
 import { ctorWarnings } from "../ctor/warnings";
 import { SOURCE_PRODUCER } from "../ctor/sources";
 import { useSchemaModel } from "../schema/useSchemaModel";
@@ -98,7 +99,7 @@ export type EditorAlert =
   | { kind: "file"; isNew: boolean }
   | null;
 export type EditorPrimary = "saveSubmit" | "submit" | "publishDirect" | "publish" | "openReview" | "edit" | "save" | "restore" | null;
-export type EditorInit = { code: string; id: string | null; ctx?: string; initialPayload?: SxPayload; initialTitle?: string; focus?: string };
+export type EditorInit = { code: string; id: string | null; ctx?: string; initialPayload?: SxPayload; initialTitle?: string; focus?: string; categoryKind?: CategoryKind };
 export type EditorOptions = {
   onCreated?: (detail: StudioDetail) => void;
   onRedirect?: (objectId: string) => void;
@@ -117,6 +118,8 @@ export type EditorState = {
   loadError: unknown;
   mode: EditorMode;
   code: string;
+  // A new category's kind (top level or subcategory), when it was chosen.
+  categoryKind: CategoryKind | undefined;
   ctor: StudioConstructor | null;
   full: StudioConstructor | null;
   runtimeTarget: string;
@@ -350,7 +353,8 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   if (fc?.mode === "view" && (mode === "runtime-edit" || mode === "runtime-view")) mode = "runtime-view";
 
   const runtimeTarget = full?.runtimeTarget || regCtor?.runtimeTarget || "";
-  const baseLayout = useMemo(() => ctorLayoutOf(code, runtimeTarget), [code, runtimeTarget]);
+  const categoryKind = !id && code.toUpperCase() === "K01" ? init.categoryKind : undefined;
+  const baseLayout = useMemo(() => (categoryKind ? k01LayoutOf(categoryKind) : ctorLayoutOf(code, runtimeTarget)), [code, runtimeTarget, categoryKind]);
   const model = useSchemaModel({ ctor: full, layout: baseLayout, runtimeTarget, idPrefix, only: opts.only });
   const layout = model?.layout ?? baseLayout;
   const derive = layout.titleFrom;
@@ -868,6 +872,14 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     if (!cur) return null;
     const objTitle = titleOrFail();
     if (!objTitle) return null;
+    // A subcategory is never saved without its parent, not even as a draft:
+    // without one it would land at the top level.
+    if (categoryKind === "sub" && !str(cur.payload.parent_id)) {
+      setServerErrors((s) => ({ ...s, parent_id: "@required" }));
+      policy.markServer(["parent_id"]);
+      focusFirst(["parent_id"]);
+      return null;
+    }
     setActionError(null);
     setPublishFail(null);
     const body = bodyOf(cur.payload, objTitle);
@@ -1306,6 +1318,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     loadError,
     mode,
     code,
+    categoryKind,
     ctor: regCtor,
     full,
     runtimeTarget,

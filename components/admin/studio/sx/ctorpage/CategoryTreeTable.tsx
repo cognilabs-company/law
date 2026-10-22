@@ -114,7 +114,7 @@ export function treeDrafts(recs: readonly StudioRecord[], rows: readonly Categor
 }
 
 export function addChildHref(id: string): string {
-  return `/admin/studio/o/new?new=${CODE}&parent=${encodeURIComponent(id)}`;
+  return `/admin/studio/o/new?new=${CODE}&kind=sub&parent=${encodeURIComponent(id)}`;
 }
 
 type TreeState = { phase: "loading" | "ready" | "error"; nodes: CategoryNode[]; error: unknown };

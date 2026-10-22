@@ -2,7 +2,7 @@ import type { SxCtorLayout, SxLayoutCtx, SxLayoutField, SxPayload, SxTransformCt
 import { FIELD_TYPE_ICON, BadgeCheckIcon, BriefcaseBusinessIcon, CalendarDaysIcon, ClockIcon, CoinsIcon, CrownIcon, FileQuestionMarkIcon, FileTextIcon, FileXIcon, FolderOpenIcon, GavelIcon, GlobeIcon, HeadsetIcon, LayersIcon, LockIcon, MedalIcon, PackageIcon, PercentIcon, RefreshCwIcon, ScaleIcon, ShieldCheckIcon } from "../icons";
 import { INTAKE, INTAKE_CHOICE_KEYS, INTAKE_HIDDEN_KEYS, INTAKE_PLACEHOLDER, INTAKE_REQUIRED_KEYS, INTAKE_TEXT_KEYS, INTAKE_TYPE_KEYS, SERVICE_TERMS, intakeQuestionOf, intakeTidy, intakeTypeOf, showIntakeChoices } from "../schema/k02/intake";
 import { k02FormValidate, k02Prune, k03mPrune, k03mValidate } from "../schema/k02/model";
-import type { SxIcon } from "../types";
+import type { SxErrors, SxIcon } from "../types";
 import type { StudioLabels } from "../useStudioLabels";
 import { GUARANTEE_ICONS } from "./guaranteeIcons";
 
@@ -46,6 +46,53 @@ export const K01_LAYOUT: SxCtorLayout = {
     { path: "discovery_terms", aiSuggest: true },
   ],
 };
+
+// A new category is created as one of two kinds, chosen before the form
+// opens. A top-level category has no parent: the field is gone and the key
+// never reaches the request. A subcategory cannot be saved without its
+// parent, which comes first in the form.
+export type CategoryKind = "root" | "sub";
+
+const withoutParent = (next: SxPayload): SxPayload => {
+  if (!("parent_id" in next)) return next;
+  const out = { ...next };
+  delete out.parent_id;
+  return out;
+};
+
+const K01_ROOT_LAYOUT: SxCtorLayout = {
+  ...K01_LAYOUT,
+  sections: [
+    { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "discovery_terms"] },
+    { id: "faollik_va_muddat", titleKey: "sx.section.faollik_va_muddat", fields: ["is_active"] },
+  ],
+  fields: [
+    { path: "title", placeholder: "sx.ph.K01__title" },
+    { path: "parent_id", hidden: true },
+    { path: "slug", hidden: true },
+    { path: "discovery_terms", aiSuggest: true },
+  ],
+  transform: withoutParent,
+};
+
+const K01_SUB_LAYOUT: SxCtorLayout = {
+  ...K01_LAYOUT,
+  sections: [
+    { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["parent_id", "title", "discovery_terms"] },
+    { id: "faollik_va_muddat", titleKey: "sx.section.faollik_va_muddat", fields: ["is_active"] },
+  ],
+  fields: [
+    { path: "parent_id", label: "sx.k01kind.parent", help: "sx.k01kind.parentHelp", required: true },
+    { path: "title", placeholder: "sx.k01kind.subTitlePh" },
+    { path: "slug", hidden: true },
+    { path: "discovery_terms", aiSuggest: true },
+  ],
+  validate: (payload): SxErrors => (str(payload.parent_id) ? {} : { parent_id: "@required" }),
+};
+
+export function k01LayoutOf(kind: CategoryKind): SxCtorLayout {
+  return kind === "root" ? K01_ROOT_LAYOUT : K01_SUB_LAYOUT;
+}
 
 export const K34_LAYOUT: SxCtorLayout = {
   code: "K34",

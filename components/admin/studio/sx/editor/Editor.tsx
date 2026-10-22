@@ -22,8 +22,10 @@ import { ctxModeOf, isSaveShortcut } from "./model";
 import { useEditorState, type EditorAlert, type EditorInit, type EditorState } from "./useEditorState";
 import { useLeaveGuard, type LeaveGuard } from "./useLeaveGuard";
 import { useCtorVisit } from "../home/ctorUsage";
+import type { CategoryKind } from "../ctor/services";
+import { CategoryKindBar, CategoryKindGate } from "../shared/CategoryKind";
 
-export type EditorProps = { id: string; newCode: string; ctx: string; focus?: string; prefill?: Readonly<Record<string, string>> };
+export type EditorProps = { id: string; newCode: string; ctx: string; focus?: string; prefill?: Readonly<Record<string, string>>; categoryKind?: CategoryKind };
 
 type DrawerState = { open: boolean; tab: EditorTab | null };
 
@@ -74,6 +76,7 @@ function defaultTab(st: EditorState): EditorTab {
 function pageTitle(st: EditorState, t: SxTranslate): string {
   if (st.title) return st.title;
   if (st.phase === "loading") return "";
+  if (st.categoryKind) return t(st.categoryKind === "sub" ? "sx.k01kind.newSub" : "sx.k01kind.newRoot");
   if (st.phase === "not-found") return t("sx.editor.notFoundTitle");
   if (st.phase === "unknown-ctor") return t("sx.editor.unknownTitle");
   if (st.phase === "load-error") return t("sx.ui.errorTitle");
@@ -267,7 +270,12 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
       meta={ready ? <EditorMeta st={st} /> : undefined}
       statusWhenStuck={ready && railMode && !st.blocked ? <StatusRail status={st.status} direct={st.direct} variant="compact" /> : undefined}
       actions={ready ? <EditorActions st={st} narrow={narrow} onSave={() => void onSave()} onPrimary={onPrimary} onMenu={onMenu} /> : undefined}
-      below={<EditorBelow st={st} narrow={narrow} onAlertAction={onAlertAction} />}
+      below={
+        <>
+          {st.categoryKind ? <CategoryKindBar kind={st.categoryKind} base={newCategoryBase(init.ctx ?? "")} /> : null}
+          <EditorBelow st={st} narrow={narrow} onAlertAction={onAlertAction} />
+        </>
+      }
     >
       <EditorForm st={st} onPick={onPick} />
       <EditorDrawer
@@ -291,7 +299,14 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
   );
 }
 
-export function Editor({ id, newCode, ctx, focus, prefill }: EditorProps): ReactElement {
-  const init: EditorInit = newCode ? { code: newCode, id: null, ctx, focus, initialPayload: prefill ? { ...prefill } : undefined } : { code: "", id, focus };
-  return <EditorScreen key={newCode ? `new:${newCode}:${ctx}:${prefill ? JSON.stringify(prefill) : ""}` : `id:${id}`} init={init} />;
+// The plain "new category" link, before a kind is chosen.
+const newCategoryBase = (ctx: string): string => `/admin/studio/o/new?new=K01${ctx ? `&ctx=${encodeURIComponent(ctx)}` : ""}`;
+
+export function Editor({ id, newCode, ctx, focus, prefill, categoryKind }: EditorProps): ReactElement {
+  const labels = useStudioLabels();
+  const category = !!newCode && newCode.toUpperCase() === "K01" && (ctxModeOf(ctx) === "" || ctxModeOf(ctx) === "create");
+  if (category && !categoryKind) return <CategoryKindGate base={newCategoryBase(ctx)} listHref="/admin/studio/c/K01" listLabel={labels.ctorName("K01")} />;
+  const kind = category ? categoryKind : undefined;
+  const init: EditorInit = newCode ? { code: newCode, id: null, ctx, focus, initialPayload: prefill ? { ...prefill } : undefined, categoryKind: kind } : { code: "", id, focus };
+  return <EditorScreen key={newCode ? `new:${newCode}:${ctx}:${kind ?? ""}:${prefill ? JSON.stringify(prefill) : ""}` : `id:${id}`} init={init} />;
 }
