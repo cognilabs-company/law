@@ -2,9 +2,9 @@
 
 import { useEffect, useState, type ComponentType } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { CalendarClock, CircleCheckBig, Clock3, FlaskConical, Play, SendHorizontal, Sparkles, TriangleAlert, Undo2, type LucideProps } from "lucide-react";
+import { ArrowRight, CalendarClock, CircleCheckBig, Clock3, FlaskConical, Play, SendHorizontal, Sparkles, TriangleAlert, Undo2, type LucideProps } from "lucide-react";
 import { fmtDateTime, monthTitle } from "@/lib/date";
-import { isReturn, type Task, type TaskAssignee, type TaskStatus } from "@/lib/services/taskManagement";
+import { isReturn, type Task, type TaskAssignee, type TaskPerson, type TaskStatus } from "@/lib/services/taskManagement";
 
 export type TaskIcon = ComponentType<LucideProps>;
 export const STROKE = 1.75;
@@ -89,6 +89,25 @@ export function Assignees({ people, max = 3, names = true }: { people: TaskAssig
         {rest > 0 ? <span className="ttk-face ttk-face--more">+{rest}</span> : null}
       </span>
       {names ? <span className="ttk-asg__names">{people.length === 1 ? people[0].name : t("peopleCount", { n: people.length })}</span> : <span className="ttk-sr">{people.map((p) => p.name).join(", ")}</span>}
+    </span>
+  );
+}
+
+// Who gave the task and to whom: the creator, an arrow, the assignees.
+export function Handoff({ creator, people }: { creator: TaskPerson | null; people: TaskAssignee[] }) {
+  const { t } = useTaskText();
+  return (
+    <span className="ttk-hand">
+      <span className="ttk-hand__from" title={creator?.name ? t("card.from", { name: creator.name }) : undefined}>
+        <span className="ttk-sr">{t("card.fromLabel")}</span>
+        {creator ? <Face id={creator.id} name={creator.name} size={22} /> : null}
+        <span className="ttk-hand__name">{creator?.name || "—"}</span>
+      </span>
+      <ArrowRight aria-hidden strokeWidth={STROKE} className="ttk-hand__arrow" />
+      <span className="ttk-hand__to">
+        <span className="ttk-sr">{t("card.toLabel")}</span>
+        <Assignees people={people} max={3} />
+      </span>
     </span>
   );
 }

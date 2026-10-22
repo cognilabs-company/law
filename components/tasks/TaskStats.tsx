@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CircleCheckBig, ClipboardList, Hourglass, Target, TriangleAlert, UserX, ChevronRight } from "lucide-react";
 import { isAborted } from "@/lib/http";
-import { getTaskStats, taskErrorOf, TASK_STATUSES, type TaskStats as Stats } from "@/lib/services/taskManagement";
+import { getTaskStats, taskErrorOf, TASK_STATUSES, type TaskCounts, type TaskStats as Stats } from "@/lib/services/taskManagement";
 import { STATUS_ICON, STROKE, useTaskText, type TaskIcon } from "./parts";
 
 function useCount(target: number): number {
@@ -57,11 +57,15 @@ function Tile({ icon: I, tone, value, label, hint, onClick, delay }: { icon: Tas
   );
 }
 
-export function useTaskStats(tick: number): { stats: Stats | null; hidden: boolean } {
+// `period`: the page's date range as YYYY-MM-DD; the stats endpoint takes a
+// closed range, so both ends arrive filled (see TeamTasksPage).
+export function useTaskStats(tick: number, period: { from: string; to: string } | null = null): { stats: Stats | null; hidden: boolean } {
   const [state, setState] = useState<{ stats: Stats | null; hidden: boolean }>({ stats: null, hidden: false });
+  const from = period?.from ?? "";
+  const to = period?.to ?? "";
   useEffect(() => {
     const c = new AbortController();
-    getTaskStats({}, c.signal).then(
+    getTaskStats(from && to ? { dateFrom: from, dateTo: to } : {}, c.signal).then(
       (stats) => setState({ stats, hidden: false }),
       (e) => {
         if (isAborted(e)) return;
@@ -70,11 +74,15 @@ export function useTaskStats(tick: number): { stats: Stats | null; hidden: boole
       },
     );
     return () => c.abort();
-  }, [tick]);
+  }, [tick, from, to]);
   return state;
 }
 
-export function TaskKpis({ stats: s, hidden, onReady, onUnassigned }: { stats: Stats | null; hidden: boolean; onReady: () => void; onUnassigned: () => void }) {
+// `scoped`: the list's status counts while a period is set. The stats call
+// answers "created" and "done" for the period itself, but its open/overdue
+// side is always "now"; with a period those come from the tasks due in it,
+// so every card on the page speaks about the same days.
+export function TaskKpis({ stats: s, hidden, onReady, onUnassigned, scoped = null }: { stats: Stats | null; hidden: boolean; onReady: () => void; onUnassigned: () => void; scoped?: TaskCounts | null }) {
   const { t } = useTaskText();
   if (hidden) return null;
   if (!s) {
@@ -88,10 +96,14 @@ export function TaskKpis({ stats: s, hidden, onReady, onUnassigned }: { stats: S
   }
   return (
     <div className="ttk-kpis">
-      <Tile icon={ClipboardList} tone="brand" value={s.created} label={t("kpi.created")} hint={t("kpi.createdHint")} delay={0} />
-      <Tile icon={CircleCheckBig} tone="ok" value={s.readyInPeriod} label={t("kpi.done")} hint={t("kpi.doneHint")} delay={60} onClick={onReady} />
-      <Tile icon={Hourglass} tone="open" value={s.active} label={t("kpi.open")} hint={s.overdue ? t("kpi.openLate", { n: s.overdue }) : t("kpi.openHint")} delay={120} />
-      {s.unassigned ? (
+      <Tile icon={ClipboardList} tone="brand" value={s.created} label={t(scoped ? "kpi.createdP" : "kpi.created")} hint={t(scoped ? "kpi.createdHintP" : "kpi.createdHint")} delay={0} />
+      <Tile icon={CircleCheckBig} tone="ok" value={s.readyInPeriod} label={t(scoped ? "kpi.doneP" : "kpi.done")} hint={t(scoped ? "kpi.doneHintP" : "kpi.doneHint")} delay={60} onClick={onReady} />
+      {scoped ? (
+        <Tile icon={Hourglass} tone="open" value={scoped.new + scoped.in_progress + scoped.testing} label={t("kpi.openP")} hint={t("kpi.openHintP")} delay={120} />
+      ) : (
+        <Tile icon={Hourglass} tone="open" value={s.active} label={t("kpi.open")} hint={s.overdue ? t("kpi.openLate", { n: s.overdue }) : t("kpi.openHint")} delay={120} />
+      )}
+      {s.unassigned && !scoped ? (
         <button type="button" className="ttk-alert" onClick={onUnassigned} style={{ animationDelay: "180ms" }}>
           <UserX aria-hidden strokeWidth={STROKE} />
           <span>{t("kpi.unassigned", { n: s.unassigned })}</span>
@@ -102,8 +114,11 @@ export function TaskKpis({ stats: s, hidden, onReady, onUnassigned }: { stats: S
   );
 }
 
-export function TaskProgress({ stats: s }: { stats: Stats | null }) {
+export function TaskProgress({ stats: full, scoped = null }: { stats: Stats | null; scoped?: TaskCounts | null }) {
   const { t, status } = useTaskText();
+  // With a period, the bar and the split are the tasks due in it.
+  const scopedTotal = scoped ? TASK_STATUSES.reduce((k, x) => k + scoped[x], 0) : 0;
+  const s: Stats | null = full && scoped ? { ...full, total: scopedTotal, readyTotal: scoped.ready, byStatus: scoped, overdue: 0 } : full;
   const rate = s && s.total ? Math.round((s.readyTotal / s.total) * 100) : 0;
   const n = useCount(rate);
   if (!s) return null;

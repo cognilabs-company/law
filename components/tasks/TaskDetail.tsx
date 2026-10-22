@@ -9,7 +9,7 @@ import TaskAttachments from "./TaskAttachments";
 
 const EVENT_ICON: Record<string, ComponentType<LucideProps>> = { created: Plus, updated: Pencil, assignees_changed: Users, status_changed: Flag, returned: Undo2, deleted: Trash2 };
 
-function HistoryRow({ item, i }: { item: TaskHistoryItem; i: number }) {
+function HistoryRow({ item, i, last }: { item: TaskHistoryItem; i: number; last: boolean }) {
   const { t, status, when } = useTaskText();
   const returned = item.eventType === "returned";
   const known = item.eventType in EVENT_ICON;
@@ -17,7 +17,7 @@ function HistoryRow({ item, i }: { item: TaskHistoryItem; i: number }) {
   const move = item.fromStatus && item.toStatus ? `${status(item.fromStatus)} → ${status(item.toStatus)}` : "";
   const I = EVENT_ICON[item.eventType] ?? Flag;
   return (
-    <li className={`ttk-h${returned ? " ttk-h--ret" : ""}`} style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
+    <li className={`ttk-h${returned ? " ttk-h--ret" : ""}${last ? " ttk-h--last" : ""}`} style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }}>
       <span className="ttk-h__dot" aria-hidden>
         <I strokeWidth={STROKE} />
       </span>
@@ -25,6 +25,7 @@ function HistoryRow({ item, i }: { item: TaskHistoryItem; i: number }) {
         <p className="ttk-h__top">
           <strong>{what}</strong>
           {move ? <span className="ttk-h__move">{move}</span> : null}
+          {last ? <span className="ttk-h__latest">{t("detail.latest")}</span> : null}
         </p>
         {item.comment ? <p className={returned ? "ttk-h__why" : "ttk-h__note"}>{item.comment}</p> : null}
         <p className="ttk-h__meta">{[item.actor?.name, when(item.createdAt)].filter(Boolean).join(" · ")}</p>
@@ -71,8 +72,9 @@ export default function TaskDetail({
   onDelete: (task: Task) => void;
 }) {
   const { t, when } = useTaskText();
-  const history = [...(task?.history ?? [])].sort((a, b) => Date.parse(b.createdAt || "0") - Date.parse(a.createdAt || "0"));
-  const lastReturn = task && task.status === "in_progress" ? history.find((h) => h.eventType === "returned" && h.comment) : undefined;
+  // The story in the order it happened: created first, the latest step last.
+  const history = [...(task?.history ?? [])].sort((a, b) => Date.parse(a.createdAt || "0") - Date.parse(b.createdAt || "0"));
+  const lastReturn = task && task.status === "in_progress" ? history.findLast((h) => h.eventType === "returned" && h.comment) : undefined;
   const title = task ? task.title : t("detail.title");
   const hasActions = task && !task.deletedAt && ((task.actions.canChangeStatus && task.actions.nextStatuses.length > 0) || task.actions.canEdit || task.actions.canAssign || task.actions.canDelete);
 
@@ -199,7 +201,7 @@ export default function TaskDetail({
               {history.length ? (
                 <ol>
                   {history.map((h, i) => (
-                    <HistoryRow key={h.id || `${h.eventType}${h.createdAt}`} item={h} i={i} />
+                    <HistoryRow key={h.id || `${h.eventType}${h.createdAt}`} item={h} i={i} last={i === history.length - 1} />
                   ))}
                 </ol>
               ) : (

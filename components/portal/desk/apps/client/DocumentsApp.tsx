@@ -1,8 +1,9 @@
 "use client";
 
+import { builderRouteOf } from "@/components/portal/docCatalog/builderLink";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { docPayPhase, docRealtimeOf, getDocumentRequest, getDocumentRequestFile, listClientDocumentFlowPage, rateDocumentRequest, requestDocumentLawyerReviewGated, searchServices, type ClientDocFlowItem, type ClientDocFlowMode } from "@/lib/services/backend";
+import { docPayPhase, docRealtimeOf, getDocumentRequestFile, listClientDocumentFlowPage, rateDocumentRequest, requestDocumentLawyerReviewGated, type ClientDocFlowItem, type ClientDocFlowMode } from "@/lib/services/backend";
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { fetchAndDeliver } from "@/lib/download";
 import { fmtUzs } from "@/lib/money";
@@ -272,13 +273,10 @@ function Sheet({ x, statusText, openLink, onChanged, say }: { x: ClientDocFlowIt
   const download = () => void fetchAndDeliver(() => getDocumentRequestFile(x.id), fileName, true).then((ok) => !ok && say(t("downloadError"), "err"));
   async function openConstructor() {
     setCtor(false);
-    if (x.service?.id) return openLink({ appId: "", route: `/portal/client/services/document/${x.service.id}` });
     setBusy(true);
     try {
-      const req = await getDocumentRequest(x.id);
-      const hits = await searchServices(x.title || req.title, { limit: 50 }, locale);
-      const svc = hits.map((h) => h.service).find((s) => !!s.documentTemplateId && s.documentTemplateId === req.templateId);
-      if (svc) openLink({ appId: "", route: `/portal/client/services/document/${svc.id}` });
+      const route = await builderRouteOf(x);
+      if (route) openLink({ appId: "", route });
       else say(t("constructorOpenError"), "err");
     } catch {
       say(t("constructorOpenError"), "err");

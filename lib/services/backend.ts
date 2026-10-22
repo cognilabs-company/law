@@ -3049,6 +3049,11 @@ export type ClientDocFlowItem = {
   // "Konstruktorda davom etish" go straight there instead of trying to find
   // the service again by searching the catalogue for the request's title.
   service: BackendService | null;
+  // The template the request is filled from (document_request.template_id).
+  // Services can be removed while their templates stay — on 2026-10-22 every
+  // live row had lost its service and 36 of 37 still named a live template —
+  // so the builder is opened through the template, not the service.
+  templateId: string;
   payment: DocFlowPayment;
   createdAt: string;
   updatedAt: string;
@@ -3135,6 +3140,7 @@ function normClientDocFlowItem(v: unknown): ClientDocFlowItem {
     // "do I know which service this is", and an object that answers it with ""
     // is the shape that sends them looking it up by title instead.
     service: asDict(d.service).id ? normService(d.service) : null,
+    templateId: asStr(asDict(d.document_request).template_id ?? d.template_id ?? asDict(d.service).document_template_id),
     payment: normDocFlowPayment(d),
     createdAt: asStr(d.created_at),
     updatedAt: asStr(d.updated_at),

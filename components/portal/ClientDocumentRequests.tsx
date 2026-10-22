@@ -1,13 +1,12 @@
 "use client";
 
+import { builderRouteOf } from "@/components/portal/docCatalog/builderLink";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import {
   listClientDocumentFlowPage,
   getDocumentRequestFile,
-  getDocumentRequest,
-  searchServices,
   requestDocumentLawyerReviewGated,
   docPayPhase,
   docRealtimeOf,
@@ -306,39 +305,19 @@ export default function ClientDocumentRequests() {
   const [sendBusy, setSendBusy] = useState(false);
 
   // §3 L64 + §5 L117-122: "Ha" opens the held document's OWN constructor.
-  // The backend points at it with an API path
-  // (actions.constructor_continue_url = "/document-requests/{id}"), while the
-  // page that renders the constructor is keyed on the SERVICE
-  // (/portal/client/services/document/{serviceId}, which resumes exactly this
-  // request — see ServiceDocumentRequest). The row names that service itself
-  // (`service.id`, on 39 of the 50 live rows), so this is a straight
-  // navigation with nothing to look up and nothing to fail.
-  //
-  // It used to find the service by searching the catalogue for the request's
-  // title, and that is the button the client reported as dead: catalogue
-  // titles run to 133 characters, /services/search refuses a q longer than
-  // 120 with a 422, so every long-titled document landed in the catch below
-  // and the constructor never opened. The search survives only as the
-  // fallback for a row that names no service, and searchServices trims q now.
+  // It opens on the template page (builderRouteOf), which needs only the
+  // template the request was filled from: catalogue services can be removed
+  // while their templates stay, and on 2026-10-22 every row had lost its
+  // service — searching the catalogue for it, as this used to, found nothing
+  // and showed "Couldn't open the builder".
   async function openConstructor(item: ClientDocFlowItem) {
     if (openBusy) return;
-    if (item.service?.id) {
-      setPromptId("");
-      router.push(`/portal/client/services/document/${item.service.id}`);
-      return;
-    }
     setOpenBusy(item.id);
     try {
-      const req = await getDocumentRequest(item.id);
-      const hits = await searchServices(item.title || req.title, { limit: 50 }, locale);
-      const svc = hits.map((h) => h.service).find((s) => !!s.documentTemplateId && s.documentTemplateId === req.templateId);
-      if (!svc) {
-        notify.error(t("ctorFailed"), { id: `mydocs-ctor:${item.id}`, body: t("constructorOpenError") });
-        setPromptId("");
-        return;
-      }
+      const href = await builderRouteOf(item);
       setPromptId("");
-      router.push(`/portal/client/services/document/${svc.id}`);
+      if (href) router.push(href);
+      else notify.error(t("ctorFailed"), { id: `mydocs-ctor:${item.id}`, body: t("constructorOpenError") });
     } catch {
       // The notice lives at the top of the list, which is behind this
       // dialog — leaving it open would have shown the client nothing at all.

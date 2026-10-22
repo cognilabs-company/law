@@ -66,7 +66,7 @@ function docRequestIdOf(url: string): string {
 // Only the copy handed to the panel is changed; the server's row keeps its
 // own status, and the panel's PATCH still goes to this row's own
 // constructor_answers_url.
-function constructorView(r: DocumentRequest): DocumentRequest {
+export function constructorView(r: DocumentRequest): DocumentRequest {
   const env = (r.answers || {}) as Record<string, unknown>;
   const inner = env.answers;
   const src = inner && typeof inner === "object" && !Array.isArray(inner) ? (inner as Record<string, unknown>) : env;

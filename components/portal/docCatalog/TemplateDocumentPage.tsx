@@ -4,9 +4,11 @@ import "./docCatalog.css";
 import { useEffect, useId, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import { Link } from "@/i18n/navigation";
 import DocumentRequestPanel from "@/components/portal/DocumentRequestPanel";
 import ManualDocPlanGate from "@/components/portal/ManualDocPlanGate";
+import { constructorView } from "@/components/portal/ServiceDocumentRequest";
 import { EmptyState, ErrorState } from "@/components/portal/DataState";
 import { IconCheck, IconChevronLeft, IconDownload, IconEdit, IconFileText, IconHeadset, IconUsers } from "@/components/icons";
 import { ApiError, errDetail, http } from "@/lib/http";
@@ -17,6 +19,7 @@ import { fmtUzs } from "@/lib/money";
 import {
   createDocumentRequest,
   getDocumentRequest,
+  isLawyerHeld,
   listDocumentRequests,
   normTemplate,
   requestDocumentLawyerReviewGated,
@@ -72,6 +75,28 @@ export default function TemplateDocumentPage({ templateId }: { templateId: strin
   const [need, setNeed] = useState("");
   const [docType, setDocType] = useState("");
   const [needErr, setNeedErr] = useState(false);
+
+  // ?request=<id> (from "My documents"): that request opens in the builder
+  // straight away. A row an advocate holds is shown as its constructor, the
+  // same unwrapping the service builder applies.
+  const requested = useSearchParams().get("request") ?? "";
+  useEffect(() => {
+    if (!requested) return;
+    let alive = true;
+    getDocumentRequest(requested).then(
+      (r) => {
+        if (!alive) return;
+        setView({ kind: "work", req: isLawyerHeld(r) ? constructorView(r) : r });
+        const url = new URL(window.location.href);
+        url.searchParams.delete("request");
+        window.history.replaceState(window.history.state, "", url.toString());
+      },
+      (e) => alive && notify.error(t("startError"), { error: e }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [requested, t]);
 
   // §5.3: the template's own record is the source of truth once opened.
   useEffect(() => {

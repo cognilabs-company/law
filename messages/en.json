@@ -6818,7 +6818,7 @@
       },
       "total": "Total",
       "totalNote": "LexGo sets the price. The payment is confirmed through Telegram.",
-      "submit": "Send request",
+      "submit": "Buy",
       "sending": "Sending…",
       "noteTooLong": "Keep the note under 1000 characters.",
       "sentTitle": "Your request is in",
@@ -22606,7 +22606,8 @@
       "deleteReason": "Deletion reason",
       "noDescription": "No description.",
       "history": "History",
-      "noHistory": "No history yet."
+      "noHistory": "No history yet.",
+      "latest": "Latest"
     },
     "attachments": {
       "title": "Attachments",
@@ -22660,7 +22661,13 @@
       "open": "Not done",
       "openHint": "Open right now",
       "openLate": "{n} overdue",
-      "unassigned": "{n} tasks unassigned"
+      "unassigned": "{n} tasks unassigned",
+      "createdP": "Assigned in period",
+      "createdHintP": "Tasks created in this period",
+      "doneP": "Done in period",
+      "doneHintP": "Tasks finished in this period",
+      "openP": "Open, due in period",
+      "openHintP": "Tasks due in this period that are not finished yet"
     },
     "progress": {
       "title": "Completion rate",
@@ -22693,6 +22700,22 @@
       "skip": "Close without files",
       "retry": "Upload the files again",
       "uploading": "Uploading files ({n})…"
+    },
+    "period": {
+      "label": "Period",
+      "hintOff": "All time. Pick a period and the list, status counts and figures follow it.",
+      "hintOn": "The list, status counts, open tasks and progress cover tasks due in this period; “assigned” and “done” count activity in it.",
+      "quick": "Quick periods",
+      "all": "All time",
+      "today": "Today",
+      "week": "This week",
+      "month": "This month",
+      "clear": "Clear the period"
+    },
+    "card": {
+      "from": "Assigned by {name}",
+      "fromLabel": "Assigned by",
+      "toLabel": "Assigned to"
     }
   }
 }

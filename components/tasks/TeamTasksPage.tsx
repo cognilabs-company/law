@@ -25,7 +25,7 @@ import {
   type TaskMeta,
   type TaskStatus,
 } from "@/lib/services/taskManagement";
-import { Assignees, Deadline, STATUS_ICON, STROKE, StatusActions, StatusPill, TodayDate, useTaskText } from "./parts";
+import { Deadline, Handoff, STATUS_ICON, STROKE, StatusActions, StatusPill, TodayDate, useTaskText } from "./parts";
 import { TaskKpis, TaskProgress, useTaskStats } from "./TaskStats";
 import TaskDetail from "./TaskDetail";
 import TaskForm, { type TaskFormMode } from "./TaskForm";
@@ -40,6 +40,23 @@ type Reason = { kind: "return"; task: Task } | { kind: "delete"; task: Task };
 
 const dayStart = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : "");
 const dayEnd = (d: string) => (d ? new Date(`${d}T23:59:59.999`).toISOString() : "");
+const pad = (n: number) => String(n).padStart(2, "0");
+const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+// Quick ranges for the period bar, as local calendar days.
+function presetRange(key: "today" | "week" | "month"): { from: string; to: string } {
+  const now = new Date();
+  if (key === "today") return { from: ymd(now), to: ymd(now) };
+  if (key === "week") {
+    const start = new Date(now);
+    start.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    return { from: ymd(start), to: ymd(end) };
+  }
+  return { from: ymd(new Date(now.getFullYear(), now.getMonth(), 1)), to: ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0)) };
+}
+const PRESETS = ["today", "week", "month"] as const;
 
 function readTaskParam(): string {
   if (typeof window === "undefined") return "";
@@ -67,7 +84,11 @@ export default function TeamTasksPage() {
   const [list, setList] = useState<ListState>({ items: [], total: 0, counts: ZERO, hasMore: false, loading: true, error: "", ready: false });
   const [openId, setOpenId] = useState("");
   const [statsTick, setStatsTick] = useState(0);
-  const stats = useTaskStats(statsTick);
+  // One period for the whole page: the list keeps the tasks whose deadline
+  // falls in it, the counters and progress count the activity inside it. The
+  // stats endpoint wants both ends, so an open end becomes the other one.
+  const period = from || to ? { from: from || to, to: to || from } : null;
+  const stats = useTaskStats(statsTick, period);
   const [detail, setDetail] = useState<Task | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailErr, setDetailErr] = useState("");
@@ -100,6 +121,24 @@ export default function TeamTasksPage() {
   }, [t]);
 
   const filters = useMemo(() => ({ status, assignee, q, deadlineFrom: dayStart(from), deadlineTo: dayEnd(to) }), [status, assignee, q, from, to]);
+
+  // With a period, the list endpoint narrows its rows but not its
+  // status_counts (checked 2026-10-22: a September range gave total 0 with
+  // counts 14/2/0/8). The per-status totals are read with the same filters
+  // instead, so the sidebar, the cards and the list all agree.
+  const periodKey = from || to ? JSON.stringify([assignee, q, from, to, statsTick]) : "";
+  const [periodCounts, setPeriodCounts] = useState<{ key: string; counts: TaskCounts } | null>(null);
+  useEffect(() => {
+    if (!periodKey) return;
+    const c = new AbortController();
+    const base = { assignee, q, deadlineFrom: dayStart(from), deadlineTo: dayEnd(to), limit: 1, offset: 0 };
+    Promise.all(TASK_STATUSES.map((st) => listTasks({ ...base, status: st }, c.signal).then((pg) => [st, pg.total] as const))).then(
+      (rows) => !c.signal.aborted && setPeriodCounts({ key: periodKey, counts: Object.fromEntries(rows) as TaskCounts }),
+      () => undefined,
+    );
+    return () => c.abort();
+  }, [periodKey, assignee, q, from, to]);
+  const scopedCounts = periodKey && periodCounts?.key === periodKey ? periodCounts.counts : null;
 
   const load = useCallback(
     async (mode: "reset" | "more" | "refresh") => {
@@ -318,8 +357,9 @@ export default function TeamTasksPage() {
     setTo("");
   };
 
-  const all = TASK_STATUSES.reduce((n, s) => n + list.counts[s], 0);
-  const statusRows: { value: TaskStatus | ""; label: string; n: number }[] = [{ value: "", label: t("allStatuses"), n: all }, ...TASK_STATUSES.map((s) => ({ value: s, label: statusLabel(s), n: list.counts[s] }))];
+  const counts = scopedCounts ?? list.counts;
+  const all = TASK_STATUSES.reduce((n, s) => n + counts[s], 0);
+  const statusRows: { value: TaskStatus | ""; label: string; n: number }[] = [{ value: "", label: t("allStatuses"), n: all }, ...TASK_STATUSES.map((s) => ({ value: s, label: statusLabel(s), n: counts[s] }))];
 
   const fields: FilterField[] = [
     {
@@ -334,25 +374,6 @@ export default function TeamTasksPage() {
         { value: "unassigned", label: t("filter.unassigned") },
         ...people,
       ],
-    },
-    {
-      key: "deadline",
-      label: t("filter.deadline"),
-      icon: CalendarRange,
-      wide: true,
-      more: true,
-      active: Boolean(from || to),
-      chip: from || to ? [from, to].filter(Boolean).join(" — ") : null,
-      clear: () => {
-        setFrom("");
-        setTo("");
-      },
-      node: (
-        <span className="ttk-range">
-          <DatePicker value={from} onChange={setFrom} placeholder={t("filter.from")} ariaLabel={t("filter.from")} max={to || undefined} />
-          <DatePicker value={to} onChange={setTo} placeholder={t("filter.to")} ariaLabel={t("filter.to")} min={from || undefined} />
-        </span>
-      ),
     },
   ];
 
@@ -392,7 +413,42 @@ export default function TeamTasksPage() {
         </div>
       </header>
 
-      <TaskKpis stats={stats.stats} hidden={stats.hidden} onReady={() => setStatus("ready")} onUnassigned={() => setAssignee("unassigned")} />
+      <section className="ttk-period" aria-labelledby="ttk-period-h">
+        <span className="ttk-period__ic" aria-hidden>
+          <CalendarRange strokeWidth={STROKE} />
+        </span>
+        <div className="ttk-period__t">
+          <p id="ttk-period-h" className="ttk-period__h">
+            {t("period.label")}
+          </p>
+          <p className="ttk-period__hint">{from || to ? t("period.hintOn") : t("period.hintOff")}</p>
+        </div>
+        <div className="ttk-period__chips" role="group" aria-label={t("period.quick")}>
+          <button type="button" className={!from && !to ? "ttk-preset is-on" : "ttk-preset"} onClick={() => (setFrom(""), setTo(""))}>
+            {t("period.all")}
+          </button>
+          {PRESETS.map((k) => {
+            const r = presetRange(k);
+            const on = from === r.from && to === r.to;
+            return (
+              <button key={k} type="button" className={on ? "ttk-preset is-on" : "ttk-preset"} onClick={() => (setFrom(r.from), setTo(r.to))}>
+                {t(`period.${k}`)}
+              </button>
+            );
+          })}
+        </div>
+        <div className="ttk-period__pick ttk-range">
+          <DatePicker value={from} onChange={setFrom} placeholder={t("filter.from")} ariaLabel={t("filter.from")} max={to || undefined} />
+          <DatePicker value={to} onChange={setTo} placeholder={t("filter.to")} ariaLabel={t("filter.to")} min={from || undefined} />
+          {from || to ? (
+            <button type="button" className="ttk-period__x" onClick={() => (setFrom(""), setTo(""))} aria-label={t("period.clear")} title={t("period.clear")}>
+              <X aria-hidden strokeWidth={STROKE} />
+            </button>
+          ) : null}
+        </div>
+      </section>
+
+      <TaskKpis stats={stats.stats} hidden={stats.hidden} onReady={() => setStatus("ready")} onUnassigned={() => setAssignee("unassigned")} scoped={scopedCounts} />
 
       <FilterBar fields={fields} search={{ value: qInput, onChange: setQInput, placeholder: t("filter.search"), maxLength: 200 }} count={list.total} onReset={filtered ? resetFilters : undefined} />
 
@@ -416,7 +472,7 @@ export default function TeamTasksPage() {
         </aside>
 
         <div className="ttk-aside2">
-          <TaskProgress stats={stats.stats} />
+          <TaskProgress stats={stats.stats} scoped={scopedCounts} />
         </div>
 
         <section className="ttk-list" aria-busy={list.loading} aria-label={t("title")}>
@@ -472,7 +528,7 @@ export default function TeamTasksPage() {
                         <p className="ttk-row__title">{task.title}</p>
                         <p className="ttk-row__meta">
                           <Deadline task={task} />
-                          <Assignees people={task.assignees} />
+                          <Handoff creator={task.creator} people={task.assignees} />
                           <span className="ttk-row__upd">{t("updated", { when: when(task.updatedAt) })}</span>
                         </p>
                       </div>

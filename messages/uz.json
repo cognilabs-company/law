@@ -6818,7 +6818,7 @@
       },
       "total": "Jami",
       "totalNote": "Narxni LexGo belgilaydi. To'lov Telegram orqali tasdiqlanadi.",
-      "submit": "So'rov yuborish",
+      "submit": "Sotib olish",
       "sending": "Yuborilmoqda…",
       "noteTooLong": "Izoh 1000 belgidan oshmasin.",
       "sentTitle": "So'rovingiz qabul qilindi",
@@ -22612,7 +22612,8 @@
       "deleteReason": "O'chirish sababi",
       "noDescription": "Tavsif yozilmagan.",
       "history": "Tarix",
-      "noHistory": "Tarix bo'sh."
+      "noHistory": "Tarix bo'sh.",
+      "latest": "Oxirgi"
     },
     "attachments": {
       "title": "Biriktirilgan fayllar",
@@ -22666,7 +22667,13 @@
       "open": "Bajarilmagan",
       "openHint": "Hozir ochiq vazifalar",
       "openLate": "{n} tasining muddati o'tgan",
-      "unassigned": "{n} ta vazifa biriktirilmagan"
+      "unassigned": "{n} ta vazifa biriktirilmagan",
+      "createdP": "Davrda berilgan",
+      "createdHintP": "Shu davrda yaratilgan vazifalar",
+      "doneP": "Davrda bajarilgan",
+      "doneHintP": "Shu davrda tayyor bo'lganlar",
+      "openP": "Ochiq, muddati davrda",
+      "openHintP": "Muddati shu davrga tushgan, hali tayyor bo'lmagan vazifalar"
     },
     "progress": {
       "title": "Bajarilish darajasi",
@@ -22699,6 +22706,22 @@
       "skip": "Fayllarsiz yopish",
       "retry": "Fayllarni qayta yuklash",
       "uploading": "Fayllar yuklanmoqda ({n})…"
+    },
+    "period": {
+      "label": "Davr",
+      "hintOff": "Barcha vaqt. Davrni tanlasangiz, ro'yxat, holatlar soni va ko'rsatkichlar shu davr bo'yicha ko'rsatiladi.",
+      "hintOn": "Ro'yxat, holatlar soni, ochiq vazifalar va bajarilish — muddati shu davrga tushgan vazifalar; «berilgan» va «bajarilgan» — shu davrdagi faollik.",
+      "quick": "Tezkor davrlar",
+      "all": "Barcha vaqt",
+      "today": "Bugun",
+      "week": "Shu hafta",
+      "month": "Shu oy",
+      "clear": "Davrni tozalash"
+    },
+    "card": {
+      "from": "Topshiriq bergan: {name}",
+      "fromLabel": "Topshiriq bergan",
+      "toLabel": "Kimga berilgan"
     }
   }
 }
