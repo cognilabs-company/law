@@ -22119,7 +22119,17 @@
       "downloadError": "Yuklab bo'lmadi, qayta urinib ko'ring",
       "prev": "Oldingi rasm",
       "next": "Keyingi rasm",
-      "position": "{n} / {total}"
+      "position": "{n} / {total}",
+      "close": "Yopish",
+      "zoom": "Kattalashtirish",
+      "zoomIn": "Kattalashtirish",
+      "zoomOut": "Kichraytirish",
+      "fit": "Ekranga moslash",
+      "info": "Ma'lumot",
+      "addedBy": "Kim qo'shgan",
+      "addedAt": "Qachon qo'shilgan",
+      "size": "Hajmi va turi",
+      "keys": "← → rasmlar orasida · + − kattalashtirish · 0 moslash · Esc yopish"
     },
     "history": {
       "created": "Yaratildi",

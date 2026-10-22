@@ -22113,7 +22113,17 @@
       "downloadError": "Couldn’t download, try again",
       "prev": "Previous image",
       "next": "Next image",
-      "position": "{n} of {total}"
+      "position": "{n} of {total}",
+      "close": "Close",
+      "zoom": "Zoom",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fit": "Fit to screen",
+      "info": "Details",
+      "addedBy": "Added by",
+      "addedAt": "Added on",
+      "size": "Size and type",
+      "keys": "← → between images · + − zoom · 0 fit · Esc close"
     },
     "history": {
       "created": "Created",
