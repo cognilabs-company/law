@@ -10,7 +10,9 @@ export type InlineTarget =
   | { kind: "edit"; code: string; ctx: string; label: string; value: string }
   | { kind: "object"; code: string; id: string; label: string; value: string; isNew: boolean };
 
-export type InlineContext = { categoryId: string; list?: boolean; serviceId?: string };
+// `audience` presets who a new service rule is for, when it is created from
+// one side's rule list.
+export type InlineContext = { categoryId: string; list?: boolean; serviceId?: string; audience?: "client" | "executor" };
 
 export type InlinePending = {
   objectId: string;
@@ -104,6 +106,7 @@ export function prefillOf(code: string, keys: ReadonlySet<string>, title: string
     const key = ruleKeyOf(name);
     if (key) out.rule_key = key;
   }
+  if (context.audience && keys.has("audience")) out.audience = context.audience;
   if (!keys.has("scope_type")) return out;
   const cat = context.categoryId.trim();
   const catKey = keys.has("category_id") ? "category_id" : keys.has("scope_id") ? "scope_id" : "";

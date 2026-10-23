@@ -10,7 +10,7 @@ import { SELLER_PREVIEW_SECTIONS, factSections } from "@/components/marketplace/
 export default function SellerTermsPreview({ config, basePrice, currency, aiId }: { config: RuntimeConfig; basePrice: number; currency: string; aiId?: string }) {
   const t = useTranslations("marketplace.runtime");
   const uid = useId();
-  if (!factSections(config, SELLER_PREVIEW_SECTIONS).length) return null;
+  if (!factSections(config, SELLER_PREVIEW_SECTIONS, "executor").length) return null;
   return (
     <details className="svterms" data-ai-id={aiId} data-ai-type={aiId ? "section" : undefined}>
       <summary aria-describedby={`${uid}-h`}>
@@ -22,7 +22,7 @@ export default function SellerTermsPreview({ config, basePrice, currency, aiId }
         <IconChevronDown aria-hidden="true" className="svterms__chev" />
       </summary>
       <div className="svterms__body">
-        <ServiceFacts config={config} tone="assist" basePrice={basePrice} currency={currency} sections={SELLER_PREVIEW_SECTIONS} showScope />
+        <ServiceFacts config={config} tone="assist" basePrice={basePrice} currency={currency} sections={SELLER_PREVIEW_SECTIONS} showScope ruleSide="executor" />
       </div>
     </details>
   );

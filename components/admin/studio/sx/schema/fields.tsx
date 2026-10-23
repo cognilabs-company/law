@@ -39,6 +39,7 @@ import { ChecklistEditor } from "./k02/ChecklistEditor";
 import { FactorOverrides } from "./k02/FactorOverrides";
 import { FACTOR_IDS, TEMPLATE_ID, TEMPLATE_MODE, TEMPLATE_SKIP, canSuggest, suggestBody, templateModeOf } from "./k02/model";
 import { TemplateField } from "./k02/TemplateField";
+import { BOARD_FIELDS, RULE_IDS, RuleAudienceBoard } from "./k02/RuleAudienceBoard";
 import { RefPicker } from "./RefPicker";
 import { NEON_WIDE_RO, fieldIcon, type SxLook } from "./neonLook";
 import { RichText, RichTextView } from "./RichText";
@@ -435,12 +436,16 @@ function RowsField({ node, path, ai, id, label, ro, f }: { node: SchemaFieldMode
   );
 }
 
-function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: string; scope: SxValues }): ReactElement | null {
+// `inBoard`: drawn by a board that owns the field (the K02 rule panels),
+// not by its section.
+function SchemaFieldImpl({ node, path, scope, inBoard = false }: { node: SchemaFieldModel; path: string; scope: SxValues; inBoard?: boolean }): ReactElement | null {
   const env = useEnv();
   const { model, root, labels, t, policy, errors, emit, readOnly: formRo } = env;
   const f = node.field;
   const lf = node.layout;
   if (lf?.hidden || f?.hidden) return null;
+  const k02 = model.code.toUpperCase() === "K02";
+  if (k02 && !inBoard && BOARD_FIELDS.has(node.pattern)) return null;
   const ctx: SxLayoutCtx = layoutCtx(model, root, scope, env.mode, env.recordId);
   if (lf?.visible && !lf.visible(ctx)) return null;
   if (f && !fieldVisible(f, scope as Dict)) return null;
@@ -539,6 +544,35 @@ function SchemaFieldImpl({ node, path, scope }: { node: SchemaFieldModel; path: 
         {extra}
       </div>
     );
+
+  // Rules for each side of the service in their own panel (see
+  // RuleAudienceBoard): the shared rules, the service's own rules, and the
+  // side's other rule setting.
+  if (k02 && node.pattern === RULE_IDS && source) {
+    const nodes = model.sections.flatMap((s) => s.fields);
+    return cell(
+      <RuleAudienceBoard
+        id={id}
+        ai={ai}
+        root={root}
+        source={source}
+        readOnly={ro}
+        errors={errors}
+        policy={policy}
+        t={t}
+        errorText={(tok, p) => labels.error(tok, { type: "text", key: lastKey(p), ctor: model.code, path: p })}
+        emit={(p, v) => emit(p, v)}
+        renderField={(pattern) => {
+          const n = nodes.find((x) => x.pattern === pattern);
+          return n ? <SchemaField node={n} path={pattern} scope={root} inBoard /> : null;
+        }}
+        code={model.code}
+        recordId={env.recordId}
+        owner={env.owner ?? ""}
+        categoryId={str(root.category_id).trim()}
+      />,
+    );
+  }
 
   if (model.code.toUpperCase() === "K02" && node.pattern === TEMPLATE_MODE) {
     const tplField = model.ctor.typed.find((x) => x.key === TEMPLATE_ID) ?? null;

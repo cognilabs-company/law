@@ -36,6 +36,8 @@ type RefPickerBase = {
   inlineContext?: InlineContext;
   inlineOwner?: string;
   inlineAddKey?: string;
+  // Narrows the offered options (a picked value always stays shown).
+  keep?: (value: string) => boolean;
 };
 
 export type RefPickerProps = RefPickerBase &
@@ -142,7 +144,7 @@ export function EligibilityHint({ id, aiId }: { id?: string; aiId?: string }): R
 }
 
 export function RefPicker(props: RefPickerProps): ReactElement {
-  const { a11y, label, source, required, readOnly, invalid, placeholder, onBlur, aiId, code, pattern, recordId, emptyId, inlineContext, inlineOwner, inlineAddKey } = props;
+  const { a11y, label, source, required, readOnly, invalid, placeholder, onBlur, aiId, code, pattern, recordId, emptyId, inlineContext, inlineOwner, inlineAddKey, keep } = props;
   const plain = useReferenceOptions(source);
   const tree = isCategorySource(source);
   const cat = useCategoryOptions({ source, selfId: recordId, guardCycle: tree && code.toUpperCase() === "K01" && pattern === "parent_id" });
@@ -170,7 +172,7 @@ export function RefPicker(props: RefPickerProps): ReactElement {
   const hintId = `${a11y.id}-elig`;
   const missing = useMissingRefs(source, picked, !tree);
   const missingId = `${a11y.id}-gone`;
-  const binding = useMemo(() => {
+  const unfiltered = useMemo(() => {
     if (!tree) return { ...plain, indentOf: undefined };
     const fallback = <T,>(primary: () => Promise<T>, second: () => Promise<T>, signal: AbortSignal) =>
       primary().catch((e: unknown) => {
@@ -185,6 +187,17 @@ export function RefPicker(props: RefPickerProps): ReactElement {
       leadingIcon: cat.leadingIcon,
     };
   }, [tree, plain, cat]);
+  const binding = useMemo(() => {
+    if (!keep) return unfiltered;
+    return {
+      ...unfiltered,
+      loadOptions: async (q: string, signal: AbortSignal) => (await unfiltered.loadOptions(q, signal)).filter((o) => keep(o.value)),
+      loadPage: async (q: string, offset: number, signal: AbortSignal) => {
+        const page = await unfiltered.loadPage(q, offset, signal);
+        return { ...page, options: page.options.filter((o) => keep(o.value)) };
+      },
+    };
+  }, [unfiltered, keep]);
   const emptyText = empty.kind === "none" ? undefined : empty.text;
   const describedBy = [a11y["aria-describedby"], empty.kind !== "none" && emptyId ? emptyId : "", missing ? missingId : "", eligibility && !readOnly ? hintId : ""].filter(Boolean).join(" ") || undefined;
   const common = {

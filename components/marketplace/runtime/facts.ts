@@ -132,10 +132,17 @@ export function checklistOf(c: RuntimeConfig | null | undefined): ChecklistItem[
     .map((x) => x.item);
 }
 
-export function rulesOf(c: RuntimeConfig | null | undefined): ServiceRule[] {
+// Each side sees only its own rules. The client's are the backend's
+// `client_rules` plus any rule in `rules` marked for the client; the
+// executor's are the rest of `rules` (a rule with no audience is an executor
+// rule, the backend's default). The two lists never share a rule.
+export type RuleSide = "client" | "executor";
+
+export function rulesOf(c: RuntimeConfig | null | undefined, side: RuleSide): ServiceRule[] {
   const seen = new Set<string>();
   const out: ServiceRule[] = [];
-  for (const r of c?.rules ?? []) {
+  const pool = side === "client" ? [...(c?.clientRules ?? []), ...(c?.rules ?? []).filter((r) => r.audience === "client")] : (c?.rules ?? []).filter((r) => r.audience !== "client");
+  for (const r of pool) {
     if (!r.title.trim() && !r.body.trim()) continue;
     const key = r.id || r.ruleKey || r.title;
     if (seen.has(key)) continue;
@@ -162,7 +169,7 @@ export const DETAIL_SECTIONS: readonly FactSection[] = ["duration", "steps", "ch
 export const ASSIST_SECTIONS: readonly FactSection[] = ["duration", "steps", "guarantees", "checklist", "rules", "template", "factors", "requirements"];
 export const SELLER_PREVIEW_SECTIONS: readonly FactSection[] = ["duration", "guarantees", "checklist", "rules"];
 
-function hasSection(c: RuntimeConfig, s: FactSection): boolean {
+function hasSection(c: RuntimeConfig, s: FactSection, side: RuleSide): boolean {
   switch (s) {
     case "duration":
       return !!durationParts(c.duration);
@@ -173,7 +180,7 @@ function hasSection(c: RuntimeConfig, s: FactSection): boolean {
     case "checklist":
       return checklistOf(c).length > 0;
     case "rules":
-      return rulesOf(c).length > 0;
+      return rulesOf(c, side).length > 0;
     case "template":
       return !!templateInfo(c.template);
     case "factors":
@@ -183,9 +190,9 @@ function hasSection(c: RuntimeConfig, s: FactSection): boolean {
   }
 }
 
-export function factSections(c: RuntimeConfig | null | undefined, wanted: readonly FactSection[]): FactSection[] {
+export function factSections(c: RuntimeConfig | null | undefined, wanted: readonly FactSection[], side: RuleSide = "client"): FactSection[] {
   if (!c) return [];
-  return wanted.filter((s) => hasSection(c, s));
+  return wanted.filter((s) => hasSection(c, s, side));
 }
 
 export function fmtPct(v: number, locale: string): string {

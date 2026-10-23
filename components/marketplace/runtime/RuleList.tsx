@@ -6,10 +6,14 @@ import type { ServiceRule } from "@/lib/services/marketRuntime";
 import { IconChevronDown } from "@/components/icons";
 import RuleBody from "@/components/services/rules/RuleBody";
 import { FactHeading } from "./ChecklistPreview";
-import type { HeadingLevel } from "./facts";
+import type { HeadingLevel, RuleSide } from "./facts";
 import "./runtime.css";
 
-export function RuleList({ rules, idBase, level = 3, limit = 3, tone = "detail", showScope = false }: { rules: readonly ServiceRule[]; idBase: string; level?: HeadingLevel; limit?: number; tone?: "detail" | "assist"; showScope?: boolean }) {
+// `side` names whose rules these are: the client reads "rules for you", the
+// lawyer "executor rules" — the lists themselves come from rulesOf(c, side).
+// `during`: the order is already running, so the client's lead speaks of
+// the work, not of buying.
+export function RuleList({ rules, side, idBase, level = 3, limit = 3, tone = "detail", showScope = false, during = false }: { rules: readonly ServiceRule[]; side: RuleSide; idBase: string; level?: HeadingLevel; limit?: number; tone?: "detail" | "assist"; showScope?: boolean; during?: boolean }) {
   const t = useTranslations("marketplace.runtime");
   const [open, setOpen] = useState(false);
   if (!rules.length) return null;
@@ -18,11 +22,11 @@ export function RuleList({ rules, idBase, level = 3, limit = 3, tone = "detail",
   const shown = open || extra <= 0 ? rules : rules.slice(0, cap);
   const listId = `${idBase}-list`;
   return (
-    <div className={`mkrt-rl mkrt-rl--${tone}`}>
+    <div className={`mkrt-rl mkrt-rl--${tone}`} data-side={side}>
       <FactHeading level={level} id={`${idBase}-title`}>
-        {t("rulesTitle")}
+        {t(side === "client" ? "rulesTitleClient" : "rulesTitleExecutor")}
       </FactHeading>
-      {tone === "detail" ? <p className="mkrt-lead">{t("rulesLead")}</p> : null}
+      {tone === "detail" ? <p className="mkrt-lead">{t(side === "client" ? (during ? "rulesLead" : "rulesLeadClient") : "rulesLeadExecutor")}</p> : null}
       <ul className="mkrt-rl__list" id={listId} aria-labelledby={`${idBase}-title`}>
         {shown.map((r, i) => (
           <li key={r.id || `${r.title}-${i}`}>

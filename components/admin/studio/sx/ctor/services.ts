@@ -217,8 +217,16 @@ export function executorTypesOf(payload: SxValues): string[] | null {
   return out;
 }
 
+// A service rule saved before rules had a side is an executor rule (the
+// backend's default); the side is written down so the row validates and the
+// marketplace never has to guess.
+function withRuleSides(p: SxPayload): SxPayload {
+  if (!Array.isArray(p.inline_rules) || !p.inline_rules.some((r) => r && typeof r === "object" && !str((r as SxValues).audience))) return p;
+  return { ...p, inline_rules: p.inline_rules.map((r) => (r && typeof r === "object" && !str((r as SxValues).audience) ? { ...(r as SxValues), audience: "executor" } : r)) };
+}
+
 export function k02Transform(next: SxPayload, prev: SxValues = {}, ctx?: SxTransformCtx): SxPayload {
-  const pruned = intakeTidy(k02Prune(next, prev), prev, ctx?.code || "K02");
+  const pruned = withRuleSides(intakeTidy(k02Prune(next, prev), prev, ctx?.code || "K02"));
   const types = executorTypesOf(pruned);
   if (types === null) return pruned;
   const out: SxPayload = { ...pruned, executor_types: types };

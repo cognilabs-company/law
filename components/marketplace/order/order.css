@@ -498,3 +498,13 @@
     min-height: 44px;
   }
 }
+
+/* The facts panel and the side's rules stack in the aside. */
+.mod .mod__facts {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.mod .mod-rules .mkrt-rl {
+  margin: 0;
+}

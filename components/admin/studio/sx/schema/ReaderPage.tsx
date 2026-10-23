@@ -45,7 +45,7 @@ export function draftRuntime(p: SxValues, reader: Reader): RuntimeConfig {
     usage_steps: Array.isArray(p.usage_steps) ? p.usage_steps : [],
     rules: rows(p.inline_rules)
       .filter((r) => forReader(reader, r, "performer"))
-      .map((r, i) => ({ id: str(r.id) || `r${i}`, title: r.title, body: r.body, scope_type: "service" })),
+      .map((r, i) => ({ id: str(r.id) || `r${i}`, title: r.title, body: r.body, scope_type: "service", audience: str(r.audience) || "executor" })),
     guarantees: rows(p.inline_guarantees)
       .filter((g) => forReader(reader, g, "client"))
       .map((g, i) => ({ id: str(g.id) || `g${i}`, title: g.title, description: g.description, inline: true })),

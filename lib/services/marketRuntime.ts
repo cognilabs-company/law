@@ -184,9 +184,23 @@ export function priceCapOf(p: Pick<RuntimePricing, "maximumPrice">): number | nu
   return p.maximumPrice > 0 ? p.maximumPrice : null;
 }
 
+// Who a service rule is written for (Studio saves it with every rule):
+// "executor" — the lawyer or advocate, who accepts it when turning the
+// service on and works under it; "client" — the buyer, who reads it before
+// paying and while the order runs. "" when the backend did not say, which is
+// an executor rule — its own default.
+export type RuleAudience = "client" | "executor" | "";
+export function ruleAudienceOf(v: unknown): RuleAudience {
+  const s = typeof v === "string" ? v.trim().toLowerCase() : "";
+  if (s === "client" || s === "customer" || s === "buyer") return "client";
+  if (s === "executor" || s === "performer" || s === "seller" || s === "lawyer") return "executor";
+  return "";
+}
+
 export type ServiceRule = {
   id: string;
   ruleKey: string;
+  audience: RuleAudience;
   title: string;
   version: string;
   body: string;
@@ -215,6 +229,7 @@ export function normServiceRule(v: unknown): ServiceRule {
   return {
     id: trimmed(d.id ?? d.rule_id),
     ruleKey: trimmed(d.rule_key ?? d.key),
+    audience: ruleAudienceOf(d.audience ?? d.rule_audience),
     title: trimmed(d.title ?? d.name),
     version: trimmed(d.version ?? d.rule_version),
     body: asStr(d.body ?? d.content ?? d.text ?? d.description),
@@ -391,6 +406,8 @@ export type RuntimeConfig = {
   negotiationAvailable: boolean;
   minimumRequirements: MinimumRequirements;
   rules: ServiceRule[];
+  // The backend's own list of the client-facing rules (`client_rules`).
+  clientRules: ServiceRule[];
   guarantees: RuntimeGuarantee[];
   checklistPreview: ChecklistItem[];
   usageSteps: UsageStep[];
@@ -416,6 +433,10 @@ export function normRuntimeConfig(v: unknown, placement: RuntimePlacement = "ser
     negotiationAvailable: d.negotiation_available === true,
     minimumRequirements: normRequirements(d.minimum_requirements),
     rules: asArr(d.rules).map(normServiceRule).filter((r) => r.id || r.title),
+    clientRules: asArr(d.client_rules)
+      .map(normServiceRule)
+      .filter((r) => r.id || r.title)
+      .map((r) => (r.audience ? r : { ...r, audience: "client" as const })),
     guarantees: asArr(d.guarantees).map(normGuarantee).filter((g) => g.id || g.title),
     checklistPreview: asArr(d.checklist_preview).map(normChecklistItem).filter((i) => i.id || i.title),
     usageSteps: asArr(d.usage_steps).map(normUsageStep).filter((x) => x.title || x.text),
@@ -453,7 +474,11 @@ export type ServiceRules = { items: ServiceRule[]; allAccepted: boolean; count: 
 
 export function normServiceRules(v: unknown): ServiceRules {
   const d = dictOf(v);
-  const items = firstArr(v, d.items, d.rules).map(normServiceRule).filter((r) => r.id || r.title);
+  // What a seller accepts is the executor's side only: a client rule that
+  // ever came back here is not theirs to accept.
+  const items = firstArr(v, d.items, d.rules)
+    .map(normServiceRule)
+    .filter((r) => (r.id || r.title) && r.audience !== "client");
   return {
     items,
     allAccepted: typeof d.all_accepted === "boolean" ? d.all_accepted : items.every((r) => r.accepted),
@@ -671,7 +696,8 @@ export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfi
   const ex = explanationOf(d.price_explanation ?? src.price_explanation);
   const lim = dictOf(src.limits ?? src.price_limits ?? src.pricing ?? d.limits ?? d.price_limits ?? d.pricing);
   const requiredRaw = src.required_rules ?? d.required_rules;
-  const requiredRules = Array.isArray(requiredRaw) ? requiredRaw.map(normServiceRule).filter((r) => r.id || r.title) : null;
+  // A seller accepts and picks executor rules only; client rules are the buyer's.
+  const requiredRules = Array.isArray(requiredRaw) ? requiredRaw.map(normServiceRule).filter((r) => (r.id || r.title) && r.audience !== "client") : null;
   const rules = rulesStateOf(src.rules_accepted, d.rules_accepted, src.rules_acceptance, d.rules_acceptance, requiredRules?.length ? requiredRaw : null, src.rules, d.rules);
   const flatMissing = idList(firstArr(src.missing_rule_ids, d.missing_rule_ids));
   const rulesAccepted = rules.accepted ?? (flatMissing.length ? false : null);
@@ -683,7 +709,9 @@ export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfi
   const increase = numOrNull(src.maximum_increase_percent ?? src.max_increase_percent ?? src.max_price_increase_percent ?? src.price_increase_percent ?? lim.maximum_increase_percent ?? lim.max_increase_percent);
   const selectable = src.selectable_rules ?? d.selectable_rules;
   const chosen = src.selected_rule_ids ?? d.selected_rule_ids;
-  const selectableRules = Array.isArray(selectable) ? selectable.map(normSelectableRule).filter((r) => r.id && r.sellerSelectable !== false) : null;
+  const selectableRules = Array.isArray(selectable)
+    ? selectable.filter((x) => ruleAudienceOf(dictOf(x).audience) !== "client").map(normSelectableRule).filter((r) => r.id && r.sellerSelectable !== false)
+    : null;
   const selectedRuleIds = Array.isArray(chosen) ? idList(chosen) : selectableRules && selectableRules.some((r) => r.selected === true) ? selectableRules.filter((r) => r.selected === true).map((r) => r.id) : null;
   return {
     serviceId: trimmed(src.service_id ?? d.service_id) || serviceId,

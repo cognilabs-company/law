@@ -2,7 +2,7 @@
 
 import { useId } from "react";
 import type { RuntimeConfig } from "@/lib/services/marketRuntime";
-import { ASSIST_SECTIONS, DETAIL_SECTIONS, checklistOf, factSections, guaranteesOf, rulesOf, type FactSection } from "./facts";
+import { ASSIST_SECTIONS, DETAIL_SECTIONS, checklistOf, factSections, guaranteesOf, rulesOf, type FactSection, type RuleSide } from "./facts";
 import { DurationChip } from "./DurationChip";
 import { GuaranteeList } from "./Guarantees";
 import { ChecklistPreview } from "./ChecklistPreview";
@@ -24,6 +24,7 @@ export function ServiceFacts({
   aiId,
   sections,
   showScope = false,
+  ruleSide = "client",
 }: {
   config: RuntimeConfig;
   tone: ServiceFactsTone;
@@ -33,9 +34,12 @@ export function ServiceFacts({
   aiId?: string;
   sections?: readonly FactSection[];
   showScope?: boolean;
+  // Whose rules to show. A buyer-facing page leaves it at "client"; the
+  // seller's own preview passes "executor". Never both.
+  ruleSide?: RuleSide;
 }) {
   const uid = useId();
-  const list = factSections(config, sections ?? (tone === "detail" ? DETAIL_SECTIONS : ASSIST_SECTIONS));
+  const list = factSections(config, sections ?? (tone === "detail" ? DETAIL_SECTIONS : ASSIST_SECTIONS), ruleSide);
   if (!list.length) return null;
   const has = (s: FactSection) => list.includes(s);
   const level = tone === "detail" ? (title ? 4 : 3) : 5;
@@ -62,7 +66,7 @@ export function ServiceFacts({
       {has("steps") ? <UsageSteps steps={config.usageSteps} idBase={`${uid}-st`} level={level} /> : null}
       {has("guarantees") ? <GuaranteeList items={guaranteesOf(config)} tone="assist" showScope={showScope} /> : null}
       {has("checklist") ? <ChecklistPreview items={checklistOf(config)} tone={tone} idBase={`${uid}-ck`} level={level} /> : null}
-      {has("rules") ? <RuleList rules={rulesOf(config)} tone={tone} showScope={showScope} idBase={`${uid}-rl`} level={level} /> : null}
+      {has("rules") ? <RuleList rules={rulesOf(config, ruleSide)} side={ruleSide} tone={tone} showScope={showScope} idBase={`${uid}-rl`} level={level} /> : null}
       {has("template") ? <TemplateNote template={config.template} /> : null}
       {has("factors") ? <FactorList factors={config.pricing.factors} basePrice={basePrice} currency={currency} level={level} /> : null}
       {has("requirements") ? <RequirementsNote requirements={config.minimumRequirements} level={level} /> : null}

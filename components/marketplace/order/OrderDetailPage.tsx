@@ -18,6 +18,7 @@ import OrderActions from "./OrderActions";
 import OrderChecklist from "./OrderChecklist";
 import OrderDocuments from "./OrderDocuments";
 import OrderFacts from "./OrderFacts";
+import OrderRules from "./OrderRules";
 import OrderHeader from "./OrderHeader";
 import SecondOpinion from "./SecondOpinion";
 import StartWork from "./StartWork";
@@ -283,6 +284,7 @@ export function OrderDetailView({
             </div>
             <div className="mod__facts">
               <OrderFacts o={o} view={view} aiBase={aiBase} runtime={d.runtime} />
+              <OrderRules view={view} runtime={d.runtime} aiBase={aiBase} />
             </div>
           </aside>
         </div>

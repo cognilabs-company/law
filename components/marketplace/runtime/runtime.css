@@ -124,3 +124,9 @@
 @keyframes mkrt-in{from{opacity:0;transform:translateY(4px)}}
 @media (prefers-reduced-motion:reduce){.mkrt-ck__list li{animation:none}.mkrt-rl__item{transition:none}}
 .mkrt-tag--own{background:var(--dk-tint-violet, #F1ECFF);color:var(--dk-txt-violet, #6B46C1)}
+/* Whose rules these are: a thin accent in the side's colour. */
+.mkrt-rl[data-side="client"] .mkrt-rl__item>summary::before,
+.mkrt-rl[data-side="executor"] .mkrt-rl__item>summary::before{content:"";flex:none;width:6px;height:6px;border-radius:50%;background:#0b7a52;margin-right:2px}
+.mkrt-rl[data-side="executor"] .mkrt-rl__item>summary::before{background:#6a3fd1}
+html[data-theme="dark"] .mkrt-rl[data-side="client"] .mkrt-rl__item>summary::before{background:#5fd6a4}
+html[data-theme="dark"] .mkrt-rl[data-side="executor"] .mkrt-rl__item>summary::before{background:#b9a2ff}

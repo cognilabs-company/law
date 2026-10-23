@@ -38,7 +38,8 @@ import { trackPromoContact } from "@/lib/services/promoEvents";
 import PriceOptions, { EMPTY_PRICE, type PriceState } from "./PriceOptions";
 import { useMarketError } from "./useMarketError";
 import { useRuntimeFacts } from "./runtime/useRuntimeFacts";
-import { durationParts, guaranteesOf } from "./runtime/facts";
+import { durationParts, guaranteesOf, rulesOf } from "./runtime/facts";
+import { RuleList } from "./runtime/RuleList";
 import { DurationChip } from "./runtime/DurationChip";
 import { GuaranteeList } from "./runtime/Guarantees";
 import { UsageSteps } from "./runtime/UsageSteps";
@@ -202,6 +203,9 @@ export default function PurchaseDialog({
   const guarantees = pkg ? [] : guaranteesOf(checkout.config);
   const steps = pkg ? [] : (checkout.config?.usageSteps ?? []);
   const factors = pkg ? [] : (checkout.config?.pricing.factors ?? []);
+  // The client's own rules, read before paying; executor rules never reach
+  // the buyer.
+  const clientRules = pkg ? [] : rulesOf(checkout.config, "client");
   const basePrice = price.quote?.basePrice || service.price;
   const chatHref = track?.roomId && tracked ? marketChatHref({ roomId: track.roomId, workId: tracked.workId, serviceTitle: service.title }) : "";
 
@@ -413,10 +417,11 @@ export default function PurchaseDialog({
               </div>
             </fieldset>
             <PriceOptions target={pkg ? "package" : "service"} targetId={service.id} lawyerUserId={pkg ? undefined : sellerUserId} reload={optReload} onChange={setPrice} />
-            {factors.length || steps.length ? (
+            {factors.length || steps.length || clientRules.length ? (
               <div className="mk-buy__facts" data-ai-id="marketplace.purchase.service-facts" data-ai-type="section">
                 {factors.length ? <FactorList factors={factors} basePrice={basePrice} currency={service.currency} level={3} /> : null}
                 {steps.length ? <UsageSteps steps={steps} idBase={`mkbuy-${service.id}-st`} level={3} /> : null}
+                {clientRules.length ? <RuleList rules={clientRules} side="client" idBase={`mkbuy-${service.id}-rl`} level={3} limit={2} /> : null}
               </div>
             ) : null}
             <div className={`mk-buy__chx${chOpen ? " is-open" : ""}`}>

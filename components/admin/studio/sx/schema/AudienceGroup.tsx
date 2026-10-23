@@ -41,6 +41,8 @@ export function fieldShown(model: SchemaModel, fm: SchemaFieldModel, payload: Sx
 
 export function audienceGroups(model: SchemaModel, fields: readonly SchemaFieldModel[], payload: SxValues): Group[] | null {
   const code = model.code;
+  // The service's rules section is already split by side (RuleAudienceBoard).
+  if (code.toUpperCase() === "K02" && fields.some((f) => f.pattern === "rule_ids")) return null;
   const by = new Map<AudienceBucket, SchemaFieldModel[]>();
   const loose: SchemaFieldModel[] = [];
   let last: AudienceBucket | null = null;
