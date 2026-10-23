@@ -1,0 +1,204 @@
+/* ═══════════════ AI CHAT (ChatPage) ═══════════════
+   History on the left, the conversation on the right; on a phone the
+   history is a drawer. The answer itself is AgentAnswer's own markup. */
+
+.lxai {
+  --ai-panel: var(--dk-surface, #fff);
+  --ai-side: #F6F8FC;
+  --ai-raise: var(--dk-surface-2, #F4F7FC);
+  --ai-hover: #EDF2FA;
+  --ai-on: #E6F0FF;
+  --ai-line: var(--line);
+  --ai-ink: var(--ink);
+  --ai-muted: var(--gray);
+  --ai-faint: var(--gray2);
+  --ai-acc: var(--dk-acc, var(--b600));
+  --ai-q: #EAF2FF;
+  display: grid;
+  grid-template-columns: 296px minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--ai-panel);
+  position: relative;
+  color: var(--ai-ink);
+}
+html[data-theme="dark"] .lxai {
+  --ai-side: #0F1829;
+  --ai-hover: #182640;
+  --ai-on: #1B2E52;
+  --ai-q: #1D3157;
+}
+
+/* where it lives */
+body:has(.lxai--full) { overflow: hidden; padding-bottom: 0 }
+body:has(.lxai--full) .ftr,
+body:has(.lxai--full) .tabbar,
+body:has(.lxai--full) .fab { display: none }
+.lxai--full { margin-top: 70px; height: calc(100dvh - 70px) }
+.lxai--embed { border: 1.5px solid var(--ai-line); border-radius: var(--rl); box-shadow: var(--s1) }
+.pbody:has(.lxai--embed) { overflow: hidden }
+.pbody:has(.lxai--embed) .pbody__in { height: 100%; display: flex; flex-direction: column }
+.pbody:has(.lxai--embed) .lxai--embed { flex: 1; min-height: 0; min-width: 0 }
+.pbody__in:has(> .lxai) > .giftn { display: none }
+
+.lxai__ib {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ai-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.lxai__ib svg { width: 19px; height: 19px }
+.lxai__ib:hover { background: var(--ai-hover); color: var(--ai-acc) }
+.lxai__ib:focus-visible, .lxai__new:focus-visible, .lxai__item:focus-visible, .lxai__sugg button:focus-visible, .lxai__send:focus-visible, .lxai__tools button:focus-visible { outline: 2px solid var(--b400); outline-offset: 2px }
+.lxai__mark { width: 32px; height: 32px; border-radius: 10px; flex: none; display: grid; place-items: center; background: var(--grad); color: #fff; box-shadow: 0 6px 16px -8px rgba(22, 104, 240, .8) }
+.lxai__mark svg { width: 17px; height: 17px; stroke: #fff; fill: none; stroke-width: 1.9 }
+.lxai__mark--sm { width: 30px; height: 30px; border-radius: 10px }
+.lxai__mark--busy { animation: lxPulse 1.6s ease-in-out infinite }
+@keyframes lxPulse { 50% { box-shadow: 0 0 0 7px rgba(22, 104, 240, .14) } }
+
+/* ── history ── */
+.lxai__side { display: flex; flex-direction: column; min-height: 0; background: var(--ai-side); border-right: 1px solid var(--ai-line) }
+.lxai__brand { display: flex; align-items: center; gap: 10px; padding: 16px 14px 6px 16px }
+.lxai__brand b { flex: 1; font: 700 1.02rem/1.2 var(--fd); letter-spacing: -.02em }
+.lxai__close { display: none }
+.lxai__new {
+  margin: 10px 14px 8px;
+  height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--b600);
+  color: #fff;
+  font: 600 .9rem/1 var(--fb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: var(--sblue);
+  transition: background .15s, transform .15s;
+}
+.lxai__new svg { width: 18px; height: 18px }
+.lxai__new:hover { background: var(--b700); transform: translateY(-1px) }
+.lxai__search { display: flex; align-items: center; gap: 8px; margin: 2px 14px 6px; height: 38px; padding: 0 6px 0 11px; border-radius: 12px; background: var(--ai-panel); box-shadow: inset 0 0 0 1px var(--ai-line) }
+.lxai__search:focus-within { box-shadow: inset 0 0 0 1.5px var(--b400) }
+.lxai__search > svg { width: 15px; height: 15px; color: var(--ai-faint); flex: none }
+.lxai__search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: 500 .85rem/1 var(--fb); color: var(--ai-ink) }
+.lxai__search input::-webkit-search-cancel-button { display: none }
+.lxai__search button { width: 24px; height: 24px; border: 0; border-radius: 7px; background: transparent; color: var(--ai-faint); display: grid; place-items: center; cursor: pointer }
+.lxai__search button svg { width: 14px; height: 14px }
+.lxai__list { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 10px 12px; scrollbar-width: thin }
+.lxai__group + .lxai__group { margin-top: 8px }
+.lxai__lbl { margin: 10px 8px 4px; font: 700 .68rem/1.2 var(--fb); letter-spacing: .07em; text-transform: uppercase; color: var(--ai-faint) }
+.lxai__item { display: block; width: 100%; text-align: left; border: 0; background: transparent; border-radius: 11px; padding: 9px 11px; cursor: pointer; transition: background .14s; position: relative }
+.lxai__item b { display: block; font: 600 .87rem/1.3 var(--fb); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ai-ink) }
+.lxai__item span { display: block; font-size: .76rem; color: var(--ai-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px }
+.lxai__item:hover { background: var(--ai-hover) }
+.lxai__item.on { background: var(--ai-panel); box-shadow: var(--s1), inset 0 0 0 1px var(--ai-line) }
+.lxai__item.on b { color: var(--ai-acc) }
+.lxai__item.on::before { content: ""; position: absolute; left: -10px; top: 10px; bottom: 10px; width: 3px; border-radius: 0 3px 3px 0; background: var(--b600) }
+.lxai__sk { display: flex; flex-direction: column; gap: 14px; padding: 12px 8px }
+.lxai__sk span, .lxai__skq, .lxai__ska span {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--ai-raise) 0%, var(--ai-hover) 40%, var(--ai-raise) 80%);
+  background-size: 300% 100%;
+  animation: lxShimmer 1.4s ease-in-out infinite;
+}
+@keyframes lxShimmer { from { background-position: 100% 0 } to { background-position: -100% 0 } }
+.lxai__side-state { padding: 22px 12px; text-align: center; color: var(--ai-faint); font-size: .84rem; display: flex; flex-direction: column; align-items: center; gap: 10px }
+.lxai__side-state p { margin: 0 }
+.lxai__ghost { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 13px; border-radius: 10px; border: 1.5px solid var(--ai-line); background: var(--ai-panel); color: var(--ai-ink); font: 600 .82rem/1 var(--fb); cursor: pointer }
+.lxai__ghost svg { width: 15px; height: 15px }
+.lxai__ghost:hover { border-color: var(--b300) }
+.lxai__privacy { flex: none; margin: 0; padding: 11px 16px 14px; display: flex; gap: 7px; align-items: flex-start; border-top: 1px solid var(--ai-line); font-size: .7rem; line-height: 1.4; color: var(--ai-faint) }
+.lxai__privacy svg { width: 14px; height: 14px; flex: none; color: var(--dk-txt-ok, #00A870); margin-top: 1px }
+
+/* ── conversation ── */
+.lxai__main { display: flex; flex-direction: column; min-height: 0; min-width: 0; position: relative }
+.lxai__head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; min-height: 62px; border-bottom: 1px solid var(--ai-line); flex: none }
+.lxai__burger { display: none }
+.lxai__htitle { flex: 1; min-width: 0 }
+.lxai__htitle b { display: block; font: 700 1rem/1.25 var(--fd); letter-spacing: -.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.lxai__htitle span { display: flex; align-items: center; gap: 6px; font-size: .75rem; color: var(--ai-faint) }
+.lxai__htitle span i { width: 7px; height: 7px; border-radius: 50%; background: #2EC785; flex: none; box-shadow: 0 0 0 3px rgba(46, 199, 133, .16) }
+.lxai__scroll { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; overscroll-behavior: contain }
+.lxai__msgs { width: 100%; max-width: 800px; margin: 0 auto; padding: 28px 22px 32px; display: flex; flex-direction: column; gap: 26px }
+.lxai__q { align-self: flex-end; max-width: min(78%, 620px); animation: lxIn .25s cubic-bezier(.2, .9, .3, 1) both }
+.lxai__q > div { padding: 11px 16px; border-radius: 20px 20px 6px 20px; background: var(--ai-q); color: var(--ai-ink); font-size: .96rem; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere }
+.lxai__a { display: flex; gap: 14px; align-items: flex-start; animation: lxIn .3s cubic-bezier(.2, .9, .3, 1) both }
+.lxai__ac { flex: 1; min-width: 0; padding-top: 3px }
+@keyframes lxIn { from { opacity: 0; transform: translateY(6px) } }
+.lxai__tools { display: flex; gap: 4px; margin-top: 10px; opacity: .55; transition: opacity .15s }
+.lxai__a:hover .lxai__tools, .lxai__tools:focus-within { opacity: 1 }
+.lxai__tools button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 9px; border: 0; background: transparent; color: var(--ai-muted); font: 600 .76rem/1 var(--fb); cursor: pointer }
+.lxai__tools button:hover { background: var(--ai-hover); color: var(--ai-acc) }
+.lxai__tools svg { width: 14px; height: 14px }
+.lxai__offline { margin-top: 8px; font-size: .74rem; font-weight: 600; color: var(--dk-txt-err, #C0392B) }
+.lxai__skq { align-self: flex-end; width: 42%; height: 42px !important; border-radius: 20px !important }
+.lxai__ska { display: flex; flex-direction: column; gap: 10px; padding-left: 44px }
+.lxai__fail { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 32px; text-align: center }
+.lxai__fail b { font: 700 1rem/1.3 var(--fd) }
+.lxai__down { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); width: 40px; height: 40px; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--ai-panel); color: var(--ai-acc); box-shadow: var(--s2), 0 0 0 1px var(--ai-line); cursor: pointer; z-index: 4 }
+.lxai__down svg { width: 19px; height: 19px }
+
+/* empty state */
+.lxai__empty { margin: auto; width: 100%; max-width: 720px; padding: 40px 22px; text-align: center }
+.lxai__orb { width: 64px; height: 64px; margin: 0 auto 20px; border-radius: 22px; display: grid; place-items: center; background: var(--grad); color: #fff; box-shadow: 0 18px 40px -16px rgba(22, 104, 240, .7), inset 0 0 0 1px rgba(255, 255, 255, .25) }
+.lxai__orb svg { width: 30px; height: 30px }
+.lxai__hi { margin: 0 0 6px; font: 700 .8rem/1.2 var(--fb); letter-spacing: .06em; text-transform: uppercase; color: var(--ai-acc) }
+.lxai__empty h2 { margin: 0 0 8px; font: 700 clamp(1.5rem, 3vw, 2rem)/1.15 var(--fd); letter-spacing: -.03em }
+.lxai__empty > p:not(.lxai__hi) { margin: 0 auto; max-width: 46ch; color: var(--ai-muted); line-height: 1.55 }
+.lxai__sugg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 28px; text-align: left }
+.lxai__sugg button { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border: 0; border-radius: 16px; background: var(--ai-raise); box-shadow: inset 0 0 0 1px var(--ai-line); color: var(--ai-ink); font: 500 .9rem/1.42 var(--fb); text-align: left; cursor: pointer; transition: box-shadow .16s, transform .16s, background .16s }
+.lxai__sugg button > span { width: 32px; height: 32px; border-radius: 10px; flex: none; display: grid; place-items: center; background: var(--ai-on); color: var(--ai-acc) }
+.lxai__sugg button > span svg { width: 16px; height: 16px }
+.lxai__sugg button:hover { background: var(--ai-panel); box-shadow: inset 0 0 0 1.5px var(--b300), var(--s2); transform: translateY(-2px) }
+
+/* composer */
+.lxai__composer { flex: none; padding: 12px 18px calc(14px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, var(--ai-panel) 70%, transparent) }
+.lxai__box { max-width: 800px; margin: 0 auto; display: flex; align-items: flex-end; gap: 10px; padding: 8px 8px 8px 18px; border-radius: 24px; background: var(--ai-raise); box-shadow: inset 0 0 0 1.5px var(--ai-line); transition: box-shadow .15s, background .15s }
+.lxai__box:focus-within { background: var(--ai-panel); box-shadow: inset 0 0 0 1.5px var(--b400), 0 10px 30px -18px rgba(22, 104, 240, .55) }
+.lxai__box textarea { flex: 1; min-width: 0; border: 0; outline: 0; resize: none; background: transparent; padding: 10px 0; max-height: 200px; font: 400 .98rem/1.5 var(--fb); color: var(--ai-ink) }
+.lxai__box textarea::placeholder { color: var(--ai-faint) }
+.lxai__send { width: 44px; height: 44px; flex: none; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--b600); cursor: pointer; box-shadow: var(--sblue); transition: background .15s, transform .15s }
+.lxai__send svg { width: 18px; height: 18px; stroke: #fff; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round }
+.lxai__send:hover:not(:disabled) { background: var(--b700); transform: scale(1.05) }
+.lxai__send:disabled { background: var(--ai-line); box-shadow: none; cursor: default }
+.lxai__send:disabled svg { stroke: var(--ai-faint) }
+.lxai__disc { max-width: 800px; margin: 9px auto 0; text-align: center; font-size: .71rem; line-height: 1.4; color: var(--ai-faint) }
+.lxai__pii { margin-top: 2px }
+
+/* drawer on narrow screens */
+.lxai__scrim { display: none }
+@media (max-width: 860px) {
+  .lxai { grid-template-columns: minmax(0, 1fr) }
+  .lxai__side { position: absolute; inset: 0 auto 0 0; width: min(320px, 86vw); z-index: 20; transform: translateX(-102%); transition: transform .28s cubic-bezier(.3, 1, .4, 1); box-shadow: var(--s3) }
+  .lxai__side.on { transform: none }
+  .lxai__close { display: grid }
+  .lxai__burger { display: grid }
+  .lxai__scrim { display: block; position: absolute; inset: 0; z-index: 15; background: rgba(3, 16, 43, .42); opacity: 0; pointer-events: none; transition: opacity .22s }
+  .lxai__scrim.on { opacity: 1; pointer-events: auto }
+}
+@media (max-width: 640px) {
+  .pbody:has(.lxai--embed) { padding: 0 }
+  .lxai--embed { border: 0; border-radius: 0; box-shadow: none }
+  .lxai__head { padding: 8px 10px; min-height: 56px }
+  .lxai__msgs { padding: 18px 14px 24px; gap: 20px }
+  .lxai__a { gap: 10px }
+  .lxai__q { max-width: 88% }
+  .lxai__sugg { grid-template-columns: 1fr }
+  .lxai__empty { padding: 28px 16px }
+  .lxai__composer { padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px)) }
+  .lxai__pii { display: none }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lxai__q, .lxai__a, .lxai__mark--busy, .lxai__sk span, .lxai__skq, .lxai__ska span { animation: none }
+}
+.portal:has(.lxai--embed) :is(.robot-edge-zone, .ains__launch) { display: none }

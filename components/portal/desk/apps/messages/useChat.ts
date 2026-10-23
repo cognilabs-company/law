@@ -56,7 +56,9 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
   });
 
   const push = useCallback((list: ChatMsg[]) => {
-    const add = list.filter((m) => !m.id || !seen.current.has(m.id));
+    // Reactions are folded into chips by the full chat; here they are left
+    // out rather than drawn as a lone emoji bubble.
+    const add = list.filter((m) => !m.reaction && (!m.id || !seen.current.has(m.id)));
     if (!add.length) return;
     for (const m of add) if (m.id) seen.current.add(m.id);
     setMsgs((prev) => [...prev, ...add]);
@@ -148,7 +150,7 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
         }
         const raw = (o.message ?? o) as Record<string, unknown>;
         const m: ChatMsg = { ...normSecureMsgCore(raw), ...normSecureMsgFile(raw) };
-        if (!m.id) return;
+        if (!m.id || m.reaction) return;
         if (m.senderId === me) {
           setBusy(false);
           setMsgs((prev) => {
@@ -256,7 +258,7 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
   }, [rec.on]);
   useEffect(() => () => recorder.current?.cancel(), []);
 
-  const optimistic = (p: Partial<ChatMsg>): ChatMsg => ({ id: `tmp-${Date.now()}`, senderId: me, sender: null, replyToId: "", replyTo: null, filteredContent: "", isBlocked: false, createdAt: new Date().toISOString(), messageType: "text", file: null, pending: true, ...p });
+  const optimistic = (p: Partial<ChatMsg>): ChatMsg => ({ id: `tmp-${Date.now()}`, senderId: me, sender: null, replyToId: "", replyTo: null, reaction: null, filteredContent: "", isBlocked: false, createdAt: new Date().toISOString(), messageType: "text", file: null, pending: true, ...p });
   const quote = (m: ChatMsg | null) => (m ? { id: m.id, sender: m.sender, messageType: m.messageType, content: m.filteredContent, isBlocked: m.isBlocked } : null);
 
   async function send(text: string, reply: ChatMsg | null) {

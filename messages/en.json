@@ -8962,7 +8962,7 @@
       "verifying": "Checking the answer against sources"
     }
   },
-  "chatPage": {
+  "chatPage": {"search":"Search chats","clear":"Clear","groups":{"today": "Today", "yesterday": "Yesterday", "week": "This week", "older": "Earlier"},"chatsError":"Couldn't load your chat history.","retry":"Try again","loadError":"Couldn't open this conversation","copy":"Copy","copied":"Copied","noMatch":"Nothing found","loadingChats":"Loading chats…","toBottom":"Jump to latest","piiShort":"Personal data (phone, email, PINFL, passport) is masked before it is sent.",
     "guestTotalLimit": "You've used all the free guest questions. Sign up to keep going.",
     "guestDailyLimit": "You've used today's free questions. Try again tomorrow, or sign up.",
     "metaTitle": "LexGo.AI chat",
@@ -18250,7 +18250,7 @@
       "clear": "Clear selection"
     }
   },
-  "secureChat": {"askCopilot":"Ask the AI copilot about this chat",
+  "secureChat": {"roleSeller":"Specialist","back":"All chats","react":"React","reactions":"Reactions","copy":"Copy","copied":"Text copied","retrySend":"Send again","discard":"Remove","sendFailed":"Not sent","newMessages":"{n} new messages","toBottom":"Jump to latest","dropHere":"Drop files here","dropHint":"Up to 25 MB each — several at once is fine","hiddenContent":"Message text is hidden","reactFailed":"Couldn't send the reaction. Try again.","you":"You","emptyTitle":"Start the conversation","replyingTo":"Replying to {name}","askCopilot":"Ask the AI copilot about this chat",
     "completedOk": "Chat completed",
     "deleteAsk": "Delete this chat?",
     "deleting": "Deleting…",
@@ -18311,7 +18311,7 @@
     "blocked": "This message was blocked.",
     "loginRequired": "Log in to open this private chat.",
     "login": "Log in",
-    "inbox": {
+    "inbox": {"filterAll":"All","filterUnread":"Unread","selectTitle":"Pick a conversation","selectText":"Open a chat from the list — messages, files and voice notes show up here.","retry":"Try again","errorTitle":"Couldn't load your chats","errorText":"Check your internet connection and try again.","refresh":"Refresh","back":"Back to the dashboard","reacted":"{name} reacted {emoji}","youReacted":"You reacted {emoji}","hidden":"Hidden message","noMessages":"No messages yet","unreadEmpty":"Nothing unread","unreadEmptyText":"Every conversation is read.","clear":"Clear","you":"You:",
       "kinds": {
         "urgent": "Urgent advocate",
         "order": "Orders",

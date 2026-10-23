@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import "./messenger/messenger.css";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ClipboardEvent, type DragEvent } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import { useTranslations, useLocale } from "next-intl";
@@ -25,8 +26,10 @@ import {
   deleteSecureChat,
   completeUrgentChat,
   getUrgentRequest,
-  listSecureChats,
   rateUrgentRequest,
+  secureReactionFrame,
+  sendSecureReaction,
+  SECURE_REACTION,
   ratingOpen,
   isRatingClosed,
   type SecureMessage,
@@ -35,6 +38,9 @@ import {
   type CallSession,
   type UrgentRequest,
 } from "@/lib/services/backend";
+import { ArrowDown, ArrowLeft, Copy, EllipsisVertical, Lock as LockIcon, Reply, RotateCw, SmilePlus, Trash2, UploadCloud, Users as UsersIcon } from "lucide-react";
+import { dropRoom, noteRoomMessage, useRoom } from "./messenger/rooms";
+import { dayLabel, hueOf, initialsOf, peerOf, roleLabel as peerRole } from "./messenger/format";
 import ChatFilePreview, { canPreviewFile } from "./ChatFilePreview";
 import { roomOrderLock, subscribeOrderLock, type OrderLock } from "@/components/marketplace/order/lock";
 import { statusLabel } from "@/lib/labels";
@@ -73,19 +79,18 @@ import {
   IconFileText,
   IconDownload,
   IconEye,
-  IconUsers,
-  IconChevronLeft,
   IconClipboardCheck,
   IconInfo,
 } from "../icons";
-import { timeOnly, dateOnly } from "@/lib/date";
+import { timeOnly } from "@/lib/date";
 import { localizeApiDetail } from "@/lib/apiMessage";
 import { notify } from "@/lib/toast";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { ErrorState } from "@/components/portal/DataState";
 import InstructorButton from "@/components/guide/InstructorButton";
 
-type LocalMsg = SecureMessage & { pending?: boolean; failed?: boolean };
+// `localUrl` is the picked file itself, so a photo shows while it uploads.
+type LocalMsg = SecureMessage & { pending?: boolean; failed?: boolean; localUrl?: string };
 type Conn = "connecting" | "online" | "offline";
 
 function fmtTime(iso: string): string {
@@ -98,6 +103,21 @@ function dayKey(iso: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : d.toDateString();
 }
+
+// Optimistic ids. Two files dropped in the same millisecond must not share one.
+let tmpSeq = 0;
+const tmpId = () => `tmp-${Date.now()}-${++tmpSeq}`;
+// The quick reactions offered on every message.
+const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "✅"];
+// Two bubbles in a row from one person within this window read as one turn:
+// one name, one avatar, tighter spacing.
+const GROUP_MS = 5 * 60 * 1000;
+type ReactAgg = { emoji: string; users: { id: string; name: string }[]; mine: boolean };
+// Whether this browser can record is only known in the browser; the server
+// render says "no" so the first client render matches it (the mic used to
+// swap in for Send during hydration and fail the whole tree).
+const noSub = () => () => {};
+const noVoice = () => false;
 
 const INCOMING_CALL_MAX_AGE_MS = 2 * 60 * 1000;
 const TERMINAL_CALL_STATUSES = new Set(["ended", "cancelled", "expired", "completed"]);
@@ -257,17 +277,21 @@ function isImageAttachment(file: LocalMsg["file"]): boolean {
 // 401. The bytes are fetched once and held as an object URL instead.
 function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: ReturnType<typeof useTranslations> }) {
   const voice = msg.messageType === "voice";
-  const image = !voice && isImageAttachment(msg.file);
+  const pictured = !voice && isImageAttachment(msg.file);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
   const [open, setOpen] = useState(false);
   const [prev, setPrev] = useState(false);
+  // A picture the browser cannot draw (HEIC from an iPhone, a damaged file)
+  // falls back to the file card instead of a broken-image icon.
+  const [broken, setBroken] = useState(false);
   // A photo is only worth fetching once it is close to being looked at — a
   // long history would otherwise pull every image in it on mount.
   const [want, setWant] = useState(false);
   const hostRef = useRef<HTMLSpanElement>(null);
   const name = msg.file?.fileName || (voice ? t("voiceNote") : t("fileGeneric"));
+  const image = pictured && !broken;
 
   // Voice notes play inline, so they load themselves; a photo loads when it
   // scrolls into view; a plain file waits for a deliberate click rather than
@@ -292,8 +316,11 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
   }, [image, want]);
 
   const load = voice || (image && want);
+  // The picked file is already in memory while it uploads, and after: there
+  // is no reason to download back what this tab just sent.
+  const local = msg.localUrl || "";
   useEffect(() => {
-    if (!load || !msg.id || msg.pending) return;
+    if (!load || !msg.id || msg.pending || local) return;
     let alive = true;
     let made = "";
     getSecureMessageFile(roomId, msg.id)
@@ -307,7 +334,8 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
       alive = false;
       if (made) URL.revokeObjectURL(made);
     };
-  }, [roomId, msg.id, msg.pending, load]);
+  }, [roomId, msg.id, msg.pending, load, local]);
+  const src = url || local;
 
   async function download() {
     if (busy || !msg.id) return;
@@ -325,9 +353,9 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
   if (voice)
     return (
       <span className="sattach sattach--voice">
-        {url ? (
+        {src ? (
           <VoiceNotePlayer
-            src={url}
+            src={src}
             className="vnote--bub"
             playLabel={t("voicePlay")}
             pauseLabel={t("voicePause")}
@@ -350,14 +378,15 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
   if (image)
     return (
       <span className="sattach sattach--img" ref={hostRef}>
-        {url ? (
+        {src ? (
           <button type="button" className="sattach__thumb" onClick={() => setOpen(true)} title={t("imageOpen")}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={url} alt={name} />
+            <img src={src} alt={name} onError={() => setBroken(true)} />
             <span className="sattach__zoom" aria-hidden><IconEye /></span>
           </button>
         ) : (
-          <span className="sattach__ph">
+          <span className={`sattach__ph${err ? " sattach__ph--err" : ""}`}>
+            <i aria-hidden />
             {err ? t("attachFailed") : msg.pending ? t("attachSending") : t("attachLoading")}
           </span>
         )}
@@ -367,9 +396,9 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
             {busy ? <IconClock /> : <IconDownload />}
           </button>
         </span>
-        {open && url ? (
+        {open && src ? (
           <ImageLightbox
-            url={url}
+            url={src}
             name={isMachineFileName(name) ? "" : name}
             onClose={() => setOpen(false)}
             onDownload={() => void download()}
@@ -629,6 +658,7 @@ export default function SecureChat({
   roomId,
   onClose,
   compact,
+  embedded,
   urgentRecordId,
   workId,
   serviceTitle,
@@ -640,6 +670,9 @@ export default function SecureChat({
   // Embedded in a side panel: one slim status line instead of the full
   // page header, and no controls that duplicate the host screen's own.
   compact?: boolean;
+  // Inside the messenger, beside the conversation list: the close control
+  // becomes "back to the list" and only shows where the list is hidden.
+  embedded?: boolean;
   // The Tezkor Advokat request this room belongs to. A room id is not enough:
   // completion is a request-level action (POST /urgent-advokat/requests/{id}
   // /chat/complete), and a plain secure chat has no such record — hence
@@ -682,7 +715,9 @@ export default function SecureChat({
   const searchParams = useSearchParams();
   const [msgs, setMsgs] = useState<LocalMsg[]>([]);
   const [text, setText] = useState("");
-  const [sending, setSending] = useState(false);
+  // Set while a text is in flight; nothing draws it any more (the bubble's
+  // own clock does), but the socket handlers still keep it honest.
+  const [, setSending] = useState(false);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [loadErr, setLoadErr] = useState<unknown>(undefined);
   const [conn, setConn] = useState<Conn>("connecting");
@@ -697,9 +732,22 @@ export default function SecureChat({
   // Completed room. Set by our own "yakunlash", and by any 409 from a send —
   // the backend refuses every message once the request is completed, and a
   // room can be completed by the other side while this tab sits open.
-  const [finished, setFinished] = useState(false);
+  const [finishedSt, setFinished] = useState(false);
   const [callsOff, setCallsOff] = useState(false);
-  const [roomOrder, setRoomOrder] = useState<{ orderId: string; clientUserId: string; sellerUserId: string } | null>(null);
+  // The room's own row, from the shared list (messenger/rooms.ts): who is in
+  // it, its status and its order. A plain secure chat has no urgent record,
+  // so the row is the only thing that can say it is closed. Measured on
+  // production: all 23 live rooms read "active", including the room of two
+  // completed urgent records, so this is a best-effort second source and
+  // never the one that turns a working chat off; only an explicitly closed
+  // room stops the composer.
+  const { room: roomRow } = useRoom(session?.id ?? "", roomId);
+  const rowStatus = (roomRow?.status || "").toLowerCase();
+  const finished = finishedSt || (!urgentRecordId && (rowStatus === "completed" || rowStatus === "closed"));
+  const rowOrder = urgentRecordId ? "" : roomRow?.orderId || "";
+  const rowClient = roomRow?.clientUserId ?? "";
+  const rowSeller = roomRow?.sellerUserId ?? "";
+  const roomOrder = useMemo(() => (rowOrder ? { orderId: rowOrder, clientUserId: rowClient, sellerUserId: rowSeller } : null), [rowOrder, rowClient, rowSeller]);
   const [completing, setCompleting] = useState(false);
   // The Tezkor Advokat record this room belongs to, once it has been read
   // back. It is what supplies the three header facts the room itself does not
@@ -775,28 +823,6 @@ export default function SecureChat({
       alive = false;
     };
   }, [urgentRecordId, finished]);
-
-  // A plain secure chat has no urgent record, so the only thing that can say
-  // whether it is closed is the room row itself — /secure-chats carries a
-  // `status` per room. Measured on production: all 23 live rooms read
-  // "active", including the room of two completed urgent records, so this is
-  // a best-effort second source and never the one that turns a working chat
-  // off; only an explicitly closed room stops the composer.
-  useEffect(() => {
-    if (urgentRecordId) return;
-    let alive = true;
-    listSecureChats()
-      .then((rooms) => {
-        const mine = rooms.find((r) => r.id === roomId);
-        const st = (mine?.status || "").toLowerCase();
-        if (alive && (st === "completed" || st === "closed")) setFinished(true);
-        if (alive && mine?.orderId) setRoomOrder({ orderId: mine.orderId, clientUserId: mine.clientUserId ?? "", sellerUserId: mine.sellerUserId ?? "" });
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [roomId, urgentRecordId]);
 
   useEffect(() => {
     if (!roomOrder || urgentRecordId) return;
@@ -964,6 +990,7 @@ export default function SecureChat({
       },
     });
     if (!ok) return;
+    dropRoom(roomId);
     notify.success(t("deleted"), { id });
     close();
   }
@@ -1171,6 +1198,7 @@ export default function SecureChat({
           const raw = (o.message ?? o) as Record<string, unknown>;
           const m: LocalMsg = { ...normSecureMsgCore(raw), ...normSecureMsgFile(raw) };
           if (!m.id) return;
+          noteList(m);
           // Completing the consultation posts a closing message into the room
           // itself — captured live in room f43fa109: message_type "result",
           // content "Chat konsultatsiya yakunlandi", meta carrying
@@ -1186,10 +1214,14 @@ export default function SecureChat({
           // My own message echoed back → replace the optimistic bubble.
           if (session && m.senderId === session.id) {
             setSending(false);
+            // Marked outside the updater: React may run an updater twice,
+            // and a second run that found the id already seen used to keep
+            // the optimistic bubble on its clock forever.
+            if (seen.current.has(m.id)) return;
+            seen.current.add(m.id);
             setMsgs((prev) => {
-              if (seen.current.has(m.id)) return prev;
+              if (prev.some((x) => x.id === m.id)) return prev;
               const idx = prev.findIndex((x) => x.pending && (x.messageType || "text") === (m.messageType || "text"));
-              seen.current.add(m.id);
               if (idx >= 0) {
                 const next = [...prev];
                 next[idx] = m;
@@ -1255,21 +1287,204 @@ export default function SecureChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, reloadKey]);
 
+  // What the timeline draws: reactions are folded into chips (below), not
+  // bubbles. One that names no message is shown as what it says.
+  // In time order: the history can land after a message sent in the first
+  // seconds, and a reconnect re-reads it, so arrival order is not reliable.
+  const visible = useMemo(
+    () =>
+      msgs
+        .map((m, i) => ({ m, i, at: Date.parse(m.createdAt) || 0 }))
+        .filter((x) => !x.m.reaction)
+        .sort((a, b) => a.at - b.at || a.i - b.i)
+        .map((x) => x.m),
+    [msgs],
+  );
+  const visibleRef = useRef(visible);
+  useEffect(() => {
+    visibleRef.current = visible;
+  }, [visible]);
+
+  // Stick to the bottom only while the reader is there. Someone who scrolled
+  // up to re-read is left where they are; what arrives meanwhile is counted
+  // on the "new messages" button instead of yanking the view away. My own
+  // message always brings the view down — I just sent it.
+  const atBottom = useRef(true);
+  const painted = useRef(false);
+  const [away, setAway] = useState(false);
+  const [leftAt, setLeftAt] = useState(0);
+  const lastLen = useRef(0);
+  useLayoutEffect(() => {
+    const el = bodyRef.current;
+    if (!el || status !== "ready") return;
+    const n = visible.length;
+    const grew = n > lastLen.current;
+    lastLen.current = n;
+    if (!painted.current) {
+      painted.current = true;
+      el.scrollTop = el.scrollHeight;
+      return;
+    }
+    const last = visible[n - 1];
+    const mine = grew && !!last && !!session && last.senderId === session.id;
+    if (atBottom.current || mine) el.scrollTo({ top: el.scrollHeight, behavior: painted.current && n - 1 > 0 ? "smooth" : "auto" });
+  }, [visible, status, session]);
+  // Photos and voice notes size themselves after they load; while the
+  // reader is at the bottom, keep them there as the content grows.
   useEffect(() => {
     const el = bodyRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
-  }, [msgs, sending]);
+    const inner = el?.firstElementChild;
+    if (!el || !inner || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => {
+      if (atBottom.current) el.scrollTop = el.scrollHeight;
+    });
+    // The content growing (a photo landing) and the viewport shrinking (the
+    // reply strip opening, a phone keyboard) both move the bottom.
+    ro.observe(inner);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [status]);
+  function onBodyScroll() {
+    const el = bodyRef.current;
+    if (!el) return;
+    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 140;
+    if (bottom === atBottom.current) return;
+    atBottom.current = bottom;
+    setAway(!bottom);
+    if (!bottom) setLeftAt(visibleRef.current.length);
+  }
+  function toBottom() {
+    const el = bodyRef.current;
+    if (!el) return;
+    atBottom.current = true;
+    setAway(false);
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }
+  const me = session?.id ?? "";
+  const unseen = away ? visible.slice(leftAt).filter((m) => m.senderId !== me && !NOTICE_TYPES.has(m.messageType)).length : 0;
+
+  // The room's row in the conversation list follows what happens here: my
+  // own sends and the echoes this socket hears move it to the top.
+  function noteList(m: SecureMessage) {
+    if (!m.id) return;
+    noteRoomMessage(roomId, {
+      id: m.id,
+      sender_user_id: m.senderId,
+      sender_name: m.sender?.name ?? "",
+      message_type: m.messageType,
+      content: m.file && !m.filteredContent ? m.file.fileName : m.filteredContent,
+      created_at: m.createdAt || new Date().toISOString(),
+      is_mine: !!me && m.senderId === me,
+    });
+  }
+
+  // Reactions, folded per message: who holds which emoji. Replayed in the
+  // order they were sent, so a later "add" replaces a person's earlier one
+  // and a "remove" takes it away (see SECURE_REACTION).
+  const reactions = useMemo(() => {
+    const per = new Map<string, Map<string, { emoji: string; name: string }>>();
+    for (const m of msgs) {
+      const r = m.reaction;
+      if (!r || m.failed) continue;
+      const uid = m.senderId || m.sender?.id || "";
+      if (!uid) continue;
+      let byUser = per.get(r.targetId);
+      if (!byUser) per.set(r.targetId, (byUser = new Map()));
+      if (r.op === "remove") {
+        if (!r.emoji || byUser.get(uid)?.emoji === r.emoji) byUser.delete(uid);
+      } else if (r.emoji) byUser.set(uid, { emoji: r.emoji, name: m.sender?.name || "" });
+    }
+    const out = new Map<string, ReactAgg[]>();
+    for (const [target, byUser] of per) {
+      const by = new Map<string, ReactAgg>();
+      for (const [uid, v] of byUser) {
+        const a = by.get(v.emoji) ?? { emoji: v.emoji, users: [], mine: false };
+        a.users.push({ id: uid, name: v.name });
+        if (uid === me) a.mine = true;
+        by.set(v.emoji, a);
+      }
+      if (by.size) out.set(target, [...by.values()]);
+    }
+    return out;
+  }, [msgs, me]);
+  const [picker, setPicker] = useState("");
+  const [actFor, setActFor] = useState("");
+
+  function react(m: LocalMsg, emoji: string) {
+    setPicker("");
+    setActFor("");
+    if (!canReply(m) || !emoji) return;
+    const mineNow = (reactions.get(m.id) ?? []).find((a) => a.mine)?.emoji ?? "";
+    const r = { targetId: m.id, emoji, op: mineNow === emoji ? ("remove" as const) : ("add" as const) };
+    const tempId = tmpId();
+    setMsgs((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        senderId: me,
+        sender: session ? { id: me, lexgoId: "", role: "", name: session.name } : null,
+        replyToId: "",
+        replyTo: null,
+        reaction: r,
+        filteredContent: emoji,
+        isBlocked: false,
+        createdAt: new Date().toISOString(),
+        messageType: SECURE_REACTION,
+        file: null,
+        pending: true,
+      },
+    ]);
+    // Over the socket, like a text message, so the others see it live.
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify(secureReactionFrame(r)));
+        return;
+      } catch {
+        /* fall through to HTTP */
+      }
+    }
+    sendSecureReaction(roomId, r)
+      .then((saved) => {
+        if (saved.id) seen.current.add(saved.id);
+        setMsgs((prev) => prev.map((x) => (x.id === tempId ? { ...saved, reaction: saved.reaction ?? r } : x)));
+      })
+      .catch((e) => {
+        setMsgs((prev) => prev.filter((x) => x.id !== tempId));
+        if (isConflict(e)) setFinished(true);
+        else notify.error(t("reactFailed"), { id: `schat-react-${roomId}`, error: e });
+      });
+  }
+
+  // A failed message keeps what it needs to be sent again: its text and
+  // quote are on the bubble, a file is held here until it goes or is dropped.
+  const retryFiles = useRef(new Map<string, { file: File | Blob; type: "file" | "voice"; name?: string }>());
+  const quoteOf = (m: LocalMsg): LocalMsg | null => (m.replyToId ? msgs.find((x) => x.id === m.replyToId) ?? null : null);
+  function retryMsg(m: LocalMsg) {
+    const held = retryFiles.current.get(m.id);
+    setMsgs((prev) => prev.filter((x) => x.id !== m.id));
+    retryFiles.current.delete(m.id);
+    if (held) void sendAttachment(held.file, held.type, held.name, quoteOf(m));
+    else if (m.filteredContent) void send(m.filteredContent, quoteOf(m));
+  }
+  function discardMsg(m: LocalMsg) {
+    retryFiles.current.delete(m.id);
+    if (m.localUrl) URL.revokeObjectURL(m.localUrl);
+    setMsgs((prev) => prev.filter((x) => x.id !== m.id));
+  }
 
   // One upload path for both kinds. The bubble is optimistic like a text
   // message, but there is no socket echo to reconcile against on failure —
   // the HTTP response is the only confirmation, so it replaces the bubble.
-  async function sendAttachment(file: File | Blob, messageType: "file" | "voice", fileName?: string) {
-    if (attachBusy || finished) return;
+  async function sendAttachment(file: File | Blob, messageType: "file" | "voice", fileName?: string, quote?: LocalMsg | null) {
+    if (finished) return;
     setAttachBusy(true);
-    const quoted = replyTo;
-    setReplyTo(null);
-    const tempId = `tmp-${Date.now()}`;
+    const quoted = quote === undefined ? replyTo : quote;
+    if (quote === undefined) setReplyTo(null);
+    const tempId = tmpId();
     const name = fileName || (file instanceof File ? file.name : "");
+    retryFiles.current.set(tempId, { file, type: messageType, name: fileName });
+    const localUrl = messageType === "voice" || file.type.startsWith("image/") || IMAGE_EXT.test(name) ? URL.createObjectURL(file) : undefined;
     setMsgs((prev) => [
       ...prev,
       {
@@ -1283,13 +1498,17 @@ export default function SecureChat({
         createdAt: new Date().toISOString(),
         messageType,
         file: { fileName: name, mimeType: file.type, size: file.size, downloadUrl: "", inlineUrl: "", preview: null },
+        reaction: null,
         pending: true,
+        localUrl,
       },
     ]);
     try {
       const m = await uploadSecureMessage(roomId, { file, messageType, fileName: name, replyToId: quoted?.id });
       if (m.id) seen.current.add(m.id);
-      setMsgs((prev) => prev.map((x) => (x.id === tempId ? m : x)));
+      retryFiles.current.delete(tempId);
+      setMsgs((prev) => prev.map((x) => (x.id === tempId ? { ...m, localUrl } : x)));
+      noteList(m);
     } catch (e) {
       setMsgs((prev) => prev.map((x) => (x.id === tempId ? { ...x, pending: false, failed: true } : x)));
       // The completed-room 409 is not the "try again" the generic notice
@@ -1301,17 +1520,52 @@ export default function SecureChat({
     }
   }
 
-  function pickFile(files: FileList | null) {
-    const f = files?.[0];
+  // Picked, dropped or pasted — several at once go up one after another, so
+  // they arrive in the order they were chosen.
+  async function pickFile(files: FileList | File[] | null) {
+    const list = files ? Array.from(files) : [];
     if (fileRef.current) fileRef.current.value = "";
-    if (!f) return;
-    // 25 MB — past this the upload reliably times out on a phone connection
-    // and the failure arrives long after the user has moved on.
-    if (f.size > 25 * 1024 * 1024) {
-      notify.error(t("attachTooBig"), { id: `schat-attach-${roomId}`, body: f.name });
-      return;
+    if (!list.length || finished) return;
+    let first = true;
+    for (const f of list) {
+      // 25 MB — past this the upload reliably times out on a phone connection
+      // and the failure arrives long after the user has moved on.
+      if (f.size > 25 * 1024 * 1024) {
+        notify.error(t("attachTooBig"), { id: `schat-attach-${roomId}-${f.name}`, body: f.name });
+        continue;
+      }
+      // Only the first file carries the quote being answered.
+      await sendAttachment(f, "file", undefined, first ? undefined : null);
+      first = false;
     }
-    void sendAttachment(f, "file");
+  }
+  const [dragOn, setDragOn] = useState(false);
+  const dragDepth = useRef(0);
+  const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
+  const canAttach = !finished;
+  function onDragEnter(e: DragEvent) {
+    if (!hasFiles(e) || !canAttach) return;
+    e.preventDefault();
+    dragDepth.current += 1;
+    setDragOn(true);
+  }
+  function onDragLeave(e: DragEvent) {
+    if (!hasFiles(e)) return;
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (!dragDepth.current) setDragOn(false);
+  }
+  function onDrop(e: DragEvent) {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragDepth.current = 0;
+    setDragOn(false);
+    if (canAttach) void pickFile(e.dataTransfer.files);
+  }
+  function onPaste(e: ClipboardEvent) {
+    const files = Array.from(e.clipboardData?.files ?? []);
+    if (!files.length || !canAttach) return;
+    e.preventDefault();
+    void pickFile(files);
   }
 
   // Recording has to begin inside the click handler: iOS refuses the
@@ -1350,14 +1604,17 @@ export default function SecureChat({
     setRecOn(false);
   }
 
-  async function send() {
-    const content = text.trim();
+  async function send(again?: string, quote?: LocalMsg | null) {
+    const content = (again ?? text).trim();
     if (!content || finished) return;
-    setText("");
-    const quoted = replyTo;
-    setReplyTo(null);
+    if (again === undefined) {
+      setText("");
+      requestAnimationFrame(sizeInput);
+    }
+    const quoted = quote === undefined ? replyTo : quote;
+    if (quote === undefined) setReplyTo(null);
     // Optimistic bubble; reconciled when the server echoes it back.
-    const tempId = `tmp-${Date.now()}`;
+    const tempId = tmpId();
     const optimistic: LocalMsg = {
       id: tempId,
       senderId: session?.id ?? "",
@@ -1369,6 +1626,7 @@ export default function SecureChat({
       createdAt: new Date().toISOString(),
       messageType: "text",
       file: null,
+      reaction: null,
       pending: true,
     };
     setMsgs((prev) => [...prev, optimistic]);
@@ -1394,6 +1652,7 @@ export default function SecureChat({
       const m = await sendSecureMessage(roomId, content, quoted?.id ?? "");
       if (m.id) seen.current.add(m.id);
       setMsgs((prev) => prev.map((x) => (x.id === tempId ? { ...m } : x)));
+      noteList(m);
     } catch (e) {
       setMsgs((prev) => prev.map((x) => (x.id === tempId ? { ...x, pending: false, failed: true } : x)));
       // A completed room refuses every send with 409, and will keep doing so —
@@ -1404,6 +1663,27 @@ export default function SecureChat({
       setSending(false);
     }
   }
+
+  const voiceOk = useSyncExternalStore(noSub, canRecordVoice, noVoice);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  function sizeInput() {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }
+  // A tap elsewhere closes the open message actions and reaction picker.
+  useEffect(() => {
+    if (!actFor && !picker) return;
+    const off = (e: PointerEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el?.closest(".mxm__acts,.mxm__bub")) return;
+      setActFor("");
+      setPicker("");
+    };
+    document.addEventListener("pointerdown", off);
+    return () => document.removeEventListener("pointerdown", off);
+  }, [actFor, picker]);
 
   useEffect(() => {
     again.current = {
@@ -1420,8 +1700,8 @@ export default function SecureChat({
 
   if (ready && !session) {
     return (
-      <div className="schat schat--gate">
-        <span className="schat__gicon"><IconLock /></span>
+      <div className="mxr mxr--gate">
+        <span className="mxr__gicon"><IconLock /></span>
         <p>{t("loginRequired")}</p>
         <Link href="/login" className="btn btn--pri">{t("login")}</Link>
       </div>
@@ -1438,7 +1718,15 @@ export default function SecureChat({
   const headWorkId = workId || rec?.workId || "";
   const headService = serviceTitle || rec?.serviceTitle || "";
   const headStatus = statusProp || rec?.status || "";
-  const headPeople = participantCount || countParticipants(rec);
+  const peer = peerOf(roomRow, me);
+  const headPeople = participantCount || countParticipants(rec) || (peer.group ? peer.count : 0);
+  const groupRoom = peer.group || headPeople > 2;
+  // A two-person room names its other side in the header, so its bubbles
+  // need no name; a panel has three or more voices and every incoming turn
+  // says whose it is. Without the room row (not in the list yet) the names
+  // stay, which is the safe side.
+  const nameBubbles = groupRoom || !roomRow;
+  const headName = peer.name || headService || t("title");
   // R34 (MD L264-267): "Mijoz uchun: chat completed bo'lgandan keyin Baholash
   // chiqadi". Both halves are checked against the record rather than against
   // the session's role list, so an operator who also happens to be the client
@@ -1446,137 +1734,134 @@ export default function SecureChat({
   // THIS work, and only the person who asked for it may leave one.
   const viewerIsClient = !!rec && !!session && rec.clientUserId === session.id;
   const showRating = finished && !!urgentRecordId && viewerIsClient;
+  const hasText = !!text.trim();
+
+  async function copyText(m: LocalMsg) {
+    setActFor("");
+    try {
+      await navigator.clipboard.writeText(maskContacts(bodyTextOf(m)));
+      notify.success(t("copied"), { id: `schat-copy-${roomId}` });
+    } catch {
+      /* clipboard refused: nothing to say */
+    }
+  }
 
   let lastDay = "";
 
   return (
-    <div className={`schat${compact ? " schat--compact" : ""}`}>
-      <div className="schat__head">
+    <div
+      className={`mxr${compact ? " mxr--compact" : ""}${embedded ? " mxr--embedded" : ""}`}
+      onDragEnter={onDragEnter}
+      onDragOver={(e) => {
+        if (hasFiles(e) && canAttach) e.preventDefault();
+      }}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+    >
+      <header className="mxr__head">
         {compact ? null : (
-          <button className="schat__x" type="button" aria-label={t("close")} onClick={close}>
-            <IconClose />
+          <button className={`mxr__ib${embedded ? " mxr__back" : ""}`} type="button" aria-label={embedded ? t("back") : t("close")} title={embedded ? t("back") : t("close")} onClick={close}>
+            {embedded ? <ArrowLeft aria-hidden /> : <IconClose />}
           </button>
         )}
-        <span className="schat__i">
-          <IconShieldCheck />
-          <i className={`schat__pulse schat__pulse--${conn}`} aria-hidden />
+        <span className={`mx-av mxr__av${groupRoom ? " mx-av--group" : ""}`} style={{ ["--h" as string]: hueOf(peer.ids[0] || roomId) }} aria-hidden>
+          {groupRoom ? <UsersIcon /> : initialsOf(peer.name) || <IconShieldCheck />}
+          <i className={`mxr__dot mxr__dot--${conn}`} />
         </span>
-        <div className="schat__t" data-ai-target={compact ? undefined : "ai-help:current-page"}>
-          <b>{t("title")}</b>
+        <div className="mxr__who" data-ai-target={compact ? undefined : "ai-help:current-page"}>
+          <b title={headName}>{headName}</b>
+          <span className="mxr__sub">
+            {conn !== "online" ? (
+              <span className={`mxr__conn mxr__conn--${conn}`}>
+                <i aria-hidden />
+                {connLabel}
+              </span>
+            ) : (
+              <>
+                {groupRoom && headPeople ? <span>{t("participants", { count: headPeople })}</span> : peer.role ? <span>{peerRole(peer.role, t)}</span> : null}
+                <span className="mxr__safe">
+                  <LockIcon aria-hidden />
+                  {t("secured")}
+                </span>
+              </>
+            )}
+          </span>
           {/* R28/R29/R31 (MD L253-257): the work id, the service and the
-              status, on one line under the title. */}
+              status, under the name. */}
           {headService || headWorkId || headStatus ? (
-            <span className="schat__sub">
-              {headService ? <span className="schat__svc">{headService}</span> : null}
-              {headWorkId ? <span className="schat__wid">#{headWorkId}</span> : null}
+            <span className="mxr__tags">
+              {headService && headService !== headName ? <span className="mx-tag mx-tag--urgent">{headService}</span> : null}
+              {headWorkId ? <span className="mx-tag mx-tag--mono">#{headWorkId}</span> : null}
               {headStatus ? (
-                <span className={`schat__st schat__st--${headStatus}`} title={t("statusTitle")}>
+                <span className={`mx-tag mx-tag--st mx-tag--${headStatus}`} title={t("statusTitle")}>
                   {statusLabel(tc, headStatus)}
                 </span>
               ) : null}
             </span>
           ) : null}
-          <span className={`schat__conn schat__conn--${conn}`}>
-            <i className="schat__cdot" aria-hidden />
-            {connLabel}
-          </span>
         </div>
-        {headPeople ? (
-          <span className="schat__ppl" title={t("participants", { count: headPeople })}>
-            <IconUsers />
-            {headPeople}
-          </span>
-        ) : null}
-        {!compact && canMakeCalls(session) && !callsOff ? (
-          <div className="schat__calls" data-ai-target="chat-room:calls">
-            <button
-              className="schat__call"
-              type="button"
-              onClick={() => beginCall("audio")}
-              disabled={callBusy || !!activeCall}
-              aria-label={t("audioCall")}
-            >
-              <IconPhone />
-            </button>
-            <button
-              className="schat__call schat__call--video"
-              type="button"
-              onClick={() => beginCall("video")}
-              disabled={callBusy || !!activeCall}
-              aria-label={t("videoCall")}
-            >
-              <IconVideo />
-            </button>
-          </div>
-        ) : null}
-        {compact ? null : (
-          <span className="schat__lock" title={t("secured")}>
-            <IconLock />
-            {t("e2e")}
-          </span>
-        )}
-        {/* Only an advocate or the operator may complete the consultation; a
-            client is answered 403, so the action is not offered to one. */}
-        {urgentRecordId && isStaffSession(session) && !finished ? (
-          <button
-            className="schat__done"
-            type="button"
-            onClick={() => setAskSummary(true)}
-            disabled={completing}
-            title={t("completeChat")}
-            data-ai-target="button:chat-complete"
-          >
-            {completing ? <IconClock /> : <IconClipboardCheck />}
-            <span>{t("completeChat")}</span>
-          </button>
-        ) : null}
-        {copilotOn && !compact ? (
-          <button
-            className="schat__call schat__cop"
-            type="button"
-            onClick={(e) => openCopilot({ surface: copilotChatSurface(session), entity: { type: "secure_chat", id: roomId, title: [headWorkId ? `#${headWorkId}` : "", headService].filter(Boolean).join(" · ") || t("title") }, trigger: e.currentTarget })}
-            aria-label={t("askCopilot")}
-            title={t("askCopilot")}
-            data-ai-target="button:chat-copilot"
-          >
-            <IconSparkle />
-          </button>
-        ) : null}
-        {compact ? null : <InstructorButton className="schat__call schat__ai" iconOnly size={26} />}
-        <div className="schat__menu" hidden={compact}>
-          <button
-            className="schat__call"
-            type="button"
-            aria-label={t("chatSettings")}
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((v) => !v)}
-          >
-            <IconClock />
-          </button>
-          {menuOpen ? (
-            <div className="schat__drop" role="menu">
-              <p className="schat__droplabel">{t("ttlTitle")}</p>
-              {TTL_OPTS.map((o) => (
-                <button
-                  key={o.key}
-                  type="button"
-                  className={`schat__dropi${ttl === o.h ? " on" : ""}`}
-                  onClick={() => applyTtl(o.h)}
-                >
-                  {ttl === o.h ? <IconCheck /> : <span className="schat__dropdot" />}
-                  {t(o.key)}
-                </button>
-              ))}
-              <div className="schat__dropsep" />
-              <button type="button" className="schat__dropi schat__dropi--danger" onClick={removeChat}>
-                <IconClose />
-                {t("deleteChat")}
+        <div className="mxr__acts">
+          {!compact && canMakeCalls(session) && !callsOff ? (
+            <span className="mxr__calls" data-ai-target="chat-room:calls">
+              <button className="mxr__ib" type="button" onClick={() => beginCall("audio")} disabled={callBusy || !!activeCall} aria-label={t("audioCall")} title={t("audioCall")}>
+                <IconPhone />
               </button>
-              <p className="schat__dropnote">{t("archiveNote")}</p>
-            </div>
+              <button className="mxr__ib" type="button" onClick={() => beginCall("video")} disabled={callBusy || !!activeCall} aria-label={t("videoCall")} title={t("videoCall")}>
+                <IconVideo />
+              </button>
+            </span>
           ) : null}
+          {/* Only an advocate or the operator may complete the consultation; a
+              client is answered 403, so the action is not offered to one. */}
+          {urgentRecordId && isStaffSession(session) && !finished ? (
+            <button className="mxr__done" type="button" onClick={() => setAskSummary(true)} disabled={completing} title={t("completeChat")} data-ai-target="button:chat-complete">
+              {completing ? <IconClock /> : <IconClipboardCheck />}
+              <span>{t("completeChat")}</span>
+            </button>
+          ) : null}
+          {copilotOn && !compact ? (
+            <button
+              className="mxr__ib mxr__cop"
+              type="button"
+              onClick={(e) => openCopilot({ surface: copilotChatSurface(session), entity: { type: "secure_chat", id: roomId, title: [headWorkId ? `#${headWorkId}` : "", headService].filter(Boolean).join(" · ") || t("title") }, trigger: e.currentTarget })}
+              aria-label={t("askCopilot")}
+              title={t("askCopilot")}
+              data-ai-target="button:chat-copilot"
+            >
+              <IconSparkle />
+            </button>
+          ) : null}
+          {compact ? null : <InstructorButton className="mxr__ib mxr__ai" iconOnly size={26} />}
+          <div className="mxr__menu" hidden={compact}>
+            <button className="mxr__ib" type="button" aria-label={t("chatSettings")} title={t("chatSettings")} aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((v) => !v)}>
+              <EllipsisVertical aria-hidden />
+            </button>
+            {menuOpen ? (
+              <>
+                <span className="mxr__scrim" onClick={() => setMenuOpen(false)} aria-hidden />
+                <div className="mxr__drop" role="menu">
+                  <p className="mxr__droplabel">
+                    <IconClock />
+                    {t("ttlTitle")}
+                  </p>
+                  {TTL_OPTS.map((o) => (
+                    <button key={o.key} type="button" role="menuitemradio" aria-checked={ttl === o.h} className={`mxr__dropi${ttl === o.h ? " on" : ""}`} onClick={() => applyTtl(o.h)}>
+                      {ttl === o.h ? <IconCheck /> : <span className="mxr__dropdot" />}
+                      {t(o.key)}
+                    </button>
+                  ))}
+                  <div className="mxr__dropsep" />
+                  <button type="button" role="menuitem" className="mxr__dropi mxr__dropi--danger" onClick={removeChat}>
+                    <Trash2 aria-hidden />
+                    {t("deleteChat")}
+                  </button>
+                  <p className="mxr__dropnote">{t("archiveNote")}</p>
+                </div>
+              </>
+            ) : null}
+          </div>
         </div>
-      </div>
+      </header>
 
       {incoming && !activeCall ? (
         <div className="schat__callbar">
@@ -1614,152 +1899,247 @@ export default function SecureChat({
         />
       ) : null}
 
-      <div className="schat__body" ref={bodyRef} data-ai-target="chat-room:messages" data-ai-label={t("title")}>
-        <div className="schat__sys">
-          <IconLock />
-          <span>{t("encrypted")}</span>
-        </div>
+      <div className="mxr__stage">
+        <div className="mxr__body" ref={bodyRef} onScroll={onBodyScroll} data-ai-target="chat-room:messages" data-ai-label={t("title")}>
+          <div className="mxr__flow">
+            <p className="mxr__e2e">
+              <IconLock />
+              <span>{t("encrypted")}</span>
+            </p>
 
-        {status === "loading" ? (
-          <div className="schat__load" aria-hidden>
-            <span className="sskel sskel--them" />
-            <span className="sskel sskel--me" />
-            <span className="sskel sskel--them" />
-          </div>
-        ) : status === "error" ? (
-          <ErrorState title={t("errorLoad")} error={loadErr} onRetry={reloadHistory} />
-        ) : msgs.length === 0 ? (
-          <div className="schat__empty">
-            <span className="schat__halo"><IconShieldCheck /></span>
-            <p>{t("empty")}</p>
-          </div>
-        ) : (
-          msgs.map((m, i) => {
-            const mine = !!session && m.senderId === session.id;
-            const quoted = m.replyTo;
-            const dk = dayKey(m.createdAt);
-            let sep: React.ReactNode = null;
-            if (dk && dk !== lastDay) {
-              lastDay = dk;
-              const today = new Date().toDateString();
-              const yday = new Date();
-              yday.setDate(yday.getDate() - 1);
-              const yd = yday.toDateString();
-              const label = dk === today ? t("today") : dk === yd ? t("yesterday") : dateOnly(m.createdAt, locale);
-              sep = <div className="schat__day" key={`d-${dk}`}><span>{label}</span></div>;
-            }
-            // R24 (MD L247). A `system` row is the backend narrating the work
-            // ("Tezkor Advokat so'rovi qabul qilindi") and a `result` row is
-            // the closing summary the advocate sent with the completion —
-            // both are about the room, not messages in it, so neither gets an
-            // avatar, a delivery tick or a reply handle. The type is named in
-            // words on the row because that is what the MD asks for: every
-            // message shows what kind of message it is.
-            if (NOTICE_TYPES.has(m.messageType)) {
-              const result = m.messageType === "result";
-              return (
-                <Fragment key={`w-${m.id || i}`}>
-                  {sep}
-                  <div className={`snote${result ? " snote--result" : ""}`} data-mid={m.id || undefined} role="note">
-                    <span className="snote__i" aria-hidden>{result ? <IconClipboardCheck /> : <IconInfo />}</span>
-                    <span className="snote__b">
-                      <em className="snote__k">{result ? t("noticeResult") : t("noticeSystem")}</em>
-                      {m.filteredContent ? <span className="snote__c">{maskContacts(m.filteredContent)}</span> : null}
-                    </span>
-                    <time className="snote__t" dateTime={m.createdAt || undefined}>{fmtTime(m.createdAt)}</time>
-                  </div>
-                </Fragment>
-              );
-            }
-            return (
-              <Fragment key={`w-${m.id || i}`}>
-                {sep}
-                <div className={`sbub sbub--${mine ? "me" : "them"}${flashId && flashId === m.id ? " sbub--flash" : ""}`} data-mid={m.id || undefined}>
-                  {!mine ? <span className="sbub__av"><IconUser /></span> : null}
-                  <div className="sbub__wrap">
-                    {/* A Tezkor Advokat room has three parties, so "not mine"
-                        does not identify anyone — name every incoming bubble. */}
-                    {!mine && m.sender ? (
-                      <div className="sbub__who">
-                        <b>{senderName(m.sender)}</b>
-                        {m.sender.role ? <span className="sbub__role">{roleLabel(m.sender.role, t)}</span> : null}
-                      </div>
-                    ) : null}
-                    <div className={`sbub__c${m.failed ? " sbub__c--failed" : ""}`}>
-                      {quoted ? (
-                        <button
-                          type="button"
-                          className="sbub__quote"
-                          onClick={() => jumpTo(quoted.id)}
-                          title={t("replyJump")}
-                        >
-                          <b>{senderName(quoted.sender)}</b>
-                          <span>{quoteExcerpt(quoted)}</span>
-                        </button>
-                      ) : null}
-                      {m.messageType === "voice" || m.messageType === "file" || m.file ? (
-                        <Attachment roomId={roomId} msg={m} t={t} />
-                      ) : null}
-                      {bodyTextOf(m) ? <MsgBody text={maskContacts(bodyTextOf(m))} label={t("joinZoom")} /> : null}
+            {status === "loading" ? (
+              <div className="mxr__load" aria-busy="true" aria-label={t("loading")}>
+                {["them", "them", "me", "them", "me", "me"].map((side, k) => (
+                  <span key={k} className={`mxr__sk mxr__sk--${side}`} style={{ width: `${[46, 30, 52, 38, 26, 44][k]}%` }} />
+                ))}
+              </div>
+            ) : status === "error" ? (
+              <ErrorState title={t("errorLoad")} error={loadErr} onRetry={reloadHistory} />
+            ) : visible.length === 0 ? (
+              <div className="mxr__empty">
+                <span className="mxr__halo"><IconShieldCheck /></span>
+                <b>{t("emptyTitle")}</b>
+                <p>{t("empty")}</p>
+              </div>
+            ) : (
+              visible.map((m, i) => {
+                const mine = !!session && m.senderId === session.id;
+                const quoted = m.replyTo;
+                const dk = dayKey(m.createdAt);
+                let sep: React.ReactNode = null;
+                if (dk && dk !== lastDay) {
+                  lastDay = dk;
+                  sep = (
+                    <div className="mxr__day" key={`d-${dk}`}>
+                      <span>{dayLabel(m.createdAt, locale, t)}</span>
                     </div>
-                    {m.isBlocked ? (
-                      <div className="sbub__blocked">
-                        <IconAlert />
-                        {m.blockReason ? localizeApiDetail(m.blockReason) : t("blocked")}
+                  );
+                }
+                // R24 (MD L247). A `system` row is the backend narrating the
+                // work ("Tezkor Advokat so'rovi qabul qilindi") and a `result`
+                // row is the closing summary sent with the completion — both
+                // are about the room, not messages in it, so neither gets an
+                // avatar, a delivery tick or a reply handle. The type is named
+                // in words on the row: every message shows what kind it is.
+                if (NOTICE_TYPES.has(m.messageType)) {
+                  const result = m.messageType === "result";
+                  return (
+                    <Fragment key={`w-${m.id || i}`}>
+                      {sep}
+                      <div className={`mxr__note${result ? " mxr__note--result" : ""}`} data-mid={m.id || undefined} role="note">
+                        <span className="mxr__notei" aria-hidden>{result ? <IconClipboardCheck /> : <IconInfo />}</span>
+                        <span className="mxr__noteb">
+                          <em>{result ? t("noticeResult") : t("noticeSystem")}</em>
+                          {m.filteredContent === METADATA_ONLY ? (
+                            <span className="mxr__notehid">
+                              <LockIcon aria-hidden />
+                              {t("hiddenContent")}
+                            </span>
+                          ) : m.filteredContent ? (
+                            <span>{maskContacts(m.filteredContent)}</span>
+                          ) : null}
+                        </span>
+                        <time dateTime={m.createdAt || undefined}>{fmtTime(m.createdAt)}</time>
                       </div>
-                    ) : null}
-                    <div className="sbub__meta">
-                      <span>{fmtTime(m.createdAt)}</span>
-                      {mine ? (
-                        m.failed ? (
-                          <IconAlert className="sbub__rx sbub__rx--fail" />
-                        ) : m.pending ? (
-                          <IconClock className="sbub__rx" />
-                        ) : (
-                          <IconCheckDouble className="sbub__rx sbub__rx--ok" />
-                        )
-                      ) : null}
-                    </div>
-                  </div>
-                  {/* Last child, so row-reverse on my own bubbles puts it on
-                      the outer side of both columns without a second rule. */}
-                  {canReply(m) ? (
-                    <button
-                      type="button"
-                      className="sbub__reply"
-                      onClick={() => setReplyTo(m)}
-                      aria-label={t("reply")}
-                      title={t("reply")}
+                    </Fragment>
+                  );
+                }
+                const prev = visible[i - 1];
+                const next = visible[i + 1];
+                const joins = (a: LocalMsg | undefined, b: LocalMsg | undefined) =>
+                  !!a && !!b && !NOTICE_TYPES.has(a.messageType) && !NOTICE_TYPES.has(b.messageType) && a.senderId === b.senderId && dayKey(a.createdAt) === dayKey(b.createdAt) && Math.abs(Date.parse(b.createdAt) - Date.parse(a.createdAt)) < GROUP_MS;
+                const first = !joins(prev, m) || !!sep;
+                const last = !joins(m, next) || (!!next && dayKey(next.createdAt) !== dk);
+                const media = m.messageType === "voice" || m.messageType === "file" || !!m.file;
+                // Staff without the content-reveal permission get the text as
+                // "[metadata_only]"; on a file the card already says what it is.
+                const raw = bodyTextOf(m);
+                const body = media && raw === METADATA_ONLY ? "" : raw;
+                const imageOnly = media && !body && !quoted && isImageAttachment(m.file) && m.messageType !== "voice";
+                const chips = reactions.get(m.id) ?? [];
+                const who = m.sender ? senderName(m.sender) : "";
+                const hue = hueOf(m.senderId || who);
+                return (
+                  <Fragment key={`w-${m.id || i}`}>
+                    {sep}
+                    <div
+                      className={`mxm mxm--${mine ? "me" : "them"}${first ? " mxm--first" : ""}${last ? " mxm--last" : ""}${flashId && flashId === m.id ? " mxm--flash" : ""}${actFor === m.id ? " is-act" : ""}${groupRoom && !mine ? " mxm--av" : ""}`}
+                      data-mid={m.id || undefined}
                     >
-                      <IconChevronLeft />
-                    </button>
-                  ) : null}
-                </div>
-              </Fragment>
-            );
-          })
-        )}
-
-        {sending ? (
-          <div className="sbub sbub--me">
-            <div className="sbub__wrap">
-              <div className="sbub__typing"><i /><i /><i /></div>
-            </div>
+                      {groupRoom && !mine ? (
+                        <span className="mx-av mxm__av" style={{ ["--h" as string]: hue }} aria-hidden>
+                          {last ? initialsOf(who) || <IconUser /> : null}
+                        </span>
+                      ) : null}
+                      <div className="mxm__col">
+                        {!mine && first && nameBubbles && m.sender ? (
+                          <div className="mxm__who" style={{ ["--h" as string]: hue }}>
+                            <b>{who}</b>
+                            {m.sender.role ? <span>{roleLabel(m.sender.role, t)}</span> : null}
+                          </div>
+                        ) : null}
+                        <div
+                          className={`mxm__bub${imageOnly ? " mxm__bub--img" : ""}${m.failed ? " mxm__bub--failed" : ""}${m.pending ? " mxm__bub--pending" : ""}`}
+                          onClick={(e) => {
+                            if ((e.target as HTMLElement).closest("button,a,audio,input")) return;
+                            setActFor((cur) => (cur === m.id ? "" : m.id));
+                          }}
+                          onDoubleClick={(e) => {
+                            if ((e.target as HTMLElement).closest("button,a,audio,input")) return;
+                            react(m, QUICK_REACTIONS[0]);
+                          }}
+                        >
+                          {quoted ? (
+                            <button type="button" className="mxm__quote" onClick={() => jumpTo(quoted.id)} title={t("replyJump")}>
+                              <b>{senderName(quoted.sender)}</b>
+                              <span>{quoteExcerpt(quoted)}</span>
+                            </button>
+                          ) : null}
+                          {media ? <Attachment roomId={roomId} msg={m} t={t} /> : null}
+                          {body ? (
+                            <span className="mxm__text">
+                              {body === METADATA_ONLY ? (
+                                <em className="mxm__hidden">
+                                  <LockIcon aria-hidden />
+                                  {t("hiddenContent")}
+                                </em>
+                              ) : (
+                                <MsgBody text={maskContacts(body)} label={t("joinZoom")} />
+                              )}
+                            </span>
+                          ) : null}
+                          <span className="mxm__meta">
+                            <time dateTime={m.createdAt || undefined}>{fmtTime(m.createdAt)}</time>
+                            {mine ? (
+                              m.failed ? (
+                                <IconAlert className="mxm__rx mxm__rx--fail" />
+                              ) : m.pending ? (
+                                <IconClock className="mxm__rx" />
+                              ) : (
+                                <IconCheckDouble className="mxm__rx mxm__rx--ok" />
+                              )
+                            ) : null}
+                          </span>
+                        </div>
+                        {m.isBlocked ? (
+                          <div className="mxm__blocked">
+                            <IconAlert />
+                            {m.blockReason ? localizeApiDetail(m.blockReason) : t("blocked")}
+                          </div>
+                        ) : null}
+                        {chips.length ? (
+                          <div className="mxm__reacts" role="group" aria-label={t("reactions")}>
+                            {chips.map((c) => {
+                              const names = c.users.map((u) => (u.id === me ? t("you") : u.name || t("unknownSender"))).join(", ");
+                              return (
+                                <button
+                                  key={c.emoji}
+                                  type="button"
+                                  className={`mxm__chip${c.mine ? " on" : ""}`}
+                                  onClick={() => react(m, c.emoji)}
+                                  disabled={!canReply(m)}
+                                  title={names}
+                                  aria-label={`${c.emoji} ${c.users.length} — ${names}`}
+                                  aria-pressed={c.mine}
+                                >
+                                  <span className="mxm__emo">{c.emoji}</span>
+                                  {c.users.length > 1 ? <span>{c.users.length}</span> : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                        {m.failed ? (
+                          <div className="mxm__fail" role="status">
+                            <IconAlert />
+                            <span>{t("sendFailed")}</span>
+                            <button type="button" onClick={() => retryMsg(m)}>
+                              <RotateCw aria-hidden />
+                              {t("retrySend")}
+                            </button>
+                            <button type="button" onClick={() => discardMsg(m)} aria-label={t("discard")} title={t("discard")}>
+                              <Trash2 aria-hidden />
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                      {canReply(m) ? (
+                        <div className="mxm__acts">
+                          <button type="button" onClick={() => setPicker((cur) => (cur === m.id ? "" : m.id))} aria-label={t("react")} title={t("react")} aria-expanded={picker === m.id}>
+                            <SmilePlus aria-hidden />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReplyTo(m);
+                              setActFor("");
+                              requestAnimationFrame(() => inputRef.current?.focus());
+                            }}
+                            aria-label={t("reply")}
+                            title={t("reply")}
+                          >
+                            <Reply aria-hidden />
+                          </button>
+                          {body && body !== METADATA_ONLY ? (
+                            <button type="button" onClick={() => void copyText(m)} aria-label={t("copy")} title={t("copy")}>
+                              <Copy aria-hidden />
+                            </button>
+                          ) : null}
+                          {picker === m.id ? (
+                            <div className="mxm__picker" role="menu" aria-label={t("react")}>
+                              {QUICK_REACTIONS.map((e) => {
+                                const on = chips.some((c) => c.mine && c.emoji === e);
+                                return (
+                                  <button key={e} type="button" role="menuitemcheckbox" aria-checked={on} className={on ? "on" : undefined} onClick={() => react(m, e)}>
+                                    {e}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  </Fragment>
+                );
+              })
+            )}
+          </div>
+        </div>
+        {away && status === "ready" ? (
+          <button type="button" className="mxr__fab" onClick={toBottom} aria-label={unseen ? t("newMessages", { n: unseen }) : t("toBottom")} title={t("toBottom")}>
+            <ArrowDown aria-hidden />
+            {unseen ? <span>{unseen > 99 ? "99+" : unseen}</span> : null}
+          </button>
+        ) : null}
+        {dragOn ? (
+          <div className="mxr__drop-zone" aria-hidden>
+            <UploadCloud />
+            <b>{t("dropHere")}</b>
+            <span>{t("dropHint")}</span>
           </div>
         ) : null}
       </div>
-
-      <div className="schat__note">
-        <IconLock />
-        {t("safetyNote")}
-      </div>
-
-      {finished ? (
-        <div className="schat__fin" role="status">
-          <IconClipboardCheck />
-          {t("chatFinished")}
-        </div>
-      ) : null}
 
       {/* R34 (MD L264-267): the client rates the work in the chat it happened
           in, once it is completed. It sits above the composer rather than
@@ -1778,78 +2158,89 @@ export default function SecureChat({
         />
       ) : null}
 
-      {replyTo ? (
-        <div className="schat__replybar">
-          <span className="schat__replyi" aria-hidden><IconChevronLeft /></span>
-          <span className="schat__replyt">
-            <b>{senderName(replyTo.sender)}</b>
-            <small>{msgExcerpt(replyTo)}</small>
-          </span>
-          <button type="button" className="schat__replyx" onClick={() => setReplyTo(null)} aria-label={t("replyCancel")} title={t("replyCancel")}>
-            <IconClose />
-          </button>
-        </div>
-      ) : null}
-
-      <div className={`schat__bar${recOn ? " schat__bar--rec" : ""}`} data-ai-target="chat-room:composer" data-ai-label={t("placeholder")}>
-        {recOn ? (
-          <>
-            <button type="button" className="schat__reccancel" onClick={cancelVoice} aria-label={t("voiceCancel")}>
-              <IconTrash />
-            </button>
-            <span className="schat__rec" role="status">
-              <i />
-              {voiceDuration(recSec * 1000)}
-              <small>{t("voiceHint")}</small>
-            </span>
-            <button type="button" onClick={() => void toggleVoice()} aria-label={t("voiceSend")}>
-              <IconSend />
-            </button>
-          </>
+      <footer className="mxr__foot">
+        {finished ? (
+          <div className="mxr__fin" role="status">
+            <IconClipboardCheck />
+            {t("chatFinished")}
+          </div>
         ) : (
           <>
-            <input ref={fileRef} type="file" hidden onChange={(e) => pickFile(e.target.files)} />
-            <button
-              type="button"
-              className="schat__attach"
-              onClick={() => fileRef.current?.click()}
-              disabled={attachBusy || finished}
-              aria-label={t("attachFile")}
-              title={t("attachFile")}
-            >
-              <IconPaperclip />
-            </button>
-            {/* Positioned over the text input, so it lives beside it rather
-                than pinned to the bar — the attach button now takes the
-                bar's left edge, and while recording there is no input. */}
-            <span className="schat__barlock" aria-hidden><IconLock /></span>
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  send();
-                }
-              }}
-              placeholder={t("placeholder")}
-              aria-label={t("placeholder")}
-              disabled={finished}
-            />
-            {/* The mic replaces Send only while there is nothing typed, so a
-                half-written message can never be lost to a stray tap. */}
-            {!text.trim() && canRecordVoice() ? (
-              <button type="button" className="schat__mic" onClick={() => void toggleVoice()} disabled={attachBusy || finished} aria-label={t("voiceRecord")} title={t("voiceRecord")}>
-                <IconMic />
-              </button>
-            ) : (
-              <button type="button" onClick={send} disabled={sending || finished || !text.trim()} aria-label={t("send")}>
-                <IconSend />
-              </button>
-            )}
+            {replyTo ? (
+              <div className="mxr__reply">
+                <Reply aria-hidden className="mxr__replyi" />
+                <span className="mxr__replyt">
+                  <b>{t("replyingTo", { name: senderName(replyTo.sender) })}</b>
+                  <small>{msgExcerpt(replyTo)}</small>
+                </span>
+                <button type="button" className="mxr__ib" onClick={() => setReplyTo(null)} aria-label={t("replyCancel")} title={t("replyCancel")}>
+                  <IconClose />
+                </button>
+              </div>
+            ) : null}
+            <div className={`mxr__bar${recOn ? " mxr__bar--rec" : ""}`} data-ai-target="chat-room:composer" data-ai-label={t("placeholder")}>
+              {recOn ? (
+                <>
+                  <button type="button" className="mxr__ib mxr__ib--danger" onClick={cancelVoice} aria-label={t("voiceCancel")} title={t("voiceCancel")}>
+                    <IconTrash />
+                  </button>
+                  <span className="mxr__rec" role="status">
+                    <i />
+                    <b>{voiceDuration(recSec * 1000)}</b>
+                    <small>{t("voiceHint")}</small>
+                  </span>
+                  <button type="button" className="mxr__send" onClick={() => void toggleVoice()} aria-label={t("voiceSend")} title={t("voiceSend")}>
+                    <IconSend />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <input ref={fileRef} type="file" multiple hidden onChange={(e) => void pickFile(e.target.files)} />
+                  <button type="button" className="mxr__ib" onClick={() => fileRef.current?.click()} aria-label={t("attachFile")} title={t("attachFile")}>
+                    {attachBusy ? <IconClock /> : <IconPaperclip />}
+                  </button>
+                  <textarea
+                    ref={inputRef}
+                    rows={1}
+                    value={text}
+                    onChange={(e) => {
+                      setText(e.target.value);
+                      sizeInput();
+                    }}
+                    onKeyDown={(e) => {
+                      // Enter sends on a keyboard; on a touch screen it is a
+                      // new line and the button sends, as in every messenger.
+                      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && !window.matchMedia("(pointer: coarse)").matches) {
+                        e.preventDefault();
+                        void send();
+                      }
+                      if (e.key === "Escape" && replyTo) setReplyTo(null);
+                    }}
+                    onPaste={onPaste}
+                    placeholder={t("placeholder")}
+                    aria-label={t("placeholder")}
+                  />
+                  {/* The mic replaces Send only while there is nothing typed, so a
+                      half-written message can never be lost to a stray tap. */}
+                  {!hasText && voiceOk ? (
+                    <button type="button" className="mxr__send mxr__send--mic" onClick={() => void toggleVoice()} aria-label={t("voiceRecord")} title={t("voiceRecord")}>
+                      <IconMic />
+                    </button>
+                  ) : (
+                    <button type="button" className="mxr__send" onClick={() => void send()} disabled={!hasText} aria-label={t("send")} title={t("send")}>
+                      <IconSend />
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+            <p className="mxr__hint">
+              <IconLock />
+              {t("safetyNote")}
+            </p>
           </>
         )}
-      </div>
+      </footer>
     </div>
   );
 }

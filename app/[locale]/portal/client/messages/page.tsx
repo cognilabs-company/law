@@ -1,7 +1,13 @@
 "use client";
 
-import SecureInbox from "@/components/chat/SecureInbox";
+import { Suspense } from "react";
+import Messenger from "@/components/chat/messenger/Messenger";
 
+// The open conversation is `?room=` on this page's URL (see Messenger).
 export default function ClientMessages() {
-  return <SecureInbox />;
+  return (
+    <Suspense>
+      <Messenger />
+    </Suspense>
+  );
 }

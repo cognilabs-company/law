@@ -3331,7 +3331,32 @@ export type SecureMessage = {
   // Always emitted by the backend, null when the message is not a reply.
   replyToId: string;
   replyTo: SecureReply | null;
+  // Set only on a `reaction` message (see SECURE_REACTION below).
+  reaction: SecureReaction | null;
 };
+// Reactions. The backend has no reaction endpoint, but a message's type is an
+// open string and its meta is free-form, so a reaction travels as a message of
+// its own: message_type "reaction", content the emoji (which is what an older
+// client that does not know the type shows — a lone 👍, not garbage), and meta
+// naming the message it is about. A person holds at most one reaction per
+// message: "add" replaces the one they had, "remove" takes it away. Clients
+// fold these into chips under the message and never draw them as bubbles.
+export const SECURE_REACTION = "reaction";
+export type SecureReaction = { targetId: string; emoji: string; op: "add" | "remove" };
+function normSecureReaction(type: string, content: string, meta: Dict): SecureReaction | null {
+  if (type !== SECURE_REACTION) return null;
+  const targetId = asStr(meta.reaction_to_message_id ?? meta.target_message_id);
+  if (!targetId) return null;
+  return { targetId, emoji: asStr(meta.emoji) || content.trim(), op: asStr(meta.op) === "remove" ? "remove" : "add" };
+}
+export function secureReactionFrame(r: SecureReaction): { message_type: string; content: string; meta: Record<string, unknown> } {
+  return { message_type: SECURE_REACTION, content: r.emoji, meta: { reaction_to_message_id: r.targetId, emoji: r.emoji, op: r.op } };
+}
+// The HTTP route stores the reaction but, like every POST here, does not
+// broadcast it; the chat sends over its socket and uses this as the fallback.
+export async function sendSecureReaction(roomId: string, r: SecureReaction): Promise<SecureMessage> {
+  return normSecureMsg(await http(`/secure-chats/${roomId}/messages`, { method: "POST", body: JSON.stringify(secureReactionFrame(r)) }));
+}
 function normSecureMsg(v: unknown): SecureMessage {
   const d = asDict(v);
   return { ...normSecureMsgCore(d), ...normSecureMsgFile(d) };
@@ -3358,6 +3383,7 @@ export function normSecureMsgCore(d: Dict): Omit<SecureMessage, "messageType" | 
     blockReason: asStr(d.block_reason) || undefined,
     createdAt: asStr(d.created_at ?? d.createdAt),
     sender: normSecureSender(d.sender),
+    reaction: normSecureReaction(asStr(d.message_type), asStr(d.content ?? d.filtered_content), meta),
     // The id is duplicated into meta by the backend; either spelling works.
     replyToId: asStr(d.reply_to_message_id ?? meta.reply_to_message_id),
     replyTo: r
@@ -3415,9 +3441,25 @@ function normSecureRoomLastMessage(v: unknown): SecureRoomLastMessage | null {
     isMine: d.is_mine === true || d.isMine === true,
   };
 }
+// Who is in a room. /secure-chats answers this on every row (verified live):
+// user_id, the backend role word ("client", "seller", "advokat", …), the
+// display name, and whether the phone may be shown — the phone itself is not
+// rendered anywhere in the chat, so it is not kept here.
+export type SecureParticipant = { userId: string; role: string; name: string; accountStatus: string };
+function normSecureParticipants(v: unknown): SecureParticipant[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map((x) => {
+      const d = asDict(x);
+      return { userId: asStr(d.user_id ?? d.userId ?? d.id), role: asStr(d.role), name: asStr(d.name ?? d.full_name), accountStatus: asStr(d.account_status) };
+    })
+    .filter((p) => p.userId || p.name);
+}
 export type SecureRoom = {
   id: string;
   status: string;
+  participants: SecureParticipant[];
+  participantCount: number;
   orderId?: string;
   caseId?: string;
   clientUserId?: string;
@@ -3436,9 +3478,12 @@ export function normSecureRoom(v: unknown): SecureRoom {
   const createdAt = asStr(d.created_at ?? d.createdAt);
   const lastMessageAt = asStr(d.last_message_at ?? d.lastMessageAt) || lastMessage?.createdAt || "";
   const unreadCount = Math.max(0, asNum(d.unread_count ?? d.unreadCount));
+  const participants = normSecureParticipants(d.participants);
   return {
     id: asStr(d.id),
     status: asStr(d.status),
+    participants,
+    participantCount: Math.max(participants.length, asNum(d.participant_count ?? d.participantCount)),
     orderId: asStr(d.order_id) || undefined,
     caseId: asStr(d.case_id) || undefined,
     clientUserId: asStr(d.client_user_id) || undefined,
@@ -3468,6 +3513,8 @@ export function mergeSecureRoom(room: SecureRoom, v: unknown): SecureRoom {
     ...room,
     id: patch.id || room.id,
     status: patch.status || room.status,
+    participants: patch.participants.length ? patch.participants : room.participants,
+    participantCount: patch.participantCount || room.participantCount,
     orderId: patch.orderId ?? room.orderId,
     caseId: patch.caseId ?? room.caseId,
     clientUserId: patch.clientUserId ?? room.clientUserId,

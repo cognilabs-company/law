@@ -1,5 +1,6 @@
+import { Suspense } from "react";
 import { setRequestLocale } from "next-intl/server";
-import SecureChat from "@/components/chat/SecureChat";
+import Messenger from "@/components/chat/messenger/Messenger";
 import InstructorDock from "@/components/guide/InstructorDock";
 
 type Props = {
@@ -15,7 +16,9 @@ export default async function Page({ params, searchParams }: Props) {
   setRequestLocale(locale);
   return (
     <>
-      <SecureChat roomId={roomId} urgentRecordId={ua} workId={wid} serviceTitle={svc} />
+      <Suspense>
+        <Messenger standalone roomId={roomId} ua={ua} wid={wid} svc={svc} />
+      </Suspense>
       <InstructorDock />
     </>
   );

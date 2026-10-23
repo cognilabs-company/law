@@ -8968,7 +8968,7 @@
       "verifying": "Javob manbalar bilan tekshirilmoqda"
     }
   },
-  "chatPage": {
+  "chatPage": {"search":"Chatlarni qidirish","clear":"Tozalash","groups":{"today": "Bugun", "yesterday": "Kecha", "week": "Shu hafta", "older": "Oldinroq"},"chatsError":"Chatlar tarixini yuklab bo‘lmadi.","retry":"Qayta urinish","loadError":"Suhbatni ochib bo‘lmadi","copy":"Nusxa olish","copied":"Nusxa olindi","noMatch":"Hech narsa topilmadi","loadingChats":"Chatlar yuklanmoqda…","toBottom":"Oxiriga","piiShort":"Shaxsiy ma’lumotlar (telefon, email, JShShIR, pasport) yuborishdan oldin yashiriladi.",
     "guestTotalLimit": "Mehmon uchun bepul savollar tugadi. Davom etish uchun ro'yxatdan o'ting.",
     "guestDailyLimit": "Bugungi bepul savollar tugadi. Ertaga yana urinib ko'ring yoki ro'yxatdan o'ting.",
     "metaTitle": "Sun'iy Intellekt chat",
@@ -18256,7 +18256,7 @@
       "clear": "Tanlovni bekor qilish"
     }
   },
-  "secureChat": {"askCopilot":"AI kopilotdan shu chat haqida so‘rash",
+  "secureChat": {"roleSeller":"Mutaxassis","back":"Barcha chatlar","react":"Munosabat bildirish","reactions":"Munosabatlar","copy":"Nusxa olish","copied":"Matndan nusxa olindi","retrySend":"Qayta yuborish","discard":"Olib tashlash","sendFailed":"Yuborilmadi","newMessages":"{n} ta yangi xabar","toBottom":"Oxirgi xabarlarga","dropHere":"Faylni shu yerga tashlang","dropHint":"Har biri 25 MB gacha — bir nechta faylni birdan yuborish mumkin","hiddenContent":"Xabar matni yashirin","reactFailed":"Munosabatni yuborib bo‘lmadi. Qayta urining.","you":"Siz","emptyTitle":"Suhbatni boshlang","replyingTo":"{name} ga javob","askCopilot":"AI kopilotdan shu chat haqida so‘rash",
     "completedOk": "Chat yakunlandi",
     "deleteAsk": "Chatni o'chirasizmi?",
     "deleting": "O'chirilmoqda…",
@@ -18317,7 +18317,7 @@
     "blocked": "Bu xabar bloklandi.",
     "loginRequired": "Bu maxfiy chatni ochish uchun tizimga kiring.",
     "login": "Kirish",
-    "inbox": {
+    "inbox": {"filterAll":"Hammasi","filterUnread":"O‘qilmagan","selectTitle":"Suhbatni tanlang","selectText":"Ro‘yxatdan suhbatni oching — xabarlar, fayllar va ovozli xabarlar shu yerda ko‘rinadi.","retry":"Qayta urinish","errorTitle":"Chatlarni yuklab bo‘lmadi","errorText":"Internet aloqasini tekshiring va qayta urining.","refresh":"Yangilash","back":"Kabinetga qaytish","reacted":"{name}: {emoji} munosabat","youReacted":"Siz {emoji} bilan munosabat bildirdingiz","hidden":"Yashirin xabar","noMessages":"Hali xabar yo‘q","unreadEmpty":"O‘qilmagan xabar yo‘q","unreadEmptyText":"Hamma suhbatlar o‘qilgan.","clear":"Tozalash","you":"Siz:",
       "kinds": {
         "urgent": "Tezkor advokat",
         "order": "Buyurtmalar",
