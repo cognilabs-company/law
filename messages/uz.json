@@ -8968,7 +8968,7 @@
       "verifying": "Javob manbalar bilan tekshirilmoqda"
     }
   },
-  "chatPage": {"search":"Chatlarni qidirish","clear":"Tozalash","groups":{"today": "Bugun", "yesterday": "Kecha", "week": "Shu hafta", "older": "Oldinroq"},"chatsError":"Chatlar tarixini yuklab bo‘lmadi.","retry":"Qayta urinish","loadError":"Suhbatni ochib bo‘lmadi","copy":"Nusxa olish","copied":"Nusxa olindi","noMatch":"Hech narsa topilmadi","loadingChats":"Chatlar yuklanmoqda…","toBottom":"Oxiriga","piiShort":"Shaxsiy ma’lumotlar (telefon, email, JShShIR, pasport) yuborishdan oldin yashiriladi.",
+  "chatPage": {"badge":"Huquqiy AI","caps":{"cites": "Qonunga havolalar bilan", "private": "Shaxsiy ma'lumotlar yashiriladi", "always": "24/7 javob beradi"},"keys":{"send": "yuborish", "newline": "yangi qator"},"search":"Chatlarni qidirish","clear":"Tozalash","groups":{"today": "Bugun", "yesterday": "Kecha", "week": "Shu hafta", "older": "Oldinroq"},"chatsError":"Chatlar tarixini yuklab bo‘lmadi.","retry":"Qayta urinish","loadError":"Suhbatni ochib bo‘lmadi","copy":"Nusxa olish","copied":"Nusxa olindi","noMatch":"Hech narsa topilmadi","loadingChats":"Chatlar yuklanmoqda…","toBottom":"Oxiriga","piiShort":"Shaxsiy ma’lumotlar (telefon, email, JShShIR, pasport) yuborishdan oldin yashiriladi.",
     "guestTotalLimit": "Mehmon uchun bepul savollar tugadi. Davom etish uchun ro'yxatdan o'ting.",
     "guestDailyLimit": "Bugungi bepul savollar tugadi. Ertaga yana urinib ko'ring yoki ro'yxatdan o'ting.",
     "metaTitle": "Sun'iy Intellekt chat",

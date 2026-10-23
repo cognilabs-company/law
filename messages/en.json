@@ -8962,7 +8962,7 @@
       "verifying": "Checking the answer against sources"
     }
   },
-  "chatPage": {"search":"Search chats","clear":"Clear","groups":{"today": "Today", "yesterday": "Yesterday", "week": "This week", "older": "Earlier"},"chatsError":"Couldn't load your chat history.","retry":"Try again","loadError":"Couldn't open this conversation","copy":"Copy","copied":"Copied","noMatch":"Nothing found","loadingChats":"Loading chats…","toBottom":"Jump to latest","piiShort":"Personal data (phone, email, PINFL, passport) is masked before it is sent.",
+  "chatPage": {"badge":"Legal AI","caps":{"cites": "Answers cite the law", "private": "Personal data is masked", "always": "Answers 24/7"},"keys":{"send": "send", "newline": "new line"},"search":"Search chats","clear":"Clear","groups":{"today": "Today", "yesterday": "Yesterday", "week": "This week", "older": "Earlier"},"chatsError":"Couldn't load your chat history.","retry":"Try again","loadError":"Couldn't open this conversation","copy":"Copy","copied":"Copied","noMatch":"Nothing found","loadingChats":"Loading chats…","toBottom":"Jump to latest","piiShort":"Personal data (phone, email, PINFL, passport) is masked before it is sent.",
     "guestTotalLimit": "You've used all the free guest questions. Sign up to keep going.",
     "guestDailyLimit": "You've used today's free questions. Try again tomorrow, or sign up.",
     "metaTitle": "LexGo.AI chat",

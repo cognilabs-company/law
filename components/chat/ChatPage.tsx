@@ -3,7 +3,7 @@
 import "./lexai.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import { ArrowDown, Briefcase, Check, Copy, FileText, Gavel, MessageSquarePlus, PanelLeft, RefreshCw, Scale, Search, ShieldCheck, Sparkles, X } from "lucide-react";
+import { ArrowDown, ArrowUpRight, BookOpenCheck, Briefcase, Check, Clock3, Copy, FileText, Gavel, Lock, MessageSquare, MessageSquarePlus, PanelLeft, RefreshCw, Scale, Search, ShieldCheck, Sparkles, X } from "lucide-react";
 import { getClientId } from "@/lib/client";
 import { aiQuotaOf, guestLimitOf } from "@/lib/http";
 import {
@@ -41,6 +41,14 @@ type Msg = {
 
 type Load = "loading" | "ready" | "error";
 const SUGGESTION_ICONS = [Gavel, FileText, Briefcase, Scale];
+// One hue per suggestion card, from the Studio/marketing palette.
+const SUGGESTION_HUES = ["violet", "blue", "amber", "teal"] as const;
+// What the assistant does, as three short promises under the greeting.
+const CAPABILITIES = [
+  ["cites", BookOpenCheck],
+  ["private", Lock],
+  ["always", Clock3],
+] as const;
 const DAY = 86_400_000;
 
 // History grouped the way every assistant does it: today, yesterday, this
@@ -371,8 +379,13 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
                 {g.key ? <p className="lxai__lbl">{t(`groups.${g.key}`)}</p> : <p className="lxai__lbl">{t("historyTitle")}</p>}
                 {g.items.map((c) => (
                   <button key={c.id} type="button" className={`lxai__item${c.id === activeId ? " on" : ""}`} onClick={() => selectChat(c.id)} aria-current={c.id === activeId ? "true" : undefined}>
-                    <b>{c.title || t("untitled")}</b>
-                    {c.lastMessage ? <span>{mdPlain(c.lastMessage)}</span> : null}
+                    <span className="lxai__item-ic" aria-hidden>
+                      <MessageSquare />
+                    </span>
+                    <span className="lxai__item-t">
+                      <b>{c.title || t("untitled")}</b>
+                      {c.lastMessage ? <span>{mdPlain(c.lastMessage)}</span> : null}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -397,6 +410,10 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
               {t("subtitle")}
             </span>
           </div>
+          <span className="lxai__badge" aria-hidden>
+            <Sparkles />
+            {t("badge")}
+          </span>
           {activeId ? (
             <button className="lxai__ib" type="button" onClick={newChat} aria-label={t("newChat")} title={t("newChat")}>
               <MessageSquarePlus aria-hidden />
@@ -425,20 +442,31 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
           ) : empty ? (
             <div className="lxai__empty">
               <span className="lxai__orb" aria-hidden>
+                <i className="lxai__orb-ring" />
+                <i className="lxai__orb-ring lxai__orb-ring--2" />
                 <Sparkles />
               </span>
               {session ? <p className="lxai__hi">{t("hi", { name: session.name })}</p> : null}
               <h2>{t("emptyTitle")}</h2>
               <p>{t("emptyText")}</p>
+              <ul className="lxai__caps">
+                {CAPABILITIES.map(([k, I]) => (
+                  <li key={k}>
+                    <I aria-hidden />
+                    {t(`caps.${k}`)}
+                  </li>
+                ))}
+              </ul>
               <div className="lxai__sugg" data-ai-target="ai-chat:suggestions">
                 {suggestions.map((s, i) => {
                   const I = SUGGESTION_ICONS[i % SUGGESTION_ICONS.length];
                   return (
-                    <button key={i} type="button" onClick={() => send(s)}>
-                      <span aria-hidden>
+                    <button key={i} type="button" onClick={() => send(s)} data-hue={SUGGESTION_HUES[i % SUGGESTION_HUES.length]} style={{ animationDelay: `${120 + i * 70}ms` }}>
+                      <span className="lxai__sugg-ic" aria-hidden>
                         <I />
                       </span>
-                      {s}
+                      <span className="lxai__sugg-t">{s}</span>
+                      <ArrowUpRight className="lxai__sugg-go" aria-hidden />
                     </button>
                   );
                 })}
@@ -558,6 +586,9 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
               <IconSend />
             </button>
           </div>
+          <p className="lxai__keys" aria-hidden>
+            <kbd>Enter</kbd> {t("keys.send")} · <kbd>Shift</kbd> + <kbd>Enter</kbd> {t("keys.newline")}
+          </p>
           <p className="lxai__disc">{t("disclaimer")}</p>
           {/* The backend masks these before any external AI call (T0-17). */}
           <p className="lxai__disc lxai__pii">{t("piiNote")}</p>
