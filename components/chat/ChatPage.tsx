@@ -130,13 +130,14 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
   // while the content resizes.
   useEffect(() => {
     const el = scrollRef.current;
-    if (el && atBottom.current) el.scrollTop = el.scrollHeight;
+    // The welcome screen reads from the top; only a conversation is pinned.
+    if (el && atBottom.current && (messages.length || sending)) el.scrollTop = el.scrollHeight;
   }, [messages, sending]);
   const hasMsgs = messages.length > 0;
   useEffect(() => {
     const el = scrollRef.current;
     const inner = el?.firstElementChild;
-    if (!el || !inner || typeof ResizeObserver === "undefined") return;
+    if (!hasMsgs || !el || !inner || typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(() => {
       if (atBottom.current) el.scrollTop = el.scrollHeight;
     });
@@ -586,10 +587,13 @@ export default function ChatPage({ embedded = false }: { embedded?: boolean }) {
               <IconSend />
             </button>
           </div>
-          <p className="lxai__keys" aria-hidden>
-            <kbd>Enter</kbd> {t("keys.send")} · <kbd>Shift</kbd> + <kbd>Enter</kbd> {t("keys.newline")}
+          {/* One line under the box: the caveat, then the keys. */}
+          <p className="lxai__disc">
+            <span>{t("disclaimer")}</span>
+            <span className="lxai__keys" aria-hidden>
+              <kbd>Enter</kbd> {t("keys.send")} · <kbd>Shift</kbd>+<kbd>Enter</kbd> {t("keys.newline")}
+            </span>
           </p>
-          <p className="lxai__disc">{t("disclaimer")}</p>
           {/* The backend masks these before any external AI call (T0-17). */}
           <p className="lxai__disc lxai__pii">{t("piiNote")}</p>
         </div>

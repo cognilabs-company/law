@@ -439,3 +439,39 @@ html[data-theme="dark"] .lxai__empty h2 {
   .lxai__orb, .lxai__orb-ring, .lxai__sugg button { animation: none }
   .lxai__orb-ring { display: none }
 }
+
+/* ── Placement ────────────────────────────────────────────────────────── */
+/* The welcome block centres in the scroll area, but never by pushing its
+   top out of reach: on a short screen it starts at the top and scrolls. */
+.lxai__scroll:has(> .lxai__empty) { justify-content: safe center }
+.lxai__scroll > .lxai__empty { margin: 0 auto; padding-block: 32px 24px }
+/* The caveat and the keys share one line; the privacy note lives in the
+   history panel (a drawer on phones). */
+.lxai__disc {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 4px 14px;
+}
+.lxai__keys { max-width: none; margin: 0 }
+.lxai__pii { display: none }
+@media (min-width: 861px) {
+  /* The page header already names the assistant. */
+  .lxai--embed .lxai__brand { display: none }
+  .lxai--embed .lxai__new { margin-top: 14px }
+}
+@media (max-width: 640px) {
+  .lxai__caps {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    margin-inline: -14px;
+    padding: 2px 14px;
+    scrollbar-width: none;
+  }
+  .lxai__caps::-webkit-scrollbar { display: none }
+  .lxai__caps li { flex: none }
+  .lxai__orb { width: 64px; height: 64px; margin-bottom: 16px }
+  .lxai__empty h2 { font-size: 1.45rem }
+}

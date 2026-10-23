@@ -57,7 +57,7 @@ html[data-theme="dark"] .mxr {
   position: relative;
 }
 .mx__list { min-height: 0; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--mx-line) }
-.mx__room { min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--mx-canvas) }
+.mx__room { min-height: 0; min-width: 0; display: flex; flex-direction: column; justify-content: safe center; background: var(--mx-canvas) }
 .mx__room > .mxr { flex: 1; min-height: 0 }
 
 /* The messenger takes the whole content area: the promo nudge steps aside
@@ -282,7 +282,7 @@ html[data-theme="dark"] .mx-chip.on { background: var(--mx-acc); color: #071226 
 .mx-state__i--err { background: var(--mx-err-bg); color: var(--mx-err) }
 
 /* nothing open (wide screens) */
-.mx-pick { margin: auto; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 32px; max-width: 380px; color: var(--mx-muted) }
+.mx-pick { margin: 0 auto; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 32px; max-width: 380px; color: var(--mx-muted) }
 .mx-pick__art { position: relative; width: 92px; height: 92px; border-radius: 30px; display: grid; place-items: center; margin-bottom: 12px;
   background: linear-gradient(150deg, var(--mx-panel), var(--mx-on)); box-shadow: var(--s2), inset 0 0 0 1px var(--mx-line); color: var(--mx-acc) }
 .mx-pick__art > svg { width: 40px; height: 40px; stroke-width: 1.6 }
@@ -632,11 +632,6 @@ html[data-theme="dark"] .mxm__bub { box-shadow: none }
 .mxr__send--mic { background: transparent; color: var(--mx-muted); box-shadow: none }
 .mxr__send--mic svg { stroke: currentColor }
 .mxr__send--mic:hover:not(:disabled) { background: var(--mx-hover); color: var(--mx-acc); transform: none }
-.mxr__bar--rec { background: var(--mx-err-bg); box-shadow: none }
-.mxr__rec { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 8px; color: var(--mx-err); font-variant-numeric: tabular-nums }
-.mxr__rec i { width: 10px; height: 10px; border-radius: 50%; background: currentColor; flex: none; animation: mxBlink 1.1s infinite }
-.mxr__rec b { font: 700 .95rem/1 var(--fb) }
-.mxr__rec small { font-weight: 600; font-size: .78rem; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .mxr__hint { display: flex; align-items: center; gap: 6px; margin-top: 7px; font-size: .7rem; line-height: 1.35; color: var(--mx-faint) }
 .mxr__hint svg { width: 12px; height: 12px; flex: none }
 .mxr__fin { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 14px; background: var(--dk-tint-ok, #EAF8F1); color: var(--mx-ok); font: 600 .86rem/1.35 var(--fb); text-align: center }
@@ -694,3 +689,239 @@ html[data-theme="dark"] .mxm__bub { box-shadow: none }
 .mxm__bub--img:has(.sattach--file) { padding: 8px 12px 7px }
 .mxm__bub--img:has(.sattach--file) .mxm__meta { position: static; float: right; margin: 7px 0 -3px 12px; padding: 0; background: none; color: var(--mx-faint) }
 .mxm--me .mxm__bub--img:has(.sattach--file) .mxm__meta { color: rgba(255, 255, 255, .78) }
+
+/* ── composer: attach menu, file tray, emoji, voice ─────────────────────── */
+.mxa,
+.mxe {
+  position: relative;
+  flex: none;
+}
+.mxa__menu,
+.mxe__pop {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  z-index: 20;
+  border-radius: 16px;
+  background: var(--mx-panel);
+  box-shadow: var(--s3), 0 0 0 1px var(--mx-line);
+  animation: mxDrop .14s ease-out both;
+}
+.mxa__menu {
+  left: 0;
+  display: grid;
+  min-width: 220px;
+  padding: 6px;
+}
+.mxa__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 11px;
+  background: none;
+  color: var(--mx-ink);
+  font: 500 .9rem/1.2 var(--fb);
+  text-align: left;
+  cursor: pointer;
+}
+.mxa__item:hover,
+.mxa__item:focus-visible {
+  background: var(--mx-hover);
+}
+.mxa__ic {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: linear-gradient(140deg, #1668f0, #00a6e6);
+}
+.mxa__item[data-k="file"] .mxa__ic { background: linear-gradient(140deg, #7c3aed, #a855f7) }
+.mxa__item[data-k="camera"] .mxa__ic { background: linear-gradient(140deg, #0d9488, #14b8a6) }
+.mxa__ic svg { width: 17px; height: 17px }
+@media (pointer: fine) {
+  .mxa__item[data-k="camera"] { display: none }
+}
+.mxe__pop {
+  right: -40px;
+  display: grid;
+  grid-template-columns: repeat(8, 36px);
+  gap: 2px;
+  padding: 8px;
+}
+.mxe__pop button {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .12s, transform .12s;
+}
+.mxe__pop button:hover,
+.mxe__pop button:focus-visible {
+  background: var(--mx-hover);
+  transform: scale(1.15);
+}
+@media (max-width: 560px) {
+  .mxe__pop { right: -60px; grid-template-columns: repeat(6, 36px) }
+}
+
+/* the tray of picked files */
+.mxt {
+  margin-bottom: 8px;
+  padding: 10px;
+  border-radius: 16px;
+  background: var(--mx-raise);
+  box-shadow: inset 0 0 0 1px var(--mx-line);
+  animation: mxDrop .14s ease-out both;
+}
+.mxt__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: .8rem;
+  color: var(--mx-muted);
+}
+.mxt__head b { color: var(--mx-ink); font-weight: 700 }
+.mxt__head span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.mxt__clear {
+  border: 0;
+  background: none;
+  color: var(--mx-acc);
+  font: 600 .78rem/1 var(--fb);
+  cursor: pointer;
+}
+.mxt__list {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 2px;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.mxt__item {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 200px;
+  padding: 6px 30px 6px 6px;
+  border-radius: 12px;
+  background: var(--mx-panel);
+  box-shadow: inset 0 0 0 1px var(--mx-line);
+}
+.mxt__item img,
+.mxt__ic {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 9px;
+  object-fit: cover;
+}
+.mxt__ic {
+  display: grid;
+  place-items: center;
+  background: var(--mx-on);
+  color: var(--mx-acc);
+}
+.mxt__ic svg { width: 20px; height: 20px }
+.mxt__meta { min-width: 0; display: grid; gap: 2px }
+.mxt__meta b { font: 600 .8rem/1.2 var(--fb); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.mxt__meta small { font-size: .72rem; color: var(--mx-faint) }
+.mxt__x {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--mx-hover);
+  color: var(--mx-muted);
+  cursor: pointer;
+}
+.mxt__x:hover { background: var(--mx-err-bg); color: var(--mx-err) }
+.mxt__x svg { width: 13px; height: 13px }
+
+/* voice: recording and listening back */
+.mxv {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 50px;
+  padding: 5px;
+  border-radius: 24px;
+  background: var(--mx-raise);
+  box-shadow: inset 0 0 0 1.5px var(--mx-line);
+  animation: mxDrop .14s ease-out both;
+}
+.mxv[data-phase="rec"] { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--mx-err) 45%, transparent); background: color-mix(in srgb, var(--mx-err) 5%, var(--mx-panel)) }
+.mxv__live {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 6px;
+}
+.mxv__dot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--mx-err);
+  animation: mxBlink 1.1s infinite;
+}
+.mxv[data-phase="paused"] .mxv__dot { background: var(--mx-warn); animation: none }
+.mxv__clock { flex: none; font: 700 .95rem/1 var(--fb); font-variant-numeric: tabular-nums; color: var(--mx-ink); min-width: 38px }
+.mxv__wave {
+  flex: 1;
+  min-width: 40px;
+  height: 30px;
+  color: var(--mx-err);
+}
+.mxv[data-phase="paused"] .mxv__wave { color: var(--mx-faint) }
+.mxv__state { flex: none; font-size: .74rem; font-weight: 600; color: var(--mx-muted) }
+.mxv__review {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 4px;
+}
+.mxv__player { flex: 1; min-width: 0; max-width: 340px }
+.mxv__hint { font-size: .74rem; color: var(--mx-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.mxv__stop svg { fill: currentColor; width: 14px; height: 14px }
+@media (max-width: 560px) {
+  .mxv__state, .mxv__hint { display: none }
+}
+
+/* playback speed chip on voice notes */
+.vnote__rate {
+  flex: none;
+  min-width: 34px;
+  height: 22px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  color: inherit;
+  font: 700 .68rem/22px var(--fb);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  opacity: .8;
+}
+.vnote__rate:hover, .vnote__rate[data-on] { opacity: 1; background: color-mix(in srgb, currentColor 18%, transparent) }
+.mxm--me .vnote__rate { color: #fff }

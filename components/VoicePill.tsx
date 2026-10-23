@@ -45,7 +45,7 @@ const BAR_KEEP = 96;
 // almost flat for speech, so the peak is mixed back in.
 // Uint8Array<ArrayBuffer>, not a bare Uint8Array: getByteTimeDomainData
 // refuses a view that might sit on a SharedArrayBuffer.
-function levelOf(an: AnalyserNode | null, buf: Uint8Array<ArrayBuffer> | null): number {
+export function levelOf(an: AnalyserNode | null, buf: Uint8Array<ArrayBuffer> | null): number {
   if (!an || !buf) return 0;
   try {
     an.getByteTimeDomainData(buf);

@@ -44,6 +44,9 @@ export class VoiceRecorder {
   private stream: MediaStream | null = null;
   private chunks: Blob[] = [];
   private startedAt = 0;
+  // Time spent paused, so the note's duration is only the time spoken.
+  private pausedAt = 0;
+  private pausedMs = 0;
   // cancel() can land while start() is still inside getUserMedia — the
   // permission prompt is modal and the component behind it can unmount. The
   // stream that arrives afterwards must then be thrown away immediately,
@@ -77,6 +80,8 @@ export class VoiceRecorder {
     };
     this.rec = rec;
     this.startedAt = Date.now();
+    this.pausedAt = 0;
+    this.pausedMs = 0;
     // 1s timeslices: without them Safari can deliver nothing at all until
     // stop(), and a tab killed mid-recording would leave an empty note.
     rec.start(1000);
@@ -90,7 +95,39 @@ export class VoiceRecorder {
   // note's durationMs from the same instant, so a timer fed from here cannot
   // disagree with the duration that ends up on the attachment.
   get elapsedMs(): number {
-    return this.rec ? Date.now() - this.startedAt : 0;
+    return this.rec ? (this.pausedAt || Date.now()) - this.startedAt - this.pausedMs : 0;
+  }
+
+  // Pause and carry on without starting a new note. Not every browser's
+  // MediaRecorder can (older Safari); canPause says whether this one can.
+  get canPause(): boolean {
+    return !!this.rec && typeof this.rec.pause === "function" && typeof this.rec.resume === "function";
+  }
+  get paused(): boolean {
+    return this.rec?.state === "paused";
+  }
+  pause(): boolean {
+    const rec = this.rec;
+    if (!rec || rec.state !== "recording" || !this.canPause) return false;
+    try {
+      rec.pause();
+    } catch {
+      return false;
+    }
+    this.pausedAt = Date.now();
+    return true;
+  }
+  resume(): boolean {
+    const rec = this.rec;
+    if (!rec || rec.state !== "paused") return false;
+    try {
+      rec.resume();
+    } catch {
+      return false;
+    }
+    this.pausedMs += Date.now() - this.pausedAt;
+    this.pausedAt = 0;
+    return true;
   }
 
   // The live level of the microphone this recorder is already holding, for a
@@ -140,7 +177,7 @@ export class VoiceRecorder {
   async stop(): Promise<VoiceNote | null> {
     const rec = this.rec;
     if (!rec) return null;
-    const durationMs = Date.now() - this.startedAt;
+    const durationMs = this.elapsedMs;
     const mime = rec.mimeType || pickMime() || "audio/webm";
     const done = new Promise<VoiceNote | null>((resolve) => {
       let settled = false;

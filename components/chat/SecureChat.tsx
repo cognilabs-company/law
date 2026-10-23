@@ -40,6 +40,7 @@ import {
 } from "@/lib/services/backend";
 import { ArrowDown, ArrowLeft, Copy, EllipsisVertical, Lock as LockIcon, Reply, RotateCw, SmilePlus, Trash2, UploadCloud, Users as UsersIcon } from "lucide-react";
 import { dropRoom, noteRoomMessage, useRoom } from "./messenger/rooms";
+import { AttachMenu, AttachTray, EmojiPicker, VoiceBar, type PendingFile } from "./messenger/ComposerParts";
 import { dayLabel, hueOf, initialsOf, peerOf, roleLabel as peerRole } from "./messenger/format";
 import ChatFilePreview, { canPreviewFile } from "./ChatFilePreview";
 import { roomOrderLock, subscribeOrderLock, type OrderLock } from "@/components/marketplace/order/lock";
@@ -48,7 +49,7 @@ import { statusLabel } from "@/lib/labels";
 // dashed-outline animation, and DocRatingBox is where that one widget lives —
 // the same import UrgentAdvocatePanel makes for the very same reason.
 import { RateStar } from "@/components/portal/DocRatingBox";
-import { VoiceRecorder, canRecordVoice, voiceDuration } from "@/lib/voiceRecorder";
+import { VoiceRecorder, canRecordVoice, type VoiceNote } from "@/lib/voiceRecorder";
 // The same player the order form's "listen back before you send" row uses.
 // It lives beside that row because the chat file is already thirteen hundred
 // lines of sockets and calls and a media control is presentation — but there
@@ -73,9 +74,7 @@ import {
   IconUser,
   IconPhone,
   IconVideo,
-  IconPaperclip,
   IconMic,
-  IconTrash,
   IconFileText,
   IconDownload,
   IconEye,
@@ -360,6 +359,7 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
             playLabel={t("voicePlay")}
             pauseLabel={t("voicePause")}
             seekLabel={t("voiceSeek")}
+            speedLabel={t("voiceSpeed")}
             // The message id, not the object URL: the URL is re-minted every
             // time the bytes are re-fetched and the waveform would reshuffle
             // under the listener. A pending bubble has no server id yet, so
@@ -421,7 +421,8 @@ function Attachment({ roomId, msg, t }: { roomId: string; msg: LocalMsg; t: Retu
       >
         <span className="sattach__i"><IconFileText /></span>
         <span className="sattach__t">
-          <b>{name}</b>
+          {/* A camera's "96B3381C-….heic" says nothing; its kind and type do. */}
+          <b title={name}>{isMachineFileName(name) ? `${t("fileGeneric")} · ${(name.split(".").pop() || "").toUpperCase()}` : name}</b>
           <small>{err ? t("attachFailed") : msg.pending ? t("attachSending") : fmtSize(msg.file?.size || 0)}</small>
         </span>
       </button>
@@ -764,20 +765,18 @@ export default function SecureChat({
   // Both travel as multipart over HTTP — the socket carries JSON only — so
   // neither can use send()'s WebSocket fast path.
   const [attachBusy, setAttachBusy] = useState(false);
-  const [recOn, setRecOn] = useState(false);
-  const [recSec, setRecSec] = useState(0);
-  const recRef = useRef<VoiceRecorder | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  // The recording in progress (VoiceBar draws and drives it) and the files
+  // picked but not sent yet (AttachTray), sent together with the caption.
+  const [voice, setVoice] = useState<VoiceRecorder | null>(null);
+  const [pending, setPending] = useState<PendingFile[]>([]);
+  const pendingRef = useRef(pending);
+  useEffect(() => {
+    pendingRef.current = pending;
+  }, [pending]);
+  useEffect(() => () => pendingRef.current.forEach((p) => p.url && URL.revokeObjectURL(p.url)), []);
   const activeCallRef = useRef(activeCall);
   useEffect(() => { activeCallRef.current = activeCall; }, [activeCall]);
-  useEffect(() => {
-    if (!recOn) return;
-    const iv = setInterval(() => setRecSec((s) => s + 1), 1000);
-    return () => clearInterval(iv);
-  }, [recOn]);
-  // Leaving the chat with the mic still open would keep the recording
-  // indicator lit in the browser tab indefinitely.
-  useEffect(() => () => recRef.current?.cancel(), []);
+
   // Bumped after a content reveal so the history is fetched again unmasked.
   // Bumped to re-read the history from scratch. The only caller was the
   // content-reveal bar, which no longer renders; the key stays because the
@@ -1458,13 +1457,13 @@ export default function SecureChat({
 
   // A failed message keeps what it needs to be sent again: its text and
   // quote are on the bubble, a file is held here until it goes or is dropped.
-  const retryFiles = useRef(new Map<string, { file: File | Blob; type: "file" | "voice"; name?: string }>());
+  const retryFiles = useRef(new Map<string, { file: File | Blob; type: "file" | "voice"; name?: string; caption?: string }>());
   const quoteOf = (m: LocalMsg): LocalMsg | null => (m.replyToId ? msgs.find((x) => x.id === m.replyToId) ?? null : null);
   function retryMsg(m: LocalMsg) {
     const held = retryFiles.current.get(m.id);
     setMsgs((prev) => prev.filter((x) => x.id !== m.id));
     retryFiles.current.delete(m.id);
-    if (held) void sendAttachment(held.file, held.type, held.name, quoteOf(m));
+    if (held) void sendAttachment(held.file, held.type, held.name, quoteOf(m), held.caption ?? "");
     else if (m.filteredContent) void send(m.filteredContent, quoteOf(m));
   }
   function discardMsg(m: LocalMsg) {
@@ -1476,14 +1475,14 @@ export default function SecureChat({
   // One upload path for both kinds. The bubble is optimistic like a text
   // message, but there is no socket echo to reconcile against on failure —
   // the HTTP response is the only confirmation, so it replaces the bubble.
-  async function sendAttachment(file: File | Blob, messageType: "file" | "voice", fileName?: string, quote?: LocalMsg | null) {
+  async function sendAttachment(file: File | Blob, messageType: "file" | "voice", fileName?: string, quote?: LocalMsg | null, caption = "") {
     if (finished) return;
     setAttachBusy(true);
     const quoted = quote === undefined ? replyTo : quote;
     if (quote === undefined) setReplyTo(null);
     const tempId = tmpId();
     const name = fileName || (file instanceof File ? file.name : "");
-    retryFiles.current.set(tempId, { file, type: messageType, name: fileName });
+    retryFiles.current.set(tempId, { file, type: messageType, name: fileName, caption });
     const localUrl = messageType === "voice" || file.type.startsWith("image/") || IMAGE_EXT.test(name) ? URL.createObjectURL(file) : undefined;
     setMsgs((prev) => [
       ...prev,
@@ -1493,7 +1492,7 @@ export default function SecureChat({
         sender: null,
         replyToId: quoted?.id ?? "",
         replyTo: quotePreview(quoted),
-        filteredContent: "",
+        filteredContent: caption,
         isBlocked: false,
         createdAt: new Date().toISOString(),
         messageType,
@@ -1504,7 +1503,7 @@ export default function SecureChat({
       },
     ]);
     try {
-      const m = await uploadSecureMessage(roomId, { file, messageType, fileName: name, replyToId: quoted?.id });
+      const m = await uploadSecureMessage(roomId, { file, messageType, fileName: name, replyToId: quoted?.id, content: caption || undefined });
       if (m.id) seen.current.add(m.id);
       retryFiles.current.delete(tempId);
       setMsgs((prev) => prev.map((x) => (x.id === tempId ? { ...m, localUrl } : x)));
@@ -1520,13 +1519,12 @@ export default function SecureChat({
     }
   }
 
-  // Picked, dropped or pasted — several at once go up one after another, so
-  // they arrive in the order they were chosen.
-  async function pickFile(files: FileList | File[] | null) {
+  // Picked, dropped or pasted: into the tray first, to look over and
+  // caption; Send uploads them in the order they were chosen.
+  function pickFile(files: FileList | File[] | null) {
     const list = files ? Array.from(files) : [];
-    if (fileRef.current) fileRef.current.value = "";
     if (!list.length || finished) return;
-    let first = true;
+    const add: PendingFile[] = [];
     for (const f of list) {
       // 25 MB — past this the upload reliably times out on a phone connection
       // and the failure arrives long after the user has moved on.
@@ -1534,8 +1532,36 @@ export default function SecureChat({
         notify.error(t("attachTooBig"), { id: `schat-attach-${roomId}-${f.name}`, body: f.name });
         continue;
       }
-      // Only the first file carries the quote being answered.
-      await sendAttachment(f, "file", undefined, first ? undefined : null);
+      add.push({ id: tmpId(), file: f, url: f.type.startsWith("image/") ? URL.createObjectURL(f) : "" });
+    }
+    if (!add.length) return;
+    setPending((cur) => [...cur, ...add].slice(0, 10));
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }
+  function dropPending(id: string) {
+    setPending((cur) => {
+      const gone = cur.find((p) => p.id === id);
+      if (gone?.url) URL.revokeObjectURL(gone.url);
+      return cur.filter((p) => p.id !== id);
+    });
+  }
+  function clearPending() {
+    pending.forEach((p) => p.url && URL.revokeObjectURL(p.url));
+    setPending([]);
+  }
+  // The tray goes up one file at a time; the typed text rides on the first
+  // as its caption, the quote being answered too.
+  async function sendPending() {
+    const files = pending;
+    if (!files.length || finished) return;
+    const caption = text.trim();
+    setPending([]);
+    setText("");
+    requestAnimationFrame(sizeInput);
+    let first = true;
+    for (const p of files) {
+      await sendAttachment(p.file, "file", undefined, first ? undefined : null, first ? caption : "");
+      if (p.url) URL.revokeObjectURL(p.url);
       first = false;
     }
   }
@@ -1559,49 +1585,32 @@ export default function SecureChat({
     e.preventDefault();
     dragDepth.current = 0;
     setDragOn(false);
-    if (canAttach) void pickFile(e.dataTransfer.files);
+    if (canAttach) pickFile(e.dataTransfer.files);
   }
   function onPaste(e: ClipboardEvent) {
     const files = Array.from(e.clipboardData?.files ?? []);
     if (!files.length || !canAttach) return;
     e.preventDefault();
-    void pickFile(files);
+    pickFile(files);
   }
 
   // Recording has to begin inside the click handler: iOS refuses the
   // microphone when getUserMedia is reached after an await boundary.
-  async function toggleVoice() {
-    if (attachBusy) return;
-    const rec = recRef.current;
-    if (rec?.active) {
-      setRecOn(false);
-      const note = await rec.stop();
-      recRef.current = null;
-      if (note) void sendAttachment(note.blob, "voice", `voice-${Date.now()}.${note.mime.includes("mp4") || note.mime.includes("aac") ? "m4a" : note.mime.includes("ogg") ? "ogg" : "webm"}`);
-      return;
-    }
-    // Only the start is blocked once the room is completed: a recording that
-    // was already running still has to be stoppable, or the mic stays lit.
-    if (finished) return;
+  async function startVoice() {
+    if (attachBusy || finished || voice) return;
     const next = new VoiceRecorder();
-    // Stored before the await — see AttachmentPicker for why.
-    recRef.current = next;
     try {
       await next.start();
     } catch {
-      recRef.current = null;
       notify.error(t("micDenied"), { id: `schat-attach-${roomId}` });
       return;
     }
-    if (!next.active) return;
-    setRecSec(0);
-    setRecOn(true);
+    if (next.active) setVoice(next);
   }
-
-  function cancelVoice() {
-    recRef.current?.cancel();
-    recRef.current = null;
-    setRecOn(false);
+  function sendVoice(note: VoiceNote) {
+    setVoice(null);
+    const ext = note.mime.includes("mp4") || note.mime.includes("aac") ? "m4a" : note.mime.includes("ogg") ? "ogg" : "webm";
+    void sendAttachment(note.blob, "voice", `voice-${Date.now()}.${ext}`);
   }
 
   async function send(again?: string, quote?: LocalMsg | null) {
@@ -1666,6 +1675,19 @@ export default function SecureChat({
 
   const voiceOk = useSyncExternalStore(noSub, canRecordVoice, noVoice);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // At the caret, not at the end: a smiley mid-sentence lands mid-sentence.
+  function insertEmoji(emoji: string) {
+    const el = inputRef.current;
+    const at = el ? el.selectionStart ?? text.length : text.length;
+    const end = el ? el.selectionEnd ?? at : at;
+    const next = text.slice(0, at) + emoji + text.slice(end);
+    setText(next);
+    requestAnimationFrame(() => {
+      el?.focus();
+      el?.setSelectionRange(at + emoji.length, at + emoji.length);
+      sizeInput();
+    });
+  }
   function sizeInput() {
     const el = inputRef.current;
     if (!el) return;
@@ -2178,62 +2200,47 @@ export default function SecureChat({
                 </button>
               </div>
             ) : null}
-            <div className={`mxr__bar${recOn ? " mxr__bar--rec" : ""}`} data-ai-target="chat-room:composer" data-ai-label={t("placeholder")}>
-              {recOn ? (
-                <>
-                  <button type="button" className="mxr__ib mxr__ib--danger" onClick={cancelVoice} aria-label={t("voiceCancel")} title={t("voiceCancel")}>
-                    <IconTrash />
+            <AttachTray items={pending} onRemove={dropPending} onClear={clearPending} />
+            {voice ? (
+              <VoiceBar rec={voice} onSend={sendVoice} onClose={() => setVoice(null)} />
+            ) : (
+              <div className="mxr__bar" data-ai-target="chat-room:composer" data-ai-label={t("placeholder")}>
+                <AttachMenu disabled={!canAttach} busy={attachBusy} onPick={pickFile} />
+                <textarea
+                  ref={inputRef}
+                  rows={1}
+                  value={text}
+                  onChange={(e) => {
+                    setText(e.target.value);
+                    sizeInput();
+                  }}
+                  onKeyDown={(e) => {
+                    // Enter sends on a keyboard; on a touch screen it is a
+                    // new line and the button sends, as in every messenger.
+                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && !window.matchMedia("(pointer: coarse)").matches) {
+                      e.preventDefault();
+                      void (pending.length ? sendPending() : send());
+                    }
+                    if (e.key === "Escape" && replyTo) setReplyTo(null);
+                  }}
+                  onPaste={onPaste}
+                  placeholder={pending.length ? t("captionPh") : t("placeholder")}
+                  aria-label={pending.length ? t("captionPh") : t("placeholder")}
+                />
+                <EmojiPicker disabled={!canAttach} onPick={insertEmoji} />
+                {/* The mic replaces Send only while there is nothing to send,
+                    so a half-written message can never be lost to a stray tap. */}
+                {!hasText && !pending.length && voiceOk ? (
+                  <button type="button" className="mxr__send mxr__send--mic" onClick={() => void startVoice()} aria-label={t("voiceRecord")} title={t("voiceRecord")}>
+                    <IconMic />
                   </button>
-                  <span className="mxr__rec" role="status">
-                    <i />
-                    <b>{voiceDuration(recSec * 1000)}</b>
-                    <small>{t("voiceHint")}</small>
-                  </span>
-                  <button type="button" className="mxr__send" onClick={() => void toggleVoice()} aria-label={t("voiceSend")} title={t("voiceSend")}>
+                ) : (
+                  <button type="button" className="mxr__send" onClick={() => void (pending.length ? sendPending() : send())} disabled={!hasText && !pending.length} aria-label={t("send")} title={t("send")}>
                     <IconSend />
                   </button>
-                </>
-              ) : (
-                <>
-                  <input ref={fileRef} type="file" multiple hidden onChange={(e) => void pickFile(e.target.files)} />
-                  <button type="button" className="mxr__ib" onClick={() => fileRef.current?.click()} aria-label={t("attachFile")} title={t("attachFile")}>
-                    {attachBusy ? <IconClock /> : <IconPaperclip />}
-                  </button>
-                  <textarea
-                    ref={inputRef}
-                    rows={1}
-                    value={text}
-                    onChange={(e) => {
-                      setText(e.target.value);
-                      sizeInput();
-                    }}
-                    onKeyDown={(e) => {
-                      // Enter sends on a keyboard; on a touch screen it is a
-                      // new line and the button sends, as in every messenger.
-                      if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && !window.matchMedia("(pointer: coarse)").matches) {
-                        e.preventDefault();
-                        void send();
-                      }
-                      if (e.key === "Escape" && replyTo) setReplyTo(null);
-                    }}
-                    onPaste={onPaste}
-                    placeholder={t("placeholder")}
-                    aria-label={t("placeholder")}
-                  />
-                  {/* The mic replaces Send only while there is nothing typed, so a
-                      half-written message can never be lost to a stray tap. */}
-                  {!hasText && voiceOk ? (
-                    <button type="button" className="mxr__send mxr__send--mic" onClick={() => void toggleVoice()} aria-label={t("voiceRecord")} title={t("voiceRecord")}>
-                      <IconMic />
-                    </button>
-                  ) : (
-                    <button type="button" className="mxr__send" onClick={() => void send()} disabled={!hasText} aria-label={t("send")} title={t("send")}>
-                      <IconSend />
-                    </button>
-                  )}
-                </>
-              )}
-            </div>
+                )}
+              </div>
+            )}
             <p className="mxr__hint">
               <IconLock />
               {t("safetyNote")}

@@ -120,6 +120,7 @@ export function VoiceNotePlayer({
   seekLabel,
   seed = "",
   className = "",
+  speedLabel,
 }: {
   src: string;
   onNeedSrc?: () => void;
@@ -128,8 +129,11 @@ export function VoiceNotePlayer({
   seekLabel: string;
   seed?: string;
   className?: string;
+  // Given: a 1× / 1.5× / 2× chip beside the clock (the chat's voice notes).
+  speedLabel?: string;
 }) {
   const [on, setOn] = useState(false);
+  const [rate, setRate] = useState(1);
   const [pos, setPos] = useState(0);
   // 0 means "not known yet", which is the honest state for a fresh
   // MediaRecorder blob and the state in which seeking is refused.
@@ -344,6 +348,22 @@ export function VoiceNotePlayer({
           screen. It is plain text a screen reader reads on the way past, and
           the slider above announces the position on every interaction. */}
       <span className="vnote__time">{clock(shown)}</span>
+      {speedLabel ? (
+        <button
+          type="button"
+          className="vnote__rate"
+          onClick={() => {
+            const next = rate === 1 ? 1.5 : rate === 1.5 ? 2 : 1;
+            setRate(next);
+            if (ref.current) ref.current.playbackRate = next;
+          }}
+          aria-label={`${speedLabel}: ${rate}×`}
+          title={speedLabel}
+          data-on={rate !== 1 ? "" : undefined}
+        >
+          {rate}×
+        </button>
+      ) : null}
       {src ? (
         <audio
           ref={ref}
@@ -353,7 +373,11 @@ export function VoiceNotePlayer({
           onLoadedMetadata={meta}
           onDurationChange={durChange}
           onEnded={ended}
-          onPlay={started}
+          onPlay={(e) => {
+            // A fresh element starts at 1×; keep the chosen speed.
+            e.currentTarget.playbackRate = rate;
+            started();
+          }}
           onPause={paused}
         />
       ) : null}

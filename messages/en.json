@@ -18250,7 +18250,7 @@
       "clear": "Clear selection"
     }
   },
-  "secureChat": {"roleSeller":"Specialist","back":"All chats","react":"React","reactions":"Reactions","copy":"Copy","copied":"Text copied","retrySend":"Send again","discard":"Remove","sendFailed":"Not sent","newMessages":"{n} new messages","toBottom":"Jump to latest","dropHere":"Drop files here","dropHint":"Up to 25 MB each — several at once is fine","hiddenContent":"Message text is hidden","reactFailed":"Couldn't send the reaction. Try again.","you":"You","emptyTitle":"Start the conversation","replyingTo":"Replying to {name}","askCopilot":"Ask the AI copilot about this chat",
+  "secureChat": {"voiceSpeed":"Playback speed","voiceReview":"Listen back before sending","voicePaused":"Paused","voiceResume":"Resume","voicePauseRec":"Pause","voiceStop":"Stop and listen","attachMedia":"Photo or video","attachDoc":"Document or file","attachCamera":"Camera","trayTitle":"{n} files ready","trayHint":"Add a caption and send them together","trayClear":"Clear","trayRemove":"Remove {name}","emoji":"Emoji","captionPh":"Add a caption (optional)…","roleSeller":"Specialist","back":"All chats","react":"React","reactions":"Reactions","copy":"Copy","copied":"Text copied","retrySend":"Send again","discard":"Remove","sendFailed":"Not sent","newMessages":"{n} new messages","toBottom":"Jump to latest","dropHere":"Drop files here","dropHint":"Up to 25 MB each — several at once is fine","hiddenContent":"Message text is hidden","reactFailed":"Couldn't send the reaction. Try again.","you":"You","emptyTitle":"Start the conversation","replyingTo":"Replying to {name}","askCopilot":"Ask the AI copilot about this chat",
     "completedOk": "Chat completed",
     "deleteAsk": "Delete this chat?",
     "deleting": "Deleting…",
