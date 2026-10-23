@@ -176,7 +176,9 @@ function RouteForm({ mode, codes, groups, taken, superadmin, onClose, onSaved }:
   const groupOpts = groups.map((g) => ({ value: g.key, label: labels.groupName(g.key, g.title) }));
   const codeOpts = codes.map((c) => ({ value: c.code, label: c.label }));
   const statusOpts = ROUTE_STATUSES.map((s) => ({ value: s, label: t(`settings.routes.status_${s}`) }));
-  const unitOpts = UNITS.map((u) => ({ value: u, label: t(`settings.routes.slaUnit.${u}`) }));
+  // Capitalised as select options ("Soat"); slaUnit stays lowercase for the
+  // inline summary ("24 soat"). The values are the backend's, unchanged.
+  const unitOpts = UNITS.map((u) => ({ value: u, label: t(`settings.routes.slaUnitOpt.${u}`) }));
   const scopeName = scope === "group" ? groupOpts.find((g) => g.value === scopeKey)?.label : codeOpts.find((c) => c.value === scopeKey)?.label;
 
   if (confirm) {

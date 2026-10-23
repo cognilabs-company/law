@@ -584,7 +584,7 @@
         "category_search": "Поиск по категории",
         "category_search_sponsored_service": "Спонсорская услуга в поиске"
       },
-      "opt": {
+      "opt": {"review_duration_unit":{"minute": "Минуты", "hour": "Часы", "day": "Дни"},
         "K07__version_bump": {"minor":"Небольшое изменение","major":"Крупное изменение"},
         "K06__language": {"uz-latn":"Узбекский (латиница)","uz-cyrl":"Узбекский (кириллица)","ru":"Русский"},
         "K06__mode": {"editor":"Написать в редакторе","upload":"Загрузить готовый файл"},
@@ -597,7 +597,7 @@
         "K07__document_type": {"terms_of_service": "Условия использования", "consent": "Текст согласия", "refund_policy": "Порядок возврата денег", "marketplace_rules": "Правила маркетплейса", "terms":"Условия использования","privacy":"Политика конфиденциальности","privacy_policy":"Политика конфиденциальности","legal_disclaimer":"Правовое уведомление","public_offer":"Публичная оферта","marketing":"Согласие на рекламные рассылки"},
         "match": {"all":"Если выполнены все условия","any":"Если выполнено хотя бы одно условие"},
         "order_statuses": {"new":"Новый","pending_payment":"Ожидает оплаты","paid":"Оплачен","accepted":"Принят","in_progress":"В работе","completed":"Завершён","cancelled":"Отменён","refunded":"Возвращён"},
-        "duration_unit": {"minute":"минуты","hour":"часы","day":"дни"},
+        "duration_unit": {"minute":"Минуты","hour":"Часы","day":"Дни"},
         "duration_calendar": {"business_days": "Только рабочие дни (понедельник–пятница)", "calendar":"Календарные дни","business":"Рабочие дни (пн–пт)"},
         "template_mode": {"required":"Шаблон обязателен","optional":"Шаблон по желанию","not_required":"Шаблон не нужен"},
         "template_source": {"catalog":"Шаблон из каталога","upload":"Загруженный документ","catalog_or_upload":"Из каталога или загрузкой"},
@@ -2553,7 +2553,7 @@
           "text": "Все действия в Studio, доступы и маршруты согласования."
         }
       },
-      "routes": {
+      "routes": {"slaUnitOpt":{"minute": "Минуты", "hour": "Часы", "day": "Дни"},
         "title": "Порядок согласования",
         "lead": "Кто и в каком порядке согласует: для всех, для раздела или для одного конструктора.",
         "create": "Добавить порядок",

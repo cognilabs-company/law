@@ -584,7 +584,7 @@
         "category_search": "Category search",
         "category_search_sponsored_service": "Sponsored service in search"
       },
-      "opt": {
+      "opt": {"review_duration_unit":{"minute": "Minutes", "hour": "Hours", "day": "Days"},
         "K07__version_bump": {"minor":"Minor change","major":"Major change"},
         "K06__language": {"uz-latn":"Uzbek (Latin)","uz-cyrl":"Uzbek (Cyrillic)","ru":"Russian"},
         "K06__mode": {"editor":"Write in the editor","upload":"Upload a ready file"},
@@ -597,7 +597,7 @@
         "K07__document_type": {"terms_of_service": "Terms of use", "consent": "Consent text", "refund_policy": "Refund policy", "marketplace_rules": "Marketplace rules", "terms":"Terms of use","privacy":"Privacy policy","privacy_policy":"Privacy policy","legal_disclaimer":"Legal disclaimer","public_offer":"Public offer","marketing":"Consent to marketing messages"},
         "match": {"all":"When all conditions match","any":"When any condition matches"},
         "order_statuses": {"new":"New","pending_payment":"Awaiting payment","paid":"Paid","accepted":"Accepted","in_progress":"In progress","completed":"Completed","cancelled":"Cancelled","refunded":"Refunded"},
-        "duration_unit": {"minute":"minutes","hour":"hours","day":"days"},
+        "duration_unit": {"minute":"Minutes","hour":"Hours","day":"Days"},
         "duration_calendar": {"business_days": "Business days only (Monday–Friday)", "calendar":"Calendar days","business":"Business days (Mon–Fri)"},
         "template_mode": {"required":"Template required","optional":"Template optional","not_required":"No template"},
         "template_source": {"catalog":"Catalogue template","upload":"Uploaded document","catalog_or_upload":"Catalogue or upload"},
@@ -2553,7 +2553,7 @@
           "text": "Every action in Studio, plus access and approval routes."
         }
       },
-      "routes": {
+      "routes": {"slaUnitOpt":{"minute": "Minutes", "hour": "Hours", "day": "Days"},
         "title": "Approval order",
         "lead": "Who approves and in what order: for everything, for a section or for one constructor.",
         "create": "Add an order",

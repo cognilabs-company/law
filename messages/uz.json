@@ -584,7 +584,7 @@
         "category_search": "Kategoriya bo'yicha qidiruv",
         "category_search_sponsored_service": "Qidiruvdagi homiylik xizmati"
       },
-      "opt": {
+      "opt": {"review_duration_unit":{"minute": "Daqiqa", "hour": "Soat", "day": "Kun"},
         "K07__version_bump": {"minor":"Kichik o'zgarish","major":"Katta o'zgarish"},
         "K06__language": {"uz-latn":"O'zbekcha (lotin)","uz-cyrl":"O'zbekcha (kirill)","ru":"Ruscha"},
         "K06__mode": {"editor":"Matn muharririda yozish","upload":"Tayyor faylni yuklash"},
@@ -597,7 +597,7 @@
         "K07__document_type": {"terms_of_service": "Foydalanish shartlari", "consent": "Rozilik matni", "refund_policy": "Pulni qaytarish tartibi", "marketplace_rules": "Marketplace qoidalari", "terms":"Foydalanish shartlari","privacy":"Maxfiylik siyosati","privacy_policy":"Maxfiylik siyosati","legal_disclaimer":"Huquqiy ogohlantirish","public_offer":"Ommaviy oferta","marketing":"Reklama xabarlariga rozilik"},
         "match": {"all":"Barcha shartlar bajarilsa","any":"Kamida bitta shart bajarilsa"},
         "order_statuses": {"new":"Yangi","pending_payment":"To'lov kutilmoqda","paid":"To'langan","accepted":"Qabul qilingan","in_progress":"Bajarilmoqda","completed":"Yakunlangan","cancelled":"Bekor qilingan","refunded":"Pul qaytarilgan"},
-        "duration_unit": {"minute":"daqiqa","hour":"soat","day":"kun"},
+        "duration_unit": {"minute":"Daqiqa","hour":"Soat","day":"Kun"},
         "duration_calendar": {"business_days": "Faqat ish kunlari (dushanba–juma)", "calendar":"Kalendar kunlari","business":"Ish kunlari (dushanba–juma)"},
         "template_mode": {"required":"Shablon majburiy","optional":"Shablon ixtiyoriy","not_required":"Shablon kerak emas"},
         "template_source": {"catalog":"Katalogdagi shablon","upload":"Yuklangan hujjat","catalog_or_upload":"Katalogdan yoki yuklab"},
@@ -2553,7 +2553,7 @@
           "text": "Studio'dagi barcha amallar, ruxsatlar va tasdiqlash tartibi."
         }
       },
-      "routes": {
+      "routes": {"slaUnitOpt":{"minute": "Daqiqa", "hour": "Soat", "day": "Kun"},
         "title": "Tasdiqlash tartibi",
         "lead": "Kim va qaysi tartibda tasdiqlaydi: hamma uchun, bo'lim uchun yoki bitta konstruktor uchun.",
         "create": "Tartib qo'shish",
