@@ -8,7 +8,7 @@ import { matchesSearch } from "@/lib/searchText";
 import { findContacts } from "@/lib/contactGuard";
 import ContactGuardNote from "@/components/ui/ContactGuardNote";
 import { searchServices, type BackendService } from "@/lib/services/backend";
-import { hiddenReasons, listManagedServices, priceBandFor, priceExplanationOf, profileVerified, removeManagedService, serviceErrorOf, setManagedServiceStatus, type ManagedService, type ManagedServices, type PriceBand, type ServiceScope, type ServiceStatus } from "@/lib/services/sellerServices";
+import { hiddenReasons, listManagedServices, priceBandFor, priceExplanationOf, removeManagedService, serviceErrorOf, setManagedServiceStatus, type ManagedService, type ManagedServices, type PriceBand, type ServiceScope, type ServiceStatus } from "@/lib/services/sellerServices";
 import { acceptServiceRule, getRuntimeConfig, listServiceRules, updateSellerServiceConfig, type RuntimeConfig, type ServiceRule } from "@/lib/services/marketRuntime";
 import { configSupport, isConfigUnsupported, saveSellerService } from "@/lib/services/sellerConfig";
 import { ensureServiceRules, refreshRulesGate, rulesBlockOf } from "@/lib/services/rulesGate";
@@ -18,7 +18,7 @@ import { App, Banner, Btn, Check, Dialog, Empty, Field, Input, Loading, Search, 
 import type { NativeProps } from "../native";
 import PromoteDialog from "./promote/PromoteDialog";
 import "./services.css";
-import PriceLimits, { useSellerStanding } from "@/components/services/PriceLimits";
+import PriceLimits from "@/components/services/PriceLimits";
 import { useSellerConfig } from "@/components/services/useSellerConfig";
 
 // The seller's services as a desktop program: the services by status and
@@ -346,7 +346,6 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { 
   const [band, setBand] = useState<PriceBand | null>(item?.limits ?? null);
   const [runtime, setRuntime] = useState<RuntimeConfig | null>(null);
   const cfg = useSellerConfig(svc?.id ?? "", uid, !!svc).config;
-  const standing = useSellerStanding();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const taken = new Set(data.items.map((x) => x.service.id));
@@ -457,8 +456,6 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { 
             explanation={priceExplanationOf(cfg?.raw.price_explanation)}
             modifiers={band?.modifiers ?? null}
             requirements={cfg?.requirements ?? []}
-            fallback={{ req: runtime?.minimumRequirements ?? null, verified: profileVerified(data.profile) }}
-            standing={standing}
             discountPct={cfg?.maxListingDiscountPercent ?? runtime?.pricing.maxListingDiscountPercent ?? null}
             belowAllowed={cfg?.belowRecommendedAllowed ?? runtime?.pricing.sellerCanPriceBelowRecommended ?? null}
             aiId="portal.desk.services.limits"

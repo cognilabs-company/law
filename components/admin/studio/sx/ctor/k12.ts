@@ -265,8 +265,14 @@ function promoFields(): readonly SxLayoutField[] {
 const isFixed = (ctx: SxLayoutCtx): boolean => str(ctx.root.discount_type) === "fixed";
 const isPercent = (ctx: SxLayoutCtx): boolean => str(ctx.root.discount_type) === "percent";
 
+// A campaign is created blank and edited through its own object, so the
+// "Mavjud kampaniya" (campaign_id) picker is never shown and the id is never
+// sent (FRONTEND_MARKETPLACE_PRICING_TASK_PERIOD_CAMPAIGN_FIXES §5) — even
+// while a backend still lists the field, and when an old payload carries it.
+const CAMPAIGN_ID = "campaign_id";
+
 function campaignTransform(src: SxPayload): SxPayload {
-  return dropKeys(src, removedFor(CAMPAIGN_CODE, CAMPAIGN_REMOVED));
+  return dropKeys(src, [CAMPAIGN_ID, ...removedFor(CAMPAIGN_CODE, CAMPAIGN_REMOVED)]);
 }
 
 function campaignValidate(v: SxValues): SxErrors {
@@ -300,6 +306,7 @@ const LEGACY_CAMPAIGN_FIELDS: readonly SxLayoutField[] = [
 
 function campaignFields(): readonly SxLayoutField[] {
   return [
+    { path: CAMPAIGN_ID, hidden: true },
     ...LEGACY_CAMPAIGN_FIELDS.slice(0, 2),
     { path: "title", span: 2 },
     { path: "package_ids", help: "sx.mp09.packagesHelp" },

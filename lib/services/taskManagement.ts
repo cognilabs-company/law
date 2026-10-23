@@ -69,7 +69,10 @@ export type Task = {
   attachmentCount: number;
 };
 export type TaskCounts = Record<TaskStatus, number>;
-export type TaskPage = { items: Task[]; total: number; limit: number; offset: number; hasMore: boolean; counts: TaskCounts };
+// `periodApplied`: the backend answered with its `period` (or count_scope),
+// i.e. it filtered by date_from/date_to/period_field. `legacyPeriod`: the
+// page was read with the old deadline range (see listTasksInPeriod).
+export type TaskPage = { items: Task[]; total: number; limit: number; offset: number; hasMore: boolean; counts: TaskCounts; periodApplied?: boolean; legacyPeriod?: boolean };
 export type TaskMeta = {
   statuses: { value: TaskStatus; label: string; order: number }[];
   canCreate: boolean;
@@ -222,10 +225,23 @@ export async function getTaskMeta(signal?: AbortSignal): Promise<TaskMeta> {
   };
 }
 
+// Which date a period filters on (FRONTEND_MARKETPLACE_PRICING_TASK_PERIOD_
+// CAMPAIGN_FIXES §3): the deadline, the day the task was created, or the day
+// it was moved to Ready.
+export const TASK_PERIOD_FIELDS = ["deadline", "created", "completed"] as const;
+export type TaskPeriodField = (typeof TASK_PERIOD_FIELDS)[number];
+
 export type TaskQuery = {
   status?: TaskStatus | "";
   assignee?: string;
   q?: string;
+  // Inclusive calendar days (YYYY-MM-DD) in the backend's task timezone,
+  // always both together, with the date they apply to.
+  dateFrom?: string;
+  dateTo?: string;
+  periodField?: TaskPeriodField;
+  // Legacy deadline range; never sent together with dateFrom/dateTo (the
+  // backend answers 422 period_filter_conflict).
   deadlineFrom?: string;
   deadlineTo?: string;
   includeDeleted?: boolean;
@@ -238,8 +254,14 @@ export async function listTasks(query: TaskQuery, signal?: AbortSignal): Promise
   if (query.status) p.set("status", query.status);
   if (query.assignee) p.set("assignee_user_id", query.assignee);
   if (query.q?.trim()) p.set("q", query.q.trim());
-  if (query.deadlineFrom) p.set("deadline_from", query.deadlineFrom);
-  if (query.deadlineTo) p.set("deadline_to", query.deadlineTo);
+  if (query.dateFrom && query.dateTo) {
+    p.set("date_from", query.dateFrom);
+    p.set("date_to", query.dateTo);
+    p.set("period_field", query.periodField ?? "deadline");
+  } else {
+    if (query.deadlineFrom) p.set("deadline_from", query.deadlineFrom);
+    if (query.deadlineTo) p.set("deadline_to", query.deadlineTo);
+  }
   if (query.includeDeleted) p.set("include_deleted", "true");
   p.set("limit", String(Math.min(100, Math.max(1, query.limit ?? 30))));
   p.set("offset", String(Math.max(0, query.offset ?? 0)));
@@ -252,7 +274,35 @@ export async function listTasks(query: TaskQuery, signal?: AbortSignal): Promise
     offset: asNum(d.offset),
     hasMore: d.has_more === true,
     counts: countsOf(d.status_counts),
+    periodApplied: (!!d.period && typeof d.period === "object") || typeof d.count_scope === "string",
   };
+}
+
+// The task list with a period. A backend with the period contract filters
+// rows and status_counts by date_from/date_to/period_field in one request.
+// One without it ignores those parameters and returns everything; it then
+// gets the old deadline range, and since its status_counts ignore that
+// range, the per-status totals are read with the same filters. Which one
+// answers is learnt from the first period request and kept, so once the
+// backend ships the contract this is a single request again.
+let periodContract: "" | "new" | "legacy" = "";
+const dayStartIso = (d: string) => new Date(`${d}T00:00:00`).toISOString();
+const dayEndIso = (d: string) => new Date(`${d}T23:59:59.999`).toISOString();
+
+export async function listTasksInPeriod(query: TaskQuery, signal?: AbortSignal): Promise<TaskPage> {
+  if (!query.dateFrom || !query.dateTo || periodContract === "new") return listTasks(query, signal);
+  if (periodContract === "") {
+    const page = await listTasks(query, signal);
+    if (page.periodApplied) {
+      periodContract = "new";
+      return page;
+    }
+    periodContract = "legacy";
+  }
+  // The legacy range only knows the deadline.
+  const legacy: TaskQuery = { ...query, dateFrom: "", dateTo: "", periodField: undefined, deadlineFrom: dayStartIso(query.dateFrom), deadlineTo: dayEndIso(query.dateTo) };
+  const [page, ...totals] = await Promise.all([listTasks(legacy, signal), ...TASK_STATUSES.map((st) => listTasks({ ...legacy, status: st, limit: 1, offset: 0 }, signal).then((p) => p.total))]);
+  return { ...page, counts: Object.fromEntries(TASK_STATUSES.map((st, i) => [st, totals[i]])) as TaskCounts, legacyPeriod: true };
 }
 
 const enc = encodeURIComponent;

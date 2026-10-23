@@ -402,3 +402,97 @@ html[data-theme="dark"] .svcap {
 .svcap__facts--num svg {
   color: var(--cap-acc);
 }
+
+/* A criterion's numbers as the backend sent them: the bar with its percent,
+   the current and required values (scalars, or named values for a mixed
+   criterion), and, for "any of", each alternative. */
+.svcap__prog {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.svcap__prog .svcap__bar {
+  flex: 1;
+}
+.svcap__pct {
+  flex: none;
+  font-size: 0.74rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.svcap__kv {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.svcap__kvr {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.svcap__kvr > small,
+.svcap__any > small {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--gray);
+}
+.svcap__val {
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+.svcap__pairs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.svcap__pairs li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--cap-soft);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-size: 0.74rem;
+  color: var(--gray);
+}
+.svcap__pairs b {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.svcap__any {
+  display: grid;
+  gap: 6px;
+}
+.svcap__alts {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.svcap__alts li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px dashed var(--line);
+}
+.svcap__altn {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--cap-acc);
+}
+.svcap__note {
+  color: var(--gray);
+}

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { CircleCheckBig, ClipboardList, Hourglass, Target, TriangleAlert, UserX, ChevronRight } from "lucide-react";
 import { isAborted } from "@/lib/http";
-import { getTaskStats, taskErrorOf, TASK_STATUSES, type TaskCounts, type TaskStats as Stats } from "@/lib/services/taskManagement";
+import { getTaskStats, taskErrorOf, TASK_STATUSES, type TaskCounts, type TaskPeriodField, type TaskStats as Stats } from "@/lib/services/taskManagement";
 import { STATUS_ICON, STROKE, useTaskText, type TaskIcon } from "./parts";
 
 function useCount(target: number): number {
@@ -78,11 +78,28 @@ export function useTaskStats(tick: number, period: { from: string; to: string } 
   return state;
 }
 
-// `scoped`: the list's status counts while a period is set. The stats call
-// answers "created" and "done" for the period itself, but its open/overdue
-// side is always "now"; with a period those come from the tasks due in it,
-// so every card on the page speaks about the same days.
-export function TaskKpis({ stats: s, hidden, onReady, onUnassigned, scoped = null }: { stats: Stats | null; hidden: boolean; onReady: () => void; onUnassigned: () => void; scoped?: TaskCounts | null }) {
+// `scoped`: the list's status counts while a period is set — scoped by the
+// backend to the same period and period field as the list. The stats call
+// answers "created" and "done" for the period itself (events), but its
+// open/overdue side is always "now"; with a period the open card comes from
+// the list's counts and says which date it is about.
+export function TaskKpis({
+  stats: s,
+  hidden,
+  onReady,
+  onCreated,
+  onUnassigned,
+  scoped = null,
+  periodField = "deadline",
+}: {
+  stats: Stats | null;
+  hidden: boolean;
+  onReady: () => void;
+  onCreated?: () => void;
+  onUnassigned: () => void;
+  scoped?: TaskCounts | null;
+  periodField?: TaskPeriodField;
+}) {
   const { t } = useTaskText();
   if (hidden) return null;
   if (!s) {
@@ -96,10 +113,10 @@ export function TaskKpis({ stats: s, hidden, onReady, onUnassigned, scoped = nul
   }
   return (
     <div className="ttk-kpis">
-      <Tile icon={ClipboardList} tone="brand" value={s.created} label={t(scoped ? "kpi.createdP" : "kpi.created")} hint={t(scoped ? "kpi.createdHintP" : "kpi.createdHint")} delay={0} />
+      <Tile icon={ClipboardList} tone="brand" value={s.created} label={t(scoped ? "kpi.createdP" : "kpi.created")} hint={t(scoped ? "kpi.createdHintP" : "kpi.createdHint")} delay={0} onClick={onCreated} />
       <Tile icon={CircleCheckBig} tone="ok" value={s.readyInPeriod} label={t(scoped ? "kpi.doneP" : "kpi.done")} hint={t(scoped ? "kpi.doneHintP" : "kpi.doneHint")} delay={60} onClick={onReady} />
       {scoped ? (
-        <Tile icon={Hourglass} tone="open" value={scoped.new + scoped.in_progress + scoped.testing} label={t("kpi.openP")} hint={t("kpi.openHintP")} delay={120} />
+        <Tile icon={Hourglass} tone="open" value={scoped.new + scoped.in_progress + scoped.testing} label={t(`kpi.openBy.${periodField}`)} hint={t(`kpi.openHintBy.${periodField}`)} delay={120} />
       ) : (
         <Tile icon={Hourglass} tone="open" value={s.active} label={t("kpi.open")} hint={s.overdue ? t("kpi.openLate", { n: s.overdue }) : t("kpi.openHint")} delay={120} />
       )}
@@ -114,7 +131,7 @@ export function TaskKpis({ stats: s, hidden, onReady, onUnassigned, scoped = nul
   );
 }
 
-export function TaskProgress({ stats: full, scoped = null }: { stats: Stats | null; scoped?: TaskCounts | null }) {
+export function TaskProgress({ stats: full, scoped = null, periodField = "deadline" }: { stats: Stats | null; scoped?: TaskCounts | null; periodField?: TaskPeriodField }) {
   const { t, status } = useTaskText();
   // With a period, the bar and the split are the tasks due in it.
   const scopedTotal = scoped ? TASK_STATUSES.reduce((k, x) => k + scoped[x], 0) : 0;
@@ -133,7 +150,7 @@ export function TaskProgress({ stats: full, scoped = null }: { stats: Stats | nu
       <div className="ttk-prog__bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={rate} aria-label={t("progress.title")}>
         <span style={{ width: `${rate}%` }} />
       </div>
-      <p className="ttk-prog__f">{t("progress.foot", { done: s.readyTotal, total: s.total })}</p>
+      <p className="ttk-prog__f">{t(scoped ? `progress.footBy.${periodField}` : "progress.foot", { done: s.readyTotal, total: s.total })}</p>
       {sum ? (
         <>
           <div className="ttk-split" aria-hidden>

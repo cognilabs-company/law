@@ -2653,10 +2653,28 @@ html[data-theme="dark"] .ttk-face {
   width: 16px;
   height: 16px;
 }
+/* Which date the period applies to; only while a period is set. */
+.ttk-period:has(.ttk-period__field) {
+  grid-template-areas: "ic t t" "ic chips pick" "ic field field";
+}
+.ttk-period__field {
+  grid-area: field;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.ttk-period__flbl {
+  margin-inline-end: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--gray);
+}
 @media (max-width: 1100px) {
-  .ttk-period {
+  .ttk-period,
+  .ttk-period:has(.ttk-period__field) {
     grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas: "ic t" "chips chips" "pick pick";
+    grid-template-areas: "ic t" "chips chips" "pick pick" "field field";
   }
 }
 @media (max-width: 560px) {

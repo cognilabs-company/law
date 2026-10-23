@@ -31,7 +31,7 @@ import { IconAlert, IconCheck, IconCoins, IconEdit, IconEye, IconInfo, IconLayer
 import { InBody, som } from "./bits";
 import CatalogPicker from "./CatalogPicker";
 import { type PriceWhyFacts } from "./PriceWhy";
-import PriceLimits, { useSellerStanding } from "./PriceLimits";
+import PriceLimits from "./PriceLimits";
 import RuleChoice from "./RuleChoice";
 import PriceField, { bandRecommended, digitsOf, priceAboveCap } from "./PriceField";
 import MarketPreviewModal from "./MarketPreviewModal";
@@ -179,7 +179,6 @@ export default function ServiceFormModal({
   const bandKey = `${serviceId}|${sellerId}|${region}`;
   const savedBand = persisted && persisted.id === serviceId ? persisted.limits : null;
   const runtimeLoad = useRuntimeConfig(serviceId);
-  const standing = useSellerStanding();
   const runtime = runtimeLoad.config;
   const cfgLoad = useSellerConfig(serviceId, uid, self && Boolean(serviceId), `${rulesVersion}|${cfgTick}`);
   const cfg = savedCfg && savedCfg.version === rulesVersion && savedCfg.cfg.serviceId === serviceId ? savedCfg.cfg : cfgLoad.config;
@@ -480,8 +479,6 @@ export default function ServiceFormModal({
                 explanation={why}
                 modifiers={whyFacts.modifiers}
                 requirements={cfg?.requirements ?? []}
-                fallback={{ req: runtime?.minimumRequirements ?? null, verified: profileVerified(profile) }}
-                standing={standing}
                 discountPct={cfg?.maxListingDiscountPercent ?? runtime?.pricing.maxListingDiscountPercent ?? null}
                 belowAllowed={cfg?.belowRecommendedAllowed ?? runtime?.pricing.sellerCanPriceBelowRecommended ?? null}
                 aiId={aiId ? `${aiId}.limits` : undefined}

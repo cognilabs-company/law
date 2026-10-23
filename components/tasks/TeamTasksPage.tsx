@@ -10,19 +10,21 @@ import { notify } from "@/lib/toast";
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import {
   TASK_EVENT_PREFIX,
+  TASK_PERIOD_FIELDS,
   TASK_STATUSES,
   changeTaskStatus,
   deleteTask,
   getTask,
   getTaskMeta,
   isReturn,
-  listTasks,
+  listTasksInPeriod,
   searchTaskUsers,
   taskErrorOf,
   type Task,
   type TaskCounts,
   type TaskError,
   type TaskMeta,
+  type TaskPeriodField,
   type TaskStatus,
 } from "@/lib/services/taskManagement";
 import { Deadline, Handoff, STATUS_ICON, STROKE, StatusActions, StatusPill, TodayDate, useTaskText } from "./parts";
@@ -38,8 +40,6 @@ const ZERO: TaskCounts = { new: 0, in_progress: 0, testing: 0, ready: 0 };
 type ListState = { items: Task[]; total: number; counts: TaskCounts; hasMore: boolean; loading: boolean; error: string; ready: boolean };
 type Reason = { kind: "return"; task: Task } | { kind: "delete"; task: Task };
 
-const dayStart = (d: string) => (d ? new Date(`${d}T00:00:00`).toISOString() : "");
-const dayEnd = (d: string) => (d ? new Date(`${d}T23:59:59.999`).toISOString() : "");
 const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
@@ -80,13 +80,17 @@ export default function TeamTasksPage() {
   const [q, setQ] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
+  // Which date the period applies to (deadline, created, completed).
+  const [periodField, setPeriodField] = useState<TaskPeriodField>("deadline");
   const [people, setPeople] = useState<{ value: string; label: string }[]>([]);
   const [list, setList] = useState<ListState>({ items: [], total: 0, counts: ZERO, hasMore: false, loading: true, error: "", ready: false });
   const [openId, setOpenId] = useState("");
   const [statsTick, setStatsTick] = useState(0);
-  // One period for the whole page: the list keeps the tasks whose deadline
-  // falls in it, the counters and progress count the activity inside it. The
-  // stats endpoint wants both ends, so an open end becomes the other one.
+  // One period for the whole page, sent as inclusive days with the date it
+  // applies to: the list and its status counts keep the tasks whose
+  // deadline / creation / completion falls in it; the stats cards count the
+  // activity inside it. Both endpoints want both ends, so an open end
+  // becomes the other one.
   const period = from || to ? { from: from || to, to: to || from } : null;
   const stats = useTaskStats(statsTick, period);
   const [detail, setDetail] = useState<Task | null>(null);
@@ -97,6 +101,10 @@ export default function TeamTasksPage() {
   const [form, setForm] = useState<TaskFormMode | null>(null);
   const [reason, setReason] = useState<Reason | null>(null);
   const seq = useRef(0);
+  // The backend has no period contract yet: only the deadline range works,
+  // so the date-field switch is not offered.
+  const legacyRef = useRef(false);
+  const [legacyPeriod, setLegacyPeriod] = useState(false);
   const loaded = useRef(0);
   const openRef = useRef("");
   const detailSeq = useRef(0);
@@ -120,25 +128,17 @@ export default function TeamTasksPage() {
     return () => c.abort();
   }, [t]);
 
-  const filters = useMemo(() => ({ status, assignee, q, deadlineFrom: dayStart(from), deadlineTo: dayEnd(to) }), [status, assignee, q, from, to]);
+  const filters = useMemo(
+    () => ({ status, assignee, q, dateFrom: period?.from ?? "", dateTo: period?.to ?? "", periodField }),
+    // period is derived from from/to
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [status, assignee, q, from, to, periodField],
+  );
 
-  // With a period, the list endpoint narrows its rows but not its
-  // status_counts (checked 2026-10-22: a September range gave total 0 with
-  // counts 14/2/0/8). The per-status totals are read with the same filters
-  // instead, so the sidebar, the cards and the list all agree.
-  const periodKey = from || to ? JSON.stringify([assignee, q, from, to, statsTick]) : "";
-  const [periodCounts, setPeriodCounts] = useState<{ key: string; counts: TaskCounts } | null>(null);
-  useEffect(() => {
-    if (!periodKey) return;
-    const c = new AbortController();
-    const base = { assignee, q, deadlineFrom: dayStart(from), deadlineTo: dayEnd(to), limit: 1, offset: 0 };
-    Promise.all(TASK_STATUSES.map((st) => listTasks({ ...base, status: st }, c.signal).then((pg) => [st, pg.total] as const))).then(
-      (rows) => !c.signal.aborted && setPeriodCounts({ key: periodKey, counts: Object.fromEntries(rows) as TaskCounts }),
-      () => undefined,
-    );
-    return () => c.abort();
-  }, [periodKey, assignee, q, from, to]);
-  const scopedCounts = periodKey && periodCounts?.key === periodKey ? periodCounts.counts : null;
+  // The list's status_counts apply every active filter except status itself
+  // (period, period field, search, assignee), so one request gives the
+  // sidebar and the period cards their totals — no per-status calls.
+  const scopedCounts = period ? list.counts : null;
 
   const load = useCallback(
     async (mode: "reset" | "more" | "refresh") => {
@@ -148,7 +148,11 @@ export default function TeamTasksPage() {
       const limit = mode === "refresh" ? Math.min(100, Math.max(PAGE, loaded.current)) : PAGE;
       setList((s) => ({ ...s, loading: true, error: mode === "more" ? s.error : "", ...(mode === "reset" ? { items: [], ready: false } : {}) }));
       try {
-        const page = await listTasks({ ...filters, limit, offset });
+        const page = await listTasksInPeriod({ ...filters, periodField: legacyRef.current ? "deadline" : filters.periodField, limit, offset });
+        if (n === seq.current) {
+          legacyRef.current = !!page.legacyPeriod;
+          setLegacyPeriod(!!page.legacyPeriod);
+        }
         if (n !== seq.current) return;
         setList((s) => {
           const items = mode === "more" ? [...s.items, ...page.items.filter((x) => !s.items.some((y) => y.id === x.id))] : page.items;
@@ -355,6 +359,7 @@ export default function TeamTasksPage() {
     setQ("");
     setFrom("");
     setTo("");
+    setPeriodField("deadline");
   };
 
   const counts = scopedCounts ?? list.counts;
@@ -421,7 +426,7 @@ export default function TeamTasksPage() {
           <p id="ttk-period-h" className="ttk-period__h">
             {t("period.label")}
           </p>
-          <p className="ttk-period__hint">{from || to ? t("period.hintOn") : t("period.hintOff")}</p>
+          <p className="ttk-period__hint">{from || to ? t(`period.hintBy.${legacyPeriod ? "deadline" : periodField}`) : t("period.hintOff")}</p>
         </div>
         <div className="ttk-period__chips" role="group" aria-label={t("period.quick")}>
           <button type="button" className={!from && !to ? "ttk-preset is-on" : "ttk-preset"} onClick={() => (setFrom(""), setTo(""))}>
@@ -437,6 +442,16 @@ export default function TeamTasksPage() {
             );
           })}
         </div>
+        {(from || to) && !legacyPeriod ? (
+          <div className="ttk-period__field" role="radiogroup" aria-label={t("period.field.label")}>
+            <span className="ttk-period__flbl">{t("period.field.label")}</span>
+            {TASK_PERIOD_FIELDS.map((f) => (
+              <button key={f} type="button" role="radio" aria-checked={periodField === f} className={periodField === f ? "ttk-preset is-on" : "ttk-preset"} onClick={() => setPeriodField(f)}>
+                {t(`period.field.${f}`)}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div className="ttk-period__pick ttk-range">
           <DatePicker value={from} onChange={setFrom} placeholder={t("filter.from")} ariaLabel={t("filter.from")} max={to || undefined} />
           <DatePicker value={to} onChange={setTo} placeholder={t("filter.to")} ariaLabel={t("filter.to")} min={from || undefined} />
@@ -448,7 +463,17 @@ export default function TeamTasksPage() {
         </div>
       </section>
 
-      <TaskKpis stats={stats.stats} hidden={stats.hidden} onReady={() => setStatus("ready")} onUnassigned={() => setAssignee("unassigned")} scoped={scopedCounts} />
+      <TaskKpis
+        stats={stats.stats}
+        hidden={stats.hidden}
+        // With a period, a card's detail is the list on the same date the
+        // card counts: created in it, or moved to Ready in it.
+        onCreated={period && !legacyPeriod ? () => (setPeriodField("created"), setStatus("")) : undefined}
+        onReady={() => (period && !legacyPeriod ? (setPeriodField("completed"), setStatus("")) : setStatus("ready"))}
+        onUnassigned={() => setAssignee("unassigned")}
+        scoped={scopedCounts}
+        periodField={legacyPeriod ? "deadline" : periodField}
+      />
 
       <FilterBar fields={fields} search={{ value: qInput, onChange: setQInput, placeholder: t("filter.search"), maxLength: 200 }} count={list.total} onReset={filtered ? resetFilters : undefined} />
 
@@ -472,7 +497,7 @@ export default function TeamTasksPage() {
         </aside>
 
         <div className="ttk-aside2">
-          <TaskProgress stats={stats.stats} scoped={scopedCounts} />
+          <TaskProgress stats={stats.stats} scoped={scopedCounts} periodField={legacyPeriod ? "deadline" : periodField} />
         </div>
 
         <section className="ttk-list" aria-busy={list.loading} aria-label={t("title")}>

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useId, useState, type ComponentType, type SVGProps } from "react";
+import { useId, type ComponentType, type ReactNode, type SVGProps } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import type { MinimumRequirements, PriceRequirement } from "@/lib/services/marketRuntime";
+import type { PriceReqValue, PriceRequirement } from "@/lib/services/marketRuntime";
 import type { PriceModifier } from "@/lib/services/marketplacePricing";
-import { getSellerStanding, type PriceExplanation, type SellerStanding } from "@/lib/services/sellerServices";
+import type { PriceExplanation } from "@/lib/services/sellerServices";
 import { IconAlert, IconAward, IconBriefcase, IconCheck, IconInfo, IconShieldCheck, IconSliders, IconStar, IconTrendingUp } from "@/components/icons";
 import { PriceModifiers } from "./PriceField";
 import { som } from "./bits";
@@ -13,8 +13,10 @@ import "./priceLimits.css";
 // The price limits a lawyer works within when switching a service on: the
 // floor, their own ceiling, the service's overall ceiling and how far a
 // lawyer may go once they meet the criteria, the backend's reasons for the
-// current ceiling, and each unmet criterion as a progress bar. Every amount
-// and every met/unmet verdict comes from the backend; this card only draws.
+// current ceiling, and each criterion with the backend's own verdict and
+// progress. Every amount, percentage and met/unmet verdict comes from the
+// backend (GET/PATCH /marketplace/me/services/{id}/configuration); this
+// card only draws them — no pricing or eligibility formula lives here.
 
 type Icon = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -24,6 +26,10 @@ const REQ_ICON: Readonly<Record<string, Icon>> = {
   experience: IconBriefcase,
   experience_years: IconBriefcase,
   minimum_experience_years: IconBriefcase,
+  lawyer_experience: IconBriefcase,
+  sector_experience: IconBriefcase,
+  seller_performance: IconTrendingUp,
+  client_rating: IconStar,
   rating: IconStar,
   minimum_rating: IconStar,
   completed_orders: IconAward,
@@ -40,10 +46,6 @@ export type PriceLimitsProps = {
   explanation: PriceExplanation | null;
   modifiers: PriceModifier[] | null;
   requirements: PriceRequirement[];
-  fallback: { req: MinimumRequirements | null; verified: boolean };
-  // GET /lawyers/me: the seller's current experience, rating and
-  // verification, for the criteria the backend lists without them.
-  standing?: SellerStanding | null;
   // How far below the recommended price a listing may go, and whether it may
   // at all — both straight from the backend's pricing.
   discountPct?: number | null;
@@ -51,57 +53,11 @@ export type PriceLimitsProps = {
   aiId?: string;
 };
 
-// The backend's criteria with its own verdicts, or — when it lists none —
-// the service's minimum requirements beside the seller's own values from
-// GET /lawyers/me. Only in that second case is met/unmet read here, by
-// setting one backend number against the other; `derived` says so on screen.
-function criteriaOf(list: PriceRequirement[], fb: PriceLimitsProps["fallback"], st: SellerStanding | null): { rows: PriceRequirement[]; derived: boolean } {
-  if (list.length) return { rows: list, derived: false };
-  const r = fb.req;
-  if (!r || r.empty) return { rows: [], derived: false };
-  const out: PriceRequirement[] = [];
-  const atLeast = (cur: number | null, need: number) => (cur === null ? null : cur >= need);
-  if (r.verified === true) {
-    const v = st?.verified ?? fb.verified;
-    out.push({ key: "verified", label: "", current: v, required: true, unit: "", met: v, progress: null, note: "" });
-  }
-  if (r.minimumExperienceYears > 0) {
-    const cur = st?.experienceYears ?? null;
-    out.push({ key: "experience_years", label: "", current: cur, required: r.minimumExperienceYears, unit: "year", met: atLeast(cur, r.minimumExperienceYears), progress: null, note: "" });
-  }
-  if (r.minimumRating > 0) {
-    const cur = st?.rating ?? null;
-    out.push({ key: "rating", label: "", current: cur, required: r.minimumRating, unit: "", met: atLeast(cur, r.minimumRating), progress: null, note: "" });
-  }
-  return { rows: out, derived: true };
-}
+// The bar only: the backend's percent, held inside 0–100 so a stray value
+// cannot draw outside the track. The number shown beside it is the backend's.
+const barOf = (r: PriceRequirement): number | null => (r.progress === null ? null : Math.max(0, Math.min(100, r.progress)));
 
-// How full a bar is: the backend's own percent, else the plain ratio of the
-// two numbers it sent (a display ratio only, never a price).
-function fillOf(r: PriceRequirement): number | null {
-  if (r.progress !== null) return r.progress;
-  if (r.met === true) return 100;
-  if (typeof r.current === "number" && typeof r.required === "number" && r.required > 0) return Math.max(0, Math.min(100, (r.current / r.required) * 100));
-  if (typeof r.current === "boolean") return r.current ? 100 : 0;
-  return null;
-}
-
-// The seller's standing, read once per form; null until it arrives or when
-// the profile cannot be read (the criteria then show without current values).
-export function useSellerStanding(): SellerStanding | null {
-  const [st, setSt] = useState<SellerStanding | null>(null);
-  useEffect(() => {
-    const ctl = new AbortController();
-    getSellerStanding(ctl.signal).then(
-      (v) => !ctl.signal.aborted && setSt(v),
-      () => {},
-    );
-    return () => ctl.abort();
-  }, []);
-  return st;
-}
-
-export default function PriceLimits({ minimum, recommended, sellerMax, serviceMax, increasePct, price, explanation, modifiers, requirements, fallback, standing = null, discountPct = null, belowAllowed = null, aiId }: PriceLimitsProps) {
+export default function PriceLimits({ minimum, recommended, sellerMax, serviceMax, increasePct, price, explanation, modifiers, requirements, discountPct = null, belowAllowed = null, aiId }: PriceLimitsProps) {
   const t = useTranslations("sellerServices.caps");
   const locale = useLocale();
   const uid = useId();
@@ -110,15 +66,36 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
   const top = Math.max(over || sellerMax, price, recommended) * 1.08 || 1;
   const at = (v: number) => `${Math.min(100, Math.max(0, (v / top) * 100))}%`;
   const inRange = price > 0 && (minimum <= 0 || price >= minimum) && (sellerMax <= 0 || price <= sellerMax);
-  const { rows: crit, derived } = criteriaOf(requirements, fallback, standing);
+  const crit = requirements;
   const metN = crit.filter((r) => r.met === true).length;
   const known = crit.some((r) => r.met !== null);
   const reasons = explanation;
   const num = (v: number) => new Intl.NumberFormat(locale === "en" ? "en-US" : locale === "ru" ? "ru-RU" : "uz-UZ", { maximumFractionDigits: 1 }).format(v);
-  const valueText = (v: number | boolean | null, unit: string) => {
-    if (v === null) return "";
+  const fieldLabel = (k: string) => (t.has(`f.${k}`) ? t(`f.${k}`) : k.replace(/[_-]+/g, " ").replace(/^\S/, (c) => c.toUpperCase()));
+  const scalar = (v: unknown, unit: string): string => {
+    if (v === null || v === undefined || v === "") return "";
     if (typeof v === "boolean") return v ? t("yes") : t("no");
-    return unit === "year" || unit === "years" ? t("years", { n: v }) : unit ? `${num(v)} ${unit}` : num(v);
+    if (typeof v === "number") return unit === "year" || unit === "years" ? t("years", { n: num(v) }) : num(v);
+    return String(v);
+  };
+  // A scalar as a word; an object as its named values, each as sent.
+  const valueOf = (v: PriceReqValue, unit: string): ReactNode => {
+    if (v && typeof v === "object") {
+      const pairs = Object.entries(v).filter(([k, x]) => k !== "any_of" && x !== null && typeof x !== "object");
+      if (!pairs.length) return null;
+      return (
+        <ul className="svcap__pairs">
+          {pairs.map(([k, x]) => (
+            <li key={k}>
+              <span>{fieldLabel(k)}</span>
+              <b>{scalar(x, k === "years" ? "year" : "")}</b>
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    const s = scalar(v, unit);
+    return s ? <b className="svcap__val">{s}</b> : null;
   };
   const reqLabel = (r: PriceRequirement) => r.label || (t.has(`req.${r.key}`) ? t(`req.${r.key}`) : r.key);
   // The limits in words, each sentence carrying only numbers the backend sent.
@@ -164,12 +141,6 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
             <dd>
               {som(serviceMax)} <small>{t("som")}</small>
             </dd>
-            {increasePct !== null ? (
-              <span className="svcap__up">
-                <IconTrendingUp aria-hidden="true" />
-                {t("upTo", { pct: num(increasePct) })}
-              </span>
-            ) : null}
           </div>
         ) : null}
       </dl>
@@ -197,10 +168,13 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
         </div>
       ) : null}
 
-      {over ? (
+      {/* The backend's own figure (maximum_increase_percent): how much
+          further the allowed ceiling can grow once the unmet criteria are
+          met. Not computed, capped or rounded here; nothing at 0. */}
+      {increasePct !== null && increasePct > 0 ? (
         <p className="svcap__unlock">
           <IconTrendingUp aria-hidden="true" />
-          <span>{increasePct !== null ? t("unlockPct", { pct: num(increasePct), max: som(over) }) : t("unlock", { max: som(over) })}</span>
+          <span>{t("growth", { pct: num(increasePct) })}</span>
         </p>
       ) : null}
 
@@ -257,10 +231,10 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
           <ul className="svcap__list">
             {crit.map((r, i) => {
               const Ic = REQ_ICON[r.key] ?? IconAward;
-              const fill = fillOf(r);
+              const bar = barOf(r);
               const state = r.met === true ? "met" : r.met === false ? "unmet" : "unknown";
-              const cur = valueText(r.current, r.unit);
-              const need = valueText(r.required, r.unit);
+              const cur = valueOf(r.current, r.unit);
+              const need = r.anyOf ? null : valueOf(r.required, r.unit);
               return (
                 <li key={`${r.key}-${i}`} className="svcap__req" data-state={state}>
                   <span className="svcap__ric" aria-hidden="true">
@@ -274,22 +248,53 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
                         {t(`state.${state}`)}
                       </span>
                     </span>
-                    {fill !== null ? (
-                      <span className="svcap__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(fill)} aria-label={reqLabel(r)}>
-                        <i style={{ width: `${fill}%` }} />
+                    {bar !== null ? (
+                      <span className="svcap__prog">
+                        <span className="svcap__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(bar)} aria-label={reqLabel(r)}>
+                          <i style={{ width: `${bar}%` }} />
+                        </span>
+                        <span className="svcap__pct">{t("progress", { n: num(r.progress ?? 0) })}</span>
                       </span>
                     ) : null}
-                    <small>
-                      {cur && need ? t("curNeed", { cur, need }) : need ? t("needOnly", { need }) : ""}
-                      {r.current === null && r.met === null ? ` · ${t("noCurrent")}` : ""}
-                      {r.note ? ` · ${r.note}` : ""}
-                    </small>
+                    <span className="svcap__kv">
+                      {cur ? (
+                        <span className="svcap__kvr">
+                          <small>{t("now")}</small>
+                          {cur}
+                        </span>
+                      ) : (
+                        <span className="svcap__kvr">
+                          <small>{t("now")}</small>
+                          <span className="svcap__none">{t("noCurrent")}</span>
+                        </span>
+                      )}
+                      {need ? (
+                        <span className="svcap__kvr">
+                          <small>{t("need")}</small>
+                          {need}
+                        </span>
+                      ) : null}
+                    </span>
+                    {r.anyOf && r.anyOf.length ? (
+                      <span className="svcap__any">
+                        <small>{t("anyOf")}</small>
+                        <ol className="svcap__alts">
+                          {r.anyOf.map((alt, k) => (
+                            <li key={k}>
+                              <span className="svcap__altn">{t("alt", { n: k + 1 })}</span>
+                              {valueOf(alt, "")}
+                            </li>
+                          ))}
+                        </ol>
+                      </span>
+                    ) : null}
+                    {r.note ? <small className="svcap__note">{r.note}</small> : null}
                   </span>
                 </li>
               );
             })}
           </ul>
-          {derived && crit.some((r) => r.met !== null) ? <small className="svcap__src">{t("derivedNote")}</small> : null}
+
         </div>
       ) : null}
     </section>

@@ -580,12 +580,19 @@ export type SellerServiceConfig = {
   raw: Dict;
 };
 
-// One criterion for a higher price, exactly as the backend measured it.
+// One criterion for a higher price, exactly as the backend measured it
+// (FRONTEND_MARKETPLACE_PRICING_TASK_PERIOD_CAMPAIGN_FIXES §2). `current` and
+// `required` are a number, or an object of named values for a mixed
+// criterion; `anyOf` lists the alternatives when any one of them completes
+// it. `met` and `progress` (0–100) are the backend's verdict — nothing here
+// derives them from current and required.
+export type PriceReqValue = number | boolean | string | Dict | null;
 export type PriceRequirement = {
   key: string;
   label: string;
-  current: number | boolean | null;
-  required: number | boolean | null;
+  current: PriceReqValue;
+  required: PriceReqValue;
+  anyOf: Dict[] | null;
   unit: string;
   met: boolean | null;
   progress: number | null;
@@ -597,16 +604,24 @@ function requirementOf(v: unknown): PriceRequirement | null {
   const key = trimmed(d.key ?? d.code ?? d.criterion ?? d.type);
   const label = trimmed(d.label ?? d.title ?? d.name);
   if (!key && !label) return null;
-  const val = (x: unknown): number | boolean | null => (typeof x === "boolean" ? x : numOrNull(x));
-  const progress = numOrNull(d.progress_percent ?? d.progress ?? d.percent);
+  const val = (x: unknown): PriceReqValue => {
+    if (typeof x === "boolean") return x;
+    if (x && typeof x === "object" && !Array.isArray(x)) return x as Dict;
+    if (typeof x === "string" && x.trim() && !Number.isFinite(Number(x))) return x.trim();
+    return numOrNull(x);
+  };
+  const required = val(d.required ?? d.required_value ?? d.target ?? d.minimum);
+  const alts = required && typeof required === "object" ? (required as Dict).any_of : undefined;
   return {
     key,
     label,
     current: val(d.current ?? d.current_value ?? d.actual ?? d.value),
-    required: val(d.required ?? d.required_value ?? d.target ?? d.minimum),
+    required,
+    anyOf: Array.isArray(alts) ? alts.map((a) => dictOf(a)).filter((a) => Object.keys(a).length > 0) : null,
     unit: trimmed(d.unit),
     met: boolOrNull(d.met ?? d.satisfied ?? d.passed ?? d.is_met),
-    progress: progress === null ? null : Math.max(0, Math.min(100, progress)),
+    // As sent; only the bar that draws it is clamped.
+    progress: numOrNull(d.progress_percent ?? d.progress ?? d.percent),
     note: trimmed(d.text ?? d.message ?? d.hint ?? d.description),
   };
 }
