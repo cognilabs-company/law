@@ -1172,49 +1172,103 @@ html[data-theme="dark"] .sx-picker__scrim {
   align-content: start;
   gap: 4px 10px;
   min-width: 0;
-  padding: 14px 40px 14px 16px;
-  background: var(--sx-surface);
-  border: 1px solid var(--sx-control-line);
+  padding: 14px 44px 14px 14px;
+  background: var(--sx-sel-bg, var(--sx-surface));
+  border: 1.5px solid var(--sx-control-line);
   border-radius: var(--sx-r);
   color: var(--sx-ink);
   cursor: pointer;
-  transition: border-color var(--sx-fast) var(--sx-ease), background-color var(--sx-fast) var(--sx-ease), box-shadow var(--sx-fast) var(--sx-ease);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--sx-ink) 6%, transparent);
+  transition: border-color var(--sx-fast) var(--sx-ease), background-color var(--sx-fast) var(--sx-ease), box-shadow var(--sx-mid, 0.2s) var(--sx-ease), transform var(--sx-fast) var(--sx-ease);
 }
-.sx-choice:hover {
-  border-color: var(--sx-muted);
+/* Single choice: an empty ring where the check lands, so every card reads
+   as something to pick — it lights up on hover and focus. */
+.sx-choice:not([data-checked]):not(:has(.sx-choice__box))::after {
+  content: "";
+  position: absolute;
+  top: 15px;
+  inset-inline-end: 16px;
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--sx-control-line);
+  border-radius: 999px;
+  background: var(--sx-surface);
+  transition: border-color var(--sx-fast) var(--sx-ease), box-shadow var(--sx-fast) var(--sx-ease);
 }
-.sx-choice[data-checked],
-.sx-choice[data-checked]:hover {
+@media (hover: hover) {
+  .sx-choice:not([data-checked], [data-disabled]):hover {
+    border-color: var(--sx-sel-line-hover, var(--sx-accent));
+    background: var(--sx-sel-bg-hover, var(--sx-accent-soft));
+    box-shadow: 0 8px 20px -14px color-mix(in srgb, var(--sx-accent) 70%, transparent);
+    transform: translateY(-1px);
+  }
+  .sx-choice:not([data-checked], [data-disabled]):hover::after {
+    border-color: var(--sx-accent);
+    box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--sx-accent) 18%, transparent);
+  }
+  .sx-choice:not([data-checked], [data-disabled]):hover .sx-choice__icon {
+    color: var(--sx-accent);
+    background: color-mix(in srgb, var(--sx-accent) 12%, var(--sx-surface));
+  }
+  .sx-choice:not([data-checked], [data-disabled]):hover .sx-choice__box {
+    border-color: var(--sx-accent);
+  }
+  .sx-choice[data-checked]:not([data-disabled]):hover {
+    box-shadow: inset 0 0 0 0.5px var(--sx-accent), 0 8px 20px -14px color-mix(in srgb, var(--sx-accent) 80%, transparent);
+  }
+}
+.sx-choice:not([data-disabled]):active {
+  transform: translateY(0) scale(0.99);
+}
+.sx-choice[data-checked] {
   background: var(--sx-accent-soft);
   border-color: var(--sx-accent);
   box-shadow: inset 0 0 0 0.5px var(--sx-accent);
 }
+/* Keyboard focus: accent border, the Studio ring and the hover wash. */
 .sx-choice:has(.sx-choice__input:focus-visible) {
   border-color: var(--sx-accent);
-  box-shadow: var(--sx-ring);
+  background: var(--sx-sel-bg-hover, var(--sx-accent-soft));
+  box-shadow: var(--sx-sel-ring, var(--sx-ring));
+}
+.sx-choice:not([data-checked]):has(.sx-choice__input:focus-visible)::after {
+  border-color: var(--sx-accent);
 }
 .sx-choice[data-checked]:has(.sx-choice__input:focus-visible) {
-  box-shadow: inset 0 0 0 0.5px var(--sx-accent), var(--sx-ring);
+  background: var(--sx-accent-soft);
+  box-shadow: inset 0 0 0 0.5px var(--sx-accent), var(--sx-sel-ring, var(--sx-ring));
 }
-.sx-choices[data-invalid] .sx-choice,
-.sx-choices[data-invalid] .sx-choice:hover {
+.sx-choices[data-invalid] .sx-choice:not([data-checked]) {
+  border-color: var(--sx-danger);
+  background: var(--sx-sel-err-bg, var(--sx-surface));
+}
+.sx-choices[data-invalid] .sx-choice:not([data-checked])::after {
   border-color: var(--sx-danger);
 }
 .sx-choice[data-disabled],
 .sx-choice[data-disabled]:hover {
   background: var(--sx-surface-2);
-  border-color: var(--sx-line);
+  border-style: dashed;
+  border-color: var(--sx-line-strong);
   color: var(--sx-muted);
+  box-shadow: none;
+  transform: none;
   cursor: not-allowed;
 }
 .sx-choices[data-ro] .sx-choice,
 .sx-choices[data-ro] .sx-choice:hover {
   background: var(--sx-surface-2);
   border-color: var(--sx-line-strong);
+  box-shadow: none;
+  transform: none;
   cursor: default;
+}
+.sx-choices[data-ro] .sx-choice::after {
+  display: none;
 }
 .sx-choices[data-ro] .sx-choice[data-checked],
 .sx-choices[data-ro] .sx-choice[data-checked]:hover {
+  background: var(--sx-accent-soft);
   border-color: var(--sx-accent);
   box-shadow: inset 0 0 0 0.5px var(--sx-accent);
 }
@@ -1225,13 +1279,23 @@ html[data-theme="dark"] .sx-picker__scrim {
   margin: 0;
 }
 .sx-choice__icon {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  color: var(--sx-muted);
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-block: -4px;
+  border-radius: 8px;
+  background: var(--sx-surface-2);
+  color: var(--sx-ink-2);
+  transition: color var(--sx-fast) var(--sx-ease), background-color var(--sx-fast) var(--sx-ease);
 }
 .sx-choice[data-checked] .sx-choice__icon {
-  color: var(--sx-accent-ink);
+  background: var(--sx-accent);
+  color: var(--sx-on-accent, #fff);
+}
+.sx-choice[data-disabled] .sx-choice__icon {
+  background: transparent;
+  color: var(--sx-muted);
 }
 .sx-choice[data-noicon] {
   grid-template-columns: minmax(0, 1fr);
@@ -1264,8 +1328,9 @@ html[data-theme="dark"] .sx-picker__scrim {
 }
 .sx-choice__check {
   position: absolute;
-  top: 14px;
+  top: 13px;
   inset-inline-end: 14px;
+  animation: sxChoicePop 0.22s var(--sx-spring, var(--sx-ease)) both;
   display: inline-flex;
   color: var(--sx-accent);
 }
@@ -1287,6 +1352,23 @@ html[data-theme="dark"] .sx-picker__scrim {
 .sx-choice[data-checked] .sx-choice__box {
   border-color: var(--sx-accent);
   background: var(--sx-accent);
+}
+@keyframes sxChoicePop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-choice,
+  .sx-choice__check {
+    transition: none;
+    animation: none;
+  }
+  .sx-choice:hover,
+  .sx-choice:active {
+    transform: none !important;
+  }
 }
 .sx-choices__count {
   margin: 8px 0 0;
