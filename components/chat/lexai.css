@@ -97,7 +97,7 @@ body:has(.lxai--full) .fab { display: none }
 .lxai__lbl { margin: 10px 8px 4px; font: 700 .68rem/1.2 var(--fb); letter-spacing: .07em; text-transform: uppercase; color: var(--ai-faint) }
 .lxai__item { display: block; width: 100%; text-align: left; border: 0; background: transparent; border-radius: 11px; padding: 9px 11px; cursor: pointer; transition: background .14s; position: relative }
 .lxai__item b { display: block; font: 600 .87rem/1.3 var(--fb); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ai-ink) }
-.lxai__item span { display: block; font-size: .76rem; color: var(--ai-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px }
+.lxai__item-t > span { display: block; font-size: .76rem; color: var(--ai-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px }
 .lxai__item:hover { background: var(--ai-hover) }
 .lxai__item.on { background: var(--ai-panel); box-shadow: var(--s1), inset 0 0 0 1px var(--ai-line) }
 .lxai__item.on b { color: var(--ai-acc) }
@@ -382,7 +382,8 @@ html[data-theme="dark"] .lxai__empty h2 {
   color: var(--ai-faint);
   transition: background .15s, color .15s;
 }
-.lxai__item-ic svg { width: 15px; height: 15px }
+.lxai__item-ic svg { width: 16px; height: 16px; display: block }
+.lxai__item-t { display: block }
 .lxai__item-t { flex: 1; min-width: 0 }
 .lxai__item:hover .lxai__item-ic { color: var(--ai-acc) }
 .lxai__item.on .lxai__item-ic { background: var(--grad); color: #fff; box-shadow: none }
