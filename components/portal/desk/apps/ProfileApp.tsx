@@ -261,6 +261,8 @@ function Pro({ draft, set, isAdvocate, bioRefused }: { draft: Draft; set: (p: Pa
   const tf = useTranslations("portal.advocate.profile.form");
   const tr = useTranslations("register");
   const ta = useTranslations("register.advocate");
+  // License number and education never reach the public profile.
+  const tpv = useTranslations("common.privateField");
   const te = useTranslations("enums");
   const st = draft.stats ?? { totalCases: 0, fullyWonCases: 0, partiallyWonCases: 0, successRate: 0 };
   const num = (v: string) => Math.max(0, Number(v.replace(/\D/g, "")) || 0);
@@ -274,7 +276,7 @@ function Pro({ draft, set, isAdvocate, bioRefused }: { draft: Draft; set: (p: Pa
               <Field label={ta("specialization")}>
                 <Select ariaLabel={ta("specialization")} value={draft.specialization ?? ""} onChange={(v) => set({ specialization: v })} options={[{ value: "", label: ta("specPlaceholder") }, ...SPECS.map((s) => ({ value: s, label: ta(`specOptions.${s}`) }))]} />
               </Field>
-              <Field label={ta("license")}>
+              <Field label={ta("license")} hint={tpv("hint")}>
                 <Input value={draft.licenseNumber ?? ""} onChange={(v) => set({ licenseNumber: v })} placeholder={ta("licensePh")} />
               </Field>
               <Field label={ta("bar")}>
@@ -288,7 +290,7 @@ function Pro({ draft, set, isAdvocate, bioRefused }: { draft: Draft; set: (p: Pa
           <Field label={tr("fields.experience")}>
             <Input value={String(draft.experienceYears ?? "")} onChange={(v) => set({ experienceYears: num(v) })} placeholder={tr("fields.experiencePh")} />
           </Field>
-          <Field label={tr("fields.education")}>
+          <Field label={tr("fields.education")} hint={tpv("hint")}>
             <Input value={draft.education ?? ""} onChange={(v) => set({ education: v })} placeholder={tr("fields.educationPh")} />
           </Field>
           <Field label={tf("f.price")} hint={tf("priceHint")}>

@@ -7159,7 +7159,7 @@
       "keep": "Bekor qilish"
     }
   },
-  "common": {
+  "common": {"privateField":{"tag": "Yopiq", "hint": "Faqat siz va LexGo tekshiruvchilari ko‘radi — mijozlar va ochiq profil sahifasida ko‘rinmaydi."},
     "contactGuard": {"verified":"Tajribangiz LexGo tomonidan tekshiriladi.","title":"Aloqa ma'lumotlarini yozib bo'lmaydi","why":"Mijoz bilan aloqa faqat LexGo ichida bo'ladi. Ularni olib tashlang — shundan keyin saqlash mumkin.","field":"Aloqa ma'lumotlarini olib tashlang","kind":{"phone":"Telefon","email":"E-pochta","link":"Havola","username":"Foydalanuvchi nomi","messenger":"Messenjer"}},
     "menu": {
       "back": "Orqaga"

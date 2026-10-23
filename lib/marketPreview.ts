@@ -28,7 +28,7 @@ export type PreviewAd = { placement: PromotionPlacement; title: string; subtitle
 
 export type PreviewProfile = Pick<
   MarketSeller,
-  "name" | "region" | "district" | "specializations" | "languages" | "bio" | "education" | "experienceYears" | "totalCases" | "winsCount" | "partialWins" | "successRate" | "licenseNumber" | "barAssociation" | "organizationName"
+  "name" | "region" | "district" | "specializations" | "languages" | "bio" | "experienceYears" | "totalCases" | "winsCount" | "partialWins" | "successRate" | "barAssociation" | "organizationName"
 >;
 
 export type PreviewDraft = {

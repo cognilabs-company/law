@@ -64,13 +64,16 @@ export type MarketSeller = {
   rated: boolean;
   ratingStatus: RatingStatus;
   ratingLabel: string;
-  verificationStatus: string;
+  // A seller's license number, education and verification state are the
+  // owner's and the verifiers' business only (getMyLawyer, the admin
+  // seller list). This is the public shape of a seller, so it does not carry
+  // them even when a backend response still includes them — only `verified`
+  // and its badge, which are public.
   region: string;
   district: string;
   specializations: string[];
   languages: string[];
   bio: string;
-  education: string;
   experienceYears: number;
   totalCases: number;
   winsCount: number;
@@ -90,7 +93,6 @@ export type MarketSeller = {
   onlineNow: boolean;
   available: boolean;
   services: MarketService[];
-  licenseNumber: string;
   barAssociation: string;
   organizationName: string;
   createdAt: string;
@@ -218,13 +220,11 @@ export function normMarketSeller(v: unknown): MarketSeller {
     rated: trust.rated,
     ratingStatus: trust.ratingStatus,
     ratingLabel: trust.ratingLabel,
-    verificationStatus: asStr(d.verification_status),
     region: asStr(d.region).trim(),
     district: asStr(d.district).trim(),
     specializations: strList(d.specializations),
     languages: strList(d.languages),
     bio: asStr(d.bio).trim(),
-    education: asStr(d.education).trim(),
     experienceYears: exp,
     totalCases: asNum(d.total_cases),
     winsCount: asNum(d.wins_count),
@@ -245,7 +245,6 @@ export function normMarketSeller(v: unknown): MarketSeller {
     onlineNow: d.online_now === true,
     available: asStr(avail.status, "available") !== "offline",
     services,
-    licenseNumber: asStr(d.license_number).trim(),
     barAssociation: asStr(d.bar_association).trim(),
     organizationName: asStr(d.organization_name).trim(),
     createdAt: asStr(d.created_at),

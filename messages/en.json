@@ -7159,7 +7159,7 @@
       "keep": "Cancel"
     }
   },
-  "common": {
+  "common": {"privateField":{"tag": "Private", "hint": "Only you and LexGo verifiers can see this — it never appears to clients or on your public profile."},
     "contactGuard": {"verified":"Your experience will be verified by LexGo.","title":"Contact details can't be included","why":"Clients reach you only inside LexGo. Remove them and you can save.","field":"Remove the contact details","kind":{"phone":"Phone","email":"Email","link":"Link","username":"Username","messenger":"Messenger"}},
     "menu": {
       "back": "Back"

@@ -174,11 +174,11 @@ export function SellerServiceRow({
 export function SellerAbout({ seller }: { seller: MarketSeller }) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
+  // Public facts only: the license number and education stay with the
+  // seller and the verifiers (see MarketSeller).
   const facts: [string, string][] = [
-    [t("detail.education"), seller.education],
     [t("detail.organization"), seller.organizationName],
     [t("detail.bar"), seller.barAssociation],
-    [t("detail.license"), seller.licenseNumber],
   ].filter((f): f is [string, string] => !!f[1]);
   return (
     <section className="mk-panel" data-ai-target="marketplace:seller-about" data-ai-id={`${aiId("marketplace.seller", seller.userId)}.about`} data-ai-type="section">

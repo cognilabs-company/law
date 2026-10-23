@@ -152,10 +152,9 @@ export default function SellerPage({ base, openApp, openLink, onRoute, route, us
   ];
   const about: [string, string][] = (
     [
-      [t("detail.education"), seller.education],
+      // Public facts only; no license number or education (see MarketSeller).
       [t("detail.organization"), seller.organizationName],
       [t("detail.bar"), seller.barAssociation],
-      [t("detail.license"), seller.licenseNumber],
     ] as [string, string][]
   ).filter((f) => !!f[1]);
   const price = selected && selected.price > 0 ? `${fmtUzs(selected.price)} ${te("currency")}` : seller.priceFrom > 0 ? t("card.priceFrom", { price: fmtUzs(seller.priceFrom) }) : t("card.priceAsk");

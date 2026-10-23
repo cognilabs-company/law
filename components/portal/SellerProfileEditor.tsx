@@ -1,6 +1,7 @@
 "use client";
 
 import { Component, Suspense, useCallback, useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import PrivateTag from "@/components/ui/PrivateTag";
 import { findContacts } from "@/lib/contactGuard";
 import ContactGuardNote, { type ContactRefusal } from "@/components/ui/ContactGuardNote";
 import { useTranslations, useLocale } from "next-intl";
@@ -369,7 +370,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       {isAdvocate ? (
         <>
           <div className="cform__row2">
-            <div><label>{tr("advocate.license")}</label><input value={d.licenseNumber ?? ""} onChange={(e) => set({ licenseNumber: e.target.value })} placeholder={tr("advocate.licensePh")} /></div>
+            <div><label>{tr("advocate.license")}<PrivateTag /></label><input value={d.licenseNumber ?? ""} onChange={(e) => set({ licenseNumber: e.target.value })} placeholder={tr("advocate.licensePh")} /></div>
             <div><label>{tr("advocate.specialization")}</label><Select value={d.specialization ?? ""} onChange={(v) => set({ specialization: v })} options={specOpts} ariaLabel={tr("advocate.specialization")} placeholder={tr("advocate.specPlaceholder")} /></div>
           </div>
           <div className="cform__row2">
@@ -390,7 +391,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
           <div><label>{tr("lawyer.expLabel")}</label><input type="number" min={0} value={d.lawyerYears ?? d.experienceYears ?? ""} onChange={(e) => { const n = parseInt(e.target.value || "0", 10) || 0; set({ lawyerYears: n, experienceYears: n }); }} /></div>
         </div>
       )}
-      <div><label>{tr("fields.education")}</label><input value={d.education ?? ""} onChange={(e) => set({ education: e.target.value })} placeholder={tr("fields.educationPh")} /></div>
+      <div><label>{tr("fields.education")}<PrivateTag /></label><input value={d.education ?? ""} onChange={(e) => set({ education: e.target.value })} placeholder={tr("fields.educationPh")} /></div>
       <div>
         <label htmlFor="spe-bio">{tr("fields.bio")}</label>
         <textarea
@@ -628,13 +629,11 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
               specializations: d.practiceAreas,
               languages: d.languages,
               bio: (d.bio ?? "").trim(),
-              education: (d.education ?? "").trim(),
               experienceYears: d.advocateYears || d.experienceYears || d.lawyerYears || 0,
               totalCases: d.stats?.totalCases ?? 0,
               winsCount: d.stats?.fullyWonCases ?? 0,
               partialWins: d.stats?.partiallyWonCases ?? 0,
               successRate: d.stats?.successRate ?? 0,
-              licenseNumber: (d.licenseNumber ?? "").trim(),
               barAssociation: (d.barAssociation ?? "").trim(),
               organizationName: (d.orgName ?? "").trim(),
             },

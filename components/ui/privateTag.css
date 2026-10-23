@@ -1,0 +1,20 @@
+.ptag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--dk-tint-blue, #eaf2ff);
+  color: var(--dk-acc, var(--b600));
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.4;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.ptag svg {
+  width: 11px;
+  height: 11px;
+  flex: none;
+}

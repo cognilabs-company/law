@@ -370,16 +370,18 @@ export type BackendLawyer = {
   effectivePrice?: number;
   priceCapped?: boolean;
   bio?: string;
+  // A seller's license number, education and verification state are the
+  // owner's and the verifiers' business only (getMyLawyer, the admin
+  // seller list). This is the public shape of a seller, so it does not carry
+  // them even when a backend response still includes them — only `verified`
+  // and its badge, which are public.
   verified: boolean;
-  verificationStatus: string;
   sellerType: string;
   totalCases: number;
   winsCount: number;
   partialWins: number;
   successRate: number;
   publicId?: string;
-  education?: string;
-  licenseNumber?: string;
   barAssociation?: string;
   organizationName?: string;
   createdAt: string;
@@ -391,6 +393,19 @@ export type BackendLawyer = {
   promotionBoostScore?: number;
   isSponsored?: boolean;
 };
+// The seller's own profile, as their cabinet reads it (/seller/me/cabinet):
+// the public fields plus what only the owner and the verifiers may see.
+export type OwnLawyer = BackendLawyer & { verificationStatus: string; education?: string; licenseNumber?: string };
+function normOwnLawyer(v: unknown): OwnLawyer {
+  const d = asDict(v);
+  return {
+    ...normLawyer(v),
+    verificationStatus: asStr(d.verification_status),
+    education: asStr(d.education) || undefined,
+    licenseNumber: asStr(d.license_number) || undefined,
+  };
+}
+
 // The paid boost on a marketplace listing. Live shape, read 2026-09-29:
 // {active, id, package_id, package_title, specialization, days_left,
 //  ends_at, boost_score} — two of four sellers promoted, scores 100 and 60.
@@ -445,7 +460,6 @@ function normLawyer(v: unknown): BackendLawyer {
     effectivePrice: uzs(d, "effective_price") || undefined,
     priceCapped: d.price_capped === true,
     bio: asStr(d.bio) || undefined,
-    verificationStatus: asStr(d.verification_status),
     sellerType: asStr(d.seller_type),
     createdAt: asStr(d.created_at),
     totalCases: asNum(d.total_cases),
@@ -453,8 +467,6 @@ function normLawyer(v: unknown): BackendLawyer {
     partialWins: asNum(d.partial_wins_count),
     successRate: asNum(d.success_rate),
     publicId: asStr(d.public_id) || undefined,
-    education: asStr(d.education) || undefined,
-    licenseNumber: asStr(d.license_number) || undefined,
     barAssociation: asStr(d.bar_association) || undefined,
     organizationName: asStr(d.organization_name) || undefined,
     promotion: normPromotionInfo(d.promotion),
@@ -4275,7 +4287,7 @@ export type SellerCabinet = {
   sellerType: string;
   limitedAccess: boolean;
   actions: SellerActions;
-  profile: BackendLawyer;
+  profile: OwnLawyer;
   verification: { status: string; verified: boolean };
   stats: SellerStats;
   newOrders: BackendOrder[];
@@ -4294,7 +4306,7 @@ export async function getSellerCabinet(): Promise<SellerCabinet> {
     sellerType: asStr(d.seller_type ?? profile.seller_type),
     limitedAccess,
     actions: { acceptOrders: allowed("accept_orders"), secureChat: allowed("secure_chat"), calls: allowed("calls") },
-    profile: normLawyer(profile),
+    profile: normOwnLawyer(profile),
     verification: {
       status: typeof d.verification === "string" ? d.verification : asStr(v.status ?? v.verification_status ?? profile.verification_status),
       verified: Boolean(v.is_verified ?? v.verified ?? profile.is_verified),

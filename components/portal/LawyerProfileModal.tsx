@@ -241,22 +241,10 @@ export default function LawyerProfileModal({
               <span>{data.barAssociation}</span>
             </div>
           ) : null}
-          {data.licenseNumber ? (
-            <div className="lprof__row">
-              <span className="lprof__lbl">{t("license")}</span>
-              <span>{data.licenseNumber}</span>
-            </div>
-          ) : null}
           {data.organizationName ? (
             <div className="lprof__row">
               <span className="lprof__lbl">{t("organization")}</span>
               <span>{data.organizationName}</span>
-            </div>
-          ) : null}
-          {data.education ? (
-            <div className="lprof__row">
-              <span className="lprof__lbl">{t("education")}</span>
-              <span>{data.education}</span>
             </div>
           ) : null}
           {data.bio ? <p className="lprof__bio">{data.bio}</p> : null}

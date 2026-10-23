@@ -13,7 +13,7 @@ import type {
   AdminDashboard,
   DashboardChart,
   DashboardStat,
-  BackendLawyer,
+  OwnLawyer,
   BackendOrder,
   CallAnalytics,
   CeoDashboard,
@@ -269,8 +269,9 @@ export type SellerCabinetFull = SellerCabinet & {
   secureChats: CabinetRoom[];
   notifications: CabinetNotification[];
 };
-// Mirror of backend.ts normLawyer / normOrder (private there); the same fields.
-function normLawyer(v: unknown): BackendLawyer {
+// Mirror of backend.ts normOwnLawyer / normOrder (private there); the same
+// fields. Only the seller's own cabinet reads it, so it keeps the private ones.
+function normLawyer(v: unknown): OwnLawyer {
   const d = asDict(v);
   const user = asDict(d.user);
   return {
