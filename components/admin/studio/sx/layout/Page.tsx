@@ -38,6 +38,7 @@ export type SxPageProps = {
 
 const NAV: readonly { key: SxSection; href: string; need: SxNeed }[] = [
   { key: "home", href: "/admin/studio", need: "any" },
+  { key: "ai", href: "/admin/studio/ai", need: "edit" },
   { key: "approvals", href: "/admin/studio/approvals", need: "review" },
   { key: "monitoring", href: "/admin/studio/monitoring", need: "admin" },
   { key: "settings", href: "/admin/studio/settings", need: "admin" },

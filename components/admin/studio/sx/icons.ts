@@ -388,6 +388,7 @@ export const FALLBACK_ICON: SxIcon = LayersIcon;
 
 export const NAV_ICON: Readonly<Record<SxSection, SxIcon>> = {
   home: LayoutGridIcon,
+  ai: SparklesIcon,
   approvals: BadgeCheckIcon,
   monitoring: ActivityIcon,
   settings: Settings2Icon,

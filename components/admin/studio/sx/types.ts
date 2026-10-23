@@ -43,7 +43,7 @@ export type SxRule = {
 
 export type SxErrors = Readonly<Record<string, string>>;
 export type SxCrumb = { label: string; href?: string };
-export type SxSection = "home" | "approvals" | "monitoring" | "settings";
+export type SxSection = "home" | "ai" | "approvals" | "monitoring" | "settings";
 export type SxNeed = "any" | "edit" | "review" | "publish" | "admin";
 export type SxNoteTone = "info" | "warn" | "error" | "success";
 export type SxNameCode = { name: string; code: string };

@@ -11,7 +11,7 @@ import { aiId as aiIdOf } from "@/lib/ai/ids";
 import { useStudioAccess, useStudioRegistry, type StudioConstructor, type StudioGroup, type StudioRecordSource } from "@/lib/services/studio";
 import { approvalsHref } from "../approvals/urlState";
 import { SxButton, SxLinkButton } from "../Button";
-import { BadgeCheckIcon, ChevronRightIcon, SearchIcon, ShieldCheckIcon, PlusIcon, ctorGlyph, glyph, groupIcon } from "../icons";
+import { BadgeCheckIcon, ChevronRightIcon, SearchIcon, ShieldCheckIcon, PlusIcon, SparklesIcon, ctorGlyph, glyph, groupIcon } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxGuide } from "../layout/Guide";
 import { SxNote } from "../layout/Note";
@@ -242,6 +242,11 @@ function CtorFrame({ code, ctor, canEdit, createUrl, children }: FrameProps): Re
         {acc.canReview ? (
           <SxLinkButton variant="secondary" icon={BadgeCheckIcon} href={approvalsHref({ ctor: ctor?.code ?? code })} aiId={aiIdOf(HERO_ID, "approvals")}>
             {t("sx.nav.approvals")}
+          </SxLinkButton>
+        ) : null}
+        {canEdit ? (
+          <SxLinkButton variant="secondary" icon={SparklesIcon} href={`/admin/studio/ai?ctor=${encodeURIComponent(code)}`} aiId="admin.studio.list.ai">
+            {t("sx.agent.fromCtor")}
           </SxLinkButton>
         ) : null}
         {canEdit ? <CreateControl code={code} ctor={ctor} createUrl={createUrl} reason={blocked.reason} aiId="admin.studio.list.create" /> : null}
