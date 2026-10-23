@@ -25,23 +25,26 @@ import { createTypeOf, recordsHrefOf, type EntityCard } from "./entityModel";
 import { pctOf } from "./GroupCard";
 import { groupOfCode } from "./groupModel";
 import { HomeIcon } from "./homeIcons";
+import { ServicesDialog, useIncompleteServices, type ServicesView } from "./ServicesDialog";
 import { statusCount, type StudioSummary, type StudioSummaryState } from "./summary";
 
-type KpiKey = "services" | "packages" | "ctors" | "queue";
-type Kpi = { key: KpiKey; hue: SxHue; value: number | null; hint: string; href: string; open: boolean };
+type KpiKey = "services" | "incomplete" | "packages" | "ctors" | "queue";
+// `open`: the card opens a dialog instead of following a link.
+type Kpi = { key: KpiKey; hue: SxHue; value: number | null; hint: string; href: string; open?: () => void; icon?: "services" | "incomplete" };
 
 const BASE = "admin.studio.home.overview";
-const SK = [0, 1, 2, 3];
-const HUE: Readonly<Record<KpiKey, SxHue>> = { services: "blue", packages: "violet", ctors: "teal", queue: "amber" };
+const SK = [0, 1, 2, 3, 4];
+const HUE: Readonly<Record<KpiKey, SxHue>> = { services: "blue", incomplete: "orange", packages: "violet", ctors: "teal", queue: "amber" };
 const FALLBACK_CODE: Readonly<Record<"service" | "package", readonly string[]>> = { service: ["K02"], package: ["K03-M", "K03"] };
 const enc = encodeURIComponent;
 
-function entityOf(s: StudioSummary, type: "service" | "package"): { total: number | null; active: number | null; href: string } {
+type EntityCounts = { total: number | null; active: number | null; incomplete: number | null; drafts: number | null; journeys: number | null; href: string };
+function entityOf(s: StudioSummary, type: "service" | "package"): EntityCounts {
   const card: EntityCard | undefined = s.entityCards?.find((c) => createTypeOf(c) === type);
-  if (card) return { total: card.total, active: card.active, href: recordsHrefOf(card.listUrl, card.code) };
+  if (card) return { total: card.total, active: card.active, incomplete: card.incomplete, drafts: card.incompleteDrafts, journeys: card.incompleteJourneys, href: recordsHrefOf(card.listUrl, card.code) };
   const code = FALLBACK_CODE[type].find((c) => s.ctors[c]);
   const ctor = code ? s.ctors[code] : undefined;
-  return { total: ctor ? ctor.total : null, active: ctor ? ctor.active : null, href: code ? `/admin/studio/c/${enc(code)}` : "" };
+  return { total: ctor ? ctor.total : null, active: ctor ? ctor.active : null, incomplete: ctor ? (ctor.byStatus.draft ?? 0) : null, drafts: null, journeys: null, href: code ? `/admin/studio/c/${enc(code)}` : "" };
 }
 
 export type OverviewProps = { done: number; total: number; groups: number; groupsDone: number; ready: boolean; summary: StudioSummaryState };
@@ -53,23 +56,56 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
   const headingId = useId();
   const [usageOpen, setUsageOpen] = useState(false);
   const [usageNonce, setUsageNonce] = useState(0);
+  const [svcView, setSvcView] = useState<ServicesView | null>(null);
+  const [svcLast, setSvcLast] = useState<ServicesView>("all");
+  const incomplete = useIncompleteServices(!!summary.data);
+  const openServices = (v: ServicesView) => {
+    setSvcLast(v);
+    setSvcView(v);
+  };
   const s = summary.data;
   const usage = useCtorUsage(usageOpen || (!!s && !s.usageToday), usageNonce);
   const today: CtorUsageToday | null = s?.usageToday ?? usage.data;
   const pct = pctOf(done, total);
   const fmt = (n: number) => labels.num(n);
   const kpis: Kpi[] = [];
+  let svcCounts: EntityCounts | null = null;
   if (s) {
     const svc = entityOf(s, "service");
+    svcCounts = svc;
     const pkg = entityOf(s, "package");
     const review = statusCount(s, "submitted", "in_review");
     const publish = statusCount(s, "approved");
     const opens = today ? today.totalOpens : null;
     kpis.push(
-      { key: "services", hue: HUE.services, value: svc.total, hint: svc.active !== null ? t("sx.hm.kpi.activeN", { n: fmt(svc.active) }) : t("sx.hm.kpi.servicesHint"), href: svc.href, open: false },
-      { key: "packages", hue: HUE.packages, value: pkg.total, hint: pkg.active !== null ? t("sx.hm.kpi.activeN", { n: fmt(pkg.active) }) : t("sx.hm.kpi.packagesHint"), href: pkg.href, open: false },
-      { key: "ctors", hue: HUE.ctors, value: today ? today.usedCount : null, hint: opens !== null ? t("sx.hm.kpi.ctorsOpens", { n: fmt(opens) }) : t("sx.hm.kpi.ctorsHint"), href: "", open: true },
-      { key: "queue", hue: HUE.queue, value: review + publish, hint: t("sx.hm.kpi.queueHint", { review: fmt(review), publish: fmt(publish) }), href: acc.canReview ? approvalsHref() : "", open: false },
+      // Services as two cards: the live ones and the ones left unfinished.
+      // Each opens the list behind its number (ServicesDialog).
+      {
+        key: "services",
+        hue: HUE.services,
+        value: svc.active ?? svc.total,
+        hint: svc.active !== null && svc.total !== null && svc.total > svc.active ? t("sx.hm.kpi.servicesOf", { n: fmt(svc.total) }) : t("sx.hm.kpi.servicesLive"),
+        href: "",
+        open: () => openServices("all"),
+        icon: "services",
+      },
+      {
+        key: "incomplete",
+        hue: HUE.incomplete,
+        // What the list behind the card holds; the summary's own number
+        // only while that list loads.
+        value: incomplete.loading || incomplete.error ? svc.incomplete : incomplete.rows.length,
+        hint:
+          incomplete.loading || incomplete.error
+            ? t("sx.hm.kpi.incompleteHint")
+            : t("sx.hm.kpi.incompleteSplit", { drafts: fmt(incomplete.drafts), journeys: fmt(incomplete.journeys) }),
+        href: "",
+        open: () => openServices("incomplete"),
+        icon: "incomplete",
+      },
+      { key: "packages", hue: HUE.packages, value: pkg.total, hint: pkg.active !== null ? t("sx.hm.kpi.activeN", { n: fmt(pkg.active) }) : t("sx.hm.kpi.packagesHint"), href: pkg.href },
+      { key: "ctors", hue: HUE.ctors, value: today ? today.usedCount : null, hint: opens !== null ? t("sx.hm.kpi.ctorsOpens", { n: fmt(opens) }) : t("sx.hm.kpi.ctorsHint"), href: "", open: () => openUsage() },
+      { key: "queue", hue: HUE.queue, value: review + publish, hint: t("sx.hm.kpi.queueHint", { review: fmt(review), publish: fmt(publish) }), href: acc.canReview ? approvalsHref() : "" },
     );
   }
 
@@ -109,7 +145,7 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
         </div>
       </div>
       {summary.loading && !s ? (
-        <ul className="sx-hov__kpis sx-kpis" aria-hidden="true">
+        <ul className="sx-hov__kpis sx-kpis" data-n="5" aria-hidden="true">
           {SK.map((i) => (
             <li key={i} className="sx-kpi" data-sk="">
               <span className="sx-sk sx-kpi__sk-l" />
@@ -119,16 +155,16 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
           ))}
         </ul>
       ) : kpis.length ? (
-        <ul className="sx-hov__kpis sx-kpis" aria-label={t("sx.hm.kpi.listAria")}>
+        <ul className="sx-hov__kpis sx-kpis" data-n={kpis.length} aria-label={t("sx.hm.kpi.listAria")}>
           {kpis.map((k, i) => {
-            const label = t(`sx.hm.kpi.${k.key}`);
+            const label = t(k.key === "services" ? "sx.hm.kpi.activeServices" : `sx.hm.kpi.${k.key}`);
             const valueText = k.value === null ? "—" : fmt(k.value);
             const go = !!k.href || k.open;
             const body = (
               <>
                 <span className="sx-kpi__l">{label}</span>
                 <span className="sx-kpi__ic" aria-hidden="true">
-                  <HomeIcon name={k.key} size={56} />
+                  <HomeIcon name={k.icon ?? (k.key as "packages" | "ctors" | "queue")} size={56} />
                 </span>
                 <SxCount value={k.value} format={fmt} className="sx-kpi__n" />
                 <span className="sx-kpi__h">{k.hint}</span>
@@ -147,7 +183,7 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
                     {body}
                   </Link>
                 ) : k.open ? (
-                  <button type="button" className="sx-kpi sx-lift" data-hue={k.hue} data-link="" aria-label={aria} aria-haspopup="dialog" onClick={openUsage} data-ai-id={aiId(BASE, "kpi", k.key)} data-ai-type="button" data-ai-label={label}>
+                  <button type="button" className="sx-kpi sx-lift" data-hue={k.hue} data-link="" aria-label={aria} aria-haspopup="dialog" onClick={k.open} data-ai-id={aiId(BASE, "kpi", k.key)} data-ai-type="button" data-ai-label={label}>
                     {body}
                   </button>
                 ) : (
@@ -161,6 +197,14 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
         </ul>
       ) : null}
       <UsageDrawer open={usageOpen} onClose={() => setUsageOpen(false)} usage={usage} today={today} />
+      <ServicesDialog
+        open={svcView !== null}
+        view={svcView ?? svcLast}
+        onView={openServices}
+        onClose={() => setSvcView(null)}
+        incomplete={incomplete}
+        allHref={svcCounts?.href ?? ""}
+      />
     </section>
   );
 }

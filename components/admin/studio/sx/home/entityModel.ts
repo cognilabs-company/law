@@ -9,6 +9,9 @@ export type EntityCard = {
   active: number | null;
   inactive: number | null;
   incomplete: number | null;
+  // incomplete = drafts in Studio + creation journeys left part-way.
+  incompleteDrafts: number | null;
+  incompleteJourneys: number | null;
   studioObjects: number | null;
   listUrl: string;
   incompleteUrl: string;
@@ -53,6 +56,8 @@ export function normEntityCard(raw: unknown): EntityCard | null {
     active: optNum(d.active_count),
     inactive: optNum(d.inactive_count),
     incomplete: optNum(d.incomplete_count),
+    incompleteDrafts: optNum(d.studio_object_incomplete_count),
+    incompleteJourneys: optNum(d.journey_incomplete_count),
     studioObjects: optNum(d.studio_object_count),
     listUrl: strOf(d.list_url),
     incompleteUrl: strOf(d.incomplete_url),

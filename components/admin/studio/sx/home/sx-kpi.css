@@ -12,6 +12,31 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
+/* Five cards (services split into live and unfinished): the odd one spans
+   the row on a phone, three across in the middle, all five when there is
+   room. */
+.sx-kpis[data-n="5"] > :last-child {
+  grid-column: span 2;
+}
+@container (min-width: 640px) {
+  .sx-kpis[data-n="5"] {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .sx-kpis[data-n="5"] > :nth-child(-n + 3) {
+    grid-column: span 2;
+  }
+  .sx-kpis[data-n="5"] > :nth-child(n + 4) {
+    grid-column: span 3;
+  }
+}
+@container (min-width: 900px) {
+  .sx-kpis[data-n="5"] {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .sx-kpis[data-n="5"] > :nth-child(n) {
+    grid-column: auto;
+  }
+}
 .sx-kpi-li {
   display: flex;
   min-width: 0;
