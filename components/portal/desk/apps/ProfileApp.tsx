@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { findContacts } from "@/lib/contactGuard";
+import ContactGuardNote, { type ContactRefusal } from "@/components/ui/ContactGuardNote";
 import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";
+import { contactBlockedOf } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { dateOnly, shortDateTime } from "@/lib/date";
 import { REGION_KEYS } from "@/lib/mock/catalog";
@@ -39,6 +42,9 @@ export default function ProfileApp(_props: NativeProps) {
   const [sec, setSec] = useState<Sec>("account");
   const [saved, setSaved] = useState<Draft | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
+  // The backend's refusal of contact details in "about me", shown under it.
+  const [bioRefused, setBioRefused] = useState<ContactRefusal | null>(null);
+  const tcg = useTranslations("common.contactGuard");
   const [vacation, setVacation] = useState(false);
   const [deadlines, setDeadlines] = useState<ResponseDeadlines>(DEFAULT_DEADLINES);
   const [failed, setFailed] = useState(false);
@@ -88,6 +94,7 @@ export default function ProfileApp(_props: NativeProps) {
     if (!draft.firstName?.trim() || !draft.lastName?.trim()) return say(d("nameNeeded"), "err");
     const won = (draft.stats?.fullyWonCases || 0) + (draft.stats?.partiallyWonCases || 0);
     if ((draft.stats?.totalCases ?? 0) < won) return say(t("statsError"), "err");
+    if (findContacts(draft.bio ?? "").length) return say(tcg("title"), "err");
     setBusy(true);
     try {
       await upsertMyLawyer(draft, isAdvocate ? "advokat" : "yurist");
@@ -97,8 +104,10 @@ export default function ProfileApp(_props: NativeProps) {
       setSaved(draft);
       update({ completeness: pct, profile: draft, ...(draft.name ? { name: draft.name } : {}) });
       say(t("saved"));
-    } catch {
-      say(t("saveError"), "err");
+    } catch (e) {
+      const cb = contactBlockedOf(e);
+      if (cb) setBioRefused({ message: cb.message, preview: cb.filteredPreview });
+      say(cb ? tcg("title") : t("saveError"), "err");
     } finally {
       setBusy(false);
     }
@@ -132,7 +141,15 @@ export default function ProfileApp(_props: NativeProps) {
         ) : sec === "account" ? (
           <Account draft={draft} set={set} pct={pct} />
         ) : sec === "pro" ? (
-          <Pro draft={draft} set={set} isAdvocate={isAdvocate} />
+          <Pro
+            draft={draft}
+            set={(p) => {
+              set(p);
+              if ("bio" in p) setBioRefused(null);
+            }}
+            isAdvocate={isAdvocate}
+            bioRefused={bioRefused}
+          />
         ) : sec === "hours" ? (
           <Hours draft={draft} set={set} vacation={vacation} setVacation={setVacation} deadlines={deadlines} />
         ) : sec === "security" ? (
@@ -237,7 +254,9 @@ function Account({ draft, set, pct }: { draft: Draft; set: (p: Partial<Draft>) =
   );
 }
 
-function Pro({ draft, set, isAdvocate }: { draft: Draft; set: (p: Partial<Draft>) => void; isAdvocate: boolean }) {
+function Pro({ draft, set, isAdvocate, bioRefused }: { draft: Draft; set: (p: Partial<Draft>) => void; isAdvocate: boolean; bioRefused: ContactRefusal | null }) {
+  const bioHits = findContacts(draft.bio ?? "");
+  const tcg = useTranslations("common.contactGuard");
   const t = useTranslations("portal.advocate.profile");
   const tf = useTranslations("portal.advocate.profile.form");
   const tr = useTranslations("register");
@@ -276,9 +295,10 @@ function Pro({ draft, set, isAdvocate }: { draft: Draft; set: (p: Partial<Draft>
             <Input value={draft.hourlyPrice ? fmtUzs(draft.hourlyPrice) : ""} onChange={(v) => set({ hourlyPrice: num(v) })} />
           </Field>
         </div>
-        <Field label={tr("fields.bio")}>
+        <Field label={tr("fields.bio")} error={bioHits.length || bioRefused ? tcg("field") : undefined}>
           <TextArea value={draft.bio ?? ""} onChange={(v) => set({ bio: v })} rows={4} placeholder={tr("fields.bioPh")} maxLength={2000} />
         </Field>
+        <ContactGuardNote hits={bioHits} server={bioRefused} />
       </Group>
       <Group title={tr("fields.languages")}>
         <div className="dxq-chips">

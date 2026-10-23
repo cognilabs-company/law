@@ -1,4 +1,4 @@
-import { http, asDict, asStr, asNum, asArr, ApiError, isOffline } from "@/lib/http";
+import { http, asDict, asStr, asNum, asArr, ApiError, contactBlockedOf, isOffline } from "@/lib/http";
 import { uzs, uzsOpt } from "@/lib/money";
 import { firstFieldError } from "@/lib/formErrors";
 import { normService, type BackendService } from "@/lib/services/backend";
@@ -549,6 +549,7 @@ export type ServiceErrorKind =
   | "notFound"
   | "inactivePromo"
   | "invalid"
+  | "contact"
   | "offline"
   | "unknown";
 
@@ -570,6 +571,10 @@ export function serviceErrorOf(e: unknown, locale = "uz"): ServiceError {
     const max = uzs(detail, "maximum_price", "max_price", "max_allowed") || uzs(ctx, "maximum_price", "max_price");
     return out("aboveMax", { max, detail: text });
   }
+  // Contact details in the experience note (platform_contact_blocked, or
+  // any refusal code about contacts): shown under the note, not as a toast.
+  const blocked = contactBlockedOf(e);
+  if (blocked || /contact/.test(code)) return out("contact", { detail: blocked?.message || text });
   if (e.status === 422) {
     const limits = normLimits(detail.pricing_limits ?? detail.limits ?? asDict(e.data).pricing_limits ?? detail, locale);
     if (limits) return out(isZeroBand(limits) ? "noPrice" : "range", { min: limits.min, max: limits.max, limits });

@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
+import { findContacts } from "@/lib/contactGuard";
+import ContactGuardNote from "@/components/ui/ContactGuardNote";
 import { useTranslations } from "next-intl";
 import type { WorkEntry } from "@/lib/types";
 import MonthPicker from "../MonthPicker";
@@ -24,9 +26,16 @@ export default function WorkHistoryEditor({
   const t = useTranslations("register.advocate.work");
   const ta = useTranslations("common.a11y");
   const [form, setForm] = useState(emptyForm);
+  const ids = useId();
+  // Achievements are public profile text: no phone, username or link.
+  const hits = findContacts(form.achievements);
 
   function add() {
     if (!form.org.trim() || !form.position.trim()) return;
+    if (hits.length) {
+      document.getElementById(`${ids}-ach`)?.focus();
+      return;
+    }
     const entry: WorkEntry = {
       id: uid(),
       org: form.org.trim(),
@@ -120,11 +129,15 @@ export default function WorkHistoryEditor({
           <div>
             <label>{t("achievements")}</label>
             <textarea
+              id={`${ids}-ach`}
               rows={2}
               value={form.achievements}
               onChange={(e) => setForm({ ...form, achievements: e.target.value })}
               placeholder={t("achievementsPh")}
+              aria-describedby={`${ids}-ach-g`}
+              aria-invalid={hits.length > 0 || undefined}
             />
+            <ContactGuardNote id={`${ids}-ach-g`} hits={hits} />
           </div>
           <button type="button" className="btn btn--soft" onClick={add}>
             <IconPlus />

@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
+import { findContacts } from "@/lib/contactGuard";
+import ContactGuardNote from "@/components/ui/ContactGuardNote";
 import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import type { BackendService } from "@/lib/services/backend";
@@ -151,6 +153,9 @@ export default function ServiceFormModal({
   const [priceTouched, setPriceTouched] = useState(false);
   const [seeded, setSeeded] = useState("");
   const [note, setNote] = useState(item?.experienceNote ?? "");
+  // Contact details are refused as they are typed; the backend refuses
+  // them again on save (platform_contact_blocked), shown in the same place.
+  const noteHits = useMemo(() => findContacts(note), [note]);
   const [status, setStatus] = useState<ServiceStatus>(item?.status ?? (rules?.closed ? "paused" : "active"));
   const [checking, setChecking] = useState(false);
   const [statusErr, setStatusErr] = useState("");
@@ -302,6 +307,10 @@ export default function ServiceFormModal({
       return;
     }
     if (off || advocateBlocked) return;
+    if (noteHits.length) {
+      document.getElementById(`${ids}-note`)?.focus();
+      return;
+    }
     if (belowMin) {
       document.getElementById(`${ids}-price`)?.focus();
       return;
@@ -393,7 +402,8 @@ export default function ServiceFormModal({
     ad: null,
     profile: null,
   };
-  const formErr = err && err.kind !== "range" && err.kind !== "belowMin" && err.kind !== "aboveMax" && err.kind !== "noPrice" && err.kind !== "advocateOnly" ? errText(err) : (cfgErr?.form ?? "");
+  const formErr = err && err.kind !== "range" && err.kind !== "belowMin" && err.kind !== "aboveMax" && err.kind !== "noPrice" && err.kind !== "advocateOnly" && err.kind !== "contact" ? errText(err) : (cfgErr?.form ?? "");
+  const noteRefused = err?.kind === "contact" ? { message: err.detail } : null;
   const stDescribed = [activeLocked ? `${ids}-lock` : "", statusErr ? `${ids}-sterr` : ""].filter(Boolean).join(" ") || undefined;
 
   return (
@@ -571,13 +581,18 @@ export default function ServiceFormModal({
               value={note}
               maxLength={NOTE_MAX}
               rows={4}
-              onChange={(e) => setNote(e.target.value)}
+              onChange={(e) => {
+                setNote(e.target.value);
+                if (err?.kind === "contact") setErr(null);
+              }}
               placeholder={t("form.notePh")}
-              aria-describedby={`${ids}-note-h`}
+              aria-describedby={`${ids}-note-h ${ids}-note-g`}
+              aria-invalid={noteHits.length > 0 || !!noteRefused || undefined}
             />
             <p id={`${ids}-note-h`} className="svform__hint">
               {t("form.noteHint")}
             </p>
+            <ContactGuardNote id={`${ids}-note-g`} hits={noteHits} server={noteRefused} />
           </section>
 
           <section className="svform__sec">

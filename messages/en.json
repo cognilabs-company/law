@@ -5080,8 +5080,8 @@
       "useCatalog": "Catalogue price",
       "priceOut": "The price must be between {min} and {max} UZS.",
       "note": "Experience note",
-      "notePh": "e.g. 7 years in family disputes, 120+ cases resolved in clients' favour.",
-      "noteHint": "Clients see this on the service card. Don't include phone numbers or links.",
+      "notePh": "For example: 7 years in family disputes — represented clients in court in 120+ divorce, alimony and property-division cases, 85% decided in the client's favour.",
+      "noteHint": "Clients see this on the service card.",
       "status": "Status",
       "policy": "I agree to the pricing policy: the price stays within 70–100% of the recommendation, and changes apply to new orders only.",
       "policyRequired": "Accept the pricing policy to save.",
@@ -7160,6 +7160,7 @@
     }
   },
   "common": {
+    "contactGuard": {"verified":"Your experience will be verified by LexGo.","title":"Contact details can't be included","why":"Clients reach you only inside LexGo. Remove them and you can save.","field":"Remove the contact details","kind":{"phone":"Phone","email":"Email","link":"Link","username":"Username","messenger":"Messenger"}},
     "menu": {
       "back": "Back"
     },
@@ -13793,7 +13794,7 @@
       "education": "Education",
       "educationPh": "University, degree",
       "bio": "About me",
-      "bioPh": "A short professional bio clients will see",
+      "bioPh": "For example: member of the Tashkent City Bar, 9 years of practice. I specialise in civil and family disputes, inheritance and property, and have represented clients in court in more than 200 cases.",
       "phone": "Phone",
       "password": "Password",
       "passwordPh": "At least 8 characters",
@@ -13873,7 +13874,7 @@
         "currentLabel": "I currently work here",
         "currentTag": "Current",
         "achievements": "Achievements",
-        "achievementsPh": "Key results or achievements (optional)",
+        "achievementsPh": "For example: in 2021–2023 I settled more than 40 labour disputes before court.",
         "add": "Add experience",
         "empty": "No experience added yet.",
         "pickPh": "Select month",

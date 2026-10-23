@@ -5080,8 +5080,8 @@
       "useCatalog": "Katalog narxi",
       "priceOut": "Narx {min} – {max} so'm oralig'ida bo'lishi kerak.",
       "note": "Tajriba izohi",
-      "notePh": "Masalan: 7 yildan beri oilaviy nizolar bo'yicha ishlayman, 120 dan ortiq ish ijobiy hal qilingan.",
-      "noteHint": "Mijozlar xizmat kartasida ko'radi. Telefon raqami va havolalar yozmang.",
+      "notePh": "Masalan: 7 yildan beri oilaviy nizolar bo'yicha ishlayman — 120 dan ortiq ajrashish, aliment va mol-mulk taqsimoti ishida sudda vakillik qilganman, ularning 85 foizi mijoz foydasiga hal bo'lgan.",
+      "noteHint": "Mijozlar xizmat kartasida ko'radi.",
       "status": "Holat",
       "policy": "Narx siyosatiga roziman: narx tavsiya narxning 70–100% oralig'ida bo'ladi, o'zgarish faqat yangi buyurtmalarga ta'sir qiladi.",
       "policyRequired": "Saqlash uchun narx siyosatiga rozilik bering.",
@@ -7160,6 +7160,7 @@
     }
   },
   "common": {
+    "contactGuard": {"verified":"Tajribangiz LexGo tomonidan tekshiriladi.","title":"Aloqa ma'lumotlarini yozib bo'lmaydi","why":"Mijoz bilan aloqa faqat LexGo ichida bo'ladi. Ularni olib tashlang — shundan keyin saqlash mumkin.","field":"Aloqa ma'lumotlarini olib tashlang","kind":{"phone":"Telefon","email":"E-pochta","link":"Havola","username":"Foydalanuvchi nomi","messenger":"Messenjer"}},
     "menu": {
       "back": "Orqaga"
     },
@@ -13799,7 +13800,7 @@
       "education": "Ma'lumot",
       "educationPh": "Universitet, daraja",
       "bio": "Men haqimda",
-      "bioPh": "Mijozlar ko'radigan qisqa professional ma'lumot",
+      "bioPh": "Masalan: Toshkent shahar advokatlar hay'ati a'zosi, 9 yillik tajriba. Fuqarolik va oilaviy nizolar, meros va mulk ishlariga ixtisoslashganman; 200 dan ortiq ishda sudda vakillik qilganman.",
       "phone": "Telefon",
       "password": "Parol",
       "passwordPh": "Kamida 8 ta belgi",
@@ -13879,7 +13880,7 @@
         "currentLabel": "Hozir shu yerda ishlayman",
         "currentTag": "Joriy",
         "achievements": "Yutuqlar",
-        "achievementsPh": "Asosiy natijalar yoki yutuqlar (ixtiyoriy)",
+        "achievementsPh": "Masalan: 2021–2023 yillarda 40 dan ortiq mehnat nizosini sudgacha kelishuv bilan hal qildim.",
         "add": "Tajriba qo'shish",
         "empty": "Hali tajriba qo'shilmagan.",
         "pickPh": "Oyni tanlang",

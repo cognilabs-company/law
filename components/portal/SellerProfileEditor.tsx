@@ -1,6 +1,8 @@
 "use client";
 
-import { Component, Suspense, useCallback, useEffect, useId, useState, type ReactNode } from "react";
+import { Component, Suspense, useCallback, useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { findContacts } from "@/lib/contactGuard";
+import ContactGuardNote, { type ContactRefusal } from "@/components/ui/ContactGuardNote";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuth, type Role } from "@/lib/auth";
 import { legalServiceLabel, type CatalogLocale } from "@/lib/legalServices";
@@ -27,7 +29,7 @@ import ChipMulti from "@/components/register/ChipMulti";
 import WorkHistoryEditor from "@/components/register/WorkHistoryEditor";
 import Select, { type Option } from "@/components/Select";
 import TimePicker from "@/components/TimePicker";
-import { ApiError } from "@/lib/http";
+import { ApiError, contactBlockedOf } from "@/lib/http";
 import { getMyAvailability, putMyAvailability, enabledDays, weeklyFrom, DEFAULT_DEADLINES, type ResponseDeadlines } from "@/lib/services/availability";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
 import IdentityVerify from "@/components/portal/IdentityVerify";
@@ -143,6 +145,11 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
     return { ...(sp ?? {}), ...initial, ...names, name: initial.name || session?.name || "", practiceAreas: initial.practiceAreas ?? [], languages: initial.languages ?? [], services: initial.services ?? [], workHistory: [], stats: initial.stats ?? ZERO_STATS, workDays: DEFAULT_DAYS, workFrom: "09:00", workTo: "19:00" };
   }, [initial, session]);
   const [d, setD] = useState<Draft>(base);
+  // Contact details in the "about me" text are refused as typed; the
+  // backend refuses them again on save (platform_contact_blocked).
+  const bioHits = useMemo(() => findContacts(d.bio ?? ""), [d.bio]);
+  const [bioRefused, setBioRefused] = useState<ContactRefusal | null>(null);
+  const tcg = useTranslations("common.contactGuard");
   const [saved, setSaved] = useState<Draft>(base);
   const [vacation, setVacation] = useState(false);
   // Browser-kept extras load after mount (no localStorage during render).
@@ -201,6 +208,11 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       setTried(true);
       return;
     }
+    if (bioHits.length) {
+      setNote({ ok: false, msg: tcg("title") });
+      document.getElementById("spe-bio")?.focus();
+      return;
+    }
     const won = (d.stats?.fullyWonCases || 0) + (d.stats?.partiallyWonCases || 0);
     if ((d.stats?.totalCases ?? 0) < won) { setNote({ ok: false, msg: t("statsError") }); return; }
     if (d.hourlyPrice && (d.hourlyPrice < quote.min || d.hourlyPrice > quote.max)) { setNote({ ok: false, msg: tp("priceRange", { min: fmtUzs(quote.min), max: fmtUzs(quote.max) }) }); return; }
@@ -231,8 +243,11 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       setNote({ ok: true, msg: t("saved") });
       setTried(false);
       setSection(null);
-    } catch {
-      setNote({ ok: false, msg: t("saveError") });
+    } catch (e) {
+      // The backend refuses contact details in the profile text too.
+      const cb = contactBlockedOf(e);
+      if (cb) setBioRefused({ message: cb.message, preview: cb.filteredPreview });
+      setNote({ ok: false, msg: cb ? tcg("title") : t("saveError") });
     } finally {
       setBusy(false);
     }
@@ -376,7 +391,23 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
         </div>
       )}
       <div><label>{tr("fields.education")}</label><input value={d.education ?? ""} onChange={(e) => set({ education: e.target.value })} placeholder={tr("fields.educationPh")} /></div>
-      <div><label>{tr("fields.bio")}</label><textarea rows={4} value={d.bio ?? ""} onChange={(e) => set({ bio: e.target.value })} placeholder={tr("fields.bioPh")} maxLength={1000} /></div>
+      <div>
+        <label htmlFor="spe-bio">{tr("fields.bio")}</label>
+        <textarea
+          id="spe-bio"
+          rows={4}
+          value={d.bio ?? ""}
+          onChange={(e) => {
+            set({ bio: e.target.value });
+            setBioRefused(null);
+          }}
+          placeholder={tr("fields.bioPh")}
+          maxLength={1000}
+          aria-describedby="spe-bio-g"
+          aria-invalid={bioHits.length > 0 || !!bioRefused || undefined}
+        />
+        <ContactGuardNote id="spe-bio-g" hits={bioHits} server={bioRefused} />
+      </div>
     </div>,
   );
 

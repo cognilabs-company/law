@@ -1,0 +1,113 @@
+/* Under a lawyer's experience text: the check note and any contact found. */
+.cgn {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.cgn__ok {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 7px 11px;
+  border-radius: 10px;
+  background: color-mix(in srgb, #0b7a52 8%, transparent);
+  color: #0b7a52;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+html[data-theme="dark"] .cgn__ok {
+  background: rgba(95, 214, 164, 0.1);
+  color: #5fd6a4;
+}
+.cgn__ok svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+.cgn__bad {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  background: var(--dk-tint-err, #fdecec);
+  box-shadow: inset 0 0 0 1px var(--dk-bd-err, rgba(217, 48, 37, 0.25));
+  color: var(--dk-txt-err, #b42318);
+  animation: cgn-in 0.2s ease both;
+}
+.cgn__ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.cgn__ic svg {
+  width: 15px;
+  height: 15px;
+}
+.cgn__body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.cgn__body b {
+  font-weight: 750;
+}
+.cgn__hits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cgn__hit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 2px 4px 2px 8px;
+  border-radius: 999px;
+  background: var(--dk-surface, #fff);
+  box-shadow: inset 0 0 0 1px var(--dk-bd-err, rgba(217, 48, 37, 0.25));
+}
+.cgn__hit small {
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.cgn__hit code {
+  overflow: hidden;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  font: 600 0.75rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-decoration: line-through;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cgn__why {
+  color: var(--gray);
+}
+.cgn__body em {
+  color: var(--gray);
+  font-style: normal;
+}
+@keyframes cgn-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cgn__bad {
+    animation: none;
+  }
+}
+/* The field itself while it holds contact details. */
+:where(textarea, input)[aria-invalid="true"] {
+  box-shadow: inset 0 0 0 1.5px var(--dk-txt-err, #dc2626);
+}

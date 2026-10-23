@@ -5,6 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";
 import { fmtUzs } from "@/lib/money";
 import { matchesSearch } from "@/lib/searchText";
+import { findContacts } from "@/lib/contactGuard";
+import ContactGuardNote from "@/components/ui/ContactGuardNote";
 import { searchServices, type BackendService } from "@/lib/services/backend";
 import { hiddenReasons, listManagedServices, priceBandFor, priceExplanationOf, profileVerified, removeManagedService, serviceErrorOf, setManagedServiceStatus, type ManagedService, type ManagedServices, type PriceBand, type ServiceScope, type ServiceStatus } from "@/lib/services/sellerServices";
 import { acceptServiceRule, getRuntimeConfig, listServiceRules, updateSellerServiceConfig, type RuntimeConfig, type ServiceRule } from "@/lib/services/marketRuntime";
@@ -336,6 +338,9 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { 
   const [price, setPrice] = useState(item?.selectedPrice ? String(item.selectedPrice) : "");
   const [neg, setNeg] = useState<boolean>(item?.negotiationAllowed ?? false);
   const [note, setNote] = useState(item?.experienceNote ?? "");
+  const noteHits = useMemo(() => findContacts(note), [note]);
+  const [noteRefused, setNoteRefused] = useState<{ message: string } | null>(null);
+  const tcg = useTranslations("common.contactGuard");
   const [status, setStatus] = useState<ServiceStatus>(item?.status ?? "active");
   const [policy, setPolicy] = useState(!!item);
   const [band, setBand] = useState<PriceBand | null>(item?.limits ?? null);
@@ -370,6 +375,7 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { 
     if (!svc || busy) return;
     if (!policy) return setErr(tf("policyRequired"));
     if (out && band) return setErr(tf("priceOut", { min: som(band.min), max: som(band.max) }));
+    if (noteHits.length) return setErr(tcg("title"));
     setBusy(true);
     setErr("");
     const r = await saveSellerService({ scope, locale, uid, persisted: item, input: { serviceId: svc.id, selectedPrice: value, experienceNote: note.trim(), status }, negotiation: neg, runtime, fallbackPrice: band?.recommended ?? 0 });
@@ -378,6 +384,10 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { 
     if (r.stage === "config" && r.error.code === "service_rules_acceptance_required") {
       onRules(r.error.missingRuleIds, r.persisted.id);
       return onSaved(r.persisted, t("rules.savedNotEnabled"));
+    }
+    if (r.stage === "manage" && r.error.kind === "contact") {
+      setNoteRefused({ message: r.error.detail });
+      return setErr(tcg("title"));
     }
     setErr(r.stage === "manage" ? (t.has(`errors.${r.error.kind}`) ? t(`errors.${r.error.kind}`, { min: som(r.error.min), max: som(r.error.max) }) : t("errors.unknown")) : r.error.message || t("errors.unknown"));
   }
@@ -475,9 +485,19 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { 
             </span>
             <Toggle checked={neg} onChange={setNeg} label={d("negotiation")} onText={d("on")} offText={d("off")} />
           </label>
-          <Field label={tf("note")} hint={tf("noteHint")}>
-            <TextArea value={note} onChange={setNote} rows={3} placeholder={tf("notePh")} maxLength={2000} />
+          <Field label={tf("note")} hint={tf("noteHint")} error={noteHits.length || noteRefused ? tcg("field") : undefined}>
+            <TextArea
+              value={note}
+              onChange={(v) => {
+                setNote(v);
+                setNoteRefused(null);
+              }}
+              rows={3}
+              placeholder={tf("notePh")}
+              maxLength={2000}
+            />
           </Field>
+          <ContactGuardNote hits={noteHits} server={noteRefused} />
           <Field label={tf("status")}>
             <Select ariaLabel={tf("status")} value={status} onChange={setStatus} options={(["active", "paused", "inactive"] as const).map((s) => ({ value: s, label: t(`status.${s}`) }))} />
           </Field>
