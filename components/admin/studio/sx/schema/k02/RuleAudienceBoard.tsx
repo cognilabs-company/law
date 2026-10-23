@@ -240,7 +240,7 @@ export function RuleAudienceBoard({
                   <p className="sx-ra__empty">{t(`sx.k02.ra.${side.audience}.empty`)}</p>
                 )}
                 {readOnly ? null : (
-                  <SxButton variant="secondary" size="sm" icon={PlusIcon} onClick={() => addRow(side.audience)} aiId={`${ai}.${side.audience}.add`}>
+                  <SxButton variant="add" size="sm" icon={PlusIcon} onClick={() => addRow(side.audience)} aiId={`${ai}.${side.audience}.add`}>
                     {t(`sx.k02.ra.${side.audience}.add`)}
                   </SxButton>
                 )}

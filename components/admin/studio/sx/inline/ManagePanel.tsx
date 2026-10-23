@@ -216,7 +216,7 @@ export function ManagePanel({ code, mainCode, objectId, stepKey, fallback }: Man
       {list}
       <div className="sx-inl-tail">
         <PendingChips items={ed.pending} label={t("sx.inline.pendingList")} canEdit onOpen={ed.openPending} ai={ai} />
-        <SxButton variant="ghost" size="sm" icon={PlusIcon} className="sx-inl-add" onClick={() => ed.openNew("")} aiId={aiIdOf(ai, "add")}>
+        <SxButton variant="add" size="sm" icon={PlusIcon} className="sx-inl-add" onClick={() => ed.openNew("")} aiId={aiIdOf(ai, "add")}>
           {add}
         </SxButton>
       </div>

@@ -386,7 +386,7 @@ export function Repeater<T>({
       </span>
       {canAdd ? (
         <div className="sx-rep__foot" ref={addRef}>
-          <SxButton variant="ghost" size="sm" icon={PlusIcon} onClick={add} aiId={aiId ? makeAiId(aiId, "add") : undefined}>
+          <SxButton variant="add" size="sm" icon={PlusIcon} onClick={add} aiId={aiId ? makeAiId(aiId, "add") : undefined}>
             {addText}
           </SxButton>
         </div>

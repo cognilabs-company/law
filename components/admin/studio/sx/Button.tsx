@@ -6,7 +6,12 @@ import { Link } from "@/i18n/navigation";
 import { glyph } from "./icons";
 import type { SxIcon } from "./types";
 
-export type SxButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+// "add": the one look for every control that adds an item to a list, a
+// row to a table or a part to a form (repeaters, key/value rows, inline
+// "new …" actions). A tinted container with a filled plus, so it never
+// reads as a plain text link; pass iconEnd={ChevronDownIcon} when it opens
+// a choice rather than adding straight away.
+export type SxButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "add";
 
 type SxButtonOwn = {
   variant?: SxButtonVariant;

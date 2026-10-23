@@ -284,7 +284,7 @@ export function KeyValue({ id, label, value, onChange, nameOf, readOnly = false,
       {readOnly ? null : (
         <div className="sx-kv__foot" ref={footRef}>
           <SxButton
-            variant="ghost"
+            variant="add"
             size="sm"
             icon={PlusIcon}
             disabled={fresh}

@@ -14,7 +14,7 @@ import { useJourneyErrorText } from "../journey/journeyErrors";
 import { ChoiceCards, type ChoiceCard } from "../form/ChoiceCards";
 import { Field, FormGrid } from "../form/Field";
 import { TextInput } from "../form/TextInput";
-import { BriefcaseBusinessIcon, PackageIcon, PlusIcon, RocketIcon } from "../icons";
+import { BriefcaseBusinessIcon, ChevronDownIcon, PackageIcon, PlusIcon, RocketIcon } from "../icons";
 import { creationJourneyHref } from "./journeyLinks";
 
 export const JOURNEY_TITLE_MAX = 200;
@@ -203,6 +203,9 @@ export function StartJourneyButton({ type, variant = "primary", size = "md", lab
         variant={variant}
         size={size}
         icon={PlusIcon}
+        // Opens a choice (what kind to add), not an empty form straight away.
+        iconEnd={why ? undefined : ChevronDownIcon}
+        aria-expanded={why ? undefined : open}
         aria-disabled={why ? true : undefined}
         aria-describedby={why ? whyId : undefined}
         aria-haspopup={why ? undefined : "dialog"}

@@ -13,7 +13,7 @@ import { SxDialog } from "../editor/SxDialog";
 import { ChoiceCards, type ChoiceCard } from "../form/ChoiceCards";
 import { Field, FormGrid } from "../form/Field";
 import { TextInput } from "../form/TextInput";
-import { ArrowRightIcon, ChevronRightIcon, GitBranchIcon, PlusIcon, ScrollTextIcon, SearchIcon, SparklesIcon, glyph } from "../icons";
+import { ArrowRightIcon, ChevronDownIcon, ChevronRightIcon, GitBranchIcon, PlusIcon, ScrollTextIcon, SearchIcon, SparklesIcon, glyph } from "../icons";
 import { SxPage } from "../layout/Page";
 import { SxNote } from "../layout/Note";
 import { normRuleTitle, useRuleList, type RuleTwin } from "../schema/ruleDuplicates";
@@ -79,7 +79,7 @@ function RuleList({ state, rules, idPrefix, aiBase, invalid, describedBy }: { st
         {glyph(ScrollTextIcon, { size: 22 })}
         <strong>{t("sx.k31kind.none")}</strong>
         <span>{t("sx.k31kind.noneText")}</span>
-        <SxButton size="sm" variant="secondary" icon={PlusIcon} onClick={() => state.setKind("new")} aiId={`${aiBase}.none.new`}>
+        <SxButton size="sm" variant="add" icon={PlusIcon} onClick={() => state.setKind("new")} aiId={`${aiBase}.none.new`}>
           {t("sx.k31kind.new")}
         </SxButton>
       </div>
@@ -303,6 +303,9 @@ export function AddRuleButton({ base, variant = "primary", size = "md", label, d
         variant={variant}
         size={size}
         icon={PlusIcon}
+        // Opens a choice (what kind to add), not an empty form straight away.
+        iconEnd={why ? undefined : ChevronDownIcon}
+        aria-expanded={why ? undefined : open}
         aria-disabled={why ? true : undefined}
         aria-describedby={why ? `${uid}-why` : undefined}
         aria-haspopup={why ? undefined : "dialog"}

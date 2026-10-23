@@ -96,7 +96,7 @@ export function useRefInline({ source, formCode, owner, pattern, multiple, value
   const tail = (
     <div className="sx-inl-tail" data-ai-id={`${aiId}.inline`} data-ai-type="section" data-ai-label={add}>
       <PendingChips items={ed.pending} label={t("sx.inline.pendingList")} canEdit onOpen={ed.openPending} ai={aiId} />
-      <SxButton variant="ghost" size="sm" icon={PlusIcon} className="sx-inl-add" onClick={() => ed.openNew("")} aiId={`${aiId}.inline.add`}>
+      <SxButton variant="add" size="sm" icon={PlusIcon} className="sx-inl-add" onClick={() => ed.openNew("")} aiId={`${aiId}.inline.add`}>
         {add}
       </SxButton>
     </div>

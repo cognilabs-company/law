@@ -288,10 +288,9 @@ export function LegalRuBlock({ id, ai, label, help, readOnly, root, emit, errorA
       {shown ? (
         <PartEditors id={id} ai={ai} lang="ru" text={text} readOnly={readOnly} errorAt={errorAt} emit={emit} touch={touch} required={false} />
       ) : (
-        <button type="button" className="sx-lg__add" onClick={() => setOpened(true)} data-ai-id={makeAiId(ai, "add")} data-ai-type="button" data-ai-label={t("sx.k07.ru.add")}>
-          {glyph(PlusIcon, { size: 16 })}
-          <span>{t("sx.k07.ru.add")}</span>
-        </button>
+        <SxButton variant="add" icon={PlusIcon} className="sx-lg__add" onClick={() => setOpened(true)} aiId={makeAiId(ai, "add")}>
+          {t("sx.k07.ru.add")}
+        </SxButton>
       )}
     </fieldset>
   );

@@ -1545,9 +1545,11 @@ html[data-theme="dark"] .sx-picker__scrim {
 .sx-rep__foot {
   display: flex;
 }
-.sx-rep .sx-rep__foot .sx-btn.sx-btn--ghost,
-.sx-kv .sx-kv__foot .sx-btn.sx-btn--ghost {
-  margin-inline-start: -10px;
+/* On a phone the add button spans the list it adds to. */
+@media (max-width: 560px) {
+  :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) :is(.sx-rep__foot, .sx-kv__foot) > .sx-btn.sx-btn--add {
+    flex: 1 1 auto;
+  }
 }
 
 .sx-kv {

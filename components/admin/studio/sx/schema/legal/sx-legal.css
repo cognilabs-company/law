@@ -143,22 +143,7 @@ html .sx .sx-lg__genname {
   display: none;
 }
 .sx-lg__add {
-  display: inline-flex;
-  align-items: center;
   justify-self: start;
-  gap: 8px;
-  min-height: 40px;
-  padding: 0 14px;
-  border: 1px dashed var(--sx-line-strong);
-  border-radius: var(--sx-r);
-  background: transparent;
-  color: var(--sx-accent-ink);
-  font: 500 14px/20px var(--sx-font);
-  cursor: pointer;
-}
-.sx-lg__add:hover {
-  border-color: var(--sx-accent);
-  background: var(--sx-accent-soft);
 }
 
 .sx-doc {

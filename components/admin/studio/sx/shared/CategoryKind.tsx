@@ -12,7 +12,7 @@ import { SxButton, SxLinkButton, type SxButtonVariant } from "../Button";
 import { SxDialog } from "../editor/SxDialog";
 import { ChoiceCards, type ChoiceCard } from "../form/ChoiceCards";
 import { Field, FormGrid } from "../form/Field";
-import { ArrowRightIcon, ChevronRightIcon, FolderOpenIcon, FolderTreeIcon, InfoIcon, PlusIcon, SparklesIcon, glyph } from "../icons";
+import { ArrowRightIcon, ChevronDownIcon, ChevronRightIcon, FolderOpenIcon, FolderTreeIcon, InfoIcon, PlusIcon, SparklesIcon, glyph } from "../icons";
 import { SxPage } from "../layout/Page";
 import { RefPicker } from "../schema/RefPicker";
 import { useCategoryTitle } from "../schema/categoryOptions";
@@ -190,6 +190,9 @@ export function AddCategoryButton({ base, variant = "primary", size = "md", labe
         variant={variant}
         size={size}
         icon={PlusIcon}
+        // Opens a choice (what kind to add), not an empty form straight away.
+        iconEnd={why ? undefined : ChevronDownIcon}
+        aria-expanded={why ? undefined : open}
         aria-disabled={why ? true : undefined}
         aria-describedby={why ? whyId : undefined}
         aria-haspopup={why ? undefined : "dialog"}

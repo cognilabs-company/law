@@ -245,6 +245,94 @@ html :where(.sx, .sx-pop, .amodal__c:has(.sx-dw)) h4 { font-size: 13px; line-hei
   :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--danger:not(:disabled, [aria-disabled="true"]):hover { border-color: color-mix(in srgb, var(--sx-danger) 45%, var(--sx-line-strong)); background: var(--sx-danger-soft); }
 }
 :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--primary:not(:disabled, [aria-disabled="true"]):active { background: var(--sx-accent-ink); }
+
+/* Add-item buttons (variant "add"): tinted accent container, filled plus,
+   firmer on hover, pressed on click, dashed and grey when unavailable. */
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add {
+  --sx-add-bg: color-mix(in srgb, var(--sx-accent) 8%, var(--sx-surface));
+  --sx-add-bg-hover: color-mix(in srgb, var(--sx-accent) 15%, var(--sx-surface));
+  --sx-add-line: color-mix(in srgb, var(--sx-accent) 32%, var(--sx-line));
+  padding-inline: 8px 14px;
+  border-color: var(--sx-add-line);
+  background: var(--sx-add-bg);
+  color: var(--sx-accent-ink);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--sx-accent) 12%, transparent);
+  transition: background-color var(--sx-fast) var(--sx-ease), border-color var(--sx-fast) var(--sx-ease), box-shadow var(--sx-fast) var(--sx-ease), transform var(--sx-fast) var(--sx-ease);
+}
+html[data-theme="dark"] :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add {
+  color: color-mix(in srgb, var(--sx-accent) 70%, white);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add > svg:first-child {
+  width: 20px;
+  height: 20px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--sx-accent);
+  color: var(--sx-on-accent);
+  stroke-width: 2.6;
+  transition: transform var(--sx-mid, 0.2s) var(--sx-spring, var(--sx-ease));
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add > svg:last-child:not(:first-child) {
+  margin-inline-start: 2px;
+  opacity: 0.8;
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add.sx-btn--sm {
+  height: 34px;
+  padding-inline: 6px 12px;
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add.sx-btn--sm > svg:first-child {
+  width: 18px;
+  height: 18px;
+}
+@media (hover: hover) {
+  :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add:not(:disabled, [aria-disabled="true"]):hover {
+    border-color: var(--sx-accent);
+    background: var(--sx-add-bg-hover);
+    box-shadow: 0 4px 12px -6px color-mix(in srgb, var(--sx-accent) 55%, transparent);
+  }
+  :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add:not(:disabled, [aria-disabled="true"]):hover > svg:first-child {
+    transform: rotate(90deg);
+  }
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add:focus-visible {
+  border-color: var(--sx-accent);
+  background: var(--sx-add-bg-hover);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add:not(:disabled, [aria-disabled="true"]):active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: none;
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add[aria-expanded="true"] {
+  border-color: var(--sx-accent);
+  background: var(--sx-add-bg-hover);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add[aria-expanded="true"] > svg:last-child:not(:first-child) {
+  transform: rotate(180deg);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add:is(:disabled, [aria-disabled="true"]):not([aria-busy="true"]) {
+  border-style: dashed;
+  border-color: var(--sx-line-strong);
+  background: var(--sx-surface-2);
+  color: var(--sx-muted);
+  box-shadow: none;
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add:is(:disabled, [aria-disabled="true"]):not([aria-busy="true"]) > svg:first-child {
+  background: var(--sx-muted);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add[aria-busy="true"] .sx-spin {
+  width: 18px;
+  height: 18px;
+}
+@media (prefers-reduced-motion: reduce) {
+  :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add,
+  :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add > svg {
+    transition: none;
+  }
+  :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add:not(:disabled, [aria-disabled="true"]):is(:hover, :active) > svg:first-child,
+  :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--add:not(:disabled, [aria-disabled="true"]):active {
+    transform: none;
+  }
+}
 :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .sx-btn--sm {
   height: 32px;
   gap: 6px;

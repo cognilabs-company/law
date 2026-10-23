@@ -957,7 +957,7 @@ function PickerPop({
       ) : null}
       {onCreate && manage?.createLabel && !skeleton ? (
         <div className="sx-picker__create">
-          <SxButton variant="ghost" size="sm" icon={PlusIcon} onMouseDown={keepFocus} onClick={() => afterClose(() => onCreate(q))} aiId={aiId ? `${aiId}.create` : undefined}>
+          <SxButton variant="add" size="sm" icon={PlusIcon} onMouseDown={keepFocus} onClick={() => afterClose(() => onCreate(q))} aiId={aiId ? `${aiId}.create` : undefined}>
             {manage.createLabel(q)}
           </SxButton>
         </div>
