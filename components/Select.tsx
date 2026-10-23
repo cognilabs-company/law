@@ -73,6 +73,7 @@ export default function Select({
   describedBy,
   labelId,
   search,
+  disabled = false,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -83,6 +84,8 @@ export default function Select({
   describedBy?: string;
   labelId?: string;
   search?: boolean;
+  // Shown but not usable: the button is disabled and never opens.
+  disabled?: boolean;
 }) {
   const t = useTranslations("common.select");
   const [open, setOpen] = useState(false);
@@ -365,7 +368,7 @@ export default function Select({
   );
 
   return (
-    <div className="dsel" data-open={open} data-invalid={invalid ? "true" : undefined}>
+    <div className="dsel" data-open={open} data-invalid={invalid ? "true" : undefined} data-disabled={disabled ? "" : undefined}>
       <button
         ref={btn}
         type="button"
@@ -376,6 +379,7 @@ export default function Select({
         aria-label={labelId ? undefined : ariaLabel}
         aria-labelledby={labelId ? `${labelId} ${valId}` : undefined}
         aria-describedby={describedBy}
+        disabled={disabled}
         onClick={() => (open ? shut() : show())}
         onKeyDown={onBtnKey}
       >

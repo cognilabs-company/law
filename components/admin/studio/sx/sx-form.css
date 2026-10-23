@@ -400,9 +400,34 @@ html[data-theme="dark"] .sx-switch:disabled[aria-checked="true"] .sx-switch__thu
   background: var(--sx-muted);
 }
 
+/* ── Select states ──────────────────────────────────────────────────────
+   One model for every select in Studio — the Picker below and the app's
+   shared Select (.dsel) when it sits inside Studio:
+     hover     accent-tinted border and a faint accent wash
+     focus     accent border; a ring as well for keyboard focus
+     open      as focus, ring always
+     error     danger border and wash, danger ring on focus
+     disabled  flat, dashed, muted, not-allowed — unlike read-only, which
+               stays readable on a solid grey box
+   Colours come from the Studio tokens, so dark mode follows them. */
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)),
 .sx-picker {
-  --sxp-line: var(--sx-control-line);
-  --sxp-line-hover: color-mix(in srgb, var(--sx-control-line) 50%, var(--sx-ink));
+  --sx-sel-line: var(--sx-control-line);
+  --sx-sel-line-hover: color-mix(in srgb, var(--sx-accent) 55%, var(--sx-control-line));
+  --sx-sel-bg: var(--sx-surface);
+  --sx-sel-bg-hover: color-mix(in srgb, var(--sx-accent) 5%, var(--sx-surface));
+  --sx-sel-ring: 0 0 0 4px color-mix(in srgb, var(--sx-accent) 20%, transparent);
+  --sx-sel-err-line-hover: color-mix(in srgb, var(--sx-danger) 80%, var(--sx-ink));
+  --sx-sel-err-bg: color-mix(in srgb, var(--sx-danger) 5%, var(--sx-surface));
+  --sx-sel-err-ring: 0 0 0 4px color-mix(in srgb, var(--sx-danger) 20%, transparent);
+  --sx-sel-off-bg: var(--sx-surface-2);
+  --sx-sel-off-line: var(--sx-line-strong);
+  --sx-sel-off-ink: var(--sx-muted);
+}
+
+.sx-picker {
+  --sxp-line: var(--sx-sel-line);
+  --sxp-line-hover: var(--sx-sel-line-hover);
   --sxp-hi: rgba(255, 255, 255, .75);
   --sxp-drop: rgba(15, 23, 42, .06);
   --sxp-lift: rgba(15, 23, 42, .16);
@@ -424,7 +449,7 @@ html[data-theme="dark"] .sx-picker {
   align-items: stretch;
   min-width: 0;
   height: 40px;
-  background: var(--sx-surface);
+  background: var(--sx-sel-bg);
   border: 1.5px solid var(--sxp-line);
   border-radius: var(--sx-r);
   box-shadow: inset 0 1px 0 var(--sxp-hi), var(--sxp-glow), var(--sxp-elev);
@@ -435,33 +460,60 @@ html[data-theme="dark"] .sx-picker {
 }
 .sx-picker__box:hover {
   border-color: var(--sxp-line-hover);
+  background: var(--sx-sel-bg-hover);
   --sxp-elev: 0 6px 14px -8px var(--sxp-lift);
+}
+.sx-picker__box:has(.sx-picker__trigger:focus) {
+  border-color: var(--sx-accent);
 }
 .sx-picker__box:has(.sx-picker__trigger:focus-visible),
 .sx-picker[data-open] .sx-picker__box,
 .sx-picker[data-open] .sx-picker__box:hover {
   border-color: var(--sx-accent);
-  --sxp-glow: 0 0 0 4px color-mix(in srgb, var(--sx-accent) 18%, transparent);
+  background: var(--sx-sel-bg);
+  --sxp-glow: var(--sx-sel-ring);
   --sxp-elev: 0 8px 22px -12px color-mix(in srgb, var(--sx-accent) 50%, transparent);
 }
-.sx-picker[data-invalid] .sx-picker__box,
-.sx-picker[data-invalid] .sx-picker__box:hover {
+.sx-picker[data-invalid] .sx-picker__box {
   border-color: var(--sx-danger);
+  background: var(--sx-sel-err-bg);
 }
+.sx-picker[data-invalid] .sx-picker__box:hover {
+  border-color: var(--sx-sel-err-line-hover);
+  background: var(--sx-sel-err-bg);
+}
+.sx-picker[data-invalid] .sx-picker__box:has(.sx-picker__trigger:focus),
 .sx-picker[data-invalid] .sx-picker__box:has(.sx-picker__trigger:focus-visible),
 .sx-picker[data-invalid][data-open] .sx-picker__box,
 .sx-picker[data-invalid][data-open] .sx-picker__box:hover {
   border-color: var(--sx-danger);
-  --sxp-glow: 0 0 0 4px color-mix(in srgb, var(--sx-danger) 20%, transparent);
   --sxp-elev: 0 1px 2px var(--sxp-drop);
 }
-.sx-picker[data-disabled] .sx-picker__box,
-.sx-picker[data-disabled] .sx-picker__box:hover,
+.sx-picker[data-invalid] .sx-picker__box:has(.sx-picker__trigger:focus-visible),
+.sx-picker[data-invalid][data-open] .sx-picker__box,
+.sx-picker[data-invalid][data-open] .sx-picker__box:hover {
+  --sxp-glow: var(--sx-sel-err-ring);
+}
+.sx-picker[data-invalid] .sx-picker__caret {
+  color: var(--sx-danger);
+}
 .sx-picker[data-ro] .sx-picker__box,
 .sx-picker[data-ro] .sx-picker__box:hover {
   background: var(--sx-surface-2);
   border-color: var(--sx-line-strong);
   box-shadow: none;
+}
+.sx-picker[data-disabled] .sx-picker__box,
+.sx-picker[data-disabled] .sx-picker__box:hover {
+  background: var(--sx-sel-off-bg);
+  border-style: dashed;
+  border-color: var(--sx-sel-off-line);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.sx-picker[data-disabled] .sx-picker__value,
+.sx-picker[data-disabled] .sx-picker__lead {
+  color: var(--sx-sel-off-ink);
 }
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .sx-picker:not([data-disabled], [data-ro]) .sx-picker__box:hover,
@@ -1896,5 +1948,62 @@ html[data-theme="dark"] .sx-picker__scrim {
 @media (prefers-reduced-motion: reduce) {
   .sx-picker__opt[aria-selected="true"] .sx-picker__check > svg {
     animation: none;
+  }
+}
+
+/* The app's shared Select (components/Select.tsx) when it lives in Studio:
+   the same box, states and tokens as the Picker. */
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .dsel__btn {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: var(--sx-r);
+  background: var(--sx-sel-bg);
+  box-shadow: inset 0 0 0 1.5px var(--sx-sel-line);
+  color: var(--sx-ink);
+  font: 400 14px/20px var(--sx-font);
+  cursor: pointer;
+  transition: box-shadow var(--sx-mid) var(--sx-ease), background-color var(--sx-fast) var(--sx-ease);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .dsel__btn:hover {
+  background: var(--sx-sel-bg-hover);
+  box-shadow: inset 0 0 0 1.5px var(--sx-sel-line-hover);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .dsel__btn:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 1.5px var(--sx-accent);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .dsel__btn:focus-visible,
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .dsel[data-open="true"] .dsel__btn {
+  outline: none;
+  background: var(--sx-sel-bg);
+  box-shadow: inset 0 0 0 1.5px var(--sx-accent), var(--sx-sel-ring);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .dsel[data-invalid] .dsel__btn {
+  background: var(--sx-sel-err-bg);
+  box-shadow: inset 0 0 0 1.5px var(--sx-danger);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .dsel[data-invalid] .dsel__btn:hover {
+  box-shadow: inset 0 0 0 1.5px var(--sx-sel-err-line-hover);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .dsel[data-invalid] .dsel__btn:focus-visible,
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .dsel[data-invalid][data-open="true"] .dsel__btn {
+  box-shadow: inset 0 0 0 1.5px var(--sx-danger), var(--sx-sel-err-ring);
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .dsel[data-disabled] .dsel__btn,
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .dsel__btn:disabled {
+  background: var(--sx-sel-off-bg);
+  box-shadow: none;
+  outline: 1.5px dashed var(--sx-sel-off-line);
+  outline-offset: -1.5px;
+  color: var(--sx-sel-off-ink);
+  cursor: not-allowed;
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .dsel__val--ph {
+  color: var(--sx-placeholder);
+}
+@media (prefers-reduced-motion: reduce) {
+  .sx-picker__box,
+  :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) .dsel__btn {
+    transition: none;
   }
 }
