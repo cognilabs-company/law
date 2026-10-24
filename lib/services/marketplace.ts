@@ -566,7 +566,54 @@ export type MarketOrder = {
   canNegotiate: boolean | null;
   explicit: { start: boolean; complete: boolean; cancel: boolean };
   urls: { start: string; checklist: string; negotiations: string; cancellationReview: string; secondOpinion: string; complete: string; cancel: string; chat: string; callCreate: string; secondOpinionPromotion?: string };
+  pricing: OrderPricing | null;
 };
+
+// The price as the backend fixed it when the order was placed
+// (details.pricing_snapshot, details.financial_snapshot). Every amount and
+// percent is the backend's own; nothing here is worked out. The factors
+// (`modifiers`, read with readPriceModifiers) set the seller's allowed
+// ceiling; the seller then chose `selected` inside [min, max].
+export type OrderPricing = {
+  modifiers: unknown;
+  selected: number;
+  final: number;
+  min: number;
+  max: number;
+  base: number;
+  capped: boolean;
+  advance: { percent: number | null; amount: number } | null;
+  rest: { percent: number | null; amount: number } | null;
+  // The platform's share and the seller's net: for the seller and staff
+  // only — the client view never shows it, whatever the API sends.
+  commission: { percent: number | null; platform: number; net: number } | null;
+};
+
+const present = (v: unknown) => v !== null && v !== undefined && v !== "";
+const pctOf = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
+
+function orderPricingOf(d: Dict, details: Dict): OrderPricing | null {
+  const p = asDict(details.pricing_snapshot ?? d.pricing_snapshot);
+  const f = asDict(details.financial_snapshot ?? d.financial_snapshot);
+  if (!Object.keys(p).length && !Object.keys(f).length) return null;
+  const pay = asDict(f.payment);
+  const com = asDict(f.commission);
+  const advance = uzs(pay, "advance_amount");
+  const rest = uzs(pay, "final_amount");
+  const platform = uzs(com, "platform_amount");
+  return {
+    modifiers: p.modifiers ?? null,
+    selected: uzs(p, "selected_price"),
+    final: uzs(p, "final_price") || uzs(f, "gross_amount"),
+    min: uzs(p, "min_allowed"),
+    max: uzs(p, "max_allowed"),
+    base: uzs(p, "base_price", "base"),
+    capped: p.price_capped === true,
+    advance: advance > 0 ? { percent: pctOf(pay.advance_percent), amount: advance } : null,
+    rest: rest > 0 ? { percent: pctOf(pay.final_percent), amount: rest } : null,
+    commission: platform > 0 || present(com.effective_percent) ? { percent: pctOf(com.effective_percent), platform, net: uzs(com, "seller_net_amount") } : null,
+  };
+}
 
 export type CallKind = "audio" | "video";
 export const CALL_KINDS: readonly CallKind[] = ["audio", "video"];
@@ -829,6 +876,7 @@ export function normMarketOrder(v: unknown): MarketOrder {
       callCreate: url("call_create_url"),
       ...("second_opinion_promotion_url" in d || "second_opinion_promotion" in actions ? { secondOpinionPromotion: url("second_opinion_promotion_url") } : {}),
     },
+    pricing: orderPricingOf(d, details),
   };
 }
 

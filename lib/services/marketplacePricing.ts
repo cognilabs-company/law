@@ -457,6 +457,9 @@ const MOD_ALIASES: Record<string, string> = {
   sector_experience: "sector_experience_premium",
   domain_premium: "sector_experience_premium",
   referral_discount: "referral",
+  lawyer_experience: "experience",
+  super_lawyer: "seller_premium",
+  super_lawyer_coefficient: "seller_premium",
 };
 
 const codeOf = (s: string) => {

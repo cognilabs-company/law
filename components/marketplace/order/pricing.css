@@ -1,0 +1,116 @@
+/* Order price breakdown (OrderPricing). */
+.mod .mod-price .mod-price__group {
+  display: grid;
+  gap: 2px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--sx-line);
+}
+.mod .mod-price .mod-price__group:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.mod .mod-price .mod-price__group--mine {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--sx-line);
+  border-radius: var(--sx-r-sm);
+  background: var(--sx-surface-2);
+}
+.mod .mod-price .mod-price__sub {
+  margin: 0 0 4px;
+  color: var(--sx-muted);
+  font: 700 11px/16px var(--sx-font);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.mod .mod-price .mod-price__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  color: var(--sx-ink-2);
+  font-size: 13px;
+  line-height: 20px;
+}
+.mod .mod-price .mod-price__row > b {
+  color: var(--sx-ink);
+  font-weight: 650;
+  text-align: right;
+  white-space: nowrap;
+}
+.mod .mod-price .mod-price__row--total {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--sx-line-strong);
+  color: var(--sx-ink);
+  font-weight: 700;
+}
+.mod .mod-price .mod-price__row--total > b {
+  font-size: 16px;
+  font-weight: 800;
+}
+.mod .mod-price .mod-price__mods {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mod .mod-price .mod-price__mod {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--sx-r-sm);
+  background: var(--sx-surface-2);
+}
+.mod .mod-price .mod-price__mt {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.mod .mod-price .mod-price__mt b {
+  color: var(--sx-ink);
+  font-size: 13px;
+  font-weight: 650;
+}
+.mod .mod-price .mod-price__mt small,
+.mod .mod-price .mod-price__note,
+.mod .mod-price .mod-price__foot {
+  color: var(--sx-muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+.mod .mod-price .mod-price__mv {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  white-space: nowrap;
+}
+.mod .mod-price .mod-price__mv i {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--sx-accent-soft);
+  color: var(--sx-accent-ink);
+  font: 700 11.5px/18px var(--sx-font);
+  font-style: normal;
+}
+.mod .mod-price .mod-price__mod[data-tone="down"] .mod-price__mv i {
+  background: var(--sx-published-bg);
+  color: var(--sx-published-fg);
+}
+.mod .mod-price .mod-price__mv b {
+  color: var(--sx-ink);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+.mod .mod-price .mod-price__note {
+  margin: 0 0 4px;
+}
+.mod .mod-price .mod-price__foot {
+  margin: 12px 0 0;
+}
