@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
 import DatePicker from "@/components/DatePicker";
 import ListPager from "@/components/ui/ListPager";
-import { CalendarRange, ClipboardList, Inbox, Plus, RotateCcw, User, X } from "lucide-react";
+import { Archive, CalendarRange, ClipboardList, Inbox, Plus, RotateCcw, User, X } from "lucide-react";
 import { isAborted } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
@@ -565,7 +565,24 @@ export default function TeamTasksPage() {
                         </p>
                       </div>
                       <div className="ttk-row__act">
-                        <StatusActions task={shown(task)} busy={busyId === task.id} onPick={(to) => void move(task, to)} />
+                        <span className="ttk-acts">
+                          <StatusActions task={shown(task)} busy={busyId === task.id} onPick={(to) => void move(task, to)} />
+                          {/* Ulugbek's final action, one click from the list. */}
+                          {simple && task.actions.canDelete && !task.deletedAt ? (
+                            <button
+                              type="button"
+                              className="ttk-btn ttk-btn--ok ttk-btn--sm"
+                              disabled={busyId === task.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setReason({ kind: "approve", task });
+                              }}
+                            >
+                              <Archive aria-hidden strokeWidth={STROKE} />
+                              {t("approveArchive")}
+                            </button>
+                          ) : null}
+                        </span>
                       </div>
                     </li>
                   );

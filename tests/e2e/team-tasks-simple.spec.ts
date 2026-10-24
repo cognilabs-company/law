@@ -41,8 +41,9 @@ test("Ulugbek sees no workflow buttons and approves-and-archives with a note", a
   await expect(page.getByRole("button", { name: "Отправить на тест" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Подтвердить готовность" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Вернуть на доработку" })).toHaveCount(1);
-  await page.getByRole("button", { name: "Открыть задачу TSK-2 — Vazifa 2" }).click();
-  await page.getByRole("button", { name: "Отметить как принятую и архивировать" }).click();
+  // The final action sits right on each row of the list.
+  await expect(page.locator(".ttk-row").getByRole("button", { name: "Отметить как принятую и архивировать" })).toHaveCount(2);
+  await page.locator(".ttk-row").filter({ hasText: "Vazifa 2" }).getByRole("button", { name: "Отметить как принятую и архивировать" }).click();
   const dialog = page.getByRole("dialog", { name: /принять и архивировать/ });
   await dialog.getByRole("button", { name: "Принять и архивировать" }).click();
   await expect(dialog.getByRole("alert")).toBeVisible();
@@ -56,6 +57,7 @@ test("other users keep the full flow", async ({ page }) => {
   const r = await signIn(page, ADMIN, routes());
   await mockBackend(page, r);
   await page.goto("/ru/admin/team-tasks");
+  await expect(page.getByRole("button", { name: "Отметить как принятую и архивировать" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Отправить на тест" })).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Подтвердить готовность" })).toHaveCount(1);
   await page.getByRole("button", { name: "Открыть задачу TSK-2 — Vazifa 2" }).click();
