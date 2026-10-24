@@ -329,6 +329,7 @@ export function EmployeeEdit({ employee: e, onSaved }: { employee: HrmEmployee; 
 export function EmployeeCreate({ open, onClose, onCreated, unitId = "" }: { open: boolean; onClose: () => void; onCreated: (id: string) => void; unitId?: string }) {
   const t = useTranslations("internal.people");
   const tu = useTranslations("internal.ui");
+  const tRole = useTranslations("studio.roles");
   const dir = useHrmDirectory();
   const blank = { last_name: "", first_name: "", middle_name: "", phone: "", email: "", region: "", hire_date: "", user_id: "", org_unit_id: "", position_id: "", manager_employee_id: "", employment_type: "full_time", salary_amount: "" };
   const [form, setForm] = useState(blank);
@@ -348,13 +349,15 @@ export function EmployeeCreate({ open, onClose, onCreated, unitId = "" }: { open
   const searchUsers = useCallback(async (q: string): Promise<SearchOption[]> => {
     try {
       const items = await getStudioReference("users", q, 20);
-      const out = items.map((i) => ({ value: i.value, label: i.label, sub: asStr(i.raw.role) }));
+      // The role comes as its code ("call_center"); show its name.
+      const roleOf = (code: string) => (code && tRole.has(code.toLowerCase()) ? tRole(code.toLowerCase()) : code);
+      const out = items.map((i) => ({ value: i.value, label: i.label, sub: roleOf(asStr(i.raw.role)) }));
       setUserLabel(out);
       return out;
     } catch {
       return [];
     }
-  }, []);
+  }, [tRole]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

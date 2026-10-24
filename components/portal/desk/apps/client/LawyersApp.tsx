@@ -13,6 +13,7 @@ import type { NativeProps } from "../../native";
 import { StarsView } from "./bits";
 import SellerPage from "./SellerPage";
 import "./client.css";
+import { categoryName } from "@/lib/categoryNames";
 
 // Advocates and lawyers as a desktop program — a directory like the Mac's
 // Contacts in a gallery, or a Windows "People" view: who on the side (all,
@@ -31,6 +32,7 @@ export default function LawyersApp(props: NativeProps) {
 }
 
 function Directory({ base, openApp }: NativeProps) {
+  const locale = useLocale();
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
   const d = useTranslations("portal.desk.client");
@@ -136,7 +138,7 @@ function Directory({ base, openApp }: NativeProps) {
     <App name="clawyers" sidebar={<Sidebar label={t("kicker")} sections={sections} value={who} onChange={(w) => (setWho(w as Who), setSel(""))} />} inspector={cur ? <Profile key={cur.userId} s={cur} onOrder={() => open(cur)} reasons={score.get(cur.userId)?.reasons ?? []} /> : undefined}>
       <Toolbar title={who === "all" ? t("filters.allSellerTypes") : ts(who)} subtitle={items ? t("count", { n: ai ? shown.length : total }) : undefined}>
         <Select value={region} onChange={setRegion} ariaLabel={t("filters.region")} options={[{ value: "", label: t("filters.allRegions") }, ...(meta?.regions ?? [...new Set(all.map((s) => s.region).filter(Boolean))]).map((r) => ({ value: r, label: regionLabel(te, r) }))]} />
-        <Select value={cat} onChange={setCat} ariaLabel={t("filters.category")} options={[{ value: "", label: t("filters.allCategories") }, ...(meta?.categories ?? []).map((c) => ({ value: c.id, label: c.title }))]} />
+        <Select value={cat} onChange={setCat} ariaLabel={t("filters.category")} options={[{ value: "", label: t("filters.allCategories") }, ...(meta?.categories ?? []).map((c) => ({ value: c.id, label: categoryName(c, locale) }))]} />
         <Select value={rating} onChange={setRating} ariaLabel={t("filters.rating")} options={[{ value: "", label: `${t("filters.rating")}: ${t("filters.any")}` }, { value: "4", label: "★ 4+" }, { value: "4.5", label: "★ 4.5+" }]} />
         <Tool icon={<IconRefresh />} label={t("retry")} onClick={() => setTick((n) => n + 1)} />
       </Toolbar>

@@ -361,7 +361,8 @@ export default function UrgentAdvocatePanel() {
   const groupOf = (x: UrgentService | undefined) =>
     x ? groupsAll.find((g) => g.items.includes(x.key)) : undefined;
   // A group's heading: the backend's own title when it sent one, else ours.
-  const groupTitle = (g: UrgentGroup) => (g.title ? g.title : t.has(`groups.${g.key}`) ? t(`groups.${g.key}`) : g.key);
+  // The catalog sends its names in Uzbek only; ours are in every language.
+  const groupTitle = (g: UrgentGroup) => (t.has(`groups.${g.key}`) ? t(`groups.${g.key}`) : g.title || g.key);
   // What a service is, in one sentence. Keyed on the service so a card the
   // backend adds later simply shows nothing rather than the wrong text.
   const about = (k: string) => (t.has(`about.${k}`) ? t(`about.${k}`) : "");
@@ -578,7 +579,7 @@ export default function UrgentAdvocatePanel() {
       <header className="ua__hero">
         <span className="ua__pulse" aria-hidden><IconBolt /></span>
         <div className="ua__heromain">
-          <h1 className="ua__title">{cat?.title || t("title")}</h1>
+          <h1 className="ua__title">{t("title")}</h1>
           <p className="ua__sub">{t("lead")}</p>
         </div>
         {cat ? (

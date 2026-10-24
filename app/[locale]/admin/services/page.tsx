@@ -28,6 +28,7 @@ import ServiceEditModal from "@/components/admin/ServiceEditModal";
 import { useAiSelection } from "@/lib/ai/registry";
 import { IconAlert, IconBriefcase, IconChevronRight, IconPlus, IconSearch, IconEdit, IconTrash, IconRefresh, IconInfo, IconEye, IconLayers, IconCircleCheck } from "@/components/icons";
 import "./categoryTree.css";
+import { categoryTitleName } from "@/lib/categoryNames";
 
 function num(v: string | boolean): number {
   const n = parseInt(String(v || "0"), 10);
@@ -54,9 +55,11 @@ const loadCategoryRows = () =>
     .catch(() => getCategoryTree())
     .then(flattenCategoryTree);
 
-const categoryAsBackend = (r: CategoryRow): BackendCategory => ({
+// A category path in the reader's language (lib/categoryNames).
+const pathName = (r: CategoryRow, locale: string) => categoryPathLabel(r, (title) => categoryTitleName(title, locale));
+const categoryAsBackend = (r: CategoryRow, locale: string): BackendCategory => ({
   id: r.node.id,
-  name: categoryPathLabel(r),
+  name: pathName(r, locale),
   slug: r.node.slug,
   description: r.node.description,
   subcategoriesCount: r.node.childrenCount,
@@ -177,12 +180,12 @@ export default function AdminServices() {
     });
   }, [all, state, term, remoteIds]);
 
-  const scopeCats = cats.data.map((r) => ({ value: r.node.id, label: r.node.isActive ? categoryPathLabel(r) : `${categoryPathLabel(r)} · ${ts("catTree.inactive")}` }));
+  const scopeCats = cats.data.map((r) => ({ value: r.node.id, label: r.node.isActive ? pathName(r, locale) : `${pathName(r, locale)} · ${ts("catTree.inactive")}` }));
   const catOpts = [{ value: "", label: ts("allCats") }, ...scopeCats];
   const stateOpts = ((scope === "marketplace" ? ["active", "inactive"] : ["all", "active", "inactive"]) as StateFilter[]).map((k) => ({ value: k, label: scope === "marketplace" && k === "inactive" ? ts("scope.archive") : ts(`state.${k}`) }));
   const editCats = cats.data
     .filter((r) => r.node.isActive || r.node.id === edit?.categoryId)
-    .map((r) => (r.node.isActive ? categoryAsBackend(r) : { ...categoryAsBackend(r), name: `${categoryPathLabel(r)} · ${ts("catTree.inactive")}` }));
+    .map((r) => (r.node.isActive ? categoryAsBackend(r, locale) : { ...categoryAsBackend(r, locale), name: `${pathName(r, locale)} · ${ts("catTree.inactive")}` }));
   const pickScope = (next: Scope) => {
     setScope(next);
     setCat("");
@@ -401,7 +404,7 @@ export default function AdminServices() {
               type: "select",
               required: true,
               placeholder: t("form.selectCategory"),
-              options: activeCats.map((r) => ({ value: r.node.id, label: categoryPathLabel(r) })),
+              options: activeCats.map((r) => ({ value: r.node.id, label: pathName(r, locale) })),
             },
             { name: "title", label: t("form.title"), required: true },
             { name: "slug", label: t("form.slug"), required: true },

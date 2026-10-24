@@ -29,6 +29,8 @@ import DocOrderDialog from "./DocOrder";
 import DocPreview from "./DocPreview";
 import Passport from "./Passport";
 import "./client.css";
+import { categoryName } from "@/lib/categoryNames";
+import { categoryTitleName } from "@/lib/categoryNames";
 
 // Legal documents and services as a desktop program — Finder / File
 // Explorer over the catalog: the fields of law in the sidebar, their
@@ -228,9 +230,9 @@ function Browse({ route, base, onRoute, openApp, openLink }: NativeProps) {
 
   const dirs = useMemo<Dir[]>(() => {
     const out: Dir[] = [];
-    for (const c of cats ?? []) for (const sc of c.subcategories) out.push({ cat: c.id, catName: c.name, name: sc.title, n: sc.servicesCount, samples: sc.sampleServices.map((s) => s.title).filter(Boolean).slice(0, 3) });
+    for (const c of cats ?? []) for (const sc of c.subcategories) out.push({ cat: c.id, catName: categoryName(c, locale), name: sc.title, n: sc.servicesCount, samples: sc.sampleServices.map((s) => s.title).filter(Boolean).slice(0, 3) });
     return out.sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
-  }, [cats]);
+  }, [cats, locale]);
   const shownDirs = fam ? dirs.filter((x) => x.cat === fam) : dirs;
   const list = useMemo(() => {
     const rows = searching ? (remote && remote.q === term ? remote.list : []) : open && svcs?.cat === open.cat ? svcs.list.filter((s) => (s.subcategory || NO_SUBCAT) === open.sub) : [];
@@ -275,7 +277,7 @@ function Browse({ route, base, onRoute, openApp, openLink }: NativeProps) {
     {
       id: "f",
       title: os === "mac" ? t("chooseFamily") : undefined,
-      items: [{ id: "", label: t("allFamilies"), icon: <IconGrid />, count: dirs.length || undefined }, ...(cats ?? []).map((c, i) => ({ id: c.id, label: c.name, icon: <IconFolder style={{ color: FAMILY_TONES[i % FAMILY_TONES.length] }} />, count: c.servicesCount || undefined }))],
+      items: [{ id: "", label: t("allFamilies"), icon: <IconGrid />, count: dirs.length || undefined }, ...(cats ?? []).map((c, i) => ({ id: c.id, label: categoryName(c, locale), icon: <IconFolder style={{ color: FAMILY_TONES[i % FAMILY_TONES.length] }} />, count: c.servicesCount || undefined }))],
     },
   ];
   const tone = (s: BackendService): Tone => (execOf(s) === "advokat" ? "accent" : execOf(s) === "yurist" ? "info" : "neutral");
@@ -290,7 +292,7 @@ function Browse({ route, base, onRoute, openApp, openLink }: NativeProps) {
           </span>
           <span>
             <b title={s.name}>{s.name}</b>
-            <small>{[s.subcategory, searching ? s.categoryTitle : ""].filter(Boolean).join(" · ")}</small>
+            <small>{[s.subcategory, searching ? categoryTitleName(s.categoryTitle ?? "", locale) : ""].filter(Boolean).join(" · ")}</small>
           </span>
         </span>
       ),
@@ -408,6 +410,7 @@ function Browse({ route, base, onRoute, openApp, openLink }: NativeProps) {
 // The chosen template: what it is, the passport, the price, what to do.
 function Info({ s, busy, free, onView, onFill, onDownload, onLawyer }: { s: BackendService; busy: boolean; free: boolean; onView: () => void; onFill: () => void; onDownload: () => void; onLawyer: () => void }) {
   const t = useTranslations("portal.client.services");
+  const locale = useLocale();
   const doc = !!s.documentTemplateId;
   return (
     <aside className="dxcw-insp" aria-label={s.name}>
@@ -434,7 +437,7 @@ function Info({ s, busy, free, onView, onFill, onDownload, onLawyer }: { s: Back
         {s.categoryTitle ? (
           <div>
             <dt>{t("chooseFamily")}</dt>
-            <dd>{s.categoryTitle}</dd>
+            <dd>{categoryTitleName(s.categoryTitle, locale)}</dd>
           </div>
         ) : null}
       </dl>

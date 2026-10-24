@@ -15,6 +15,7 @@ import ChipMulti from "@/components/register/ChipMulti";
 import Select from "@/components/Select";
 import { IconShield, IconPlus, IconCheck } from "@/components/icons";
 import { notify } from "@/lib/toast";
+import { useStudioText } from "@/components/admin/studio/bits";
 
 export default function AdminRoles() {
   const t = useTranslations("admin");
@@ -25,7 +26,15 @@ export default function AdminRoles() {
   const roles = useResource(getRoles, [key]);
   const perms = useResource(getPermissions, []);
   const matrix = useResourceOne(getPermissionMatrix, [mxKey]);
-  const permLabel = (code: string) => perms.data.find((p) => p.code === code)?.title || code;
+  const ts = useStudioText();
+  // The backend names roles and permissions in English only; ours come in
+  // every language, the backend's text stays for a role an admin created.
+  const tr = useTranslations("studio");
+  const roleLabel = (r: { name: string; title: string }) => {
+    const k = r.name.trim().toLowerCase();
+    return k && (tr.has(`roles.${k}`) || tr.has(`roles.studio_${k}`)) ? ts.role(r.name) : r.title || r.name;
+  };
+  const permLabel = (code: string) => (code && tr.has(`perm.${code.replace(/\./g, "__")}`) ? ts.perm(code) : perms.data.find((p) => p.code === code)?.title || code);
   // Three independent fetches used to mean the page visibly assembled in
   // steps — whichever resolved first popped its panel in while the others
   // still showed their own skeleton (the "assign role" panel had no gate at
@@ -90,7 +99,7 @@ export default function AdminRoles() {
     const role = roles.data.find((r) => r.id === roleId);
     try {
       await assignRole(userId, roleId);
-      notify.success(t("roles.assigned"), { id: "role-assign", body: role ? role.title || role.name : undefined });
+      notify.success(t("roles.assigned"), { id: "role-assign", body: role ? roleLabel(role) : undefined });
       setUserId("");
       setRoleId("");
     } catch (err) {
@@ -134,7 +143,7 @@ export default function AdminRoles() {
               <AdminItem
                 key={r.id}
                 index={i + 1}
-                title={r.title || r.name}
+                title={roleLabel(r)}
                 meta={r.name}
                 right={t("roles.permCount", { n: r.permissions.length })}
               />
@@ -171,7 +180,7 @@ export default function AdminRoles() {
                 setRoleId(v);
                 setABad((b) => (b.role ? { ...b, role: false } : b));
               }}
-              options={roles.data.map((r) => ({ value: r.id, label: r.title || r.name }))}
+              options={roles.data.map((r) => ({ value: r.id, label: roleLabel(r) }))}
               ariaLabel={t("roles.role")}
               placeholder={t("roles.selectRole")}
               invalid={aBad.role}
@@ -202,7 +211,7 @@ export default function AdminRoles() {
                   <tr>
                     <th>{t("roles.matrixPermission")}</th>
                     {matrix.data.roles.map((r) => (
-                      <th key={r.name} title={r.name}>{r.title || r.name}</th>
+                      <th key={r.name} title={r.name}>{roleLabel(r)}</th>
                     ))}
                   </tr>
                 </thead>
@@ -270,7 +279,7 @@ export default function AdminRoles() {
               <Skeleton rows={1} />
             ) : (
               <ChipMulti
-                options={perms.data.map((p) => ({ value: p.code, label: p.title }))}
+                options={perms.data.map((p) => ({ value: p.code, label: permLabel(p.code) }))}
                 value={picked}
                 onChange={setPicked}
               />

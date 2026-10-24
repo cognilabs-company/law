@@ -23,6 +23,7 @@ import { DEFAULT_NEARBY_RADIUS, modeOf, radiusOf, writeNearbyParams, type Nearby
 import type { NearbyRadius } from "@/lib/services/marketRuntime";
 import NearbySellers, { MarketModeSwitch, type NearbyServiceOption } from "./NearbySellers";
 import SecondOpinionEntry from "./order/SecondOpinionEntry";
+import { categoryName, categoryTitleName } from "@/lib/categoryNames";
 
 type Status = "loading" | "ready" | "error";
 
@@ -257,12 +258,12 @@ export default function MarketDirectory({
   const treeById = useMemo(() => new Map((treeRows ?? []).map((r) => [r.node.id, r])), [treeRows]);
 
   const categories = useMemo(() => {
-    if (treeRows) return treeRows.map((r) => ({ value: r.node.id, label: categoryPathLabel(r, (title) => specLabel(te, title)) }));
+    if (treeRows) return treeRows.map((r) => ({ value: r.node.id, label: categoryPathLabel(r, (title) => categoryTitleName(title, locale)) }));
     const src = meta?.categories.length ? meta.categories : items.flatMap((s) => s.categories);
     const m = new Map<string, string>();
-    for (const c of src) if (c.id && !m.has(c.id)) m.set(c.id, specLabel(te, c.title || c.slug));
+    for (const c of src) if (c.id && !m.has(c.id)) m.set(c.id, c.title || c.slug ? categoryName(c, locale) || specLabel(te, c.slug) : "");
     return [...m.entries()].map(([value, label]) => ({ value, label }));
-  }, [treeRows, meta, items, te]);
+  }, [treeRows, meta, items, te, locale]);
 
   const categorySet = useMemo(() => (category ? new Set([category, ...(treeRows ? descendantIds(category, treeRows) : [])]) : null), [category, treeRows]);
 

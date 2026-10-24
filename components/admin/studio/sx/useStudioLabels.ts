@@ -26,6 +26,7 @@ import {
 import { ctorVariant, fieldPath, isEnglishLooking, scopedKeys, splitCodeLabel, splitUserLabel } from "./labels";
 import { normStatus, statusKeyOf } from "./status";
 import type { SxLocale, SxNameCode, SxOption, SxRecordSource, SxRule, SxScope } from "./types";
+import { categoryName, categoryTitleName } from "@/lib/categoryNames";
 
 export type StudioLabels = {
   locale: SxLocale;
@@ -498,10 +499,10 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
     };
     switch (key) {
       case "service-categories":
-        return base({ label, description: str(r.description), icon: SOURCE_ICON["service-categories"] });
+        return base({ label: categoryName({ slug: str(r.slug), title: label }, locale), description: str(r.description), icon: SOURCE_ICON["service-categories"] });
       case "services": {
         const price = numOf(r.base_price);
-        return base({ label, description: joinDot([str(r.category_title), price === null ? "" : money(price, str(r.currency))]), icon: BriefcaseBusinessIcon });
+        return base({ label, description: joinDot([categoryTitleName(str(r.category_title), locale), price === null ? "" : money(price, str(r.currency))]), icon: BriefcaseBusinessIcon });
       }
       case "document-templates": {
         const cat = str(r.category);
@@ -532,6 +533,9 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
         return base({ label: placement(value, label), description: placementWhat(value), code: value, icon: own.call(PLACEMENT_ICON, value) ? PLACEMENT_ICON[value] : SOURCE_ICON["promotion-placements"] });
       case "roles":
         return base({ label: role(value, label), description: vocab(str(r.description)), code: value, icon: UserCogIcon });
+      // The backend names a plan's features in Uzbek only.
+      case "subscription-features":
+        return base({ label: pick([`sx.feature.${value}`]) || label || value, code: value, icon: sourceIcon(source) });
       case "subscription-plans": {
         const monthly = numOf(r.monthly_price);
         const price = monthly === null ? "" : tr("sx.ui.perMonth", { price: money(monthly) });

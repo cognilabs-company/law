@@ -12,6 +12,7 @@ import { App, Avatar, Banner, Btn, Dialog, Empty, Loading, Search, Select, Spinn
 import type { NativeProps } from "../../native";
 import PurchaseSheet from "./Purchase";
 import "./client.css";
+import { categoryTitleName } from "@/lib/categoryNames";
 
 // Service packages as a desktop program — like the App Store's in-app
 // purchase tiers: each package a row of Basic, Standard and Premium cards
@@ -107,7 +108,7 @@ export default function PackagesApp({ openLink }: NativeProps) {
   return (
     <App name="cpackages">
       <Toolbar title={t("title")} subtitle={pkgs ? t("count", { n: groups.length }) : undefined} end={<Search value={q} onChange={setQ} placeholder={t("searchPh")} />}>
-        {cats.length > 1 ? <Select value={cat} onChange={setCat} ariaLabel={t("category")} options={[{ value: "", label: t("allCategories") }, ...cats.map((c) => ({ value: c, label: c }))]} /> : null}
+        {cats.length > 1 ? <Select value={cat} onChange={setCat} ariaLabel={t("category")} options={[{ value: "", label: t("allCategories") }, ...cats.map((c) => ({ value: c, label: categoryTitleName(c, locale) }))]} /> : null}
       </Toolbar>
       <div className="dxck dx-scroll">
         <p className="dxcs-lead">{t("lead")}</p>
@@ -126,7 +127,7 @@ export default function PackagesApp({ openLink }: NativeProps) {
                 </span>
                 <span>
                   <h2>{items[0].groupTitle || items[0].title}</h2>
-                  <small>{[items[0].categoryTitle, code].filter(Boolean).join(" · ")}</small>
+                  <small>{[categoryTitleName(items[0].categoryTitle, locale), code].filter(Boolean).join(" · ")}</small>
                 </span>
               </header>
               <div className="dxck-tiers">
@@ -214,7 +215,7 @@ export default function PackagesApp({ openLink }: NativeProps) {
             </div>
             <div>
               <dt>{t("category")}</dt>
-              <dd>{open.categoryTitle || "—"}</dd>
+              <dd>{categoryTitleName(open.categoryTitle, locale) || "—"}</dd>
             </div>
             <div>
               <dt>{t("services")}</dt>

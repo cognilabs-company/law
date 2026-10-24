@@ -12,6 +12,7 @@ import FilterBar from "@/components/filters/FilterBar";
 import { IconBriefcase, IconCheck, IconClose, IconClock, IconLayers, IconPackage, IconStar, IconGem, IconArrowRight, IconShieldCheck } from "@/components/icons";
 import PackageSellersDialog from "@/components/marketplace/PackageSellersDialog";
 import PurchaseDialog from "@/components/marketplace/PurchaseDialog";
+import { categoryTitleName } from "@/lib/categoryNames";
 
 // One mark per tariff, so the three boxes are told apart before they are read.
 const TIER_ICON = { BASIC: IconPackage, STANDARD: IconStar, PREMIUM: IconGem } as const;
@@ -103,7 +104,7 @@ export default function ClientPackages() {
   }, [found, cat]);
   const catOpts = [
     { value: "", label: `${t("allCategories")} (${codeCount(found)})` },
-    ...cats.map((c) => ({ value: c, label: `${c} (${codeCount(found.filter((p) => p.categoryTitle === c))})` })),
+    ...cats.map((c) => ({ value: c, label: `${categoryTitleName(c, locale)} (${codeCount(found.filter((p) => p.categoryTitle === c))})` })),
   ];
 
   const [picking, setPicking] = useState<BackendPackage | null>(null);
@@ -141,7 +142,7 @@ export default function ClientPackages() {
             <div className="pkg__h">
               <span className="pkg__hi" aria-hidden><IconPackage /></span>
               <b>{items[0].groupTitle || items[0].title}</b>
-              <span className="advmuted">{[items[0].categoryTitle, code].filter(Boolean).join(" · ")}</span>
+              <span className="advmuted">{[categoryTitleName(items[0].categoryTitle, locale), code].filter(Boolean).join(" · ")}</span>
             </div>
             <div className="pkg__tiers" data-ai-target={gi === 0 ? "packages:tiers" : undefined}>
               {items.map((p, i) => {
@@ -183,7 +184,7 @@ export default function ClientPackages() {
             <div className="pkv">
               <div className="pkv__i"><label>{t("price")}</label><b>{fmtUzs(open.price)} {t("som")}</b></div>
               <div className="pkv__i"><label>{t("duration")}</label><b>{open.duration || "—"}</b></div>
-              <div className="pkv__i"><label>{t("category")}</label><b>{open.categoryTitle || "—"}</b></div>
+              <div className="pkv__i"><label>{t("category")}</label><b>{categoryTitleName(open.categoryTitle, locale) || "—"}</b></div>
               <div className="pkv__i"><label>{t("services")}</label><b>{need.get(open.groupCode)?.requiredServiceCodes.join(", ") || open.relatedServiceCodes || "—"}</b></div>
             </div>
             {open.result ? <p className="rf__benefit" style={{ marginTop: 12 }}><b>{t("result")}</b><br />{open.result}</p> : null}

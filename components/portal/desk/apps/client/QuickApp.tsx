@@ -220,7 +220,8 @@ export default function QuickApp({ route, onRoute, openLink, tell, pip }: Native
     const rank = (items: UrgentService[]) => items.reduce((best, x) => (CARD_ORDER.indexOf(x.key) >= 0 && CARD_ORDER.indexOf(x.key) < best ? CARD_ORDER.indexOf(x.key) : best), CARD_ORDER.length);
     return out.sort((a, b) => rank(a.items) - rank(b.items));
   }, [services, cat]);
-  const groupTitle = (g: UrgentGroup) => (g.title ? g.title : t.has(`groups.${g.key}`) ? t(`groups.${g.key}`) : g.key);
+  // The catalog sends its names in Uzbek only; ours are in every language.
+  const groupTitle = (g: UrgentGroup) => (t.has(`groups.${g.key}`) ? t(`groups.${g.key}`) : g.title || g.key);
   const kindName = (k: string, title = "") => (t.has(`kinds.${k}`) ? t(`kinds.${k}`) : title || k);
   const about = (k: string) => (t.has(`about.${k}`) ? t(`about.${k}`) : "");
   const svc = services.find((s) => s.key === pick);
@@ -260,7 +261,7 @@ export default function QuickApp({ route, onRoute, openLink, tell, pip }: Native
       id: "q",
       title: os === "mac" ? t("title") : undefined,
       items: [
-        { id: "services", label: cat?.title || t("title"), icon: <IconBolt /> },
+        { id: "services", label: t("title"), icon: <IconBolt /> },
         { id: "mine", label: t("mine"), icon: <IconClock />, count: mine?.length || undefined },
       ],
     },
@@ -318,7 +319,7 @@ export default function QuickApp({ route, onRoute, openLink, tell, pip }: Native
               <IconBolt />
             </span>
             <span className="dxcu-hero__t">
-              <h1>{cat?.title || t("title")}</h1>
+              <h1>{t("title")}</h1>
               <p>{t("lead")}</p>
             </span>
             {cat ? (
@@ -415,7 +416,7 @@ export default function QuickApp({ route, onRoute, openLink, tell, pip }: Native
             {mine === null ? (
               <Loading label={t("mine")} />
             ) : !mine.length ? (
-              <Empty icon={<IconBolt />} title={t("mineEmpty")} text={t("mineEmptyText")} action={<Btn kind="primary" onClick={() => setView("services")}>{cat?.title || t("title")}</Btn>} />
+              <Empty icon={<IconBolt />} title={t("mineEmpty")} text={t("mineEmptyText")} action={<Btn kind="primary" onClick={() => setView("services")}>{t("title")}</Btn>} />
             ) : (
               <Table label={t("mine")} cols={cols} rows={mine} rowKey={(r) => r.id} selected={sel || fresh} onSelect={(r) => setSel(r.id)} />
             )}
