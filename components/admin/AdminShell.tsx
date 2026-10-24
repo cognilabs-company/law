@@ -96,6 +96,7 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       { href: "/admin/services", key: "services", Icon: NavServices, perm: "services.manage" },
       { href: "/admin/plans", key: "plans", Icon: NavPlans, perm: "subscriptions.manage" },
       { href: "/admin/templates", key: "templates", Icon: NavTemplates, perm: "templates.manage" },
+      { href: "/admin/document-settings", key: "documentSettings", Icon: NavTemplates, perm: "templates.manage" },
       { href: "/admin/document-templates", key: "templateEditor", Icon: NavTemplates, perm: "templates.manage", hidden: true },
       { href: "/admin/ads", key: "ads", Icon: NavAds, perm: "ads.manage" },
       { href: "/admin/studio", key: "studio", Icon: NavStudio },

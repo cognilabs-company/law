@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton } from "@/components/portal/DataState";
 import { Link } from "@/i18n/navigation";
+import PlanChangePreview from "./PlanChangePreview";
 import { shortDateTime } from "@/lib/date";
 import { errDetail, isAborted, logApiError, type Dict } from "@/lib/http";
 import {
@@ -186,6 +187,7 @@ export default function PlanVersions({ planId }: { planId: string }): ReactEleme
   const [busy, setBusy] = useState<{ id: string; what: Busy }>({ id: "", what: "" });
   const inFlight = useRef(false);
   const [editing, setEditing] = useState("");
+  const [previewing, setPreviewing] = useState("");
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [checks, setChecks] = useState<Record<string, PlanVersion["validation"]>>({});
 
@@ -277,6 +279,9 @@ export default function PlanVersions({ planId }: { planId: string }): ReactEleme
                       </ul>
                     ) : null}
                     <div className="trf-acts">
+                      <button type="button" className="btn btn--line btn--sm" onClick={() => setPreviewing(previewing === v.id ? "" : v.id)} aria-expanded={previewing === v.id}>
+                        {previewing === v.id ? t("preview.hide") : t("preview.show")}
+                      </button>
                       <button type="button" className="btn btn--line btn--sm" onClick={() => setEditing(editing === v.id ? "" : v.id)} disabled={!!working}>
                         {t("edit")}
                       </button>
@@ -323,6 +328,7 @@ export default function PlanVersions({ planId }: { planId: string }): ReactEleme
                         {t("archive")}
                       </button>
                     </div>
+                    {previewing === v.id && editing !== v.id ? <PlanChangePreview versionId={v.id} /> : null}
                     {editing === v.id ? (
                       <DraftEditor
                         version={v}

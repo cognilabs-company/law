@@ -1,0 +1,53 @@
+/* Document services' global settings (DocumentSettingsPage). */
+.dss { display: grid; align-content: start; gap: 14px; }
+.dss-ver { padding: 2px 10px; border-radius: 999px; font-size: .74rem; font-weight: 700; background: color-mix(in srgb, #16a34a 16%, transparent); color: var(--dk-txt-ok, #15803d); }
+.dss-muted { margin: 0; font-size: .8rem; color: var(--gray); }
+.dss-bad { font-size: .78rem; color: #dc2626; }
+.dss-block { display: grid; gap: 10px; }
+.dss-block__h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.dss-block__h > b { font-size: .95rem; color: var(--ink); }
+.dss-block__h > small { color: var(--gray); font-size: .8rem; }
+.dss-block__h > .btn { margin-inline-start: auto; }
+.dss-sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+.dss-tile { display: grid; align-content: start; gap: 6px; padding: 12px 14px; border-radius: 14px; background: var(--dk-surface-2, #F5F8FD); box-shadow: inset 0 0 0 1px var(--line); }
+.dss-tile--wide { grid-column: span 2; }
+.dss-tile > small { font-size: .7rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gray); }
+.dss-tile > b { font-size: 1.1rem; color: var(--ink); }
+.dss-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dss-chips > i { padding: 2px 10px; border-radius: 999px; font-style: normal; font-size: .78rem; font-weight: 700; background: color-mix(in srgb, var(--dk-acc, var(--b600)) 14%, transparent); color: var(--dk-acc-strong, var(--b700)); }
+.dss-tiers { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.dss-tiers li { display: flex; justify-content: space-between; gap: 10px; font-size: .84rem; color: var(--ink); }
+.dss-edit { display: grid; gap: 12px; padding: 14px; border-radius: 14px; background: var(--dk-surface-2, #F5F8FD); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--dk-acc, var(--b600)) 40%, transparent); }
+.dss-edit__h { font-size: .95rem; color: var(--ink); }
+.dss-field { display: grid; gap: 8px; margin: 0; padding: 0; border: 0; }
+.dss-field legend { margin-bottom: 6px; font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gray); }
+.dss-toggles { display: flex; flex-wrap: wrap; gap: 6px; }
+.dss-toggles button { min-height: 34px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); font: inherit; font-size: .84rem; font-weight: 600; cursor: pointer; }
+.dss-toggles button[aria-pressed="true"] { background: color-mix(in srgb, var(--dk-acc, var(--b600)) 16%, var(--dk-surface, #fff)); box-shadow: inset 0 0 0 1.5px var(--dk-acc, var(--b600)); color: var(--dk-acc-strong, var(--b700)); }
+.dss-nums { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.dss-nums label, .dss-tier label { display: grid; gap: 4px; font-size: .8rem; color: var(--gray); }
+.dss-nums small { font-size: .74rem; color: var(--gray); }
+.dss-edit input { height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; font-size: .86rem; }
+.dss-nums label[data-bad] input, .dss-tier[data-bad] input { border-color: #dc2626; }
+.dss-tier { display: grid; grid-template-columns: repeat(3, minmax(110px, 1fr)) auto; gap: 8px; align-items: end; }
+.dss-tier > small { grid-column: 1 / -1; }
+.dss-add { justify-self: start; }
+.dss-add svg { width: 14px; height: 14px; }
+.dss-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.dss-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.dss-v { position: relative; display: grid; gap: 8px; padding: 12px 14px 12px 18px; border-radius: 14px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+.dss-v::before { content: ""; position: absolute; inset: 10px auto 10px 0; width: 4px; border-radius: 0 4px 4px 0; background: #94a3b8; }
+.dss-v[data-status="draft"]::before { background: #f59e0b; }
+.dss-v[data-active]::before { background: #16a34a; }
+.dss-v__h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.dss-v__h small { margin-inline-start: auto; font-size: .76rem; color: var(--gray); }
+.dss-chip { padding: 1px 9px; border-radius: 999px; font-size: .72rem; font-weight: 700; background: var(--dk-surface-2, #EEF2F8); color: var(--ink); }
+.dss-chip[data-status="draft"] { background: color-mix(in srgb, #f59e0b 16%, transparent); color: var(--dk-txt-warn, #8a5a00); }
+.dss-chip[data-status="active"] { background: color-mix(in srgb, #16a34a 16%, transparent); color: var(--dk-txt-ok, #15803d); }
+.dss-v details summary { cursor: pointer; font-size: .8rem; font-weight: 600; color: var(--dk-acc, var(--b600)); }
+.dss-v details[open] summary { margin-bottom: 8px; }
+.dss-confirm { margin: 0; font-size: .9rem; line-height: 1.5; color: var(--ink); }
+@media (max-width: 640px) {
+  .dss-tile--wide { grid-column: auto; }
+  .dss-tier { grid-template-columns: 1fr 1fr; }
+}

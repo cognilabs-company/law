@@ -1,7 +1,7 @@
 /* Assignment escalations (EscalationQueue). */
 .esc { display: grid; gap: 12px; }
 .esc__list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.esc__item { border-radius: 12px; border: 1px solid var(--dk-bd, #E3E9F2); }
+.esc__item { border-radius: 12px; border: 1px solid var(--line); }
 .esc__item[data-open] { border-color: color-mix(in srgb, var(--brand, #2563eb) 40%, transparent); }
 .esc__row { display: grid; grid-template-columns: minmax(0, 1.4fr) auto minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; padding: 10px 12px; border: 0; border-radius: 12px; background: transparent; color: var(--ink); font: inherit; font-size: .86rem; text-align: left; cursor: pointer; }
 .esc__row:hover { background: var(--dk-surface-2, #F5F8FD); }
@@ -20,10 +20,10 @@
 .esc__log time { min-width: 110px; color: var(--gray); }
 .esc__muted { color: var(--gray); font-size: .8rem; }
 .esc__acts { display: flex; flex-wrap: wrap; gap: 8px; }
-.esc__num { width: 120px; height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--dk-bd, #E3E9F2); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; }
+.esc__num { width: 120px; height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; }
 @media (max-width: 720px) { .esc__row { grid-template-columns: 1fr auto; } }
 .esc .ppanel__h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.esc .ppanel__h select, .esc__up select { height: 32px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--dk-bd, #E3E9F2); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; font-size: .82rem; }
+.esc .ppanel__h select, .esc__up select { height: 32px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; font-size: .82rem; }
 .esc__ev { display: grid; gap: 6px; }
 .esc__files { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: .84rem; color: var(--ink); }
 .esc__files li { display: flex; align-items: center; gap: 10px; }

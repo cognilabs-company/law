@@ -6,6 +6,7 @@ import { useResourceOne } from "@/lib/useResource";
 import { humanizeSlug } from "@/lib/lawyers";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { IconBolt, IconLock } from "@/components/icons";
+import "./integrations.css";
 import { dateTimeFull } from "@/lib/date";
 
 function fmt(s: string, locale: string) {
@@ -55,8 +56,21 @@ export default function AdminIntegrations() {
   }
 
   return (
-    <div className="ppanel">
-      <div className="ppanel__h"><b>{t("title")}</b></div>
+    <div className="ppanel intgp">
+      <div className="ppanel__h cch">
+        <h2 className="ppanel__t cch__t">
+          <span className="pico">
+            <IconBolt />
+          </span>
+          <span className="cch__tt">{t("title")}</span>
+        </h2>
+        {res.status === "ready" && items.length ? (
+          <div className="intgp__sum" role="status">
+            <span data-tone="ok">{t("sumConnected", { n: items.filter((i) => i.status === "connected" || i.healthy).length })}</span>
+            <span data-tone="off">{t("sumOff", { n: items.filter((i) => !(i.status === "connected" || i.healthy)).length })}</span>
+          </div>
+        ) : null}
+      </div>
       <p className="ppanel__note">{t("lead")}</p>
       {res.status === "loading" ? (
         <Skeleton rows={3} />
@@ -91,7 +105,9 @@ export default function AdminIntegrations() {
                         <IconLock />
                       </span>
                     ) : null}
-                    <span className="intg__st">{t.has(`status.${i.status}`) ? t(`status.${i.status}`) : i.status}</span>
+                    <span className="intg__st" data-tone={tone}>
+                      {t.has(`status.${i.status}`) ? t(`status.${i.status}`) : humanizeSlug(i.status)}
+                    </span>
                   </div>
                 );
               })}

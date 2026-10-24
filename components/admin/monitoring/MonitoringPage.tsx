@@ -92,7 +92,7 @@ function Trend({ items, label }: { items: MonHistory["items"]; label: string }):
 
 const GB = 1024 ** 3;
 const bytes = (n: number) => (n >= GB ? `${(n / GB).toFixed(1)} GB` : `${Math.round(n / 1024 ** 2)} MB`);
-const pct = (n: number | null) => (n === null ? "—" : `${Math.round(n * 10) / 10}%`);
+const pct = (n: number | null) => (n === null ? "" : `${Math.round(n * 10) / 10}%`);
 
 type Load = { status: "loading" } | { status: "forbidden" } | { status: "error" } | { status: "ready"; data: MonOverview; at: number };
 
@@ -125,8 +125,8 @@ function readLimits(): Limits {
   }
 }
 const toneAt = (p: number | null, limit: number): Tone => (p === null ? "off" : p >= limit ? "bad" : p >= limit * 0.85 ? "warn" : "ok");
-const ms = (n: number | null) => (n === null ? "—" : `${Math.round(n)} ms`);
-const rate = (n: number | null) => (n === null ? "—" : n >= 1024 ** 2 ? `${(n / 1024 ** 2).toFixed(1)} MB/s` : `${Math.round(n / 1024)} KB/s`);
+const ms = (n: number | null) => (n === null ? "" : `${Math.round(n)} ms`);
+const rate = (n: number | null) => (n === null ? "" : n >= 1024 ** 2 ? `${(n / 1024 ** 2).toFixed(1)} MB/s` : `${Math.round(n / 1024)} KB/s`);
 
 // The integration map, laid out from the backend's nodes and edges: core
 // nodes in the middle, the rest around them in the order the backend sends.
@@ -196,6 +196,7 @@ function Graph({ nodes, edges, onPick }: { nodes: MonNode[]; edges: MonOverview[
 
 function IntegrationDetail({ itg, onClose, history, edges }: { itg: MonIntegration; onClose: () => void; history: MonHistory | null; edges: MonOverview["edges"] }): ReactElement {
   const t = useTranslations("admin.monitoring");
+  const none = useTranslations("common")("none");
   const locale = useLocale();
   const status = useStatusLabel();
   const [live, setLive] = useState<MonIntegration | null>(null);
@@ -245,11 +246,11 @@ function IntegrationDetail({ itg, onClose, history, edges }: { itg: MonIntegrati
         </div>
         <div>
           <dt>{t("col.latency")}</dt>
-          <dd>{d.latencyMs === null ? "—" : `${Math.round(d.latencyMs * 10) / 10} ms`}</dd>
+          <dd>{d.latencyMs === null ? none : `${Math.round(d.latencyMs * 10) / 10} ms`}</dd>
         </div>
         <div>
           <dt>{t("col.checked")}</dt>
-          <dd>{d.checkedAt ? shortDateTime(d.checkedAt, locale) : "—"}</dd>
+          <dd>{d.checkedAt ? shortDateTime(d.checkedAt, locale) : none}</dd>
         </div>
         {d.uptimePercent !== null || okShare !== null ? (
           <div>
@@ -289,7 +290,7 @@ function IntegrationDetail({ itg, onClose, history, edges }: { itg: MonIntegrati
         <ol className="mon-detail__hist" aria-label={t("nodeHistory")}>
           {past.slice(0, 10).map((p, i) => (
             <li key={`${p.at}-${i}`}>
-              <time>{p.at ? shortDateTime(p.at, locale) : "—"}</time>
+              <time>{p.at ? shortDateTime(p.at, locale) : none}</time>
               <span className="mon-chip" data-tone={toneOf(p.status)}>
                 {status(p.status)}
               </span>
@@ -306,6 +307,7 @@ function IntegrationDetail({ itg, onClose, history, edges }: { itg: MonIntegrati
 
 export default function MonitoringPage(): ReactElement {
   const t = useTranslations("admin.monitoring");
+  const none = useTranslations("common")("none");
   const locale = useLocale();
   const status = useStatusLabel();
   const [range, setRange] = useState<Range>("15m");
@@ -596,16 +598,16 @@ export default function MonitoringPage(): ReactElement {
       ))}
 
       <div className="mon-cards">
-        <Meter label={t("cpu")} value={pct(o.system.cpuPercent)} sub={o.system.cpuCount ? t("cores", { n: o.system.cpuCount }) : undefined} tone={toneAt(o.system.cpuPercent, limits.cpu)} />
-        <Meter label={t("memory")} value={pct(o.system.memoryPercent)} sub={o.system.memoryTotal ? `${bytes(o.system.memoryUsed)} / ${bytes(o.system.memoryTotal)}` : undefined} tone={toneAt(o.system.memoryPercent, limits.memory)} />
-        <Meter label={t("disk")} value={pct(o.system.diskPercent)} sub={o.system.diskTotal ? `${bytes(o.system.diskUsed)} / ${bytes(o.system.diskTotal)}` : undefined} tone={toneAt(o.system.diskPercent, limits.disk)} />
-        <Meter label={t("requests")} value={String(o.requests.events)} sub={t("errors", { n: o.requests.errors, rate: pct(o.requests.errorRate) })} tone={toneAt(o.requests.errorRate, limits.errors)} />
+        <Meter label={t("cpu")} value={(pct(o.system.cpuPercent) || none)} sub={o.system.cpuCount ? t("cores", { n: o.system.cpuCount }) : undefined} tone={toneAt(o.system.cpuPercent, limits.cpu)} />
+        <Meter label={t("memory")} value={(pct(o.system.memoryPercent) || none)} sub={o.system.memoryTotal ? `${bytes(o.system.memoryUsed)} / ${bytes(o.system.memoryTotal)}` : undefined} tone={toneAt(o.system.memoryPercent, limits.memory)} />
+        <Meter label={t("disk")} value={(pct(o.system.diskPercent) || none)} sub={o.system.diskTotal ? `${bytes(o.system.diskUsed)} / ${bytes(o.system.diskTotal)}` : undefined} tone={toneAt(o.system.diskPercent, limits.disk)} />
+        <Meter label={t("requests")} value={String(o.requests.events)} sub={t("errors", { n: o.requests.errors, rate: (pct(o.requests.errorRate) || none) })} tone={toneAt(o.requests.errorRate, limits.errors)} />
         <Meter label={t("users")} value={String(o.users.active)} sub={[x.usersToday !== null ? t("usersToday", { n: x.usersToday }) : "", t("usersTotal", { n: o.users.total })].filter(Boolean).join(" · ")} />
         <Meter label={t("realtime")} value={String(o.realtime.sockets)} sub={t("realtimeSub", { online: o.realtime.online, channels: o.realtime.channels })} />
         {x.rps !== null ? <Meter label={t("rps")} value={String(Math.round(x.rps * 10) / 10)} sub={x.status4xx !== null || x.status5xx !== null ? t("statusCodes", { c4: x.status4xx ?? 0, c5: x.status5xx ?? 0 }) : undefined} tone={x.status5xx ? "warn" : "ok"} /> : null}
-        {x.latency ? <Meter label={t("latency")} value={ms(x.latency.p95)} sub={t("latencySub", { p50: ms(x.latency.p50), p99: ms(x.latency.p99) })} /> : null}
-        {x.network ? <Meter label={t("network")} value={rate(x.network.rx)} sub={t("networkOut", { tx: rate(x.network.tx) })} /> : null}
-        {x.db ? <Meter label={t("db")} value={x.db.inUse !== null && x.db.size !== null ? `${x.db.inUse} / ${x.db.size}` : "—"} sub={x.db.slowQueries !== null ? t("slowQueries", { n: x.db.slowQueries }) : undefined} tone={x.db.slowQueries ? "warn" : "ok"} /> : null}
+        {x.latency ? <Meter label={t("latency")} value={(ms(x.latency.p95) || none)} sub={t("latencySub", { p50: (ms(x.latency.p50) || none), p99: (ms(x.latency.p99) || none) })} /> : null}
+        {x.network ? <Meter label={t("network")} value={(rate(x.network.rx) || none)} sub={t("networkOut", { tx: (rate(x.network.tx) || none) })} /> : null}
+        {x.db ? <Meter label={t("db")} value={x.db.inUse !== null && x.db.size !== null ? `${x.db.inUse} / ${x.db.size}` : none} sub={x.db.slowQueries !== null ? t("slowQueries", { n: x.db.slowQueries }) : undefined} tone={x.db.slowQueries ? "warn" : "ok"} /> : null}
         {x.redis ? <Meter label="Redis" value={status(x.redis.status || "unknown")} sub={x.redis.memory !== null ? bytes(x.redis.memory) : undefined} tone={toneOf(x.redis.status)} /> : null}
         {x.queue ? <Meter label={t("queue")} value={String(x.queue.pending ?? 0)} sub={t("failedJobs", { n: x.queue.failed ?? 0 })} tone={x.queue.failed ? "bad" : "ok"} /> : null}
       </div>
@@ -647,7 +649,7 @@ export default function MonitoringPage(): ReactElement {
                       {status(i.status)}
                     </span>
                   </td>
-                  <td>{i.latencyMs === null ? "—" : `${Math.round(i.latencyMs * 10) / 10} ms`}</td>
+                  <td>{i.latencyMs === null ? none : `${Math.round(i.latencyMs * 10) / 10} ms`}</td>
                 </tr>
               ))}
             </tbody>
@@ -678,8 +680,8 @@ export default function MonitoringPage(): ReactElement {
           <ol>
             {history.items.map((h) => (
               <li key={h.id} data-type={h.type}>
-                <time>{h.at ? shortDateTime(h.at, locale) : "—"}</time>
-                <span>{h.type === "incident" ? h.title || t("incident") : t("snapshotRow", { cpu: pct(h.cpuPercent), memory: pct(h.memoryPercent) })}</span>
+                <time>{h.at ? shortDateTime(h.at, locale) : none}</time>
+                <span>{h.type === "incident" ? h.title || t("incident") : t("snapshotRow", { cpu: (pct(h.cpuPercent) || none), memory: (pct(h.memoryPercent) || none) })}</span>
               </li>
             ))}
           </ol>

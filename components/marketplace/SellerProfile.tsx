@@ -1,5 +1,6 @@
 "use client";
 
+import RatingBreakdown from "./RatingBreakdown";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -287,6 +288,8 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
               </div>
             )}
           </section>
+
+          <RatingBreakdown sellerId={userId} />
 
           <section className="mk-panel" data-ai-target="marketplace:seller-reviews" data-ai-id={`${sellerAiId}.reviews`} data-ai-type="list">
             <h2 className="mk-panel__t">{t("detail.reviews")}</h2>

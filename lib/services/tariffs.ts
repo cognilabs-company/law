@@ -145,3 +145,67 @@ export function entitlementIssues(rows: readonly Entitlement[], registry: Featur
   });
   return out;
 }
+
+// What publishing a version would change (GET …/preview): field, price and
+// feature differences against the current version, how many subscribers it
+// reaches and how it applies to them.
+export type PlanFieldChange = { field: string; before: unknown; after: unknown };
+export type PlanPriceChange = { period: string; before: number | null; after: number | null; difference: number | null };
+export type PlanFeatureChange = { featureKey: string; mode: string; limit: number | null; resetPeriod: string; unit: string; before: Dict | null };
+export type PlanPreview = {
+  candidateVersion: number | null;
+  currentVersion: number | null;
+  fields: PlanFieldChange[];
+  prices: PlanPriceChange[];
+  added: PlanFeatureChange[];
+  removed: PlanFeatureChange[];
+  changed: PlanFeatureChange[];
+  activeSubscribers: number | null;
+  appliesTo: string;
+  consentRequired: boolean;
+  material: boolean;
+  contractImmutable: boolean;
+};
+
+const numOrNull = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
+
+function featureChangeOf(v: unknown): PlanFeatureChange {
+  const d = asDict(v);
+  const after = d.after && typeof d.after === "object" ? asDict(d.after) : d;
+  return {
+    featureKey: asStr(d.feature_key ?? after.feature_key),
+    mode: asStr(after.mode),
+    limit: numOrNull(after.limit),
+    resetPeriod: asStr(after.reset_period),
+    unit: asStr(after.unit),
+    before: d.before && typeof d.before === "object" ? asDict(d.before) : null,
+  };
+}
+
+export async function previewPlanVersion(versionId: string, signal?: AbortSignal): Promise<PlanPreview> {
+  const d = asDict(await http(`/admin/subscription-plan-versions/${encodeURIComponent(versionId)}/preview`, { signal }));
+  const ch = asDict(d.changes);
+  const f = asDict(ch.features);
+  const sum = asDict(d.summary);
+  const pol = asDict(d.renewal_policy);
+  return {
+    candidateVersion: numOrNull(d.candidate_version),
+    currentVersion: numOrNull(asDict(d.current_version).version ?? d.current_version),
+    fields: asArr(ch.fields).map((x) => {
+      const r = asDict(x);
+      return { field: asStr(r.field), before: r.before, after: r.after };
+    }),
+    prices: asArr(ch.prices).map((x) => {
+      const r = asDict(x);
+      return { period: asStr(r.period), before: numOrNull(r.before), after: numOrNull(r.after), difference: numOrNull(r.difference) };
+    }),
+    added: asArr(f.added).map(featureChangeOf),
+    removed: asArr(f.removed).map(featureChangeOf),
+    changed: asArr(f.changed).map(featureChangeOf),
+    activeSubscribers: numOrNull(sum.active_subscribers),
+    appliesTo: asStr(pol.effective_for_existing_subscribers),
+    consentRequired: pol.consent_required === true,
+    material: pol.material_change === true,
+    contractImmutable: pol.existing_contract_immutable !== false,
+  };
+}

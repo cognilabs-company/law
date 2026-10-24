@@ -566,8 +566,9 @@ export default function TeamTasksPage() {
                       </div>
                       <div className="ttk-row__act">
                         <span className="ttk-acts">
-                          <StatusActions task={shown(task)} busy={busyId === task.id} onPick={(to) => void move(task, to)} />
-                          {/* Ulugbek's final action, one click from the list. */}
+                          {/* Ulugbek's list carries only the final action; the
+                              status buttons stay in the task's detail. */}
+                          {simple ? null : <StatusActions task={shown(task)} busy={busyId === task.id} onPick={(to) => void move(task, to)} />}
                           {simple && task.actions.canDelete && !task.deletedAt ? (
                             <button
                               type="button"

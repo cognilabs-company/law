@@ -40,7 +40,8 @@ test("Ulugbek sees no workflow buttons and approves-and-archives with a note", a
   await expect(page.getByText("Vazifa 1")).toBeVisible();
   await expect(page.getByRole("button", { name: "Отправить на тест" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Подтвердить готовность" })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Вернуть на доработку" })).toHaveCount(1);
+  // The list row carries only the final action (24 Oct 2026).
+  await expect(page.locator(".ttk-row").getByRole("button", { name: "Вернуть на доработку" })).toHaveCount(0);
   // The final action sits right on each row of the list.
   await expect(page.locator(".ttk-row").getByRole("button", { name: "Отметить как принятую и архивировать" })).toHaveCount(2);
   await page.locator(".ttk-row").filter({ hasText: "Vazifa 2" }).getByRole("button", { name: "Отметить как принятую и архивировать" }).click();

@@ -1,5 +1,6 @@
 "use client";
 
+import RatingBreakdown from "@/components/marketplace/RatingBreakdown";
 import { useState, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { shortDateTime } from "@/lib/date";
@@ -164,6 +165,7 @@ export default function SellerDashboard({ role, compact = false }: { role: Role;
       )}
 
       {cabinet.data ? <SellerMetrics stats={cabinet.data.stats} userId={session?.id || ""} profile={cabinet.data.profile} demo={demo} /> : null}
+      {demo ? null : <RatingBreakdown mine />}
       {cabinet.data ? <SellerPayouts /> : null}
       <ReferralProgress side="seller" href={role === "advocate" ? "/portal/advocate/referrals" : "/portal/lawyer/referrals"} />
 

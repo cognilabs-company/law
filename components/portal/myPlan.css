@@ -1,5 +1,5 @@
 /* The subscriber's own plan (MyPlanCard). */
-.myplan { display: grid; gap: 10px; margin-bottom: 16px; padding: 16px 18px; border-radius: 18px; border: 1px solid var(--dk-bd, #E3E9F2); background: var(--dk-surface, #fff); }
+.myplan { display: grid; gap: 10px; margin-bottom: 16px; padding: 16px 18px; border-radius: 18px; border: 1px solid var(--line); background: var(--dk-surface, #fff); }
 .myplan__h { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .myplan__h > div { display: grid; gap: 2px; }
 .myplan__h small { font-size: .74rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gray); }
@@ -15,7 +15,7 @@
 .myplan__f { font-size: .84rem; font-weight: 600; color: var(--ink); }
 .myplan__u { font-size: .8rem; color: var(--gray); }
 .myplan__list small { font-size: .74rem; color: var(--gray); }
-.myplan__bar { display: block; height: 6px; border-radius: 999px; background: var(--dk-bd, #E3E9F2); overflow: hidden; }
+.myplan__bar { display: block; height: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
 .myplan__bar i { display: block; height: 100%; border-radius: inherit; background: var(--brand, #2563eb); }
 .myplan__prices { margin: 0; font-size: .78rem; color: var(--gray); }
 .myplan__acts { display: flex; flex-wrap: wrap; gap: 8px; }

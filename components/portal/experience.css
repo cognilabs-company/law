@@ -1,5 +1,5 @@
 /* Experience per category (ExperiencePanel). */
-.exp { display: grid; gap: 10px; padding: 16px 18px; border-radius: 18px; border: 1px solid var(--dk-bd, #E3E9F2); background: var(--dk-surface, #fff); }
+.exp { display: grid; gap: 10px; padding: 16px 18px; border-radius: 18px; border: 1px solid var(--line); background: var(--dk-surface, #fff); }
 .exp__h { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .exp__h p { margin: 4px 0 0; font-size: .82rem; color: var(--gray); }
 .exp__empty, .exp__muted { margin: 0; font-size: .8rem; color: var(--gray); }
@@ -12,9 +12,9 @@
 .exp__chip[data-s="rejected"] { background: color-mix(in srgb, #dc2626 16%, transparent); }
 .exp__desc { margin: 0; font-size: .84rem; color: var(--ink); white-space: pre-line; }
 .exp__reason { font-size: .8rem; color: #dc2626; }
-.exp__form { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; padding: 12px; border-radius: 12px; border: 1px dashed var(--dk-bd, #E3E9F2); }
+.exp__form { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 10px; padding: 12px; border-radius: 12px; border: 1px dashed var(--line); }
 .exp__form label { display: grid; gap: 4px; font-size: .8rem; color: var(--gray); }
-.exp__form select, .exp__form input, .exp__form textarea { min-height: 36px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--dk-bd, #E3E9F2); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; font-size: .86rem; }
+.exp__form select, .exp__form input, .exp__form textarea { min-height: 36px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; font-size: .86rem; }
 .exp__wide { grid-column: 1 / -1; }
 .exp__acts { display: flex; justify-content: flex-end; gap: 8px; }
 @media (max-width: 640px) { .exp__form { grid-template-columns: 1fr; } }
@@ -30,7 +30,7 @@
 .exp__check { display: flex !important; align-items: center; gap: 8px; color: var(--ink) !important; }
 .exp__pick { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; border: 0; }
 .exp__pick legend { width: 100%; margin-bottom: 4px; font-size: .8rem; color: var(--gray); }
-.exp__pick label { display: inline-flex !important; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--dk-bd, #E3E9F2); font-size: .78rem; color: var(--ink) !important; cursor: pointer; }
+.exp__pick label { display: inline-flex !important; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); font-size: .78rem; color: var(--ink) !important; cursor: pointer; }
 .exp__pick label[data-on] { border-color: var(--brand, #2563eb); background: color-mix(in srgb, var(--brand, #2563eb) 12%, transparent); }
 .exp__pick label:focus-within { outline: 2px solid color-mix(in srgb, var(--brand, #2563eb) 45%, transparent); outline-offset: 1px; }
 .exp__pick input { position: absolute; opacity: 0; width: 1px; height: 1px; }
