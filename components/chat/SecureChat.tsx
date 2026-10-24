@@ -11,6 +11,8 @@ import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/c
 import { CALL_LINK_RE, isMachineFileName, maskContacts } from "@/lib/chatFilter";
 import { getToken } from "@/lib/client";
 import { backoffMs, contactBlockedOf, errDetail, isConflict, logApiError, refreshAccessToken } from "@/lib/http";
+import { secureUploadProblem, secureUploadRefusal } from "@/lib/secureUpload";
+import { useSecureUploadText } from "./useSecureUploadText";
 import { playRingtone, primeCallAudio } from "@/lib/callSounds";
 import {
   getSecureMessages,
@@ -692,6 +694,7 @@ export default function SecureChat({
   status?: string;
 }) {
   const t = useTranslations("secureChat");
+  const uploadText = useSecureUploadText();
   // Status words are the shared backend-enum vocabulary, translated by
   // statusLabel out of portal.common — the same source the inbox and the
   // call-centre board read, so one record never reads "Yakunlandi" on the
@@ -1512,7 +1515,9 @@ export default function SecureChat({
       setMsgs((prev) => prev.map((x) => (x.id === tempId ? { ...x, pending: false, failed: true } : x)));
       // The completed-room 409 is not the "try again" the generic notice
       // promises — the finished banner says so instead.
+      const refused = secureUploadRefusal(e, name);
       if (isConflict(e)) setFinished(true);
+      else if (refused) notify.error(uploadText(refused), { id: `schat-attach-${roomId}`, body: name });
       else notify.error(t("attachFailed"), { id: `schat-attach-${roomId}`, error: e });
     } finally {
       setAttachBusy(false);
@@ -1526,10 +1531,11 @@ export default function SecureChat({
     if (!list.length || finished) return;
     const add: PendingFile[] = [];
     for (const f of list) {
-      // 25 MB — past this the upload reliably times out on a phone connection
-      // and the failure arrives long after the user has moved on.
-      if (f.size > 25 * 1024 * 1024) {
-        notify.error(t("attachTooBig"), { id: `schat-attach-${roomId}-${f.name}`, body: f.name });
+      // The backend's type list and size limits (lib/secureUpload), so a
+      // file it would refuse never goes up only to fail in the bubble.
+      const problem = secureUploadProblem(f);
+      if (problem) {
+        notify.error(uploadText(problem), { id: `schat-attach-${roomId}-${f.name}`, body: f.name });
         continue;
       }
       add.push({ id: tmpId(), file: f, url: f.type.startsWith("image/") ? URL.createObjectURL(f) : "" });

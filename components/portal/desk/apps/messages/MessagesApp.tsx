@@ -17,6 +17,8 @@ import type { NativeProps } from "../../native";
 import Attachment from "./Attachment";
 import { useChat, type ChatError, type ChatMsg } from "./useChat";
 import "./messages.css";
+import { SECURE_UPLOAD_ACCEPT, secureUploadProblem, type SecureUploadProblem } from "@/lib/secureUpload";
+import { useSecureUploadText } from "@/components/chat/useSecureUploadText";
 
 // Messages as a desktop program — Messages on the Mac, Teams' chat on
 // Windows: the conversations on the left with who, the last word and what
@@ -297,9 +299,11 @@ function Conversation({ roomId, room, title, urgentId, service, workId, join, pi
   const me = session?.id ?? "";
   const [toast, say] = useToast();
   const [confirmNode, confirm] = useConfirm();
-  const onError = (e: ChatError, detail?: string) =>
+  const uploadText = useSecureUploadText();
+  const onError = (e: ChatError, detail?: string, upload?: SecureUploadProblem | null) =>
     say(
       detail ||
+        (upload ? uploadText(upload) : "") ||
         { send: t("wsSendFailed"), attach: t("attachFailed"), call: t("callFailed"), session: t("wsSessionExpired"), forbidden: t("wsForbidden"), settings: t("settingsFailed"), delete: t("deleteFailed"), complete: t("completeFailed"), mic: t("micDenied") }[e],
       "err",
     );
@@ -422,7 +426,8 @@ function Conversation({ roomId, room, title, urgentId, service, workId, join, pi
     const f = files?.[0];
     if (file.current) file.current.value = "";
     if (!f) return;
-    if (f.size > 25 * 1024 * 1024) return say(t("attachTooBig"), "err");
+    const problem = secureUploadProblem(f);
+    if (problem) return say(uploadText(problem), "err");
     void chat.attach(f, "file", f.name, reply);
     setReply(null);
   }
@@ -625,7 +630,7 @@ function Conversation({ roomId, room, title, urgentId, service, workId, join, pi
               <button type="button" className="dxm-cb" onClick={() => file.current?.click()} aria-label={t("attachFile")} title={t("attachFile")}>
                 <IconPaperclip />
               </button>
-              <input ref={file} type="file" hidden onChange={(e) => pickFile(e.target.files)} />
+              <input ref={file} type="file" accept={SECURE_UPLOAD_ACCEPT} hidden onChange={(e) => pickFile(e.target.files)} />
               <textarea ref={field} className="dxm-field" rows={1} value={text} onChange={(e) => setText(e.target.value)} onKeyDown={onKey} placeholder={t("placeholder")} aria-label={t("placeholder")} maxLength={4000} />
               {text.trim() ? (
                 <button type="button" className="dxm-cb dxm-cb--send" onClick={send} aria-label={t("send")} title={t("send")}>

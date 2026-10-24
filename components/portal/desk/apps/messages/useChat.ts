@@ -8,6 +8,7 @@ import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/c
 import { playRingtone, primeCallAudio } from "@/lib/callSounds";
 import { VoiceRecorder } from "@/lib/voiceRecorder";
 import { completeUrgentChat, deleteSecureChat, getSecureMessages, listCalls, normSecureMsgCore, normSecureMsgFile, secureSocketUrl, sendSecureMessage, setChatAutoDelete, startCall, uploadSecureMessage, type CallSession, type LiveKitJoin, type SecureMessage } from "@/lib/services/backend";
+import { secureUploadRefusal, type SecureUploadProblem } from "@/lib/secureUpload";
 
 // One secure chat room for the desktop's Messages app: the history, the
 // room's socket (reconnecting with a back-off, re-reading the history after
@@ -32,7 +33,7 @@ const fresh = (c: CallSession, me: string) => {
   return age >= -30_000 && age <= INCOMING_MAX_MS;
 };
 
-export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e: ChatError, detail?: string) => void; callTitle: (kind: "audio" | "video") => string }) {
+export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e: ChatError, detail?: string, upload?: SecureUploadProblem | null) => void; callTitle: (kind: "audio" | "video") => string }) {
   const { session } = useAuth();
   const me = session?.id ?? "";
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
@@ -299,7 +300,7 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
     } catch (e) {
       setMsgs((p) => p.map((x) => (x.id === tmp.id ? { ...x, pending: false, failed: true } : x)));
       if (isConflict(e)) setFinished(true);
-      else errRef.current("attach");
+      else errRef.current("attach", undefined, secureUploadRefusal(e, name));
     }
   }
   async function voice(reply: ChatMsg | null) {

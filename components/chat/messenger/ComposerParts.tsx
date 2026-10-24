@@ -6,6 +6,7 @@ import { Camera, FileText, Film, Image as ImageIcon, Paperclip, Pause, Play, Sen
 import { levelOf } from "@/components/VoicePill";
 import { VoiceNotePlayer } from "@/components/portal/AttachmentPreview";
 import { voiceDuration, type VoiceNote, type VoiceRecorder } from "@/lib/voiceRecorder";
+import { SECURE_UPLOAD_ACCEPT } from "@/lib/secureUpload";
 
 // The secure chat composer's own controls, kept out of SecureChat.tsx:
 //   VoiceBar     record with a live waveform, pause and carry on, then
@@ -223,7 +224,7 @@ export function AttachMenu({ disabled, onPick, busy }: { disabled: boolean; busy
   ];
   return (
     <span className="mxa" ref={box}>
-      <input ref={fileIn} type="file" multiple hidden onChange={take} />
+      <input ref={fileIn} type="file" accept={SECURE_UPLOAD_ACCEPT} multiple hidden onChange={take} />
       <input ref={mediaIn} type="file" accept="image/*,video/*" multiple hidden onChange={take} />
       <input ref={cameraIn} type="file" accept="image/*" capture="environment" hidden onChange={take} />
       <button type="button" className="mxr__ib" onClick={() => setOpen((v) => !v)} disabled={disabled} aria-haspopup="menu" aria-expanded={open} aria-label={t("attachFile")} title={t("attachFile")} data-busy={busy ? "" : undefined}>

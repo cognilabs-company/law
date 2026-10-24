@@ -102,7 +102,7 @@ function Voice({ roomId, msg }: { roomId: string; msg: ChatMsg }) {
   );
 }
 
-function Photo({ roomId, msg, name }: { roomId: string; msg: ChatMsg; name: string }) {
+function Photo({ roomId, msg, name, onBroken }: { roomId: string; msg: ChatMsg; name: string; onBroken: () => void }) {
   const t = useTranslations("secureChat");
   const host = useRef<HTMLSpanElement>(null);
   const [want, setWant] = useState(false);
@@ -125,7 +125,7 @@ function Photo({ roomId, msg, name }: { roomId: string; msg: ChatMsg; name: stri
       {url ? (
         <button type="button" onClick={() => setOpen(host.current?.closest(".dx") ?? null)} title={t("imageOpen")}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt={name} />
+          <img src={url} alt={name} onError={onBroken} />
         </button>
       ) : (
         <span className="dxm-photo__ph">{err ? t("attachFailed") : msg.pending ? t("attachSending") : <Spinner small />}</span>
@@ -190,7 +190,10 @@ export default function Attachment({ roomId, msg }: { roomId: string; msg: ChatM
   const t = useTranslations("secureChat");
   const voice = msg.messageType === "voice";
   const name = msg.file?.fileName || (voice ? t("voiceNote") : t("fileGeneric"));
+  // A picture the browser cannot draw (an iPhone's HEIC: the backend keeps
+  // it as sent, with no JPEG copy) becomes the file chip, to save instead.
+  const [broken, setBroken] = useState(false);
   if (voice) return <Voice roomId={roomId} msg={msg} />;
-  if (isImage(msg.file)) return <Photo roomId={roomId} msg={msg} name={name} />;
+  if (isImage(msg.file) && !broken) return <Photo roomId={roomId} msg={msg} name={name} onBroken={() => setBroken(true)} />;
   return <Doc roomId={roomId} msg={msg} name={name} />;
 }

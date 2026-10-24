@@ -131,7 +131,7 @@ export default function ChatFilePreview({
   else if (status === "error") body = fallback(t("previewFailed"));
   else if (kind === "image")
     // eslint-disable-next-line @next/next/no-img-element
-    body = <img className="sprev__img" src={url} alt={file.fileName} />;
+    body = <img className="sprev__img" src={url} alt={file.fileName} onError={() => setLoadState("error")} />;
   else if (kind === "pdf")
     body = (
       <object className="sprev__pdf" data={url} type="application/pdf" aria-label={file.fileName}>
