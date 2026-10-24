@@ -70,24 +70,12 @@ html[data-theme="dark"] .cgn__ok {
   align-items: center;
   gap: 6px;
   max-width: 100%;
-  padding: 2px 4px 2px 8px;
+  padding: 3px 10px;
   border-radius: 999px;
   background: var(--dk-surface, #fff);
   box-shadow: inset 0 0 0 1px var(--dk-bd-err, rgba(217, 48, 37, 0.25));
-}
-.cgn__hit small {
   font-size: 0.72rem;
   font-weight: 700;
-}
-.cgn__hit code {
-  overflow: hidden;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: color-mix(in srgb, currentColor 10%, transparent);
-  font: 600 0.75rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
-  text-decoration: line-through;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .cgn__why {
   color: var(--gray);

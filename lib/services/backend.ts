@@ -13,6 +13,7 @@ import type { ProfessionalProfile } from "@/lib/types";
 import { uzs, uzsOpt, fmtUzs } from "@/lib/money";
 import { attributionDetails } from "@/lib/attribution";
 import { applyCategoryOverrides, applyPlanOverride, applyPlanOverrides, categoryOverridesFrom, planOverridesFrom, type OverlaidPlan } from "@/lib/catalogOverlay";
+import { stripContacts } from "@/lib/contactGuard";
 
 // ── Auth ──────────────────────────────────────────────────────────
 export type BackendRole =
@@ -558,7 +559,9 @@ export async function upsertMyLawyer(
       lawyer_experience_years: p.lawyerYears ?? p.experienceYears ?? 0,
       specializations: p.practiceAreas,
       languages: p.languages,
-      bio: p.bio ?? "",
+      // Never a phone, username or link: the field strips them as typed,
+      // and whatever slipped past is taken out here too.
+      bio: stripContacts(p.bio ?? "", true).text,
       education: p.education ?? "",
       total_cases: p.stats?.totalCases ?? 0,
       wins_count: p.stats?.fullyWonCases ?? 0,

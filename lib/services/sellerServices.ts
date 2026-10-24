@@ -6,6 +6,7 @@ import { getPublicPricingPolicy, readPriceModifiers, type PriceModifier } from "
 import { listNotificationsRich } from "@/lib/services/notify";
 import type { UserEvent } from "@/lib/userSocket";
 import { promotionCheckoutLapse } from "@/lib/services/promotions";
+import { stripContacts } from "@/lib/contactGuard";
 
 export const SERVICE_STATUSES = ["active", "paused", "inactive"] as const;
 export type ServiceStatus = (typeof SERVICE_STATUSES)[number];
@@ -193,7 +194,8 @@ function normProfile(v: unknown): ServiceSellerProfile {
 
 const bodyOf = (i: ServiceInput) => ({
   selected_price: Math.max(0, Math.round(i.selectedPrice || 0)),
-  experience_note: i.experienceNote.trim().slice(0, NOTE_MAX),
+  // Contact details never leave the browser (lib/contactGuard).
+  experience_note: stripContacts(i.experienceNote, true).text.slice(0, NOTE_MAX),
   status: i.status,
 });
 

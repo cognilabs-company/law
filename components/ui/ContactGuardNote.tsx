@@ -1,7 +1,7 @@
 "use client";
 
 import "./contactGuard.css";
-import { useState, type SyntheticEvent } from "react";
+import { useRef, useState, type SyntheticEvent } from "react";
 import { useTranslations } from "next-intl";
 import { IconLock, IconShieldCheck } from "@/components/icons";
 import { stripContacts, type ContactHit } from "@/lib/contactGuard";
@@ -17,7 +17,9 @@ export type ContactRefusal = { message: string; preview?: string };
 export default function ContactGuardNote({ id, hits, removed = [], server = null }: { id?: string; hits: readonly ContactHit[]; removed?: readonly ContactHit[]; server?: ContactRefusal | null }) {
   const t = useTranslations("common.contactGuard");
   const blocked = hits.length > 0 || removed.length > 0 || !!server;
-  const shown = [...hits, ...removed];
+  // Only the kind of each find, never its value: the note must not repeat
+  // the number or the username it is keeping off the page.
+  const shown = [...new Set([...hits, ...removed].map((h) => h.kind))];
   return (
     <div id={id} className="cgn" data-blocked={blocked ? "" : undefined}>
       {blocked ? (
@@ -29,10 +31,9 @@ export default function ContactGuardNote({ id, hits, removed = [], server = null
             <b>{t("title")}</b>
             {shown.length ? (
               <span className="cgn__hits">
-                {shown.map((h, i) => (
-                  <span key={`${h.kind}-${i}`} className="cgn__hit">
-                    <small>{t(`kind.${h.kind}`)}</small>
-                    <code>{h.text}</code>
+                {shown.map((kind) => (
+                  <span key={kind} className="cgn__hit">
+                    {t(`kind.${kind}`)}
                   </span>
                 ))}
               </span>
@@ -51,28 +52,83 @@ export default function ContactGuardNote({ id, hits, removed = [], server = null
   );
 }
 
-// Keeps contact details out of a field: what the lawyer types or pastes
-// goes through stripContacts, and what it took stays listed in the note
-// until reset() (a new entry, another service).
+// What of the newly typed `added` still belongs to a contact just taken:
+// the rest of a word (a username, an address), or for a phone number its
+// remaining digits and separators until it is a whole number.
+function eatOf(tail: ContactHit, added: string): { eaten: string; done: boolean } {
+  if (tail.kind !== "phone") {
+    const eaten = /^\S*/.exec(added)?.[0] ?? "";
+    return { eaten, done: eaten.length < added.length };
+  }
+  const d = tail.text.replace(/\D/g, "");
+  const limit = d.startsWith("998") ? 12 : tail.text.trim().startsWith("+") ? 15 : d.startsWith("8") ? 10 : 9;
+  let n = d.length;
+  let i = 0;
+  for (; i < added.length && n < limit && /[\d\s().\-–]/.test(added[i]); i++) if (/\d/.test(added[i])) n++;
+  return { eaten: added.slice(0, i), done: i < added.length || n >= limit };
+}
+
+// Keeps contact details out of a field: whatever the lawyer types or
+// pastes goes through stripContacts, and what it took stays listed in the
+// note until reset() (a new entry, another service). A contact taken while
+// it was still being typed ("@akhm" of "@akhmad") keeps eating what is typed
+// straight after it, up to the next space, so no tail ("ad") is left behind.
 export function useContactStrip(set: (text: string) => void) {
   const [removed, setRemoved] = useState<ContactHit[]>([]);
-  const apply = (text: string, all: boolean, el?: HTMLTextAreaElement | HTMLInputElement | null) => {
-    const r = stripContacts(text, all);
-    if (r.removed.length) setRemoved(r.removed);
+  const last = useRef<string | null>(null);
+  const eating = useRef<ContactHit | null>(null);
+  // Right after a cut, a space typed next to a space would double it.
+  const seam = useRef(false);
+  const apply = (raw: string, finish: boolean, el?: HTMLTextAreaElement | HTMLInputElement | null) => {
+    let text = raw;
+    let eaten = "";
+    const prev = last.current;
+    const tail = eating.current;
+    const appended = prev !== null && text.length > prev.length && text.startsWith(prev);
+    if (appended && (tail || seam.current)) {
+      const added = text.slice(prev.length);
+      const bite = tail ? eatOf(tail, added) : { eaten: "", done: true };
+      eaten = bite.eaten;
+      let rest = added.slice(eaten.length);
+      if (!prev || /\s$/.test(prev)) rest = rest.replace(/^[ \t]+/, "");
+      text = prev + rest;
+      if (bite.done) eating.current = null;
+      if (/\S/.test(rest)) seam.current = false;
+    } else {
+      eating.current = null;
+      seam.current = false;
+    }
+    const r = stripContacts(text, finish);
+    if (r.removed.length) {
+      setRemoved((cur) => [...cur, ...r.removed.filter((h) => !cur.some((c) => c.kind === h.kind && c.text === h.text))]);
+      eating.current = finish ? null : r.tail;
+      seam.current = !finish;
+    } else if (eaten && tail) {
+      // The note shows the whole contact, not just the part first caught.
+      const grown = { ...tail, text: tail.text + eaten };
+      if (eating.current) eating.current = grown;
+      setRemoved((cur) => cur.map((h) => (h.kind === tail.kind && h.text === tail.text ? grown : h)));
+    }
+    last.current = r.text;
     set(r.text);
     // A cut before the caret would throw it to the end; put it back.
-    if (el && r.text !== text && el.selectionStart != null) {
-      const caret = Math.max(0, el.selectionStart - (text.length - r.text.length));
+    if (el && r.text !== raw && el.selectionStart != null) {
+      const caret = Math.max(0, el.selectionStart - (raw.length - r.text.length));
       requestAnimationFrame(() => el.setSelectionRange(caret, caret));
     }
   };
   return {
     removed,
-    reset: () => setRemoved([]),
-    change: (text: string, e?: SyntheticEvent<HTMLTextAreaElement | HTMLInputElement>) => {
-      const kind = (e?.nativeEvent as InputEvent | undefined)?.inputType ?? "";
-      apply(text, kind === "insertFromPaste" || kind === "insertFromDrop", e?.currentTarget);
+    reset: () => {
+      setRemoved([]);
+      eating.current = null;
+      seam.current = false;
+      last.current = null;
     },
-    blur: (text: string) => apply(text, true),
+    change: (text: string, e?: SyntheticEvent<HTMLTextAreaElement | HTMLInputElement>) => apply(text, false, e?.currentTarget),
+    blur: (text: string) => {
+      eating.current = null;
+      apply(text, true);
+    },
   };
 }
