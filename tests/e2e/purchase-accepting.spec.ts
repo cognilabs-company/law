@@ -86,3 +86,16 @@ test("the assigned lawyer sees the request on the order page and accepts it", as
   await page.getByRole("button", { name: "Qabul qilish" }).click();
   await expect.poll(() => accepted).toBe(true);
 });
+
+test("an assignment the seller list leaves out still shows, read from /orders", async ({ page }) => {
+  const waiting = sent();
+  const routes = await signIn(page, ADVOCATE, {
+    // The live seller list carries only accepted orders (24 Oct 2026).
+    "/marketplace/me/orders": { items: [], total: 0 },
+    "/orders": { items: [{ id: ORDER_ID, source: "marketplace", status: "sent_to_seller", work_id: "ORD-TEST1" }, { id: "other", source: "web", status: "new" }] },
+    [`/marketplace/me/orders/${ORDER_ID}`]: () => waiting,
+  });
+  await mockBackend(page, routes);
+  await page.goto("/uz/portal/advocate/marketplace-orders");
+  await expect(page.getByText("Yangi buyurtma — javobingiz kutilmoqda")).toBeVisible();
+});

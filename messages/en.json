@@ -6919,7 +6919,7 @@
       "clientTitle": "My service orders",
       "clientLead": "Services you bought in the marketplace: status, chat and calls.",
       "sellerTitle": "Service orders",
-      "sellerLead": "Marketplace orders with a confirmed payment.",
+      "sellerLead": "Orders that came to you through the marketplace. Answer new ones within the time given.",
       "tabs": {
         "all": "All",
         "pending": "Awaiting payment",

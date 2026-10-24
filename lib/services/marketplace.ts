@@ -1088,6 +1088,23 @@ export async function listMarketplaceOrders(roleView: "client" | "seller", opts:
   return items.map(normMarketOrder).filter((o) => o.id);
 }
 
+// Orders assigned to this seller and still waiting for their answer. The
+// seller list (role_view=seller) leaves them out (seen 24 Oct 2026), while
+// GET /orders has them and the order detail opens for the seller, so they
+// are read from there and put first. A failure here never hides the rest.
+const SELLER_WAITING = new Set(["sent_to_seller", "awaiting_seller", "assigned", "seller_assigned"]);
+export async function listSellerAssignments(known: ReadonlySet<string>, signal?: AbortSignal): Promise<MarketOrder[]> {
+  const d = await http("/orders", { signal });
+  const rows = (Array.isArray(d) ? d : asArr(asDict(d).orders ?? asDict(d).items)).map(asDict);
+  const ids = rows
+    .filter((r) => asStr(r.source).toLowerCase() === "marketplace" && SELLER_WAITING.has(asStr(r.status).toLowerCase()) && !known.has(asStr(r.id)))
+    .map((r) => asStr(r.id))
+    .filter(Boolean)
+    .slice(0, 20);
+  const got = await Promise.allSettled(ids.map((id) => http(`/marketplace/me/orders/${encodeURIComponent(id)}`, { signal })));
+  return got.flatMap((g) => (g.status === "fulfilled" ? [normMarketOrder(asDict(g.value).order ?? g.value)] : [])).filter((o) => o.id && awaitingSeller(o));
+}
+
 export type MarketOrderPage = { items: MarketOrder[]; count: number; raw: Dict };
 
 export async function listMarketplaceOrdersPage(roleView: "client" | "seller", opts: { limit?: number; offset?: number; signal?: AbortSignal } = {}): Promise<MarketOrderPage> {

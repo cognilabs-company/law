@@ -21,6 +21,7 @@ import {
   MARKET_EVENT,
   cancelMarketplaceOrder,
   listMarketplaceOrders,
+  listSellerAssignments,
   marketChatHref,
   marketPhaseOf,
   awaitingSeller,
@@ -84,7 +85,10 @@ export default function MarketOrders({ view }: { view: View }) {
       const my = ++seq.current;
       if (soft) setRefreshing(true);
       try {
-        const list = await listMarketplaceOrders(view);
+        const base = await listMarketplaceOrders(view);
+        // New assignments the seller list does not carry yet come first.
+        const extra = view === "seller" ? await listSellerAssignments(new Set(base.map((o) => o.id))).catch(() => []) : [];
+        const list = [...extra, ...base];
         if (my !== seq.current) return;
         rememberMarketOrders(list, ownerRef.current);
         setOrders(list);

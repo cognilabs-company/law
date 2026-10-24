@@ -195,6 +195,12 @@ export function notifLink(event: string, category: NotifCategory, data: Dict, ro
     const base = `/portal/${role}/marketplace-orders`;
     return orderId ? `${base}/${encodeURIComponent(orderId)}` : base;
   }
+  // An order assigned to this seller (marketplace.assignment_received and
+  // the rest of the dotted marketplace events): straight to that order,
+  // where it can be accepted or declined.
+  if (/^marketplace[._]/.test(event) && role !== "client" && asStr(data.order_id).trim()) {
+    return `/portal/${role}/marketplace-orders/${encodeURIComponent(asStr(data.order_id).trim())}`;
+  }
   if (event.startsWith("marketplace_")) {
     if (role !== "client") return `/portal/${role}/marketplace-orders`;
     return event === "marketplace_purchase_approved" && roomId ? `/portal/chat/${roomId}` : "/portal/client/marketplace-orders";
