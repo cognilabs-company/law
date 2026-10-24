@@ -8,11 +8,12 @@ import { useAuth } from "@/lib/auth";
 import { SxEmpty } from "@/components/admin/studio/sx/layout/Empty";
 import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { SxButton, SxLinkButton } from "@/components/admin/studio/sx/Button";
-import { normMarketOrder, type MarketOrder, type MarketPhase } from "@/lib/services/marketplace";
+import { awaitingSeller, normMarketOrder, type MarketOrder, type MarketPhase } from "@/lib/services/marketplace";
 import { normOrderChecklist, type OrderStart } from "@/lib/services/marketRuntime";
 import { ComplaintPanel, RatingPanel, ResultBlock, SupplementalPanel } from "../OrderExtras";
 import CancellationRequest from "./CancellationRequest";
 import WarrantyPanel from "./WarrantyPanel";
+import AwaitingSeller from "./AwaitingSeller";
 import ResolutionPanel from "./ResolutionPanel";
 import NegotiationPanel from "./NegotiationPanel";
 import { useNotedNegotiation } from "./negotiationStore";
@@ -106,6 +107,9 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDe
   // else applies until the client chooses or the operator acts.
   if (o.status === "resolution_required") {
     parts = [documents];
+  } else if (phase === "pending" && awaitingSeller(o)) {
+    // Still with the seller to accept: no payment is due yet.
+    parts = [client ? <AwaitingSeller key="awaiting" o={o} onRefresh={() => d.refresh("order")} /> : null, documents];
   } else if (phase === "pending") {
     parts = [
       <NegotiationPanel key="negotiation" {...section} />,

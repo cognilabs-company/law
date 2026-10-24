@@ -26,6 +26,7 @@ import {
   type PurchaseUrgency,
 } from "@/lib/services/marketplace";
 import { useMarketOrderTracker } from "@/lib/useMarketOrderTracker";
+import { clockOf, useCountdown } from "@/lib/useCountdown";
 import { trackPromoContact } from "@/lib/services/promoEvents";
 import { usePriceOptions, EMPTY_PRICE, type PriceState } from "@/components/marketplace/PriceOptions";
 import { useIntakeAttachments, mmss, type Voice } from "@/components/marketplace/IntakeAttachments";
@@ -49,8 +50,8 @@ import type { NativeProps } from "../../native";
 
 const CHANNEL_ICON = { chat: IconChat, audio: IconPhone, video: IconVideo, meeting: IconUsers } as const;
 const NOTE_MAX = 1000;
-const STEPS = ["request", "confirm", "chat"] as const;
-const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, paid: 2, chat: 2, completed: 3, cancelled: 1 };
+const STEPS = ["request", "accept", "confirm", "chat"] as const;
+const STEP_OF: Record<MarketTrackPhase, number> = { accepting: 1, pending: 2, paid: 3, chat: 3, completed: 4, cancelled: 1 };
 
 type Props = {
   sellerUserId: string;
@@ -96,13 +97,14 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   const tracked = done ?? active;
   const track = useMarketOrderTracker(tracked ? tracked.orderId : "", tracked ? tracked.workId : "", tracked ? tracked.status : "");
   const checkout = useRuntimeFacts(service.id, "checkout", { enabled: !pkg });
+  const left = useCountdown(done?.accepting ? done.deadlineAt : "", () => track?.recheck());
 
   const phase: MarketTrackPhase | null = tracked ? (track?.phase ?? phaseOfStatus(tracked.status)) : null;
   const step = phase ? STEP_OF[phase] : 0;
   const failed = phase === "cancelled";
   const slow = !!track && (track.slow || track.offline);
   const ended = !!track?.ended;
-  const live = !!track && !slow && !ended && (phase === "pending" || phase === "paid");
+  const live = !!track && !slow && !ended && (phase === "accepting" || phase === "pending" || phase === "paid");
   const isActive = !done && !!active;
   const rtDur = !pkg && checkout.config && durationParts(checkout.config.duration) ? checkout.config.duration : null;
   const delivery = pkg?.duration || (rtDur ? durText(rtDur) : deliveryLabel(tm, service.deliveryMinutes));
@@ -145,14 +147,16 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   }
 
   const titles: Record<MarketTrackPhase, string> = {
-    pending: isActive ? t("active") : t("sentTitle"),
+    accepting: isActive ? t("active") : t("acceptTitle"),
+    pending: isActive ? t("active") : t("advanceTitle"),
     paid: isActive ? t("activePaid") : t("paidTitle"),
     chat: isActive ? t("activePaid") : t("chatTitle"),
     completed: t("completedTitle"),
     cancelled: t("rejectedTitle"),
   };
   const leads: Record<MarketTrackPhase, string> = {
-    pending: track?.slow ? t("slow") : t("sentLead"),
+    accepting: done?.message || t("acceptLead"),
+    pending: track?.slow ? t("slow") : t("advanceLead"),
     paid: track?.slow ? t("paidNoRoom") : "",
     chat: t("chatLead"),
     completed: "",
@@ -245,17 +249,18 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
       {phase ? (
         <div className={`dxcp-receipt is-${phase}`} role="status">
           <span className="dxcp-stamp" aria-hidden>
-            {phase === "pending" ? <IconHourglass /> : phase === "cancelled" ? <IconClose /> : <IconCheck />}
+            {phase === "pending" || phase === "accepting" ? <IconHourglass /> : phase === "cancelled" ? <IconClose /> : <IconCheck />}
           </span>
           <b>{titles[phase]}</b>
           {tracked?.workId ? <code className="dxcw-code">{tracked.workId}</code> : null}
-          {phase === "pending" || phase === "paid" ? (
+          {phase === "accepting" || phase === "pending" || phase === "paid" ? (
             <span className={`dxcp-live${live ? " is-live" : ""}`}>
               <i aria-hidden />
-              {phase === "pending" ? t("pending") : t("paidPreparing")}
+              {phase === "accepting" ? (left ? t("acceptWaitClock", { time: clockOf(left) }) : left === 0 ? t("acceptOver") : t("acceptWait")) : phase === "pending" ? t("pending") : t("paidPreparing")}
             </span>
           ) : null}
           {leads[phase] ? <p>{leads[phase]}</p> : null}
+          {phase === "accepting" ? <p>{done?.advanceAmount ? t("advanceNext", { amount: fmtUzs(done.advanceAmount) }) : t("advanceNextPlain")}</p> : null}
           {live ? <small>{t("liveNote")}</small> : null}
           {phase === "pending" && done && !done.telegramSent ? <Banner tone="warn">{t("notDelivered")}</Banner> : null}
           {track?.offline && !ended && (phase === "pending" || phase === "paid") ? (

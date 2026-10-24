@@ -16,6 +16,7 @@ import { fmtUzs } from "@/lib/money";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { chooseOrderResolution, escalationClosed, getOrderRefund, getOrderTimeline, idemKeyFor, idemLost, idemSettle, isResolutionEvent, type IdemSlot, type OrderRefund, type ResolutionChoice, type TimelineItem } from "@/lib/services/resolution";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
+import { useCountdown } from "@/lib/useCountdown";
 import type { OrderSectionProps } from "./types";
 
 // The client's side of an assignment the seller declined or let expire
@@ -26,27 +27,6 @@ import type { OrderSectionProps } from "./types";
 
 const REFUND_STATUSES = new Set(["refund_pending", "refunded"]);
 
-function useCountdown(deadline: string, onZero: () => void): number | null {
-  const [now, setNow] = useState(() => Date.now());
-  const zero = useRef(onZero);
-  useEffect(() => {
-    zero.current = onZero;
-  });
-  const end = deadline ? Date.parse(deadline) : NaN;
-  useEffect(() => {
-    if (!Number.isFinite(end)) return;
-    const id = window.setInterval(() => {
-      const t = Date.now();
-      setNow(t);
-      if (t >= end) {
-        window.clearInterval(id);
-        zero.current();
-      }
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [end]);
-  return Number.isFinite(end) ? Math.max(0, Math.round((end - now) / 1000)) : null;
-}
 
 export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSectionProps & { onRefresh: () => void }): ReactElement | null {
   const t = useTranslations("marketplace.orderDetail.resolution");

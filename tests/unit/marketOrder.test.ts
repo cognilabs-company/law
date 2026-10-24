@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isOrderPending, marketPaymentSignalOf, marketPhaseOf, marketSignalOf, normMarketOrder } from "@/lib/services/marketplace";
+import { awaitingSeller, isOrderPending, marketPaymentSignalOf, marketPhaseOf, marketSignalOf, normMarketOrder, phaseOfStatus, purchaseOf, trackPhaseOf } from "@/lib/services/marketplace";
 
 // Trimmed from live GET /marketplace/me/orders/{id} responses (24 Oct 2026).
 const paidOrder = (extra: Record<string, unknown> = {}) => ({
@@ -132,5 +132,37 @@ describe("pricing snapshot and resolution (contract of 24 Oct 2026)", () => {
     expect(o.resolution).toMatchObject({ canChoose: true, offer: { options: ["reassign", "refund"] } });
     expect(marketPhaseOf(normMarketOrder({ id: "o", status: "refund_pending", payment_status: "paid" }))).toBe("cancelled");
     expect(normMarketOrder({ id: "o", status: "paid" }).resolution).toBeNull();
+  });
+});
+
+describe("waiting for the seller to accept (live shape, 24 Oct 2026)", () => {
+  const live = {
+    id: "o9",
+    status: "sent_to_seller",
+    payment_status: "unpaid",
+    price: 879749,
+    currency: "UZS",
+    payment: { target_type: "marketplace_advance", status: "awaiting_seller_acceptance", amount: 87974, currency: "UZS", provider_payload: { stage: "advance" } },
+    details: {
+      assignment_mode: "client_selected_external",
+      assignment_status: "waiting_seller_response",
+      acceptance_deadline_at: "2026-10-24T11:36:08Z",
+      seller_response_minutes: 30,
+      client_status: "request_received",
+      client_status_message: "So‘rovingiz qabul qilindi. Xizmat boshlanishi bo‘yicha tez orada xabar beramiz.",
+    },
+  };
+  it("is not read as paid anywhere", () => {
+    const o = normMarketOrder(live);
+    expect(awaitingSeller(o)).toBe(true);
+    expect(trackPhaseOf(o)).toBe("accepting");
+    expect(phaseOfStatus("sent_to_seller")).toBe("accepting");
+    expect(marketPhaseOf(o)).toBe("pending");
+    expect(o.advance).toEqual({ status: "awaiting_seller_acceptance", amount: 87974, currency: "UZS" });
+    expect(o.clientMessage).toMatch(/qabul qilindi/);
+  });
+  it("reads the purchase answer the same way", () => {
+    const p = purchaseOf({ work_id: "ADV-5IIPV", order: { ...live, payment: undefined }, payment: live.payment });
+    expect(p).toMatchObject({ accepting: true, deadlineAt: "2026-10-24T11:36:08Z", advanceAmount: 87974, amount: 879749 });
   });
 });

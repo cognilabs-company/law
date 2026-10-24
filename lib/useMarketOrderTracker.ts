@@ -32,7 +32,9 @@ export type MarketOrderTrack = {
   recheck: () => void;
 };
 
-const RANK: Record<MarketTrackPhase, number> = { pending: 0, paid: 1, chat: 2, completed: 3, cancelled: 3 };
+const RANK: Record<MarketTrackPhase, number> = { accepting: 0, pending: 1, paid: 2, chat: 3, completed: 4, cancelled: 4 };
+// The seller has 30 minutes to accept; watch a little longer than that.
+const ACCEPT_BUDGET_MS = 35 * 60 * 1000;
 
 const isFinal = (p: MarketTrackPhase) => p === "completed" || p === "cancelled";
 
@@ -65,7 +67,7 @@ export function useMarketOrderTracker(orderId: string, workId: string, initialSt
     const apply = (f: (s: Snap) => Snap) => setState((cur) => f(cur && cur.key === key ? cur : seed));
     const ctrl = new AbortController();
     const started = Date.now();
-    const budget = phase === "paid" ? PAID_NO_ROOM_MS : PENDING_BUDGET_MS;
+    const budget = phase === "paid" ? PAID_NO_ROOM_MS : phase === "accepting" ? ACCEPT_BUDGET_MS : PENDING_BUDGET_MS;
     let alive = true;
     let inFlight = false;
     let again = false;

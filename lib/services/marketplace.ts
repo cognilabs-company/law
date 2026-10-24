@@ -388,6 +388,13 @@ export type MarketPurchase = {
   amount: number;
   currency: string;
   telegramSent: boolean;
+  // Sent to the seller, who has until `deadlineAt` to accept; the 10%
+  // advance is asked for only then. `message` is the backend's own words
+  // for the client.
+  accepting: boolean;
+  deadlineAt: string;
+  message: string;
+  advanceAmount: number;
 };
 
 // How soon the client needs it (2026-10-18 contract), and what they sent
@@ -467,11 +474,21 @@ export function purchaseOf(raw: unknown): MarketPurchase {
   const payment = asDict(d.payment);
   const req = asDict(d.purchase_request);
   const gate = asDict(d.payment_gate);
+  const od = asDict(order.details);
+  const a = assignmentOf({ ...order, payment: Object.keys(payment).length ? payment : order.payment }, od);
+  const status = asStr(order.status ?? d.status);
+  const paymentStatus = asStr(order.payment_status ?? payment.status);
+  const accepting = awaitingSeller({ status, paymentStatus, assignment: a.assignment, advance: a.advance }) || asStr(payment.status) === "awaiting_seller_acceptance";
   return {
-    workId: asStr(d.work_id) || asStr(req.work_id) || asStr(asDict(order.details).work_id) || asStr(order.work_id),
+    workId: asStr(d.work_id) || asStr(req.work_id) || asStr(od.work_id) || asStr(order.work_id),
     orderId: asStr(order.id ?? d.order_id),
-    status: asStr(order.status ?? d.status),
-    amount: uzs(payment, "amount") || uzs(order, "price"),
+    status,
+    accepting,
+    deadlineAt: a.assignment?.deadlineAt || asStr(d.acceptance_deadline_at),
+    message: a.clientMessage || asStr(d.client_status_message ?? d.message),
+    advanceAmount: a.advance?.amount || (asStr(payment.status) === "awaiting_seller_acceptance" ? uzs(payment, "amount") : 0),
+    // The order's price; the payment row may be only the 10% advance.
+    amount: uzs(order, "price") || uzs(payment, "amount"),
     currency: asStr(payment.currency ?? order.currency, "UZS") || "UZS",
     // Omitted delivery metadata is unknown, not proof that Telegram sent it.
     telegramSent: d.telegram_sent === true || payment.telegram_sent === true || gate.telegram_sent === true,
@@ -552,6 +569,14 @@ export type MarketOrder = {
   warranty: OrderWarranty;
   // Set while the call center resolves a declined or expired assignment.
   resolution: OrderResolution | null;
+  // Who does the work and whether they have taken it yet (enterprise
+  // contract §5): the backend's own client-facing status and message, the
+  // seller's 30-minute acceptance deadline, and the 10% advance, which is
+  // only requested once the seller accepts.
+  assignment: { status: string; mode: string; deadlineAt: string; responseMinutes: number | null } | null;
+  clientStatus: string;
+  clientMessage: string;
+  advance: { status: string; amount: number; currency: string } | null;
   supplemental: SupplementalPayment | null;
   workPaused: boolean;
   startedAt: string;
@@ -872,6 +897,21 @@ function progressOfRow(v: unknown): ChecklistProgress | null {
   };
 }
 
+function assignmentOf(d: Dict, details: Dict): Pick<MarketOrder, "assignment" | "clientStatus" | "clientMessage" | "advance"> {
+  const status = asStr(details.assignment_status ?? d.assignment_status);
+  const deadlineAt = asStr(details.acceptance_deadline_at ?? d.acceptance_deadline_at);
+  const pay = asDict(d.payment);
+  const stage = asStr(asDict(pay.provider_payload).stage ?? pay.stage);
+  const isAdvance = asStr(pay.target_type) === "marketplace_advance" || stage === "advance";
+  const minutes = details.seller_response_minutes ?? d.seller_response_minutes;
+  return {
+    assignment: status || deadlineAt ? { status, mode: asStr(details.assignment_mode), deadlineAt, responseMinutes: minutes === undefined || minutes === null ? null : asNum(minutes) } : null,
+    clientStatus: asStr(details.client_status ?? d.client_status),
+    clientMessage: asStr(details.client_status_message ?? d.client_status_message),
+    advance: isAdvance && asStr(pay.status) ? { status: asStr(pay.status), amount: uzs(pay, "amount"), currency: asStr(pay.currency) || "UZS" } : null,
+  };
+}
+
 export function normMarketOrder(v: unknown): MarketOrder {
   const d = asDict(v);
   const details = asDict(d.details);
@@ -957,6 +997,7 @@ export function normMarketOrder(v: unknown): MarketOrder {
     complaint: complaintOf(d, details),
     warranty: warrantyOf(d, details),
     resolution: resolutionOf(d.resolution ?? details.resolution),
+    ...assignmentOf(d, details),
     supplemental,
     workPaused: supplemental?.status === "pending" || (status === "waiting_payment" && (paymentStatus === "paid" || !!supplemental)),
     startedAt,
@@ -1336,8 +1377,16 @@ export function marketPaymentSignalOf(ev: { event: string } & Record<string, unk
   return PAYMENT_NOTICES.has(asStr(asDict(asDict(ev.notification).data).event)) ? sig : null;
 }
 
+// Sent to the seller and not yet taken: no payment is asked for until the
+// seller accepts (the advance waits as "awaiting_seller_acceptance").
+const AWAITING_STATUSES = new Set(["sent_to_seller", "awaiting_seller", "assigned", "seller_assigned"]);
+export function awaitingSeller(o: Pick<MarketOrder, "status" | "paymentStatus"> & { assignment?: MarketOrder["assignment"]; advance?: MarketOrder["advance"] }): boolean {
+  if (o.paymentStatus === "paid") return false;
+  return o.assignment?.status === "waiting_seller_response" || o.advance?.status === "awaiting_seller_acceptance" || AWAITING_STATUSES.has(o.status);
+}
+
 export function isOrderPending(o: Pick<MarketOrder, "status" | "paymentStatus">): boolean {
-  return o.status === "pending_payment" || o.status === "waiting_payment" || (o.status === "pending" && o.paymentStatus !== "paid");
+  return o.status === "pending_payment" || o.status === "waiting_payment" || (o.status === "pending" && o.paymentStatus !== "paid") || awaitingSeller(o);
 }
 
 export const MARKET_DONE = new Set(["completed", "rated", "done", "closed"]);
@@ -1366,17 +1415,21 @@ export function marketStageOf(o: Pick<MarketOrder, "status" | "paymentStatus"> &
   return "active";
 }
 
-export type MarketTrackPhase = "pending" | "paid" | "chat" | "completed" | "cancelled";
+// accepting: sent to the seller, not yet taken; pending: the advance waits
+// for confirmation; paid: confirmed, the chat is being opened.
+export type MarketTrackPhase = "accepting" | "pending" | "paid" | "chat" | "completed" | "cancelled";
 
 export function phaseOfStatus(status: string): MarketTrackPhase {
   const s = status.trim().toLowerCase();
   if (MARKET_STOPPED.has(s)) return "cancelled";
   if (MARKET_DONE.has(s)) return "completed";
+  if (AWAITING_STATUSES.has(s)) return "accepting";
   if (!s || s === "pending" || s === "pending_payment" || s === "waiting_payment") return "pending";
   return "paid";
 }
 
-export function trackPhaseOf(o: Pick<MarketOrder, "status" | "paymentStatus" | "canStartChat">): MarketTrackPhase {
+export function trackPhaseOf(o: Pick<MarketOrder, "status" | "paymentStatus" | "canStartChat"> & { assignment?: MarketOrder["assignment"]; advance?: MarketOrder["advance"] }): MarketTrackPhase {
+  if (!MARKET_STOPPED.has(o.status) && awaitingSeller(o)) return "accepting";
   const stage = marketStageOf(o);
   if (stage !== "active") return stage;
   return o.canStartChat ? "chat" : "paid";

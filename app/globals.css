@@ -11079,7 +11079,7 @@ html[data-theme="dark"] .splan--feat.splan--sel{
 .mk-safe ul{margin:10px 0 0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:6px;font-size:.86rem;color:var(--gray)}
 
 .mk-buy{display:flex;flex-direction:column;gap:16px}
-.mk-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.mk-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));grid-auto-flow:column;gap:8px}
 .mk-steps li{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:.74rem;font-weight:700;color:var(--gray2);text-align:center}
 .mk-steps li::before{content:"";position:absolute;top:14px;left:calc(-50% + 18px);right:calc(50% + 18px);height:2px;background:var(--line)}
 .mk-steps li:first-child::before{display:none}

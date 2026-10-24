@@ -32,6 +32,7 @@ import {
 } from "@/lib/services/marketplace";
 import IntakeAttachments from "./IntakeAttachments";
 import { useMarketOrderTracker } from "@/lib/useMarketOrderTracker";
+import { clockOf, useCountdown } from "@/lib/useCountdown";
 import { deliveryLabel } from "./bits";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import { trackPromoContact } from "@/lib/services/promoEvents";
@@ -51,8 +52,9 @@ export type PackagePurchaseTarget = { id: string; purchaseUrl: string; duration:
 
 const CHANNEL_ICON = { chat: IconChat, audio: IconPhone, video: IconVideo, meeting: IconUsers } as const;
 const NOTE_MAX = 1000;
-const STEPS = ["request", "confirm", "chat"] as const;
-const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, paid: 2, chat: 2, completed: 3, cancelled: 1 };
+// The request, the seller taking it, the 10% advance confirmed, then work.
+const STEPS = ["request", "accept", "confirm", "chat"] as const;
+const STEP_OF: Record<MarketTrackPhase, number> = { accepting: 1, pending: 2, paid: 3, chat: 3, completed: 4, cancelled: 1 };
 const URGENCY_OF: Record<ContactSpeed, PurchaseUrgency> = { within_15_min: "today", within_1_hour: "today", today: "today", tomorrow: "tomorrow" };
 export const CLIENT_ORDERS_HREF = "/portal/client/marketplace-orders";
 
@@ -139,6 +141,8 @@ export default function PurchaseDialog({
   const tracked = done ?? active;
   const track = useMarketOrderTracker(service && tracked ? tracked.orderId : "", service && tracked ? tracked.workId : "", service && tracked ? tracked.status : "");
   const checkout = useRuntimeFacts(service?.id ?? "", "checkout", { enabled: !!service && !pkg });
+  // The seller's acceptance window, as the backend set it.
+  const left = useCountdown(done?.accepting ? done.deadlineAt : "", () => track?.recheck());
 
   if (!service) return <Modal open={false} onClose={onClose} title="">{null}</Modal>;
 
@@ -147,7 +151,7 @@ export default function PurchaseDialog({
   const failed = phase === "cancelled";
   const slow = !!track && (track.slow || track.offline);
   const ended = !!track?.ended;
-  const live = !!track && !slow && !ended && (phase === "pending" || phase === "paid");
+  const live = !!track && !slow && !ended && (phase === "accepting" || phase === "pending" || phase === "paid");
   const isActive = !done && !!active;
 
   function retry() {
@@ -210,14 +214,17 @@ export default function PurchaseDialog({
   const chatHref = track?.roomId && tracked ? marketChatHref({ roomId: track.roomId, workId: tracked.workId, serviceTitle: service.title }) : "";
 
   const titles: Record<MarketTrackPhase, string> = {
-    pending: isActive ? t("active") : t("sentTitle"),
+    accepting: isActive ? t("active") : t("acceptTitle"),
+    pending: isActive ? t("active") : t("advanceTitle"),
     paid: isActive ? t("activePaid") : t("paidTitle"),
     chat: isActive ? t("activePaid") : t("chatTitle"),
     completed: t("completedTitle"),
     cancelled: t("rejectedTitle"),
   };
   const leads: Record<MarketTrackPhase, string> = {
-    pending: track?.slow ? t("slow") : t("sentLead"),
+    // The backend's own words for the client come first.
+    accepting: done?.message || t("acceptLead"),
+    pending: track?.slow ? t("slow") : t("advanceLead"),
     paid: track?.slow ? t("paidNoRoom") : "",
     chat: t("chatLead"),
     completed: "",
@@ -327,7 +334,7 @@ export default function PurchaseDialog({
           >
             <div className="mk-receipt__msg" role="status">
               <div key={phase} className="mk-receipt__in">
-                {phase === "pending" ? (
+                {phase === "pending" || phase === "accepting" ? (
                   <span className={`mk-receipt__stamp mk-receipt__stamp--wait${live ? "" : " is-idle"}`} aria-hidden="true">
                     <IconHourglass />
                   </span>
@@ -342,7 +349,12 @@ export default function PurchaseDialog({
                 )}
                 <b className="mk-receipt__t">{receiptTitle}</b>
                 {tracked?.workId ? <span className="wid">{tracked.workId}</span> : null}
-                {phase === "pending" ? (
+                {phase === "accepting" ? (
+                  <span className={`mk-pending${live ? "" : " mk-pending--idle"}`}>
+                    <i aria-hidden="true" />
+                    {left ? t("acceptWaitClock", { time: clockOf(left) }) : left === 0 ? t("acceptOver") : t("acceptWait")}
+                  </span>
+                ) : phase === "pending" ? (
                   <span className={`mk-pending${live ? "" : " mk-pending--idle"}`}>
                     <i aria-hidden="true" />
                     {t("pending")}
@@ -354,6 +366,7 @@ export default function PurchaseDialog({
                   </span>
                 ) : null}
                 {receiptLead ? <p>{receiptLead}</p> : null}
+                {phase === "accepting" ? <p className="mk-receipt__note">{done?.advanceAmount ? t("advanceNext", { amount: fmtUzs(done.advanceAmount) }) : t("advanceNextPlain")}</p> : null}
                 {phase === "pending" && done && !done.telegramSent ? <Notice ok={false} msg={t("notDelivered")} /> : null}
               </div>
               {live ? (

@@ -7,7 +7,7 @@ import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import type { SxIcon } from "@/components/admin/studio/sx/types";
 import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
-import type { MarketOrder, MarketPhase } from "@/lib/services/marketplace";
+import { awaitingSeller, type MarketOrder, type MarketPhase } from "@/lib/services/marketplace";
 import type { RuntimeConfig } from "@/lib/services/marketRuntime";
 import { RatingCountdown, useTick } from "../OrderExtras";
 import { deadlineOf } from "./deadline";
@@ -58,12 +58,13 @@ const STEP_AT: Readonly<Record<MarketPhase, number>> = { pending: 0, paid: 1, in
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 
-export function PhasePill({ phase }: { phase: MarketPhase }): ReactElement {
+// `accepting`: still with the seller to take; nothing is owed yet.
+export function PhasePill({ phase, accepting = false }: { phase: MarketPhase; accepting?: boolean }): ReactElement {
   const t = useTranslations("marketplace.orderDetail.phase");
   return (
-    <span className="sx-pill mod-pill" data-tone={PHASE_TONE[phase]} data-phase={phase}>
+    <span className="sx-pill mod-pill" data-tone={PHASE_TONE[phase]} data-phase={accepting ? "accepting" : phase}>
       {glyph(PHASE_ICON[phase], { size: 14 })}
-      <span className="sx-pill__text">{t(phase)}</span>
+      <span className="sx-pill__text">{t(accepting ? "accepting" : phase)}</span>
     </span>
   );
 }
@@ -176,6 +177,7 @@ export default function OrderHeader({
   refreshing: boolean;
   onRefresh: () => void;
 }): ReactElement {
+  const accepting = phase === "pending" && awaitingSeller(o);
   const t = useTranslations("marketplace.orderDetail");
   const te = useTranslations("enums");
   const title = o.serviceTitle || o.packageTitle || "—";
@@ -206,13 +208,13 @@ export default function OrderHeader({
             </span>
           ) : null}
           <h1 className="mod-head__title">{title}</h1>
-          <PhasePill phase={phase} />
+          <PhasePill phase={phase} accepting={accepting} />
         </div>
         <p className="mod-head__price">
           <b className="sx-num">{o.price ? fmtUzs(o.price) : "—"}</b> <small>{o.currency === "UZS" ? te("currency") : o.currency}</small>
         </p>
       </div>
-      <p className="mod-head__lead">{t(`lead.${view}.${phase}`)}</p>
+      <p className="mod-head__lead">{t(`lead.${view}.${accepting ? "accepting" : phase}`)}</p>
       {phase !== "cancelled" ? (
         <div className="mod-head__progress" data-ai-id={`${aiBase}.progress`} data-ai-type="section" data-ai-label={t("steps.label")}>
           <StepRail phase={phase} />
