@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { findContacts } from "@/lib/contactGuard";
-import ContactGuardNote, { type ContactRefusal } from "@/components/ui/ContactGuardNote";
+import ContactGuardNote, { useContactStrip, type ContactRefusal } from "@/components/ui/ContactGuardNote";
 import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";
 import { contactBlockedOf } from "@/lib/http";
@@ -256,6 +256,7 @@ function Account({ draft, set, pct }: { draft: Draft; set: (p: Partial<Draft>) =
 
 function Pro({ draft, set, isAdvocate, bioRefused }: { draft: Draft; set: (p: Partial<Draft>) => void; isAdvocate: boolean; bioRefused: ContactRefusal | null }) {
   const bioHits = findContacts(draft.bio ?? "");
+  const bioStrip = useContactStrip((bio) => set({ bio }));
   const tcg = useTranslations("common.contactGuard");
   const t = useTranslations("portal.advocate.profile");
   const tf = useTranslations("portal.advocate.profile.form");
@@ -298,9 +299,9 @@ function Pro({ draft, set, isAdvocate, bioRefused }: { draft: Draft; set: (p: Pa
           </Field>
         </div>
         <Field label={tr("fields.bio")} error={bioHits.length || bioRefused ? tcg("field") : undefined}>
-          <TextArea value={draft.bio ?? ""} onChange={(v) => set({ bio: v })} rows={4} placeholder={tr("fields.bioPh")} maxLength={2000} />
+          <TextArea value={draft.bio ?? ""} onChange={bioStrip.change} onBlur={() => bioStrip.blur(draft.bio ?? "")} rows={4} placeholder={tr("fields.bioPh")} maxLength={2000} />
         </Field>
-        <ContactGuardNote hits={bioHits} server={bioRefused} />
+        <ContactGuardNote hits={bioHits} removed={bioStrip.removed} server={bioRefused} />
       </Group>
       <Group title={tr("fields.languages")}>
         <div className="dxq-chips">

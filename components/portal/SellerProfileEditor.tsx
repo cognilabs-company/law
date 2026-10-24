@@ -3,7 +3,7 @@
 import { Component, Suspense, useCallback, useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import PrivateTag from "@/components/ui/PrivateTag";
 import { findContacts } from "@/lib/contactGuard";
-import ContactGuardNote, { type ContactRefusal } from "@/components/ui/ContactGuardNote";
+import ContactGuardNote, { useContactStrip, type ContactRefusal } from "@/components/ui/ContactGuardNote";
 import { useTranslations, useLocale } from "next-intl";
 import { useAuth, type Role } from "@/lib/auth";
 import { legalServiceLabel, type CatalogLocale } from "@/lib/legalServices";
@@ -150,6 +150,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
   // backend refuses them again on save (platform_contact_blocked).
   const bioHits = useMemo(() => findContacts(d.bio ?? ""), [d.bio]);
   const [bioRefused, setBioRefused] = useState<ContactRefusal | null>(null);
+  const bioStrip = useContactStrip((bio) => setD((x) => ({ ...x, bio })));
   const tcg = useTranslations("common.contactGuard");
   const [saved, setSaved] = useState<Draft>(base);
   const [vacation, setVacation] = useState(false);
@@ -399,15 +400,16 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
           rows={4}
           value={d.bio ?? ""}
           onChange={(e) => {
-            set({ bio: e.target.value });
+            bioStrip.change(e.target.value, e);
             setBioRefused(null);
           }}
+          onBlur={() => bioStrip.blur(d.bio ?? "")}
           placeholder={tr("fields.bioPh")}
           maxLength={1000}
           aria-describedby="spe-bio-g"
           aria-invalid={bioHits.length > 0 || !!bioRefused || undefined}
         />
-        <ContactGuardNote id="spe-bio-g" hits={bioHits} server={bioRefused} />
+        <ContactGuardNote id="spe-bio-g" hits={bioHits} removed={bioStrip.removed} server={bioRefused} />
       </div>
     </div>,
   );

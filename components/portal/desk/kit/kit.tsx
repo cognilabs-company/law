@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type CSSProperties, type FormEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ChangeEvent, type CSSProperties, type FormEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { IconCheck, IconChevronDown, IconChevronLeft, IconChevronRight, IconClose, IconSearch } from "@/components/icons";
 import type { MenuItem } from "../ContextMenu";
 import "./kit.css";
@@ -221,8 +221,8 @@ export function Input(p: { value: string; onChange: (v: string) => void; placeho
   return <input className="dx-in" type={p.type ?? "text"} value={p.value} onChange={(e) => p.onChange(e.target.value)} placeholder={p.placeholder} required={p.required} maxLength={p.maxLength} autoFocus={p.autoFocus} aria-label={p.ariaLabel} min={p.min} max={p.max} />;
 }
 
-export function TextArea(p: { value: string; onChange: (v: string) => void; placeholder?: string; rows?: number; maxLength?: number; ariaLabel?: string }) {
-  return <textarea className="dx-in dx-in--area" value={p.value} onChange={(e) => p.onChange(e.target.value)} placeholder={p.placeholder} rows={p.rows ?? 3} maxLength={p.maxLength} aria-label={p.ariaLabel} />;
+export function TextArea(p: { value: string; onChange: (v: string, e: ChangeEvent<HTMLTextAreaElement>) => void; onBlur?: () => void; placeholder?: string; rows?: number; maxLength?: number; ariaLabel?: string }) {
+  return <textarea className="dx-in dx-in--area" value={p.value} onChange={(e) => p.onChange(e.target.value, e)} onBlur={p.onBlur} placeholder={p.placeholder} rows={p.rows ?? 3} maxLength={p.maxLength} aria-label={p.ariaLabel} />;
 }
 
 // A pop-up button (Mac) / combo box (Windows), on the browser's own list.

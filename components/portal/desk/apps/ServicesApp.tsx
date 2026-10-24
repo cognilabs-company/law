@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { fmtUzs } from "@/lib/money";
 import { matchesSearch } from "@/lib/searchText";
 import { findContacts } from "@/lib/contactGuard";
-import ContactGuardNote from "@/components/ui/ContactGuardNote";
+import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardNote";
 import { searchServices, type BackendService } from "@/lib/services/backend";
 import { hiddenReasons, listManagedServices, priceBandFor, priceExplanationOf, removeManagedService, serviceErrorOf, setManagedServiceStatus, type ManagedService, type ManagedServices, type PriceBand, type ServiceScope, type ServiceStatus } from "@/lib/services/sellerServices";
 import { acceptServiceRule, getRuntimeConfig, listServiceRules, updateSellerServiceConfig, type RuntimeConfig, type ServiceRule } from "@/lib/services/marketRuntime";
@@ -339,6 +339,7 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { 
   const [neg, setNeg] = useState<boolean>(item?.negotiationAllowed ?? false);
   const [note, setNote] = useState(item?.experienceNote ?? "");
   const noteHits = useMemo(() => findContacts(note), [note]);
+  const noteStrip = useContactStrip(setNote);
   const [noteRefused, setNoteRefused] = useState<{ message: string } | null>(null);
   const tcg = useTranslations("common.contactGuard");
   const [status, setStatus] = useState<ServiceStatus>(item?.status ?? "active");
@@ -485,16 +486,17 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { 
           <Field label={tf("note")} hint={tf("noteHint")} error={noteHits.length || noteRefused ? tcg("field") : undefined}>
             <TextArea
               value={note}
-              onChange={(v) => {
-                setNote(v);
+              onChange={(v, e) => {
+                noteStrip.change(v, e);
                 setNoteRefused(null);
               }}
+              onBlur={() => noteStrip.blur(note)}
               rows={3}
               placeholder={tf("notePh")}
               maxLength={2000}
             />
           </Field>
-          <ContactGuardNote hits={noteHits} server={noteRefused} />
+          <ContactGuardNote hits={noteHits} removed={noteStrip.removed} server={noteRefused} />
           <Field label={tf("status")}>
             <Select ariaLabel={tf("status")} value={status} onChange={setStatus} options={(["active", "paused", "inactive"] as const).map((s) => ({ value: s, label: t(`status.${s}`) }))} />
           </Field>

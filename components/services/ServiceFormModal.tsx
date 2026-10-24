@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useState } from "react";
 import { findContacts } from "@/lib/contactGuard";
-import ContactGuardNote from "@/components/ui/ContactGuardNote";
+import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardNote";
 import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import type { BackendService } from "@/lib/services/backend";
@@ -156,6 +156,7 @@ export default function ServiceFormModal({
   // Contact details are refused as they are typed; the backend refuses
   // them again on save (platform_contact_blocked), shown in the same place.
   const noteHits = useMemo(() => findContacts(note), [note]);
+  const noteStrip = useContactStrip(setNote);
   const [status, setStatus] = useState<ServiceStatus>(item?.status ?? (rules?.closed ? "paused" : "active"));
   const [checking, setChecking] = useState(false);
   const [statusErr, setStatusErr] = useState("");
@@ -579,9 +580,10 @@ export default function ServiceFormModal({
               maxLength={NOTE_MAX}
               rows={4}
               onChange={(e) => {
-                setNote(e.target.value);
+                noteStrip.change(e.target.value, e);
                 if (err?.kind === "contact") setErr(null);
               }}
+              onBlur={() => noteStrip.blur(note)}
               placeholder={t("form.notePh")}
               aria-describedby={`${ids}-note-h ${ids}-note-g`}
               aria-invalid={noteHits.length > 0 || !!noteRefused || undefined}
@@ -589,7 +591,7 @@ export default function ServiceFormModal({
             <p id={`${ids}-note-h`} className="svform__hint">
               {t("form.noteHint")}
             </p>
-            <ContactGuardNote id={`${ids}-note-g`} hits={noteHits} server={noteRefused} />
+            <ContactGuardNote id={`${ids}-note-g`} hits={noteHits} removed={noteStrip.removed} server={noteRefused} />
           </section>
 
           <section className="svform__sec">

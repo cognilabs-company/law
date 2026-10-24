@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { findContacts } from "@/lib/contactGuard";
-import ContactGuardNote from "@/components/ui/ContactGuardNote";
+import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardNote";
 import { useTranslations } from "next-intl";
 import type { WorkEntry } from "@/lib/types";
 import MonthPicker from "../MonthPicker";
@@ -29,6 +29,7 @@ export default function WorkHistoryEditor({
   const ids = useId();
   // Achievements are public profile text: no phone, username or link.
   const hits = findContacts(form.achievements);
+  const strip = useContactStrip((achievements) => setForm((f) => ({ ...f, achievements })));
 
   function add() {
     if (!form.org.trim() || !form.position.trim()) return;
@@ -47,6 +48,7 @@ export default function WorkHistoryEditor({
     };
     onChange([entry, ...value]);
     setForm(emptyForm);
+    strip.reset();
   }
 
   return (
@@ -132,12 +134,13 @@ export default function WorkHistoryEditor({
               id={`${ids}-ach`}
               rows={2}
               value={form.achievements}
-              onChange={(e) => setForm({ ...form, achievements: e.target.value })}
+              onChange={(e) => strip.change(e.target.value, e)}
+              onBlur={() => strip.blur(form.achievements)}
               placeholder={t("achievementsPh")}
               aria-describedby={`${ids}-ach-g`}
               aria-invalid={hits.length > 0 || undefined}
             />
-            <ContactGuardNote id={`${ids}-ach-g`} hits={hits} />
+            <ContactGuardNote id={`${ids}-ach-g`} hits={hits} removed={strip.removed} />
           </div>
           <button type="button" className="btn btn--soft" onClick={add}>
             <IconPlus />

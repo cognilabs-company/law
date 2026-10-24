@@ -79,3 +79,21 @@ export function findContacts(text: string): ContactHit[] {
 }
 
 export const hasContactDetails = (text: string): boolean => findContacts(text).length > 0;
+
+// The text with its contact details taken out, and what was taken. A find
+// that runs to the end of the text may still be growing ("+998 90 12",
+// "@aziz_y"), so while the lawyer types it stays (and the note flags it)
+// until they write past it; `all` takes everything, for a paste or when
+// the field is left.
+export function stripContacts(text: string, all = false): { text: string; removed: ContactHit[] } {
+  const hits = findContacts(text);
+  if (!hits.length) return { text, removed: [] };
+  const end = text.trimEnd().length;
+  const removed = all ? hits : hits.filter((h) => text.lastIndexOf(h.text) + h.text.length < end);
+  if (!removed.length) return { text, removed };
+  let out = text;
+  for (const h of removed) out = out.split(h.text).join("");
+  // Close the gap the find leaves: "Tel: , yoki" reads as "Tel:, yoki".
+  out = out.replace(/[ \t]{2,}/g, " ").replace(/[ \t]+([,.;:!?])/g, "$1").replace(/^[ \t]*[,;]+[ \t]*/, "");
+  return { text: all ? out.trim() : out, removed };
+}
