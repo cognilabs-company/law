@@ -114,3 +114,33 @@ test("a refund sends the operator's reason as the message; an already-closed esc
   await expect(page.getByText("Эта эскалация уже решена; список обновлён.")).toBeVisible();
   expect(bodies[0]).toMatchObject({ action: "full_refund", message: "Mijoz kutishni xohlamadi" });
 });
+
+test("people are shown by name, never by id, and a missing value reads as none", async ({ page }) => {
+  const SELLER = "f49a16c9-7825-4682-b058-17865ef69837";
+  const CLIENT_ID = "9e6f40ab-f072-45db-88bd-021daec54f6c";
+  // Live shape (24 Oct 2026): the order carries ids, not names.
+  const bare = escalation({
+    previous_seller_user_id: SELLER,
+    previous_seller_name: undefined,
+    reason: "seller_acceptance_timeout",
+    history: [{ action: "escalated", reason: "seller_declined", at: "2026-10-24T08:00:00Z" }],
+    order: order({ status: "seller_selection", payment_status: "unpaid", price: 0, service_title: "Qarzdorlikni undirish", client: undefined, client_name: undefined, client_user_id: CLIENT_ID, lawyer_user_id: "someone-else", lawyer_name: "" }),
+  });
+  const routes = await signIn(page, CALL_CENTER, {
+    "/call-center/marketplace/assignment-escalations": { items: [bare], total: 1 },
+    [`/call-center/clients/${SELLER}`]: { client: { id: SELLER, name: "Demo Advokat 1", phone: "+998901002001" } },
+    [`/call-center/clients/${CLIENT_ID}`]: { client: { id: CLIENT_ID, name: "LexGo Client ONE", phone: "+998900000005" } },
+  });
+  await mockBackend(page, routes);
+  await page.goto("/uz/admin/call-center?tab=escalations");
+  await page.getByRole("button", { name: /Qarzdorlikni undirish/ }).click();
+  const row = page.locator(".esc__item").first();
+  await expect(row.getByText("Demo Advokat 1")).toBeVisible();
+  await expect(row.getByText("LexGo Client ONE · +998900000005")).toBeVisible();
+  await expect(row.getByText("To'lanmagan")).toBeVisible();
+  await expect(row.getByText("Operatorga yuborildi")).toBeVisible();
+  await expect(row.getByText("30 daqiqada javob bo'lmadi")).toBeVisible();
+  await expect(row).not.toContainText(SELLER);
+  await expect(row).not.toContainText(CLIENT_ID);
+  await expect(row).not.toContainText("—");
+});

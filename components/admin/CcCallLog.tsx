@@ -9,14 +9,15 @@ import { notify } from "@/lib/toast";
 import { fmtDuration, shortDateTime } from "@/lib/date";
 import { humanize, labelOf, statusMap, type StatusToneRule } from "@/lib/labels";
 import { useAiSelection } from "@/lib/ai/registry";
-import { ErrorState, Skeleton } from "@/components/portal/DataState";
+import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
+import PersonName from "@/components/ui/PersonName";
 import Modal from "@/components/admin/Modal";
 import FilterBar from "@/components/filters/FilterBar";
 import ListPager, { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
 import { CountBadge, StatusBadge } from "@/components/ui/Badge";
 import IconButton from "@/components/ui/IconButton";
 import CcCallForm from "./CcCallForm";
-import { IconPhone, IconPlus, IconRefresh } from "@/components/icons";
+import { IconPhone, IconPlus, IconRefresh, IconUser } from "@/components/icons";
 
 type Dir = "" | "incoming" | "outgoing" | "missed";
 
@@ -39,6 +40,7 @@ const digits = (s: string) => s.replace(/\D/g, "");
 // here or from a client card. `reloadKey` lets a parent refresh the list.
 export default function CcCallLog({ reloadKey = 0, loggedPhone = "" }: { reloadKey?: number; loggedPhone?: string }) {
   const t = useTranslations("admin.callCenter");
+  const none = useTranslations("common")("none");
   const tl = useTranslations("admin.callCenter.calls");
   const tn = useTranslations("common.notify");
   const locale = useLocale();
@@ -122,7 +124,7 @@ export default function CcCallLog({ reloadKey = 0, loggedPhone = "" }: { reloadK
   return (
     <div className="ppanel" data-ai-target="callcenter:call-log">
       <div className="ppanel__h cch">
-        <h2 className="cch__t"><span className="cch__tt">{t("recent")}</span></h2>
+        <h2 className="ppanel__t cch__t"><span className="pico"><IconPhone /></span><span className="cch__tt">{t("recent")}</span></h2>
         <div className="cch__a">
           {res.status === "ready" ? <CountBadge n={calls.length} /> : null}
           <IconButton label={t("queue.refresh")} icon={<IconRefresh />} onClick={refreshNow} busy={refreshing} aiId="call_center.calls.refresh" />
@@ -150,7 +152,7 @@ export default function CcCallLog({ reloadKey = 0, loggedPhone = "" }: { reloadK
       ) : res.status === "error" ? (
         <ErrorState error={res.error} onRetry={res.refresh} title={tl("loadError")} compact />
       ) : !calls.length ? (
-        <p className="advmuted">{t("noCalls")}</p>
+        <EmptyState size="sm" icon={<IconPhone />} title={t("noCalls")} />
       ) : (
         <>
           <div className="alist alist--flow">
@@ -158,7 +160,13 @@ export default function CcCallLog({ reloadKey = 0, loggedPhone = "" }: { reloadK
               <div className="creq" key={c.id} ref={c.id === freshId ? freshRow : undefined}>
                 <span className={`creq__st${c.status === "missed" ? " creq__st--matching" : c.direction === "incoming" ? " creq__st--consultation" : ""}`} />
                 <div className="creq__m">
-                  <b><span style={{ whiteSpace: "nowrap" }}><IconPhone style={{ display: "inline-block", width: 13, height: 13, verticalAlign: "-2px", marginRight: 6 }} />{c.phone || "—"}</span>{c.topic ? ` — ${c.topic}` : ""}</b>
+                  <b><span style={{ whiteSpace: "nowrap" }}><IconPhone style={{ display: "inline-block", width: 13, height: 13, verticalAlign: "-2px", marginRight: 6 }} />{c.phone || none}</span>{c.topic ? ` — ${c.topic}` : ""}</b>
+                  {c.clientUserId ? (
+                    <span className="creq__who">
+                      <IconUser aria-hidden="true" />
+                      <PersonName id={c.clientUserId} />
+                    </span>
+                  ) : null}
                   <span>{[t.has(`dir.${c.direction}`) ? t(`dir.${c.direction}`) : humanize(c.direction), resultLabel(c.result), dur(c.durationSec), shortDateTime(c.createdAt, locale)].filter(Boolean).join(" · ")}</span>
                   {c.nextAction ? <em className="creq__next">{tl("next")}: {c.nextAction}</em> : null}
                 </div>

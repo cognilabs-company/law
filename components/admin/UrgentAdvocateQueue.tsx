@@ -47,6 +47,7 @@ import FieldError from "@/components/ui/FieldError";
 import ListPager, { usePaged } from "@/components/ui/ListPager";
 import { Badge, CountBadge, StatusBadge, WorkId } from "@/components/ui/Badge";
 import IconButton from "@/components/ui/IconButton";
+import PersonName from "@/components/ui/PersonName";
 import Segmented from "@/components/ui/Segmented";
 import Menu, { isMenuItem, menuSeparator, type MenuEntry } from "@/components/ui/Menu";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
@@ -846,6 +847,7 @@ function UrgentDetailDrawer({
   onMeeting: (call: CallSession, r: UrgentRequest) => void;
 }) {
   const t = useTranslations("admin.urgent");
+  const none = useTranslations("common")("none");
   const tk = useTranslations("portal.client.urgent");
   const tcm = useTranslations("portal.common");
   const tn = useTranslations("common.notify");
@@ -1378,10 +1380,10 @@ function UrgentDetailDrawer({
                   <section className="uad__sec">
                     <h4><IconHeadset />{t("assignment")}</h4>
                     <dl className="uad__dl">
-                      <div><dt>{t("claimedBy")}</dt><dd>{req.claimedBy?.name || "—"}</dd></div>
-                      <div><dt>{t("operator")}</dt><dd>{req.operator?.name || "—"}</dd></div>
-                      <div><dt>{t("assignedLawyer")}</dt><dd>{req.assignedLawyer?.name || "—"}</dd></div>
-                      <div><dt>{t("created")}</dt><dd>{req.createdAt ? dateTimeFull(req.createdAt, locale) : "—"}</dd></div>
+                      <div><dt>{t("claimedBy")}</dt><dd><PersonName id={req.claimedBy?.id ?? req.claimedByUserId} name={req.claimedBy?.name} /></dd></div>
+                      <div><dt>{t("operator")}</dt><dd><PersonName id={req.operator?.id ?? req.operatorUserId} name={req.operator?.name} /></dd></div>
+                      <div><dt>{t("assignedLawyer")}</dt><dd><PersonName id={req.assignedLawyer?.id} name={req.assignedLawyer?.name} /></dd></div>
+                      <div><dt>{t("created")}</dt><dd>{req.createdAt ? dateTimeFull(req.createdAt, locale) : none}</dd></div>
                     </dl>
                   </section>
 

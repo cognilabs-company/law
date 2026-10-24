@@ -8,6 +8,7 @@ import { leadCategoryLabel, leadRegionLabel, leadSourceInfo } from "@/lib/leadLa
 import type { LeadX } from "@/lib/services/leads";
 import { ScoreChip, WorkId } from "@/components/ui/Badge";
 import IconButton from "@/components/ui/IconButton";
+import PersonName from "@/components/ui/PersonName";
 import { IconPhone, IconVideo } from "@/components/icons";
 import { LeadActionsMenu, LeadOperatorMenu, OperatorAvatar, deniedReason, isAllowed, leadOperatorView, leadPhoneText, leadTel, type LeadHandlers, type LeadPeople, type LeadPerms, type LeadStage } from "./LeadMenu";
 
@@ -128,7 +129,10 @@ export default function LeadCard(props: LeadCardProps) {
   const phone = leadPhoneText(lead.phone);
   const phoneRow = !!phone && (call || (!!lead.name && lead.name !== lead.phone));
   const source = leadSourceInfo(te, lead.source);
-  const titledByCategory = !lead.name && !lead.phone;
+  // A lead with only its client's account to go by is titled with that
+  // client's name; the category then joins the tags.
+  const byClient = !lead.name && !lead.phone && !!lead.clientUserId;
+  const titledByCategory = !lead.name && !lead.phone && !byClient;
   const tags = [
     titledByCategory ? null : { key: "cat", text: leadCategoryLabel(tp, lead.category), title: "" },
     { key: "reg", text: leadRegionLabel(te, lead.region), title: "" },
@@ -180,7 +184,7 @@ export default function LeadCard(props: LeadCardProps) {
       data-ai-target={aiTarget}
     >
       <div className="ldc__top">
-        <b className="ldc__name">{name}</b>
+        <b className="ldc__name">{byClient ? <PersonName id={lead.clientUserId} fallback={name} /> : name}</b>
         <ScoreChip score={lead.scoreKey} />
         <LeadActionsMenu
           lead={lead}

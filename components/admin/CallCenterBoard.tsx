@@ -39,7 +39,7 @@ import ScrollArrows from "@/components/ui/ScrollArrows";
 import { CountBadge } from "@/components/ui/Badge";
 import IconButton from "@/components/ui/IconButton";
 import { useScrollEdges } from "@/lib/useScrollEdges";
-import { IconRefresh } from "@/components/icons";
+import { IconRefresh, IconUsers } from "@/components/icons";
 
 type State = { status: "loading" | "ready" | "error" | "forbidden"; columns: KanbanColumnX[]; error?: unknown };
 type Pages = { sig: string; n: Readonly<Record<string, number>> };
@@ -340,7 +340,7 @@ export default function CallCenterBoard() {
         }}
       />
       <div className="ppanel__h cch">
-        <h2 className="cch__t"><span className="cch__tt">{t("title")}</span></h2>
+        <h2 className="ppanel__t cch__t"><span className="pico"><IconUsers /></span><span className="cch__tt">{t("title")}</span></h2>
         <div className="cch__a">
           {state.status === "ready" && state.columns.length ? <CountBadge n={shown} /> : null}
           <IconButton label={tq("refresh")} icon={<IconRefresh />} onClick={refreshNow} busy={refreshing} tipAlign="end" aiId="call_center.board.refresh" />

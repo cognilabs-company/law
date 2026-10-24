@@ -13,9 +13,11 @@ import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { shortDateTime } from "@/lib/date";
 import { errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
+import { humanize } from "@/lib/labels";
+import PersonName from "@/components/ui/PersonName";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
-import { listWarrantyClaims, resolveWarrantyClaim, type WarrantyClaim, type WarrantyDecision } from "@/lib/services/mpComplaints";
+import { listWarrantyClaims, resolveWarrantyClaim, type WarrantyClaim, type WarrantyDecision, type MpParty } from "@/lib/services/mpComplaints";
 import { SellerPicker } from "./cancellations/SellerPicker";
 import { IconShield } from "@/components/icons";
 import QueueHead from "./QueueHead";
@@ -120,13 +122,21 @@ function ResolveDialog({ claim, onClose, onDone }: { claim: WarrantyClaim; onClo
   );
 }
 
+
+// A party by name with its LexGo id and phone; a bare id is looked up.
+function Party({ p }: { p: MpParty | null }): ReactElement {
+  if (!p) return <PersonName />;
+  if (!p.name) return <PersonName id={p.id} withPhone />;
+  return <>{[p.name, p.lexgoId, p.phone].filter(Boolean).join(" · ")}</>;
+}
+
 function Row({ claim, onResolve }: { claim: WarrantyClaim; onResolve: () => void }): ReactElement {
   const t = useTranslations("callCenter.warranty");
+  const none = useTranslations("common")("none");
   const tp = useTranslations("marketplace.orderDetail.pricing");
   const locale = useLocale();
   const [open, setOpen] = useState(false);
-  const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : v || "—");
-  const person = (p: WarrantyClaim["client"]) => (p ? [p.name, p.lexgoId, p.phone].filter(Boolean).join(" · ") : "—");
+  const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : humanize(v) || none);
   const settled = !!claim.resolution;
   return (
     <li className="esc__item" data-open={open || undefined}>
@@ -143,23 +153,27 @@ function Row({ claim, onResolve }: { claim: WarrantyClaim; onResolve: () => void
           <dl className="esc__facts" data-ai-private>
             <div>
               <dt>{t("f.reason")}</dt>
-              <dd>{claim.reason || "—"}</dd>
+              <dd>{claim.reason || none}</dd>
             </div>
             <div>
               <dt>{t("f.order")}</dt>
-              <dd>{[claim.order.workId, claim.order.price === null ? "" : `${fmtUzs(claim.order.price)} ${t("som")}`].filter(Boolean).join(" · ") || "—"}</dd>
+              <dd>{[claim.order.workId, claim.order.price === null ? "" : `${fmtUzs(claim.order.price)} ${t("som")}`].filter(Boolean).join(" · ") || none}</dd>
             </div>
             <div>
               <dt>{t("f.client")}</dt>
-              <dd>{person(claim.client)}</dd>
+              <dd>
+                <Party p={claim.client} />
+              </dd>
             </div>
             <div>
               <dt>{t("f.seller")}</dt>
-              <dd>{person(claim.seller)}</dd>
+              <dd>
+                <Party p={claim.seller} />
+              </dd>
             </div>
             <div>
               <dt>{t("f.settlement")}</dt>
-              <dd>{claim.settlement ? (tp.has(`settle.${claim.settlement.status}`) ? tp(`settle.${claim.settlement.status}`) : claim.settlement.status) : "—"}</dd>
+              <dd>{claim.settlement ? (tp.has(`settle.${claim.settlement.status}`) ? tp(`settle.${claim.settlement.status}`) : humanize(claim.settlement.status)) : none}</dd>
             </div>
             {settled ? (
               <div>

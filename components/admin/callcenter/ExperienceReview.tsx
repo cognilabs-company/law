@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconAward } from "@/components/icons";
 import QueueHead from "./QueueHead";
+import PersonName from "@/components/ui/PersonName";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import { categoryName } from "@/lib/categoryNames";
 import { dateOnly } from "@/lib/date";
@@ -120,7 +121,7 @@ export function ExperienceQueue({ onCount }: { onCount?: (n: number) => void }):
           {items.map((it) => (
             <li key={it.id} data-open={open === it.id || undefined}>
               <button type="button" className="xpr__qrow" onClick={() => setOpen(open === it.id ? "" : it.id)} aria-expanded={open === it.id}>
-                <b>{it.sellerName || t("seller")}</b>
+                <b>{it.sellerName || it.sellerUserId ? <PersonName id={it.sellerUserId} name={it.sellerName} /> : t("seller")}</b>
                 <span>{catName(it.categoryId)}</span>
                 <span>{it.sourceId ? t("revision", { n: it.version ?? 2 }) : t("newRecord")}</span>
                 <time>{it.submittedAt ? dateOnly(it.submittedAt, locale) : ""}</time>
@@ -191,6 +192,7 @@ function Side({ title, it, catName }: { title: string; it: ExperienceItem | null
 
 export default function ExperienceReview({ experienceId, onDone }: { experienceId: string; onDone?: () => void }): ReactElement {
   const t = useTranslations("callCenter.experience");
+  const tc = useTranslations("common");
   const catName = useCategories();
   const [detail, setDetail] = useState<ExperienceReviewDetail | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
@@ -257,7 +259,7 @@ export default function ExperienceReview({ experienceId, onDone }: { experienceI
           {detail.reviews.map((r) => (
             <li key={r.id || r.reviewedAt}>
               <span className="xpr__chip" data-s={r.decision}>
-                {r.decision ? t(`decision.${r.decision}`) : "—"}
+                {r.decision ? t(`decision.${r.decision}`) : tc("none")}
               </span>
               {r.reason ? <span>{r.reason}</span> : null}
             </li>

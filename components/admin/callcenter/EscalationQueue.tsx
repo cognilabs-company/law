@@ -17,6 +17,7 @@ import { shortDateTime } from "@/lib/date";
 import { ApiError, errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { humanize } from "@/lib/labels";
+import PersonName from "@/components/ui/PersonName";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import { escalationClosed, idemKeyFor, idemLost, idemSettle, isResolutionEvent, listAssignmentEscalations, resolveAssignmentEscalation, type AssignmentEscalation, type EscalationAction, type IdemSlot } from "@/lib/services/resolution";
@@ -143,16 +144,20 @@ function ActionDialog({ esc, action, onClose, onDone, onClosed }: { esc: Assignm
 
 function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationAction) => void }): ReactElement {
   const t = useTranslations("callCenter.escalations");
+  const none = useTranslations("common")("none");
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   const o = esc.order;
   const offer = esc.resolution?.offer ?? null;
   const when = (iso: string) => (iso ? shortDateTime(iso, locale) : "");
-  const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : humanize(v) || "—");
+  const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : humanize(v) || none);
+  // The order names its seller; a previous seller who is that seller takes
+  // the order's name instead of being looked up.
+  const prevName = esc.previousSellerName || (esc.previousSellerUserId && esc.previousSellerUserId === o.lawyerUserId ? o.lawyerName : "");
   return (
     <li className="esc__item" data-open={open || undefined}>
       <button type="button" className="esc__row" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <b>{o.serviceTitle || o.packageTitle || o.workId || esc.orderId}</b>
+        <b>{o.serviceTitle || o.packageTitle || o.workId || t("orderUntitled")}</b>
         <span className="esc__chip" data-s={esc.status}>
           {label("status", esc.status)}
         </span>
@@ -164,11 +169,11 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
           <dl className="esc__facts">
             <div>
               <dt>{t("f.order")}</dt>
-              <dd>{[o.workId, o.serviceTitle].filter(Boolean).join(" · ") || esc.orderId}</dd>
+              <dd>{[o.workId, o.serviceTitle].filter(Boolean).join(" · ") || none}</dd>
             </div>
             <div>
               <dt>{t("f.price")}</dt>
-              <dd>{o.price ? `${fmtUzs(o.price)} ${t("som")}` : "—"}</dd>
+              <dd>{o.price ? `${fmtUzs(o.price)} ${t("som")}` : none}</dd>
             </div>
             <div>
               <dt>{t("f.payment")}</dt>
@@ -176,11 +181,13 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
             </div>
             <div>
               <dt>{t("f.client")}</dt>
-              <dd>{[o.clientName, o.clientPhone].filter(Boolean).join(" · ") || "—"}</dd>
+              <dd>{o.clientName ? [o.clientName, o.clientPhone].filter(Boolean).join(" · ") : <PersonName id={o.clientUserId} withPhone />}</dd>
             </div>
             <div>
               <dt>{t("f.previous")}</dt>
-              <dd>{esc.previousSellerName || esc.previousSellerUserId || "—"}</dd>
+              <dd>
+                <PersonName id={esc.previousSellerUserId} name={prevName} />
+              </dd>
             </div>
             {offer ? (
               <div>
@@ -200,7 +207,7 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
                 {esc.attempts.map((a, i) => (
                   <li key={`${a.sellerUserId}-${a.at}-${i}`}>
                     <time>{when(a.at)}</time>
-                    <span>{a.sellerName || a.sellerUserId || "—"}</span>
+                    <PersonName id={a.sellerUserId} name={a.sellerName} />
                     {a.rank !== null ? <span className="esc__muted">{t("rank", { n: a.rank })}</span> : null}
                     <span>{label("attempt", a.status)}</span>
                     {a.reason ? <span className="esc__muted">{a.reason}</span> : null}

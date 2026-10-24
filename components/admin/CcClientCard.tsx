@@ -82,6 +82,7 @@ export default function CcClientCard({
   onClose: () => void;
 }) {
   const t = useTranslations("admin.callCenter.card");
+  const none = useTranslations("common")("none");
   const tc = useTranslations("admin.callCenter");
   const tcl = useTranslations("admin.callCenter.calls");
   const tp = useTranslations("admin.pipeline");
@@ -228,10 +229,10 @@ export default function CcClientCard({
     ? [
         [t("sumLeads"), String(d.summary.leads)],
         [t("sumOrders"), String(d.summary.orders)],
-        canLog ? [t("sumCalls"), calls.status === "ready" ? String(calls.data.length) : "—"] : [t("sumChats"), String(d.summary.rooms)],
+        canLog ? [t("sumCalls"), calls.status === "ready" ? String(calls.data.length) : none] : [t("sumChats"), String(d.summary.rooms)],
         [t("sumSpent"), `${fmtUzs(d.summary.totalSpent)} ${tsom("som")}`],
         [t("sumComplaints"), String(d.summary.complaints)],
-        [t("sumSince"), d.client.createdAt ? dateOnly(d.client.createdAt, locale) : "—"],
+        [t("sumSince"), d.client.createdAt ? dateOnly(d.client.createdAt, locale) : none],
       ]
     : [];
 
@@ -322,7 +323,7 @@ export default function CcClientCard({
                 d.orders.length ? d.orders.map((o) => (
                   <div className="creq" key={o.id}>
                     <span className="creq__st" />
-                    <div className="creq__m"><b>{o.serviceName || o.title || "—"}</b><span>{[o.lawyerName, when(o.createdAt)].filter(Boolean).join(" · ")}</span></div>
+                    <div className="creq__m"><b>{o.serviceName || o.title || none}</b><span>{[o.lawyerName, when(o.createdAt)].filter(Boolean).join(" · ")}</span></div>
                     <span className="creq__badge">{orderStatus(o.status)}</span>
                   </div>
                 )) : <p className="advmuted">{t("noOrders")}</p>

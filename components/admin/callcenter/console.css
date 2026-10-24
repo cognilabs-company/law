@@ -150,3 +150,9 @@
   .ccon .ccon__sum > i { animation: none; }
 }
 .ccon .pgrid2:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+.ccq__rec { display: inline-flex; align-items: center; gap: 5px; }
+.ccq__rec svg { width: 13px; height: 13px; }
+.creq__who { display: flex; margin: 2px 0; align-items: center; gap: 5px; font-size: 0.8rem; font-weight: 600; color: var(--ink); }
+.creq__who svg { width: 13px; height: 13px; color: var(--gray); }
+.ccon .cch { flex-wrap: wrap; row-gap: 8px; }
+.ccon .cch__tt { white-space: nowrap; }

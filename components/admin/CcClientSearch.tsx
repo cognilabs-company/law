@@ -74,7 +74,7 @@ export default function CcClientSearch({
   return (
     <div className="ppanel">
       <div className="ppanel__h cch cch--wrap">
-        <h2 className="cch__t"><span className="cch__tt">{t("search")}</span></h2>
+        <h2 className="ppanel__t cch__t"><span className="pico"><IconSearch /></span><span className="cch__tt">{t("search")}</span></h2>
         <BusinessHoursBadge holidayTitle={false} />
       </div>
       <form className="lsp__search" onSubmit={(e) => { e.preventDefault(); void run(q.trim()); }} style={{ marginBottom: 12 }} data-ai-target="callcenter:client-search">

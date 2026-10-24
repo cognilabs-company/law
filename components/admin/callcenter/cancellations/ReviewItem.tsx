@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import PersonName from "@/components/ui/PersonName";
 import { SxButton, SxLinkButton } from "@/components/admin/studio/sx/Button";
 import { aiId } from "@/lib/ai/ids";
 import { shortDateTime } from "@/lib/date";
@@ -151,6 +152,7 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
   const troles = useTranslations("marketplace.roles");
   const te = useTranslations("enums");
   const locale = useLocale();
+  const none = useTranslations("common")("none");
   const remaining = useRemaining();
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [expanded, setExpanded] = useState(false);
@@ -169,18 +171,18 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
   const ai = aiId(`${CCX_AI}.item`, review.id);
   const titleId = `${uid}-title`;
   const detailsId = `${uid}-details`;
-  const work = ctx.workId || ctx.serviceTitle || review.id;
+  const work = ctx.workId || ctx.serviceTitle || t("item.untitled");
   const money = (n: number) => `${fmtUzs(n)} ${te("currency")}`;
   const status = review.status;
   const pill = status ? (t.has(`pill.${status}`) ? t(`pill.${status}`) : humanize(status)) : t("pill.open");
   const phase = orderPhaseKey(ctx.status);
-  const phaseLabel = phase ? tp(phase) : ctx.status ? humanize(ctx.status) : "—";
+  const phaseLabel = phase ? tp(phase) : ctx.status ? humanize(ctx.status) : none;
   const roleLabel = ctx.sellerType && troles.has(ctx.sellerType) ? troles(ctx.sellerType) : "";
   const chatHref = staffChatHref(ctx.serviceChatRoomId, ctx.workId, ctx.serviceTitle);
   const groupHref = res ? staffChatHref(res.groupChatRoomId, ctx.workId, ctx.serviceTitle) : "";
   const resolved = !open && !!res;
   const action = res?.action ?? "";
-  const payStatus = pay?.status ? (t.has(`item.paymentStatus.${pay.status}`) ? t(`item.paymentStatus.${pay.status}`) : humanize(pay.status)) : "—";
+  const payStatus = pay?.status ? (t.has(`item.paymentStatus.${pay.status}`) ? t(`item.paymentStatus.${pay.status}`) : humanize(pay.status)) : none;
 
   return (
     <article
@@ -225,7 +227,9 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
             <span className="ccx-party__icon">{glyph(CircleUserIcon, { size: 20 })}</span>
             <div className="ccx-party__body">
               <p className="ccx-label">{t("item.client")}</p>
-              <p className="ccx-party__name">{ctx.clientName || "—"}</p>
+              <p className="ccx-party__name">
+                <PersonName id={ctx.clientUserId} name={ctx.clientName} />
+              </p>
               {ctx.clientPhone ? (
                 <a className="sx-link ccx-tel" href={`tel:${ctx.clientPhone}`}>
                   {ctx.clientPhone}
@@ -238,7 +242,7 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
             <div className="ccx-party__body">
               <p className="ccx-label">{t("item.seller")}</p>
               <p className="ccx-party__name">
-                {ctx.sellerName || "—"}
+                <PersonName id={ctx.sellerUserId} name={ctx.sellerName} />
                 {roleLabel ? <span className="ccx-muted"> · {roleLabel}</span> : null}
               </p>
               {ctx.sellerPhone ? (
@@ -273,7 +277,7 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
         <dl className="ccx-facts">
           <div>
             <dt>{t("item.price")}</dt>
-            <dd className="sx-num">{ctx.price > 0 ? money(ctx.price) : "—"}</dd>
+            <dd className="sx-num">{ctx.price > 0 ? money(ctx.price) : none}</dd>
           </div>
           <div>
             <dt>{t("item.orderStatus")}</dt>
@@ -298,7 +302,7 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
               ) : ctx.expectedCompletedAt ? (
                 shortDateTime(ctx.expectedCompletedAt, locale)
               ) : (
-                "—"
+                none
               )}
             </dd>
           </div>

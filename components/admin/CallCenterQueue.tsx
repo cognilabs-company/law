@@ -12,15 +12,20 @@ import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiReveal } from "@/lib/guide/targets";
 import Select from "@/components/Select";
 import ListPager, { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
-import { ErrorState, Skeleton } from "@/components/portal/DataState";
+import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
+import PersonName from "@/components/ui/PersonName";
 import { Badge, CountBadge } from "@/components/ui/Badge";
 import IconButton from "@/components/ui/IconButton";
 import { directionLabel, useUrgentStatuses } from "./UrgentAdvocateQueue";
-import { IconClock, IconRefresh, IconArrowRight } from "@/components/icons";
+import { IconClock, IconRefresh, IconArrowRight, IconInbox, IconUser } from "@/components/icons";
 
 const REFRESH_MS = 60_000;
 // Default lead board columns a call-center operator moves a lead to.
 const LEAD_STAGES = ["contacted", "qualified", "proposal", "won", "lost"] as const;
+// Titles the backend sends when the record has none of its own; the row
+// shows the client's name instead.
+const GENERIC_TITLE = new Set(["", "order", "lead", "buyurtma", "заказ"]);
+
 const AI_ENTITY: Record<string, string> = { lead: "lead", order: "order", urgent_advokat: "urgent_advokat_request" };
 
 type State = { status: "loading" | "ready" | "error" | "forbidden"; items: QueueItem[]; error?: unknown };
@@ -157,7 +162,7 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
   return (
     <div className="ppanel" data-ai-target="callcenter:queue" data-ai-id="call_center.leads.queue" data-ai-type="section" data-ai-label={t("title")}>
       <div className="ppanel__h cch">
-        <h2 className="cch__t"><span className="cch__tt">{t("title")}</span></h2>
+        <h2 className="ppanel__t cch__t"><span className="pico"><IconInbox /></span><span className="cch__tt">{t("title")}</span></h2>
         <div className="cch__a">
           {breached ? <Badge tone="err" size="sm">{t("breachedN", { n: breached })}</Badge> : null}
           {ready ? <CountBadge n={state.items.length} /> : null}
@@ -171,7 +176,7 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
       ) : state.status === "error" ? (
         <ErrorState error={state.error} onRetry={() => load(true)} title={t("loadError")} compact />
       ) : !state.items.length ? (
-        <p className="advmuted">{t("empty")}</p>
+        <EmptyState size="sm" icon={<IconInbox />} title={t("empty")} />
       ) : (
         <>
           <div className="alist alist--flow">
@@ -200,7 +205,17 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
                   <div className="ccq__top">
                     <span className={`tprio tprio--${urgent ? "high" : item.type === "order" ? "medium" : "low"}`}>{typeLabel}</span>
                     {hot ? <span className="tprio tprio--high">{t("hot")}</span> : null}
-                    <b className="ccq__t">{(item.type === "lead" ? leadCategoryLabel(tp, item.title) : item.title) || "—"}</b>
+                    <b className="ccq__t">
+                      {item.type === "lead" ? (
+                        leadCategoryLabel(tp, item.title) || t("untitled")
+                      ) : !GENERIC_TITLE.has(item.title.trim().toLowerCase()) ? (
+                        item.title
+                      ) : item.clientUserId ? (
+                        <PersonName id={item.clientUserId} />
+                      ) : (
+                        t("untitled")
+                      )}
+                    </b>
                   </div>
                   <div className="ccq__meta">
                     <span className={`ccq__sla${item.slaBreached ? " on" : ""}`}>
@@ -209,7 +224,13 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
                     </span>
                     {region ? <span>{region}</span> : null}
                     {statusText ? <span>{statusText}</span> : null}
-                    {item.recommendedSellerLoad != null && item.recommendedSellerLoad > 0 && !urgent ? <span>{t("sellerLoad", { n: item.recommendedSellerLoad })}</span> : null}
+                    {item.recommendedSellerUserId && !urgent ? (
+                      <span className="ccq__rec">
+                        <IconUser aria-hidden="true" />
+                        {t("recommended")}: <PersonName id={item.recommendedSellerUserId} />
+                        {item.recommendedSellerLoad != null ? ` · ${t("loadN", { n: item.recommendedSellerLoad })}` : ""}
+                      </span>
+                    ) : null}
                     {urgent && item.serviceKind ? <span>{tk.has(`kinds.${item.serviceKind}`) ? tk(`kinds.${item.serviceKind}`) : humanize(item.serviceKind)}</span> : null}
                     {urgent && item.channel ? <span>{item.channel === "chat" ? tk("chChat") : tk("chVideo")}</span> : null}
                     {urgent && item.directions?.length ? <span>{item.directions.map((d) => directionLabel(te, d, tu)).join(", ")}</span> : null}

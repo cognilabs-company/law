@@ -32,6 +32,7 @@ import { shortDateTime } from "@/lib/date";
 import Modal from "@/components/admin/Modal";
 import FieldError from "@/components/ui/FieldError";
 import { EmptyState, ErrorState } from "@/components/portal/DataState";
+import PersonName from "@/components/ui/PersonName";
 import { IconChat, IconChevronLeft, IconClock, IconHeadset, IconInbox, IconLock, IconRefresh, IconSearch } from "@/components/icons";
 import SupportChat from "./SupportChat";
 import AssistPanel from "./assist/AssistPanel";
@@ -557,22 +558,22 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
                 <dl className="supop__facts">
                   <div>
                     <dt>{t("statusLabel")}</dt>
-                    <dd>{known ? <SupportStatus status={current.status} /> : "—"}</dd>
+                    <dd>{known ? <SupportStatus status={current.status} /> : tc("none")}</dd>
                   </div>
                   <div>
                     <dt>{t("priority")}</dt>
                     <dd>
-                      {labels.priority(current.priority) || "—"}
+                      {labels.priority(current.priority) || tc("none")}
                       {isUrgentPriority(current.priority) ? <span className="supitem__urgent">{t("urgent")}</span> : null}
                     </dd>
                   </div>
                   <div>
                     <dt>{t("queue.topic")}</dt>
-                    <dd>{labels.category(current.category) || "—"}</dd>
+                    <dd>{labels.category(current.category) || tc("none")}</dd>
                   </div>
                   <div>
                     <dt>{t("createdAt")}</dt>
-                    <dd>{current.createdAt ? shortDateTime(current.createdAt, locale) : "—"}</dd>
+                    <dd>{current.createdAt ? shortDateTime(current.createdAt, locale) : tc("none")}</dd>
                   </div>
                   {known && isWaitingTicket(current) && current.createdAt ? (
                     <div>
@@ -583,10 +584,12 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
                       </dd>
                     </div>
                   ) : null}
-                  {current.operatorName ? (
+                  {current.operatorName || current.operatorUserId ? (
                     <div>
                       <dt>{t("operator")}</dt>
-                      <dd>{current.operatorName}</dd>
+                      <dd>
+                        <PersonName id={current.operatorUserId} name={current.operatorName} />
+                      </dd>
                     </div>
                   ) : null}
                 </dl>

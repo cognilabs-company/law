@@ -17,6 +17,8 @@ import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { shortDateTime } from "@/lib/date";
 import { ApiError, errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
+import { humanize } from "@/lib/labels";
+import PersonName from "@/components/ui/PersonName";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import {
@@ -29,6 +31,7 @@ import {
   type MpComplaint,
   type MpComplaintAction,
   type MpEvidence,
+  type MpParty,
 } from "@/lib/services/mpComplaints";
 
 // Marketplace complaints (TSK-344069): an open complaint holds the seller's
@@ -170,15 +173,23 @@ function ResolveDialog({ c, onClose, onDone, onStale }: { c: MpComplaint; onClos
   );
 }
 
+
+// A party by name with its LexGo id and phone; a bare id is looked up.
+function Party({ p }: { p: MpParty | null }): ReactElement {
+  if (!p) return <PersonName />;
+  if (!p.name) return <PersonName id={p.id} withPhone />;
+  return <>{[p.name, p.lexgoId, p.phone].filter(Boolean).join(" · ")}</>;
+}
+
 function Row({ c, onResolve }: { c: MpComplaint; onResolve: () => void }): ReactElement {
   const t = useTranslations("callCenter.mpComplaints");
+  const none = useTranslations("common")("none");
   const tp = useTranslations("marketplace.orderDetail.pricing");
   const locale = useLocale();
   const [open, setOpen] = useState(false);
-  const money = (n: number | null) => (n === null ? "—" : `${fmtUzs(n)} ${t("som")}`);
+  const money = (n: number | null) => (n === null ? none : `${fmtUzs(n)} ${t("som")}`);
   const st = c.settlement;
-  const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : v || "—");
-  const person = (p: MpComplaint["client"]) => (p ? [p.name, p.lexgoId, p.phone].filter(Boolean).join(" · ") : "—");
+  const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : humanize(v) || none);
   return (
     <li className="esc__item" data-open={open || undefined}>
       <button type="button" className="esc__row" aria-expanded={open} onClick={() => setOpen(!open)}>
@@ -186,7 +197,7 @@ function Row({ c, onResolve }: { c: MpComplaint; onResolve: () => void }): React
         <span className="esc__chip" data-s={c.status === "new" ? "open" : "resolved"}>
           {label("status", c.status)}
         </span>
-        <span>{c.reason || "—"}</span>
+        <span>{c.reason || none}</span>
         <time>{c.createdAt ? shortDateTime(c.createdAt, locale) : ""}</time>
       </button>
       {open ? (
@@ -198,19 +209,23 @@ function Row({ c, onResolve }: { c: MpComplaint; onResolve: () => void }): React
             </div>
             <div>
               <dt>{t("f.rating")}</dt>
-              <dd>{c.rating ?? "—"}</dd>
+              <dd>{c.rating ?? none}</dd>
             </div>
             <div>
               <dt>{t("f.client")}</dt>
-              <dd>{person(c.client)}</dd>
+              <dd>
+                <Party p={c.client} />
+              </dd>
             </div>
             <div>
               <dt>{t("f.seller")}</dt>
-              <dd>{person(c.seller)}</dd>
+              <dd>
+                <Party p={c.seller} />
+              </dd>
             </div>
             <div>
               <dt>{t("f.settlement")}</dt>
-              <dd>{st ? (tp.has(`settle.${st.status}`) ? tp(`settle.${st.status}`) : st.status) : "—"}</dd>
+              <dd>{st ? (tp.has(`settle.${st.status}`) ? tp(`settle.${st.status}`) : humanize(st.status)) : none}</dd>
             </div>
             {st ? (
               <div>
