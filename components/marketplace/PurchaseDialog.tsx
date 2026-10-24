@@ -18,6 +18,7 @@ import {
   marketChatHref,
   marketErrorCode,
   phaseOfStatus,
+  requestMarketplaceMatch,
   requestMarketplacePurchase,
   requestPackagePurchase,
   type ActivePurchase,
@@ -47,6 +48,8 @@ import { UsageSteps } from "./runtime/UsageSteps";
 import { FactorList } from "./runtime/FactorList";
 import "./runtime/checkout.css";
 import ContactAdvocate from "./order/ContactAdvocate";
+import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardNote";
+import { findContacts } from "@/lib/contactGuard";
 
 export type PackagePurchaseTarget = { id: string; purchaseUrl: string; duration: string };
 
@@ -67,7 +70,11 @@ export default function PurchaseDialog({
   onBack,
   onClose,
   onStale,
+  auto,
 }: {
+  // No seller picked: the backend matches one; the client may still pick
+  // themselves instead.
+  auto?: { onChooseMyself: () => void };
   sellerUserId: string;
   sellerName: string;
   service: MarketService | null;
@@ -82,6 +89,8 @@ export default function PurchaseDialog({
   const te = useTranslations("enums");
   const router = useRouter();
   const [note, setNote] = useState("");
+  // Contacts never reach the seller: taken out as they are typed.
+  const noteStrip = useContactStrip((v) => setNote(v.slice(0, NOTE_MAX)));
   const [channel, setChannel] = useState<PreferredChannel>("chat");
   const [chOpen, setChOpen] = useState(false);
   const [speed, setSpeed] = useState<ContactSpeed | "">("");
@@ -145,6 +154,7 @@ export default function PurchaseDialog({
   const left = useCountdown(done?.accepting ? done.deadlineAt : "", () => track?.recheck());
 
   if (!service) return <Modal open={false} onClose={onClose} title="">{null}</Modal>;
+  const noteHits = findContacts(note);
 
   const phase: MarketTrackPhase | null = tracked ? (track?.phase ?? phaseOfStatus(tracked.status)) : null;
   const step = phase ? STEP_OF[phase] : 0;
@@ -162,6 +172,7 @@ export default function PurchaseDialog({
 
   async function submit() {
     if (busy || done || !service || price.pending || price.failed || attaching) return;
+    if (findContacts(note).length) return;
     if (note.length > NOTE_MAX) {
       setErr(t("noteTooLong"));
       return;
@@ -170,9 +181,13 @@ export default function PurchaseDialog({
     setErr("");
     try {
       const input = { note, preferredChannel: channel, contactSpeed: speed, preferredTime: speed ? t(`speeds.${speed}`) : "", selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })) };
-      const r = pkg ? await requestPackagePurchase(pkg.purchaseUrl, input, { packageId: pkg.id, lawyerUserId: sellerUserId }) : await requestMarketplacePurchase(sellerUserId, service.id, input);
+      const r = auto
+        ? await requestMarketplaceMatch(service.id, input)
+        : pkg
+          ? await requestPackagePurchase(pkg.purchaseUrl, input, { packageId: pkg.id, lawyerUserId: sellerUserId })
+          : await requestMarketplacePurchase(sellerUserId, service.id, input);
       setDone(r);
-      trackPromoContact(sellerUserId, "purchase");
+      if (!auto) trackPromoContact(sellerUserId, "purchase");
     } catch (e) {
       const act = activePurchaseOf(e);
       if (act) {
@@ -306,7 +321,7 @@ export default function PurchaseDialog({
         <div className="mk-buy__ticket">
           <div>
             <small>{t("seller")}</small>
-            <b>{sellerName}</b>
+            <b>{auto ? t("autoSeller") : sellerName}</b>
             <p>{service.title}</p>
             {rtDur ? (
               <DurationChip duration={rtDur} tone="ticket" start />
@@ -406,7 +421,8 @@ export default function PurchaseDialog({
                 <span>{t("note")}</span>
                 <textarea
                   value={note}
-                  onChange={(e) => setNote(e.target.value)}
+                  onChange={(e) => noteStrip.change(e.target.value, e)}
+                  onBlur={() => noteStrip.blur(note)}
                   placeholder={t("notePh")}
                   maxLength={NOTE_MAX}
                   rows={4}
@@ -418,6 +434,7 @@ export default function PurchaseDialog({
               </label>
               <IntakeAttachments files={files} voices={voices} onFiles={setFiles} onVoices={setVoices} onBusy={onAttachBusy} compact />
             </div>
+            <ContactGuardNote hits={noteHits} removed={noteStrip.removed} verifiedLine={false} peer="specialist" />
             <fieldset className="mk-buy__ch" data-ai-target="marketplace:purchase-contact-speed" data-ai-id="marketplace.purchase.contact-speed" data-ai-type="select" data-ai-label={t("speed")}>
               <legend>{t("speed")}</legend>
               <div className="mk-seg mk-seg--speed">
@@ -429,7 +446,7 @@ export default function PurchaseDialog({
                 ))}
               </div>
             </fieldset>
-            <PriceOptions target={pkg ? "package" : "service"} targetId={service.id} lawyerUserId={pkg ? undefined : sellerUserId} reload={optReload} onChange={setPrice} />
+            <PriceOptions target={pkg ? "package" : "service"} targetId={service.id} lawyerUserId={pkg || auto ? undefined : sellerUserId} reload={optReload} onChange={setPrice} />
             {factors.length || steps.length || clientRules.length ? (
               <div className="mk-buy__facts" data-ai-id="marketplace.purchase.service-facts" data-ai-type="section">
                 {factors.length ? <FactorList factors={factors} basePrice={basePrice} currency={service.currency} level={3} /> : null}
@@ -461,11 +478,16 @@ export default function PurchaseDialog({
                 </fieldset>
               ) : null}
             </div>
-            <p className="mk-buy__note">{t("totalNote")}</p>
+            <p className="mk-buy__note">{auto ? t("autoNote") : t("totalNote")}</p>
             {err ? <Notice ok={false} msg={err} /> : null}
             <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy || price.pending || price.failed || attaching} data-ai-target="button:marketplace-purchase-submit" data-ai-id="marketplace.purchase.submit" data-ai-entity-type={pkg ? "marketplace_package" : "marketplace_service"} data-ai-entity-id={service.id}>
-              {busy ? t("sending") : price.pending ? t("pricing") : t("submit")}
+              {busy ? t("sending") : price.pending ? t("pricing") : auto ? t("autoSubmit") : t("submit")}
             </button>
+            {auto ? (
+              <button type="button" className="btn btn--line btn--full" onClick={auto.onChooseMyself} disabled={busy} data-ai-id="marketplace.purchase.choose-myself">
+                {t("chooseMyself")}
+              </button>
+            ) : null}
           </form>
         )}
       </div>

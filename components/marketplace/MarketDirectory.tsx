@@ -9,7 +9,7 @@ import { IconArrowRight, IconAward, IconBriefcase, IconCard, IconClose, IconFile
 import HeroShowcase from "./HeroShowcase";
 import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import { useCopilotAvailable } from "@/components/copilot/store";
-import { aiSearchMarketplace, listMarketplace, marketAiAvailable, peekSeller, rememberSellers, type MarketAiMatch, type MarketMeta, type MarketPromotionSurface, type MarketSeller } from "@/lib/services/marketplace";
+import { aiSearchMarketplace, listMarketplace, marketAiAvailable, peekSeller, rememberSellers, type MarketAiMatch, type MarketMeta, type MarketPromotionSurface, type MarketSeller, type MarketService } from "@/lib/services/marketplace";
 import { matchesSearch, normalizeSearchText, searchTerms } from "@/lib/searchText";
 import { regionKeyOf, regionLabel } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
@@ -23,7 +23,7 @@ import { DEFAULT_NEARBY_RADIUS, modeOf, radiusOf, writeNearbyParams, type Nearby
 import type { NearbyRadius } from "@/lib/services/marketRuntime";
 import NearbySellers, { MarketModeSwitch, type NearbyServiceOption } from "./NearbySellers";
 import ServiceBrowser from "./ServiceBrowser";
-import ServiceRequestDialog from "./ServiceRequestDialog";
+import PurchaseDialog from "./PurchaseDialog";
 import SecondOpinionEntry from "./order/SecondOpinionEntry";
 import { categoryName, categoryTitleName } from "@/lib/categoryNames";
 
@@ -398,7 +398,14 @@ export default function MarketDirectory({
   useEffect(() => () => aiCtrl.current?.abort(), []);
 
   const activeFilters = [region, sellerType, effSpec, category, service, minRating, priceMax, minExp].filter(Boolean).length;
-  const [requesting, setRequesting] = useState<{ value: string; label: string } | null>(null);
+  const [requesting, setRequesting] = useState<MarketService | null>(null);
+  // The service as sellers list it, the lowest price first: what the form
+  // shows until the backend quotes and matches a specialist.
+  const serviceById = (id: string): MarketService | null => {
+    let best: MarketService | null = null;
+    for (const s of shownItems) for (const x of s.services) if (x.id === id && (!best || (x.price > 0 && x.price < best.price))) best = x;
+    return best;
+  };
   // The specialists who offer one service: only its filter applies.
   const showServiceSellers = (id: string) => {
     resetFilters();
@@ -571,13 +578,19 @@ export default function MarketDirectory({
   return (
     <section className={`mk mk--${variant}`}>
       {requesting ? (
-        <ServiceRequestDialog
-          service={{ id: requesting.value, title: requesting.label }}
+        <PurchaseDialog
+          sellerUserId=""
+          sellerName=""
+          service={requesting}
+          returnPath={`${base}?mode=services`}
           onClose={() => setRequesting(null)}
-          onChooseMyself={() => {
-            const id = requesting.value;
-            setRequesting(null);
-            showServiceSellers(id);
+          onStale={() => setRequesting(null)}
+          auto={{
+            onChooseMyself: () => {
+              const id = requesting.id;
+              setRequesting(null);
+              showServiceSellers(id);
+            },
           }}
         />
       ) : null}
@@ -736,7 +749,7 @@ export default function MarketDirectory({
           onPick={(id) => {
             // A signed-in client hands the pick to the backend, which matches
             // the specialist; elsewhere the list narrows to that service.
-            if (variant === "portal") setRequesting(allServices.find((x) => x.value === id) ?? null);
+            if (variant === "portal") setRequesting(serviceById(id));
             else showServiceSellers(id);
           }}
         />

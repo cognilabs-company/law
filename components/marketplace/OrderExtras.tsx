@@ -9,6 +9,7 @@ import { saveBlob } from "@/lib/download";
 import { getSecureMessageFileAt } from "@/lib/services/backend";
 import { fileOrderComplaint, marketErrorCode, rateMarketplaceOrder, type MarketOrder, type OrderOption, type ResultFile } from "@/lib/services/marketplace";
 import { useMarketError } from "./useMarketError";
+import { useGuardedField } from "@/components/ui/ContactGuardNote";
 
 const RESULT_MAX = 4000;
 
@@ -246,6 +247,7 @@ export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => voi
   const [value, setValue] = useState(0);
   const [hover, setHover] = useState(0);
   const [comment, setComment] = useState("");
+  const commentGuard = useGuardedField(comment, setComment);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [closed, setClosed] = useState(false);
@@ -342,11 +344,14 @@ export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => voi
         {shown ? <span className="mko__starl">{t(`rating.labels.${shown}`)}</span> : null}
       </div>
       {value ? (
+        <>
         <label className={`mk-in mko__ratec${low ? " is-low" : ""}`}>
           <span>{low ? t("rating.lowLabel") : t("rating.commentLabel")}</span>
-          <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} maxLength={1000} placeholder={low ? t("rating.lowPh") : t("rating.commentPh")} data-ai-id={`marketplace.orders.rating.${o.id}.comment`} />
+          <textarea value={comment} onChange={(e) => commentGuard.change(e.target.value, e)} onBlur={commentGuard.blur} rows={3} maxLength={1000} placeholder={low ? t("rating.lowPh") : t("rating.commentPh")} data-ai-id={`marketplace.orders.rating.${o.id}.comment`} />
           {low ? <small className="mko__lowhint">{t("rating.lowHint")}</small> : null}
         </label>
+        {commentGuard.note}
+        </>
       ) : null}
       {err ? (
         <div id={errId}>

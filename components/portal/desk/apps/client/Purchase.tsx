@@ -39,6 +39,7 @@ import { CLIENT_ORDERS_HREF, type PackagePurchaseTarget } from "@/components/mar
 import { IconChat, IconCheck, IconClock, IconClose, IconHourglass, IconMic, IconPaperclip, IconPhone, IconRecord, IconRefresh, IconSend, IconShieldCheck, IconUsers, IconVideo } from "@/components/icons";
 import { Banner, Btn, Check, Dialog, Field, Input, Seg, Spinner, TextArea } from "../../kit/kit";
 import type { NativeProps } from "../../native";
+import { useGuardedField } from "@/components/ui/ContactGuardNote";
 
 // Ordering a service as a desktop sheet — the Mac's sheet that drops from
 // the toolbar, Windows' content dialog: the three steps on top, the
@@ -77,6 +78,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   const marketErr = useMarketError();
   const durText = useDurationText();
   const [note, setNote] = useState("");
+  const noteGuard = useGuardedField(note, (v) => setNote(v.slice(0, NOTE_MAX)), "specialist");
   const [channel, setChannel] = useState<PreferredChannel>("chat");
   const [time, setTime] = useState("");
   const [urgency, setUrgency] = useState<PurchaseUrgency | "">("");
@@ -279,7 +281,8 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
             })} />
           </Field>
           <Field label={t("note")} hint={`${note.length}/${NOTE_MAX}`}>
-            <TextArea value={note} onChange={setNote} placeholder={t("notePh")} maxLength={NOTE_MAX} rows={4} />
+            <TextArea value={note} onChange={(v) => noteGuard.change(v)} onBlur={noteGuard.blur} placeholder={t("notePh")} maxLength={NOTE_MAX} rows={4} />
+            {noteGuard.note}
           </Field>
           <Field label={t("urgency")}>
             <span className="dxcp-chips">

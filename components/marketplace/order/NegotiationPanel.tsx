@@ -21,6 +21,7 @@ import { CheckIcon, CircleCheckIcon, TimerIcon, CoinsIcon, HandCoinsIcon, Hourgl
 import { SECTION_ID, type OrderSectionProps } from "./types";
 import { canProposeNegotiation, counterProblem, dealAmount, negotiationActions, negotiationCap, negotiationErrorKey, negotiationGate, negotiationStateOf, pickNegotiation, proposalProblem, showNegotiation, type NegotiationState } from "./negotiationRules";
 import { noteNegotiation, useNotedNegotiation } from "./negotiationStore";
+import { useGuardedField } from "@/components/ui/ContactGuardNote";
 
 const NOTE_MAX = 500;
 
@@ -66,10 +67,12 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
   const [formOpen, setFormOpen] = useState(false);
   const [amount, setAmount] = useState<number | undefined>(undefined);
   const [note, setNote] = useState("");
+  const noteGuard = useGuardedField(note, (v) => setNote(v.slice(0, NOTE_MAX)));
   const [amountErr, setAmountErr] = useState("");
   const [counterOpen, setCounterOpen] = useState(false);
   const [counterAmount, setCounterAmount] = useState<number | undefined>(undefined);
   const [responseNote, setResponseNote] = useState("");
+  const responseGuard = useGuardedField(responseNote, (v) => setResponseNote(v.slice(0, NOTE_MAX)));
   const [counterErr, setCounterErr] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState<Busy>("");
@@ -276,10 +279,12 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
         </Field>
         <Field id={noteId} label={t("negotiation.noteLabel")}>
           {(a11y) => (
+            <>
             <TextArea
               {...a11y}
               value={note}
-              onChange={(v) => setNote(v.slice(0, NOTE_MAX))}
+              onChange={(v) => noteGuard.change(v)}
+              onBlur={noteGuard.blur}
               maxLength={NOTE_MAX}
               counter
               minRows={2}
@@ -288,6 +293,8 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
               aiId={`${ai}.note`}
               aiLabel={t("negotiation.noteLabel")}
             />
+            {noteGuard.note}
+            </>
           )}
         </Field>
       </div>
@@ -401,10 +408,12 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
                 </Field>
                 <Field id={responseId} label={t("negotiation.responseNoteLabel")}>
                   {(a11y) => (
+                    <>
                     <TextArea
                       {...a11y}
                       value={responseNote}
-                      onChange={(v) => setResponseNote(v.slice(0, NOTE_MAX))}
+                      onChange={(v) => responseGuard.change(v)}
+                      onBlur={responseGuard.blur}
                       maxLength={NOTE_MAX}
                       counter
                       minRows={2}
@@ -413,6 +422,8 @@ export default function NegotiationPanel({ o, phase, view, aiBase, runtime, onCh
                       aiId={`${ai}.response-note`}
                       aiLabel={t("negotiation.responseNoteLabel")}
                     />
+                    {responseGuard.note}
+                    </>
                   )}
                 </Field>
               </div>

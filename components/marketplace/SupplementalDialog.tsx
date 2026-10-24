@@ -12,6 +12,7 @@ import { PRICE_OPTION_ERRORS, marketErrorCode, requestAdditionalPayment, type Ma
 import { OptionGroups } from "./PriceOptions";
 import { OptionLines } from "./OrderExtras";
 import { useMarketError } from "./useMarketError";
+import { useGuardedField } from "@/components/ui/ContactGuardNote";
 
 const NOTE_MAX = 1000;
 
@@ -28,6 +29,7 @@ export default function SupplementalDialog({ order, onClose, onSent }: { order: 
   const [form, setForm] = useState<Form>({ key: "", status: "loading", sections: [], error: null });
   const [picked, setPicked] = useState<string[]>([]);
   const [note, setNote] = useState("");
+  const noteGuard = useGuardedField(note, (v) => setNote(v.slice(0, NOTE_MAX)), "client");
   const [quote, setQuote] = useState<Quote>({ key: "", quote: null, error: null });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -181,8 +183,9 @@ export default function SupplementalDialog({ order, onClose, onSent }: { order: 
 
         <label className="mk-in">
           <span>{t("noteLabel")}</span>
-          <textarea value={note} onChange={(e) => setNote(e.target.value.slice(0, NOTE_MAX))} rows={3} maxLength={NOTE_MAX} placeholder={t("notePh")} data-ai-id="advocate.marketplace-orders.supplemental.note" />
+          <textarea value={note} onChange={(e) => noteGuard.change(e.target.value, e)} onBlur={noteGuard.blur} rows={3} maxLength={NOTE_MAX} placeholder={t("notePh")} data-ai-id="advocate.marketplace-orders.supplemental.note" />
         </label>
+        {noteGuard.note}
         {err ? <Notice ok={false} msg={err} /> : null}
         <div className="mk-buy__acts">
           <button type="button" className="btn btn--grad" disabled={busy || !picked.length || pending} onClick={() => void send()} data-ai-id="advocate.marketplace-orders.supplemental.submit">

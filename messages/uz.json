@@ -6902,7 +6902,11 @@
       "advanceNext": "Hozircha hech narsa to'lanmaydi. Mutaxassis qabul qilgach, 10% oldindan to'lov ({amount} so'm) so'raladi.",
       "advanceNextPlain": "Hozircha hech narsa to'lanmaydi. Mutaxassis qabul qilgach, oldindan to'lov so'raladi.",
       "advanceTitle": "Mutaxassis qabul qildi",
-      "advanceLead": "Oldindan to'lov Telegram orqali tasdiqlanmoqda. Tasdiqlangach xavfsiz chat ochiladi."
+      "advanceLead": "Oldindan to'lov Telegram orqali tasdiqlanmoqda. Tasdiqlangach xavfsiz chat ochiladi.",
+      "autoSeller": "LexGo eng mos mutaxassisni tanlaydi",
+      "autoNote": "Mutaxassisni LexGo xizmat, omillar va javob tezligiga qarab tanlaydi. Yakuniy narxni backend belgilaydi; hozircha hech narsa to'lanmaydi.",
+      "autoSubmit": "LexGo mutaxassis tanlasin",
+      "chooseMyself": "Mutaxassisni o'zim tanlayman"
     },
     "orders": {
       "phoneConcealed": "Yashirilgan",
@@ -7198,10 +7202,10 @@
       "submit": "So'rov yuborish",
       "keep": "Bekor qilish"
     },
-    "byService": {"title": "Xizmatlar bo'yicha qidirish", "lead": "Kerakli xizmatni tanlang — uni ko'rsatadigan advokat va yuristlarni darhol topamiz.", "search": "Xizmat nomi bo'yicha qidirish", "categories": "Kategoriyalar", "allCategories": "Hammasi", "sellers": "{n} ta mutaxassis", "noSellers": "Hozircha mutaxassis yo'q", "from": "{price} so'mdan", "find": "Topish", "cardAria": "{name}: {n} ta mutaxassis — topish", "cardOff": "{name}: hozircha mutaxassis yo'q", "empty": "Hozircha xizmatlar yo'q.", "noMatch": "Bunday xizmat topilmadi.", "request": {"lead": "Muammoingizni qisqacha yozing — LexGo sizga eng mos advokat yoki yuristni tanlaydi.", "problem": "Muammo tavsifi", "problemHelp": "Telefon, Telegram va boshqa aloqa ma'lumotlarini yozmang.", "problemPh": "Masalan: turmush o'rtog'im bilan ajrashmoqchiman, bolalar aliment masalasi bor", "problemShort": "Kamida {n} ta belgi yozing", "region": "Hudud", "pickRegion": "Hududni tanlang", "how": "So'rov qabul qilingach, buyurtma sahifasida holatini kuzatasiz. To'lov mutaxassis buyurtmani qabul qilgandan keyin so'raladi.", "submit": "LexGo mutaxassis tanlasin", "sending": "Yuborilmoqda…", "chooseMyself": "O'zim tanlayman", "failed": "So'rovni yuborib bo'lmadi"}}
+    "byService": {"title": "Xizmatlar bo'yicha qidirish", "lead": "Kerakli xizmatni tanlang — uni ko'rsatadigan advokat va yuristlarni darhol topamiz.", "search": "Xizmat nomi bo'yicha qidirish", "categories": "Kategoriyalar", "allCategories": "Hammasi", "sellers": "{n} ta mutaxassis", "noSellers": "Hozircha mutaxassis yo'q", "from": "{price} so'mdan", "find": "Topish", "cardAria": "{name}: {n} ta mutaxassis — topish", "cardOff": "{name}: hozircha mutaxassis yo'q", "empty": "Hozircha xizmatlar yo'q.", "noMatch": "Bunday xizmat topilmadi."}
   },
   "common": {"privateField":{"tag": "Yopiq", "hint": "Faqat siz va LexGo tekshiruvchilari ko‘radi — mijozlar va ochiq profil sahifasida ko‘rinmaydi."},
-    "contactGuard": {"verified":"Tajribangiz LexGo tomonidan tekshiriladi.","title":"Aloqa ma'lumotlarini yozib bo'lmaydi","why":"Mijoz bilan aloqa faqat LexGo ichida bo'ladi. Ularni olib tashlang — shundan keyin saqlash mumkin.","removed":"Biz ularni olib tashladik: mijoz bilan aloqa faqat LexGo ichida bo'ladi.","field":"Aloqa ma'lumotlarini olib tashlang","kind":{"phone":"Telefon","email":"E-pochta","link":"Havola","username":"Foydalanuvchi nomi","messenger":"Messenjer"}},
+    "contactGuard": {"verified":"Tajribangiz LexGo tomonidan tekshiriladi.","title":"Aloqa ma'lumotlarini yozib bo'lmaydi","why":"Mijoz bilan aloqa faqat LexGo ichida bo'ladi. Ularni olib tashlang — shundan keyin saqlash mumkin.","removed":"Biz ularni olib tashladik: mijoz bilan aloqa faqat LexGo ichida bo'ladi.","field":"Aloqa ma'lumotlarini olib tashlang","kind":{"phone":"Telefon","email":"E-pochta","link":"Havola","username":"Foydalanuvchi nomi","messenger":"Messenjer"}, "whyPeer": {"specialist": "Mutaxassis bilan aloqa faqat LexGo ichida bo'ladi. Ularni olib tashlang.", "any": "Aloqa faqat LexGo ichida bo'ladi. Ularni olib tashlang."}, "removedPeer": {"specialist": "Biz ularni olib tashladik: mutaxassis bilan aloqa faqat LexGo ichida bo'ladi.", "any": "Biz ularni olib tashladik: aloqa faqat LexGo ichida bo'ladi."}},
     "menu": {
       "back": "Orqaga"
     },
@@ -18762,7 +18766,8 @@
     "recDeniedBy": "{name} yozib olishni rad etdi",
     "recNoAnswer": "Javob yo'q — yozib olish boshlanmadi.",
     "recNeedApprover": "Yozib olish uchun advokat/operator ruxsati kerak — hozir uchrashuvda ular yo'q.",
-    "recChip": "yozib olmoqda"
+    "recChip": "yozib olmoqda",
+    "chatContacts": "Aloqa ma'lumotlarini (telefon, e-pochta, havola, Telegram) yuborib bo'lmaydi — aloqa faqat LexGo ichida."
   },
   "theme": {
     "label": "Mavzu",

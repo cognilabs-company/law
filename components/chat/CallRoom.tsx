@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type PointerEvent as ReactPointerEvent, type ComponentType, type ReactNode, type RefObject } from "react";
+import { chatContacts } from "@/lib/chatFilter";
 import { useTranslations } from "next-intl";
 import {
   Room,
@@ -497,6 +498,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [unread, setUnread] = useState(0);
   const [draft, setDraft] = useState("");
+  // Contact details never go to the other side of the call.
+  const draftContacts = chatContacts(draft).length > 0;
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [canSwitchCam, setCanSwitchCam] = useState(false);
   // Local recording (audio of everyone) + who else is recording (data channel).
@@ -1638,7 +1641,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   function sendChat() {
     const r = roomRef.current;
     const text = draft.trim();
-    if (!r || !text) return;
+    if (!r || !text || chatContacts(text).length) return;
     const at = stamp();
     r.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ t: "chat", text, at })), { reliable: true }).catch(() => {});
     setMessages((m) => [...m, { id: `me-${at}`, from: r.localParticipant.identity, name: t("you"), text, at }]);
@@ -2462,9 +2465,14 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
                   <div ref={chatEndRef} />
                 </div>
                 <form className="mtg__compose" onSubmit={(e) => { e.preventDefault(); sendChat(); }}>
-                  <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("chatPh")} aria-label={t("chatPh")} />
-                  <button type="submit" disabled={!draft.trim()} aria-label={t("send")}><IconSend /></button>
+                  <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={t("chatPh")} aria-label={t("chatPh")} aria-invalid={draftContacts || undefined} aria-describedby={draftContacts ? "mtg-chat-contacts" : undefined} />
+                  <button type="submit" disabled={!draft.trim() || draftContacts} aria-label={t("send")}><IconSend /></button>
                 </form>
+                {draftContacts ? (
+                  <p id="mtg-chat-contacts" className="mtg__warn" role="alert">
+                    {t("chatContacts")}
+                  </p>
+                ) : null}
               </>
             ) : (
               <div className="mtg__people">

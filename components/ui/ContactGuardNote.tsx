@@ -4,7 +4,7 @@ import "./contactGuard.css";
 import { useRef, useState, type SyntheticEvent } from "react";
 import { useTranslations } from "next-intl";
 import { IconLock, IconShieldCheck } from "@/components/icons";
-import { stripContacts, type ContactHit } from "@/lib/contactGuard";
+import { findContacts, stripContacts, type ContactHit } from "@/lib/contactGuard";
 
 // Under a lawyer's experience text: the standing "LexGo checks this" line,
 // and — when the text carries a phone number, a username, an e-mail, a
@@ -16,7 +16,23 @@ export type ContactRefusal = { message: string; preview?: string };
 
 // `verifiedLine`: the "verified by LexGo" reassurance, which only fits a
 // profile field; a request form leaves it out.
-export default function ContactGuardNote({ id, hits, removed = [], server = null, verifiedLine = true }: { id?: string; hits: readonly ContactHit[]; removed?: readonly ContactHit[]; server?: ContactRefusal | null; verifiedLine?: boolean }) {
+// `peer`: who the writer must not reach outside LexGo — the client (a
+// seller's profile, a lawyer's message) or the specialist (a client's).
+export default function ContactGuardNote({
+  id,
+  hits,
+  removed = [],
+  server = null,
+  verifiedLine = true,
+  peer = "client",
+}: {
+  id?: string;
+  hits: readonly ContactHit[];
+  removed?: readonly ContactHit[];
+  server?: ContactRefusal | null;
+  verifiedLine?: boolean;
+  peer?: "client" | "specialist" | "any";
+}) {
   const t = useTranslations("common.contactGuard");
   const blocked = hits.length > 0 || removed.length > 0 || !!server;
   // Only the kind of each find, never its value: the note must not repeat
@@ -42,7 +58,7 @@ export default function ContactGuardNote({ id, hits, removed = [], server = null
             ) : server?.preview ? (
               <em>{server.preview}</em>
             ) : null}
-            <span className="cgn__why">{server?.message || (hits.length ? t("why") : t("removed"))}</span>
+            <span className="cgn__why">{server?.message || (peer === "client" ? (hits.length ? t("why") : t("removed")) : t(hits.length ? `whyPeer.${peer}` : `removedPeer.${peer}`))}</span>
           </span>
         </div>
       ) : null}
@@ -134,5 +150,18 @@ export function useContactStrip(set: (text: string) => void) {
       eating.current = null;
       apply(text, true);
     },
+  };
+}
+
+// One text field kept free of contact details: what to call on change and
+// on blur, and the note to show under it. `set` receives the cleaned text.
+export function useGuardedField(value: string, set: (text: string) => void, peer: "client" | "specialist" | "any" = "any") {
+  const strip = useContactStrip(set);
+  return {
+    change: strip.change,
+    blur: () => strip.blur(value),
+    reset: strip.reset,
+    blocked: findContacts(value).length > 0,
+    note: <ContactGuardNote hits={findContacts(value)} removed={strip.removed} verifiedLine={false} peer={peer} />,
   };
 }

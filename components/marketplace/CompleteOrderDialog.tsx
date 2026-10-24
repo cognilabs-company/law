@@ -15,6 +15,7 @@ import { ORDER_FILE_MB, ORDER_FILES_MAX, uploadOrderFile } from "./order/upload"
 import { useMarketError } from "./useMarketError";
 import "./completeOrder.css";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
+import { useGuardedField } from "@/components/ui/ContactGuardNote";
 
 const TEXT_MAX = 4000;
 const FILES_MAX = ORDER_FILES_MAX;
@@ -42,6 +43,7 @@ export default function CompleteOrderDialog({
   const tc = useTranslations("copilot");
   const marketErr = useMarketError();
   const [text, setText] = useState("");
+  const textGuard = useGuardedField(text, (v) => setText(v.slice(0, TEXT_MAX)), "client");
   const [files, setFiles] = useState<Attachment[]>([]);
   const [busy, setBusy] = useState(false);
   const once = useSameTickGuard();
@@ -209,10 +211,11 @@ export default function CompleteOrderDialog({
         ) : null}
         <label className="mk-in">
           <span>{t("textLabel")}</span>
-          <textarea value={text} onChange={(e) => setText(e.target.value.slice(0, TEXT_MAX))} placeholder={t("textPh")} rows={5} maxLength={TEXT_MAX} data-ai-id="advocate.marketplace-orders.complete.text" data-ai-label={t("textLabel")} />
+          <textarea value={text} onChange={(e) => textGuard.change(e.target.value, e)} onBlur={textGuard.blur} placeholder={t("textPh")} rows={5} maxLength={TEXT_MAX} data-ai-id="advocate.marketplace-orders.complete.text" data-ai-label={t("textLabel")} />
           <em>
             {text.length}/{TEXT_MAX}
           </em>
+          {textGuard.note}
         </label>
         <div className="mkc__files">
           <div className="mkc__fh">

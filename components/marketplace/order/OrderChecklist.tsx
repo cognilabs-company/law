@@ -23,6 +23,7 @@ import { ForwardIcon, CheckIcon, EyeIcon, EyeOffIcon, CircleCheckIcon, CircleDas
 import { SECTION_ID, type LoadState, type OrderView } from "./types";
 import { ORDER_FILE_MB, ORDER_FILES_MAX, uploadOrderFile, type UploadedFile } from "./upload";
 import "./checklist.css";
+import { useGuardedField } from "@/components/ui/ContactGuardNote";
 
 const COMMENT_MAX = 1000;
 
@@ -506,6 +507,7 @@ function ItemEditor({
   const commentId = `${base}-comment`;
   const noteId = `${base}-note`;
   const [draft, setDraft] = useState<ItemDraft>(() => (item.status === "pending" ? { ...draftOf(item), status: "done" } : draftOf(item)));
+  const commentGuard = useGuardedField(draft.comment, (v) => setDraft((d) => ({ ...d, comment: v.slice(0, COMMENT_MAX) })), "client");
   const [adds, setAdds] = useState<Add[]>([]);
   const [errs, setErrs] = useState<Errs>({});
   const [note, setNote] = useState("");
@@ -692,9 +694,10 @@ function ItemEditor({
               aria-required={commentNeeded || undefined}
               value={draft.comment}
               onChange={(v) => {
-                setDraft((d) => ({ ...d, comment: v.slice(0, COMMENT_MAX) }));
+                commentGuard.change(v);
                 if (errs.comment) setErrs((e) => ({ ...e, comment: undefined }));
               }}
+              onBlur={commentGuard.blur}
               maxLength={COMMENT_MAX}
               counter
               minRows={2}
@@ -704,6 +707,9 @@ function ItemEditor({
             />
           )}
         </Field>
+      ) : null}
+      {showComment ? (
+        commentGuard.note
       ) : null}
       {done && (ev.image || !!errs.image) ? (
         <EvidenceSet

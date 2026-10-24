@@ -6902,7 +6902,11 @@
       "advanceNext": "Nothing is charged yet. Once the specialist accepts, a 10% advance ({amount} UZS) is requested.",
       "advanceNextPlain": "Nothing is charged yet. Once the specialist accepts, an advance payment is requested.",
       "advanceTitle": "The specialist accepted",
-      "advanceLead": "The advance payment is being confirmed via Telegram. The secure chat opens once it is confirmed."
+      "advanceLead": "The advance payment is being confirmed via Telegram. The secure chat opens once it is confirmed.",
+      "autoSeller": "LexGo picks the best-suited specialist",
+      "autoNote": "LexGo picks the specialist by service, options and urgency. The backend sets the final price; nothing is charged now.",
+      "autoSubmit": "Let LexGo pick a specialist",
+      "chooseMyself": "I'll pick the specialist myself"
     },
     "orders": {
       "phoneConcealed": "Hidden",
@@ -7198,10 +7202,10 @@
       "submit": "Send request",
       "keep": "Cancel"
     },
-    "byService": {"title": "Find by service", "lead": "Pick the service you need and we'll find the advocates and lawyers who offer it.", "search": "Search services by name", "categories": "Categories", "allCategories": "All", "sellers": "{n, plural, one {# specialist} other {# specialists}}", "noSellers": "No specialists yet", "from": "from {price} UZS", "find": "Find", "cardAria": "{name}: {n, plural, one {# specialist} other {# specialists}} — find", "cardOff": "{name}: no specialists yet", "empty": "No services yet.", "noMatch": "No service matches.", "request": {"lead": "Describe your situation briefly — LexGo will choose the best-suited advocate or lawyer.", "problem": "Your situation", "problemHelp": "Don't include a phone number, Telegram or other contacts.", "problemPh": "For example: I want a divorce and there's a child support question", "problemShort": "Write at least {n} characters", "region": "Region", "pickRegion": "Choose a region", "how": "Once sent, you follow the order on its page. Payment is requested after the specialist accepts the order.", "submit": "Let LexGo choose a specialist", "sending": "Sending…", "chooseMyself": "I'll choose myself", "failed": "Couldn't send the request"}}
+    "byService": {"title": "Find by service", "lead": "Pick the service you need and we'll find the advocates and lawyers who offer it.", "search": "Search services by name", "categories": "Categories", "allCategories": "All", "sellers": "{n, plural, one {# specialist} other {# specialists}}", "noSellers": "No specialists yet", "from": "from {price} UZS", "find": "Find", "cardAria": "{name}: {n, plural, one {# specialist} other {# specialists}} — find", "cardOff": "{name}: no specialists yet", "empty": "No services yet.", "noMatch": "No service matches."}
   },
   "common": {"privateField":{"tag": "Private", "hint": "Only you and LexGo verifiers can see this — it never appears to clients or on your public profile."},
-    "contactGuard": {"verified":"Your experience will be verified by LexGo.","title":"Contact details can't be included","why":"Clients reach you only inside LexGo. Remove them and you can save.","removed":"We removed them: clients reach you only inside LexGo.","field":"Remove the contact details","kind":{"phone":"Phone","email":"Email","link":"Link","username":"Username","messenger":"Messenger"}},
+    "contactGuard": {"verified":"Your experience will be verified by LexGo.","title":"Contact details can't be included","why":"Clients reach you only inside LexGo. Remove them and you can save.","removed":"We removed them: clients reach you only inside LexGo.","field":"Remove the contact details","kind":{"phone":"Phone","email":"Email","link":"Link","username":"Username","messenger":"Messenger"}, "whyPeer": {"specialist": "You reach the specialist only inside LexGo. Remove them.", "any": "All contact stays inside LexGo. Remove them."}, "removedPeer": {"specialist": "We removed them: you reach the specialist only inside LexGo.", "any": "We removed them: all contact stays inside LexGo."}},
     "menu": {
       "back": "Back"
     },
@@ -18756,7 +18760,8 @@
     "recDeniedBy": "{name} denied the recording",
     "recNoAnswer": "No answer — recording did not start.",
     "recNeedApprover": "Recording needs an advocate/operator's permission — none is in the meeting right now.",
-    "recChip": "recording"
+    "recChip": "recording",
+    "chatContacts": "Contact details (phone, email, links, Telegram) can't be sent — contact stays inside LexGo."
   },
   "theme": {
     "label": "Theme",

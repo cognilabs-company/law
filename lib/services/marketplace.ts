@@ -457,6 +457,19 @@ export async function requestMarketplacePurchase(lawyerUserId: string, serviceId
   );
 }
 
+// A service ordered without picking a seller: the backend chooses the
+// suitable external one (enterprise contract §4.1: POST /orders,
+// source=marketplace, no lawyer_user_id). The purchase form's answers ride
+// in `details`, the only free part of that body.
+export async function requestMarketplaceMatch(serviceId: string, input: PurchaseInput): Promise<MarketPurchase> {
+  const body = purchaseBodyOf(input);
+  const { details: nested, ...rest } = body;
+  const details = { ...rest, ...(nested && typeof nested === "object" ? (nested as Record<string, unknown>) : {}), problem: input.note.trim() };
+  const raw = await http("/orders", { method: "POST", body: JSON.stringify({ service_id: serviceId, source: "marketplace", details }) });
+  const d = asDict(raw);
+  return purchaseOf(d.order ? d : { order: d, payment: d.payment });
+}
+
 export function packagePurchasePath(packageId: string, lawyerUserId: string): string {
   return `/marketplace/service-packages/${encodeURIComponent(packageId)}/lawyers/${encodeURIComponent(lawyerUserId)}/purchase-request`;
 }

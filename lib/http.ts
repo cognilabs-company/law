@@ -1,4 +1,5 @@
 import { localizeApiDetail } from "./apiMessage";
+import { contactBlockOf } from "./contactWire";
 // Shared HTTP core for the LexGo backend (see FRONTEND_API.md / MOBILE_API.md).
 // Same-origin proxy path (app/api/backend) avoids browser CORS; the deployment
 // sets BACKEND_ORIGIN. Every request carries the bearer token when present.
@@ -347,6 +348,13 @@ export async function http<T = unknown>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
+  const block = contactBlockOf(path, init);
+  if (block) {
+    throw new ApiError(422, block.message, undefined, {
+      code: "platform_contact_blocked",
+      data: { detail: { code: "platform_contact_blocked", message: block.message, kinds: block.kinds } },
+    });
+  }
   const res = await authedFetch(path, init, "application/json");
   let text: string;
   try {
