@@ -14,7 +14,9 @@ import { stripContacts, type ContactHit } from "@/lib/contactGuard";
 
 export type ContactRefusal = { message: string; preview?: string };
 
-export default function ContactGuardNote({ id, hits, removed = [], server = null }: { id?: string; hits: readonly ContactHit[]; removed?: readonly ContactHit[]; server?: ContactRefusal | null }) {
+// `verifiedLine`: the "verified by LexGo" reassurance, which only fits a
+// profile field; a request form leaves it out.
+export default function ContactGuardNote({ id, hits, removed = [], server = null, verifiedLine = true }: { id?: string; hits: readonly ContactHit[]; removed?: readonly ContactHit[]; server?: ContactRefusal | null; verifiedLine?: boolean }) {
   const t = useTranslations("common.contactGuard");
   const blocked = hits.length > 0 || removed.length > 0 || !!server;
   // Only the kind of each find, never its value: the note must not repeat
@@ -44,10 +46,12 @@ export default function ContactGuardNote({ id, hits, removed = [], server = null
           </span>
         </div>
       ) : null}
-      <p className="cgn__ok">
-        <IconShieldCheck aria-hidden="true" />
-        <span>{t("verified")}</span>
-      </p>
+      {verifiedLine ? (
+        <p className="cgn__ok">
+          <IconShieldCheck aria-hidden="true" />
+          <span>{t("verified")}</span>
+        </p>
+      ) : null}
     </div>
   );
 }

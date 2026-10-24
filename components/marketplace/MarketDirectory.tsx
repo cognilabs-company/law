@@ -23,6 +23,7 @@ import { DEFAULT_NEARBY_RADIUS, modeOf, radiusOf, writeNearbyParams, type Nearby
 import type { NearbyRadius } from "@/lib/services/marketRuntime";
 import NearbySellers, { MarketModeSwitch, type NearbyServiceOption } from "./NearbySellers";
 import ServiceBrowser from "./ServiceBrowser";
+import ServiceRequestDialog from "./ServiceRequestDialog";
 import SecondOpinionEntry from "./order/SecondOpinionEntry";
 import { categoryName, categoryTitleName } from "@/lib/categoryNames";
 
@@ -397,6 +398,14 @@ export default function MarketDirectory({
   useEffect(() => () => aiCtrl.current?.abort(), []);
 
   const activeFilters = [region, sellerType, effSpec, category, service, minRating, priceMax, minExp].filter(Boolean).length;
+  const [requesting, setRequesting] = useState<{ value: string; label: string } | null>(null);
+  // The specialists who offer one service: only its filter applies.
+  const showServiceSellers = (id: string) => {
+    resetFilters();
+    setService(id);
+    switchMode("all");
+    window.setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }), 60);
+  };
   const resetFilters = () => {
     setRegion("");
     setSellerType("");
@@ -561,6 +570,17 @@ export default function MarketDirectory({
 
   return (
     <section className={`mk mk--${variant}`}>
+      {requesting ? (
+        <ServiceRequestDialog
+          service={{ id: requesting.value, title: requesting.label }}
+          onClose={() => setRequesting(null)}
+          onChooseMyself={() => {
+            const id = requesting.value;
+            setRequesting(null);
+            showServiceSellers(id);
+          }}
+        />
+      ) : null}
       <div className="mk-adslot">
         <PromotionSurfaces part="banner" banners={shownBanners} sponsored={[]} base={base} />
       </div>
@@ -714,11 +734,10 @@ export default function MarketDirectory({
           sellers={shownItems}
           loading={status === "loading"}
           onPick={(id) => {
-            // Find the specialists for this service: only its filter applies.
-            resetFilters();
-            setService(id);
-            switchMode("all");
-            window.setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }), 60);
+            // A signed-in client hands the pick to the backend, which matches
+            // the specialist; elsewhere the list narrows to that service.
+            if (variant === "portal") setRequesting(allServices.find((x) => x.value === id) ?? null);
+            else showServiceSellers(id);
           }}
         />
       ) : mode === "nearby" ? (
