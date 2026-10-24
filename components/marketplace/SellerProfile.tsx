@@ -23,7 +23,7 @@ import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import "@/components/portal/clientCopilot.css";
 import PricingExplainer from "./PricingExplainer";
 import { Stars, deliveryLabel } from "./bits";
-import { SellerAbout, SellerHero, SellerServiceRow } from "./SellerParts";
+import { SellerHero, SellerServiceRow } from "./SellerParts";
 import { aiId } from "@/lib/ai/ids";
 import { PH_SERVICE_ID, type ProfilePreview } from "@/lib/marketPreview";
 import { useAiModal, useAiSelection } from "@/lib/ai/registry";
@@ -287,8 +287,6 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
               </div>
             )}
           </section>
-
-          <SellerAbout seller={seller} />
 
           <section className="mk-panel" data-ai-target="marketplace:seller-reviews" data-ai-id={`${sellerAiId}.reviews`} data-ai-type="list">
             <h2 className="mk-panel__t">{t("detail.reviews")}</h2>
