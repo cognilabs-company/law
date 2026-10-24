@@ -5,8 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
-import FilterBar, { type FilterField } from "@/components/filters/FilterBar";
-import { IconArrowRight, IconChat, IconCheck, IconClipboardCheck, IconClock, IconCoins, IconPackage, IconPause, IconPhone, IconRefresh, IconSparkle, IconVideo, IconClose, IconUser } from "@/components/icons";
+import { IconArrowRight, IconChat, IconCheck, IconClock, IconCoins, IconPackage, IconPause, IconPhone, IconRefresh, IconSearch, IconSparkle, IconVideo, IconClose, IconUser } from "@/components/icons";
 import { errDetail } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { shortDateTime } from "@/lib/date";
@@ -40,6 +39,9 @@ import ContactAdvocate, { callStateOf } from "./order/ContactAdvocate";
 import { useContactSpeedText } from "./order/contactSpeed";
 import { clientPhoneShow, telHref } from "./order/phone";
 import "./order/cards.css";
+import "./order/orderList.css";
+import SellerOrderActions from "@/components/portal/OrderActions";
+import { clockOf, useCountdown } from "@/lib/useCountdown";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 type View = "client" | "seller";
@@ -47,13 +49,12 @@ type Tab = "all" | MarketStage;
 
 const DEAL_OPEN = /^(pending|open|proposed|created|waiting|counter)/;
 
-const STEP_INDEX: Record<MarketStage, number> = { pending: 1, active: 2, completed: 4, cancelled: -1 };
 const EVENT_SETTLE_MS = 500;
 const SEARCH_MAX = 100;
 
 const aiBaseOf = (view: View) => (view === "client" ? "marketplace.orders" : "advocate.marketplace-orders");
 
-const tabsOf = (view: View): Tab[] => (view === "client" ? ["all", "pending", "active", "completed", "cancelled"] : ["all", "active", "completed", "cancelled"]);
+const TABS: Tab[] = ["all", "pending", "active", "completed", "cancelled"];
 
 const lower = (s: string) => s.trim().toLowerCase();
 
@@ -61,7 +62,6 @@ const haystackOf = (o: MarketOrder, view: View) => [o.serviceTitle, o.workId, vi
 
 export default function MarketOrders({ view }: { view: View }) {
   const t = useTranslations("marketplace.orders");
-  const tf = useTranslations("filterBar");
   const locale = useLocale();
   const pathname = usePathname();
   const [orders, setOrders] = useState<MarketOrder[]>([]);
@@ -135,7 +135,7 @@ export default function MarketOrders({ view }: { view: View }) {
     return () => clearTimeout(h);
   }, [flash]);
 
-  const tabs = tabsOf(view);
+  const tabs = TABS;
   const term = q.trim();
   const searched = useMemo(() => (term ? orders.filter((o) => matchesSearch(haystackOf(o, view), term)) : orders), [orders, term, view]);
   const counts = useMemo(() => {
@@ -143,7 +143,10 @@ export default function MarketOrders({ view }: { view: View }) {
     for (const o of searched) c[marketStageOf(o)]++;
     return c;
   }, [searched]);
-  const shown = tab === "all" ? searched : searched.filter((o) => marketStageOf(o) === tab);
+  // A seller's new requests sit in their own strip above the list.
+  const fresh = view === "seller" ? searched.filter((o) => awaitingSeller(o)) : [];
+  const listed = view === "seller" ? searched.filter((o) => !awaitingSeller(o)) : searched;
+  const shown = tab === "all" ? listed : listed.filter((o) => marketStageOf(o) === tab);
   const ai = aiBaseOf(view);
 
   const tabOf = (v: string): Tab | null => {
@@ -178,17 +181,6 @@ export default function MarketOrders({ view }: { view: View }) {
     if (next) setTab(next);
   });
 
-  const fields: FilterField[] = [
-    {
-      key: "status",
-      label: t("filterStatus"),
-      icon: IconClipboardCheck,
-      value: tab === "all" ? "" : tab,
-      onChange: (v) => setTab(tabOf(v) ?? "all"),
-      options: tabs.map((k) => ({ value: k === "all" ? "" : k, label: `${t(`tabs.${k}`)} (${counts[k]})` })),
-      aiId: `${ai}.tabs`,
-    },
-  ];
 
   const patch = (id: string, next: Partial<MarketOrder>) => setOrders((cur) => cur.map((o) => (o.id === id ? { ...o, ...next, canCancel: false, canComplete: false } : o)));
 
@@ -217,23 +209,52 @@ export default function MarketOrders({ view }: { view: View }) {
         </div>
       ) : null}
 
-      <FilterBar
-        fields={fields}
-        search={{
-          value: q,
-          onChange: (v) => setQ(v.slice(0, SEARCH_MAX)),
-          placeholder: view === "client" ? t("searchPhClient") : t("searchPhSeller"),
-          label: t("searchLabel"),
-          maxLength: SEARCH_MAX,
-          aiId: `${ai}.search`,
-          aiLabel: t("searchLabel"),
-        }}
-        count={status === "ready" ? shown.length : undefined}
-        onReset={resetFilters}
-        aiId={`${ai}.filters`}
-        aiTarget="orders:filters"
-        aiLabel={tf("title")}
-      />
+      <div className="mko-bar" data-ai-id={`${ai}.filters`} data-ai-target="orders:filters">
+        <div className="mko-tabs" role="tablist" aria-label={t("filterStatus")} data-ai-id={`${ai}.tabs`}>
+          {tabs.map((k) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={tab === k}
+              className="mko-tab"
+              data-tone={k}
+              onClick={() => setTab(k)}
+              data-ai-id={`${ai}.tab.${k}`}
+            >
+              {view === "seller" && k === "pending" ? t("tabs.new") : t(`tabs.${k}`)}
+              <span className="mko-tab__n sx-num">{counts[k]}</span>
+            </button>
+          ))}
+        </div>
+        <label className="mko-search">
+          <IconSearch aria-hidden="true" />
+          <input
+            type="search"
+            value={q}
+            maxLength={SEARCH_MAX}
+            onChange={(e) => setQ(e.target.value.slice(0, SEARCH_MAX))}
+            placeholder={view === "client" ? t("searchPhClient") : t("searchPhSeller")}
+            aria-label={t("searchLabel")}
+            data-ai-id={`${ai}.search`}
+          />
+        </label>
+      </div>
+
+      {view === "seller" && fresh.length && (tab === "all" || tab === "pending") ? (
+        <section className="mko-new" aria-label={t("newTitle")}>
+          <p className="mko-new__h">
+            <i aria-hidden="true" />
+            {t("newTitle")}
+            <span className="sx-num">{fresh.length}</span>
+          </p>
+          <div className="mko-new__list">
+            {fresh.map((o) => (
+              <NewRequest key={o.id} o={o} listHref={pathname} onDone={() => void load(true)} />
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {status === "loading" ? (
         <div className="mk-olist">
@@ -267,13 +288,13 @@ export default function MarketOrders({ view }: { view: View }) {
             </Link>
           ) : null}
         </div>
-      ) : !shown.length ? (
+      ) : !shown.length && !fresh.length ? (
         <div className="mk-empty mk-empty--flat" data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"} data-ai-id={`${ai}.list`} data-ai-type="list">
           <span>{t("emptyFilter")}</span>
         </div>
-      ) : (
+      ) : !shown.length ? null : (
         <div
-          className={`mk-olist${refreshing ? " is-busy" : ""}`}
+          className={`mko-list${refreshing ? " is-busy" : ""}`}
           data-ai-target={view === "client" ? "client:marketplace-orders" : "seller:marketplace-orders"}
           data-ai-id={`${ai}.list`}
           data-ai-type="list"
@@ -382,7 +403,6 @@ function OrderCard({
   const chatHref = marketChatHref(o);
   const contact = view === "client" && o.canStartChat;
   const speed = speedText(o);
-  const stepAt = STEP_INDEX[stage];
   const item = o.id ? aiId(`${aiBaseOf(view)}.item`, o.id) : undefined;
   const sub = (s: string) => (item ? `${item}.${s}` : undefined);
 
@@ -399,9 +419,19 @@ function OrderCard({
     }
   }
 
+  const title = o.serviceTitle || o.packageTitle || "—";
+  const facts = [
+    counterpart ? { k: "who", icon: <IconUser aria-hidden="true" />, text: counterpart } : null,
+    view === "seller" && phoneShow === "show" ? { k: "tel", icon: <IconPhone aria-hidden="true" />, text: <a href={telHref(o.clientPhone)}>{o.clientPhone}</a> } : null,
+    o.preferredChannel ? { k: "ch", icon: <IconChat aria-hidden="true" />, text: tch.has(o.preferredChannel) ? tch(o.preferredChannel) : o.preferredChannel } : null,
+    speed || o.preferredTime ? { k: "speed", icon: <IconClock aria-hidden="true" />, text: speed || o.preferredTime } : null,
+    o.createdAt ? { k: "at", icon: null, text: shortDateTime(o.createdAt, locale) } : null,
+  ].filter(Boolean) as { k: string; icon: React.ReactNode; text: React.ReactNode }[];
+
   return (
     <article
-      className={`mk-order mk-order--${stage}`}
+      className="mko-card"
+      data-stage={stage}
       data-ai-target={o.id ? `orders.item.${o.id}` : undefined}
       data-ai-id={item}
       data-ai-type="card"
@@ -410,183 +440,169 @@ function OrderCard({
       data-ai-label={[o.serviceTitle, stageLabel].filter(Boolean).join(" · ")}
       data-ai-private
     >
-      <div className="mk-order__rail" aria-hidden="true" />
-      <div className="mk-order__main">
-        <div className="mk-order__top">
-          <div className="mk-order__id">
-            {o.workId ? <span className="wid">{o.workId}</span> : null}
-            <span className={`mk-stage mk-stage--${stage}`}>
-              {stage === "pending" ? <i aria-hidden="true" /> : null}
-              {stageLabel}
+      <div className="mko-card__head">
+        <div className="mko-card__chips">
+          {o.workId ? <span className="mko-wid">{o.workId}</span> : null}
+          <span className="mko-stage" data-stage={stage}>
+            <i aria-hidden="true" />
+            {stageLabel}
+          </span>
+          {o.workPaused ? (
+            <span className="mko-chip" data-tone="warn">
+              <IconPause aria-hidden="true" />
+              {t("paused")}
             </span>
-            {o.workPaused ? (
-              <span className="mk-stage mk-stage--paused">
-                <IconPause aria-hidden="true" />
-                {t("paused")}
-              </span>
-            ) : null}
-            {phase === "review" ? (
-              <span className="mk-stage mk-stage--paused mod-card-chip">
-                <IconPause aria-hidden="true" />
-                {tod("review")}
-              </span>
-            ) : null}
-            {phase === "in_progress" && o.expectedCompletedAt ? (
-              <span className="mk-stage mod-card-chip mod-card-chip--due">
-                <IconClock aria-hidden="true" />
-                {tod("due", { date: shortDateTime(o.expectedCompletedAt, locale) })}
-              </span>
-            ) : null}
-            {dealOpen && dealAmount > 0 ? (
-              <span className="mk-stage mod-card-chip mod-card-chip--deal">
-                <IconCoins aria-hidden="true" />
-                {tod("negotiation", { amount: `${fmtUzs(dealAmount)} ${currency}` })}
-              </span>
-            ) : null}
-          </div>
-          <b className="mk-order__price">
-            {o.price ? fmtUzs(o.price) : "—"} <small>{o.currency === "UZS" ? te("currency") : o.currency}</small>
-          </b>
+          ) : null}
+          {phase === "review" ? (
+            <span className="mko-chip" data-tone="warn">
+              <IconPause aria-hidden="true" />
+              {tod("review")}
+            </span>
+          ) : null}
+          {phase === "in_progress" && o.expectedCompletedAt ? (
+            <span className="mko-chip">
+              <IconClock aria-hidden="true" />
+              {tod("due", { date: shortDateTime(o.expectedCompletedAt, locale) })}
+            </span>
+          ) : null}
+          {dealOpen && dealAmount > 0 ? (
+            <span className="mko-chip" data-tone="deal">
+              <IconCoins aria-hidden="true" />
+              {tod("negotiation", { amount: `${fmtUzs(dealAmount)} ${currency}` })}
+            </span>
+          ) : null}
         </div>
+        <b className="mko-price sx-num">
+          {o.price ? fmtUzs(o.price) : "—"} <small>{currency}</small>
+        </b>
+      </div>
 
-        <h3 className="mk-order__svc">{o.serviceTitle || o.packageTitle || "—"}</h3>
-        {o.packageTitle || o.packageTier ? (
-          <span className="mko__pkg">
-            <IconPackage aria-hidden="true" />
-            {[o.packageTitle, o.packageTier && tpk.has(`tiers.${o.packageTier}`) ? tpk(`tiers.${o.packageTier}`) : o.packageTier].filter(Boolean).join(" · ")}
+      <div className="mko-card__body">
+      <h3 className="mko-card__title">
+        {o.id ? (
+          <Link href={orderDetailHref(listHref, o.id)} className="mko-card__link">
+            {title}
+          </Link>
+        ) : (
+          title
+        )}
+      </h3>
+      {o.packageTitle || o.packageTier ? (
+        <span className="mko-pkg">
+          <IconPackage aria-hidden="true" />
+          {[o.packageTitle, o.packageTier && tpk.has(`tiers.${o.packageTier}`) ? tpk(`tiers.${o.packageTier}`) : o.packageTier].filter(Boolean).join(" · ")}
+        </span>
+      ) : null}
+      <OptionLines options={o.selectedOptions} title={t("optionsTitle")} />
+
+      {facts.length ? (
+        <ul className="mko-facts">
+          {facts.map((f) => (
+            <li key={f.k}>
+              {f.icon}
+              <span>{f.text}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {o.note ? <p className="mko-note">{o.note}</p> : null}
+
+      {stage === "pending" && view === "client" && !awaiting ? <p className="mko-hint">{t("waitNote")}</p> : null}
+
+      <SupplementalPanel o={o} view={view} />
+      {stage === "completed" ? <ResultBlock o={o} /> : null}
+      {stage === "completed" && view === "client" ? <RatingPanel o={o} onRated={onRated} /> : null}
+
+      {callErr ? <Notice ok={false} msg={callErr} /> : null}
+      </div>
+
+      <div className="mko-card__acts">
+        {contact ? (
+          <ContactAdvocate tone="site" size="sm" chatHref={chatHref} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={counterpartId} calls={stage === "cancelled" || stage === "completed" ? "closed" : callStateOf(o)} callTypes={o.callTypes} aiId={sub("contact") ?? "marketplace.orders.item.contact"} chatAiId={sub("chat")} />
+        ) : o.canStartChat ? (
+          <Link href={chatHref} className="btn btn--pri btn--sm" data-ai-id={sub("chat")} data-ai-label={t("openChat")}>
+            <IconChat />
+            {t("openChat")}
+          </Link>
+        ) : null}
+        {!contact && o.canCreateCall && o.callsAllowed && stage !== "cancelled" && stage !== "completed" ? (
+          <span className="mk-callgrp" role="group" aria-label={t("call")} data-ai-id={sub("call")} data-ai-type="call_button" data-ai-label={t("call")}>
+            {o.callTypes.includes("audio") ? (
+              <button type="button" className="btn btn--line btn--sm" disabled={!!calling} onClick={() => void call("audio")}>
+                <IconPhone />
+                {calling === "audio" ? t("calling") : t("audio")}
+              </button>
+            ) : null}
+            {o.callTypes.includes("video") ? (
+              <button type="button" className="btn btn--line btn--sm" disabled={!!calling} onClick={() => void call("video")}>
+                <IconVideo />
+                {calling === "video" ? t("calling") : t("video")}
+              </button>
+            ) : null}
           </span>
         ) : null}
-        <OptionLines options={o.selectedOptions} title={t("optionsTitle")} />
-
-        {stage !== "cancelled" ? (
-          <ol className="mk-track" aria-label={t(`stage.${stage}`)}>
-            {(["request", "confirm", "work", "done"] as const).map((s, i) => (
-              <li key={s} className={i < stepAt ? "is-done" : i === stepAt ? "is-now" : ""}>
-                <span />
-                {t(`steps.${s}`)}
-              </li>
-            ))}
-          </ol>
+        {view === "seller" && stage === "active" && !o.workPaused && (o.serviceId || o.packageId) ? (
+          <button type="button" className="btn btn--line btn--sm" onClick={onSupplemental} data-ai-id={sub("supplemental")} data-ai-label={t("supplemental")}>
+            <IconCoins />
+            {t("supplemental")}
+          </button>
         ) : null}
-
-        <dl className="mk-order__facts">
-          {counterpart ? (
-            <div>
-              <dt>{view === "client" ? t("seller") : t("client")}</dt>
-              <dd>
-                <IconUser />
-                {counterpart}
-              </dd>
-            </div>
-          ) : null}
-          {view === "seller" ? (
-            <div>
-              <dt>{t("phone")}</dt>
-              <dd>{phoneShow === "show" ? <a href={telHref(o.clientPhone)}>{o.clientPhone}</a> : <span className="mk-muted">{phoneShow === "none" ? "—" : phoneShow === "hidden" ? t("phoneConcealed") : t("phoneHidden")}</span>}</dd>
-            </div>
-          ) : null}
-          {o.preferredChannel ? (
-            <div>
-              <dt>{t("channel")}</dt>
-              <dd>{tch.has(o.preferredChannel) ? tch(o.preferredChannel) : o.preferredChannel}</dd>
-            </div>
-          ) : null}
-          {speed ? (
-            <div>
-              <dt>{t("contactSpeed")}</dt>
-              <dd>
-                <IconClock />
-                {speed}
-              </dd>
-            </div>
-          ) : null}
-          {o.preferredTime && !speed ? (
-            <div>
-              <dt>{t("time")}</dt>
-              <dd>
-                <IconClock />
-                {o.preferredTime}
-              </dd>
-            </div>
-          ) : null}
-          {o.createdAt ? (
-            <div>
-              <dt>{t("created")}</dt>
-              <dd>{shortDateTime(o.createdAt, locale)}</dd>
-            </div>
-          ) : null}
-        </dl>
-
-        {o.note ? (
-          <blockquote className="mk-order__note">
-            <small>{t("note")}</small>
-            {o.note}
-          </blockquote>
+        {view === "seller" && o.canComplete && stage === "active" && !(phase === "paid" && o.canStart) ? (
+          <button type="button" className="btn btn--grad btn--sm" disabled={o.workPaused} title={o.workPaused ? t("pausedHint") : undefined} onClick={onComplete} data-ai-id={sub("complete")} data-ai-label={t("complete")}>
+            <IconCheck />
+            {t("complete")}
+          </button>
         ) : null}
-
-        {stage === "pending" && view === "client" ? (
-          <p className="mk-pending mk-pending--line">
-            <i aria-hidden="true" />
-            {t("waitNote")}
-          </p>
+        {view === "client" && o.canCancel && stage === "pending" ? (
+          <button type="button" className="btn btn--line btn--sm mk-danger" onClick={onCancel} data-ai-id={sub("cancel")} data-ai-label={t("cancel")}>
+            <IconClose />
+            {t("cancel")}
+          </button>
         ) : null}
+        {o.id ? (
+          <Link href={orderDetailHref(listHref, o.id)} className="mko-more" aria-label={o.serviceTitle || o.packageTitle || o.workId ? tod("detailNamed", { service: o.serviceTitle || o.packageTitle || o.workId }) : undefined} data-ai-id={sub("detail")} data-ai-label={tod("detail")}>
+            {tod("detail")}
+            <IconArrowRight aria-hidden="true" />
+          </Link>
+        ) : null}
+      </div>
+    </article>
+  );
+}
 
-        <SupplementalPanel o={o} view={view} />
-        {stage === "completed" ? <ResultBlock o={o} /> : null}
-        {stage === "completed" && view === "client" ? <RatingPanel o={o} onRated={onRated} /> : null}
-
-        {callErr ? <Notice ok={false} msg={callErr} /> : null}
-
-        <div className="mk-order__acts">
-          {contact ? (
-            <ContactAdvocate tone="site" size="sm" chatHref={chatHref} roomId={o.roomId} callTitle={o.serviceTitle || o.workId || "LexGo"} counterpartId={counterpartId} calls={stage === "cancelled" || stage === "completed" ? "closed" : callStateOf(o)} callTypes={o.callTypes} aiId={sub("contact") ?? "marketplace.orders.item.contact"} chatAiId={sub("chat")} />
-          ) : o.canStartChat ? (
-            <Link href={chatHref} className="btn btn--pri btn--sm" data-ai-id={sub("chat")} data-ai-label={t("openChat")}>
-              <IconChat />
-              {t("openChat")}
-            </Link>
-          ) : null}
-          {!contact && o.canCreateCall && o.callsAllowed && stage !== "cancelled" && stage !== "completed" ? (
-            <span className="mk-callgrp" role="group" aria-label={t("call")} data-ai-id={sub("call")} data-ai-type="call_button" data-ai-label={t("call")}>
-              {o.callTypes.includes("audio") ? (
-                <button type="button" className="btn btn--line btn--sm" disabled={!!calling} onClick={() => void call("audio")}>
-                  <IconPhone />
-                  {calling === "audio" ? t("calling") : t("audio")}
-                </button>
-              ) : null}
-              {o.callTypes.includes("video") ? (
-                <button type="button" className="btn btn--line btn--sm" disabled={!!calling} onClick={() => void call("video")}>
-                  <IconVideo />
-                  {calling === "video" ? t("calling") : t("video")}
-                </button>
-              ) : null}
-            </span>
-          ) : null}
-          {view === "seller" && stage === "active" && !o.workPaused && (o.serviceId || o.packageId) ? (
-            <button type="button" className="btn btn--line btn--sm" onClick={onSupplemental} data-ai-id={sub("supplemental")} data-ai-label={t("supplemental")}>
-              <IconCoins />
-              {t("supplemental")}
-            </button>
-          ) : null}
-          {view === "seller" && o.canComplete && stage === "active" && !(phase === "paid" && o.canStart) ? (
-            <button type="button" className="btn btn--grad btn--sm" disabled={o.workPaused} title={o.workPaused ? t("pausedHint") : undefined} onClick={onComplete} data-ai-id={sub("complete")} data-ai-label={t("complete")}>
-              <IconCheck />
-              {t("complete")}
-            </button>
-          ) : null}
-          {view === "client" && o.canCancel && stage === "pending" ? (
-            <button type="button" className="btn btn--line btn--sm mk-danger" onClick={onCancel} data-ai-id={sub("cancel")} data-ai-label={t("cancel")}>
-              <IconClose />
-              {t("cancel")}
-            </button>
-          ) : null}
-          {o.id ? (
-            <Link href={orderDetailHref(listHref, o.id)} className="btn btn--line btn--sm mod-card-detail" aria-label={o.serviceTitle || o.packageTitle || o.workId ? tod("detailNamed", { service: o.serviceTitle || o.packageTitle || o.workId }) : undefined} data-ai-id={sub("detail")} data-ai-label={tod("detail")}>
-              {tod("detail")}
-              <IconArrowRight aria-hidden="true" />
-            </Link>
-          ) : null}
-        </div>
+// A request assigned to this seller and not answered yet: the time left,
+// what the client wants, and accept or decline right here.
+function NewRequest({ o, listHref, onDone }: { o: MarketOrder; listHref: string; onDone: () => void }) {
+  const t = useTranslations("marketplace.orders");
+  const tch = useTranslations("marketplace.purchase.channels");
+  const te = useTranslations("enums");
+  const speedText = useContactSpeedText();
+  const left = useCountdown(o.assignment?.deadlineAt ?? "", onDone);
+  const speed = speedText(o);
+  return (
+    <article className="mko-req" data-over={left === 0 || undefined} data-ai-id={aiId("advocate.marketplace-orders.new", o.id)} data-ai-type="card" data-ai-private>
+      <div className="mko-req__top">
+        {o.workId ? <span className="mko-wid">{o.workId}</span> : null}
+        {left !== null ? (
+          <span className="mko-req__clock sx-num" role="timer">
+            <IconClock aria-hidden="true" />
+            {left > 0 ? clockOf(left) : t("newOver")}
+          </span>
+        ) : null}
+      </div>
+      <Link href={orderDetailHref(listHref, o.id)} className="mko-req__title">
+        {o.serviceTitle || o.packageTitle || "—"}
+      </Link>
+      <p className="mko-req__meta">
+        {[o.clientName, o.preferredChannel ? (tch.has(o.preferredChannel) ? tch(o.preferredChannel) : o.preferredChannel) : "", speed].filter(Boolean).join(" · ")}
+      </p>
+      {o.note ? <p className="mko-note">{o.note}</p> : null}
+      <div className="mko-req__foot">
+        <b className="mko-price sx-num">
+          {o.price ? fmtUzs(o.price) : "—"} <small>{!o.currency || o.currency === "UZS" ? te("currency") : o.currency}</small>
+        </b>
+        {left !== 0 ? <SellerOrderActions orderId={o.id} aiBase={aiId("advocate.marketplace-orders.new", o.id)} onDone={() => onDone()} /> : null}
       </div>
     </article>
   );

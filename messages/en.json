@@ -6925,7 +6925,8 @@
         "pending": "Awaiting payment",
         "active": "Active",
         "completed": "Completed",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "new": "New"
       },
       "stage": {
         "pending": "Waiting for payment confirmation",
@@ -6988,7 +6989,9 @@
       "supplemental": "Supplemental payment",
       "supplementalSent": "Supplemental payment request sent — it's confirmed through Telegram",
       "awaitingSeller": "New order — waiting for your answer",
-      "awaitingClient": "Waiting for the specialist"
+      "awaitingClient": "Waiting for the specialist",
+      "newTitle": "New orders — answer them",
+      "newOver": "Time's up"
     },
     "toast": {
       "started": "Work started",

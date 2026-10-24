@@ -6925,7 +6925,8 @@
         "pending": "To'lov kutilmoqda",
         "active": "Faol",
         "completed": "Yakunlangan",
-        "cancelled": "Bekor qilingan"
+        "cancelled": "Bekor qilingan",
+        "new": "Yangi"
       },
       "stage": {
         "pending": "To'lov tasdiqlanishi kutilmoqda",
@@ -6988,7 +6989,9 @@
       "supplemental": "Qo'shimcha to'lov",
       "supplementalSent": "Qo'shimcha to'lov so'rovi yuborildi — Telegram orqali tasdiqlanadi",
       "awaitingSeller": "Yangi buyurtma — javobingiz kutilmoqda",
-      "awaitingClient": "Mutaxassis javobi kutilmoqda"
+      "awaitingClient": "Mutaxassis javobi kutilmoqda",
+      "newTitle": "Yangi buyurtmalar — javob bering",
+      "newOver": "Muddat tugadi"
     },
     "toast": {
       "started": "Ish boshlandi",
