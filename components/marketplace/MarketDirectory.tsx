@@ -271,9 +271,10 @@ export default function MarketDirectory({
 
   const allServices = useMemo(() => {
     const src = meta?.services.length ? meta.services : items.flatMap((s) => s.services.map((x) => ({ id: x.id, title: x.title, categoryId: x.categoryId, basePrice: x.basePrice })));
-    const m = new Map<string, { value: string; label: string; categoryId: string }>();
+    // basePrice: the service's own catalog price, not a seller's.
+    const m = new Map<string, { value: string; label: string; categoryId: string; basePrice: number }>();
     const pro = treeRows ? treeById : null;
-    for (const x of src) if (x.id && !m.has(x.id) && (!pro || pro.has(x.categoryId))) m.set(x.id, { value: x.id, label: x.title, categoryId: x.categoryId });
+    for (const x of src) if (x.id && !m.has(x.id) && (!pro || pro.has(x.categoryId))) m.set(x.id, { value: x.id, label: x.title, categoryId: x.categoryId, basePrice: x.basePrice });
     return [...m.values()];
   }, [meta, items, treeRows, treeById]);
   // The service filter offers the picked category's services; browsing by
@@ -749,7 +750,13 @@ export default function MarketDirectory({
           onPick={(id) => {
             // A signed-in client hands the pick to the backend, which matches
             // the specialist; elsewhere the list narrows to that service.
-            if (variant === "portal") setRequesting(serviceById(id));
+            if (variant === "portal") {
+              // The form starts from the service's own price; the backend
+              // quotes the rest once options are picked.
+              const svc = serviceById(id);
+              const base = allServices.find((x) => x.value === id)?.basePrice ?? 0;
+              setRequesting(svc && base > 0 ? { ...svc, price: base, selectedPrice: base, basePrice: base } : svc);
+            }
             else showServiceSellers(id);
           }}
         />

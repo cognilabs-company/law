@@ -9,12 +9,12 @@ import { fmtUzs } from "@/lib/money";
 import type { MarketSeller } from "@/lib/services/marketplace";
 
 // Browsing by service: every service on the marketplace as a card, grouped
-// by category, with how many specialists offer it, the lowest listed price
+// by category, with its own catalog price, how many specialists offer it
 // and the best rating among them. Picking one finds the specialists who
 // offer it (the directory narrows to that service).
 
-export type ServiceOption = { value: string; label: string; categoryId: string };
-type Card = ServiceOption & { sellers: number; from: number; rating: number };
+export type ServiceOption = { value: string; label: string; categoryId: string; basePrice: number };
+type Card = ServiceOption & { sellers: number; rating: number };
 
 const HUES = ["blue", "violet", "teal", "amber", "rose", "green"] as const;
 
@@ -37,15 +37,14 @@ export default function ServiceBrowser({
   const [cat, setCat] = useState("");
 
   const cards = useMemo<Card[]>(() => {
-    const stat = new Map<string, { sellers: number; from: number; rating: number }>();
+    const stat = new Map<string, { sellers: number; rating: number }>();
     for (const s of sellers) {
       for (const x of s.services) {
-        const cur = stat.get(x.id) ?? { sellers: 0, from: 0, rating: 0 };
-        const price = x.price || x.selectedPrice || x.basePrice;
-        stat.set(x.id, { sellers: cur.sellers + 1, from: price > 0 && (!cur.from || price < cur.from) ? price : cur.from, rating: Math.max(cur.rating, s.rating || 0) });
+        const cur = stat.get(x.id) ?? { sellers: 0, rating: 0 };
+        stat.set(x.id, { sellers: cur.sellers + 1, rating: Math.max(cur.rating, s.rating || 0) });
       }
     }
-    return services.map((x) => ({ ...x, ...(stat.get(x.value) ?? { sellers: 0, from: 0, rating: 0 }) }));
+    return services.map((x) => ({ ...x, ...(stat.get(x.value) ?? { sellers: 0, rating: 0 }) }));
   }, [services, sellers]);
 
   const catLabel = useMemo(() => new Map(categories.map((c) => [c.value, c.label])), [categories]);
@@ -131,7 +130,7 @@ export default function ServiceBrowser({
                     ) : null}
                   </span>
                   <span className="mksv__foot">
-                    <span className="mksv__price">{c.from > 0 ? t("from", { price: fmtUzs(c.from) }) : " "}</span>
+                    <span className="mksv__price">{c.basePrice > 0 ? t("price", { price: fmtUzs(c.basePrice) }) : " "}</span>
                     {!off ? (
                       <span className="mksv__go">
                         {t("find")}

@@ -5,6 +5,14 @@ import { CLIENT, mockBackend, signIn } from "./mock";
 // many specialists offer it; picking one shows exactly those specialists.
 const svc = (id: string, title: string, cat: string, price: number) => ({ service_id: id, title, category_id: cat, category_title: cat, base_price: price, selected_price: price, effective_price: price, currency: "UZS" });
 const seller = (id: string, name: string, rating: number, services: unknown[]) => ({ user_id: id, name, seller_type: "advokat", region: "tashkent", rating, reviews_count: 5, is_verified: true, services });
+// The catalog's own prices: the cards show these, not a seller's.
+const META = {
+  services: [
+    { id: "v1", title: "Ajrashish bo'yicha maslahat", category_id: "c-family", base_price: 280000, currency: "UZS" },
+    { id: "v2", title: "Aliment undirish", category_id: "c-family", base_price: 450000, currency: "UZS" },
+    { id: "v3", title: "Meros rasmiylashtirish", category_id: "c-inherit", base_price: 500000, currency: "UZS" },
+  ],
+};
 const SELLERS = [
   seller("s1", "Dilnoza Karimova", 4.9, [svc("v1", "Ajrashish bo'yicha maslahat", "c-family", 300000), svc("v2", "Aliment undirish", "c-family", 450000)]),
   seller("s2", "Akmal Yusupov", 4.6, [svc("v1", "Ajrashish bo'yicha maslahat", "c-family", 250000)]),
@@ -16,7 +24,7 @@ test("by service: the full purchase form goes to the backend's matcher, without 
   let sent: Record<string, unknown> | null = null;
   const deadline = new Date(Date.now() + 29 * 60_000).toISOString();
   const routes = await signIn(page, CLIENT, {
-    "/marketplace/lawyers": { items: SELLERS, count: 3, total: 3 },
+    "/marketplace/lawyers": { items: SELLERS, count: 3, total: 3, meta: META },
     "/marketplace/services/v1/price-options": { items: [] },
     "POST /marketplace/services/v1/quote": { base_price: 250000, total_price: 250000, currency: "UZS", breakdown: [] },
     "/marketplace/me/orders": { items: [] },
@@ -37,7 +45,8 @@ test("by service: the full purchase form goes to the backend's matcher, without 
   await page.goto("/uz/portal/client/lawyers");
   await page.getByRole("button", { name: "Xizmatlar bo'yicha" }).click();
   const card = page.getByRole("button", { name: /Ajrashish bo'yicha maslahat: 2 ta mutaxassis/ });
-  await expect(card).toContainText(/250\s000 so.mdan/);
+  await expect(card).toContainText(/280\s000 so'm/);
+  await expect(card).not.toContainText("250");
   await card.click();
   const dialog = page.getByRole("dialog", { name: "Xizmatni sotib olish" });
   await expect(dialog.getByText("LexGo eng mos mutaxassisni tanlaydi")).toBeVisible();
@@ -58,7 +67,7 @@ test("by service: the full purchase form goes to the backend's matcher, without 
 });
 
 test("by service: 'I'll choose myself' shows that service's specialists", async ({ page }) => {
-  const routes = await signIn(page, CLIENT, { "/marketplace/lawyers": { items: SELLERS, count: 3, total: 3 }, "/marketplace/services/v1/price-options": { items: [] }, "POST /marketplace/services/v1/quote": { base_price: 250000, total_price: 250000, currency: "UZS", breakdown: [] } });
+  const routes = await signIn(page, CLIENT, { "/marketplace/lawyers": { items: SELLERS, count: 3, total: 3, meta: META }, "/marketplace/services/v1/price-options": { items: [] }, "POST /marketplace/services/v1/quote": { base_price: 250000, total_price: 250000, currency: "UZS", breakdown: [] } });
   const mock = await mockBackend(page, routes);
   await page.goto("/uz/portal/client/lawyers?mode=services");
   await page.getByRole("button", { name: /Ajrashish bo'yicha maslahat: 2 ta mutaxassis/ }).click();
