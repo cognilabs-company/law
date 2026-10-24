@@ -13,7 +13,7 @@ import { notify } from "@/lib/toast";
 import { errDetail, isOffline } from "@/lib/http";
 import { SxButton } from "../Button";
 import { SxDialog } from "../editor/SxDialog";
-import { ArrowRightIcon, BookOpenTextIcon, ClockIcon, GlobeIcon, ListChecksIcon, SearchIcon, ShieldCheckIcon, SparklesIcon, ctorIcon, glyph } from "../icons";
+import { BookOpenTextIcon, GlobeIcon, ListChecksIcon, SearchIcon, ShieldCheckIcon, SparklesIcon, ctorIcon, glyph } from "../icons";
 import { SxEmpty } from "../layout/Empty";
 import { SxNote } from "../layout/Note";
 import { SxPage } from "../layout/Page";
@@ -21,10 +21,12 @@ import type { SxOption } from "../types";
 import { useStudioLabels } from "../useStudioLabels";
 import { AGENT_FORM_START, AgentForm, PROMPT_MIN, type AgentFormValues } from "./AgentForm";
 import { AgentJobView } from "./AgentJobView";
+import { AgentDock } from "./AgentDock";
 import { useAgentJob } from "./useAgentJob";
 
 // Studio's AI agent (FRONTEND_STUDIO_AI_AGENT_V21_AUTONOMOUS_TOOLS_2026_10_22.md):
-// the request form on the left, the job it started on the right. The backend
+// the latest tasks one click away at the top, the request form on the left,
+// the job it started on the right. The backend
 // does the research, drafting, checks and saving; this page starts one job
 // when asked, follows it, and opens the drafts it saved in the normal Studio
 // flow. Nothing is ever published or resubmitted from here.
@@ -151,6 +153,7 @@ export default function AgentPage(): ReactElement {
 
   return (
     <SxPage title={t("sx.agent.title")} section="ai" icon={<BotIcon size={20} aria-hidden />} lead={t("sx.agent.lead")} need="edit" aiId={AI}>
+      {agent.recent.length ? <AgentDock recent={agent.recent} currentId={agent.id} current={job} onOpen={agent.open} onNew={agent.close} /> : null}
       <div className="sx-ag" data-busy={agent.submitting ? "" : undefined}>
         <aside className="sx-ag-side">
           <div className="sx-ag-card">
@@ -168,27 +171,6 @@ export default function AgentPage(): ReactElement {
               onSubmit={() => (job && (status === "queued" || status === "running") ? setConfirm(form) : void submit(form))}
             />
           </div>
-          {agent.recent.length ? (
-            <nav className="sx-ag-card sx-ag-recent" aria-labelledby="sx-ag-rec">
-              <p id="sx-ag-rec" className="sx-ag-h3">
-                {glyph(ClockIcon, { size: 15 })}
-                {t("sx.agent.recent.title")}
-              </p>
-              <ul>
-                {agent.recent.map((r) => (
-                  <li key={r.id}>
-                    <button type="button" className="sx-ag-recent__b" aria-current={r.id === agent.id ? "true" : undefined} onClick={() => agent.open(r.id)}>
-                      <span className="sx-ag-recent__t">
-                        <b>{r.codes.length ? r.codes.join(", ") : t("sx.agent.recent.anyCtor")}</b>
-                        <small>{[labels.dateTime(r.at), t("sx.agent.recent.drafts", { n: r.drafts })].filter(Boolean).join(" · ")}</small>
-                      </span>
-                      {glyph(ArrowRightIcon, { size: 14 })}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          ) : null}
         </aside>
         <div className="sx-ag-main" aria-live="polite">
           {right}

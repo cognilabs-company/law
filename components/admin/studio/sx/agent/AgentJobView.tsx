@@ -26,6 +26,7 @@ import {
 import { SxNote } from "../layout/Note";
 import { SxRing } from "../shared/Ring";
 import { useStudioLabels } from "../useStudioLabels";
+import { AgentPipeline } from "./AgentPipeline";
 import type { AgentConn } from "./useAgentJob";
 
 // A job as the backend reports it: where it is, what it saved, how the
@@ -296,11 +297,7 @@ export function AgentJobView({
               </dd>
             </div>
           </dl>
-          {live ? (
-            <div className="sx-ag-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct ?? undefined} aria-label={t("sx.agent.progress")}>
-              <span style={{ width: `${pct ?? 4}%` }} data-indeterminate={pct === null ? "" : undefined} />
-            </div>
-          ) : null}
+
         </div>
         <div className="sx-ag-head__acts">
           <SxButton variant="ghost" size="sm" icon={RefreshCwIcon} onClick={onRefresh} aiId={`${AI}.refresh`}>
@@ -312,6 +309,10 @@ export function AgentJobView({
             </SxButton>
           ) : null}
         </div>
+      </section>
+
+      <section className="sx-ag-card sx-ag-flowcard" aria-label={t("sx.agent.flow.title")}>
+        <AgentPipeline job={job} live={live} />
       </section>
 
       {known === "partial_failed" ? (
