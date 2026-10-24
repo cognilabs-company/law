@@ -14,6 +14,7 @@ import { ComplaintPanel, RatingPanel, ResultBlock, SupplementalPanel } from "../
 import CancellationRequest from "./CancellationRequest";
 import WarrantyPanel from "./WarrantyPanel";
 import AwaitingSeller from "./AwaitingSeller";
+import SellerAssignment from "./SellerAssignment";
 import ResolutionPanel from "./ResolutionPanel";
 import NegotiationPanel from "./NegotiationPanel";
 import { useNotedNegotiation } from "./negotiationStore";
@@ -109,7 +110,10 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDe
     parts = [documents];
   } else if (phase === "pending" && awaitingSeller(o)) {
     // Still with the seller to accept: no payment is due yet.
-    parts = [client ? <AwaitingSeller key="awaiting" o={o} onRefresh={() => d.refresh("order")} /> : null, documents];
+    parts = [
+      client ? <AwaitingSeller key="awaiting" o={o} onRefresh={() => d.refresh("order")} /> : <SellerAssignment key="assignment" o={o} aiBase={aiBase} onRefresh={() => d.refresh("order")} />,
+      documents,
+    ];
   } else if (phase === "pending") {
     parts = [
       <NegotiationPanel key="negotiation" {...section} />,

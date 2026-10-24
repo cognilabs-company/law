@@ -59,12 +59,12 @@ const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 
 // `accepting`: still with the seller to take; nothing is owed yet.
-export function PhasePill({ phase, accepting = false }: { phase: MarketPhase; accepting?: boolean }): ReactElement {
+export function PhasePill({ phase, accepting = false, seller = false }: { phase: MarketPhase; accepting?: boolean; seller?: boolean }): ReactElement {
   const t = useTranslations("marketplace.orderDetail.phase");
   return (
     <span className="sx-pill mod-pill" data-tone={PHASE_TONE[phase]} data-phase={accepting ? "accepting" : phase}>
       {glyph(PHASE_ICON[phase], { size: 14 })}
-      <span className="sx-pill__text">{t(accepting ? "accepting" : phase)}</span>
+      <span className="sx-pill__text">{t(accepting ? (seller ? "acceptingSeller" : "accepting") : phase)}</span>
     </span>
   );
 }
@@ -208,7 +208,7 @@ export default function OrderHeader({
             </span>
           ) : null}
           <h1 className="mod-head__title">{title}</h1>
-          <PhasePill phase={phase} accepting={accepting} />
+          <PhasePill phase={phase} accepting={accepting} seller={view === "seller"} />
         </div>
         <p className="mod-head__price">
           <b className="sx-num">{o.price ? fmtUzs(o.price) : "—"}</b> <small>{o.currency === "UZS" ? te("currency") : o.currency}</small>

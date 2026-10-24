@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { CLIENT, mockBackend, signIn } from "./mock";
+import { ADVOCATE, CLIENT, mockBackend, signIn } from "./mock";
 import { ORDER_ID, financials, order } from "./fixtures";
 
 // A purchase request goes to the seller first (enterprise contract §5): the
@@ -62,4 +62,24 @@ test("a request waiting for the seller is not shown as paid", async ({ page }) =
   await expect(page.getByText(/Javob uchun qolgan vaqt: 2\d:\d\d/)).toBeVisible();
   await expect(page.getByText("To'lov Telegram orqali tasdiqlanmoqda", { exact: false })).toHaveCount(0);
   await page.screenshot({ path: `${SHOTS}/order-accepting.png`, fullPage: false });
+});
+
+test("the assigned lawyer sees the request on the order page and accepts it", async ({ page }) => {
+  let accepted = false;
+  const state = { order: sent() };
+  const routes = await signIn(page, ADVOCATE, {
+    [`/marketplace/me/orders/${ORDER_ID}`]: () => state.order,
+    "/marketplace/me/orders": () => ({ items: [state.order], total: 1 }),
+    [`/marketplace/me/orders/${ORDER_ID}/financials`]: () => financials([{ stage: "marketplace_advance", status: "awaiting_seller_acceptance", amount: 87974 }]),
+    [`/marketplace/me/orders/${ORDER_ID}/timeline`]: { items: [] },
+    [`POST /orders/${ORDER_ID}/accept`]: () => ((accepted = true), (state.order = order({ status: "pending_payment", payment_status: "pending", price: 879749 })), { id: ORDER_ID, status: "pending_payment" }),
+  });
+  await mockBackend(page, routes);
+  await page.goto(`/uz/portal/advocate/marketplace-orders/${ORDER_ID}`);
+  await expect(page.getByText("Yangi buyurtma sizga yuborildi")).toBeVisible();
+  await expect(page.getByText(/Javob berish uchun qolgan vaqt: 2\d:\d\d/)).toBeVisible();
+  await expect(page.getByText("Javobingiz kutilmoqda")).toBeVisible();
+  await page.screenshot({ path: `${SHOTS}/seller-assignment.png` });
+  await page.getByRole("button", { name: "Qabul qilish" }).click();
+  await expect.poll(() => accepted).toBe(true);
 });
