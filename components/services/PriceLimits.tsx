@@ -59,6 +59,7 @@ const barOf = (r: PriceRequirement): number | null => (r.progress === null ? nul
 
 export default function PriceLimits({ minimum, recommended, sellerMax, serviceMax, increasePct, price, explanation, modifiers, requirements, discountPct = null, belowAllowed = null, aiId }: PriceLimitsProps) {
   const t = useTranslations("sellerServices.caps");
+  const tm = useTranslations("marketPricing");
   const locale = useLocale();
   const uid = useId();
   if (!(minimum > 0 || sellerMax > 0 || serviceMax > 0)) return null;
@@ -209,7 +210,8 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
             <ul className="svcap__fx">
               {reasons.factors.map((f, i) => (
                 <li key={`${f.key}-${i}`} data-down={/^[-−]/.test(f.effect) ? "" : undefined}>
-                  <span>{f.label}</span>
+                  {/* The backend names its factors in Uzbek; known ones read in the viewer's language. */}
+                  <span>{f.key && tm.has(`mod.${f.key}`) ? tm(`mod.${f.key}`) : f.label}</span>
                   {f.effect ? <b>{f.effect}</b> : null}
                 </li>
               ))}

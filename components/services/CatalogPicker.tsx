@@ -14,6 +14,7 @@ import {
 } from "@/lib/services/sellerServices";
 import { IconCheck, IconChevronLeft, IconChevronRight, IconClose, IconFolder, IconLayers, IconLock, IconSearch } from "@/components/icons";
 import ServicePicker from "./ServicePicker";
+import { categoryTitleName } from "@/lib/categoryNames";
 import { som } from "./bits";
 import "./catalogPicker.css";
 
@@ -217,8 +218,10 @@ export default function CatalogPicker({
             ? tf("noResults")
             : t("empty")
           : "";
-  const live = [current && !query ? current.title : "", query && page?.ok ? t("found", { n: page.total ?? items.length }) : "", status].filter(Boolean).join(". ");
-  const headText = query ? t("results") : current ? current.title : t("rootTitle");
+  // Category names in the reader's language (lib/categoryNames).
+  const cat = (x: { title: string }) => categoryTitleName(x.title, locale);
+  const live = [current && !query ? cat(current) : "", query && page?.ok ? t("found", { n: page.total ?? items.length }) : "", status].filter(Boolean).join(". ");
+  const headText = query ? t("results") : current ? cat(current) : t("rootTitle");
 
   return (
     <div className={`svtree${invalid ? " is-bad" : ""}`} data-ai-id={aiId} data-ai-type={aiId ? "section" : undefined} data-ai-label={aiId ? tf("service") : undefined}>
@@ -231,7 +234,7 @@ export default function CatalogPicker({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={onKey}
-          placeholder={current ? t("searchIn", { name: current.title }) : tf("searchPh")}
+          placeholder={current ? t("searchIn", { name: cat(current) }) : tf("searchPh")}
           autoComplete="off"
           aria-controls={`${uid}-body`}
           aria-describedby={`${uid}-hint`}
@@ -269,11 +272,11 @@ export default function CatalogPicker({
               <IconChevronRight aria-hidden="true" className="svtree__sep" />
               {i === nodes.length - 1 ? (
                 <span className="svtree__crumb is-cur" aria-current="page">
-                  {n.title}
+                  {cat(n)}
                 </span>
               ) : (
                 <button type="button" className="svtree__crumb" onClick={() => go(path.slice(0, i + 1))}>
-                  {n.title}
+                  {cat(n)}
                 </button>
               )}
             </li>
@@ -312,7 +315,7 @@ export default function CatalogPicker({
                         <IconFolder />
                       </span>
                       <span className="svpick__om">
-                        <b>{c.title}</b>
+                        <b>{cat(c)}</b>
                         <small>{meta}</small>
                       </span>
                       {c.selected ? <em className="svpick__tag svtree__got">{t("selectedShort", { n: c.selected })}</em> : null}

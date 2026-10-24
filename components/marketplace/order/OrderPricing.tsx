@@ -1,11 +1,12 @@
 "use client";
 
 import "./pricing.css";
-import type { ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { SxPanel } from "@/components/admin/studio/sx/layout/Panel";
 import { fmtUzs } from "@/lib/money";
-import type { OrderPricing as Pricing } from "@/lib/services/marketplace";
+import { getOrderFinancials, type OrderFinancials, type OrderPricing as Pricing } from "@/lib/services/marketplace";
+import { isAborted, logApiError } from "@/lib/http";
 import { modifierEffect, modifierLabel, readPriceModifiers } from "@/lib/services/marketplacePricing";
 import type { OrderView } from "./types";
 
@@ -15,17 +16,71 @@ import type { OrderView } from "./types";
 // seller also sees LexGo's commission and their own net; the client never
 // does. Every number is printed as sent — nothing is added up or derived.
 
+const PAID = new Set(["paid", "succeeded", "success", "completed", "captured", "confirmed"]);
+const WAITING = new Set(["pending", "created", "processing", "requires_action", "awaiting", "waiting"]);
+const STATUS_KEYS = new Set(["failed", "cancelled", "refunded", "reversed", "expired"]);
+const SETTLEMENT_KEYS = new Set(["pending", "held", "complaint_hold", "released", "settled", "refunded"]);
+const ADVANCE = /advance|initial|prepay/;
+const FINAL = /final|remaining|balance/;
+
+// Each stage's status as the provider reported it, refetched whenever the
+// order's status or payment status moves (realtime refetches the order).
+function useFinancials(orderId: string, key: string): OrderFinancials | "failed" | null {
+  const [state, setState] = useState<{ key: string; data: OrderFinancials | "failed" } | null>(null);
+  const want = `${orderId}:${key}`;
+  useEffect(() => {
+    if (!orderId) return;
+    const ctl = new AbortController();
+    getOrderFinancials(orderId, ctl.signal).then(
+      (data) => setState({ key: want, data }),
+      (e: unknown) => {
+        if (isAborted(e)) return;
+        logApiError("marketplace.order.financials", e);
+        setState({ key: want, data: "failed" });
+      },
+    );
+    return () => ctl.abort();
+  }, [orderId, want]);
+  return state && state.key.startsWith(`${orderId}:`) ? state.data : null;
+}
+
 const WHY = new Set(["region", "experience", "sector_experience_premium", "client_rating_premium", "seller_premium", "referral", "discount"]);
 
-export default function OrderPricing({ pricing, view, currency, aiBase }: { pricing: Pricing; view: OrderView; currency: string; aiBase: string }): ReactElement | null {
+export default function OrderPricing({ pricing, view, currency, aiBase, orderId, refreshKey }: { pricing: Pricing; view: OrderView; currency: string; aiBase: string; orderId: string; refreshKey: string }): ReactElement | null {
   const t = useTranslations("marketplace.orderDetail.pricing");
   const tm = useTranslations("marketPricing");
   const te = useTranslations("enums");
   const locale = useLocale();
   const cur = currency === "UZS" ? te("currency") : currency;
   const money = (n: number) => `${fmtUzs(n)} ${cur}`;
-  const mods = readPriceModifiers(pricing.modifiers, locale).filter((m) => modifierEffect(m) || m.amount);
+  // A factor that changes nothing (×1.00, no amount) is left out.
+  const mods = readPriceModifiers(pricing.modifiers, locale).filter((m) => m.amount || (modifierEffect(m)?.tone ?? "flat") !== "flat");
   const commission = view === "seller" ? pricing.commission : null;
+  const got = useFinancials(orderId, refreshKey);
+  const fin = got === "failed" ? null : got;
+  const statusOf = (st: string): { key: string; tone: "ok" | "wait" | "bad" } | null => {
+    if (!st) return null;
+    if (PAID.has(st)) return { key: "paid", tone: "ok" };
+    if (WAITING.has(st)) return { key: "pending", tone: "wait" };
+    return STATUS_KEYS.has(st) ? { key: st, tone: "bad" } : null;
+  };
+  const stageRow = (re: RegExp) => fin?.payments.find((p) => re.test(p.stage)) ?? null;
+  const chip = (st: string) => {
+    const s = statusOf(st);
+    return s ? (
+      <em className="mod-price__st" data-tone={s.tone}>
+        {t(`status.${s.key}`)}
+      </em>
+    ) : null;
+  };
+  // Rows the planned split does not cover (a one-step legacy payment).
+  const others = (fin?.payments ?? []).filter((p) => !ADVANCE.test(p.stage) && !FINAL.test(p.stage));
+  const advanceRow = stageRow(ADVANCE);
+  // The 10% / 90% split shows once the backend runs payments that way (it
+  // has advance/final rows), or when the rows could not be read; an order
+  // paid in one step shows that one payment instead.
+  const split = got === "failed" || !!advanceRow || !!stageRow(FINAL);
+  const settlement = view === "seller" && fin && SETTLEMENT_KEYS.has(fin.settlement) ? fin.settlement : "";
   if (!(pricing.final > 0 || mods.length)) return null;
   const pct = (n: number | null) => (n === null ? "" : ` · ${n}%`);
   return (
@@ -74,25 +129,58 @@ export default function OrderPricing({ pricing, view, currency, aiBase }: { pric
         </div>
       ) : null}
       {pricing.capped ? <p className="mod-price__note">{t("capped")}</p> : null}
+      {pricing.options.length ? (
+        <div className="mod-price__group">
+          <p className="mod-price__sub">{t("options")}</p>
+          {pricing.options.map((x, i) => (
+            <div key={`${x.label}-${i}`} className="mod-price__row">
+              <span>{`${x.label}${x.percent === null ? "" : ` · ${x.percent > 0 ? "+" : ""}${x.percent}%`}`}</span>
+              <b className="sx-num">{`${x.amount > 0 ? "+" : "−"}${money(Math.abs(x.amount))}`}</b>
+            </div>
+          ))}
+        </div>
+      ) : null}
       {pricing.final > 0 ? (
         <div className="mod-price__row mod-price__row--total">
           <span>{t("final")}</span>
           <b className="sx-num">{money(pricing.final)}</b>
         </div>
       ) : null}
-      {pricing.advance || pricing.rest ? (
+      {(split && (pricing.advance || pricing.rest)) || others.length ? (
         <div className="mod-price__group">
           <p className="mod-price__sub">{t("payments")}</p>
-          {pricing.advance ? (
+          {split && pricing.advance ? (
             <div className="mod-price__row">
-              <span>{`${t("advance")}${pct(pricing.advance.percent)}`}</span>
+              <span>
+                {`${t("advance")}${pct(pricing.advance.percent)}`}
+                {chip(advanceRow?.status ?? "")}
+              </span>
               <b className="sx-num">{money(pricing.advance.amount)}</b>
             </div>
           ) : null}
-          {pricing.rest ? (
+          {split && pricing.rest ? (
             <div className="mod-price__row">
-              <span>{`${t("rest")}${pct(pricing.rest.percent)}`}</span>
+              <span>
+                {`${t("rest")}${pct(pricing.rest.percent)}`}
+                {chip(stageRow(FINAL)?.status ?? "")}
+              </span>
               <b className="sx-num">{money(pricing.rest.amount)}</b>
+            </div>
+          ) : null}
+          {others.map((p) => (
+            <div key={p.id || p.stage} className="mod-price__row">
+              <span>
+                {t("payment")}
+                {chip(p.status)}
+              </span>
+              <b className="sx-num">{money(p.amount)}</b>
+            </div>
+          ))}
+          {advanceRow && WAITING.has(advanceRow.status) ? <p className="mod-price__note">{view === "client" ? t("advanceWait") : t("advanceWaitSeller")}</p> : null}
+          {settlement ? (
+            <div className="mod-price__row">
+              <span>{t("settlement")}</span>
+              <b>{t(`settle.${settlement}`)}</b>
             </div>
           ) : null}
         </div>

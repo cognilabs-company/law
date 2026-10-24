@@ -709,7 +709,9 @@ export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfi
   const c = dictOf(d.configuration ?? d.config ?? d.seller_service);
   const src = Object.keys(c).length ? c : d;
   const ex = explanationOf(d.price_explanation ?? src.price_explanation);
-  const lim = dictOf(src.limits ?? src.price_limits ?? src.pricing ?? d.limits ?? d.price_limits ?? d.pricing);
+  // The live backend sends the criteria and the growth percent only inside
+  // pricing_limits, not at the top level as the contract describes.
+  const lim = dictOf(src.pricing_limits ?? src.limits ?? src.price_limits ?? src.pricing ?? d.pricing_limits ?? d.limits ?? d.price_limits ?? d.pricing);
   const requiredRaw = src.required_rules ?? d.required_rules;
   // A seller accepts and picks executor rules only; client rules are the buyer's.
   const requiredRules = Array.isArray(requiredRaw) ? requiredRaw.map(normServiceRule).filter((r) => (r.id || r.title) && r.audience !== "client") : null;

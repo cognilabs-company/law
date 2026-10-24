@@ -415,6 +415,7 @@ export function priceExplanationOf(v: unknown): PriceExplanation | null {
   let text = "";
   let lines: string[] = [];
   let factors: PriceExplanationFactor[] = [];
+  let neutralOnly = false;
   if (typeof v === "string") text = v.trim();
   else if (Array.isArray(v)) {
     for (const x of v) {
@@ -423,6 +424,12 @@ export function priceExplanationOf(v: unknown): PriceExplanation | null {
         continue;
       }
       const f = factorOf(x);
+      // A factor that changes nothing (a ×1 region, no amount) explains nothing.
+      const neutral = Number(asDict(x).amount ?? 0) === 0 && (f.effect === "1" || f.effect === "1.0" || f.effect === "0");
+      if (neutral) {
+        neutralOnly = true;
+        continue;
+      }
       if (f.label && f.effect) factors.push(f);
       else lines.push(textOf(asDict(x).text ?? asDict(x).message) || f.label);
     }
@@ -433,7 +440,9 @@ export function priceExplanationOf(v: unknown): PriceExplanation | null {
     factors = asArr(d.factors).map(factorOf).filter((f) => f.label);
   }
   lines = lines.filter(Boolean);
-  if (!text && !lines.length && !factors.length) return null;
+  // Only neutral factors: an explanation that says nothing, so no other
+  // reading of the same field puts the raw label back.
+  if (!text && !lines.length && !factors.length) return neutralOnly ? { text: "", lines: [], factors: [] } : null;
   return { text, lines, factors };
 }
 

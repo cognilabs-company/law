@@ -587,6 +587,9 @@ export type OrderPricing = {
   // The platform's share and the seller's net: for the seller and staff
   // only — the client view never shows it, whatever the API sends.
   commission: { percent: number | null; platform: number; net: number } | null;
+  // Extras the client picked (details.option_quote.breakdown), on top of
+  // the seller's price.
+  options: { label: string; percent: number | null; amount: number }[];
 };
 
 const present = (v: unknown) => v !== null && v !== undefined && v !== "";
@@ -601,6 +604,13 @@ function orderPricingOf(d: Dict, details: Dict): OrderPricing | null {
   const advance = uzs(pay, "advance_amount");
   const rest = uzs(pay, "final_amount");
   const platform = uzs(com, "platform_amount");
+  const quote = asDict(details.option_quote ?? d.option_quote);
+  const options = asArr(quote.breakdown)
+    .map((x) => {
+      const o = asDict(x);
+      return { label: asStr(o.label ?? o.title).trim(), percent: asStr(o.adjustment_type) === "percent" ? pctOf(o.value) : null, amount: uzs(o, "amount") };
+    })
+    .filter((o) => o.label && o.amount !== 0);
   return {
     modifiers: p.modifiers ?? null,
     selected: uzs(p, "selected_price"),
@@ -612,7 +622,23 @@ function orderPricingOf(d: Dict, details: Dict): OrderPricing | null {
     advance: advance > 0 ? { percent: pctOf(pay.advance_percent), amount: advance } : null,
     rest: rest > 0 ? { percent: pctOf(pay.final_percent), amount: rest } : null,
     commission: platform > 0 || present(com.effective_percent) ? { percent: pctOf(com.effective_percent), platform, net: uzs(com, "seller_net_amount") } : null,
+    options,
   };
+}
+
+// The order's actual payment rows and settlement (GET …/financials): each
+// stage's status as the payment provider reported it to the backend.
+export type OrderPaymentRow = { id: string; stage: string; status: string; amount: number; paid: number };
+export type OrderFinancials = { payments: OrderPaymentRow[]; settlement: string };
+
+export async function getOrderFinancials(orderId: string, signal?: AbortSignal): Promise<OrderFinancials> {
+  const d = asDict(await http(`/marketplace/me/orders/${encodeURIComponent(orderId)}/financials`, { signal }));
+  const payments = asArr(d.payments).map((x) => {
+    const p = asDict(x);
+    return { id: asStr(p.id), stage: asStr(p.stage).toLowerCase(), status: asStr(p.status).toLowerCase(), amount: uzs(p, "amount"), paid: uzs(p, "paid_amount") };
+  });
+  const s = d.settlement;
+  return { payments, settlement: typeof s === "string" ? s.toLowerCase() : asStr(asDict(s).status).toLowerCase() };
 }
 
 export type CallKind = "audio" | "video";
@@ -827,8 +853,10 @@ export function normMarketOrder(v: unknown): MarketOrder {
     lawyerPhone: asStr(lawyer.phone ?? d.lawyer_phone).trim(),
     lawyerUserId: asStr(d.lawyer_user_id ?? lawyer.id),
     roomId,
-    canStartChat: d.can_start_chat === true && !!roomId && urlGate("chat_url"),
-    canCreateCall: createCallFlag && !!roomId && urlGate("call_create_url"),
+    // contact_unlocked=false: the advance payment is not confirmed by the
+    // provider yet, so protected chat and calls stay shut whatever else says.
+    canStartChat: d.can_start_chat === true && d.contact_unlocked !== false && !!roomId && urlGate("chat_url"),
+    canCreateCall: createCallFlag && d.contact_unlocked !== false && !!roomId && urlGate("call_create_url"),
     callTypes: callKinds?.length ? callKinds : [...CALL_KINDS],
     canCancel: !!url("cancel_url") && cancelFlag !== false,
     canComplete: !!url("complete_url") && completeFlag !== false,

@@ -285,7 +285,7 @@ export function OrderDetailView({
             </div>
             <div className="mod__facts">
               <OrderFacts o={o} view={view} aiBase={aiBase} runtime={d.runtime} />
-              {o.pricing ? <OrderPricing pricing={o.pricing} view={view} currency={o.currency} aiBase={aiBase} /> : null}
+              {o.pricing ? <OrderPricing pricing={o.pricing} view={view} currency={o.currency} aiBase={aiBase} orderId={o.id} refreshKey={`${o.status}:${o.paymentStatus}:${d.changed}`} /> : null}
               <OrderRules view={view} runtime={d.runtime} aiBase={aiBase} />
             </div>
           </aside>

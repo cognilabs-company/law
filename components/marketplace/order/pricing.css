@@ -114,3 +114,23 @@
 .mod .mod-price .mod-price__foot {
   margin: 12px 0 0;
 }
+.mod .mod-price .mod-price__st {
+  margin-inline-start: 8px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font: 700 11px/18px var(--sx-font);
+  font-style: normal;
+  vertical-align: 1px;
+}
+.mod .mod-price .mod-price__st[data-tone="ok"] {
+  background: var(--sx-published-bg);
+  color: var(--sx-published-fg);
+}
+.mod .mod-price .mod-price__st[data-tone="wait"] {
+  background: var(--sx-review-bg);
+  color: var(--sx-review-fg);
+}
+.mod .mod-price .mod-price__st[data-tone="bad"] {
+  background: var(--sx-danger-soft);
+  color: var(--sx-danger);
+}
