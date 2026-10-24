@@ -184,7 +184,7 @@ export default function OrderHeader({
   const ratingOpen = phase === "completed" && o.rating.canRate && !o.rating.value;
   const locked = phase === "completed" || phase === "rated" || o.chatReadOnly;
   return (
-    <header className="mod-head" data-ai-id={`${aiBase}.header`} data-ai-type="section" data-ai-label={title}>
+    <header className="mod-head" data-phase={accepting ? "accepting" : phase} data-ai-id={`${aiBase}.header`} data-ai-type="section" data-ai-label={title}>
       <div className="mod-head__bar">
         <SxLinkButton variant="ghost" size="sm" icon={ArrowLeftIcon} href={listHref} aiId={`${aiBase}.back`}>
           {view === "client" ? t("backClient") : t("backSeller")}

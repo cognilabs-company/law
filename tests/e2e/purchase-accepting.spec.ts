@@ -81,7 +81,7 @@ test("the assigned lawyer sees the request on the order page and accepts it", as
   await expect(page.locator(".mko-req")).toHaveCount(1);
   await page.goto(`/uz/portal/advocate/marketplace-orders/${ORDER_ID}`);
   await expect(page.getByText("Yangi buyurtma sizga yuborildi")).toBeVisible();
-  await expect(page.getByText(/Javob berish uchun qolgan vaqt: 2\d:\d\d/)).toBeVisible();
+  await expect(page.getByRole("timer", { name: /Javob berish uchun qolgan vaqt: 2\d:\d\d/ })).toBeVisible();
   await expect(page.getByText("Javobingiz kutilmoqda")).toBeVisible();
   await page.screenshot({ path: `${SHOTS}/seller-assignment.png` });
   await page.getByRole("button", { name: "Qabul qilish" }).click();

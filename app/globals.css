@@ -11342,14 +11342,14 @@ html[data-theme="dark"] .splan--feat.splan--sel{
 .mko__rateh b{font-family:var(--fd);font-size:1rem;color:var(--ink)}
 .mko__ratel{margin:0;font-size:.82rem;line-height:1.45;color:var(--gray)}
 .mko__stars{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
-.mko__stars button{display:grid;place-items:center;width:40px;height:40px;border:0;border-radius:12px;background:var(--dk-surface, #fff);color:var(--dk-line, #C9D6E8);cursor:pointer;transition:transform .15s,color .15s,background .15s}
+.mko__stars button{display:grid;place-items:center;width:40px;height:40px;border:0;border-radius:12px;background:color-mix(in srgb,var(--ink) 5%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ink) 10%,transparent);color:color-mix(in srgb,var(--ink) 30%,transparent);cursor:pointer;transition:transform .15s,color .15s,background .15s,box-shadow .15s}
 .mko__stars button svg{width:24px;height:24px}
 .mko__stars button.is-on svg,.mko__stars.is-static svg.is-on{fill:currentColor}
-.mko__stars button.is-on{color:#F5A623;background:#FFF6E0}
+.mko__stars button.is-on{color:#F5A623;background:color-mix(in srgb,#F5A623 16%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,#F5A623 40%,transparent)}
 .mko__stars button:hover{transform:translateY(-2px) scale(1.06)}
 .mko__stars button:focus-visible{outline:2px solid var(--b400);outline-offset:2px}
 .mko__stars button[aria-checked=true]{animation:pxo-pop .3s cubic-bezier(.2,.8,.3,1.4)}
-.mko__stars.is-static svg{width:16px;height:16px;color:var(--dk-line, #C9D6E8)}
+.mko__stars.is-static svg{width:16px;height:16px;color:color-mix(in srgb,var(--ink) 25%,transparent)}
 .mko__stars.is-static svg.is-on{color:#F5A623}
 .mko__starl{margin-left:6px;font-size:.84rem;font-weight:700;color:var(--ink)}
 .mko__ratec.is-low textarea{box-shadow:inset 0 0 0 1.5px rgba(220,38,38,.45)}
