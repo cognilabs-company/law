@@ -23,6 +23,7 @@ import {
   listMarketplaceOrders,
   marketChatHref,
   marketPhaseOf,
+  awaitingSeller,
   marketStageOf,
   orderDetailHref,
   rememberMarketOrders,
@@ -364,7 +365,10 @@ function OrderCard({
   const phase = marketPhaseOf(o);
   const dealOpen = phase === "pending" && !!o.negotiation && DEAL_OPEN.test(o.negotiation.status);
   const dealAmount = o.negotiation ? dealOf(o.negotiation) : 0;
-  const stageLabel = phase === "paid" ? tph("paid") : t(`stage.${stage}`);
+  // Still with the seller to take: not a payment wait, and for the seller
+  // it is a new request to answer.
+  const awaiting = awaitingSeller(o);
+  const stageLabel = awaiting ? (view === "seller" ? t("awaitingSeller") : t("awaitingClient")) : phase === "paid" ? tph("paid") : t(`stage.${stage}`);
   const currency = !o.currency || o.currency === "UZS" ? te("currency") : o.currency;
   const [calling, setCalling] = useState<"" | "audio" | "video">("");
   const [callErr, setCallErr] = useState("");

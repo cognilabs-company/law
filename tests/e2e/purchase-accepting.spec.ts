@@ -75,6 +75,9 @@ test("the assigned lawyer sees the request on the order page and accepts it", as
     [`POST /orders/${ORDER_ID}/accept`]: () => ((accepted = true), (state.order = order({ status: "pending_payment", payment_status: "pending", price: 879749 })), { id: ORDER_ID, status: "pending_payment" }),
   });
   await mockBackend(page, routes);
+  // In the list it reads as a new request to answer, not a payment wait.
+  await page.goto("/uz/portal/advocate/marketplace-orders");
+  await expect(page.getByText("Yangi buyurtma — javobingiz kutilmoqda")).toBeVisible();
   await page.goto(`/uz/portal/advocate/marketplace-orders/${ORDER_ID}`);
   await expect(page.getByText("Yangi buyurtma sizga yuborildi")).toBeVisible();
   await expect(page.getByText(/Javob berish uchun qolgan vaqt: 2\d:\d\d/)).toBeVisible();

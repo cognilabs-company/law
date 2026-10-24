@@ -6986,7 +6986,9 @@
       "pausedHint": "Work is paused until the supplemental payment is confirmed",
       "optionsTitle": "Selected options",
       "supplemental": "Supplemental payment",
-      "supplementalSent": "Supplemental payment request sent — it's confirmed through Telegram"
+      "supplementalSent": "Supplemental payment request sent — it's confirmed through Telegram",
+      "awaitingSeller": "New order — waiting for your answer",
+      "awaitingClient": "Waiting for the specialist"
     },
     "toast": {
       "started": "Work started",

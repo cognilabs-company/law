@@ -6986,7 +6986,9 @@
       "pausedHint": "Qo'shimcha to'lov tasdiqlanguncha ish to'xtatilgan",
       "optionsTitle": "Tanlangan opsiyalar",
       "supplemental": "Qo'shimcha to'lov",
-      "supplementalSent": "Qo'shimcha to'lov so'rovi yuborildi — Telegram orqali tasdiqlanadi"
+      "supplementalSent": "Qo'shimcha to'lov so'rovi yuborildi — Telegram orqali tasdiqlanadi",
+      "awaitingSeller": "Yangi buyurtma — javobingiz kutilmoqda",
+      "awaitingClient": "Mutaxassis javobi kutilmoqda"
     },
     "toast": {
       "started": "Ish boshlandi",
