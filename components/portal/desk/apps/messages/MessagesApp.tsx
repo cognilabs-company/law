@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { canMakeCalls, sessionRoles, useAuth } from "@/lib/auth";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { dateOnly, shortDateTime, timeOnly } from "@/lib/date";
-import { CALL_LINK_RE, isMachineFileName, maskContacts } from "@/lib/chatFilter";
+import { CALL_LINK_RE, chatContacts, isMachineFileName, maskContacts } from "@/lib/chatFilter";
 import { canRecordVoice } from "@/lib/voiceRecorder";
 import { roomOrderLock, subscribeOrderLock } from "@/components/marketplace/order/lock";
 import CallRoom from "@/components/chat/CallRoom";
@@ -292,6 +292,7 @@ export function ChatPane({ roomId, title }: { roomId: string; title: string }) {
 function Conversation({ roomId, room, title, urgentId, service, workId, join, pip, tell, openOrder, onGone, pane }: { roomId: string; room: SecureRoom | null; title: string; urgentId: string; service: string; workId: string; join: string; pip: boolean; tell: NativeProps["tell"]; openOrder?: () => void; onGone: () => void; pane?: boolean }) {
   const t = useTranslations("secureChat");
   const d = useTranslations("portal.desk.messages");
+  const tcb = useTranslations("common");
   const locale = useLocale();
   const os = useOs();
   const { menu, dragWindow, zoomWindow } = useHost();
@@ -411,6 +412,8 @@ function Conversation({ roomId, room, title, urgentId, service, workId, join, pi
 
   function send() {
     if (!text.trim()) return;
+    // No phone, e-mail, username or link leaves the composer (the backend refuses it too).
+    if (chatContacts(text).length) return say(tcb("contactBlocked"), "err");
     void chat.send(text, reply);
     setText("");
     setReply(null);

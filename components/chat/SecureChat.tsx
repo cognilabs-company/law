@@ -8,7 +8,7 @@ import { useTranslations, useLocale } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth, canMakeCalls, sessionRoles, type Session } from "@/lib/auth";
 import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
-import { CALL_LINK_RE, isMachineFileName, maskContacts } from "@/lib/chatFilter";
+import { CALL_LINK_RE, chatContacts, isMachineFileName, maskContacts } from "@/lib/chatFilter";
 import { getToken } from "@/lib/client";
 import { backoffMs, contactBlockedOf, errDetail, isConflict, logApiError, refreshAccessToken } from "@/lib/http";
 import { secureUploadProblem, secureUploadRefusal } from "@/lib/secureUpload";
@@ -694,6 +694,7 @@ export default function SecureChat({
   status?: string;
 }) {
   const t = useTranslations("secureChat");
+  const tcb = useTranslations("common");
   const uploadText = useSecureUploadText();
   // Status words are the shared backend-enum vocabulary, translated by
   // statusLabel out of portal.common — the same source the inbox and the
@@ -1561,6 +1562,10 @@ export default function SecureChat({
     const files = pending;
     if (!files.length || finished) return;
     const caption = text.trim();
+    if (chatContacts(caption).length) {
+      notify.error(tcb("contactBlocked"), { id: `schat-contact-${roomId}` });
+      return;
+    }
     setPending([]);
     setText("");
     requestAnimationFrame(sizeInput);
@@ -1622,6 +1627,12 @@ export default function SecureChat({
   async function send(again?: string, quote?: LocalMsg | null) {
     const content = (again ?? text).trim();
     if (!content || finished) return;
+    // A phone, e-mail, username or link never leaves the composer; the text
+    // stays so it can be edited. The backend refuses it too.
+    if (chatContacts(content).length) {
+      notify.error(tcb("contactBlocked"), { id: `schat-contact-${roomId}` });
+      return;
+    }
     if (again === undefined) {
       setText("");
       requestAnimationFrame(sizeInput);

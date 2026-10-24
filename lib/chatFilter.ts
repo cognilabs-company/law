@@ -1,11 +1,10 @@
 // Client-side contact masking for secure chat. The backend already filters
 // blocked content, but we additionally hide usernames / social handles / phone
-// numbers / links at display time so people can't swap off-platform contacts.
+// numbers / e-mails / links at display time so people can't swap off-platform
+// contacts. What counts as a contact is lib/contactGuard's one detector, the
+// same that guards a lawyer's public texts.
 
-const SOCIAL = /\b(?:t\.me|telegram\.me|instagram\.com|wa\.me|whatsapp\.com|facebook\.com|fb\.com|vk\.com)\/\S+/gi;
-const URL = /\bhttps?:\/\/\S+/gi;
-const USERNAME = /(^|[\s(])@[A-Za-z0-9_.]{2,}/g;
-const PHONE = /(?:\+?\d[\s\-().]?){9,}\d/g;
+import { findContacts, type ContactHit } from "./contactGuard";
 
 const MASK = "•••";
 
@@ -22,13 +21,16 @@ export function isMachineFileName(name: string): boolean {
 
 export const CALL_LINK_RE = /(https?:\/\/(?:[a-z0-9-]+\.)?zoom\.(?:us|com)\/\S+|\/secure-chats\/\S+\/join)/i;
 
+// The contacts in a chat message, call links excepted.
+export function chatContacts(input: string): ContactHit[] {
+  return findContacts(input).filter((h) => !(h.kind === "link" && (ALLOWED.test(h.text) || CALL_LINK_RE.test(h.text))));
+}
+
 export function maskContacts(input: string): string {
   if (!input) return input;
-  return input
-    .replace(SOCIAL, (m) => (ALLOWED.test(m) ? m : MASK))
-    .replace(URL, (m) => (ALLOWED.test(m) ? m : MASK))
-    .replace(USERNAME, (m) => m.replace(/@[A-Za-z0-9_.]{2,}/, MASK))
-    .replace(PHONE, MASK);
+  let out = input;
+  for (const h of chatContacts(input)) out = out.split(h.text).join(MASK);
+  return out;
 }
 
 // True if masking changed anything (a contact was hidden).
