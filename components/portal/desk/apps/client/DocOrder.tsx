@@ -9,6 +9,7 @@ import { defaultDocLang, docLangOptions } from "@/components/portal/NewDocumentO
 import { IconArrowRight, IconChevronLeft, IconClipboardCheck, IconClose, IconEdit, IconFileText, IconMic, IconPaperclip, IconRecord } from "@/components/icons";
 import { Banner, Btn, Dialog, Field, Input, Select, TextArea } from "../../kit/kit";
 import type { NativeProps } from "../../native";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // Asking an advocate for a document, as a desktop sheet: write one from
 // scratch or check one the client has; the document (for a check) or its
@@ -49,6 +50,7 @@ export default function DocOrderDialog({ onClose, openLink }: { onClose: () => v
   const [files, setFiles] = useState<File[]>([]);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [err, setErr] = useState("");
   const [missing, setMissing] = useState<"" | "main" | "need">("");
   const [result, setResult] = useState<DocLawyerSubmitResult | null>(null);
@@ -71,7 +73,7 @@ export default function DocOrderDialog({ onClose, openLink }: { onClose: () => v
 
 
   async function submit() {
-    if (busy) return;
+    if (busy || !once()) return;
     if (flow === "review" && !mainFile) return setMissing("main");
     if (!described) return setMissing("need");
     setMissing("");

@@ -16,6 +16,7 @@ import { fmtUzs } from "@/lib/money";
 import { notify } from "@/lib/toast";
 import InlineAlert from "@/components/ui/InlineAlert";
 import { IconCheck, IconCard } from "@/components/icons";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // The invoice a checkout just created: amount and status first, then the user
 // goes to the provider page (same tab — a popup opened after an await is blocked).
@@ -72,6 +73,7 @@ export default function OrderMilestones({ orderId }: { orderId: string }) {
   const [key, setKey] = useState(0);
   const [readOnly, setReadOnly] = useState(false);
   const [busy, setBusy] = useState("");
+  const once = useSameTickGuard();
   const [confirmId, setConfirmId] = useState("");
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
   const nid = `milestones-${orderId}`;
@@ -106,7 +108,7 @@ export default function OrderMilestones({ orderId }: { orderId: string }) {
   }
 
   async function pay(m: OrderMilestone) {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(m.id);
     setIntent(null);
     try {
@@ -130,7 +132,7 @@ export default function OrderMilestones({ orderId }: { orderId: string }) {
   }
 
   async function release(m: OrderMilestone) {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(m.id);
     try {
       const next = await releaseOrderMilestone(orderId, m.id);

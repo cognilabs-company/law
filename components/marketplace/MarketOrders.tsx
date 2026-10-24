@@ -38,6 +38,7 @@ import ContactAdvocate, { callStateOf } from "./order/ContactAdvocate";
 import { useContactSpeedText } from "./order/contactSpeed";
 import { clientPhoneShow, telHref } from "./order/phone";
 import "./order/cards.css";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 type View = "client" | "seller";
 type Tab = "all" | MarketStage;
@@ -614,6 +615,7 @@ function ActionDialog({
 }) {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [err, setErr] = useState("");
   const key = order?.id ?? "";
   const [prevKey, setPrevKey] = useState(key);
@@ -626,7 +628,7 @@ function ActionDialog({
   const target = order;
 
   async function go() {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(true);
     setErr("");
     try {

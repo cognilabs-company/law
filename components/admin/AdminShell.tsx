@@ -127,6 +127,7 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
     group: "system",
     items: [
       { href: "/admin/integrations", key: "integrations", Icon: NavIntegrations },
+      { href: "/admin/monitoring", key: "monitoring", Icon: NavCallAnalytics, perm: "users.manage" },
       { href: "/admin/test-otps", key: "testOtps", Icon: NavTestOtps },
       { href: "/admin/roles", key: "roles", Icon: NavRoles, perm: "roles.manage" },
       { href: "/admin/audit-trail", key: "audit", Icon: NavAudit, perm: "users.manage" },

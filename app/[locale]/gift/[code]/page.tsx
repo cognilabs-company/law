@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { claimGift } from "@/lib/services/backend";
 import { ApiError, isConflict } from "@/lib/http";
 import { IconGift, IconCheck } from "@/components/icons";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // Recipient landing for a gift share link (https://.../gift/LX-XXXX). Public;
 // requires login to claim, which starts the recipient's subscription term.
@@ -17,11 +18,12 @@ export default function GiftClaim() {
   const code = String(params.code || "");
   const { session, ready } = useAuth();
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [state, setState] = useState<"idle" | "done" | "error">("idle");
   const [errKey, setErrKey] = useState<"error" | "alreadyClaimed" | "notReady" | "notFound">("error");
 
   async function claim() {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(true);
     try {
       await claimGift(code);

@@ -1,0 +1,39 @@
+/* Tariff versions and the feature registry (admin/plans). */
+.trf { display: grid; gap: 12px; }
+.trf-muted { margin: 0; font-size: .8rem; color: var(--gray); }
+.trf-bad { font-size: .78rem; color: #dc2626; }
+.trf-ok { margin: 0; font-size: .82rem; color: #16a34a; font-weight: 600; }
+.trf-empty { display: grid; gap: 8px; justify-items: start; padding: 12px; border-radius: 12px; background: var(--dk-surface-2, #F5F8FD); font-size: .85rem; color: var(--ink); }
+.trf-empty p { margin: 0; }
+.trf-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.trf-v { display: grid; gap: 8px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--dk-bd, #E3E9F2); background: var(--dk-surface, #fff); }
+.trf-v[data-status="draft"] { border-style: dashed; }
+.trf-v__h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.trf-v__h small { margin-left: auto; font-size: .76rem; color: var(--gray); }
+.trf-chip { padding: 1px 8px; border-radius: 999px; font-size: .72rem; font-weight: 700; background: var(--dk-surface-2, #EEF2F8); color: var(--ink); }
+.trf-chip[data-status="draft"] { background: color-mix(in srgb, #d97706 16%, transparent); }
+.trf-chip[data-status="published"], .trf-chip[data-status="current"] { background: color-mix(in srgb, #16a34a 16%, transparent); }
+.trf-chip[data-status="superseded"], .trf-chip[data-status="archived"] { background: color-mix(in srgb, #94a3b8 22%, transparent); }
+.trf-errs { margin: 0; padding-left: 18px; font-size: .8rem; color: #dc2626; }
+.trf-errs code { font-size: .74rem; }
+.trf-acts { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.trf-acts--ro { justify-content: space-between; }
+.trf-edit { display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: var(--dk-surface-2, #F5F8FD); }
+.trf-edit__h { font-size: .9rem; }
+.trf-edit fieldset, .trf-add fieldset { margin: 0; padding: 0; border: 0; display: grid; gap: 8px; }
+.trf-edit legend, .trf-add legend { margin-bottom: 6px; font-size: .74rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gray); }
+.trf-prices { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.trf-edit label, .trf-add label { display: grid; gap: 4px; font-size: .8rem; color: var(--gray); }
+.trf-edit input, .trf-edit select, .trf-add input { height: 34px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--dk-bd, #E3E9F2); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; font-size: .84rem; }
+.trf-field { max-width: 260px; }
+.trf-ent__row { display: grid; grid-template-columns: minmax(160px, 2fr) minmax(120px, 1fr) minmax(90px, .7fr) minmax(120px, 1fr) auto; gap: 6px; align-items: center; }
+.trf-ent__row > small { grid-column: 1 / -1; }
+.trf-ent__row[data-bad] select, .trf-ent__row[data-bad] input { border-color: #dc2626; }
+@media (max-width: 720px) { .trf-ent__row { grid-template-columns: 1fr 1fr; } }
+.trf-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.trf-table th, .trf-table td { padding: 8px 10px; border-bottom: 1px solid var(--dk-bd, #E3E9F2); text-align: left; }
+.trf-table thead th { font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--gray); }
+.trf-add { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; padding: 12px; border-radius: 12px; border: 1px solid var(--dk-bd, #E3E9F2); }
+.trf-add > b, .trf-add > fieldset, .trf-add > .anote, .trf-add > .trf-acts { grid-column: 1 / -1; }
+.trf-add fieldset { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.trf-check { display: flex !important; align-items: center; gap: 6px; color: var(--ink) !important; }

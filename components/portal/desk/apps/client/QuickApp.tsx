@@ -61,6 +61,7 @@ import DeskCall from "../call/DeskCall";
 import DocOrderDialog from "./DocOrder";
 import { StarPicker, toneOf } from "./bits";
 import "./client.css";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // Quick advocate as a desktop program — the services on one side (video,
 // chat, the road-accident line, a second opinion, a document), the
@@ -555,6 +556,7 @@ function OrderSheet({
   const [need, setNeed] = useState("");
   const [miss, setMiss] = useState<"" | "dirs" | "need">("");
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const channels = urgentChannels(svc);
   const channel = channels.includes(channelPref) ? channelPref : channels[0] || "video";
   const price = urgentPrice(svc, channel, isGroup ? lawyers : 1);
@@ -562,7 +564,7 @@ function OrderSheet({
   const kindName = (k: string, title = "") => (t.has(`kinds.${k}`) ? t(`kinds.${k}`) : title || k);
 
   async function submit() {
-    if (busy) return;
+    if (busy || !once()) return;
     if (!dirs.length) return setMiss("dirs");
     if (need.trim().length < 10) return setMiss("need");
     setMiss("");
@@ -714,6 +716,7 @@ function Detail({ req, openLink, onCancelled, onError }: { req: UrgentRequest; o
   const d = useTranslations("portal.desk.client");
   const locale = useLocale();
   const [busy, setBusy] = useState<"" | "rate" | "cancel">("");
+  const once = useSameTickGuard();
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
   const [stars, setStars] = useState(0);
@@ -757,7 +760,7 @@ function Detail({ req, openLink, onCancelled, onError }: { req: UrgentRequest; o
     }
   }
   async function cancel() {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy("cancel");
     try {
       await cancelUrgentRequest(req.id, reason.trim() || t("cancelDefaultReason"));

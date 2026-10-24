@@ -31,6 +31,7 @@ import { App, Btn, Dialog, Empty, Field, Input, Loading, Select, Spinner, Tag, T
 import { toneOf } from "./bits";
 import Milestones from "./Milestones";
 import "./client.css";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // The client's requests as a desktop program — legal cases and the orders
 // behind them in one table (Finder's list / File Explorer's details), the
@@ -377,8 +378,9 @@ function AskDialog({ c, onClose, onSent, onError }: { c: BackendCase; onClose: (
   const [kind, setKind] = useState<"refund" | "replacement">("refund");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   async function send() {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(true);
     try {
       const payload = { case_id: c.id, order_id: c.orderId, reason: reason.trim() };

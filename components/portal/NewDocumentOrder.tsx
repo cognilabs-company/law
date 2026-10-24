@@ -28,6 +28,7 @@ import {
   IconLock,
 } from "@/components/icons";
 import { useAiField } from "@/lib/ai/registry";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // lexgo_frontend_custom_doc_flows.md: two ways into the call-center pool
 // that need no template at all — the advocate writes the document from a
@@ -157,6 +158,7 @@ export default function NewDocumentOrder({
   const [files, setFiles] = useState<File[]>([]);
   const [voices, setVoices] = useState<VoiceNoteItem[]>([]);
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [mainErr, setMainErr] = useState("");
   const [attachErr, setAttachErr] = useState("");
   const [planRequired, setPlanRequired] = useState("");
@@ -222,7 +224,7 @@ export default function NewDocumentOrder({
   const described = !!need.trim() || files.length > 0 || voices.length > 0 || flow === "review";
 
   async function submit() {
-    if (busy) return;
+    if (busy || !once()) return;
     // GM 2026-09-29: "to'ldirmasdan so'rov yuborishni bossa, to'ldirilmagan
     // joyi qizilda ogohlantirish sifatida chiqishi kerak."
     //

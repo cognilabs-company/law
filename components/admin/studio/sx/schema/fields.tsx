@@ -1000,6 +1000,8 @@ function SchemaFieldImpl({ node, path, scope, inBoard = false }: { node: SchemaF
       field((a) =>
         control === "pickerMulti" ? (
           <RefPicker
+            // A new filter key (MP09's target type) starts the list afresh.
+            key={lf?.keepKey?.(ctx)}
             multiple
             a11y={a}
             label={label}
@@ -1022,9 +1024,12 @@ function SchemaFieldImpl({ node, path, scope, inBoard = false }: { node: SchemaF
             inlineContext={inlineContext}
             inlineOwner={env.owner ?? ""}
             inlineAddKey={lf?.inlineAddKey}
+            keepItem={lf?.keepItem}
+            keepItemKey={lf?.keepKey?.(ctx)}
           />
         ) : (
           <RefPicker
+            key={lf?.keepKey?.(ctx)}
             a11y={a}
             label={label}
             source={source}
@@ -1043,6 +1048,8 @@ function SchemaFieldImpl({ node, path, scope, inBoard = false }: { node: SchemaF
             inlineContext={inlineContext}
             inlineOwner={env.owner ?? ""}
             inlineAddKey={lf?.inlineAddKey}
+            keepItem={lf?.keepItem}
+            keepItemKey={lf?.keepKey?.(ctx)}
           />
         ),
       ),

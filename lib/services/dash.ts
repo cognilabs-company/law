@@ -325,7 +325,7 @@ function normOrder(v: unknown): BackendOrder {
     budget: amount != null ? fmtUzs(amount) : asStr(details.budget),
     createdAt: asStr(d.created_at ?? d.createdAt),
     lawyerName: asStr(d.lawyer_name ?? asDict(d.lawyer).name) || undefined,
-    confirmationDeadlineAt: asStr(d.confirmation_deadline_at ?? details.confirmation_deadline_at) || undefined,
+    confirmationDeadlineAt: asStr(d.acceptance_deadline_at ?? details.acceptance_deadline_at ?? d.confirmation_deadline_at ?? details.confirmation_deadline_at) || undefined,
     source: asStr(d.source ?? (details.marketplace === true ? "marketplace" : "")) || undefined,
   };
 }

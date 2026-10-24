@@ -16,6 +16,7 @@ import { marketChatHref, type MarketSignal } from "@/lib/services/marketplace";
 import { marketErrorInfo, requestCancellationReview, type CancellationReview } from "@/lib/services/marketRuntime";
 import { MessageSquareTextIcon, LifeBuoyIcon } from "./icons";
 import { SECTION_ID, type OrderSectionProps } from "./types";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 export const CANCEL_REASON_MIN = 20;
 export const CANCEL_REASON_MAX = 1000;
@@ -53,6 +54,7 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
   const [reason, setReason] = useState("");
   const [reasonErr, setReasonErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [error, setError] = useState<SxDialogErrorText>(null);
 
   const review = o.cancellationReview;
@@ -82,7 +84,7 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
   };
 
   const submit = async () => {
-    if (busy) return;
+    if (busy || !once()) return;
     const text = reason.trim();
     if (text.length < CANCEL_REASON_MIN) {
       setReasonErr(t("cancel.reasonShort", { n: CANCEL_REASON_MIN }));

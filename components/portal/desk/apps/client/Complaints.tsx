@@ -36,6 +36,7 @@ import { IconArrowRight, IconChat, IconCheck, IconClose, IconPlus, IconRefresh, 
 import { Banner, Btn, Dialog, Field, Group, Input, Search, Select, SettingRow, Spinner, Tag, TextArea, type Tone } from "../../kit/kit";
 import type { NativeProps } from "../../native";
 import { StarsView } from "./bits";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // Complaints as a settings page: the three steps (write, review, the
 // decision) and the client's complaints — written ones and those opened by
@@ -338,6 +339,7 @@ function NewDialog({ about, onClose, onCreated, onError }: { about: string; onCl
   const [worksTry, setWorksTry] = useState(0);
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [blocked, setBlocked] = useState<unknown>(null);
   useEffect(() => {
     let alive = true;
@@ -356,7 +358,7 @@ function NewDialog({ about, onClose, onCreated, onError }: { about: string; onCl
   const target = Array.isArray(works) ? findWorkRef(works, d.related) : null;
   const set = (p: Partial<Draft>) => setD((cur) => ({ ...cur, ...p }));
   async function send() {
-    if (busy) return;
+    if (busy || !once()) return;
     setTried(true);
     if (!(COMPLAINT_CATEGORIES as readonly string[]).includes(d.category) || subject.length < SUBJECT_MIN || desc.length < DESC_MIN) return;
     setBusy(true);

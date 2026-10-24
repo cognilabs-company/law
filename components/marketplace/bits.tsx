@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { humanizeSlug, initials } from "@/lib/lawyers";
 import type { MarketSeller } from "@/lib/services/marketplace";
+import { categoryName } from "@/lib/categoryNames";
 
 type TFn = ReturnType<typeof useTranslations>;
 
@@ -16,6 +17,15 @@ export function specLabel(te: TFn, value: string): string {
   const k = value.trim().toLowerCase();
   if (te.has(`areas.${k}`)) return te(`areas.${k}`);
   return humanizeSlug(value);
+}
+
+// A service's category, sent as a slug or as the backend's own (often
+// Cyrillic) title, in the reader's language (lib/categoryNames).
+export function categoryLabel(te: TFn, value: string, locale: string): string {
+  const k = value.trim().toLowerCase();
+  if (te.has(`areas.${k}`)) return te(`areas.${k}`);
+  const named = categoryName({ slug: k, title: value }, locale);
+  return named && named !== value.trim() ? named : /^[a-z0-9_-]+$/.test(k) ? humanizeSlug(value) : value.trim();
 }
 
 export function langLabel(t: TFn, value: string): string {

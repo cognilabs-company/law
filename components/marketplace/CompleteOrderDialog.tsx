@@ -14,6 +14,7 @@ import { noteOrderLock } from "./order/lock";
 import { ORDER_FILE_MB, ORDER_FILES_MAX, uploadOrderFile } from "./order/upload";
 import { useMarketError } from "./useMarketError";
 import "./completeOrder.css";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 const TEXT_MAX = 4000;
 const FILES_MAX = ORDER_FILES_MAX;
@@ -43,6 +44,7 @@ export default function CompleteOrderDialog({
   const [text, setText] = useState("");
   const [files, setFiles] = useState<Attachment[]>([]);
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [err, setErr] = useState("");
   const [blocked, setBlocked] = useState<BlockingItem[] | null>(null);
   const [fetched, setFetched] = useState<{ id: string; list: OrderChecklistData | null } | null>(null);
@@ -115,7 +117,7 @@ export default function CompleteOrderDialog({
   }
 
   async function go() {
-    if (busy) return;
+    if (busy || !once()) return;
     if (!ready) {
       setErr(t("required"));
       return;

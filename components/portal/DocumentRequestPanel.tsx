@@ -39,6 +39,7 @@ import InlineAlert from "@/components/ui/InlineAlert";
 import { Link, useRouter } from "@/i18n/navigation";
 import { IconDownload, IconExternal, IconCheck, IconClock, IconHeadset, IconCard, IconAlert, IconEdit, IconCircleCheck, IconCircleX } from "@/components/icons";
 import { useAiField } from "@/lib/ai/registry";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
@@ -275,6 +276,7 @@ export default function DocumentRequestPanel({
   const [answers, setAnswers] = useState<Record<string, string>>(() => answersFrom(initialReq));
   const [stage, setStage] = useState<Stage>(stageFor(initialReq));
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [pollStopped, setPollStopped] = useState(false);
   // The ask the product owner described: the moment the work reaches an
   // advocate, say so and offer the constructor anyway. Raised here rather
@@ -358,7 +360,7 @@ export default function DocumentRequestPanel({
   const bump = () => onBump?.();
 
   async function saveAnswers() {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(true);
     try {
       // Canonical values, matching character for character what the live
@@ -419,7 +421,7 @@ export default function DocumentRequestPanel({
   }
 
   async function pay() {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(true);
     let leaving = false;
     try {

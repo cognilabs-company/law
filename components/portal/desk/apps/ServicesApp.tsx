@@ -20,6 +20,7 @@ import PromoteDialog from "./promote/PromoteDialog";
 import "./services.css";
 import PriceLimits from "@/components/services/PriceLimits";
 import { useSellerConfig } from "@/components/services/useSellerConfig";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // The seller's services as a desktop program: the services by status and
 // the packages on the side; the chosen one's sheet — price and its allowed
@@ -57,6 +58,7 @@ export function ServicesBoard({ scope, owner = false, head, extra, back, start =
   const [q, setQ] = useState("");
   const [sel, setSel] = useState("");
   const [busy, setBusy] = useState("");
+  const once = useSameTickGuard();
   const [edit, setEdit] = useState<{ item: ManagedService | null } | null>(null);
   const [promote, setPromote] = useState<ManagedService | null>(null);
   const [rules, setRules] = useState<{ serviceId: string; focus: string[] } | null>(null);
@@ -78,7 +80,7 @@ export function ServicesBoard({ scope, owner = false, head, extra, back, start =
   const replace = (x: ManagedService) => setData((cur) => (cur ? { ...cur, items: cur.items.some((y) => y.id === x.id) ? cur.items.map((y) => (y.id === x.id ? x : y)) : [x, ...cur.items] } : cur));
 
   async function setStatus(item: ManagedService, status: ServiceStatus) {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(item.id);
     try {
       if (status === "active" && !owner) {

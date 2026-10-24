@@ -10,6 +10,7 @@ import { IconAlert, IconBriefcase, IconCheck, IconClock, IconClose, IconCoins, I
 import { App, Banner, Btn, Dialog, Empty, Field, Loading, Select, Tag, TextArea, Tool, Toolbar, useOs, useToast } from "../kit/kit";
 import type { NativeProps } from "../native";
 import "./opportunities.css";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // New opportunities as a desktop program, an inbox of requests: each with
 // the time left to answer counting down, the chosen one in full on the
@@ -31,6 +32,7 @@ export default function OpportunitiesApp({ openApp, base }: NativeProps) {
   const [done, setDone] = useState<Record<string, Outcome>>({});
   const [sel, setSel] = useState("");
   const [busy, setBusy] = useState("");
+  const once = useSameTickGuard();
   const [blocked, setBlocked] = useState("");
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState<DeclineReason>("busy");
@@ -76,7 +78,7 @@ export default function OpportunitiesApp({ openApp, base }: NativeProps) {
   };
 
   async function act(o: BackendOrder, action: "accept" | "decline") {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(action);
     try {
       if (action === "accept") await acceptOrder(o.id);

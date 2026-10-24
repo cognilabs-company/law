@@ -28,7 +28,9 @@ import FieldError from "@/components/ui/FieldError";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import FilterBar from "@/components/filters/FilterBar";
-import { IconStar, IconPlus, IconSearch, IconEdit, IconTrash, IconEyeOff, IconEye, IconRefresh, IconUsers } from "@/components/icons";
+import { IconStar, IconPlus, IconSearch, IconEdit, IconTrash, IconEyeOff, IconEye, IconRefresh, IconUsers, IconClock, IconSliders } from "@/components/icons";
+import PlanVersions from "@/components/admin/plans/PlanVersions";
+import FeatureRegistry from "@/components/admin/plans/FeatureRegistry";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField, useAiModal } from "@/lib/ai/registry";
 
@@ -309,6 +311,9 @@ export default function AdminPlans() {
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState<OverlaidPlan | null>(null);
   const [del, setDel] = useState<OverlaidPlan | null>(null);
+  // Versions (published read-only, edits as drafts) and the feature registry.
+  const [versionsOf, setVersionsOf] = useState<OverlaidPlan | null>(null);
+  const [registry, setRegistry] = useState(false);
   const [q, setQ] = useState("");
   const [aud, setAud] = useState<AudienceFilter>("all");
   const [showHidden, setShowHidden] = useState(false);
@@ -413,6 +418,10 @@ export default function AdminPlans() {
         <b>{t("plans.listTitle")}</b>
         <span className="ahdr">
           <span className="advmuted">{plans.length - hiddenCount}</span>
+          <button className="btn btn--line btn--sm" type="button" onClick={() => setRegistry(true)} data-ai-id="admin.plans.features">
+            <IconSliders />
+            {t("tariffs.registry")}
+          </button>
           <button className="btn btn--pri btn--sm" type="button" onClick={() => setOpen(true)} data-ai-target="button:new-plan" data-ai-id="admin.plans.create">
             <IconPlus />
             {t("form.add")}
@@ -492,6 +501,9 @@ export default function AdminPlans() {
                     <IconRefresh />
                   </button>
                 ) : null}
+                <button className="aitem__act" type="button" aria-label={t("tariffs.versions")} title={t("tariffs.versions")} onClick={() => setVersionsOf(p)} data-ai-id={p.slug || p.id ? aiId("admin.plans.item", p.slug || p.id, "versions") : undefined}>
+                  <IconClock />
+                </button>
                 <button className="aitem__act" type="button" aria-label={t("form.edit")} title={t("form.edit")} onClick={() => setEdit(p)} data-ai-id={p.slug || p.id ? aiId("admin.plans.item", p.slug || p.id, "edit") : undefined}>
                   <IconEdit />
                 </button>
@@ -517,6 +529,12 @@ export default function AdminPlans() {
       )}
 
       {/* Create */}
+      <Modal open={versionsOf !== null} onClose={() => setVersionsOf(null)} title={versionsOf ? t("tariffs.versionsOf", { name: versionsOf.title || versionsOf.name || versionsOf.slug }) : ""} wide>
+        {versionsOf ? <PlanVersions key={versionsOf.id} planId={versionsOf.id} /> : null}
+      </Modal>
+      <Modal open={registry} onClose={() => setRegistry(false)} title={t("tariffs.registry")} wide>
+        {registry ? <FeatureRegistry /> : null}
+      </Modal>
       <Modal open={open} onClose={() => setOpen(false)} title={t("plans.create")}>
         <PlanForm
           aiId="admin.plans.create-modal"

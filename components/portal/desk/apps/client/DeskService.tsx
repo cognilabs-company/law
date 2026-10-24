@@ -22,6 +22,7 @@ import { IconAlert, IconArrowRight, IconChevronLeft, IconEye, IconHeadset, IconL
 import { Banner, Btn, Check, Dialog, Empty, Field, Loading, Select, TextArea } from "../../kit/kit";
 import FileViewer from "../FileViewer";
 import { Attach, type VoiceNote } from "./DocOrder";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // The builder's steps before the form, as desktop pages: how to fill the
 // document (the builder, or an advocate), the intro with its price, the
@@ -167,6 +168,7 @@ function Assist({ flow, sourceFile, onBack }: { flow: DocLawyerFlow; sourceFile:
   const [consent, setConsent] = useState(false);
   const [missing, setMissing] = useState<"" | "need" | "consent">("");
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [err, setErr] = useState("");
   const [result, setResult] = useState<DocLawyerSubmitResult | null>(null);
   const [plan, setPlan] = useState("");
@@ -186,7 +188,7 @@ function Assist({ flow, sourceFile, onBack }: { flow: DocLawyerFlow; sourceFile:
   const cleanUrl = sourceFile?.cleanSourceFileInlineUrl || sourceFile?.cleanSourceFileUrl || "";
 
   async function send() {
-    if (busy) return;
+    if (busy || !once()) return;
     if (!need.trim()) return setMissing("need");
     if (!consent) return setMissing("consent");
     setMissing("");

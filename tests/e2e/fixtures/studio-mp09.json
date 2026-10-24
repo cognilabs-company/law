@@ -1,0 +1,1815 @@
+{
+ "_note": "Recorded from GET /studio/constructors (MP09 only), /studio/constructors/MP09 and its form-context (24 Oct 2026); targets are made up in the live shape.",
+ "constructors": {
+  "group_count": 1,
+  "constructor_count": 1,
+  "user_roles": [
+   "superadmin"
+  ],
+  "include_schema": false,
+  "items": [
+   {
+    "id": "0e32b91c-c33f-4287-8142-b035fed99a61",
+    "code": "MP09",
+    "title": "Aksiya",
+    "category": "marketplace",
+    "description": "Mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+    "runtime_target": "promotion_campaigns",
+    "experience": {
+     "metadata_version": 1,
+     "purpose": "Mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+     "plain_language": "Bu konstruktor mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+     "when_to_use": "Marketplacedagi xizmat, sotuvchi va reklama bloklarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+     "managed_by": [
+      "studio_editor",
+      "marketplace_manager"
+     ],
+     "where_used": [
+      {
+       "surface_key": "promotion_campaigns",
+       "title": "Marketplace",
+       "route": "/uz/marketplace",
+       "placement": "Xizmat, sotuvchi va reklama bloklari"
+      }
+     ],
+     "result": "Publish qilingandan keyin yangi konfiguratsiya `promotion_campaigns` runtime qatlamida ishlaydi va Marketplaceda aks etadi.",
+     "workflow": [
+      {
+       "step": 1,
+       "title": "Bog‘liq ma’lumotni tanlang",
+       "description": "Avval Reklama yoki tariflar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+      },
+      {
+       "step": 2,
+       "title": "Asosiy maydonlarni to‘ldiring",
+       "description": "Majburiy maydonlar: Aksiya nomi, Aksiya turi, Reklama yoki tariflar, Chegirma turi, Chegirma qiymati."
+      },
+      {
+       "step": 3,
+       "title": "Natijani tekshiring",
+       "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+      },
+      {
+       "step": 4,
+       "title": "Saqlang va tasdiqlashga yuboring",
+       "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+      }
+     ],
+     "visual_preview": {
+      "type": "marketplace_card",
+      "title": "Aksiya natijasi",
+      "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+      "data_source": "payload",
+      "refresh": "on_change",
+      "surface_keys": [
+       "promotion_campaigns"
+      ]
+     },
+     "novice_notes": [
+      "Qizil yulduzchali maydonlar majburiy.",
+      "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+      "Preview real ma’lumotni o‘zgartirmaydi.",
+      "Publishdan oldin diff va warninglarni tekshiring."
+     ],
+     "publish_checklist": [
+      "Majburiy maydonlar to‘ldirilgan",
+      "Reference qiymatlar mavjud",
+      "Preview kutilgan natijani ko‘rsatmoqda",
+      "Validatsiya xatosiz",
+      "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+     ],
+     "risk_level": "medium",
+     "warnings": [
+      "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+     ]
+    },
+    "visual_preview": {
+     "type": "marketplace_card",
+     "title": "Aksiya natijasi",
+     "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+     "data_source": "payload",
+     "refresh": "on_change",
+     "surface_keys": [
+      "promotion_campaigns"
+     ]
+    },
+    "navigation": {
+     "group_key": "advertising",
+     "group_title": "Reklama",
+     "group_order": 10,
+     "step_number": 2,
+     "step_count": 2,
+     "required_before": [],
+     "recommended_before": [],
+     "next_steps": [],
+     "sequence_reason": "Reklama bo‘limida bu qadam 2-navbatda bajariladi.",
+     "ui_visible": true,
+     "managed_by": "studio"
+    },
+    "operations": {
+     "supported": [
+      "create",
+      "view",
+      "edit",
+      "clone",
+      "archive"
+     ],
+     "default": "list",
+     "identity_source": "route_context",
+     "context_fields": [],
+     "list_endpoint": "/studio/constructors/MP09/records",
+     "form_context_endpoint": "/studio/constructors/MP09/form-context",
+     "clone_endpoint": "/studio/objects/{object_id}/clone",
+     "archive_endpoint": "/studio/objects/{object_id}/archive"
+    },
+    "capabilities": [
+     "draft",
+     "validate",
+     "preview",
+     "submit",
+     "approve",
+     "publish",
+     "rollback"
+    ],
+    "definition_version": 3,
+    "approval_required": true,
+    "is_active": true,
+    "updated_at": "2026-10-23T15:04:23.166744Z",
+    "record_count": 1,
+    "completed": false,
+    "availability": "available",
+    "missing_required": [],
+    "missing_recommended": [],
+    "field_count": 8,
+    "required_fields": [
+     "title",
+     "target_type",
+     "target_ids",
+     "discount_type",
+     "discount_value"
+    ],
+    "detail_url": "/studio/constructors/MP09"
+   }
+  ],
+  "groups": [
+   {
+    "key": "advertising",
+    "title": "Reklama",
+    "description": "Marketplace banner, profil va xizmat reklamasi paketlari hamda chegirma kampaniyalarini boshqaradi.",
+    "codes": [
+     "K12-PROMO",
+     "MP09"
+    ],
+    "order": 6,
+    "constructor_count": 2,
+    "constructors": [
+     {
+      "id": "ab27a2eb-e860-45ce-9fc3-b5bae76ee5c8",
+      "code": "K12-PROMO",
+      "title": "Marketplace reklama paketlari",
+      "category": "marketplace",
+      "description": "Banner, profil va xizmat reklamasi paketlarini boshqaradi. Paket kodi va sotuv holatini backend boshqaradi.",
+      "runtime_target": "ads_product",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Banner, profil va xizmat reklamasi paketlarini boshqaradi. Paket kodi va sotuv holatini backend boshqaradi.",
+       "plain_language": "Bu konstruktor banner, profil va xizmat reklamasi paketlarini boshqaradi. Paket kodi va sotuv holatini backend boshqaradi.",
+       "when_to_use": "Marketplacedagi xizmat, sotuvchi va reklama bloklarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "marketplace_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "ads_product",
+         "title": "Marketplace",
+         "route": "/uz/marketplace",
+         "placement": "Xizmat, sotuvchi va reklama bloklari"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `ads_product` runtime qatlamida ishlaydi va Marketplaceda aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Mavjud paket qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Paket nomi, Reklama turi, Narx, Davomiylik."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "marketplace_card",
+        "title": "Marketplace reklama paketlari natijasi",
+        "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "ads_product"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "marketplace_card",
+       "title": "Marketplace reklama paketlari natijasi",
+       "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "ads_product"
+       ]
+      },
+      "navigation": {
+       "group_key": "advertising",
+       "group_title": "Reklama",
+       "group_order": 10,
+       "step_number": 1,
+       "step_count": 2,
+       "required_before": [],
+       "recommended_before": [],
+       "next_steps": [
+        "MP09"
+       ],
+       "sequence_reason": "Reklama bo‘limida bu qadam 1-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [
+        "package_id"
+       ],
+       "list_endpoint": "/studio/constructors/K12-PROMO/records",
+       "form_context_endpoint": "/studio/constructors/K12-PROMO/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T13:51:43.032461Z",
+      "record_count": 13,
+      "completed": true,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 10,
+      "required_fields": [
+       "title",
+       "promotion_type",
+       "price",
+       "days"
+      ],
+      "detail_url": "/studio/constructors/K12-PROMO"
+     },
+     {
+      "id": "0e32b91c-c33f-4287-8142-b035fed99a61",
+      "code": "MP09",
+      "title": "Aksiya",
+      "category": "marketplace",
+      "description": "Mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+      "runtime_target": "promotion_campaigns",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+       "plain_language": "Bu konstruktor mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+       "when_to_use": "Marketplacedagi xizmat, sotuvchi va reklama bloklarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "marketplace_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "promotion_campaigns",
+         "title": "Marketplace",
+         "route": "/uz/marketplace",
+         "placement": "Xizmat, sotuvchi va reklama bloklari"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `promotion_campaigns` runtime qatlamida ishlaydi va Marketplaceda aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Reklama yoki tariflar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Aksiya nomi, Aksiya turi, Reklama yoki tariflar, Chegirma turi, Chegirma qiymati."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "marketplace_card",
+        "title": "Aksiya natijasi",
+        "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "promotion_campaigns"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "marketplace_card",
+       "title": "Aksiya natijasi",
+       "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "promotion_campaigns"
+       ]
+      },
+      "navigation": {
+       "group_key": "advertising",
+       "group_title": "Reklama",
+       "group_order": 10,
+       "step_number": 2,
+       "step_count": 2,
+       "required_before": [],
+       "recommended_before": [],
+       "next_steps": [],
+       "sequence_reason": "Reklama bo‘limida bu qadam 2-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [],
+       "list_endpoint": "/studio/constructors/MP09/records",
+       "form_context_endpoint": "/studio/constructors/MP09/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T15:04:23.166744Z",
+      "record_count": 1,
+      "completed": false,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 8,
+      "required_fields": [
+       "title",
+       "target_type",
+       "target_ids",
+       "discount_type",
+       "discount_value"
+      ],
+      "detail_url": "/studio/constructors/MP09"
+     }
+    ],
+    "visible_constructor_count": 2,
+    "completed_count": 1,
+    "available_count": 2,
+    "progress_percent": 50,
+    "next_constructor_code": "MP09"
+   }
+  ],
+  "journeys": []
+ },
+ "mp09": {
+  "id": "0e32b91c-c33f-4287-8142-b035fed99a61",
+  "code": "MP09",
+  "title": "Aksiya",
+  "category": "marketplace",
+  "description": "Mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+  "runtime_target": "promotion_campaigns",
+  "schema": {
+   "version": 3,
+   "required": [
+    "title",
+    "target_type",
+    "target_ids",
+    "discount_type",
+    "discount_value"
+   ],
+   "fields": [
+    {
+     "key": "title",
+     "name": "title",
+     "label": "Aksiya nomi",
+     "type": "text",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+     "runtime_path": "title",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 1
+     },
+     "example": "Shartnomani huquqiy tekshirish",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "target_type",
+     "name": "target_type",
+     "label": "Aksiya turi",
+     "type": "select",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Aksiya turi uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "target_type",
+     "options": [
+      "advertising",
+      "subscription"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 2
+     },
+     "example": "advertising"
+    },
+    {
+     "key": "target_ids",
+     "name": "target_ids",
+     "label": "Reklama yoki tariflar",
+     "type": "multiselect",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Reklama yoki tariflar uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+     "runtime_path": "target_ids",
+     "source": "/studio/reference/promotion-targets",
+     "default": [],
+     "ui": {
+      "component": "search_select",
+      "order": 3
+     },
+     "example": "<reference-id>"
+    },
+    {
+     "key": "discount_type",
+     "name": "discount_type",
+     "label": "Chegirma turi",
+     "type": "select",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Chegirma turi uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "discount_type",
+     "options": [
+      "percent",
+      "fixed"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 4
+     },
+     "example": "percent"
+    },
+    {
+     "key": "discount_value",
+     "name": "discount_value",
+     "label": "Chegirma qiymati",
+     "type": "number",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Chegirma qiymati uchun manfiy bo‘lmagan aniq son kiriting.",
+     "runtime_path": "discount_value",
+     "min": 1,
+     "default": null,
+     "ui": {
+      "component": "number",
+      "order": 5
+     },
+     "example": 1
+    },
+    {
+     "key": "starts_at",
+     "name": "starts_at",
+     "label": "Boshlanish vaqti",
+     "type": "datetime",
+     "required": false,
+     "section": "Faollik va muddat",
+     "help_text": "Ishlash boshlanadigan sana va vaqtni belgilang.",
+     "runtime_path": "starts_at",
+     "default": null,
+     "ui": {
+      "component": "datetime",
+      "order": 6
+     },
+     "example": "2026-10-12T10:00:00+05:00"
+    },
+    {
+     "key": "ends_at",
+     "name": "ends_at",
+     "label": "Tugash vaqti",
+     "type": "datetime",
+     "required": false,
+     "section": "Faollik va muddat",
+     "help_text": "Ishlash tugaydigan sana va vaqtni belgilang.",
+     "runtime_path": "ends_at",
+     "default": null,
+     "ui": {
+      "component": "datetime",
+      "order": 7
+     },
+     "example": "2026-10-12T10:00:00+05:00"
+    },
+    {
+     "key": "usage_limit",
+     "name": "usage_limit",
+     "label": "Foydalanish limiti",
+     "type": "number",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Foydalanish limiti uchun manfiy bo‘lmagan aniq son kiriting.",
+     "runtime_path": "usage_limit",
+     "min": 1,
+     "default": null,
+     "ui": {
+      "component": "number",
+      "order": 8
+     },
+     "example": 1
+    }
+   ],
+   "select_sources": {
+    "target_ids": "/studio/reference/promotion-targets"
+   },
+   "sections": [
+    {
+     "key": "asosiy",
+     "title": "Asosiy",
+     "order": 1,
+     "fields": [
+      {
+       "key": "title",
+       "name": "title",
+       "label": "Aksiya nomi",
+       "type": "text",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+       "runtime_path": "title",
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 1
+       },
+       "example": "Shartnomani huquqiy tekshirish",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      },
+      {
+       "key": "target_type",
+       "name": "target_type",
+       "label": "Aksiya turi",
+       "type": "select",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Aksiya turi uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "target_type",
+       "options": [
+        "advertising",
+        "subscription"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 2
+       },
+       "example": "advertising"
+      },
+      {
+       "key": "target_ids",
+       "name": "target_ids",
+       "label": "Reklama yoki tariflar",
+       "type": "multiselect",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Reklama yoki tariflar uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+       "runtime_path": "target_ids",
+       "source": "/studio/reference/promotion-targets",
+       "default": [],
+       "ui": {
+        "component": "search_select",
+        "order": 3
+       },
+       "example": "<reference-id>"
+      },
+      {
+       "key": "discount_type",
+       "name": "discount_type",
+       "label": "Chegirma turi",
+       "type": "select",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Chegirma turi uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "discount_type",
+       "options": [
+        "percent",
+        "fixed"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 4
+       },
+       "example": "percent"
+      },
+      {
+       "key": "discount_value",
+       "name": "discount_value",
+       "label": "Chegirma qiymati",
+       "type": "number",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Chegirma qiymati uchun manfiy bo‘lmagan aniq son kiriting.",
+       "runtime_path": "discount_value",
+       "min": 1,
+       "default": null,
+       "ui": {
+        "component": "number",
+        "order": 5
+       },
+       "example": 1
+      },
+      {
+       "key": "usage_limit",
+       "name": "usage_limit",
+       "label": "Foydalanish limiti",
+       "type": "number",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Foydalanish limiti uchun manfiy bo‘lmagan aniq son kiriting.",
+       "runtime_path": "usage_limit",
+       "min": 1,
+       "default": null,
+       "ui": {
+        "component": "number",
+        "order": 8
+       },
+       "example": 1
+      }
+     ]
+    },
+    {
+     "key": "faollik_va_muddat",
+     "title": "Faollik va muddat",
+     "order": 2,
+     "fields": [
+      {
+       "key": "starts_at",
+       "name": "starts_at",
+       "label": "Boshlanish vaqti",
+       "type": "datetime",
+       "required": false,
+       "section": "Faollik va muddat",
+       "help_text": "Ishlash boshlanadigan sana va vaqtni belgilang.",
+       "runtime_path": "starts_at",
+       "default": null,
+       "ui": {
+        "component": "datetime",
+        "order": 6
+       },
+       "example": "2026-10-12T10:00:00+05:00"
+      },
+      {
+       "key": "ends_at",
+       "name": "ends_at",
+       "label": "Tugash vaqti",
+       "type": "datetime",
+       "required": false,
+       "section": "Faollik va muddat",
+       "help_text": "Ishlash tugaydigan sana va vaqtni belgilang.",
+       "runtime_path": "ends_at",
+       "default": null,
+       "ui": {
+        "component": "datetime",
+        "order": 7
+       },
+       "example": "2026-10-12T10:00:00+05:00"
+      }
+     ]
+    }
+   ],
+   "purpose": "Mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+   "runtime_target": "promotion_campaigns",
+   "capabilities": [
+    "draft",
+    "validate",
+    "preview",
+    "submit",
+    "approve",
+    "publish",
+    "rollback"
+   ],
+   "experience": {
+    "metadata_version": 1,
+    "purpose": "Mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+    "plain_language": "Bu konstruktor mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+    "when_to_use": "Marketplacedagi xizmat, sotuvchi va reklama bloklarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+    "managed_by": [
+     "studio_editor",
+     "marketplace_manager"
+    ],
+    "where_used": [
+     {
+      "surface_key": "promotion_campaigns",
+      "title": "Marketplace",
+      "route": "/uz/marketplace",
+      "placement": "Xizmat, sotuvchi va reklama bloklari"
+     }
+    ],
+    "result": "Publish qilingandan keyin yangi konfiguratsiya `promotion_campaigns` runtime qatlamida ishlaydi va Marketplaceda aks etadi.",
+    "workflow": [
+     {
+      "step": 1,
+      "title": "Bog‘liq ma’lumotni tanlang",
+      "description": "Avval Reklama yoki tariflar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+     },
+     {
+      "step": 2,
+      "title": "Asosiy maydonlarni to‘ldiring",
+      "description": "Majburiy maydonlar: Aksiya nomi, Aksiya turi, Reklama yoki tariflar, Chegirma turi, Chegirma qiymati."
+     },
+     {
+      "step": 3,
+      "title": "Natijani tekshiring",
+      "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+     },
+     {
+      "step": 4,
+      "title": "Saqlang va tasdiqlashga yuboring",
+      "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+     }
+    ],
+    "visual_preview": {
+     "type": "marketplace_card",
+     "title": "Aksiya natijasi",
+     "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+     "data_source": "payload",
+     "refresh": "on_change",
+     "surface_keys": [
+      "promotion_campaigns"
+     ]
+    },
+    "novice_notes": [
+     "Qizil yulduzchali maydonlar majburiy.",
+     "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+     "Preview real ma’lumotni o‘zgartirmaydi.",
+     "Publishdan oldin diff va warninglarni tekshiring."
+    ],
+    "publish_checklist": [
+     "Majburiy maydonlar to‘ldirilgan",
+     "Reference qiymatlar mavjud",
+     "Preview kutilgan natijani ko‘rsatmoqda",
+     "Validatsiya xatosiz",
+     "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+    ],
+    "risk_level": "medium",
+    "warnings": [
+     "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+    ]
+   },
+   "navigation": {
+    "group_key": "advertising",
+    "group_title": "Reklama",
+    "group_order": 10,
+    "step_number": 2,
+    "step_count": 2,
+    "required_before": [],
+    "recommended_before": [],
+    "next_steps": [],
+    "sequence_reason": "Reklama bo‘limida bu qadam 2-navbatda bajariladi.",
+    "ui_visible": true,
+    "managed_by": "studio"
+   },
+   "operations": {
+    "supported": [
+     "create",
+     "view",
+     "edit",
+     "clone",
+     "archive"
+    ],
+    "default": "list",
+    "identity_source": "route_context",
+    "context_fields": [],
+    "list_endpoint": "/studio/constructors/MP09/records",
+    "form_context_endpoint": "/studio/constructors/MP09/form-context",
+    "clone_endpoint": "/studio/objects/{object_id}/clone",
+    "archive_endpoint": "/studio/objects/{object_id}/archive"
+   }
+  },
+  "ui_schema": {
+   "sections": [
+    {
+     "key": "asosiy",
+     "title": "Asosiy",
+     "order": 1,
+     "fields": [
+      {
+       "key": "title",
+       "name": "title",
+       "label": "Aksiya nomi",
+       "type": "text",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+       "runtime_path": "title",
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 1
+       },
+       "example": "Shartnomani huquqiy tekshirish",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      },
+      {
+       "key": "target_type",
+       "name": "target_type",
+       "label": "Aksiya turi",
+       "type": "select",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Aksiya turi uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "target_type",
+       "options": [
+        "advertising",
+        "subscription"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 2
+       },
+       "example": "advertising"
+      },
+      {
+       "key": "target_ids",
+       "name": "target_ids",
+       "label": "Reklama yoki tariflar",
+       "type": "multiselect",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Reklama yoki tariflar uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+       "runtime_path": "target_ids",
+       "source": "/studio/reference/promotion-targets",
+       "default": [],
+       "ui": {
+        "component": "search_select",
+        "order": 3
+       },
+       "example": "<reference-id>"
+      },
+      {
+       "key": "discount_type",
+       "name": "discount_type",
+       "label": "Chegirma turi",
+       "type": "select",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Chegirma turi uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "discount_type",
+       "options": [
+        "percent",
+        "fixed"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 4
+       },
+       "example": "percent"
+      },
+      {
+       "key": "discount_value",
+       "name": "discount_value",
+       "label": "Chegirma qiymati",
+       "type": "number",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Chegirma qiymati uchun manfiy bo‘lmagan aniq son kiriting.",
+       "runtime_path": "discount_value",
+       "min": 1,
+       "default": null,
+       "ui": {
+        "component": "number",
+        "order": 5
+       },
+       "example": 1
+      },
+      {
+       "key": "usage_limit",
+       "name": "usage_limit",
+       "label": "Foydalanish limiti",
+       "type": "number",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Foydalanish limiti uchun manfiy bo‘lmagan aniq son kiriting.",
+       "runtime_path": "usage_limit",
+       "min": 1,
+       "default": null,
+       "ui": {
+        "component": "number",
+        "order": 8
+       },
+       "example": 1
+      }
+     ]
+    },
+    {
+     "key": "faollik_va_muddat",
+     "title": "Faollik va muddat",
+     "order": 2,
+     "fields": [
+      {
+       "key": "starts_at",
+       "name": "starts_at",
+       "label": "Boshlanish vaqti",
+       "type": "datetime",
+       "required": false,
+       "section": "Faollik va muddat",
+       "help_text": "Ishlash boshlanadigan sana va vaqtni belgilang.",
+       "runtime_path": "starts_at",
+       "default": null,
+       "ui": {
+        "component": "datetime",
+        "order": 6
+       },
+       "example": "2026-10-12T10:00:00+05:00"
+      },
+      {
+       "key": "ends_at",
+       "name": "ends_at",
+       "label": "Tugash vaqti",
+       "type": "datetime",
+       "required": false,
+       "section": "Faollik va muddat",
+       "help_text": "Ishlash tugaydigan sana va vaqtni belgilang.",
+       "runtime_path": "ends_at",
+       "default": null,
+       "ui": {
+        "component": "datetime",
+        "order": 7
+       },
+       "example": "2026-10-12T10:00:00+05:00"
+      }
+     ]
+    }
+   ],
+   "purpose": "Mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+   "runtime_target": "promotion_campaigns",
+   "experience": {
+    "metadata_version": 1,
+    "purpose": "Mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+    "plain_language": "Bu konstruktor mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+    "when_to_use": "Marketplacedagi xizmat, sotuvchi va reklama bloklarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+    "managed_by": [
+     "studio_editor",
+     "marketplace_manager"
+    ],
+    "where_used": [
+     {
+      "surface_key": "promotion_campaigns",
+      "title": "Marketplace",
+      "route": "/uz/marketplace",
+      "placement": "Xizmat, sotuvchi va reklama bloklari"
+     }
+    ],
+    "result": "Publish qilingandan keyin yangi konfiguratsiya `promotion_campaigns` runtime qatlamida ishlaydi va Marketplaceda aks etadi.",
+    "workflow": [
+     {
+      "step": 1,
+      "title": "Bog‘liq ma’lumotni tanlang",
+      "description": "Avval Reklama yoki tariflar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+     },
+     {
+      "step": 2,
+      "title": "Asosiy maydonlarni to‘ldiring",
+      "description": "Majburiy maydonlar: Aksiya nomi, Aksiya turi, Reklama yoki tariflar, Chegirma turi, Chegirma qiymati."
+     },
+     {
+      "step": 3,
+      "title": "Natijani tekshiring",
+      "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+     },
+     {
+      "step": 4,
+      "title": "Saqlang va tasdiqlashga yuboring",
+      "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+     }
+    ],
+    "visual_preview": {
+     "type": "marketplace_card",
+     "title": "Aksiya natijasi",
+     "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+     "data_source": "payload",
+     "refresh": "on_change",
+     "surface_keys": [
+      "promotion_campaigns"
+     ]
+    },
+    "novice_notes": [
+     "Qizil yulduzchali maydonlar majburiy.",
+     "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+     "Preview real ma’lumotni o‘zgartirmaydi.",
+     "Publishdan oldin diff va warninglarni tekshiring."
+    ],
+    "publish_checklist": [
+     "Majburiy maydonlar to‘ldirilgan",
+     "Reference qiymatlar mavjud",
+     "Preview kutilgan natijani ko‘rsatmoqda",
+     "Validatsiya xatosiz",
+     "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+    ],
+    "risk_level": "medium",
+    "warnings": [
+     "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+    ]
+   },
+   "visual_preview": {
+    "type": "marketplace_card",
+    "title": "Aksiya natijasi",
+    "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+    "data_source": "payload",
+    "refresh": "on_change",
+    "surface_keys": [
+     "promotion_campaigns"
+    ]
+   },
+   "navigation": {
+    "group_key": "advertising",
+    "group_title": "Reklama",
+    "group_order": 10,
+    "step_number": 2,
+    "step_count": 2,
+    "required_before": [],
+    "recommended_before": [],
+    "next_steps": [],
+    "sequence_reason": "Reklama bo‘limida bu qadam 2-navbatda bajariladi.",
+    "ui_visible": true,
+    "managed_by": "studio"
+   },
+   "operations": {
+    "supported": [
+     "create",
+     "view",
+     "edit",
+     "clone",
+     "archive"
+    ],
+    "default": "list",
+    "identity_source": "route_context",
+    "context_fields": [],
+    "list_endpoint": "/studio/constructors/MP09/records",
+    "form_context_endpoint": "/studio/constructors/MP09/form-context",
+    "clone_endpoint": "/studio/objects/{object_id}/clone",
+    "archive_endpoint": "/studio/objects/{object_id}/archive"
+   }
+  },
+  "experience": {
+   "metadata_version": 1,
+   "purpose": "Mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+   "plain_language": "Bu konstruktor mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+   "when_to_use": "Marketplacedagi xizmat, sotuvchi va reklama bloklarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+   "managed_by": [
+    "studio_editor",
+    "marketplace_manager"
+   ],
+   "where_used": [
+    {
+     "surface_key": "promotion_campaigns",
+     "title": "Marketplace",
+     "route": "/uz/marketplace",
+     "placement": "Xizmat, sotuvchi va reklama bloklari"
+    }
+   ],
+   "result": "Publish qilingandan keyin yangi konfiguratsiya `promotion_campaigns` runtime qatlamida ishlaydi va Marketplaceda aks etadi.",
+   "workflow": [
+    {
+     "step": 1,
+     "title": "Bog‘liq ma’lumotni tanlang",
+     "description": "Avval Reklama yoki tariflar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+    },
+    {
+     "step": 2,
+     "title": "Asosiy maydonlarni to‘ldiring",
+     "description": "Majburiy maydonlar: Aksiya nomi, Aksiya turi, Reklama yoki tariflar, Chegirma turi, Chegirma qiymati."
+    },
+    {
+     "step": 3,
+     "title": "Natijani tekshiring",
+     "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+    },
+    {
+     "step": 4,
+     "title": "Saqlang va tasdiqlashga yuboring",
+     "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+    }
+   ],
+   "visual_preview": {
+    "type": "marketplace_card",
+    "title": "Aksiya natijasi",
+    "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+    "data_source": "payload",
+    "refresh": "on_change",
+    "surface_keys": [
+     "promotion_campaigns"
+    ]
+   },
+   "novice_notes": [
+    "Qizil yulduzchali maydonlar majburiy.",
+    "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+    "Preview real ma’lumotni o‘zgartirmaydi.",
+    "Publishdan oldin diff va warninglarni tekshiring."
+   ],
+   "publish_checklist": [
+    "Majburiy maydonlar to‘ldirilgan",
+    "Reference qiymatlar mavjud",
+    "Preview kutilgan natijani ko‘rsatmoqda",
+    "Validatsiya xatosiz",
+    "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+   ],
+   "risk_level": "medium",
+   "warnings": [
+    "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+   ]
+  },
+  "visual_preview": {
+   "type": "marketplace_card",
+   "title": "Aksiya natijasi",
+   "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+   "data_source": "payload",
+   "refresh": "on_change",
+   "surface_keys": [
+    "promotion_campaigns"
+   ]
+  },
+  "navigation": {
+   "group_key": "advertising",
+   "group_title": "Reklama",
+   "group_order": 10,
+   "step_number": 2,
+   "step_count": 2,
+   "required_before": [],
+   "recommended_before": [],
+   "next_steps": [],
+   "sequence_reason": "Reklama bo‘limida bu qadam 2-navbatda bajariladi.",
+   "ui_visible": true,
+   "managed_by": "studio"
+  },
+  "operations": {
+   "supported": [
+    "create",
+    "view",
+    "edit",
+    "clone",
+    "archive"
+   ],
+   "default": "list",
+   "identity_source": "route_context",
+   "context_fields": [],
+   "list_endpoint": "/studio/constructors/MP09/records",
+   "form_context_endpoint": "/studio/constructors/MP09/form-context",
+   "clone_endpoint": "/studio/objects/{object_id}/clone",
+   "archive_endpoint": "/studio/objects/{object_id}/archive"
+  },
+  "capabilities": [
+   "draft",
+   "validate",
+   "preview",
+   "submit",
+   "approve",
+   "publish",
+   "rollback"
+  ],
+  "definition_version": 3,
+  "default_payload": {
+   "target_ids": []
+  },
+  "dependency_rules": {
+   "items": [],
+   "policy_section": ""
+  },
+  "approval_required": true,
+  "is_active": true,
+  "updated_at": "2026-10-23T15:04:23.166744Z",
+  "references": [
+   "/studio/reference/promotion-targets"
+  ],
+  "approval_route": {
+   "id": "default",
+   "scope_type": "global",
+   "scope_key": "*",
+   "source": "default",
+   "title": "Primary superadmin approval",
+   "steps": [],
+   "final_action": "publish",
+   "allow_self_approval": false,
+   "change_request_restart": "current",
+   "deadline_hours": 24,
+   "require_primary_superadmin": true,
+   "auto_publish_when_empty": true,
+   "settings": {},
+   "route_version": 1
+  }
+ },
+ "formContext": {
+  "mode": "create",
+  "constructor_code": "MP09",
+  "constructor_title": "Aksiya",
+  "title": "",
+  "schema": {
+   "version": 3,
+   "required": [
+    "title",
+    "target_type",
+    "target_ids",
+    "discount_type",
+    "discount_value"
+   ],
+   "fields": [
+    {
+     "key": "title",
+     "name": "title",
+     "label": "Aksiya nomi",
+     "type": "text",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+     "runtime_path": "title",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 1
+     },
+     "example": "Shartnomani huquqiy tekshirish",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "target_type",
+     "name": "target_type",
+     "label": "Aksiya turi",
+     "type": "select",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Aksiya turi uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "target_type",
+     "options": [
+      "advertising",
+      "subscription"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 2
+     },
+     "example": "advertising"
+    },
+    {
+     "key": "target_ids",
+     "name": "target_ids",
+     "label": "Reklama yoki tariflar",
+     "type": "multiselect",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Reklama yoki tariflar uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+     "runtime_path": "target_ids",
+     "source": "/studio/reference/promotion-targets",
+     "default": [],
+     "ui": {
+      "component": "search_select",
+      "order": 3
+     },
+     "example": "<reference-id>"
+    },
+    {
+     "key": "discount_type",
+     "name": "discount_type",
+     "label": "Chegirma turi",
+     "type": "select",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Chegirma turi uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "discount_type",
+     "options": [
+      "percent",
+      "fixed"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 4
+     },
+     "example": "percent"
+    },
+    {
+     "key": "discount_value",
+     "name": "discount_value",
+     "label": "Chegirma qiymati",
+     "type": "number",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Chegirma qiymati uchun manfiy bo‘lmagan aniq son kiriting.",
+     "runtime_path": "discount_value",
+     "min": 1,
+     "default": null,
+     "ui": {
+      "component": "number",
+      "order": 5
+     },
+     "example": 1
+    },
+    {
+     "key": "starts_at",
+     "name": "starts_at",
+     "label": "Boshlanish vaqti",
+     "type": "datetime",
+     "required": false,
+     "section": "Faollik va muddat",
+     "help_text": "Ishlash boshlanadigan sana va vaqtni belgilang.",
+     "runtime_path": "starts_at",
+     "default": null,
+     "ui": {
+      "component": "datetime",
+      "order": 6
+     },
+     "example": "2026-10-12T10:00:00+05:00"
+    },
+    {
+     "key": "ends_at",
+     "name": "ends_at",
+     "label": "Tugash vaqti",
+     "type": "datetime",
+     "required": false,
+     "section": "Faollik va muddat",
+     "help_text": "Ishlash tugaydigan sana va vaqtni belgilang.",
+     "runtime_path": "ends_at",
+     "default": null,
+     "ui": {
+      "component": "datetime",
+      "order": 7
+     },
+     "example": "2026-10-12T10:00:00+05:00"
+    },
+    {
+     "key": "usage_limit",
+     "name": "usage_limit",
+     "label": "Foydalanish limiti",
+     "type": "number",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Foydalanish limiti uchun manfiy bo‘lmagan aniq son kiriting.",
+     "runtime_path": "usage_limit",
+     "min": 1,
+     "default": null,
+     "ui": {
+      "component": "number",
+      "order": 8
+     },
+     "example": 1
+    }
+   ],
+   "select_sources": {
+    "target_ids": "/studio/reference/promotion-targets"
+   },
+   "mode": "create",
+   "context_fields": []
+  },
+  "sections": [
+   {
+    "key": "asosiy",
+    "title": "Asosiy",
+    "order": 1,
+    "fields": [
+     {
+      "key": "title",
+      "name": "title",
+      "label": "Aksiya nomi",
+      "type": "text",
+      "required": true,
+      "section": "Asosiy",
+      "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+      "runtime_path": "title",
+      "default": null,
+      "ui": {
+       "component": "text",
+       "order": 1
+      },
+      "example": "Shartnomani huquqiy tekshirish",
+      "ai_assist": {
+       "enabled": true,
+       "endpoint": "/studio/ai/field-suggestions",
+       "method": "POST",
+       "requires_confirmation": true,
+       "provider": "openai",
+       "fallback": false,
+       "response_count": 3
+      }
+     },
+     {
+      "key": "target_type",
+      "name": "target_type",
+      "label": "Aksiya turi",
+      "type": "select",
+      "required": true,
+      "section": "Asosiy",
+      "help_text": "Aksiya turi uchun ruxsat etilgan variantlardan birini tanlang.",
+      "runtime_path": "target_type",
+      "options": [
+       "advertising",
+       "subscription"
+      ],
+      "default": null,
+      "ui": {
+       "component": "select",
+       "order": 2
+      },
+      "example": "advertising"
+     },
+     {
+      "key": "target_ids",
+      "name": "target_ids",
+      "label": "Reklama yoki tariflar",
+      "type": "multiselect",
+      "required": true,
+      "section": "Asosiy",
+      "help_text": "Reklama yoki tariflar uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+      "runtime_path": "target_ids",
+      "source": "/studio/reference/promotion-targets",
+      "default": [],
+      "ui": {
+       "component": "search_select",
+       "order": 3
+      },
+      "example": "<reference-id>"
+     },
+     {
+      "key": "discount_type",
+      "name": "discount_type",
+      "label": "Chegirma turi",
+      "type": "select",
+      "required": true,
+      "section": "Asosiy",
+      "help_text": "Chegirma turi uchun ruxsat etilgan variantlardan birini tanlang.",
+      "runtime_path": "discount_type",
+      "options": [
+       "percent",
+       "fixed"
+      ],
+      "default": null,
+      "ui": {
+       "component": "select",
+       "order": 4
+      },
+      "example": "percent"
+     },
+     {
+      "key": "discount_value",
+      "name": "discount_value",
+      "label": "Chegirma qiymati",
+      "type": "number",
+      "required": true,
+      "section": "Asosiy",
+      "help_text": "Chegirma qiymati uchun manfiy bo‘lmagan aniq son kiriting.",
+      "runtime_path": "discount_value",
+      "min": 1,
+      "default": null,
+      "ui": {
+       "component": "number",
+       "order": 5
+      },
+      "example": 1
+     },
+     {
+      "key": "usage_limit",
+      "name": "usage_limit",
+      "label": "Foydalanish limiti",
+      "type": "number",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Foydalanish limiti uchun manfiy bo‘lmagan aniq son kiriting.",
+      "runtime_path": "usage_limit",
+      "min": 1,
+      "default": null,
+      "ui": {
+       "component": "number",
+       "order": 8
+      },
+      "example": 1
+     }
+    ]
+   },
+   {
+    "key": "faollik_va_muddat",
+    "title": "Faollik va muddat",
+    "order": 2,
+    "fields": [
+     {
+      "key": "starts_at",
+      "name": "starts_at",
+      "label": "Boshlanish vaqti",
+      "type": "datetime",
+      "required": false,
+      "section": "Faollik va muddat",
+      "help_text": "Ishlash boshlanadigan sana va vaqtni belgilang.",
+      "runtime_path": "starts_at",
+      "default": null,
+      "ui": {
+       "component": "datetime",
+       "order": 6
+      },
+      "example": "2026-10-12T10:00:00+05:00"
+     },
+     {
+      "key": "ends_at",
+      "name": "ends_at",
+      "label": "Tugash vaqti",
+      "type": "datetime",
+      "required": false,
+      "section": "Faollik va muddat",
+      "help_text": "Ishlash tugaydigan sana va vaqtni belgilang.",
+      "runtime_path": "ends_at",
+      "default": null,
+      "ui": {
+       "component": "datetime",
+       "order": 7
+      },
+      "example": "2026-10-12T10:00:00+05:00"
+     }
+    ]
+   }
+  ],
+  "initial_payload": {
+   "target_ids": []
+  },
+  "context": {
+   "record_id": null,
+   "source": null,
+   "runtime_target_id": null,
+   "runtime_target_type": null,
+   "studio_object_id": null
+  },
+  "navigation": {
+   "group_key": "advertising",
+   "group_title": "Reklama",
+   "group_order": 10,
+   "step_number": 2,
+   "step_count": 2,
+   "required_before": [],
+   "recommended_before": [],
+   "next_steps": [],
+   "sequence_reason": "Reklama bo‘limida bu qadam 2-navbatda bajariladi.",
+   "ui_visible": true,
+   "managed_by": "studio"
+  },
+  "operations": {
+   "supported": [
+    "create",
+    "view",
+    "edit",
+    "clone",
+    "archive"
+   ],
+   "default": "list",
+   "identity_source": "route_context",
+   "context_fields": [],
+   "list_endpoint": "/studio/constructors/MP09/records",
+   "form_context_endpoint": "/studio/constructors/MP09/form-context",
+   "clone_endpoint": "/studio/objects/{object_id}/clone",
+   "archive_endpoint": "/studio/objects/{object_id}/archive"
+  },
+  "experience": {
+   "metadata_version": 1,
+   "purpose": "Mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+   "plain_language": "Bu konstruktor mavjud reklama yoki tarifga muddat va foydalanish limiti bilan chegirma beradi.",
+   "when_to_use": "Marketplacedagi xizmat, sotuvchi va reklama bloklarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+   "managed_by": [
+    "studio_editor",
+    "marketplace_manager"
+   ],
+   "where_used": [
+    {
+     "surface_key": "promotion_campaigns",
+     "title": "Marketplace",
+     "route": "/uz/marketplace",
+     "placement": "Xizmat, sotuvchi va reklama bloklari"
+    }
+   ],
+   "result": "Publish qilingandan keyin yangi konfiguratsiya `promotion_campaigns` runtime qatlamida ishlaydi va Marketplaceda aks etadi.",
+   "workflow": [
+    {
+     "step": 1,
+     "title": "Bog‘liq ma’lumotni tanlang",
+     "description": "Avval Reklama yoki tariflar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+    },
+    {
+     "step": 2,
+     "title": "Asosiy maydonlarni to‘ldiring",
+     "description": "Majburiy maydonlar: Aksiya nomi, Aksiya turi, Reklama yoki tariflar, Chegirma turi, Chegirma qiymati."
+    },
+    {
+     "step": 3,
+     "title": "Natijani tekshiring",
+     "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+    },
+    {
+     "step": 4,
+     "title": "Saqlang va tasdiqlashga yuboring",
+     "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+    }
+   ],
+   "visual_preview": {
+    "type": "marketplace_card",
+    "title": "Aksiya natijasi",
+    "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+    "data_source": "payload",
+    "refresh": "on_change",
+    "surface_keys": [
+     "promotion_campaigns"
+    ]
+   },
+   "novice_notes": [
+    "Qizil yulduzchali maydonlar majburiy.",
+    "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+    "Preview real ma’lumotni o‘zgartirmaydi.",
+    "Publishdan oldin diff va warninglarni tekshiring."
+   ],
+   "publish_checklist": [
+    "Majburiy maydonlar to‘ldirilgan",
+    "Reference qiymatlar mavjud",
+    "Preview kutilgan natijani ko‘rsatmoqda",
+    "Validatsiya xatosiz",
+    "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+   ],
+   "risk_level": "medium",
+   "warnings": [
+    "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+   ]
+  },
+  "submit": {
+   "create_object_url": "/studio/objects",
+   "save_object_url": null,
+   "constructor_code": "MP09",
+   "runtime_target_id": "",
+   "runtime_target_type": "",
+   "object_title_mode": "derived_from_payload",
+   "object_title_required": false
+  }
+ },
+ "targets": {
+  "key": "promotion-targets",
+  "items": [
+   {
+    "id": "t-0",
+    "value": "t-0",
+    "label": "Profile boost - 7 days",
+    "target_type": "advertising",
+    "price": 149000,
+    "currency": "UZS"
+   },
+   {
+    "id": "t-1",
+    "value": "t-1",
+    "label": "Marketplace banner - 7 days",
+    "target_type": "advertising",
+    "price": 299000,
+    "currency": "UZS"
+   },
+   {
+    "id": "t-2",
+    "value": "t-2",
+    "label": "LexGo.AI Pro",
+    "target_type": "subscription",
+    "price": 99000,
+    "currency": "UZS"
+   },
+   {
+    "id": "t-3",
+    "value": "t-3",
+    "label": "Business Standard",
+    "target_type": "subscription",
+    "price": 490000,
+    "currency": "UZS"
+   }
+  ]
+ }
+}

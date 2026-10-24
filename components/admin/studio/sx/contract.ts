@@ -77,6 +77,11 @@ export type SxLayoutField = {
   legacyLabel?: string;
   legacyHelp?: string;
   inlineAddKey?: string;
+  // Narrows a reference picker by each item's own data (the reference row)
+  // against `keepKey` taken from the form, e.g. MP09's targets of the chosen
+  // target type. A picked value stays shown.
+  keepItem?: (item: Record<string, unknown>, key: string) => boolean;
+  keepKey?: (ctx: SxLayoutCtx) => string;
   emptyKey?: string;
   virtual?: SxVirtualField;
   owns?: readonly string[];

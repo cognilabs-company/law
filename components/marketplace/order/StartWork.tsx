@@ -12,6 +12,7 @@ import { marketErrorInfo, startMarketOrder, type OrderStart, type RuntimeConfig 
 import { useMarketError } from "../useMarketError";
 import { useDurationText } from "./OrderFacts";
 import { MessageSquareTextIcon, RocketIcon } from "./icons";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 export default function StartWork({ o, aiBase, runtime, onStarted, onRefresh }: { o: MarketOrder; aiBase: string; runtime: RuntimeConfig | null; onStarted: (r: OrderStart) => void; onRefresh?: () => void }): ReactElement | null {
   const t = useTranslations("marketplace.orderDetail.start");
@@ -21,6 +22,7 @@ export default function StartWork({ o, aiBase, runtime, onStarted, onRefresh }: 
   const durationText = useDurationText();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [err, setErr] = useState<SxDialogErrorText>(null);
   const [done, setDone] = useState<OrderStart | null>(null);
 
@@ -57,7 +59,7 @@ export default function StartWork({ o, aiBase, runtime, onStarted, onRefresh }: 
   }
 
   async function run() {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(true);
     setErr(null);
     try {

@@ -8,6 +8,7 @@ import { notify } from "@/lib/toast";
 import FieldError from "@/components/ui/FieldError";
 import { IconLock, IconShieldCheck } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // Staff view of a secure chat: message bodies are "[metadata_only]" until a
 // content reveal is requested (dispute) and approved by another staff member.
@@ -21,11 +22,12 @@ export default function ContentRevealBar({ roomId, onChanged }: { roomId: string
   const [reason, setReason] = useState("");
   const [bad, setBad] = useState(false);
   const [busy, setBusy] = useState<"request" | "approve" | null>(null);
+  const once = useSameTickGuard();
   const s: RevealStatus | null = res.data;
   const nid = `reveal-${roomId}`;
 
   async function run(kind: "request" | "approve") {
-    if (busy) return;
+    if (busy || !once()) return;
     if (kind === "request" && reason.trim().length < 5) {
       setBad(true);
       document.getElementById(`${uid}-reason`)?.focus();

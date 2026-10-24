@@ -1,4 +1,5 @@
-import type { SxCtorLayout, SxLayoutField, SxPayload } from "../contract";
+import type { SxCtorLayout, SxLayoutField, SxPayload, SxValues } from "../contract";
+import type { SxErrors } from "../types";
 
 export const DOC_CATEGORIES: readonly string[] = ["contract", "legal-doc-civil", "legal-doc-criminal", "legal-doc-economic", "legal-doc-administrative"];
 
@@ -13,6 +14,25 @@ const noSlug: SxLayoutField = { path: "slug", hidden: true };
 function titled(code: string, fields: readonly SxLayoutField[] = [], ownLabel = false): SxCtorLayout {
   const title: SxLayoutField = ownLabel ? { path: "title", label: `sx.field.${code}__title`, placeholder: `sx.ph.${code}__title` } : { path: "title", placeholder: `sx.ph.${code}__title` };
   return { code, fields: [title, ...fields] };
+}
+
+// A tariff's entitlements (contract §4): a feature once per tariff, and a
+// limited one needs a positive limit. The backend checks the registry.
+function k17Validate(payload: SxValues): SxErrors {
+  const out: Record<string, string> = {};
+  const rows = Array.isArray(payload.entitlements) ? payload.entitlements : [];
+  const seen = new Set<string>();
+  rows.forEach((row, i) => {
+    const r = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+    const key = typeof r.feature_key === "string" ? r.feature_key.trim() : "";
+    if (key && seen.has(key)) out[`entitlements.${i}.feature_key`] = "@code:entitlement_duplicate";
+    if (key) seen.add(key);
+    if (r.mode === "limited") {
+      const n = Number(r.limit);
+      if (!(r.limit !== null && r.limit !== undefined && r.limit !== "" && Number.isFinite(n) && n > 0)) out[`entitlements.${i}.limit`] = "@code:entitlement_limit_required";
+    }
+  });
+  return out;
 }
 
 function record(code: string, fields: readonly SxLayoutField[] = []): SxCtorLayout {
@@ -37,7 +57,7 @@ const LIST: readonly SxCtorLayout[] = [
   record("CALL01"),
   record("K22", [labelOf("base_price", "sx.field.K22__base_price")]),
   record("MP08"),
-  titled("K17", [noSlug, off("description")], true),
+  { ...titled("K17", [noSlug, off("description")], true), validate: k17Validate },
   record("K04", [labelOf("seller_requirements", "sx.field.K04__seller_requirements")]),
   record("K18"),
   record("K25"),

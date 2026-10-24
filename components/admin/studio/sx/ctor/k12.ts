@@ -1,6 +1,6 @@
 import { studioDetailSnapshot, type StudioConstructor, type StudioSchemaField } from "@/lib/services/studio";
 import type { SxChoiceMeta, SxCtorLayout, SxLayoutCtx, SxLayoutField, SxLayoutSection, SxPayload, SxValues } from "../contract";
-import { BanknoteIcon, PLACEMENT_ICON, PercentIcon } from "../icons";
+import { BanknoteIcon, CrownIcon, MegaphoneIcon, PLACEMENT_ICON, PercentIcon } from "../icons";
 import type { SxErrors, SxIcon } from "../types";
 
 export const SURFACE_BY_PLACEMENT = { banner: "marketplace_top_banner", profile_boost: "marketplace_list", service_boost: "category_search" } as const;
@@ -52,7 +52,10 @@ function shapeIsNew(code: string, marker: string, payload?: SxValues | null): bo
 }
 
 export const promoShapeIsNew = (payload?: SxValues | null): boolean => shapeIsNew(PROMO_CODE, "promotion_type", payload);
-export const campaignShapeIsNew = (payload?: SxValues | null): boolean => shapeIsNew(CAMPAIGN_CODE, "package_ids", payload);
+export const campaignShapeIsNew = (payload?: SxValues | null): boolean => shapeIsNew(CAMPAIGN_CODE, "package_ids", payload) || campaignTargetsShape(payload);
+// The 23 Oct 2026 MP09: a discount on chosen advertising or subscription
+// targets (target_type + target_ids), with usage_limit.
+export const campaignTargetsShape = (payload?: SxValues | null): boolean => shapeIsNew(CAMPAIGN_CODE, "target_type", payload);
 
 function dropKeys(src: SxPayload, keys: readonly string[]): SxPayload {
   let out = src;
@@ -277,6 +280,17 @@ function campaignTransform(src: SxPayload): SxPayload {
 
 function campaignValidate(v: SxValues): SxErrors {
   const out: Record<string, string> = {};
+  if (campaignTargetsShape(v)) {
+    const value = numOf(v.discount_value);
+    if (value !== null && value <= 0) out.discount_value = "@code:minimum:1";
+    else if (value !== null && str(v.discount_type) === "percent" && value > 100) out.discount_value = "@code:maximum:100";
+    const usage = numOf(v.usage_limit);
+    if (usage !== null && usage < 1) out.usage_limit = "@code:minimum:1";
+    const from = Date.parse(str(v.starts_at));
+    const to = Date.parse(str(v.ends_at));
+    if (Number.isFinite(from) && Number.isFinite(to) && to <= from) out.ends_at = "@code:campaign_ends_before_start";
+    return out;
+  }
   const value = numOf(v.discount_value);
   if (value !== null) {
     if (value < 0) out.discount_value = "@code:minimum:0";
@@ -333,6 +347,55 @@ function campaignFields(): readonly SxLayoutField[] {
   ];
 }
 
+// Targets of the chosen type only; changing the type empties the pick.
+const sameTargetType = (item: Record<string, unknown>, type: string): boolean => !type || str(item.target_type) === type;
+
+function targetFields(): readonly SxLayoutField[] {
+  return [
+    { path: CAMPAIGN_ID, hidden: true },
+    { path: "title", span: 2 },
+    {
+      path: "target_type",
+      control: "choices",
+      columns: 2,
+      clears: ["target_ids"],
+      choices: {
+        advertising: { icon: MegaphoneIcon, descriptionKey: "sx.optd.MP09__target_type.advertising" },
+        subscription: { icon: CrownIcon, descriptionKey: "sx.optd.MP09__target_type.subscription" },
+      },
+    },
+    {
+      path: "target_ids",
+      control: "pickerMulti",
+      span: 2,
+      visible: (ctx) => !!str(ctx.root.target_type),
+      keepItem: sameTargetType,
+      keepKey: (ctx) => str(ctx.root.target_type),
+      help: "sx.mp09.targetsHelp",
+    },
+    {
+      path: "discount_type",
+      control: "choices",
+      columns: 2,
+      options: optionsOf(CAMPAIGN_CODE, "discount_type", DISCOUNT_TYPES),
+      choices: {
+        percent: { icon: PercentIcon, descriptionKey: "sx.optd.MP09__discount_type.percent" },
+        fixed: { icon: BanknoteIcon, descriptionKey: "sx.optd.MP09__discount_type.fixed" },
+      },
+      help: "sx.mp09.bestHelp",
+    },
+    {
+      path: "discount_value",
+      control: (ctx) => (isFixed(ctx) ? "money" : isPercent(ctx) ? "percent" : "number"),
+      label: (ctx) => (isFixed(ctx) ? "sx.mp09.valueFixed" : isPercent(ctx) ? "sx.mp09.valuePercent" : "sx.field.MP09__discount_value"),
+      help: (ctx) => (isFixed(ctx) ? "sx.mp09.valueFixedHelp" : isPercent(ctx) ? "sx.mp09.valuePercentHelp" : "sx.mp09.valueHelp"),
+    },
+    { path: "starts_at", control: "datetime", help: "sx.mp09.startsHelp" },
+    { path: "ends_at", control: "datetime", help: "sx.mp09.endsHelp" },
+    { path: "usage_limit", help: "sx.mp09.usageHelp" },
+  ];
+}
+
 const fieldsMemo = new WeakMap<StudioConstructor, readonly SxLayoutField[]>();
 
 function shapedFields(code: string, marker: string, legacy: readonly SxLayoutField[], build: () => readonly SxLayoutField[]): readonly SxLayoutField[] {
@@ -372,6 +435,7 @@ export const MP09_LAYOUT: SxCtorLayout = {
   code: CAMPAIGN_CODE,
   recordTitlePlaceholderKey: "sx.ph.MP09__recordTitle",
   get fields(): readonly SxLayoutField[] {
+    if (campaignTargetsShape()) return shapedFields(CAMPAIGN_CODE, "target_type", LEGACY_CAMPAIGN_FIELDS, targetFields);
     return shapedFields(CAMPAIGN_CODE, "package_ids", LEGACY_CAMPAIGN_FIELDS, campaignFields);
   },
   transform: mp09Transform,

@@ -19,7 +19,7 @@ export function retiredGroupOf(move: RetiredMove, groups: readonly Pick<StudioGr
   return groups.find((g) => g.codes.includes(move.anchor))?.key ?? move.group;
 }
 
-function RetiredNote({ move }: { move: RetiredMove }): ReactElement | null {
+export function RetiredNote({ move }: { move: RetiredMove }): ReactElement | null {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const reg = useStudioRegistry();
@@ -42,7 +42,7 @@ function RetiredNote({ move }: { move: RetiredMove }): ReactElement | null {
       }
     >
       <p data-ai-id={aiId(AI, move.code)} data-ai-type="notice" data-ai-label={t("sx.retired.title", { name: labels.ctorName(move.code) })}>
-        {t(`sx.retired.text.${move.code}`, { target: targetName || labels.ctorName("K10") })}
+        {move.group ? t(`sx.retired.text.${move.code}`, { target: targetName }) : t("sx.retired.removed")}
       </p>
     </SxNote>
   );

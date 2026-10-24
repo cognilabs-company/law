@@ -9,6 +9,7 @@ import { dateOnly } from "@/lib/date";
 import { IconArrowRight, IconCheck, IconCopy, IconGift, IconInbox, IconPlus, IconSend } from "@/components/icons";
 import { App, Banner, Btn, Dialog, Empty, Field, Input, Loading, Seg, Select, Sidebar, Table, Tag, Tool, Toolbar, useOs, useToast, type Col, type NavSection, type Tone } from "../../kit/kit";
 import "./client.css";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // Gifts as a desktop program — what the client gave and what they got, in
 // a list (Finder's list / Explorer's details), and "Give a gift": a LexGo
@@ -177,6 +178,7 @@ function Give({ onClose, onMade }: { onClose: () => void; onMade: () => void }) 
   const [hint, setHint] = useState("");
   const [termPick, setTermPick] = useState(6);
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [err, setErr] = useState("");
   const [made, setMade] = useState<GiftResult | null>(null);
   const [copied, setCopied] = useState(false);
@@ -199,7 +201,7 @@ function Give({ onClose, onMade }: { onClose: () => void; onMade: () => void }) 
   const term = terms.includes(termPick) ? termPick : terms[0];
 
   async function send() {
-    if (busy) return;
+    if (busy || !once()) return;
     if (kind === "service" ? !service : !plan) return setErr(t("error"));
     setBusy(true);
     setErr("");

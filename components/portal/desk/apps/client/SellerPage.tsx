@@ -12,7 +12,7 @@ import { listActivePromotions } from "@/lib/services/promotions";
 import { useRuntimeFacts } from "@/components/marketplace/runtime/useRuntimeFacts";
 import { checklistOf, durationParts, guaranteesOf, requirementInfo } from "@/components/marketplace/runtime/facts";
 import { useDurationText } from "@/components/marketplace/runtime/DurationChip";
-import { deliveryLabel, langLabel, specLabel } from "@/components/marketplace/bits";
+import { categoryLabel, deliveryLabel, langLabel, specLabel } from "@/components/marketplace/bits";
 import { IconAlert, IconArrowRight, IconBriefcase, IconCheck, IconClock, IconGlobe, IconLock, IconMapPin, IconRefresh, IconShieldCheck, IconStarRate } from "@/components/icons";
 import { App, Avatar, Btn, Empty, Loading, Tag, Tool, Toolbar, useOs } from "../../kit/kit";
 import type { NativeProps } from "../../native";
@@ -234,7 +234,7 @@ export default function SellerPage({ base, openApp, openLink, onRoute, route, us
                               {svc.title}
                               {svc.isSponsored || top.ids.has(svc.id) ? <Tag tone="accent">{t("card.promoted")}</Tag> : null}
                             </b>
-                            <small>{[svc.categoryTitle ? specLabel(te, svc.categoryTitle) : "", deliveryLabel(t, svc.deliveryMinutes)].filter(Boolean).join(" · ")}</small>
+                            <small>{[svc.categoryTitle ? categoryLabel(te, svc.categoryTitle, locale) : "", deliveryLabel(t, svc.deliveryMinutes)].filter(Boolean).join(" · ")}</small>
                           </span>
                           <em>{svc.price > 0 ? fmtUzs(svc.price) : t("card.priceAsk")}</em>
                         </button>

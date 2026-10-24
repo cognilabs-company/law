@@ -7,7 +7,7 @@ import { regionLabel } from "@/lib/labels";
 import type { MarketSeller, MarketService } from "@/lib/services/marketplace";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { IconClock, IconGlobe, IconMapPin, IconStar } from "@/components/icons";
-import { Monogram, deliveryLabel, hasRating, hasSuccess, langLabel, sellerTypeLabel, specLabel } from "./bits";
+import { Monogram, categoryLabel, deliveryLabel, hasRating, hasSuccess, langLabel, sellerTypeLabel } from "./bits";
 import { aiId } from "@/lib/ai/ids";
 import { useRuntimeFacts } from "./runtime/useRuntimeFacts";
 import { durationParts, guaranteesOf } from "./runtime/facts";
@@ -113,6 +113,7 @@ export function SellerServiceRow({
 }) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
+  const locale = useLocale();
   const { config: rtConfig, ref: rowRef } = useRuntimeFacts(svc.id, "marketplace", { enabled: runtime && !ph, lazy: true });
   const dur = durationParts(rtConfig?.duration) ? (rtConfig?.duration ?? null) : null;
   const eta = dur ? "" : deliveryLabel(t, svc.deliveryMinutes);
@@ -137,7 +138,7 @@ export function SellerServiceRow({
           </b>
           <span>
             {ph ? <span className="mk-ph">{ph.category}</span> : null}
-            {svc.categoryTitle ? specLabel(te, svc.categoryTitle) : null}
+            {svc.categoryTitle ? categoryLabel(te, svc.categoryTitle, locale) : null}
             {svc.categoryTitle && (dur || eta) ? " · " : null}
             {dur ? (
               <DurationChip duration={dur} tone="row" />

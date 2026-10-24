@@ -14,6 +14,7 @@ import { IconCard, IconCheck, IconCrown, IconGift, IconHistory, IconRefresh, Ico
 import { App, Banner, Btn, Check, Dialog, Empty, Field, Input, Loading, Seg, Sidebar, Tag, Toggle, Tool, Toolbar, useOs, useToast, type NavSection } from "../kit/kit";
 import type { NativeProps } from "../native";
 import "./subscription.css";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // Subscription as a desktop program: the current tariff and auto-pay up
 // top; the LexGo.AI plans with their terms; the other tariffs; the gift;
@@ -53,6 +54,7 @@ export default function SubscriptionApp(_props: NativeProps) {
   const [term, setTerm] = useState<Term>(1);
   const [upfront, setUpfront] = useState(false);
   const [busy, setBusy] = useState("");
+  const once = useSameTickGuard();
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
   const [tg, setTg] = useState<{ plan: BackendPlan; period: ManualDocBillingPeriod } | null>(null);
   const [bind, setBind] = useState(false);
@@ -97,7 +99,7 @@ export default function SubscriptionApp(_props: NativeProps) {
   const subBills = (bills ?? []).filter((p) => !p.kind || p.kind === "subscription" || p.kind === "subscription_plan");
 
   async function choose(plan: BackendPlan, total: number, period: string) {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(plan.id);
     try {
       if (isAtmosCheckout()) {

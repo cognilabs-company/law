@@ -9,6 +9,7 @@ import { Skeleton, ErrorState } from "@/components/portal/DataState";
 import { notify } from "@/lib/toast";
 import { IconCheck, IconClock } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 function fmt(s: string, locale: string) {
   const d = new Date(s);
@@ -29,10 +30,11 @@ export default function OrderStatusPanel({ orderId, side, status, onChanged }: {
   const current = (status || rows[0]?.status || "").toLowerCase();
   const next = nextStatusesFor(side, current);
   const [busy, setBusy] = useState<string | null>(null);
+  const once = useSameTickGuard();
   const [note, setNote] = useState("");
 
   async function move(to: string) {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(to);
     const nid = `order-status-${orderId}`;
     try {

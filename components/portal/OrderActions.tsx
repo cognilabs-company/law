@@ -5,11 +5,12 @@ import { useTranslations } from "next-intl";
 import { acceptOrder, declineOrder, DECLINE_REASONS, type DeclineReason } from "@/lib/services/backend";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
-import { errDetail, isConflict, isForbidden } from "@/lib/http";
+import { ApiError, errDetail, isConflict, isForbidden } from "@/lib/http";
 import { IconAlert, IconCheck, IconClose, IconLock } from "@/components/icons";
 import { useSellerCabinet } from "./SellerCabinet";
 
 type Outcome = "accept" | "decline" | "taken";
+type Shown = Outcome | "expired";
 
 // Accept / decline controls for an open order (lawyer dashboard, marketplace,
 // advocate opportunities). Shows a resolved badge once actioned.
@@ -26,7 +27,7 @@ export default function OrderActions({
 }) {
   const tc = useTranslations("portal.common");
   const [busy, setBusy] = useState<null | "accept" | "decline">(null);
-  const [done, setDone] = useState<null | Outcome>(null);
+  const [done, setDone] = useState<null | Shown>(null);
   const [forbidden, setForbidden] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   // available_actions.accept_orders from the seller cabinet (allowed until it loads).
@@ -51,7 +52,12 @@ export default function OrderActions({
       setDone(action);
       onDone?.(action);
     } catch (e) {
-      if (isConflict(e)) {
+      const code = e instanceof ApiError ? e.code || String((e.data.detail as { code?: string } | undefined)?.code ?? "") : "";
+      if (code === "assignment_response_deadline_expired") {
+        // The answer window closed; the call center reassigns. Not an error
+        // on the seller's side: the note stays until the list next refreshes.
+        setDone("expired");
+      } else if (isConflict(e)) {
         setDone("taken");
         onDone?.("taken");
       } else if (isForbidden(e)) {
@@ -67,8 +73,8 @@ export default function OrderActions({
   if (done) {
     return (
       <span className={`pcase__done pcase__done--${done}`}>
-        {done === "accept" ? <IconCheck /> : done === "taken" ? <IconAlert /> : <IconClose />}
-        {done === "accept" ? tc("accepted") : done === "taken" ? tc("orderTaken") : tc("declined")}
+        {done === "accept" ? <IconCheck /> : done === "taken" || done === "expired" ? <IconAlert /> : <IconClose />}
+        {done === "accept" ? tc("accepted") : done === "taken" ? tc("orderTaken") : done === "expired" ? tc("orderExpired") : tc("declined")}
       </span>
     );
   }

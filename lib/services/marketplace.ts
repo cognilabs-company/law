@@ -547,6 +547,7 @@ export type MarketOrder = {
   completedAt: string;
   rating: OrderRating;
   ratingUrl: string;
+  complaint: OrderComplaint;
   supplemental: SupplementalPayment | null;
   workPaused: boolean;
   startedAt: string;
@@ -646,6 +647,27 @@ export const CALL_KINDS: readonly CallKind[] = ["audio", "video"];
 
 export type OrderOption = { id: string; label: string; amount: number };
 export type ResultFile = { fileId: string; fileName: string; downloadUrl: string };
+// The complaint is its own action beside the rating, in the same window
+// (enterprise contract §9.2): offered only while `available`.
+export type OrderComplaint = { available: boolean; status: string; reason: string; deadlineAt: string; url: string };
+
+export function complaintOf(d: Dict, details: Dict = asDict(d.details)): OrderComplaint {
+  const raw = d.complaint ?? details.complaint;
+  const c = asDict(raw);
+  return {
+    available: c.available === true || c.can_complain === true,
+    status: asStr(c.status).toLowerCase() || (typeof raw === "string" ? raw.toLowerCase() : ""),
+    reason: asStr(c.reason),
+    deadlineAt: asStr(c.deadline_at ?? d.complaint_deadline_at),
+    url: asStr(c.url ?? d.complaint_url),
+  };
+}
+
+export async function fileOrderComplaint(order: Pick<MarketOrder, "id" | "complaint">, reason: string): Promise<void> {
+  const path = order.complaint.url.replace(/^https?:\/\/[^/]+/i, "") || `/marketplace/me/orders/${encodeURIComponent(order.id)}/complaint`;
+  await http(path, { method: "POST", body: JSON.stringify({ reason: reason.trim() }) });
+}
+
 export type OrderRating = { canRate: boolean; available: boolean; closed: boolean; reason: string; deadlineAt: string; remainingSeconds: number; expiresAt: number; value: number; comment: string };
 export type SupplementalStatus = "pending" | "approved" | "rejected" | "escalated" | "expired" | "cancelled";
 export type SupplementalPayment = {
@@ -871,6 +893,7 @@ export function normMarketOrder(v: unknown): MarketOrder {
     completedAt: asStr(d.completed_at ?? details.completed_at),
     rating: ratingOf(d, details),
     ratingUrl: asStr(d.rating_url),
+    complaint: complaintOf(d, details),
     supplemental,
     workPaused: supplemental?.status === "pending" || (status === "waiting_payment" && (paymentStatus === "paid" || !!supplemental)),
     startedAt,

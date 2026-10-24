@@ -38,10 +38,33 @@ type RefPickerBase = {
   inlineAddKey?: string;
   // Narrows the offered options (a picked value always stays shown).
   keep?: (value: string) => boolean;
+  // The same, judged on the reference row itself (its raw fields) against
+  // `keepItemKey`.
+  keepItem?: (item: Record<string, unknown>, key: string) => boolean;
+  keepItemKey?: string;
 };
 
 export type RefPickerProps = RefPickerBase &
   ({ multiple?: false; value: string; onChange: (value: string | undefined) => void } | { multiple: true; value: readonly string[]; onChange: (value: string[]) => void });
+
+// The source's rows by value, for keepItem (the first page, cached).
+function useRefRows(source: string): ReadonlyMap<string, Record<string, unknown>> | null {
+  const [state, setState] = useState<{ source: string; rows: ReadonlyMap<string, Record<string, unknown>> } | null>(null);
+  useEffect(() => {
+    if (!source) return;
+    let live = true;
+    firstReferencePage(source).then(
+      (items) => {
+        if (live) setState({ source, rows: new Map(items.map((it) => [it.value, it.raw])) });
+      },
+      () => undefined,
+    );
+    return () => {
+      live = false;
+    };
+  }, [source]);
+  return state && state.source === source ? state.rows : null;
+}
 
 export type SourceEmptyState = { kind: "none" } | { kind: "create"; text: string; link: string; href: string } | { kind: "plain"; text: string };
 
@@ -144,7 +167,16 @@ export function EligibilityHint({ id, aiId }: { id?: string; aiId?: string }): R
 }
 
 export function RefPicker(props: RefPickerProps): ReactElement {
-  const { a11y, label, source, required, readOnly, invalid, placeholder, onBlur, aiId, code, pattern, recordId, emptyId, inlineContext, inlineOwner, inlineAddKey, keep } = props;
+  const { a11y, label, source, required, readOnly, invalid, placeholder, onBlur, aiId, code, pattern, recordId, emptyId, inlineContext, inlineOwner, inlineAddKey, keep: keepValue, keepItem, keepItemKey = "" } = props;
+  const rows = useRefRows(keepItem ? source : "");
+  const keep = useMemo(() => {
+    if (!keepItem) return keepValue;
+    return (v: string) => {
+      if (keepValue && !keepValue(v)) return false;
+      const row = rows?.get(v);
+      return !rows || !row || keepItem(row, keepItemKey);
+    };
+  }, [keepValue, keepItem, rows, keepItemKey]);
   const plain = useReferenceOptions(source);
   const tree = isCategorySource(source);
   const cat = useCategoryOptions({ source, selfId: recordId, guardCycle: tree && code.toUpperCase() === "K01" && pattern === "parent_id" });

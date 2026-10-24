@@ -54,6 +54,7 @@ import { RateStar } from "./DocRatingBox";
 // sees while an urgent request is out is the same mark they saw while a
 // document request was out.
 import NewDocumentOrder, { WaitClock } from "./NewDocumentOrder";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import {
   IconVideo,
   IconChat,
@@ -1251,6 +1252,7 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
   // together — two POSTs about one request must not race — but only the one
   // actually in flight wears the wait.
   const [busy, setBusy] = useState<"" | "rate" | "cancel">("");
+  const once = useSameTickGuard();
   const [asking, setAsking] = useState(false);
   const [reason, setReason] = useState("");
   // The 15-minute rating window the backend opens on completion.
@@ -1328,7 +1330,7 @@ function MyRequestDetail({ id, req, onCancelled }: { id: string; req: UrgentRequ
   }
 
   async function cancel() {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy("cancel");
     const nid = `urgent-cancel-${req.id}`;
     try {

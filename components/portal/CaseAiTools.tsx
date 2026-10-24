@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { runCaseAiTool, type CaseAiTool } from "@/lib/services/backend";
 import { notify } from "@/lib/toast";
 import { IconSparkle, IconCheck } from "@/components/icons";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 const TOOLS: CaseAiTool[] = ["summary", "chronology", "missing_docs", "questions", "compare_versions"];
 const DRAFT_KEY = (caseId: string, tool: string) => `lexgo_case_ai_${caseId}_${tool}`;
@@ -18,10 +19,11 @@ export default function CaseAiTools({ caseId }: { caseId: string }) {
   const [tool, setTool] = useState<CaseAiTool | null>(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState<CaseAiTool | null>(null);
+  const once = useSameTickGuard();
   const nid = `case-ai-${caseId}`;
 
   async function run(k: CaseAiTool) {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(k);
     try {
       const r = await runCaseAiTool(caseId, k);

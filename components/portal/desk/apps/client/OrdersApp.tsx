@@ -16,6 +16,7 @@ import { App, Banner, Btn, Dialog, Empty, Field, Loading, Search, Sidebar, Table
 import type { NativeProps } from "../../native";
 import { StarPicker, StarsView } from "./bits";
 import "./client.css";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // The client's marketplace orders as a desktop program — Apple's order
 // status page on the Mac, a Windows "Orders" list: the orders by stage on
@@ -312,9 +313,10 @@ function CancelDialog({ o, onClose, onDone }: { o: MarketOrder; onClose: () => v
   const t = useTranslations("marketplace.orders");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [err, setErr] = useState("");
   async function run() {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(true);
     setErr("");
     try {

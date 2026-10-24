@@ -13,6 +13,7 @@ import { ORDER_FILE_MB, ORDER_FILES_MAX, uploadOrderFile } from "@/components/ma
 import { useMarketError } from "@/components/marketplace/useMarketError";
 import { IconAlert, IconClock, IconClose, IconPaperclip } from "@/components/icons";
 import { Banner, Btn, Check, Dialog, Field, Loading, TextArea } from "../../kit/kit";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 const TEXT_MAX = 4000;
 
@@ -25,12 +26,13 @@ export function CompleteDialog({ open, o, checklist, onClose, onDone }: { open: 
   const [text, setText] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [err, setErr] = useState("");
   const [blocked, setBlocked] = useState<BlockingItem[] | null>(null);
   const pick = useRef<HTMLInputElement>(null);
   const pending = checklistBlockers(checklist);
   async function go() {
-    if (busy) return;
+    if (busy || !once()) return;
     if (!text.trim() && !files.length) return setErr(t("required"));
     setBusy(true);
     setErr("");

@@ -14,6 +14,7 @@ import { App, Avatar, Btn, Dialog, Empty, Field, Loading, Search, Select, Sideba
 import type { NativeProps } from "../../native";
 import { StarPicker, StarsView, toneOf } from "./bits";
 import "./client.css";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // The client's works as a desktop program — every legal process they have
 // going (advocate document work, urgent help, orders, cases, complaints) in
@@ -375,9 +376,10 @@ function RateDialog({ target, onClose, onDone }: { target: ReviewTarget; onClose
   const [stars, setStars] = useState(5);
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [err, setErr] = useState("");
   async function send() {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(true);
     setErr("");
     try {

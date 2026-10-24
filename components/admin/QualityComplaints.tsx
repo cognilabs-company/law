@@ -27,6 +27,7 @@ import IconButton from "@/components/ui/IconButton";
 import InlineAlert from "@/components/ui/InlineAlert";
 import { useUrgentStatuses } from "./UrgentAdvocateQueue";
 import { IconAlert, IconUser, IconScale, IconClock, IconStarRate, IconFileText, IconBolt, IconClipboardCheck, IconPhone, IconRefresh } from "@/components/icons";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §5.
 //
@@ -236,6 +237,7 @@ function QcDetail({
   const [note, setNote] = useState("");
   const [noteErr, setNoteErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
 
   useEffect(() => {
     let alive = true;
@@ -278,7 +280,7 @@ function QcDetail({
   const settled = row.status === "resolved" || row.status === "rejected" || row.status === "rework_required";
 
   async function submit() {
-    if (busy) return;
+    if (busy || !once()) return;
     const noNote = !note.trim();
     setActionErr(action ? "" : t("actionRequired"));
     setNoteErr(noNote ? t("noteRequired") : "");

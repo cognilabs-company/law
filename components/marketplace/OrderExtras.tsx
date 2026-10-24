@@ -7,7 +7,7 @@ import { IconAlert, IconCheck, IconCoins, IconDownload, IconFileText, IconHourgl
 import { fmtUzs } from "@/lib/money";
 import { saveBlob } from "@/lib/download";
 import { getSecureMessageFileAt } from "@/lib/services/backend";
-import { marketErrorCode, rateMarketplaceOrder, type MarketOrder, type OrderOption, type ResultFile } from "@/lib/services/marketplace";
+import { fileOrderComplaint, marketErrorCode, rateMarketplaceOrder, type MarketOrder, type OrderOption, type ResultFile } from "@/lib/services/marketplace";
 import { useMarketError } from "./useMarketError";
 
 const RESULT_MAX = 4000;
@@ -153,6 +153,88 @@ export function ResultBlock({ o }: { o: MarketOrder }) {
           ))}
         </ul>
       ) : null}
+    </section>
+  );
+}
+
+const COMPLAINT_MIN = 10;
+const COMPLAINT_MAX = 2000;
+const FILED = new Set(["open", "pending", "submitted", "in_review", "under_review", "created"]);
+
+// A complaint about the delivered service: its own action beside the
+// rating, offered only while the backend says `complaint.available` (the
+// same 15-minute window). A 1–2 star rating already opens one, so it is not
+// offered again; once filed it waits for the call center.
+export function ComplaintPanel({ o, onFiled }: { o: MarketOrder; onFiled: () => void }) {
+  const t = useTranslations("marketplace.orderExtras.complaint");
+  const marketErr = useMarketError();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const sending = useRef(false);
+  const [err, setErr] = useState("");
+  const [filed, setFiled] = useState(false);
+  const [closed, setClosed] = useState(false);
+  const fieldId = useId();
+  const lowRated = o.rating.value > 0 && o.rating.value <= 2;
+  if (filed || FILED.has(o.complaint.status) || (lowRated && o.complaint.status !== "")) {
+    return (
+      <p className="mko__cmp is-filed" role="status">
+        <IconHourglass aria-hidden="true" />
+        <span>{t("pending")}</span>
+      </p>
+    );
+  }
+  if (closed) return <Notice ok={false} msg={err || t("closed")} />;
+  if (!o.complaint.available || lowRated) return null;
+  const short = reason.trim().length < COMPLAINT_MIN;
+
+  async function submit() {
+    if (busy || sending.current || short) return;
+    sending.current = true;
+    setBusy(true);
+    setErr("");
+    try {
+      await fileOrderComplaint(o, reason);
+      setFiled(true);
+      onFiled();
+    } catch (e) {
+      sending.current = false;
+      const code = marketErrorCode(e);
+      setErr(marketErr(e, t("error")));
+      if (code === "complaint_window_closed" || code === "rating_window_closed") setClosed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <div className="mko__cmp">
+        <span>{t("lead")}</span>
+        <button type="button" className="btn btn--line btn--sm" onClick={() => setOpen(true)} data-ai-id={`marketplace.orders.complaint.${o.id}.open`}>
+          <IconAlert aria-hidden="true" />
+          {t("open")}
+        </button>
+      </div>
+    );
+  }
+  return (
+    <section className="mko__cmp is-open" data-ai-id={`marketplace.orders.complaint.${o.id}`} data-ai-type="section" data-ai-label={t("title")}>
+      <label htmlFor={fieldId}>
+        <b>{t("title")}</b>
+      </label>
+      <textarea id={fieldId} rows={4} maxLength={COMPLAINT_MAX} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("placeholder")} aria-describedby={`${fieldId}-h`} />
+      <small id={`${fieldId}-h`}>{t("hint", { n: COMPLAINT_MIN })}</small>
+      {err ? <Notice ok={false} msg={err} /> : null}
+      <div className="mko__cmpa">
+        <button type="button" className="btn btn--soft btn--sm" onClick={() => setOpen(false)} disabled={busy}>
+          {t("cancel")}
+        </button>
+        <button type="button" className="btn btn--pri btn--sm" onClick={() => void submit()} disabled={busy || short}>
+          {busy ? t("sending") : t("send")}
+        </button>
+      </div>
     </section>
   );
 }

@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import type { Page, Route, WebSocketRoute } from "@playwright/test";
 
 // The backend, mocked. Every request the page makes to the API (through
 // the /api/backend proxy or straight to the API host) is answered here;
@@ -8,7 +8,17 @@ import type { Page, Route } from "@playwright/test";
 
 export type Handler = (body: unknown, url: URL) => { status?: number; json: unknown } | unknown;
 export type Routes = Record<string, Handler | unknown>;
-export type Mock = { calls: { method: string; path: string; body: unknown }[]; refused: string[]; sent: string[] };
+export type Mock = {
+  calls: { method: string; path: string; body: unknown }[];
+  refused: string[];
+  sent: string[];
+  // Open realtime sockets, and ways to play the server: push an event to
+  // the user socket, or drop every socket (the app must reconnect and resync).
+  sockets: { url: string; ws: WebSocketRoute }[];
+  push: (event: Record<string, unknown>) => Promise<void>;
+  drop: () => Promise<void>;
+  count: (method: string, path: RegExp) => number;
+};
 
 const API = /\/api\/backend\/|lexgo\.api\.cognilabs\.org/;
 
@@ -17,14 +27,31 @@ const API = /\/api\/backend\/|lexgo\.api\.cognilabs\.org/;
 const BACKGROUND: Routes = {
   "POST /internal/live-office/heartbeat": {},
   "POST /studio/constructors/[^/]+/visits": {},
+  "POST /studio/activity/heartbeat": {},
 };
 
 export async function mockBackend(page: Page, routes: Routes): Promise<Mock> {
-  const mock: Mock = { calls: [], refused: [], sent: [] };
+  const mock: Mock = {
+    calls: [],
+    refused: [],
+    sent: [],
+    sockets: [],
+    push: async (event) => {
+      const users = mock.sockets.filter((s) => s.url.includes("/ws/users/me"));
+      if (!users.length) throw new Error("no user socket is open");
+      for (const s of users) s.ws.send(JSON.stringify(event));
+    },
+    drop: async () => {
+      const open = mock.sockets.splice(0);
+      for (const s of open) await s.ws.close({ code: 1012, reason: "test restart" });
+    },
+    count: (method, path) => mock.calls.filter((c) => c.method === method && path.test(c.path)).length,
+  };
   routes = { ...BACKGROUND, ...routes };
   // Realtime sockets open against no server: what the page sends is
   // recorded, nothing comes back. Next's own dev socket is not touched.
   await page.routeWebSocket(/\/ws\//, (ws) => {
+    mock.sockets.push({ url: ws.url(), ws });
     ws.onMessage((m) => {
       mock.sent.push(typeof m === "string" ? m : m.toString("utf8"));
     });

@@ -58,6 +58,8 @@ import { dateOnly } from "@/lib/date";
 // tierIcon and the featured CTA's class moved there with it, the pricing
 // helpers stayed here because they are this PAGE's rules, not the card's.
 import PlanCard, { FEATURED_CTA } from "./PlanCard";
+import MyPlanCard from "./MyPlanCard";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 type Term = 1 | 3 | 6 | 12;
 type Variant = "personal" | "all";
@@ -170,6 +172,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const [term, setTerm] = useState<6 | 12>(6);
   const [upfront, setUpfront] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const once = useSameTickGuard();
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
   // Set when a purchase falls through to the Telegram approval flow.
   const [tgPlan, setTgPlan] = useState<{ plan: BackendPlan; period: ManualDocBillingPeriod } | null>(null);
@@ -282,7 +285,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   }, []);
 
   async function choose(plan: BackendPlan, total: number, period: string) {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(plan.id);
     setIntent(null);
     let leaving = false; // stay busy while the browser opens the checkout
@@ -337,6 +340,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   return (
     <div className="subs">
       {intent ? <div className="ppanel" style={{ marginBottom: 16 }}><CheckoutIntent intent={intent} onCancel={() => setIntent(null)} /></div> : null}
+      <MyPlanCard />
 
       <TelegramPlanRequest
         target={tgPlan}
@@ -874,6 +878,7 @@ function TelegramPlanRequest({
   const [period, setPeriod] = useState<ManualDocBillingPeriod>("monthly");
   const [only, setOnly] = useState<ManualDocBillingPeriod[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [sent, setSent] = useState(false);
   // LEXGO_PUBLIC_WORK_IDS_FRONTEND.md: SUB-ABCDE — quoted back on the
   // receipt so the client has something to name when they chase the
@@ -913,7 +918,7 @@ function TelegramPlanRequest({
   };
 
   async function submit() {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(true);
     setWarn("");
     try {

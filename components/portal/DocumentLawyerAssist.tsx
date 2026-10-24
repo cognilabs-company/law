@@ -29,6 +29,7 @@ import Select from "@/components/Select";
 import CheckBox from "@/components/CheckBox";
 import { IconChevronLeft, IconEye, IconHeadset, IconLock, IconShieldCheck } from "@/components/icons";
 import { useAiField } from "@/lib/ai/registry";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 type LawyerRequestBody = {
   need: string;
@@ -94,6 +95,7 @@ export default function DocumentLawyerAssist({
   // without a word and quote the advocate a different document.
   const [missing, setMissing] = useState<"" | "need" | "consent">("");
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [attachErr, setAttachErr] = useState("");
   // The whole answer, not only the request row: past the free allowance the
   // backend opens a payment gate and the request has NOT reached the
@@ -124,7 +126,7 @@ export default function DocumentLawyerAssist({
   useAiField(formShown ? "documents.lawyer.note" : "", { get: () => note, set: setNote, sensitive: true, fillable: true });
 
   async function submit() {
-    if (busy) return;
+    if (busy || !once()) return;
     if (!need.trim()) {
       setMissing("need");
       document.getElementById("lawyer-need")?.focus();

@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import Select from "@/components/Select";
 import FieldError from "@/components/ui/FieldError";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 const RESULTS = ["answered", "no_answer", "busy", "callback", "wrong_number"];
 
@@ -48,6 +49,7 @@ export default function CcCallForm({
   const [next, setNext] = useState("");
   const [minutes, setMinutes] = useState("");
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [phoneErr, setPhoneErr] = useState("");
   const dirty = direction !== "outgoing" || phone.trim() !== initialPhone.trim() || !!topic.trim() || result !== "answered" || !!next.trim() || !!minutes;
   const sent = useRef<boolean | null>(null);
@@ -59,7 +61,7 @@ export default function CcCallForm({
   }, [dirty, onDirtyChange]);
 
   async function submit() {
-    if (busy) return;
+    if (busy || !once()) return;
     const p = phone.trim();
     if (!p) {
       setPhoneErr(t("phoneRequired"));

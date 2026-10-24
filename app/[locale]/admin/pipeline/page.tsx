@@ -59,6 +59,7 @@ import StageTabs, { stageTabId, useLeadReveal, usePhoneBoard, useStageTab } from
 import { useLeadMeeting } from "@/components/admin/leads/useLeadMeeting";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import { IconTrendingUp, IconUsers, IconGrid, IconDocLines, IconPlus, IconEdit, IconTrash, IconUser, IconBolt, IconInfo, IconMoreHorizontal } from "@/components/icons";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 type Lost = { reason: string; note: string };
 type MoveOpts = { lost?: Lost; undo?: boolean };
@@ -232,6 +233,7 @@ export default function AdminPipeline() {
   const [rateHelp, setRateHelp] = useState(false);
   const rateId = useId();
   const [busy, setBusy] = useState<string | null>(null);
+  const once = useSameTickGuard();
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
   // Where in overCol the card would land — the placeholder renders exactly
@@ -330,7 +332,7 @@ export default function AdminPipeline() {
   // Optimistic: the card jumps at once, the server call follows, then the
   // board is refetched silently. A rejected move puts the card back.
   async function moveTo(leadId: string, columnKey: string, position: number, opts: MoveOpts = {}) {
-    if (busy) return;
+    if (busy || !once()) return;
     const { lost, undo } = opts;
     const from = cols.find((c) => c.cards.some((x) => x.lead.id === leadId));
     if (!from) return;

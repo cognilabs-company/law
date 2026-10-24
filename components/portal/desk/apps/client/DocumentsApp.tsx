@@ -16,6 +16,7 @@ import { App, Banner, Btn, Dialog, Empty, Field, Loading, Search, Sidebar, Table
 import type { NativeProps } from "../../native";
 import { StarPicker, StarsView } from "./bits";
 import "./client.css";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // The client's documents as a desktop program — every document they are
 // having made, by the client's own hand, by the AI or by an advocate: by
@@ -412,8 +413,9 @@ function SendDialog({ x, onClose, onDone }: { x: ClientDocFlowItem; onClose: () 
   const tr = useTranslations("portal.client.documentRequests");
   const [need, setNeed] = useState("");
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   async function run() {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(true);
     try {
       const r = await requestDocumentLawyerReviewGated(x.id, need.trim() || t("reviewNeedDefault"));

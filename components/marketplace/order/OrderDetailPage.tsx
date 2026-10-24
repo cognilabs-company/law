@@ -10,7 +10,7 @@ import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { SxButton, SxLinkButton } from "@/components/admin/studio/sx/Button";
 import { normMarketOrder, type MarketOrder, type MarketPhase } from "@/lib/services/marketplace";
 import { normOrderChecklist, type OrderStart } from "@/lib/services/marketRuntime";
-import { RatingPanel, ResultBlock, SupplementalPanel } from "../OrderExtras";
+import { ComplaintPanel, RatingPanel, ResultBlock, SupplementalPanel } from "../OrderExtras";
 import CancellationRequest from "./CancellationRequest";
 import NegotiationPanel from "./NegotiationPanel";
 import { useNotedNegotiation } from "./negotiationStore";
@@ -133,6 +133,7 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDe
       client ? (
         <section key="rating" id={SECTION_ID.rating} tabIndex={-1} className="mod-sec mod-sec--legacy">
           <RatingPanel o={o} onRated={() => d.refresh("order")} />
+          <ComplaintPanel o={o} onFiled={() => d.refresh("order")} />
         </section>
       ) : null,
       checklist,

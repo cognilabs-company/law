@@ -1275,7 +1275,9 @@ function normOrder(v: unknown): BackendOrder {
     budget: amount != null ? fmtUzs(amount) : asStr(details.budget),
     createdAt: asStr(d.created_at ?? d.createdAt),
     lawyerName: asStr(d.lawyer_name ?? asDict(d.lawyer).name) || undefined,
-    confirmationDeadlineAt: asStr(d.confirmation_deadline_at ?? details.confirmation_deadline_at) || undefined,
+    // The backend's answer deadline (acceptance_deadline_at in the
+    // marketplace contract); never a locally made-up 30 minutes.
+    confirmationDeadlineAt: asStr(d.acceptance_deadline_at ?? details.acceptance_deadline_at ?? d.confirmation_deadline_at ?? details.confirmation_deadline_at) || undefined,
     source: asStr(d.source ?? (details.marketplace === true ? "marketplace" : "")) || undefined,
     regionSource: asStr(details.region_source) || undefined,
   };
@@ -4247,8 +4249,11 @@ export async function acceptOrder(orderId: string): Promise<BackendOrder> {
 export const DECLINE_REASONS = ["conflict_of_interest", "not_my_specialization", "busy", "region_far", "price_mismatch", "documents_insufficient", "prior_dispute", "sick_or_vacation", "other"] as const;
 export type DeclineReason = (typeof DECLINE_REASONS)[number];
 // T2-10: the reason list (S-20) goes in the body; "other" carries a note.
+// The marketplace contract names the code `reason_code` and the free text
+// `reason`; the older `reason` (code) + `note` pair is sent alongside.
 export async function declineOrder(orderId: string, reason?: DeclineReason, note?: string): Promise<{ id: string; status: string }> {
-  const d = asDict(await http(`/orders/${orderId}/decline`, { method: "POST", body: JSON.stringify(reason ? { reason, note: note || undefined } : {}) }));
+  const body = reason ? { reason_code: reason, reason: note || reason, note: note || undefined } : {};
+  const d = asDict(await http(`/orders/${orderId}/decline`, { method: "POST", body: JSON.stringify(body) }));
   return { id: asStr(d.id), status: asStr(d.status) };
 }
 

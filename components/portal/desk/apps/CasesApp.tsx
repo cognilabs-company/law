@@ -10,6 +10,7 @@ import { IconAlert, IconBriefcase, IconCheck, IconClock, IconFileText, IconGavel
 import { App, Btn, Empty, Field, Input, Loading, Search, Seg, Select, Sidebar, Tag, TextArea, Tool, Toolbar, useHost, useOs, useToast, type NavSection, type Tone } from "../kit/kit";
 import type { NativeProps } from "../native";
 import "./cases.css";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
 // Cases as a desktop program, a case manager: the statuses on the side,
 // the cases in a list, the chosen one's sheet on the right — its status,
@@ -211,6 +212,7 @@ function OrderFlow({ orderId, onChanged }: { orderId: string; onChanged: () => v
   const [tick, setTick] = useState(0);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState("");
+  const once = useSameTickGuard();
   const [err, setErr] = useState("");
   useEffect(() => {
     let alive = true;
@@ -224,7 +226,7 @@ function OrderFlow({ orderId, onChanged }: { orderId: string; onChanged: () => v
   const current = (rows?.[0]?.status ?? "").toLowerCase();
   const next = nextStatusesFor("seller", current);
   async function move(to: string) {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(to);
     setErr("");
     try {
@@ -288,9 +290,10 @@ function AiTools({ caseId }: { caseId: string }) {
   const [tool, setTool] = useState<CaseAiTool>("summary");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const once = useSameTickGuard();
   const [msg, setMsg] = useState("");
   async function run() {
-    if (busy) return;
+    if (busy || !once()) return;
     setBusy(true);
     setMsg("");
     try {

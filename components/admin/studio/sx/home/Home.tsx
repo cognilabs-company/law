@@ -21,6 +21,10 @@ import { ResumePanel } from "./ResumePanel";
 import { groupTotalsOf, lastActivityOf, needCountsOf, sumRecords, useStudioSummary, type NeedCounts, type StudioSummary } from "./summary";
 import { useActionItems } from "./useActionItems";
 import { WaitingPanel } from "./WaitingPanel";
+import { useSearchParams } from "next/navigation";
+import { retiredMoveOf } from "@/lib/studio/retired";
+import { RetiredNote } from "../layout/Retired";
+import { SxPageNotice } from "../layout/Page";
 
 const ZERO: Readonly<Record<GroupCardKind, number>> = { returned: 0, review: 0, publish: 0 };
 const SK_CARDS = [0, 1, 2, 3, 4, 5];
@@ -66,6 +70,7 @@ export function Home(): ReactElement {
   const errText = useEditorErrorText();
   const headingId = useId();
   const [exporting, setExporting] = useState(false);
+  const gone = retiredMoveOf(useSearchParams().get("retired"));
 
   const doExport = async () => {
     if (exporting) return;
@@ -107,7 +112,7 @@ export function Home(): ReactElement {
   const groupsDone = cards.filter((c) => c.total > 0 && c.done >= c.total).length;
   const regLoading = !cards.length && !reg.error && reg.avail !== "off" && reg.at === 0;
 
-  return (
+  const page = (
     <SxPage title={t("sx.ui.studio")} section="home" lead={t("sx.home.lead")} aiId="admin.studio.home" actions={head}>
       <>
         <div className="sx-home">
@@ -153,4 +158,6 @@ export function Home(): ReactElement {
       </>
     </SxPage>
   );
+  // A stale link to a removed constructor lands here (lib/studio/retired).
+  return gone ? <SxPageNotice notice={<RetiredNote move={gone} />}>{page}</SxPageNotice> : page;
 }
