@@ -103,6 +103,15 @@
   background: var(--sx-surface-2);
   overflow-x: auto;
   scrollbar-width: none;
+  transition: border-color var(--sx-fast) var(--sx-ease), box-shadow var(--sx-fast) var(--sx-ease);
+}
+.sx-seg:hover {
+  border-color: var(--sx-line-strong);
+}
+/* The group lights up while one of its options has the keyboard. */
+.sx-seg:has(.sx-seg__btn:focus-visible) {
+  border-color: color-mix(in srgb, var(--sx-accent) 55%, var(--sx-line));
+  box-shadow: var(--sx-ring);
 }
 .sx-seg::-webkit-scrollbar {
   display: none;
@@ -154,13 +163,33 @@ html[data-theme="dark"] .sx-seg__ind {
   font: 600 13px/18px var(--sx-font);
   white-space: nowrap;
   cursor: pointer;
-  transition: color var(--sx-fast) var(--sx-ease), transform var(--sx-fast) var(--sx-ease);
+  transition: color var(--sx-fast) var(--sx-ease), transform var(--sx-fast) var(--sx-ease), box-shadow var(--sx-fast) var(--sx-ease);
+}
+/* A soft accent wash behind an option under the pointer or the keyboard;
+   the chosen one sits on the sliding indicator instead. */
+.sx-seg__btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--sx-accent) 9%, transparent);
+  opacity: 0;
+  transform: scale(.9);
+  transition: opacity var(--sx-fast) var(--sx-ease), transform var(--sx-fast) var(--sx-ease);
+}
+html[data-theme="dark"] .sx-seg__btn::before {
+  background: color-mix(in srgb, var(--sx-accent) 22%, transparent);
 }
 .sx-seg__btn[aria-checked="true"] {
   color: var(--sx-ink);
 }
 .sx-seg__btn:not([aria-checked="true"]):not(:disabled):hover {
-  color: var(--sx-ink-2);
+  color: var(--sx-ink);
+}
+.sx-seg__btn:not([aria-checked="true"]):not(:disabled):is(:hover, :focus-visible)::before {
+  opacity: 1;
+  transform: none;
 }
 .sx-seg__btn:active:not(:disabled) {
   transform: scale(.97);
@@ -169,12 +198,25 @@ html[data-theme="dark"] .sx-seg__ind {
   cursor: not-allowed;
   opacity: .5;
 }
+/* Inside the button: the group scrolls sideways and would clip an outer ring. */
 .sx-seg__btn:focus-visible {
-  outline: 2px solid var(--sx-accent);
-  outline-offset: -2px;
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--sx-accent), inset 0 0 0 4px color-mix(in srgb, var(--sx-accent) 18%, transparent);
 }
 .sx-seg__btn > svg {
   flex: none;
+  transition: color var(--sx-fast) var(--sx-ease), transform var(--sx-fast) var(--sx-ease);
+}
+.sx-seg__btn:not(:disabled):is(:hover, :focus-visible) > svg,
+.sx-seg__btn[aria-checked="true"] > svg {
+  color: var(--sx-accent);
+}
+html[data-theme="dark"] .sx-seg__btn:not(:disabled):is(:hover, :focus-visible) > svg,
+html[data-theme="dark"] .sx-seg__btn[aria-checked="true"] > svg {
+  color: color-mix(in srgb, var(--sx-accent) 55%, #fff);
+}
+.sx-seg__btn:not([aria-checked="true"]):not(:disabled):hover > svg {
+  transform: translateY(-1px);
 }
 .sx-seg__count {
   min-inline-size: 20px;
@@ -203,8 +245,13 @@ html[data-theme="dark"] .sx-seg__ind {
 }
 @media (prefers-reduced-motion: reduce) {
   .sx-seg__ind,
-  .sx-seg__btn {
+  .sx-seg__btn,
+  .sx-seg__btn::before,
+  .sx-seg__btn > svg {
     transition: none;
+  }
+  .sx-seg__btn:not([aria-checked="true"]):not(:disabled):hover > svg {
+    transform: none;
   }
   .sx-seg__btn:active:not(:disabled) {
     transform: none;
@@ -213,6 +260,10 @@ html[data-theme="dark"] .sx-seg__ind {
 @media (forced-colors: active) {
   .sx-seg__ind {
     border: 2px solid Highlight;
+  }
+  .sx-seg__btn:focus-visible {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
   }
 }
 
