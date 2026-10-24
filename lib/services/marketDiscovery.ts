@@ -1,7 +1,8 @@
 import { getNearbySellers, marketErrorInfo, NEARBY_RADII, type NearbyRadius, type NearbyResult, type NearbySeller } from "@/lib/services/marketRuntime";
 import { geoErrorKind, readPosition } from "@/lib/services/locationShare";
 
-export type NearbyMode = "all" | "nearby";
+// How the client browses sellers: by specialist, by service, or nearby.
+export type NearbyMode = "all" | "services" | "nearby";
 
 export const DEFAULT_NEARBY_RADIUS: NearbyRadius = 10;
 
@@ -20,7 +21,8 @@ export function radiusOf(v: unknown): NearbyRadius | null {
 }
 
 export function modeOf(v: unknown): NearbyMode {
-  return typeof v === "string" && v.trim().toLowerCase() === "nearby" ? "nearby" : "all";
+  const s = typeof v === "string" ? v.trim().toLowerCase() : "";
+  return s === "nearby" || s === "services" ? s : "all";
 }
 
 export type NearbyUrlState = { mode: NearbyMode; radius: NearbyRadius; serviceId: string };
@@ -35,7 +37,8 @@ export function writeNearbyParams(href: string, s: NearbyUrlState): string {
     if (sid) p.set(NEARBY_PARAMS.service, sid);
     else p.delete(NEARBY_PARAMS.service);
   } else {
-    p.delete(NEARBY_PARAMS.mode);
+    if (s.mode === "services") p.set(NEARBY_PARAMS.mode, "services");
+    else p.delete(NEARBY_PARAMS.mode);
     p.delete(NEARBY_PARAMS.radius);
     p.delete(NEARBY_PARAMS.service);
   }

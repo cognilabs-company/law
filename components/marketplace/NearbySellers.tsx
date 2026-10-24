@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Select from "@/components/Select";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { IconBuilding, IconInfo, IconList, IconLock, IconMap, IconMapPin, IconRefresh, IconStarRate, IconUsers } from "@/components/icons";
+import { IconBriefcase, IconBuilding, IconInfo, IconList, IconLock, IconMap, IconMapPin, IconRefresh, IconStarRate, IconUsers } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 import { regionLabel } from "@/lib/labels";
 import { humanizeSlug } from "@/lib/lawyers";
@@ -29,6 +29,10 @@ export function MarketModeSwitch({ mode, onChange }: { mode: NearbyMode; onChang
       <button type="button" className="mknb-mode__b" aria-pressed={mode === "all"} onClick={() => onChange("all")} data-ai-id="marketplace.mode.all" data-ai-type="tab">
         <IconUsers aria-hidden="true" />
         <span>{t("all")}</span>
+      </button>
+      <button type="button" className="mknb-mode__b" aria-pressed={mode === "services"} onClick={() => onChange("services")} data-ai-id="marketplace.mode.services" data-ai-type="tab">
+        <IconBriefcase aria-hidden="true" />
+        <span>{t("services")}</span>
       </button>
       <button type="button" className="mknb-mode__b" aria-pressed={mode === "nearby"} onClick={() => onChange("nearby")} data-ai-id="marketplace.mode.nearby" data-ai-type="tab">
         <IconMapPin aria-hidden="true" />

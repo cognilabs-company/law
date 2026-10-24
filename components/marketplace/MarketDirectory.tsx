@@ -22,6 +22,7 @@ import type { DirectoryPreview } from "@/lib/marketPreview";
 import { DEFAULT_NEARBY_RADIUS, modeOf, radiusOf, writeNearbyParams, type NearbyMode } from "@/lib/services/marketDiscovery";
 import type { NearbyRadius } from "@/lib/services/marketRuntime";
 import NearbySellers, { MarketModeSwitch, type NearbyServiceOption } from "./NearbySellers";
+import ServiceBrowser from "./ServiceBrowser";
 import SecondOpinionEntry from "./order/SecondOpinionEntry";
 import { categoryName, categoryTitleName } from "@/lib/categoryNames";
 
@@ -267,13 +268,16 @@ export default function MarketDirectory({
 
   const categorySet = useMemo(() => (category ? new Set([category, ...(treeRows ? descendantIds(category, treeRows) : [])]) : null), [category, treeRows]);
 
-  const services = useMemo(() => {
+  const allServices = useMemo(() => {
     const src = meta?.services.length ? meta.services : items.flatMap((s) => s.services.map((x) => ({ id: x.id, title: x.title, categoryId: x.categoryId, basePrice: x.basePrice })));
     const m = new Map<string, { value: string; label: string; categoryId: string }>();
     const pro = treeRows ? treeById : null;
     for (const x of src) if (x.id && !m.has(x.id) && (!pro || pro.has(x.categoryId))) m.set(x.id, { value: x.id, label: x.title, categoryId: x.categoryId });
-    return [...m.values()].filter((x) => !categorySet || categorySet.has(x.categoryId));
-  }, [meta, items, treeRows, treeById, categorySet]);
+    return [...m.values()];
+  }, [meta, items, treeRows, treeById]);
+  // The service filter offers the picked category's services; browsing by
+  // service shows them all.
+  const services = useMemo(() => allServices.filter((x) => !categorySet || categorySet.has(x.categoryId)), [allServices, categorySet]);
 
   const nearbyServices = useMemo<NearbyServiceOption[]>(() => {
     const src = meta?.services.length ? meta.services : items.flatMap((s) => s.services.map((x) => ({ id: x.id, title: x.title, categoryId: x.categoryId })));
@@ -703,7 +707,21 @@ export default function MarketDirectory({
 
       {!isPreview ? <MarketModeSwitch mode={mode} onChange={switchMode} /> : null}
 
-      {mode === "nearby" ? (
+      {mode === "services" ? (
+        <ServiceBrowser
+          services={allServices}
+          categories={categories}
+          sellers={shownItems}
+          loading={status === "loading"}
+          onPick={(id) => {
+            // Find the specialists for this service: only its filter applies.
+            resetFilters();
+            setService(id);
+            switchMode("all");
+            window.setTimeout(() => resultsRef.current?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" }), 60);
+          }}
+        />
+      ) : mode === "nearby" ? (
         <NearbySellers
           base={base}
           services={nearbyServices}
