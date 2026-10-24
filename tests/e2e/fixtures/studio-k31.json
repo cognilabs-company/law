@@ -1,0 +1,3645 @@
+{
+ "_note": "Recorded from GET /studio/constructors, /studio/constructors/K31 and its form-context (24 Oct 2026), trimmed to K31.",
+ "constructors": {
+  "group_count": 1,
+  "constructor_count": 1,
+  "user_roles": [
+   "superadmin"
+  ],
+  "include_schema": false,
+  "items": [
+   {
+    "id": "9239e7a7-608d-4da3-934c-db52e76741fe",
+    "code": "K31",
+    "title": "Xizmat qoidalari",
+    "category": "legal",
+    "description": "Mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+    "runtime_target": "service_rules",
+    "experience": {
+     "metadata_version": 1,
+     "purpose": "Mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+     "plain_language": "Bu konstruktor mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+     "when_to_use": "Huquqiy hujjatlardagi oferta, rozilik, shart va siyosat matnlarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+     "managed_by": [
+      "studio_editor",
+      "legal_manager"
+     ],
+     "where_used": [
+      {
+       "surface_key": "service_rules",
+       "title": "Huquqiy hujjatlar",
+       "route": "/uz/legal",
+       "placement": "Oferta, rozilik, shart va siyosat matnlari"
+      }
+     ],
+     "result": "Publish qilingandan keyin yangi konfiguratsiya `service_rules` runtime qatlamida ishlaydi va Huquqiy hujjatlarda aks etadi.",
+     "workflow": [
+      {
+       "step": 1,
+       "title": "Bog‘liq ma’lumotni tanlang",
+       "description": "Avval Mavjud qoida, Xizmat, Kategoriya qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+      },
+      {
+       "step": 2,
+       "title": "Asosiy maydonlarni to‘ldiring",
+       "description": "Majburiy maydonlar: Yaratish turi, Qoida nomi, Auditoriya, To‘liq qoida, Qo‘llanish sohasi."
+      },
+      {
+       "step": 3,
+       "title": "Natijani tekshiring",
+       "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+      },
+      {
+       "step": 4,
+       "title": "Saqlang va tasdiqlashga yuboring",
+       "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+      }
+     ],
+     "visual_preview": {
+      "type": "summary",
+      "title": "Xizmat qoidalari natijasi",
+      "description": "Forma o‘zgarganda oferta, rozilik, shart va siyosat matnlarining taxminiy ko‘rinishini darhol yangilang.",
+      "data_source": "payload",
+      "refresh": "on_change",
+      "surface_keys": [
+       "service_rules"
+      ]
+     },
+     "novice_notes": [
+      "Qizil yulduzchali maydonlar majburiy.",
+      "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+      "Preview real ma’lumotni o‘zgartirmaydi.",
+      "Publishdan oldin diff va warninglarni tekshiring."
+     ],
+     "publish_checklist": [
+      "Majburiy maydonlar to‘ldirilgan",
+      "Reference qiymatlar mavjud",
+      "Preview kutilgan natijani ko‘rsatmoqda",
+      "Validatsiya xatosiz",
+      "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+     ],
+     "risk_level": "medium",
+     "warnings": [
+      "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+     ]
+    },
+    "visual_preview": {
+     "type": "summary",
+     "title": "Xizmat qoidalari natijasi",
+     "description": "Forma o‘zgarganda oferta, rozilik, shart va siyosat matnlarining taxminiy ko‘rinishini darhol yangilang.",
+     "data_source": "payload",
+     "refresh": "on_change",
+     "surface_keys": [
+      "service_rules"
+     ]
+    },
+    "navigation": {
+     "group_key": "services_packages",
+     "group_title": "Xizmatlar va paketlar",
+     "group_order": 1,
+     "step_number": 3,
+     "step_count": 10,
+     "required_before": [
+      "K01"
+     ],
+     "recommended_before": [],
+     "next_steps": [
+      "K32"
+     ],
+     "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 3-navbatda bajariladi.",
+     "ui_visible": true,
+     "managed_by": "studio"
+    },
+    "operations": {
+     "supported": [
+      "create",
+      "view",
+      "edit",
+      "clone",
+      "archive"
+     ],
+     "default": "list",
+     "identity_source": "route_context",
+     "context_fields": [],
+     "list_endpoint": "/studio/constructors/K31/records",
+     "form_context_endpoint": "/studio/constructors/K31/form-context",
+     "clone_endpoint": "/studio/objects/{object_id}/clone",
+     "archive_endpoint": "/studio/objects/{object_id}/archive"
+    },
+    "capabilities": [
+     "draft",
+     "validate",
+     "preview",
+     "submit",
+     "approve",
+     "publish",
+     "rollback"
+    ],
+    "definition_version": 3,
+    "approval_required": true,
+    "is_active": true,
+    "updated_at": "2026-10-23T15:48:30.768190Z",
+    "record_count": 3,
+    "completed": true,
+    "availability": "available",
+    "missing_required": [],
+    "missing_recommended": [],
+    "field_count": 13,
+    "required_fields": [
+     "creation_mode",
+     "title",
+     "audience",
+     "body",
+     "scope_type"
+    ],
+    "detail_url": "/studio/constructors/K31"
+   }
+  ],
+  "groups": [
+   {
+    "key": "services_packages",
+    "title": "Xizmatlar va paketlar",
+    "description": "Kategoriya daraxti, narx omillari, qoidalar, kafolatlar, oddiy xizmat va paketlarni qat’iy ketma-ketlikda boshqaradi.",
+    "codes": [
+     "K34",
+     "K01",
+     "K31",
+     "K32",
+     "K33",
+     "K02",
+     "K29",
+     "K35",
+     "K03-M",
+     "K30"
+    ],
+    "order": 1,
+    "constructor_count": 10,
+    "constructors": [
+     {
+      "id": "9b52ce85-be1a-4984-b340-a40cf734b960",
+      "code": "K34",
+      "title": "Narxga ta’sir qiluvchi omillar",
+      "category": "marketplace",
+      "description": "Xizmat va paketlarda qayta ishlatiladigan, narxni faqat oshiruvchi omillar katalogini boshqaradi.",
+      "runtime_target": "marketplace_price_factors",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Xizmat va paketlarda qayta ishlatiladigan, narxni faqat oshiruvchi omillar katalogini boshqaradi.",
+       "plain_language": "Bu konstruktor xizmat va paketlarda qayta ishlatiladigan, narxni faqat oshiruvchi omillar katalogini boshqaradi.",
+       "when_to_use": "Marketplacedagi xizmat, sotuvchi va reklama bloklarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "marketplace_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "marketplace_price_factors",
+         "title": "Marketplace",
+         "route": "/uz/marketplace",
+         "placement": "Xizmat, sotuvchi va reklama bloklari"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `marketplace_price_factors` runtime qatlamida ishlaydi va Marketplaceda aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Omil nomi, Hisoblash turi, Qiymat."
+        },
+        {
+         "step": 2,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 3,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "summary",
+        "title": "Narxga ta’sir qiluvchi omillar natijasi",
+        "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "marketplace_price_factors"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "summary",
+       "title": "Narxga ta’sir qiluvchi omillar natijasi",
+       "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "marketplace_price_factors"
+       ]
+      },
+      "navigation": {
+       "group_key": "services_packages",
+       "group_title": "Xizmatlar va paketlar",
+       "group_order": 1,
+       "step_number": 1,
+       "step_count": 10,
+       "required_before": [
+        "K01"
+       ],
+       "recommended_before": [],
+       "next_steps": [
+        "K01"
+       ],
+       "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 1-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [],
+       "list_endpoint": "/studio/constructors/K34/records",
+       "form_context_endpoint": "/studio/constructors/K34/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T13:51:43.063716Z",
+      "record_count": 6,
+      "completed": true,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 6,
+      "required_fields": [
+       "title",
+       "adjustment_type",
+       "value"
+      ],
+      "detail_url": "/studio/constructors/K34"
+     },
+     {
+      "id": "72777864-cdfc-4c34-bf3e-8028e36df331",
+      "code": "K01",
+      "title": "Kategoriya",
+      "category": "marketplace",
+      "description": "Cheklanmagan kategoriya va subkategoriya daraxtini boshqaradi.",
+      "runtime_target": "service_categories",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Cheklanmagan kategoriya va subkategoriya daraxtini boshqaradi.",
+       "plain_language": "Bu konstruktor cheklanmagan kategoriya va subkategoriya daraxtini boshqaradi.",
+       "when_to_use": "Xizmatlar katalogidagi kategoriya va subkategoriya navigatsiyasini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "catalog_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "service_categories",
+         "title": "Xizmatlar katalogi",
+         "route": "/uz/services",
+         "placement": "Kategoriya va subkategoriya navigatsiyasi"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `service_categories` runtime qatlamida ishlaydi va Xizmatlar katalogida aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Yuqori kategoriya qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Nomi."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "marketplace_card",
+        "title": "Kategoriya natijasi",
+        "description": "Forma o‘zgarganda kategoriya va subkategoriya navigatsiyasining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "service_categories"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "marketplace_card",
+       "title": "Kategoriya natijasi",
+       "description": "Forma o‘zgarganda kategoriya va subkategoriya navigatsiyasining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "service_categories"
+       ]
+      },
+      "navigation": {
+       "group_key": "services_packages",
+       "group_title": "Xizmatlar va paketlar",
+       "group_order": 1,
+       "step_number": 2,
+       "step_count": 10,
+       "required_before": [],
+       "recommended_before": [],
+       "next_steps": [
+        "K31"
+       ],
+       "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 2-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [],
+       "list_endpoint": "/studio/constructors/K01/records",
+       "form_context_endpoint": "/studio/constructors/K01/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T13:51:43.016029Z",
+      "record_count": 22,
+      "completed": true,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 6,
+      "required_fields": [
+       "title"
+      ],
+      "detail_url": "/studio/constructors/K01"
+     },
+     {
+      "id": "9239e7a7-608d-4da3-934c-db52e76741fe",
+      "code": "K31",
+      "title": "Xizmat qoidalari",
+      "category": "legal",
+      "description": "Mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+      "runtime_target": "service_rules",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+       "plain_language": "Bu konstruktor mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+       "when_to_use": "Huquqiy hujjatlardagi oferta, rozilik, shart va siyosat matnlarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "legal_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "service_rules",
+         "title": "Huquqiy hujjatlar",
+         "route": "/uz/legal",
+         "placement": "Oferta, rozilik, shart va siyosat matnlari"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `service_rules` runtime qatlamida ishlaydi va Huquqiy hujjatlarda aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Mavjud qoida, Xizmat, Kategoriya qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Yaratish turi, Qoida nomi, Auditoriya, To‘liq qoida, Qo‘llanish sohasi."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "summary",
+        "title": "Xizmat qoidalari natijasi",
+        "description": "Forma o‘zgarganda oferta, rozilik, shart va siyosat matnlarining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "service_rules"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "summary",
+       "title": "Xizmat qoidalari natijasi",
+       "description": "Forma o‘zgarganda oferta, rozilik, shart va siyosat matnlarining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "service_rules"
+       ]
+      },
+      "navigation": {
+       "group_key": "services_packages",
+       "group_title": "Xizmatlar va paketlar",
+       "group_order": 1,
+       "step_number": 3,
+       "step_count": 10,
+       "required_before": [
+        "K01"
+       ],
+       "recommended_before": [],
+       "next_steps": [
+        "K32"
+       ],
+       "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 3-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [],
+       "list_endpoint": "/studio/constructors/K31/records",
+       "form_context_endpoint": "/studio/constructors/K31/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T15:48:30.768190Z",
+      "record_count": 3,
+      "completed": true,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 13,
+      "required_fields": [
+       "creation_mode",
+       "title",
+       "audience",
+       "body",
+       "scope_type"
+      ],
+      "detail_url": "/studio/constructors/K31"
+     },
+     {
+      "id": "5e55826d-5ab3-4afb-b2b5-f45734f8fb72",
+      "code": "K32",
+      "title": "Kafolatlar",
+      "category": "marketplace",
+      "description": "Mijoz, advokat va yuristlar kafolatlarini bitta katalogda boshqaradi. Kafolatning qayerda ko‘rsatilishi K33 orqali sozlanadi.",
+      "runtime_target": "client_guarantees",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Mijoz, advokat va yuristlar kafolatlarini bitta katalogda boshqaradi. Kafolatning qayerda ko‘rsatilishi K33 orqali sozlanadi.",
+       "plain_language": "Bu konstruktor mijoz, advokat va yuristlar kafolatlarini bitta katalogda boshqaradi. Kafolatning qayerda ko‘rsatilishi K33 orqali sozlanadi.",
+       "when_to_use": "Marketplacedagi xizmat, sotuvchi va reklama bloklarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "marketplace_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "client_guarantees",
+         "title": "Marketplace",
+         "route": "/uz/marketplace",
+         "placement": "Xizmat, sotuvchi va reklama bloklari"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `client_guarantees` runtime qatlamida ishlaydi va Marketplaceda aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Qaytarish siyosati qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Kafolat nomi, Kimlar uchun, Kafolat turi, Kafolat tavsifi."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "summary",
+        "title": "Kafolatlar natijasi",
+        "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "client_guarantees"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "summary",
+       "title": "Kafolatlar natijasi",
+       "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "client_guarantees"
+       ]
+      },
+      "navigation": {
+       "group_key": "services_packages",
+       "group_title": "Xizmatlar va paketlar",
+       "group_order": 1,
+       "step_number": 4,
+       "step_count": 10,
+       "required_before": [],
+       "recommended_before": [],
+       "next_steps": [
+        "K33"
+       ],
+       "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 4-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [],
+       "list_endpoint": "/studio/constructors/K32/records",
+       "form_context_endpoint": "/studio/constructors/K32/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T13:51:43.061087Z",
+      "record_count": 1,
+      "completed": true,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 10,
+      "required_fields": [
+       "title",
+       "audiences",
+       "guarantee_type",
+       "description"
+      ],
+      "detail_url": "/studio/constructors/K32"
+     },
+     {
+      "id": "0fd5115c-3154-49e8-9cfc-ec42b7aa1fa4",
+      "code": "K33",
+      "title": "Kafolat ko‘rsatish qoidasi",
+      "category": "marketplace",
+      "description": "Bir formadan bir nechta kafolatni bir nechta joylashuvga bog‘laydi.",
+      "runtime_target": "client_guarantee_placements",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Bir formadan bir nechta kafolatni bir nechta joylashuvga bog‘laydi.",
+       "plain_language": "Bu konstruktor bir formadan bir nechta kafolatni bir nechta joylashuvga bog‘laydi.",
+       "when_to_use": "Marketplacedagi xizmat, sotuvchi va reklama bloklarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "marketplace_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "client_guarantee_placements",
+         "title": "Marketplace",
+         "route": "/uz/marketplace",
+         "placement": "Xizmat, sotuvchi va reklama bloklari"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `client_guarantee_placements` runtime qatlamida ishlaydi va Marketplaceda aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Kafolatlar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Qoida nomi, Kafolatlar, Ko‘rsatish joylari."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "summary",
+        "title": "Kafolat ko‘rsatish qoidasi natijasi",
+        "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "client_guarantee_placements"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "summary",
+       "title": "Kafolat ko‘rsatish qoidasi natijasi",
+       "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "client_guarantee_placements"
+       ]
+      },
+      "navigation": {
+       "group_key": "services_packages",
+       "group_title": "Xizmatlar va paketlar",
+       "group_order": 1,
+       "step_number": 5,
+       "step_count": 10,
+       "required_before": [
+        "K32"
+       ],
+       "recommended_before": [],
+       "next_steps": [
+        "K02"
+       ],
+       "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 5-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [],
+       "list_endpoint": "/studio/constructors/K33/records",
+       "form_context_endpoint": "/studio/constructors/K33/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T13:51:43.062516Z",
+      "record_count": 0,
+      "completed": false,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 5,
+      "required_fields": [
+       "title",
+       "guarantee_ids",
+       "placements"
+      ],
+      "detail_url": "/studio/constructors/K33"
+     },
+     {
+      "id": "418d9ef1-eff1-4462-83a1-b76b2ce113d5",
+      "code": "K02",
+      "title": "Oddiy xizmat",
+      "category": "marketplace",
+      "description": "Studio yaratadigan marketplace xizmatini boshqaradi. Advokat va yuristlar katalogdan tanlab yoqadi.",
+      "runtime_target": "legal_services",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Studio yaratadigan marketplace xizmatini boshqaradi. Advokat va yuristlar katalogdan tanlab yoqadi.",
+       "plain_language": "Bu konstruktor studio yaratadigan marketplace xizmatini boshqaradi. Advokat va yuristlar katalogdan tanlab yoqadi.",
+       "when_to_use": "Marketplacedagi xizmat, sotuvchi va reklama bloklarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "marketplace_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "legal_services",
+         "title": "Marketplace",
+         "route": "/uz/marketplace",
+         "placement": "Xizmat, sotuvchi va reklama bloklari"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `legal_services` runtime qatlamida ishlaydi va Marketplaceda aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Mavjud xizmat, Kategoriya, Katalog shabloni qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Xizmat nomi, Kategoriya, Tavsif, Hujjat shabloni talabi."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "marketplace_card",
+        "title": "Oddiy xizmat natijasi",
+        "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "legal_services"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "marketplace_card",
+       "title": "Oddiy xizmat natijasi",
+       "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "legal_services"
+       ]
+      },
+      "navigation": {
+       "group_key": "services_packages",
+       "group_title": "Xizmatlar va paketlar",
+       "group_order": 1,
+       "step_number": 6,
+       "step_count": 10,
+       "required_before": [
+        "K01"
+       ],
+       "recommended_before": [],
+       "next_steps": [
+        "K29"
+       ],
+       "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 6-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [
+        "service_id"
+       ],
+       "list_endpoint": "/studio/constructors/K02/records",
+       "form_context_endpoint": "/studio/constructors/K02/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T13:51:43.019586Z",
+      "record_count": 8,
+      "completed": true,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 34,
+      "required_fields": [
+       "title",
+       "category_id",
+       "description",
+       "template_mode"
+      ],
+      "detail_url": "/studio/constructors/K02"
+     },
+     {
+      "id": "5575cf7e-3188-4915-9987-6856f1e6f2e2",
+      "code": "K29",
+      "title": "Narxni oshiruvchi tanlovlar",
+      "category": "marketplace",
+      "description": "Xizmat yoki paket uchun optional multi-select narx tanlovlarini boshqaradi.",
+      "runtime_target": "marketplace_price_options",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Xizmat yoki paket uchun optional multi-select narx tanlovlarini boshqaradi.",
+       "plain_language": "Bu konstruktor xizmat yoki paket uchun optional multi-select narx tanlovlarini boshqaradi.",
+       "when_to_use": "Marketplacedagi xizmat, sotuvchi va reklama bloklarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "marketplace_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "marketplace_price_options",
+         "title": "Marketplace",
+         "route": "/uz/marketplace",
+         "placement": "Xizmat, sotuvchi va reklama bloklari"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `marketplace_price_options` runtime qatlamida ishlaydi va Marketplaceda aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Mavjud xizmat, Mavjud paket qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Qo‘llanadigan obyekt, Tanlovlar to‘plami nomi, Bo‘limlar va variantlar."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "summary",
+        "title": "Narxni oshiruvchi tanlovlar natijasi",
+        "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "marketplace_price_options"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "summary",
+       "title": "Narxni oshiruvchi tanlovlar natijasi",
+       "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "marketplace_price_options"
+       ]
+      },
+      "navigation": {
+       "group_key": "services_packages",
+       "group_title": "Xizmatlar va paketlar",
+       "group_order": 1,
+       "step_number": 7,
+       "step_count": 10,
+       "required_before": [
+        "K02"
+       ],
+       "recommended_before": [],
+       "next_steps": [
+        "K35"
+       ],
+       "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 7-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [],
+       "list_endpoint": "/studio/constructors/K29/records",
+       "form_context_endpoint": "/studio/constructors/K29/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T13:51:43.057478Z",
+      "record_count": 0,
+      "completed": false,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 6,
+      "required_fields": [
+       "target_type",
+       "title",
+       "sections"
+      ],
+      "detail_url": "/studio/constructors/K29"
+     },
+     {
+      "id": "741bc9c4-7bd4-4eb8-a3ff-7a4e503e1475",
+      "code": "K35",
+      "title": "Paket darajasi moslik qoidalari",
+      "category": "marketplace",
+      "description": "BASIC, STANDARD va PREMIUM paketlari uchun sotuvchi moslik qoidalarini boshqaradi.",
+      "runtime_target": "package_tier_eligibility",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "BASIC, STANDARD va PREMIUM paketlari uchun sotuvchi moslik qoidalarini boshqaradi.",
+       "plain_language": "Bu konstruktor bASIC, STANDARD va PREMIUM paketlari uchun sotuvchi moslik qoidalarini boshqaradi.",
+       "when_to_use": "Marketplacedagi xizmat, sotuvchi va reklama bloklarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "marketplace_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "package_tier_eligibility",
+         "title": "Marketplace",
+         "route": "/uz/marketplace",
+         "placement": "Xizmat, sotuvchi va reklama bloklari"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `package_tier_eligibility` runtime qatlamida ishlaydi va Marketplaceda aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Ruxsat etilgan kategoriyalar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Qoida nomi, Paket darajasi."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "summary",
+        "title": "Paket darajasi moslik qoidalari natijasi",
+        "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "package_tier_eligibility"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "summary",
+       "title": "Paket darajasi moslik qoidalari natijasi",
+       "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "package_tier_eligibility"
+       ]
+      },
+      "navigation": {
+       "group_key": "services_packages",
+       "group_title": "Xizmatlar va paketlar",
+       "group_order": 1,
+       "step_number": 8,
+       "step_count": 10,
+       "required_before": [
+        "K01"
+       ],
+       "recommended_before": [],
+       "next_steps": [
+        "K03-M"
+       ],
+       "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 8-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [],
+       "list_endpoint": "/studio/constructors/K35/records",
+       "form_context_endpoint": "/studio/constructors/K35/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T13:51:43.064947Z",
+      "record_count": 0,
+      "completed": false,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 11,
+      "required_fields": [
+       "title",
+       "tier"
+      ],
+      "detail_url": "/studio/constructors/K35"
+     },
+     {
+      "id": "0f6858b9-b986-4dd8-a219-32a690055793",
+      "code": "K03-M",
+      "title": "Xizmat paketi",
+      "category": "marketplace",
+      "description": "Mavjud xizmatlar asosida BASIC, STANDARD va PREMIUM variantlarini boshqaradi. Paket kodi backend tomonidan yaratiladi.",
+      "runtime_target": "legal_service_packages",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Mavjud xizmatlar asosida BASIC, STANDARD va PREMIUM variantlarini boshqaradi. Paket kodi backend tomonidan yaratiladi.",
+       "plain_language": "Bu konstruktor mavjud xizmatlar asosida BASIC, STANDARD va PREMIUM variantlarini boshqaradi. Paket kodi backend tomonidan yaratiladi.",
+       "when_to_use": "Marketplacedagi xizmat, sotuvchi va reklama bloklarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "marketplace_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "legal_service_packages",
+         "title": "Marketplace",
+         "route": "/uz/marketplace",
+         "placement": "Xizmat, sotuvchi va reklama bloklari"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `legal_service_packages` runtime qatlamida ishlaydi va Marketplaceda aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Mavjud paket, Kategoriya, Moslik qoidalari qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Paket nomi, Kategoriya, BASIC, STANDARD va PREMIUM variantlari."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "marketplace_card",
+        "title": "Xizmat paketi natijasi",
+        "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "legal_service_packages"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "marketplace_card",
+       "title": "Xizmat paketi natijasi",
+       "description": "Forma o‘zgarganda xizmat, sotuvchi va reklama bloklarining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "legal_service_packages"
+       ]
+      },
+      "navigation": {
+       "group_key": "services_packages",
+       "group_title": "Xizmatlar va paketlar",
+       "group_order": 1,
+       "step_number": 9,
+       "step_count": 10,
+       "required_before": [
+        "K01"
+       ],
+       "recommended_before": [],
+       "next_steps": [
+        "K30"
+       ],
+       "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 9-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [
+        "package_id"
+       ],
+       "list_endpoint": "/studio/constructors/K03-M/records",
+       "form_context_endpoint": "/studio/constructors/K03-M/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T13:51:43.021610Z",
+      "record_count": 0,
+      "completed": false,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 13,
+      "required_fields": [
+       "title",
+       "category_id",
+       "tiers"
+      ],
+      "detail_url": "/studio/constructors/K03-M"
+     },
+     {
+      "id": "fca71133-ca03-4a4e-b4f8-ac2001d32d51",
+      "code": "K30",
+      "title": "Mijoz vaziyati",
+      "category": "catalog",
+      "description": "Mijoz duch keladigan vaziyatni kategoriya, iboralar va tavsiya qilinadigan xizmatlar bilan boshqaradi.",
+      "runtime_target": "client_situations",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Mijoz duch keladigan vaziyatni kategoriya, iboralar va tavsiya qilinadigan xizmatlar bilan boshqaradi.",
+       "plain_language": "Bu konstruktor mijoz duch keladigan vaziyatni kategoriya, iboralar va tavsiya qilinadigan xizmatlar bilan boshqaradi.",
+       "when_to_use": "Xizmatlar katalogidagi kategoriya va subkategoriya navigatsiyasini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "catalog_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "client_situations",
+         "title": "Xizmatlar katalogi",
+         "route": "/uz/services",
+         "placement": "Kategoriya va subkategoriya navigatsiyasi"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `client_situations` runtime qatlamida ishlaydi va Xizmatlar katalogida aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Kategoriya, Tavsiya qilinadigan xizmatlar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Vaziyat nomi, Kategoriya, Vaziyat tavsifi."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "marketplace_card",
+        "title": "Mijoz vaziyati natijasi",
+        "description": "Forma o‘zgarganda kategoriya va subkategoriya navigatsiyasining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "client_situations"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "marketplace_card",
+       "title": "Mijoz vaziyati natijasi",
+       "description": "Forma o‘zgarganda kategoriya va subkategoriya navigatsiyasining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "client_situations"
+       ]
+      },
+      "navigation": {
+       "group_key": "services_packages",
+       "group_title": "Xizmatlar va paketlar",
+       "group_order": 1,
+       "step_number": 10,
+       "step_count": 10,
+       "required_before": [
+        "K01"
+       ],
+       "recommended_before": [
+        "K02"
+       ],
+       "next_steps": [],
+       "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 10-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [],
+       "list_endpoint": "/studio/constructors/K30/records",
+       "form_context_endpoint": "/studio/constructors/K30/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T13:51:43.058593Z",
+      "record_count": 0,
+      "completed": false,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 7,
+      "required_fields": [
+       "title",
+       "category_id",
+       "description"
+      ],
+      "detail_url": "/studio/constructors/K30"
+     }
+    ],
+    "visible_constructor_count": 10,
+    "completed_count": 5,
+    "available_count": 10,
+    "progress_percent": 50,
+    "next_constructor_code": "K33"
+   }
+  ],
+  "journeys": []
+ },
+ "k31": {
+  "id": "9239e7a7-608d-4da3-934c-db52e76741fe",
+  "code": "K31",
+  "title": "Xizmat qoidalari",
+  "category": "legal",
+  "description": "Mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+  "runtime_target": "service_rules",
+  "schema": {
+   "version": 3,
+   "required": [
+    "creation_mode",
+    "title",
+    "audience",
+    "body",
+    "scope_type"
+   ],
+   "fields": [
+    {
+     "key": "creation_mode",
+     "name": "creation_mode",
+     "label": "Yaratish turi",
+     "type": "select",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Yaratish turi uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "creation_mode",
+     "options": [
+      "new",
+      "new_version"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 1
+     },
+     "example": "new"
+    },
+    {
+     "key": "existing_rule_id",
+     "name": "existing_rule_id",
+     "label": "Mavjud qoida",
+     "type": "select",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Mavjud qoida uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+     "runtime_path": "existing_rule_id",
+     "source": "/studio/reference/service-rules",
+     "visible_when": {
+      "field": "creation_mode",
+      "equals": "new_version"
+     },
+     "default": null,
+     "ui": {
+      "component": "search_select",
+      "order": 2
+     },
+     "example": "<reference-id>"
+    },
+    {
+     "key": "rule_key",
+     "name": "rule_key",
+     "label": "Qoida kaliti",
+     "type": "text",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Backend yangi qoida uchun avtomatik yaratadi",
+     "runtime_path": "rule_key",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 3
+     },
+     "example": "rule_key_misol",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "title",
+     "name": "title",
+     "label": "Qoida nomi",
+     "type": "text",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+     "runtime_path": "title",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 4
+     },
+     "example": "Shartnomani huquqiy tekshirish",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "version",
+     "name": "version",
+     "label": "Versiya",
+     "type": "text",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Yangi versiya rejimida backend keyingi versiyani avtomatik belgilaydi",
+     "runtime_path": "version",
+     "auto_generated_when": {
+      "field": "creation_mode",
+      "equals": "new_version"
+     },
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 5
+     },
+     "example": "version_misol",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "audience",
+     "name": "audience",
+     "label": "Auditoriya",
+     "type": "select",
+     "required": true,
+     "section": "Kirish va auditoriya",
+     "help_text": "Auditoriya uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "audience",
+     "options": [
+      "client",
+      "executor"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 6
+     },
+     "example": "client"
+    },
+    {
+     "key": "body",
+     "name": "body",
+     "label": "To‘liq qoida",
+     "type": "richtext",
+     "required": true,
+     "section": "Kontent",
+     "help_text": "To‘liq qoida matnini foydalanuvchiga tayyor ko‘rinishda yozing.",
+     "runtime_path": "body",
+     "default": null,
+     "ui": {
+      "component": "richtext",
+      "order": 7
+     },
+     "example": "body_misol",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "scope_type",
+     "name": "scope_type",
+     "label": "Qo‘llanish sohasi",
+     "type": "select",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Qo‘llanish sohasi uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "scope_type",
+     "options": [
+      "global",
+      "service",
+      "category"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 8
+     },
+     "example": "global"
+    },
+    {
+     "key": "service_id",
+     "name": "service_id",
+     "label": "Xizmat",
+     "type": "select",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Qoida yoki konfiguratsiya qo‘llanadigan mavjud xizmatni tanlang.",
+     "runtime_path": "service_id",
+     "source": "/studio/reference/services",
+     "visible_when": {
+      "field": "scope_type",
+      "equals": "service"
+     },
+     "default": null,
+     "ui": {
+      "component": "search_select",
+      "order": 9
+     },
+     "example": "<reference-id>"
+    },
+    {
+     "key": "category_id",
+     "name": "category_id",
+     "label": "Kategoriya",
+     "type": "select",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Element ko‘rinadigan xizmat kategoriyasini tanlang.",
+     "runtime_path": "category_id",
+     "source": "/studio/reference/service-categories",
+     "visible_when": {
+      "field": "scope_type",
+      "equals": "category"
+     },
+     "default": null,
+     "ui": {
+      "component": "search_select",
+      "order": 10
+     },
+     "example": "<reference-id>"
+    },
+    {
+     "key": "seller_selectable",
+     "name": "seller_selectable",
+     "label": "Ijrochi tanlay oladi",
+     "type": "boolean",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Ijrochi tanlay oladi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+     "runtime_path": "seller_selectable",
+     "default": false,
+     "ui": {
+      "component": "boolean",
+      "order": 11
+     },
+     "example": true
+    },
+    {
+     "key": "effective_at",
+     "name": "effective_at",
+     "label": "Kuchga kirish",
+     "type": "datetime",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Kuchga kirish sanasini tizim vaqt zonasiga mos kiriting.",
+     "runtime_path": "effective_at",
+     "default": null,
+     "ui": {
+      "component": "datetime",
+      "order": 12
+     },
+     "example": "2026-10-12T10:00:00+05:00"
+    },
+    {
+     "key": "is_active",
+     "name": "is_active",
+     "label": "Faol",
+     "type": "boolean",
+     "required": false,
+     "section": "Faollik va muddat",
+     "help_text": "Yoqilsa element tegishli foydalanuvchi ekranlarida ishlay boshlaydi.",
+     "runtime_path": "is_active",
+     "default": false,
+     "ui": {
+      "component": "boolean",
+      "order": 13
+     },
+     "example": true
+    }
+   ],
+   "select_sources": {
+    "existing_rule_id": "/studio/reference/service-rules",
+    "service_id": "/studio/reference/services",
+    "category_id": "/studio/reference/service-categories"
+   },
+   "sections": [
+    {
+     "key": "asosiy",
+     "title": "Asosiy",
+     "order": 1,
+     "fields": [
+      {
+       "key": "creation_mode",
+       "name": "creation_mode",
+       "label": "Yaratish turi",
+       "type": "select",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Yaratish turi uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "creation_mode",
+       "options": [
+        "new",
+        "new_version"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 1
+       },
+       "example": "new"
+      },
+      {
+       "key": "existing_rule_id",
+       "name": "existing_rule_id",
+       "label": "Mavjud qoida",
+       "type": "select",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Mavjud qoida uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+       "runtime_path": "existing_rule_id",
+       "source": "/studio/reference/service-rules",
+       "visible_when": {
+        "field": "creation_mode",
+        "equals": "new_version"
+       },
+       "default": null,
+       "ui": {
+        "component": "search_select",
+        "order": 2
+       },
+       "example": "<reference-id>"
+      },
+      {
+       "key": "rule_key",
+       "name": "rule_key",
+       "label": "Qoida kaliti",
+       "type": "text",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Backend yangi qoida uchun avtomatik yaratadi",
+       "runtime_path": "rule_key",
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 3
+       },
+       "example": "rule_key_misol",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      },
+      {
+       "key": "title",
+       "name": "title",
+       "label": "Qoida nomi",
+       "type": "text",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+       "runtime_path": "title",
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 4
+       },
+       "example": "Shartnomani huquqiy tekshirish",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      },
+      {
+       "key": "version",
+       "name": "version",
+       "label": "Versiya",
+       "type": "text",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Yangi versiya rejimida backend keyingi versiyani avtomatik belgilaydi",
+       "runtime_path": "version",
+       "auto_generated_when": {
+        "field": "creation_mode",
+        "equals": "new_version"
+       },
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 5
+       },
+       "example": "version_misol",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      },
+      {
+       "key": "scope_type",
+       "name": "scope_type",
+       "label": "Qo‘llanish sohasi",
+       "type": "select",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Qo‘llanish sohasi uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "scope_type",
+       "options": [
+        "global",
+        "service",
+        "category"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 8
+       },
+       "example": "global"
+      },
+      {
+       "key": "service_id",
+       "name": "service_id",
+       "label": "Xizmat",
+       "type": "select",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Qoida yoki konfiguratsiya qo‘llanadigan mavjud xizmatni tanlang.",
+       "runtime_path": "service_id",
+       "source": "/studio/reference/services",
+       "visible_when": {
+        "field": "scope_type",
+        "equals": "service"
+       },
+       "default": null,
+       "ui": {
+        "component": "search_select",
+        "order": 9
+       },
+       "example": "<reference-id>"
+      },
+      {
+       "key": "category_id",
+       "name": "category_id",
+       "label": "Kategoriya",
+       "type": "select",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Element ko‘rinadigan xizmat kategoriyasini tanlang.",
+       "runtime_path": "category_id",
+       "source": "/studio/reference/service-categories",
+       "visible_when": {
+        "field": "scope_type",
+        "equals": "category"
+       },
+       "default": null,
+       "ui": {
+        "component": "search_select",
+        "order": 10
+       },
+       "example": "<reference-id>"
+      },
+      {
+       "key": "seller_selectable",
+       "name": "seller_selectable",
+       "label": "Ijrochi tanlay oladi",
+       "type": "boolean",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Ijrochi tanlay oladi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "runtime_path": "seller_selectable",
+       "default": false,
+       "ui": {
+        "component": "boolean",
+        "order": 11
+       },
+       "example": true
+      },
+      {
+       "key": "effective_at",
+       "name": "effective_at",
+       "label": "Kuchga kirish",
+       "type": "datetime",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Kuchga kirish sanasini tizim vaqt zonasiga mos kiriting.",
+       "runtime_path": "effective_at",
+       "default": null,
+       "ui": {
+        "component": "datetime",
+        "order": 12
+       },
+       "example": "2026-10-12T10:00:00+05:00"
+      }
+     ]
+    },
+    {
+     "key": "kirish_va_auditoriya",
+     "title": "Kirish va auditoriya",
+     "order": 2,
+     "fields": [
+      {
+       "key": "audience",
+       "name": "audience",
+       "label": "Auditoriya",
+       "type": "select",
+       "required": true,
+       "section": "Kirish va auditoriya",
+       "help_text": "Auditoriya uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "audience",
+       "options": [
+        "client",
+        "executor"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 6
+       },
+       "example": "client"
+      }
+     ]
+    },
+    {
+     "key": "kontent",
+     "title": "Kontent",
+     "order": 3,
+     "fields": [
+      {
+       "key": "body",
+       "name": "body",
+       "label": "To‘liq qoida",
+       "type": "richtext",
+       "required": true,
+       "section": "Kontent",
+       "help_text": "To‘liq qoida matnini foydalanuvchiga tayyor ko‘rinishda yozing.",
+       "runtime_path": "body",
+       "default": null,
+       "ui": {
+        "component": "richtext",
+        "order": 7
+       },
+       "example": "body_misol",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      }
+     ]
+    },
+    {
+     "key": "faollik_va_muddat",
+     "title": "Faollik va muddat",
+     "order": 4,
+     "fields": [
+      {
+       "key": "is_active",
+       "name": "is_active",
+       "label": "Faol",
+       "type": "boolean",
+       "required": false,
+       "section": "Faollik va muddat",
+       "help_text": "Yoqilsa element tegishli foydalanuvchi ekranlarida ishlay boshlaydi.",
+       "runtime_path": "is_active",
+       "default": false,
+       "ui": {
+        "component": "boolean",
+        "order": 13
+       },
+       "example": true
+      }
+     ]
+    }
+   ],
+   "purpose": "Mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+   "runtime_target": "service_rules",
+   "capabilities": [
+    "draft",
+    "validate",
+    "preview",
+    "submit",
+    "approve",
+    "publish",
+    "rollback"
+   ],
+   "experience": {
+    "metadata_version": 1,
+    "purpose": "Mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+    "plain_language": "Bu konstruktor mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+    "when_to_use": "Huquqiy hujjatlardagi oferta, rozilik, shart va siyosat matnlarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+    "managed_by": [
+     "studio_editor",
+     "legal_manager"
+    ],
+    "where_used": [
+     {
+      "surface_key": "service_rules",
+      "title": "Huquqiy hujjatlar",
+      "route": "/uz/legal",
+      "placement": "Oferta, rozilik, shart va siyosat matnlari"
+     }
+    ],
+    "result": "Publish qilingandan keyin yangi konfiguratsiya `service_rules` runtime qatlamida ishlaydi va Huquqiy hujjatlarda aks etadi.",
+    "workflow": [
+     {
+      "step": 1,
+      "title": "Bog‘liq ma’lumotni tanlang",
+      "description": "Avval Mavjud qoida, Xizmat, Kategoriya qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+     },
+     {
+      "step": 2,
+      "title": "Asosiy maydonlarni to‘ldiring",
+      "description": "Majburiy maydonlar: Yaratish turi, Qoida nomi, Auditoriya, To‘liq qoida, Qo‘llanish sohasi."
+     },
+     {
+      "step": 3,
+      "title": "Natijani tekshiring",
+      "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+     },
+     {
+      "step": 4,
+      "title": "Saqlang va tasdiqlashga yuboring",
+      "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+     }
+    ],
+    "visual_preview": {
+     "type": "summary",
+     "title": "Xizmat qoidalari natijasi",
+     "description": "Forma o‘zgarganda oferta, rozilik, shart va siyosat matnlarining taxminiy ko‘rinishini darhol yangilang.",
+     "data_source": "payload",
+     "refresh": "on_change",
+     "surface_keys": [
+      "service_rules"
+     ]
+    },
+    "novice_notes": [
+     "Qizil yulduzchali maydonlar majburiy.",
+     "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+     "Preview real ma’lumotni o‘zgartirmaydi.",
+     "Publishdan oldin diff va warninglarni tekshiring."
+    ],
+    "publish_checklist": [
+     "Majburiy maydonlar to‘ldirilgan",
+     "Reference qiymatlar mavjud",
+     "Preview kutilgan natijani ko‘rsatmoqda",
+     "Validatsiya xatosiz",
+     "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+    ],
+    "risk_level": "medium",
+    "warnings": [
+     "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+    ]
+   },
+   "navigation": {
+    "group_key": "services_packages",
+    "group_title": "Xizmatlar va paketlar",
+    "group_order": 1,
+    "step_number": 3,
+    "step_count": 10,
+    "required_before": [
+     "K01"
+    ],
+    "recommended_before": [],
+    "next_steps": [
+     "K32"
+    ],
+    "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 3-navbatda bajariladi.",
+    "ui_visible": true,
+    "managed_by": "studio"
+   },
+   "operations": {
+    "supported": [
+     "create",
+     "view",
+     "edit",
+     "clone",
+     "archive"
+    ],
+    "default": "list",
+    "identity_source": "route_context",
+    "context_fields": [],
+    "list_endpoint": "/studio/constructors/K31/records",
+    "form_context_endpoint": "/studio/constructors/K31/form-context",
+    "clone_endpoint": "/studio/objects/{object_id}/clone",
+    "archive_endpoint": "/studio/objects/{object_id}/archive"
+   }
+  },
+  "ui_schema": {
+   "sections": [
+    {
+     "key": "asosiy",
+     "title": "Asosiy",
+     "order": 1,
+     "fields": [
+      {
+       "key": "creation_mode",
+       "name": "creation_mode",
+       "label": "Yaratish turi",
+       "type": "select",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Yaratish turi uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "creation_mode",
+       "options": [
+        "new",
+        "new_version"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 1
+       },
+       "example": "new"
+      },
+      {
+       "key": "existing_rule_id",
+       "name": "existing_rule_id",
+       "label": "Mavjud qoida",
+       "type": "select",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Mavjud qoida uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+       "runtime_path": "existing_rule_id",
+       "source": "/studio/reference/service-rules",
+       "visible_when": {
+        "field": "creation_mode",
+        "equals": "new_version"
+       },
+       "default": null,
+       "ui": {
+        "component": "search_select",
+        "order": 2
+       },
+       "example": "<reference-id>"
+      },
+      {
+       "key": "rule_key",
+       "name": "rule_key",
+       "label": "Qoida kaliti",
+       "type": "text",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Backend yangi qoida uchun avtomatik yaratadi",
+       "runtime_path": "rule_key",
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 3
+       },
+       "example": "rule_key_misol",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      },
+      {
+       "key": "title",
+       "name": "title",
+       "label": "Qoida nomi",
+       "type": "text",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+       "runtime_path": "title",
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 4
+       },
+       "example": "Shartnomani huquqiy tekshirish",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      },
+      {
+       "key": "version",
+       "name": "version",
+       "label": "Versiya",
+       "type": "text",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Yangi versiya rejimida backend keyingi versiyani avtomatik belgilaydi",
+       "runtime_path": "version",
+       "auto_generated_when": {
+        "field": "creation_mode",
+        "equals": "new_version"
+       },
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 5
+       },
+       "example": "version_misol",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      },
+      {
+       "key": "scope_type",
+       "name": "scope_type",
+       "label": "Qo‘llanish sohasi",
+       "type": "select",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Qo‘llanish sohasi uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "scope_type",
+       "options": [
+        "global",
+        "service",
+        "category"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 8
+       },
+       "example": "global"
+      },
+      {
+       "key": "service_id",
+       "name": "service_id",
+       "label": "Xizmat",
+       "type": "select",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Qoida yoki konfiguratsiya qo‘llanadigan mavjud xizmatni tanlang.",
+       "runtime_path": "service_id",
+       "source": "/studio/reference/services",
+       "visible_when": {
+        "field": "scope_type",
+        "equals": "service"
+       },
+       "default": null,
+       "ui": {
+        "component": "search_select",
+        "order": 9
+       },
+       "example": "<reference-id>"
+      },
+      {
+       "key": "category_id",
+       "name": "category_id",
+       "label": "Kategoriya",
+       "type": "select",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Element ko‘rinadigan xizmat kategoriyasini tanlang.",
+       "runtime_path": "category_id",
+       "source": "/studio/reference/service-categories",
+       "visible_when": {
+        "field": "scope_type",
+        "equals": "category"
+       },
+       "default": null,
+       "ui": {
+        "component": "search_select",
+        "order": 10
+       },
+       "example": "<reference-id>"
+      },
+      {
+       "key": "seller_selectable",
+       "name": "seller_selectable",
+       "label": "Ijrochi tanlay oladi",
+       "type": "boolean",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Ijrochi tanlay oladi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "runtime_path": "seller_selectable",
+       "default": false,
+       "ui": {
+        "component": "boolean",
+        "order": 11
+       },
+       "example": true
+      },
+      {
+       "key": "effective_at",
+       "name": "effective_at",
+       "label": "Kuchga kirish",
+       "type": "datetime",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Kuchga kirish sanasini tizim vaqt zonasiga mos kiriting.",
+       "runtime_path": "effective_at",
+       "default": null,
+       "ui": {
+        "component": "datetime",
+        "order": 12
+       },
+       "example": "2026-10-12T10:00:00+05:00"
+      }
+     ]
+    },
+    {
+     "key": "kirish_va_auditoriya",
+     "title": "Kirish va auditoriya",
+     "order": 2,
+     "fields": [
+      {
+       "key": "audience",
+       "name": "audience",
+       "label": "Auditoriya",
+       "type": "select",
+       "required": true,
+       "section": "Kirish va auditoriya",
+       "help_text": "Auditoriya uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "audience",
+       "options": [
+        "client",
+        "executor"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 6
+       },
+       "example": "client"
+      }
+     ]
+    },
+    {
+     "key": "kontent",
+     "title": "Kontent",
+     "order": 3,
+     "fields": [
+      {
+       "key": "body",
+       "name": "body",
+       "label": "To‘liq qoida",
+       "type": "richtext",
+       "required": true,
+       "section": "Kontent",
+       "help_text": "To‘liq qoida matnini foydalanuvchiga tayyor ko‘rinishda yozing.",
+       "runtime_path": "body",
+       "default": null,
+       "ui": {
+        "component": "richtext",
+        "order": 7
+       },
+       "example": "body_misol",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      }
+     ]
+    },
+    {
+     "key": "faollik_va_muddat",
+     "title": "Faollik va muddat",
+     "order": 4,
+     "fields": [
+      {
+       "key": "is_active",
+       "name": "is_active",
+       "label": "Faol",
+       "type": "boolean",
+       "required": false,
+       "section": "Faollik va muddat",
+       "help_text": "Yoqilsa element tegishli foydalanuvchi ekranlarida ishlay boshlaydi.",
+       "runtime_path": "is_active",
+       "default": false,
+       "ui": {
+        "component": "boolean",
+        "order": 13
+       },
+       "example": true
+      }
+     ]
+    }
+   ],
+   "purpose": "Mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+   "runtime_target": "service_rules",
+   "experience": {
+    "metadata_version": 1,
+    "purpose": "Mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+    "plain_language": "Bu konstruktor mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+    "when_to_use": "Huquqiy hujjatlardagi oferta, rozilik, shart va siyosat matnlarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+    "managed_by": [
+     "studio_editor",
+     "legal_manager"
+    ],
+    "where_used": [
+     {
+      "surface_key": "service_rules",
+      "title": "Huquqiy hujjatlar",
+      "route": "/uz/legal",
+      "placement": "Oferta, rozilik, shart va siyosat matnlari"
+     }
+    ],
+    "result": "Publish qilingandan keyin yangi konfiguratsiya `service_rules` runtime qatlamida ishlaydi va Huquqiy hujjatlarda aks etadi.",
+    "workflow": [
+     {
+      "step": 1,
+      "title": "Bog‘liq ma’lumotni tanlang",
+      "description": "Avval Mavjud qoida, Xizmat, Kategoriya qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+     },
+     {
+      "step": 2,
+      "title": "Asosiy maydonlarni to‘ldiring",
+      "description": "Majburiy maydonlar: Yaratish turi, Qoida nomi, Auditoriya, To‘liq qoida, Qo‘llanish sohasi."
+     },
+     {
+      "step": 3,
+      "title": "Natijani tekshiring",
+      "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+     },
+     {
+      "step": 4,
+      "title": "Saqlang va tasdiqlashga yuboring",
+      "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+     }
+    ],
+    "visual_preview": {
+     "type": "summary",
+     "title": "Xizmat qoidalari natijasi",
+     "description": "Forma o‘zgarganda oferta, rozilik, shart va siyosat matnlarining taxminiy ko‘rinishini darhol yangilang.",
+     "data_source": "payload",
+     "refresh": "on_change",
+     "surface_keys": [
+      "service_rules"
+     ]
+    },
+    "novice_notes": [
+     "Qizil yulduzchali maydonlar majburiy.",
+     "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+     "Preview real ma’lumotni o‘zgartirmaydi.",
+     "Publishdan oldin diff va warninglarni tekshiring."
+    ],
+    "publish_checklist": [
+     "Majburiy maydonlar to‘ldirilgan",
+     "Reference qiymatlar mavjud",
+     "Preview kutilgan natijani ko‘rsatmoqda",
+     "Validatsiya xatosiz",
+     "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+    ],
+    "risk_level": "medium",
+    "warnings": [
+     "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+    ]
+   },
+   "visual_preview": {
+    "type": "summary",
+    "title": "Xizmat qoidalari natijasi",
+    "description": "Forma o‘zgarganda oferta, rozilik, shart va siyosat matnlarining taxminiy ko‘rinishini darhol yangilang.",
+    "data_source": "payload",
+    "refresh": "on_change",
+    "surface_keys": [
+     "service_rules"
+    ]
+   },
+   "navigation": {
+    "group_key": "services_packages",
+    "group_title": "Xizmatlar va paketlar",
+    "group_order": 1,
+    "step_number": 3,
+    "step_count": 10,
+    "required_before": [
+     "K01"
+    ],
+    "recommended_before": [],
+    "next_steps": [
+     "K32"
+    ],
+    "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 3-navbatda bajariladi.",
+    "ui_visible": true,
+    "managed_by": "studio"
+   },
+   "operations": {
+    "supported": [
+     "create",
+     "view",
+     "edit",
+     "clone",
+     "archive"
+    ],
+    "default": "list",
+    "identity_source": "route_context",
+    "context_fields": [],
+    "list_endpoint": "/studio/constructors/K31/records",
+    "form_context_endpoint": "/studio/constructors/K31/form-context",
+    "clone_endpoint": "/studio/objects/{object_id}/clone",
+    "archive_endpoint": "/studio/objects/{object_id}/archive"
+   }
+  },
+  "experience": {
+   "metadata_version": 1,
+   "purpose": "Mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+   "plain_language": "Bu konstruktor mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+   "when_to_use": "Huquqiy hujjatlardagi oferta, rozilik, shart va siyosat matnlarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+   "managed_by": [
+    "studio_editor",
+    "legal_manager"
+   ],
+   "where_used": [
+    {
+     "surface_key": "service_rules",
+     "title": "Huquqiy hujjatlar",
+     "route": "/uz/legal",
+     "placement": "Oferta, rozilik, shart va siyosat matnlari"
+    }
+   ],
+   "result": "Publish qilingandan keyin yangi konfiguratsiya `service_rules` runtime qatlamida ishlaydi va Huquqiy hujjatlarda aks etadi.",
+   "workflow": [
+    {
+     "step": 1,
+     "title": "Bog‘liq ma’lumotni tanlang",
+     "description": "Avval Mavjud qoida, Xizmat, Kategoriya qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+    },
+    {
+     "step": 2,
+     "title": "Asosiy maydonlarni to‘ldiring",
+     "description": "Majburiy maydonlar: Yaratish turi, Qoida nomi, Auditoriya, To‘liq qoida, Qo‘llanish sohasi."
+    },
+    {
+     "step": 3,
+     "title": "Natijani tekshiring",
+     "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+    },
+    {
+     "step": 4,
+     "title": "Saqlang va tasdiqlashga yuboring",
+     "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+    }
+   ],
+   "visual_preview": {
+    "type": "summary",
+    "title": "Xizmat qoidalari natijasi",
+    "description": "Forma o‘zgarganda oferta, rozilik, shart va siyosat matnlarining taxminiy ko‘rinishini darhol yangilang.",
+    "data_source": "payload",
+    "refresh": "on_change",
+    "surface_keys": [
+     "service_rules"
+    ]
+   },
+   "novice_notes": [
+    "Qizil yulduzchali maydonlar majburiy.",
+    "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+    "Preview real ma’lumotni o‘zgartirmaydi.",
+    "Publishdan oldin diff va warninglarni tekshiring."
+   ],
+   "publish_checklist": [
+    "Majburiy maydonlar to‘ldirilgan",
+    "Reference qiymatlar mavjud",
+    "Preview kutilgan natijani ko‘rsatmoqda",
+    "Validatsiya xatosiz",
+    "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+   ],
+   "risk_level": "medium",
+   "warnings": [
+    "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+   ]
+  },
+  "visual_preview": {
+   "type": "summary",
+   "title": "Xizmat qoidalari natijasi",
+   "description": "Forma o‘zgarganda oferta, rozilik, shart va siyosat matnlarining taxminiy ko‘rinishini darhol yangilang.",
+   "data_source": "payload",
+   "refresh": "on_change",
+   "surface_keys": [
+    "service_rules"
+   ]
+  },
+  "navigation": {
+   "group_key": "services_packages",
+   "group_title": "Xizmatlar va paketlar",
+   "group_order": 1,
+   "step_number": 3,
+   "step_count": 10,
+   "required_before": [
+    "K01"
+   ],
+   "recommended_before": [],
+   "next_steps": [
+    "K32"
+   ],
+   "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 3-navbatda bajariladi.",
+   "ui_visible": true,
+   "managed_by": "studio"
+  },
+  "operations": {
+   "supported": [
+    "create",
+    "view",
+    "edit",
+    "clone",
+    "archive"
+   ],
+   "default": "list",
+   "identity_source": "route_context",
+   "context_fields": [],
+   "list_endpoint": "/studio/constructors/K31/records",
+   "form_context_endpoint": "/studio/constructors/K31/form-context",
+   "clone_endpoint": "/studio/objects/{object_id}/clone",
+   "archive_endpoint": "/studio/objects/{object_id}/archive"
+  },
+  "capabilities": [
+   "draft",
+   "validate",
+   "preview",
+   "submit",
+   "approve",
+   "publish",
+   "rollback"
+  ],
+  "definition_version": 3,
+  "default_payload": {
+   "seller_selectable": false,
+   "is_active": false
+  },
+  "dependency_rules": {
+   "items": [],
+   "policy_section": ""
+  },
+  "approval_required": true,
+  "is_active": true,
+  "updated_at": "2026-10-23T15:48:30.768190Z",
+  "references": [
+   "/studio/reference/service-categories",
+   "/studio/reference/service-rules",
+   "/studio/reference/services"
+  ],
+  "approval_route": {
+   "id": "default",
+   "scope_type": "global",
+   "scope_key": "*",
+   "source": "default",
+   "title": "Primary superadmin approval",
+   "steps": [],
+   "final_action": "publish",
+   "allow_self_approval": false,
+   "change_request_restart": "current",
+   "deadline_hours": 24,
+   "require_primary_superadmin": true,
+   "auto_publish_when_empty": true,
+   "settings": {},
+   "route_version": 1
+  }
+ },
+ "formContext": {
+  "mode": "create",
+  "constructor_code": "K31",
+  "constructor_title": "Xizmat qoidalari",
+  "title": "",
+  "schema": {
+   "version": 3,
+   "required": [
+    "creation_mode",
+    "title",
+    "audience",
+    "body",
+    "scope_type"
+   ],
+   "fields": [
+    {
+     "key": "creation_mode",
+     "name": "creation_mode",
+     "label": "Yaratish turi",
+     "type": "select",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Yaratish turi uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "creation_mode",
+     "options": [
+      "new",
+      "new_version"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 1
+     },
+     "example": "new"
+    },
+    {
+     "key": "existing_rule_id",
+     "name": "existing_rule_id",
+     "label": "Mavjud qoida",
+     "type": "select",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Mavjud qoida uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+     "runtime_path": "existing_rule_id",
+     "source": "/studio/reference/service-rules",
+     "visible_when": {
+      "field": "creation_mode",
+      "equals": "new_version"
+     },
+     "default": null,
+     "ui": {
+      "component": "search_select",
+      "order": 2
+     },
+     "example": "<reference-id>"
+    },
+    {
+     "key": "rule_key",
+     "name": "rule_key",
+     "label": "Qoida kaliti",
+     "type": "text",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Backend yangi qoida uchun avtomatik yaratadi",
+     "runtime_path": "rule_key",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 3
+     },
+     "example": "rule_key_misol",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "title",
+     "name": "title",
+     "label": "Qoida nomi",
+     "type": "text",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+     "runtime_path": "title",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 4
+     },
+     "example": "Shartnomani huquqiy tekshirish",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "version",
+     "name": "version",
+     "label": "Versiya",
+     "type": "text",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Yangi versiya rejimida backend keyingi versiyani avtomatik belgilaydi",
+     "runtime_path": "version",
+     "auto_generated_when": {
+      "field": "creation_mode",
+      "equals": "new_version"
+     },
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 5
+     },
+     "example": "version_misol",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "audience",
+     "name": "audience",
+     "label": "Auditoriya",
+     "type": "select",
+     "required": true,
+     "section": "Kirish va auditoriya",
+     "help_text": "Auditoriya uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "audience",
+     "options": [
+      "client",
+      "executor"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 6
+     },
+     "example": "client"
+    },
+    {
+     "key": "body",
+     "name": "body",
+     "label": "To‘liq qoida",
+     "type": "richtext",
+     "required": true,
+     "section": "Kontent",
+     "help_text": "To‘liq qoida matnini foydalanuvchiga tayyor ko‘rinishda yozing.",
+     "runtime_path": "body",
+     "default": null,
+     "ui": {
+      "component": "richtext",
+      "order": 7
+     },
+     "example": "body_misol",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "scope_type",
+     "name": "scope_type",
+     "label": "Qo‘llanish sohasi",
+     "type": "select",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Qo‘llanish sohasi uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "scope_type",
+     "options": [
+      "global",
+      "service",
+      "category"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 8
+     },
+     "example": "global"
+    },
+    {
+     "key": "service_id",
+     "name": "service_id",
+     "label": "Xizmat",
+     "type": "select",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Qoida yoki konfiguratsiya qo‘llanadigan mavjud xizmatni tanlang.",
+     "runtime_path": "service_id",
+     "source": "/studio/reference/services",
+     "visible_when": {
+      "field": "scope_type",
+      "equals": "service"
+     },
+     "default": null,
+     "ui": {
+      "component": "search_select",
+      "order": 9
+     },
+     "example": "<reference-id>"
+    },
+    {
+     "key": "category_id",
+     "name": "category_id",
+     "label": "Kategoriya",
+     "type": "select",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Element ko‘rinadigan xizmat kategoriyasini tanlang.",
+     "runtime_path": "category_id",
+     "source": "/studio/reference/service-categories",
+     "visible_when": {
+      "field": "scope_type",
+      "equals": "category"
+     },
+     "default": null,
+     "ui": {
+      "component": "search_select",
+      "order": 10
+     },
+     "example": "<reference-id>"
+    },
+    {
+     "key": "seller_selectable",
+     "name": "seller_selectable",
+     "label": "Ijrochi tanlay oladi",
+     "type": "boolean",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Ijrochi tanlay oladi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+     "runtime_path": "seller_selectable",
+     "default": false,
+     "ui": {
+      "component": "boolean",
+      "order": 11
+     },
+     "example": true
+    },
+    {
+     "key": "effective_at",
+     "name": "effective_at",
+     "label": "Kuchga kirish",
+     "type": "datetime",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Kuchga kirish sanasini tizim vaqt zonasiga mos kiriting.",
+     "runtime_path": "effective_at",
+     "default": null,
+     "ui": {
+      "component": "datetime",
+      "order": 12
+     },
+     "example": "2026-10-12T10:00:00+05:00"
+    },
+    {
+     "key": "is_active",
+     "name": "is_active",
+     "label": "Faol",
+     "type": "boolean",
+     "required": false,
+     "section": "Faollik va muddat",
+     "help_text": "Yoqilsa element tegishli foydalanuvchi ekranlarida ishlay boshlaydi.",
+     "runtime_path": "is_active",
+     "default": false,
+     "ui": {
+      "component": "boolean",
+      "order": 13
+     },
+     "example": true
+    }
+   ],
+   "select_sources": {
+    "existing_rule_id": "/studio/reference/service-rules",
+    "service_id": "/studio/reference/services",
+    "category_id": "/studio/reference/service-categories"
+   },
+   "mode": "create",
+   "context_fields": []
+  },
+  "sections": [
+   {
+    "key": "asosiy",
+    "title": "Asosiy",
+    "order": 1,
+    "fields": [
+     {
+      "key": "creation_mode",
+      "name": "creation_mode",
+      "label": "Yaratish turi",
+      "type": "select",
+      "required": true,
+      "section": "Asosiy",
+      "help_text": "Yaratish turi uchun ruxsat etilgan variantlardan birini tanlang.",
+      "runtime_path": "creation_mode",
+      "options": [
+       "new",
+       "new_version"
+      ],
+      "default": null,
+      "ui": {
+       "component": "select",
+       "order": 1
+      },
+      "example": "new"
+     },
+     {
+      "key": "existing_rule_id",
+      "name": "existing_rule_id",
+      "label": "Mavjud qoida",
+      "type": "select",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Mavjud qoida uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+      "runtime_path": "existing_rule_id",
+      "source": "/studio/reference/service-rules",
+      "visible_when": {
+       "field": "creation_mode",
+       "equals": "new_version"
+      },
+      "default": null,
+      "ui": {
+       "component": "search_select",
+       "order": 2
+      },
+      "example": "<reference-id>"
+     },
+     {
+      "key": "rule_key",
+      "name": "rule_key",
+      "label": "Qoida kaliti",
+      "type": "text",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Backend yangi qoida uchun avtomatik yaratadi",
+      "runtime_path": "rule_key",
+      "default": null,
+      "ui": {
+       "component": "text",
+       "order": 3
+      },
+      "example": "rule_key_misol",
+      "ai_assist": {
+       "enabled": true,
+       "endpoint": "/studio/ai/field-suggestions",
+       "method": "POST",
+       "requires_confirmation": true,
+       "provider": "openai",
+       "fallback": false,
+       "response_count": 3
+      }
+     },
+     {
+      "key": "title",
+      "name": "title",
+      "label": "Qoida nomi",
+      "type": "text",
+      "required": true,
+      "section": "Asosiy",
+      "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+      "runtime_path": "title",
+      "default": null,
+      "ui": {
+       "component": "text",
+       "order": 4
+      },
+      "example": "Shartnomani huquqiy tekshirish",
+      "ai_assist": {
+       "enabled": true,
+       "endpoint": "/studio/ai/field-suggestions",
+       "method": "POST",
+       "requires_confirmation": true,
+       "provider": "openai",
+       "fallback": false,
+       "response_count": 3
+      }
+     },
+     {
+      "key": "version",
+      "name": "version",
+      "label": "Versiya",
+      "type": "text",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Yangi versiya rejimida backend keyingi versiyani avtomatik belgilaydi",
+      "runtime_path": "version",
+      "auto_generated_when": {
+       "field": "creation_mode",
+       "equals": "new_version"
+      },
+      "default": null,
+      "ui": {
+       "component": "text",
+       "order": 5
+      },
+      "example": "version_misol",
+      "ai_assist": {
+       "enabled": true,
+       "endpoint": "/studio/ai/field-suggestions",
+       "method": "POST",
+       "requires_confirmation": true,
+       "provider": "openai",
+       "fallback": false,
+       "response_count": 3
+      }
+     },
+     {
+      "key": "scope_type",
+      "name": "scope_type",
+      "label": "Qo‘llanish sohasi",
+      "type": "select",
+      "required": true,
+      "section": "Asosiy",
+      "help_text": "Qo‘llanish sohasi uchun ruxsat etilgan variantlardan birini tanlang.",
+      "runtime_path": "scope_type",
+      "options": [
+       "global",
+       "service",
+       "category"
+      ],
+      "default": null,
+      "ui": {
+       "component": "select",
+       "order": 8
+      },
+      "example": "global"
+     },
+     {
+      "key": "service_id",
+      "name": "service_id",
+      "label": "Xizmat",
+      "type": "select",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Qoida yoki konfiguratsiya qo‘llanadigan mavjud xizmatni tanlang.",
+      "runtime_path": "service_id",
+      "source": "/studio/reference/services",
+      "visible_when": {
+       "field": "scope_type",
+       "equals": "service"
+      },
+      "default": null,
+      "ui": {
+       "component": "search_select",
+       "order": 9
+      },
+      "example": "<reference-id>"
+     },
+     {
+      "key": "category_id",
+      "name": "category_id",
+      "label": "Kategoriya",
+      "type": "select",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Element ko‘rinadigan xizmat kategoriyasini tanlang.",
+      "runtime_path": "category_id",
+      "source": "/studio/reference/service-categories",
+      "visible_when": {
+       "field": "scope_type",
+       "equals": "category"
+      },
+      "default": null,
+      "ui": {
+       "component": "search_select",
+       "order": 10
+      },
+      "example": "<reference-id>"
+     },
+     {
+      "key": "seller_selectable",
+      "name": "seller_selectable",
+      "label": "Ijrochi tanlay oladi",
+      "type": "boolean",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Ijrochi tanlay oladi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+      "runtime_path": "seller_selectable",
+      "default": false,
+      "ui": {
+       "component": "boolean",
+       "order": 11
+      },
+      "example": true
+     },
+     {
+      "key": "effective_at",
+      "name": "effective_at",
+      "label": "Kuchga kirish",
+      "type": "datetime",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Kuchga kirish sanasini tizim vaqt zonasiga mos kiriting.",
+      "runtime_path": "effective_at",
+      "default": null,
+      "ui": {
+       "component": "datetime",
+       "order": 12
+      },
+      "example": "2026-10-12T10:00:00+05:00"
+     }
+    ]
+   },
+   {
+    "key": "kirish_va_auditoriya",
+    "title": "Kirish va auditoriya",
+    "order": 2,
+    "fields": [
+     {
+      "key": "audience",
+      "name": "audience",
+      "label": "Auditoriya",
+      "type": "select",
+      "required": true,
+      "section": "Kirish va auditoriya",
+      "help_text": "Auditoriya uchun ruxsat etilgan variantlardan birini tanlang.",
+      "runtime_path": "audience",
+      "options": [
+       "client",
+       "executor"
+      ],
+      "default": null,
+      "ui": {
+       "component": "select",
+       "order": 6
+      },
+      "example": "client"
+     }
+    ]
+   },
+   {
+    "key": "kontent",
+    "title": "Kontent",
+    "order": 3,
+    "fields": [
+     {
+      "key": "body",
+      "name": "body",
+      "label": "To‘liq qoida",
+      "type": "richtext",
+      "required": true,
+      "section": "Kontent",
+      "help_text": "To‘liq qoida matnini foydalanuvchiga tayyor ko‘rinishda yozing.",
+      "runtime_path": "body",
+      "default": null,
+      "ui": {
+       "component": "richtext",
+       "order": 7
+      },
+      "example": "body_misol",
+      "ai_assist": {
+       "enabled": true,
+       "endpoint": "/studio/ai/field-suggestions",
+       "method": "POST",
+       "requires_confirmation": true,
+       "provider": "openai",
+       "fallback": false,
+       "response_count": 3
+      }
+     }
+    ]
+   },
+   {
+    "key": "faollik_va_muddat",
+    "title": "Faollik va muddat",
+    "order": 4,
+    "fields": [
+     {
+      "key": "is_active",
+      "name": "is_active",
+      "label": "Faol",
+      "type": "boolean",
+      "required": false,
+      "section": "Faollik va muddat",
+      "help_text": "Yoqilsa element tegishli foydalanuvchi ekranlarida ishlay boshlaydi.",
+      "runtime_path": "is_active",
+      "default": false,
+      "ui": {
+       "component": "boolean",
+       "order": 13
+      },
+      "example": true
+     }
+    ]
+   }
+  ],
+  "initial_payload": {
+   "seller_selectable": false,
+   "is_active": false
+  },
+  "context": {
+   "record_id": null,
+   "source": null,
+   "runtime_target_id": null,
+   "runtime_target_type": null,
+   "studio_object_id": null
+  },
+  "navigation": {
+   "group_key": "services_packages",
+   "group_title": "Xizmatlar va paketlar",
+   "group_order": 1,
+   "step_number": 3,
+   "step_count": 10,
+   "required_before": [
+    "K01"
+   ],
+   "recommended_before": [],
+   "next_steps": [
+    "K32"
+   ],
+   "sequence_reason": "Xizmatlar va paketlar bo‘limida bu qadam 3-navbatda bajariladi.",
+   "ui_visible": true,
+   "managed_by": "studio"
+  },
+  "operations": {
+   "supported": [
+    "create",
+    "view",
+    "edit",
+    "clone",
+    "archive"
+   ],
+   "default": "list",
+   "identity_source": "route_context",
+   "context_fields": [],
+   "list_endpoint": "/studio/constructors/K31/records",
+   "form_context_endpoint": "/studio/constructors/K31/form-context",
+   "clone_endpoint": "/studio/objects/{object_id}/clone",
+   "archive_endpoint": "/studio/objects/{object_id}/archive"
+  },
+  "experience": {
+   "metadata_version": 1,
+   "purpose": "Mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+   "plain_language": "Bu konstruktor mijoz yoki ijrochi uchun versiyalangan xizmat qoidalarini boshqaradi.",
+   "when_to_use": "Huquqiy hujjatlardagi oferta, rozilik, shart va siyosat matnlarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+   "managed_by": [
+    "studio_editor",
+    "legal_manager"
+   ],
+   "where_used": [
+    {
+     "surface_key": "service_rules",
+     "title": "Huquqiy hujjatlar",
+     "route": "/uz/legal",
+     "placement": "Oferta, rozilik, shart va siyosat matnlari"
+    }
+   ],
+   "result": "Publish qilingandan keyin yangi konfiguratsiya `service_rules` runtime qatlamida ishlaydi va Huquqiy hujjatlarda aks etadi.",
+   "workflow": [
+    {
+     "step": 1,
+     "title": "Bog‘liq ma’lumotni tanlang",
+     "description": "Avval Mavjud qoida, Xizmat, Kategoriya qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+    },
+    {
+     "step": 2,
+     "title": "Asosiy maydonlarni to‘ldiring",
+     "description": "Majburiy maydonlar: Yaratish turi, Qoida nomi, Auditoriya, To‘liq qoida, Qo‘llanish sohasi."
+    },
+    {
+     "step": 3,
+     "title": "Natijani tekshiring",
+     "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+    },
+    {
+     "step": 4,
+     "title": "Saqlang va tasdiqlashga yuboring",
+     "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+    }
+   ],
+   "visual_preview": {
+    "type": "summary",
+    "title": "Xizmat qoidalari natijasi",
+    "description": "Forma o‘zgarganda oferta, rozilik, shart va siyosat matnlarining taxminiy ko‘rinishini darhol yangilang.",
+    "data_source": "payload",
+    "refresh": "on_change",
+    "surface_keys": [
+     "service_rules"
+    ]
+   },
+   "novice_notes": [
+    "Qizil yulduzchali maydonlar majburiy.",
+    "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+    "Preview real ma’lumotni o‘zgartirmaydi.",
+    "Publishdan oldin diff va warninglarni tekshiring."
+   ],
+   "publish_checklist": [
+    "Majburiy maydonlar to‘ldirilgan",
+    "Reference qiymatlar mavjud",
+    "Preview kutilgan natijani ko‘rsatmoqda",
+    "Validatsiya xatosiz",
+    "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+   ],
+   "risk_level": "medium",
+   "warnings": [
+    "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+   ]
+  },
+  "submit": {
+   "create_object_url": "/studio/objects",
+   "save_object_url": null,
+   "constructor_code": "K31",
+   "runtime_target_id": "",
+   "runtime_target_type": "",
+   "object_title_mode": "derived_from_payload",
+   "object_title_required": false
+  }
+ }
+}

@@ -64,3 +64,7 @@ next-env.d.ts
 /public/img/demo-advokat.png
 /public/img/demo-yurist.png
 /public/img/tasdiqlovchi-icon.png
+
+# test output
+/test-results/
+/playwright-report/

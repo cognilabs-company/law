@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useId, useState, type ReactElement } from "react";
+import { useCallback, useId, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { SxButton, SxLinkButton } from "@/components/admin/studio/sx/Button";
 import { SxDialog, SxDialogError } from "@/components/admin/studio/sx/editor/SxDialog";
@@ -36,6 +36,9 @@ export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveD
   const [tried, setTried] = useState(false);
   const [failure, setFailure] = useState<ResolveFailure | null>(null);
   const [busy, setBusy] = useState(false);
+  // `busy` only takes effect on the next render, so two clicks in one tick
+  // would both pass it and send the decision (a refund) twice.
+  const sending = useRef(false);
   const [done, setDone] = useState<Done | null>(null);
   const focusOnce = useCallback((el: HTMLHeadingElement | null) => {
     el?.focus();
@@ -67,7 +70,7 @@ export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveD
   }
 
   async function submit() {
-    if (busy) return;
+    if (busy || sending.current) return;
     setTried(true);
     const errs: ResolveErrors = { ...validateResolve(draft, ctx.sellerUserId) };
     if (failure && failure.kind === "field") errs[failure.field] = failure.key;
@@ -78,6 +81,7 @@ export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveD
     }
     const input = toResolveInput(draft);
     if (!input) return;
+    sending.current = true;
     setBusy(true);
     setFailure(null);
     try {
@@ -97,6 +101,7 @@ export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveD
       setBusy(false);
       onResolved(res);
     } catch (e) {
+      sending.current = false;
       setBusy(false);
       const f = resolveFailureOf(e);
       setFailure(f);
