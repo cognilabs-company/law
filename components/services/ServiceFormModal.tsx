@@ -80,12 +80,12 @@ function pricingWithConfig(p: RuntimePricing | null, cfg: SellerServiceConfig | 
   };
 }
 
-export function priceFloor(cfg: SellerServiceConfig | null, catalog: CatalogPricing | null, runtime: RuntimePricing | null, recommended: number): { min: number; pct: number | null } {
+// The lowest listing price as the backend states it (minimum_listing_price);
+// it is never worked out here from the recommended price and the discount.
+export function priceFloor(cfg: SellerServiceConfig | null, catalog: CatalogPricing | null, runtime: RuntimePricing | null): { min: number; pct: number | null } {
   const pct = cfg?.maxListingDiscountPercent ?? catalog?.discountPercent ?? runtime?.maxListingDiscountPercent ?? null;
   const direct = (cfg && cfg.minimumListingPrice > 0 ? cfg.minimumListingPrice : 0) || (catalog && catalog.minimum > 0 ? catalog.minimum : 0) || (runtime?.minimumListingPrice ?? 0);
-  if (direct > 0) return { min: direct, pct };
-  if (pct !== null && pct < 100 && recommended > 0) return { min: Math.ceil((recommended * (100 - pct)) / 100), pct };
-  return { min: 0, pct: null };
+  return direct > 0 ? { min: direct, pct } : { min: 0, pct: null };
 }
 
 type BandLoad = { key: string; band: PriceBand | null; failed: boolean; advocate: boolean };
@@ -214,7 +214,7 @@ export default function ServiceFormModal({
   const n = noPrice ? 0 : Number(price || "0");
   const off = priceAboveCap(n, pricing);
   const floorRec = pricing && pricing.recommendedPrice > 0 ? pricing.recommendedPrice : band && !isZeroBand(band) ? bandRecommended(band) : 0;
-  const floor = priceFloor(cfg, catalogPricing, runtime?.pricing ?? null, floorRec);
+  const floor = priceFloor(cfg, catalogPricing, runtime?.pricing ?? null);
   const knownMin = Math.max(floor.min, serverMin && serverMin.key === serviceId ? serverMin.min : 0);
   const minPrice = noPrice ? 0 : knownMin;
   const belowMin = priceVerdict(n, pricing, minPrice) === "belowMin";
