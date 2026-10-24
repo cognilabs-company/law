@@ -167,7 +167,7 @@ export async function getCeoDashboardFull(f?: DashFilter): Promise<CeoDashboardF
   const cac = typeof cacRaw === "object" && cacRaw ? uzs(cacObj, "total") : uzs(d, "cac");
   return {
     fetchedAt: todayIso(),
-    revenue: uzs(d, "revenue"), revenueDeltaPct: asNum(d.revenue_delta_pct), mrr: uzs(d, "mrr"),
+    revenue: uzs(d, "period_revenue", "revenue"), revenueDeltaPct: asNum(d.revenue_delta_pct), mrr: uzs(d, "mrr"),
     users: asNum(d.users ?? d.total_users), activeUsers: asNum(d.active_users), conversionPct: asNum(d.conversion_pct),
     funnel: asArr(d.funnel).map(pair),
     channels: asArr(d.channels ?? d.attribution).map((x) => {
@@ -181,6 +181,20 @@ export async function getCeoDashboardFull(f?: DashFilter): Promise<CeoDashboardF
     npsClient: asNum(d.nps_client), npsAdvocate: asNum(d.nps_advocate),
     newClients: asNum(d.new_clients), newAdvocates: asNum(d.new_advocates), newLawyers: asNum(d.new_lawyers),
     giftKpis: normGiftKpis(d.gift_kpis),
+    ...ceoPeriodOf(d),
+  };
+}
+function ceoPeriodOf(d: Record<string, unknown>) {
+  const p = asDict(d.period);
+  return {
+    period: asStr(p.date_from) ? { from: asStr(p.date_from), to: asStr(p.date_to), timezone: asStr(p.timezone) } : null,
+    allTimeRevenue: uzs(d, "all_time_revenue"),
+    activeSubscriptions: asNum(d.active_subscriptions),
+    newSubscriptions: asNum(d.new_subscriptions),
+    cancelledSubscriptions: asNum(d.cancelled_subscriptions),
+    ordersCreated: asNum(d.orders_created),
+    ordersPaid: asNum(d.orders_paid),
+    activeUsersPeriod: asNum(d.active_users_period),
   };
 }
 export function isCeoEmpty(d: CeoDashboard): boolean {

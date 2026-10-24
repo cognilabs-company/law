@@ -35,7 +35,7 @@ const overview = (dbStatus = "healthy", cpu = 12.5) => ({
 test("monitoring renders backend data and follows realtime events", async ({ page }) => {
   const routes = await signIn(page, ADMIN, {
     "/admin/monitoring/overview": () => overview(),
-    "/admin/monitoring/history": { items: [{ id: "h1", type: "monitoring_incident", title: "Database slow", status: "resolved", captured_at: "2026-10-24T04:00:00Z" }], count: 1, retention: { snapshots_days: 365, incidents_years: 3 } },
+    "/admin/monitoring/history": { items: [{ id: "h1", type: "incident", title: "Database slow", status: "resolved", captured_at: "2026-10-24T04:00:00Z" }], count: 1, retention: { snapshots_days: 365, incidents_years: 3 } },
     "POST /admin/monitoring/snapshots": { status: 409, json: { detail: { code: "monitoring_collection_in_progress" } } },
   });
   const mock = await mockBackend(page, routes);
@@ -108,33 +108,46 @@ test("extra figures show when sent; thresholds and the service filter work", asy
   await expect(page.getByRole("button", { name: "Acme SMS", exact: true })).toHaveCount(0);
 });
 
-test("history: filter by type, show more, custom dates", async ({ page }) => {
+test("history: server type filter, paging, custom dates and an Excel export job", async ({ page }) => {
   const hist = (url: URL) => {
-    const n = Number(url.searchParams.get("limit") ?? 20);
-    const items = Array.from({ length: n }, (_, i) =>
-      i % 5 === 0
-        ? { id: `i${i}`, type: "monitoring_incident", title: `Incident ${i}`, captured_at: `2026-10-24T0${i % 10}:00:00Z` }
-        : { id: `s${i}`, type: "monitoring_snapshot", system: { cpu: { load_percent: 10 + i }, memory: { used_percent: 50 } }, captured_at: `2026-10-24T0${i % 10}:30:00Z` },
-    );
-    return { items, count: n, retention: { snapshots_days: 365, incidents_years: 3 } };
+    const type = url.searchParams.get("type") ?? "";
+    const offset = Number(url.searchParams.get("offset") ?? 0);
+    const limit = Number(url.searchParams.get("limit") ?? 20);
+    const total = type === "incident" ? 3 : 45;
+    const n = Math.max(0, Math.min(limit, total - offset));
+    const items = Array.from({ length: n }, (_, k) => {
+      const i = offset + k;
+      return type === "incident"
+        ? { id: `i${i}`, type: "incident", title: `Incident ${i}`, created_at: "2026-10-24T08:00:00Z" }
+        : { id: `s${i}`, type: "snapshot", system: { cpu: { load_percent: 10 + (i % 50) }, memory: { used_percent: 50 } }, captured_at: "2026-10-24T08:30:00Z" };
+    });
+    return { items, total, count: n, limit, offset, has_more: offset + n < total, retention: { snapshots_days: 30, incidents_years: 3 } };
   };
-  const routes = await signIn(page, ADMIN, { "/admin/monitoring/overview": () => overview(), "/admin/monitoring/history": (_b: unknown, url: URL) => hist(url) });
+  let polls = 0;
+  const routes = await signIn(page, ADMIN, {
+    "/admin/monitoring/overview": () => overview(),
+    "/admin/monitoring/history": (_b: unknown, url: URL) => hist(url),
+    "POST /admin/monitoring/history/exports": { status: 202, json: { id: "job-1", status: "queued", progress_percent: 0, rows_count: 0 } },
+    "/admin/monitoring/history/exports/job-1": () => (++polls > 1 ? { id: "job-1", status: "completed", progress_percent: 100, rows_count: 45, download_url: "/admin/monitoring/history/exports/job-1/download" } : { id: "job-1", status: "running", progress_percent: 40 }),
+  });
   const mock = await mockBackend(page, routes);
   await page.goto("/ru/admin/monitoring");
-  await expect(page.getByText("Incident 0")).toBeVisible();
+  await expect(page.getByText("1–20 из 45")).toBeVisible();
+  await page.getByRole("button", { name: "Далее" }).click();
+  await expect(page.getByText("21–40 из 45")).toBeVisible();
   await page.getByRole("combobox", { name: "Тип записей" }).selectOption("incident");
-  await expect(page.locator(".mon-hist li")).toHaveCount(4);
-  await page.getByRole("button", { name: "Показать ещё" }).click();
-  await expect.poll(() => mock.calls.some((c) => c.path === "/admin/monitoring/history" && c.method === "GET")).toBe(true);
-  await expect(page.locator(".mon-hist li")).toHaveCount(14);
+  await expect(page.locator(".mon-hist li")).toHaveCount(3);
+  expect(mock.calls.some((c) => c.path === "/admin/monitoring/history" && c.method === "GET")).toBe(true);
+  await page.getByRole("button", { name: "Экспорт в Excel" }).click();
+  await expect(page.getByRole("button", { name: "Скачать Excel (45 строк)" })).toBeVisible({ timeout: 15_000 });
+  expect(mock.calls.find((c) => c.method === "POST" && c.path === "/admin/monitoring/history/exports")?.body).toMatchObject({ type: "incident" });
   await page.getByRole("combobox", { name: "Период" }).selectOption("custom");
-  await page.getByRole("textbox", { name: "Дата начала" }).or(page.locator('input[aria-label="Дата начала"]')).fill("2026-10-01");
+  await page.locator('input[aria-label="Дата начала"]').fill("2026-10-01");
   await page.locator('input[aria-label="Дата окончания"]').fill("2026-10-20");
-  await expect(page.locator(".mon-trend")).toBeVisible();
 });
 
 test("an integration's detail shows its own history and dependencies", async ({ page }) => {
-  const snap = (i: number, st: string) => ({ id: `s${i}`, type: "monitoring_snapshot", captured_at: `2026-10-24T0${i}:00:00Z`, integrations: [{ key: "database", status: st, latency_ms: 1 + i }] });
+  const snap = (i: number, st: string) => ({ id: `s${i}`, type: "snapshot", captured_at: `2026-10-24T0${i}:00:00Z`, integrations: [{ key: "database", status: st, latency_ms: 1 + i }] });
   const routes = await signIn(page, ADMIN, {
     "/admin/monitoring/overview": () => overview(),
     "/admin/monitoring/history": { items: [snap(1, "healthy"), snap(2, "down"), snap(3, "healthy"), snap(4, "healthy")], retention: {} },

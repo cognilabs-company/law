@@ -25,6 +25,8 @@ import {
   type ExperienceEvidence,
   type ExperienceGroup,
   type ExperienceItem,
+  getCategoryTree,
+  type CategoryNode,
 } from "@/lib/services/experience";
 
 // A lawyer's experience per category (TSK-659111): each change is a new
@@ -35,6 +37,7 @@ import {
 type Draft = {
   sourceId: string;
   categoryId: string;
+  subcategoryId: string;
   workplace: string;
   position: string;
   startedOn: string;
@@ -45,12 +48,13 @@ type Draft = {
   results: string[];
   evidence: ExperienceEvidence[];
 };
-const EMPTY: Draft = { sourceId: "", categoryId: "", workplace: "", position: "", startedOn: "", endedOn: "", isCurrent: true, description: "", stages: [], results: [], evidence: [] };
+const EMPTY: Draft = { sourceId: "", categoryId: "", subcategoryId: "", workplace: "", position: "", startedOn: "", endedOn: "", isCurrent: true, description: "", stages: [], results: [], evidence: [] };
 const DESC_MIN = 30;
 const day = (iso: string) => iso.slice(0, 10);
 const draftOf = (it: ExperienceItem, sourceId: string): Draft => ({
   sourceId,
   categoryId: it.categoryId,
+  subcategoryId: it.subcategoryId,
   workplace: it.workplace,
   position: it.position,
   startedOn: day(it.startedAt),
@@ -69,6 +73,7 @@ export default function ExperiencePanel(): ReactElement {
   const [groups, setGroups] = useState<ExperienceGroup[] | null>(null);
   const [failed, setFailed] = useState(false);
   const [cats, setCats] = useState<BackendCategory[]>([]);
+  const [tree, setTree] = useState<CategoryNode[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -96,6 +101,10 @@ export default function ExperiencePanel(): ReactElement {
       (c) => alive && setCats(c),
       () => undefined,
     );
+    getCategoryTree().then(
+      (t) => alive && setTree(t),
+      () => undefined,
+    );
     // A review reaches the lawyer as a notification; refetch on it.
     const off = subscribeUserEvents((e) => {
       if (String(e.event ?? "").startsWith("marketplace.experience_")) void load();
@@ -110,6 +119,8 @@ export default function ExperiencePanel(): ReactElement {
     const c = cats.find((x) => x.id === id);
     return c ? categoryName({ slug: c.slug, title: c.name }, locale) : id;
   };
+  const subsOf = (categoryId: string) => tree.find((n) => n.id === categoryId)?.children ?? [];
+  const subName = (categoryId: string, id: string) => subsOf(categoryId).find((s) => s.id === id)?.title ?? "";
   const open = (d: Draft) => {
     descStrip.reset();
     setFieldErr(null);
@@ -233,7 +244,7 @@ export default function ExperiencePanel(): ReactElement {
                   {g.pending ? <span className="exp__chip" data-s="pending">{t("status.pending")}</span> : null}
                   {rejected ? <span className="exp__chip" data-s="rejected">{t("status.rejected")}</span> : null}
                 </div>
-                <span className="exp__meta">{[shown.workplace, shown.position, period(shown)].filter(Boolean).join(" · ")}</span>
+                <span className="exp__meta">{[subName(shown.categoryId, shown.subcategoryId), shown.workplace, shown.position, period(shown)].filter(Boolean).join(" · ")}</span>
                 {shown.stages.length || shown.results.length ? (
                   <span className="exp__tags">
                     {shown.stages.map((s) => (
@@ -288,7 +299,7 @@ export default function ExperiencePanel(): ReactElement {
           {draft.sourceId ? <p className="exp__muted exp__wide">{t("editNote")}</p> : null}
           <label className="exp__wide">
             <span>{t("category")}</span>
-            <select value={draft.categoryId} onChange={(e) => setDraft({ ...draft, categoryId: e.target.value })} disabled={!!draft.sourceId} aria-invalid={bad("category_id")}>
+            <select value={draft.categoryId} onChange={(e) => setDraft({ ...draft, categoryId: e.target.value, subcategoryId: "" })} disabled={!!draft.sourceId} aria-invalid={bad("category_id")}>
               <option value="">{t("pickCategory")}</option>
               {cats.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -297,6 +308,19 @@ export default function ExperiencePanel(): ReactElement {
               ))}
             </select>
           </label>
+          {subsOf(draft.categoryId).length ? (
+            <label className="exp__wide">
+              <span>{t("subcategory")}</span>
+              <select value={draft.subcategoryId} onChange={(e) => setDraft({ ...draft, subcategoryId: e.target.value })} aria-invalid={bad("subcategory_id")}>
+                <option value="">{t("anySubcategory")}</option>
+                {subsOf(draft.categoryId).map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <label>
             <span>{t("workplace")}</span>
             <input value={draft.workplace} maxLength={200} onChange={(e) => setDraft({ ...draft, workplace: e.target.value })} aria-invalid={bad("workplace")} />

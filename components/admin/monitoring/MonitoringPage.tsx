@@ -5,23 +5,11 @@ import { useCallback, useEffect, useRef, useState, type ReactElement } from "rea
 import { useLocale, useTranslations } from "next-intl";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import { IconAlert, IconBolt, IconCheck, IconClose, IconLock, IconRefresh } from "@/components/icons";
-import { isAborted, isForbidden, logApiError } from "@/lib/http";
+import { ApiError, errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { shortDateTime, timeOnly } from "@/lib/date";
 import { humanizeSlug } from "@/lib/lawyers";
 import { onUserSocketResync, subscribeUserEvents, subscribeUserSocketState, userSocketState } from "@/lib/userSocket";
-import {
-  MONITORING_EVENTS,
-  applyMonitoringEvent,
-  captureMonitoringSnapshot,
-  getMonitoringHistory,
-  getMonitoringIntegration,
-  getMonitoringOverview,
-  type MonHistory,
-  type MonIncident,
-  type MonIntegration,
-  type MonNode,
-  type MonOverview,
-} from "@/lib/services/monitoring";
+import { MONITORING_EVENTS, applyMonitoringEvent, captureMonitoringSnapshot, getMonitoringHistory, getMonitoringIntegration, getMonitoringOverview, type MonHistory, type MonIncident, type MonIntegration, type MonNode, type MonOverview, downloadMonitoringExport, getMonitoringExport, startMonitoringExport, type MonExport } from "@/lib/services/monitoring";
 
 // Platform monitoring: the overview loads once, realtime events patch it
 // (no polling), a reconnect reloads it once, and incidents stay on screen
@@ -52,17 +40,38 @@ const toneOf = (s: string): Tone => TONE[s] ?? "off";
 const RANGES = ["15m", "1h", "24h", "7d", "custom"] as const;
 type Range = (typeof RANGES)[number];
 const RANGE_MS: Record<Exclude<Range, "custom">, number> = { "15m": 15 * 60_000, "1h": 3_600_000, "24h": 86_400_000, "7d": 7 * 86_400_000 };
-// The history has no paging: more rows means a larger `limit`, which the
-// backend caps at 1000. The type filter only narrows the rows loaded.
-const HISTORY_STEP = 50;
-const HISTORY_MAX = 1000;
+// History pages are read by type, offset and total from the backend.
+const HISTORY_PAGE = 20;
 
-// The history as CSV, for a quick look in a spreadsheet; the large Excel
-// export is the backend's background job.
-function historyCsv(items: MonHistory["items"]): string {
-  const esc = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
-  const rows = items.map((h) => [h.at, h.type, h.title, h.cpuPercent ?? "", h.memoryPercent ?? "", h.errors ?? ""].map((v) => esc(String(v))).join(","));
-  return ["time,type,title,cpu_percent,memory_percent,errors", ...rows].join("\n");
+function windowOf(range: Range, customFrom: string, customTo: string): { from: string; to: string } {
+  const to = new Date();
+  if (range === "custom" && customFrom && customTo) return { from: new Date(`${customFrom}T00:00:00`).toISOString(), to: new Date(`${customTo}T23:59:59`).toISOString() };
+  return { from: new Date(to.getTime() - RANGE_MS[range === "custom" ? "15m" : range]).toISOString(), to: to.toISOString() };
+}
+
+// The Excel export runs on the server; this shows its progress and, once
+// done, the download (files expire after 24 hours).
+function HistoryExport({ job, error, onStart, onDownload }: { job: MonExport | null; error: string; onStart: () => void; onDownload: () => void }): ReactElement {
+  const t = useTranslations("admin.monitoring");
+  const running = !!job && (job.status === "queued" || job.status === "running");
+  return (
+    <span className="mon-export">
+      {job?.status === "completed" ? (
+        <button type="button" className="btn btn--pri btn--sm" onClick={onDownload}>
+          {t("exportDownload", { n: job.rows })}
+        </button>
+      ) : (
+        <button type="button" className="btn btn--line btn--sm" onClick={onStart} disabled={running}>
+          {running ? t("exportRunning", { pct: job?.progress ?? 0 }) : t("exportStart")}
+        </button>
+      )}
+      {error ? (
+        <small className="mon-export__err" role="alert">
+          {error}
+        </small>
+      ) : null}
+    </span>
+  );
 }
 
 // CPU and memory over the loaded snapshots, oldest first.
@@ -313,8 +322,10 @@ export default function MonitoringPage(): ReactElement {
   const [svcQuery, setSvcQuery] = useState("");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
-  const [histLimit, setHistLimit] = useState(20);
+  const [histOffset, setHistOffset] = useState(0);
   const [histType, setHistType] = useState<"all" | "snapshot" | "incident">("all");
+  const [exportJob, setExportJob] = useState<MonExport | null>(null);
+  const [exportErr, setExportErr] = useState("");
   const seq = useRef(0);
   useEffect(() => {
     let alive = true;
@@ -332,17 +343,66 @@ export default function MonitoringPage(): ReactElement {
     }
   };
 
+  const exportId = exportJob?.id ?? "";
+  const exportRunning = exportJob?.status === "queued" || exportJob?.status === "running";
+  async function startExport() {
+    setExportErr("");
+    try {
+      setExportJob(await startMonitoringExport(windowOf(range, customFrom, customTo), histType === "all" ? "" : histType));
+    } catch (e) {
+      logApiError("monitoring.export", e);
+      setExportErr(errDetail(e) || t("exportFailed"));
+    }
+  }
+  async function download() {
+    if (!exportJob) return;
+    setExportErr("");
+    try {
+      await downloadMonitoringExport(exportJob);
+    } catch (e) {
+      const code = e instanceof ApiError ? e.code : "";
+      if (code === "monitoring_export_expired" || code === "monitoring_export_not_found" || code === "monitoring_export_file_missing") {
+        setExportJob(null);
+        setExportErr(t("exportExpired"));
+      } else {
+        logApiError("monitoring.export.download", e);
+        setExportErr(errDetail(e) || t("exportFailed"));
+      }
+    }
+  }
+  // Follow a running export: its event when it arrives, a light poll meanwhile.
+  useEffect(() => {
+    if (!exportId || !exportRunning) return;
+    let alive = true;
+    const check = () =>
+      getMonitoringExport(exportId).then(
+        (j) => alive && setExportJob(j),
+        (e) => logApiError("monitoring.export.status", e),
+      );
+    const id = window.setInterval(check, 3000);
+    const off = subscribeUserEvents((ev) => {
+      if (ev.event === "monitoring.export_completed") void check();
+    });
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+      off();
+    };
+  }, [exportId, exportRunning]);
+  useEffect(() => {
+    if (exportJob?.status === "failed") void Promise.resolve().then(() => setExportErr(exportJob.error || t("exportFailed")));
+  }, [exportJob, t]);
+
   const reload = useCallback(
     async (quiet = false) => {
       const my = ++seq.current;
       if (quiet) setRefreshing(true);
-      const to = new Date();
-      const custom = range === "custom" && customFrom && customTo;
-      const win = custom
-        ? { from: new Date(`${customFrom}T00:00:00`).toISOString(), to: new Date(`${customTo}T23:59:59`).toISOString() }
-        : { from: new Date(to.getTime() - RANGE_MS[range === "custom" ? "15m" : range]).toISOString(), to: to.toISOString() };
+      const win = windowOf(range, customFrom, customTo);
       try {
-        const [data, hist] = await Promise.all([getMonitoringOverview(win), getMonitoringHistory(win, histLimit).catch(() => null)]);
+        const [data, hist] = await Promise.all([
+          getMonitoringOverview(win),
+          getMonitoringHistory(win, { limit: HISTORY_PAGE, offset: histOffset, type: histType === "all" ? "" : histType }).catch(() => null),
+        ]);
         if (my !== seq.current) return;
         setLoad({ status: "ready", data, at: Date.now() });
         if (hist) setHistory(hist);
@@ -354,7 +414,7 @@ export default function MonitoringPage(): ReactElement {
         if (my === seq.current) setRefreshing(false);
       }
     },
-    [range, customFrom, customTo, histLimit],
+    [range, customFrom, customTo, histOffset, histType],
   );
 
   useEffect(() => {
@@ -599,32 +659,24 @@ export default function MonitoringPage(): ReactElement {
       <section className="mon-hist" aria-label={t("history")}>
         <div className="mon-hist__h">
           <b>{t("history")}</b>
-          <select value={histType} onChange={(e) => setHistType(e.target.value as typeof histType)} aria-label={t("historyType")}>
+          <select
+            value={histType}
+            onChange={(e) => {
+              setHistType(e.target.value as typeof histType);
+              setHistOffset(0);
+            }}
+            aria-label={t("historyType")}
+          >
             <option value="all">{t("historyAll")}</option>
             <option value="snapshot">{t("historySnapshots")}</option>
             <option value="incident">{t("historyIncidents")}</option>
           </select>
-          {history && history.items.length ? (
-            <button
-              type="button"
-              className="btn btn--line btn--sm"
-              onClick={() => {
-                const blob = new Blob([historyCsv(history.items.filter((h) => histType === "all" || h.type === histType))], { type: "text/csv;charset=utf-8" });
-                const a = document.createElement("a");
-                a.href = URL.createObjectURL(blob);
-                a.download = `monitoring-history-${new Date().toISOString().slice(0, 10)}.csv`;
-                a.click();
-                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-              }}
-            >
-              {t("downloadCsv")}
-            </button>
-          ) : null}
+          <HistoryExport job={exportJob} error={exportErr} onStart={() => void startExport()} onDownload={() => void download()} />
         </div>
         {history ? <Trend items={history.items} label={t("trend")} /> : null}
-        {history && history.items.some((h) => histType === "all" || h.type === histType) ? (
+        {history && history.items.length ? (
           <ol>
-            {history.items.filter((h) => histType === "all" || h.type === histType).map((h) => (
+            {history.items.map((h) => (
               <li key={h.id} data-type={h.type}>
                 <time>{h.at ? shortDateTime(h.at, locale) : "—"}</time>
                 <span>{h.type === "incident" ? h.title || t("incident") : t("snapshotRow", { cpu: pct(h.cpuPercent), memory: pct(h.memoryPercent) })}</span>
@@ -634,10 +686,16 @@ export default function MonitoringPage(): ReactElement {
         ) : (
           <p className="mon-note">{t("noHistory")}</p>
         )}
-        {history && history.items.length >= histLimit && histLimit < HISTORY_MAX ? (
-          <button type="button" className="btn btn--soft btn--sm" onClick={() => setHistLimit((n) => Math.min(HISTORY_MAX, n + HISTORY_STEP))} disabled={refreshing}>
-            {t("showMore")}
-          </button>
+        {history && history.total !== null && history.total > HISTORY_PAGE ? (
+          <div className="mon-pager">
+            <button type="button" className="btn btn--soft btn--sm" onClick={() => setHistOffset((n) => Math.max(0, n - HISTORY_PAGE))} disabled={refreshing || histOffset === 0}>
+              {t("prevPage")}
+            </button>
+            <span>{t("pageOf", { from: histOffset + 1, to: histOffset + history.items.length, total: history.total })}</span>
+            <button type="button" className="btn btn--soft btn--sm" onClick={() => setHistOffset((n) => n + HISTORY_PAGE)} disabled={refreshing || !history.hasMore}>
+              {t("nextPage")}
+            </button>
+          </div>
         ) : null}
         {history?.retention.snapshotsDays ? <small className="mon-note">{t("retention", { days: history.retention.snapshotsDays, years: history.retention.incidentsYears ?? 0 })}</small> : null}
       </section>

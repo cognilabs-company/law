@@ -12,6 +12,7 @@ import { ChoiceCards, type ChoiceCard } from "@/components/admin/studio/sx/form/
 import { useMarketError } from "@/components/marketplace/useMarketError";
 import { requestOrderWarranty, warrantyResolutions, type OrderWarranty, type WarrantyResolution } from "@/lib/services/marketplace";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
+import { ApiError } from "@/lib/http";
 import { LifeBuoyIcon } from "./icons";
 import type { OrderSectionProps } from "./types";
 
@@ -82,6 +83,13 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
       setOpen(false);
       onChanged();
     } catch (e) {
+      // One open claim per order: the existing one is shown instead.
+      if (e instanceof ApiError && e.code === "warranty_already_open") {
+        setSent({ ...o.warranty, status: "pending", resolution: "", reason, decision: "" });
+        setOpen(false);
+        onChanged();
+        return;
+      }
       const fallback = t("error");
       const msg = marketError(e, fallback);
       setError({ title: fallback, text: msg === fallback ? "" : msg });

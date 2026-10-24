@@ -4,7 +4,8 @@
 // integration list and the graph come from the backend; nothing here is
 // hardcoded beyond reading their shape.
 
-import { ApiError, asArr, asDict, asNum, asStr, http, type Dict } from "@/lib/http";
+import { ApiError, asArr, asDict, asNum, asStr, http, httpBlobNamed, type Dict } from "@/lib/http";
+import { saveBlob } from "@/lib/download";
 
 export type MonStatus = string;
 export type MonSystem = {
@@ -64,7 +65,7 @@ export type MonOverview = {
   realtime: { sockets: number; online: number; channels: number; events: string[] };
 };
 export type MonHistoryItem = { id: string; type: "snapshot" | "incident" | "other"; title: string; status: string; at: string; cpuPercent: number | null; memoryPercent: number | null; errors: number | null; integrations: { key: string; status: string; latencyMs: number | null }[] };
-export type MonHistory = { items: MonHistoryItem[]; retention: { snapshotsDays: number | null; incidentsYears: number | null } };
+export type MonHistory = { items: MonHistoryItem[]; total: number | null; hasMore: boolean; retention: { snapshotsDays: number | null; incidentsYears: number | null } };
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 
@@ -186,7 +187,7 @@ function historyItemOf(v: unknown): MonHistoryItem {
   const sys = systemOf(d.system);
   return {
     id: asStr(d.id),
-    type: type === "monitoring_snapshot" ? "snapshot" : type === "monitoring_incident" ? "incident" : "other",
+    type: type === "snapshot" || type === "monitoring_snapshot" ? "snapshot" : type === "incident" || type === "monitoring_incident" ? "incident" : "other",
     title: asStr(d.title),
     status: asStr(d.status).toLowerCase(),
     at: asStr(d.captured_at ?? d.created_at ?? d.occurred_at),
@@ -200,11 +201,48 @@ function historyItemOf(v: unknown): MonHistoryItem {
   };
 }
 
-export async function getMonitoringHistory(range: { from?: string; to?: string } = {}, limit = 50, signal?: AbortSignal): Promise<MonHistory> {
-  const q = rangeQuery(range);
-  const d = asDict(await http(`/admin/monitoring/history${q ? `${q}&` : "?"}limit=${limit}`, { signal }));
+// One page of the history, filtered by type on the server; total, offset
+// and has_more are the only paging source.
+export async function getMonitoringHistory(
+  range: { from?: string; to?: string } = {},
+  page: { limit?: number; offset?: number; type?: "snapshot" | "incident" | "" } = {},
+  signal?: AbortSignal,
+): Promise<MonHistory> {
+  const q = new URLSearchParams(rangeQuery(range).slice(1));
+  if (page.type) q.set("type", page.type);
+  q.set("limit", String(page.limit ?? 50));
+  q.set("offset", String(page.offset ?? 0));
+  const d = asDict(await http(`/admin/monitoring/history?${q}`, { signal }));
   const ret = asDict(d.retention);
-  return { items: asArr(d.items).map(historyItemOf).filter((i) => i.id), retention: { snapshotsDays: num(ret.snapshots_days), incidentsYears: num(ret.incidents_years) } };
+  return {
+    items: asArr(d.items).map(historyItemOf).filter((i) => i.id),
+    total: num(d.total),
+    hasMore: d.has_more === true,
+    retention: { snapshotsDays: num(ret.snapshots_days), incidentsYears: num(ret.incidents_years) },
+  };
+}
+
+// Excel export of the history as a background job: create it, follow its
+// status (or the monitoring.export_completed event), then download.
+export type MonExport = { id: string; status: "queued" | "running" | "completed" | "failed" | string; progress: number; rows: number; error: string; downloadUrl: string };
+const exportOf = (v: unknown): MonExport => {
+  const d = asDict(v);
+  return { id: asStr(d.id), status: asStr(d.status), progress: num(d.progress_percent) ?? 0, rows: num(d.rows_count) ?? 0, error: asStr(d.error), downloadUrl: asStr(d.download_url) };
+};
+export async function startMonitoringExport(range: { from?: string; to?: string }, type: "snapshot" | "incident" | ""): Promise<MonExport> {
+  const body: Dict = {};
+  if (range.from) body.date_from = range.from;
+  if (range.to) body.date_to = range.to;
+  if (type) body.type = type;
+  return exportOf(await http("/admin/monitoring/history/exports", { method: "POST", body: JSON.stringify(body) }));
+}
+export async function getMonitoringExport(id: string, signal?: AbortSignal): Promise<MonExport> {
+  return exportOf(await http(`/admin/monitoring/history/exports/${encodeURIComponent(id)}`, { signal }));
+}
+export async function downloadMonitoringExport(job: MonExport): Promise<void> {
+  const path = job.downloadUrl.replace(/^https?:\/\/[^/]+/i, "") || `/admin/monitoring/history/exports/${encodeURIComponent(job.id)}/download`;
+  const { blob, name } = await httpBlobNamed(path);
+  saveBlob(blob, name || `monitoring-history-${new Date().toISOString().slice(0, 10)}.xlsx`);
 }
 
 // A manual snapshot. 409 monitoring_collection_in_progress means another

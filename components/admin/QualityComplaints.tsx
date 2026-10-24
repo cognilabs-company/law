@@ -7,11 +7,8 @@ import {
   getQualityComplaint,
   resolveQualityComplaint,
   isQualityComplaintEvent,
-  MC_ACTIONS,
   QC_ACTIONS,
-  resolveMarketplaceComplaint,
   type QualityComplaintRow,
-  type McAction,
   type QcAction,
 } from "@/lib/services/backend";
 import { subscribeUserEvents } from "@/lib/userSocket";
@@ -20,6 +17,7 @@ import { notify } from "@/lib/toast";
 import { shortDateTime } from "@/lib/date";
 import { humanize, labelOf, statusLabel, statusMap, type StatusMap, type StatusToneRule } from "@/lib/labels";
 import Modal from "@/components/admin/Modal";
+import { Link } from "@/i18n/navigation";
 import FilterBar from "@/components/filters/FilterBar";
 import FieldError from "@/components/ui/FieldError";
 import ListPager, { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
@@ -239,7 +237,7 @@ function QcDetail({
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [failure, setFailure] = useState<unknown>(undefined);
   const [attempt, setAttempt] = useState(0);
-  const [action, setAction] = useState<QcAction | McAction | "">("");
+  const [action, setAction] = useState<QcAction | "">("");
   const [actionErr, setActionErr] = useState("");
   const [note, setNote] = useState("");
   const [noteErr, setNoteErr] = useState("");
@@ -308,7 +306,7 @@ function QcDetail({
   // A ruling is only final once: the form disappears rather than inviting a
   // second POST the backend would refuse.
   const settled = row.status === "resolved" || row.status === "rejected" || row.status === "rework_required" || row.status === "refund_required";
-  const actions: readonly (QcAction | McAction)[] = mpOrderId ? MC_ACTIONS : QC_ACTIONS;
+
 
   async function submit() {
     if (busy || !once()) return;
@@ -327,8 +325,7 @@ function QcDetail({
     }
     setBusy(true);
     try {
-      if (mpOrderId) await resolveMarketplaceComplaint(row.id, action as McAction, note.trim());
-      else await resolveQualityComplaint(row.id, action as QcAction, note.trim());
+      await resolveQualityComplaint(row.id, action, note.trim());
       notify.success(t("resolved"), { id: `qc-resolve-${row.id}`, body: [label(action), row.workId || row.title].filter(Boolean).join(" · ") });
       onDone();
     } catch (e) {
@@ -349,7 +346,7 @@ function QcDetail({
       busy={busy}
       dirty={!settled && (!!action || !!note.trim())}
       footer={
-        settled ? undefined : (
+        settled || mpOrderId ? undefined : (
           <>
             <button type="button" className="btn btn--line" disabled={busy} onClick={onClose}>
               {tc("cancel")}
@@ -441,7 +438,16 @@ function QcDetail({
           </section>
         ) : null}
 
-        {state !== "ready" ? null : settled ? (
+        {state !== "ready" ? null : mpOrderId ? (
+          // A marketplace complaint is ruled on in its own queue, which
+          // moves the held payout; the generic quality endpoint does not.
+          <InlineAlert tone="info">
+            {t("mpElsewhere")}{" "}
+            <Link href="/admin/call-center?tab=mpComplaints" onClick={onClose}>
+              {t("mpOpen")}
+            </Link>
+          </InlineAlert>
+        ) : settled ? (
           <InlineAlert tone="success">{t("alreadySettled", { action: label(row.status, row.statusLabel) })}</InlineAlert>
         ) : (
           <section className="qcdet__resolve" aria-labelledby={actLblId}>
@@ -458,7 +464,7 @@ function QcDetail({
               aria-invalid={actionErr ? true : undefined}
               aria-describedby={actionErr ? actErrId : undefined}
             >
-              {actions.map((a) => (
+              {QC_ACTIONS.map((a) => (
                 <label key={a} className={`ccpick__o${action === a ? " on" : ""}`}>
                   <input
                     className="ccpick__in"

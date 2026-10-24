@@ -89,7 +89,39 @@ export type MkmActivity = {
   createdAt: string;
 };
 
-export type MkmOrderDetail = { order: MkmOrder; confirms: MkmConfirm[]; activity: MkmActivity[] };
+// The order's settlement, as staff see it (backend 24 Oct 2026 §4).
+export type MkmSettlement = {
+  status: string;
+  gross: number;
+  held: number;
+  refunded: number;
+  pendingRefund: number;
+  released: number;
+  releasable: number;
+  platform: number;
+  sellerNet: number;
+  currency: string;
+  holdReason: string;
+};
+export type MkmOrderDetail = { order: MkmOrder; confirms: MkmConfirm[]; activity: MkmActivity[]; settlement: MkmSettlement | null };
+function settlementOf(v: unknown): MkmSettlement | null {
+  const s = asDict(v);
+  if (!asStr(s.status)) return null;
+  const n = (k: string) => asNum(s[k]);
+  return {
+    status: asStr(s.status),
+    gross: n("gross_amount"),
+    held: n("held_amount"),
+    refunded: n("refunded_amount"),
+    pendingRefund: n("pending_refund_amount"),
+    released: n("released_amount"),
+    releasable: n("releasable_amount"),
+    platform: n("platform_amount"),
+    sellerNet: n("seller_net_amount"),
+    currency: asStr(s.currency) || "UZS",
+    holdReason: asStr(s.hold_reason),
+  };
+}
 
 export type MkmSeller = {
   userId: string;
@@ -315,6 +347,7 @@ export async function getAdminMarketplaceOrder(orderId: string): Promise<MkmOrde
     activity: asArr(d.activity)
       .map(normActivity)
       .sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0)),
+    settlement: settlementOf(d.settlement),
   };
 }
 

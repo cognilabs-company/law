@@ -5329,6 +5329,12 @@ export type CeoDashboard = {
   npsClient: number; npsAdvocate: number;
   newClients: number; newAdvocates: number; newLawyers: number;
   giftKpis: GiftKpis;
+  // Period KPIs (24 Oct 2026): revenue above is the period's; MRR is real
+  // recurring subscription revenue, counted by the backend.
+  period?: { from: string; to: string; timezone: string } | null;
+  allTimeRevenue?: number;
+  activeSubscriptions?: number; newSubscriptions?: number; cancelledSubscriptions?: number;
+  ordersCreated?: number; ordersPaid?: number; activeUsersPeriod?: number;
 };
 function normGiftKpis(v: unknown): GiftKpis {
   const g = asDict(v);
@@ -8779,15 +8785,6 @@ export async function resolveQualityComplaint(id: string, action: QcAction, note
       body: JSON.stringify({ action, note }),
     }),
   );
-}
-// A complaint on a marketplace order is ruled on by its own endpoint, which
-// also moves the held settlement (backend answers 24 Oct 2026 §2):
-// valid_rework → rework_hold, valid_refund → refund_required,
-// invalid / resolved → ready_for_release.
-export type McAction = "valid_rework" | "valid_refund" | "invalid" | "resolved";
-export const MC_ACTIONS: McAction[] = ["valid_rework", "valid_refund", "invalid", "resolved"];
-export async function resolveMarketplaceComplaint(id: string, action: McAction, note: string): Promise<void> {
-  await http(`/call-center/marketplace/complaints/${encodeURIComponent(id)}/resolve`, { method: "POST", body: JSON.stringify({ action, note }) });
 }
 // §6. Prefix-matched like isUrgentEvent, so a third event costs nothing.
 export function isQualityComplaintEvent(event: string): boolean {

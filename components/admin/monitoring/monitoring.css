@@ -83,3 +83,6 @@
 .mon-detail__hist { display: grid; gap: 4px; margin: 10px 0 0; padding: 0; list-style: none; font-size: .78rem; }
 .mon-detail__hist li { display: flex; align-items: center; gap: 8px; color: var(--ink); }
 .mon-detail__hist time { min-width: 110px; color: var(--gray); }
+.mon-pager { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: .8rem; color: var(--gray); }
+.mon-export { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mon-export__err { font-size: .76rem; color: #dc2626; }

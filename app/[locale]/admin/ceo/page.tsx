@@ -452,10 +452,11 @@ export default function AdminCeo() {
   const gmvSame = d.gmv === d.revenue;
   const gmv = gmvSame ? headRevenue : d.gmv;
   const gmvTag = gmvSame && cut ? undefined : tagged(gmv);
-  const mrrStub = !demo && d.mrr === d.revenue;
-  const mrr = mrrStub ? d.arr / 12 : d.mrr;
-  const mrrNote = !mrrStub ? tr("notes.mrr") : mrr ? tr("notes.mrrSubs") : tr("notes.mrrNa");
-  const arrNote = mrr && !mrrStub && Math.abs(d.arr - mrr * 12) < 12 ? tr("notes.arr") : tr("notes.arrSubs");
+  // MRR is the backend's normalised recurring subscription revenue; it is
+  // shown as sent, never worked out here.
+  const mrr = d.mrr;
+  const mrrNote = mrr ? tr("notes.mrr") : tr("notes.mrrNa");
+  const arrNote = tr("notes.arr");
   const paidRaw = d.funnel.find((x) => x.label === "paid")?.value ?? d.paidPayments;
   const paidSame = paidRaw === d.paidPayments;
   const paid = paidSame ? headPayments : paidRaw;
@@ -468,6 +469,12 @@ export default function AdminCeo() {
     { key: "gmv", label: t("kpi.gmv"), value: gmv ? money(gmv) : NA, note: gmv && gmvSame ? tr("notes.gmvEq") : tr("notes.gmv"), tag: gmvTag },
     { key: "mrr", label: t("mrr"), value: mrr ? money(mrr) : NA, note: mrrNote, tag: tagged(mrr) },
     { key: "arr", label: t("kpi.arr"), value: d.arr ? money(d.arr) : NA, note: arrNote, tag: tagged(d.arr) },
+    ...(d.activeSubscriptions !== undefined
+      ? [
+          { key: "subs", label: tr("subs"), value: num(d.activeSubscriptions), note: tr("subsNote", { added: num(d.newSubscriptions ?? 0), cancelled: num(d.cancelledSubscriptions ?? 0) }) },
+          { key: "orders", label: tr("orders"), value: num(d.ordersPaid ?? 0), note: tr("ordersNote", { created: num(d.ordersCreated ?? 0) }) },
+        ]
+      : []),
     { key: "arpu", label: t("kpi.arpu"), value: d.arpu ? money(d.arpu) : NA, note: tr("notes.arpu"), tag: tagged(d.arpu) },
     { key: "take", label: t("kpi.takeRate"), value: d.takeRate ? pct(d.takeRate) : NA, note: tr("notes.take"), tag: tagged(d.takeRate) },
     { key: "cac", label: t("kpi.cac"), value: d.cac ? money(d.cac) : NA, note: d.cac ? t("kpi.cacSplit", { client: money(d.cacClient), advocate: money(d.cacAdvocate) }) : tr("notes.cacNa") },
@@ -536,7 +543,7 @@ export default function AdminCeo() {
       }),
     };
   };
-  const unitEcon = () => kv(t("kpi.title"), ledger.filter((r) => r.key !== "payback" && !(d.ltvCac && r.key === "ltvCac")).map((r) => row(r.label, r.value, r.key === "mrr" ? [mrrStub && mrr ? tr("bySubs") : "", r.tag ?? ""].filter(Boolean).join(" · ") || undefined : r.tag)));
+  const unitEcon = () => kv(t("kpi.title"), ledger.filter((r) => r.key !== "payback" && !(d.ltvCac && r.key === "ltvCac")).map((r) => row(r.label, r.value, r.tag)));
   const drillRevenue = () =>
     open({
       title: t("revenueTrend"),

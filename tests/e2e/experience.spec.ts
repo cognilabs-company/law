@@ -22,6 +22,7 @@ test("a lawyer sees grouped revisions, cancels a pending one and submits a typed
       ],
     },
     "POST /marketplace/me/experience/e3/cancel": () => ((cancelled = "e3"), { status: "cancelled" }),
+    "/service-categories/tree": [{ id: "c2", parent_id: null, title: "Мерос", children: [{ id: "c2-a", parent_id: "c2", title: "Vasiyatnoma", children: [] }] }],
     "POST /marketplace/me/experience/evidence": { id: "ev1", file_name: "proof.pdf", mime_type: "application/pdf", size: 10 },
     "POST /marketplace/me/experience": (b: unknown) => ((sent = b as Record<string, unknown>), { id: "e9", status: "pending_review" }),
   });
@@ -42,6 +43,7 @@ test("a lawyer sees grouped revisions, cancels a pending one and submits a typed
   await panel.getByRole("button", { name: "Добавить опыт" }).click();
   const form = panel.locator("form");
   await form.getByRole("combobox").selectOption("c2");
+  await form.getByLabel("Направление (необязательно)").selectOption("c2-a");
   await form.getByLabel("Место работы").fill("Toshkent advokatlar hay'ati");
   await form.getByLabel("Должность").fill("Advokat");
   await form.getByLabel("Дата начала").fill("2019-05-01");
@@ -52,7 +54,7 @@ test("a lawyer sees grouped revisions, cancels a pending one and submits a typed
   await expect(form).toContainText("proof.pdf");
   await form.getByRole("button", { name: "Отправить на проверку" }).click();
   await expect.poll(() => sent).not.toBeNull();
-  expect(sent).toMatchObject({ source_id: null, category_id: "c2", workplace: "Toshkent advokatlar hay'ati", started_at: "2019-05-01T00:00:00Z", ended_at: null, is_current: true, stages: ["appeal"], results: ["settlement"], evidence_ids: ["ev1"] });
+  expect(sent).toMatchObject({ source_id: null, category_id: "c2", subcategory_id: "c2-a", workplace: "Toshkent advokatlar hay'ati", started_at: "2019-05-01T00:00:00Z", ended_at: null, is_current: true, stages: ["appeal"], results: ["settlement"], evidence_ids: ["ev1"] });
   expect(sent).not.toHaveProperty("years");
 });
 

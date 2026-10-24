@@ -22,3 +22,11 @@
 .esc__acts { display: flex; flex-wrap: wrap; gap: 8px; }
 .esc__num { width: 120px; height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--dk-bd, #E3E9F2); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; }
 @media (max-width: 720px) { .esc__row { grid-template-columns: 1fr auto; } }
+.esc .ppanel__h { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.esc .ppanel__h select, .esc__up select { height: 32px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--dk-bd, #E3E9F2); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; font-size: .82rem; }
+.esc__ev { display: grid; gap: 6px; }
+.esc__files { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: .84rem; color: var(--ink); }
+.esc__files li { display: flex; align-items: center; gap: 10px; }
+.esc__files label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.esc__up { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.esc__pager { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: .8rem; color: var(--gray); }

@@ -157,8 +157,7 @@ export async function submitExperience(input: ExperienceInput): Promise<Experien
     results: input.results,
     evidence_ids: input.evidenceIds,
   };
-  // No public source gives real subcategory ids yet (backend answers
-  // 24 Oct 2026 §4), so the optional field is left out unless one is known.
+  // Optional: a real child id from /service-categories/tree, else left out.
   if (input.subcategoryId) body.subcategory_id = input.subcategoryId;
   return experienceItemOf(await http("/marketplace/me/experience", { method: "POST", body: JSON.stringify(body) }));
 }
@@ -269,4 +268,17 @@ export async function reviewExperience(experienceId: string, input: { decision: 
     method: "POST",
     body: JSON.stringify({ decision: input.decision, reason: input.reason.trim(), checklist }),
   });
+}
+
+// The category tree with real ids (backend 24 Oct 2026 §6): a root's
+// children are the subcategories the experience form may send.
+export type CategoryNode = { id: string; parentId: string; slug: string; title: string; children: CategoryNode[] };
+const nodeOf = (v: unknown): CategoryNode => {
+  const d = asDict(v);
+  return { id: asStr(d.id), parentId: asStr(d.parent_id), slug: asStr(d.slug), title: asStr(d.title ?? d.name), children: asArr(d.children).map(nodeOf).filter((c) => c.id) };
+};
+export async function getCategoryTree(signal?: AbortSignal): Promise<CategoryNode[]> {
+  const d = await http("/service-categories/tree", { signal });
+  const list = Array.isArray(d) ? d : asArr(asDict(d).items);
+  return list.map(nodeOf).filter((n) => n.id);
 }

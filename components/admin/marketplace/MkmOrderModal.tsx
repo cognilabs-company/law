@@ -206,6 +206,7 @@ export default function MkmOrderModal({
 }) {
   const t = useTranslations("admin.marketplace.detail");
   const tc = useTranslations("marketplace.purchase.channels");
+  const tp = useTranslations("marketplace.orderDetail.pricing");
   const te = useTranslations("enums");
   const when = useWhen();
   const typeLabel = useTypeLabel();
@@ -320,6 +321,37 @@ export default function MkmOrderModal({
                   </p>
                 ) : null}
               </Section>
+
+              {detail?.settlement ? (
+                <Section icon={<IconCard aria-hidden />} title={t("settlement.title")}>
+                  <dl className="mkm-dl">
+                    <div className="is-wide">
+                      <dt>{t("settlement.status")}</dt>
+                      <dd>
+                        {tp.has(`settle.${detail.settlement.status}`) ? tp(`settle.${detail.settlement.status}`) : humanize(detail.settlement.status)}
+                        {detail.settlement.holdReason ? ` · ${t.has(`settlement.reason.${detail.settlement.holdReason}`) ? t(`settlement.reason.${detail.settlement.holdReason}`) : humanize(detail.settlement.holdReason)}` : ""}
+                      </dd>
+                    </div>
+                    {(
+                      [
+                        ["gross", detail.settlement.gross],
+                        ["held", detail.settlement.held],
+                        ["refunded", detail.settlement.refunded],
+                        ["pendingRefund", detail.settlement.pendingRefund],
+                        ["released", detail.settlement.released],
+                        ["releasable", detail.settlement.releasable],
+                        ["platform", detail.settlement.platform],
+                        ["sellerNet", detail.settlement.sellerNet],
+                      ] as const
+                    ).map(([k, v]) => (
+                      <div key={k}>
+                        <dt>{t(`settlement.${k}`)}</dt>
+                        <dd>{`${fmtUzs(v)} ${currency(detail.settlement!.currency)}`}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </Section>
+              ) : null}
 
               <Section icon={<IconCard aria-hidden />} title={t("payment")}>
                 {o.payment ? (

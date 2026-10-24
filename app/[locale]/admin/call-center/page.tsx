@@ -7,6 +7,8 @@ import UrgentAdvocateQueue from "@/components/admin/UrgentAdvocateQueue";
 import QualityComplaints from "@/components/admin/QualityComplaints";
 import CancellationQueue from "@/components/admin/callcenter/cancellations/CancellationQueue";
 import EscalationQueue from "@/components/admin/callcenter/EscalationQueue";
+import MarketplaceComplaints from "@/components/admin/callcenter/MarketplaceComplaints";
+import WarrantyQueue from "@/components/admin/callcenter/WarrantyQueue";
 import { ExperienceQueue } from "@/components/admin/callcenter/ExperienceReview";
 import CallCenterBoard from "@/components/admin/CallCenterBoard";
 import CcClientSearch from "@/components/admin/CcClientSearch";
@@ -45,6 +47,14 @@ function AdminCallCenterConsole() {
           endpoint answers 403 to everyone else. */}
       <CcTabPanel con={con} tab="complaints">
         {cc ? <QualityComplaints onCount={con.count.complaints} /> : null}
+      </CcTabPanel>
+      {/* Marketplace complaints hold the seller's payout until ruled on;
+          warranty claims are the LexGo guarantee. */}
+      <CcTabPanel con={con} tab="mpComplaints">
+        {cc ? <MarketplaceComplaints onCount={con.count.mpComplaints} /> : null}
+      </CcTabPanel>
+      <CcTabPanel con={con} tab="warranty">
+        {cc ? <WarrantyQueue onCount={con.count.warranty} /> : null}
       </CcTabPanel>
       <CcTabPanel con={con} tab="cancellations">
         {cc ? <CancellationQueue onCount={con.count.cancellations} /> : null}
