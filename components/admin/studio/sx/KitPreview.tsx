@@ -107,15 +107,16 @@ const PILLS: readonly { status: string; source?: SxRecordSource }[] = [
 ];
 const CTOR_GROUPS: readonly (readonly [string, readonly string[]])[] = [
   ["services_packages", ["K01", "K34", "K31", "K32", "K33", "K02", "K29", "K03-M", "K30"]],
-  ["finance_tariffs", ["K17", "K04", "K18"]],
+  ["finance_tariffs", ["K17" /* , "K04", "K18" — paused */]],
   ["advertising", ["K12-PROMO", "MP09"]],
 ];
 const ALL_GROUPS: readonly (readonly [string, readonly string[]])[] = [
   ["services_packages", ["K01", "K34", "K31", "K32", "K33", "K02", "K29", "K03-M", "K30"]],
   ["documents_texts", ["K07", "K06", "K26", "K11"]],
-  ["finance_tariffs", ["K17", "K04", "K18"]],
-  ["operations", ["OPS01", "OPS02", "OPS04", "OPS05", "OPS06", "ORG01", "K23", "K24", "MP01", "MP10", "K28", "K19"]],
-  ["system_reference", ["CORE", "K16", "OPS07", "OPS08", "SEARCH01", "M1", "M2", "M3"]],
+  ["finance_tariffs", ["K17" /* , "K04", "K18" — paused */]],
+  // Paused in Studio (lib/studio/retired.ts):
+  // ["operations", ["OPS01", "OPS02", "OPS04", "OPS05", "OPS06", "ORG01", "K23", "K24", "MP01", "MP10", "K28", "K19"]],
+  // ["system_reference", ["CORE", "K16", "OPS07", "OPS08", "SEARCH01", "M1", "M2", "M3"]],
   ["advertising", ["K12-PROMO", "MP09"]],
 ];
 const ICONS: readonly (readonly [string, SxIcon])[] = Object.entries(iconSet)

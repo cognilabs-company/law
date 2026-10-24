@@ -3,7 +3,21 @@
 // A stale link to one lands on the Studio home with a note.
 export const STUDIO_REMOVED_CODES: readonly string[] = ["CALL01", "INT01", "INT02", "INT03", "K10", "K12-M", "K13", "K14", "K20", "K21", "K22", "K25", "K27", "MP02", "MP03", "MP05", "MP06", "MP07", "MP08", "SEC01", "SEC02", "SEC03", "SEC04", "SEC05"];
 
-export const STUDIO_RETIRED_CODES: readonly string[] = ["K05", "K08", "K09", "MP04", "OPS03", ...STUDIO_REMOVED_CODES];
+// Commented out of Studio (24 Oct 2026): the whole "Operatsiyalar" and
+// "Tizim va ma'lumotnomalar" sections, and "Narx qoidalari" (K04) and
+// "To'lov operatsiyalari" (K18) in "Moliya va tariflar". The backend no
+// longer lists them either. Their code stays; to bring one back, take it
+// off this list (and un-comment it in lib/studio/constructors.ts).
+export const STUDIO_PAUSED_CODES: readonly string[] = [
+  // Operatsiyalar
+  "OPS01", "OPS02", "OPS04", "OPS05", "OPS06", "ORG01", "K23", "K24", "MP01", "MP10", "K28", "K19",
+  // Tizim va ma'lumotnomalar
+  "CORE", "K16", "OPS07", "OPS08", "SEARCH01", "M1", "M2", "M3",
+  // Moliya va tariflar
+  "K04", "K18",
+];
+
+export const STUDIO_RETIRED_CODES: readonly string[] = ["K05", "K08", "K09", "MP04", "OPS03", ...STUDIO_REMOVED_CODES, ...STUDIO_PAUSED_CODES];
 
 export const isRetiredStudioCode = (code: unknown): boolean => typeof code === "string" && STUDIO_RETIRED_CODES.includes(code.trim().toUpperCase());
 
