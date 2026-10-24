@@ -88,6 +88,26 @@ function eatOf(tail: ContactHit, added: string): { eaten: string; done: boolean 
   return { eaten: added.slice(0, i), done: i < added.length || n >= limit };
 }
 
+// Where the caret belongs once `before` became `after`: text up to their
+// first difference and after their last stays in place, so a caret there
+// keeps its spot; one inside what was cut lands where the cut began.
+export function caretAfter(before: string, after: string, caret: number): number {
+  let p = 0;
+  while (p < before.length && p < after.length && before[p] === after[p]) p++;
+  let q = 0;
+  while (q < before.length - p && q < after.length - p && before[before.length - 1 - q] === after[after.length - 1 - q]) q++;
+  if (caret <= p) return caret;
+  if (caret >= before.length - q) return Math.max(p, after.length - (before.length - caret));
+  return p;
+}
+
+// The focused text field whose value is `text`, if any.
+function focusedHolding(text: string): HTMLTextAreaElement | HTMLInputElement | null {
+  if (typeof document === "undefined") return null;
+  const el = document.activeElement;
+  return (el instanceof HTMLTextAreaElement || el instanceof HTMLInputElement) && el.value === text ? el : null;
+}
+
 // Keeps contact details out of a field: whatever the lawyer types or
 // pastes goes through stripContacts, and what it took stays listed in the
 // note until reset() (a new entry, another service). A contact taken while
@@ -119,6 +139,11 @@ export function useContactStrip(set: (text: string) => void) {
       seam.current = false;
     }
     const r = stripContacts(text, finish);
+    // A keystroke in the middle that turns the writer's own words into a
+    // contact ("@" typed before "yozing") is refused instead: their words
+    // stay, only the keystroke is undone, and the note still says why.
+    let next = r.text;
+    if (!appended && !finish && prev !== null && r.removed.length && next.length < prev.length - 1 && !findContacts(prev).length) next = prev;
     if (r.removed.length) {
       setRemoved((cur) => [...cur, ...r.removed.filter((h) => !cur.some((c) => c.kind === h.kind && c.text === h.text))]);
       eating.current = finish ? null : r.tail;
@@ -129,12 +154,22 @@ export function useContactStrip(set: (text: string) => void) {
       if (eating.current) eating.current = grown;
       setRemoved((cur) => cur.map((h) => (h.kind === tail.kind && h.text === tail.text ? grown : h)));
     }
-    last.current = r.text;
-    set(r.text);
-    // A cut before the caret would throw it to the end; put it back.
-    if (el && r.text !== raw && el.selectionStart != null) {
-      const caret = Math.max(0, el.selectionStart - (raw.length - r.text.length));
-      requestAnimationFrame(() => el.setSelectionRange(caret, caret));
+    last.current = next;
+    set(next);
+    // A cut before the caret would throw it to the end; put it back. Fields
+    // that hand over only their text are found as the focused one holding
+    // it. The caret moves only while that field still has focus and nothing
+    // was typed since — a fast typist's next key would otherwise land in
+    // the wrong place — and a field that lost focus is never pulled back.
+    const box = el ?? focusedHolding(raw);
+    if (box && next !== raw && box.selectionStart != null) {
+      const caret = caretAfter(raw, next, box.selectionStart);
+      // Right after React has written the cleaned text back, before the
+      // next key can arrive (a frame later would be too late for a fast
+      // typist).
+      queueMicrotask(() => {
+        if (document.activeElement === box && box.value === next) box.setSelectionRange(caret, caret);
+      });
     }
   };
   return {
