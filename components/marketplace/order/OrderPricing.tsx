@@ -19,7 +19,7 @@ import type { OrderView } from "./types";
 const PAID = new Set(["paid", "succeeded", "success", "completed", "captured", "confirmed"]);
 const WAITING = new Set(["pending", "created", "processing", "requires_action", "awaiting", "waiting"]);
 const STATUS_KEYS = new Set(["failed", "cancelled", "refunded", "reversed", "expired"]);
-const SETTLEMENT_KEYS = new Set(["pending", "held", "complaint_hold", "released", "settled", "refunded"]);
+const SETTLEMENT_KEYS = new Set(["pending", "held", "complaint_hold", "rework_hold", "refund_required", "ready_for_release", "released", "settled", "refunded"]);
 const ADVANCE = /advance|initial|prepay/;
 const FINAL = /final|remaining|balance/;
 
@@ -85,7 +85,23 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
   const pct = (n: number | null) => (n === null ? "" : ` · ${n}%`);
   return (
     <SxPanel title={t("title")} className="mod-price" as="section" aiId={`${aiBase}.pricing`}>
-      {pricing.base > 0 ? (
+      {pricing.components.length ? (
+        <div className="mod-price__group">
+          <p className="mod-price__sub">{t("parts")}</p>
+          {pricing.components.map((c, i) => {
+            const label = c.label[locale] || c.label.uz || (t.has(`part.${c.code}`) ? t(`part.${c.code}`) : c.code);
+            const signed = i > 0 || c.amount < 0;
+            return (
+              <div key={`${c.code}-${i}`} className="mod-price__row">
+                <span>{`${label}${c.percent === null ? "" : ` · ${c.percent}%`}`}</span>
+                <b className="sx-num">{signed ? `${c.amount < 0 ? "−" : "+"}${money(Math.abs(c.amount))}` : money(c.amount)}</b>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+      {pricing.historical ? <p className="mod-price__note">{t("historical")}</p> : null}
+      {pricing.base > 0 && !pricing.components.length ? (
         <div className="mod-price__row">
           <span>{t("base")}</span>
           <b className="sx-num">{money(pricing.base)}</b>
@@ -129,7 +145,7 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
         </div>
       ) : null}
       {pricing.capped ? <p className="mod-price__note">{t("capped")}</p> : null}
-      {pricing.options.length ? (
+      {pricing.options.length && !pricing.components.length ? (
         <div className="mod-price__group">
           <p className="mod-price__sub">{t("options")}</p>
           {pricing.options.map((x, i) => (

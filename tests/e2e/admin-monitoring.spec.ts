@@ -80,3 +80,72 @@ test("monitoring without permission says so", async ({ page }) => {
   await page.goto("/ru/admin/monitoring");
   await expect(page.getByText("Нет доступа")).toBeVisible();
 });
+
+test("extra figures show when sent; thresholds and the service filter work", async ({ page }) => {
+  const rich = {
+    ...overview("down", 70),
+    requests: { activity_events: 900, errors: 2, error_rate_percent: 0.2, rps: 12.5, latency_ms: { p50: 40, p95: 180, p99: 420 }, status_4xx: 7, status_5xx: 2 },
+    users: { active: 30, total: 283, today: 120, by_role: { client: 90, advokat: 20, yurist: 10 } },
+    workers: { pending: 4, failed: 1 },
+  };
+  const routes = await signIn(page, ADMIN, { "/admin/monitoring/overview": () => rich, "/admin/monitoring/history": { items: [] } });
+  await mockBackend(page, routes);
+  await page.goto("/ru/admin/monitoring");
+  await expect(page.getByText("Задержка p95")).toBeVisible();
+  await expect(page.getByText("180 ms")).toBeVisible();
+  await expect(page.getByText("4xx: 7 · 5xx: 2")).toBeVisible();
+  await expect(page.getByText("Сегодня: 120 · Всего: 283")).toBeVisible();
+  await expect(page.getByText("С ошибкой: 1")).toBeVisible();
+  await expect(page.getByText(/client 90 · advokat 20/)).toBeVisible();
+  await expect(page.getByText("Превышен порог")).toHaveCount(0);
+  // Lower the CPU threshold below 70%: the alert appears.
+  await page.getByRole("button", { name: "Пороги" }).click();
+  await page.getByRole("spinbutton", { name: "Процессор" }).fill("60");
+  await expect(page.getByRole("alert").filter({ hasText: "Превышен порог" })).toContainText("Процессор");
+  // Only services with problems.
+  await page.getByRole("combobox", { name: "Состояние сервиса" }).selectOption("problems");
+  await expect(page.getByRole("button", { name: "База данных", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Acme SMS", exact: true })).toHaveCount(0);
+});
+
+test("history: filter by type, show more, custom dates", async ({ page }) => {
+  const hist = (url: URL) => {
+    const n = Number(url.searchParams.get("limit") ?? 20);
+    const items = Array.from({ length: n }, (_, i) =>
+      i % 5 === 0
+        ? { id: `i${i}`, type: "monitoring_incident", title: `Incident ${i}`, captured_at: `2026-10-24T0${i % 10}:00:00Z` }
+        : { id: `s${i}`, type: "monitoring_snapshot", system: { cpu: { load_percent: 10 + i }, memory: { used_percent: 50 } }, captured_at: `2026-10-24T0${i % 10}:30:00Z` },
+    );
+    return { items, count: n, retention: { snapshots_days: 365, incidents_years: 3 } };
+  };
+  const routes = await signIn(page, ADMIN, { "/admin/monitoring/overview": () => overview(), "/admin/monitoring/history": (_b: unknown, url: URL) => hist(url) });
+  const mock = await mockBackend(page, routes);
+  await page.goto("/ru/admin/monitoring");
+  await expect(page.getByText("Incident 0")).toBeVisible();
+  await page.getByRole("combobox", { name: "Тип записей" }).selectOption("incident");
+  await expect(page.locator(".mon-hist li")).toHaveCount(4);
+  await page.getByRole("button", { name: "Показать ещё" }).click();
+  await expect.poll(() => mock.calls.some((c) => c.path === "/admin/monitoring/history" && c.method === "GET")).toBe(true);
+  await expect(page.locator(".mon-hist li")).toHaveCount(14);
+  await page.getByRole("combobox", { name: "Период" }).selectOption("custom");
+  await page.getByRole("textbox", { name: "Дата начала" }).or(page.locator('input[aria-label="Дата начала"]')).fill("2026-10-01");
+  await page.locator('input[aria-label="Дата окончания"]').fill("2026-10-20");
+  await expect(page.locator(".mon-trend")).toBeVisible();
+});
+
+test("an integration's detail shows its own history and dependencies", async ({ page }) => {
+  const snap = (i: number, st: string) => ({ id: `s${i}`, type: "monitoring_snapshot", captured_at: `2026-10-24T0${i}:00:00Z`, integrations: [{ key: "database", status: st, latency_ms: 1 + i }] });
+  const routes = await signIn(page, ADMIN, {
+    "/admin/monitoring/overview": () => overview(),
+    "/admin/monitoring/history": { items: [snap(1, "healthy"), snap(2, "down"), snap(3, "healthy"), snap(4, "healthy")], retention: {} },
+    "/admin/monitoring/integrations/database": { key: "database", status: "healthy", configured: true, latency_ms: 0.5, last_error: "timeout", error_code: "DB_TIMEOUT", last_error_at: "2026-10-24T02:00:00Z" },
+  });
+  await mockBackend(page, routes);
+  await page.goto("/ru/admin/monitoring");
+  await page.getByRole("button", { name: "База данных", exact: true }).click();
+  const detail = page.locator(".mon-detail");
+  await expect(detail).toContainText("75% (по последним 4 снимкам)");
+  await expect(detail).toContainText("(DB_TIMEOUT)");
+  await expect(detail).toContainText("LexGo API");
+  await expect(detail.locator(".mon-detail__hist li")).toHaveCount(4);
+});

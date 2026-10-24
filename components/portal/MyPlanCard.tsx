@@ -8,6 +8,7 @@ import { dateOnly } from "@/lib/date";
 import { errDetail, isAborted, isRouteMissing, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { getMyFeatures, getSubscriptionContract, giveRenewalConsent, type FeatureAccess, type MyFeatures, type SubscriptionContract } from "@/lib/services/subscriptionContract";
+import { updateSubscriptionAutoRenew } from "@/lib/services/backend";
 
 // The subscriber's own plan: the terms fixed for this period (a later
 // tariff edit does not touch them), each feature's limit as the backend
@@ -25,6 +26,9 @@ export default function MyPlanCard(): ReactElement | null {
   const sending = useRef(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [consented, setConsented] = useState(false);
+  // "Don't renew": the subscriber may stop at the period's end instead of
+  // taking the new terms (auto-renew off; the current period stays).
+  const [stopped, setStopped] = useState(false);
 
   useEffect(() => {
     const ctl = new AbortController();
@@ -47,7 +51,25 @@ export default function MyPlanCard(): ReactElement | null {
   const { features, contract } = state;
   const name = contract ? contract.names[locale] || contract.names.uz || contract.title : "";
   const featureName = (key: string) => (ts.has(`sx.feature.${key}`) ? ts(`sx.feature.${key}`) : key.replace(/[_.]+/g, " "));
-  const needsConsent = !!contract?.termsChanged && !(contract.consent?.accepted === true) && !consented;
+  const needsConsent = !!contract?.termsChanged && !(contract.consent?.accepted === true) && !consented && !stopped;
+
+  async function stop() {
+    if (!contract || busy || sending.current) return;
+    sending.current = true;
+    setBusy(true);
+    setNote(null);
+    try {
+      await updateSubscriptionAutoRenew(contract.subscriptionId, { auto_renew: false });
+      setStopped(true);
+      setNote({ ok: true, msg: t("stopDone") });
+    } catch (e) {
+      sending.current = false;
+      logApiError("myPlan.stop", e);
+      setNote({ ok: false, msg: errDetail(e) || t("stopFailed") });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function consent() {
     if (!contract || busy || sending.current) return;
@@ -88,9 +110,14 @@ export default function MyPlanCard(): ReactElement | null {
         <div className="myplan__consent" role="alert">
           <b>{t("changedTitle")}</b>
           <span>{t("changedText")}</span>
-          <button type="button" className="btn btn--pri btn--sm" onClick={() => void consent()} disabled={busy}>
-            {busy ? t("consenting") : t("consent")}
-          </button>
+          <span className="myplan__acts">
+            <button type="button" className="btn btn--line btn--sm" onClick={() => void stop()} disabled={busy}>
+              {t("stop")}
+            </button>
+            <button type="button" className="btn btn--pri btn--sm" onClick={() => void consent()} disabled={busy}>
+              {busy ? t("consenting") : t("consent")}
+            </button>
+          </span>
         </div>
       ) : null}
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}

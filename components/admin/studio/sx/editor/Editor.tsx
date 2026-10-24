@@ -25,6 +25,7 @@ import { useCtorVisit } from "../home/ctorUsage";
 import type { CategoryKind } from "../ctor/services";
 import { CategoryKindBar, CategoryKindGate } from "../shared/CategoryKind";
 import { RuleKindBar, RuleKindGate, RuleVersionStart, ruleKindHref } from "../shared/RuleKind";
+import { SINGLETON_CODES, SingletonGate } from "../shared/SingletonGate";
 
 export type EditorProps = { id: string; newCode: string; ctx: string; focus?: string; prefill?: Readonly<Record<string, string>>; categoryKind?: CategoryKind; ruleKind?: "new" | "version"; ruleFrom?: string };
 
@@ -319,6 +320,14 @@ export function Editor({ id, newCode, ctx, focus, prefill, categoryKind, ruleKin
   if (rule && (!ruleKind || (ruleKind === "version" && !ruleFrom))) return <RuleKindGate base={newRuleBase(ctx)} listHref="/admin/studio/c/K31" listLabel={labels.ctorName("K31")} />;
   if (rule && ruleKind === "version") return <RuleVersionStart key={ruleFrom} from={ruleFrom} gate={newRuleBase(ctx)} render={(start) => <EditorScreen key={`new:K31:version:${ruleFrom}`} init={{ code: newCode, id: null, ctx, focus: focus ?? "body", initialPayload: start }} />} />;
   const kind = category ? categoryKind : undefined;
+  if (newCode && fresh && SINGLETON_CODES.has(newCode.toUpperCase())) {
+    const one: EditorInit = { code: newCode, id: null, ctx, focus, initialPayload: prefill ? { ...prefill } : undefined };
+    return (
+      <SingletonGate code={newCode.toUpperCase()}>
+        <EditorScreen key={`new:${newCode}:${ctx}`} init={one} />
+      </SingletonGate>
+    );
+  }
   const ruleStart = rule ? { creation_mode: "new" } : undefined;
   const init: EditorInit = newCode ? { code: newCode, id: null, ctx, focus, initialPayload: prefill || ruleStart ? { ...ruleStart, ...prefill } : undefined, categoryKind: kind } : { code: "", id, focus };
   return <EditorScreen key={newCode ? `new:${newCode}:${ctx}:${kind ?? ""}:${prefill ? JSON.stringify(prefill) : ""}` : `id:${id}`} init={init} />;

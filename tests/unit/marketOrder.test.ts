@@ -103,3 +103,34 @@ describe("realtime signals", () => {
     expect(sig?.orderId).toBe("o9");
   });
 });
+
+describe("pricing snapshot and resolution (contract of 24 Oct 2026)", () => {
+  it("keeps the snapshot's components in order, with their explanations", () => {
+    const o = normMarketOrder(
+      paidOrder({
+        details: {
+          pricing_snapshot: {
+            final_price: 879749,
+            historical_policy_exact: false,
+            components: [
+              { code: "base_price", amount: 850000, percent: null, explanation: { uz: "Xizmatning asosiy narxi", ru: "Базовая стоимость услуги" } },
+              { code: "selected_option", amount: 29749, explanation: { uz: "Shoshilinch bajarish" } },
+            ],
+          },
+        },
+      }),
+    );
+    expect(o.pricing?.components.map((c) => [c.code, c.amount, c.label.ru ?? c.label.uz])).toEqual([
+      ["base_price", 850000, "Базовая стоимость услуги"],
+      ["selected_option", 29749, "Shoshilinch bajarish"],
+    ]);
+    expect(o.pricing?.historical).toBe(true);
+  });
+
+  it("reads the client's pending choice and treats a refund as stopped", () => {
+    const o = normMarketOrder({ id: "o", status: "resolution_required", resolution: { offer: { id: "of", status: "pending_client_choice", options: ["reassign", "refund"], deadline_at: "2026-10-24T09:00:00Z" }, refund: null, can_choose: true } });
+    expect(o.resolution).toMatchObject({ canChoose: true, offer: { options: ["reassign", "refund"] } });
+    expect(marketPhaseOf(normMarketOrder({ id: "o", status: "refund_pending", payment_status: "paid" }))).toBe("cancelled");
+    expect(normMarketOrder({ id: "o", status: "paid" }).resolution).toBeNull();
+  });
+});

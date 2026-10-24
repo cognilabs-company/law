@@ -1,0 +1,4731 @@
+{
+ "_note": "Recorded from GET /studio/constructors (K17 only), /studio/constructors/K17, its form-context and the subscription-features and roles references (24 Oct 2026).",
+ "constructors": {
+  "group_count": 1,
+  "constructor_count": 1,
+  "user_roles": [
+   "superadmin"
+  ],
+  "include_schema": false,
+  "items": [
+   {
+    "id": "b00437a3-1c34-4e8e-aa44-06063bb719f8",
+    "code": "K17",
+    "title": "Tarif va imkoniyatlar",
+    "category": "subscriptions",
+    "description": "Barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+    "runtime_target": "subscription_plans",
+    "experience": {
+     "metadata_version": 1,
+     "purpose": "Barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+     "plain_language": "Bu konstruktor barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+     "when_to_use": "Tarif tanlashdagi tarif kartasi, narx, imkoniyat va limitlarni kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+     "managed_by": [
+      "studio_editor",
+      "subscription_manager"
+     ],
+     "where_used": [
+      {
+       "surface_key": "subscription_plans",
+       "title": "Tarif tanlash",
+       "route": "/uz/subscription-plans",
+       "placement": "Tarif kartasi, narx, imkoniyat va limitlar"
+      }
+     ],
+     "result": "Publish qilingandan keyin yangi konfiguratsiya `subscription_plans` runtime qatlamida ishlaydi va Tarif tanlashda aks etadi.",
+     "workflow": [
+      {
+       "step": 1,
+       "title": "Bog‘liq ma’lumotni tanlang",
+       "description": "Avval Mavjud tarif, Ruxsat etilgan rollar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+      },
+      {
+       "step": 2,
+       "title": "Asosiy maydonlarni to‘ldiring",
+       "description": "Majburiy maydonlar: Slug, Tarif nomi, Tarif turi, Ruxsat etilgan rollar, To‘lov turi, Davr narxlari, Tarif davomiyligi, Imkoniyatlar va limitlar."
+      },
+      {
+       "step": 3,
+       "title": "Natijani tekshiring",
+       "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+      },
+      {
+       "step": 4,
+       "title": "Saqlang va tasdiqlashga yuboring",
+       "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+      }
+     ],
+     "visual_preview": {
+      "type": "pricing",
+      "title": "Tarif va imkoniyatlar natijasi",
+      "description": "Forma o‘zgarganda tarif kartasi, narx, imkoniyat va limitlarning taxminiy ko‘rinishini darhol yangilang.",
+      "data_source": "payload",
+      "refresh": "on_change",
+      "surface_keys": [
+       "subscription_plans"
+      ]
+     },
+     "novice_notes": [
+      "Qizil yulduzchali maydonlar majburiy.",
+      "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+      "Preview real ma’lumotni o‘zgartirmaydi.",
+      "Publishdan oldin diff va warninglarni tekshiring."
+     ],
+     "publish_checklist": [
+      "Majburiy maydonlar to‘ldirilgan",
+      "Reference qiymatlar mavjud",
+      "Preview kutilgan natijani ko‘rsatmoqda",
+      "Validatsiya xatosiz",
+      "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+     ],
+     "risk_level": "medium",
+     "warnings": [
+      "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+     ]
+    },
+    "visual_preview": {
+     "type": "pricing",
+     "title": "Tarif va imkoniyatlar natijasi",
+     "description": "Forma o‘zgarganda tarif kartasi, narx, imkoniyat va limitlarning taxminiy ko‘rinishini darhol yangilang.",
+     "data_source": "payload",
+     "refresh": "on_change",
+     "surface_keys": [
+      "subscription_plans"
+     ]
+    },
+    "navigation": {
+     "group_key": "finance_tariffs",
+     "group_title": "Moliya va tariflar",
+     "group_order": 5,
+     "step_number": 1,
+     "step_count": 3,
+     "required_before": [],
+     "recommended_before": [],
+     "next_steps": [
+      "K04"
+     ],
+     "sequence_reason": "Moliya va tariflar bo‘limida bu qadam 1-navbatda bajariladi.",
+     "ui_visible": true,
+     "managed_by": "studio"
+    },
+    "operations": {
+     "supported": [
+      "create",
+      "view",
+      "edit",
+      "clone",
+      "archive"
+     ],
+     "default": "list",
+     "identity_source": "route_context",
+     "context_fields": [
+      "plan_id"
+     ],
+     "list_endpoint": "/studio/constructors/K17/records",
+     "form_context_endpoint": "/studio/constructors/K17/form-context",
+     "clone_endpoint": "/studio/objects/{object_id}/clone",
+     "archive_endpoint": "/studio/objects/{object_id}/archive"
+    },
+    "capabilities": [
+     "draft",
+     "validate",
+     "preview",
+     "submit",
+     "approve",
+     "publish",
+     "rollback"
+    ],
+    "definition_version": 3,
+    "approval_required": true,
+    "is_active": true,
+    "updated_at": "2026-10-23T15:04:23.141252Z",
+    "record_count": 11,
+    "completed": true,
+    "availability": "available",
+    "missing_required": [],
+    "missing_recommended": [],
+    "field_count": 18,
+    "required_fields": [
+     "slug",
+     "title",
+     "plan_type",
+     "target_roles",
+     "billing_type",
+     "prices",
+     "duration",
+     "entitlements"
+    ],
+    "detail_url": "/studio/constructors/K17"
+   }
+  ],
+  "groups": [
+   {
+    "key": "finance_tariffs",
+    "title": "Moliya va tariflar",
+    "description": "Tariflar, narx chegaralari, komissiya, to‘lov providerlari, checkout va payout qoidalarini boshqaradi.",
+    "codes": [
+     "K17",
+     "K04",
+     "K18"
+    ],
+    "order": 3,
+    "constructor_count": 3,
+    "constructors": [
+     {
+      "id": "b00437a3-1c34-4e8e-aa44-06063bb719f8",
+      "code": "K17",
+      "title": "Tarif va imkoniyatlar",
+      "category": "subscriptions",
+      "description": "Barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+      "runtime_target": "subscription_plans",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+       "plain_language": "Bu konstruktor barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+       "when_to_use": "Tarif tanlashdagi tarif kartasi, narx, imkoniyat va limitlarni kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "subscription_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "subscription_plans",
+         "title": "Tarif tanlash",
+         "route": "/uz/subscription-plans",
+         "placement": "Tarif kartasi, narx, imkoniyat va limitlar"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `subscription_plans` runtime qatlamida ishlaydi va Tarif tanlashda aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Mavjud tarif, Ruxsat etilgan rollar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Slug, Tarif nomi, Tarif turi, Ruxsat etilgan rollar, To‘lov turi, Davr narxlari, Tarif davomiyligi, Imkoniyatlar va limitlar."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "pricing",
+        "title": "Tarif va imkoniyatlar natijasi",
+        "description": "Forma o‘zgarganda tarif kartasi, narx, imkoniyat va limitlarning taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "subscription_plans"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "pricing",
+       "title": "Tarif va imkoniyatlar natijasi",
+       "description": "Forma o‘zgarganda tarif kartasi, narx, imkoniyat va limitlarning taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "subscription_plans"
+       ]
+      },
+      "navigation": {
+       "group_key": "finance_tariffs",
+       "group_title": "Moliya va tariflar",
+       "group_order": 5,
+       "step_number": 1,
+       "step_count": 3,
+       "required_before": [],
+       "recommended_before": [],
+       "next_steps": [
+        "K04"
+       ],
+       "sequence_reason": "Moliya va tariflar bo‘limida bu qadam 1-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [
+        "plan_id"
+       ],
+       "list_endpoint": "/studio/constructors/K17/records",
+       "form_context_endpoint": "/studio/constructors/K17/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T15:04:23.141252Z",
+      "record_count": 11,
+      "completed": true,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 18,
+      "required_fields": [
+       "slug",
+       "title",
+       "plan_type",
+       "target_roles",
+       "billing_type",
+       "prices",
+       "duration",
+       "entitlements"
+      ],
+      "detail_url": "/studio/constructors/K17"
+     },
+     {
+      "id": "93f55339-be02-4c01-ad30-bd550e358280",
+      "code": "K04",
+      "title": "Narx qoidalari",
+      "category": "marketplace",
+      "description": "Bazaviy va maksimal narx, hudud, staj va reyting koeffitsiyentlarini boshqaradi.",
+      "runtime_target": "pricing_rules",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Bazaviy va maksimal narx, hudud, staj va reyting koeffitsiyentlarini boshqaradi.",
+       "plain_language": "Bu konstruktor bazaviy va maksimal narx, hudud, staj va reyting koeffitsiyentlarini boshqaradi.",
+       "when_to_use": "Moliya boshqaruvidagi narx, to‘lov, komissiya va payout qoidalarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "finance_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "pricing_rules",
+         "title": "Moliya boshqaruvi",
+         "route": "/admin/finance",
+         "placement": "Narx, to‘lov, komissiya va payout qoidalari"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `pricing_rules` runtime qatlamida ishlaydi va Moliya boshqaruvida aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Xizmat qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Xizmat, Bazaviy narx, Maksimal narx."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "pricing",
+        "title": "Narx qoidalari natijasi",
+        "description": "Forma o‘zgarganda narx, to‘lov, komissiya va payout qoidalarining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "pricing_rules"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "high",
+       "warnings": [
+        "Bu konfiguratsiya xavfsizlik, moliya yoki tizim boshqaruviga ta’sir qilishi mumkin.",
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "pricing",
+       "title": "Narx qoidalari natijasi",
+       "description": "Forma o‘zgarganda narx, to‘lov, komissiya va payout qoidalarining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "pricing_rules"
+       ]
+      },
+      "navigation": {
+       "group_key": "finance_tariffs",
+       "group_title": "Moliya va tariflar",
+       "group_order": 5,
+       "step_number": 2,
+       "step_count": 3,
+       "required_before": [
+        "K02"
+       ],
+       "recommended_before": [
+        "K17"
+       ],
+       "next_steps": [
+        "K18"
+       ],
+       "sequence_reason": "Moliya va tariflar bo‘limida bu qadam 2-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [],
+       "list_endpoint": "/studio/constructors/K04/records",
+       "form_context_endpoint": "/studio/constructors/K04/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T15:04:23.131152Z",
+      "record_count": 1,
+      "completed": false,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 9,
+      "required_fields": [
+       "service_id",
+       "base_price",
+       "max_price"
+      ],
+      "detail_url": "/studio/constructors/K04"
+     },
+     {
+      "id": "aeece059-3fa2-4b96-9864-c4f2cf6992b4",
+      "code": "K18",
+      "title": "To‘lov operatsiyalari",
+      "category": "finance",
+      "description": "Provider routing, confirm, refund va reconciliation qoidalarini boshqaradi.",
+      "runtime_target": "payment_policies",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Provider routing, confirm, refund va reconciliation qoidalarini boshqaradi.",
+       "plain_language": "Bu konstruktor provider routing, confirm, refund va reconciliation qoidalarini boshqaradi.",
+       "when_to_use": "Moliya boshqaruvidagi narx, to‘lov, komissiya va payout qoidalarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "finance_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "payment_policies",
+         "title": "Moliya boshqaruvi",
+         "route": "/admin/finance",
+         "placement": "Narx, to‘lov, komissiya va payout qoidalari"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `payment_policies` runtime qatlamida ishlaydi va Moliya boshqaruvida aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Siyosat kaliti, Providerlar, Valyuta."
+        },
+        {
+         "step": 2,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 3,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "pricing",
+        "title": "To‘lov operatsiyalari natijasi",
+        "description": "Forma o‘zgarganda narx, to‘lov, komissiya va payout qoidalarining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "payment_policies"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "high",
+       "warnings": [
+        "Bu konfiguratsiya xavfsizlik, moliya yoki tizim boshqaruviga ta’sir qilishi mumkin.",
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "pricing",
+       "title": "To‘lov operatsiyalari natijasi",
+       "description": "Forma o‘zgarganda narx, to‘lov, komissiya va payout qoidalarining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "payment_policies"
+       ]
+      },
+      "navigation": {
+       "group_key": "finance_tariffs",
+       "group_title": "Moliya va tariflar",
+       "group_order": 5,
+       "step_number": 3,
+       "step_count": 3,
+       "required_before": [],
+       "recommended_before": [
+        "INT03"
+       ],
+       "next_steps": [],
+       "sequence_reason": "Moliya va tariflar bo‘limida bu qadam 3-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [],
+       "list_endpoint": "/studio/constructors/K18/records",
+       "form_context_endpoint": "/studio/constructors/K18/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T15:04:23.142805Z",
+      "record_count": 2,
+      "completed": true,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [
+       "INT03"
+      ],
+      "field_count": 10,
+      "required_fields": [
+       "policy_key",
+       "providers",
+       "currency"
+      ],
+      "detail_url": "/studio/constructors/K18"
+     }
+    ],
+    "visible_constructor_count": 3,
+    "completed_count": 2,
+    "available_count": 3,
+    "progress_percent": 67,
+    "next_constructor_code": "K04"
+   }
+  ],
+  "journeys": []
+ },
+ "k17": {
+  "id": "b00437a3-1c34-4e8e-aa44-06063bb719f8",
+  "code": "K17",
+  "title": "Tarif va imkoniyatlar",
+  "category": "subscriptions",
+  "description": "Barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+  "runtime_target": "subscription_plans",
+  "schema": {
+   "version": 3,
+   "required": [
+    "slug",
+    "title",
+    "plan_type",
+    "target_roles",
+    "billing_type",
+    "prices",
+    "duration",
+    "entitlements"
+   ],
+   "fields": [
+    {
+     "key": "plan_id",
+     "name": "plan_id",
+     "label": "Mavjud tarif",
+     "type": "select",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Bu qiymat tanlangan obyekt route kontekstidan avtomatik olinadi va formaga qo‘lda kiritilmaydi.",
+     "runtime_path": "plan_id",
+     "source": "/studio/reference/subscription-plans",
+     "default": null,
+     "ui": {
+      "component": "search_select",
+      "order": 1,
+      "hidden": true
+     },
+     "example": "<reference-id>",
+     "context_managed": true,
+     "visible_in_modes": [],
+     "read_only": true
+    },
+    {
+     "key": "slug",
+     "name": "slug",
+     "label": "Slug",
+     "type": "text",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "URL va ichki qidiruv uchun takrorlanmaydigan lotincha kalit kiriting.",
+     "runtime_path": "slug",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 2
+     },
+     "example": "shartnomani-huquqiy-tekshirish",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "title",
+     "name": "title",
+     "label": "Tarif nomi",
+     "type": "text",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+     "runtime_path": "title",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 3
+     },
+     "example": "Shartnomani huquqiy tekshirish",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "description",
+     "name": "description",
+     "label": "Tavsif",
+     "type": "textarea",
+     "required": false,
+     "section": "Kontent",
+     "help_text": "Bu element nima berishini oddiy foydalanuvchi tushunadigan qilib yozing.",
+     "runtime_path": "description",
+     "default": null,
+     "ui": {
+      "component": "textarea",
+      "order": 4
+     },
+     "example": "Advokat hujjatni tekshiradi va aniq tavsiya beradi.",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "plan_type",
+     "name": "plan_type",
+     "label": "Tarif turi",
+     "type": "select",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Tarif turi uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "plan_type",
+     "options": [
+      "client",
+      "personal_lawyer",
+      "seller",
+      "organization",
+      "gift"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 5
+     },
+     "example": "client"
+    },
+    {
+     "key": "target_roles",
+     "name": "target_roles",
+     "label": "Ruxsat etilgan rollar",
+     "type": "multiselect",
+     "required": true,
+     "section": "Kirish va auditoriya",
+     "help_text": "Ruxsat etilgan rollar uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+     "runtime_path": "target_roles",
+     "source": "/studio/reference/roles",
+     "default": [],
+     "ui": {
+      "component": "search_select",
+      "order": 6
+     },
+     "example": "<reference-id>"
+    },
+    {
+     "key": "billing_type",
+     "name": "billing_type",
+     "label": "To‘lov turi",
+     "type": "select",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "To‘lov turi uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "billing_type",
+     "options": [
+      "subscription",
+      "one_time",
+      "gift"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 7
+     },
+     "example": "subscription"
+    },
+    {
+     "key": "prices",
+     "name": "prices",
+     "label": "Davr narxlari",
+     "type": "object",
+     "required": true,
+     "section": "Narx va hisob-kitob",
+     "help_text": "Davr narxlari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "prices",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 8
+     },
+     "properties": [
+      {
+       "key": "monthly",
+       "name": "monthly",
+       "label": "1 oy",
+       "type": "money",
+       "required": true,
+       "default": null,
+       "min": 0,
+       "help_text": "1 oy uchun manfiy bo‘lmagan aniq son kiriting.",
+       "example": 100000
+      },
+      {
+       "key": "six_month",
+       "name": "six_month",
+       "label": "6 oy",
+       "type": "money",
+       "required": false,
+       "default": null,
+       "min": 0,
+       "help_text": "6 oy uchun manfiy bo‘lmagan aniq son kiriting.",
+       "example": 100000
+      },
+      {
+       "key": "yearly",
+       "name": "yearly",
+       "label": "1 yil",
+       "type": "money",
+       "required": false,
+       "default": null,
+       "min": 0,
+       "help_text": "1 yil uchun manfiy bo‘lmagan aniq son kiriting.",
+       "example": 100000
+      },
+      {
+       "key": "prepaid_yearly",
+       "name": "prepaid_yearly",
+       "label": "Oldindan yillik",
+       "type": "money",
+       "required": false,
+       "default": null,
+       "min": 0,
+       "help_text": "Oldindan yillik uchun manfiy bo‘lmagan aniq son kiriting.",
+       "example": 100000
+      }
+     ],
+     "required_fields": [
+      "monthly"
+     ],
+     "additional_properties": false,
+     "example": {}
+    },
+    {
+     "key": "duration",
+     "name": "duration",
+     "label": "Tarif davomiyligi",
+     "type": "object",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Tarif davomiyligi ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "duration",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 9
+     },
+     "properties": [],
+     "required_fields": [],
+     "additional_properties": true,
+     "example": {}
+    },
+    {
+     "key": "entitlements",
+     "name": "entitlements",
+     "label": "Imkoniyatlar va limitlar",
+     "type": "list",
+     "required": true,
+     "section": "Qoidalar",
+     "help_text": "Faqat imkoniyatlar registridan tanlanadi; unavailable, limited yoki unlimited rejimi beriladi",
+     "runtime_path": "entitlements",
+     "default": [],
+     "ui": {
+      "component": "repeater",
+      "order": 10
+     },
+     "item_schema": {
+      "type": "object",
+      "properties": [
+       {
+        "key": "feature_key",
+        "name": "feature_key",
+        "label": "Imkoniyat",
+        "type": "select",
+        "required": true,
+        "default": null,
+        "source": "/studio/reference/subscription-features",
+        "help_text": "Imkoniyat uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+        "example": "<reference-id>"
+       },
+       {
+        "key": "mode",
+        "name": "mode",
+        "label": "Rejim",
+        "type": "select",
+        "required": true,
+        "default": "unavailable",
+        "options": [
+         "unavailable",
+         "limited",
+         "unlimited"
+        ],
+        "help_text": "Rejim uchun ruxsat etilgan variantlardan birini tanlang.",
+        "example": "unavailable"
+       },
+       {
+        "key": "limit",
+        "name": "limit",
+        "label": "Limit",
+        "type": "number",
+        "required": false,
+        "default": null,
+        "min": 1,
+        "help_text": "Limit uchun manfiy bo‘lmagan aniq son kiriting.",
+        "example": 1
+       },
+       {
+        "key": "reset_period",
+        "name": "reset_period",
+        "label": "Limit yangilanish davri",
+        "type": "select",
+        "required": false,
+        "default": "billing_period",
+        "options": [
+         "day",
+         "month",
+         "billing_period",
+         "lifetime"
+        ],
+        "help_text": "Limit yangilanish davri uchun ruxsat etilgan variantlardan birini tanlang.",
+        "example": "day"
+       }
+      ],
+      "required_fields": [
+       "feature_key",
+       "mode"
+      ],
+      "additional_properties": false,
+      "help_text": "qiymat ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+      "example": {}
+     },
+     "min_items": 0,
+     "unique_by": "feature_key",
+     "example": []
+    },
+    {
+     "key": "trial",
+     "name": "trial",
+     "label": "Sinov muddati",
+     "type": "object",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Sinov muddati ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "trial",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 11
+     },
+     "properties": [
+      {
+       "key": "enabled",
+       "name": "enabled",
+       "label": "Faol",
+       "type": "boolean",
+       "required": false,
+       "default": false,
+       "help_text": "Faol qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      },
+      {
+       "key": "days",
+       "name": "days",
+       "label": "Kun",
+       "type": "number",
+       "required": false,
+       "default": null,
+       "min": 0,
+       "help_text": "Kun uchun manfiy bo‘lmagan aniq son kiriting.",
+       "example": 1
+      },
+      {
+       "key": "entitlements",
+       "name": "entitlements",
+       "label": "Imkoniyatlar",
+       "type": "object",
+       "required": false,
+       "default": {},
+       "properties": [
+        {
+         "key": "ai_requests",
+         "name": "ai_requests",
+         "label": "AI so‘rovlari",
+         "type": "number",
+         "required": false,
+         "default": null,
+         "min": 0,
+         "help_text": "AI so‘rovlari uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 1
+        },
+        {
+         "key": "doc_analysis",
+         "name": "doc_analysis",
+         "label": "Hujjat tahlili",
+         "type": "number",
+         "required": false,
+         "default": null,
+         "min": 0,
+         "help_text": "Hujjat tahlili uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 1
+        },
+        {
+         "key": "history_days",
+         "name": "history_days",
+         "label": "Tarix kunlari",
+         "type": "number",
+         "required": false,
+         "default": null,
+         "min": 0,
+         "help_text": "Tarix kunlari uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 1
+        },
+        {
+         "key": "export",
+         "name": "export",
+         "label": "Eksport",
+         "type": "boolean",
+         "required": false,
+         "default": false,
+         "help_text": "Eksport qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "case_law_search",
+         "name": "case_law_search",
+         "label": "Sud amaliyoti qidiruvi",
+         "type": "boolean",
+         "required": false,
+         "default": false,
+         "help_text": "Sud amaliyoti qidiruvi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "manual_document_templates",
+         "name": "manual_document_templates",
+         "label": "Hujjat shablonlari",
+         "type": "boolean",
+         "required": false,
+         "default": false,
+         "help_text": "Hujjat shablonlari qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "template_download",
+         "name": "template_download",
+         "label": "Shablon yuklash",
+         "type": "boolean",
+         "required": false,
+         "default": false,
+         "help_text": "Shablon yuklash qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "manual_document_fill",
+         "name": "manual_document_fill",
+         "label": "Qo‘lda to‘ldirish",
+         "type": "boolean",
+         "required": false,
+         "default": false,
+         "help_text": "Qo‘lda to‘ldirish qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        }
+       ],
+       "required_fields": [],
+       "additional_properties": true,
+       "help_text": "Imkoniyatlar ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "example": {}
+      }
+     ],
+     "required_fields": [],
+     "additional_properties": false,
+     "example": {}
+    },
+    {
+     "key": "grace_period_days",
+     "name": "grace_period_days",
+     "label": "To‘lov uchun qo‘shimcha kun",
+     "type": "number",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "To‘lov uchun qo‘shimcha kun uchun manfiy bo‘lmagan aniq son kiriting.",
+     "runtime_path": "grace_period_days",
+     "min": 0,
+     "default": null,
+     "ui": {
+      "component": "number",
+      "order": 12
+     },
+     "example": 1
+    },
+    {
+     "key": "renewal_notice_days",
+     "name": "renewal_notice_days",
+     "label": "Yangilanish xabari oldindan, kun",
+     "type": "number",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Yangilanish xabari oldindan, kun uchun manfiy bo‘lmagan aniq son kiriting.",
+     "runtime_path": "renewal_notice_days",
+     "min": 0,
+     "default": null,
+     "ui": {
+      "component": "number",
+      "order": 13
+     },
+     "example": 1
+    },
+    {
+     "key": "renewal_consent_required_on_change",
+     "name": "renewal_consent_required_on_change",
+     "label": "Shartlar o‘zgarsa rozilik so‘ralsin",
+     "type": "boolean",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Shartlar o‘zgarsa rozilik so‘ralsin qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+     "runtime_path": "renewal_consent_required_on_change",
+     "default": false,
+     "ui": {
+      "component": "boolean",
+      "order": 14
+     },
+     "example": true
+    },
+    {
+     "key": "upgrade_rules",
+     "name": "upgrade_rules",
+     "label": "Yuqori tarifga o‘tish",
+     "type": "object",
+     "required": false,
+     "section": "Qoidalar",
+     "help_text": "Yuqori tarifga o‘tish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "upgrade_rules",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 15
+     },
+     "properties": [
+      {
+       "key": "allowed",
+       "name": "allowed",
+       "label": "Ruxsat",
+       "type": "boolean",
+       "required": false,
+       "default": true,
+       "help_text": "Ruxsat qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      },
+      {
+       "key": "prorate",
+       "name": "prorate",
+       "label": "Qoldiqni hisoblash",
+       "type": "boolean",
+       "required": false,
+       "default": true,
+       "help_text": "Qoldiqni hisoblash qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      },
+      {
+       "key": "effective",
+       "name": "effective",
+       "label": "Kuchga kirish",
+       "type": "select",
+       "required": false,
+       "default": null,
+       "options": [
+        "immediate",
+        "next_period"
+       ],
+       "help_text": "Kuchga kirish uchun ruxsat etilgan variantlardan birini tanlang.",
+       "example": "immediate"
+      }
+     ],
+     "required_fields": [],
+     "additional_properties": false,
+     "example": {}
+    },
+    {
+     "key": "downgrade_rules",
+     "name": "downgrade_rules",
+     "label": "Past tarifga o‘tish",
+     "type": "object",
+     "required": false,
+     "section": "Qoidalar",
+     "help_text": "Past tarifga o‘tish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "downgrade_rules",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 16
+     },
+     "properties": [
+      {
+       "key": "allowed",
+       "name": "allowed",
+       "label": "Ruxsat",
+       "type": "boolean",
+       "required": false,
+       "default": true,
+       "help_text": "Ruxsat qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      },
+      {
+       "key": "effective",
+       "name": "effective",
+       "label": "Kuchga kirish",
+       "type": "select",
+       "required": false,
+       "default": null,
+       "options": [
+        "immediate",
+        "next_period"
+       ],
+       "help_text": "Kuchga kirish uchun ruxsat etilgan variantlardan birini tanlang.",
+       "example": "immediate"
+      }
+     ],
+     "required_fields": [],
+     "additional_properties": false,
+     "example": {}
+    },
+    {
+     "key": "cancellation_rules",
+     "name": "cancellation_rules",
+     "label": "Bekor qilish",
+     "type": "object",
+     "required": false,
+     "section": "Qoidalar",
+     "help_text": "Bekor qilish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "cancellation_rules",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 17
+     },
+     "properties": [],
+     "required_fields": [],
+     "additional_properties": true,
+     "example": {}
+    },
+    {
+     "key": "sales_status",
+     "name": "sales_status",
+     "label": "Sotuv holati",
+     "type": "select",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Sotuv holati uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "sales_status",
+     "options": [
+      "active",
+      "hidden",
+      "archived"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 18
+     },
+     "example": "active"
+    }
+   ],
+   "select_sources": {
+    "plan_id": "/studio/reference/subscription-plans",
+    "target_roles": "/studio/reference/roles"
+   },
+   "sections": [
+    {
+     "key": "asosiy",
+     "title": "Asosiy",
+     "order": 1,
+     "fields": [
+      {
+       "key": "plan_id",
+       "name": "plan_id",
+       "label": "Mavjud tarif",
+       "type": "select",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Bu qiymat tanlangan obyekt route kontekstidan avtomatik olinadi va formaga qo‘lda kiritilmaydi.",
+       "runtime_path": "plan_id",
+       "source": "/studio/reference/subscription-plans",
+       "default": null,
+       "ui": {
+        "component": "search_select",
+        "order": 1,
+        "hidden": true
+       },
+       "example": "<reference-id>",
+       "context_managed": true,
+       "visible_in_modes": [],
+       "read_only": true
+      },
+      {
+       "key": "slug",
+       "name": "slug",
+       "label": "Slug",
+       "type": "text",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "URL va ichki qidiruv uchun takrorlanmaydigan lotincha kalit kiriting.",
+       "runtime_path": "slug",
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 2
+       },
+       "example": "shartnomani-huquqiy-tekshirish",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      },
+      {
+       "key": "title",
+       "name": "title",
+       "label": "Tarif nomi",
+       "type": "text",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+       "runtime_path": "title",
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 3
+       },
+       "example": "Shartnomani huquqiy tekshirish",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      },
+      {
+       "key": "plan_type",
+       "name": "plan_type",
+       "label": "Tarif turi",
+       "type": "select",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Tarif turi uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "plan_type",
+       "options": [
+        "client",
+        "personal_lawyer",
+        "seller",
+        "organization",
+        "gift"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 5
+       },
+       "example": "client"
+      },
+      {
+       "key": "billing_type",
+       "name": "billing_type",
+       "label": "To‘lov turi",
+       "type": "select",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "To‘lov turi uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "billing_type",
+       "options": [
+        "subscription",
+        "one_time",
+        "gift"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 7
+       },
+       "example": "subscription"
+      },
+      {
+       "key": "duration",
+       "name": "duration",
+       "label": "Tarif davomiyligi",
+       "type": "object",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Tarif davomiyligi ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "duration",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 9
+       },
+       "properties": [],
+       "required_fields": [],
+       "additional_properties": true,
+       "example": {}
+      },
+      {
+       "key": "trial",
+       "name": "trial",
+       "label": "Sinov muddati",
+       "type": "object",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Sinov muddati ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "trial",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 11
+       },
+       "properties": [
+        {
+         "key": "enabled",
+         "name": "enabled",
+         "label": "Faol",
+         "type": "boolean",
+         "required": false,
+         "default": false,
+         "help_text": "Faol qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "days",
+         "name": "days",
+         "label": "Kun",
+         "type": "number",
+         "required": false,
+         "default": null,
+         "min": 0,
+         "help_text": "Kun uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 1
+        },
+        {
+         "key": "entitlements",
+         "name": "entitlements",
+         "label": "Imkoniyatlar",
+         "type": "object",
+         "required": false,
+         "default": {},
+         "properties": [
+          {
+           "key": "ai_requests",
+           "name": "ai_requests",
+           "label": "AI so‘rovlari",
+           "type": "number",
+           "required": false,
+           "default": null,
+           "min": 0,
+           "help_text": "AI so‘rovlari uchun manfiy bo‘lmagan aniq son kiriting.",
+           "example": 1
+          },
+          {
+           "key": "doc_analysis",
+           "name": "doc_analysis",
+           "label": "Hujjat tahlili",
+           "type": "number",
+           "required": false,
+           "default": null,
+           "min": 0,
+           "help_text": "Hujjat tahlili uchun manfiy bo‘lmagan aniq son kiriting.",
+           "example": 1
+          },
+          {
+           "key": "history_days",
+           "name": "history_days",
+           "label": "Tarix kunlari",
+           "type": "number",
+           "required": false,
+           "default": null,
+           "min": 0,
+           "help_text": "Tarix kunlari uchun manfiy bo‘lmagan aniq son kiriting.",
+           "example": 1
+          },
+          {
+           "key": "export",
+           "name": "export",
+           "label": "Eksport",
+           "type": "boolean",
+           "required": false,
+           "default": false,
+           "help_text": "Eksport qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+           "example": true
+          },
+          {
+           "key": "case_law_search",
+           "name": "case_law_search",
+           "label": "Sud amaliyoti qidiruvi",
+           "type": "boolean",
+           "required": false,
+           "default": false,
+           "help_text": "Sud amaliyoti qidiruvi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+           "example": true
+          },
+          {
+           "key": "manual_document_templates",
+           "name": "manual_document_templates",
+           "label": "Hujjat shablonlari",
+           "type": "boolean",
+           "required": false,
+           "default": false,
+           "help_text": "Hujjat shablonlari qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+           "example": true
+          },
+          {
+           "key": "template_download",
+           "name": "template_download",
+           "label": "Shablon yuklash",
+           "type": "boolean",
+           "required": false,
+           "default": false,
+           "help_text": "Shablon yuklash qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+           "example": true
+          },
+          {
+           "key": "manual_document_fill",
+           "name": "manual_document_fill",
+           "label": "Qo‘lda to‘ldirish",
+           "type": "boolean",
+           "required": false,
+           "default": false,
+           "help_text": "Qo‘lda to‘ldirish qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+           "example": true
+          }
+         ],
+         "required_fields": [],
+         "additional_properties": true,
+         "help_text": "Imkoniyatlar ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+         "example": {}
+        }
+       ],
+       "required_fields": [],
+       "additional_properties": false,
+       "example": {}
+      },
+      {
+       "key": "grace_period_days",
+       "name": "grace_period_days",
+       "label": "To‘lov uchun qo‘shimcha kun",
+       "type": "number",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "To‘lov uchun qo‘shimcha kun uchun manfiy bo‘lmagan aniq son kiriting.",
+       "runtime_path": "grace_period_days",
+       "min": 0,
+       "default": null,
+       "ui": {
+        "component": "number",
+        "order": 12
+       },
+       "example": 1
+      },
+      {
+       "key": "renewal_notice_days",
+       "name": "renewal_notice_days",
+       "label": "Yangilanish xabari oldindan, kun",
+       "type": "number",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Yangilanish xabari oldindan, kun uchun manfiy bo‘lmagan aniq son kiriting.",
+       "runtime_path": "renewal_notice_days",
+       "min": 0,
+       "default": null,
+       "ui": {
+        "component": "number",
+        "order": 13
+       },
+       "example": 1
+      },
+      {
+       "key": "renewal_consent_required_on_change",
+       "name": "renewal_consent_required_on_change",
+       "label": "Shartlar o‘zgarsa rozilik so‘ralsin",
+       "type": "boolean",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Shartlar o‘zgarsa rozilik so‘ralsin qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "runtime_path": "renewal_consent_required_on_change",
+       "default": false,
+       "ui": {
+        "component": "boolean",
+        "order": 14
+       },
+       "example": true
+      },
+      {
+       "key": "sales_status",
+       "name": "sales_status",
+       "label": "Sotuv holati",
+       "type": "select",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Sotuv holati uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "sales_status",
+       "options": [
+        "active",
+        "hidden",
+        "archived"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 18
+       },
+       "example": "active"
+      }
+     ]
+    },
+    {
+     "key": "kontent",
+     "title": "Kontent",
+     "order": 2,
+     "fields": [
+      {
+       "key": "description",
+       "name": "description",
+       "label": "Tavsif",
+       "type": "textarea",
+       "required": false,
+       "section": "Kontent",
+       "help_text": "Bu element nima berishini oddiy foydalanuvchi tushunadigan qilib yozing.",
+       "runtime_path": "description",
+       "default": null,
+       "ui": {
+        "component": "textarea",
+        "order": 4
+       },
+       "example": "Advokat hujjatni tekshiradi va aniq tavsiya beradi.",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      }
+     ]
+    },
+    {
+     "key": "kirish_va_auditoriya",
+     "title": "Kirish va auditoriya",
+     "order": 3,
+     "fields": [
+      {
+       "key": "target_roles",
+       "name": "target_roles",
+       "label": "Ruxsat etilgan rollar",
+       "type": "multiselect",
+       "required": true,
+       "section": "Kirish va auditoriya",
+       "help_text": "Ruxsat etilgan rollar uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+       "runtime_path": "target_roles",
+       "source": "/studio/reference/roles",
+       "default": [],
+       "ui": {
+        "component": "search_select",
+        "order": 6
+       },
+       "example": "<reference-id>"
+      }
+     ]
+    },
+    {
+     "key": "narx_va_hisob_kitob",
+     "title": "Narx va hisob-kitob",
+     "order": 4,
+     "fields": [
+      {
+       "key": "prices",
+       "name": "prices",
+       "label": "Davr narxlari",
+       "type": "object",
+       "required": true,
+       "section": "Narx va hisob-kitob",
+       "help_text": "Davr narxlari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "prices",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 8
+       },
+       "properties": [
+        {
+         "key": "monthly",
+         "name": "monthly",
+         "label": "1 oy",
+         "type": "money",
+         "required": true,
+         "default": null,
+         "min": 0,
+         "help_text": "1 oy uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 100000
+        },
+        {
+         "key": "six_month",
+         "name": "six_month",
+         "label": "6 oy",
+         "type": "money",
+         "required": false,
+         "default": null,
+         "min": 0,
+         "help_text": "6 oy uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 100000
+        },
+        {
+         "key": "yearly",
+         "name": "yearly",
+         "label": "1 yil",
+         "type": "money",
+         "required": false,
+         "default": null,
+         "min": 0,
+         "help_text": "1 yil uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 100000
+        },
+        {
+         "key": "prepaid_yearly",
+         "name": "prepaid_yearly",
+         "label": "Oldindan yillik",
+         "type": "money",
+         "required": false,
+         "default": null,
+         "min": 0,
+         "help_text": "Oldindan yillik uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 100000
+        }
+       ],
+       "required_fields": [
+        "monthly"
+       ],
+       "additional_properties": false,
+       "example": {}
+      }
+     ]
+    },
+    {
+     "key": "qoidalar",
+     "title": "Qoidalar",
+     "order": 5,
+     "fields": [
+      {
+       "key": "entitlements",
+       "name": "entitlements",
+       "label": "Imkoniyatlar va limitlar",
+       "type": "list",
+       "required": true,
+       "section": "Qoidalar",
+       "help_text": "Faqat imkoniyatlar registridan tanlanadi; unavailable, limited yoki unlimited rejimi beriladi",
+       "runtime_path": "entitlements",
+       "default": [],
+       "ui": {
+        "component": "repeater",
+        "order": 10
+       },
+       "item_schema": {
+        "type": "object",
+        "properties": [
+         {
+          "key": "feature_key",
+          "name": "feature_key",
+          "label": "Imkoniyat",
+          "type": "select",
+          "required": true,
+          "default": null,
+          "source": "/studio/reference/subscription-features",
+          "help_text": "Imkoniyat uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+          "example": "<reference-id>"
+         },
+         {
+          "key": "mode",
+          "name": "mode",
+          "label": "Rejim",
+          "type": "select",
+          "required": true,
+          "default": "unavailable",
+          "options": [
+           "unavailable",
+           "limited",
+           "unlimited"
+          ],
+          "help_text": "Rejim uchun ruxsat etilgan variantlardan birini tanlang.",
+          "example": "unavailable"
+         },
+         {
+          "key": "limit",
+          "name": "limit",
+          "label": "Limit",
+          "type": "number",
+          "required": false,
+          "default": null,
+          "min": 1,
+          "help_text": "Limit uchun manfiy bo‘lmagan aniq son kiriting.",
+          "example": 1
+         },
+         {
+          "key": "reset_period",
+          "name": "reset_period",
+          "label": "Limit yangilanish davri",
+          "type": "select",
+          "required": false,
+          "default": "billing_period",
+          "options": [
+           "day",
+           "month",
+           "billing_period",
+           "lifetime"
+          ],
+          "help_text": "Limit yangilanish davri uchun ruxsat etilgan variantlardan birini tanlang.",
+          "example": "day"
+         }
+        ],
+        "required_fields": [
+         "feature_key",
+         "mode"
+        ],
+        "additional_properties": false,
+        "help_text": "qiymat ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+        "example": {}
+       },
+       "min_items": 0,
+       "unique_by": "feature_key",
+       "example": []
+      },
+      {
+       "key": "upgrade_rules",
+       "name": "upgrade_rules",
+       "label": "Yuqori tarifga o‘tish",
+       "type": "object",
+       "required": false,
+       "section": "Qoidalar",
+       "help_text": "Yuqori tarifga o‘tish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "upgrade_rules",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 15
+       },
+       "properties": [
+        {
+         "key": "allowed",
+         "name": "allowed",
+         "label": "Ruxsat",
+         "type": "boolean",
+         "required": false,
+         "default": true,
+         "help_text": "Ruxsat qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "prorate",
+         "name": "prorate",
+         "label": "Qoldiqni hisoblash",
+         "type": "boolean",
+         "required": false,
+         "default": true,
+         "help_text": "Qoldiqni hisoblash qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "effective",
+         "name": "effective",
+         "label": "Kuchga kirish",
+         "type": "select",
+         "required": false,
+         "default": null,
+         "options": [
+          "immediate",
+          "next_period"
+         ],
+         "help_text": "Kuchga kirish uchun ruxsat etilgan variantlardan birini tanlang.",
+         "example": "immediate"
+        }
+       ],
+       "required_fields": [],
+       "additional_properties": false,
+       "example": {}
+      },
+      {
+       "key": "downgrade_rules",
+       "name": "downgrade_rules",
+       "label": "Past tarifga o‘tish",
+       "type": "object",
+       "required": false,
+       "section": "Qoidalar",
+       "help_text": "Past tarifga o‘tish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "downgrade_rules",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 16
+       },
+       "properties": [
+        {
+         "key": "allowed",
+         "name": "allowed",
+         "label": "Ruxsat",
+         "type": "boolean",
+         "required": false,
+         "default": true,
+         "help_text": "Ruxsat qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "effective",
+         "name": "effective",
+         "label": "Kuchga kirish",
+         "type": "select",
+         "required": false,
+         "default": null,
+         "options": [
+          "immediate",
+          "next_period"
+         ],
+         "help_text": "Kuchga kirish uchun ruxsat etilgan variantlardan birini tanlang.",
+         "example": "immediate"
+        }
+       ],
+       "required_fields": [],
+       "additional_properties": false,
+       "example": {}
+      },
+      {
+       "key": "cancellation_rules",
+       "name": "cancellation_rules",
+       "label": "Bekor qilish",
+       "type": "object",
+       "required": false,
+       "section": "Qoidalar",
+       "help_text": "Bekor qilish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "cancellation_rules",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 17
+       },
+       "properties": [],
+       "required_fields": [],
+       "additional_properties": true,
+       "example": {}
+      }
+     ]
+    }
+   ],
+   "purpose": "Barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+   "runtime_target": "subscription_plans",
+   "capabilities": [
+    "draft",
+    "validate",
+    "preview",
+    "submit",
+    "approve",
+    "publish",
+    "rollback"
+   ],
+   "experience": {
+    "metadata_version": 1,
+    "purpose": "Barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+    "plain_language": "Bu konstruktor barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+    "when_to_use": "Tarif tanlashdagi tarif kartasi, narx, imkoniyat va limitlarni kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+    "managed_by": [
+     "studio_editor",
+     "subscription_manager"
+    ],
+    "where_used": [
+     {
+      "surface_key": "subscription_plans",
+      "title": "Tarif tanlash",
+      "route": "/uz/subscription-plans",
+      "placement": "Tarif kartasi, narx, imkoniyat va limitlar"
+     }
+    ],
+    "result": "Publish qilingandan keyin yangi konfiguratsiya `subscription_plans` runtime qatlamida ishlaydi va Tarif tanlashda aks etadi.",
+    "workflow": [
+     {
+      "step": 1,
+      "title": "Bog‘liq ma’lumotni tanlang",
+      "description": "Avval Mavjud tarif, Ruxsat etilgan rollar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+     },
+     {
+      "step": 2,
+      "title": "Asosiy maydonlarni to‘ldiring",
+      "description": "Majburiy maydonlar: Slug, Tarif nomi, Tarif turi, Ruxsat etilgan rollar, To‘lov turi, Davr narxlari, Tarif davomiyligi, Imkoniyatlar va limitlar."
+     },
+     {
+      "step": 3,
+      "title": "Natijani tekshiring",
+      "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+     },
+     {
+      "step": 4,
+      "title": "Saqlang va tasdiqlashga yuboring",
+      "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+     }
+    ],
+    "visual_preview": {
+     "type": "pricing",
+     "title": "Tarif va imkoniyatlar natijasi",
+     "description": "Forma o‘zgarganda tarif kartasi, narx, imkoniyat va limitlarning taxminiy ko‘rinishini darhol yangilang.",
+     "data_source": "payload",
+     "refresh": "on_change",
+     "surface_keys": [
+      "subscription_plans"
+     ]
+    },
+    "novice_notes": [
+     "Qizil yulduzchali maydonlar majburiy.",
+     "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+     "Preview real ma’lumotni o‘zgartirmaydi.",
+     "Publishdan oldin diff va warninglarni tekshiring."
+    ],
+    "publish_checklist": [
+     "Majburiy maydonlar to‘ldirilgan",
+     "Reference qiymatlar mavjud",
+     "Preview kutilgan natijani ko‘rsatmoqda",
+     "Validatsiya xatosiz",
+     "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+    ],
+    "risk_level": "medium",
+    "warnings": [
+     "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+    ]
+   },
+   "navigation": {
+    "group_key": "finance_tariffs",
+    "group_title": "Moliya va tariflar",
+    "group_order": 5,
+    "step_number": 1,
+    "step_count": 3,
+    "required_before": [],
+    "recommended_before": [],
+    "next_steps": [
+     "K04"
+    ],
+    "sequence_reason": "Moliya va tariflar bo‘limida bu qadam 1-navbatda bajariladi.",
+    "ui_visible": true,
+    "managed_by": "studio"
+   },
+   "operations": {
+    "supported": [
+     "create",
+     "view",
+     "edit",
+     "clone",
+     "archive"
+    ],
+    "default": "list",
+    "identity_source": "route_context",
+    "context_fields": [
+     "plan_id"
+    ],
+    "list_endpoint": "/studio/constructors/K17/records",
+    "form_context_endpoint": "/studio/constructors/K17/form-context",
+    "clone_endpoint": "/studio/objects/{object_id}/clone",
+    "archive_endpoint": "/studio/objects/{object_id}/archive"
+   }
+  },
+  "ui_schema": {
+   "sections": [
+    {
+     "key": "asosiy",
+     "title": "Asosiy",
+     "order": 1,
+     "fields": [
+      {
+       "key": "plan_id",
+       "name": "plan_id",
+       "label": "Mavjud tarif",
+       "type": "select",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Bu qiymat tanlangan obyekt route kontekstidan avtomatik olinadi va formaga qo‘lda kiritilmaydi.",
+       "runtime_path": "plan_id",
+       "source": "/studio/reference/subscription-plans",
+       "default": null,
+       "ui": {
+        "component": "search_select",
+        "order": 1,
+        "hidden": true
+       },
+       "example": "<reference-id>",
+       "context_managed": true,
+       "visible_in_modes": [],
+       "read_only": true
+      },
+      {
+       "key": "slug",
+       "name": "slug",
+       "label": "Slug",
+       "type": "text",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "URL va ichki qidiruv uchun takrorlanmaydigan lotincha kalit kiriting.",
+       "runtime_path": "slug",
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 2
+       },
+       "example": "shartnomani-huquqiy-tekshirish",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      },
+      {
+       "key": "title",
+       "name": "title",
+       "label": "Tarif nomi",
+       "type": "text",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+       "runtime_path": "title",
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 3
+       },
+       "example": "Shartnomani huquqiy tekshirish",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      },
+      {
+       "key": "plan_type",
+       "name": "plan_type",
+       "label": "Tarif turi",
+       "type": "select",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Tarif turi uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "plan_type",
+       "options": [
+        "client",
+        "personal_lawyer",
+        "seller",
+        "organization",
+        "gift"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 5
+       },
+       "example": "client"
+      },
+      {
+       "key": "billing_type",
+       "name": "billing_type",
+       "label": "To‘lov turi",
+       "type": "select",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "To‘lov turi uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "billing_type",
+       "options": [
+        "subscription",
+        "one_time",
+        "gift"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 7
+       },
+       "example": "subscription"
+      },
+      {
+       "key": "duration",
+       "name": "duration",
+       "label": "Tarif davomiyligi",
+       "type": "object",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Tarif davomiyligi ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "duration",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 9
+       },
+       "properties": [],
+       "required_fields": [],
+       "additional_properties": true,
+       "example": {}
+      },
+      {
+       "key": "trial",
+       "name": "trial",
+       "label": "Sinov muddati",
+       "type": "object",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Sinov muddati ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "trial",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 11
+       },
+       "properties": [
+        {
+         "key": "enabled",
+         "name": "enabled",
+         "label": "Faol",
+         "type": "boolean",
+         "required": false,
+         "default": false,
+         "help_text": "Faol qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "days",
+         "name": "days",
+         "label": "Kun",
+         "type": "number",
+         "required": false,
+         "default": null,
+         "min": 0,
+         "help_text": "Kun uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 1
+        },
+        {
+         "key": "entitlements",
+         "name": "entitlements",
+         "label": "Imkoniyatlar",
+         "type": "object",
+         "required": false,
+         "default": {},
+         "properties": [
+          {
+           "key": "ai_requests",
+           "name": "ai_requests",
+           "label": "AI so‘rovlari",
+           "type": "number",
+           "required": false,
+           "default": null,
+           "min": 0,
+           "help_text": "AI so‘rovlari uchun manfiy bo‘lmagan aniq son kiriting.",
+           "example": 1
+          },
+          {
+           "key": "doc_analysis",
+           "name": "doc_analysis",
+           "label": "Hujjat tahlili",
+           "type": "number",
+           "required": false,
+           "default": null,
+           "min": 0,
+           "help_text": "Hujjat tahlili uchun manfiy bo‘lmagan aniq son kiriting.",
+           "example": 1
+          },
+          {
+           "key": "history_days",
+           "name": "history_days",
+           "label": "Tarix kunlari",
+           "type": "number",
+           "required": false,
+           "default": null,
+           "min": 0,
+           "help_text": "Tarix kunlari uchun manfiy bo‘lmagan aniq son kiriting.",
+           "example": 1
+          },
+          {
+           "key": "export",
+           "name": "export",
+           "label": "Eksport",
+           "type": "boolean",
+           "required": false,
+           "default": false,
+           "help_text": "Eksport qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+           "example": true
+          },
+          {
+           "key": "case_law_search",
+           "name": "case_law_search",
+           "label": "Sud amaliyoti qidiruvi",
+           "type": "boolean",
+           "required": false,
+           "default": false,
+           "help_text": "Sud amaliyoti qidiruvi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+           "example": true
+          },
+          {
+           "key": "manual_document_templates",
+           "name": "manual_document_templates",
+           "label": "Hujjat shablonlari",
+           "type": "boolean",
+           "required": false,
+           "default": false,
+           "help_text": "Hujjat shablonlari qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+           "example": true
+          },
+          {
+           "key": "template_download",
+           "name": "template_download",
+           "label": "Shablon yuklash",
+           "type": "boolean",
+           "required": false,
+           "default": false,
+           "help_text": "Shablon yuklash qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+           "example": true
+          },
+          {
+           "key": "manual_document_fill",
+           "name": "manual_document_fill",
+           "label": "Qo‘lda to‘ldirish",
+           "type": "boolean",
+           "required": false,
+           "default": false,
+           "help_text": "Qo‘lda to‘ldirish qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+           "example": true
+          }
+         ],
+         "required_fields": [],
+         "additional_properties": true,
+         "help_text": "Imkoniyatlar ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+         "example": {}
+        }
+       ],
+       "required_fields": [],
+       "additional_properties": false,
+       "example": {}
+      },
+      {
+       "key": "grace_period_days",
+       "name": "grace_period_days",
+       "label": "To‘lov uchun qo‘shimcha kun",
+       "type": "number",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "To‘lov uchun qo‘shimcha kun uchun manfiy bo‘lmagan aniq son kiriting.",
+       "runtime_path": "grace_period_days",
+       "min": 0,
+       "default": null,
+       "ui": {
+        "component": "number",
+        "order": 12
+       },
+       "example": 1
+      },
+      {
+       "key": "renewal_notice_days",
+       "name": "renewal_notice_days",
+       "label": "Yangilanish xabari oldindan, kun",
+       "type": "number",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Yangilanish xabari oldindan, kun uchun manfiy bo‘lmagan aniq son kiriting.",
+       "runtime_path": "renewal_notice_days",
+       "min": 0,
+       "default": null,
+       "ui": {
+        "component": "number",
+        "order": 13
+       },
+       "example": 1
+      },
+      {
+       "key": "renewal_consent_required_on_change",
+       "name": "renewal_consent_required_on_change",
+       "label": "Shartlar o‘zgarsa rozilik so‘ralsin",
+       "type": "boolean",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Shartlar o‘zgarsa rozilik so‘ralsin qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "runtime_path": "renewal_consent_required_on_change",
+       "default": false,
+       "ui": {
+        "component": "boolean",
+        "order": 14
+       },
+       "example": true
+      },
+      {
+       "key": "sales_status",
+       "name": "sales_status",
+       "label": "Sotuv holati",
+       "type": "select",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Sotuv holati uchun ruxsat etilgan variantlardan birini tanlang.",
+       "runtime_path": "sales_status",
+       "options": [
+        "active",
+        "hidden",
+        "archived"
+       ],
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 18
+       },
+       "example": "active"
+      }
+     ]
+    },
+    {
+     "key": "kontent",
+     "title": "Kontent",
+     "order": 2,
+     "fields": [
+      {
+       "key": "description",
+       "name": "description",
+       "label": "Tavsif",
+       "type": "textarea",
+       "required": false,
+       "section": "Kontent",
+       "help_text": "Bu element nima berishini oddiy foydalanuvchi tushunadigan qilib yozing.",
+       "runtime_path": "description",
+       "default": null,
+       "ui": {
+        "component": "textarea",
+        "order": 4
+       },
+       "example": "Advokat hujjatni tekshiradi va aniq tavsiya beradi.",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      }
+     ]
+    },
+    {
+     "key": "kirish_va_auditoriya",
+     "title": "Kirish va auditoriya",
+     "order": 3,
+     "fields": [
+      {
+       "key": "target_roles",
+       "name": "target_roles",
+       "label": "Ruxsat etilgan rollar",
+       "type": "multiselect",
+       "required": true,
+       "section": "Kirish va auditoriya",
+       "help_text": "Ruxsat etilgan rollar uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+       "runtime_path": "target_roles",
+       "source": "/studio/reference/roles",
+       "default": [],
+       "ui": {
+        "component": "search_select",
+        "order": 6
+       },
+       "example": "<reference-id>"
+      }
+     ]
+    },
+    {
+     "key": "narx_va_hisob_kitob",
+     "title": "Narx va hisob-kitob",
+     "order": 4,
+     "fields": [
+      {
+       "key": "prices",
+       "name": "prices",
+       "label": "Davr narxlari",
+       "type": "object",
+       "required": true,
+       "section": "Narx va hisob-kitob",
+       "help_text": "Davr narxlari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "prices",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 8
+       },
+       "properties": [
+        {
+         "key": "monthly",
+         "name": "monthly",
+         "label": "1 oy",
+         "type": "money",
+         "required": true,
+         "default": null,
+         "min": 0,
+         "help_text": "1 oy uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 100000
+        },
+        {
+         "key": "six_month",
+         "name": "six_month",
+         "label": "6 oy",
+         "type": "money",
+         "required": false,
+         "default": null,
+         "min": 0,
+         "help_text": "6 oy uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 100000
+        },
+        {
+         "key": "yearly",
+         "name": "yearly",
+         "label": "1 yil",
+         "type": "money",
+         "required": false,
+         "default": null,
+         "min": 0,
+         "help_text": "1 yil uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 100000
+        },
+        {
+         "key": "prepaid_yearly",
+         "name": "prepaid_yearly",
+         "label": "Oldindan yillik",
+         "type": "money",
+         "required": false,
+         "default": null,
+         "min": 0,
+         "help_text": "Oldindan yillik uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 100000
+        }
+       ],
+       "required_fields": [
+        "monthly"
+       ],
+       "additional_properties": false,
+       "example": {}
+      }
+     ]
+    },
+    {
+     "key": "qoidalar",
+     "title": "Qoidalar",
+     "order": 5,
+     "fields": [
+      {
+       "key": "entitlements",
+       "name": "entitlements",
+       "label": "Imkoniyatlar va limitlar",
+       "type": "list",
+       "required": true,
+       "section": "Qoidalar",
+       "help_text": "Faqat imkoniyatlar registridan tanlanadi; unavailable, limited yoki unlimited rejimi beriladi",
+       "runtime_path": "entitlements",
+       "default": [],
+       "ui": {
+        "component": "repeater",
+        "order": 10
+       },
+       "item_schema": {
+        "type": "object",
+        "properties": [
+         {
+          "key": "feature_key",
+          "name": "feature_key",
+          "label": "Imkoniyat",
+          "type": "select",
+          "required": true,
+          "default": null,
+          "source": "/studio/reference/subscription-features",
+          "help_text": "Imkoniyat uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+          "example": "<reference-id>"
+         },
+         {
+          "key": "mode",
+          "name": "mode",
+          "label": "Rejim",
+          "type": "select",
+          "required": true,
+          "default": "unavailable",
+          "options": [
+           "unavailable",
+           "limited",
+           "unlimited"
+          ],
+          "help_text": "Rejim uchun ruxsat etilgan variantlardan birini tanlang.",
+          "example": "unavailable"
+         },
+         {
+          "key": "limit",
+          "name": "limit",
+          "label": "Limit",
+          "type": "number",
+          "required": false,
+          "default": null,
+          "min": 1,
+          "help_text": "Limit uchun manfiy bo‘lmagan aniq son kiriting.",
+          "example": 1
+         },
+         {
+          "key": "reset_period",
+          "name": "reset_period",
+          "label": "Limit yangilanish davri",
+          "type": "select",
+          "required": false,
+          "default": "billing_period",
+          "options": [
+           "day",
+           "month",
+           "billing_period",
+           "lifetime"
+          ],
+          "help_text": "Limit yangilanish davri uchun ruxsat etilgan variantlardan birini tanlang.",
+          "example": "day"
+         }
+        ],
+        "required_fields": [
+         "feature_key",
+         "mode"
+        ],
+        "additional_properties": false,
+        "help_text": "qiymat ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+        "example": {}
+       },
+       "min_items": 0,
+       "unique_by": "feature_key",
+       "example": []
+      },
+      {
+       "key": "upgrade_rules",
+       "name": "upgrade_rules",
+       "label": "Yuqori tarifga o‘tish",
+       "type": "object",
+       "required": false,
+       "section": "Qoidalar",
+       "help_text": "Yuqori tarifga o‘tish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "upgrade_rules",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 15
+       },
+       "properties": [
+        {
+         "key": "allowed",
+         "name": "allowed",
+         "label": "Ruxsat",
+         "type": "boolean",
+         "required": false,
+         "default": true,
+         "help_text": "Ruxsat qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "prorate",
+         "name": "prorate",
+         "label": "Qoldiqni hisoblash",
+         "type": "boolean",
+         "required": false,
+         "default": true,
+         "help_text": "Qoldiqni hisoblash qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "effective",
+         "name": "effective",
+         "label": "Kuchga kirish",
+         "type": "select",
+         "required": false,
+         "default": null,
+         "options": [
+          "immediate",
+          "next_period"
+         ],
+         "help_text": "Kuchga kirish uchun ruxsat etilgan variantlardan birini tanlang.",
+         "example": "immediate"
+        }
+       ],
+       "required_fields": [],
+       "additional_properties": false,
+       "example": {}
+      },
+      {
+       "key": "downgrade_rules",
+       "name": "downgrade_rules",
+       "label": "Past tarifga o‘tish",
+       "type": "object",
+       "required": false,
+       "section": "Qoidalar",
+       "help_text": "Past tarifga o‘tish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "downgrade_rules",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 16
+       },
+       "properties": [
+        {
+         "key": "allowed",
+         "name": "allowed",
+         "label": "Ruxsat",
+         "type": "boolean",
+         "required": false,
+         "default": true,
+         "help_text": "Ruxsat qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "effective",
+         "name": "effective",
+         "label": "Kuchga kirish",
+         "type": "select",
+         "required": false,
+         "default": null,
+         "options": [
+          "immediate",
+          "next_period"
+         ],
+         "help_text": "Kuchga kirish uchun ruxsat etilgan variantlardan birini tanlang.",
+         "example": "immediate"
+        }
+       ],
+       "required_fields": [],
+       "additional_properties": false,
+       "example": {}
+      },
+      {
+       "key": "cancellation_rules",
+       "name": "cancellation_rules",
+       "label": "Bekor qilish",
+       "type": "object",
+       "required": false,
+       "section": "Qoidalar",
+       "help_text": "Bekor qilish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "cancellation_rules",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 17
+       },
+       "properties": [],
+       "required_fields": [],
+       "additional_properties": true,
+       "example": {}
+      }
+     ]
+    }
+   ],
+   "purpose": "Barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+   "runtime_target": "subscription_plans",
+   "experience": {
+    "metadata_version": 1,
+    "purpose": "Barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+    "plain_language": "Bu konstruktor barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+    "when_to_use": "Tarif tanlashdagi tarif kartasi, narx, imkoniyat va limitlarni kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+    "managed_by": [
+     "studio_editor",
+     "subscription_manager"
+    ],
+    "where_used": [
+     {
+      "surface_key": "subscription_plans",
+      "title": "Tarif tanlash",
+      "route": "/uz/subscription-plans",
+      "placement": "Tarif kartasi, narx, imkoniyat va limitlar"
+     }
+    ],
+    "result": "Publish qilingandan keyin yangi konfiguratsiya `subscription_plans` runtime qatlamida ishlaydi va Tarif tanlashda aks etadi.",
+    "workflow": [
+     {
+      "step": 1,
+      "title": "Bog‘liq ma’lumotni tanlang",
+      "description": "Avval Mavjud tarif, Ruxsat etilgan rollar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+     },
+     {
+      "step": 2,
+      "title": "Asosiy maydonlarni to‘ldiring",
+      "description": "Majburiy maydonlar: Slug, Tarif nomi, Tarif turi, Ruxsat etilgan rollar, To‘lov turi, Davr narxlari, Tarif davomiyligi, Imkoniyatlar va limitlar."
+     },
+     {
+      "step": 3,
+      "title": "Natijani tekshiring",
+      "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+     },
+     {
+      "step": 4,
+      "title": "Saqlang va tasdiqlashga yuboring",
+      "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+     }
+    ],
+    "visual_preview": {
+     "type": "pricing",
+     "title": "Tarif va imkoniyatlar natijasi",
+     "description": "Forma o‘zgarganda tarif kartasi, narx, imkoniyat va limitlarning taxminiy ko‘rinishini darhol yangilang.",
+     "data_source": "payload",
+     "refresh": "on_change",
+     "surface_keys": [
+      "subscription_plans"
+     ]
+    },
+    "novice_notes": [
+     "Qizil yulduzchali maydonlar majburiy.",
+     "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+     "Preview real ma’lumotni o‘zgartirmaydi.",
+     "Publishdan oldin diff va warninglarni tekshiring."
+    ],
+    "publish_checklist": [
+     "Majburiy maydonlar to‘ldirilgan",
+     "Reference qiymatlar mavjud",
+     "Preview kutilgan natijani ko‘rsatmoqda",
+     "Validatsiya xatosiz",
+     "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+    ],
+    "risk_level": "medium",
+    "warnings": [
+     "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+    ]
+   },
+   "visual_preview": {
+    "type": "pricing",
+    "title": "Tarif va imkoniyatlar natijasi",
+    "description": "Forma o‘zgarganda tarif kartasi, narx, imkoniyat va limitlarning taxminiy ko‘rinishini darhol yangilang.",
+    "data_source": "payload",
+    "refresh": "on_change",
+    "surface_keys": [
+     "subscription_plans"
+    ]
+   },
+   "navigation": {
+    "group_key": "finance_tariffs",
+    "group_title": "Moliya va tariflar",
+    "group_order": 5,
+    "step_number": 1,
+    "step_count": 3,
+    "required_before": [],
+    "recommended_before": [],
+    "next_steps": [
+     "K04"
+    ],
+    "sequence_reason": "Moliya va tariflar bo‘limida bu qadam 1-navbatda bajariladi.",
+    "ui_visible": true,
+    "managed_by": "studio"
+   },
+   "operations": {
+    "supported": [
+     "create",
+     "view",
+     "edit",
+     "clone",
+     "archive"
+    ],
+    "default": "list",
+    "identity_source": "route_context",
+    "context_fields": [
+     "plan_id"
+    ],
+    "list_endpoint": "/studio/constructors/K17/records",
+    "form_context_endpoint": "/studio/constructors/K17/form-context",
+    "clone_endpoint": "/studio/objects/{object_id}/clone",
+    "archive_endpoint": "/studio/objects/{object_id}/archive"
+   }
+  },
+  "experience": {
+   "metadata_version": 1,
+   "purpose": "Barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+   "plain_language": "Bu konstruktor barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+   "when_to_use": "Tarif tanlashdagi tarif kartasi, narx, imkoniyat va limitlarni kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+   "managed_by": [
+    "studio_editor",
+    "subscription_manager"
+   ],
+   "where_used": [
+    {
+     "surface_key": "subscription_plans",
+     "title": "Tarif tanlash",
+     "route": "/uz/subscription-plans",
+     "placement": "Tarif kartasi, narx, imkoniyat va limitlar"
+    }
+   ],
+   "result": "Publish qilingandan keyin yangi konfiguratsiya `subscription_plans` runtime qatlamida ishlaydi va Tarif tanlashda aks etadi.",
+   "workflow": [
+    {
+     "step": 1,
+     "title": "Bog‘liq ma’lumotni tanlang",
+     "description": "Avval Mavjud tarif, Ruxsat etilgan rollar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+    },
+    {
+     "step": 2,
+     "title": "Asosiy maydonlarni to‘ldiring",
+     "description": "Majburiy maydonlar: Slug, Tarif nomi, Tarif turi, Ruxsat etilgan rollar, To‘lov turi, Davr narxlari, Tarif davomiyligi, Imkoniyatlar va limitlar."
+    },
+    {
+     "step": 3,
+     "title": "Natijani tekshiring",
+     "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+    },
+    {
+     "step": 4,
+     "title": "Saqlang va tasdiqlashga yuboring",
+     "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+    }
+   ],
+   "visual_preview": {
+    "type": "pricing",
+    "title": "Tarif va imkoniyatlar natijasi",
+    "description": "Forma o‘zgarganda tarif kartasi, narx, imkoniyat va limitlarning taxminiy ko‘rinishini darhol yangilang.",
+    "data_source": "payload",
+    "refresh": "on_change",
+    "surface_keys": [
+     "subscription_plans"
+    ]
+   },
+   "novice_notes": [
+    "Qizil yulduzchali maydonlar majburiy.",
+    "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+    "Preview real ma’lumotni o‘zgartirmaydi.",
+    "Publishdan oldin diff va warninglarni tekshiring."
+   ],
+   "publish_checklist": [
+    "Majburiy maydonlar to‘ldirilgan",
+    "Reference qiymatlar mavjud",
+    "Preview kutilgan natijani ko‘rsatmoqda",
+    "Validatsiya xatosiz",
+    "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+   ],
+   "risk_level": "medium",
+   "warnings": [
+    "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+   ]
+  },
+  "visual_preview": {
+   "type": "pricing",
+   "title": "Tarif va imkoniyatlar natijasi",
+   "description": "Forma o‘zgarganda tarif kartasi, narx, imkoniyat va limitlarning taxminiy ko‘rinishini darhol yangilang.",
+   "data_source": "payload",
+   "refresh": "on_change",
+   "surface_keys": [
+    "subscription_plans"
+   ]
+  },
+  "navigation": {
+   "group_key": "finance_tariffs",
+   "group_title": "Moliya va tariflar",
+   "group_order": 5,
+   "step_number": 1,
+   "step_count": 3,
+   "required_before": [],
+   "recommended_before": [],
+   "next_steps": [
+    "K04"
+   ],
+   "sequence_reason": "Moliya va tariflar bo‘limida bu qadam 1-navbatda bajariladi.",
+   "ui_visible": true,
+   "managed_by": "studio"
+  },
+  "operations": {
+   "supported": [
+    "create",
+    "view",
+    "edit",
+    "clone",
+    "archive"
+   ],
+   "default": "list",
+   "identity_source": "route_context",
+   "context_fields": [
+    "plan_id"
+   ],
+   "list_endpoint": "/studio/constructors/K17/records",
+   "form_context_endpoint": "/studio/constructors/K17/form-context",
+   "clone_endpoint": "/studio/objects/{object_id}/clone",
+   "archive_endpoint": "/studio/objects/{object_id}/archive"
+  },
+  "capabilities": [
+   "draft",
+   "validate",
+   "preview",
+   "submit",
+   "approve",
+   "publish",
+   "rollback"
+  ],
+  "definition_version": 3,
+  "default_payload": {
+   "target_roles": [],
+   "prices": {},
+   "duration": {},
+   "entitlements": [],
+   "trial": {},
+   "renewal_consent_required_on_change": false,
+   "upgrade_rules": {},
+   "downgrade_rules": {},
+   "cancellation_rules": {}
+  },
+  "dependency_rules": {
+   "items": [],
+   "policy_section": ""
+  },
+  "approval_required": true,
+  "is_active": true,
+  "updated_at": "2026-10-23T15:04:23.141252Z",
+  "references": [
+   "/studio/reference/roles",
+   "/studio/reference/subscription-plans"
+  ],
+  "approval_route": {
+   "id": "default",
+   "scope_type": "global",
+   "scope_key": "*",
+   "source": "default",
+   "title": "Primary superadmin approval",
+   "steps": [],
+   "final_action": "publish",
+   "allow_self_approval": false,
+   "change_request_restart": "current",
+   "deadline_hours": 24,
+   "require_primary_superadmin": true,
+   "auto_publish_when_empty": true,
+   "settings": {},
+   "route_version": 1
+  }
+ },
+ "formContext": {
+  "mode": "create",
+  "constructor_code": "K17",
+  "constructor_title": "Tarif va imkoniyatlar",
+  "title": "",
+  "schema": {
+   "version": 3,
+   "required": [
+    "slug",
+    "title",
+    "plan_type",
+    "target_roles",
+    "billing_type",
+    "prices",
+    "duration",
+    "entitlements"
+   ],
+   "fields": [
+    {
+     "key": "slug",
+     "name": "slug",
+     "label": "Slug",
+     "type": "text",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "URL va ichki qidiruv uchun takrorlanmaydigan lotincha kalit kiriting.",
+     "runtime_path": "slug",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 2
+     },
+     "example": "shartnomani-huquqiy-tekshirish",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "title",
+     "name": "title",
+     "label": "Tarif nomi",
+     "type": "text",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+     "runtime_path": "title",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 3
+     },
+     "example": "Shartnomani huquqiy tekshirish",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "description",
+     "name": "description",
+     "label": "Tavsif",
+     "type": "textarea",
+     "required": false,
+     "section": "Kontent",
+     "help_text": "Bu element nima berishini oddiy foydalanuvchi tushunadigan qilib yozing.",
+     "runtime_path": "description",
+     "default": null,
+     "ui": {
+      "component": "textarea",
+      "order": 4
+     },
+     "example": "Advokat hujjatni tekshiradi va aniq tavsiya beradi.",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "plan_type",
+     "name": "plan_type",
+     "label": "Tarif turi",
+     "type": "select",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Tarif turi uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "plan_type",
+     "options": [
+      "client",
+      "personal_lawyer",
+      "seller",
+      "organization",
+      "gift"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 5
+     },
+     "example": "client"
+    },
+    {
+     "key": "target_roles",
+     "name": "target_roles",
+     "label": "Ruxsat etilgan rollar",
+     "type": "multiselect",
+     "required": true,
+     "section": "Kirish va auditoriya",
+     "help_text": "Ruxsat etilgan rollar uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+     "runtime_path": "target_roles",
+     "source": "/studio/reference/roles",
+     "default": [],
+     "ui": {
+      "component": "search_select",
+      "order": 6
+     },
+     "example": "<reference-id>"
+    },
+    {
+     "key": "billing_type",
+     "name": "billing_type",
+     "label": "To‘lov turi",
+     "type": "select",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "To‘lov turi uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "billing_type",
+     "options": [
+      "subscription",
+      "one_time",
+      "gift"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 7
+     },
+     "example": "subscription"
+    },
+    {
+     "key": "prices",
+     "name": "prices",
+     "label": "Davr narxlari",
+     "type": "object",
+     "required": true,
+     "section": "Narx va hisob-kitob",
+     "help_text": "Davr narxlari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "prices",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 8
+     },
+     "properties": [
+      {
+       "key": "monthly",
+       "name": "monthly",
+       "label": "1 oy",
+       "type": "money",
+       "required": true,
+       "default": null,
+       "min": 0,
+       "help_text": "1 oy uchun manfiy bo‘lmagan aniq son kiriting.",
+       "example": 100000
+      },
+      {
+       "key": "six_month",
+       "name": "six_month",
+       "label": "6 oy",
+       "type": "money",
+       "required": false,
+       "default": null,
+       "min": 0,
+       "help_text": "6 oy uchun manfiy bo‘lmagan aniq son kiriting.",
+       "example": 100000
+      },
+      {
+       "key": "yearly",
+       "name": "yearly",
+       "label": "1 yil",
+       "type": "money",
+       "required": false,
+       "default": null,
+       "min": 0,
+       "help_text": "1 yil uchun manfiy bo‘lmagan aniq son kiriting.",
+       "example": 100000
+      },
+      {
+       "key": "prepaid_yearly",
+       "name": "prepaid_yearly",
+       "label": "Oldindan yillik",
+       "type": "money",
+       "required": false,
+       "default": null,
+       "min": 0,
+       "help_text": "Oldindan yillik uchun manfiy bo‘lmagan aniq son kiriting.",
+       "example": 100000
+      }
+     ],
+     "required_fields": [
+      "monthly"
+     ],
+     "additional_properties": false,
+     "example": {}
+    },
+    {
+     "key": "duration",
+     "name": "duration",
+     "label": "Tarif davomiyligi",
+     "type": "object",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Tarif davomiyligi ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "duration",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 9
+     },
+     "properties": [],
+     "required_fields": [],
+     "additional_properties": true,
+     "example": {}
+    },
+    {
+     "key": "entitlements",
+     "name": "entitlements",
+     "label": "Imkoniyatlar va limitlar",
+     "type": "list",
+     "required": true,
+     "section": "Qoidalar",
+     "help_text": "Faqat imkoniyatlar registridan tanlanadi; unavailable, limited yoki unlimited rejimi beriladi",
+     "runtime_path": "entitlements",
+     "default": [],
+     "ui": {
+      "component": "repeater",
+      "order": 10
+     },
+     "item_schema": {
+      "type": "object",
+      "properties": [
+       {
+        "key": "feature_key",
+        "name": "feature_key",
+        "label": "Imkoniyat",
+        "type": "select",
+        "required": true,
+        "default": null,
+        "source": "/studio/reference/subscription-features",
+        "help_text": "Imkoniyat uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+        "example": "<reference-id>"
+       },
+       {
+        "key": "mode",
+        "name": "mode",
+        "label": "Rejim",
+        "type": "select",
+        "required": true,
+        "default": "unavailable",
+        "options": [
+         "unavailable",
+         "limited",
+         "unlimited"
+        ],
+        "help_text": "Rejim uchun ruxsat etilgan variantlardan birini tanlang.",
+        "example": "unavailable"
+       },
+       {
+        "key": "limit",
+        "name": "limit",
+        "label": "Limit",
+        "type": "number",
+        "required": false,
+        "default": null,
+        "min": 1,
+        "help_text": "Limit uchun manfiy bo‘lmagan aniq son kiriting.",
+        "example": 1
+       },
+       {
+        "key": "reset_period",
+        "name": "reset_period",
+        "label": "Limit yangilanish davri",
+        "type": "select",
+        "required": false,
+        "default": "billing_period",
+        "options": [
+         "day",
+         "month",
+         "billing_period",
+         "lifetime"
+        ],
+        "help_text": "Limit yangilanish davri uchun ruxsat etilgan variantlardan birini tanlang.",
+        "example": "day"
+       }
+      ],
+      "required_fields": [
+       "feature_key",
+       "mode"
+      ],
+      "additional_properties": false,
+      "help_text": "qiymat ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+      "example": {}
+     },
+     "min_items": 0,
+     "unique_by": "feature_key",
+     "example": []
+    },
+    {
+     "key": "trial",
+     "name": "trial",
+     "label": "Sinov muddati",
+     "type": "object",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Sinov muddati ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "trial",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 11
+     },
+     "properties": [
+      {
+       "key": "enabled",
+       "name": "enabled",
+       "label": "Faol",
+       "type": "boolean",
+       "required": false,
+       "default": false,
+       "help_text": "Faol qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      },
+      {
+       "key": "days",
+       "name": "days",
+       "label": "Kun",
+       "type": "number",
+       "required": false,
+       "default": null,
+       "min": 0,
+       "help_text": "Kun uchun manfiy bo‘lmagan aniq son kiriting.",
+       "example": 1
+      },
+      {
+       "key": "entitlements",
+       "name": "entitlements",
+       "label": "Imkoniyatlar",
+       "type": "object",
+       "required": false,
+       "default": {},
+       "properties": [
+        {
+         "key": "ai_requests",
+         "name": "ai_requests",
+         "label": "AI so‘rovlari",
+         "type": "number",
+         "required": false,
+         "default": null,
+         "min": 0,
+         "help_text": "AI so‘rovlari uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 1
+        },
+        {
+         "key": "doc_analysis",
+         "name": "doc_analysis",
+         "label": "Hujjat tahlili",
+         "type": "number",
+         "required": false,
+         "default": null,
+         "min": 0,
+         "help_text": "Hujjat tahlili uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 1
+        },
+        {
+         "key": "history_days",
+         "name": "history_days",
+         "label": "Tarix kunlari",
+         "type": "number",
+         "required": false,
+         "default": null,
+         "min": 0,
+         "help_text": "Tarix kunlari uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 1
+        },
+        {
+         "key": "export",
+         "name": "export",
+         "label": "Eksport",
+         "type": "boolean",
+         "required": false,
+         "default": false,
+         "help_text": "Eksport qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "case_law_search",
+         "name": "case_law_search",
+         "label": "Sud amaliyoti qidiruvi",
+         "type": "boolean",
+         "required": false,
+         "default": false,
+         "help_text": "Sud amaliyoti qidiruvi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "manual_document_templates",
+         "name": "manual_document_templates",
+         "label": "Hujjat shablonlari",
+         "type": "boolean",
+         "required": false,
+         "default": false,
+         "help_text": "Hujjat shablonlari qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "template_download",
+         "name": "template_download",
+         "label": "Shablon yuklash",
+         "type": "boolean",
+         "required": false,
+         "default": false,
+         "help_text": "Shablon yuklash qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "manual_document_fill",
+         "name": "manual_document_fill",
+         "label": "Qo‘lda to‘ldirish",
+         "type": "boolean",
+         "required": false,
+         "default": false,
+         "help_text": "Qo‘lda to‘ldirish qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        }
+       ],
+       "required_fields": [],
+       "additional_properties": true,
+       "help_text": "Imkoniyatlar ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "example": {}
+      }
+     ],
+     "required_fields": [],
+     "additional_properties": false,
+     "example": {}
+    },
+    {
+     "key": "grace_period_days",
+     "name": "grace_period_days",
+     "label": "To‘lov uchun qo‘shimcha kun",
+     "type": "number",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "To‘lov uchun qo‘shimcha kun uchun manfiy bo‘lmagan aniq son kiriting.",
+     "runtime_path": "grace_period_days",
+     "min": 0,
+     "default": null,
+     "ui": {
+      "component": "number",
+      "order": 12
+     },
+     "example": 1
+    },
+    {
+     "key": "renewal_notice_days",
+     "name": "renewal_notice_days",
+     "label": "Yangilanish xabari oldindan, kun",
+     "type": "number",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Yangilanish xabari oldindan, kun uchun manfiy bo‘lmagan aniq son kiriting.",
+     "runtime_path": "renewal_notice_days",
+     "min": 0,
+     "default": null,
+     "ui": {
+      "component": "number",
+      "order": 13
+     },
+     "example": 1
+    },
+    {
+     "key": "renewal_consent_required_on_change",
+     "name": "renewal_consent_required_on_change",
+     "label": "Shartlar o‘zgarsa rozilik so‘ralsin",
+     "type": "boolean",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Shartlar o‘zgarsa rozilik so‘ralsin qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+     "runtime_path": "renewal_consent_required_on_change",
+     "default": false,
+     "ui": {
+      "component": "boolean",
+      "order": 14
+     },
+     "example": true
+    },
+    {
+     "key": "upgrade_rules",
+     "name": "upgrade_rules",
+     "label": "Yuqori tarifga o‘tish",
+     "type": "object",
+     "required": false,
+     "section": "Qoidalar",
+     "help_text": "Yuqori tarifga o‘tish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "upgrade_rules",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 15
+     },
+     "properties": [
+      {
+       "key": "allowed",
+       "name": "allowed",
+       "label": "Ruxsat",
+       "type": "boolean",
+       "required": false,
+       "default": true,
+       "help_text": "Ruxsat qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      },
+      {
+       "key": "prorate",
+       "name": "prorate",
+       "label": "Qoldiqni hisoblash",
+       "type": "boolean",
+       "required": false,
+       "default": true,
+       "help_text": "Qoldiqni hisoblash qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      },
+      {
+       "key": "effective",
+       "name": "effective",
+       "label": "Kuchga kirish",
+       "type": "select",
+       "required": false,
+       "default": null,
+       "options": [
+        "immediate",
+        "next_period"
+       ],
+       "help_text": "Kuchga kirish uchun ruxsat etilgan variantlardan birini tanlang.",
+       "example": "immediate"
+      }
+     ],
+     "required_fields": [],
+     "additional_properties": false,
+     "example": {}
+    },
+    {
+     "key": "downgrade_rules",
+     "name": "downgrade_rules",
+     "label": "Past tarifga o‘tish",
+     "type": "object",
+     "required": false,
+     "section": "Qoidalar",
+     "help_text": "Past tarifga o‘tish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "downgrade_rules",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 16
+     },
+     "properties": [
+      {
+       "key": "allowed",
+       "name": "allowed",
+       "label": "Ruxsat",
+       "type": "boolean",
+       "required": false,
+       "default": true,
+       "help_text": "Ruxsat qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      },
+      {
+       "key": "effective",
+       "name": "effective",
+       "label": "Kuchga kirish",
+       "type": "select",
+       "required": false,
+       "default": null,
+       "options": [
+        "immediate",
+        "next_period"
+       ],
+       "help_text": "Kuchga kirish uchun ruxsat etilgan variantlardan birini tanlang.",
+       "example": "immediate"
+      }
+     ],
+     "required_fields": [],
+     "additional_properties": false,
+     "example": {}
+    },
+    {
+     "key": "cancellation_rules",
+     "name": "cancellation_rules",
+     "label": "Bekor qilish",
+     "type": "object",
+     "required": false,
+     "section": "Qoidalar",
+     "help_text": "Bekor qilish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "cancellation_rules",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 17
+     },
+     "properties": [],
+     "required_fields": [],
+     "additional_properties": true,
+     "example": {}
+    },
+    {
+     "key": "sales_status",
+     "name": "sales_status",
+     "label": "Sotuv holati",
+     "type": "select",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Sotuv holati uchun ruxsat etilgan variantlardan birini tanlang.",
+     "runtime_path": "sales_status",
+     "options": [
+      "active",
+      "hidden",
+      "archived"
+     ],
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 18
+     },
+     "example": "active"
+    }
+   ],
+   "select_sources": {
+    "target_roles": "/studio/reference/roles"
+   },
+   "mode": "create",
+   "context_fields": [
+    "plan_id"
+   ]
+  },
+  "sections": [
+   {
+    "key": "asosiy",
+    "title": "Asosiy",
+    "order": 1,
+    "fields": [
+     {
+      "key": "slug",
+      "name": "slug",
+      "label": "Slug",
+      "type": "text",
+      "required": true,
+      "section": "Asosiy",
+      "help_text": "URL va ichki qidiruv uchun takrorlanmaydigan lotincha kalit kiriting.",
+      "runtime_path": "slug",
+      "default": null,
+      "ui": {
+       "component": "text",
+       "order": 2
+      },
+      "example": "shartnomani-huquqiy-tekshirish",
+      "ai_assist": {
+       "enabled": true,
+       "endpoint": "/studio/ai/field-suggestions",
+       "method": "POST",
+       "requires_confirmation": true,
+       "provider": "openai",
+       "fallback": false,
+       "response_count": 3
+      }
+     },
+     {
+      "key": "title",
+      "name": "title",
+      "label": "Tarif nomi",
+      "type": "text",
+      "required": true,
+      "section": "Asosiy",
+      "help_text": "Foydalanuvchi va admin ekranlarida tushunarli ko‘rinadigan nomni kiriting.",
+      "runtime_path": "title",
+      "default": null,
+      "ui": {
+       "component": "text",
+       "order": 3
+      },
+      "example": "Shartnomani huquqiy tekshirish",
+      "ai_assist": {
+       "enabled": true,
+       "endpoint": "/studio/ai/field-suggestions",
+       "method": "POST",
+       "requires_confirmation": true,
+       "provider": "openai",
+       "fallback": false,
+       "response_count": 3
+      }
+     },
+     {
+      "key": "plan_type",
+      "name": "plan_type",
+      "label": "Tarif turi",
+      "type": "select",
+      "required": true,
+      "section": "Asosiy",
+      "help_text": "Tarif turi uchun ruxsat etilgan variantlardan birini tanlang.",
+      "runtime_path": "plan_type",
+      "options": [
+       "client",
+       "personal_lawyer",
+       "seller",
+       "organization",
+       "gift"
+      ],
+      "default": null,
+      "ui": {
+       "component": "select",
+       "order": 5
+      },
+      "example": "client"
+     },
+     {
+      "key": "billing_type",
+      "name": "billing_type",
+      "label": "To‘lov turi",
+      "type": "select",
+      "required": true,
+      "section": "Asosiy",
+      "help_text": "To‘lov turi uchun ruxsat etilgan variantlardan birini tanlang.",
+      "runtime_path": "billing_type",
+      "options": [
+       "subscription",
+       "one_time",
+       "gift"
+      ],
+      "default": null,
+      "ui": {
+       "component": "select",
+       "order": 7
+      },
+      "example": "subscription"
+     },
+     {
+      "key": "duration",
+      "name": "duration",
+      "label": "Tarif davomiyligi",
+      "type": "object",
+      "required": true,
+      "section": "Asosiy",
+      "help_text": "Tarif davomiyligi ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+      "runtime_path": "duration",
+      "default": {},
+      "ui": {
+       "component": "object_editor",
+       "order": 9
+      },
+      "properties": [],
+      "required_fields": [],
+      "additional_properties": true,
+      "example": {}
+     },
+     {
+      "key": "trial",
+      "name": "trial",
+      "label": "Sinov muddati",
+      "type": "object",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Sinov muddati ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+      "runtime_path": "trial",
+      "default": {},
+      "ui": {
+       "component": "object_editor",
+       "order": 11
+      },
+      "properties": [
+       {
+        "key": "enabled",
+        "name": "enabled",
+        "label": "Faol",
+        "type": "boolean",
+        "required": false,
+        "default": false,
+        "help_text": "Faol qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+        "example": true
+       },
+       {
+        "key": "days",
+        "name": "days",
+        "label": "Kun",
+        "type": "number",
+        "required": false,
+        "default": null,
+        "min": 0,
+        "help_text": "Kun uchun manfiy bo‘lmagan aniq son kiriting.",
+        "example": 1
+       },
+       {
+        "key": "entitlements",
+        "name": "entitlements",
+        "label": "Imkoniyatlar",
+        "type": "object",
+        "required": false,
+        "default": {},
+        "properties": [
+         {
+          "key": "ai_requests",
+          "name": "ai_requests",
+          "label": "AI so‘rovlari",
+          "type": "number",
+          "required": false,
+          "default": null,
+          "min": 0,
+          "help_text": "AI so‘rovlari uchun manfiy bo‘lmagan aniq son kiriting.",
+          "example": 1
+         },
+         {
+          "key": "doc_analysis",
+          "name": "doc_analysis",
+          "label": "Hujjat tahlili",
+          "type": "number",
+          "required": false,
+          "default": null,
+          "min": 0,
+          "help_text": "Hujjat tahlili uchun manfiy bo‘lmagan aniq son kiriting.",
+          "example": 1
+         },
+         {
+          "key": "history_days",
+          "name": "history_days",
+          "label": "Tarix kunlari",
+          "type": "number",
+          "required": false,
+          "default": null,
+          "min": 0,
+          "help_text": "Tarix kunlari uchun manfiy bo‘lmagan aniq son kiriting.",
+          "example": 1
+         },
+         {
+          "key": "export",
+          "name": "export",
+          "label": "Eksport",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "help_text": "Eksport qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+          "example": true
+         },
+         {
+          "key": "case_law_search",
+          "name": "case_law_search",
+          "label": "Sud amaliyoti qidiruvi",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "help_text": "Sud amaliyoti qidiruvi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+          "example": true
+         },
+         {
+          "key": "manual_document_templates",
+          "name": "manual_document_templates",
+          "label": "Hujjat shablonlari",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "help_text": "Hujjat shablonlari qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+          "example": true
+         },
+         {
+          "key": "template_download",
+          "name": "template_download",
+          "label": "Shablon yuklash",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "help_text": "Shablon yuklash qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+          "example": true
+         },
+         {
+          "key": "manual_document_fill",
+          "name": "manual_document_fill",
+          "label": "Qo‘lda to‘ldirish",
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "help_text": "Qo‘lda to‘ldirish qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+          "example": true
+         }
+        ],
+        "required_fields": [],
+        "additional_properties": true,
+        "help_text": "Imkoniyatlar ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+        "example": {}
+       }
+      ],
+      "required_fields": [],
+      "additional_properties": false,
+      "example": {}
+     },
+     {
+      "key": "grace_period_days",
+      "name": "grace_period_days",
+      "label": "To‘lov uchun qo‘shimcha kun",
+      "type": "number",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "To‘lov uchun qo‘shimcha kun uchun manfiy bo‘lmagan aniq son kiriting.",
+      "runtime_path": "grace_period_days",
+      "min": 0,
+      "default": null,
+      "ui": {
+       "component": "number",
+       "order": 12
+      },
+      "example": 1
+     },
+     {
+      "key": "renewal_notice_days",
+      "name": "renewal_notice_days",
+      "label": "Yangilanish xabari oldindan, kun",
+      "type": "number",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Yangilanish xabari oldindan, kun uchun manfiy bo‘lmagan aniq son kiriting.",
+      "runtime_path": "renewal_notice_days",
+      "min": 0,
+      "default": null,
+      "ui": {
+       "component": "number",
+       "order": 13
+      },
+      "example": 1
+     },
+     {
+      "key": "renewal_consent_required_on_change",
+      "name": "renewal_consent_required_on_change",
+      "label": "Shartlar o‘zgarsa rozilik so‘ralsin",
+      "type": "boolean",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Shartlar o‘zgarsa rozilik so‘ralsin qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+      "runtime_path": "renewal_consent_required_on_change",
+      "default": false,
+      "ui": {
+       "component": "boolean",
+       "order": 14
+      },
+      "example": true
+     },
+     {
+      "key": "sales_status",
+      "name": "sales_status",
+      "label": "Sotuv holati",
+      "type": "select",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Sotuv holati uchun ruxsat etilgan variantlardan birini tanlang.",
+      "runtime_path": "sales_status",
+      "options": [
+       "active",
+       "hidden",
+       "archived"
+      ],
+      "default": null,
+      "ui": {
+       "component": "select",
+       "order": 18
+      },
+      "example": "active"
+     }
+    ]
+   },
+   {
+    "key": "kontent",
+    "title": "Kontent",
+    "order": 2,
+    "fields": [
+     {
+      "key": "description",
+      "name": "description",
+      "label": "Tavsif",
+      "type": "textarea",
+      "required": false,
+      "section": "Kontent",
+      "help_text": "Bu element nima berishini oddiy foydalanuvchi tushunadigan qilib yozing.",
+      "runtime_path": "description",
+      "default": null,
+      "ui": {
+       "component": "textarea",
+       "order": 4
+      },
+      "example": "Advokat hujjatni tekshiradi va aniq tavsiya beradi.",
+      "ai_assist": {
+       "enabled": true,
+       "endpoint": "/studio/ai/field-suggestions",
+       "method": "POST",
+       "requires_confirmation": true,
+       "provider": "openai",
+       "fallback": false,
+       "response_count": 3
+      }
+     }
+    ]
+   },
+   {
+    "key": "kirish_va_auditoriya",
+    "title": "Kirish va auditoriya",
+    "order": 3,
+    "fields": [
+     {
+      "key": "target_roles",
+      "name": "target_roles",
+      "label": "Ruxsat etilgan rollar",
+      "type": "multiselect",
+      "required": true,
+      "section": "Kirish va auditoriya",
+      "help_text": "Ruxsat etilgan rollar uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+      "runtime_path": "target_roles",
+      "source": "/studio/reference/roles",
+      "default": [],
+      "ui": {
+       "component": "search_select",
+       "order": 6
+      },
+      "example": "<reference-id>"
+     }
+    ]
+   },
+   {
+    "key": "narx_va_hisob_kitob",
+    "title": "Narx va hisob-kitob",
+    "order": 4,
+    "fields": [
+     {
+      "key": "prices",
+      "name": "prices",
+      "label": "Davr narxlari",
+      "type": "object",
+      "required": true,
+      "section": "Narx va hisob-kitob",
+      "help_text": "Davr narxlari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+      "runtime_path": "prices",
+      "default": {},
+      "ui": {
+       "component": "object_editor",
+       "order": 8
+      },
+      "properties": [
+       {
+        "key": "monthly",
+        "name": "monthly",
+        "label": "1 oy",
+        "type": "money",
+        "required": true,
+        "default": null,
+        "min": 0,
+        "help_text": "1 oy uchun manfiy bo‘lmagan aniq son kiriting.",
+        "example": 100000
+       },
+       {
+        "key": "six_month",
+        "name": "six_month",
+        "label": "6 oy",
+        "type": "money",
+        "required": false,
+        "default": null,
+        "min": 0,
+        "help_text": "6 oy uchun manfiy bo‘lmagan aniq son kiriting.",
+        "example": 100000
+       },
+       {
+        "key": "yearly",
+        "name": "yearly",
+        "label": "1 yil",
+        "type": "money",
+        "required": false,
+        "default": null,
+        "min": 0,
+        "help_text": "1 yil uchun manfiy bo‘lmagan aniq son kiriting.",
+        "example": 100000
+       },
+       {
+        "key": "prepaid_yearly",
+        "name": "prepaid_yearly",
+        "label": "Oldindan yillik",
+        "type": "money",
+        "required": false,
+        "default": null,
+        "min": 0,
+        "help_text": "Oldindan yillik uchun manfiy bo‘lmagan aniq son kiriting.",
+        "example": 100000
+       }
+      ],
+      "required_fields": [
+       "monthly"
+      ],
+      "additional_properties": false,
+      "example": {}
+     }
+    ]
+   },
+   {
+    "key": "qoidalar",
+    "title": "Qoidalar",
+    "order": 5,
+    "fields": [
+     {
+      "key": "entitlements",
+      "name": "entitlements",
+      "label": "Imkoniyatlar va limitlar",
+      "type": "list",
+      "required": true,
+      "section": "Qoidalar",
+      "help_text": "Faqat imkoniyatlar registridan tanlanadi; unavailable, limited yoki unlimited rejimi beriladi",
+      "runtime_path": "entitlements",
+      "default": [],
+      "ui": {
+       "component": "repeater",
+       "order": 10
+      },
+      "item_schema": {
+       "type": "object",
+       "properties": [
+        {
+         "key": "feature_key",
+         "name": "feature_key",
+         "label": "Imkoniyat",
+         "type": "select",
+         "required": true,
+         "default": null,
+         "source": "/studio/reference/subscription-features",
+         "help_text": "Imkoniyat uchun tizimdagi mavjud qiymatlardan birini tanlang.",
+         "example": "<reference-id>"
+        },
+        {
+         "key": "mode",
+         "name": "mode",
+         "label": "Rejim",
+         "type": "select",
+         "required": true,
+         "default": "unavailable",
+         "options": [
+          "unavailable",
+          "limited",
+          "unlimited"
+         ],
+         "help_text": "Rejim uchun ruxsat etilgan variantlardan birini tanlang.",
+         "example": "unavailable"
+        },
+        {
+         "key": "limit",
+         "name": "limit",
+         "label": "Limit",
+         "type": "number",
+         "required": false,
+         "default": null,
+         "min": 1,
+         "help_text": "Limit uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 1
+        },
+        {
+         "key": "reset_period",
+         "name": "reset_period",
+         "label": "Limit yangilanish davri",
+         "type": "select",
+         "required": false,
+         "default": "billing_period",
+         "options": [
+          "day",
+          "month",
+          "billing_period",
+          "lifetime"
+         ],
+         "help_text": "Limit yangilanish davri uchun ruxsat etilgan variantlardan birini tanlang.",
+         "example": "day"
+        }
+       ],
+       "required_fields": [
+        "feature_key",
+        "mode"
+       ],
+       "additional_properties": false,
+       "help_text": "qiymat ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "example": {}
+      },
+      "min_items": 0,
+      "unique_by": "feature_key",
+      "example": []
+     },
+     {
+      "key": "upgrade_rules",
+      "name": "upgrade_rules",
+      "label": "Yuqori tarifga o‘tish",
+      "type": "object",
+      "required": false,
+      "section": "Qoidalar",
+      "help_text": "Yuqori tarifga o‘tish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+      "runtime_path": "upgrade_rules",
+      "default": {},
+      "ui": {
+       "component": "object_editor",
+       "order": 15
+      },
+      "properties": [
+       {
+        "key": "allowed",
+        "name": "allowed",
+        "label": "Ruxsat",
+        "type": "boolean",
+        "required": false,
+        "default": true,
+        "help_text": "Ruxsat qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+        "example": true
+       },
+       {
+        "key": "prorate",
+        "name": "prorate",
+        "label": "Qoldiqni hisoblash",
+        "type": "boolean",
+        "required": false,
+        "default": true,
+        "help_text": "Qoldiqni hisoblash qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+        "example": true
+       },
+       {
+        "key": "effective",
+        "name": "effective",
+        "label": "Kuchga kirish",
+        "type": "select",
+        "required": false,
+        "default": null,
+        "options": [
+         "immediate",
+         "next_period"
+        ],
+        "help_text": "Kuchga kirish uchun ruxsat etilgan variantlardan birini tanlang.",
+        "example": "immediate"
+       }
+      ],
+      "required_fields": [],
+      "additional_properties": false,
+      "example": {}
+     },
+     {
+      "key": "downgrade_rules",
+      "name": "downgrade_rules",
+      "label": "Past tarifga o‘tish",
+      "type": "object",
+      "required": false,
+      "section": "Qoidalar",
+      "help_text": "Past tarifga o‘tish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+      "runtime_path": "downgrade_rules",
+      "default": {},
+      "ui": {
+       "component": "object_editor",
+       "order": 16
+      },
+      "properties": [
+       {
+        "key": "allowed",
+        "name": "allowed",
+        "label": "Ruxsat",
+        "type": "boolean",
+        "required": false,
+        "default": true,
+        "help_text": "Ruxsat qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+        "example": true
+       },
+       {
+        "key": "effective",
+        "name": "effective",
+        "label": "Kuchga kirish",
+        "type": "select",
+        "required": false,
+        "default": null,
+        "options": [
+         "immediate",
+         "next_period"
+        ],
+        "help_text": "Kuchga kirish uchun ruxsat etilgan variantlardan birini tanlang.",
+        "example": "immediate"
+       }
+      ],
+      "required_fields": [],
+      "additional_properties": false,
+      "example": {}
+     },
+     {
+      "key": "cancellation_rules",
+      "name": "cancellation_rules",
+      "label": "Bekor qilish",
+      "type": "object",
+      "required": false,
+      "section": "Qoidalar",
+      "help_text": "Bekor qilish ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+      "runtime_path": "cancellation_rules",
+      "default": {},
+      "ui": {
+       "component": "object_editor",
+       "order": 17
+      },
+      "properties": [],
+      "required_fields": [],
+      "additional_properties": true,
+      "example": {}
+     }
+    ]
+   }
+  ],
+  "initial_payload": {
+   "target_roles": [],
+   "prices": {},
+   "duration": {},
+   "entitlements": [],
+   "trial": {},
+   "renewal_consent_required_on_change": false,
+   "upgrade_rules": {},
+   "downgrade_rules": {},
+   "cancellation_rules": {}
+  },
+  "context": {
+   "record_id": null,
+   "source": null,
+   "runtime_target_id": null,
+   "runtime_target_type": null,
+   "studio_object_id": null
+  },
+  "navigation": {
+   "group_key": "finance_tariffs",
+   "group_title": "Moliya va tariflar",
+   "group_order": 5,
+   "step_number": 1,
+   "step_count": 3,
+   "required_before": [],
+   "recommended_before": [],
+   "next_steps": [
+    "K04"
+   ],
+   "sequence_reason": "Moliya va tariflar bo‘limida bu qadam 1-navbatda bajariladi.",
+   "ui_visible": true,
+   "managed_by": "studio"
+  },
+  "operations": {
+   "supported": [
+    "create",
+    "view",
+    "edit",
+    "clone",
+    "archive"
+   ],
+   "default": "list",
+   "identity_source": "route_context",
+   "context_fields": [
+    "plan_id"
+   ],
+   "list_endpoint": "/studio/constructors/K17/records",
+   "form_context_endpoint": "/studio/constructors/K17/form-context",
+   "clone_endpoint": "/studio/objects/{object_id}/clone",
+   "archive_endpoint": "/studio/objects/{object_id}/archive"
+  },
+  "experience": {
+   "metadata_version": 1,
+   "purpose": "Barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+   "plain_language": "Bu konstruktor barcha mijoz va ijrochi tariflarini o‘zgarmas versiyalar, tayyor imkoniyatlar va limitlar bilan bitta joydan boshqaradi.",
+   "when_to_use": "Tarif tanlashdagi tarif kartasi, narx, imkoniyat va limitlarni kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+   "managed_by": [
+    "studio_editor",
+    "subscription_manager"
+   ],
+   "where_used": [
+    {
+     "surface_key": "subscription_plans",
+     "title": "Tarif tanlash",
+     "route": "/uz/subscription-plans",
+     "placement": "Tarif kartasi, narx, imkoniyat va limitlar"
+    }
+   ],
+   "result": "Publish qilingandan keyin yangi konfiguratsiya `subscription_plans` runtime qatlamida ishlaydi va Tarif tanlashda aks etadi.",
+   "workflow": [
+    {
+     "step": 1,
+     "title": "Bog‘liq ma’lumotni tanlang",
+     "description": "Avval Mavjud tarif, Ruxsat etilgan rollar qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+    },
+    {
+     "step": 2,
+     "title": "Asosiy maydonlarni to‘ldiring",
+     "description": "Majburiy maydonlar: Slug, Tarif nomi, Tarif turi, Ruxsat etilgan rollar, To‘lov turi, Davr narxlari, Tarif davomiyligi, Imkoniyatlar va limitlar."
+    },
+    {
+     "step": 3,
+     "title": "Natijani tekshiring",
+     "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+    },
+    {
+     "step": 4,
+     "title": "Saqlang va tasdiqlashga yuboring",
+     "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+    }
+   ],
+   "visual_preview": {
+    "type": "pricing",
+    "title": "Tarif va imkoniyatlar natijasi",
+    "description": "Forma o‘zgarganda tarif kartasi, narx, imkoniyat va limitlarning taxminiy ko‘rinishini darhol yangilang.",
+    "data_source": "payload",
+    "refresh": "on_change",
+    "surface_keys": [
+     "subscription_plans"
+    ]
+   },
+   "novice_notes": [
+    "Qizil yulduzchali maydonlar majburiy.",
+    "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+    "Preview real ma’lumotni o‘zgartirmaydi.",
+    "Publishdan oldin diff va warninglarni tekshiring."
+   ],
+   "publish_checklist": [
+    "Majburiy maydonlar to‘ldirilgan",
+    "Reference qiymatlar mavjud",
+    "Preview kutilgan natijani ko‘rsatmoqda",
+    "Validatsiya xatosiz",
+    "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+   ],
+   "risk_level": "medium",
+   "warnings": [
+    "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+   ]
+  },
+  "submit": {
+   "create_object_url": "/studio/objects",
+   "save_object_url": null,
+   "constructor_code": "K17",
+   "runtime_target_id": "",
+   "runtime_target_type": "",
+   "object_title_mode": "derived_from_payload",
+   "object_title_required": false
+  }
+ },
+ "features": {
+  "key": "subscription-features",
+  "items": [
+   {
+    "id": "ai_requests",
+    "value": "ai_requests",
+    "label": "AI so‘rovlari",
+    "key": "ai_requests",
+    "description": "",
+    "unit": "request",
+    "allowed_reset_periods": [
+     "day",
+     "month",
+     "billing_period",
+     "lifetime"
+    ]
+   },
+   {
+    "id": "manual_document_fill",
+    "value": "manual_document_fill",
+    "label": "Advokat bilan hujjat to‘ldirish",
+    "key": "manual_document_fill",
+    "description": "",
+    "unit": "document",
+    "allowed_reset_periods": [
+     "day",
+     "month",
+     "billing_period",
+     "lifetime"
+    ]
+   },
+   {
+    "id": "export",
+    "value": "export",
+    "label": "Eksport",
+    "key": "export",
+    "description": "",
+    "unit": "export",
+    "allowed_reset_periods": [
+     "day",
+     "month",
+     "billing_period",
+     "lifetime"
+    ]
+   },
+   {
+    "id": "manual_document_templates",
+    "value": "manual_document_templates",
+    "label": "Hujjat shablonlari",
+    "key": "manual_document_templates",
+    "description": "",
+    "unit": "template",
+    "allowed_reset_periods": [
+     "day",
+     "month",
+     "billing_period",
+     "lifetime"
+    ]
+   },
+   {
+    "id": "doc_analysis",
+    "value": "doc_analysis",
+    "label": "Hujjat tahlili",
+    "key": "doc_analysis",
+    "description": "",
+    "unit": "document",
+    "allowed_reset_periods": [
+     "day",
+     "month",
+     "billing_period",
+     "lifetime"
+    ]
+   },
+   {
+    "id": "manual_documents",
+    "value": "manual_documents",
+    "label": "Qo‘lda tayyorlanadigan hujjatlar",
+    "key": "manual_documents",
+    "description": "",
+    "unit": "document",
+    "allowed_reset_periods": [
+     "day",
+     "month",
+     "billing_period",
+     "lifetime"
+    ]
+   },
+   {
+    "id": "template_download",
+    "value": "template_download",
+    "label": "Shablonni yuklab olish",
+    "key": "template_download",
+    "description": "",
+    "unit": "download",
+    "allowed_reset_periods": [
+     "day",
+     "month",
+     "billing_period",
+     "lifetime"
+    ]
+   },
+   {
+    "id": "case_law_search",
+    "value": "case_law_search",
+    "label": "Sud amaliyotini qidirish",
+    "key": "case_law_search",
+    "description": "",
+    "unit": "search",
+    "allowed_reset_periods": [
+     "day",
+     "month",
+     "billing_period",
+     "lifetime"
+    ]
+   },
+   {
+    "id": "history_days",
+    "value": "history_days",
+    "label": "Tarixni saqlash",
+    "key": "history_days",
+    "description": "",
+    "unit": "day",
+    "allowed_reset_periods": [
+     "day",
+     "month",
+     "billing_period",
+     "lifetime"
+    ]
+   }
+  ],
+  "total": 9,
+  "count": 9,
+  "limit": 50,
+  "offset": 0,
+  "has_more": false
+ },
+ "roles": {
+  "key": "roles",
+  "items": [
+   {
+    "id": "d85ac097-8957-4579-ac04-aa2294e85a08",
+    "value": "admin",
+    "label": "Admin",
+    "name": "admin"
+   },
+   {
+    "id": "9ee9cefd-58f9-4600-a3ad-a23235979ca1",
+    "value": "advokat",
+    "label": "Advokat",
+    "name": "advokat"
+   },
+   {
+    "id": "159e9ec2-d02b-46f4-9abb-09853b18dd2f",
+    "value": "advokat_tashkiloti",
+    "label": "Advokat Tashkiloti",
+    "name": "advokat_tashkiloti"
+   },
+   {
+    "id": "1780b04d-e5f1-47f7-bcf9-c5b0f21d381a",
+    "value": "b2b_manager",
+    "label": "B2B Manager",
+    "name": "b2b_manager"
+   },
+   {
+    "id": "7effd08d-3e58-4283-827d-f0d771bb21ba",
+    "value": "call_center",
+    "label": "Call Center",
+    "name": "call_center"
+   },
+   {
+    "id": "141fc625-8790-4f11-ad31-ce0758e43f6a",
+    "value": "call_center_lawyer",
+    "label": "Call Center Lawyer",
+    "name": "call_center_lawyer"
+   },
+   {
+    "id": "9f2e8036-5ff9-4a7a-ab75-520541ca2ffc",
+    "value": "ceo_viewer",
+    "label": "Ceo Viewer",
+    "name": "ceo_viewer"
+   },
+   {
+    "id": "0135e7c8-c3c6-41af-ba36-e97ccecb2c07",
+    "value": "content_manager",
+    "label": "Content Manager",
+    "name": "content_manager"
+   },
+   {
+    "id": "0e093fd6-a1b0-485b-a1fc-5da36223b73d",
+    "value": "executive",
+    "label": "Executive",
+    "name": "executive"
+   },
+   {
+    "id": "233741ec-0ffd-4739-add4-3266714bd056",
+    "value": "finance",
+    "label": "Finance",
+    "name": "finance"
+   },
+   {
+    "id": "aa9f3fef-b1e4-4cd0-8a84-a961b1bbdda4",
+    "value": "manager",
+    "label": "Manager",
+    "name": "manager"
+   },
+   {
+    "id": "f22848d5-78d3-4d5b-9987-42efc7b280f3",
+    "value": "marketing",
+    "label": "Marketing",
+    "name": "marketing"
+   }
+  ],
+  "total": 25,
+  "count": 25,
+  "limit": 50,
+  "offset": 0,
+  "has_more": false
+ }
+}

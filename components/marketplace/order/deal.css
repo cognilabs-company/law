@@ -197,3 +197,8 @@
     min-height: 44px;
   }
 }
+/* ResolutionPanel: refund progress and the order's timeline. */
+.mcr-refund { display: grid; gap: 2px; }
+.mcr-timeline { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: .8rem; color: var(--ink); }
+.mcr-timeline li { display: flex; gap: 10px; }
+.mcr-timeline time { min-width: 110px; color: var(--gray); }

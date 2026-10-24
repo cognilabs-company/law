@@ -18,11 +18,41 @@ export type MonSystem = {
   diskUsed: number;
   diskTotal: number;
 };
-export type MonIntegration = { key: string; label: string; status: MonStatus; configured: boolean; detail: string; latencyMs: number | null; checkedAt: string };
+export type MonIntegration = {
+  key: string;
+  label: string;
+  status: MonStatus;
+  configured: boolean;
+  detail: string;
+  latencyMs: number | null;
+  checkedAt: string;
+  // Shown when the backend sends them (TSK-670563).
+  uptimePercent: number | null;
+  lastSuccessAt: string;
+  lastErrorAt: string;
+  lastError: string;
+  errorCode: string;
+  backlog: number | null;
+  dependencies: string[];
+};
 export type MonNode = { id: string; label: string; type: string; status: MonStatus };
 export type MonEdge = { id: string; source: string; target: string; status: MonStatus };
 export type MonIncident = { id: string; title: string; status: string; severity: string; integration: string; at: string };
+// Figures the backend may add (TSK-762684): shown when sent, left out when not.
+export type MonExtra = {
+  rps: number | null;
+  latency: { p50: number | null; p95: number | null; p99: number | null } | null;
+  status4xx: number | null;
+  status5xx: number | null;
+  usersToday: number | null;
+  byRole: { role: string; count: number }[];
+  network: { rx: number | null; tx: number | null } | null;
+  db: { inUse: number | null; size: number | null; slowQueries: number | null } | null;
+  redis: { status: string; memory: number | null } | null;
+  queue: { pending: number | null; failed: number | null } | null;
+};
 export type MonOverview = {
+  extra: MonExtra;
   from: string;
   to: string;
   system: MonSystem;
@@ -33,7 +63,7 @@ export type MonOverview = {
   edges: MonEdge[];
   realtime: { sockets: number; online: number; channels: number; events: string[] };
 };
-export type MonHistoryItem = { id: string; type: "snapshot" | "incident" | "other"; title: string; status: string; at: string; cpuPercent: number | null; memoryPercent: number | null; errors: number | null };
+export type MonHistoryItem = { id: string; type: "snapshot" | "incident" | "other"; title: string; status: string; at: string; cpuPercent: number | null; memoryPercent: number | null; errors: number | null; integrations: { key: string; status: string; latencyMs: number | null }[] };
 export type MonHistory = { items: MonHistoryItem[]; retention: { snapshotsDays: number | null; incidentsYears: number | null } };
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
@@ -66,6 +96,39 @@ function integrationOf(v: unknown): MonIntegration {
     detail: asStr(d.detail ?? d.message),
     latencyMs: num(d.latency_ms),
     checkedAt: asStr(d.checked_at),
+    uptimePercent: num(d.uptime_percent ?? d.uptime),
+    lastSuccessAt: asStr(d.last_success_at ?? d.last_ok_at),
+    lastErrorAt: asStr(d.last_error_at ?? d.last_failure_at),
+    lastError: asStr(d.last_error ?? d.last_error_message),
+    errorCode: asStr(d.error_code ?? d.last_error_code),
+    backlog: num(d.backlog ?? d.queue ?? d.queue_size),
+    dependencies: asArr(d.dependencies ?? d.depends_on).map((x) => asStr(typeof x === "object" && x ? asDict(x).key : x)).filter(Boolean),
+  };
+}
+
+function extraOf(d: Dict): MonExtra {
+  const req = asDict(d.requests);
+  const users = asDict(d.users);
+  const sys = asDict(d.system);
+  const lat = asDict(req.latency_ms ?? req.latency);
+  const net = asDict(sys.network);
+  const db = asDict(d.database ?? sys.database);
+  const redis = asDict(d.redis ?? sys.redis);
+  const queue = asDict(d.workers ?? d.queue ?? sys.queue);
+  const roles = asDict(users.by_role);
+  return {
+    rps: num(req.rps ?? req.requests_per_second),
+    latency: Object.keys(lat).length ? { p50: num(lat.p50), p95: num(lat.p95), p99: num(lat.p99) } : null,
+    status4xx: num(req.status_4xx ?? req.client_errors),
+    status5xx: num(req.status_5xx ?? req.server_errors),
+    usersToday: num(users.today ?? users.daily_active),
+    byRole: Object.entries(roles)
+      .map(([role, n]) => ({ role, count: Number(n) || 0 }))
+      .filter((r) => r.role),
+    network: Object.keys(net).length ? { rx: num(net.rx_bytes_per_sec ?? net.rx), tx: num(net.tx_bytes_per_sec ?? net.tx) } : null,
+    db: Object.keys(db).length ? { inUse: num(db.pool_in_use ?? db.connections_in_use), size: num(db.pool_size), slowQueries: num(db.slow_queries) } : null,
+    redis: Object.keys(redis).length ? { status: asStr(redis.status).toLowerCase(), memory: num(redis.used_memory_bytes ?? redis.used_memory) } : null,
+    queue: Object.keys(queue).length ? { pending: num(queue.pending ?? queue.backlog), failed: num(queue.failed ?? queue.failed_jobs) } : null,
   };
 }
 
@@ -76,6 +139,7 @@ export function overviewOf(v: unknown): MonOverview {
   const graph = asDict(d.graph);
   const rt = asDict(d.realtime);
   return {
+    extra: extraOf(d),
     from: asStr(d.from),
     to: asStr(d.to),
     system: systemOf(d.system),
@@ -129,6 +193,10 @@ function historyItemOf(v: unknown): MonHistoryItem {
     cpuPercent: sys.cpuPercent,
     memoryPercent: sys.memoryPercent,
     errors: num(asDict(d.requests).errors),
+    integrations: asArr(d.integrations).map((x) => {
+      const i = asDict(x);
+      return { key: asStr(i.key), status: asStr(i.status).toLowerCase(), latencyMs: num(i.latency_ms) };
+    }),
   };
 }
 
@@ -167,6 +235,14 @@ export function applyMonitoringEvent(o: MonOverview, ev: Dict): { overview: MonO
       next.requests = { events: asNum(r.activity_events ?? r.count), errors: asNum(r.errors), errorRate: num(r.error_rate_percent) };
     }
     if (data.users) next.users = { active: asNum(asDict(data.users).active), total: asNum(asDict(data.users).total) || o.users.total };
+    // Extra figures: what the event carries replaces, the rest is kept.
+    const fresh = extraOf(data);
+    const kept = { ...o.extra } as MonExtra;
+    for (const k of Object.keys(fresh) as (keyof MonExtra)[]) {
+      const v = fresh[k];
+      if (v !== null && !(Array.isArray(v) && !v.length)) (kept as Record<string, unknown>)[k] = v;
+    }
+    next.extra = kept;
     if (data.realtime) {
       const rt = asDict(data.realtime);
       next.realtime = { ...o.realtime, sockets: asNum(rt.connected_sockets, o.realtime.sockets), online: asNum(rt.online_users, o.realtime.online), channels: asNum(rt.active_channels, o.realtime.channels) };

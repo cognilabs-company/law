@@ -27,6 +27,8 @@ test("a promotion picks targets of its type only and sends no campaign_id", asyn
   const picker = page.getByRole("combobox", { name: /Пакеты или тарифы/ });
   await picker.click();
   await expect(page.getByRole("option", { name: /LexGo\.AI Pro/ })).toBeVisible();
+  // Each target shows its type and price, to weigh a fixed discount against.
+  await expect(page.getByRole("option", { name: /LexGo\.AI Pro/ })).toContainText("99 000");
   await expect(page.getByRole("option", { name: /Profile boost/ })).toHaveCount(0);
   await page.getByRole("option", { name: /LexGo\.AI Pro/ }).click();
   await page.keyboard.press("Escape");

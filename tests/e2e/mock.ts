@@ -9,7 +9,7 @@ import type { Page, Route, WebSocketRoute } from "@playwright/test";
 export type Handler = (body: unknown, url: URL) => { status?: number; json: unknown } | unknown;
 export type Routes = Record<string, Handler | unknown>;
 export type Mock = {
-  calls: { method: string; path: string; body: unknown }[];
+  calls: { method: string; path: string; body: unknown; headers: Record<string, string> }[];
   refused: string[];
   sent: string[];
   // Open realtime sockets, and ways to play the server: push an event to
@@ -67,7 +67,7 @@ export async function mockBackend(page: Page, routes: Routes): Promise<Mock> {
     } catch {
       body = req.postData();
     }
-    mock.calls.push({ method, path, body });
+    mock.calls.push({ method, path, body, headers: req.headers() });
     const key = Object.keys(routes).find((k) => {
       const [m, p] = k.includes(" ") ? k.split(" ") : ["GET", k];
       return m === method && new RegExp(`^${p}$`).test(path);

@@ -108,4 +108,15 @@ test.describe("rating and complaint", () => {
     await expect(page.getByRole("button", { name: "Отправить оценку" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Пожаловаться" })).toHaveCount(0);
   });
+
+  test("a rating made elsewhere updates the page in real time", async ({ page }) => {
+    const state = { order: completed() };
+    const mock = await openCompleted(page, state);
+    await expect(page.getByRole("radio", { name: "4 звезды" })).toBeVisible();
+    await expect.poll(() => mock.sockets.some((s) => s.url.includes("/ws/users/me"))).toBe(true);
+    state.order = completed({ rating: { available: false, value: 5 }, complaint: { available: false } });
+    await mock.push({ event: "marketplace.order_rated", order_id: ORDER_ID, rating: 5 });
+    await expect(page.getByText("Ваша оценка: 5 / 5")).toBeVisible();
+    await expect(page.getByRole("radio", { name: "4 звезды" })).toHaveCount(0);
+  });
 });

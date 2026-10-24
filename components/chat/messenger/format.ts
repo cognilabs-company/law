@@ -65,6 +65,9 @@ export function peerOf(room: SecureRoom | null, me: string): Peer {
 }
 
 const DAY = 86_400_000;
+// Two letters ("Se") read as a typo in a row's corner; the list spells
+// Uzbek weekdays a little longer than the calendar grid does.
+const LIST_WEEKDAYS: Record<string, string[]> = { uz: ["Dush", "Sesh", "Chor", "Pay", "Jum", "Shan", "Yak"] };
 // The list's clock: today a time, yesterday a word, this week a weekday,
 // then a date — the year only once it is not this year's.
 export function listTime(iso: string, locale: string, t: T): string {
@@ -76,7 +79,7 @@ export function listTime(iso: string, locale: string, t: T): string {
   if (day === localDay(now)) return timeOnly(iso, locale);
   if (day === localDay(new Date(now.getTime() - DAY))) return t("yesterday");
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  if (start - d.getTime() < 6 * DAY) return weekdays(locale)[(d.getDay() + 6) % 7];
+  if (start - d.getTime() < 6 * DAY) return (LIST_WEEKDAYS[locale] ?? weekdays(locale))[(d.getDay() + 6) % 7];
   return d.getFullYear() === now.getFullYear() ? shortDate(day, locale) : dateOnly(iso, locale);
 }
 

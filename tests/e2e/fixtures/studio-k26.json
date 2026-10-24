@@ -1,0 +1,3093 @@
+{
+ "_note": "Recorded from GET /studio/constructors (K26 only), /studio/constructors/K26 and its form-context (24 Oct 2026).",
+ "constructors": {
+  "group_count": 1,
+  "constructor_count": 1,
+  "user_roles": [
+   "superadmin"
+  ],
+  "include_schema": false,
+  "items": [
+   {
+    "id": "52cf1afe-f502-4417-aa91-3621c524845a",
+    "code": "K26",
+    "title": "Hujjat xizmatlari global sozlamalari",
+    "category": "documents",
+    "description": "Barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+    "runtime_target": "document_policies",
+    "experience": {
+     "metadata_version": 1,
+     "purpose": "Barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+     "plain_language": "Bu konstruktor barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+     "when_to_use": "Hujjatlardagi hujjat tanlash, savolnoma, konstruktor va natijani kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+     "managed_by": [
+      "studio_editor",
+      "document_manager"
+     ],
+     "where_used": [
+      {
+       "surface_key": "document_policies",
+       "title": "Hujjatlar",
+       "route": "/uz/portal/client/documents",
+       "placement": "Hujjat tanlash, savolnoma, konstruktor va natija"
+      }
+     ],
+     "result": "Publish qilingandan keyin yangi konfiguratsiya `document_policies` runtime qatlamida ishlaydi va Hujjatlarda aks etadi.",
+     "workflow": [
+      {
+       "step": 1,
+       "title": "Asosiy maydonlarni to‘ldiring",
+       "description": "Majburiy maydonlar: Sozlama kaliti."
+      },
+      {
+       "step": 2,
+       "title": "Natijani tekshiring",
+       "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+      },
+      {
+       "step": 3,
+       "title": "Saqlang va tasdiqlashga yuboring",
+       "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+      }
+     ],
+     "visual_preview": {
+      "type": "document",
+      "title": "Hujjat xizmatlari global sozlamalari natijasi",
+      "description": "Forma o‘zgarganda hujjat tanlash, savolnoma, konstruktor va natijaning taxminiy ko‘rinishini darhol yangilang.",
+      "data_source": "payload",
+      "refresh": "on_change",
+      "surface_keys": [
+       "document_policies"
+      ]
+     },
+     "novice_notes": [
+      "Qizil yulduzchali maydonlar majburiy.",
+      "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+      "Preview real ma’lumotni o‘zgartirmaydi.",
+      "Publishdan oldin diff va warninglarni tekshiring."
+     ],
+     "publish_checklist": [
+      "Majburiy maydonlar to‘ldirilgan",
+      "Reference qiymatlar mavjud",
+      "Preview kutilgan natijani ko‘rsatmoqda",
+      "Validatsiya xatosiz",
+      "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+     ],
+     "risk_level": "medium",
+     "warnings": [
+      "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+     ]
+    },
+    "visual_preview": {
+     "type": "document",
+     "title": "Hujjat xizmatlari global sozlamalari natijasi",
+     "description": "Forma o‘zgarganda hujjat tanlash, savolnoma, konstruktor va natijaning taxminiy ko‘rinishini darhol yangilang.",
+     "data_source": "payload",
+     "refresh": "on_change",
+     "surface_keys": [
+      "document_policies"
+     ]
+    },
+    "navigation": {
+     "group_key": "documents_texts",
+     "group_title": "Hujjatlar va matnlar",
+     "group_order": 2,
+     "step_number": 3,
+     "step_count": 4,
+     "required_before": [
+      "K06"
+     ],
+     "recommended_before": [
+      "K06"
+     ],
+     "next_steps": [
+      "K11"
+     ],
+     "sequence_reason": "Hujjatlar va matnlar bo‘limida bu qadam 3-navbatda bajariladi.",
+     "ui_visible": true,
+     "managed_by": "studio"
+    },
+    "operations": {
+     "supported": [
+      "create",
+      "view",
+      "edit",
+      "clone",
+      "archive"
+     ],
+     "default": "list",
+     "identity_source": "route_context",
+     "context_fields": [],
+     "list_endpoint": "/studio/constructors/K26/records",
+     "form_context_endpoint": "/studio/constructors/K26/form-context",
+     "clone_endpoint": "/studio/objects/{object_id}/clone",
+     "archive_endpoint": "/studio/objects/{object_id}/archive"
+    },
+    "capabilities": [
+     "draft",
+     "validate",
+     "preview",
+     "submit",
+     "approve",
+     "publish",
+     "rollback"
+    ],
+    "definition_version": 3,
+    "approval_required": true,
+    "is_active": true,
+    "updated_at": "2026-10-23T13:51:43.052942Z",
+    "record_count": 1,
+    "completed": false,
+    "availability": "available",
+    "missing_required": [],
+    "missing_recommended": [],
+    "field_count": 9,
+    "required_fields": [
+     "policy_key"
+    ],
+    "detail_url": "/studio/constructors/K26"
+   }
+  ],
+  "groups": [
+   {
+    "key": "documents_texts",
+    "title": "Hujjatlar va matnlar",
+    "description": "Huquqiy matnlar, xizmatga biriktiriladigan hujjat shablonlari, global hujjat sozlamalari va xizmat shartlarini boshqaradi.",
+    "codes": [
+     "K07",
+     "K06",
+     "K26",
+     "K11"
+    ],
+    "order": 2,
+    "constructor_count": 4,
+    "constructors": [
+     {
+      "id": "381d3c3b-29fc-43ca-a87e-501e1c0d15aa",
+      "code": "K07",
+      "title": "Oferta va huquqiy matn",
+      "category": "marketplace",
+      "description": "Oferta, siyosat va rozilik hujjatlarining o‘zgarmas versiyalarini boshqaradi.",
+      "runtime_target": "consent_documents",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Oferta, siyosat va rozilik hujjatlarining o‘zgarmas versiyalarini boshqaradi.",
+       "plain_language": "Bu konstruktor oferta, siyosat va rozilik hujjatlarining o‘zgarmas versiyalarini boshqaradi.",
+       "when_to_use": "Rozilik oynasidagi foydalanuvchiga ko‘rsatiladigan huquqiy matn va versiyani kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "legal_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "consent_documents",
+         "title": "Rozilik oynasi",
+         "route": "/uz/legal",
+         "placement": "Foydalanuvchiga ko‘rsatiladigan huquqiy matn va versiya"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `consent_documents` runtime qatlamida ishlaydi va Rozilik oynasida aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Mavjud hujjat qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Hujjat turi, Asosiy o‘zbek yozuvi, Hujjat nomlari, Hujjat matnlari."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "document",
+        "title": "Oferta va huquqiy matn natijasi",
+        "description": "Forma o‘zgarganda foydalanuvchiga ko‘rsatiladigan huquqiy matn va versiyaning taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "consent_documents"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "document",
+       "title": "Oferta va huquqiy matn natijasi",
+       "description": "Forma o‘zgarganda foydalanuvchiga ko‘rsatiladigan huquqiy matn va versiyaning taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "consent_documents"
+       ]
+      },
+      "navigation": {
+       "group_key": "documents_texts",
+       "group_title": "Hujjatlar va matnlar",
+       "group_order": 2,
+       "step_number": 1,
+       "step_count": 4,
+       "required_before": [],
+       "recommended_before": [],
+       "next_steps": [
+        "K06"
+       ],
+       "sequence_reason": "Hujjatlar va matnlar bo‘limida bu qadam 1-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [
+        "document_id"
+       ],
+       "list_endpoint": "/studio/constructors/K07/records",
+       "form_context_endpoint": "/studio/constructors/K07/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T13:51:43.026877Z",
+      "record_count": 10,
+      "completed": true,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 10,
+      "required_fields": [
+       "document_type",
+       "source_script",
+       "title_i18n",
+       "body_i18n"
+      ],
+      "detail_url": "/studio/constructors/K07"
+     },
+     {
+      "id": "53557609-ad63-43b6-bd7a-72bea6e5435c",
+      "code": "K06",
+      "title": "Xizmat hujjat shabloni",
+      "category": "marketplace",
+      "description": "Tanlangan xizmat uchun OnlyOffice muharririda yoki yuklangan fayl orqali ishchi hujjat shablonini boshqaradi.",
+      "runtime_target": "document_templates",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Tanlangan xizmat uchun OnlyOffice muharririda yoki yuklangan fayl orqali ishchi hujjat shablonini boshqaradi.",
+       "plain_language": "Bu konstruktor tanlangan xizmat uchun OnlyOffice muharririda yoki yuklangan fayl orqali ishchi hujjat shablonini boshqaradi.",
+       "when_to_use": "Hujjat konstruktoridagi shablon matni, bandlar va to‘ldiriladigan maydonlarni kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "document_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "document_templates",
+         "title": "Hujjat konstruktori",
+         "route": "/uz/portal/client/documents",
+         "placement": "Shablon matni, bandlar va to‘ldiriladigan maydonlar"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `document_templates` runtime qatlamida ishlaydi va Hujjat konstruktorida aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Mavjud shablon, Xizmat qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Rejim, Shablon nomi, Til."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "document",
+        "title": "Xizmat hujjat shabloni natijasi",
+        "description": "Forma o‘zgarganda shablon matni, bandlar va to‘ldiriladigan maydonlarning taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "document_templates"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "document",
+       "title": "Xizmat hujjat shabloni natijasi",
+       "description": "Forma o‘zgarganda shablon matni, bandlar va to‘ldiriladigan maydonlarning taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "document_templates"
+       ]
+      },
+      "navigation": {
+       "group_key": "documents_texts",
+       "group_title": "Hujjatlar va matnlar",
+       "group_order": 2,
+       "step_number": 2,
+       "step_count": 4,
+       "required_before": [],
+       "recommended_before": [
+        "K01"
+       ],
+       "next_steps": [
+        "K26"
+       ],
+       "sequence_reason": "Hujjatlar va matnlar bo‘limida bu qadam 2-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [
+        "template_id"
+       ],
+       "list_endpoint": "/studio/constructors/K06/records",
+       "form_context_endpoint": "/studio/constructors/K06/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T13:51:43.025412Z",
+      "record_count": 990,
+      "completed": true,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 9,
+      "required_fields": [
+       "mode",
+       "title",
+       "language"
+      ],
+      "detail_url": "/studio/constructors/K06"
+     },
+     {
+      "id": "52cf1afe-f502-4417-aa91-3621c524845a",
+      "code": "K26",
+      "title": "Hujjat xizmatlari global sozlamalari",
+      "category": "documents",
+      "description": "Barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+      "runtime_target": "document_policies",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+       "plain_language": "Bu konstruktor barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+       "when_to_use": "Hujjatlardagi hujjat tanlash, savolnoma, konstruktor va natijani kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "document_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "document_policies",
+         "title": "Hujjatlar",
+         "route": "/uz/portal/client/documents",
+         "placement": "Hujjat tanlash, savolnoma, konstruktor va natija"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `document_policies` runtime qatlamida ishlaydi va Hujjatlarda aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Sozlama kaliti."
+        },
+        {
+         "step": 2,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 3,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "document",
+        "title": "Hujjat xizmatlari global sozlamalari natijasi",
+        "description": "Forma o‘zgarganda hujjat tanlash, savolnoma, konstruktor va natijaning taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "document_policies"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "document",
+       "title": "Hujjat xizmatlari global sozlamalari natijasi",
+       "description": "Forma o‘zgarganda hujjat tanlash, savolnoma, konstruktor va natijaning taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "document_policies"
+       ]
+      },
+      "navigation": {
+       "group_key": "documents_texts",
+       "group_title": "Hujjatlar va matnlar",
+       "group_order": 2,
+       "step_number": 3,
+       "step_count": 4,
+       "required_before": [
+        "K06"
+       ],
+       "recommended_before": [
+        "K06"
+       ],
+       "next_steps": [
+        "K11"
+       ],
+       "sequence_reason": "Hujjatlar va matnlar bo‘limida bu qadam 3-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [],
+       "list_endpoint": "/studio/constructors/K26/records",
+       "form_context_endpoint": "/studio/constructors/K26/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T13:51:43.052942Z",
+      "record_count": 1,
+      "completed": false,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 9,
+      "required_fields": [
+       "policy_key"
+      ],
+      "detail_url": "/studio/constructors/K26"
+     },
+     {
+      "id": "6b373ccc-a96b-4b38-a369-70417545aa98",
+      "code": "K11",
+      "title": "Xizmat shartlari",
+      "category": "marketplace",
+      "description": "Refund, kafolat va mijozga beriladigan shartlarni boshqaradi.",
+      "runtime_target": "service_terms",
+      "experience": {
+       "metadata_version": 1,
+       "purpose": "Refund, kafolat va mijozga beriladigan shartlarni boshqaradi.",
+       "plain_language": "Bu konstruktor refund, kafolat va mijozga beriladigan shartlarni boshqaradi.",
+       "when_to_use": "Huquqiy hujjatlardagi oferta, rozilik, shart va siyosat matnlarini kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+       "managed_by": [
+        "studio_editor",
+        "legal_manager"
+       ],
+       "where_used": [
+        {
+         "surface_key": "service_terms",
+         "title": "Huquqiy hujjatlar",
+         "route": "/uz/legal",
+         "placement": "Oferta, rozilik, shart va siyosat matnlari"
+        }
+       ],
+       "result": "Publish qilingandan keyin yangi konfiguratsiya `service_terms` runtime qatlamida ishlaydi va Huquqiy hujjatlarda aks etadi.",
+       "workflow": [
+        {
+         "step": 1,
+         "title": "Bog‘liq ma’lumotni tanlang",
+         "description": "Avval Xizmat qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+        },
+        {
+         "step": 2,
+         "title": "Asosiy maydonlarni to‘ldiring",
+         "description": "Majburiy maydonlar: Shartlar."
+        },
+        {
+         "step": 3,
+         "title": "Natijani tekshiring",
+         "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+        },
+        {
+         "step": 4,
+         "title": "Saqlang va tasdiqlashga yuboring",
+         "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+        }
+       ],
+       "visual_preview": {
+        "type": "document",
+        "title": "Xizmat shartlari natijasi",
+        "description": "Forma o‘zgarganda oferta, rozilik, shart va siyosat matnlarining taxminiy ko‘rinishini darhol yangilang.",
+        "data_source": "payload",
+        "refresh": "on_change",
+        "surface_keys": [
+         "service_terms"
+        ]
+       },
+       "novice_notes": [
+        "Qizil yulduzchali maydonlar majburiy.",
+        "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+        "Preview real ma’lumotni o‘zgartirmaydi.",
+        "Publishdan oldin diff va warninglarni tekshiring."
+       ],
+       "publish_checklist": [
+        "Majburiy maydonlar to‘ldirilgan",
+        "Reference qiymatlar mavjud",
+        "Preview kutilgan natijani ko‘rsatmoqda",
+        "Validatsiya xatosiz",
+        "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+       ],
+       "risk_level": "medium",
+       "warnings": [
+        "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+       ]
+      },
+      "visual_preview": {
+       "type": "document",
+       "title": "Xizmat shartlari natijasi",
+       "description": "Forma o‘zgarganda oferta, rozilik, shart va siyosat matnlarining taxminiy ko‘rinishini darhol yangilang.",
+       "data_source": "payload",
+       "refresh": "on_change",
+       "surface_keys": [
+        "service_terms"
+       ]
+      },
+      "navigation": {
+       "group_key": "documents_texts",
+       "group_title": "Hujjatlar va matnlar",
+       "group_order": 2,
+       "step_number": 4,
+       "step_count": 4,
+       "required_before": [
+        "K02"
+       ],
+       "recommended_before": [
+        "K07"
+       ],
+       "next_steps": [],
+       "sequence_reason": "Hujjatlar va matnlar bo‘limida bu qadam 4-navbatda bajariladi.",
+       "ui_visible": true,
+       "managed_by": "studio"
+      },
+      "operations": {
+       "supported": [
+        "create",
+        "view",
+        "edit",
+        "clone",
+        "archive"
+       ],
+       "default": "list",
+       "identity_source": "route_context",
+       "context_fields": [],
+       "list_endpoint": "/studio/constructors/K11/records",
+       "form_context_endpoint": "/studio/constructors/K11/form-context",
+       "clone_endpoint": "/studio/objects/{object_id}/clone",
+       "archive_endpoint": "/studio/objects/{object_id}/archive"
+      },
+      "capabilities": [
+       "draft",
+       "validate",
+       "preview",
+       "submit",
+       "approve",
+       "publish",
+       "rollback"
+      ],
+      "definition_version": 3,
+      "approval_required": true,
+      "is_active": true,
+      "updated_at": "2026-10-23T13:51:43.029357Z",
+      "record_count": 1,
+      "completed": false,
+      "availability": "available",
+      "missing_required": [],
+      "missing_recommended": [],
+      "field_count": 7,
+      "required_fields": [
+       "terms"
+      ],
+      "detail_url": "/studio/constructors/K11"
+     }
+    ],
+    "visible_constructor_count": 4,
+    "completed_count": 2,
+    "available_count": 4,
+    "progress_percent": 50,
+    "next_constructor_code": "K26"
+   }
+  ],
+  "journeys": []
+ },
+ "k26": {
+  "id": "52cf1afe-f502-4417-aa91-3621c524845a",
+  "code": "K26",
+  "title": "Hujjat xizmatlari global sozlamalari",
+  "category": "documents",
+  "description": "Barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+  "runtime_target": "document_policies",
+  "schema": {
+   "version": 3,
+   "required": [
+    "policy_key"
+   ],
+   "fields": [
+    {
+     "key": "policy_key",
+     "name": "policy_key",
+     "label": "Sozlama kaliti",
+     "type": "text",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Sozlama kaliti qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+     "runtime_path": "policy_key",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 1
+     },
+     "example": "lexgo_standard_policy",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "page_pricing",
+     "name": "page_pricing",
+     "label": "Sahifa narxlari",
+     "type": "list",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Sahifa narxlari elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+     "runtime_path": "page_pricing",
+     "default": [],
+     "ui": {
+      "component": "repeater",
+      "order": 2
+     },
+     "item_schema": {
+      "type": "object",
+      "properties": [
+       {
+        "key": "from_page",
+        "name": "from_page",
+        "label": "Boshlanish sahifasi",
+        "type": "number",
+        "required": true,
+        "default": null,
+        "min": 1,
+        "help_text": "Boshlanish sahifasi uchun manfiy bo‘lmagan aniq son kiriting.",
+        "example": 1
+       },
+       {
+        "key": "to_page",
+        "name": "to_page",
+        "label": "Oxirgi sahifa",
+        "type": "number",
+        "required": false,
+        "default": null,
+        "min": 1,
+        "help_text": "Oxirgi sahifa uchun manfiy bo‘lmagan aniq son kiriting.",
+        "example": 1
+       },
+       {
+        "key": "price",
+        "name": "price",
+        "label": "Narx",
+        "type": "money",
+        "required": true,
+        "default": null,
+        "min": 0,
+        "help_text": "Foydalanuvchiga hisoblanadigan narxni UZSda kiriting.",
+        "example": 100000
+       }
+      ],
+      "required_fields": [
+       "from_page",
+       "price"
+      ],
+      "additional_properties": false,
+      "help_text": "qiymat ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+      "example": {}
+     },
+     "min_items": 0,
+     "example": []
+    },
+    {
+     "key": "extra_page_price",
+     "name": "extra_page_price",
+     "label": "Qo‘shimcha sahifa narxi",
+     "type": "money",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Qo‘shimcha sahifa narxi uchun manfiy bo‘lmagan aniq son kiriting.",
+     "runtime_path": "extra_page_price",
+     "min": 0,
+     "default": null,
+     "ui": {
+      "component": "money",
+      "order": 3
+     },
+     "example": 100000
+    },
+    {
+     "key": "allowed_formats",
+     "name": "allowed_formats",
+     "label": "Ruxsat etilgan formatlar",
+     "type": "list",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Ruxsat etilgan formatlar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+     "runtime_path": "allowed_formats",
+     "default": [],
+     "ui": {
+      "component": "repeater",
+      "order": 4
+     },
+     "item_schema": {
+      "key": "value",
+      "name": "value",
+      "label": "Qiymat",
+      "type": "text",
+      "required": true,
+      "default": null,
+      "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+      "example": "value_misol"
+     },
+     "min_items": 0,
+     "example": []
+    },
+    {
+     "key": "max_file_mb",
+     "name": "max_file_mb",
+     "label": "Maksimal fayl hajmi",
+     "type": "number",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Maksimal fayl hajmi uchun manfiy bo‘lmagan aniq son kiriting.",
+     "runtime_path": "max_file_mb",
+     "min": 1,
+     "default": null,
+     "ui": {
+      "component": "number",
+      "order": 5
+     },
+     "example": 1
+    },
+    {
+     "key": "modes",
+     "name": "modes",
+     "label": "Ruxsat etilgan rejimlar",
+     "type": "multiselect",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Ruxsat etilgan rejimlar uchun bir yoki bir nechta mos variantni tanlang.",
+     "runtime_path": "modes",
+     "options": [
+      "manual",
+      "lawyer",
+      "review"
+     ],
+     "default": [],
+     "ui": {
+      "component": "multiselect",
+      "order": 6
+     },
+     "example": [
+      "manual",
+      "lawyer"
+     ]
+    },
+    {
+     "key": "plan_requirements",
+     "name": "plan_requirements",
+     "label": "Tarif talablari",
+     "type": "object",
+     "required": false,
+     "section": "Kirish va auditoriya",
+     "help_text": "Tarif talablari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "plan_requirements",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 7
+     },
+     "properties": [
+      {
+       "key": "required",
+       "name": "required",
+       "label": "Tarif talab qilinadi",
+       "type": "boolean",
+       "required": false,
+       "default": true,
+       "help_text": "Tarif talab qilinadi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      },
+      {
+       "key": "plan_ids",
+       "name": "plan_ids",
+       "label": "Tariflar",
+       "type": "list",
+       "required": false,
+       "default": [],
+       "item_schema": {
+        "key": "value",
+        "name": "value",
+        "label": "Qiymat",
+        "type": "text",
+        "required": true,
+        "default": null,
+        "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+        "example": "value_misol"
+       },
+       "min_items": 0,
+       "help_text": "Tariflar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+       "example": []
+      },
+      {
+       "key": "entitlement",
+       "name": "entitlement",
+       "label": "Imkoniyat kaliti",
+       "type": "text",
+       "required": false,
+       "default": null,
+       "help_text": "Imkoniyat kaliti qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+       "example": "entitlement_misol"
+      }
+     ],
+     "required_fields": [],
+     "additional_properties": false,
+     "example": {}
+    },
+    {
+     "key": "review_policy",
+     "name": "review_policy",
+     "label": "Tekshiruv qoidalari",
+     "type": "object",
+     "required": false,
+     "section": "Qoidalar",
+     "help_text": "Tekshiruv qoidalari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "review_policy",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 8
+     },
+     "properties": [
+      {
+       "key": "enabled",
+       "name": "enabled",
+       "label": "Faol",
+       "type": "boolean",
+       "required": false,
+       "default": true,
+       "help_text": "Faol qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      },
+      {
+       "key": "reviewer_type",
+       "name": "reviewer_type",
+       "label": "Tekshiruvchi",
+       "type": "select",
+       "required": false,
+       "default": null,
+       "options": [
+        "lawyer",
+        "operator",
+        "admin"
+       ],
+       "help_text": "Tekshiruvchi uchun ruxsat etilgan variantlardan birini tanlang.",
+       "example": "lawyer"
+      },
+      {
+       "key": "sla_minutes",
+       "name": "sla_minutes",
+       "label": "SLA",
+       "type": "number",
+       "required": false,
+       "default": null,
+       "min": 1,
+       "help_text": "SLA uchun manfiy bo‘lmagan aniq son kiriting.",
+       "example": 1
+      }
+     ],
+     "required_fields": [],
+     "additional_properties": false,
+     "example": {}
+    },
+    {
+     "key": "download_policy",
+     "name": "download_policy",
+     "label": "Yuklab olish qoidalari",
+     "type": "object",
+     "required": false,
+     "section": "Qoidalar",
+     "help_text": "Yuklab olish qoidalari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "download_policy",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 9
+     },
+     "properties": [
+      {
+       "key": "plan_required",
+       "name": "plan_required",
+       "label": "Tarif talab qilinadi",
+       "type": "boolean",
+       "required": false,
+       "default": true,
+       "help_text": "Tarif talab qilinadi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      },
+      {
+       "key": "formats",
+       "name": "formats",
+       "label": "Formatlar",
+       "type": "list",
+       "required": false,
+       "default": [],
+       "item_schema": {
+        "key": "value",
+        "name": "value",
+        "label": "Qiymat",
+        "type": "text",
+        "required": true,
+        "default": null,
+        "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+        "example": "value_misol"
+       },
+       "min_items": 0,
+       "help_text": "Formatlar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+       "example": []
+      },
+      {
+       "key": "watermark",
+       "name": "watermark",
+       "label": "Watermark",
+       "type": "boolean",
+       "required": false,
+       "default": false,
+       "help_text": "Watermark qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      }
+     ],
+     "required_fields": [],
+     "additional_properties": false,
+     "example": {}
+    }
+   ],
+   "select_sources": {},
+   "sections": [
+    {
+     "key": "asosiy",
+     "title": "Asosiy",
+     "order": 1,
+     "fields": [
+      {
+       "key": "policy_key",
+       "name": "policy_key",
+       "label": "Sozlama kaliti",
+       "type": "text",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Sozlama kaliti qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+       "runtime_path": "policy_key",
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 1
+       },
+       "example": "lexgo_standard_policy",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      },
+      {
+       "key": "page_pricing",
+       "name": "page_pricing",
+       "label": "Sahifa narxlari",
+       "type": "list",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Sahifa narxlari elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+       "runtime_path": "page_pricing",
+       "default": [],
+       "ui": {
+        "component": "repeater",
+        "order": 2
+       },
+       "item_schema": {
+        "type": "object",
+        "properties": [
+         {
+          "key": "from_page",
+          "name": "from_page",
+          "label": "Boshlanish sahifasi",
+          "type": "number",
+          "required": true,
+          "default": null,
+          "min": 1,
+          "help_text": "Boshlanish sahifasi uchun manfiy bo‘lmagan aniq son kiriting.",
+          "example": 1
+         },
+         {
+          "key": "to_page",
+          "name": "to_page",
+          "label": "Oxirgi sahifa",
+          "type": "number",
+          "required": false,
+          "default": null,
+          "min": 1,
+          "help_text": "Oxirgi sahifa uchun manfiy bo‘lmagan aniq son kiriting.",
+          "example": 1
+         },
+         {
+          "key": "price",
+          "name": "price",
+          "label": "Narx",
+          "type": "money",
+          "required": true,
+          "default": null,
+          "min": 0,
+          "help_text": "Foydalanuvchiga hisoblanadigan narxni UZSda kiriting.",
+          "example": 100000
+         }
+        ],
+        "required_fields": [
+         "from_page",
+         "price"
+        ],
+        "additional_properties": false,
+        "help_text": "qiymat ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+        "example": {}
+       },
+       "min_items": 0,
+       "example": []
+      },
+      {
+       "key": "extra_page_price",
+       "name": "extra_page_price",
+       "label": "Qo‘shimcha sahifa narxi",
+       "type": "money",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Qo‘shimcha sahifa narxi uchun manfiy bo‘lmagan aniq son kiriting.",
+       "runtime_path": "extra_page_price",
+       "min": 0,
+       "default": null,
+       "ui": {
+        "component": "money",
+        "order": 3
+       },
+       "example": 100000
+      },
+      {
+       "key": "allowed_formats",
+       "name": "allowed_formats",
+       "label": "Ruxsat etilgan formatlar",
+       "type": "list",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Ruxsat etilgan formatlar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+       "runtime_path": "allowed_formats",
+       "default": [],
+       "ui": {
+        "component": "repeater",
+        "order": 4
+       },
+       "item_schema": {
+        "key": "value",
+        "name": "value",
+        "label": "Qiymat",
+        "type": "text",
+        "required": true,
+        "default": null,
+        "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+        "example": "value_misol"
+       },
+       "min_items": 0,
+       "example": []
+      },
+      {
+       "key": "max_file_mb",
+       "name": "max_file_mb",
+       "label": "Maksimal fayl hajmi",
+       "type": "number",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Maksimal fayl hajmi uchun manfiy bo‘lmagan aniq son kiriting.",
+       "runtime_path": "max_file_mb",
+       "min": 1,
+       "default": null,
+       "ui": {
+        "component": "number",
+        "order": 5
+       },
+       "example": 1
+      },
+      {
+       "key": "modes",
+       "name": "modes",
+       "label": "Ruxsat etilgan rejimlar",
+       "type": "multiselect",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Ruxsat etilgan rejimlar uchun bir yoki bir nechta mos variantni tanlang.",
+       "runtime_path": "modes",
+       "options": [
+        "manual",
+        "lawyer",
+        "review"
+       ],
+       "default": [],
+       "ui": {
+        "component": "multiselect",
+        "order": 6
+       },
+       "example": [
+        "manual",
+        "lawyer"
+       ]
+      }
+     ]
+    },
+    {
+     "key": "kirish_va_auditoriya",
+     "title": "Kirish va auditoriya",
+     "order": 2,
+     "fields": [
+      {
+       "key": "plan_requirements",
+       "name": "plan_requirements",
+       "label": "Tarif talablari",
+       "type": "object",
+       "required": false,
+       "section": "Kirish va auditoriya",
+       "help_text": "Tarif talablari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "plan_requirements",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 7
+       },
+       "properties": [
+        {
+         "key": "required",
+         "name": "required",
+         "label": "Tarif talab qilinadi",
+         "type": "boolean",
+         "required": false,
+         "default": true,
+         "help_text": "Tarif talab qilinadi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "plan_ids",
+         "name": "plan_ids",
+         "label": "Tariflar",
+         "type": "list",
+         "required": false,
+         "default": [],
+         "item_schema": {
+          "key": "value",
+          "name": "value",
+          "label": "Qiymat",
+          "type": "text",
+          "required": true,
+          "default": null,
+          "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+          "example": "value_misol"
+         },
+         "min_items": 0,
+         "help_text": "Tariflar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+         "example": []
+        },
+        {
+         "key": "entitlement",
+         "name": "entitlement",
+         "label": "Imkoniyat kaliti",
+         "type": "text",
+         "required": false,
+         "default": null,
+         "help_text": "Imkoniyat kaliti qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+         "example": "entitlement_misol"
+        }
+       ],
+       "required_fields": [],
+       "additional_properties": false,
+       "example": {}
+      }
+     ]
+    },
+    {
+     "key": "qoidalar",
+     "title": "Qoidalar",
+     "order": 3,
+     "fields": [
+      {
+       "key": "review_policy",
+       "name": "review_policy",
+       "label": "Tekshiruv qoidalari",
+       "type": "object",
+       "required": false,
+       "section": "Qoidalar",
+       "help_text": "Tekshiruv qoidalari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "review_policy",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 8
+       },
+       "properties": [
+        {
+         "key": "enabled",
+         "name": "enabled",
+         "label": "Faol",
+         "type": "boolean",
+         "required": false,
+         "default": true,
+         "help_text": "Faol qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "reviewer_type",
+         "name": "reviewer_type",
+         "label": "Tekshiruvchi",
+         "type": "select",
+         "required": false,
+         "default": null,
+         "options": [
+          "lawyer",
+          "operator",
+          "admin"
+         ],
+         "help_text": "Tekshiruvchi uchun ruxsat etilgan variantlardan birini tanlang.",
+         "example": "lawyer"
+        },
+        {
+         "key": "sla_minutes",
+         "name": "sla_minutes",
+         "label": "SLA",
+         "type": "number",
+         "required": false,
+         "default": null,
+         "min": 1,
+         "help_text": "SLA uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 1
+        }
+       ],
+       "required_fields": [],
+       "additional_properties": false,
+       "example": {}
+      },
+      {
+       "key": "download_policy",
+       "name": "download_policy",
+       "label": "Yuklab olish qoidalari",
+       "type": "object",
+       "required": false,
+       "section": "Qoidalar",
+       "help_text": "Yuklab olish qoidalari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "download_policy",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 9
+       },
+       "properties": [
+        {
+         "key": "plan_required",
+         "name": "plan_required",
+         "label": "Tarif talab qilinadi",
+         "type": "boolean",
+         "required": false,
+         "default": true,
+         "help_text": "Tarif talab qilinadi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "formats",
+         "name": "formats",
+         "label": "Formatlar",
+         "type": "list",
+         "required": false,
+         "default": [],
+         "item_schema": {
+          "key": "value",
+          "name": "value",
+          "label": "Qiymat",
+          "type": "text",
+          "required": true,
+          "default": null,
+          "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+          "example": "value_misol"
+         },
+         "min_items": 0,
+         "help_text": "Formatlar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+         "example": []
+        },
+        {
+         "key": "watermark",
+         "name": "watermark",
+         "label": "Watermark",
+         "type": "boolean",
+         "required": false,
+         "default": false,
+         "help_text": "Watermark qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        }
+       ],
+       "required_fields": [],
+       "additional_properties": false,
+       "example": {}
+      }
+     ]
+    }
+   ],
+   "purpose": "Barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+   "runtime_target": "document_policies",
+   "capabilities": [
+    "draft",
+    "validate",
+    "preview",
+    "submit",
+    "approve",
+    "publish",
+    "rollback"
+   ],
+   "experience": {
+    "metadata_version": 1,
+    "purpose": "Barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+    "plain_language": "Bu konstruktor barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+    "when_to_use": "Hujjatlardagi hujjat tanlash, savolnoma, konstruktor va natijani kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+    "managed_by": [
+     "studio_editor",
+     "document_manager"
+    ],
+    "where_used": [
+     {
+      "surface_key": "document_policies",
+      "title": "Hujjatlar",
+      "route": "/uz/portal/client/documents",
+      "placement": "Hujjat tanlash, savolnoma, konstruktor va natija"
+     }
+    ],
+    "result": "Publish qilingandan keyin yangi konfiguratsiya `document_policies` runtime qatlamida ishlaydi va Hujjatlarda aks etadi.",
+    "workflow": [
+     {
+      "step": 1,
+      "title": "Asosiy maydonlarni to‘ldiring",
+      "description": "Majburiy maydonlar: Sozlama kaliti."
+     },
+     {
+      "step": 2,
+      "title": "Natijani tekshiring",
+      "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+     },
+     {
+      "step": 3,
+      "title": "Saqlang va tasdiqlashga yuboring",
+      "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+     }
+    ],
+    "visual_preview": {
+     "type": "document",
+     "title": "Hujjat xizmatlari global sozlamalari natijasi",
+     "description": "Forma o‘zgarganda hujjat tanlash, savolnoma, konstruktor va natijaning taxminiy ko‘rinishini darhol yangilang.",
+     "data_source": "payload",
+     "refresh": "on_change",
+     "surface_keys": [
+      "document_policies"
+     ]
+    },
+    "novice_notes": [
+     "Qizil yulduzchali maydonlar majburiy.",
+     "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+     "Preview real ma’lumotni o‘zgartirmaydi.",
+     "Publishdan oldin diff va warninglarni tekshiring."
+    ],
+    "publish_checklist": [
+     "Majburiy maydonlar to‘ldirilgan",
+     "Reference qiymatlar mavjud",
+     "Preview kutilgan natijani ko‘rsatmoqda",
+     "Validatsiya xatosiz",
+     "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+    ],
+    "risk_level": "medium",
+    "warnings": [
+     "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+    ]
+   },
+   "navigation": {
+    "group_key": "documents_texts",
+    "group_title": "Hujjatlar va matnlar",
+    "group_order": 2,
+    "step_number": 3,
+    "step_count": 4,
+    "required_before": [
+     "K06"
+    ],
+    "recommended_before": [
+     "K06"
+    ],
+    "next_steps": [
+     "K11"
+    ],
+    "sequence_reason": "Hujjatlar va matnlar bo‘limida bu qadam 3-navbatda bajariladi.",
+    "ui_visible": true,
+    "managed_by": "studio"
+   },
+   "operations": {
+    "supported": [
+     "create",
+     "view",
+     "edit",
+     "clone",
+     "archive"
+    ],
+    "default": "list",
+    "identity_source": "route_context",
+    "context_fields": [],
+    "list_endpoint": "/studio/constructors/K26/records",
+    "form_context_endpoint": "/studio/constructors/K26/form-context",
+    "clone_endpoint": "/studio/objects/{object_id}/clone",
+    "archive_endpoint": "/studio/objects/{object_id}/archive"
+   }
+  },
+  "ui_schema": {
+   "sections": [
+    {
+     "key": "asosiy",
+     "title": "Asosiy",
+     "order": 1,
+     "fields": [
+      {
+       "key": "policy_key",
+       "name": "policy_key",
+       "label": "Sozlama kaliti",
+       "type": "text",
+       "required": true,
+       "section": "Asosiy",
+       "help_text": "Sozlama kaliti qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+       "runtime_path": "policy_key",
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 1
+       },
+       "example": "lexgo_standard_policy",
+       "ai_assist": {
+        "enabled": true,
+        "endpoint": "/studio/ai/field-suggestions",
+        "method": "POST",
+        "requires_confirmation": true,
+        "provider": "openai",
+        "fallback": false,
+        "response_count": 3
+       }
+      },
+      {
+       "key": "page_pricing",
+       "name": "page_pricing",
+       "label": "Sahifa narxlari",
+       "type": "list",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Sahifa narxlari elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+       "runtime_path": "page_pricing",
+       "default": [],
+       "ui": {
+        "component": "repeater",
+        "order": 2
+       },
+       "item_schema": {
+        "type": "object",
+        "properties": [
+         {
+          "key": "from_page",
+          "name": "from_page",
+          "label": "Boshlanish sahifasi",
+          "type": "number",
+          "required": true,
+          "default": null,
+          "min": 1,
+          "help_text": "Boshlanish sahifasi uchun manfiy bo‘lmagan aniq son kiriting.",
+          "example": 1
+         },
+         {
+          "key": "to_page",
+          "name": "to_page",
+          "label": "Oxirgi sahifa",
+          "type": "number",
+          "required": false,
+          "default": null,
+          "min": 1,
+          "help_text": "Oxirgi sahifa uchun manfiy bo‘lmagan aniq son kiriting.",
+          "example": 1
+         },
+         {
+          "key": "price",
+          "name": "price",
+          "label": "Narx",
+          "type": "money",
+          "required": true,
+          "default": null,
+          "min": 0,
+          "help_text": "Foydalanuvchiga hisoblanadigan narxni UZSda kiriting.",
+          "example": 100000
+         }
+        ],
+        "required_fields": [
+         "from_page",
+         "price"
+        ],
+        "additional_properties": false,
+        "help_text": "qiymat ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+        "example": {}
+       },
+       "min_items": 0,
+       "example": []
+      },
+      {
+       "key": "extra_page_price",
+       "name": "extra_page_price",
+       "label": "Qo‘shimcha sahifa narxi",
+       "type": "money",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Qo‘shimcha sahifa narxi uchun manfiy bo‘lmagan aniq son kiriting.",
+       "runtime_path": "extra_page_price",
+       "min": 0,
+       "default": null,
+       "ui": {
+        "component": "money",
+        "order": 3
+       },
+       "example": 100000
+      },
+      {
+       "key": "allowed_formats",
+       "name": "allowed_formats",
+       "label": "Ruxsat etilgan formatlar",
+       "type": "list",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Ruxsat etilgan formatlar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+       "runtime_path": "allowed_formats",
+       "default": [],
+       "ui": {
+        "component": "repeater",
+        "order": 4
+       },
+       "item_schema": {
+        "key": "value",
+        "name": "value",
+        "label": "Qiymat",
+        "type": "text",
+        "required": true,
+        "default": null,
+        "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+        "example": "value_misol"
+       },
+       "min_items": 0,
+       "example": []
+      },
+      {
+       "key": "max_file_mb",
+       "name": "max_file_mb",
+       "label": "Maksimal fayl hajmi",
+       "type": "number",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Maksimal fayl hajmi uchun manfiy bo‘lmagan aniq son kiriting.",
+       "runtime_path": "max_file_mb",
+       "min": 1,
+       "default": null,
+       "ui": {
+        "component": "number",
+        "order": 5
+       },
+       "example": 1
+      },
+      {
+       "key": "modes",
+       "name": "modes",
+       "label": "Ruxsat etilgan rejimlar",
+       "type": "multiselect",
+       "required": false,
+       "section": "Asosiy",
+       "help_text": "Ruxsat etilgan rejimlar uchun bir yoki bir nechta mos variantni tanlang.",
+       "runtime_path": "modes",
+       "options": [
+        "manual",
+        "lawyer",
+        "review"
+       ],
+       "default": [],
+       "ui": {
+        "component": "multiselect",
+        "order": 6
+       },
+       "example": [
+        "manual",
+        "lawyer"
+       ]
+      }
+     ]
+    },
+    {
+     "key": "kirish_va_auditoriya",
+     "title": "Kirish va auditoriya",
+     "order": 2,
+     "fields": [
+      {
+       "key": "plan_requirements",
+       "name": "plan_requirements",
+       "label": "Tarif talablari",
+       "type": "object",
+       "required": false,
+       "section": "Kirish va auditoriya",
+       "help_text": "Tarif talablari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "plan_requirements",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 7
+       },
+       "properties": [
+        {
+         "key": "required",
+         "name": "required",
+         "label": "Tarif talab qilinadi",
+         "type": "boolean",
+         "required": false,
+         "default": true,
+         "help_text": "Tarif talab qilinadi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "plan_ids",
+         "name": "plan_ids",
+         "label": "Tariflar",
+         "type": "list",
+         "required": false,
+         "default": [],
+         "item_schema": {
+          "key": "value",
+          "name": "value",
+          "label": "Qiymat",
+          "type": "text",
+          "required": true,
+          "default": null,
+          "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+          "example": "value_misol"
+         },
+         "min_items": 0,
+         "help_text": "Tariflar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+         "example": []
+        },
+        {
+         "key": "entitlement",
+         "name": "entitlement",
+         "label": "Imkoniyat kaliti",
+         "type": "text",
+         "required": false,
+         "default": null,
+         "help_text": "Imkoniyat kaliti qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+         "example": "entitlement_misol"
+        }
+       ],
+       "required_fields": [],
+       "additional_properties": false,
+       "example": {}
+      }
+     ]
+    },
+    {
+     "key": "qoidalar",
+     "title": "Qoidalar",
+     "order": 3,
+     "fields": [
+      {
+       "key": "review_policy",
+       "name": "review_policy",
+       "label": "Tekshiruv qoidalari",
+       "type": "object",
+       "required": false,
+       "section": "Qoidalar",
+       "help_text": "Tekshiruv qoidalari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "review_policy",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 8
+       },
+       "properties": [
+        {
+         "key": "enabled",
+         "name": "enabled",
+         "label": "Faol",
+         "type": "boolean",
+         "required": false,
+         "default": true,
+         "help_text": "Faol qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "reviewer_type",
+         "name": "reviewer_type",
+         "label": "Tekshiruvchi",
+         "type": "select",
+         "required": false,
+         "default": null,
+         "options": [
+          "lawyer",
+          "operator",
+          "admin"
+         ],
+         "help_text": "Tekshiruvchi uchun ruxsat etilgan variantlardan birini tanlang.",
+         "example": "lawyer"
+        },
+        {
+         "key": "sla_minutes",
+         "name": "sla_minutes",
+         "label": "SLA",
+         "type": "number",
+         "required": false,
+         "default": null,
+         "min": 1,
+         "help_text": "SLA uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 1
+        }
+       ],
+       "required_fields": [],
+       "additional_properties": false,
+       "example": {}
+      },
+      {
+       "key": "download_policy",
+       "name": "download_policy",
+       "label": "Yuklab olish qoidalari",
+       "type": "object",
+       "required": false,
+       "section": "Qoidalar",
+       "help_text": "Yuklab olish qoidalari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "runtime_path": "download_policy",
+       "default": {},
+       "ui": {
+        "component": "object_editor",
+        "order": 9
+       },
+       "properties": [
+        {
+         "key": "plan_required",
+         "name": "plan_required",
+         "label": "Tarif talab qilinadi",
+         "type": "boolean",
+         "required": false,
+         "default": true,
+         "help_text": "Tarif talab qilinadi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        },
+        {
+         "key": "formats",
+         "name": "formats",
+         "label": "Formatlar",
+         "type": "list",
+         "required": false,
+         "default": [],
+         "item_schema": {
+          "key": "value",
+          "name": "value",
+          "label": "Qiymat",
+          "type": "text",
+          "required": true,
+          "default": null,
+          "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+          "example": "value_misol"
+         },
+         "min_items": 0,
+         "help_text": "Formatlar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+         "example": []
+        },
+        {
+         "key": "watermark",
+         "name": "watermark",
+         "label": "Watermark",
+         "type": "boolean",
+         "required": false,
+         "default": false,
+         "help_text": "Watermark qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+         "example": true
+        }
+       ],
+       "required_fields": [],
+       "additional_properties": false,
+       "example": {}
+      }
+     ]
+    }
+   ],
+   "purpose": "Barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+   "runtime_target": "document_policies",
+   "experience": {
+    "metadata_version": 1,
+    "purpose": "Barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+    "plain_language": "Bu konstruktor barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+    "when_to_use": "Hujjatlardagi hujjat tanlash, savolnoma, konstruktor va natijani kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+    "managed_by": [
+     "studio_editor",
+     "document_manager"
+    ],
+    "where_used": [
+     {
+      "surface_key": "document_policies",
+      "title": "Hujjatlar",
+      "route": "/uz/portal/client/documents",
+      "placement": "Hujjat tanlash, savolnoma, konstruktor va natija"
+     }
+    ],
+    "result": "Publish qilingandan keyin yangi konfiguratsiya `document_policies` runtime qatlamida ishlaydi va Hujjatlarda aks etadi.",
+    "workflow": [
+     {
+      "step": 1,
+      "title": "Asosiy maydonlarni to‘ldiring",
+      "description": "Majburiy maydonlar: Sozlama kaliti."
+     },
+     {
+      "step": 2,
+      "title": "Natijani tekshiring",
+      "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+     },
+     {
+      "step": 3,
+      "title": "Saqlang va tasdiqlashga yuboring",
+      "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+     }
+    ],
+    "visual_preview": {
+     "type": "document",
+     "title": "Hujjat xizmatlari global sozlamalari natijasi",
+     "description": "Forma o‘zgarganda hujjat tanlash, savolnoma, konstruktor va natijaning taxminiy ko‘rinishini darhol yangilang.",
+     "data_source": "payload",
+     "refresh": "on_change",
+     "surface_keys": [
+      "document_policies"
+     ]
+    },
+    "novice_notes": [
+     "Qizil yulduzchali maydonlar majburiy.",
+     "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+     "Preview real ma’lumotni o‘zgartirmaydi.",
+     "Publishdan oldin diff va warninglarni tekshiring."
+    ],
+    "publish_checklist": [
+     "Majburiy maydonlar to‘ldirilgan",
+     "Reference qiymatlar mavjud",
+     "Preview kutilgan natijani ko‘rsatmoqda",
+     "Validatsiya xatosiz",
+     "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+    ],
+    "risk_level": "medium",
+    "warnings": [
+     "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+    ]
+   },
+   "visual_preview": {
+    "type": "document",
+    "title": "Hujjat xizmatlari global sozlamalari natijasi",
+    "description": "Forma o‘zgarganda hujjat tanlash, savolnoma, konstruktor va natijaning taxminiy ko‘rinishini darhol yangilang.",
+    "data_source": "payload",
+    "refresh": "on_change",
+    "surface_keys": [
+     "document_policies"
+    ]
+   },
+   "navigation": {
+    "group_key": "documents_texts",
+    "group_title": "Hujjatlar va matnlar",
+    "group_order": 2,
+    "step_number": 3,
+    "step_count": 4,
+    "required_before": [
+     "K06"
+    ],
+    "recommended_before": [
+     "K06"
+    ],
+    "next_steps": [
+     "K11"
+    ],
+    "sequence_reason": "Hujjatlar va matnlar bo‘limida bu qadam 3-navbatda bajariladi.",
+    "ui_visible": true,
+    "managed_by": "studio"
+   },
+   "operations": {
+    "supported": [
+     "create",
+     "view",
+     "edit",
+     "clone",
+     "archive"
+    ],
+    "default": "list",
+    "identity_source": "route_context",
+    "context_fields": [],
+    "list_endpoint": "/studio/constructors/K26/records",
+    "form_context_endpoint": "/studio/constructors/K26/form-context",
+    "clone_endpoint": "/studio/objects/{object_id}/clone",
+    "archive_endpoint": "/studio/objects/{object_id}/archive"
+   }
+  },
+  "experience": {
+   "metadata_version": 1,
+   "purpose": "Barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+   "plain_language": "Bu konstruktor barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+   "when_to_use": "Hujjatlardagi hujjat tanlash, savolnoma, konstruktor va natijani kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+   "managed_by": [
+    "studio_editor",
+    "document_manager"
+   ],
+   "where_used": [
+    {
+     "surface_key": "document_policies",
+     "title": "Hujjatlar",
+     "route": "/uz/portal/client/documents",
+     "placement": "Hujjat tanlash, savolnoma, konstruktor va natija"
+    }
+   ],
+   "result": "Publish qilingandan keyin yangi konfiguratsiya `document_policies` runtime qatlamida ishlaydi va Hujjatlarda aks etadi.",
+   "workflow": [
+    {
+     "step": 1,
+     "title": "Asosiy maydonlarni to‘ldiring",
+     "description": "Majburiy maydonlar: Sozlama kaliti."
+    },
+    {
+     "step": 2,
+     "title": "Natijani tekshiring",
+     "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+    },
+    {
+     "step": 3,
+     "title": "Saqlang va tasdiqlashga yuboring",
+     "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+    }
+   ],
+   "visual_preview": {
+    "type": "document",
+    "title": "Hujjat xizmatlari global sozlamalari natijasi",
+    "description": "Forma o‘zgarganda hujjat tanlash, savolnoma, konstruktor va natijaning taxminiy ko‘rinishini darhol yangilang.",
+    "data_source": "payload",
+    "refresh": "on_change",
+    "surface_keys": [
+     "document_policies"
+    ]
+   },
+   "novice_notes": [
+    "Qizil yulduzchali maydonlar majburiy.",
+    "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+    "Preview real ma’lumotni o‘zgartirmaydi.",
+    "Publishdan oldin diff va warninglarni tekshiring."
+   ],
+   "publish_checklist": [
+    "Majburiy maydonlar to‘ldirilgan",
+    "Reference qiymatlar mavjud",
+    "Preview kutilgan natijani ko‘rsatmoqda",
+    "Validatsiya xatosiz",
+    "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+   ],
+   "risk_level": "medium",
+   "warnings": [
+    "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+   ]
+  },
+  "visual_preview": {
+   "type": "document",
+   "title": "Hujjat xizmatlari global sozlamalari natijasi",
+   "description": "Forma o‘zgarganda hujjat tanlash, savolnoma, konstruktor va natijaning taxminiy ko‘rinishini darhol yangilang.",
+   "data_source": "payload",
+   "refresh": "on_change",
+   "surface_keys": [
+    "document_policies"
+   ]
+  },
+  "navigation": {
+   "group_key": "documents_texts",
+   "group_title": "Hujjatlar va matnlar",
+   "group_order": 2,
+   "step_number": 3,
+   "step_count": 4,
+   "required_before": [
+    "K06"
+   ],
+   "recommended_before": [
+    "K06"
+   ],
+   "next_steps": [
+    "K11"
+   ],
+   "sequence_reason": "Hujjatlar va matnlar bo‘limida bu qadam 3-navbatda bajariladi.",
+   "ui_visible": true,
+   "managed_by": "studio"
+  },
+  "operations": {
+   "supported": [
+    "create",
+    "view",
+    "edit",
+    "clone",
+    "archive"
+   ],
+   "default": "list",
+   "identity_source": "route_context",
+   "context_fields": [],
+   "list_endpoint": "/studio/constructors/K26/records",
+   "form_context_endpoint": "/studio/constructors/K26/form-context",
+   "clone_endpoint": "/studio/objects/{object_id}/clone",
+   "archive_endpoint": "/studio/objects/{object_id}/archive"
+  },
+  "capabilities": [
+   "draft",
+   "validate",
+   "preview",
+   "submit",
+   "approve",
+   "publish",
+   "rollback"
+  ],
+  "definition_version": 3,
+  "default_payload": {
+   "page_pricing": [],
+   "allowed_formats": [],
+   "modes": [],
+   "plan_requirements": {},
+   "review_policy": {},
+   "download_policy": {}
+  },
+  "dependency_rules": {
+   "items": [],
+   "policy_section": "document_analysis"
+  },
+  "approval_required": true,
+  "is_active": true,
+  "updated_at": "2026-10-23T13:51:43.052942Z",
+  "references": [],
+  "approval_route": {
+   "id": "default",
+   "scope_type": "global",
+   "scope_key": "*",
+   "source": "default",
+   "title": "Primary superadmin approval",
+   "steps": [],
+   "final_action": "publish",
+   "allow_self_approval": false,
+   "change_request_restart": "current",
+   "deadline_hours": 24,
+   "require_primary_superadmin": true,
+   "auto_publish_when_empty": true,
+   "settings": {},
+   "route_version": 1
+  }
+ },
+ "formContext": {
+  "mode": "create",
+  "constructor_code": "K26",
+  "constructor_title": "Hujjat xizmatlari global sozlamalari",
+  "title": "",
+  "schema": {
+   "version": 3,
+   "required": [
+    "policy_key"
+   ],
+   "fields": [
+    {
+     "key": "policy_key",
+     "name": "policy_key",
+     "label": "Sozlama kaliti",
+     "type": "text",
+     "required": true,
+     "section": "Asosiy",
+     "help_text": "Sozlama kaliti qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+     "runtime_path": "policy_key",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 1
+     },
+     "example": "lexgo_standard_policy",
+     "ai_assist": {
+      "enabled": true,
+      "endpoint": "/studio/ai/field-suggestions",
+      "method": "POST",
+      "requires_confirmation": true,
+      "provider": "openai",
+      "fallback": false,
+      "response_count": 3
+     }
+    },
+    {
+     "key": "page_pricing",
+     "name": "page_pricing",
+     "label": "Sahifa narxlari",
+     "type": "list",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Sahifa narxlari elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+     "runtime_path": "page_pricing",
+     "default": [],
+     "ui": {
+      "component": "repeater",
+      "order": 2
+     },
+     "item_schema": {
+      "type": "object",
+      "properties": [
+       {
+        "key": "from_page",
+        "name": "from_page",
+        "label": "Boshlanish sahifasi",
+        "type": "number",
+        "required": true,
+        "default": null,
+        "min": 1,
+        "help_text": "Boshlanish sahifasi uchun manfiy bo‘lmagan aniq son kiriting.",
+        "example": 1
+       },
+       {
+        "key": "to_page",
+        "name": "to_page",
+        "label": "Oxirgi sahifa",
+        "type": "number",
+        "required": false,
+        "default": null,
+        "min": 1,
+        "help_text": "Oxirgi sahifa uchun manfiy bo‘lmagan aniq son kiriting.",
+        "example": 1
+       },
+       {
+        "key": "price",
+        "name": "price",
+        "label": "Narx",
+        "type": "money",
+        "required": true,
+        "default": null,
+        "min": 0,
+        "help_text": "Foydalanuvchiga hisoblanadigan narxni UZSda kiriting.",
+        "example": 100000
+       }
+      ],
+      "required_fields": [
+       "from_page",
+       "price"
+      ],
+      "additional_properties": false,
+      "help_text": "qiymat ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+      "example": {}
+     },
+     "min_items": 0,
+     "example": []
+    },
+    {
+     "key": "extra_page_price",
+     "name": "extra_page_price",
+     "label": "Qo‘shimcha sahifa narxi",
+     "type": "money",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Qo‘shimcha sahifa narxi uchun manfiy bo‘lmagan aniq son kiriting.",
+     "runtime_path": "extra_page_price",
+     "min": 0,
+     "default": null,
+     "ui": {
+      "component": "money",
+      "order": 3
+     },
+     "example": 100000
+    },
+    {
+     "key": "allowed_formats",
+     "name": "allowed_formats",
+     "label": "Ruxsat etilgan formatlar",
+     "type": "list",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Ruxsat etilgan formatlar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+     "runtime_path": "allowed_formats",
+     "default": [],
+     "ui": {
+      "component": "repeater",
+      "order": 4
+     },
+     "item_schema": {
+      "key": "value",
+      "name": "value",
+      "label": "Qiymat",
+      "type": "text",
+      "required": true,
+      "default": null,
+      "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+      "example": "value_misol"
+     },
+     "min_items": 0,
+     "example": []
+    },
+    {
+     "key": "max_file_mb",
+     "name": "max_file_mb",
+     "label": "Maksimal fayl hajmi",
+     "type": "number",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Maksimal fayl hajmi uchun manfiy bo‘lmagan aniq son kiriting.",
+     "runtime_path": "max_file_mb",
+     "min": 1,
+     "default": null,
+     "ui": {
+      "component": "number",
+      "order": 5
+     },
+     "example": 1
+    },
+    {
+     "key": "modes",
+     "name": "modes",
+     "label": "Ruxsat etilgan rejimlar",
+     "type": "multiselect",
+     "required": false,
+     "section": "Asosiy",
+     "help_text": "Ruxsat etilgan rejimlar uchun bir yoki bir nechta mos variantni tanlang.",
+     "runtime_path": "modes",
+     "options": [
+      "manual",
+      "lawyer",
+      "review"
+     ],
+     "default": [],
+     "ui": {
+      "component": "multiselect",
+      "order": 6
+     },
+     "example": [
+      "manual",
+      "lawyer"
+     ]
+    },
+    {
+     "key": "plan_requirements",
+     "name": "plan_requirements",
+     "label": "Tarif talablari",
+     "type": "object",
+     "required": false,
+     "section": "Kirish va auditoriya",
+     "help_text": "Tarif talablari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "plan_requirements",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 7
+     },
+     "properties": [
+      {
+       "key": "required",
+       "name": "required",
+       "label": "Tarif talab qilinadi",
+       "type": "boolean",
+       "required": false,
+       "default": true,
+       "help_text": "Tarif talab qilinadi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      },
+      {
+       "key": "plan_ids",
+       "name": "plan_ids",
+       "label": "Tariflar",
+       "type": "list",
+       "required": false,
+       "default": [],
+       "item_schema": {
+        "key": "value",
+        "name": "value",
+        "label": "Qiymat",
+        "type": "text",
+        "required": true,
+        "default": null,
+        "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+        "example": "value_misol"
+       },
+       "min_items": 0,
+       "help_text": "Tariflar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+       "example": []
+      },
+      {
+       "key": "entitlement",
+       "name": "entitlement",
+       "label": "Imkoniyat kaliti",
+       "type": "text",
+       "required": false,
+       "default": null,
+       "help_text": "Imkoniyat kaliti qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+       "example": "entitlement_misol"
+      }
+     ],
+     "required_fields": [],
+     "additional_properties": false,
+     "example": {}
+    },
+    {
+     "key": "review_policy",
+     "name": "review_policy",
+     "label": "Tekshiruv qoidalari",
+     "type": "object",
+     "required": false,
+     "section": "Qoidalar",
+     "help_text": "Tekshiruv qoidalari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "review_policy",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 8
+     },
+     "properties": [
+      {
+       "key": "enabled",
+       "name": "enabled",
+       "label": "Faol",
+       "type": "boolean",
+       "required": false,
+       "default": true,
+       "help_text": "Faol qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      },
+      {
+       "key": "reviewer_type",
+       "name": "reviewer_type",
+       "label": "Tekshiruvchi",
+       "type": "select",
+       "required": false,
+       "default": null,
+       "options": [
+        "lawyer",
+        "operator",
+        "admin"
+       ],
+       "help_text": "Tekshiruvchi uchun ruxsat etilgan variantlardan birini tanlang.",
+       "example": "lawyer"
+      },
+      {
+       "key": "sla_minutes",
+       "name": "sla_minutes",
+       "label": "SLA",
+       "type": "number",
+       "required": false,
+       "default": null,
+       "min": 1,
+       "help_text": "SLA uchun manfiy bo‘lmagan aniq son kiriting.",
+       "example": 1
+      }
+     ],
+     "required_fields": [],
+     "additional_properties": false,
+     "example": {}
+    },
+    {
+     "key": "download_policy",
+     "name": "download_policy",
+     "label": "Yuklab olish qoidalari",
+     "type": "object",
+     "required": false,
+     "section": "Qoidalar",
+     "help_text": "Yuklab olish qoidalari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+     "runtime_path": "download_policy",
+     "default": {},
+     "ui": {
+      "component": "object_editor",
+      "order": 9
+     },
+     "properties": [
+      {
+       "key": "plan_required",
+       "name": "plan_required",
+       "label": "Tarif talab qilinadi",
+       "type": "boolean",
+       "required": false,
+       "default": true,
+       "help_text": "Tarif talab qilinadi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      },
+      {
+       "key": "formats",
+       "name": "formats",
+       "label": "Formatlar",
+       "type": "list",
+       "required": false,
+       "default": [],
+       "item_schema": {
+        "key": "value",
+        "name": "value",
+        "label": "Qiymat",
+        "type": "text",
+        "required": true,
+        "default": null,
+        "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+        "example": "value_misol"
+       },
+       "min_items": 0,
+       "help_text": "Formatlar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+       "example": []
+      },
+      {
+       "key": "watermark",
+       "name": "watermark",
+       "label": "Watermark",
+       "type": "boolean",
+       "required": false,
+       "default": false,
+       "help_text": "Watermark qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+       "example": true
+      }
+     ],
+     "required_fields": [],
+     "additional_properties": false,
+     "example": {}
+    }
+   ],
+   "select_sources": {},
+   "mode": "create",
+   "context_fields": []
+  },
+  "sections": [
+   {
+    "key": "asosiy",
+    "title": "Asosiy",
+    "order": 1,
+    "fields": [
+     {
+      "key": "policy_key",
+      "name": "policy_key",
+      "label": "Sozlama kaliti",
+      "type": "text",
+      "required": true,
+      "section": "Asosiy",
+      "help_text": "Sozlama kaliti qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+      "runtime_path": "policy_key",
+      "default": null,
+      "ui": {
+       "component": "text",
+       "order": 1
+      },
+      "example": "lexgo_standard_policy",
+      "ai_assist": {
+       "enabled": true,
+       "endpoint": "/studio/ai/field-suggestions",
+       "method": "POST",
+       "requires_confirmation": true,
+       "provider": "openai",
+       "fallback": false,
+       "response_count": 3
+      }
+     },
+     {
+      "key": "page_pricing",
+      "name": "page_pricing",
+      "label": "Sahifa narxlari",
+      "type": "list",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Sahifa narxlari elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+      "runtime_path": "page_pricing",
+      "default": [],
+      "ui": {
+       "component": "repeater",
+       "order": 2
+      },
+      "item_schema": {
+       "type": "object",
+       "properties": [
+        {
+         "key": "from_page",
+         "name": "from_page",
+         "label": "Boshlanish sahifasi",
+         "type": "number",
+         "required": true,
+         "default": null,
+         "min": 1,
+         "help_text": "Boshlanish sahifasi uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 1
+        },
+        {
+         "key": "to_page",
+         "name": "to_page",
+         "label": "Oxirgi sahifa",
+         "type": "number",
+         "required": false,
+         "default": null,
+         "min": 1,
+         "help_text": "Oxirgi sahifa uchun manfiy bo‘lmagan aniq son kiriting.",
+         "example": 1
+        },
+        {
+         "key": "price",
+         "name": "price",
+         "label": "Narx",
+         "type": "money",
+         "required": true,
+         "default": null,
+         "min": 0,
+         "help_text": "Foydalanuvchiga hisoblanadigan narxni UZSda kiriting.",
+         "example": 100000
+        }
+       ],
+       "required_fields": [
+        "from_page",
+        "price"
+       ],
+       "additional_properties": false,
+       "help_text": "qiymat ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+       "example": {}
+      },
+      "min_items": 0,
+      "example": []
+     },
+     {
+      "key": "extra_page_price",
+      "name": "extra_page_price",
+      "label": "Qo‘shimcha sahifa narxi",
+      "type": "money",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Qo‘shimcha sahifa narxi uchun manfiy bo‘lmagan aniq son kiriting.",
+      "runtime_path": "extra_page_price",
+      "min": 0,
+      "default": null,
+      "ui": {
+       "component": "money",
+       "order": 3
+      },
+      "example": 100000
+     },
+     {
+      "key": "allowed_formats",
+      "name": "allowed_formats",
+      "label": "Ruxsat etilgan formatlar",
+      "type": "list",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Ruxsat etilgan formatlar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+      "runtime_path": "allowed_formats",
+      "default": [],
+      "ui": {
+       "component": "repeater",
+       "order": 4
+      },
+      "item_schema": {
+       "key": "value",
+       "name": "value",
+       "label": "Qiymat",
+       "type": "text",
+       "required": true,
+       "default": null,
+       "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+       "example": "value_misol"
+      },
+      "min_items": 0,
+      "example": []
+     },
+     {
+      "key": "max_file_mb",
+      "name": "max_file_mb",
+      "label": "Maksimal fayl hajmi",
+      "type": "number",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Maksimal fayl hajmi uchun manfiy bo‘lmagan aniq son kiriting.",
+      "runtime_path": "max_file_mb",
+      "min": 1,
+      "default": null,
+      "ui": {
+       "component": "number",
+       "order": 5
+      },
+      "example": 1
+     },
+     {
+      "key": "modes",
+      "name": "modes",
+      "label": "Ruxsat etilgan rejimlar",
+      "type": "multiselect",
+      "required": false,
+      "section": "Asosiy",
+      "help_text": "Ruxsat etilgan rejimlar uchun bir yoki bir nechta mos variantni tanlang.",
+      "runtime_path": "modes",
+      "options": [
+       "manual",
+       "lawyer",
+       "review"
+      ],
+      "default": [],
+      "ui": {
+       "component": "multiselect",
+       "order": 6
+      },
+      "example": [
+       "manual",
+       "lawyer"
+      ]
+     }
+    ]
+   },
+   {
+    "key": "kirish_va_auditoriya",
+    "title": "Kirish va auditoriya",
+    "order": 2,
+    "fields": [
+     {
+      "key": "plan_requirements",
+      "name": "plan_requirements",
+      "label": "Tarif talablari",
+      "type": "object",
+      "required": false,
+      "section": "Kirish va auditoriya",
+      "help_text": "Tarif talablari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+      "runtime_path": "plan_requirements",
+      "default": {},
+      "ui": {
+       "component": "object_editor",
+       "order": 7
+      },
+      "properties": [
+       {
+        "key": "required",
+        "name": "required",
+        "label": "Tarif talab qilinadi",
+        "type": "boolean",
+        "required": false,
+        "default": true,
+        "help_text": "Tarif talab qilinadi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+        "example": true
+       },
+       {
+        "key": "plan_ids",
+        "name": "plan_ids",
+        "label": "Tariflar",
+        "type": "list",
+        "required": false,
+        "default": [],
+        "item_schema": {
+         "key": "value",
+         "name": "value",
+         "label": "Qiymat",
+         "type": "text",
+         "required": true,
+         "default": null,
+         "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+         "example": "value_misol"
+        },
+        "min_items": 0,
+        "help_text": "Tariflar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+        "example": []
+       },
+       {
+        "key": "entitlement",
+        "name": "entitlement",
+        "label": "Imkoniyat kaliti",
+        "type": "text",
+        "required": false,
+        "default": null,
+        "help_text": "Imkoniyat kaliti qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+        "example": "entitlement_misol"
+       }
+      ],
+      "required_fields": [],
+      "additional_properties": false,
+      "example": {}
+     }
+    ]
+   },
+   {
+    "key": "qoidalar",
+    "title": "Qoidalar",
+    "order": 3,
+    "fields": [
+     {
+      "key": "review_policy",
+      "name": "review_policy",
+      "label": "Tekshiruv qoidalari",
+      "type": "object",
+      "required": false,
+      "section": "Qoidalar",
+      "help_text": "Tekshiruv qoidalari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+      "runtime_path": "review_policy",
+      "default": {},
+      "ui": {
+       "component": "object_editor",
+       "order": 8
+      },
+      "properties": [
+       {
+        "key": "enabled",
+        "name": "enabled",
+        "label": "Faol",
+        "type": "boolean",
+        "required": false,
+        "default": true,
+        "help_text": "Faol qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+        "example": true
+       },
+       {
+        "key": "reviewer_type",
+        "name": "reviewer_type",
+        "label": "Tekshiruvchi",
+        "type": "select",
+        "required": false,
+        "default": null,
+        "options": [
+         "lawyer",
+         "operator",
+         "admin"
+        ],
+        "help_text": "Tekshiruvchi uchun ruxsat etilgan variantlardan birini tanlang.",
+        "example": "lawyer"
+       },
+       {
+        "key": "sla_minutes",
+        "name": "sla_minutes",
+        "label": "SLA",
+        "type": "number",
+        "required": false,
+        "default": null,
+        "min": 1,
+        "help_text": "SLA uchun manfiy bo‘lmagan aniq son kiriting.",
+        "example": 1
+       }
+      ],
+      "required_fields": [],
+      "additional_properties": false,
+      "example": {}
+     },
+     {
+      "key": "download_policy",
+      "name": "download_policy",
+      "label": "Yuklab olish qoidalari",
+      "type": "object",
+      "required": false,
+      "section": "Qoidalar",
+      "help_text": "Yuklab olish qoidalari ichidagi bog‘liq sozlamalarni bir blok sifatida to‘ldiring.",
+      "runtime_path": "download_policy",
+      "default": {},
+      "ui": {
+       "component": "object_editor",
+       "order": 9
+      },
+      "properties": [
+       {
+        "key": "plan_required",
+        "name": "plan_required",
+        "label": "Tarif talab qilinadi",
+        "type": "boolean",
+        "required": false,
+        "default": true,
+        "help_text": "Tarif talab qilinadi qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+        "example": true
+       },
+       {
+        "key": "formats",
+        "name": "formats",
+        "label": "Formatlar",
+        "type": "list",
+        "required": false,
+        "default": [],
+        "item_schema": {
+         "key": "value",
+         "name": "value",
+         "label": "Qiymat",
+         "type": "text",
+         "required": true,
+         "default": null,
+         "help_text": "Qiymat qiymatini ushbu konfiguratsiyaning vazifasiga mos kiriting.",
+         "example": "value_misol"
+        },
+        "min_items": 0,
+        "help_text": "Formatlar elementlarini kerakli tartibda qo‘shing; har bir element alohida tekshiriladi.",
+        "example": []
+       },
+       {
+        "key": "watermark",
+        "name": "watermark",
+        "label": "Watermark",
+        "type": "boolean",
+        "required": false,
+        "default": false,
+        "help_text": "Watermark qoidasini yoqish yoki o‘chirish uchun foydalaniladi.",
+        "example": true
+       }
+      ],
+      "required_fields": [],
+      "additional_properties": false,
+      "example": {}
+     }
+    ]
+   }
+  ],
+  "initial_payload": {
+   "page_pricing": [],
+   "allowed_formats": [],
+   "modes": [],
+   "plan_requirements": {},
+   "review_policy": {},
+   "download_policy": {}
+  },
+  "context": {
+   "record_id": null,
+   "source": null,
+   "runtime_target_id": null,
+   "runtime_target_type": null,
+   "studio_object_id": null
+  },
+  "navigation": {
+   "group_key": "documents_texts",
+   "group_title": "Hujjatlar va matnlar",
+   "group_order": 2,
+   "step_number": 3,
+   "step_count": 4,
+   "required_before": [
+    "K06"
+   ],
+   "recommended_before": [
+    "K06"
+   ],
+   "next_steps": [
+    "K11"
+   ],
+   "sequence_reason": "Hujjatlar va matnlar bo‘limida bu qadam 3-navbatda bajariladi.",
+   "ui_visible": true,
+   "managed_by": "studio"
+  },
+  "operations": {
+   "supported": [
+    "create",
+    "view",
+    "edit",
+    "clone",
+    "archive"
+   ],
+   "default": "list",
+   "identity_source": "route_context",
+   "context_fields": [],
+   "list_endpoint": "/studio/constructors/K26/records",
+   "form_context_endpoint": "/studio/constructors/K26/form-context",
+   "clone_endpoint": "/studio/objects/{object_id}/clone",
+   "archive_endpoint": "/studio/objects/{object_id}/archive"
+  },
+  "experience": {
+   "metadata_version": 1,
+   "purpose": "Barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+   "plain_language": "Bu konstruktor barcha hujjat xizmatlari uchun format, hajm, sahifa narxi, tarif va yuklab olish qoidalarini boshqaradi.",
+   "when_to_use": "Hujjatlardagi hujjat tanlash, savolnoma, konstruktor va natijani kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+   "managed_by": [
+    "studio_editor",
+    "document_manager"
+   ],
+   "where_used": [
+    {
+     "surface_key": "document_policies",
+     "title": "Hujjatlar",
+     "route": "/uz/portal/client/documents",
+     "placement": "Hujjat tanlash, savolnoma, konstruktor va natija"
+    }
+   ],
+   "result": "Publish qilingandan keyin yangi konfiguratsiya `document_policies` runtime qatlamida ishlaydi va Hujjatlarda aks etadi.",
+   "workflow": [
+    {
+     "step": 1,
+     "title": "Asosiy maydonlarni to‘ldiring",
+     "description": "Majburiy maydonlar: Sozlama kaliti."
+    },
+    {
+     "step": 2,
+     "title": "Natijani tekshiring",
+     "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+    },
+    {
+     "step": 3,
+     "title": "Saqlang va tasdiqlashga yuboring",
+     "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+    }
+   ],
+   "visual_preview": {
+    "type": "document",
+    "title": "Hujjat xizmatlari global sozlamalari natijasi",
+    "description": "Forma o‘zgarganda hujjat tanlash, savolnoma, konstruktor va natijaning taxminiy ko‘rinishini darhol yangilang.",
+    "data_source": "payload",
+    "refresh": "on_change",
+    "surface_keys": [
+     "document_policies"
+    ]
+   },
+   "novice_notes": [
+    "Qizil yulduzchali maydonlar majburiy.",
+    "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+    "Preview real ma’lumotni o‘zgartirmaydi.",
+    "Publishdan oldin diff va warninglarni tekshiring."
+   ],
+   "publish_checklist": [
+    "Majburiy maydonlar to‘ldirilgan",
+    "Reference qiymatlar mavjud",
+    "Preview kutilgan natijani ko‘rsatmoqda",
+    "Validatsiya xatosiz",
+    "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+   ],
+   "risk_level": "medium",
+   "warnings": [
+    "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+   ]
+  },
+  "submit": {
+   "create_object_url": "/studio/objects",
+   "save_object_url": null,
+   "constructor_code": "K26",
+   "runtime_target_id": "",
+   "runtime_target_type": "",
+   "object_title_mode": "derived_from_payload",
+   "object_title_required": false
+  }
+ }
+}

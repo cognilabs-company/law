@@ -1627,11 +1627,24 @@ html[data-theme="dark"] .sx-picker__scrim {
 .sx-rep__foot {
   display: flex;
 }
-/* On a phone the add button spans the list it adds to. */
-@media (max-width: 560px) {
-  :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) :is(.sx-rep__foot, .sx-kv__foot) > .sx-btn.sx-btn--add {
-    flex: 1 1 auto;
-  }
+/* A list's add control is a container across the list it adds to — a
+   dashed accent box that turns solid on hover and rings on keyboard focus —
+   so it reads as the place to add, not as a stray link (TSK-938937). */
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) :is(.sx-rep__foot, .sx-kv__foot) > .sx-btn.sx-btn--add {
+  flex: 1 1 auto;
+  justify-content: flex-start;
+  height: 44px;
+  padding-inline: 12px 16px;
+  border-style: dashed;
+  border-width: 1.5px;
+  border-radius: var(--sx-r);
+  font-weight: 600;
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) :is(.sx-rep__foot, .sx-kv__foot) > .sx-btn.sx-btn--add:not(:disabled, [aria-disabled="true"]):is(:hover, :focus-visible) {
+  border-style: solid;
+}
+:is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) :is(.sx-rep__foot, .sx-kv__foot) > .sx-btn.sx-btn--add:focus-visible {
+  box-shadow: var(--sx-ring);
 }
 
 .sx-kv {

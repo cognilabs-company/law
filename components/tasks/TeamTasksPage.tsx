@@ -13,6 +13,9 @@ import {
   TASK_PERIOD_FIELDS,
   TASK_STATUSES,
   changeTaskStatus,
+  simpleFlowAllows,
+  simpleFlowView,
+  usesSimpleTaskFlow,
   deleteTask,
   getTask,
   getTaskMeta,
@@ -32,13 +35,14 @@ import { TaskKpis, TaskProgress, useTaskStats } from "./TaskStats";
 import TaskDetail from "./TaskDetail";
 import TaskForm, { type TaskFormMode } from "./TaskForm";
 import ReasonDialog from "./ReasonDialog";
+import { useAuth } from "@/lib/auth";
 import "./tasks.css";
 
 const PAGE = 30;
 const ZERO: TaskCounts = { new: 0, in_progress: 0, testing: 0, ready: 0 };
 
 type ListState = { items: Task[]; total: number; counts: TaskCounts; hasMore: boolean; loading: boolean; error: string; ready: boolean };
-type Reason = { kind: "return"; task: Task } | { kind: "delete"; task: Task };
+type Reason = { kind: "return"; task: Task } | { kind: "delete"; task: Task } | { kind: "approve"; task: Task };
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -72,6 +76,8 @@ function writeTaskParam(id: string) {
 
 export default function TeamTasksPage() {
   const { t, status: statusLabel, when } = useTaskText();
+  const simple = usesSimpleTaskFlow(useAuth().session?.id);
+  const shown = (task: Task) => (simple ? simpleFlowView(task) : task);
   const [meta, setMeta] = useState<TaskMeta | null>(null);
   const [denied, setDenied] = useState("");
   const [status, setStatus] = useState<TaskStatus | "">("");
@@ -298,6 +304,7 @@ export default function TeamTasksPage() {
   };
 
   const move = async (task: Task, toStatus: TaskStatus) => {
+    if (simple && !simpleFlowAllows(task.status, toStatus)) return;
     if (isReturn(task.status, toStatus)) {
       setReason({ kind: "return", task });
       return;
@@ -323,8 +330,8 @@ export default function TeamTasksPage() {
         applied(await changeTaskStatus(task, "in_progress", text));
         notify.success(t("returned", { code: task.code }));
       } else {
-        await deleteTask(task, text);
-        notify.success(t("deletedOk", { code: task.code }));
+        await deleteTask(task, reason.kind === "approve" ? t("approveReason", { note: text.trim() }) : text);
+        notify.success(reason.kind === "approve" ? t("approvedOk", { code: task.code }) : t("deletedOk", { code: task.code }));
         setList((s) => ({ ...s, items: s.items.filter((x) => x.id !== task.id) }));
         if (openRef.current === task.id) close();
         void load("refresh");
@@ -558,7 +565,7 @@ export default function TeamTasksPage() {
                         </p>
                       </div>
                       <div className="ttk-row__act">
-                        <StatusActions task={task} busy={busyId === task.id} onPick={(to) => void move(task, to)} />
+                        <StatusActions task={shown(task)} busy={busyId === task.id} onPick={(to) => void move(task, to)} />
                       </div>
                     </li>
                   );
@@ -573,7 +580,8 @@ export default function TeamTasksPage() {
 
       {openId ? (
         <TaskDetail
-          task={detail}
+          task={detail && shown(detail)}
+          approveArchive={simple}
           loading={detailLoading}
           failed={detailErr}
           busy={busyId === openId}
@@ -583,7 +591,7 @@ export default function TeamTasksPage() {
           onStatus={(task, toStatus) => void move(task, toStatus)}
           onEdit={(task) => setForm({ kind: "edit", task })}
           onAssign={(task) => setForm({ kind: "assign", task })}
-          onDelete={(task) => setReason({ kind: "delete", task })}
+          onDelete={(task) => setReason({ kind: simple ? "approve" : "delete", task })}
         />
       ) : null}
 
@@ -591,11 +599,12 @@ export default function TeamTasksPage() {
 
       {reason ? (
         <ReasonDialog
-          title={reason.kind === "return" ? t("returnTitle", { code: reason.task.code }) : t("deleteTitle", { code: reason.task.code })}
-          lead={reason.kind === "return" ? t("returnLead") : t("deleteLead")}
-          label={reason.kind === "return" ? t("returnLabel") : t("deleteLabel")}
-          confirm={reason.kind === "return" ? t("act.return") : t("delete")}
+          title={t(`${reason.kind}Title`, { code: reason.task.code })}
+          lead={t(`${reason.kind}Lead`)}
+          label={t(`${reason.kind}Label`)}
+          confirm={reason.kind === "return" ? t("act.return") : reason.kind === "approve" ? t("approve") : t("delete")}
           danger={reason.kind === "delete"}
+          approve={reason.kind === "approve"}
           onClose={() => setReason(null)}
           onSubmit={submitReason}
         />

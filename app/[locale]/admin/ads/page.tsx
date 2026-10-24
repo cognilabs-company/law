@@ -3,6 +3,7 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { listAds } from "@/lib/services/backend";
+import AdsReadiness from "@/components/admin/ads/AdsReadiness";
 import { useResource } from "@/lib/useResource";
 import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
@@ -23,6 +24,7 @@ export default function AdminAds() {
 
   return (
     <div className="ppanel">
+      <AdsReadiness />
       <div className="ppanel__h">
         <b>{t("ads.title")}</b>
         <span className="ahdr">

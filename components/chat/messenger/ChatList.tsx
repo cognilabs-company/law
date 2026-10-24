@@ -12,6 +12,7 @@ import {
   Mic,
   RefreshCw,
   Search,
+  ServerCrash,
   SmilePlus,
   Users,
   Video,
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
+import { ApiError } from "@/lib/http";
 import { CALL_LINK_RE, isMachineFileName, maskContacts } from "@/lib/chatFilter";
 import { statusLabel } from "@/lib/labels";
 import { aiId } from "@/lib/ai/ids";
@@ -61,7 +63,9 @@ export function ChatList({
   const locale = useLocale();
   const { session } = useAuth();
   const me = session?.id ?? "";
-  const { status, rooms, records } = useRooms(me);
+  const { status, rooms, records, error } = useRooms(me);
+  // The server answered with an error, or nothing reached it at all.
+  const offline = !(error instanceof ApiError) || error.status === 0;
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("");
 
@@ -151,9 +155,9 @@ export function ChatList({
       </ul>
     ) : status === "error" ? (
       <div className="mx-state" role="alert">
-        <span className="mx-state__i mx-state__i--err"><WifiOff aria-hidden /></span>
+        <span className="mx-state__i mx-state__i--err">{offline ? <WifiOff aria-hidden /> : <ServerCrash aria-hidden />}</span>
         <b>{t("errorTitle")}</b>
-        <p>{t("errorText")}</p>
+        <p>{offline ? t("errorText") : t("serverErrorText")}</p>
         <button type="button" className="mx-btn mx-btn--pri" onClick={reloadRooms}>
           <RefreshCw aria-hidden />
           {t("retry")}

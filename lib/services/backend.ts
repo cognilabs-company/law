@@ -5777,6 +5777,14 @@ export async function moderateReview(id: string, status: string, note?: string):
   await http(`/admin/reviews/${id}/moderate`, { method: "PATCH", body: JSON.stringify({ status, note: note ?? "" }) });
 }
 
+// Recompute every seller's marketplace rating from the backend's policy
+// (enterprise contract §15). Returns how many sellers it touched, when said.
+export async function recalculateMarketplaceRatings(): Promise<number | null> {
+  const d = asDict(await http("/admin/marketplace/ratings/recalculate", { method: "POST", body: "{}" }));
+  const n = Number(d.updated ?? d.count ?? d.sellers ?? d.recalculated);
+  return Number.isFinite(n) ? n : null;
+}
+
 // GET /admin/reviews/{id} (2026-09-19 backend): the full picture behind one
 // review — who wrote it, about which seller/case/order.
 export type AdminReviewDetail = {
@@ -8771,6 +8779,15 @@ export async function resolveQualityComplaint(id: string, action: QcAction, note
       body: JSON.stringify({ action, note }),
     }),
   );
+}
+// A complaint on a marketplace order is ruled on by its own endpoint, which
+// also moves the held settlement (backend answers 24 Oct 2026 §2):
+// valid_rework → rework_hold, valid_refund → refund_required,
+// invalid / resolved → ready_for_release.
+export type McAction = "valid_rework" | "valid_refund" | "invalid" | "resolved";
+export const MC_ACTIONS: McAction[] = ["valid_rework", "valid_refund", "invalid", "resolved"];
+export async function resolveMarketplaceComplaint(id: string, action: McAction, note: string): Promise<void> {
+  await http(`/call-center/marketplace/complaints/${encodeURIComponent(id)}/resolve`, { method: "POST", body: JSON.stringify({ action, note }) });
 }
 // §6. Prefix-matched like isUrgentEvent, so a third event costs nothing.
 export function isQualityComplaintEvent(event: string): boolean {

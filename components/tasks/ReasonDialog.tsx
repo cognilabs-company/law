@@ -2,7 +2,7 @@
 
 import { useId, useState, type FormEvent } from "react";
 import Modal from "@/components/admin/Modal";
-import { MessageSquareText, Trash2, Undo2 } from "lucide-react";
+import { Archive, MessageSquareText, Trash2, Undo2 } from "lucide-react";
 import { STROKE, useTaskText } from "./parts";
 
 export default function ReasonDialog({
@@ -11,6 +11,7 @@ export default function ReasonDialog({
   label,
   confirm,
   danger,
+  approve,
   onClose,
   onSubmit,
 }: {
@@ -19,6 +20,7 @@ export default function ReasonDialog({
   label: string;
   confirm: string;
   danger?: boolean;
+  approve?: boolean;
   onClose: () => void;
   onSubmit: (text: string) => Promise<string | null>;
 }) {
@@ -48,7 +50,7 @@ export default function ReasonDialog({
       open
       onClose={onClose}
       title={title}
-      icon={danger ? <Trash2 aria-hidden strokeWidth={STROKE} /> : <Undo2 aria-hidden strokeWidth={STROKE} />}
+      icon={danger ? <Trash2 aria-hidden strokeWidth={STROKE} /> : approve ? <Archive aria-hidden strokeWidth={STROKE} /> : <Undo2 aria-hidden strokeWidth={STROKE} />}
       busy={busy}
       dirty={!empty}
       size="sm"

@@ -47,3 +47,17 @@ test("my plan shows backend limits and asks consent for changed terms once", asy
   expect(consents).toEqual([{ accepted: true }]);
   await expect(accept).toHaveCount(0);
 });
+
+test("the subscriber can decline new terms by not renewing", async ({ page }) => {
+  const patches: unknown[] = [];
+  const routes = await signIn(page, CLIENT, {
+    "/subscriptions/me/features": { subscription_id: "sub-1", plan_id: "plan-1", plan_version: 1, items: [] },
+    "/subscriptions/sub-1/contract": { subscription_id: "sub-1", status: "active", snapshot: { title: "Pro" }, renewal_terms_changed: true, renewal_consent: null },
+    "PATCH /subscriptions/sub-1/auto-renew": (b: unknown) => (patches.push(b), { id: "sub-1", auto_renew: false }),
+  });
+  await mockBackend(page, routes);
+  await page.goto("/ru/portal/client/subscription");
+  await page.locator(".myplan").getByRole("button", { name: "Не продлевать" }).click();
+  await expect(page.getByText(/Автопродление выключено/)).toBeVisible();
+  expect(patches).toEqual([{ auto_renew: false }]);
+});

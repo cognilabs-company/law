@@ -1463,6 +1463,9 @@ export default function SecureChat({
   // quote are on the bubble, a file is held here until it goes or is dropped.
   const retryFiles = useRef(new Map<string, { file: File | Blob; type: "file" | "voice"; name?: string; caption?: string }>());
   const quoteOf = (m: LocalMsg): LocalMsg | null => (m.replyToId ? msgs.find((x) => x.id === m.replyToId) ?? null : null);
+  // A reply that arrives with only reply_to_message_id quotes the loaded
+  // message it points at.
+  const msgById = new Map(msgs.map((x) => [x.id, x]));
   function retryMsg(m: LocalMsg) {
     const held = retryFiles.current.get(m.id);
     setMsgs((prev) => prev.filter((x) => x.id !== m.id));
@@ -1963,7 +1966,7 @@ export default function SecureChat({
             ) : (
               visible.map((m, i) => {
                 const mine = !!session && m.senderId === session.id;
-                const quoted = m.replyTo;
+                const quoted = m.replyTo ?? (m.replyToId ? quotePreview(msgById.get(m.replyToId) ?? null) : null);
                 const dk = dayKey(m.createdAt);
                 let sep: React.ReactNode = null;
                 if (dk && dk !== lastDay) {

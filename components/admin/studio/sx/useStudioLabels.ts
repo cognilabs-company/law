@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { dateOnly, dateTimeFull, fmtAge, fmtInt, fmtNum, MINUS } from "@/lib/date";
-import { findStudioConstructor, isHolidayCalendarCtor, studioDetailSnapshot, studioReferenceKey, type StudioReferenceItem } from "@/lib/services/studio";
+import { findStudioConstructor, studioReferenceKey, type StudioReferenceItem } from "@/lib/services/studio";
 import { ctorMeta } from "@/lib/studio/constructors";
 import { HELP_RULES, normText, SECTION_IDS, SURFACE_IDS, SURFACE_TITLE_IDS, WARN_IDS } from "@/lib/studio/humanText";
 import {
@@ -195,7 +195,6 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
     if (!c) return [];
     const upper = c.toUpperCase();
     const reg = findStudioConstructor(c) ?? findStudioConstructor(upper);
-    if (upper === "K10" && (isHolidayCalendarCtor(reg) || isHolidayCalendarCtor(studioDetailSnapshot(upper)))) return [`sx.ctor.K10__holidays.${part}`];
     const v = ctorVariant(c, reg?.runtimeTarget ?? "");
     return v ? [`sx.ctor.${c}__${v}.${part}`, `sx.ctor.${upper}__${v}.${part}`] : [];
   };
@@ -533,6 +532,13 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
         return base({ label: placement(value, label), description: placementWhat(value), code: value, icon: own.call(PLACEMENT_ICON, value) ? PLACEMENT_ICON[value] : SOURCE_ICON["promotion-placements"] });
       case "roles":
         return base({ label: role(value, label), description: vocab(str(r.description)), code: value, icon: UserCogIcon });
+      // MP09 targets: what it is and what it costs, so a fixed discount can
+      // be weighed against the price (the backend keeps the result >= 0).
+      case "promotion-targets": {
+        const price = numOf(r.price);
+        const type = str(r.target_type);
+        return base({ label, description: joinDot([type ? pick([`sx.opt.MP09__target_type.${type}`]) || type : "", price === null ? "" : money(price, str(r.currency))]), icon: sourceIcon(source) });
+      }
       // The backend names a plan's features in Uzbek only.
       case "subscription-features":
         return base({ label: pick([`sx.feature.${value}`]) || label || value, code: value, icon: sourceIcon(source) });

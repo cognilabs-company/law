@@ -472,6 +472,8 @@ html[data-theme="dark"] .lxai__empty h2 {
     scrollbar-width: none;
   }
   .lxai__caps::-webkit-scrollbar { display: none }
+  /* The row scrolls sideways; its fading end says there is more. */
+  .lxai__caps { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 36px), transparent) }
   .lxai__caps li { flex: none }
   .lxai__orb { width: 64px; height: 64px; margin-bottom: 16px }
   .lxai__empty h2 { font-size: 1.45rem }

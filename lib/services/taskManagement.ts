@@ -380,6 +380,19 @@ export async function deleteTask(task: Pick<Task, "id" | "lockVersion">, reason:
 
 export const isReturn = (from: TaskStatus, to: TaskStatus) => from === "testing" && to === "in_progress";
 
+// Ulugbek Omonov's task account works without the start / send-to-testing /
+// ready steps (TSK-371625): those buttons are gone for it, the page refuses
+// to send them, and its final action approves and archives the task (the
+// archive is the soft delete, with the closing note as its reason). Only a
+// return keeps its button. Everyone else sees the full flow; the backend's
+// permissions are unchanged.
+const SIMPLE_FLOW_USERS = new Set(["dc68625e-b472-46ab-bd19-96cfa57591e1"]);
+export const usesSimpleTaskFlow = (userId: string | undefined) => !!userId && SIMPLE_FLOW_USERS.has(userId);
+export const simpleFlowAllows = (from: TaskStatus, to: TaskStatus) => isReturn(from, to);
+export function simpleFlowView(task: Task): Task {
+  return { ...task, actions: { ...task.actions, nextStatuses: task.actions.nextStatuses.filter((to) => simpleFlowAllows(task.status, to)) } };
+}
+
 export type TaskErrorKind = "conflict" | "forbidden" | "missing" | "invalid" | "unavailable" | "auth" | "network" | "other";
 export type TaskError = { kind: TaskErrorKind; code: string; message: string; fields: Record<string, string> };
 

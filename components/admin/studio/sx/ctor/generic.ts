@@ -1,4 +1,4 @@
-import type { SxCtorLayout, SxLayoutField, SxPayload, SxValues } from "../contract";
+import type { SxCtorLayout, SxLayoutCtx, SxLayoutField, SxPayload, SxValues } from "../contract";
 import type { SxErrors } from "../types";
 
 export const DOC_CATEGORIES: readonly string[] = ["contract", "legal-doc-civil", "legal-doc-criminal", "legal-doc-economic", "legal-doc-administrative"];
@@ -8,7 +8,6 @@ const helpOf = (path: string, key: string): SxLayoutField => ({ path, help: key 
 const labelOf = (path: string, key: string): SxLayoutField => ({ path, label: key });
 const clears = (path: string, sibling: string): SxLayoutField => ({ path, clears: [sibling] });
 const when = (path: string): SxLayoutField => ({ path, control: "datetime", help: false });
-const noPlaceholder = (path: string): SxLayoutField => ({ path, placeholder: false });
 const noSlug: SxLayoutField = { path: "slug", hidden: true };
 
 function titled(code: string, fields: readonly SxLayoutField[] = [], ownLabel = false): SxCtorLayout {
@@ -35,6 +34,43 @@ function k17Validate(payload: SxValues): SxErrors {
   return out;
 }
 
+// The tariff constructor (TSK-490457): the type first, then only what that
+// type uses — trial, grace, renewal and plan-change rules belong to a
+// subscription; a one-time or gift tariff does not show them. Features come
+// from the registry; a feature's limit and reset period show only when it
+// is limited. The legacy per-feature trial numbers and the free-form
+// cancellation object are not edited here.
+const isSubscription = (ctx: SxLayoutCtx): boolean => {
+  const b = ctx.root.billing_type;
+  return !b || b === "subscription";
+};
+const isLimited = (ctx: SxLayoutCtx): boolean => ctx.scope.mode === "limited";
+
+function k17Layout(): SxCtorLayout {
+  const subscriptionOnly = (path: string, extra: Partial<SxLayoutField> = {}): SxLayoutField => ({ path, visible: isSubscription, ...extra });
+  return {
+    ...titled("K17", [
+      noSlug,
+      off("description"),
+      { path: "plan_type", control: "choices", columns: 3, choices: Object.fromEntries(["client", "personal_lawyer", "seller", "organization", "gift"].map((k) => [k, { descriptionKey: `sx.optd.K17__plan_type.${k}` }])) },
+      { path: "billing_type", control: "choices", columns: 3, choices: Object.fromEntries(["subscription", "one_time", "gift"].map((k) => [k, { descriptionKey: `sx.optd.K17__billing_type.${k}` }])) },
+      { path: "entitlements.*.mode", control: "choices", columns: 3, clears: ["limit", "reset_period"] },
+      { path: "entitlements.*.limit", visible: isLimited, help: "sx.help.K17__limit" },
+      { path: "entitlements.*.reset_period", visible: isLimited, help: false },
+      subscriptionOnly("trial"),
+      { path: "trial.entitlements", hidden: true },
+      subscriptionOnly("grace_period_days"),
+      subscriptionOnly("renewal_notice_days"),
+      subscriptionOnly("renewal_consent_required_on_change", { help: "sx.help.K17__renewal_consent" }),
+      subscriptionOnly("upgrade_rules"),
+      subscriptionOnly("downgrade_rules"),
+      { path: "cancellation_rules", hidden: true },
+      { path: "sales_status", control: "choices", columns: 3 },
+    ], true),
+    validate: k17Validate,
+  };
+}
+
 function record(code: string, fields: readonly SxLayoutField[] = []): SxCtorLayout {
   return { code, recordTitlePlaceholderKey: `sx.ph.${code}__recordTitle`, fields };
 }
@@ -49,29 +85,9 @@ function withoutDocumentType(next: SxPayload): SxPayload {
 const LIST: readonly SxCtorLayout[] = [
   { ...record("K26", [{ path: "document_type", hidden: true }]), transform: withoutDocumentType },
   record("K11", [{ path: "terms", control: "richtext", help: false }, off("client_notice")]),
-  record("K13"),
-  record("K12-M"),
-  record("MP05"),
-  record("K27"),
-  record("K14", [labelOf("messages.uz_latn.title", "sx.field.K14__messages__uz_latn__title"), labelOf("messages.uz_cyrl.title", "sx.field.K14__messages__uz_cyrl__title"), labelOf("messages.ru.title", "sx.field.K14__messages__ru__title")]),
-  record("CALL01"),
-  record("K22", [labelOf("base_price", "sx.field.K22__base_price")]),
-  record("MP08"),
-  { ...titled("K17", [noSlug, off("description")], true), validate: k17Validate },
+  k17Layout(),
   record("K04", [labelOf("seller_requirements", "sx.field.K04__seller_requirements")]),
   record("K18"),
-  record("K25"),
-  record("MP02"),
-  record("MP03", [off("service_id")]),
-  record("MP07", [off("eligibility.roles"), off("eligibility.regions")]),
-  record("SEC01"),
-  record("SEC02", [off("roles"), noPlaceholder("masking.phone"), noPlaceholder("masking.email")]),
-  record("SEC03", [helpOf("duplicates.fields", "sx.help.SEC03__duplicates__fields")]),
-  record("SEC04", [labelOf("quorum.all_required", "sx.field.SEC04__quorum__all_required")]),
-  record("SEC05", [labelOf("extensions", "sx.field.SEC05__extensions"), off("preview.description")]),
-  titled("K20", [off("steps"), clears("steps.*.assignee_type", "assignee_id")], true),
-  record("K21", [off("roles"), off("regions")]),
-  record("MP06"),
   record("OPS01", [off("roles"), off("regions"), when("starts_at"), when("ends_at")]),
   record("OPS02", [labelOf("retry", "sx.field.retry")]),
   record("OPS04"),
@@ -97,9 +113,6 @@ const LIST: readonly SxCtorLayout[] = [
     labelOf("blocks.*.title", "sx.field.K19__blocks__title"),
     off("blocks.*.content"),
   ]),
-  record("INT01", [labelOf("retry", "sx.field.retry")]),
-  record("INT02", [labelOf("retry", "sx.field.retry")]),
-  record("INT03"),
   titled("CORE"),
   record("K16", [off("language")]),
   record("OPS07"),

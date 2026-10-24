@@ -4,6 +4,7 @@ import { cleanDocTitle } from "@/lib/docTitle";
 import { sellerTrustOf, type RatingStatus } from "./trust";
 import { featureMissing, noteFeatureError } from "@/lib/endpointGate";
 import { gatedPhone, phoneGateOf } from "./clientPhone";
+import { resolutionOf, type OrderResolution } from "./resolution";
 import { MARKET_ACTION_TAIL, RUNTIME_ERROR_CODES, completeOrderV2, completeV2Path, marketActionPath, normDuration, normNegotiation, normCancellationReview, type RuntimeDuration, type Negotiation, type CancellationReview, type ChecklistProgress } from "./marketRuntime";
 
 export { marketActionPath };
@@ -548,6 +549,9 @@ export type MarketOrder = {
   rating: OrderRating;
   ratingUrl: string;
   complaint: OrderComplaint;
+  warranty: OrderWarranty;
+  // Set while the call center resolves a declined or expired assignment.
+  resolution: OrderResolution | null;
   supplemental: SupplementalPayment | null;
   workPaused: boolean;
   startedAt: string;
@@ -591,6 +595,11 @@ export type OrderPricing = {
   // Extras the client picked (details.option_quote.breakdown), on top of
   // the seller's price.
   options: { label: string; percent: number | null; amount: number }[];
+  // The immutable snapshot's parts in the backend's order; they add up to
+  // the final price there, and are shown as sent.
+  components: { code: string; amount: number; percent: number | null; label: Record<string, string> }[];
+  // An old order normalised on read: its eligibility rules were not kept.
+  historical: boolean;
 };
 
 const present = (v: unknown) => v !== null && v !== undefined && v !== "";
@@ -624,6 +633,13 @@ function orderPricingOf(d: Dict, details: Dict): OrderPricing | null {
     rest: rest > 0 ? { percent: pctOf(pay.final_percent), amount: rest } : null,
     commission: platform > 0 || present(com.effective_percent) ? { percent: pctOf(com.effective_percent), platform, net: uzs(com, "seller_net_amount") } : null,
     options,
+    components: asArr(p.components).map((x) => {
+      const c = asDict(x);
+      const ex = c.explanation;
+      const label: Record<string, string> = typeof ex === "string" ? { uz: ex } : Object.fromEntries(Object.entries(asDict(ex)).map(([k, v]) => [k, asStr(v)]));
+      return { code: asStr(c.code), amount: uzs(c, "amount"), percent: pctOf(c.percent), label };
+    }),
+    historical: p.historical_policy_exact === false,
   };
 }
 
@@ -666,6 +682,51 @@ export function complaintOf(d: Dict, details: Dict = asDict(d.details)): OrderCo
 export async function fileOrderComplaint(order: Pick<MarketOrder, "id" | "complaint">, reason: string): Promise<void> {
   const path = order.complaint.url.replace(/^https?:\/\/[^/]+/i, "") || `/marketplace/me/orders/${encodeURIComponent(order.id)}/complaint`;
   await http(path, { method: "POST", body: JSON.stringify({ reason: reason.trim() }) });
+}
+
+// The order's LexGo guarantee (enterprise contract §10): the client asks for
+// a replacement seller or a full refund; the call center decides. Offered
+// while the backend gives `warranty_url`.
+export type WarrantyResolution = "replacement" | "full_refund";
+export type OrderWarranty = { url: string; status: string; resolution: string; reason: string; decision: string };
+
+export function warrantyOf(d: Dict, details: Dict = asDict(d.details)): OrderWarranty {
+  const w = asDict(d.warranty ?? d.warranty_claim ?? details.warranty_claim);
+  return {
+    url: asStr(d.warranty_url),
+    status: asStr(w.status).toLowerCase(),
+    resolution: asStr(w.resolution ?? w.requested_resolution).toLowerCase(),
+    reason: asStr(w.reason),
+    decision: asStr(w.decision ?? w.resolution_note ?? w.call_center_note),
+  };
+}
+
+// What the guarantee offers right now (GET /marketplace/runtime-capabilities).
+let capsCache: Promise<WarrantyResolution[]> | null = null;
+export function warrantyResolutions(): Promise<WarrantyResolution[]> {
+  capsCache ??= http("/marketplace/runtime-capabilities").then(
+    (v) => {
+      const w = asDict(asDict(v).warranty);
+      const out: WarrantyResolution[] = [];
+      if (w.replacement === true) out.push("replacement");
+      if (w.full_refund === true) out.push("full_refund");
+      return out;
+    },
+    () => {
+      capsCache = null;
+      return [];
+    },
+  );
+  return capsCache;
+}
+
+export async function requestOrderWarranty(order: Pick<MarketOrder, "id" | "warranty">, input: { reasonCode: string; reason: string }): Promise<OrderWarranty> {
+  const path = order.warranty.url.replace(/^https?:\/\/[^/]+/i, "") || `/marketplace/me/orders/${encodeURIComponent(order.id)}/warranty`;
+  // The client says why (`kind`) and in what words; the call center then
+  // picks a replacement or a full refund (backend answers 24 Oct 2026 §3).
+  const d = asDict(await http(path, { method: "POST", body: JSON.stringify({ kind: input.reasonCode, reason: input.reason.trim() }) }));
+  const w = asDict(d.warranty ?? d.claim ?? d);
+  return { url: order.warranty.url, status: asStr(w.status).toLowerCase() || "pending", resolution: asStr(w.resolution).toLowerCase(), reason: asStr(w.reason) || input.reason, decision: "" };
 }
 
 export type OrderRating = { canRate: boolean; available: boolean; closed: boolean; reason: string; deadlineAt: string; remainingSeconds: number; expiresAt: number; value: number; comment: string };
@@ -894,6 +955,8 @@ export function normMarketOrder(v: unknown): MarketOrder {
     rating: ratingOf(d, details),
     ratingUrl: asStr(d.rating_url),
     complaint: complaintOf(d, details),
+    warranty: warrantyOf(d, details),
+    resolution: resolutionOf(d.resolution ?? details.resolution),
     supplemental,
     workPaused: supplemental?.status === "pending" || (status === "waiting_payment" && (paymentStatus === "paid" || !!supplemental)),
     startedAt,
@@ -1278,7 +1341,7 @@ export function isOrderPending(o: Pick<MarketOrder, "status" | "paymentStatus">)
 }
 
 export const MARKET_DONE = new Set(["completed", "rated", "done", "closed"]);
-export const MARKET_STOPPED = new Set(["cancelled", "canceled", "declined", "rejected", "lost", "refunded"]);
+export const MARKET_STOPPED = new Set(["cancelled", "canceled", "declined", "rejected", "lost", "refunded", "refund_pending"]);
 
 export type MarketPhase = "pending" | "paid" | "in_progress" | "review" | "completed" | "rated" | "cancelled";
 export const MARKET_PHASES: readonly MarketPhase[] = ["pending", "paid", "in_progress", "review", "completed", "rated", "cancelled"];

@@ -6,6 +6,8 @@ import CallCenterQueue from "@/components/admin/CallCenterQueue";
 import UrgentAdvocateQueue from "@/components/admin/UrgentAdvocateQueue";
 import QualityComplaints from "@/components/admin/QualityComplaints";
 import CancellationQueue from "@/components/admin/callcenter/cancellations/CancellationQueue";
+import EscalationQueue from "@/components/admin/callcenter/EscalationQueue";
+import { ExperienceQueue } from "@/components/admin/callcenter/ExperienceReview";
 import CallCenterBoard from "@/components/admin/CallCenterBoard";
 import CcClientSearch from "@/components/admin/CcClientSearch";
 import CcCallLog from "@/components/admin/CcCallLog";
@@ -33,6 +35,10 @@ function AdminCallCenterConsole() {
       <CcTabPanel con={con} tab="urgent">
         {cc ? <UrgentAdvocateQueue onCount={con.count.urgent} /> : null}
       </CcTabPanel>
+      {/* Declined or expired assignments (TSK-131840). */}
+      <CcTabPanel con={con} tab="escalations">
+        {cc ? <EscalationQueue onCount={con.count.escalations} /> : null}
+      </CcTabPanel>
       {/* Quality complaints: their own queue, as §9 asks, because a complaint
           is not a lead and does not move through the board's stages — an
           operator rules on it once and it is done. Call-centre only: the
@@ -42,6 +48,9 @@ function AdminCallCenterConsole() {
       </CcTabPanel>
       <CcTabPanel con={con} tab="cancellations">
         {cc ? <CancellationQueue onCount={con.count.cancellations} /> : null}
+      </CcTabPanel>
+      <CcTabPanel con={con} tab="experience">
+        {cc ? <ExperienceQueue onCount={con.count.experience} /> : null}
       </CcTabPanel>
       <CcTabPanel con={con} tab="leads">
         <CallCenterBoard />

@@ -43,6 +43,7 @@ import Tabs, { type TabItem } from "@/components/ui/Tabs";
 import FieldError from "@/components/ui/FieldError";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconEye, IconInfo, IconUser, IconShieldCheck, IconBriefcase, IconClock, IconSun, IconCard, IconEdit, IconAward, IconScale, IconGavel, IconMapPin, IconPhone, IconMail, IconCheck, IconBell } from "@/components/icons";
+import ExperiencePanel from "./ExperiencePanel";
 
 const ZERO_STATS: AdvocateStats = { totalCases: 0, fullyWonCases: 0, partiallyWonCases: 0, successRate: 0 };
 const LANG_KEYS = ["uz", "ru", "en", "kaa", "tr", "ar"] as const;
@@ -515,6 +516,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       <div className="cprofile__stack">
         {pProfessional}
         {pAreas}
+        <ExperiencePanel />
         {pHistory}
         <MyServices userId={uid} />
       </div>

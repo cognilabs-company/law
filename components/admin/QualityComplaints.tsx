@@ -7,8 +7,11 @@ import {
   getQualityComplaint,
   resolveQualityComplaint,
   isQualityComplaintEvent,
+  MC_ACTIONS,
   QC_ACTIONS,
+  resolveMarketplaceComplaint,
   type QualityComplaintRow,
+  type McAction,
   type QcAction,
 } from "@/lib/services/backend";
 import { subscribeUserEvents } from "@/lib/userSocket";
@@ -28,6 +31,9 @@ import InlineAlert from "@/components/ui/InlineAlert";
 import { useUrgentStatuses } from "./UrgentAdvocateQueue";
 import { IconAlert, IconUser, IconScale, IconClock, IconStarRate, IconFileText, IconBolt, IconClipboardCheck, IconPhone, IconRefresh } from "@/components/icons";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
+import { fmtUzs } from "@/lib/money";
+import { getAdminMarketplaceOrder, type MkmOrder } from "@/lib/services/adminMarketplace";
+import { getOrderFinancials } from "@/lib/services/marketplace";
 
 // LEXGO_FRONTEND_CLIENT_WORKS_QUALITY_EDITOR_2026-09-29.md §5.
 //
@@ -215,6 +221,7 @@ function QcDetail({
   onDone: () => void;
 }) {
   const t = useTranslations("admin.qualityComplaints");
+  const tp = useTranslations("marketplace.orderDetail.pricing");
   const tcm = useTranslations("portal.common");
   const tc = useTranslations("common.confirm");
   const tu = useTranslations("admin.urgent");
@@ -232,7 +239,7 @@ function QcDetail({
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [failure, setFailure] = useState<unknown>(undefined);
   const [attempt, setAttempt] = useState(0);
-  const [action, setAction] = useState<QcAction | "">("");
+  const [action, setAction] = useState<QcAction | McAction | "">("");
   const [actionErr, setActionErr] = useState("");
   const [note, setNote] = useState("");
   const [noteErr, setNoteErr] = useState("");
@@ -251,6 +258,29 @@ function QcDetail({
   const lr = asDict(blocks.lawyer_request);
   const review = asDict(blocks.review ?? blocks.rating);
   const cmp = asDict(asDict(blocks.complaint).payload);
+  // A marketplace complaint holds the seller's final payout until it is
+  // ruled on (TSK-344069); the order is read from the staff endpoint, which
+  // a role without it simply leaves out.
+  const mpOrderId = asStr(asDict(blocks.complaint).record_type) === "marketplace_order" ? asStr(cmp.order_id) : "";
+  const [mpOrder, setMpOrder] = useState<MkmOrder | null>(null);
+  // The settlement as /financials reports it; roles that may not read it
+  // (a permission-only staff account gets 404) simply see no line.
+  const [settlement, setSettlement] = useState("");
+  useEffect(() => {
+    if (!mpOrderId) return;
+    let alive = true;
+    getAdminMarketplaceOrder(mpOrderId).then(
+      (d) => alive && setMpOrder(d.order),
+      () => undefined,
+    );
+    getOrderFinancials(mpOrderId).then(
+      (f) => alive && setSettlement(f.settlement),
+      () => undefined,
+    );
+    return () => {
+      alive = false;
+    };
+  }, [mpOrderId]);
   const clientName = row.clientName || asStr(cmp.client_name).trim();
   const clientPhone = asStr(cmp.client_phone).trim();
   const rating = row.rating || asNum(cmp.rating) || asNum(review.rating);
@@ -277,7 +307,8 @@ function QcDetail({
   const urgWorkId = urgPick("work_id") || (UUID_LIKE.test(row.urgentRequestId) ? "" : row.urgentRequestId);
   // A ruling is only final once: the form disappears rather than inviting a
   // second POST the backend would refuse.
-  const settled = row.status === "resolved" || row.status === "rejected" || row.status === "rework_required";
+  const settled = row.status === "resolved" || row.status === "rejected" || row.status === "rework_required" || row.status === "refund_required";
+  const actions: readonly (QcAction | McAction)[] = mpOrderId ? MC_ACTIONS : QC_ACTIONS;
 
   async function submit() {
     if (busy || !once()) return;
@@ -296,7 +327,8 @@ function QcDetail({
     }
     setBusy(true);
     try {
-      await resolveQualityComplaint(row.id, action, note.trim());
+      if (mpOrderId) await resolveMarketplaceComplaint(row.id, action as McAction, note.trim());
+      else await resolveQualityComplaint(row.id, action as QcAction, note.trim());
       notify.success(t("resolved"), { id: `qc-resolve-${row.id}`, body: [label(action), row.workId || row.title].filter(Boolean).join(" · ") });
       onDone();
     } catch (e) {
@@ -390,7 +422,26 @@ function QcDetail({
           </section>
         ) : null}
 
-        {settled ? (
+        {state === "ready" && mpOrderId ? (
+          <section className="qcdet__b" data-ai-private>
+            <b><IconClipboardCheck />{t("bMarketplace")}</b>
+            {mpOrder ? (
+              <p>
+                {[mpOrder.workId, mpOrder.serviceTitle, mpOrder.price ? `${fmtUzs(mpOrder.price)} ${t("som")}` : "", mpOrder.paymentStatus ? t.has(`payment.${mpOrder.paymentStatus}`) ? t(`payment.${mpOrder.paymentStatus}`) : humanize(mpOrder.paymentStatus) : ""].filter(Boolean).join(" · ")}
+              </p>
+            ) : asStr(cmp.work_id) ? (
+              <p>{asStr(cmp.work_id)}</p>
+            ) : null}
+            {settlement ? (
+              <p>
+                {t("settlement")}: <b>{tp.has(`settle.${settlement}`) ? tp(`settle.${settlement}`) : humanize(settlement)}</b>
+              </p>
+            ) : null}
+            <InlineAlert tone={settled ? "info" : "warn"}>{settled ? t("holdDecided") : t("holdOpen")}</InlineAlert>
+          </section>
+        ) : null}
+
+        {state !== "ready" ? null : settled ? (
           <InlineAlert tone="success">{t("alreadySettled", { action: label(row.status, row.statusLabel) })}</InlineAlert>
         ) : (
           <section className="qcdet__resolve" aria-labelledby={actLblId}>
@@ -407,7 +458,7 @@ function QcDetail({
               aria-invalid={actionErr ? true : undefined}
               aria-describedby={actionErr ? actErrId : undefined}
             >
-              {QC_ACTIONS.map((a) => (
+              {actions.map((a) => (
                 <label key={a} className={`ccpick__o${action === a ? " on" : ""}`}>
                   <input
                     className="ccpick__in"

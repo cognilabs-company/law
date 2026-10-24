@@ -12,6 +12,8 @@ import { normMarketOrder, type MarketOrder, type MarketPhase } from "@/lib/servi
 import { normOrderChecklist, type OrderStart } from "@/lib/services/marketRuntime";
 import { ComplaintPanel, RatingPanel, ResultBlock, SupplementalPanel } from "../OrderExtras";
 import CancellationRequest from "./CancellationRequest";
+import WarrantyPanel from "./WarrantyPanel";
+import ResolutionPanel from "./ResolutionPanel";
 import NegotiationPanel from "./NegotiationPanel";
 import { useNotedNegotiation } from "./negotiationStore";
 import OrderActions from "./OrderActions";
@@ -79,6 +81,8 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDe
   // A preview has no real order to fetch an offer or log a view against.
   const opinion = client && !preview ? <SecondOpinion key="opinion" o={o} phase={phase} aiBase={aiBase} opinion={d.opinion} state={d.opinionState} onRetry={() => d.refresh("opinion")} onOrderStale={() => d.refresh("order")} /> : null;
   const cancel = <CancellationRequest key="cancel" {...section} lastSignal={d.lastSignal} />;
+  const warranty = client ? <WarrantyPanel key="warranty" {...section} /> : null;
+  const resolution = client && !preview ? <ResolutionPanel key="resolution" {...section} onRefresh={() => d.refresh("order")} /> : null;
   const supplemental = <SupplementalPanel key="supplemental" o={o} view={view} />;
   const retain = client ? <StayInLexGo key="retain" phase={phase} runtime={d.runtime} aiBase={aiBase} /> : null;
   const onStarted = (r: OrderStart) => {
@@ -98,7 +102,11 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDe
   const start = !client ? <StartWork key="start" o={o} aiBase={aiBase} runtime={d.runtime} onStarted={onStarted} onRefresh={() => d.refresh("order")} /> : null;
 
   let parts: ReactNode[] = [];
-  if (phase === "pending") {
+  // The call center is resolving a declined or expired assignment: nothing
+  // else applies until the client chooses or the operator acts.
+  if (o.status === "resolution_required") {
+    parts = [documents];
+  } else if (phase === "pending") {
     parts = [
       <NegotiationPanel key="negotiation" {...section} />,
       client ? (
@@ -119,10 +127,11 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDe
       documents,
       supplemental,
       retain,
+      warranty,
       !client || o.canRequestCancellation ? cancel : null,
     ];
   } else if (phase === "in_progress") {
-    parts = [start, checklist, documents, supplemental, opinion, retain, !client || o.canRequestCancellation ? cancel : null];
+    parts = [start, checklist, documents, supplemental, opinion, retain, warranty, !client || o.canRequestCancellation ? cancel : null];
   } else if (phase === "review") {
     parts = [cancel, checklist, documents, opinion, retain];
   } else if (phase === "completed" || phase === "rated") {
@@ -136,6 +145,7 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDe
           <ComplaintPanel o={o} onFiled={() => d.refresh("order")} />
         </section>
       ) : null,
+      warranty,
       checklist,
       opinion,
       documents,
@@ -153,7 +163,7 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDe
       ) : null,
     ];
   }
-  return <div className="mod__main">{parts}</div>;
+  return <div className="mod__main">{[resolution, ...parts]}</div>;
 }
 
 export default function OrderDetailPage({ orderId, view, listHref }: { orderId: string; view: OrderView; listHref: string }): ReactElement {

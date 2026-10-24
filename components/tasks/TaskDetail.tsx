@@ -1,7 +1,7 @@
 "use client";
 
 import Modal from "@/components/admin/Modal";
-import { CalendarClock, CircleCheckBig, FileText, Flag, History, Pencil, Plus, RefreshCcw, RotateCcw, Trash2, TriangleAlert, Undo2, User, Users, type LucideProps } from "lucide-react";
+import { Archive, CalendarClock, CircleCheckBig, FileText, Flag, History, Pencil, Plus, RefreshCcw, RotateCcw, Trash2, TriangleAlert, Undo2, User, Users, type LucideProps } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 import type { Task, TaskHistoryItem, TaskStatus } from "@/lib/services/taskManagement";
 import { Deadline, Face, STROKE, StatusActions, StatusPill, useTaskText } from "./parts";
@@ -58,6 +58,7 @@ export default function TaskDetail({
   onEdit,
   onAssign,
   onDelete,
+  approveArchive = false,
 }: {
   task: Task | null;
   loading: boolean;
@@ -70,6 +71,8 @@ export default function TaskDetail({
   onEdit: (task: Task) => void;
   onAssign: (task: Task) => void;
   onDelete: (task: Task) => void;
+  // The final action is "approve and archive" instead of delete.
+  approveArchive?: boolean;
 }) {
   const { t, when } = useTaskText();
   // The story in the order it happened: created first, the latest step last.
@@ -185,10 +188,17 @@ export default function TaskDetail({
                     </button>
                   ) : null}
                   {task.actions.canDelete ? (
-                    <button type="button" className="ttk-btn ttk-btn--line ttk-btn--danger" onClick={() => onDelete(task)} disabled={busy}>
-                      <Trash2 aria-hidden strokeWidth={STROKE} />
-                      {t("delete")}
-                    </button>
+                    approveArchive ? (
+                      <button type="button" className="ttk-btn ttk-btn--ok" onClick={() => onDelete(task)} disabled={busy}>
+                        <Archive aria-hidden strokeWidth={STROKE} />
+                        {t("approveArchive")}
+                      </button>
+                    ) : (
+                      <button type="button" className="ttk-btn ttk-btn--line ttk-btn--danger" onClick={() => onDelete(task)} disabled={busy}>
+                        <Trash2 aria-hidden strokeWidth={STROKE} />
+                        {t("delete")}
+                      </button>
+                    )
                   ) : null}
                 </span>
               </div>

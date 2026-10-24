@@ -18,3 +18,4 @@
 .myplan__bar { display: block; height: 6px; border-radius: 999px; background: var(--dk-bd, #E3E9F2); overflow: hidden; }
 .myplan__bar i { display: block; height: 100%; border-radius: inherit; background: var(--brand, #2563eb); }
 .myplan__prices { margin: 0; font-size: .78rem; color: var(--gray); }
+.myplan__acts { display: flex; flex-wrap: wrap; gap: 8px; }

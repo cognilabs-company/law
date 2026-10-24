@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { listAdminReviews, moderateReview, getAdminReviewDetail, type AdminReviewDetail } from "@/lib/services/backend";
+import { listAdminReviews, moderateReview, getAdminReviewDetail, recalculateMarketplaceRatings, type AdminReviewDetail } from "@/lib/services/backend";
+import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import { useResource } from "@/lib/useResource";
 import { useReload } from "@/components/admin/AdminBits";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
@@ -11,7 +12,7 @@ import { ApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import FilterBar from "@/components/filters/FilterBar";
 import { useAiSelection } from "@/lib/ai/registry";
-import { IconStar, IconCheck, IconClose, IconEye, IconScale } from "@/components/icons";
+import { IconStar, IconCheck, IconClose, IconEye, IconScale, IconRefresh } from "@/components/icons";
 
 function Stars({ n }: { n: number }) {
   return (
@@ -94,7 +95,24 @@ export default function AdminReviews() {
   const res = useResource(() => listAdminReviews({ sellerType: tab === "all" ? undefined : tab }), [key, tab]);
   const [busy, setBusy] = useState<string | null>(null);
   const [detail, setDetail] = useState<string | null>(null);
+  // Ratings are recomputed by the backend's own policy; this only asks.
+  const [recalc, setRecalc] = useState<"" | "ask" | "running">("");
+  const once = useSameTickGuard();
   useAiSelection("admin_reviews_seller_type", tab === "all" ? "" : tab);
+
+  async function recalculate() {
+    if (recalc === "running" || !once()) return;
+    setRecalc("running");
+    try {
+      const n = await recalculateMarketplaceRatings();
+      notify.success(t("recalc.done"), { id: "ratings-recalc", body: n === null ? undefined : t("recalc.count", { n }) });
+      reload();
+    } catch (e) {
+      notify.error(t("recalc.failed"), { id: "ratings-recalc", error: e });
+    } finally {
+      setRecalc("");
+    }
+  }
 
   async function moderate(id: string, status: "approved" | "rejected", name?: string) {
     setBusy(id);
@@ -116,7 +134,27 @@ export default function AdminReviews() {
 
   return (
     <div className="ppanel">
-      <div className="ppanel__h"><b>{t("title")}</b><span className="advmuted">{res.data.length}</span></div>
+      <div className="ppanel__h">
+        <b>{t("title")}</b>
+        <span className="ahdr">
+          <span className="advmuted">{res.data.length}</span>
+          <button type="button" className="btn btn--line btn--sm" onClick={() => setRecalc("ask")} disabled={recalc === "running"} data-ai-id="admin.reviews.recalculate">
+            <IconRefresh />
+            {recalc === "running" ? t("recalc.running") : t("recalc.button")}
+          </button>
+        </span>
+      </div>
+      <Modal open={recalc === "ask"} onClose={() => setRecalc("")} title={t("recalc.title")}>
+        <p className="advmuted" style={{ marginTop: 0 }}>{t("recalc.text")}</p>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button type="button" className="btn btn--ghost" onClick={() => setRecalc("")}>
+            {t("recalc.cancel")}
+          </button>
+          <button type="button" className="btn btn--pri" onClick={() => void recalculate()}>
+            {t("recalc.confirm")}
+          </button>
+        </div>
+      </Modal>
       <p className="ppanel__note">{t("lead")}</p>
 
       <FilterBar
