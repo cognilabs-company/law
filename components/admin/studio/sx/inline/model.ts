@@ -102,6 +102,9 @@ export function prefillOf(code: string, keys: ReadonlySet<string>, title: string
     return out;
   }
   if (inlineKindOf(code) !== "rule") return out;
+  // A rule made from a service is always a rule of its own; the hidden
+  // creation_mode still has to say so.
+  if (keys.has("creation_mode")) out.creation_mode = "new";
   if (name && keys.has("rule_key")) {
     const key = ruleKeyOf(name);
     if (key) out.rule_key = key;
