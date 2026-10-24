@@ -8,7 +8,7 @@ import { SxButton, SxLinkButton } from "../Button";
 import { pendingReferenceNow, usePendingReferences } from "../form/useReferenceOptions";
 import { CheckIcon } from "../icons";
 import { useStudioLabels } from "../useStudioLabels";
-import { reportedDuplicate, twinsOf, useRuleList, type RuleTwin } from "./ruleDuplicates";
+import { reportedDuplicate, twinsOf, useRuleList, type RuleLineage, type RuleTwin } from "./ruleDuplicates";
 
 // Under a rule's name, when that name is already taken: the rule(s) it
 // clashes with and a way to use one instead of creating a copy. In the
@@ -20,13 +20,13 @@ export const RulePickContext = createContext<RulePick | null>(null);
 
 export type RuleTwinAction = { label: string; run: (twin: RuleTwin) => void };
 
-export function RuleTwinNote({ title, self, action, aiId }: { title: unknown; self: readonly string[]; action?: RuleTwinAction; aiId: string }): ReactElement | null {
+export function RuleTwinNote({ title, self, lineage = null, action, aiId }: { title: unknown; self: readonly string[]; lineage?: RuleLineage | null; action?: RuleTwinAction; aiId: string }): ReactElement | null {
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const pick = useContext(RulePickContext);
   const rules = useRuleList(true);
   usePendingReferences();
-  const twins = twinsOf(rules, title, self);
+  const twins = twinsOf(rules, title, self, lineage);
   const rep = reportedDuplicate(title);
   // The rule a 409 named: from the loaded list, its draft, or by id alone.
   if (rep && !twins.some((x) => x.value === rep.id || x.objectId === rep.id)) {

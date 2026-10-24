@@ -3,11 +3,12 @@
 import "../sx-core.css";
 import "../sx-form.css";
 import "./sx-shared.css";
-import { useId, useMemo, useState, type FormEvent, type ReactElement } from "react";
+import { useEffect, useId, useMemo, useState, type FormEvent, type ReactElement } from "react";
+import { getStudioReference } from "@/lib/services/studio";
+import { logApiError } from "@/lib/http";
+import type { SxPayload } from "../contract";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
-import { cloneStudioObject, studioObjectAction } from "@/lib/services/studio";
-import { errDetail, logApiError } from "@/lib/http";
 import { SxButton, SxLinkButton, type SxButtonVariant } from "../Button";
 import { SxDialog } from "../editor/SxDialog";
 import { ChoiceCards, type ChoiceCard } from "../form/ChoiceCards";
@@ -16,22 +17,24 @@ import { TextInput } from "../form/TextInput";
 import { ArrowRightIcon, ChevronDownIcon, ChevronRightIcon, GitBranchIcon, PlusIcon, ScrollTextIcon, SearchIcon, SparklesIcon, glyph } from "../icons";
 import { SxPage } from "../layout/Page";
 import { SxNote } from "../layout/Note";
-import { normRuleTitle, useRuleList, type RuleTwin } from "../schema/ruleDuplicates";
+import { RULE_SOURCE, normRuleTitle, useRuleList, type RuleTwin } from "../schema/ruleDuplicates";
 import { useStudioLabels } from "../useStudioLabels";
 
 // "Add rule" asks first what is being made: a rule of its own, or the next
-// version of one that exists. A new version is the existing rule copied into
-// a fresh draft (POST /studio/objects/{id}/clone) — same key, same name,
-// links kept — opened on its version field; a new rule opens the empty form.
-// Every way into a new rule ends at this choice.
+// version of one that exists. Both open the create form: a new rule empty
+// (creation_mode "new"), a new version filled from the published rule it
+// continues (creation_mode "new_version", existing_rule_id), the backend
+// giving that version its number. Every way into a new rule ends at this
+// choice.
 
 export type RuleKind = "new" | "version";
 
 const enc = encodeURIComponent;
 
 // The plain "new rule" link marks the answer, so the form opens without the
-// question coming back.
-export const ruleNewHref = (base: string): string => `${base}${base.includes("?") ? "&" : "?"}rule=new`;
+// question coming back; a new version also names the rule it continues.
+export const ruleKindHref = (base: string, kind: RuleKind, from = ""): string =>
+  `${base}${base.includes("?") ? "&" : "?"}rule=${kind}${kind === "version" && from ? `&from=${enc(from)}` : ""}`;
 
 function useRuleChoice() {
   const [kind, setKind] = useState<RuleKind | "">("");
@@ -50,9 +53,10 @@ function useRuleChoice() {
 }
 type ChoiceState = ReturnType<typeof useRuleChoice>;
 
-// Rules that can take a new version: the ones Studio keeps a record of.
+// Rules that can take a new version: the published ones, which the backend
+// lists as /studio/reference/service-rules (a draft has no lineage yet).
 function pickable(r: RuleTwin): boolean {
-  return !!r.objectId;
+  return r.published;
 }
 
 function RuleList({ state, rules, idPrefix, aiBase, invalid, describedBy }: { state: ChoiceState; rules: readonly RuleTwin[] | null; idPrefix: string; aiBase: string; invalid: boolean; describedBy?: string }): ReactElement {
@@ -93,8 +97,8 @@ function RuleList({ state, rules, idPrefix, aiBase, invalid, describedBy }: { st
       <div className="sx-rk-list" role="radiogroup" id={`${idPrefix}-rules`} aria-invalid={invalid || undefined} aria-describedby={describedBy} aria-label={t("sx.k31kind.which")}>
         {shown.length ? (
           shown.map((r, i) => {
-            const on = state.rule === r.objectId && !!r.objectId;
             const ok = pickable(r);
+            const on = state.rule === r.value && ok;
             return (
               <button
                 key={r.value}
@@ -106,20 +110,20 @@ function RuleList({ state, rules, idPrefix, aiBase, invalid, describedBy }: { st
                 data-on={on ? "" : undefined}
                 disabled={!ok}
                 title={ok ? undefined : t("sx.k31kind.noRecord")}
-                onClick={() => ok && state.setRule(r.objectId)}
+                onClick={() => ok && state.setRule(r.value)}
                 onKeyDown={(e) => {
                   if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
                   e.preventDefault();
                   const list = shown.filter(pickable);
-                  const at = list.findIndex((x) => x.objectId === state.rule);
+                  const at = list.findIndex((x) => x.value === state.rule);
                   const next = list[(at + (e.key === "ArrowDown" ? 1 : -1) + list.length) % list.length];
                   if (next) {
-                    state.setRule(next.objectId);
-                    (e.currentTarget.parentElement?.querySelector(`[data-rule="${CSS.escape(next.objectId)}"]`) as HTMLElement | null)?.focus();
+                    state.setRule(next.value);
+                    (e.currentTarget.parentElement?.querySelector(`[data-rule="${CSS.escape(next.value)}"]`) as HTMLElement | null)?.focus();
                   }
                 }}
-                data-rule={r.objectId || undefined}
-                data-ai-id={`${aiBase}.rule.${r.objectId || r.value}`}
+                data-rule={ok ? r.value : undefined}
+                data-ai-id={`${aiBase}.rule.${r.value}`}
               >
                 <span className="sx-rk-row__dot" aria-hidden="true" />
                 <span className="sx-rk-row__ic" aria-hidden="true">
@@ -128,7 +132,7 @@ function RuleList({ state, rules, idPrefix, aiBase, invalid, describedBy }: { st
                 <span className="sx-rk-row__t">
                   <strong>{r.title || t("sx.ui.untitled")}</strong>
                   <span className="sx-rk-row__meta">
-                    {r.version ? <span className="sx-rk-chip sx-rk-chip--v">v{r.version}</span> : null}
+                    {r.version ? <span className="sx-rk-chip sx-rk-chip--v">{ok && r.nextVersion ? `v${r.version} → v${r.nextVersion}` : `v${r.version}`}</span> : null}
                     {r.scope ? <span className="sx-rk-chip">{labels.option(r.scope, { ctor: "K31", field: "scope_type" })}</span> : null}
                     <span className="sx-rk-chip" data-tone={r.published ? "ok" : "draft"}>
                       {r.published ? t("sx.k31kind.published") : t("sx.k31kind.draft")}
@@ -150,7 +154,7 @@ function RuleList({ state, rules, idPrefix, aiBase, invalid, describedBy }: { st
 // What will come out: Rules › (existing rule › v1.0 →) the new one.
 function RulePath({ state, rules }: { state: ChoiceState; rules: readonly RuleTwin[] | null }): ReactElement {
   const t = useTranslations("studio");
-  const base = state.kind === "version" ? (rules ?? []).find((r) => r.objectId === state.rule) : undefined;
+  const base = state.kind === "version" ? (rules ?? []).find((r) => r.value === state.rule && r.published) : undefined;
   const sep = glyph(ChevronRightIcon, { size: 14, className: "sx-ck-path__sep" });
   return (
     <div className="sx-ck-path" data-kind={state.kind || undefined} aria-live="polite">
@@ -167,7 +171,7 @@ function RulePath({ state, rules }: { state: ChoiceState; rules: readonly RuleTw
         <li className="sx-ck-path__node is-new">
           {sep}
           {glyph(state.kind === "version" ? GitBranchIcon : SparklesIcon, { size: 14 })}
-          <span>{state.kind === "version" ? t("sx.k31kind.newVersion") : state.kind === "new" ? t("sx.k31kind.newRule") : t("sx.k31kind.newAny")}</span>
+          <span>{state.kind === "version" ? (base?.nextVersion ? t("sx.k31kind.newVersionN", { v: base.nextVersion }) : t("sx.k31kind.newVersion")) : state.kind === "new" ? t("sx.k31kind.newRule") : t("sx.k31kind.newAny")}</span>
         </li>
       </ol>
     </div>
@@ -220,35 +224,17 @@ function RuleKindFields({ idPrefix, state, aiBase, rules }: { idPrefix: string; 
   );
 }
 
-// Makes the choice happen: the empty form, or the copied draft.
+// Makes the choice happen: the create form, empty or for the chosen rule.
 function useRuleGo(base: string, replace: boolean) {
-  const t = useTranslations("studio");
   const router = useRouter();
   const rules = useRuleList(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
   const go = async (state: ChoiceState) => {
     if (busy || !state.check()) return;
-    setError("");
-    if (state.kind === "new") {
-      setBusy(true);
-      (replace ? router.replace : router.push)(ruleNewHref(base));
-      return;
-    }
-    const from = (rules ?? []).find((r) => r.objectId === state.rule);
-    if (!from) return;
     setBusy(true);
-    try {
-      const copy = await cloneStudioObject(studioObjectAction(from.objectId, "clone"), from.title);
-      if (!copy.id) throw new Error("no_id");
-      (replace ? router.replace : router.push)(`/admin/studio/o/${enc(copy.id)}?focus=version`);
-    } catch (e) {
-      logApiError("studio.sx.k31kind.clone", e);
-      setError(errDetail(e) || t("sx.k31kind.cloneError"));
-      setBusy(false);
-    }
+    (replace ? router.replace : router.push)(ruleKindHref(base, state.kind === "version" ? "version" : "new", state.rule));
   };
-  return { rules, busy, error, go };
+  return { rules, busy, go };
 }
 
 function RuleKindDialog({ base, label, aiId, onClose }: { base: string; label: string; aiId: string; onClose: () => void }): ReactElement {
@@ -283,11 +269,6 @@ function RuleKindDialog({ base, label, aiId, onClose }: { base: string; label: s
     >
       <form id={formId} className="sx-dlg__form sx-ck" onSubmit={submit} noValidate>
         <RuleKindFields idPrefix="sx-rk-dlg" state={state} aiBase={modalAi} rules={run.rules} />
-        {run.error ? (
-          <p className="sx-rk-err" role="alert">
-            {run.error}
-          </p>
-        ) : null}
       </form>
     </SxDialog>
   );
@@ -343,11 +324,6 @@ export function RuleKindGate({ base, listHref, listLabel }: { base: string; list
       <form className="sx-ck sx-ck--page" onSubmit={submit} noValidate>
         <p className="sx-ck__lead">{t("sx.k31kind.lead")}</p>
         <RuleKindFields idPrefix="sx-rk-page" state={state} aiBase={ai} rules={run.rules} />
-        {run.error ? (
-          <p className="sx-rk-err" role="alert">
-            {run.error}
-          </p>
-        ) : null}
         <div className="sx-ck__acts">
           <SxLinkButton variant="secondary" href={listHref} aiId={`${ai}.cancel`}>
             {t("sx.ui.cancel")}
@@ -362,19 +338,92 @@ export function RuleKindGate({ base, listHref, listLabel }: { base: string; list
 }
 
 // Shown above a new rule's form: what is being made, and a way back to the
-// choice.
-export function RuleKindBar({ base }: { base: string }): ReactElement {
+// choice. A new version names the rule it continues and the number the
+// backend will give it.
+export function RuleKindBar({ base, fromId = "" }: { base: string; fromId?: string }): ReactElement {
   const t = useTranslations("studio");
+  const rules = useRuleList(!!fromId);
+  const hit = fromId ? (rules ?? []).find((r) => r.value === fromId && r.published) : undefined;
+  const from = fromId ? { title: hit?.title ?? "…", version: hit?.version ?? "", nextVersion: hit?.nextVersion ?? "" } : null;
   return (
-    <p className="sx-ck-bar" data-kind="new">
-      <span className="sx-ck-bar__icon">{glyph(SparklesIcon, { size: 16 })}</span>
+    <p className="sx-ck-bar" data-kind={from ? "version" : "new"}>
+      <span className="sx-ck-bar__icon">{glyph(from ? GitBranchIcon : SparklesIcon, { size: 16 })}</span>
       <span className="sx-ck-bar__text">
-        <strong>{t("sx.k31kind.new")}</strong>
-        <span>{t("sx.k31kind.newBar")}</span>
+        <strong>{from ? t("sx.k31kind.versionBarTitle", { name: from.title }) : t("sx.k31kind.new")}</strong>
+        <span>{from ? (from.nextVersion ? t("sx.k31kind.versionBar", { from: from.version || "—", to: from.nextVersion }) : t("sx.k31kind.versionBarNoN")) : t("sx.k31kind.newBar")}</span>
       </span>
       <Link href={base} className="sx-ck-bar__change" data-ai-id="admin.studio.editor.rule-kind.change" data-ai-type="link">
         {t("sx.k31kind.change")}
       </Link>
     </p>
+  );
+}
+
+// A new version's form starts from the published rule it continues, as the
+// backend lists it (/studio/reference/service-rules): its text, audience,
+// scope and options, its key, and the next version number the backend gives
+// it — shown, never worked out here (the backend sets it again on save).
+const RULE_FIELDS = ["title", "body", "audience", "scope_type", "seller_selectable"] as const;
+
+function versionStartOf(value: string, raw: Record<string, unknown>): SxPayload {
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "");
+  const out: SxPayload = { creation_mode: "new_version", existing_rule_id: value };
+  for (const k of RULE_FIELDS) if (raw[k] !== undefined && raw[k] !== null && raw[k] !== "") out[k] = raw[k];
+  const scope = str(raw.scope_type);
+  if (scope === "service" && str(raw.service_id || raw.scope_id)) out.service_id = str(raw.service_id || raw.scope_id);
+  if (scope === "category" && str(raw.category_id || raw.scope_id)) out.category_id = str(raw.category_id || raw.scope_id);
+  if (str(raw.rule_key)) out.rule_key = str(raw.rule_key);
+  if (str(raw.next_version)) out.version = str(raw.next_version);
+  return out;
+}
+
+export function RuleVersionStart({ from, gate, render }: { from: string; gate: string; render: (start: SxPayload) => ReactElement }): ReactElement {
+  const t = useTranslations("studio");
+  const [start, setStart] = useState<SxPayload | "missing" | "failed" | null>(null);
+  const [round, setRound] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    getStudioReference(RULE_SOURCE, "", 100).then(
+      (items) => {
+        const hit = items.find((x) => x.value === from || x.id === from);
+        if (alive) setStart(hit ? versionStartOf(hit.value || hit.id, hit.raw) : "missing");
+      },
+      (e: unknown) => {
+        logApiError("studio.sx.k31kind.from", e);
+        if (alive) setStart("failed");
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [from, round]);
+  if (start && typeof start === "object") return render(start);
+  const ai = "admin.studio.editor.rule-version";
+  return (
+    <SxPage title={t("sx.k31kind.version")} section="home" crumbs={[{ label: t("sx.k31kind.rules"), href: "/admin/studio/c/K31" }, { label: t("sx.k31kind.version") }]} aiId={ai}>
+      {start === null ? (
+        <div className="sx-rk-list" aria-busy="true">
+          {Array.from({ length: 3 }, (_, i) => (
+            <span key={i} className="sx-rk-row sx-rk-row--ghost" />
+          ))}
+        </div>
+      ) : (
+        <div className="sx-ck sx-ck--page">
+          <SxNote tone="warn" role="alert">
+            {t(start === "missing" ? "sx.k31kind.fromGone" : "sx.k31kind.fromFailed")}
+          </SxNote>
+          <div className="sx-ck__acts">
+            {start === "failed" ? (
+              <SxButton variant="secondary" onClick={() => (setStart(null), setRound((n) => n + 1))} aiId={`${ai}.retry`}>
+                {t("sx.k31kind.retry")}
+              </SxButton>
+            ) : null}
+            <SxLinkButton variant="primary" href={gate} aiId={`${ai}.pick`}>
+              {t("sx.k31kind.pickAgain")}
+            </SxLinkButton>
+          </div>
+        </div>
+      )}
+    </SxPage>
   );
 }

@@ -729,7 +729,9 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     access,
     hasObject: Boolean(id && detail),
     versions: detail?.versions.length ?? 0,
-    newVersion: Boolean(layout.newVersion),
+    // A rule's next version continues a published rule (existing_rule_id), so
+    // a rule that has never been published has none to offer.
+    newVersion: Boolean(layout.newVersion) && (code.toUpperCase() !== "K31" || !!recordId),
     lifecycle,
     reviewEdit: editInReview,
     reviewNeedsPermission: reviewOpt && reviewing && !editInReview && access.canReview,

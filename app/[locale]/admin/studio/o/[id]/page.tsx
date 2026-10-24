@@ -26,7 +26,7 @@ export default async function AdminStudioObjectPage({ params, searchParams }: Pr
   if (move) redirect({ href: retiredGroupHref(move), locale });
   return (
     <RetiredObjectGuard id={objectId} newCode={newCode}>
-      <Editor id={objectId} newCode={newCode} ctx={first(sp.ctx)} focus={focus || undefined} categoryKind={categoryKind} ruleNew={first(sp.rule) === "new"} prefill={categoryKind === "sub" && parent ? { parent_id: parent } : undefined} />
+      <Editor id={objectId} newCode={newCode} ctx={first(sp.ctx)} focus={focus || undefined} categoryKind={categoryKind} ruleKind={first(sp.rule) === "new" || first(sp.rule) === "version" ? (first(sp.rule) as "new" | "version") : undefined} ruleFrom={first(sp.from)} prefill={categoryKind === "sub" && parent ? { parent_id: parent } : undefined} />
     </RetiredObjectGuard>
   );
 }

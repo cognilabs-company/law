@@ -33,6 +33,7 @@ import { useStudioLabels } from "../useStudioLabels";
 import { useCategoryTitle } from "./categoryOptions";
 import { DiscoveryTerms } from "./DiscoveryTerms";
 import { RuleTwinNote } from "./RuleTwinNote";
+import { lineageOf } from "./ruleDuplicates";
 import { fieldAudienceOf } from "./audience";
 import { AudienceNote } from "./AudienceNote";
 import { ChecklistEditor } from "./k02/ChecklistEditor";
@@ -510,6 +511,7 @@ function SchemaFieldImpl({ node, path, scope, inBoard = false }: { node: SchemaF
       <RuleTwinNote
         title={value}
         self={upper === "K31" ? [env.recordId] : []}
+        lineage={upper === "K31" ? lineageOf(root) : null}
         aiId={aiId(ai, "twin")}
         action={
           inlineRule

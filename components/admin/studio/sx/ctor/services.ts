@@ -105,17 +105,31 @@ export const K34_LAYOUT: SxCtorLayout = {
   ],
 };
 
+const isNewVersion = (root: SxValues): boolean => root.creation_mode === "new_version";
+
 export const K31_LAYOUT: SxCtorLayout = {
   code: "K31",
   sections: [
-    { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "rule_key", "version", "scope_type", "service_id", "category_id", "effective_at", "seller_selectable"] },
+    { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["existing_rule_id", "title", "rule_key", "version", "scope_type", "service_id", "category_id", "effective_at", "seller_selectable"] },
     { id: "kontent", titleKey: "sx.section.kontent", fields: ["body"] },
     { id: "faollik_va_muddat", titleKey: "sx.section.faollik_va_muddat", fields: ["is_active"] },
   ],
   fields: [
+    // "New rule" or "new version" is answered before the form opens (see
+    // shared/RuleKind); the rule a new version continues is shown, and
+    // changed from the bar above the form.
+    { path: "creation_mode", hidden: true },
+    { path: "existing_rule_id", locked: () => "sx.k31.fromLocked" },
     { path: "title", placeholder: "sx.ph.K31__title" },
-    { path: "rule_key", control: "mono", placeholder: "sx.ph.K31__rule_key", help: "sx.help.K31__rule_key", locked: (ctx) => (ctx.recordId ? "sx.k31.ruleKeyLocked" : false) },
-    { path: "version", placeholder: "sx.ph.K31__version", help: "sx.help.K31__version" },
+    { path: "rule_key", control: "mono", placeholder: "sx.ph.K31__rule_key", help: "sx.help.K31__rule_key", locked: (ctx) => (ctx.recordId || isNewVersion(ctx.root) ? "sx.k31.ruleKeyLocked" : false) },
+    // The backend numbers every version (next_version); the form only shows it.
+    {
+      path: "version",
+      placeholder: false,
+      help: "sx.help.K31__version",
+      visible: (ctx) => isNewVersion(ctx.root) || (!!ctx.recordId && !!ctx.root.version),
+      locked: (ctx) => (isNewVersion(ctx.root) ? "sx.k31.versionAuto" : "sx.k31.versionKept"),
+    },
     {
       path: "scope_type",
       control: "choices",
@@ -130,7 +144,7 @@ export const K31_LAYOUT: SxCtorLayout = {
     { path: "effective_at", control: "datetime" },
     { path: "body", control: "richtext", help: false },
   ],
-  newVersion: { focus: "version" },
+  newVersion: { focus: "body" },
 };
 
 export const K32_LAYOUT: SxCtorLayout = {

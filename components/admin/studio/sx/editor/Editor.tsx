@@ -24,9 +24,9 @@ import { useLeaveGuard, type LeaveGuard } from "./useLeaveGuard";
 import { useCtorVisit } from "../home/ctorUsage";
 import type { CategoryKind } from "../ctor/services";
 import { CategoryKindBar, CategoryKindGate } from "../shared/CategoryKind";
-import { RuleKindBar, RuleKindGate } from "../shared/RuleKind";
+import { RuleKindBar, RuleKindGate, RuleVersionStart, ruleKindHref } from "../shared/RuleKind";
 
-export type EditorProps = { id: string; newCode: string; ctx: string; focus?: string; prefill?: Readonly<Record<string, string>>; categoryKind?: CategoryKind; ruleNew?: boolean };
+export type EditorProps = { id: string; newCode: string; ctx: string; focus?: string; prefill?: Readonly<Record<string, string>>; categoryKind?: CategoryKind; ruleKind?: "new" | "version"; ruleFrom?: string };
 
 type DrawerState = { open: boolean; tab: EditorTab | null };
 
@@ -191,7 +191,10 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
         else guard.go(st.cloneHref());
         return;
       case "newVersion":
-        setDialog({ kind: "clone", newVersion: true });
+        // A rule's next version is a new record that continues the
+        // published one (creation_mode new_version), not a copy of it.
+        if (st.code.toUpperCase() === "K31" && st.recordId) guard.go(ruleKindHref(newRuleBase(""), "version", st.recordId));
+        else setDialog({ kind: "clone", newVersion: true });
         return;
       case "archive":
         void confirmArchive(st, tr);
@@ -274,7 +277,7 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
       below={
         <>
           {st.categoryKind ? <CategoryKindBar kind={st.categoryKind} base={newCategoryBase(init.ctx ?? "")} /> : null}
-          {st.mode === "create" && init.code.toUpperCase() === "K31" ? <RuleKindBar base={newRuleBase(init.ctx ?? "")} /> : null}
+          {st.mode === "create" && init.code.toUpperCase() === "K31" ? <RuleKindBar base={newRuleBase(init.ctx ?? "")} fromId={typeof st.payload.existing_rule_id === "string" && st.payload.creation_mode === "new_version" ? st.payload.existing_rule_id : ""} /> : null}
           <EditorBelow st={st} narrow={narrow} onAlertAction={onAlertAction} />
         </>
       }
@@ -307,13 +310,16 @@ const newRuleBase = (ctx: string): string => `/admin/studio/o/new?new=K31${ctx ?
 // The plain "new category" link, before a kind is chosen.
 const newCategoryBase = (ctx: string): string => `/admin/studio/o/new?new=K01${ctx ? `&ctx=${encodeURIComponent(ctx)}` : ""}`;
 
-export function Editor({ id, newCode, ctx, focus, prefill, categoryKind, ruleNew }: EditorProps): ReactElement {
+export function Editor({ id, newCode, ctx, focus, prefill, categoryKind, ruleKind, ruleFrom = "" }: EditorProps): ReactElement {
   const labels = useStudioLabels();
   const fresh = ctxModeOf(ctx) === "" || ctxModeOf(ctx) === "create";
   const category = !!newCode && newCode.toUpperCase() === "K01" && fresh;
+  const rule = !!newCode && newCode.toUpperCase() === "K31" && fresh;
   if (category && !categoryKind) return <CategoryKindGate base={newCategoryBase(ctx)} listHref="/admin/studio/c/K01" listLabel={labels.ctorName("K01")} />;
-  if (!!newCode && newCode.toUpperCase() === "K31" && fresh && !ruleNew) return <RuleKindGate base={newRuleBase(ctx)} listHref="/admin/studio/c/K31" listLabel={labels.ctorName("K31")} />;
+  if (rule && (!ruleKind || (ruleKind === "version" && !ruleFrom))) return <RuleKindGate base={newRuleBase(ctx)} listHref="/admin/studio/c/K31" listLabel={labels.ctorName("K31")} />;
+  if (rule && ruleKind === "version") return <RuleVersionStart key={ruleFrom} from={ruleFrom} gate={newRuleBase(ctx)} render={(start) => <EditorScreen key={`new:K31:version:${ruleFrom}`} init={{ code: newCode, id: null, ctx, focus: focus ?? "body", initialPayload: start }} />} />;
   const kind = category ? categoryKind : undefined;
-  const init: EditorInit = newCode ? { code: newCode, id: null, ctx, focus, initialPayload: prefill ? { ...prefill } : undefined, categoryKind: kind } : { code: "", id, focus };
+  const ruleStart = rule ? { creation_mode: "new" } : undefined;
+  const init: EditorInit = newCode ? { code: newCode, id: null, ctx, focus, initialPayload: prefill || ruleStart ? { ...ruleStart, ...prefill } : undefined, categoryKind: kind } : { code: "", id, focus };
   return <EditorScreen key={newCode ? `new:${newCode}:${ctx}:${kind ?? ""}:${prefill ? JSON.stringify(prefill) : ""}` : `id:${id}`} init={init} />;
 }

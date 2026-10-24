@@ -24,7 +24,9 @@ export function normRuleTitle(raw: unknown): string {
 
 // One existing rule, published or still a Studio draft. `value` is what a
 // rule picker stores for it: the published id, or the draft's object id.
-export type RuleTwin = { value: string; objectId: string; title: string; version: string; status: string; scope: string; published: boolean };
+// `ruleKey` names its lineage (every version of one rule shares it) and
+// `nextVersion` is the number the backend gives that lineage's next version.
+export type RuleTwin = { value: string; objectId: string; title: string; version: string; status: string; scope: string; published: boolean; ruleKey?: string; nextVersion?: string };
 
 type Store = { at: number; rules: readonly RuleTwin[] | null; loading: Promise<void> | null };
 const TTL_MS = 60 * 1000;
@@ -36,7 +38,7 @@ const str = (v: unknown): string => (typeof v === "string" ? v.trim() : typeof v
 
 function publishedOf(it: StudioReferenceItem): RuleTwin {
   const r = it.raw;
-  return { value: it.value, objectId: "", title: str(r.title) || it.label, version: str(r.version), status: "published", scope: str(r.scope_type), published: true };
+  return { value: it.value, objectId: "", title: str(r.title) || it.label, version: str(r.version), status: "published", scope: str(r.scope_type), published: true, ruleKey: str(r.rule_key), nextVersion: str(r.next_version) };
 }
 
 async function load(): Promise<void> {
@@ -59,7 +61,7 @@ async function load(): Promise<void> {
       continue;
     }
     const p = asDict(asDict(o.raw.current_version).payload);
-    out.push({ value: o.id, objectId: o.id, title: o.title || str(p.title), version: str(p.version), status, scope: str(p.scope_type), published: false });
+    out.push({ value: o.id, objectId: o.id, title: o.title || str(p.title), version: str(p.version), status, scope: str(p.scope_type), published: false, ruleKey: str(p.rule_key) });
   }
   store.rules = out;
   store.at = Date.now();
@@ -94,12 +96,22 @@ export function useRuleList(enabled: boolean): readonly RuleTwin[] | null {
   );
 }
 
+// The rule a new version continues (creation_mode new_version): keeping
+// that rule's name, or any name its earlier versions had, is no clash.
+export type RuleLineage = { id: string; key: string };
+export function lineageOf(payload: SxValues): RuleLineage | null {
+  if (str(payload.creation_mode) !== "new_version") return null;
+  const id = str(payload.existing_rule_id);
+  return id ? { id, key: str(payload.rule_key) } : null;
+}
+
 // Rules other than this one whose name matches `title` once normalised.
-export function twinsOf(rules: readonly RuleTwin[] | null, title: unknown, self: readonly string[] = []): RuleTwin[] {
+export function twinsOf(rules: readonly RuleTwin[] | null, title: unknown, self: readonly string[] = [], lineage: RuleLineage | null = null): RuleTwin[] {
   const want = normRuleTitle(title);
   if (!want || !rules) return [];
-  const mine = new Set(self.filter(Boolean));
-  return rules.filter((r) => !mine.has(r.value) && !(r.objectId && mine.has(r.objectId)) && normRuleTitle(r.title) === want);
+  const mine = new Set([...self, lineage?.id ?? ""].filter(Boolean));
+  const keys = new Set([lineage?.key ?? "", ...rules.filter((r) => lineage && r.value === lineage.id).map((r) => r.ruleKey ?? "")].filter(Boolean));
+  return rules.filter((r) => !mine.has(r.value) && !(r.objectId && mine.has(r.objectId)) && !(r.ruleKey && keys.has(r.ruleKey)) && normRuleTitle(r.title) === want);
 }
 
 // The names a save would duplicate, as field errors: a K31 rule against the
@@ -109,7 +121,7 @@ export function ruleDuplicateErrors(code: string, payload: SxValues, self: reado
   const out: Record<string, string> = {};
   const c = code.toUpperCase();
   if (c === "K31") {
-    if (twinsOf(rules, payload.title, self).length) out.title = RULE_TITLE_DUPLICATE;
+    if (twinsOf(rules, payload.title, self, lineageOf(payload)).length) out.title = RULE_TITLE_DUPLICATE;
     return out;
   }
   if (c !== "K02" || !Array.isArray(payload.inline_rules)) return out;
