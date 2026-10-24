@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState, type Keyboard
 import { useLocale, useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";
 import { usePaged, type Page } from "@/lib/usePaged";
-import { isAborted, isConflict, isRouteMissing } from "@/lib/http";
+import { isAborted, isConflict, isForbidden, isRouteMissing } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { usePoll, useSupportEvents } from "@/lib/useSupportEvents";
 import { useAiReveal } from "@/lib/guide/targets";
@@ -31,7 +31,7 @@ import type { AssistCapabilities } from "@/lib/services/supportAssist";
 import { shortDateTime } from "@/lib/date";
 import Modal from "@/components/admin/Modal";
 import FieldError from "@/components/ui/FieldError";
-import { ErrorState } from "@/components/portal/DataState";
+import { EmptyState, ErrorState } from "@/components/portal/DataState";
 import { IconChat, IconChevronLeft, IconClock, IconHeadset, IconInbox, IconLock, IconRefresh, IconSearch } from "@/components/icons";
 import SupportChat from "./SupportChat";
 import AssistPanel from "./assist/AssistPanel";
@@ -445,6 +445,15 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
           : null
       : null;
 
+  // Without the support-operator role the queue cannot open at all: one
+  // calm card instead of an error beside an empty chat pane.
+  if (list.status === "error" && isForbidden(list.error)) {
+    return (
+      <div className="sup sup--queue">
+        <EmptyState icon={<IconHeadset />} title={t("noAccessTitle")} text={t("noAccessText")} />
+      </div>
+    );
+  }
   return (
     <div className={`sup sup--queue${selectedId ? " sup--open" : ""}`}>
       <div className="supq">

@@ -4,6 +4,9 @@ import "./experienceReview.css";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
+import { IconAward } from "@/components/icons";
+import QueueHead from "./QueueHead";
+import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import { categoryName } from "@/lib/categoryNames";
 import { dateOnly } from "@/lib/date";
 import { errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
@@ -95,13 +98,23 @@ export function ExperienceQueue({ onCount }: { onCount?: (n: number) => void }):
 
   if (denied) return null;
   return (
-    <div className="ppanel xpr" data-ai-target="callcenter:experience">
-      <div className="ppanel__h">
-        <b>{t("queue")}</b>
-      </div>
-      <p className="ppanel__note">{t("queueLead")}</p>
-      {failed ? <Notice ok={false} msg={t("loadFailed")} /> : null}
-      {items && !items.length ? <p className="ppanel__note">{t("queueEmpty")}</p> : null}
+    <section className="ppanel xpr esc" data-ai-target="callcenter:experience">
+      <QueueHead
+        icon={IconAward}
+        title={t("queue")}
+        lead={t("queueLead")}
+        count={items && !failed ? items.length : null}
+        refreshLabel={t("refresh")}
+        onRefresh={() => void load()}
+        aiBase="call_center.experience"
+      />
+      {failed ? (
+        <ErrorState title={t("loadFailed")} onRetry={() => void load()} compact />
+      ) : !items ? (
+        <Skeleton rows={3} />
+      ) : !items.length ? (
+        <EmptyState size="sm" icon={<IconAward />} title={t("queueEmpty")} />
+      ) : null}
       {items?.length ? (
         <ul className="xpr__queue">
           {items.map((it) => (
@@ -125,7 +138,7 @@ export function ExperienceQueue({ onCount }: { onCount?: (n: number) => void }):
           ))}
         </ul>
       ) : null}
-    </div>
+    </section>
   );
 }
 

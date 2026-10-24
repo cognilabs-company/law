@@ -1,6 +1,9 @@
 "use client";
 
 import "./escalations.css";
+import { IconFlag } from "@/components/icons";
+import QueueHead from "./QueueHead";
+import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import { useCallback, useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
@@ -149,7 +152,7 @@ function ResolveDialog({ c, onClose, onDone, onStale }: { c: MpComplaint; onClos
         ) : (
           <p className="esc__muted">{t("noEvidence")}</p>
         )}
-        <span className="esc__up">
+        <span className="esc__up sx">
           <select value={visibility} onChange={(e) => setVisibility(e.target.value === "parties" ? "parties" : "staff")} aria-label={t("visibility")}>
             <option value="staff">{t("vis.staff")}</option>
             <option value="parties">{t("vis.parties")}</option>
@@ -227,7 +230,7 @@ function Row({ c, onResolve }: { c: MpComplaint; onResolve: () => void }): React
             ) : null}
           </dl>
           {c.evidence.length ? (
-            <span className="esc__acts">
+            <span className="esc__acts sx">
               {c.evidence.map((f) => (
                 <SxButton key={f.id} size="sm" variant="secondary" onClick={() => void downloadEvidence(f).catch((e) => logApiError("mpComplaint.download", e))}>
                   {f.fileName || t("file")}
@@ -236,7 +239,7 @@ function Row({ c, onResolve }: { c: MpComplaint; onResolve: () => void }): React
             </span>
           ) : null}
           {c.actions.length ? (
-            <div className="esc__acts">
+            <div className="esc__acts sx">
               <SxButton size="sm" variant="primary" onClick={onResolve} aiId="call_center.mp_complaints.open">
                 {t("resolve")}
               </SxButton>
@@ -257,6 +260,7 @@ export default function MarketplaceComplaints({ onCount }: { onCount?: (n: numbe
   const [denied, setDenied] = useState(false);
   const [acting, setActing] = useState<MpComplaint | null>(null);
   const [done, setDone] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const onCountRef = useRef(onCount);
   useEffect(() => {
     onCountRef.current = onCount;
@@ -294,28 +298,35 @@ export default function MarketplaceComplaints({ onCount }: { onCount?: (n: numbe
 
   if (denied) return null;
   return (
-    <div className="ppanel esc" data-ai-target="callcenter:mp-complaints">
-      <div className="ppanel__h">
-        <b>{t("title")}</b>
-        <select
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setOffset(0);
-          }}
-          aria-label={t("statusFilter")}
-        >
-          {["new", "rework_required", "refund_required", "rejected", "resolved", ""].map((s) => (
-            <option key={s || "all"} value={s}>
-              {s ? t(`status.${s}`) : t("all")}
-            </option>
-          ))}
-        </select>
-      </div>
-      <p className="ppanel__note">{t("lead")}</p>
+    <section className="ppanel esc" data-ai-target="callcenter:mp-complaints">
+      <QueueHead
+        icon={IconFlag}
+        title={t("title")}
+        lead={t("lead")}
+        count={page && !failed ? page.total : null}
+        refreshLabel={t("refresh")}
+        refreshing={refreshing}
+        onRefresh={() => {
+          setRefreshing(true);
+          void load().finally(() => setRefreshing(false));
+        }}
+        aiBase="call_center.mp_complaints"
+        statuses={["new", "rework_required", "refund_required", "rejected", "resolved", ""].map((s) => ({ value: s, label: s ? t(`status.${s}`) : t("all") }))}
+        status={status}
+        onStatus={(v) => {
+          setStatus(v);
+          setOffset(0);
+        }}
+        statusLabel={t("statusFilter")}
+      />
       {done ? <Notice ok msg={done} /> : null}
-      {failed ? <Notice ok={false} msg={t("loadFailed")} /> : null}
-      {page && !page.items.length ? <p className="ppanel__note">{t("empty")}</p> : null}
+      {failed ? (
+        <ErrorState title={t("loadFailed")} onRetry={() => void load()} compact />
+      ) : !page ? (
+        <Skeleton rows={3} />
+      ) : !page.items.length ? (
+        <EmptyState size="sm" icon={<IconFlag />} title={t("empty")} />
+      ) : null}
       {page?.items.length ? (
         <ul className="esc__list">
           {page.items.map((c) => (
@@ -324,7 +335,7 @@ export default function MarketplaceComplaints({ onCount }: { onCount?: (n: numbe
         </ul>
       ) : null}
       {page && page.total > PAGE ? (
-        <div className="esc__pager">
+        <div className="esc__pager sx">
           <SxButton size="sm" variant="secondary" onClick={() => setOffset((n) => Math.max(0, n - PAGE))} disabled={offset === 0}>
             {t("prev")}
           </SxButton>
@@ -350,6 +361,6 @@ export default function MarketplaceComplaints({ onCount }: { onCount?: (n: numbe
           }}
         />
       ) : null}
-    </div>
+    </section>
   );
 }

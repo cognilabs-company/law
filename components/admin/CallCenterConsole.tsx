@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { registerReveal, revealTarget } from "@/lib/guide/targets";
 import { useScrollEdges } from "@/lib/useScrollEdges";
+import "./callcenter/console.css";
 import { IconArrowRight, IconAward, IconBolt, IconCircleX, IconFlag, IconHeadset, IconInbox, IconSearch, IconShield, IconUsers } from "@/components/icons";
 
 export type CcTab = "queue" | "urgent" | "escalations" | "complaints" | "mpComplaints" | "warranty" | "cancellations" | "experience" | "leads" | "clients";
@@ -219,12 +220,13 @@ export function CcTabPanel({ con, tab, children }: { con: CcConsole; tab: CcTab;
 
 export default function CallCenterConsole({ con, children }: { con: CcConsole; children: ReactNode }) {
   const t = useTranslations("admin.callCenter.console");
-  const tc = useTranslations("admin.callCenter");
   const [q, setQ] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
   useScrollEdges(listRef, { silent: true });
   const { active, tabs, counts, select, find, attach } = con;
   const activeCount = active === "leads" || active === "clients" ? undefined : counts[active];
+  // New work across the queues, for the line above the tabs.
+  const waiting = (["urgent", "escalations", "complaints", "mpComplaints", "warranty", "cancellations"] as const).reduce((n, k) => n + (tabs.includes(k) ? (counts[k] ?? 0) : 0), 0);
 
   useEffect(() => {
     const list = listRef.current;
@@ -262,6 +264,13 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
   return (
     <div className="ccon" ref={attach}>
       <div className="ccon__bar">
+        <div className="ccon__top">
+          <p className="ccon__sum" data-calm={waiting ? undefined : ""} role="status">
+            <i aria-hidden="true" />
+            {waiting ? t("waiting", { n: waiting }) : t("calm")}
+          </p>
+          <SearchBox q={q} setQ={setQ} find={find} select={select} />
+        </div>
         <div className="ccon__tabs scue-x" role="tablist" aria-label={t("tabsAria")} ref={listRef}>
           {tabs.map((k) => {
             const Icon = ICON[k];
@@ -289,37 +298,44 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
             );
           })}
         </div>
-        <form
-          className="ccon__search"
-          role="search"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const term = q.trim();
-            if (term) find(term);
-            else select("clients");
-            setQ("");
-          }}
-          data-ai-id="call_center.console.search"
-          data-ai-type="input"
-          data-ai-label={tc("search")}
-        >
-          <IconSearch aria-hidden="true" />
-          <input
-            type="search"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={t("searchPh")}
-            aria-label={t("searchPh")}
-            autoComplete="off"
-            enterKeyHint="search"
-            maxLength={120}
-          />
-          <button type="submit" className="ccon__go" aria-label={tc("searchBtn")} title={tc("searchBtn")}>
-            <IconArrowRight aria-hidden="true" />
-          </button>
-        </form>
       </div>
       {children}
     </div>
+  );
+}
+
+function SearchBox({ q, setQ, find, select }: { q: string; setQ: (v: string) => void; find: (q: string) => void; select: (k: CcTab) => void }) {
+  const t = useTranslations("admin.callCenter.console");
+  const tc = useTranslations("admin.callCenter");
+  return (
+    <form
+      className="ccon__search"
+      role="search"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const term = q.trim();
+        if (term) find(term);
+        else select("clients");
+        setQ("");
+      }}
+      data-ai-id="call_center.console.search"
+      data-ai-type="input"
+      data-ai-label={tc("search")}
+    >
+      <IconSearch aria-hidden="true" />
+      <input
+        type="search"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder={t("searchPh")}
+        aria-label={t("searchPh")}
+        autoComplete="off"
+        enterKeyHint="search"
+        maxLength={120}
+      />
+      <button type="submit" className="ccon__go" aria-label={tc("searchBtn")} title={tc("searchBtn")}>
+        <IconArrowRight aria-hidden="true" />
+      </button>
+    </form>
   );
 }

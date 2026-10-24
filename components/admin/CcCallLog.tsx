@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { isForbidden } from "@/lib/http";
 import { listCcCalls, type CcCall } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { notify } from "@/lib/toast";
@@ -116,6 +117,8 @@ export default function CcCallLog({ reloadKey = 0, loggedPhone = "" }: { reloadK
     void logged.current(loggedPhone);
   }, [reloadKey, loggedPhone]);
 
+  // Not this operator's log: the client search keeps the whole width.
+  if (res.status === "error" && isForbidden(res.error)) return null;
   return (
     <div className="ppanel" data-ai-target="callcenter:call-log">
       <div className="ppanel__h cch">

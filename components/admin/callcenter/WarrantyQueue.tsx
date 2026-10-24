@@ -17,6 +17,9 @@ import { subscribeUserEvents } from "@/lib/userSocket";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import { listWarrantyClaims, resolveWarrantyClaim, type WarrantyClaim, type WarrantyDecision } from "@/lib/services/mpComplaints";
 import { SellerPicker } from "./cancellations/SellerPicker";
+import { IconShield } from "@/components/icons";
+import QueueHead from "./QueueHead";
+import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 
 // The LexGo guarantee queue (enterprise contract §10): a client's claim
 // that the seller did not answer, broke the deadline, dropped or did not
@@ -166,7 +169,7 @@ function Row({ claim, onResolve }: { claim: WarrantyClaim; onResolve: () => void
             ) : null}
           </dl>
           {!settled ? (
-            <div className="esc__acts">
+            <div className="esc__acts sx">
               <SxButton size="sm" variant="primary" onClick={onResolve} aiId="call_center.warranty.open">
                 {t("resolve")}
               </SxButton>
@@ -187,6 +190,7 @@ export default function WarrantyQueue({ onCount }: { onCount?: (n: number) => vo
   const [denied, setDenied] = useState(false);
   const [acting, setActing] = useState<WarrantyClaim | null>(null);
   const [done, setDone] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const onCountRef = useRef(onCount);
   useEffect(() => {
     onCountRef.current = onCount;
@@ -223,28 +227,35 @@ export default function WarrantyQueue({ onCount }: { onCount?: (n: number) => vo
 
   if (denied) return null;
   return (
-    <div className="ppanel esc" data-ai-target="callcenter:warranty">
-      <div className="ppanel__h">
-        <b>{t("title")}</b>
-        <select
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setOffset(0);
-          }}
-          aria-label={t("statusFilter")}
-        >
-          {["new", "resolved", "rejected", ""].map((s) => (
-            <option key={s || "all"} value={s}>
-              {s ? t(`status.${s}`) : t("all")}
-            </option>
-          ))}
-        </select>
-      </div>
-      <p className="ppanel__note">{t("lead")}</p>
+    <section className="ppanel esc" data-ai-target="callcenter:warranty">
+      <QueueHead
+        icon={IconShield}
+        title={t("title")}
+        lead={t("lead")}
+        count={page && !failed ? page.total : null}
+        refreshLabel={t("refresh")}
+        refreshing={refreshing}
+        onRefresh={() => {
+          setRefreshing(true);
+          void load().finally(() => setRefreshing(false));
+        }}
+        aiBase="call_center.warranty"
+        statuses={["new", "resolved", "rejected", ""].map((s) => ({ value: s, label: s ? t(`status.${s}`) : t("all") }))}
+        status={status}
+        onStatus={(v) => {
+          setStatus(v);
+          setOffset(0);
+        }}
+        statusLabel={t("statusFilter")}
+      />
       {done ? <Notice ok msg={done} /> : null}
-      {failed ? <Notice ok={false} msg={t("loadFailed")} /> : null}
-      {page && !page.items.length ? <p className="ppanel__note">{t("empty")}</p> : null}
+      {failed ? (
+        <ErrorState title={t("loadFailed")} onRetry={() => void load()} compact />
+      ) : !page ? (
+        <Skeleton rows={3} />
+      ) : !page.items.length ? (
+        <EmptyState size="sm" icon={<IconShield />} title={t("empty")} />
+      ) : null}
       {page?.items.length ? (
         <ul className="esc__list">
           {page.items.map((c) => (
@@ -253,7 +264,7 @@ export default function WarrantyQueue({ onCount }: { onCount?: (n: number) => vo
         </ul>
       ) : null}
       {page && page.total > PAGE ? (
-        <div className="esc__pager">
+        <div className="esc__pager sx">
           <SxButton size="sm" variant="secondary" onClick={() => setOffset((n) => Math.max(0, n - PAGE))} disabled={offset === 0}>
             {t("prev")}
           </SxButton>
@@ -274,6 +285,6 @@ export default function WarrantyQueue({ onCount }: { onCount?: (n: number) => vo
           }}
         />
       ) : null}
-    </div>
+    </section>
   );
 }

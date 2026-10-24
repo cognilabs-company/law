@@ -1,6 +1,9 @@
 "use client";
 
 import "./escalations.css";
+import { IconArrowRight } from "@/components/icons";
+import QueueHead from "./QueueHead";
+import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import { useCallback, useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
@@ -11,8 +14,9 @@ import { Field } from "@/components/admin/studio/sx/form/Field";
 import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
 import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { shortDateTime } from "@/lib/date";
-import { ApiError, errDetail, isAborted, logApiError } from "@/lib/http";
+import { ApiError, errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
+import { humanize } from "@/lib/labels";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import { escalationClosed, idemKeyFor, idemLost, idemSettle, isResolutionEvent, listAssignmentEscalations, resolveAssignmentEscalation, type AssignmentEscalation, type EscalationAction, type IdemSlot } from "@/lib/services/resolution";
@@ -144,7 +148,7 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
   const o = esc.order;
   const offer = esc.resolution?.offer ?? null;
   const when = (iso: string) => (iso ? shortDateTime(iso, locale) : "");
-  const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : v || "—");
+  const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : humanize(v) || "—");
   return (
     <li className="esc__item" data-open={open || undefined}>
       <button type="button" className="esc__row" aria-expanded={open} onClick={() => setOpen(!open)}>
@@ -221,7 +225,7 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
             </section>
           ) : null}
           {esc.actions.length ? (
-            <div className="esc__acts">
+            <div className="esc__acts sx">
               {esc.actions.map((a) => (
                 <SxButton key={a} size="sm" variant={a === "offer_resolution" ? "primary" : a === "cancel" || a === "full_refund" ? "danger" : "secondary"} onClick={() => onAct(a)} aiId={`call_center.escalations.${a}`}>
                   {t(`action.${a}`)}
@@ -237,10 +241,12 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
   );
 }
 
-export default function EscalationQueue({ onCount }: { onCount?: (n: number) => void }): ReactElement {
+export default function EscalationQueue({ onCount }: { onCount?: (n: number) => void }): ReactElement | null {
   const t = useTranslations("callCenter.escalations");
   const [items, setItems] = useState<AssignmentEscalation[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [denied, setDenied] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [acting, setActing] = useState<{ esc: AssignmentEscalation; action: EscalationAction } | null>(null);
   const [done, setDone] = useState("");
   const onCountRef = useRef(onCount);
@@ -256,6 +262,9 @@ export default function EscalationQueue({ onCount }: { onCount?: (n: number) => 
       onCountRef.current?.(r.total);
     } catch (e) {
       if (isAborted(e)) return;
+      // Not this operator's queue (callcenter_operator_required): the tab
+      // goes away like the other queues it cannot open.
+      if (isForbidden(e)) return setDenied(true);
       logApiError("escalations.list", e);
       setFailed(true);
     }
@@ -272,15 +281,30 @@ export default function EscalationQueue({ onCount }: { onCount?: (n: number) => 
     };
   }, [load]);
 
+  if (denied) return null;
   return (
-    <div className="ppanel esc" data-ai-target="callcenter:escalations">
-      <div className="ppanel__h">
-        <b>{t("title")}</b>
-      </div>
-      <p className="ppanel__note">{t("lead")}</p>
+    <section className="ppanel esc" data-ai-target="callcenter:escalations">
+      <QueueHead
+        icon={IconArrowRight}
+        title={t("title")}
+        lead={t("lead")}
+        count={items && !failed ? items.length : null}
+        refreshLabel={t("refresh")}
+        refreshing={refreshing}
+        onRefresh={() => {
+          setRefreshing(true);
+          void load().finally(() => setRefreshing(false));
+        }}
+        aiBase="call_center.escalations"
+      />
       {done ? <Notice ok msg={done} /> : null}
-      {failed ? <Notice ok={false} msg={t("loadFailed")} /> : null}
-      {items && !items.length ? <p className="ppanel__note">{t("empty")}</p> : null}
+      {failed ? (
+        <ErrorState title={t("loadFailed")} onRetry={() => void load()} compact />
+      ) : !items ? (
+        <Skeleton rows={3} />
+      ) : !items.length ? (
+        <EmptyState size="sm" icon={<IconArrowRight />} title={t("empty")} />
+      ) : null}
       {items?.length ? (
         <ul className="esc__list">
           {items.map((e) => (
@@ -309,6 +333,6 @@ export default function EscalationQueue({ onCount }: { onCount?: (n: number) => 
           }}
         />
       ) : null}
-    </div>
+    </section>
   );
 }
