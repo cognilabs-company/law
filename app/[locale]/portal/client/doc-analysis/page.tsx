@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import {
@@ -13,6 +13,7 @@ import {
   type DocQuoteInput,
 } from "@/lib/services/backend";
 import { fmtUzs } from "@/lib/money";
+import { acceptFor, docRuntimeSettings } from "@/lib/services/documentSettings";
 import { ApiError, errDetail, logApiError } from "@/lib/http";
 import { IconFileText, IconAlert, IconCheck, IconSparkle, IconShieldCheck, IconArrowRight } from "@/components/icons";
 
@@ -23,8 +24,10 @@ const pagesFor = (text: string) => Math.min(MAX_PAGES, Math.max(1, Math.ceil(tex
 // for the hint shown before the first quote comes back.
 const INCLUDED_PAGES = 10;
 const keyOf = (o: DocQuoteInput) => `${o.pageCount}|${o.ocr}|${o.lawyerReview}|${o.urgent}|${Boolean(o.writtenOpinion)}`;
+// Used until the runtime settings (GET /document-service-settings/runtime)
+// arrive; those are what the checks below follow.
 const MAX_FILE_MB = 20;
-const FILE_TYPES = ".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain";
+const FORMATS = ["pdf", "docx", "txt"];
 
 export default function ClientDocAnalysis() {
   const t = useTranslations("portal.client.docAnalysis");
@@ -54,6 +57,16 @@ export default function ClientDocAnalysis() {
   // very file that was analysed, with the page count the analysis measured.
   const [handOff, setHandOff] = useState<"" | "busy" | "sent" | "failed">("");
   const [handOffNote, setHandOffNote] = useState("");
+  const [limits, setLimits] = useState({ maxMb: MAX_FILE_MB, formats: FORMATS, included: INCLUDED_PAGES });
+  useEffect(() => {
+    let alive = true;
+    void docRuntimeSettings().then((s) => {
+      if (alive && s) setLimits({ maxMb: s.maxFileMb || MAX_FILE_MB, formats: s.allowedFormats.length ? s.allowedFormats : FORMATS, included: s.includedPages || INCLUDED_PAGES });
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const typedPages = Number(pagesInput);
   const pageCount = pagesInput && Number.isInteger(typedPages) ? typedPages : pagesFor(text);
@@ -65,8 +78,9 @@ export default function ClientDocAnalysis() {
   function pickFile(f: File | null) {
     setFileErr("");
     if (!f) { setFile(null); return; }
-    if (f.size > MAX_FILE_MB * 1024 * 1024) { setFile(null); setFileErr(t("fileTooBig", { mb: MAX_FILE_MB })); return; }
-    if (!/\.(pdf|docx|txt)$/i.test(f.name)) { setFile(null); setFileErr(t("fileType")); return; }
+    if (f.size > limits.maxMb * 1024 * 1024) { setFile(null); setFileErr(t("fileTooBig", { mb: limits.maxMb })); return; }
+    const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+    if (!limits.formats.includes(ext)) { setFile(null); setFileErr(t("fileTypeOf", { list: limits.formats.map((x) => x.toUpperCase()).join(", ") })); return; }
     setFile(f);
   }
 
@@ -159,9 +173,9 @@ export default function ClientDocAnalysis() {
           ) : null}
           <label className="btn btn--line btn--sm docf__pick">
             {file ? t("fileChange") : t("fileUpload")}
-            <input type="file" hidden accept={FILE_TYPES} onChange={(e) => { pickFile(e.target.files?.[0] ?? null); e.target.value = ""; }} />
+            <input type="file" hidden accept={acceptFor(limits.formats)} onChange={(e) => { pickFile(e.target.files?.[0] ?? null); e.target.value = ""; }} />
           </label>
-          {file ? <button type="button" className="rf__link rf__link--muted" onClick={() => pickFile(null)}>{t("fileRemove")}</button> : <small className="advmuted">{t("fileHint", { mb: MAX_FILE_MB })}</small>}
+          {file ? <button type="button" className="rf__link rf__link--muted" onClick={() => pickFile(null)}>{t("fileRemove")}</button> : <small className="advmuted">{t("fileHint", { mb: limits.maxMb })}</small>}
         </div>
         {fileErr ? <p className="docq__err">{fileErr}</p> : null}
 
@@ -186,7 +200,7 @@ export default function ClientDocAnalysis() {
         {!pagesOk ? <p className="docq__err">{t("pagesRange", { max: MAX_PAGES })}</p> : null}
         {/* Said before the quote is fetched, not after: the page count is the
             one input the client can still change cheaply. */}
-        {pagesOk && pageCount > INCLUDED_PAGES ? <p className="docq__hint">{t("extraPagesHint", { n: INCLUDED_PAGES })}</p> : null}
+        {pagesOk && pageCount > limits.included ? <p className="docq__hint">{t("extraPagesHint", { n: limits.included })}</p> : null}
 
         {fresh ? (
           <div className="oquote" style={{ marginBottom: 12 }} data-ai-target="doc-analysis:quote">

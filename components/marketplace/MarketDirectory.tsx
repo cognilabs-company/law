@@ -17,7 +17,7 @@ import { hasRating, sellerTypeLabel, specLabel } from "./bits";
 import { useAiField, useAiSelection } from "@/lib/ai/registry";
 import PromotionSurfaces from "./PromotionSurfaces";
 import SellerCard from "./SellerCard";
-import { listActivePromotions } from "@/lib/services/promotions";
+import { PROMOTIONS_CHANGED, listActivePromotions } from "@/lib/services/promotions";
 import type { DirectoryPreview } from "@/lib/marketPreview";
 import { DEFAULT_NEARBY_RADIUS, modeOf, radiusOf, writeNearbyParams, type NearbyMode } from "@/lib/services/marketDiscovery";
 import type { NearbyRadius } from "@/lib/services/marketRuntime";
@@ -176,11 +176,17 @@ export default function MarketDirectory({
       });
   }, [reload]);
 
+  const [promoTick, setPromoTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setPromoTick((n) => n + 1);
+    window.addEventListener(PROMOTIONS_CHANGED, bump);
+    return () => window.removeEventListener(PROMOTIONS_CHANGED, bump);
+  }, []);
   useEffect(() => {
     const c = new AbortController();
     listActivePromotions({ placement: "banner", limit: 5 }, c.signal).then((rows) => { if (!c.signal.aborted) setActiveBanners(rows); }).catch(() => {});
     return () => c.abort();
-  }, [reload]);
+  }, [reload, promoTick]);
 
   useEffect(() => {
     if (!service) return;

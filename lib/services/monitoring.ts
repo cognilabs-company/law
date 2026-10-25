@@ -175,8 +175,10 @@ export async function getMonitoringOverview(range: { from?: string; to?: string 
   return overviewOf(await http(`/admin/monitoring/overview${rangeQuery(range)}`, { signal }));
 }
 
-export async function getMonitoringIntegration(key: string, signal?: AbortSignal): Promise<MonIntegration & { raw: Dict }> {
-  const d = asDict(await http(`/admin/monitoring/integrations/${encodeURIComponent(key)}`, { signal }));
+// The default answer is briefly cached by the backend; `refresh` asks for
+// a live check and is only for an explicit "check now" (2026-10-24 §7).
+export async function getMonitoringIntegration(key: string, signal?: AbortSignal, refresh = false): Promise<MonIntegration & { raw: Dict }> {
+  const d = asDict(await http(`/admin/monitoring/integrations/${encodeURIComponent(key)}${refresh ? "?refresh=true" : ""}`, { signal }));
   const own = asDict(d.integration ?? d);
   return { ...integrationOf(own), raw: d };
 }

@@ -112,3 +112,26 @@ export function docSettingsIssues(s: DocSettings): Record<string, string> {
   });
   return out;
 }
+
+// The runtime settings for client-side checks, read once per page load;
+// the backend's own validation stays final (2026-10-24 §9).
+let runtimeCache: Promise<DocSettings | null> | null = null;
+export function docRuntimeSettings(): Promise<DocSettings | null> {
+  runtimeCache ??= getDocSettingsRuntime().then(
+    (r) => r.settings,
+    () => {
+      runtimeCache = null;
+      return null;
+    },
+  );
+  return runtimeCache;
+}
+
+const MIME_OF: Record<string, string> = {
+  pdf: "application/pdf",
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  txt: "text/plain",
+};
+// An <input accept> value for the given extensions.
+export const acceptFor = (formats: readonly string[]): string => formats.flatMap((f) => [`.${f}`, MIME_OF[f] ?? ""]).filter(Boolean).join(",");

@@ -190,7 +190,8 @@ export function normPromotionSurface(v: unknown): MarketPromotionSurface {
       ? {
           rating: asNum(profile.rating),
           reviews: asNum(profile.reviews_count),
-          verified: profile.is_verified === true || asStr(profile.verification_status) === "approved",
+          // Public payloads carry only is_verified / lexgo_verified (2026-10-24).
+          verified: profile.is_verified === true || profile.lexgo_verified === true,
           type: asStr(profile.seller_type ?? profile.role ?? seller.role),
           specialization: asStr(profile.specialization ?? asArr(profile.specializations)[0]),
           region: asStr(profile.region),
@@ -758,11 +759,11 @@ export function warrantyResolutions(): Promise<WarrantyResolution[]> {
   return capsCache;
 }
 
-export async function requestOrderWarranty(order: Pick<MarketOrder, "id" | "warranty">, input: { reasonCode: string; reason: string }): Promise<OrderWarranty> {
+export async function requestOrderWarranty(order: Pick<MarketOrder, "id" | "warranty">, input: { reasonCode: string; reason: string; allowMaterialTransfer?: boolean }): Promise<OrderWarranty> {
   const path = order.warranty.url.replace(/^https?:\/\/[^/]+/i, "") || `/marketplace/me/orders/${encodeURIComponent(order.id)}/warranty`;
   // The client says why (`kind`) and in what words; the call center then
   // picks a replacement or a full refund (backend answers 24 Oct 2026 §3).
-  const d = asDict(await http(path, { method: "POST", body: JSON.stringify({ kind: input.reasonCode, reason: input.reason.trim() }) }));
+  const d = asDict(await http(path, { method: "POST", body: JSON.stringify({ kind: input.reasonCode, reason: input.reason.trim(), allow_material_transfer: input.allowMaterialTransfer === true }) }));
   const w = asDict(d.warranty ?? d.claim ?? d);
   return { url: order.warranty.url, status: asStr(w.status).toLowerCase() || "pending", resolution: asStr(w.resolution).toLowerCase(), reason: asStr(w.reason) || input.reason, decision: "" };
 }
@@ -1225,7 +1226,7 @@ export async function requestAdditionalPayment(orderId: string, input: { selecte
 
 export const MARKET_EVENT = "lexgo:marketplace";
 
-export type MarketSignalKind = "paid" | "rejected" | "requested" | "supplemental" | "refund" | "completed" | "started" | "negotiation" | "checklist" | "review" | "rules" | "other";
+export type MarketSignalKind = "paid" | "rejected" | "requested" | "supplemental" | "refund" | "completed" | "started" | "negotiation" | "checklist" | "review" | "rules" | "assigned" | "other";
 
 export type MarketSignal = {
   kind: MarketSignalKind;
@@ -1242,10 +1243,15 @@ export type MarketSignal = {
   outcome?: string;
   groupRoomId?: string;
   amount?: number;
+  // assignment_deadline_soon: minutes the seller has left to answer.
+  minutesLeft?: number;
 };
 
 const SUB_RE = /(requested|approved|rejected|escalated|expired|warning)$/;
 function specialKind(name: string): Pick<MarketSignal, "kind" | "sub"> | null {
+  // A new request for this seller, and its reminders near 20 and 25 minutes.
+  if (/assignment_received$/.test(name)) return { kind: "assigned", sub: "new" };
+  if (/assignment_deadline_soon$/.test(name)) return { kind: "assigned", sub: "soon" };
   if (/additional_payment/.test(name)) return { kind: "supplemental", sub: SUB_RE.exec(name)?.[1] ?? "" };
   if (/refund/.test(name)) return { kind: "refund", sub: SUB_RE.exec(name)?.[1] ?? "" };
   if (/order_completed|order_complete$|_completed$/.test(name)) return { kind: "completed", sub: "" };
@@ -1373,6 +1379,8 @@ export function marketSignalOf(ev: { event: string } & Record<string, unknown>):
       workId: pickStr(srcs, ["work_id"]) || pickIn(srcs, ["purchase_request", "order"], ["work_id"]),
       roomId: pickStr(srcs, ["room_id", "secure_chat_room_id", "chat_room_id"]) || pickIn(srcs, ["chat", "order"], ["room_id", "secure_chat_room_id"]) || (ROOM_RE.exec(chat)?.[1] ?? ""),
       serviceTitle: pickStr(srcs, ["service_title"]) || pickIn(srcs, ["order"], ["service_title"]),
+      deadlineAt: pickStr(srcs, ["acceptance_deadline_at"]) || undefined,
+      minutesLeft: Number(pickStr(srcs, ["minutes_left"])) || undefined,
     };
   }
   if (name !== "notification.created") return null;
@@ -1411,8 +1419,12 @@ export function marketPaymentSignalOf(ev: { event: string } & Record<string, unk
 // seller accepts (the advance waits as "awaiting_seller_acceptance").
 const AWAITING_STATUSES = new Set(["sent_to_seller", "awaiting_seller", "assigned", "seller_assigned"]);
 export function awaitingSeller(o: Pick<MarketOrder, "status" | "paymentStatus"> & { assignment?: MarketOrder["assignment"]; advance?: MarketOrder["advance"] }): boolean {
+  // The backend's assignment state wins: under the 2026-10-24 flow an order
+  // can be paid first and still wait for the seller to accept it.
+  const st = o.assignment?.status ?? "";
+  if (st === "waiting_seller_response" || st === "waiting_seller_acceptance") return true;
   if (o.paymentStatus === "paid") return false;
-  return o.assignment?.status === "waiting_seller_response" || o.advance?.status === "awaiting_seller_acceptance" || AWAITING_STATUSES.has(o.status);
+  return o.advance?.status === "awaiting_seller_acceptance" || AWAITING_STATUSES.has(o.status);
 }
 
 export function isOrderPending(o: Pick<MarketOrder, "status" | "paymentStatus">): boolean {

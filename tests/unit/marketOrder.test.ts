@@ -166,3 +166,16 @@ describe("waiting for the seller to accept (live shape, 24 Oct 2026)", () => {
     expect(p).toMatchObject({ accepting: true, deadlineAt: "2026-10-24T11:36:08Z", advanceAmount: 87974, amount: 879749 });
   });
 });
+
+describe("2026-10-24 assignment contract", () => {
+  it("a paid order still waits for the seller while its assignment says so", () => {
+    expect(awaitingSeller({ status: "sent_to_seller", paymentStatus: "paid", assignment: { status: "waiting_seller_acceptance" } as never })).toBe(true);
+    expect(awaitingSeller({ status: "accepted", paymentStatus: "paid", assignment: { status: "accepted" } as never })).toBe(false);
+  });
+  it("reads assignment events as a new request and a reminder with minutes left", () => {
+    const fresh = marketSignalOf({ event: "marketplace.assignment_received", order_id: "o1", room_id: "r1", acceptance_deadline_at: "2026-10-25T10:30:00Z" });
+    expect(fresh).toMatchObject({ kind: "assigned", sub: "new", orderId: "o1", deadlineAt: "2026-10-25T10:30:00Z" });
+    const soon = marketSignalOf({ event: "marketplace.assignment_deadline_soon", order_id: "o1", acceptance_deadline_at: "2026-10-25T10:30:00Z", minutes_left: 10 });
+    expect(soon).toMatchObject({ kind: "assigned", sub: "soon", minutesLeft: 10 });
+  });
+});

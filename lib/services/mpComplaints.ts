@@ -142,6 +142,7 @@ export type WarrantyClaim = {
   settlement: MpSettlement | null;
   resolutions: WarrantyDecision[];
   createdAt: string;
+  filesConsent: boolean | null;
 };
 
 export function warrantyClaimOf(v: unknown): WarrantyClaim | null {
@@ -167,7 +168,16 @@ export function warrantyClaimOf(v: unknown): WarrantyClaim | null {
     // Rejection is always open to the operator; the claim lists the others.
     resolutions: [...new Set<WarrantyDecision>([...(avail.length ? avail : (["replacement", "full_refund"] as WarrantyDecision[])), "rejected"])],
     createdAt: asStr(d.created_at),
+    filesConsent: consentOf(d),
   };
+}
+
+// Whether the client allowed this order's files to go to a replacement
+// seller; null when the claim does not say (the backend still decides).
+function consentOf(d: Dict): boolean | null {
+  const mt = asDict(d.material_transfer);
+  const v = d.allow_material_transfer ?? d.material_transfer_allowed ?? d.material_transfer_consent ?? mt.allowed ?? mt.client_consent;
+  return typeof v === "boolean" ? v : null;
 }
 
 export async function listWarrantyClaims(opts: { status?: string; offset?: number; limit?: number } = {}, signal?: AbortSignal): Promise<MpPage<WarrantyClaim>> {
@@ -178,8 +188,15 @@ export async function listWarrantyClaims(opts: { status?: string; offset?: numbe
   return { items, total: num(d.total) ?? items.length, hasMore: d.has_more === true };
 }
 
-export async function resolveWarrantyClaim(id: string, input: { resolution: WarrantyDecision; note: string; sellerUserId?: string }): Promise<Dict> {
+export type WarrantyOutcome = { transferred: boolean; files: number | null };
+
+export async function resolveWarrantyClaim(id: string, input: { resolution: WarrantyDecision; note: string; sellerUserId?: string; transferMaterials?: boolean }): Promise<WarrantyOutcome> {
   const body: Dict = { resolution: input.resolution, note: input.note.trim() };
-  if (input.resolution === "replacement") body.seller_user_id = input.sellerUserId;
-  return asDict(await http(`/call-center/marketplace/warranty/${encodeURIComponent(id)}/resolve`, { method: "POST", body: JSON.stringify(body) }));
+  if (input.resolution === "replacement") {
+    body.seller_user_id = input.sellerUserId;
+    body.transfer_materials = input.transferMaterials === true;
+  }
+  const d = asDict(await http(`/call-center/marketplace/warranty/${encodeURIComponent(id)}/resolve`, { method: "POST", body: JSON.stringify(body) }));
+  const mt = asDict(d.material_transfer ?? asDict(d.resolution).material_transfer);
+  return { transferred: mt.authorized === true, files: num(mt.transferred_file_count) };
 }

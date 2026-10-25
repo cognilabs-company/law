@@ -8,6 +8,7 @@ import { SxButton } from "@/components/admin/studio/sx/Button";
 import { SxDialog, SxDialogError, type SxDialogErrorText } from "@/components/admin/studio/sx/editor/SxDialog";
 import { Field } from "@/components/admin/studio/sx/form/Field";
 import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
+import { Switch } from "@/components/admin/studio/sx/form/Switch";
 import { ChoiceCards, type ChoiceCard } from "@/components/admin/studio/sx/form/ChoiceCards";
 import { useMarketError } from "@/components/marketplace/useMarketError";
 import { requestOrderWarranty, warrantyResolutions, type OrderWarranty, type WarrantyResolution } from "@/lib/services/marketplace";
@@ -33,6 +34,7 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
   const [open, setOpen] = useState(false);
   const [reasonCode, setReasonCode] = useState("");
   const [reason, setReason] = useState("");
+  const [shareFiles, setShareFiles] = useState(false);
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const once = useSameTickGuard();
@@ -78,7 +80,7 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
     setBusy(true);
     setError(null);
     try {
-      const r = await requestOrderWarranty(o, { reasonCode, reason });
+      const r = await requestOrderWarranty(o, { reasonCode, reason, allowMaterialTransfer: shareFiles });
       setSent(r);
       setOpen(false);
       onChanged();
@@ -129,6 +131,15 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
           <Field id={`${uid}-reason`} label={t("reasonLabel")} required error={reasonErr} help={t("reasonHelp")}>
             {(a) => <TextArea {...a} value={reason} onChange={setReason} minRows={4} maxLength={1000} placeholder={t("reasonPh")} />}
           </Field>
+          {/* Explicit consent: only then may a replacement seller receive
+              the files from this order's chat (2026-10-24 contract §4). */}
+          <div className="wrt-consent" data-on={shareFiles || undefined}>
+            <Switch id={`${uid}-share`} checked={shareFiles} onChange={setShareFiles} aria-labelledby={`${uid}-share-t`} aria-describedby={`${uid}-share-d`} aiId={`${ai}.share-files`} />
+            <div>
+              <b id={`${uid}-share-t`}>{t("shareTitle")}</b>
+              <p id={`${uid}-share-d`}>{t("shareText")}</p>
+            </div>
+          </div>
           <SxDialogError error={error} />
         </SxDialog>
       ) : null}

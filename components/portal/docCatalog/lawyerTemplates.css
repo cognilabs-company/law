@@ -1,0 +1,31 @@
+/* The lawyer's template library (LawyerTemplates). */
+.ltpl { display: grid; gap: 12px; }
+.ltpl__lead { margin: -4px 0 0; font-size: .86rem; line-height: 1.5; color: var(--gray); }
+.ltpl__search { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 14px; border-radius: 12px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); }
+.ltpl__search:focus-within { box-shadow: inset 0 0 0 1.5px var(--dk-acc, var(--b600)), 0 0 0 3px color-mix(in srgb, var(--dk-acc, var(--b600)) 16%, transparent); }
+.ltpl__search svg { width: 17px; height: 17px; flex: none; color: var(--gray); }
+.ltpl__search input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink); font: inherit; font-size: .92rem; outline: 0; }
+.ltpl__cats { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.ltpl__cats::-webkit-scrollbar { display: none; }
+.ltpl__cats button { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); font: inherit; font-size: .84rem; font-weight: 600; cursor: pointer; }
+.ltpl__cats button span { padding: 0 7px; border-radius: 999px; font-size: .72rem; background: var(--dk-surface-2, #EEF2F8); color: var(--gray); }
+.ltpl__cats button[aria-checked="true"] { background: color-mix(in srgb, var(--dk-acc, var(--b600)) 14%, var(--dk-surface, #fff)); box-shadow: inset 0 0 0 1.5px var(--dk-acc, var(--b600)); color: var(--dk-acc-strong, var(--b700)); }
+.ltpl__cats button[aria-checked="true"] span { background: var(--dk-acc, var(--b600)); color: #fff; }
+.ltpl__list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ltpl__row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: var(--dk-surface-2, #F5F8FD); }
+.ltpl__row--ghost { min-height: 66px; background: linear-gradient(90deg, var(--dk-surface-2, #F5F8FD), var(--dk-surface, #fff), var(--dk-surface-2, #F5F8FD)); background-size: 200% 100%; animation: ltplShimmer 1.3s ease-in-out infinite; }
+@keyframes ltplShimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.ltpl__ic { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: color-mix(in srgb, var(--dk-acc, var(--b600)) 14%, transparent); color: var(--dk-acc, var(--b600)); }
+.ltpl__ic svg { width: 18px; height: 18px; }
+.ltpl__main { display: grid; gap: 4px; min-width: 0; }
+.ltpl__main b { font-size: .9rem; line-height: 1.35; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ltpl__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.ltpl__chips i { padding: 1px 8px; border-radius: 999px; font-style: normal; font-size: .72rem; font-weight: 600; background: var(--dk-surface, #fff); color: var(--gray); }
+.ltpl__chips i[data-k="file"] { background: color-mix(in srgb, #16a34a 14%, transparent); color: var(--dk-txt-ok, #15803d); }
+.ltpl__dl svg { width: 15px; height: 15px; }
+.ltpl__more { display: flex; justify-content: center; }
+@media (max-width: 560px) {
+  .ltpl__row { grid-template-columns: 36px minmax(0, 1fr); }
+  .ltpl__dl { grid-column: 1 / -1; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) { .ltpl__row--ghost { animation: none; } }

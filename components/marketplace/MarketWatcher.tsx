@@ -8,7 +8,7 @@ import { parseServerTime } from "@/lib/http";
 import { shortDateTime } from "@/lib/date";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { MARKET_EVENT, isMarketOrderHeld, marketChatHref, marketSignalOf, type MarketSignal } from "@/lib/services/marketplace";
-import { IconCheck, IconClose, IconInfo, IconTag } from "@/components/icons";
+import { IconCheck, IconClock, IconClose, IconInfo, IconTag } from "@/components/icons";
 import { noteNegotiationEvent } from "./order/negotiationStore";
 
 type Toast = { id: number; kind: MarketSignal["kind"]; title: string; text: string; href: string };
@@ -95,10 +95,22 @@ export default function MarketWatcher({ role }: { role: Role }) {
         const title = outcome === "expired" ? tt("negotiation.expired") : outcome === "other" ? tt("negotiation.changed") : tt("negotiation.updated");
         toast = { kind: outcome === "accepted" ? "paid" : outcome === "rejected" ? "rejected" : "other", title, text: tt(`negotiation.outcome.${outcome}`), href: sectionHref("mod-negotiation") };
       }
+      if (sig.kind === "assigned" && role !== "client") {
+        // The seller's answer window: open the order to accept or decline.
+        const soon = sig.sub === "soon";
+        const name = sig.serviceTitle || sig.workId;
+        toast = {
+          kind: "assigned",
+          title: soon ? tt("assignSoon", { n: sig.minutesLeft ?? 10 }) : tt("assignNew"),
+          text: soon ? (name ? tt("assignSoonText", { service: name }) : tt("assignSoonTextNoService")) : name ? tt("assignNewText", { service: name }) : tt("assignNewTextNoService"),
+          href: orderHref,
+        };
+      }
       if (!toast) return;
       const id = nextId.current++;
       setToasts((cur) => [...cur.slice(-2), { id, ...toast }]);
-      setTimeout(() => setToasts((cur) => cur.filter((x) => x.id !== id)), 9000);
+      // A request waiting for an answer stays up longer than news does.
+      setTimeout(() => setToasts((cur) => cur.filter((x) => x.id !== id)), toast.kind === "assigned" ? 30000 : 9000);
     });
   }, [role]);
 
@@ -108,7 +120,7 @@ export default function MarketWatcher({ role }: { role: Role }) {
       {toasts.map((x) => (
         <div key={x.id} className={`mk-toast mk-toast--${x.kind}`}>
           <span className="mk-toast__ic" aria-hidden="true">
-            {x.kind === "paid" ? <IconCheck /> : x.kind === "rejected" ? <IconInfo /> : <IconTag />}
+            {x.kind === "paid" ? <IconCheck /> : x.kind === "rejected" ? <IconInfo /> : x.kind === "assigned" ? <IconClock /> : <IconTag />}
           </span>
           <div className="mk-toast__b">
             <b>{x.title}</b>

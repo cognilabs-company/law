@@ -19,7 +19,7 @@ import {
 import {
   bannerRejectionOf,
   checkoutMarketplacePromotion,
-  isBannerReasonCode,
+  PROMOTIONS_CHANGED,
   listPromotionPackages,
   promotionCampaignEnded,
   promotionCheckoutSignal,
@@ -67,8 +67,10 @@ const FALLBACK_PLACEMENTS: PromotionPlacementOption[] = [
 
 function BannerVerdictBox({ verdict, aiId }: { verdict: BannerVerdict; aiId?: string }) {
   const t = useTranslations("sellerServices.promote");
+  // Only the backend's own, already localized texts; reason codes are for
+  // machines and are never shown (2026-10-24 contract).
   const reasons = verdict.reasons.filter((r) => r.trim() && r.trim() !== verdict.message);
-  const listed = verdict.reasonCodes.length + reasons.length;
+  const listed = reasons.length;
   return (
     <div className={`svprom__check svprom__check--${verdict.status}`} role="status" data-ai-id={aiId}>
       <b>{t(`bannerStatus.${verdict.status}`)}</b>
@@ -77,11 +79,6 @@ function BannerVerdictBox({ verdict, aiId }: { verdict: BannerVerdict; aiId?: st
         <>
           {verdict.status === "active" ? null : <small>{t("bannerReasonsTitle")}</small>}
           <ul>
-            {verdict.reasonCodes.map((code) => (
-              <li key={code} data-reason={code}>
-                {isBannerReasonCode(code) ? t(`bannerReason.${code}`) : code.replace(/_/g, " ")}
-              </li>
-            ))}
             {reasons.map((r, i) => (
               <li key={`r${i}`}>{r}</li>
             ))}
@@ -343,6 +340,9 @@ export default function PromoteModal({
 
   const closedOut = outcome === "rejected" || outcome === "lapsed" || outcome === "cancelled";
   const activated = Boolean(done?.activated) || outcome === "approved";
+  useEffect(() => {
+    if (activated) window.dispatchEvent(new Event(PROMOTIONS_CHANGED));
+  }, [activated]);
   const sent = (Boolean(done?.telegramSent) || activated) && !closedOut;
   const priced = done?.breakdown ?? null;
   const discounted = !!priced && (priced.discountAmount > 0 || !!priced.campaign);

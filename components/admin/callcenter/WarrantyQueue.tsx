@@ -9,9 +9,11 @@ import { SxDialog, SxDialogError, type SxDialogErrorText } from "@/components/ad
 import { ChoiceCards } from "@/components/admin/studio/sx/form/ChoiceCards";
 import { Field } from "@/components/admin/studio/sx/form/Field";
 import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
+import { Switch } from "@/components/admin/studio/sx/form/Switch";
+import "@/components/marketplace/order/deal.css";
 import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { shortDateTime } from "@/lib/date";
-import { errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
+import { ApiError, errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { humanize } from "@/lib/labels";
 import PersonName from "@/components/ui/PersonName";
@@ -30,12 +32,14 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState"
 
 const NOTE_MIN = 5;
 
-function ResolveDialog({ claim, onClose, onDone }: { claim: WarrantyClaim; onClose: () => void; onDone: (r: WarrantyDecision) => void }): ReactElement {
+function ResolveDialog({ claim, onClose, onDone }: { claim: WarrantyClaim; onClose: () => void; onDone: (r: WarrantyDecision, files: number | null) => void }): ReactElement {
   const t = useTranslations("callCenter.warranty");
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const [resolution, setResolution] = useState<WarrantyDecision | "">("");
   const [seller, setSeller] = useState("");
   const [note, setNote] = useState("");
+  // Files go to the new seller only with the client's consent.
+  const [transfer, setTransfer] = useState(claim.filesConsent === true);
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<SxDialogErrorText>(null);
@@ -54,10 +58,15 @@ function ResolveDialog({ claim, onClose, onDone }: { claim: WarrantyClaim; onClo
     setBusy(true);
     setError(null);
     try {
-      await resolveWarrantyClaim(claim.id, { resolution, note, sellerUserId: seller });
-      onDone(resolution);
+      const r = await resolveWarrantyClaim(claim.id, { resolution, note, sellerUserId: seller, transferMaterials: resolution === "replacement" && transfer });
+      onDone(resolution, r.transferred ? r.files : null);
     } catch (e) {
       logApiError("warranty.resolve", e);
+      if (e instanceof ApiError && e.code === "material_transfer_consent_required") {
+        setTransfer(false);
+        setError({ title: t("err.failed"), text: t("err.noConsent") });
+        return;
+      }
       setError({ title: t("err.failed"), text: errDetail(e) });
     } finally {
       setBusy(false);
@@ -112,6 +121,15 @@ function ResolveDialog({ claim, onClose, onDone }: { claim: WarrantyClaim; onClo
             />
           )}
         </Field>
+      ) : null}
+      {resolution === "replacement" ? (
+        <div className="wrt-consent" data-on={transfer || undefined} data-off={claim.filesConsent === false || undefined}>
+          <Switch id={`${uid}-t`} checked={transfer} onChange={setTransfer} disabled={claim.filesConsent === false} aria-labelledby={`${uid}-t-l`} aria-describedby={`${uid}-t-d`} aiId="call_center.warranty.transfer" />
+          <div>
+            <b id={`${uid}-t-l`}>{t("transfer")}</b>
+            <p id={`${uid}-t-d`}>{claim.filesConsent === false ? t("transferNoConsent") : claim.filesConsent === true ? t("transferConsent") : t("transferUnknown")}</p>
+          </div>
+        </div>
       ) : null}
       <Field id={`${uid}-n`} label={t("note")} required error={shown.note}>
         {(a) => <TextArea {...a} value={note} onChange={setNote} minRows={3} maxLength={2000} counter />}
@@ -292,8 +310,8 @@ export default function WarrantyQueue({ onCount }: { onCount?: (n: number) => vo
         <ResolveDialog
           claim={acting}
           onClose={() => setActing(null)}
-          onDone={(r) => {
-            setDone(t(`done.${r}`));
+          onDone={(r, files) => {
+            setDone([t(`done.${r}`), files !== null ? t("filesMoved", { n: files }) : ""].filter(Boolean).join(" "));
             setActing(null);
             void load();
           }}

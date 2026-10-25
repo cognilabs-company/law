@@ -299,9 +299,17 @@ export function bannerRejectionOf(error: unknown): BannerVerdict | null {
   return { ...verdict, status: verdict.status === "active" ? "rejected" : verdict.status };
 }
 
+// The interface language, sent with banner checks so the backend writes its
+// verdict (message, reasons, suggestions) in it (2026-10-24 contract).
+function uiLanguage(): "uz" | "ru" | "en" {
+  const lang = typeof document === "undefined" ? "" : document.documentElement.lang.slice(0, 2).toLowerCase();
+  return lang === "ru" || lang === "en" ? lang : "uz";
+}
+
 export async function uploadPromotionBanner(file: File, signal?: AbortSignal): Promise<BannerAsset> {
   const form = new FormData();
   form.append("file", file);
+  form.append("language", uiLanguage());
   let raw: Dict;
   try {
     raw = asDict(await http("/promotions/banner-assets", { method: "POST", body: form, signal }));
@@ -372,6 +380,7 @@ export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput
     provider: "telegram_manual",
     placement: input.placement,
     target_user_id: input.targetUserId || (scope.kind === "org" ? scope.memberId : currentUserId),
+    language: uiLanguage(),
   };
   if (input.serviceId) body.service_id = input.serviceId;
   if (scope.kind === "org") body.organization_id = scope.orgId;
@@ -407,6 +416,10 @@ export async function checkoutMarketplacePromotion(input: PromotionCheckoutInput
       ((raw.payment_required === true || gateStatus.startsWith("pending")) && !!(requestId || paymentId) && gate.telegram_sent !== false && raw.telegram_sent !== false)),
   };
 }
+
+// Fired on the window once a promotion goes live, so pages showing active
+// promotions read them again (2026-10-24: refresh /promotions/active).
+export const PROMOTIONS_CHANGED = "lexgo:promotions-changed";
 
 export async function listActivePromotions(
   filter: { placement?: PromotionPlacement; serviceId?: string; sellerUserId?: string; limit?: number },

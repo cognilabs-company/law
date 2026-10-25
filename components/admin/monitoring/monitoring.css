@@ -104,3 +104,6 @@
   outline: none;
   box-shadow: inset 0 0 0 1.5px var(--dk-acc, var(--b600)), 0 0 0 3px color-mix(in srgb, var(--dk-acc, var(--b600)) 18%, transparent);
 }
+.mon-detail header { gap: 8px; }
+.mon-detail header > b { flex: 1; min-width: 0; }
+.mon-check svg { width: 14px; height: 14px; }

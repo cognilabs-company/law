@@ -201,18 +201,25 @@ function IntegrationDetail({ itg, onClose, history, edges }: { itg: MonIntegrati
   const status = useStatusLabel();
   const [live, setLive] = useState<MonIntegration | null>(null);
   const [failed, setFailed] = useState(false);
+  const [checks, setChecks] = useState(0);
+  const [checking, setChecking] = useState(false);
   useEffect(() => {
     const ctl = new AbortController();
-    getMonitoringIntegration(itg.key, ctl.signal).then(
-      (d) => setLive(d),
+    getMonitoringIntegration(itg.key, ctl.signal, checks > 0).then(
+      (d) => {
+        setLive(d);
+        setFailed(false);
+        setChecking(false);
+      },
       (e: unknown) => {
         if (isAborted(e)) return;
         logApiError("monitoring.integration", e);
         setFailed(true);
+        setChecking(false);
       },
     );
     return () => ctl.abort();
-  }, [itg.key]);
+  }, [itg.key, checks]);
   const d = live ?? itg;
   const name = t.has(`keys.${d.key}`) ? t(`keys.${d.key}`) : d.label || humanizeSlug(d.key);
   const nameOf = (k: string) => (t.has(`keys.${k}`) ? t(`keys.${k}`) : humanizeSlug(k));
@@ -227,6 +234,19 @@ function IntegrationDetail({ itg, onClose, history, edges }: { itg: MonIntegrati
     <section className="mon-detail" aria-label={name} data-ai-target="monitoring:integration-detail">
       <header>
         <b>{name}</b>
+        <button
+          type="button"
+          className="btn btn--line btn--sm mon-check"
+          disabled={checking}
+          aria-busy={checking || undefined}
+          onClick={() => {
+            setChecking(true);
+            setChecks((n) => n + 1);
+          }}
+        >
+          <IconRefresh className={checking ? "mk-spin" : undefined} aria-hidden="true" />
+          {checking ? t("checking") : t("checkNow")}
+        </button>
         <button type="button" className="mon-x" onClick={onClose} aria-label={t("close")}>
           <IconClose />
         </button>

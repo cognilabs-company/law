@@ -49,17 +49,25 @@ export function normTemplateCard(v: unknown): TemplateCard {
   };
 }
 
-export async function listTemplateCards(filter: { category?: string; language?: string }, signal?: AbortSignal): Promise<TemplateCard[]> {
-  const qs = new URLSearchParams();
+// GET /document-templates-catalog (backend 2026-10-24 §11): cards only, a
+// page at a time, with the backend's own search; the full text, fields and
+// file come from the template's detail once someone opens it. The older
+// /document-templates list returns just the first 50 templates, each with
+// its whole body.
+export const CATALOG_PAGE = 48;
+export type TemplatePage = { items: TemplateCard[]; total: number; hasMore: boolean };
+export async function listTemplateCatalog(filter: { category?: string; language?: string; q?: string; offset?: number }, signal?: AbortSignal): Promise<TemplatePage> {
+  const qs = new URLSearchParams({ limit: String(CATALOG_PAGE), offset: String(filter.offset ?? 0) });
   if (filter.category) qs.set("category", filter.category);
   if (filter.language) qs.set("language", filter.language);
-  const q = qs.toString();
-  const data = await http(`/document-templates${q ? `?${q}` : ""}`, { signal });
-  const list = Array.isArray(data) ? data : asArr(asDict(data).items ?? asDict(data).templates);
-  return list
+  if (filter.q?.trim()) qs.set("q", filter.q.trim());
+  const d = asDict(await http(`/document-templates-catalog?${qs}`, { signal }));
+  const items = asArr(d.items)
     .filter((v) => asDict(v).is_active !== false)
     .map(normTemplateCard)
     .filter((c) => c.id && c.title);
+  const total = asNum(d.total, items.length);
+  return { items, total, hasMore: d.has_more === true };
 }
 
 // §6: the backend's own rendering of the template, line breaks and all.
