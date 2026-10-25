@@ -1,0 +1,28 @@
+/* The seller's services on their profile (ProfileServices). */
+.psv { display: grid; gap: 12px; }
+.psv__h { flex-wrap: wrap; gap: 10px; }
+.psv__h .btn svg { width: 14px; height: 14px; }
+.psv__n { margin-inline-start: 4px; padding: 1px 8px; border-radius: 999px; font-size: .74rem; font-weight: 700; background: var(--dk-surface-2, #EEF2F8); color: var(--gray); }
+.psv__warn { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, #f59e0b 12%, transparent); color: var(--dk-txt-warn, #8a5a00); font-size: .84rem; line-height: 1.45; }
+.psv__warn svg { width: 16px; height: 16px; flex: none; }
+.psv__warn span { flex: 1 1 220px; }
+.psv__warn a { font-weight: 700; color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.psv__ok { margin: 0; font-size: .82rem; color: var(--dk-txt-ok, #15803d); }
+.psv__list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.psv__item { position: relative; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 14px 12px 18px; border-radius: 14px; background: var(--dk-surface-2, #F5F8FD); overflow: hidden; }
+.psv__item::before { content: ""; position: absolute; inset: 10px auto 10px 0; width: 4px; border-radius: 0 4px 4px 0; background: #94a3b8; }
+.psv__item[data-live]::before { background: #16a34a; }
+.psv__main { display: grid; gap: 2px; min-width: 0; flex: 1 1 240px; }
+.psv__main b { font-size: .92rem; line-height: 1.35; color: var(--ink); overflow-wrap: anywhere; }
+.psv__main small { font-size: .78rem; color: var(--gray); }
+.psv__side { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 12px; }
+.psv__price { font-weight: 800; font-size: .92rem; color: var(--ink); white-space: nowrap; }
+.psv__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.psv__chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: .74rem; font-weight: 700; background: var(--dk-surface, #fff); color: var(--gray); }
+.psv__chip svg { width: 13px; height: 13px; }
+.psv__chip[data-tone="ok"] { background: color-mix(in srgb, #16a34a 14%, transparent); color: var(--dk-txt-ok, #15803d); }
+.psv__chip[data-tone="promo"] { background: color-mix(in srgb, #8b5cf6 16%, transparent); color: #7c3aed; }
+@media (max-width: 560px) {
+  .psv__h .btn { flex: 1 1 100%; justify-content: center; }
+  .psv__side { justify-content: flex-start; }
+}

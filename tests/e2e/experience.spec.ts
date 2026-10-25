@@ -40,13 +40,16 @@ test("a lawyer sees grouped revisions, cancels a pending one and submits a typed
   await panel.getByRole("button", { name: "Отменить проверку" }).click();
   await expect.poll(() => cancelled).toBe("e3");
 
-  await panel.getByRole("button", { name: "Добавить опыт" }).click();
-  const form = panel.locator("form");
-  await form.getByRole("combobox").selectOption("c2");
+  // The form opens as a dialog (25 Oct 2026); dates go through the app's
+  // date picker, typed as dd.mm.yyyy.
+  await panel.getByRole("button", { name: "Добавить опыт" }).first().click();
+  const form = page.getByRole("dialog", { name: "Новый опыт" });
+  await form.getByLabel("Категория").selectOption("c2");
   await form.getByLabel("Направление (необязательно)").selectOption("c2-a");
   await form.getByLabel("Место работы").fill("Toshkent advokatlar hay'ati");
   await form.getByLabel("Должность").fill("Advokat");
-  await form.getByLabel("Дата начала").fill("2019-05-01");
+  await form.getByRole("combobox", { name: "Дата начала" }).fill("01.05.2019");
+  await form.getByRole("combobox", { name: "Дата начала" }).press("Tab");
   await form.getByText("Апелляция").click();
   await form.getByText("Мировое соглашение").click();
   await form.getByLabel("Описание опыта").fill("Meros ishlari bo'yicha 25 ta ish, ulardan 18 tasi sudda to'liq yutilgan");

@@ -9,14 +9,13 @@ import { useAuth, type Role } from "@/lib/auth";
 import { legalServiceLabel, type CatalogLocale } from "@/lib/legalServices";
 import {
   requestVerification,
-  getLawyerServices,
   getMyLawyer,
   upsertMyLawyer,
   getClientProfile,
   updateClientProfile,
 } from "@/lib/services/backend";
 import { scoreCompleteness } from "@/lib/services/registration";
-import { useResource, useResourceOne } from "@/lib/useResource";
+import { useResourceOne } from "@/lib/useResource";
 import { useUrlTab } from "@/lib/useUrlTab";
 import { REGION_KEYS } from "@/lib/mock/catalog";
 import { fmtUzs } from "@/lib/money";
@@ -42,8 +41,9 @@ import { EmptyState, Skeleton } from "@/components/portal/DataState";
 import Tabs, { type TabItem } from "@/components/ui/Tabs";
 import FieldError from "@/components/ui/FieldError";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconEye, IconInfo, IconUser, IconShieldCheck, IconBriefcase, IconClock, IconSun, IconCard, IconEdit, IconAward, IconScale, IconGavel, IconMapPin, IconPhone, IconMail, IconCheck, IconBell } from "@/components/icons";
+import { IconEye, IconInfo, IconUser, IconShieldCheck, IconBriefcase, IconClock, IconSun, IconCard, IconEdit, IconAward, IconScale, IconMapPin, IconPhone, IconMail, IconCheck, IconBell } from "@/components/icons";
 import ExperiencePanel from "./ExperiencePanel";
+import ProfileServices from "./ProfileServices";
 
 const ZERO_STATS: AdvocateStats = { totalCases: 0, fullyWonCases: 0, partiallyWonCases: 0, successRate: 0 };
 const LANG_KEYS = ["uz", "ru", "en", "kaa", "tr", "ar"] as const;
@@ -128,6 +128,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
   const tr = useTranslations("register");
   const te = useTranslations("enums");
   const ts = useTranslations("register.advocate.stats");
+  const tnone = useTranslations("common");
   const tv = useTranslations("register.advocate.review");
   const tcm = useTranslations("portal.common");
   const tc = useTranslations("common");
@@ -427,7 +428,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
         <div className="amet__c"><b>{d.stats?.totalCases ?? 0}</b><span className="amet__l">{ts("totalCases")}</span></div>
         <div className="amet__c"><b>{d.stats?.fullyWonCases ?? 0}</b><span className="amet__l">{ts("fullyWonCases")}</span></div>
         <div className="amet__c"><b>{d.stats?.partiallyWonCases ?? 0}</b><span className="amet__l">{ts("partiallyWonCases")}</span></div>
-        <div className="amet__c"><b>{(d.stats?.totalCases ?? 0) >= 5 ? `${d.stats?.successRate ?? 0}%` : "—"}</b><span className="amet__l">{ts("successRate")}</span></div>
+        <div className="amet__c"><b>{(d.stats?.totalCases ?? 0) >= 5 ? `${d.stats?.successRate ?? 0}%` : tnone("none")}</b><span className="amet__l">{ts("successRate")}</span></div>
       </div>
     </>,
     <>
@@ -518,7 +519,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
         {pAreas}
         <ExperiencePanel />
         {pHistory}
-        <MyServices userId={uid} />
+        <ProfileServices role={isAdvocate ? "advocate" : "lawyer"} />
       </div>
     ),
     work: (
@@ -666,20 +667,4 @@ class PanelBoundary extends Component<{ children: ReactNode; onReset: () => void
       </div>
     );
   }
-}
-
-function MyServices({ userId }: { userId: string }) {
-  const t = useTranslations("portal.advocate.profile");
-  const load = useCallback(() => (userId ? getLawyerServices(userId) : Promise.resolve([])), [userId]);
-  const svc = useResource(load, [userId]);
-  return (
-    <div className="ppanel" data-ai-target="profile:services">
-      <div className="ppanel__h"><b className="ppanel__t"><span className="pico"><IconGavel /></span>{t("servicesTitle")}</b><span className="advmuted">{svc.data.length}</span></div>
-      {svc.status === "loading" ? <Skeleton rows={2} /> : !svc.data.length ? (
-        <EmptyState icon={<IconBriefcase />} title={t("servicesEmpty")} text={t("servicesEmptyText")} />
-      ) : (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>{svc.data.map((s) => <span className="chip" key={s.id}>{s.name}</span>)}</div>
-      )}
-    </div>
-  );
 }

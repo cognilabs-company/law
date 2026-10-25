@@ -1443,9 +1443,16 @@ const LABEL_INDEX: Record<string, Record<CatalogLocale, string>> = (() => {
   return m;
 })();
 
-// Resolve a category/subservice key to a label; falls back to the key.
+// Resolve a category/subservice key to a label. A key this catalog does not
+// know (one seeded by the backend, e.g. "fixture-nikoh-shartnomasi") is
+// shown as words rather than as a slug: its test prefix dropped, dashes
+// turned into spaces, the first letter capitalised.
+const SEED_PREFIX = /^(fixture|test|demo|e2e|qa)[-_]+/i;
 export function legalServiceLabel(key: string, locale: CatalogLocale): string {
-  return LABEL_INDEX[key]?.[locale] ?? key;
+  const hit = LABEL_INDEX[key] ?? LABEL_INDEX[key.replace(SEED_PREFIX, "")];
+  if (hit) return hit[locale];
+  const words = key.replace(SEED_PREFIX, "").replace(/[-_]+/g, " ").trim();
+  return words ? words.charAt(0).toLocaleUpperCase(locale) + words.slice(1) : key;
 }
 
 // All subservice keys (flat).

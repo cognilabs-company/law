@@ -4,11 +4,15 @@ import "./experience.css";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
+import Modal from "@/components/admin/Modal";
+import DatePicker from "@/components/DatePicker";
+import { IconAward, IconBriefcase, IconCalendar, IconEdit, IconPaperclip, IconPlus, IconScale, IconUpload } from "@/components/icons";
 import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardNote";
 import { dateOnly } from "@/lib/date";
 import { errDetail, isAborted, logApiError } from "@/lib/http";
 import { getServiceCategories, type BackendCategory } from "@/lib/services/backend";
 import { categoryName } from "@/lib/categoryNames";
+import { uzLabel } from "@/lib/uzScript";
 import { findContacts } from "@/lib/contactGuard";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import {
@@ -80,6 +84,7 @@ export default function ExperiencePanel(): ReactElement {
   const sending = useRef(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [fieldErr, setFieldErr] = useState<{ field: string; code: string } | null>(null);
+  const [tried, setTried] = useState(false);
   const descStrip = useContactStrip((description) => setDraft((d) => (d ? { ...d, description } : d)));
 
   const load = useCallback(async () => {
@@ -117,12 +122,13 @@ export default function ExperiencePanel(): ReactElement {
 
   const catName = (id: string) => {
     const c = cats.find((x) => x.id === id);
-    return c ? categoryName({ slug: c.slug, title: c.name }, locale) : id;
+    return c ? uzLabel(categoryName({ slug: c.slug, title: c.name }, locale), locale) : "";
   };
   const subsOf = (categoryId: string) => tree.find((n) => n.id === categoryId)?.children ?? [];
-  const subName = (categoryId: string, id: string) => subsOf(categoryId).find((s) => s.id === id)?.title ?? "";
+  const subName = (categoryId: string, id: string) => uzLabel(subsOf(categoryId).find((s) => s.id === id)?.title ?? "", locale);
   const open = (d: Draft) => {
     descStrip.reset();
+    setTried(false);
     setFieldErr(null);
     setNote(null);
     setDraft(d);
@@ -209,46 +215,120 @@ export default function ExperiencePanel(): ReactElement {
 
   const bad = (field: string) => (fieldErr?.field === field ? true : undefined);
   const period = (it: ExperienceItem) => [it.startedAt ? dateOnly(it.startedAt, locale) : "", it.isCurrent ? t("now") : it.endedAt ? dateOnly(it.endedAt, locale) : ""].filter(Boolean).join(" — ");
+  const approved = (groups ?? []).filter((g) => g.current);
+  const years = approved.reduce((n, g) => n + (g.current?.years ?? 0), 0);
+  const pending = (groups ?? []).filter((g) => g.pending).length;
+  // The first missing field is marked on the field itself, not only below.
+  const miss = (k: string) => (issue === k && tried ? true : undefined);
 
   return (
-    <section className="exp" aria-label={t("title")} data-ai-target="profile:experience">
-      <header className="exp__h">
-        <div>
-          <b>{t("title")}</b>
-          <p>{t("lead")}</p>
+    <section className="ppanel exp" aria-labelledby="exp-title" data-ai-target="profile:experience">
+      <div className="ppanel__h exp__h">
+        <b className="ppanel__t" id="exp-title">
+          <span className="pico">
+            <IconAward />
+          </span>
+          {t("title")}
+        </b>
+        <button type="button" className="btn btn--pri btn--sm" onClick={() => open(EMPTY)} disabled={!!draft}>
+          <IconPlus aria-hidden="true" />
+          {t("add")}
+        </button>
+      </div>
+      <p className="exp__lead">{t("lead")}</p>
+
+      {groups?.length ? (
+        <div className="exp__sum" role="status">
+          <div>
+            <b className="sx-num">{approved.length}</b>
+            <small>{t("sumApproved")}</small>
+          </div>
+          <div>
+            <b className="sx-num">{years}</b>
+            <small>{t("sumYears")}</small>
+          </div>
+          <div data-tone={pending ? "warn" : undefined}>
+            <b className="sx-num">{pending}</b>
+            <small>{t("sumPending")}</small>
+          </div>
         </div>
-        {!draft ? (
-          <button type="button" className="btn btn--line btn--sm" onClick={() => open(EMPTY)}>
-            {t("add")}
-          </button>
-        ) : null}
-      </header>
+      ) : null}
+
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {failed ? <Notice ok={false} msg={t("loadFailed")} /> : null}
-      {groups && !groups.length && !draft ? <p className="exp__empty">{t("empty")}</p> : null}
+      {!groups && !failed ? (
+        <div className="exp__grid" aria-hidden="true">
+          <div className="exp__card exp__card--ghost" />
+          <div className="exp__card exp__card--ghost" />
+        </div>
+      ) : null}
+      {groups && !groups.length ? (
+        <div className="exp__empty">
+          <span className="exp__empty-ic" aria-hidden="true">
+            <IconScale />
+          </span>
+          <b>{t("emptyTitle")}</b>
+          <p>{t("emptyText")}</p>
+          <button type="button" className="btn btn--line btn--sm" onClick={() => open(EMPTY)}>
+            <IconPlus aria-hidden="true" />
+            {t("add")}
+          </button>
+        </div>
+      ) : null}
       {groups?.length ? (
-        <ul className="exp__list">
+        <ul className="exp__grid">
           {groups.map((g) => {
             const shown = g.current ?? g.pending ?? g.latest;
             if (!shown) return null;
             const rejected = g.latest?.status === "rejected" ? g.latest : null;
+            const state = g.current ? "approved" : g.pending ? "pending" : rejected ? "rejected" : "draft";
+            const sub = subName(shown.categoryId, shown.subcategoryId);
             return (
-              <li key={g.rootId}>
-                <div className="exp__row">
-                  <b>{catName(shown.categoryId)}</b>
-                  {g.current ? (
-                    <span className="exp__chip" data-s="approved">
-                      {g.current.years !== null ? t("status.approvedYears", { n: g.current.years }) : t("status.approved")}
-                    </span>
-                  ) : null}
+              <li key={g.rootId} className="exp__card" data-s={state}>
+                <div className="exp__card-h">
+                  <div className="exp__card-t">
+                    <b>{catName(shown.categoryId)}</b>
+                    {sub ? <small>{sub}</small> : null}
+                  </div>
+                  {g.pending ? (
+                    <button type="button" className="btn btn--soft btn--sm" onClick={() => void cancel(g.pending!.id)} disabled={busy}>
+                      {t("cancelPending")}
+                    </button>
+                  ) : (
+                    <button type="button" className="exp__edit" onClick={() => open(draftOf(g.latest ?? shown, g.current?.id ?? ""))} aria-label={t("editNamed", { name: catName(shown.categoryId) })} disabled={!!draft}>
+                      <IconEdit aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+                <div className="exp__chips">
+                  {g.current ? <span className="exp__chip" data-s="approved">{g.current.years !== null ? t("status.approvedYears", { n: g.current.years }) : t("status.approved")}</span> : null}
                   {g.pending ? <span className="exp__chip" data-s="pending">{t("status.pending")}</span> : null}
                   {rejected ? <span className="exp__chip" data-s="rejected">{t("status.rejected")}</span> : null}
                 </div>
-                <span className="exp__meta">{[subName(shown.categoryId, shown.subcategoryId), shown.workplace, shown.position, period(shown)].filter(Boolean).join(" · ")}</span>
+                <dl className="exp__facts">
+                  {shown.workplace || shown.position ? (
+                    <div>
+                      <dt>
+                        <IconBriefcase aria-hidden="true" />
+                        <span className="sr-only">{t("workplace")}</span>
+                      </dt>
+                      <dd>{[shown.position, shown.workplace].filter(Boolean).join(" · ")}</dd>
+                    </div>
+                  ) : null}
+                  {period(shown) ? (
+                    <div>
+                      <dt>
+                        <IconCalendar aria-hidden="true" />
+                        <span className="sr-only">{t("period")}</span>
+                      </dt>
+                      <dd>{period(shown)}</dd>
+                    </div>
+                  ) : null}
+                </dl>
                 {shown.stages.length || shown.results.length ? (
                   <span className="exp__tags">
-                    {shown.stages.map((s) => (
-                      <i key={`s-${s}`}>{t.has(`stage.${s}`) ? t(`stage.${s}`) : s}</i>
+                    {shown.stages.map((st) => (
+                      <i key={`s-${st}`}>{t.has(`stage.${st}`) ? t(`stage.${st}`) : st}</i>
                     ))}
                     {shown.results.map((r) => (
                       <i key={`r-${r}`} data-k="result">
@@ -261,148 +341,186 @@ export default function ExperiencePanel(): ReactElement {
                 {shown.evidence.length ? (
                   <span className="exp__files">
                     {shown.evidence.map((f) => (
-                      <button key={f.id} type="button" className="btn btn--ghost btn--sm" onClick={() => void downloadExperienceEvidence(f).catch((e) => logApiError("experience.download", e))}>
+                      <button key={f.id} type="button" className="exp__fileb" onClick={() => void downloadExperienceEvidence(f).catch((e) => logApiError("experience.download", e))}>
+                        <IconPaperclip aria-hidden="true" />
                         {f.fileName || t("file")}
                       </button>
                     ))}
                   </span>
                 ) : null}
-                {g.pending && g.current ? <small className="exp__muted">{t("pendingKeeps")}</small> : null}
-                {rejected?.rejectionReason ? <small className="exp__reason">{t("reason", { text: rejected.rejectionReason })}</small> : null}
-                {!draft ? (
-                  <span className="exp__acts">
-                    {g.pending ? (
-                      <button type="button" className="btn btn--soft btn--sm" onClick={() => void cancel(g.pending!.id)} disabled={busy}>
-                        {t("cancelPending")}
-                      </button>
-                    ) : (
-                      <button type="button" className="btn btn--ghost btn--sm" onClick={() => open(draftOf(g.latest ?? shown, g.current?.id ?? ""))}>
-                        {t("edit")}
-                      </button>
-                    )}
-                  </span>
-                ) : null}
+                {g.pending && g.current ? <p className="exp__note" data-tone="warn">{t("pendingKeeps")}</p> : null}
+                {rejected?.rejectionReason ? <p className="exp__note" data-tone="bad">{t("reason", { text: rejected.rejectionReason })}</p> : null}
               </li>
             );
           })}
         </ul>
       ) : null}
-      {draft ? (
-        <form
-          className="exp__form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save();
-          }}
-          noValidate
-        >
-          {draft.sourceId ? <p className="exp__muted exp__wide">{t("editNote")}</p> : null}
-          <label className="exp__wide">
-            <span>{t("category")}</span>
-            <select value={draft.categoryId} onChange={(e) => setDraft({ ...draft, categoryId: e.target.value, subcategoryId: "" })} disabled={!!draft.sourceId} aria-invalid={bad("category_id")}>
-              <option value="">{t("pickCategory")}</option>
-              {cats.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {categoryName({ slug: c.slug, title: c.name }, locale)}
-                </option>
-              ))}
-            </select>
-          </label>
-          {subsOf(draft.categoryId).length ? (
-            <label className="exp__wide">
-              <span>{t("subcategory")}</span>
-              <select value={draft.subcategoryId} onChange={(e) => setDraft({ ...draft, subcategoryId: e.target.value })} aria-invalid={bad("subcategory_id")}>
-                <option value="">{t("anySubcategory")}</option>
-                {subsOf(draft.categoryId).map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <label>
-            <span>{t("workplace")}</span>
-            <input value={draft.workplace} maxLength={200} onChange={(e) => setDraft({ ...draft, workplace: e.target.value })} aria-invalid={bad("workplace")} />
-          </label>
-          <label>
-            <span>{t("position")}</span>
-            <input value={draft.position} maxLength={200} onChange={(e) => setDraft({ ...draft, position: e.target.value })} aria-invalid={bad("position")} />
-          </label>
-          <label>
-            <span>{t("startedAt")}</span>
-            <input type="date" value={draft.startedOn} max={today} onChange={(e) => setDraft({ ...draft, startedOn: e.target.value })} aria-invalid={bad("started_at")} />
-          </label>
-          <label>
-            <span>{t("endedAt")}</span>
-            <input type="date" value={draft.isCurrent ? "" : draft.endedOn} min={draft.startedOn || undefined} max={today} disabled={draft.isCurrent} onChange={(e) => setDraft({ ...draft, endedOn: e.target.value })} aria-invalid={bad("ended_at")} />
-          </label>
-          <label className="exp__check exp__wide">
-            <input type="checkbox" checked={draft.isCurrent} onChange={(e) => setDraft({ ...draft, isCurrent: e.target.checked })} />
-            <span>{t("isCurrent")}</span>
-          </label>
-          <fieldset className="exp__wide exp__pick" aria-invalid={bad("stages")}>
-            <legend>{t("stages")}</legend>
-            {EXPERIENCE_STAGES.map((s) => (
-              <label key={s} data-on={draft.stages.includes(s) ? "" : undefined}>
-                <input type="checkbox" checked={draft.stages.includes(s)} onChange={() => setDraft({ ...draft, stages: toggle(draft.stages, s) })} />
-                {t(`stage.${s}`)}
-              </label>
-            ))}
-          </fieldset>
-          <fieldset className="exp__wide exp__pick" aria-invalid={bad("results")}>
-            <legend>{t("results")}</legend>
-            {EXPERIENCE_RESULTS.map((r) => (
-              <label key={r} data-on={draft.results.includes(r) ? "" : undefined}>
-                <input type="checkbox" checked={draft.results.includes(r)} onChange={() => setDraft({ ...draft, results: toggle(draft.results, r) })} />
-                {t(`result.${r}`)}
-              </label>
-            ))}
-          </fieldset>
-          <label className="exp__wide">
-            <span>{t("description")}</span>
-            <textarea
-              rows={4}
-              maxLength={2000}
-              value={draft.description}
-              onChange={(e) => descStrip.change(e.target.value, e)}
-              onBlur={() => descStrip.blur(draft.description)}
-              placeholder={t("descriptionPh")}
-              aria-describedby="exp-desc-g"
-              aria-invalid={descHits.length > 0 || undefined}
-            />
-          </label>
-          <div className="exp__wide">
-            <ContactGuardNote id="exp-desc-g" hits={descHits} removed={descStrip.removed} />
-          </div>
-          <div className="exp__wide exp__ev">
-            <span>{t("evidence")}</span>
-            {draft.evidence.map((f) => (
-              <span key={f.id} className="exp__file">
-                {f.fileName || t("file")}
-                <button type="button" aria-label={t("removeFile", { name: f.fileName || t("file") })} onClick={() => setDraft({ ...draft, evidence: draft.evidence.filter((x) => x.id !== f.id) })}>
-                  ×
-                </button>
-              </span>
-            ))}
-            <label className="btn btn--line btn--sm" data-busy={uploading || undefined}>
-              {uploading ? t("uploading") : t("addFile")}
-              <input type="file" hidden multiple accept={EVIDENCE_TYPES.join(",")} disabled={uploading} onChange={(e) => void addFiles(e.target.files).finally(() => (e.target.value = ""))} />
-            </label>
-            <small className="exp__muted">{t("evidenceHint")}</small>
-          </div>
-          {issue ? <small className="exp__reason exp__wide">{t(`issue.${issue}`, { n: DESC_MIN })}</small> : null}
-          <small className="exp__muted exp__wide">{t("verifyNote")}</small>
-          <div className="exp__acts exp__wide">
-            <button type="button" className="btn btn--soft btn--sm" onClick={() => setDraft(null)} disabled={busy}>
+
+      <Modal
+        open={!!draft}
+        onClose={() => (busy ? undefined : setDraft(null))}
+        title={draft?.sourceId ? t("editTitle") : t("addTitle")}
+        description={draft?.sourceId ? t("editNote") : t("verifyNote")}
+        icon={<IconAward />}
+        size="lg"
+        busy={busy}
+        dirty={!!draft && (!!draft.workplace || !!draft.description)}
+        footer={
+          <>
+            {tried && issue ? <small className="exp__issue" role="alert">{t(`issue.${issue}`, { n: DESC_MIN })}</small> : null}
+            <button type="button" className="btn btn--line" onClick={() => setDraft(null)} disabled={busy}>
               {t("cancel")}
             </button>
-            <button type="submit" className="btn btn--pri btn--sm" disabled={busy || uploading || !!issue}>
+            <button type="submit" form="exp-form" className="btn btn--pri" disabled={busy || uploading}>
               {busy ? t("sending") : t("submit")}
             </button>
-          </div>
-        </form>
-      ) : null}
+          </>
+        }
+      >
+        {draft ? (
+          <form
+            id="exp-form"
+            className="exp__form"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setTried(true);
+              void save();
+            }}
+            noValidate
+          >
+            <fieldset className="exp__sec">
+              <legend>
+                <span className="exp__n">1</span>
+                {t("secArea")}
+              </legend>
+              <label className="exp__f">
+                <span>{t("category")}</span>
+                <select value={draft.categoryId} onChange={(e) => setDraft({ ...draft, categoryId: e.target.value, subcategoryId: "" })} disabled={!!draft.sourceId} aria-invalid={bad("category_id") ?? miss("category")}>
+                  <option value="">{t("pickCategory")}</option>
+                  {cats.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {uzLabel(categoryName({ slug: c.slug, title: c.name }, locale), locale)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {subsOf(draft.categoryId).length ? (
+                <label className="exp__f">
+                  <span>{t("subcategory")}</span>
+                  <select value={draft.subcategoryId} onChange={(e) => setDraft({ ...draft, subcategoryId: e.target.value })} aria-invalid={bad("subcategory_id")}>
+                    <option value="">{t("anySubcategory")}</option>
+                    {subsOf(draft.categoryId).map((sc) => (
+                      <option key={sc.id} value={sc.id}>
+                        {uzLabel(sc.title, locale)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </fieldset>
+
+            <fieldset className="exp__sec">
+              <legend>
+                <span className="exp__n">2</span>
+                {t("secWork")}
+              </legend>
+              <div className="exp__two">
+                <label className="exp__f">
+                  <span>{t("workplace")}</span>
+                  <input value={draft.workplace} maxLength={200} placeholder={t("workplacePh")} onChange={(e) => setDraft({ ...draft, workplace: e.target.value })} aria-invalid={bad("workplace") ?? miss("workplace")} />
+                </label>
+                <label className="exp__f">
+                  <span>{t("position")}</span>
+                  <input value={draft.position} maxLength={200} placeholder={t("positionPh")} onChange={(e) => setDraft({ ...draft, position: e.target.value })} aria-invalid={bad("position") ?? miss("position")} />
+                </label>
+                <div className="exp__f" data-bad={bad("started_at") ?? miss("started")}>
+                  <span>{t("startedAt")}</span>
+                  <DatePicker value={draft.startedOn} max={today} onChange={(v) => setDraft({ ...draft, startedOn: v })} placeholder={t("pickDate")} ariaLabel={t("startedAt")} />
+                </div>
+                <div className="exp__f" data-bad={bad("ended_at") ?? miss("ended")}>
+                  <span>{t("endedAt")}</span>
+                  <DatePicker value={draft.isCurrent ? "" : draft.endedOn} min={draft.startedOn || undefined} max={today} disabled={draft.isCurrent} onChange={(v) => setDraft({ ...draft, endedOn: v })} placeholder={draft.isCurrent ? t("now") : t("pickDate")} ariaLabel={t("endedAt")} />
+                </div>
+              </div>
+              <label className="exp__switch">
+                <input type="checkbox" role="switch" checked={draft.isCurrent} onChange={(e) => setDraft({ ...draft, isCurrent: e.target.checked })} />
+                <i aria-hidden="true" />
+                <span>{t("isCurrent")}</span>
+              </label>
+            </fieldset>
+
+            <fieldset className="exp__sec">
+              <legend>
+                <span className="exp__n">3</span>
+                {t("secCases")}
+              </legend>
+              <div className="exp__pick" role="group" aria-label={t("stages")} data-bad={bad("stages")}>
+                <small>{t("stages")}</small>
+                {EXPERIENCE_STAGES.map((st) => (
+                  <label key={st} data-on={draft.stages.includes(st) ? "" : undefined}>
+                    <input type="checkbox" checked={draft.stages.includes(st)} onChange={() => setDraft({ ...draft, stages: toggle(draft.stages, st) })} />
+                    {t(`stage.${st}`)}
+                  </label>
+                ))}
+              </div>
+              <div className="exp__pick" role="group" aria-label={t("results")} data-bad={bad("results")}>
+                <small>{t("results")}</small>
+                {EXPERIENCE_RESULTS.map((r) => (
+                  <label key={r} data-on={draft.results.includes(r) ? "" : undefined} data-k="result">
+                    <input type="checkbox" checked={draft.results.includes(r)} onChange={() => setDraft({ ...draft, results: toggle(draft.results, r) })} />
+                    {t(`result.${r}`)}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset className="exp__sec">
+              <legend>
+                <span className="exp__n">4</span>
+                {t("secProof")}
+              </legend>
+              <label className="exp__f">
+                <span>{t("description")}</span>
+                <textarea
+                  rows={4}
+                  maxLength={2000}
+                  value={draft.description}
+                  onChange={(e) => descStrip.change(e.target.value, e)}
+                  onBlur={() => descStrip.blur(draft.description)}
+                  placeholder={t("descriptionPh")}
+                  aria-describedby="exp-desc-g exp-desc-n"
+                  aria-invalid={descHits.length > 0 || miss("description") || undefined}
+                />
+                <small id="exp-desc-n" className="exp__count" data-short={desc.length < DESC_MIN || undefined}>
+                  {desc.length < DESC_MIN ? t("descLeft", { n: DESC_MIN - desc.length }) : t("descCount", { n: desc.length })}
+                </small>
+              </label>
+              <ContactGuardNote id="exp-desc-g" hits={descHits} removed={descStrip.removed} />
+              <div className="exp__drop" data-busy={uploading || undefined}>
+                <label>
+                  <IconUpload aria-hidden="true" />
+                  <b>{uploading ? t("uploading") : t("addFile")}</b>
+                  <small>{t("evidenceHint")}</small>
+                  <input type="file" multiple accept={EVIDENCE_TYPES.join(",")} disabled={uploading} onChange={(e) => void addFiles(e.target.files).finally(() => (e.target.value = ""))} />
+                </label>
+                {draft.evidence.length ? (
+                  <ul>
+                    {draft.evidence.map((f) => (
+                      <li key={f.id}>
+                        <IconPaperclip aria-hidden="true" />
+                        <span>{f.fileName || t("file")}</span>
+                        <button type="button" aria-label={t("removeFile", { name: f.fileName || t("file") })} onClick={() => setDraft({ ...draft, evidence: draft.evidence.filter((x) => x.id !== f.id) })}>
+                          ×
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            </fieldset>
+          </form>
+        ) : null}
+      </Modal>
     </section>
   );
 }
