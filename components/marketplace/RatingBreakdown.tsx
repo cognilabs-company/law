@@ -75,7 +75,10 @@ export default function RatingBreakdown({ sellerId, mine = false, compact = fals
       <ul className="rbd__bars">
         {r.components.map((c) => (
           <li key={c.key} title={hint(c.key) || undefined}>
-            <span className="rbd__lab">{label(c.key)}</span>
+            <span className="rbd__lab">
+              {label(c.key)}
+              {mine && r.weights?.[c.key] !== undefined ? <small className="rbd__w">{t("weight", { n: r.weights[c.key] })}</small> : null}
+            </span>
             <span className="rbd__bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(c.score)} aria-label={label(c.key)}>
               <i style={{ width: `${c.score}%` }} data-level={c.score >= 70 ? "hi" : c.score >= 40 ? "mid" : "lo"} />
             </span>
@@ -83,6 +86,28 @@ export default function RatingBreakdown({ sellerId, mine = false, compact = fals
           </li>
         ))}
       </ul>
+
+      {mine && r.coldStart && !r.rated ? <p className="rbd__note">{t("coldStart")}</p> : null}
+
+      {mine && r.penalties ? (
+        <div className="rbd__pen" data-clean={!r.penalties.complaints && !r.penalties.refunds ? "" : undefined}>
+          <b>{t("penalties")}</b>
+          {!r.penalties.complaints && !r.penalties.refunds ? (
+            <span>{t("noPenalties")}</span>
+          ) : (
+            <ul>
+              <li>
+                <span>{t("penComplaints", { n: r.penalties.complaints })}</span>
+                <b className="sx-num">−{r.penalties.complaintPoints}</b>
+              </li>
+              <li>
+                <span>{t("penRefunds", { n: r.penalties.refunds })}</span>
+                <b className="sx-num">−{r.penalties.refundPoints}</b>
+              </li>
+            </ul>
+          )}
+        </div>
+      ) : null}
 
       <dl className="rbd__facts">
         <div>

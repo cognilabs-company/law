@@ -29,9 +29,23 @@
 .rbd__foot { margin: 0; font-size: .74rem; color: var(--gray); }
 .rbd--compact { padding: 14px; }
 @media (max-width: 640px) {
-  .rbd__head { grid-template-columns: auto minmax(0, 1fr); }
-  .rbd__rank { grid-column: 1 / -1; justify-self: start; display: flex; gap: 8px; align-items: baseline; }
+  .rbd { padding: 14px; }
+  .rbd__head { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+  .rbd__titles { grid-column: 1 / -1; order: -1; }
+  .rbd__score { min-height: 0; min-width: 0; justify-items: start; text-align: start; padding: 10px 12px; }
+  .rbd__score > b { font-size: 1.25rem; }
+  .rbd__rank { align-self: stretch; align-content: center; }
   .rbd__bars li { grid-template-columns: 1fr 36px; }
   .rbd__bar { grid-column: 1 / -1; grid-row: 2; }
 }
 @media (prefers-reduced-motion: reduce) { .rbd--ghost { animation: none; } }
+.rbd__lab { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.rbd__w { padding: 0 6px; border-radius: 999px; font-size: .68rem; font-weight: 700; background: var(--dk-surface-2, #EEF2F8); color: var(--gray); }
+.rbd__note { margin: 0; padding: 8px 12px; border-radius: 10px; font-size: .8rem; line-height: 1.45; background: color-mix(in srgb, var(--dk-acc, var(--b600)) 10%, transparent); color: var(--ink); }
+.rbd__pen { display: grid; gap: 6px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, #ef4444 9%, transparent); }
+.rbd__pen[data-clean] { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; background: color-mix(in srgb, #16a34a 10%, transparent); }
+.rbd__pen > b { font-size: .78rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--gray); }
+.rbd__pen > span { font-size: .84rem; font-weight: 600; color: var(--dk-txt-ok, #15803d); }
+.rbd__pen ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.rbd__pen li { display: flex; justify-content: space-between; gap: 10px; font-size: .84rem; color: var(--ink); }
+.rbd__pen li b { color: var(--dk-txt-err, #b91c1c); }

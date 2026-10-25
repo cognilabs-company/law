@@ -88,6 +88,8 @@ test("a seller sees their rating and what it is made of; unrated reads as such",
       calculated_at: "2026-10-24T15:54:39Z",
       policy_version: 2,
       unrated_display: "Hali baholanmagan",
+      penalties: { substantiated_complaints: 1, complaint_points: 4.5, refunds: 0, refund_points: 0 },
+      weights: { client_reviews: 45, completion_rate: 20, response_score: 10, acceptance_rate: 10, verified_experience: 15, cold_start_replaces_client_reviews: true },
     },
   });
   await mockBackend(page, routes);
@@ -98,5 +100,9 @@ test("a seller sees their rating and what it is made of; unrated reads as such",
   await expect(card.getByText("Yakunlangan buyurtmalar").first()).toBeVisible();
   await expect(card.getByText("4 / 5")).toBeVisible();
   await expect(card.getByText("24 daqiqa")).toBeVisible();
+  // The seller's own card also shows the weights and penalties (private).
+  await expect(card.getByText("ulushi 45%")).toBeVisible();
+  await expect(card.getByText("Asosli shikoyatlar: 1")).toBeVisible();
+  await expect(card.getByText("−4.5")).toBeVisible();
   if (SHOTS) await card.screenshot({ path: `${SHOTS}/rating.png` });
 });
