@@ -1,5 +1,7 @@
 "use client";
 
+import PlanGateCard from "@/components/ui/PlanGateCard";
+import { planGateOf, type PlanGate } from "@/lib/planGate";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
@@ -275,6 +277,8 @@ export default function DocumentRequestPanel({
   const [req, setReq] = useState(initialReq);
   const [answers, setAnswers] = useState<Record<string, string>>(() => answersFrom(initialReq));
   const [stage, setStage] = useState<Stage>(stageFor(initialReq));
+  // A 402 plan refusal from generation (document_constructor limit etc.).
+  const [planGate, setPlanGate] = useState<PlanGate | null>(null);
   const [busy, setBusy] = useState(false);
   const once = useSameTickGuard();
   const [pollStopped, setPollStopped] = useState(false);
@@ -379,7 +383,9 @@ export default function DocumentRequestPanel({
       notify.dismiss(`docreq-answers:${req.id}`);
       bump();
     } catch (e) {
-      notify.error(t("answersFailed"), { id: `docreq-answers:${req.id}`, error: e });
+      const g = planGateOf(e);
+      if (g) setPlanGate(g);
+      else notify.error(t("answersFailed"), { id: `docreq-answers:${req.id}`, error: e });
     } finally {
       setBusy(false);
     }
@@ -413,6 +419,11 @@ export default function DocumentRequestPanel({
       if (!policy.canGenerate) return null;
       return await generateDocumentRequest(r.id);
     } catch (e) {
+      const g = planGateOf(e);
+      if (g) {
+        setPlanGate(g);
+        return null;
+      }
       if (statusOf(e) === 402) return null; // payment not settled yet
       throw e;
     } finally {
@@ -653,7 +664,11 @@ export default function DocumentRequestPanel({
         deliver(inline, name);
       } else {
         closeTab(win);
-        if (statusOf(e) === 402) {
+        const g = planGateOf(e);
+        if (g) {
+          setPlanGate(g);
+          notify.dismiss(`docreq-file:${req.id}`);
+        } else if (statusOf(e) === 402) {
           setStage("pay");
           notify.warning(t("payFirst"), { id: `docreq-file:${req.id}` });
         } else {
@@ -813,6 +828,7 @@ export default function DocumentRequestPanel({
 
   return (
     <div className={`cform${shown === "answers" ? " cform--doc" : ""}`} style={{ maxWidth: "none" }}>
+      {planGate ? <PlanGateCard gate={planGate} onClose={() => setPlanGate(null)} /> : null}
       {fatal ? (
         <InlineAlert tone={fatal === "noAccess" ? "locked" : "error"} role="alert">
           {t(fatal)}

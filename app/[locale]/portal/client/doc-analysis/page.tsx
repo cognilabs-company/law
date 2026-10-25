@@ -1,5 +1,7 @@
 "use client";
 
+import PlanGateCard from "@/components/ui/PlanGateCard";
+import { planGateOf, type PlanGate } from "@/lib/planGate";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
@@ -47,6 +49,7 @@ export default function ClientDocAnalysis() {
   const [quoteFailed, setQuoteFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<DocAnalysis | null>(null);
+  const [gate, setGate] = useState<PlanGate | null>(null);
   const [failed, setFailed] = useState(false);
   // LEXGO_FRONTEND_DOC_ANALYSIS_PAYMENT_GATE_2026-09-28.md §Flow step 3:
   // "Mijoz 'Advokat tekshirsin' desa" — after the AI has read the document the
@@ -104,13 +107,17 @@ export default function ClientDocAnalysis() {
     if (busy || !canRun) return;
     setBusy(true);
     setFailed(false);
+    setGate(null);
     setRes(null);
     try {
       if (!fresh) await getQuote();
       setRes(file ? await analyzeDocumentFile(file) : await analyzeDocument(text.trim()));
     } catch (e) {
       // 415 = unsupported type, 413 = too large, 422 = no readable text in the file.
-      if (file && e instanceof ApiError && [413, 415, 422].includes(e.status)) setFileErr(errDetail(e) || t("fileUnreadable"));
+      // A plan refusal (402) says what was reached and leads to the plans.
+      const g = planGateOf(e);
+      if (g) setGate(g);
+      else if (file && e instanceof ApiError && [413, 415, 422].includes(e.status)) setFileErr(errDetail(e) || t("fileUnreadable"));
       else setFailed(true);
     } finally {
       setBusy(false);
@@ -312,6 +319,8 @@ export default function ClientDocAnalysis() {
           ) : null}
         </>
       ) : null}
+
+      {gate ? <PlanGateCard gate={gate} onClose={() => setGate(null)} /> : null}
 
       {failed ? (
         <div className="ppanel">

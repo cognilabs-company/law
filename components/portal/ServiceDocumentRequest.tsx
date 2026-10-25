@@ -1,5 +1,7 @@
 "use client";
 
+import PlanGateCard from "@/components/ui/PlanGateCard";
+import { planGateOf, type PlanGate } from "@/lib/planGate";
 import { useContext, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
@@ -143,6 +145,7 @@ export default function ServiceDocumentRequest({
   // string is the backend's own 402 message, and switches the whole screen
   // to the plan-purchase prompt instead of the normal template/fill flow.
   const [planRequired, setPlanRequired] = useState("");
+  const [limitGate, setLimitGate] = useState<PlanGate | null>(null);
   const [planGateOpen, setPlanGateOpen] = useState(false);
 
   // Reset when a different service is opened — during render, not an effect
@@ -196,7 +199,9 @@ export default function ServiceDocumentRequest({
       })
       .catch((e) => {
         if (!alive) return;
-        if (e instanceof ApiError && e.status === 402 && e.code === "manual_document_plan_required") setPlanRequired(errDetail(e) || t("planRequired"));
+        const g = planGateOf(e);
+        if (g) setLimitGate(g);
+        else if (e instanceof ApiError && e.status === 402 && e.code === "manual_document_plan_required") setPlanRequired(errDetail(e) || t("planRequired"));
         else {
           setLoadErr(e);
           setErr(true);
@@ -439,6 +444,13 @@ export default function ServiceDocumentRequest({
     );
   }
   if (loading || (tpl && mode === "manual" && tpl.questionnaire.length === 0 && !req && !err)) return <Skeleton rows={3} />;
+
+  if (limitGate)
+    return (
+      <div className="cform" style={{ maxWidth: "none" }}>
+        <PlanGateCard gate={limitGate} />
+      </div>
+    );
 
   if (planRequired)
     return (

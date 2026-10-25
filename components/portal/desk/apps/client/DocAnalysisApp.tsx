@@ -1,5 +1,7 @@
 "use client";
 
+import PlanGateCard from "@/components/ui/PlanGateCard";
+import { planGateOf, type PlanGate } from "@/lib/planGate";
 import { useRef, useState, type DragEvent } from "react";
 import { useTranslations } from "next-intl";
 import { analyzeDocument, analyzeDocumentFile, quoteDocumentAnalysis, requestExistingDocumentReviewGated, type DocAnalysis, type DocAnalysisQuote, type DocQuoteInput } from "@/lib/services/backend";
@@ -44,6 +46,7 @@ export default function DocAnalysisApp({ openLink }: NativeProps) {
   const [quoteFailed, setQuoteFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [res, setRes] = useState<DocAnalysis | null>(null);
+  const [gate, setGate] = useState<PlanGate | null>(null);
   const [failed, setFailed] = useState(false);
   const [handOff, setHandOff] = useState<"" | "busy" | "sent" | "failed">("");
   const [handOffNote, setHandOffNote] = useState("");
@@ -86,12 +89,16 @@ export default function DocAnalysisApp({ openLink }: NativeProps) {
     if (busy || !canRun) return;
     setBusy(true);
     setFailed(false);
+    setGate(null);
     setRes(null);
     try {
       if (!fresh) await getQuote();
       setRes(file ? await analyzeDocumentFile(file) : await analyzeDocument(text.trim()));
     } catch (e) {
-      if (file && e instanceof ApiError && [413, 415, 422].includes(e.status)) setFileErr(errDetail(e) || t("fileUnreadable"));
+      // A plan refusal (402) says what was reached and leads to the plans.
+      const g = planGateOf(e);
+      if (g) setGate(g);
+      else if (file && e instanceof ApiError && [413, 415, 422].includes(e.status)) setFileErr(errDetail(e) || t("fileUnreadable"));
       else setFailed(true);
     } finally {
       setBusy(false);
@@ -223,6 +230,8 @@ export default function DocAnalysisApp({ openLink }: NativeProps) {
         <div className="dxci-out dx-scroll">
           {busy ? (
             <Loading label={t("analyzing")} />
+          ) : gate ? (
+            <PlanGateCard gate={gate} onClose={() => setGate(null)} />
           ) : failed ? (
             <Empty icon={<IconAlert />} title={t("failedTitle")} text={t("failedText")} />
           ) : res ? (
