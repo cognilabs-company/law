@@ -489,6 +489,8 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const [panel, setPanel] = useState<"" | "chat" | "people">("");
   const [view, setView] = useState<"grid" | "speaker">("grid");
   const [pinned, setPinned] = useState<string | null>(null); // participant identity on the stage
+  // The tile last clicked — a camera or a screen share — goes on the stage.
+  const [pick, setPick] = useState<{ id: string; share: boolean } | null>(null);
   const [metaTick, setMetaTick] = useState(0); // bump to force a roster refresh
   const [invitePicks, setInvitePicks] = useState<string[]>([]);
   const [inviteBusy, setInviteBusy] = useState(false);
@@ -1967,9 +1969,18 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   // Screen share on the stage wins over a pinned participant; someone
   // else's share wins over your own.
   const sharer = participants.find((p) => !p.isLocal && p.isScreenShareEnabled) ?? participants.find((p) => p.isLocal && p.isScreenShareEnabled);
-  const stageP = sharer ?? (view === "speaker" ? participants.find((p) => p.identity === pinned) ?? participants.find((p) => !p.isLocal) ?? participants[0] : null);
-  const stageIsShare = !!sharer;
+  // A clicked tile wins while it is still there (a share only while shared).
+  const picked = pick ? participants.find((p) => p.identity === pick.id && (!pick.share || p.isScreenShareEnabled)) : undefined;
+  const stageP = picked ?? sharer ?? (view === "speaker" ? participants.find((p) => p.identity === pinned) ?? participants.find((p) => !p.isLocal) ?? participants[0] : null);
+  const stageIsShare = picked ? !!pick?.share : !!sharer;
   const strip = stageP ? participants.filter((p) => p !== stageP || stageIsShare) : participants;
+  // Shares not on the stage sit in the strip as their own tiles.
+  const stripShares = stageP ? participants.filter((p) => p.isScreenShareEnabled && !(p === stageP && stageIsShare)) : [];
+  const focus = (p: Participant, share: boolean) => {
+    setPick({ id: p.identity, share });
+    if (!share) setPinned(p.identity);
+    setView("speaker");
+  };
   const statusLabel = emptyLeft != null ? t("endingIn", { s: emptyLeft }) : status === "live" ? t("live") : status === "ringing" ? t("ringing") : status === "error" ? t("error") : t("connecting");
   const canShare = typeof navigator !== "undefined" && !!navigator.mediaDevices && "getDisplayMedia" in navigator.mediaDevices && !MOBILE();
   // Whether this call may carry a picture at all. The policy decides, because
@@ -2112,6 +2123,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       layout: view,
       setLayout: setView,
       pin: (id) => {
+        setPick({ id, share: false });
         setPinned(id);
         setView("speaker");
       },
@@ -2297,15 +2309,18 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
               <Tile key={`stage-${stageP.identity}-${stageIsShare ? "s" : "c"}`} p={stageP} name={nameOf(stageP)} you={t("you")} camOff={t("camOff")} share={stageIsShare} mirror={stageP.isLocal && !stageIsShare && mirror} rec={!stageIsShare && isRecording(stageP)} big />
               {stageIsShare ? <span className="mtg__sharing"><IconMonitor />{stageP.isLocal ? t("youShare") : t("sharing", { name: nameOf(stageP) })}</span> : null}
               <div className="mtg__strip scue-x" ref={stripRef}>
+                {stripShares.map((p) => (
+                  <Tile key={`${p.identity}:s`} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} share small onClick={() => focus(p, true)} />
+                ))}
                 {strip.map((p) => (
-                  <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} rec={isRecording(p)} recLabel={t("a11yRecording")} small onClick={() => { setPinned(p.identity); setView("speaker"); }} />
+                  <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} rec={isRecording(p)} recLabel={t("a11yRecording")} small onClick={() => focus(p, false)} />
                 ))}
               </div>
             </div>
           ) : (
             <div className={`mtg__grid mtg__grid--${Math.min(gridN, 9)}`} ref={gridRef}>
               {strip.map((p) => (
-                <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} rec={isRecording(p)} recLabel={t("a11yRecording")} pip={gridN === 2 && p.isLocal && MOBILE()} onClick={() => { setPinned(p.identity); setView("speaker"); }} />
+                <Tile key={p.identity} p={p} name={nameOf(p)} you={t("you")} camOff={t("camOff")} mirror={p.isLocal && mirror} rec={isRecording(p)} recLabel={t("a11yRecording")} pip={gridN === 2 && p.isLocal && MOBILE()} onClick={() => focus(p, false)} />
               ))}
               {count <= 1 ? (
                 <div className="mtg__waiting">
