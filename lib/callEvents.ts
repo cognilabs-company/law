@@ -2,6 +2,9 @@
 // the call room (roster, timer) and the chat's incoming-call card update on
 // events instead of polling. Emitted by SecureChat's socket handler.
 export const CALLROOM_EVENT = "lexgo:callroom";
+// Asks an open CallRoom to fold into its floating panel (remote assistance
+// needs the client's page visible).
+export const CALLROOM_FLOAT_EVENT = "lexgo:callroom-float";
 
 // Whether a CallRoom is on screen (any page). IncomingCallWatcher uses it so a
 // meeting resumed by a launcher isn't offered a second time by its own card;

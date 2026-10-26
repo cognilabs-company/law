@@ -8,6 +8,7 @@ import { parseServerTime } from "@/lib/http";
 import { errorText } from "@/lib/errorText";
 import { toast } from "@/lib/toast";
 import { primeCallAudio } from "@/lib/callSounds";
+import { openRaConsole, rememberSupportCall } from "@/lib/remoteAssist/store";
 import { shortDateTime, weekdays } from "@/lib/date";
 import { initials } from "@/lib/lawyers";
 import { aiId } from "@/lib/ai/ids";
@@ -132,6 +133,10 @@ export function useSupportCall(ticketId: string, workId = "") {
         toast(t("call.failed"), { tone: "err" });
         return;
       }
+      // The remote-assistance request needs this call: keep it, and put the
+      // folded console on screen so it is one click away inside the call.
+      rememberSupportCall(ticketId, s.id);
+      openRaConsole({ ticketId, callId: s.id, workId }, false);
       router.push(supportCallHref(s.roomId, s.id));
     } catch (e) {
       pending.current = false;

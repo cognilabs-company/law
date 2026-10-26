@@ -68,7 +68,7 @@ import { NO_BG, bgSupported, cameraProcessor, claimBgUnavailableNotice, getBgEff
 import CallBackgroundPicker from "./CallBackgroundPicker";
 import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord, IconBgPerson } from "../icons";
 import { regionLabel } from "@/lib/labels";
-import { CALLROOM_EVENT, isCallRoomMounted, trackCallRoomMount } from "@/lib/callEvents";
+import { CALLROOM_EVENT, CALLROOM_FLOAT_EVENT, isCallRoomMounted, trackCallRoomMount } from "@/lib/callEvents";
 import { tellDesk } from "@/lib/deskBridge";
 import { notify, notifyStore, type NotifyOptions } from "@/lib/toast";
 
@@ -582,6 +582,13 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   useEffect(() => { rosterRef.current = roster; }, [roster]);
   // Mount bookkeeping for isCallRoomMounted() + the window event.
   useEffect(() => trackCallRoomMount(), []);
+  // Remote assistance just started: fold the room into its panel so the
+  // operator's pointer and the client's page are not hidden behind it.
+  useEffect(() => {
+    const fold = () => { fitFloat(); setFloating(true); setPanel(""); };
+    window.addEventListener(CALLROOM_FLOAT_EVENT, fold);
+    return () => window.removeEventListener(CALLROOM_FLOAT_EVENT, fold);
+  }, []);
   const signal = (event: "call.join" | "call.leave" | "call.end") => {
     const ws = callWsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) { try { ws.send(JSON.stringify({ event, payload: {} })); } catch { /* ignore */ } }

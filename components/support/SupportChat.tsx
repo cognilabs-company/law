@@ -54,6 +54,7 @@ import {
   IconHeadset,
   IconHourglass,
   IconLock,
+  IconMonitor,
   IconPaperclip,
   IconPhone,
   IconPlus,
@@ -63,6 +64,7 @@ import {
   IconUser,
   IconVideo,
 } from "@/components/icons";
+import { forgetSupportCall, openRaConsole, rememberSupportCall, useRaSupportCall } from "@/lib/remoteAssist/store";
 import { SupportStatus, useMinuteNow, useSupportCall, useSupportHours, useSupportLabels, type SupportCallControl } from "./bits";
 
 const PAGE = 50;
@@ -360,6 +362,11 @@ export default function SupportChat({
     if (e.ticket) onTicketRef.current?.(e.ticket);
     else if (e.kind === "closed") onTicketRef.current?.({ ...ticket, status: "closed" });
     else if (e.kind === "reopened") onTicketRef.current?.({ ...ticket, status: "reopened" });
+    // Remote assistance needs the ticket's live support call.
+    if (e.kind === "call" && e.call) {
+      if (CALL_OVER.has(e.call.status.toLowerCase())) forgetSupportCall(ticketId, e.call.callId);
+      else rememberSupportCall(ticketId, e.call.callId);
+    }
     if (mode !== "client") return;
     if (e.kind === "call" && e.call && !CALL_OVER.has(e.call.status.toLowerCase())) setRing(e.call);
     if (e.kind === "assist") addCard(e);
@@ -528,6 +535,7 @@ export default function SupportChat({
   const dayText = (day: string) => (day && day === today ? t("chat.today") : day && day === yesterday ? t("chat.yesterday") : day);
   const writable = canWrite && !closed && state !== "missing";
   const callable = mode === "operator" && Boolean(canCall) && known && !closed && state !== "missing";
+  const raCall = useRaSupportCall(mode === "operator" ? ticketId : "");
   const canReopen = mode === "client" && Boolean(onReopen) && state !== "missing" && (!clientUserId || !meId || clientUserId === meId);
   const aiBase = mode === "client" ? "support.ticket" : "call_center.support.ticket";
   const aiOf = (...parts: string[]) => (ticketId ? aiId(aiBase, ticketId, ...parts) : undefined);
@@ -616,6 +624,20 @@ export default function SupportChat({
               <IconVideo aria-hidden="true" />
               <span>{calling === "video" ? t("call.starting") : t("call.video")}</span>
             </button>
+            {ticket.operatorUserId && ticket.operatorUserId === meId ? (
+              <button
+                type="button"
+                className="supchat__call supchat__call--ra"
+                onClick={() => openRaConsole({ ticketId, clientName: clientName || "", workId: ticket.workId })}
+                disabled={!raCall}
+                title={raCall ? t("call.remoteAssistHint") : t("call.remoteAssistNeedCall")}
+                data-ai-id={aiOf("remote_assist")}
+                data-ai-type="call_button"
+              >
+                <IconMonitor aria-hidden="true" />
+                <span>{t("call.remoteAssist")}</span>
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>

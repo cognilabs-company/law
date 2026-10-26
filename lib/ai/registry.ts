@@ -94,6 +94,10 @@ export function aiModalOpener(aiId: string): (() => void) | null {
   return modals.get(aiId) ?? null;
 }
 
+export function aiModalIds(): string[] {
+  return Array.from(modals.keys());
+}
+
 export function aiSelections(): Record<string, string> {
   return Object.fromEntries(selections);
 }

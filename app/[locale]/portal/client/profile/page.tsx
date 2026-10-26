@@ -24,7 +24,7 @@ import {
 } from "@/lib/services/backend";
 import { ApiError } from "@/lib/http";
 import { useResource, useResourceOne } from "@/lib/useResource";
-import { useAiModal } from "@/lib/ai/registry";
+import { useAiField, useAiModal } from "@/lib/ai/registry";
 import { PROFILE_TABS, isProfileTab, type ProfileTab } from "@/lib/profileTabs";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import { notify } from "@/lib/toast";
@@ -604,6 +604,12 @@ function EditModal({
     }
   }
 
+  // Profile basics for remote assistance (contract §21): the operator can
+  // fill these only with the client's personal_form_fill consent; they go
+  // through the same state setters as typing.
+  useAiField("profile.personal.full_name", { get: () => name, set: setName });
+  useAiField("profile.personal.email", { get: () => email, set: setEmail });
+
   return (
     <Modal open={open} onClose={onClose} title={t("editTitle")}>
       <form className="cform" style={{ maxWidth: "none" }} onSubmit={submit} noValidate data-ai-id="profile.personal.edit-modal" data-ai-type="modal" data-ai-label={t("editTitle")} data-ai-private>
@@ -620,6 +626,10 @@ function EditModal({
             }}
             placeholder={t("namePh")}
             autoComplete="name"
+            data-ai-id="profile.personal.full_name"
+            data-ai-type="input"
+            data-ai-label={t("name")}
+            data-ra-sensitivity="personal"
             aria-invalid={errs.name ? true : undefined}
             aria-describedby={errs.name ? `${uid}-name-err` : undefined}
           />
@@ -638,6 +648,10 @@ function EditModal({
             placeholder={t("emailPh")}
             type="email"
             autoComplete="email"
+            data-ai-id="profile.personal.email"
+            data-ai-type="input"
+            data-ai-label={t("email")}
+            data-ra-sensitivity="personal"
             aria-invalid={errs.email ? true : undefined}
             aria-describedby={errs.email ? `${uid}-email-err` : undefined}
           />

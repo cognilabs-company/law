@@ -56,7 +56,7 @@ type SvgC = ComponentType<{ className?: string }>;
 // perm: one code, or a list where any one code is enough. Codes outside
 // ADMIN_PERMISSIONS (b2b.manage, meetings.manage) only gate the item; they
 // don't grant admin access on their own.
-type NavPerm = AdminPermission | "b2b.manage" | "meetings.manage" | "orders.manage" | "tasks.view";
+type NavPerm = AdminPermission | "b2b.manage" | "meetings.manage" | "orders.manage" | "tasks.view" | "remote_assist.supervise" | "remote_assist.view_audit";
 type NavItem = { href: string; key: string; Icon: SvgC; perm?: NavPerm | NavPerm[]; hidden?: boolean };
 // CRM modules grouped per the platform plan. `perm` = the backend permission a
 // page needs; items without a perm (overview, ceo, bootstrap…) are full-admin
@@ -120,6 +120,8 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       // The support queue backend checks callcenter.access specifically.
       // leads.manage alone must not expose a link that will return 403.
       { href: "/admin/call-center/support", key: "supportTickets", Icon: NavSupport, perm: "callcenter.access" },
+      // Supervisors (admin/manager) monitor and emergency-revoke sessions.
+      { href: "/admin/remote-assistance", key: "remoteAssist", Icon: NavCallAnalytics, perm: ["remote_assist.supervise", "remote_assist.view_audit"] },
       { href: "/admin/legal-aid", key: "legalAid", Icon: NavLegalAid, perm: "legal_aid.manage" },
       { href: "/admin/notifications", key: "notifications", Icon: NavNotifications, perm: "notifications.manage" },
     ],
