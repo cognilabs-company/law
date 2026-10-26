@@ -12,7 +12,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { useTranslations } from "next-intl";
-import { isCallRoomMounted } from "@/components/chat/CallRoom";
+import { isCallRoomMounted } from "@/lib/callEvents";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { useLayer } from "@/lib/layers";
 import { isCoarsePointer } from "@/lib/usePopover";

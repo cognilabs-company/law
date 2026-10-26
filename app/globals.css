@@ -569,6 +569,14 @@ section[id]{scroll-margin-top:86px}
 /* skroll progressi */
 .prog{position:fixed;top:0;left:0;height:3px;width:100%;transform:scaleX(0);transform-origin:left;
   background:linear-gradient(90deg,var(--b500),var(--cy));z-index:99;transition:transform .1s linear}
+/* navigatsiya kutilmoqda (lib/navProgress): bosilgan zahoti yuqoridagi chiziq */
+.navprog{position:fixed;top:0;left:0;right:0;height:3px;z-index:2147483000;pointer-events:none;opacity:0;overflow:hidden;transition:opacity .2s ease}
+.navprog::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,var(--b500),var(--cy));transform-origin:left;transform:scaleX(0)}
+html[data-nav-pending] .navprog{opacity:1;transition-duration:.08s}
+html[data-nav-pending] .navprog::before{animation:navprog 8s cubic-bezier(.1,.7,.2,1) forwards}
+html[data-nav-pending],html[data-nav-pending] a{cursor:progress}
+@keyframes navprog{0%{transform:scaleX(0)}4%{transform:scaleX(.25)}40%{transform:scaleX(.7)}100%{transform:scaleX(.94)}}
+@media (prefers-reduced-motion:reduce){html[data-nav-pending] .navprog::before{animation:none;transform:scaleX(.6)}}
 /* jonli lenta */
 .ticker{overflow:hidden;border-block:1px solid var(--line);background:var(--dk-surface, #fff);padding:13px 0;position:relative}
 .ticker::before,.ticker::after{content:"";position:absolute;top:0;bottom:0;width:70px;z-index:2;pointer-events:none}
@@ -5300,6 +5308,8 @@ button.aifile__btn:disabled{opacity:.6;cursor:default}
 .ring b{z-index:1;color:#fff;line-height:1}
 /* locked seller routes render chrome only */
 .portal--gated{display:flex;align-items:center;justify-content:center;min-height:40vh;color:var(--gray)}
+.route-loading{display:flex;align-items:center;justify-content:center;min-height:40vh;animation:route-loading-in .2s ease .15s both}
+@keyframes route-loading-in{from{opacity:0}to{opacity:1}}
 
 /* ── wp-aj ── */
 /* 2FA: the active method as a highlighted card */

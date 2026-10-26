@@ -4,11 +4,7 @@ import { Inter, Onest, Poppins } from "next/font/google";
 import { NextIntlClientProvider, hasLocale } from "next-intl";
 import IntlProvider from "@/components/IntlProvider";
 import VersionWatch from "@/components/VersionWatch";
-import {
-  getMessages,
-  getTranslations,
-  setRequestLocale,
-} from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import "../globals.css";
@@ -22,6 +18,7 @@ import Footer from "@/components/Footer";
 import MobileTabBar from "@/components/MobileTabBar";
 import AIChatDock from "@/components/AIChatDock";
 import ScrollProgress from "@/components/ScrollProgress";
+import NavProgress from "@/components/NavProgress";
 import RevealOnScroll from "@/components/RevealOnScroll";
 import ThemeSync from "@/components/ThemeSync";
 import ChromeGate from "@/components/ChromeGate";
@@ -87,7 +84,6 @@ export default async function LocaleLayout({ children, params }: Props) {
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
-  const messages = await getMessages();
   const tCommon = await getTranslations({ locale, namespace: "common" });
 
   return (
@@ -98,7 +94,9 @@ export default async function LocaleLayout({ children, params }: Props) {
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
       </head>
       <body>
-        <NextIntlClientProvider locale={locale} messages={messages}>
+        {/* messages={null}: IntlProvider loads them as a cached chunk instead
+            of every page carrying them in its HTML and RSC payload. */}
+        <NextIntlClientProvider locale={locale} messages={null}>
         <IntlProvider>
           <ThemeSync />
           <ChromeGate>
@@ -121,6 +119,7 @@ export default async function LocaleLayout({ children, params }: Props) {
               <AIChatDock />
             </ChromeGate>
             <RevealOnScroll />
+            <NavProgress />
             <Toaster />
             <ConfirmHost />
             <ChromeGate>

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
-import * as THREE from "three";
-import RobotCanvas from "./RobotCanvas";
 import { RobotEvents } from "./RobotEvents";
 import { BREAKPOINTS, DEBUG_ROBOT, RANDOM_GESTURE_INTERVAL_MS, VIEWPORT_SIZE } from "./robot-config";
 import { GESTURE_NAMES } from "./robot-gestures";
@@ -41,18 +41,27 @@ const IDLE_BEATS: Array<(c: RobotController) => void> = [
   (c) => c.idle(),
 ];
 
-const DEMO_STEPS: Array<(c: RobotController) => void> = [
-  (c) => c.idle(),
-  (c) => c.peek(),
-  (c) => c.greet(),
-  (c) => c.wave(),
-  (c) => c.lookAt(new THREE.Vector3(0.45, 0.45, 1)),
-  (c) => c.pointAt(new THREE.Vector3(-0.4, 0.5, 1)),
-  (c) => c.think(),
-  (c) => c.hide(),
-  ...FACE_EXPRESSIONS.map((expression) => (c: RobotController) => c.setExpression(expression)),
-  ...GESTURE_NAMES.map((name) => (c: RobotController) => c.playGesture(name)),
-];
+// three.js, the 3D scene and the ~2 MB model load with the canvas, and the
+// canvas mounts only where the robot is shown (above the portal's 900px
+// mobile breakpoint), once the page has loaded and the browser is idle — so
+// a phone never downloads them and a cold visit's own requests go first.
+const RobotCanvas = dynamic(() => import("./RobotCanvas"), { ssr: false });
+const IDLE_TIMEOUT_MS = 4000;
+// Rendering stops while any scroll is under way and resumes this long after
+// the last scroll event: the WebGL frame loop otherwise competes with the
+// scroll for every frame (measured: ~30 fps scrolling with it, 60 without).
+const SCROLL_REST_MS = 180;
+// On a 2G/3G or data-saving connection the 3D model (~1.3 MB gzip) would
+// compete with the pages' own requests for most of a minute, so the companion
+// is its still picture there (the canvas's own fallback) — still clickable.
+// navigator.connection.downlink is not used: a fresh browser profile reports
+// ~1.6 Mbps on a fast line until it has measured.
+type NetInfo = { saveData?: boolean; effectiveType?: string };
+function slowConnection(): boolean {
+  const c = (navigator as Navigator & { connection?: NetInfo }).connection;
+  if (!c) return false;
+  return !!c.saveData || /^(slow-2g|2g|3g)$/.test(c.effectiveType ?? "");
+}
 
 const PEEK_AFTER = 48;
 const SIZE_SCALE: Record<Tier, number> = { full: 0.88, compact: 0.88, mini: 1 };
@@ -79,6 +88,48 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
   const [reducedMotion, setReducedMotion] = useState(false);
   const [ready, setReady] = useState(false);
   const [peek, setPeek] = useState(false);
+  const [canvasDue, setCanvasDue] = useState<"" | "3d" | "still">("");
+  const [scrolling, setScrolling] = useState(false);
+
+  useEffect(() => {
+    if (!visible || canvasDue) return;
+    let idle = 0;
+    let timer = 0;
+    const due = () => setCanvasDue(slowConnection() ? "still" : "3d");
+    const start = () => {
+      if (typeof window.requestIdleCallback === "function") idle = window.requestIdleCallback(due, { timeout: IDLE_TIMEOUT_MS });
+      else timer = window.setTimeout(due, 1000);
+    };
+    if (document.readyState === "complete") start();
+    else window.addEventListener("load", start, { once: true });
+    return () => {
+      window.removeEventListener("load", start);
+      if (idle) window.cancelIdleCallback(idle);
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [visible, canvasDue]);
+
+  useEffect(() => {
+    if (!visible) return;
+    let rest = 0;
+    let on = false;
+    const onAnyScroll = () => {
+      if (!on) {
+        on = true;
+        setScrolling(true);
+      }
+      window.clearTimeout(rest);
+      rest = window.setTimeout(() => {
+        on = false;
+        setScrolling(false);
+      }, SCROLL_REST_MS);
+    };
+    window.addEventListener("scroll", onAnyScroll, { capture: true, passive: true });
+    return () => {
+      window.removeEventListener("scroll", onAnyScroll, { capture: true });
+      window.clearTimeout(rest);
+    };
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -216,8 +267,12 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
     if (DEBUG_ROBOT && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("robot") === "debug") {
       const controller = controllerRef.current;
       if (!controller) return;
-      DEMO_STEPS[demoStepRef.current % DEMO_STEPS.length](controller);
+      const step = demoStepRef.current;
       demoStepRef.current += 1;
+      void import("./robot-demo").then(({ demoSteps }) => {
+        const steps = demoSteps(FACE_EXPRESSIONS);
+        steps[step % steps.length](controller);
+      });
       return;
     }
     RobotEvents.emit("peek");
@@ -248,7 +303,13 @@ export default function LexGoRobot({ onRobotClick }: { onRobotClick?: () => void
           }
         }}
       >
-        <RobotCanvas onReady={handleReady} reducedMotion={reducedMotion} />
+        {canvasDue === "3d" ? (
+          <RobotCanvas onReady={handleReady} reducedMotion={reducedMotion} paused={scrolling} />
+        ) : canvasDue === "still" ? (
+          <div className="robot-canvas-fallback" aria-hidden>
+            <Image src="/img/card-lexgo-ai-sorash.png" alt="" width={104} height={104} />
+          </div>
+        ) : null}
       </div>
     </div>
   );

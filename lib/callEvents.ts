@@ -3,6 +3,27 @@
 // events instead of polling. Emitted by SecureChat's socket handler.
 export const CALLROOM_EVENT = "lexgo:callroom";
 
+// Whether a CallRoom is on screen (any page). IncomingCallWatcher uses it so a
+// meeting resumed by a launcher isn't offered a second time by its own card;
+// mounting also fires CALLROOM_EVENT. Kept here, not in CallRoom.tsx, so
+// asking (admin Modal, IncomingCallWatcher) doesn't pull the call room and
+// LiveKit into every page that only wants the answer.
+let mountedRooms = 0;
+export function isCallRoomMounted(): boolean {
+  return mountedRooms > 0;
+}
+export function trackCallRoomMount(): () => void {
+  mountedRooms += 1;
+  try {
+    window.dispatchEvent(new CustomEvent(CALLROOM_EVENT));
+  } catch {
+    /* ignore */
+  }
+  return () => {
+    mountedRooms -= 1;
+  };
+}
+
 export type CallEvent = { event: string; room_id?: string; call_id?: string } & Record<string, unknown>;
 type Handler = (e: CallEvent) => void;
 

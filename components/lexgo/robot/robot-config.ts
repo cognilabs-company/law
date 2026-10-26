@@ -35,7 +35,10 @@ export function fingerBoneName(hand: Hand, finger: Finger, segment: FingerSegmen
   return `mixamorig:${side}Hand${FINGER_PREFIX[finger]}${segment}`;
 }
 
-export const MODEL_URL = "/models/lexgo-robot.glb";
+// Production loads the web copy (scripts/optimize-robot-model.mjs: 1024²
+// textures, only the clips production plays; ~1.9 MB instead of ~9.9 MB);
+// the dev harness, which cycles through every baked clip, the full model.
+export const MODEL_URL = process.env.NODE_ENV === "production" ? "/models/lexgo-robot.web.glb" : "/models/lexgo-robot.glb";
 
 // Bind-pose facts measured directly off the GLB (JSON chunk, POSITION
 // accessor min/max): ~0.63m wide (arms included) x ~0.98m tall x ~0.44m

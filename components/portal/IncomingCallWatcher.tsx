@@ -7,7 +7,7 @@ import { useRouter, usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { listInvitedCalls, listLawyers, getCall, updateCallParticipant } from "@/lib/services/backend";
 import { connectUserSocket, disconnectUserSocket, subscribeUserEvents, subscribeUserSocketState, type UserEvent } from "@/lib/userSocket";
-import { CALLROOM_EVENT, subscribeRoomCallEvents } from "@/lib/callEvents";
+import { CALLROOM_EVENT, isCallRoomMounted, subscribeRoomCallEvents } from "@/lib/callEvents";
 import { playRingtone, primeCallAudio, stopAllCallTones } from "@/lib/callSounds";
 import { IconPhone, IconVideo, IconClose } from "@/components/icons";
 
@@ -285,7 +285,6 @@ export default function IncomingCallWatcher() {
           // Offer to rejoin (ring card) — never open a meeting by itself. A
           // launcher (admin/seller meetings page) that already resumed it as
           // host has a CallRoom on screen: nothing to offer then.
-          const { isCallRoomMounted } = await import("@/components/chat/CallRoom");
           if (!alive || isCallRoomMounted()) return;
           setInc({ kind: "meet", roomId: stored!.roomId!, callId: stored!.callId!, callType: stored!.callType === "audio" ? "audio" : "video", callerName: c.callerName || t("someone"), resume: true });
         } else {

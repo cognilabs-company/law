@@ -96,10 +96,18 @@ export default function RevealOnScroll() {
     // belongs to re-observes whatever the new observers have not seen yet.
     const armed = new WeakSet<Element>();
 
-    const arm = () => {
-      const fresh = Array.from(
-        document.querySelectorAll<HTMLElement>(SELECTOR),
-      ).filter((e) => !armed.has(e) && !e.classList.contains("in"));
+    // `roots` limits the search to newly added subtrees; the first pass (and
+    // each navigation) searches the whole document. Writes, reads and the
+    // final class changes run as three separate passes, so a batch of N new
+    // cards costs one forced layout instead of N.
+    const arm = (roots?: Element[]) => {
+      const found = new Set<HTMLElement>();
+      for (const root of roots ?? [document.documentElement]) {
+        if (!root.isConnected) continue;
+        if (root instanceof HTMLElement && root.matches(SELECTOR)) found.add(root);
+        root.querySelectorAll<HTMLElement>(SELECTOR).forEach((e) => found.add(e));
+      }
+      const fresh = Array.from(found).filter((e) => !armed.has(e) && !e.classList.contains("in"));
       if (!fresh.length) return;
 
       // The stagger index has to restart inside each container. The old code
@@ -124,9 +132,11 @@ export default function RevealOnScroll() {
         // (the stage progress line) can ride the same delay as its card.
         el.style.setProperty("--rvd", `${ms}ms`);
         el.classList.add("rv");
+      });
 
-        const row = horizontalScroller(el, scrollerCache);
-        const r = el.getBoundingClientRect();
+      const placed = fresh.map((el) => ({ el, row: horizontalScroller(el, scrollerCache), r: el.getBoundingClientRect() }));
+
+      placed.forEach(({ el, row, r }) => {
         if ((r.top < vh && r.bottom > 0 && r.width > 0) || (row && openRows.has(row))) {
           // Already on screen when we found it — or a late arrival in a row
           // that has already opened. Adding .in in the same style
@@ -146,12 +156,15 @@ export default function RevealOnScroll() {
     arm();
 
     let raf = 0;
+    let added: Element[] = [];
     const mo = new MutationObserver((records) => {
-      if (raf) return;
-      if (!records.some((r) => r.addedNodes.length)) return;
+      for (const r of records) r.addedNodes.forEach((n) => n.nodeType === 1 && added.push(n as Element));
+      if (raf || !added.length) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
-        arm();
+        const roots = added;
+        added = [];
+        arm(roots);
       });
     });
     mo.observe(document.body, { childList: true, subtree: true });

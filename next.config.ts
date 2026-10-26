@@ -55,6 +55,8 @@ const nextConfig: NextConfig = {
       { source: "/mediapipe/wasm/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
       { source: "/mediapipe/models/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=2592000" }] },
       { source: "/meeting-bg/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=604800" }] },
+      // The portal robot's model: a returning visitor reuses it instead of revalidating ~2 MB.
+      { source: "/models/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=86400" }] },
     ];
   },
   // Backend/plan docs call the seller cabinets /portal/advokat and

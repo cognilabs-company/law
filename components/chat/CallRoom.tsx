@@ -68,7 +68,7 @@ import { NO_BG, bgSupported, cameraProcessor, claimBgUnavailableNotice, getBgEff
 import CallBackgroundPicker from "./CallBackgroundPicker";
 import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord, IconBgPerson } from "../icons";
 import { regionLabel } from "@/lib/labels";
-import { CALLROOM_EVENT } from "@/lib/callEvents";
+import { CALLROOM_EVENT, isCallRoomMounted, trackCallRoomMount } from "@/lib/callEvents";
 import { tellDesk } from "@/lib/deskBridge";
 import { notify, notifyStore, type NotifyOptions } from "@/lib/toast";
 
@@ -301,12 +301,8 @@ function callLimitsOf(c: CallSession): CallLimits {
   };
 }
 
-// Whether a CallRoom is on screen (any page). IncomingCallWatcher uses it so a
-// meeting resumed by a launcher isn't offered a second time by its own card;
-// mounting also fires a "lexgo:callroom" window event.
-let mountedRooms = 0;
-export function isCallRoomMounted(): boolean { return mountedRooms > 0; }
-export { CALLROOM_EVENT };
+// Whether a CallRoom is on screen: lives in lib/callEvents (see there).
+export { CALLROOM_EVENT, isCallRoomMounted };
 
 // Everything a skin needs to draw a call: the state, the people, the
 // overlays' data and the actions. The refs (handed separately) must be attached — the room's
@@ -585,11 +581,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const rosterRef = useRef<CallParticipant[]>([]);
   useEffect(() => { rosterRef.current = roster; }, [roster]);
   // Mount bookkeeping for isCallRoomMounted() + the window event.
-  useEffect(() => {
-    mountedRooms += 1;
-    try { window.dispatchEvent(new CustomEvent(CALLROOM_EVENT)); } catch { /* ignore */ }
-    return () => { mountedRooms -= 1; };
-  }, []);
+  useEffect(() => trackCallRoomMount(), []);
   const signal = (event: "call.join" | "call.leave" | "call.end") => {
     const ws = callWsRef.current;
     if (ws && ws.readyState === WebSocket.OPEN) { try { ws.send(JSON.stringify({ event, payload: {} })); } catch { /* ignore */ } }

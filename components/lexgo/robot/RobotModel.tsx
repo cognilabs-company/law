@@ -208,6 +208,10 @@ export default function RobotModel({
   const rootRef = useRef<THREE.Group>(null);
   const controllerRef = useRef<RobotController | null>(null);
   const earsRemovedRef = useRef(false);
+  // Own animation clock: r3f resets clock.elapsedTime whenever the frame loop
+  // is paused and resumed (LexGoRobot pauses it while the page scrolls), and
+  // a step capped so a resume never jumps the pose.
+  const elapsedRef = useRef(0);
   const bones = useMemo(() => {
     return new RobotBones(scene);
   }, [scene]);
@@ -245,12 +249,14 @@ export default function RobotModel({
     controllerRef.current?.setReducedMotion(reducedMotion);
   }, [reducedMotion]);
 
-  useFrame((state, dt) => {
+  useFrame((_, dt) => {
     if (document.hidden) return;
     if (!earsRemovedRef.current) {
       earsRemovedRef.current = removeRobotEars(scene, bones.get("head"));
     }
-    controllerRef.current?.update(dt, state.clock.elapsedTime);
+    const step = Math.min(dt, 0.1);
+    elapsedRef.current += step;
+    controllerRef.current?.update(step, elapsedRef.current);
   });
 
   return (

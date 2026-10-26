@@ -28,9 +28,12 @@ const oversizedStyle = {
 export default function RobotCanvas({
   onReady,
   reducedMotion,
+  paused = false,
 }: {
   onReady: (controller: RobotController | null) => void;
   reducedMotion: boolean;
+  // No frames at all while true (the page is scrolling); see LexGoRobot.
+  paused?: boolean;
 }) {
   return (
     <div style={oversizedStyle}>
@@ -47,6 +50,7 @@ export default function RobotCanvas({
         camera={{ fov: CAMERA.fov, position: CAMERA.position, near: CAMERA.near, far: CAMERA.far }}
         gl={{ alpha: true, antialias: true }}
         dpr={[1, 1.5]}
+        frameloop={paused ? "never" : "always"}
         fallback={
           <div className="robot-canvas-fallback" aria-hidden>
             <Image src="/img/card-lexgo-ai-sorash.png" alt="" width={104} height={104} priority />

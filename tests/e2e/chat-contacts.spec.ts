@@ -14,6 +14,9 @@ test.describe("secure chat contact sharing", () => {
     await page.goto(`/ru/portal/chat/${ROOM}`);
     const box = page.getByPlaceholder("Напишите сообщение…");
     await expect(box).toBeVisible();
+    // Rendered once the client has loaded the (empty) history: the page is
+    // hydrated, so Enter reaches the composer instead of server HTML.
+    await expect(page.getByText("Начните разговор")).toBeVisible();
 
     const leak = "Menga +998 90 123 45 67 ga yozing";
     await box.fill(leak);
