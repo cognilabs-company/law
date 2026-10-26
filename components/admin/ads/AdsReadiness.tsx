@@ -1,9 +1,10 @@
 "use client";
 
 import "./adsReadiness.css";
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useState, type ComponentType, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { asDict, http, isAborted, logApiError } from "@/lib/http";
+import { IconShieldCheck, IconStar, IconTarget, IconUsers } from "@/components/icons";
 
 // Whether advertising may be sold yet (TZ market conditions, enterprise
 // contract §16): enough registered clients and really rated, verified
@@ -37,29 +38,46 @@ export default function AdsReadiness(): ReactElement | null {
     return () => ctl.abort();
   }, []);
   if (!r) return null;
-  const row = (label: string, g: Gate | null) =>
-    g ? (
+  const row = (label: string, g: Gate | null, Ico: ComponentType) => {
+    if (!g) return null;
+    const pct = g.required ? Math.min(100, Math.round((g.current / g.required) * 100)) : 0;
+    return (
       <li data-met={g.met ? "" : undefined}>
-        <span className="adsr__l">{label}</span>
-        <span className="adsr__bar" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={g.required} aria-valuenow={g.current}>
-          <i style={{ width: `${g.required ? Math.min(100, (g.current / g.required) * 100) : 0}%` }} />
+        <span className="adsr__ico" aria-hidden="true">
+          <Ico />
         </span>
-        <b>{t("of", { current: g.current, required: g.required })}</b>
+        <span className="adsr__l">{label}</span>
+        <span className="adsr__num">
+          <b>{t("of", { current: g.current, required: g.required })}</b>
+          <em>{pct}%</em>
+        </span>
+        <span className="adsr__bar" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={g.required} aria-valuenow={g.current}>
+          <i style={{ width: `${pct}%` }} />
+        </span>
         <small>{g.met ? t("met") : t("missing", { n: Math.max(0, g.required - g.current) })}</small>
       </li>
-    ) : null;
+    );
+  };
   return (
     <section className="adsr" data-ready={r.ready ? "" : undefined} aria-label={t("title")} data-ai-target="ads:readiness">
       <header>
+        <span className="adsr__hico" aria-hidden="true">
+          <IconTarget />
+        </span>
         <b>{t("title")}</b>
         <span className="adsr__state">{r.ready ? t("ready") : t("testOnly")}</span>
       </header>
       <p className="adsr__lead">{r.ready ? t("readyText") : t("testOnlyText")}</p>
       <ul>
-        {row(t("clients"), r.clients)}
-        {row(t("sellers"), r.sellers)}
+        {row(t("clients"), r.clients, IconUsers)}
+        {row(t("sellers"), r.sellers, IconShieldCheck)}
       </ul>
-      {r.premiumMin !== null ? <p className="adsr__note">{t("premium", { n: r.premiumMin.toFixed(1) })}</p> : null}
+      {r.premiumMin !== null ? (
+        <p className="adsr__note">
+          <IconStar />
+          {t("premium", { n: r.premiumMin.toFixed(1) })}
+        </p>
+      ) : null}
     </section>
   );
 }

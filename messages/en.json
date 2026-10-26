@@ -17681,6 +17681,31 @@
       }
     },
     "ads": {
+      "som": "UZS",
+      "days": "{n} days",
+      "listTitle": "Advertising packages",
+      "listLead": "Every package created in Studio: placement, price, duration and status.",
+      "filterAll": "All",
+      "search": "Search by package name",
+      "noMatch": "No packages match the filter.",
+      "resetFilter": "Clear filter",
+      "created": "Created: {date}",
+      "kpi": {
+        "total": "Total packages",
+        "active": "Active",
+        "price": "Price range",
+        "placements": "Placements",
+        "placementsOf": "{n} / {total}"
+      },
+      "fact": {
+        "reach": "Reach",
+        "boost": "Boost score"
+      },
+      "placement": {
+        "banner": "Banner ad",
+        "profile_boost": "Profile ad",
+        "service_boost": "Service ad"
+      },
       "readOnlyTitle": "Ad packages are now managed in Studio",
       "readOnlyText": "This page is view-only. Packages are added, changed and removed in Studio under “Ad packages”, through approval.",
       "openStudio": "Open in Studio",

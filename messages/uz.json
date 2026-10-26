@@ -17687,6 +17687,31 @@
       }
     },
     "ads": {
+      "som": "so'm",
+      "days": "{n} kun",
+      "listTitle": "Reklama paketlari",
+      "listLead": "Studio'da yaratilgan barcha paketlar: joyi, narxi, muddati va holati.",
+      "filterAll": "Hammasi",
+      "search": "Paket nomi bo'yicha qidirish",
+      "noMatch": "Filtrga mos paket topilmadi.",
+      "resetFilter": "Filtrni tozalash",
+      "created": "Yaratilgan: {date}",
+      "kpi": {
+        "total": "Jami paketlar",
+        "active": "Faol paketlar",
+        "price": "Narx oralig'i",
+        "placements": "Joylashuvlar",
+        "placementsOf": "{n} / {total}"
+      },
+      "fact": {
+        "reach": "Qamrov",
+        "boost": "Ko'tarish balli"
+      },
+      "placement": {
+        "banner": "Banner reklama",
+        "profile_boost": "Profil reklamasi",
+        "service_boost": "Xizmat reklamasi"
+      },
       "readOnlyTitle": "Reklama paketlari endi Studio'da boshqariladi",
       "readOnlyText": "Bu sahifa faqat ko'rish uchun. Paket qo'shish, o'zgartirish va o'chirish Studio'dagi «Reklama paketlari» bo'limida, tasdiqlash orqali bajariladi.",
       "openStudio": "Studio'da ochish",
