@@ -40,7 +40,7 @@ import {
 import { closeRaConsole, patchRaConsole, type RaConsoleState } from "@/lib/remoteAssist/store";
 import { useRaLink } from "@/lib/remoteAssist/callLink";
 import { raWireAllowed, type RaShareState } from "@/lib/remoteAssist/marks";
-import { CALLROOM_FLOAT_EVENT } from "@/lib/callEvents";
+import { CALLROOM_EVENT, CALLROOM_FLOAT_EVENT } from "@/lib/callEvents";
 import { RaScreen } from "./RaScreen";
 import { RaPagePicker } from "./RaPagePicker";
 import { openRaSocket, type RaSocketEvent } from "@/lib/remoteAssist/socket";
@@ -342,10 +342,26 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
 
   // Once the session is live, fold this side's call window too, so the
   // client's picture has room.
+  // The console shows the client's screen itself, so the call room behind it
+  // would only repeat it full size: fold it when the session goes live, when
+  // the client starts sharing, and whenever a call room (re)mounts.
   const isLive = phase === "active";
+  const clientSharing = !!clientShare?.on;
   useEffect(() => {
-    if (isLive) window.dispatchEvent(new CustomEvent(CALLROOM_FLOAT_EVENT));
-  }, [isLive]);
+    if (!isLive) return;
+    // A next tick: a mounting room announces itself before it listens.
+    let timer = 0;
+    const fold = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => window.dispatchEvent(new CustomEvent(CALLROOM_FLOAT_EVENT)), 0);
+    };
+    fold();
+    window.addEventListener(CALLROOM_EVENT, fold);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener(CALLROOM_EVENT, fold);
+    };
+  }, [isLive, clientSharing]);
 
   const dispatch = async (intent: Intent) => {
     if (!session || busy) return;
