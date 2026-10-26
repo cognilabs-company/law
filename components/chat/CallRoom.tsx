@@ -1964,8 +1964,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   const participants: Participant[] = room ? [room.localParticipant, ...room.remoteParticipants.values()] : [];
   const count = participants.length;
-  // Screen share on the stage wins over a pinned participant.
-  const sharer = participants.find((p) => p.isScreenShareEnabled);
+  // Screen share on the stage wins over a pinned participant; someone
+  // else's share wins over your own.
+  const sharer = participants.find((p) => !p.isLocal && p.isScreenShareEnabled) ?? participants.find((p) => p.isLocal && p.isScreenShareEnabled);
   const stageP = sharer ?? (view === "speaker" ? participants.find((p) => p.identity === pinned) ?? participants.find((p) => !p.isLocal) ?? participants[0] : null);
   const stageIsShare = !!sharer;
   const strip = stageP ? participants.filter((p) => p !== stageP || stageIsShare) : participants;
@@ -2662,7 +2663,11 @@ function Tile({ p, name, you, camOff, share, mirror, rec, recLabel, big, small, 
   const [portrait, setPortrait] = useState(false);
   const source = share ? Track.Source.ScreenShare : Track.Source.Camera;
   const pub: TrackPublication | undefined = p.getTrackPublication(source);
-  const track = pub && !pub.isMuted ? (p.isLocal ? (p as LocalParticipant).getTrackPublication(source)?.track : pub.track) : undefined;
+  // Your own share is never previewed: a shared tab (remote assistance
+  // shares this very tab) would render its own capture inside itself, an
+  // endless mirror that crashes the page. The stage label says you share.
+  const selfShare = !!share && p.isLocal;
+  const track = pub && !pub.isMuted && !selfShare ? (p.isLocal ? (p as LocalParticipant).getTrackPublication(source)?.track : pub.track) : undefined;
   const hasVideo = !!track;
   useEffect(() => {
     const el = ref.current;
