@@ -107,6 +107,10 @@ export default function AdminAds() {
           <p>{t("ads.lead")}</p>
         </div>
         <div className="ads-hero__acts">
+          <Link href="/admin/promotions" className="btn btn--line btn--sm" data-ai-target="button:promotions">
+            <IconTag />
+            {t("ads.promotions")}
+          </Link>
           <Link href="/admin/studio/c/K12-PROMO" className="btn btn--pri btn--sm" data-ai-target="button:new-ad">
             <IconLayers />
             {t("ads.openStudio")}

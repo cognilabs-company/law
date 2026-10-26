@@ -99,6 +99,8 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       { href: "/admin/document-settings", key: "documentSettings", Icon: NavTemplates, perm: "templates.manage" },
       { href: "/admin/document-templates", key: "templateEditor", Icon: NavTemplates, perm: "templates.manage", hidden: true },
       { href: "/admin/ads", key: "ads", Icon: NavAds, perm: "ads.manage" },
+      // Discounts on ads and plans (Studio MP09), listed with a way in.
+      { href: "/admin/promotions", key: "promotions", Icon: NavAds, perm: ["ads.manage", "subscriptions.manage"] },
       { href: "/admin/studio", key: "studio", Icon: NavStudio },
     ],
   },

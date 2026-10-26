@@ -28,7 +28,8 @@ import FieldError from "@/components/ui/FieldError";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
 import FilterBar from "@/components/filters/FilterBar";
-import { IconStar, IconPlus, IconSearch, IconEdit, IconTrash, IconEyeOff, IconEye, IconRefresh, IconUsers, IconClock, IconSliders } from "@/components/icons";
+import { IconStar, IconPlus, IconSearch, IconEdit, IconTrash, IconEyeOff, IconEye, IconRefresh, IconUsers, IconClock, IconSliders, IconTag } from "@/components/icons";
+import { Link } from "@/i18n/navigation";
 import PlanVersions from "@/components/admin/plans/PlanVersions";
 import FeatureRegistry from "@/components/admin/plans/FeatureRegistry";
 import { aiId } from "@/lib/ai/ids";
@@ -418,6 +419,10 @@ export default function AdminPlans() {
         <b>{t("plans.listTitle")}</b>
         <span className="ahdr">
           <span className="advmuted">{plans.length - hiddenCount}</span>
+          <Link href="/admin/promotions" className="btn btn--line btn--sm" data-ai-id="admin.plans.promotions">
+            <IconTag />
+            {t("plans.promotions")}
+          </Link>
           <button className="btn btn--line btn--sm" type="button" onClick={() => setRegistry(true)} data-ai-id="admin.plans.features">
             <IconSliders />
             {t("tariffs.registry")}
