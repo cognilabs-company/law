@@ -13,6 +13,7 @@ import {
   raToggle,
   type RaLive,
 } from "./registry";
+import { RA_MARK_TTL_MS } from "./marks";
 
 // The one place an operator command is carried out on the client (contract
 // §20). In order: the session is live on this device, the command was not
@@ -128,7 +129,7 @@ async function run(cmd: RaCommand, live: RaLive | null, list: RaLive[], ctx: RaE
       const text = textOf(p);
       if (!text) return reject("tooltip_text_required");
       if (!(await gate({ kind: "confirm", label: x.def.label, actionId: cmd.actionId }))) return cancelled();
-      raHighlight(x.el, text, ctx.operator, 12_000);
+      raHighlight(x.el, text, ctx.operator, 2 * RA_MARK_TTL_MS);
       return done(mustConfirm);
     }
     case "page.scroll_to": {

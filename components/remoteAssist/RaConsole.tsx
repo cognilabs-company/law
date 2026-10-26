@@ -12,7 +12,6 @@ import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import {
   RA_EMPTY_META,
   RA_PERSONAL_SCOPE,
-  RA_VIEW_SCOPE,
   endRemoteAssist,
   getRemoteAssist,
   listRaCommands,
@@ -27,6 +26,7 @@ import {
   raErrorDetail,
   raGrantedActions,
   raIdempotencyKey,
+  raBestMode,
   raModeScopes,
   requestRemoteAssist,
   sendRaCommand,
@@ -38,7 +38,11 @@ import {
   raKey,
 } from "@/lib/services/remoteAssist";
 import { closeRaConsole, patchRaConsole, type RaConsoleState } from "@/lib/remoteAssist/store";
-import { RA_NAV_TARGETS } from "@/lib/remoteAssist/registry";
+import { useRaLink } from "@/lib/remoteAssist/callLink";
+import { raWireAllowed, type RaShareState } from "@/lib/remoteAssist/marks";
+import { CALLROOM_FLOAT_EVENT } from "@/lib/callEvents";
+import { RaScreen } from "./RaScreen";
+import { RaPagePicker } from "./RaPagePicker";
 import { openRaSocket, type RaSocketEvent } from "@/lib/remoteAssist/socket";
 import {
   IconArrowRight,
@@ -77,7 +81,7 @@ import {
 
 const POLL_MS = 5000;
 
-type Tab = "screen" | "commands" | "audit";
+type Tab = "pages" | "elements" | "commands" | "audit";
 type Mirror = { pageId: string; route: string; revision: number; elements: RaElement[] };
 type Intent = { key: string; actionId: string; componentId: string; payload: Dict; pageId: string; revision: number };
 
@@ -134,7 +138,12 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
   const [mirror, setMirror] = useState<Mirror | null>(null);
   const [commands, setCommands] = useState<RaCommand[]>([]);
   const [audit, setAudit] = useState<RaAudit[] | null>(null);
-  const [tab, setTab] = useState<Tab>("screen");
+  const [tab, setTab] = useState<Tab>("pages");
+  // v2: the client's shared tab in the open call, and how the console sits.
+  const link = useRaLink();
+  const [clientShare, setClientShare] = useState<RaShareState | null>(null);
+  const [big, setBig] = useState(false);
+  const [custom, setCustom] = useState(false);
   const [busy, setBusy] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const [loadErr, setLoadErr] = useState(false);
@@ -148,7 +157,6 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
   const [q, setQ] = useState("");
   const [inputFor, setInputFor] = useState<{ id: string; action: string } | null>(null);
   const [inputValue, setInputValue] = useState("");
-  const [navTo, setNavTo] = useState("");
   const [retry, setRetry] = useState<Intent | null>(null);
   // Components the backend called secret: never offered again this session.
   const [blocked, setBlocked] = useState<string[]>([]);
@@ -168,9 +176,11 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
   }, []);
 
   const modes = useMemo(() => meta.modes.filter((m) => meta.capabilities[m.key] !== false), [meta]);
-  const modeScopes = useMemo(() => (mode ? raModeScopes(meta, mode) : []), [meta, mode]);
   const [prevMode, setPrevMode] = useState("");
-  if (!mode && modes.length) setMode(modes[0].key);
+  // One click asks for the most capable mode the backend offers, with all
+  // of its scopes; "Change mode" is there for a guide-only session.
+  const best = useMemo(() => raBestMode(meta), [meta]);
+  if (!mode && best) setMode(best);
   if (mode !== prevMode) {
     setPrevMode(mode);
     setScopes(raModeScopes(meta, mode));
@@ -213,7 +223,8 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
     setCommands([]);
     setAudit(null);
     setRetry(null);
-    setTab("screen");
+    setTab("pages");
+    setClientShare(null);
   }
 
   const phase = session?.phase ?? (sid ? "loading" : "none");
@@ -274,12 +285,12 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
   const failLabel = (s: string) => (t.has(`fail.${s}`) ? t(`fail.${s}`) : s.replace(/^remote_assist_/, "").replace(/_/g, " "));
   const pageLabel = (p: string) => (t.has(`pages.${raKey(p)}`) ? t(`pages.${raKey(p)}`) : p);
   const cooling = coolUntil > now;
-  const holdOff = (e: unknown) => {
+  const holdOff = useCallback((e: unknown) => {
     if (raErrorCode(e) !== "remote_assist_rate_limit") return;
     const at = Date.now();
     setNow(at);
     setCoolUntil(at + Math.max(1, asNum(raErrorDetail(e).retry_after_seconds, 10)) * 1000);
-  };
+  }, []);
   const codeText = (e: unknown) => {
     const code = raErrorCode(e);
     if (code === "remote_assist_rate_limit") return t("errors.remote_assist_rate_limit", { n: asNum(raErrorDetail(e).retry_after_seconds, 10) });
@@ -291,8 +302,7 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
 
   const submit = async () => {
     if (busy || !mode) return;
-    const why = reason.trim();
-    if (why.length < 3) return setFormErr({ text: t("op.reasonShort") });
+    const why = reason.trim().length >= 3 ? reason.trim() : t("op.reasonDefault");
     if (!state.callId) return setFormErr({ text: t("op.needCall") });
     setFormErr(null);
     setBusy("request");
@@ -318,6 +328,24 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
 
   const granted = useMemo(() => (session ? raGrantedActions(meta, session.mode, session.grantedScopes) : new Set<string>()), [meta, session]);
   const canCommand = phase === "active" && session?.caps?.canCommand === true && Boolean(mirror) && !cooling;
+  const canDraw = phase === "active" && session?.caps?.canCommand === true && !cooling;
+  const clientId = session?.client.id ?? "";
+  const operatorId = session?.operator.id ?? "";
+
+  // The client's share state (surface, hidden) comes over the call's data channel.
+  useEffect(() => {
+    if (!link || !clientId) return;
+    return link.onWire((msg, from) => {
+      if (msg.t === "share" && raWireAllowed(msg, from, { operator: operatorId || link.self(), client: clientId })) setClientShare(msg.state);
+    });
+  }, [link, clientId, operatorId]);
+
+  // Once the session is live, fold this side's call window too, so the
+  // client's picture has room.
+  const isLive = phase === "active";
+  useEffect(() => {
+    if (isLive) window.dispatchEvent(new CustomEvent(CALLROOM_FLOAT_EVENT));
+  }, [isLive]);
 
   const dispatch = async (intent: Intent) => {
     if (!session || busy) return;
@@ -428,7 +456,7 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
   }
 
   return (
-    <section className="ra-con" aria-label={t("title")} data-ra-ignore="" data-ai-ignore="">
+    <section className={`ra-con${phase === "active" || phase === "paused" ? " ra-con--wide" : ""}${big ? " ra-con--big" : ""}`} aria-label={t("title")} data-ra-ignore="" data-ai-ignore="">
       <header className="ra-con__head">
         <span className={`ra-con__ico ra-con__ico--${tone}`} aria-hidden="true">
           <IconMonitor />
@@ -442,6 +470,11 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
           </small>
         </span>
         {session && phase !== "closed" ? <span className={`ra-tag ra-tag--${tone}`}>{statusLabel(session.status || phase)}</span> : null}
+        {phase === "active" || phase === "paused" ? (
+          <button type="button" className="ra-con__btn" onClick={() => setBig((v) => !v)} title={big ? t("op.fit") : t("op.expandView")} aria-label={big ? t("op.fit") : t("op.expandView")} aria-pressed={big}>
+            {big ? <IconMinus /> : <IconMonitor />}
+          </button>
+        ) : null}
         <button type="button" className="ra-con__btn" onClick={() => patchRaConsole({ open: false })} title={t("op.fold")} aria-label={t("op.fold")}>
           <IconMinus />
         </button>
@@ -474,59 +507,51 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
                   <span>{t("op.callReady")}</span>
                 </div>
               )}
-              <label className="ra-field">
-                <span>{t("op.reason")}</span>
-                <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} maxLength={500} placeholder={t("op.reasonPh")} />
-              </label>
-              <div className="ra-field">
-                <span>{t("op.mode")}</span>
-                <div className="ra-modes" role="radiogroup" aria-label={t("op.mode")}>
-                  {modes.map((m) => (
-                    <button key={m.key} type="button" role="radio" aria-checked={mode === m.key} className={`ra-mode ra-mode--btn${mode === m.key ? " on" : ""}`} onClick={() => setMode(m.key)}>
-                      <span className="ra-mode__ico" aria-hidden="true">
-                        {m.key === "guide" ? <IconEye /> : m.key === "prepare" ? <IconFileText /> : <IconMonitor />}
-                      </span>
-                      <span className="ra-mode__txt">
-                        <b>{modeLabel(m.key)}</b>
-                        <small>{t.has(`modes.${m.key}.op`) ? t(`modes.${m.key}.op`) : ""}</small>
-                      </span>
-                    </button>
-                  ))}
-                </div>
+              <div className="ra-req">
+                <span className="ra-req__ico" aria-hidden="true">
+                  {mode === "guide" ? <IconEye /> : <IconMonitor />}
+                </span>
+                <span className="ra-req__txt">
+                  <b>{modeLabel(mode)}</b>
+                  <small>{t.has(`modes.${mode}.op`) ? t(`modes.${mode}.op`) : ""} · {t("op.minutes", { n: minutes })}</small>
+                </span>
+                <button type="button" className="ra-linkbtn" onClick={() => setCustom((v) => !v)} aria-expanded={custom}>
+                  {custom ? t("op.hideOptions") : t("op.changeMode")}
+                </button>
               </div>
-              {modeScopes.length ? (
-                <div className="ra-field">
-                  <span>{t("op.scopes")}</span>
-                  <div className="ra-chips">
-                    {modeScopes.map((s) => {
-                      const locked = s === RA_VIEW_SCOPE;
-                      return (
-                        <label key={s} className={`ra-chip${scopes.includes(s) || locked ? " on" : ""}`}>
-                          <input
-                            type="checkbox"
-                            checked={scopes.includes(s) || locked}
-                            disabled={locked}
-                            onChange={(e) => setScopes((cur) => (e.target.checked ? [...cur, s] : cur.filter((x) => x !== s)))}
-                          />
-                          {scopeLabel(s)}
-                        </label>
-                      );
-                    })}
+              {custom ? (
+                <div className="ra-opts">
+                  <div className="ra-modes" role="radiogroup" aria-label={t("op.mode")}>
+                    {modes.map((m) => (
+                      <button key={m.key} type="button" role="radio" aria-checked={mode === m.key} className={`ra-mode ra-mode--btn${mode === m.key ? " on" : ""}`} onClick={() => setMode(m.key)}>
+                        <span className="ra-mode__ico" aria-hidden="true">
+                          {m.key === "guide" ? <IconEye /> : m.key === "prepare" ? <IconFileText /> : <IconMonitor />}
+                        </span>
+                        <span className="ra-mode__txt">
+                          <b>{modeLabel(m.key)}</b>
+                          <small>{t.has(`modes.${m.key}.op`) ? t(`modes.${m.key}.op`) : ""}</small>
+                        </span>
+                      </button>
+                    ))}
                   </div>
+                  <label className="ra-field">
+                    <span>{t("op.reason")}</span>
+                    <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} maxLength={500} placeholder={t("op.reasonDefault")} />
+                  </label>
+                  <label className="ra-field ra-field--row">
+                    <span>{t("op.duration")}</span>
+                    <select value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
+                      {[5, 10, 15, 20, 30]
+                        .filter((m) => m <= meta.maxMinutes)
+                        .map((m) => (
+                          <option key={m} value={m}>
+                            {t("op.minutes", { n: m })}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
                 </div>
               ) : null}
-              <label className="ra-field ra-field--row">
-                <span>{t("op.duration")}</span>
-                <select value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
-                  {[5, 10, 15, 20, 30]
-                    .filter((m) => m <= meta.maxMinutes)
-                    .map((m) => (
-                      <option key={m} value={m}>
-                        {t("op.minutes", { n: m })}
-                      </option>
-                    ))}
-                </select>
-              </label>
               {cooling ? (
                 <div className="ra-note ra-note--warn" role="status">
                   <IconClock aria-hidden="true" />
@@ -604,7 +629,16 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
           ) : null}
         </div>
       ) : (phase === "active" || phase === "paused") && session ? (
-        <>
+        <div className="ra-con__split">
+          <RaScreen
+            link={link}
+            clientId={clientId}
+            share={clientShare}
+            canDraw={canDraw}
+            pageTitle={mirror ? pageLabel(mirror.pageId) : t("op.waitingScreen")}
+            route={mirror?.route ?? ""}
+          />
+          <div className="ra-con__side">
           <div className="ra-con__strip">
             <span className="ra-tag ra-tag--soft">{modeLabel(session.mode)}</span>
             {/* The granted list in full on hover; the count keeps the strip short. */}
@@ -645,16 +679,20 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
             </div>
           ) : null}
           <div className="ra-tabs" role="tablist">
-            {(["screen", "commands", "audit"] as Tab[]).map((k) => (
+            {(["pages", "elements", "commands", "audit"] as Tab[]).map((k) => (
               <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => setTab(k)}>
-                {k === "screen" ? <IconMonitor aria-hidden="true" /> : k === "commands" ? <IconList aria-hidden="true" /> : <IconHistory aria-hidden="true" />}
+                {k === "pages" ? <IconLayers aria-hidden="true" /> : k === "elements" ? <IconTarget aria-hidden="true" /> : k === "commands" ? <IconList aria-hidden="true" /> : <IconHistory aria-hidden="true" />}
                 {t(`op.tab.${k}`)}
                 {k === "commands" && commands.length ? <em>{commands.length}</em> : null}
               </button>
             ))}
           </div>
 
-          {tab === "screen" ? (
+          {tab === "pages" ? (
+            <div className="ra-con__body ra-con__body--list">
+              <RaPagePicker currentPageId={mirror?.pageId ?? ""} currentRoute={mirror?.route ?? ""} disabled={!canCommand || !granted.has("route.navigate") || Boolean(busy)} busyRoute="" onOpen={(route) => send("route.navigate", null, { route })} />
+            </div>
+          ) : tab === "elements" ? (
             <div className="ra-con__body ra-con__body--list">
               {mirror ? (
                 <>
@@ -673,27 +711,6 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
                       <IconInfo aria-hidden="true" />
                       <span>{t("op.outside")}</span>
                     </div>
-                  ) : null}
-                  {granted.has("route.navigate") ? (
-                    <form
-                      className="ra-row"
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        if (navTo) send("route.navigate", null, { route: navTo });
-                      }}
-                    >
-                      <select value={navTo} onChange={(e) => setNavTo(e.target.value)} aria-label={t("op.route")} disabled={!canCommand}>
-                        <option value="">{t("op.routePick")}</option>
-                        {RA_NAV_TARGETS.map((p) => (
-                          <option key={p.pageId} value={p.route}>
-                            {pageLabel(p.pageId)}
-                          </option>
-                        ))}
-                      </select>
-                      <button type="submit" className="btn btn--line btn--sm" disabled={!canCommand || !navTo || Boolean(busy)}>
-                        {actionLabel("route.navigate")}
-                      </button>
-                    </form>
                   ) : null}
                   <div className="ra-row">
                     <span className="ra-search">
@@ -827,7 +844,8 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
               </button>
             ) : null}
           </footer>
-        </>
+          </div>
+        </div>
       ) : session ? (
         <div className="ra-con__body ra-con__center">
           <span className="ra-wait ra-wait--off" aria-hidden="true">

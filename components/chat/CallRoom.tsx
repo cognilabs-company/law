@@ -69,6 +69,7 @@ import CallBackgroundPicker from "./CallBackgroundPicker";
 import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord, IconBgPerson } from "../icons";
 import { regionLabel } from "@/lib/labels";
 import { CALLROOM_EVENT, CALLROOM_FLOAT_EVENT, isCallRoomMounted, trackCallRoomMount } from "@/lib/callEvents";
+import { clearRaCallRoom, setRaCallRoom } from "@/lib/remoteAssist/callLinkLiveKit";
 import { tellDesk } from "@/lib/deskBridge";
 import { notify, notifyStore, type NotifyOptions } from "@/lib/toast";
 
@@ -1000,6 +1001,9 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
         roomRef.current = r;
         wire(r);
         setRoom(r);
+        // Remote assistance shares the client's tab and its marks in this
+        // same room, within the same screen-share budget.
+        setRaCallRoom(r, pol?.screenShare ?? null);
         if (!creds.url || !creds.token) { setStatus("error"); return; }
         // Connect exactly once. Pass the backend livekit_url verbatim — no
         // manual /rtc suffix or query params.
@@ -1088,6 +1092,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       autoCamOffRef.current = false;
       profileRef.current = "";
       room?.disconnect();
+      if (room) clearRaCallRoom(room);
       roomRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

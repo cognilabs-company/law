@@ -345,6 +345,28 @@ export function raModeScopes(meta: RaMeta, mode: string): string[] {
   return [...out];
 }
 
+// The one-click request: the offered mode (capability not switched off)
+// whose scope list is the widest, so a single "Request" covers what the
+// session may need; ties keep the backend's order.
+export function raBestMode(meta: RaMeta): string {
+  let best = "";
+  let n = -1;
+  for (const m of meta.modes) {
+    if (meta.capabilities[m.key] === false) continue;
+    const k = raModeScopes(meta, m.key).length;
+    if (k > n) {
+      best = m.key;
+      n = k;
+    }
+  }
+  return best;
+}
+
+// One-click consent: the client grants exactly what was asked, nothing more.
+export function raConsentScopes(requested: readonly string[], decision: "accept" | "deny"): string[] {
+  return decision === "accept" ? [...new Set(requested)].slice(0, 20) : [];
+}
+
 // Actions the granted mode + scopes permit, straight from the meta table.
 export function raGrantedActions(meta: RaMeta, mode: string, scopes: string[]): Set<string> {
   const granted = new Set(scopes);

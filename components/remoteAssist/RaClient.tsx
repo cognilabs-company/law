@@ -13,7 +13,6 @@ import { toast } from "@/lib/toast";
 import { errorText } from "@/lib/errorText";
 import {
   RA_EMPTY_META,
-  RA_VIEW_SCOPE,
   ackBody,
   ackRaCommand,
   clientStateBody,
@@ -28,6 +27,7 @@ import {
   normRaSession,
   pauseRemoteAssist,
   publishClientState,
+  raConsentScopes,
   raErrorCode,
   resumeRemoteAssist,
   revokeRemoteAssist,
@@ -40,9 +40,13 @@ import {
 import { activeRaId, markRaHandled, nextRaRevision, raHandled, rememberActiveRa } from "@/lib/remoteAssist/store";
 import { raClearHighlight, raCollect, raPageOf, raPathOf, raSignature } from "@/lib/remoteAssist/registry";
 import { raExecute, type RaPrompt } from "@/lib/remoteAssist/executor";
+import { useRaLink } from "@/lib/remoteAssist/callLink";
+import { raWireAllowed } from "@/lib/remoteAssist/marks";
+import { raScreenFacts, raShareHidden } from "@/lib/remoteAssist/privacy";
+import { RaMarkLayer, useMarks } from "./RaMarks";
 import { createRaRunner, type RaRunner } from "@/lib/remoteAssist/runner";
 import { openRaSocket, type RaSocket, type RaSocketEvent } from "@/lib/remoteAssist/socket";
-import { IconClose, IconEye, IconLock, IconMonitor, IconPause, IconPlay, IconPower, IconShieldCheck, IconEdit, IconCheck } from "@/components/icons";
+import { IconCheck, IconClock, IconClose, IconEdit, IconEye, IconEyeOff, IconLock, IconMonitor, IconPause, IconPlay, IconPower } from "@/components/icons";
 
 // The client's side of remote assistance, mounted for every signed-in tab:
 //  • finds a pending request (on load, on the remote_assist.requested event,
@@ -63,6 +67,14 @@ const OUTSIDE_PAGE = "client.outside";
 
 type Prompt = RaPrompt & { resolve: (ok: boolean) => void; operator: string };
 type Ended = { status: string; reason: string };
+
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("") || "L";
 
 function mmss(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));
@@ -128,10 +140,14 @@ export default function RaClient({ selfId }: { selfId: string }) {
     });
   }, []);
 
+  // The open support call (v2 screen share and marks ride it).
+  const link = useRaLink();
+  const linkRef = useRef(link);
   useEffect(() => {
     activeRef.current = active;
     promptRef.current = prompt;
-  }, [active, prompt]);
+    linkRef.current = link;
+  }, [active, prompt, link]);
 
   useEffect(() => {
     void loadRaMeta().then((m) => {
@@ -144,6 +160,8 @@ export default function RaClient({ selfId }: { selfId: string }) {
 
   const finish = useCallback((s: Pick<RaSession, "id" | "status" | "endReason"> | null, status: string) => {
     raClearHighlight();
+    // The screen share ends with the session.
+    void linkRef.current?.stopShare().catch(() => {});
     socketRef.current?.close();
     socketRef.current = null;
     runnerRef.current?.clear();
@@ -218,18 +236,13 @@ export default function RaClient({ selfId }: { selfId: string }) {
 
   // ---- consent ----
 
+  // One "Allow" grants exactly what the operator asked for (v2: no toggles).
   const requested = useMemo(() => pending?.requestedScopes ?? [], [pending]);
-  const [scopes, setScopes] = useState<string[]>([]);
-  const [prevPending, setPrevPending] = useState("");
-  if ((pending?.id ?? "") !== prevPending) {
-    setPrevPending(pending?.id ?? "");
-    setScopes(requested);
-  }
 
   const decide = async (decision: "accept" | "deny") => {
     if (!pending || busy) return;
     setBusy(decision);
-    const granted = requested.filter((s) => s === RA_VIEW_SCOPE || scopes.includes(s));
+    const granted = raConsentScopes(requested, decision);
     try {
       const s = await consentRemoteAssist(pending.id, { decision, mode: pending.mode, grantedScopes: granted, consentVersion: meta.consentVersion });
       dismissed.current.add(pending.id);
@@ -241,6 +254,8 @@ export default function RaClient({ selfId }: { selfId: string }) {
         setEnded(null);
         setActive(next);
         window.dispatchEvent(new CustomEvent(CALLROOM_FLOAT_EVENT));
+        // The one follow-up step: the browser asks which tab to show.
+        void startShare();
       }
     } catch (e) {
       if (raErrorCode(e) !== "remote_assist_consent_not_pending") toast(errorText(e, tc) || t("client.consentFailed"), { tone: "err" });
@@ -251,6 +266,104 @@ export default function RaClient({ selfId }: { selfId: string }) {
       setBusy("");
     }
   };
+
+  // ---- the screen share (v2) ----
+  // The client's LexGo tab as a ScreenShare track in the open support call.
+  // Muted on sensitive pages and while a secret field shows; never sent to
+  // the remote-assistance API.
+
+  const [share, setShare] = useState({ on: false, hidden: false, surface: "" });
+  const [shareErr, setShareErr] = useState<"" | "denied" | "nocall">("");
+  const [askedShare, setAskedShare] = useState(false);
+  const [barOpen, setBarOpen] = useState(true);
+  const { marks, add: addMark, clear: clearMarks } = useMarks();
+  const shareRef = useRef(share);
+  useEffect(() => {
+    shareRef.current = share;
+  }, [share]);
+
+  const tellShare = useCallback((next: { on: boolean; hidden: boolean; surface: string }) => {
+    linkRef.current?.send({ t: "share", state: next });
+  }, []);
+
+  const startShare = async () => {
+    const l = linkRef.current;
+    if (!l) {
+      setShareErr("nocall");
+      return;
+    }
+    setShareErr("");
+    try {
+      const surface = await l.startShare();
+      const next = { on: true, hidden: false, surface };
+      setShare(next);
+      setAskedShare(false);
+      tellShare(next);
+    } catch {
+      setShareErr("denied");
+      tellShare({ on: false, hidden: false, surface: "" });
+    }
+  };
+
+  const stopShare = async () => {
+    await linkRef.current?.stopShare().catch(() => {});
+    const next = { on: false, hidden: false, surface: "" };
+    setShare(next);
+    clearMarks();
+    tellShare(next);
+  };
+
+  // Marks and requests from the session's operator only.
+  const activeOperator = active?.operator.id ?? "";
+  const shareSid = active?.id ?? "";
+  useEffect(() => {
+    if (!link || !shareSid) return;
+    return link.onWire((msg, from) => {
+      if (!raWireAllowed(msg, from, { operator: activeOperator, client: selfId })) return;
+      if (msg.t === "mark") {
+        // Drawn on this page only when it is this tab that is shared.
+        if (shareRef.current.on && shareRef.current.surface === "browser" && activeRef.current?.phase === "active") addMark(msg.mark);
+      } else if (msg.t === "clear") clearMarks();
+      else if (msg.t === "ask-share") setAskedShare(true);
+    });
+  }, [link, shareSid, activeOperator, selfId, addMark, clearMarks]);
+
+  // The browser's own "Stop sharing" ends the share too.
+  useEffect(() => {
+    if (!link) return;
+    return link.onChange(() => {
+      const ls = link.localShare();
+      const cur = shareRef.current;
+      if (cur.on && !ls.on) {
+        const next = { on: false, hidden: false, surface: "" };
+        setShare(next);
+        tellShare(next);
+      }
+    });
+  }, [link, tellShare]);
+
+  // Privacy: hide the picture on sensitive pages, near secret fields and
+  // while the session is paused.
+  useEffect(() => {
+    if (!share.on || !shareSid) return;
+    const check = () => {
+      const hidden = raShareHidden(window.location.pathname, window.location.search, raScreenFacts()) || activeRef.current?.phase !== "active";
+      if (hidden === shareRef.current.hidden) return;
+      void linkRef.current?.setShareHidden(hidden).catch(() => {});
+      const next = { ...shareRef.current, hidden };
+      setShare(next);
+      tellShare(next);
+    };
+    check();
+    const iv = setInterval(check, 400);
+    document.addEventListener("focusin", check, true);
+    document.addEventListener("focusout", check, true);
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener("focusin", check, true);
+      document.removeEventListener("focusout", check, true);
+    };
+  }, [share.on, shareSid, tellShare]);
 
   // ---- the active session ----
 
@@ -547,8 +660,6 @@ export default function RaClient({ selfId }: { selfId: string }) {
     return () => clearInterval(iv);
   }, [pending]);
 
-  const modeLabel = (m: string) => (t.has(`modes.${m}.title`) ? t(`modes.${m}.title`) : m);
-  const scopeLabel = (s: string) => (t.has(`scopes.${s}`) ? t(`scopes.${s}`) : s.replace(/_/g, " "));
   const actionLabel = (a: string) => (t.has(`actions.${raKey(a)}`) ? t(`actions.${raKey(a)}`) : a);
   const caps = active?.caps;
   const canPause = caps ? caps.canPause : true;
@@ -558,160 +669,132 @@ export default function RaClient({ selfId }: { selfId: string }) {
   return (
     <>
       {pending && !active ? (
-        <div className="ra-consent" role="dialog" aria-modal="true" aria-labelledby="ra-consent-title" data-ra-ignore="" data-ai-ignore="">
+        <div className="ra-consent" role="dialog" aria-modal="true" aria-labelledby="ra-consent-title" aria-describedby="ra-consent-lead" data-ra-ignore="" data-ai-ignore="">
           <div className="ra-consent__card">
             <div className="ra-consent__hero">
-              <span className="ra-consent__ico" aria-hidden="true">
-                <IconMonitor />
+              <span className="ra-avatar" aria-hidden="true">
+                {initialsOf(pending.operator.name || t("client.operator"))}
+                <i />
               </span>
-              <div>
-                <h2 id="ra-consent-title">{t("client.consentTitle")}</h2>
-                <p>{t("client.consentLead", { name: pending.operator.name || t("client.operator") })}</p>
+              <div className="ra-consent__who">
+                <b>{pending.operator.name || t("client.operator")}</b>
+                <small>
+                  {t("client.fromSupport")}
+                  {pending.operator.lexgoId ? ` · ${t("client.lexgoId", { id: pending.operator.lexgoId })}` : ""}
+                </small>
               </div>
-            </div>
-
-            <dl className="ra-consent__who">
-              <div>
-                <dt>{t("client.operatorLabel")}</dt>
-                <dd>
-                  <b>{pending.operator.name || t("client.operator")}</b>
-                  {pending.operator.lexgoId ? <span className="ra-id">{t("client.lexgoId", { id: pending.operator.lexgoId })}</span> : null}
-                </dd>
-              </div>
-              {pending.ticketId ? (
-                <div>
-                  <dt>{t("client.ticket")}</dt>
-                  <dd>
-                    <span className="ra-id">#{pending.ticketId.slice(0, 8)}</span>
-                  </dd>
-                </div>
-              ) : null}
               {Number.isFinite(pendingLeft) ? (
-                <div>
-                  <dt>{t("client.expires")}</dt>
-                  <dd>
-                    <b className="ra-consent__timer">{mmss(pendingLeft)}</b>
-                  </dd>
-                </div>
+                <span className="ra-consent__timer" aria-label={t("client.expires")}>
+                  <IconClock aria-hidden="true" />
+                  {mmss(pendingLeft)}
+                </span>
               ) : null}
-            </dl>
-
-            {pending.reason ? (
-              <blockquote className="ra-consent__reason">
-                <small>{t("client.reason")}</small>
-                {pending.reason}
-              </blockquote>
-            ) : null}
-
-            <div className="ra-consent__mode">
-              <span className="ra-mode__ico" aria-hidden="true">
-                {pending.mode === "guide" ? <IconEye /> : pending.mode === "prepare" ? <IconEdit /> : <IconMonitor />}
-              </span>
-              <span className="ra-mode__txt">
-                <small>{t("client.modeLabel")}</small>
-                <b>{modeLabel(pending.mode)}</b>
-                <span>{t.has(`modes.${pending.mode}.text`) ? t(`modes.${pending.mode}.text`) : ""}</span>
-              </span>
             </div>
-
-            {requested.length ? (
-              <fieldset className="ra-consent__scopes">
-                <legend>{t("client.scopes")}</legend>
-                <p className="ra-fine">{t("client.scopesHint")}</p>
-                <ul>
-                  {requested.map((s) => {
-                    const required = s === RA_VIEW_SCOPE;
-                    const on = required || scopes.includes(s);
-                    return (
-                      <li key={s}>
-                        <label className={`ra-switch${on ? " on" : ""}`}>
-                          <span>
-                            <b>{scopeLabel(s)}</b>
-                            {t.has(`scopeText.${s}`) ? <small>{t(`scopeText.${s}`)}</small> : null}
-                          </span>
-                          {required ? (
-                            <em className="ra-switch__req">{t("client.required")}</em>
-                          ) : (
-                            <input type="checkbox" role="switch" checked={on} onChange={(e) => setScopes((cur) => (e.target.checked ? [...cur, s] : cur.filter((x) => x !== s)))} aria-label={scopeLabel(s)} />
-                          )}
-                        </label>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </fieldset>
-            ) : null}
-
-            <ul className="ra-consent__facts">
+            <h2 id="ra-consent-title">{t("client.consentTitle")}</h2>
+            <p id="ra-consent-lead" className="ra-consent__lead">
+              {t("client.consentLead", { name: pending.operator.name || t("client.operator") })}
+            </p>
+            {pending.reason ? <p className="ra-consent__reason">«{pending.reason}»</p> : null}
+            <ul className="ra-consent__can" aria-label={t("client.canTitle")}>
               <li>
-                <IconShieldCheck aria-hidden="true" />
-                {t("client.factLexgo")}
+                <span aria-hidden="true">
+                  <IconEye />
+                </span>
+                {t("client.canSee")}
               </li>
               <li>
-                <IconLock aria-hidden="true" />
-                {t("client.factSecret")}
+                <span aria-hidden="true">
+                  <IconEdit />
+                </span>
+                {t("client.canDraw")}
               </li>
               <li>
-                <IconCheck aria-hidden="true" />
-                {t("client.factConfirm")}
+                <span aria-hidden="true">
+                  <IconMonitor />
+                </span>
+                {t("client.canOpen")}
               </li>
-              <li>
-                <IconPower aria-hidden="true" />
-                {t("client.factStop", { minutes: pending.durationMinutes || meta.maxMinutes })}
-              </li>
+              {pending.mode !== "guide" ? (
+                <li>
+                  <span aria-hidden="true">
+                    <IconCheck />
+                  </span>
+                  {t("client.canFill")}
+                </li>
+              ) : null}
             </ul>
+            <p className="ra-consent__safe">
+              <IconLock aria-hidden="true" />
+              <span>{t("client.safe")}</span>
+            </p>
             {pendingCount > 1 ? <p className="ra-fine">{t("client.morePending", { n: pendingCount - 1 })}</p> : null}
             <div className="ra-consent__acts">
               <button type="button" className="btn btn--line" onClick={() => void decide("deny")} disabled={Boolean(busy)} aria-busy={busy === "deny" || undefined}>
                 {t("client.deny")}
               </button>
-              <button type="button" className="btn btn--pri" onClick={() => void decide("accept")} disabled={Boolean(busy) || !meta.loaded} aria-busy={busy === "accept" || undefined}>
+              <button type="button" className="btn btn--pri" onClick={() => void decide("accept")} disabled={Boolean(busy) || !meta.loaded} aria-busy={busy === "accept" || undefined} autoFocus>
                 {busy === "accept" ? t("client.accepting") : t("client.accept")}
               </button>
             </div>
+            <p className="ra-fine">{t("client.afterAllow")}</p>
           </div>
         </div>
       ) : null}
 
+      {active && marks.length ? <RaMarkLayer marks={marks} fixed /> : null}
+
       {active ? (
-        <div className={`ra-bar${live ? "" : " ra-bar--paused"}`} role="region" aria-label={t("client.barLabel")} data-ra-ignore="" data-ai-ignore="">
-          <span className="ra-bar__dot" aria-hidden="true" />
+        <div className={`ra-bar${live ? "" : " ra-bar--paused"}${barOpen ? "" : " ra-bar--min"}`} role="region" aria-label={t("client.barLabel")} data-ra-ignore="" data-ai-ignore="">
+          <button type="button" className="ra-bar__fold" onClick={() => setBarOpen((v) => !v)} aria-expanded={barOpen} aria-label={barOpen ? t("client.fold") : t("client.unfold")}>
+            <span className="ra-bar__dot" aria-hidden="true" />
+          </button>
           <span className="ra-bar__who" role="status" aria-live="polite">
-            <b>{live ? t("client.barLive") : t("client.barPaused")}</b>
+            <b>{live ? t("client.barLive", { name: operator }) : t("client.barPaused")}</b>
             <small>
-              {operator}
-              {active.operator.lexgoId ? ` · ${active.operator.lexgoId}` : ""} · {modeLabel(active.mode)}
+              {share.on ? (share.hidden ? t("client.shareHidden") : t("client.shareOn")) : t("client.shareOff")}
               {Number.isFinite(left) ? ` · ${t("client.left", { time: mmss(left) })}` : ""}
             </small>
           </span>
-          {lastAction ? (
-            <span className="ra-bar__last" title={actionLabel(lastAction)}>
-              {actionLabel(lastAction)}
+          {barOpen ? (
+            <span className="ra-bar__acts">
+              {share.on ? (
+                <button type="button" onClick={() => void stopShare()} title={t("client.stopShare")} aria-label={t("client.stopShare")}>
+                  <IconEyeOff aria-hidden="true" />
+                  <span>{t("client.stopShare")}</span>
+                </button>
+              ) : link ? (
+                <button type="button" className={`ra-bar__share${askedShare ? " ra-bar__share--ask" : ""}`} onClick={() => void startShare()} aria-label={askedShare ? t("client.shareAsked") : t("client.share")}>
+                  <IconMonitor aria-hidden="true" />
+                  <span>{askedShare ? t("client.shareAsked") : t("client.share")}</span>
+                </button>
+              ) : null}
+              {live ? (
+                <button type="button" onClick={() => void control("pause")} disabled={Boolean(busy) || !canPause} aria-label={t("client.pause")}>
+                  <IconPause aria-hidden="true" />
+                  <span>{t("client.pause")}</span>
+                </button>
+              ) : (
+                <button type="button" onClick={() => void control("resume")} disabled={Boolean(busy) || !canResume} aria-label={t("client.resume")}>
+                  <IconPlay aria-hidden="true" />
+                  <span>{t("client.resume")}</span>
+                </button>
+              )}
+              <button type="button" className="ra-bar__stop" onClick={() => void control("revoke")} disabled={Boolean(busy)} aria-label={t("client.stop")}>
+                <IconClose aria-hidden="true" />
+                <span>{t("client.stop")}</span>
+              </button>
+              {canEnd ? (
+                <button type="button" onClick={() => void control("end")} disabled={Boolean(busy)} title={t("client.end")} aria-label={t("client.end")}>
+                  <IconPower aria-hidden="true" />
+                </button>
+              ) : null}
             </span>
           ) : null}
-          <span className="ra-bar__acts">
-            {live ? (
-              <button type="button" onClick={() => void control("pause")} disabled={Boolean(busy) || !canPause}>
-                <IconPause aria-hidden="true" />
-                <span>{t("client.pause")}</span>
-              </button>
-            ) : (
-              <button type="button" onClick={() => void control("resume")} disabled={Boolean(busy) || !canResume}>
-                <IconPlay aria-hidden="true" />
-                <span>{t("client.resume")}</span>
-              </button>
-            )}
-            <button type="button" className="ra-bar__stop" onClick={() => void control("revoke")} disabled={Boolean(busy)}>
-              <IconClose aria-hidden="true" />
-              <span>{t("client.stop")}</span>
-            </button>
-            {canEnd ? (
-              <button type="button" onClick={() => void control("end")} disabled={Boolean(busy)} title={t("client.end")}>
-                <IconPower aria-hidden="true" />
-                <span className="ra-bar__opt">{t("client.end")}</span>
-              </button>
-            ) : null}
-          </span>
+          {barOpen && (shareErr || lastAction) ? (
+            <span className="ra-bar__note" role="status">
+              {shareErr === "denied" ? t("client.shareDenied") : shareErr === "nocall" ? t("client.shareNoCall") : actionLabel(lastAction)}
+            </span>
+          ) : null}
         </div>
       ) : null}
 

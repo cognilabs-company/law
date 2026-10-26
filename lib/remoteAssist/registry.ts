@@ -2,6 +2,7 @@ import { collectAiElements, manifestElement, nativeField, aiLabel } from "@/lib/
 import { cssEsc, isShown, modalAiId, openModalRoot } from "@/lib/ai/dom";
 import { aiField, aiModalIds, aiModalOpener } from "@/lib/ai/registry";
 import type { RaElement, RaSensitivity, RaState } from "@/lib/services/remoteAssist";
+import { RA_MARK_TTL_MS } from "./marks";
 
 // The client half of remote assistance (contract §9–§10, §18, §20).
 //
@@ -15,26 +16,68 @@ import type { RaElement, RaSensitivity, RaState } from "@/lib/services/remoteAss
 
 // ---- route registry ----
 
-export type RaPageDef = { pageId: string; match: RegExp; home?: string };
+export type RaGroup = "main" | "legal" | "market" | "account" | "help" | "site";
+export type RaPageDef = { pageId: string; match: RegExp; home?: string; group: RaGroup };
 
+const ID = "[A-Za-z0-9_-]+";
+const page = (pageId: string, group: RaGroup, path: string, opts: { detail?: boolean; home?: boolean } = {}): RaPageDef => ({
+  pageId,
+  group,
+  match: new RegExp(`^${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}${opts.detail ? `(?:/${ID})?` : ""}$`),
+  home: opts.home === false ? undefined : path,
+});
+
+// Every page a client can open in the portal, and the public pages they may
+// need (contract §18: client portal, marketplace, documents, subscription,
+// support, messages, works, profile). Payments, auth, identity and security
+// pages are left out on purpose — the backend blocks them anyway.
 export const RA_PAGES: RaPageDef[] = [
-  { pageId: "client.dashboard", match: /^\/portal\/client$/, home: "/portal/client" },
-  { pageId: "client.subscription", match: /^\/portal\/client\/subscriptions?$/, home: "/portal/client/subscription" },
-  { pageId: "client.pricing", match: /^\/subscription$/ },
-  { pageId: "client.marketplace", match: /^\/(?:portal\/client\/)?lawyers$/, home: "/portal/client/lawyers" },
-  { pageId: "client.marketplace.seller", match: /^\/(?:portal\/client\/)?lawyers\/[A-Za-z0-9_-]+$/ },
-  { pageId: "client.marketplace.orders", match: /^\/portal\/client\/marketplace-orders(?:\/[A-Za-z0-9_-]+)?$/, home: "/portal/client/marketplace-orders" },
-  { pageId: "client.documents", match: /^\/(?:portal\/client\/)?services(?:\/[A-Za-z0-9_-]+)*$/, home: "/portal/client/services" },
-  { pageId: "client.my_documents", match: /^\/portal\/client\/documents$/, home: "/portal/client/documents" },
-  { pageId: "client.my_works", match: /^\/portal\/client\/works$/, home: "/portal/client/works" },
-  { pageId: "client.urgent_lawyer", match: /^\/portal\/client\/urgent(?:-advokat)?$/, home: "/portal/client/urgent" },
-  { pageId: "client.support", match: /^\/portal\/client\/support(?:\/[A-Za-z0-9_-]+)?$/, home: "/portal/client/support" },
-  { pageId: "client.messages", match: /^\/portal\/client\/messages$/, home: "/portal/client/messages" },
-  { pageId: "client.profile", match: /^\/portal\/client\/profile$/, home: "/portal/client/profile" },
+  page("client.dashboard", "main", "/portal/client"),
+  page("client.ai", "main", "/portal/client/ai"),
+  page("client.ai_help", "main", "/portal/client/ai-help"),
+  page("client.notifications", "main", "/portal/client/notifications"),
+  page("client.academy", "main", "/portal/client/academy"),
+  page("client.messages", "main", "/portal/client/messages"),
+
+  page("client.documents", "legal", "/portal/client/services"),
+  { pageId: "client.documents.item", group: "legal", match: new RegExp(`^/portal/client/services/(?:document|template)/${ID}$`) },
+  page("client.my_documents", "legal", "/portal/client/documents"),
+  page("client.doc_analysis", "legal", "/portal/client/doc-analysis"),
+  page("client.cases", "legal", "/portal/client/cases"),
+  page("client.intake", "legal", "/portal/client/intake"),
+  page("client.my_works", "legal", "/portal/client/works"),
+  page("client.urgent_lawyer", "legal", "/portal/client/urgent"),
+  page("client.urgent_advokat", "legal", "/portal/client/urgent-advokat"),
+  page("client.sos", "legal", "/portal/client/sos"),
+
+  page("client.marketplace", "market", "/portal/client/lawyers"),
+  { pageId: "client.marketplace.seller", group: "market", match: new RegExp(`^(?:/portal/client)?/lawyers/${ID}$`) },
+  page("client.marketplace_home", "market", "/portal/client/marketplace"),
+  page("client.marketplace.orders", "market", "/portal/client/marketplace-orders", { detail: true }),
+  page("client.matches", "market", "/portal/client/matches"),
+  page("client.packages", "market", "/portal/client/packages"),
+  page("client.reviews", "market", "/portal/client/reviews"),
+  page("client.warranty", "market", "/portal/client/warranty"),
+
+  page("client.profile", "account", "/portal/client/profile"),
+  page("client.subscription", "account", "/portal/client/subscription"),
+  page("client.subscriptions", "account", "/portal/client/subscriptions"),
+  page("client.referrals", "account", "/portal/client/referrals"),
+  page("client.gifts", "account", "/portal/client/gifts"),
+  page("client.team_tasks", "account", "/portal/client/team-tasks"),
+
+  page("client.support", "help", "/portal/client/support", { detail: true }),
+  page("client.complaints", "help", "/portal/client/complaints"),
+
+  { pageId: "site.home", group: "site", match: /^\/$/, home: "/" },
+  page("client.pricing", "site", "/subscription"),
+  page("site.lawyers", "site", "/lawyers"),
+  page("site.services", "site", "/services"),
 ];
 
 // Pages the operator can pick from (a fixed list — never a typed URL).
-export const RA_NAV_TARGETS = RA_PAGES.filter((p) => p.home).map((p) => ({ pageId: p.pageId, route: p.home as string }));
+export const RA_NAV_TARGETS = RA_PAGES.filter((p) => p.home).map((p) => ({ pageId: p.pageId, route: p.home as string, group: p.group }));
+export const RA_GROUPS: readonly RaGroup[] = ["main", "legal", "market", "account", "help", "site"];
 
 const LOCALE = /^\/(uz|ru|en)(?=\/|$)/;
 
@@ -319,7 +362,7 @@ export function raClearHighlight(): void {
 
 // A pulsing ring (and the operator's text) glued to the component while the
 // page scrolls. Pure decoration: it never changes the page itself.
-export function raHighlight(el: HTMLElement, note: string, who: string, ms = 7000): void {
+export function raHighlight(el: HTMLElement, note: string, who: string, ms = RA_MARK_TTL_MS): void {
   raClearHighlight();
   el.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
   const box = document.createElement("div");
