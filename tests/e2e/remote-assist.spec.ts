@@ -273,7 +273,7 @@ async function linkPages(a: Page, aId: string, b: Page, bId: string): Promise<vo
       const w = window as unknown as Record<string, unknown>;
       const wire = new Set<Fn>();
       const change = new Set<Fn>();
-      let local = { on: false, hidden: false, surface: "" };
+      let local = { on: false, hidden: false, surface: "", tab: "" };
       let remote = { on: false, muted: false };
       let stream: MediaStream | null = null;
       const emit = () => change.forEach((f) => f());
@@ -328,13 +328,14 @@ async function linkPages(a: Page, aId: string, b: Page, bId: string): Promise<vo
         onChange: (fn: Fn) => (change.add(fn), () => change.delete(fn)),
         startShare: async () => {
           await navigator.mediaDevices.getDisplayMedia({ video: true });
-          local = { on: true, hidden: false, surface: "browser" };
+          // __raWrongTab: the person picked some other LexGo tab in the browser's picker.
+          local = { on: true, hidden: false, surface: "browser", tab: w.__raWrongTab ? "lexgo-tab-someoneelse" : "" };
           out({ __track: "on" });
           emit();
           return "browser";
         },
         stopShare: async () => {
-          local = { on: false, hidden: false, surface: "" };
+          local = { on: false, hidden: false, surface: "", tab: "" };
           out({ __track: "off" });
           emit();
         },
@@ -499,6 +500,12 @@ test("one click to ask, one to allow: the operator sees the tab, draws, opens pa
   await expect(screen).toHaveAttribute("data-state", "off");
   await screen.getByRole("button", { name: "Ekranni so'rash" }).click();
   await expect(bar.getByRole("button", { name: "Operator ekranni so'ramoqda" })).toBeVisible();
+  // Another tab picked in the browser's picker: refused, nothing reaches the operator.
+  await cl.page.evaluate(() => ((window as unknown as { __raWrongTab: boolean }).__raWrongTab = true));
+  await bar.getByRole("button", { name: "Operator ekranni so'ramoqda" }).click();
+  await expect(bar).toContainText("Boshqa tab tanlandi");
+  await expect(screen).toHaveAttribute("data-state", "off");
+  await cl.page.evaluate(() => ((window as unknown as { __raWrongTab: boolean }).__raWrongTab = false));
   await bar.getByRole("button", { name: "Operator ekranni so'ramoqda" }).click();
   await expect(screen).toHaveAttribute("data-state", "live");
 

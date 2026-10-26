@@ -30,7 +30,9 @@ export type RaMark = {
 
 // Every control message on the topic: a mark, "clear", the client's share
 // state, and the operator asking the client to share again.
-export type RaShareState = { surface: string; hidden: boolean; on: boolean };
+// `tab`: the captured tab's capture handle, so the operator can refuse to
+// render a capture of their own tab.
+export type RaShareState = { surface: string; hidden: boolean; on: boolean; tab?: string };
 export type RaWire =
   | { t: "mark"; mark: RaMark }
   | { t: "clear" }
@@ -73,7 +75,8 @@ export function parseRaWire(payload: Uint8Array | string): RaWire | null {
   if (d.t === "ask-share") return { t: "ask-share" };
   if (d.t === "share" && d.state && typeof d.state === "object") {
     const s = d.state as Record<string, unknown>;
-    return { t: "share", state: { surface: typeof s.surface === "string" ? s.surface.slice(0, 20) : "", hidden: s.hidden === true, on: s.on === true } };
+    const tab = typeof s.tab === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(s.tab) ? s.tab : "";
+    return { t: "share", state: { surface: typeof s.surface === "string" ? s.surface.slice(0, 20) : "", hidden: s.hidden === true, on: s.on === true, ...(tab ? { tab } : {}) } };
   }
   return null;
 }

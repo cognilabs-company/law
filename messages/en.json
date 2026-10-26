@@ -23303,7 +23303,8 @@
       "shareDenied": "Your screen wasn't shared. Press “Show screen” if you'd like to.",
       "shareNoCall": "The call window has to be open to show your screen.",
       "fold": "Fold the bar",
-      "unfold": "Open the bar"
+      "unfold": "Open the bar",
+      "shareWrongTab": "Another tab was picked. Press “Show screen” and choose “This tab”."
     },
     "op": {
       "client": "Client",
@@ -23462,7 +23463,9 @@
       },
       "clear": "Clear",
       "fade": "Marks fade after 3 seconds",
-      "paused": "Help is paused — drawing is off"
+      "paused": "Help is paused — drawing is off",
+      "selfTab": "The client shared your tab",
+      "selfTabText": "The client picked your page in the browser. Ask them to share “This tab” instead."
     },
     "groups": {
       "main": "Main",

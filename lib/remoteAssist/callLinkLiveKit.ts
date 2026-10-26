@@ -1,6 +1,7 @@
 import { RoomEvent, ScreenSharePresets, Track, type LocalTrackPublication, type RemoteParticipant, type Room } from "livekit-client";
 import { RA_MARK_TOPIC, encodeRaWire, parseRaWire } from "./marks";
 import { clearRaLink, setRaLink, type RaLink } from "./callLink";
+import { capturedTabOf } from "./tabHandle";
 
 // The LiveKit side of the remote-assistance link (see callLink.ts), imported
 // only by CallRoom.
@@ -66,7 +67,7 @@ export function liveKitLink(room: Room, policy: SharePolicy): RaLink {
     },
     localShare: () => {
       const pub = screenPub();
-      return { on: !!pub?.track, hidden: !!pub?.isMuted, surface: surfaceOf(pub) };
+      return { on: !!pub?.track, hidden: !!pub?.isMuted, surface: surfaceOf(pub), tab: capturedTabOf(pub?.track?.mediaStreamTrack) };
     },
     remoteShare: (identity) => {
       const pub = peer(identity)?.getTrackPublication(Track.Source.ScreenShare);

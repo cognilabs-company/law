@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { IconClose, IconEdit, IconEyeOff, IconMonitor, IconRefresh, IconTarget } from "@/components/icons";
 import type { RaLink, RaRemoteShare } from "@/lib/remoteAssist/callLink";
 import { RA_MARK_COLORS, containRect, raMarkId, simplifyPath, type RaMark, type RaMarkColor, type RaMarkTool, type RaPoint, type RaShareState } from "@/lib/remoteAssist/marks";
+import { raTabHandle } from "@/lib/remoteAssist/tabHandle";
 import { RaMarkLayer, useMarks } from "./RaMarks";
 
 // The operator's live picture of the client's tab (a ScreenShare track in the
@@ -70,6 +71,10 @@ export function RaScreen({
   const [asked, setAsked] = useState(false);
   const { marks, add, clear } = useMarks();
 
+  // The client captured this very tab (both in one browser): showing it here
+  // would be an endless mirror that crashes the page, so it is never shown.
+  const mirrorOfSelf = !!share?.tab && share.tab === raTabHandle();
+
   // Follow the client's track as it comes, goes, mutes.
   useEffect(() => {
     if (!link || !clientId) return;
@@ -81,10 +86,10 @@ export function RaScreen({
   useEffect(() => {
     const el = videoRef.current;
     const v = remote.video;
-    if (!el || !v) return;
+    if (!el || !v || mirrorOfSelf) return;
     v.attach(el);
     return () => v.detach(el);
-  }, [remote.video]);
+  }, [remote.video, mirrorOfSelf]);
 
   // The picture's content box inside the frame (object-fit: contain).
   useEffect(() => {
@@ -107,7 +112,7 @@ export function RaScreen({
     };
   }, [remote.video]);
 
-  const hidden = remote.muted || !!share?.hidden;
+  const hidden = remote.muted || !!share?.hidden || mirrorOfSelf;
   const live = !!remote.video && !hidden;
   const notTab = live && !!share?.surface && share.surface !== "browser";
 
@@ -158,7 +163,7 @@ export function RaScreen({
     draft && draft.length >= (tool === "pen" ? 2 : 2) ? { v: 1, id: "draft", tool, color, points: tool === "pen" ? draft : [draft[0], draft[draft.length - 1]], w: 1, h: 1 } : null;
 
   return (
-    <div className="ra-scr" data-state={!link ? "nocall" : !remote.video ? "off" : hidden ? "hidden" : "live"}>
+    <div className="ra-scr" data-state={!link ? "nocall" : !remote.video ? "off" : mirrorOfSelf ? "self" : hidden ? "hidden" : "live"}>
       <div className="ra-scr__head">
         <span className="ra-scr__page">
           <b>{pageTitle}</b>
@@ -211,8 +216,8 @@ export function RaScreen({
         ) : hidden ? (
           <div className="ra-scr__state ra-scr__state--veil">
             <IconEyeOff aria-hidden="true" />
-            <b>{t("hidden")}</b>
-            <p>{t("hiddenText")}</p>
+            <b>{mirrorOfSelf ? t("selfTab") : t("hidden")}</b>
+            <p>{mirrorOfSelf ? t("selfTabText") : t("hiddenText")}</p>
           </div>
         ) : null}
       </div>

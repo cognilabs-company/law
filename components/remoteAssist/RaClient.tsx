@@ -41,8 +41,9 @@ import { activeRaId, markRaHandled, nextRaRevision, raHandled, rememberActiveRa 
 import { raClearHighlight, raCollect, raPageOf, raPathOf, raSignature } from "@/lib/remoteAssist/registry";
 import { raExecute, type RaPrompt } from "@/lib/remoteAssist/executor";
 import { useRaLink } from "@/lib/remoteAssist/callLink";
-import { raWireAllowed } from "@/lib/remoteAssist/marks";
+import { raWireAllowed, type RaShareState } from "@/lib/remoteAssist/marks";
 import { raScreenFacts, raShareHidden } from "@/lib/remoteAssist/privacy";
+import { raOtherTab } from "@/lib/remoteAssist/tabHandle";
 import { RaMarkLayer, useMarks } from "./RaMarks";
 import { createRaRunner, type RaRunner } from "@/lib/remoteAssist/runner";
 import { openRaSocket, type RaSocket, type RaSocketEvent } from "@/lib/remoteAssist/socket";
@@ -272,8 +273,8 @@ export default function RaClient({ selfId }: { selfId: string }) {
   // Muted on sensitive pages and while a secret field shows; never sent to
   // the remote-assistance API.
 
-  const [share, setShare] = useState({ on: false, hidden: false, surface: "" });
-  const [shareErr, setShareErr] = useState<"" | "denied" | "nocall">("");
+  const [share, setShare] = useState<RaShareState>({ on: false, hidden: false, surface: "" });
+  const [shareErr, setShareErr] = useState<"" | "denied" | "nocall" | "wrongtab">("");
   const [askedShare, setAskedShare] = useState(false);
   const [barOpen, setBarOpen] = useState(true);
   const { marks, add: addMark, clear: clearMarks } = useMarks();
@@ -282,7 +283,7 @@ export default function RaClient({ selfId }: { selfId: string }) {
     shareRef.current = share;
   }, [share]);
 
-  const tellShare = useCallback((next: { on: boolean; hidden: boolean; surface: string }) => {
+  const tellShare = useCallback((next: RaShareState) => {
     linkRef.current?.send({ t: "share", state: next });
   }, []);
 
@@ -295,7 +296,16 @@ export default function RaClient({ selfId }: { selfId: string }) {
     setShareErr("");
     try {
       const surface = await l.startShare();
-      const next = { on: true, hidden: false, surface };
+      // Only this tab: another tab (say, the operator's own, in the same
+      // browser) would show the operator their own page inside itself.
+      const tab = l.localShare().tab;
+      if (raOtherTab(tab)) {
+        await l.stopShare().catch(() => {});
+        setShareErr("wrongtab");
+        tellShare({ on: false, hidden: false, surface: "" });
+        return;
+      }
+      const next: RaShareState = { on: true, hidden: false, surface, ...(tab ? { tab } : {}) };
       setShare(next);
       setAskedShare(false);
       tellShare(next);
@@ -792,7 +802,7 @@ export default function RaClient({ selfId }: { selfId: string }) {
           ) : null}
           {barOpen && (shareErr || lastAction) ? (
             <span className="ra-bar__note" role="status">
-              {shareErr === "denied" ? t("client.shareDenied") : shareErr === "nocall" ? t("client.shareNoCall") : actionLabel(lastAction)}
+              {shareErr === "denied" ? t("client.shareDenied") : shareErr === "nocall" ? t("client.shareNoCall") : shareErr === "wrongtab" ? t("client.shareWrongTab") : actionLabel(lastAction)}
             </span>
           ) : null}
         </div>

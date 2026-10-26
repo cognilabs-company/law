@@ -23309,7 +23309,8 @@
       "shareDenied": "Ekran ulashilmadi. Xohlasangiz, «Ekranni ko'rsatish»ni bosing.",
       "shareNoCall": "Ekranni ko'rsatish uchun qo'ng'iroq oynasi ochiq bo'lishi kerak.",
       "fold": "Panelni yig'ish",
-      "unfold": "Panelni ochish"
+      "unfold": "Panelni ochish",
+      "shareWrongTab": "Boshqa tab tanlandi. «Ekranni ko'rsatish»ni bosing va «Shu tab»ni tanlang."
     },
     "op": {
       "client": "Mijoz",
@@ -23468,7 +23469,9 @@
       },
       "clear": "Tozalash",
       "fade": "Belgi 3 soniyada yo'qoladi",
-      "paused": "Yordam to'xtatilgan — belgilash o'chiq"
+      "paused": "Yordam to'xtatilgan — belgilash o'chiq",
+      "selfTab": "Mijoz sizning tabingizni ulashdi",
+      "selfTabText": "Mijoz brauzerda sizning sahifangizni tanladi. Undan «Shu tab»ni tanlab, qayta ulashishni so'rang."
     },
     "groups": {
       "main": "Asosiy",

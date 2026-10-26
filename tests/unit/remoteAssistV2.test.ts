@@ -18,6 +18,7 @@ import {
   type RaPoint,
 } from "@/lib/remoteAssist/marks";
 import { raSensitivePage, raShareHidden } from "@/lib/remoteAssist/privacy";
+import { capturedTabOf, raOtherTab, raTabHandle } from "@/lib/remoteAssist/tabHandle";
 import { RA_GROUPS, RA_NAV_TARGETS, RA_PAGES, raPageOf, raSafeRoute } from "@/lib/remoteAssist/registry";
 import { normRaMeta, raBestMode, raConsentScopes, raKey, raModeScopes } from "@/lib/services/remoteAssist";
 
@@ -90,6 +91,27 @@ describe("marks on the wire", () => {
     expect(containRect(1000, 500, 1600, 900)).toEqual({ x: (1000 - 888.8888888888889) / 2, y: 0, w: 888.8888888888889, h: 500 });
     expect(containRect(400, 800, 1600, 900)).toEqual({ x: 0, y: (800 - 225) / 2, w: 400, h: 225 });
     expect(containRect(0, 0, 0, 0)).toEqual({ x: 0, y: 0, w: 0, h: 0 });
+  });
+});
+
+describe("the shared tab is the client's own", () => {
+  it("names this tab once and tells other tabs apart", () => {
+    const me = raTabHandle();
+    expect(me).toMatch(/^lexgo-tab-[a-z0-9]+$/);
+    expect(raTabHandle()).toBe(me);
+    expect(raOtherTab(me)).toBe(false);
+    expect(raOtherTab("")).toBe(false); // browser without the Capture Handle API
+    expect(raOtherTab("lexgo-tab-other")).toBe(true);
+  });
+  it("reads the captured tab's handle when the browser has one", () => {
+    expect(capturedTabOf(undefined)).toBe("");
+    expect(capturedTabOf({ getCaptureHandle: () => ({ handle: "lexgo-tab-x" }) } as unknown as MediaStreamTrack)).toBe("lexgo-tab-x");
+    expect(capturedTabOf({ getCaptureHandle: () => null } as unknown as MediaStreamTrack)).toBe("");
+    expect(capturedTabOf({} as MediaStreamTrack)).toBe("");
+  });
+  it("carries a clean tab handle in the share state, drops a bad one", () => {
+    expect(parseRaWire(JSON.stringify({ t: "share", state: { surface: "browser", hidden: false, on: true, tab: "lexgo-tab-ab12" } }))).toEqual({ t: "share", state: { surface: "browser", hidden: false, on: true, tab: "lexgo-tab-ab12" } });
+    expect(parseRaWire(JSON.stringify({ t: "share", state: { surface: "browser", hidden: false, on: true, tab: "<x>" } }))).toEqual({ t: "share", state: { surface: "browser", hidden: false, on: true } });
   });
 });
 

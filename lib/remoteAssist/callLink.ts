@@ -10,7 +10,8 @@ import type { RaWire } from "./marks";
 
 export type RaVideo = { attach: (el: HTMLVideoElement) => void; detach: (el: HTMLVideoElement) => void };
 export type RaRemoteShare = { video: RaVideo | null; muted: boolean };
-export type RaLocalShare = { on: boolean; hidden: boolean; surface: string };
+// `tab`: the captured tab's capture handle ("" when unknown).
+export type RaLocalShare = { on: boolean; hidden: boolean; surface: string; tab: string };
 
 export type RaLink = {
   self: () => string;
