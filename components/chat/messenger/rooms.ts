@@ -166,6 +166,12 @@ function start() {
       if (!d.user_id || String(d.user_id) === me) markRoomRead(roomId);
       return;
     }
+    if (e.event === "secure_chat.read_only") {
+      // Closed by a refund, a final cancellation, a reassignment or the
+      // operator (contract 2026-10-26 §15): history stays, input stops.
+      patchRoom(roomId, { readOnly: true });
+      return;
+    }
     if (e.event !== "secure_chat.message_created") return;
     const msg = dict(d.message);
     const room = dict(d.room);

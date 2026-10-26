@@ -605,3 +605,246 @@
     padding: 0 2px;
   }
 }
+
+/* Cancellation discussion (contract 2026-10-26 §6): a separate room, never
+   the service chat. Blue/cyan like the rest of LexGo; tokens follow the
+   theme, so dark mode needs no second palette. */
+.ccx .ccx-disc {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--sx-r-lg);
+  border: 1px solid color-mix(in srgb, var(--sx-accent) 28%, var(--sx-line));
+  background:
+    radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, #06b6d4 12%, transparent) 0%, transparent 55%),
+    linear-gradient(180deg, color-mix(in srgb, var(--sx-accent) 6%, var(--sx-surface)) 0%, var(--sx-surface) 100%);
+  overflow: hidden;
+  animation: ccxDiscIn 0.32s var(--sx-ease, ease) both;
+}
+
+.ccx .ccx-disc[data-state="closed"] {
+  border-color: var(--sx-line);
+  background: var(--sx-surface-2);
+}
+
+.ccx .ccx-disc__head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.ccx .ccx-disc__ico {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  color: #fff;
+  background: linear-gradient(135deg, #1668f0 0%, #06b6d4 100%);
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, #1668f0 70%, transparent);
+}
+
+.ccx .ccx-disc[data-state="closed"] .ccx-disc__ico {
+  background: var(--sx-muted);
+  box-shadow: none;
+}
+
+.ccx .ccx-disc__titles {
+  min-width: 0;
+}
+
+.ccx .ccx-disc__titles h4 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.ccx .ccx-disc__titles p {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  line-height: 17px;
+  color: var(--sx-ink-2);
+}
+
+.ccx .ccx-disc__privacy {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--sx-r);
+  font-size: 12.5px;
+  line-height: 17px;
+  color: var(--sx-accent-ink);
+  background: var(--sx-accent-soft);
+}
+
+.ccx .ccx-disc__privacy svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+.ccx .ccx-disc__people ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ccx .ccx-disc__people li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 4px 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--sx-line);
+  background: var(--sx-surface);
+  font-size: 13px;
+  max-width: 100%;
+}
+
+.ccx .ccx-disc__people li[data-who="me"] {
+  border-color: color-mix(in srgb, var(--sx-accent) 40%, var(--sx-line));
+}
+
+.ccx .ccx-disc__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ccx .ccx-disc__closed {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sx-ink-2);
+}
+
+.ccx .ccx-disc__form {
+  display: grid;
+  gap: 8px;
+}
+
+.ccx .ccx-disc__who {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--sx-line);
+  border-radius: var(--sx-r);
+  background: var(--sx-surface);
+  min-width: 0;
+}
+
+.ccx .ccx-disc__who legend {
+  padding: 0 4px;
+}
+
+.ccx .ccx-disc__acts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ccx .ccx-disc__err {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sx-danger);
+}
+
+@keyframes ccxDiscIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* The review's history: a thin rail with a dot per step. */
+.ccx .ccx-hist {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ccx .ccx-hist__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+
+.ccx .ccx-hist__row:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 14px;
+  bottom: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sx-accent) 45%, transparent), color-mix(in srgb, #06b6d4 25%, transparent));
+}
+
+.ccx .ccx-hist__dot {
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1668f0, #06b6d4);
+  box-shadow: 0 0 0 3px var(--sx-surface);
+}
+
+.ccx .ccx-hist__body {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.ccx .ccx-hist__what {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.ccx .ccx-hist__what time {
+  font-size: 12px;
+  color: var(--sx-muted);
+}
+
+.ccx .ccx-hist__note {
+  margin: 2px 0 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 560px) {
+  .ccx .ccx-disc__head {
+    grid-template-columns: auto 1fr;
+  }
+  .ccx .ccx-disc__head .ccx-pill {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .ccx .ccx-disc__acts > * {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ccx .ccx-disc {
+    animation: none;
+  }
+}

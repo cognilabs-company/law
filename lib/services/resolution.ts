@@ -236,21 +236,30 @@ export type TimelineItem = { id: string; type: string; status: string; at: strin
 
 export async function getOrderTimeline(orderId: string, signal?: AbortSignal): Promise<TimelineItem[]> {
   const d = asDict(await http(`/marketplace/me/orders/${encodeURIComponent(orderId)}/timeline`, { signal }));
-  return asArr(d.items).map((x) => {
-    const i = asDict(x);
-    const actor = asDict(i.actor);
-    return {
-      id: asStr(i.id),
-      type: asStr(i.type ?? i.event ?? i.action),
-      status: asStr(i.status),
-      at: asStr(i.at ?? i.created_at),
-      actor: asStr(actor.name ?? i.actor_name),
-      actorRole: asStr(actor.role ?? i.actor_role),
-      choice: asStr(i.choice ?? i.selected_choice),
-      message: asStr(i.message ?? i.note ?? i.comment),
-      amount: num(i.amount),
-    };
-  });
+  return asArr(d.items).map(timelineItemOf);
+}
+
+export function timelineItemOf(x: unknown): TimelineItem {
+  const i = asDict(x);
+  // Live items keep their detail under `data` (26 Oct 2026). Only fields
+  // meant for the client are read: never `data.reason` (internal on a
+  // refund), keys or other people's ids.
+  const data = asDict(i.data);
+  const actor = asDict(i.actor ?? data.actor);
+  const type = asStr(i.type ?? i.event ?? i.action);
+  return {
+    id: asStr(i.id),
+    type,
+    status: asStr(i.status),
+    at: asStr(i.at ?? i.created_at),
+    actor: asStr(actor.name ?? i.actor_name),
+    actorRole: asStr(actor.role ?? i.actor_role),
+    choice: asStr(i.choice ?? i.selected_choice ?? data.choice ?? data.selected_choice),
+    // Only text written for the client; a status note is the backend's
+    // own English line and a refund reason is internal.
+    message: asStr(i.message ?? i.client_visible_reason ?? data.client_visible_reason),
+    amount: num(i.amount ?? (type === "refund" ? data.amount : undefined)),
+  };
 }
 
 export const RESOLUTION_EVENTS = [
@@ -262,5 +271,8 @@ export const RESOLUTION_EVENTS = [
   "marketplace.refund_processing",
   "marketplace.refund_approved",
   "marketplace.refund_rejected",
+  "marketplace.cancellation_review_resolved",
+  "marketplace.reassignment_started",
+  "marketplace.reassignment_accepted",
 ] as const;
 export const isResolutionEvent = (name: unknown) => (RESOLUTION_EVENTS as readonly string[]).includes(String(name ?? "")) || /assignment_escalat/.test(String(name ?? ""));

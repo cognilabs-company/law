@@ -21,7 +21,8 @@ import { Banner, Btn, Dialog, Empty, Field, Input, Loading, Progress, Seg, Tag, 
 import type { NativeProps } from "../../native";
 import { CompleteDialog, SupplementalDialog } from "./dialogs";
 
-const CANCEL_REASON_MIN = 20;
+// Contract 2026-10-26 §4: at least 3 characters.
+const CANCEL_REASON_MIN = 3;
 
 // One order, everything that can be seen and done with it, by where it
 // stands: an offer to answer, the work to start, the checklist to keep,

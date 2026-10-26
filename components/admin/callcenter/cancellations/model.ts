@@ -99,9 +99,10 @@ export function checklistSummary(items: readonly ChecklistItem[]): ChecklistSumm
   return { done, total: items.length, requiredDone, requiredTotal };
 }
 
-export type ResolveDraft = { action: ReviewAction | ""; amount: number | undefined; lawyerUserId: string; note: string };
-export const EMPTY_DRAFT: ResolveDraft = { action: "", amount: undefined, lawyerUserId: "", note: "" };
-export type ResolveField = "action" | "amount" | "lawyer" | "note";
+export const CLIENT_REASON_MAX = 500;
+export type ResolveDraft = { action: ReviewAction | ""; amount: number | undefined; lawyerUserId: string; note: string; clientReason: string };
+export const EMPTY_DRAFT: ResolveDraft = { action: "", amount: undefined, lawyerUserId: "", note: "", clientReason: "" };
+export type ResolveField = "action" | "amount" | "lawyer" | "clientReason" | "note";
 export type ResolveErrors = Partial<Record<ResolveField, string>>;
 
 export function validateResolve(d: ResolveDraft, currentSellerId: string): ResolveErrors {
@@ -117,20 +118,40 @@ export function validateResolve(d: ResolveDraft, currentSellerId: string): Resol
     else if (currentSellerId && id === currentSellerId) out.lawyer = "dialog.sellerSame";
   }
   if (d.note.length > NOTE_MAX) out.note = "dialog.noteLong";
+  if (d.clientReason.length > CLIENT_REASON_MAX) out.clientReason = "dialog.clientReasonLong";
   return out;
 }
 
 export function toResolveInput(d: ResolveDraft): ReviewResolveInput | null {
   if (Object.keys(validateResolve(d, "")).length || !d.action) return null;
   const note = d.note.trim() || undefined;
-  if (d.action === "new_price") return { action: "new_price", amount: Math.round(d.amount ?? 0), note };
-  if (d.action === "reassign") return { action: "reassign", lawyerUserId: d.lawyerUserId.trim(), note };
-  return { action: d.action, note };
+  const clientReason = d.clientReason.trim() || undefined;
+  if (d.action === "new_price") return { action: "new_price", amount: Math.round(d.amount ?? 0), note, clientReason };
+  if (d.action === "reassign") return { action: "reassign", lawyerUserId: d.lawyerUserId.trim(), note, clientReason };
+  return { action: d.action, note, clientReason };
+}
+
+// The same decision sent again (a lost answer, a double click) carries the
+// same key; any change to it is a new decision with a new key.
+export function resolveSig(reviewId: string, d: ResolveDraft): string {
+  return [reviewId, d.action, d.amount ?? "", d.lawyerUserId.trim(), d.note.trim(), d.clientReason.trim()].join("|");
 }
 
 export type ResolveFailure =
-  | { kind: "field"; field: "amount" | "lawyer"; key: string; server: string }
+  | { kind: "field"; field: "amount" | "lawyer" | "action"; key: string; server: string }
   | { kind: "forbidden" | "gone" | "resolved" | "generic"; key: string; server: string; refresh: boolean };
+
+// Contract 2026-10-26 §7: the backend's own codes first, the word guesses
+// below only for answers without one.
+const RESOLVE_CODES: Record<string, ResolveFailure> = {
+  callcenter_role_required: { kind: "forbidden", key: "dialog.errorForbidden", server: "", refresh: false },
+  cancellation_review_not_found: { kind: "gone", key: "dialog.errorGone", server: "", refresh: true },
+  cancellation_review_already_resolved: { kind: "resolved", key: "dialog.errorResolved", server: "", refresh: true },
+  paid_order_requires_refund_action: { kind: "field", field: "action", key: "dialog.errorPaidRefund", server: "" },
+  replacement_seller_must_differ: { kind: "field", field: "lawyer", key: "dialog.sellerSame", server: "" },
+  lawyer_invalid: { kind: "field", field: "lawyer", key: "dialog.sellerInvalid", server: "" },
+  resolution_action_invalid: { kind: "field", field: "action", key: "dialog.errorAction", server: "" },
+};
 
 const AMOUNT_RE = /amount|price|narx|summa/i;
 const LAWYER_RE = /lawyer|seller|assignee|ijrochi|yurist|advokat/i;
@@ -141,6 +162,8 @@ export function resolveFailureOf(e: unknown): ResolveFailure {
   if (!(e instanceof ApiError) || e.status === 0) return { kind: "generic", key: "dialog.errorText", server, refresh: false };
   const info = marketErrorInfo(e);
   const status = e.status;
+  const known = RESOLVE_CODES[(info?.code || e.code || "").toLowerCase()];
+  if (known) return { ...known, server };
   if (status === 401 || status === 403) return { kind: "forbidden", key: "dialog.errorForbidden", server, refresh: false };
   if (status === 404) return { kind: "gone", key: "dialog.errorGone", server, refresh: true };
   const fields = info?.fieldErrors ?? {};
@@ -178,7 +201,7 @@ export function staffChatHref(roomId: string, workId: string, serviceTitle: stri
   return `/portal/chat/${encodeURIComponent(room)}${tail ? `?${tail}` : ""}`;
 }
 
-const REVIEW_INNER_RE = /^marketplace[._]cancellation_review/;
+const REVIEW_INNER_RE = /^marketplace[._]cancellation_(review|chat)/;
 
 export function isReviewQueueEvent(ev: { event: string } & Record<string, unknown>): boolean {
   if (marketSignalOf(ev)?.kind === "review") return true;

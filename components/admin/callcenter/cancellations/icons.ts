@@ -29,4 +29,11 @@ export {
   ArrowRightLeftIcon,
   WalletIcon,
   CircleAlertIcon,
+  ShieldCheckIcon,
+  LockIcon,
+  HistoryIcon,
+  HourglassIcon,
+  PlusIcon,
+  UserCheckIcon,
+  XIcon,
 } from "@/components/admin/studio/sx/icons";

@@ -3523,6 +3523,12 @@ export type SecureRoom = {
   unreadCount: number;
   hasUnread: boolean;
   lastReadAt: string;
+  // A closed room keeps its history but takes nothing new (contract
+  // 2026-10-26 §15); `kind` tells a cancellation discussion from the
+  // service chat.
+  readOnly?: boolean;
+  kind?: string;
+  title?: string;
 };
 export function normSecureRoom(v: unknown): SecureRoom {
   const d = asDict(v);
@@ -3547,6 +3553,9 @@ export function normSecureRoom(v: unknown): SecureRoom {
     unreadCount,
     hasUnread: d.has_unread === true || d.hasUnread === true || unreadCount > 0,
     lastReadAt: asStr(d.last_read_at ?? d.lastReadAt),
+    readOnly: d.read_only === true || d.is_read_only === true || undefined,
+    kind: asStr(d.room_type ?? d.kind ?? d.purpose ?? d.chat_type).toLowerCase() || undefined,
+    title: asStr(d.title).trim() || undefined,
   };
 }
 function hasRoomField(d: Dict, ...keys: string[]): boolean {
@@ -3582,6 +3591,9 @@ export function mergeSecureRoom(room: SecureRoom, v: unknown): SecureRoom {
     unreadCount,
     hasUnread: hasHasUnread ? patch.hasUnread : hasUnreadCount ? unreadCount > 0 : room.hasUnread,
     lastReadAt: hasLastReadAt ? patch.lastReadAt : room.lastReadAt,
+    readOnly: patch.readOnly || room.readOnly,
+    kind: patch.kind ?? room.kind,
+    title: patch.title ?? room.title,
   };
 }
 export async function listSecureChats(): Promise<SecureRoom[]> {

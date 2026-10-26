@@ -1,0 +1,122 @@
+/* Live marketplace cards (contract 2026-10-26 §14): on a desktop a compact
+   macOS-style banner in the top-right corner that slides in from the edge;
+   on a phone it stays at the bottom where the thumb is. Light and dark come
+   from the site's own tokens. */
+
+.mk-toast {
+  position: relative;
+  overflow: hidden;
+}
+
+/* The timer line: the card leaves by itself, the inbox keeps it. */
+.mk-toast::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #1668f0, #06b6d4);
+  opacity: 0.55;
+  transform-origin: 0 50%;
+  animation: mk-toast-life 9s linear forwards;
+}
+
+.mk-toast--assigned::after,
+.mk-toast--complaint::after {
+  animation-duration: 30s;
+}
+
+.mk-toast__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 4px;
+}
+
+.mk-toast__row .mk-toast__go {
+  margin-top: 0;
+}
+
+.mk-toast__id {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font: 600 11.5px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--dk-acc, #1668f0);
+  background: color-mix(in srgb, var(--dk-acc, #1668f0) 10%, transparent);
+}
+
+.mk-toast__unread {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #1668f0, #06b6d4);
+}
+
+.mk-toast__unread svg {
+  width: 12px;
+  height: 12px;
+}
+
+.mk-toast--look-swap .mk-toast__ic,
+.mk-toast--look-chat .mk-toast__ic {
+  background: linear-gradient(135deg, #1668f0, #06b6d4);
+}
+
+.mk-toast--look-lock .mk-toast__ic {
+  background: linear-gradient(135deg, #64748b, #334155);
+}
+
+.mk-toast--look-refund .mk-toast__ic {
+  background: linear-gradient(135deg, #0e7490, #22d3ee);
+}
+
+.mk-toast--look-alert .mk-toast__ic {
+  background: linear-gradient(135deg, #1d4ed8, #6366f1);
+}
+
+.mk-toast--rejected.mk-toast--look-refund .mk-toast__ic {
+  background: linear-gradient(135deg, #8a99ac, #5c6e85);
+}
+
+@media (min-width: 900px) {
+  .mk-toasts {
+    top: calc(max(16px, env(safe-area-inset-top)) + 64px);
+    bottom: auto;
+    width: min(360px, calc(100vw - 32px));
+  }
+  .mk-toast {
+    animation: mk-toast-slide 0.42s cubic-bezier(0.2, 1.1, 0.3, 1) both;
+  }
+}
+
+@keyframes mk-toast-slide {
+  from {
+    opacity: 0;
+    transform: translateX(calc(100% + 24px)) scale(0.98);
+  }
+}
+
+@keyframes mk-toast-life {
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-toast,
+  .mk-toast::after {
+    animation: none;
+  }
+}

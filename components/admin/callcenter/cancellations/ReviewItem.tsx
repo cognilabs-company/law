@@ -3,22 +3,20 @@
 import { useEffect, useId, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import PersonName from "@/components/ui/PersonName";
-import { SxButton, SxLinkButton } from "@/components/admin/studio/sx/Button";
+import { SxButton } from "@/components/admin/studio/sx/Button";
 import { aiId } from "@/lib/ai/ids";
 import { shortDateTime } from "@/lib/date";
 import { saveBlob } from "@/lib/download";
 import { humanize } from "@/lib/labels";
 import { fmtUzs } from "@/lib/money";
 import { getSecureMessageFileAt } from "@/lib/services/backend";
-import { getCancellationReview, reviewOrderOf, reviewPaymentOf, reviewResolutionOf, type CancellationReview, type ChecklistItem, type MarketFileRef, type ReviewAction } from "@/lib/services/marketRuntime";
+import { getCancellationReview, reviewOrderOf, reviewPaymentOf, reviewResolutionOf, type CancellationReview, type ChecklistItem, type MarketFileRef, type ReviewAction, type ReviewHistoryItem } from "@/lib/services/marketRuntime";
 import type { SxIcon } from "@/components/admin/studio/sx/types";
 import {
   RotateCcwIcon,
   ArrowRightIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  MessageSquareTextIcon,
-  MessagesSquareIcon,
   CircleCheckIcon,
   CircleDashedIcon,
   CoinsIcon,
@@ -31,9 +29,11 @@ import {
   StoreIcon,
   CircleUserIcon,
   ArrowRightLeftIcon,
+  HistoryIcon,
   glyph,
 } from "./icons";
-import { CCX_AI, checklistSummary, isOpenReview, mergeReview, orderPhaseKey, orderPhaseTone, reviewTone, staffChatHref } from "./model";
+import { DiscussionChat } from "./DiscussionChat";
+import { CCX_AI, checklistSummary, isOpenReview, mergeReview, orderPhaseKey, orderPhaseTone, reviewTone } from "./model";
 
 export const REVIEW_ACTION_ICON: Readonly<Record<ReviewAction, SxIcon>> = {
   continue: ArrowRightIcon,
@@ -124,6 +124,39 @@ function ResultFile({ f, ai }: { f: MarketFileRef; ai: string }): ReactElement {
   );
 }
 
+// The review's own record (contract §5 history[]): who did what, when. The
+// operator's internal note is shown here; it never reaches the client.
+function HistoryRow({ h }: { h: ReviewHistoryItem }): ReactElement {
+  const t = useTranslations("admin.callCenter.cancellations");
+  const locale = useLocale();
+  const word = h.action || h.type || h.status;
+  const label = t.has(`history.type.${word}`) ? t(`history.type.${word}`) : t.has(`action.${word}`) ? t(`action.${word}`) : word ? humanize(word) : t("history.event");
+  return (
+    <li className="ccx-hist__row">
+      <span className="ccx-hist__dot" aria-hidden="true" />
+      <div className="ccx-hist__body">
+        <p className="ccx-hist__what">
+          <b>{label}</b>
+          {h.at ? <time dateTime={h.at}>{shortDateTime(h.at, locale)}</time> : null}
+        </p>
+        {h.actor ? (
+          <p className="ccx-sub">
+            {t("history.by")} <PersonName id={h.actor.id} name={h.actor.name} />
+            {h.actor.role && t.has(`history.role.${h.actor.role}`) ? ` · ${t(`history.role.${h.actor.role}`)}` : ""}
+          </p>
+        ) : null}
+        {h.fromSeller || h.toSeller ? (
+          <p className="ccx-sub">
+            {h.fromSeller ? <PersonName id={h.fromSeller.id} name={h.fromSeller.name} /> : t("history.unknown")} → {h.toSeller ? <PersonName id={h.toSeller.id} name={h.toSeller.name} /> : t("history.unknown")}
+          </p>
+        ) : null}
+        {h.clientReason.trim() ? <p className="ccx-hist__note">{t("history.clientReason", { text: h.clientReason })}</p> : null}
+        {h.note.trim() ? <p className="ccx-hist__note ccx-muted">{h.note}</p> : null}
+      </div>
+    </li>
+  );
+}
+
 type Detail = { key: string; state: "loading" | "ready" | "error"; review: CancellationReview | null };
 
 function useReviewDetail(row: CancellationReview, active: boolean): Detail | null {
@@ -178,8 +211,7 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
   const phase = orderPhaseKey(ctx.status);
   const phaseLabel = phase ? tp(phase) : ctx.status ? humanize(ctx.status) : none;
   const roleLabel = ctx.sellerType && troles.has(ctx.sellerType) ? troles(ctx.sellerType) : "";
-  const chatHref = staffChatHref(ctx.serviceChatRoomId, ctx.workId, ctx.serviceTitle);
-  const groupHref = res ? staffChatHref(res.groupChatRoomId, ctx.workId, ctx.serviceTitle) : "";
+  const requesterRole = review.requesterRole || review.requester?.role || "";
   const resolved = !open && !!res;
   const action = res?.action ?? "";
   const payStatus = pay?.status ? (t.has(`item.paymentStatus.${pay.status}`) ? t(`item.paymentStatus.${pay.status}`) : humanize(pay.status)) : none;
@@ -219,7 +251,15 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
 
       <div className="ccx-main">
         <div className="ccx-reason">
-          <p className="ccx-label">{t("item.reason")}</p>
+          <p className="ccx-label">
+            {requesterRole === "client" || requesterRole === "seller" ? t(`item.reasonFrom.${requesterRole}`) : t("item.reason")}
+            {review.requester?.name || review.requester?.id ? (
+              <>
+                {" · "}
+                <PersonName id={review.requester.id} name={review.requester.name} />
+              </>
+            ) : null}
+          </p>
           {review.reason.trim() ? <p className="ccx-reason__text">{review.reason}</p> : <p className="ccx-reason__text ccx-muted">{t("item.noReason")}</p>}
         </div>
         <div className="ccx-parties">
@@ -262,6 +302,12 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
             </p>
             {action === "new_price" && res.amount > 0 ? <p>{t("item.outcomeAmount", { price: money(res.amount) })}</p> : null}
             {action === "reassign" && res.lawyerName ? <p>{t("item.outcomeSeller", { name: res.lawyerName })}</p> : null}
+            {review.clientVisibleReason.trim() ? (
+              <p>
+                <span className="ccx-muted">{t("item.clientReason")}: </span>
+                {review.clientVisibleReason}
+              </p>
+            ) : null}
             {res.note.trim() ? (
               <p>
                 <span className="ccx-muted">{t("item.outcomeNote")}: </span>
@@ -271,6 +317,7 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
             {res.resolvedByName ? <p className="ccx-muted">{t("item.resolvedBy", { name: res.resolvedByName })}</p> : null}
           </div>
         ) : null}
+        <DiscussionChat review={review} open={open} />
       </div>
 
       <div className="ccx-side">
@@ -322,20 +369,6 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
               {t("item.resolve")}
             </SxButton>
           ) : null}
-          {chatHref ? (
-            <SxLinkButton variant="secondary" icon={MessageSquareTextIcon} href={chatHref} target="_blank" aiId={`${ai}.chat`} aiLabel={t("item.serviceChat")}>
-              {t("item.serviceChat")}
-              <span className="sx-vh"> ({t("item.newTab")})</span>
-            </SxLinkButton>
-          ) : (
-            <p className="ccx-muted ccx-nochat">{t("item.noChat")}</p>
-          )}
-          {resolved && groupHref ? (
-            <SxLinkButton variant="secondary" icon={MessagesSquareIcon} href={groupHref} target="_blank" aiId={`${ai}.group-chat`} aiLabel={t("item.groupChat")}>
-              {t("item.groupChat")}
-              <span className="sx-vh"> ({t("item.newTab")})</span>
-            </SxLinkButton>
-          ) : null}
         </div>
       </div>
 
@@ -355,6 +388,21 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
         </SxButton>
         <div id={detailsId} className="ccx-details" hidden={!expanded} aria-busy={expanded && detail?.state === "loading" ? true : undefined}>
           {expanded && detail?.state === "error" ? <p className="ccx-muted">{t("item.detailError")}</p> : null}
+          <section aria-labelledby={`${uid}-hist`} className="ccx-sec">
+            <h4 id={`${uid}-hist`} className="ccx-sec__title">
+              {glyph(HistoryIcon, { size: 16 })}
+              <span>{t("history.title")}</span>
+            </h4>
+            {review.history.length ? (
+              <ol className="ccx-hist">
+                {review.history.map((h, i) => (
+                  <HistoryRow key={h.id || `${h.at}-${i}`} h={h} />
+                ))}
+              </ol>
+            ) : (
+              <p className="ccx-muted">{expanded && detail?.state === "loading" ? t("history.loading") : t("history.empty")}</p>
+            )}
+          </section>
           <section aria-labelledby={`${uid}-ck`} className="ccx-sec">
             <h4 id={`${uid}-ck`} className="ccx-sec__title">
               {glyph(ListChecksIcon, { size: 16 })}

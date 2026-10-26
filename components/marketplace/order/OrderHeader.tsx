@@ -215,6 +215,10 @@ export default function OrderHeader({
   const ratingOpen = phase === "completed" && o.rating.canRate && !o.rating.value;
   const locked = phase === "completed" || phase === "rated" || o.chatReadOnly;
   const refundState = o.status === "refunded" || o.status === "refund_pending" ? o.status : "";
+  // Handed to a replacement after the client already paid (contract
+  // 2026-10-26 §8–9): no advance is coming, and the client reads the
+  // backend's own neutral line.
+  const replacing = accepting && (o.waitingReplacement || o.paymentStatus === "paid");
   // Paid and not yet settled: the money waits in LexGo until the work is done.
   const held = phase === "paid" || phase === "in_progress" || phase === "review";
   return (
@@ -255,7 +259,7 @@ export default function OrderHeader({
             ) : null}
           </div>
         </div>
-        <p className="mod-head__lead">{t(`lead.${view}.${accepting ? "accepting" : phase === "cancelled" && refundState ? refundState : phase}`)}</p>
+        <p className="mod-head__lead">{replacing ? (view === "client" ? o.clientMessage || t("lead.client.replacing") : t("lead.seller.replacing")) : t(`lead.${view}.${accepting ? "accepting" : phase === "cancelled" && refundState ? refundState : phase}`)}</p>
       </div>
       {phase !== "cancelled" ? (
         <div className="mod-head__progress" data-ai-id={`${aiBase}.progress`} data-ai-type="section" data-ai-label={t("steps.label")}>

@@ -591,6 +591,11 @@ export type MarketOrder = {
   clientStatus: string;
   clientMessage: string;
   advance: { status: string; amount: number; currency: string } | null;
+  // Contract 2026-10-26 §9–10: the call center handed the paid order to
+  // another seller, who has not accepted yet (no seller shown, no chat, no
+  // second payment), and every such change with its client-visible reason.
+  waitingReplacement: boolean;
+  reassignments: OrderReassignment[];
   supplemental: SupplementalPayment | null;
   workPaused: boolean;
   startedAt: string;
@@ -799,6 +804,41 @@ export async function requestOrderWarranty(order: Pick<MarketOrder, "id" | "warr
   return { url: order.warranty.url, status: asStr(w.status).toLowerCase() || "pending", resolution: asStr(w.resolution).toLowerCase(), reason: asStr(w.reason) || input.reason, decision: "" };
 }
 
+export type ReassignPerson = { id: string; name: string };
+export type OrderReassignment = {
+  id: string;
+  status: string;
+  previousSeller: ReassignPerson | null;
+  newSeller: ReassignPerson | null;
+  operator: ReassignPerson | null;
+  reason: string;
+  reassignedAt: string;
+  deadlineAt: string;
+  acceptedAt: string;
+};
+
+function reassignPersonOf(v: unknown, idKey: unknown = "", nameKey: unknown = ""): ReassignPerson | null {
+  const d = asDict(v);
+  const id = asStr(d.id ?? d.user_id ?? idKey).trim();
+  const name = asStr(d.name ?? d.full_name ?? nameKey).trim();
+  return id || name ? { id, name } : null;
+}
+
+export function reassignmentOf(v: unknown): OrderReassignment {
+  const d = asDict(v);
+  return {
+    id: asStr(d.id),
+    status: asStr(d.status).toLowerCase(),
+    previousSeller: reassignPersonOf(d.previous_seller ?? d.old_seller, d.previous_seller_user_id ?? d.old_lawyer_user_id, d.previous_seller_name),
+    newSeller: reassignPersonOf(d.new_seller ?? d.replacement_seller, d.new_seller_user_id ?? d.new_lawyer_user_id, d.new_seller_name),
+    operator: reassignPersonOf(d.operator ?? d.reassigned_by, d.operator_user_id, d.operator_name),
+    reason: asStr(d.client_visible_reason ?? d.reason).trim(),
+    reassignedAt: asStr(d.reassigned_at ?? d.created_at),
+    deadlineAt: asStr(d.acceptance_deadline_at ?? d.deadline_at),
+    acceptedAt: asStr(d.accepted_at),
+  };
+}
+
 export type OrderRating = { canRate: boolean; available: boolean; closed: boolean; reason: string; deadlineAt: string; remainingSeconds: number; expiresAt: number; value: number; comment: string };
 export type SupplementalStatus = "pending" | "approved" | "rejected" | "escalated" | "expired" | "cancelled";
 export type SupplementalPayment = {
@@ -958,6 +998,7 @@ function assignmentOf(d: Dict, details: Dict): Pick<MarketOrder, "assignment" | 
 }
 
 export function normMarketOrder(v: unknown): MarketOrder {
+  const hideSeller = (asDict(v).waiting_replacement_acceptance ?? asDict(asDict(v).details).waiting_replacement_acceptance) === true;
   const d = asDict(v);
   const details = asDict(d.details);
   const client = asDict(d.client);
@@ -1017,9 +1058,12 @@ export function normMarketOrder(v: unknown): MarketOrder {
     clientPhoneVisible: phoneGate.visible,
     clientPhoneHiddenReason: phoneGate.reason,
     clientUserId: asStr(d.client_user_id ?? client.id),
-    lawyerName: asStr(d.lawyer_name ?? lawyer.name).trim(),
-    lawyerPhone: asStr(lawyer.phone ?? d.lawyer_phone).trim(),
-    lawyerUserId: asStr(d.lawyer_user_id ?? lawyer.id),
+    // While a replacement seller considers a reassigned order, the client
+    // is shown no seller at all (contract 2026-10-26 §9): stray flat fields
+    // must not bring the previous one, or the candidate, back.
+    lawyerName: hideSeller ? "" : asStr(d.lawyer_name ?? lawyer.name).trim(),
+    lawyerPhone: hideSeller ? "" : asStr(lawyer.phone ?? d.lawyer_phone).trim(),
+    lawyerUserId: hideSeller ? "" : asStr(d.lawyer_user_id ?? lawyer.id),
     roomId,
     // contact_unlocked=false: the advance payment is not confirmed by the
     // provider yet, so protected chat and calls stay shut whatever else says.
@@ -1043,6 +1087,8 @@ export function normMarketOrder(v: unknown): MarketOrder {
     warranty: warrantyOf(d, details),
     resolution: resolutionOf(d.resolution ?? details.resolution),
     ...assignmentOf(d, details),
+    waitingReplacement: (d.waiting_replacement_acceptance ?? details.waiting_replacement_acceptance) === true,
+    reassignments: asArr(d.reassignment_history ?? details.reassignment_history).map(reassignmentOf),
     supplemental,
     workPaused: supplemental?.status === "pending" || (status === "waiting_payment" && (paymentStatus === "paid" || !!supplemental)),
     startedAt,
@@ -1257,7 +1303,7 @@ export async function requestAdditionalPayment(orderId: string, input: { selecte
 
 export const MARKET_EVENT = "lexgo:marketplace";
 
-export type MarketSignalKind = "paid" | "rejected" | "requested" | "supplemental" | "refund" | "completed" | "started" | "negotiation" | "checklist" | "review" | "rules" | "assigned" | "complaint" | "other";
+export type MarketSignalKind = "paid" | "rejected" | "requested" | "supplemental" | "refund" | "completed" | "started" | "negotiation" | "checklist" | "review" | "rules" | "assigned" | "complaint" | "reassigned" | "other";
 
 export type MarketSignal = {
   kind: MarketSignalKind;
@@ -1286,6 +1332,9 @@ function specialKind(name: string): Pick<MarketSignal, "kind" | "sub"> | null {
   if (/complaint_resolved$/.test(name)) return { kind: "complaint", sub: "resolved" };
   if (/complaint_created$/.test(name)) return { kind: "complaint", sub: "created" };
   if (/assignment_deadline_soon$/.test(name)) return { kind: "assigned", sub: "soon" };
+  // Contract 2026-10-26 §8/§13: the call center handed the order to another
+  // seller (started), and that seller took it (accepted).
+  if (/reassignment_(started|accepted|declined|expired)$/.test(name)) return { kind: "reassigned", sub: /reassignment_(\w+)$/.exec(name)?.[1] ?? "" };
   if (/additional_payment/.test(name)) return { kind: "supplemental", sub: SUB_RE.exec(name)?.[1] ?? "" };
   if (/refund/.test(name)) return { kind: "refund", sub: SUB_RE.exec(name)?.[1] ?? "" };
   if (/order_completed|order_complete$|_completed$/.test(name)) return { kind: "completed", sub: "" };
@@ -1307,6 +1356,8 @@ export const MARKET_RUNTIME_EVENTS: readonly string[] = [...RUNTIME_SIGNALS.keys
 
 const RUNTIME_FAMILIES: [string, MarketSignalKind][] = [
   ["cancellation_review", "review"],
+  // The separate discussion room of a review (§6): created / closed.
+  ["cancellation_chat", "review"],
   ["negotiation", "negotiation"],
 ];
 

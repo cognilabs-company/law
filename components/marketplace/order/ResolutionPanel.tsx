@@ -12,7 +12,7 @@ import { useMarketError } from "@/components/marketplace/useMarketError";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
-import { subscribeUserEvents } from "@/lib/userSocket";
+import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { awaitingSeller } from "@/lib/services/marketplace";
 import {
   chooseOrderResolution,
@@ -23,7 +23,6 @@ import {
   idemLost,
   idemSettle,
   isResolutionEvent,
-  refundFinal,
   refundPreviewOf,
   refundStepOf,
   type IdemSlot,
@@ -50,7 +49,6 @@ const REFUND_STATUSES = new Set(["refund_pending", "refunded"]);
 // previous seller's name then, so no name is shown as the new one.
 const ASSIGNING = new Set(["resolution_required", "sent_to_seller", "seller_selection", "awaiting_seller", "awaiting_seller_acceptance", "pending_assignment", "reassigning"]);
 const STEPS: RefundStep[] = ["requested", "processing", "refunded"];
-const POLL_MS = 15_000;
 
 const money = (amount: number, currency: string, som: string) => `${fmtUzs(amount)} ${currency === "UZS" ? som : currency}`;
 
@@ -166,8 +164,6 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
   const step: RefundStep = o.status === "refunded" ? "refunded" : rf ? refundStepOf(rf.status) : "requested";
   const canChoose = !!r?.canChoose && !!offer && !chosen;
   const preview = refundPreviewOf(o);
-  // Still moving: the live channel is the main source, a slow refresh the net.
-  const moving = canChoose || (refunding && !refundFinal(step)) || (chosen === "reassign" && (ASSIGNING.has(o.status) || awaitingSeller(o)));
   const refreshRef = useRef(onRefresh);
   useEffect(() => {
     refreshRef.current = onRefresh;
@@ -199,19 +195,18 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
       load();
       refreshRef.current();
     });
-    const poll = moving
-      ? window.setInterval(() => {
-          if (document.visibilityState !== "visible") return;
-          load();
-          refreshRef.current();
-        }, POLL_MS)
-      : 0;
+    // No continuous polling (contract 2026-10-26 §13): one read, then the
+    // live events; after a socket reconnect, one catch-up read.
+    const offResync = onUserSocketResync(() => {
+      load();
+      refreshRef.current();
+    });
     return () => {
       ctl.abort();
       off();
-      window.clearInterval(poll);
+      offResync();
     };
-  }, [involved, refunding, moving, o.id, o.status]);
+  }, [involved, refunding, o.id, o.status]);
 
   const left = useCountdown(canChoose ? (offer?.deadlineAt ?? "") : "", () => refreshRef.current());
   if (view !== "client" || !involved) return null;
@@ -331,7 +326,8 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
               <span>{t("rstep.continue")}</span>
             </li>
           </ol>
-          <p className="mrs-meta">{newSeller ? t("reassignGoing") : t("reassignWait")}</p>
+          {/* The backend's own neutral line, never "searching for a lawyer" (§3.2). */}
+          <p className="mrs-meta">{newSeller ? t("reassignGoing") : o.clientMessage || t("reassignWait")}</p>
         </div>
       ) : null}
 

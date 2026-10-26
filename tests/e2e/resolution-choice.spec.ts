@@ -130,7 +130,8 @@ test("another specialist keeps the same order going", async ({ page }) => {
   await card.getByRole("button", { name: /Boshqa mutaxassis/ }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Boshqa mutaxassis" }).click();
   await expect(card.getByRole("heading", { name: "Yangi mutaxassis" })).toBeVisible();
-  await expect(card.locator(".mrs-path")).toContainText("Mutaxassis qidirilmoqda");
+  await expect(card.locator(".mrs-path")).toContainText("Ko'rib chiqilmoqda");
+  await expect(card).not.toContainText(/qidirilmoqda/);
   await shot(page, "client-reassign-searching", ".mrs");
   // The new specialist accepts: same order id, the work carries on.
   st.order = { ...st.order, status: "in_progress", lawyer_name: "Yangi Advokat", lawyer_user_id: "u-new", started_at: "2026-10-26T09:00:00Z" };

@@ -1383,8 +1383,85 @@ export type CancellationReview = {
   resultFiles: MarketFileRef[];
   resolutionOptions: string[];
   chatMessagesUrl: string;
+  // Contract 2026-10-26 §5: who asked (client or the assigned seller), the
+  // review's own history, both parties, the optional separate discussion
+  // room and the reason the client is shown.
+  requester: ReviewPerson | null;
+  requesterRole: string;
+  history: ReviewHistoryItem[];
+  parties: { client: ReviewPerson | null; seller: ReviewPerson | null };
+  discussion: CancellationChat | null;
+  clientVisibleReason: string;
   raw: Dict;
 };
+
+export type ReviewPerson = { id: string; name: string; role: string };
+export type ReviewHistoryItem = { id: string; type: string; status: string; action: string; at: string; actor: ReviewPerson | null; note: string; clientReason: string; fromSeller: ReviewPerson | null; toSeller: ReviewPerson | null };
+
+// The separate cancellation/support discussion (contract §6). Never the
+// private service chat: the operator is only ever a member of this room.
+export type CancellationChat = {
+  roomId: string;
+  status: string;
+  readOnly: boolean;
+  title: string;
+  participantIds: string[];
+  participants: ReviewPerson[];
+  messagesUrl: string;
+  closeUrl: string;
+  closedAt: string;
+  closeNote: string;
+  raw: Dict;
+};
+
+function personOf(v: unknown, role = ""): ReviewPerson | null {
+  if (typeof v === "string") return v.trim() ? { id: v.trim(), name: "", role } : null;
+  const d = dictOf(v);
+  const name = trimmed(d.name ?? d.full_name) || [trimmed(d.first_name), trimmed(d.last_name)].filter(Boolean).join(" ");
+  const id = trimmed(d.id ?? d.user_id);
+  if (!id && !name) return null;
+  return { id, name, role: trimmed(d.role ?? d.requester_role ?? role).toLowerCase() };
+}
+
+function historyItemOf(v: unknown): ReviewHistoryItem {
+  const d = dictOf(v);
+  const actor = personOf(d.actor ?? d.operator ?? d.by) ?? (trimmed(d.actor_user_id ?? d.actor_name) ? { id: trimmed(d.actor_user_id), name: trimmed(d.actor_name), role: trimmed(d.actor_role).toLowerCase() } : null);
+  return {
+    id: trimmed(d.id),
+    type: trimmed(d.type ?? d.event ?? d.kind).toLowerCase(),
+    status: trimmed(d.status ?? d.to_status).toLowerCase(),
+    action: trimmed(d.action ?? d.resolution).toLowerCase(),
+    at: trimmed(d.at ?? d.created_at ?? d.timestamp),
+    actor,
+    note: asStr(d.note ?? d.message ?? d.comment),
+    clientReason: asStr(d.client_visible_reason),
+    fromSeller: personOf(d.previous_seller ?? d.old_seller ?? d.from_seller) ?? (trimmed(d.previous_seller_name ?? d.old_seller_name) ? { id: trimmed(d.previous_seller_user_id), name: trimmed(d.previous_seller_name ?? d.old_seller_name), role: "" } : null),
+    toSeller: personOf(d.new_seller ?? d.replacement_seller ?? d.to_seller) ?? (trimmed(d.new_seller_name) ? { id: trimmed(d.new_seller_user_id ?? d.lawyer_user_id), name: trimmed(d.new_seller_name), role: "" } : null),
+  };
+}
+
+export function normCancellationChat(v: unknown): CancellationChat | null {
+  const outer = dictOf(v);
+  const d = Object.keys(dictOf(outer.chat)).length ? dictOf(outer.chat) : outer;
+  const roomId = trimmed(d.room_id ?? d.secure_chat_room_id ?? d.id);
+  if (!roomId) return null;
+  const status = trimmed(d.status).toLowerCase();
+  const people = firstArr(d.participants).map((x) => personOf(x)).filter((x): x is ReviewPerson => !!x);
+  const ids = [...new Set([...firstArr(d.participant_user_ids).map((x) => trimmed(x)), ...people.map((p) => p.id)].filter(Boolean))];
+  return {
+    roomId,
+    status,
+    readOnly: d.read_only === true || status === "closed" || status === "read_only",
+    title: trimmed(d.title),
+    participantIds: ids,
+    participants: people,
+    messagesUrl: trimmed(d.messages_url),
+    closeUrl: trimmed(d.close_url),
+    closedAt: trimmed(d.closed_at),
+    closeNote: asStr(d.close_note ?? d.note),
+    raw: d,
+  };
+}
 
 function optionOf(v: unknown): string {
   if (typeof v === "string") return v.trim().toLowerCase();
@@ -1414,7 +1491,7 @@ export function normCancellationReview(v: unknown): CancellationReview {
     amount: uzs(src, "amount", "new_price") || uzs(resolution, "amount"),
     lawyerUserId: trimmed(src.lawyer_user_id ?? resolution.lawyer_user_id),
     groupChatRoomId: trimmed(src.group_chat_room_id ?? d.group_chat_room_id ?? resolution.group_chat_room_id),
-    serviceChatRoomId: trimmed(src.service_chat_room_id ?? src.secure_chat_room_id ?? ctx.secure_chat_room_id ?? order.secure_chat_room_id ?? src.chat_room_id ?? chat.room_id),
+    serviceChatRoomId: trimmed(src.service_chat_room_id ?? src.secure_chat_room_id ?? ctx.secure_chat_room_id ?? order.secure_chat_room_id ?? src.chat_room_id),
     workId: trimmed(src.work_id ?? order.work_id),
     serviceTitle: trimmed(src.service_title ?? order.service_title),
     clientName: trimmed(src.client_name ?? client.name),
@@ -1427,6 +1504,18 @@ export function normCancellationReview(v: unknown): CancellationReview {
     resultFiles: firstArr(src.result_files, ctx.result_files, order.result_files).map(normFileRef).filter((f) => f.id || f.url || f.name),
     resolutionOptions: [...new Set(firstArr(src.resolution_options, d.resolution_options).map(optionOf).filter(Boolean))],
     chatMessagesUrl: trimmed(chat.messages_url),
+    requester: personOf(src.requester, trimmed(src.requester_role)) ?? (trimmed(src.requester_user_id ?? src.requested_by) ? { id: trimmed(src.requester_user_id ?? src.requested_by), name: trimmed(src.requester_name), role: trimmed(src.requester_role).toLowerCase() } : null),
+    requesterRole: trimmed(src.requester_role ?? dictOf(src.requester).role).toLowerCase(),
+    history: firstArr(src.history, d.history).map(historyItemOf).filter((h) => h.type || h.status || h.action || h.at),
+    // Live (26 Oct 2026): parties = { client_user_id, lawyer_user_id }.
+    parties: {
+      client: personOf(dictOf(src.parties).client ?? dictOf(src.parties).client_user_id ?? order.client ?? order.client_user_id, "client"),
+      seller: personOf(dictOf(src.parties).seller ?? dictOf(src.parties).current_seller ?? dictOf(src.parties).lawyer_user_id ?? order.lawyer ?? order.lawyer_user_id, "seller"),
+    },
+    // `chat` on the review is the separate discussion room (§5–6): only a
+    // room the operator opened, never the service chat.
+    discussion: normCancellationChat(src.cancellation_chat ?? (chat.room_id ? chat : trimmed(src.cancellation_chat_room_id ?? d.cancellation_chat_room_id) ? { room_id: src.cancellation_chat_room_id ?? d.cancellation_chat_room_id } : null)),
+    clientVisibleReason: asStr(src.client_visible_reason ?? resolution.client_visible_reason),
     raw: d,
   };
 }
@@ -1461,10 +1550,12 @@ export async function listCancellationReviews(q: { status?: string; limit?: numb
 
 export const REVIEW_ACTIONS = ["continue", "new_price", "cancel", "reassign", "refund"] as const;
 export type ReviewAction = (typeof REVIEW_ACTIONS)[number];
+// `note` stays internal to the call center; `clientReason` is the one line
+// the client is shown (contract §7 client_visible_reason).
 export type ReviewResolveInput =
-  | { action: "continue" | "cancel" | "refund"; note?: string }
-  | { action: "new_price"; amount: number; note?: string }
-  | { action: "reassign"; lawyerUserId: string; note?: string };
+  | { action: "continue" | "cancel" | "refund"; note?: string; clientReason?: string }
+  | { action: "new_price"; amount: number; note?: string; clientReason?: string }
+  | { action: "reassign"; lawyerUserId: string; note?: string; clientReason?: string };
 export type ReviewResolution = { reviewId: string; status: string; action: string; groupChatRoomId: string; review: CancellationReview | null; raw: Dict };
 
 export function resolveBody(input: ReviewResolveInput): Dict {
@@ -1472,11 +1563,15 @@ export function resolveBody(input: ReviewResolveInput): Dict {
   if (input.action === "new_price") body.amount = Math.round(input.amount);
   if (input.action === "reassign") body.lawyer_user_id = input.lawyerUserId;
   if (input.note?.trim()) body.note = input.note.trim();
+  if (input.clientReason?.trim()) body.client_visible_reason = input.clientReason.trim();
   return body;
 }
 
-export async function resolveCancellationReview(reviewId: string, input: ReviewResolveInput): Promise<ReviewResolution> {
-  const d = dictOf(await http(`/call-center/marketplace/cancellation-reviews/${enc(reviewId)}/resolve`, { method: "POST", body: JSON.stringify(resolveBody(input)) }));
+// One Idempotency-Key per confirmed decision (§7): a retry of the same
+// decision reuses it, so a refund is never requested twice.
+export async function resolveCancellationReview(reviewId: string, input: ReviewResolveInput, idemKey?: string): Promise<ReviewResolution> {
+  const headers: Record<string, string> = idemKey ? { "Idempotency-Key": idemKey } : {};
+  const d = dictOf(await http(`/call-center/marketplace/cancellation-reviews/${enc(reviewId)}/resolve`, { method: "POST", body: JSON.stringify(resolveBody(input)), headers }));
   const hasReview = Object.keys(dictOf(d.review ?? d.cancellation_review)).length > 0 || !!d.id;
   const review = hasReview ? normCancellationReview(d) : null;
   return {
@@ -1487,6 +1582,24 @@ export async function resolveCancellationReview(reviewId: string, input: ReviewR
     review,
     raw: d,
   };
+}
+
+// The optional discussion room (§6). Creating it again returns the same
+// room; at least one of the client and the current seller must be in it.
+export async function openCancellationChat(reviewId: string, input: { includeClient: boolean; includeSeller: boolean; title?: string }): Promise<CancellationChat> {
+  const body: Dict = { include_client: input.includeClient, include_current_seller: input.includeSeller };
+  if (input.title?.trim()) body.title = input.title.trim();
+  const d = await http(`/call-center/marketplace/cancellation-reviews/${enc(reviewId)}/chat`, { method: "POST", body: JSON.stringify(body) });
+  const chat = normCancellationChat(d);
+  if (!chat) throw new ApiError(0, "cancellation chat: no room in the answer");
+  return chat;
+}
+
+export async function closeCancellationChat(reviewId: string, note: string, current: CancellationChat): Promise<CancellationChat> {
+  const body: Dict = note.trim() ? { note: note.trim() } : {};
+  const d = await http(`/call-center/marketplace/cancellation-reviews/${enc(reviewId)}/chat/close`, { method: "POST", body: JSON.stringify(body) });
+  const chat = normCancellationChat(d);
+  return { ...current, ...(chat ?? {}), roomId: chat?.roomId || current.roomId, readOnly: true, status: chat?.status || "closed", closeNote: chat?.closeNote || note.trim() };
 }
 
 export type ReviewOrderContext = {

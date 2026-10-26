@@ -78,7 +78,7 @@ test("the client picks another specialist from the offer", async ({ page }) => {
   await expect(page.getByText("Вам предложен выбор")).toBeVisible();
   await page.getByRole("button", { name: "Другой специалист" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Другой специалист" }).click();
-  await expect(page.getByText("Ищем специалиста")).toBeVisible();
+  await expect(page.getByText("На рассмотрении")).toBeVisible();
   await expect(page.getByRole("button", { name: /Другой специалист/ })).toHaveCount(0);
   const c = mock.calls.find((x) => x.method === "POST" && x.path.endsWith("/resolution"));
   choice = c ? { body: c.body, key: c.headers["idempotency-key"] } : null;

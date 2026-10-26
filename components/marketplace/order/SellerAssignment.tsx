@@ -16,14 +16,18 @@ export default function SellerAssignment({ o, aiBase, onRefresh }: { o: MarketOr
   const t = useTranslations("marketplace.orderDetail.assignment");
   const left = useCountdown(o.assignment?.deadlineAt ?? "", onRefresh);
   const counting = left !== null && left > 0;
+  // Handed over by the call center after the client already paid (contract
+  // 2026-10-26 §8): accepting starts no payment step, and the previous
+  // seller's private chat is not shared; a fresh room opens on acceptance.
+  const reassigned = o.paymentStatus === "paid";
   return (
     <SxPanel
       className="mcr mod-assign"
-      title={t("title")}
-      lead={left === null ? t("lead") : counting ? t("leadAdvance") : t("over")}
+      title={reassigned ? t("titleReassigned") : t("title")}
+      lead={left === null ? (reassigned ? t("leadReassigned") : t("lead")) : counting ? (reassigned ? t("leadReassigned") : t("leadAdvance")) : t("over")}
       actions={
         counting ? (
-          <span className="mod-assign__clock sx-num" role="timer" aria-label={t("left", { time: clockOf(left) })}>
+          <span className="mod-assign__clock sx-num" role="timer" aria-label={t(reassigned ? "leftReassigned" : "left", { time: clockOf(left) })}>
             {clockOf(left)}
           </span>
         ) : null
@@ -31,6 +35,7 @@ export default function SellerAssignment({ o, aiBase, onRefresh }: { o: MarketOr
       aiId={`${aiBase}.assignment`}
     >
       {o.note ? <blockquote className="mcr-quote">{o.note}</blockquote> : null}
+      {reassigned ? <p className="mcr-meta">{t("noHistory")}</p> : null}
       <div className="mod-assign__foot">
         <p className="mcr-meta">
           {o.price ? (

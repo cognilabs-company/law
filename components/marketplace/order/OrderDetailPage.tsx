@@ -15,6 +15,8 @@ import { ComplaintPanel, RatingPanel, ResultBlock, SupplementalPanel } from "../
 import CancellationRequest from "./CancellationRequest";
 import WarrantyPanel from "./WarrantyPanel";
 import AwaitingSeller from "./AwaitingSeller";
+import ReplacementPending from "./ReplacementPending";
+import ReassignmentHistory from "./ReassignmentHistory";
 import SellerAssignment from "./SellerAssignment";
 import ResolutionPanel from "./ResolutionPanel";
 import ReworkNotice from "./ReworkNotice";
@@ -91,6 +93,8 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDe
   const rework = !preview && phase === "in_progress" ? <ReworkNotice key="rework" o={o} view={view} signal={d.lastSignal} /> : null;
   const supplemental = <SupplementalPanel key="supplemental" o={o} view={view} />;
   const retain = client ? <StayInLexGo key="retain" phase={phase} runtime={d.runtime} aiBase={aiBase} /> : null;
+  // Every specialist change, on both sides (contract 2026-10-26 §10).
+  const reassigned = <ReassignmentHistory key="reassign-history" o={o} view={view} aiBase={aiBase} />;
   const onStarted = (r: OrderStart) => {
     d.patchOrder({
       status: r.status || "in_progress",
@@ -115,7 +119,17 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDe
   } else if (phase === "pending" && awaitingSeller(o)) {
     // Still with the seller to accept: no payment is due yet.
     parts = [
-      client ? <AwaitingSeller key="awaiting" o={o} onRefresh={() => d.refresh("order")} /> : <SellerAssignment key="assignment" o={o} aiBase={aiBase} onRefresh={() => d.refresh("order")} />,
+      // A paid order the call center handed to another specialist: no
+      // payment step, no seller named until they accept (§9).
+      client ? (
+        o.waitingReplacement || o.paymentStatus === "paid" ? (
+          <ReplacementPending key="replacement" o={o} onRefresh={() => d.refresh("order")} />
+        ) : (
+          <AwaitingSeller key="awaiting" o={o} onRefresh={() => d.refresh("order")} />
+        )
+      ) : (
+        <SellerAssignment key="assignment" o={o} aiBase={aiBase} onRefresh={() => d.refresh("order")} />
+      ),
       documents,
     ];
   } else if (phase === "pending") {
@@ -175,7 +189,7 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDe
       ) : null,
     ];
   }
-  return <div className="mod__main">{[rework, resolution, ...parts]}</div>;
+  return <div className="mod__main">{[rework, resolution, ...parts, reassigned]}</div>;
 }
 
 export default function OrderDetailPage({ orderId, view, listHref }: { orderId: string; view: OrderView; listHref: string }): ReactElement {

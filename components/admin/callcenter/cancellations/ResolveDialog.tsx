@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useId, useRef, useState, type ReactElement } from "react";
-import { useLocale, useTranslations } from "next-intl";
-import { SxButton, SxLinkButton } from "@/components/admin/studio/sx/Button";
+import { useTranslations } from "next-intl";
+import { SxButton } from "@/components/admin/studio/sx/Button";
 import { SxDialog, SxDialogError } from "@/components/admin/studio/sx/editor/SxDialog";
 import { ChoiceCards } from "@/components/admin/studio/sx/form/ChoiceCards";
 import { Field } from "@/components/admin/studio/sx/form/Field";
@@ -12,23 +12,23 @@ import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { resolveCancellationReview, reviewActionsOf, reviewOrderOf, type CancellationReview, type ReviewAction, type ReviewResolution } from "@/lib/services/marketRuntime";
-import { MessagesSquareIcon } from "./icons";
-import { EMPTY_DRAFT, NOTE_MAX, resolveFailureOf, staffChatHref, toResolveInput, validateResolve, type ResolveDraft, type ResolveErrors, type ResolveFailure, type ResolveField } from "./model";
+import { idemKeyFor, idemSettle, type IdemSlot } from "@/lib/services/resolution";
+import { ShieldCheckIcon } from "./icons";
+import { CLIENT_REASON_MAX, EMPTY_DRAFT, NOTE_MAX, resolveFailureOf, resolveSig, toResolveInput, validateResolve, type ResolveDraft, type ResolveErrors, type ResolveFailure, type ResolveField } from "./model";
 import { REVIEW_ACTION_ICON } from "./ReviewItem";
 import { SellerPicker } from "./SellerPicker";
 import "./cancellations.css";
 
 export type ResolveDialogProps = { review: CancellationReview; onClose: () => void; onResolved: (res: ReviewResolution) => void; onStale: () => void };
 
-type ChatState = "opened" | "blocked" | "none";
-type Done = { res: ReviewResolution; chat: ChatState; href: string; action: string; amount: number; sellerName: string };
+type Done = { res: ReviewResolution; action: string; amount: number; sellerName: string };
 
-const ORDER: readonly ResolveField[] = ["action", "amount", "lawyer", "note"];
+const ORDER: readonly ResolveField[] = ["action", "amount", "lawyer", "clientReason", "note"];
+const PAID = new Set(["paid", "succeeded", "captured", "completed"]);
 
 export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveDialogProps): ReactElement {
   const t = useTranslations("admin.callCenter.cancellations");
   const te = useTranslations("enums");
-  const locale = useLocale();
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const ctx = reviewOrderOf(review);
   const [draft, setDraft] = useState<ResolveDraft>(EMPTY_DRAFT);
@@ -39,13 +39,17 @@ export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveD
   // `busy` only takes effect on the next render, so two clicks in one tick
   // would both pass it and send the decision (a refund) twice.
   const sending = useRef(false);
+  // One Idempotency-Key per decision: a retry after a lost answer sends the
+  // same key, so the backend never creates a second refund.
+  const idem = useRef<IdemSlot>({ current: null });
   const [done, setDone] = useState<Done | null>(null);
   const focusOnce = useCallback((el: HTMLHeadingElement | null) => {
     el?.focus();
   }, []);
 
   const money = (n: number) => `${fmtUzs(n)} ${te("currency")}`;
-  const ids = { action: `${uid}-action`, amount: `${uid}-amount`, lawyer: `${uid}-seller`, note: `${uid}-note`, error: `${uid}-error` };
+  const ids = { action: `${uid}-action`, amount: `${uid}-amount`, lawyer: `${uid}-seller`, clientReason: `${uid}-client-reason`, note: `${uid}-note`, error: `${uid}-error` };
+  const paid = PAID.has(ctx.paymentStatus);
 
   function errorsOf(d: ResolveDraft, f: ResolveFailure | null): ResolveErrors {
     const out: ResolveErrors = tried ? validateResolve(d, ctx.sellerUserId) : {};
@@ -53,7 +57,7 @@ export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveD
     return out;
   }
   const shown = errorsOf(draft, failure);
-  const say = (key: string | undefined) => (key ? t(key, { max: NOTE_MAX }) : "");
+  const say = (key: string | undefined) => (key ? t(key, { max: key === "dialog.clientReasonLong" ? CLIENT_REASON_MAX : NOTE_MAX }) : "");
   const general = failure && failure.kind !== "field" ? failure : null;
 
   function update(patch: Partial<ResolveDraft>, field: ResolveField) {
@@ -84,23 +88,15 @@ export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveD
     sending.current = true;
     setBusy(true);
     setFailure(null);
+    const key = idemKeyFor(idem.current, resolveSig(review.id, draft));
     try {
-      const res = await resolveCancellationReview(review.id, input);
-      const href = staffChatHref(res.groupChatRoomId, ctx.workId, ctx.serviceTitle);
-      let chat: ChatState = "none";
-      if (href) {
-        const w = window.open(`/${locale}${href}`, "_blank");
-        if (w) {
-          try {
-            w.opener = null;
-          } catch {}
-        }
-        chat = w ? "opened" : "blocked";
-      }
-      setDone({ res, chat, href, action: res.action || input.action, amount: input.action === "new_price" ? input.amount : 0, sellerName: input.action === "reassign" ? sellerName : "" });
+      const res = await resolveCancellationReview(review.id, input, key);
+      idemSettle(idem.current);
+      setDone({ res, action: res.action || input.action, amount: input.action === "new_price" ? input.amount : 0, sellerName: input.action === "reassign" ? sellerName : "" });
       setBusy(false);
       onResolved(res);
     } catch (e) {
+      idemSettle(idem.current, e);
       sending.current = false;
       setBusy(false);
       const f = resolveFailureOf(e);
@@ -117,8 +113,10 @@ export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveD
 
   const action = draft.action;
   const terminal = !!general && (general.kind === "resolved" || general.kind === "gone" || general.kind === "forbidden");
-  const dirty = !done && !terminal && (action !== "" || draft.note.trim() !== "");
-  const options = reviewActionsOf(review).map((a) => ({ value: a, title: t(`action.${a}`), description: t(`actionHint.${a}`), icon: REVIEW_ACTION_ICON[a] }));
+  const dirty = !done && !terminal && (action !== "" || draft.note.trim() !== "" || draft.clientReason.trim() !== "");
+  // A paid order is never just cancelled: the backend answers 409
+  // paid_order_requires_refund_action, so the card says so up front.
+  const options = reviewActionsOf(review).map((a) => ({ value: a, title: t(`action.${a}`), description: t(`actionHint.${a}`), icon: REVIEW_ACTION_ICON[a], disabled: a === "cancel" && paid ? t("dialog.cancelPaid") : undefined }));
   const submitLabel = busy ? t("dialog.saving") : action ? t(`dialog.submit.${action}`) : t("dialog.submitAny");
 
   const footer = done || terminal ? (
@@ -158,18 +156,14 @@ export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveD
             {done.action === "new_price" && done.amount > 0 ? <p>{t("item.outcomeAmount", { price: money(done.amount) })}</p> : null}
             {done.action === "reassign" && done.sellerName ? <p>{t("item.outcomeSeller", { name: done.sellerName })}</p> : null}
           </SxNote>
-          <p className="ccx-rd-chat">{done.chat === "opened" ? t("done.chatOpened") : done.chat === "blocked" ? t("done.chatBlocked") : t("done.noChat")}</p>
-          {done.href ? (
-            <SxLinkButton href={done.href} target="_blank" variant={done.chat === "opened" ? "secondary" : "primary"} icon={MessagesSquareIcon} aiId="call_center.cancellations.resolve.group-chat" aiLabel={t("done.openChat")}>
-              {t("done.openChat")}
-            </SxLinkButton>
-          ) : null}
+          {t.has(`done.next.${done.action}`) ? <p className="ccx-rd-chat">{t(`done.next.${done.action}`)}</p> : null}
+          {done.res.raw.idempotent_replay === true ? <p className="ccx-rd-chat">{t("done.replay")}</p> : null}
         </div>
       ) : (
         <div className="ccx-rd">
           {general ? <SxDialogError id={ids.error} error={{ title: t("dialog.errorTitle"), text: t(general.key) }} /> : null}
-          <SxNote tone="info" icon={MessagesSquareIcon}>
-            {t("dialog.groupNote")}
+          <SxNote tone="info" icon={ShieldCheckIcon}>
+            {t("dialog.privacyNote")}
           </SxNote>
           <Field id={ids.action} as="fieldset" label={t("dialog.action")} required error={say(shown.action)}>
             {(a11y) => (
@@ -220,6 +214,30 @@ export function ResolveDialog({ review, onClose, onResolved, onStale }: ResolveD
                 )}
               </Field>
             </div>
+          ) : null}
+          {action === "refund" ? (
+            <SxNote tone="warn" title={t("dialog.refundTitle")}>
+              <p>{ctx.price > 0 ? t("dialog.refundAmount", { price: money(ctx.price) }) : t("dialog.refundAmountUnknown")}</p>
+              <p>{t("dialog.refundOnce")}</p>
+            </SxNote>
+          ) : null}
+          {action === "reassign" ? <SxNote tone="info">{t("dialog.reassignNote")}</SxNote> : null}
+          {action ? (
+            <Field id={ids.clientReason} label={t("dialog.clientReason")} help={t("dialog.clientReasonHelp")} error={say(shown.clientReason)}>
+              {(a11y) => (
+                <TextArea
+                  {...a11y}
+                  value={draft.clientReason}
+                  onChange={(v) => update({ clientReason: v }, "clientReason")}
+                  maxLength={CLIENT_REASON_MAX}
+                  counter
+                  minRows={2}
+                  placeholder={t.has(`dialog.clientReasonPh.${action}`) ? t(`dialog.clientReasonPh.${action}`) : ""}
+                  aiId="call_center.cancellations.resolve.client-reason"
+                  aiLabel={t("dialog.clientReason")}
+                />
+              )}
+            </Field>
           ) : null}
           <Field id={ids.note} label={t("dialog.note")} help={t("dialog.noteHelp")} error={say(shown.note)}>
             {(a11y) => (

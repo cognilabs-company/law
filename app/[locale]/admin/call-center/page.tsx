@@ -14,6 +14,7 @@ import CallCenterBoard from "@/components/admin/CallCenterBoard";
 import CcClientSearch from "@/components/admin/CcClientSearch";
 import CcCallLog from "@/components/admin/CcCallLog";
 import CallCenterConsole, { CcTabPanel, useCcConsole } from "@/components/admin/CallCenterConsole";
+import MarketWatcher from "@/components/marketplace/MarketWatcher";
 
 // Call-center console (T4-01/T4-02): queue (call-center staff), lead board,
 // client lookup with the 360 card, and the call log. The backend limits the
@@ -29,6 +30,9 @@ function AdminCallCenterConsole() {
 
   return (
     <CallCenterConsole con={con}>
+      {/* Live cards for new cancellation requests, discussions and
+          escalations (contract 2026-10-26 §14). */}
+      {cc ? <MarketWatcher role="client" staff /> : null}
       <CcTabPanel con={con} tab="queue">
         {cc ? <CallCenterQueue onCount={con.count.queue} /> : null}
       </CcTabPanel>

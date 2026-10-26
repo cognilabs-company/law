@@ -18,8 +18,9 @@ import { MessageSquareTextIcon, LifeBuoyIcon } from "./icons";
 import { SECTION_ID, type OrderSectionProps } from "./types";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 
-export const CANCEL_REASON_MIN = 20;
-export const CANCEL_REASON_MAX = 1000;
+// Contract 2026-10-26 §4: a reason of 3–2000 characters.
+export const CANCEL_REASON_MIN = 3;
+export const CANCEL_REASON_MAX = 2000;
 
 const OUTCOMES = ["continue", "new_price", "cancel", "reassign", "refund"];
 
@@ -121,11 +122,27 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
   const outcome = OUTCOMES.includes(outcomeRaw) ? outcomeRaw : "other";
   const newPrice = outcome === "new_price" ? (resolved && review?.amount ? review.amount : held?.amount || review?.amount || 0) : 0;
   const groupRoomRaw = (resolved && review?.groupChatRoomId) || held?.groupRoomId || review?.groupChatRoomId || "";
-  const groupRoomId = groupRoomRaw && groupRoomRaw !== o.roomId && groupRoomRaw !== review?.serviceChatRoomId ? groupRoomRaw : "";
-  const resolvedNote = resolved && review ? review.note : "";
+  // The separate cancellation discussion the call center may open (contract
+  // 2026-10-26 §6); a legacy group room id is the same idea. Never the
+  // service chat itself.
+  const discussion = review?.discussion ?? null;
+  const roomRaw = discussion?.roomId || groupRoomRaw;
+  const groupRoomId = roomRaw && roomRaw !== o.roomId && roomRaw !== review?.serviceChatRoomId ? roomRaw : "";
+  const discussionClosed = !!discussion && discussion.readOnly && discussion.roomId === groupRoomId;
+  // Only the line meant for the client and seller (client_visible_reason);
+  // the operator's internal note is never shown here.
+  const resolvedNote = resolved && review ? review.clientVisibleReason.trim() : "";
+  const discussionBlock = groupRoomId ? (
+    <div className="mcr-group" data-closed={discussionClosed || undefined}>
+      <p>{discussionClosed ? t("cancel.discussionClosed") : t("cancel.groupChatText")}</p>
+      <SxLinkButton variant={discussionClosed ? "secondary" : "primary"} icon={MessageSquareTextIcon} href={marketChatHref({ roomId: groupRoomId, workId: o.workId, serviceTitle: o.serviceTitle })} aiId={`${ai}.group-chat`}>
+        {discussionClosed ? t("cancel.discussionHistory") : t("cancel.openGroupChat")}
+      </SxLinkButton>
+    </div>
+  ) : null;
 
   const reviewPanel = showReview ? (
-    <SxPanel id={SECTION_ID.cancel} className="mcr mcr-review" title={t("cancel.reviewTitle")} lead={view === "client" ? t("cancel.reviewClient") : t("cancel.reviewSeller")} aiId={ai}>
+    <SxPanel id={SECTION_ID.cancel} className="mcr mcr-review" title={t("cancel.reviewTitle")} lead={view === "client" ? o.clientMessage || t("cancel.reviewClient") : t("cancel.reviewSeller")} aiId={ai}>
       {review?.reason ? (
         <figure className="mcr-quote">
           <figcaption>{t("cancel.reviewReason")}</figcaption>
@@ -133,6 +150,7 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
         </figure>
       ) : null}
       {review?.createdAt && stamp(review.createdAt) ? <p className="mcr-meta">{t("cancel.reviewSent", { date: stamp(review.createdAt) })}</p> : null}
+      {!showResolution ? discussionBlock : null}
     </SxPanel>
   ) : null;
 
@@ -146,14 +164,7 @@ export default function CancellationRequest({ o, phase, view, aiBase, onChanged,
           <blockquote>{resolvedNote}</blockquote>
         </figure>
       ) : null}
-      {groupRoomId ? (
-        <div className="mcr-group">
-          <p>{t("cancel.groupChatText")}</p>
-          <SxLinkButton variant="primary" icon={MessageSquareTextIcon} href={marketChatHref({ roomId: groupRoomId, workId: o.workId, serviceTitle: o.serviceTitle })} aiId={`${ai}.group-chat`}>
-            {t("cancel.openGroupChat")}
-          </SxLinkButton>
-        </div>
-      ) : null}
+      {discussionBlock}
     </SxPanel>
   ) : null;
 

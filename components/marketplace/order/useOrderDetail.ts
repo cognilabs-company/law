@@ -302,6 +302,13 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
     schedule("opinion", 0);
     const offEvents = subscribeUserEvents((ev) => onEventRef.current(ev));
     onEventRef.current = (ev) => {
+      // The service room went read-only, or its call ended (contract
+      // 2026-10-26 §13): the order's chat/call flags changed with it.
+      if (ev.event === "secure_chat.read_only" || ev.event === "call.ended") {
+        const room = String(ev.room_id ?? (ev.data as { room_id?: unknown } | undefined)?.room_id ?? "");
+        if (room && room === orderRef.current?.roomId) schedule("order");
+        return;
+      }
       const sig = marketSignalOf(ev);
       if (!sig) return;
       const cur = orderRef.current;

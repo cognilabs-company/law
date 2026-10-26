@@ -10,7 +10,7 @@ import { useAuth, canMakeCalls, sessionRoles, type Session } from "@/lib/auth";
 import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
 import { CALL_LINK_RE, chatContacts, isMachineFileName, maskContacts } from "@/lib/chatFilter";
 import { getToken } from "@/lib/client";
-import { backoffMs, contactBlockedOf, errDetail, isConflict, logApiError, refreshAccessToken } from "@/lib/http";
+import { ApiError, backoffMs, contactBlockedOf, errDetail, isConflict, logApiError, refreshAccessToken } from "@/lib/http";
 import { secureUploadProblem, secureUploadRefusal } from "@/lib/secureUpload";
 import { useSecureUploadText } from "./useSecureUploadText";
 import { playRingtone, primeCallAudio } from "@/lib/callSounds";
@@ -748,7 +748,11 @@ export default function SecureChat({
   // room stops the composer.
   const { room: roomRow } = useRoom(session?.id ?? "", roomId);
   const rowStatus = (roomRow?.status || "").toLowerCase();
-  const finished = finishedSt || (!urgentRecordId && (rowStatus === "completed" || rowStatus === "closed"));
+  // Read-only by the backend (refund, final cancellation, reassignment, a
+  // closed cancellation discussion): history stays, text, files and calls stop.
+  const roomClosed = roomRow?.readOnly === true;
+  const finished = finishedSt || roomClosed || (!urgentRecordId && (rowStatus === "completed" || rowStatus === "closed"));
+  const discussionRoom = /cancellation/.test(roomRow?.kind ?? "");
   const rowOrder = urgentRecordId ? "" : roomRow?.orderId || "";
   const rowClient = roomRow?.clientUserId ?? "";
   const rowSeller = roomRow?.sellerUserId ?? "";
@@ -1830,8 +1834,9 @@ export default function SecureChat({
           </span>
           {/* R28/R29/R31 (MD L253-257): the work id, the service and the
               status, under the name. */}
-          {headService || headWorkId || headStatus ? (
+          {headService || headWorkId || headStatus || discussionRoom ? (
             <span className="mxr__tags">
+              {discussionRoom ? <span className="mx-tag mx-tag--disc">{t("cancellationDiscussion")}</span> : null}
               {headService && headService !== headName ? <span className="mx-tag mx-tag--urgent">{headService}</span> : null}
               {headWorkId ? <span className="mx-tag mx-tag--mono">#{headWorkId}</span> : null}
               {headStatus ? (
@@ -1843,7 +1848,7 @@ export default function SecureChat({
           ) : null}
         </div>
         <div className="mxr__acts">
-          {!compact && canMakeCalls(session) && !callsOff ? (
+          {!compact && canMakeCalls(session) && !callsOff && !roomClosed ? (
             <span className="mxr__calls" data-ai-target="chat-room:calls">
               <button className="mxr__ib" type="button" onClick={() => beginCall("audio")} disabled={callBusy || !!activeCall} aria-label={t("audioCall")} title={t("audioCall")}>
                 <IconPhone />
@@ -1956,7 +1961,13 @@ export default function SecureChat({
                 ))}
               </div>
             ) : status === "error" ? (
-              <ErrorState title={t("errorLoad")} error={loadErr} onRetry={reloadHistory} />
+              loadErr instanceof ApiError && loadErr.status === 403 ? (
+                // A privacy boundary (contract 2026-10-26 §15): this room is
+                // not the viewer's. Said once, never retried another way.
+                <ErrorState title={t("privateRoom")} error={loadErr} />
+              ) : (
+                <ErrorState title={t("errorLoad")} error={loadErr} onRetry={reloadHistory} />
+              )
             ) : visible.length === 0 ? (
               <div className="mxr__empty">
                 <span className="mxr__halo"><IconShieldCheck /></span>
@@ -2204,7 +2215,7 @@ export default function SecureChat({
         {finished ? (
           <div className="mxr__fin" role="status">
             <IconClipboardCheck />
-            {t("chatFinished")}
+            {roomClosed ? t("chatReadOnly") : t("chatFinished")}
           </div>
         ) : (
           <>

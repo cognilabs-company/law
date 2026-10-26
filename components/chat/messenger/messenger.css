@@ -178,6 +178,7 @@ body:has(.mx--standalone) .fab { display: none }
 .mx-tag svg { width: 11px; height: 11px; flex: none }
 .mx-tag--urgent { background: var(--mx-warn-bg); color: var(--mx-warn); box-shadow: none }
 .mx-tag--mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: -.01em }
+.mx-tag--disc { color: #fff; background: linear-gradient(135deg, #1668F0, #06B6D4); box-shadow: none }
 .mx-tag--done, .mx-tag--completed, .mx-tag--closed { background: var(--dk-tint-ok, #E5F7EF); color: var(--mx-ok); box-shadow: none }
 .mx-tag--cancelled, .mx-tag--expired { background: var(--mx-err-bg); color: var(--mx-err); box-shadow: none }
 

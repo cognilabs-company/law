@@ -1,0 +1,300 @@
+/* Specialist replacement on the order page (contract 2026-10-26 §9–10):
+   the "a new specialist is confirming" card and the change history. Built on
+   the order page's own tokens (--mod-grad, --mod-card-shadow), so light and
+   dark follow by themselves. */
+
+.mod .mrp {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--sx-accent) 30%, var(--sx-line));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--sx-accent) 9%, var(--sx-surface)) 0%, var(--sx-surface) 70%);
+  box-shadow: var(--mod-card-shadow);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.mod .mrp__glow {
+  position: absolute;
+  inset: -40% -20% auto auto;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--mod-cyan, #06b6d4) 30%, transparent) 0%, transparent 65%);
+  z-index: -1;
+  animation: mrp-drift 9s ease-in-out infinite alternate;
+}
+
+.mod .mrp__head {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.mod .mrp__orb {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  color: #fff;
+  background: var(--mod-grad-solid, linear-gradient(135deg, #1668f0, #0e7490));
+  box-shadow: 0 10px 24px -12px color-mix(in srgb, #1668f0 80%, transparent);
+}
+
+.mod .mrp__orb i {
+  position: absolute;
+  inset: -5px;
+  border-radius: 20px;
+  border: 2px solid color-mix(in srgb, var(--mod-cyan, #06b6d4) 55%, transparent);
+  animation: mrp-pulse 2.2s ease-out infinite;
+}
+
+.mod .mrp__titles {
+  min-width: 0;
+}
+
+.mod .mrp__titles h2 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 700;
+}
+
+.mod .mrp__titles p {
+  margin: 2px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--sx-ink-2);
+}
+
+.mod .mrp__clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--sx-accent-ink);
+  background: var(--sx-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--sx-accent) 25%, transparent);
+}
+
+.mod .mrp__facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mod .mrp__facts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 18px;
+  background: color-mix(in srgb, var(--sx-surface) 85%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sx-line) 80%, transparent);
+}
+
+.mod .mrp__facts li svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--sx-accent);
+}
+
+/* The history of changes. */
+.mod .mrh {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--sx-line) 80%, transparent);
+  background: var(--sx-surface);
+  box-shadow: var(--mod-card-shadow);
+}
+
+.mod .mrh__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.mod .mrh__title svg {
+  color: var(--sx-accent);
+}
+
+.mod .mrh__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #fff;
+  background: var(--mod-grad-solid, linear-gradient(135deg, #1668f0, #0e7490));
+}
+
+.mod .mrh__list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mod .mrh__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 12px;
+  padding-bottom: 14px;
+}
+
+.mod .mrh__row:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 30px;
+  bottom: 2px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--sx-accent) 40%, transparent), color-mix(in srgb, var(--mod-cyan, #06b6d4) 18%, transparent));
+}
+
+.mod .mrh__dot {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--mod-grad-solid, linear-gradient(135deg, #1668f0, #0e7490));
+}
+
+.mod .mrh__row[data-tone="bad"] .mrh__dot {
+  background: var(--sx-muted);
+}
+
+.mod .mrh__body {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.mod .mrh__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.mod .mrh__line time {
+  color: var(--sx-muted);
+  font-size: 13px;
+}
+
+.mod .mrh__reason {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 19px;
+  overflow-wrap: anywhere;
+}
+
+.mod .mrh__people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--sx-ink-2);
+}
+
+.mod .mrh__people:empty {
+  display: none;
+}
+
+.mod .mrh__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--sx-muted);
+}
+
+.mod .mrh__chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--sx-submitted-fg);
+  background: var(--sx-submitted-bg);
+}
+
+.mod .mrh__chip[data-tone="ok"] {
+  color: var(--sx-published-fg);
+  background: var(--sx-published-bg);
+}
+
+.mod .mrh__chip[data-tone="bad"] {
+  color: var(--sx-archived-fg);
+  background: var(--sx-archived-bg);
+}
+
+@keyframes mrp-pulse {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes mrp-drift {
+  to {
+    transform: translate(-30px, 30px);
+  }
+}
+
+@media (max-width: 720px) {
+  .mod .mrp__facts {
+    grid-template-columns: 1fr;
+  }
+  .mod .mrp__head {
+    grid-template-columns: auto 1fr;
+  }
+  .mod .mrp__clock {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mod .mrp__glow,
+  .mod .mrp__orb i {
+    animation: none;
+  }
+}

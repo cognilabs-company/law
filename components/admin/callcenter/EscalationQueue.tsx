@@ -18,7 +18,7 @@ import { ApiError, errDetail, isAborted, isForbidden, logApiError } from "@/lib/
 import { fmtUzs } from "@/lib/money";
 import { humanize } from "@/lib/labels";
 import PersonName from "@/components/ui/PersonName";
-import { subscribeUserEvents } from "@/lib/userSocket";
+import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import { escalationClosed, idemKeyFor, idemLost, idemSettle, isResolutionEvent, listAssignmentEscalations, refundFinal, refundStepOf, resolveAssignmentEscalation, type AssignmentEscalation, type EscalationAction, type IdemSlot } from "@/lib/services/resolution";
 
@@ -332,16 +332,9 @@ export default function EscalationQueue({ onCount }: { onCount?: (n: number) => 
       setFailed(true);
     }
   }, []);
-  // The realtime channel is the main source; while an offer or a refund is
-  // still moving, a slow refresh covers a missed event.
-  const moving = !!items?.some((e) => e.resolution?.offer?.status === "pending_client_choice" || (e.resolution?.refund && !refundFinal(refundStepOf(e.resolution.refund.status))));
-  useEffect(() => {
-    if (!moving) return;
-    const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") void load();
-    }, 15_000);
-    return () => window.clearInterval(id);
-  }, [moving, load]);
+  // No polling (contract 2026-10-26 §13): one read, then the live events;
+  // after the socket reconnects, one catch-up read.
+  useEffect(() => onUserSocketResync(() => void load()), [load]);
   useEffect(() => {
     const ctl = new AbortController();
     void Promise.resolve().then(() => load(ctl.signal));
