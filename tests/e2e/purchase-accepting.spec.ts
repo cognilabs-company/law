@@ -101,3 +101,66 @@ test("an assignment the seller list leaves out still shows, read from /orders", 
   await expect(page.getByText("Yangi buyurtmalar — javob bering")).toBeVisible();
   await expect(page.locator(".mko-req")).toHaveCount(1);
 });
+
+// The live direct-seller order keeps status "accepted" from the request
+// until the advance is paid (26 Oct 2026): first with the assignment
+// waiting, then accepted by the seller and unpaid, then paid with a room.
+// The open dialog has to walk those steps by itself, never claiming a
+// payment before there is one.
+test("the open purchase dialog follows the seller and the payment live", async ({ page }) => {
+  const deadline = new Date(Date.now() + 29 * 60_000).toISOString();
+  const base = { status: "accepted", price: 879749, contact_unlocked: false };
+  const waiting = order({
+    ...base,
+    payment_status: "unpaid",
+    payment: { target_type: "marketplace_advance", status: "pending", amount: 87974, currency: "UZS", provider: "telegram_manual" },
+    details: { assignment_mode: "client_selected_external", assignment_status: "waiting_seller_response", acceptance_deadline_at: deadline, seller_response_minutes: 30, client_status: "request_received" },
+  });
+  const accepted = order({
+    ...base,
+    payment_status: "unpaid",
+    payment: { target_type: "marketplace_advance", status: "pending", amount: 87974, currency: "UZS", provider: "telegram_manual" },
+    details: { assignment_mode: "client_selected_external", assignment_status: "accepted", acceptance_deadline_at: deadline, client_status: "request_received" },
+  });
+  const paid = order({
+    ...base,
+    status: "paid",
+    payment_status: "paid",
+    contact_unlocked: true,
+    can_start_chat: true,
+    secure_chat_room_id: "room-live",
+    chat_url: "/secure-chats/room-live/messages",
+    payment: { target_type: "marketplace_advance", status: "paid", amount: 87974, currency: "UZS", provider: "telegram_manual" },
+    details: { assignment_status: "accepted", secure_chat_room_id: "room-live", payment_flow: { stage: "advance_paid" } },
+  });
+  const state = { order: waiting };
+  const routes = await signIn(page, CLIENT, {
+    "/marketplace/lawyers": { items: [{ user_id: SELLER, name: "Test Advokat", seller_type: "advokat", region: "tashkent", rating: 4.8, reviews_count: 12, specializations: ["oila-va-nikoh"], is_verified: true }], count: 1, total: 1 },
+    [`/marketplace/lawyers/${SELLER}`]: { user_id: SELLER, name: "Test Advokat", seller_type: "advokat", region: "tashkent", rating: 4.8, reviews_count: 12, is_verified: true },
+    [`/marketplace/lawyers/${SELLER}/services`]: { items: [{ service_id: "svc-1", title: "Test xizmat", base_price: 879749, selected_price: 879749, effective_price: 879749, currency: "UZS", category_title: "Оила ва никоҳ" }] },
+    "POST /marketplace/services/svc-1/quote": { base_price: 879749, total_price: 879749, currency: "UZS", breakdown: [] },
+    [`POST /marketplace/lawyers/${SELLER}/services/svc-1/purchase-request`]: () => ({ work_id: "ADV-YFRIS", order: waiting, payment: waiting.payment, telegram_sent: true }),
+    "/marketplace/me/orders": () => ({ items: [state.order], total: 1 }),
+    [`/marketplace/me/orders/${ORDER_ID}`]: () => state.order,
+  });
+  await mockBackend(page, routes);
+  await page.goto(`/uz/lawyers/${SELLER}`);
+  await page.getByRole("button", { name: "Sotib olish" }).last().click();
+  const dialog = page.getByRole("dialog", { name: "Xizmatni sotib olish" });
+  await dialog.getByRole("textbox").first().fill("Ajrashish bo'yicha maslahat kerak, bolalar masalasi bor");
+  await dialog.getByText("1 soat ichida").click();
+  await dialog.getByRole("button", { name: "Sotib olish" }).click();
+
+  const now = dialog.locator(".mk-steps li[aria-current=step]");
+  await expect(now).toHaveText(/Mutaxassis qabuli/);
+  await expect(dialog.getByText("To'lov tasdiqlandi")).toHaveCount(0);
+
+  state.order = accepted;
+  await expect(now).toHaveText(/Oldindan to'lov/, { timeout: 12_000 });
+  await expect(dialog.getByText("To'lov tasdiqlandi")).toHaveCount(0);
+
+  state.order = paid;
+  await expect(now).toHaveText(/Chat va ish/, { timeout: 12_000 });
+  await expect(dialog.getByRole("button", { name: "Advokat bilan bog'lanish" })).toBeVisible();
+  await expect(dialog.getByText("Xavfsiz chat tayyorlanmoqda", { exact: false })).toHaveCount(0);
+});

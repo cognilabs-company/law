@@ -1428,7 +1428,9 @@ export function awaitingSeller(o: Pick<MarketOrder, "status" | "paymentStatus"> 
 }
 
 export function isOrderPending(o: Pick<MarketOrder, "status" | "paymentStatus">): boolean {
-  return o.status === "pending_payment" || o.status === "waiting_payment" || (o.status === "pending" && o.paymentStatus !== "paid") || awaitingSeller(o);
+  // "accepted" stays the order status from the request until the advance is
+  // paid (seen 26 Oct 2026: accepted + unpaid once the seller took it).
+  return o.status === "pending_payment" || o.status === "waiting_payment" || ((o.status === "pending" || o.status === "accepted") && o.paymentStatus !== "paid") || awaitingSeller(o);
 }
 
 export const MARKET_DONE = new Set(["completed", "rated", "done", "closed"]);
@@ -1466,7 +1468,8 @@ export function phaseOfStatus(status: string): MarketTrackPhase {
   if (MARKET_STOPPED.has(s)) return "cancelled";
   if (MARKET_DONE.has(s)) return "completed";
   if (AWAITING_STATUSES.has(s)) return "accepting";
-  if (!s || s === "pending" || s === "pending_payment" || s === "waiting_payment") return "pending";
+  // "accepted" alone does not prove a payment (see isOrderPending).
+  if (!s || s === "pending" || s === "accepted" || s === "pending_payment" || s === "waiting_payment") return "pending";
   return "paid";
 }
 

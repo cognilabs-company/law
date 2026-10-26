@@ -110,7 +110,7 @@ export function docSettingsIssues(s: DocSettings): Record<string, string> {
   s.pagePricing.forEach((r, i) => {
     if (!(r.minPages >= 1) || (r.maxPages !== null && r.maxPages < r.minPages) || !(r.amount >= 0)) out[`tier${i}`] = "tier";
   });
-  return out;
+  return { ...out, ...docPolicyIssues(s) };
 }
 
 // The runtime settings for client-side checks, read once per page load;
@@ -135,3 +135,33 @@ const MIME_OF: Record<string, string> = {
 };
 // An <input accept> value for the given extensions.
 export const acceptFor = (formats: readonly string[]): string => formats.flatMap((f) => [`.${f}`, MIME_OF[f] ?? ""]).filter(Boolean).join(",");
+
+// The three free-form policy objects, in the shape Studio K26 gives them.
+// Unknown keys the backend may add are kept when a field is changed.
+export const REVIEWER_TYPES = ["lawyer", "advokat", "any"] as const;
+export type PlanRule = { required: boolean; planIds: string[]; entitlement: string };
+export type ReviewRule = { enabled: boolean; reviewerType: string; slaMinutes: number | null };
+export type DownloadRule = { planRequired: boolean; formats: string[]; watermark: boolean };
+
+const strList = (v: unknown): string[] => asArr(v).map((x) => asStr(x)).filter(Boolean);
+const posOrNull = (v: unknown): number | null => {
+  const n = asNum(v, NaN);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+export const planRuleOf = (d: Dict): PlanRule => ({ required: d.required === true, planIds: strList(d.plan_ids), entitlement: asStr(d.entitlement) });
+export const planRuleBody = (d: Dict, r: PlanRule): Dict => ({ ...d, required: r.required, plan_ids: r.required ? r.planIds : [], entitlement: r.entitlement.trim() });
+export const reviewRuleOf = (d: Dict): ReviewRule => ({ enabled: d.enabled === true, reviewerType: asStr(d.reviewer_type), slaMinutes: posOrNull(d.sla_minutes) });
+export const reviewRuleBody = (d: Dict, r: ReviewRule): Dict => ({ ...d, enabled: r.enabled, reviewer_type: r.reviewerType, sla_minutes: r.slaMinutes });
+export const downloadRuleOf = (d: Dict): DownloadRule => ({ planRequired: d.plan_required === true, formats: strList(d.formats), watermark: d.watermark === true });
+export const downloadRuleBody = (d: Dict, r: DownloadRule): Dict => ({ ...d, plan_required: r.planRequired, formats: r.formats, watermark: r.watermark });
+
+// Rules that would leave a service unusable, checked before the request.
+export function docPolicyIssues(s: DocSettings): Record<string, string> {
+  const out: Record<string, string> = {};
+  const plan = planRuleOf(s.planRequirements);
+  if (plan.required && !plan.planIds.length && !plan.entitlement.trim()) out.plan = "pickPlan";
+  const review = reviewRuleOf(s.reviewPolicy);
+  if (review.enabled && !review.slaMinutes) out.sla = "sla";
+  return out;
+}

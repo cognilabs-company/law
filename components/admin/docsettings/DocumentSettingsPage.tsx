@@ -1,25 +1,35 @@
 "use client";
 
 import "./docSettings.css";
-import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import IconButton from "@/components/ui/IconButton";
-import { IconFileText, IconPlus, IconRefresh } from "@/components/icons";
+import { IconCheck, IconClipboardCheck, IconClose, IconCoins, IconCrown, IconDownload, IconFileText, IconFolder, IconHistory, IconLayers, IconLock, IconPlus, IconRefresh, IconShieldCheck } from "@/components/icons";
 import { shortDateTime } from "@/lib/date";
 import { errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
+import { Switch } from "@/components/admin/studio/sx/form/Switch";
+import { getSubscriptionPlans, type BackendPlan } from "@/lib/services/backend";
 import {
   DOC_FORMATS,
   DOC_MODES,
+  REVIEWER_TYPES,
   createDocSettingsDraft,
   docSettingsIssues,
+  downloadRuleBody,
+  downloadRuleOf,
   getDocSettingsAdmin,
   getDocSettingsRuntime,
+  planRuleBody,
+  planRuleOf,
   publishDocSettings,
+  reviewRuleBody,
+  reviewRuleOf,
   rollbackDocSettings,
+  settingsBody,
   type DocSettings,
   type DocSettingsVersion,
 } from "@/lib/services/documentSettings";
@@ -31,57 +41,131 @@ import {
 type Loaded = { runtime: Awaited<ReturnType<typeof getDocSettingsRuntime>>; admin: Awaited<ReturnType<typeof getDocSettingsAdmin>> };
 type Confirm = { kind: "publish" | "rollback"; v: DocSettingsVersion } | null;
 
-function Summary({ s }: { s: DocSettings }): ReactElement {
+// One rules card: an icon, a title, an on/off state when the rule can be
+// switched, and its body.
+function Card({ icon, title, on, children }: { icon: ReactNode; title: string; on?: boolean; children: ReactNode }): ReactElement {
+  const t = useTranslations("admin.docSettings");
+  return (
+    <article className="dss-card">
+      <header className="dss-card__h">
+        <span className="dss-card__ico" aria-hidden="true">
+          {icon}
+        </span>
+        <b>{title}</b>
+        {on === undefined ? null : (
+          <span className="dss-state" data-on={on || undefined}>
+            {on ? t("on") : t("off")}
+          </span>
+        )}
+      </header>
+      <div className="dss-card__b">{children}</div>
+    </article>
+  );
+}
+
+// Every option, picked or not, so the whole set is visible at a glance.
+function OptionSet({ all, picked, label }: { all: readonly string[]; picked: readonly string[]; label: (v: string) => string }): ReactElement {
+  return (
+    <ul className="dss-opts">
+      {all.map((v) => {
+        const has = picked.includes(v);
+        return (
+          <li key={v} data-on={has || undefined}>
+            {has ? <IconCheck aria-hidden="true" /> : <IconClose aria-hidden="true" />}
+            <span>{label(v)}</span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function Summary({ s, compact = false }: { s: DocSettings; compact?: boolean }): ReactElement {
   const t = useTranslations("admin.docSettings");
   const som = (n: number) => `${fmtUzs(n)} ${t("som")}`;
+  const plan = planRuleOf(s.planRequirements);
+  const review = reviewRuleOf(s.reviewPolicy);
+  const dl = downloadRuleOf(s.downloadPolicy);
+  const modeLabel = (m: string) => (t.has(`mode.${m}`) ? t(`mode.${m}`) : m);
+  const extraModes = s.modes.filter((m) => !(DOC_MODES as readonly string[]).includes(m));
   return (
-    <div className="dss-sum">
-      <div className="dss-tile">
-        <small>{t("formats")}</small>
-        <span className="dss-chips">
-          {s.allowedFormats.map((f) => (
-            <i key={f}>{f.toUpperCase()}</i>
-          ))}
-        </span>
-      </div>
-      <div className="dss-tile">
-        <small>{t("maxFile")}</small>
-        <b className="sx-num">{t("mb", { n: s.maxFileMb })}</b>
-      </div>
-      <div className="dss-tile">
-        <small>{t("includedPages")}</small>
-        <b className="sx-num">{t("pages", { n: s.includedPages })}</b>
-      </div>
-      <div className="dss-tile">
-        <small>{t("extraPage")}</small>
-        <b className="sx-num">{som(s.extraPagePrice)}</b>
-      </div>
-      <div className="dss-tile dss-tile--wide">
-        <small>{t("modes")}</small>
-        <span className="dss-chips">
-          {s.modes.map((m) => (
-            <i key={m}>{t.has(`mode.${m}`) ? t(`mode.${m}`) : m}</i>
-          ))}
-        </span>
-      </div>
-      <div className="dss-tile dss-tile--wide">
-        <small>{t("tiers")}</small>
-        {s.pagePricing.length ? (
-          <ul className="dss-tiers">
-            {s.pagePricing.map((r, i) => (
-              <li key={i}>
-                <span>{r.maxPages === null ? t("tierFrom", { from: r.minPages }) : t("tierRange", { from: r.minPages, to: r.maxPages })}</span>
-                <b className="sx-num">{som(r.amount)}</b>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <span className="dss-muted">{t("noTiers")}</span>
-        )}
-      </div>
+    <div className={`dss-grid${compact ? " dss-grid--compact" : ""}`}>
+      <Card icon={<IconFolder />} title={t("files")}>
+        <OptionSet all={DOC_FORMATS} picked={s.allowedFormats} label={(f) => f.toUpperCase()} />
+        <dl className="dss-stats">
+          <div>
+            <dt>{t("maxFile")}</dt>
+            <dd className="sx-num">{t("mb", { n: s.maxFileMb })}</dd>
+          </div>
+          <div>
+            <dt>{t("includedPages")}</dt>
+            <dd className="sx-num">{t("pages", { n: s.includedPages })}</dd>
+          </div>
+        </dl>
+      </Card>
+      <Card icon={<IconCoins />} title={t("pricing")}>
+        <div className="dss-big">
+          <small>{t("extraPage")}</small>
+          <b className="sx-num">{som(s.extraPagePrice)}</b>
+        </div>
+        <div className="dss-ladder">
+          <small>{t("tiers")}</small>
+          {s.pagePricing.length ? (
+            <ol className="dss-tiers">
+              {s.pagePricing.map((r, i) => (
+                <li key={i}>
+                  <span>{r.maxPages === null ? t("tierFrom", { from: r.minPages }) : t("tierRange", { from: r.minPages, to: r.maxPages })}</span>
+                  <b className="sx-num">{som(r.amount)}</b>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="dss-muted">{t("noTiers")}</p>
+          )}
+        </div>
+      </Card>
+      <Card icon={<IconLayers />} title={t("modes")}>
+        <OptionSet all={[...DOC_MODES, ...extraModes]} picked={s.modes} label={modeLabel} />
+      </Card>
+      <Card icon={<IconCrown />} title={t("plan.title")} on={plan.required}>
+        <p className="dss-lead">{plan.required ? t("plan.needed", { n: plan.planIds.length }) : t("plan.free")}</p>
+        {plan.required && plan.entitlement ? <p className="dss-muted">{t("plan.entitlementIs", { key: plan.entitlement })}</p> : !plan.required ? <p className="dss-muted">{t("plan.freeHint")}</p> : null}
+      </Card>
+      <Card icon={<IconClipboardCheck />} title={t("review.title")} on={review.enabled}>
+        <p className="dss-lead">{review.enabled ? t(`review.by.${review.reviewerType || "any"}`) : t("review.off")}</p>
+        <p className="dss-muted">{review.enabled && review.slaMinutes ? t("review.slaIs", { n: review.slaMinutes }) : t("review.offHint")}</p>
+      </Card>
+      <Card icon={<IconDownload />} title={t("download.title")} on={dl.planRequired || dl.watermark || dl.formats.length > 0}>
+        <p className="dss-lead">{dl.planRequired ? t("download.plan") : t("download.anyone")}</p>
+        <p className="dss-muted">{[dl.formats.length ? dl.formats.map((f) => f.toUpperCase()).join(", ") : t("download.allFormats"), dl.watermark ? t("download.watermarkOn") : ""].filter(Boolean).join(" · ")}</p>
+      </Card>
     </div>
   );
 }
+
+// A numbered part of the draft editor.
+function Step({ n, title, hint, children }: { n: number; title: string; hint?: string; children: ReactNode }): ReactElement {
+  return (
+    <fieldset className="dss-step">
+      <legend className="dss-step__h">
+        <span className="dss-step__n" aria-hidden="true">
+          {n}
+        </span>
+        <span className="dss-step__t">
+          <b>{title}</b>
+          {hint ? <small>{hint}</small> : null}
+        </span>
+      </legend>
+      <div className="dss-step__b">{children}</div>
+    </fieldset>
+  );
+}
+
+const changedParts = (a: DocSettings, b: DocSettings): number => {
+  const x = settingsBody(a);
+  const y = settingsBody(b);
+  return Object.keys(x).filter((k) => JSON.stringify(x[k]) !== JSON.stringify(y[k])).length;
+};
 
 function Editor({ start, onSaved, onCancel }: { start: DocSettings; onSaved: (v: DocSettingsVersion) => void; onCancel: () => void }): ReactElement {
   const t = useTranslations("admin.docSettings");
@@ -94,7 +178,31 @@ function Editor({ start, onSaved, onCancel }: { start: DocSettings; onSaved: (v:
   const shown = tried ? issues : {};
   const num = (v: string) => (v === "" ? 0 : Number(v.replace(/[^\d]/g, "")));
   const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+  const uid = useId();
+  const locale = useLocale();
+  const [plans, setPlans] = useState<BackendPlan[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getSubscriptionPlans(locale).then(
+      (list) => alive && setPlans(list),
+      (e) => {
+        logApiError("docSettings.plans", e);
+        if (alive) setPlans([]);
+      },
+    );
+    return () => {
+      alive = false;
+    };
+  }, [locale]);
+  const plan = planRuleOf(s.planRequirements);
+  const review = reviewRuleOf(s.reviewPolicy);
+  const dl = downloadRuleOf(s.downloadPolicy);
+  const setPlan = (patch: Partial<typeof plan>) => setS((x) => ({ ...x, planRequirements: planRuleBody(x.planRequirements, { ...planRuleOf(x.planRequirements), ...patch }) }));
+  const setReview = (patch: Partial<typeof review>) => setS((x) => ({ ...x, reviewPolicy: reviewRuleBody(x.reviewPolicy, { ...reviewRuleOf(x.reviewPolicy), ...patch }) }));
+  const setDl = (patch: Partial<typeof dl>) => setS((x) => ({ ...x, downloadPolicy: downloadRuleBody(x.downloadPolicy, { ...downloadRuleOf(x.downloadPolicy), ...patch }) }));
   const setTier = (i: number, patch: Partial<DocSettings["pagePricing"][number]>) => setS((x) => ({ ...x, pagePricing: x.pagePricing.map((r, k) => (k === i ? { ...r, ...patch } : r)) }));
+  const changes = changedParts(s, start);
+  const problems = Object.keys(issues).length;
 
   async function save() {
     setTried(true);
@@ -114,77 +222,177 @@ function Editor({ start, onSaved, onCancel }: { start: DocSettings; onSaved: (v:
   }
 
   return (
-    <section className="dss-edit" aria-label={t("editTitle")}>
-      <b className="dss-edit__h">{t("editTitle")}</b>
-      <fieldset className="dss-field">
-        <legend>{t("formats")}</legend>
-        <div className="dss-toggles">
-          {DOC_FORMATS.map((f) => (
-            <button key={f} type="button" aria-pressed={s.allowedFormats.includes(f)} onClick={() => setS((x) => ({ ...x, allowedFormats: toggle(x.allowedFormats, f) }))}>
-              {f.toUpperCase()}
-            </button>
-          ))}
+    <section className="dss-sec dss-edit" aria-labelledby={`${uid}-edit`}>
+      <header className="dss-sec__h">
+        <span className="dss-sec__ico dss-sec__ico--edit" aria-hidden="true">
+          <IconPlus />
+        </span>
+        <div>
+          <h3 id={`${uid}-edit`}>{t("editTitle")}</h3>
+          <p>{t("editLead")}</p>
         </div>
-        {shown.formats ? <small className="dss-bad">{t("issue.pickFormat")}</small> : null}
-      </fieldset>
-      <fieldset className="dss-field">
-        <legend>{t("modes")}</legend>
-        <div className="dss-toggles">
-          {DOC_MODES.map((m) => (
-            <button key={m} type="button" aria-pressed={s.modes.includes(m)} onClick={() => setS((x) => ({ ...x, modes: toggle(x.modes, m) }))}>
-              {t(`mode.${m}`)}
-            </button>
-          ))}
-        </div>
-        {shown.modes ? <small className="dss-bad">{t("issue.pickMode")}</small> : null}
-      </fieldset>
-      <div className="dss-nums">
-        <label data-bad={shown.maxFileMb ? "" : undefined}>
-          <span>{t("maxFile")}</span>
-          <input inputMode="numeric" value={s.maxFileMb || ""} onChange={(e) => setS((x) => ({ ...x, maxFileMb: num(e.target.value) }))} />
-          <small>{t("maxFileHint")}</small>
-        </label>
-        <label data-bad={shown.includedPages ? "" : undefined}>
-          <span>{t("includedPages")}</span>
-          <input inputMode="numeric" value={s.includedPages || ""} onChange={(e) => setS((x) => ({ ...x, includedPages: num(e.target.value) }))} />
-          <small>{t("includedHint")}</small>
-        </label>
-        <label data-bad={shown.extraPagePrice ? "" : undefined}>
-          <span>{t("extraPage")}</span>
-          <input inputMode="numeric" value={String(s.extraPagePrice)} onChange={(e) => setS((x) => ({ ...x, extraPagePrice: num(e.target.value) }))} />
-          <small>{t("som")}</small>
-        </label>
-      </div>
-      <fieldset className="dss-field">
-        <legend>{t("tiers")}</legend>
-        {s.pagePricing.map((r, i) => (
-          <div key={i} className="dss-tier" data-bad={shown[`tier${i}`] ? "" : undefined}>
-            <label>
-              <span>{t("tierMin")}</span>
-              <input inputMode="numeric" value={r.minPages || ""} onChange={(e) => setTier(i, { minPages: num(e.target.value) })} />
-            </label>
-            <label>
-              <span>{t("tierMax")}</span>
-              <input inputMode="numeric" placeholder={t("tierOpen")} value={r.maxPages ?? ""} onChange={(e) => setTier(i, { maxPages: e.target.value === "" ? null : num(e.target.value) })} />
-            </label>
-            <label>
-              <span>{t("tierAmount")}</span>
-              <input inputMode="numeric" value={String(r.amount)} onChange={(e) => setTier(i, { amount: num(e.target.value) })} />
-            </label>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setS((x) => ({ ...x, pagePricing: x.pagePricing.filter((_, k) => k !== i) }))} aria-label={t("removeTier")}>
-              ×
-            </button>
-            {shown[`tier${i}`] ? <small className="dss-bad">{t("issue.tier")}</small> : null}
+      </header>
+
+      <div className="dss-steps">
+        <Step n={1} title={t("files")} hint={t("filesHint")}>
+          <div className="dss-toggles" role="group" aria-label={t("formats")}>
+            {DOC_FORMATS.map((f) => (
+              <button key={f} type="button" aria-pressed={s.allowedFormats.includes(f)} onClick={() => setS((x) => ({ ...x, allowedFormats: toggle(x.allowedFormats, f) }))}>
+                {f.toUpperCase()}
+              </button>
+            ))}
           </div>
-        ))}
-        <button type="button" className="btn btn--line btn--sm dss-add" onClick={() => setS((x) => ({ ...x, pagePricing: [...x.pagePricing, { minPages: (x.pagePricing.at(-1)?.maxPages ?? 0) + 1, maxPages: null, amount: 0 }] }))}>
-          <IconPlus aria-hidden="true" />
-          {t("addTier")}
-        </button>
-      </fieldset>
+          {shown.formats ? <small className="dss-bad">{t("issue.pickFormat")}</small> : null}
+          <div className="dss-nums">
+            <label data-bad={shown.maxFileMb ? "" : undefined}>
+              <span>{t("maxFile")}</span>
+              <span className="dss-unit">
+                <input inputMode="numeric" value={s.maxFileMb || ""} onChange={(e) => setS((x) => ({ ...x, maxFileMb: num(e.target.value) }))} />
+                <i>MB</i>
+              </span>
+              <small>{t("maxFileHint")}</small>
+            </label>
+            <label data-bad={shown.includedPages ? "" : undefined}>
+              <span>{t("includedPages")}</span>
+              <input inputMode="numeric" value={s.includedPages || ""} onChange={(e) => setS((x) => ({ ...x, includedPages: num(e.target.value) }))} />
+              <small>{t("includedHint")}</small>
+            </label>
+          </div>
+        </Step>
+
+        <Step n={2} title={t("modes")} hint={t("modesHint")}>
+          <div className="dss-toggles" role="group" aria-label={t("modes")}>
+            {DOC_MODES.map((m) => (
+              <button key={m} type="button" aria-pressed={s.modes.includes(m)} onClick={() => setS((x) => ({ ...x, modes: toggle(x.modes, m) }))}>
+                {t(`mode.${m}`)}
+              </button>
+            ))}
+          </div>
+          {shown.modes ? <small className="dss-bad">{t("issue.pickMode")}</small> : null}
+        </Step>
+
+        <Step n={3} title={t("pricing")} hint={t("pricingHint")}>
+          <div className="dss-nums">
+            <label data-bad={shown.extraPagePrice ? "" : undefined}>
+              <span>{t("extraPage")}</span>
+              <span className="dss-unit">
+                <input inputMode="numeric" value={String(s.extraPagePrice)} onChange={(e) => setS((x) => ({ ...x, extraPagePrice: num(e.target.value) }))} />
+                <i>{t("som")}</i>
+              </span>
+            </label>
+          </div>
+          <div className="dss-tiered">
+            <b className="dss-sub">{t("tiers")}</b>
+            {s.pagePricing.length ? null : <p className="dss-muted">{t("noTiers")}</p>}
+            {s.pagePricing.map((r, i) => (
+              <div key={i} className="dss-tier" data-bad={shown[`tier${i}`] ? "" : undefined}>
+                <span className="dss-tier__n" aria-hidden="true">
+                  {i + 1}
+                </span>
+                <label>
+                  <span>{t("tierMin")}</span>
+                  <input inputMode="numeric" value={r.minPages || ""} onChange={(e) => setTier(i, { minPages: num(e.target.value) })} />
+                </label>
+                <label>
+                  <span>{t("tierMax")}</span>
+                  <input inputMode="numeric" placeholder={t("tierOpen")} value={r.maxPages ?? ""} onChange={(e) => setTier(i, { maxPages: e.target.value === "" ? null : num(e.target.value) })} />
+                </label>
+                <label>
+                  <span>{t("tierAmount")}</span>
+                  <input inputMode="numeric" value={String(r.amount)} onChange={(e) => setTier(i, { amount: num(e.target.value) })} />
+                </label>
+                <IconButton label={t("removeTier")} icon={<IconClose />} onClick={() => setS((x) => ({ ...x, pagePricing: x.pagePricing.filter((_, k) => k !== i) }))} />
+                {shown[`tier${i}`] ? <small className="dss-bad">{t("issue.tier")}</small> : null}
+              </div>
+            ))}
+            <button type="button" className="btn btn--line btn--sm dss-add" onClick={() => setS((x) => ({ ...x, pagePricing: [...x.pagePricing, { minPages: (x.pagePricing.at(-1)?.maxPages ?? 0) + 1, maxPages: null, amount: 0 }] }))}>
+              <IconPlus aria-hidden="true" />
+              {t("addTier")}
+            </button>
+          </div>
+        </Step>
+
+        <Step n={4} title={t("plan.title")} hint={t("plan.hint")}>
+          <div className="dss-sw">
+            <Switch id={`${uid}-plan`} checked={plan.required} onChange={(v) => setPlan({ required: v })} aria-labelledby={`${uid}-plan-t`} aiId="admin.docSettings.plan-required" />
+            <span id={`${uid}-plan-t`}>{t("plan.required")}</span>
+          </div>
+          {plan.required ? (
+            <>
+              <div className="dss-toggles" role="group" aria-label={t("plan.plans")}>
+                {plans === null ? (
+                  <span className="dss-muted">{t("plan.loading")}</span>
+                ) : plans.length ? (
+                  plans.map((p) => (
+                    <button key={p.id} type="button" aria-pressed={plan.planIds.includes(p.id)} onClick={() => setPlan({ planIds: toggle(plan.planIds, p.id) })}>
+                      {p.name}
+                    </button>
+                  ))
+                ) : (
+                  <span className="dss-muted">{t("plan.none")}</span>
+                )}
+              </div>
+              <label className="dss-line">
+                <span>{t("plan.entitlement")}</span>
+                <input value={plan.entitlement} placeholder="documents.unlimited" onChange={(e) => setPlan({ entitlement: e.target.value })} />
+                <small>{t("plan.entitlementHint")}</small>
+              </label>
+              {shown.plan ? <small className="dss-bad">{t("issue.pickPlan")}</small> : null}
+            </>
+          ) : (
+            <small className="dss-muted">{t("plan.freeHint")}</small>
+          )}
+        </Step>
+
+        <Step n={5} title={t("review.title")} hint={t("review.hint")}>
+          <div className="dss-sw">
+            <Switch id={`${uid}-rev`} checked={review.enabled} onChange={(v) => setReview({ enabled: v, reviewerType: review.reviewerType || "any", slaMinutes: review.slaMinutes ?? 1440 })} aria-labelledby={`${uid}-rev-t`} aiId="admin.docSettings.review" />
+            <span id={`${uid}-rev-t`}>{t("review.enabled")}</span>
+          </div>
+          {review.enabled ? (
+            <>
+              <div className="dss-toggles" role="group" aria-label={t("review.who")}>
+                {REVIEWER_TYPES.map((r) => (
+                  <button key={r} type="button" aria-pressed={(review.reviewerType || "any") === r} onClick={() => setReview({ reviewerType: r })}>
+                    {t(`review.by.${r}`)}
+                  </button>
+                ))}
+              </div>
+              <label className="dss-line" data-bad={shown.sla ? "" : undefined}>
+                <span>{t("review.sla")}</span>
+                <input inputMode="numeric" value={review.slaMinutes ?? ""} onChange={(e) => setReview({ slaMinutes: num(e.target.value) || null })} />
+                <small>{review.slaMinutes ? t("review.slaHuman", { h: Math.round((review.slaMinutes / 60) * 10) / 10 }) : t("review.slaHint")}</small>
+              </label>
+            </>
+          ) : null}
+        </Step>
+
+        <Step n={6} title={t("download.title")} hint={t("download.hint")}>
+          <div className="dss-sw">
+            <Switch id={`${uid}-dlp`} checked={dl.planRequired} onChange={(v) => setDl({ planRequired: v })} aria-labelledby={`${uid}-dlp-t`} aiId="admin.docSettings.download-plan" />
+            <span id={`${uid}-dlp-t`}>{t("download.planRequired")}</span>
+          </div>
+          <div className="dss-sw">
+            <Switch id={`${uid}-wm`} checked={dl.watermark} onChange={(v) => setDl({ watermark: v })} aria-labelledby={`${uid}-wm-t`} aiId="admin.docSettings.watermark" />
+            <span id={`${uid}-wm-t`}>{t("download.watermark")}</span>
+          </div>
+          <div className="dss-toggles" role="group" aria-label={t("download.formats")}>
+            {DOC_FORMATS.map((f) => (
+              <button key={f} type="button" aria-pressed={dl.formats.includes(f)} onClick={() => setDl({ formats: toggle(dl.formats, f) })}>
+                {f.toUpperCase()}
+              </button>
+            ))}
+          </div>
+          <small className="dss-muted">{t("download.formatsHint")}</small>
+        </Step>
+      </div>
+
       {err ? <Notice ok={false} msg={err} /> : null}
-      <div className="dss-acts">
-        <button type="button" className="btn btn--soft btn--sm" onClick={onCancel} disabled={busy}>
+      <div className="dss-bar">
+        <span className="dss-bar__info" data-bad={tried && problems ? "" : undefined} role="status">
+          {tried && problems ? t("problems", { n: problems }) : changes ? t("changes", { n: changes }) : t("noChanges")}
+        </span>
+        <button type="button" className="btn btn--line btn--sm" onClick={onCancel} disabled={busy}>
           {t("cancel")}
         </button>
         <button type="button" className="btn btn--pri btn--sm" onClick={() => void save()} disabled={busy}>
@@ -248,18 +456,20 @@ export default function DocumentSettingsPage(): ReactElement {
   const activeId = data?.admin.active?.id ?? data?.runtime.settingsId ?? "";
   const versions = data ? [...data.admin.versions].sort((a, b) => (b.version ?? 0) - (a.version ?? 0)) : [];
   const status = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : s);
+  const active = data?.admin.active ?? null;
+  const drafts = versions.filter((v) => v.status === "draft").length;
 
   return (
     <section className="ppanel dss" data-ai-target="admin:document-settings">
-      <div className="ppanel__h cch">
-        <h2 className="ppanel__t cch__t">
-          <span className="pico">
-            <IconFileText />
-          </span>
-          <span className="cch__tt">{t("title")}</span>
-        </h2>
-        <div className="cch__a">
-          {data ? <span className="dss-ver">{data.admin.active ? t("activeN", { n: data.admin.active.version ?? data.runtime.version ?? "" }) : t("defaults")}</span> : null}
+      <header className="dss-hero">
+        <span className="dss-hero__ico" aria-hidden="true">
+          <IconFileText />
+        </span>
+        <div className="dss-hero__txt">
+          <h2>{t("title")}</h2>
+          <p>{t("lead")}</p>
+        </div>
+        <div className="dss-hero__acts">
           <IconButton
             label={t("refresh")}
             icon={<IconRefresh />}
@@ -270,33 +480,69 @@ export default function DocumentSettingsPage(): ReactElement {
               void load().finally(() => setRefreshing(false));
             }}
           />
+          {state === "ready" && !editing ? (
+            <button type="button" className="btn btn--pri btn--sm" onClick={() => setEditing(true)}>
+              <IconPlus aria-hidden="true" />
+              {t("newVersion")}
+            </button>
+          ) : null}
         </div>
-      </div>
-      <p className="ppanel__note">{t("lead")}</p>
+        {data ? (
+          <dl className="dss-meta">
+            <div>
+              <dt>{t("meta.inEffect")}</dt>
+              <dd>
+                <span className="dss-ver" data-defaults={active ? undefined : ""}>
+                  {active ? t("activeN", { n: active.version ?? data.runtime.version ?? "" }) : t("defaults")}
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt>{t("meta.published")}</dt>
+              <dd>{active?.publishedAt ? shortDateTime(active.publishedAt, locale) : t("meta.never")}</dd>
+            </div>
+            <div>
+              <dt>{t("meta.versions")}</dt>
+              <dd className="sx-num">{versions.length}</dd>
+            </div>
+            <div>
+              <dt>{t("meta.drafts")}</dt>
+              <dd className="sx-num">{drafts}</dd>
+            </div>
+          </dl>
+        ) : null}
+      </header>
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
 
       {state === "loading" ? (
-        <Skeleton rows={4} />
+        <div className="dss-loading">
+          <Skeleton rows={2} />
+          <Skeleton rows={4} />
+        </div>
       ) : state === "forbidden" ? (
-        <EmptyState icon={<IconFileText />} title={t("noAccess")} />
+        <EmptyState icon={<IconLock />} title={t("noAccess")} />
       ) : state === "error" || !data ? (
         <ErrorState error={failure} onRetry={() => void load()} title={t("loadFailed")} compact />
       ) : (
         <>
-          <div className="dss-block">
-            <div className="dss-block__h">
-              <b>{t("now")}</b>
-              {!data.admin.active ? <small>{t("defaultsHint")}</small> : null}
-              {!editing ? (
-                <button type="button" className="btn btn--pri btn--sm" onClick={() => setEditing(true)}>
-                  <IconPlus aria-hidden="true" />
-                  {t("newVersion")}
-                </button>
-              ) : null}
-            </div>
+          <section className="dss-sec" aria-labelledby="dss-now">
+            <header className="dss-sec__h">
+              <span className="dss-sec__ico" aria-hidden="true">
+                <IconShieldCheck />
+              </span>
+              <div>
+                <h3 id="dss-now">{t("now")}</h3>
+                <p>{active ? t("nowLead") : t("defaultsHint")}</p>
+              </div>
+            </header>
             <Summary s={data.runtime.settings} />
-            {data.runtime.settings && data.runtime.version !== null ? <p className="dss-muted">{t("snapshotNote")}</p> : null}
-          </div>
+            {data.runtime.settings && data.runtime.version !== null ? (
+              <p className="dss-callout">
+                <IconShieldCheck aria-hidden="true" />
+                <span>{t("snapshotNote")}</span>
+              </p>
+            ) : null}
+          </section>
 
           {editing ? (
             <Editor
@@ -310,50 +556,59 @@ export default function DocumentSettingsPage(): ReactElement {
             />
           ) : null}
 
-          <div className="dss-block">
-            <div className="dss-block__h">
-              <b>{t("history")}</b>
-            </div>
+          <section className="dss-sec" aria-labelledby="dss-hist">
+            <header className="dss-sec__h">
+              <span className="dss-sec__ico" aria-hidden="true">
+                <IconHistory />
+              </span>
+              <div>
+                <h3 id="dss-hist">{t("history")}</h3>
+                <p>{t("historyLead")}</p>
+              </div>
+            </header>
             {versions.length ? (
-              <ol className="dss-list">
+              <ol className="dss-tl">
                 {versions.map((v) => {
-                  const active = v.id === activeId;
+                  const isActive = v.id === activeId;
                   return (
-                    <li key={v.id} className="dss-v" data-status={v.status} data-active={active || undefined}>
-                      <div className="dss-v__h">
-                        <b>{t("versionN", { n: v.version ?? "?" })}</b>
-                        <span className="dss-chip" data-status={active ? "active" : v.status}>
-                          {active ? t("status.active") : status(v.status)}
-                        </span>
-                        <small>
-                          {[v.publishedAt ? t("publishedAt", { date: shortDateTime(v.publishedAt, locale) }) : v.createdAt ? t("createdAt", { date: shortDateTime(v.createdAt, locale) }) : "", v.createdBy].filter(Boolean).join(" · ")}
-                        </small>
-                      </div>
-                      <details>
-                        <summary>{t("show")}</summary>
-                        <Summary s={v.settings} />
-                      </details>
-                      {!active ? (
-                        <div className="dss-acts">
-                          {v.status === "draft" ? (
-                            <button type="button" className="btn btn--pri btn--sm" onClick={() => setConfirm({ kind: "publish", v })}>
-                              {t("publish")}
-                            </button>
-                          ) : v.status === "published" || v.status === "superseded" || v.status === "archived" ? (
-                            <button type="button" className="btn btn--line btn--sm" onClick={() => setConfirm({ kind: "rollback", v })}>
-                              {t("rollback")}
-                            </button>
-                          ) : null}
+                    <li key={v.id} className="dss-v" data-status={v.status} data-active={isActive || undefined}>
+                      <span className="dss-v__dot" aria-hidden="true" />
+                      <div className="dss-v__card">
+                        <div className="dss-v__h">
+                          <b>{t("versionN", { n: v.version ?? "?" })}</b>
+                          <span className="dss-chip" data-status={isActive ? "active" : v.status}>
+                            {isActive ? t("status.active") : status(v.status)}
+                          </span>
+                          <small>
+                            {[v.publishedAt ? t("publishedAt", { date: shortDateTime(v.publishedAt, locale) }) : v.createdAt ? t("createdAt", { date: shortDateTime(v.createdAt, locale) }) : "", v.createdBy].filter(Boolean).join(" · ")}
+                          </small>
                         </div>
-                      ) : null}
+                        <details>
+                          <summary>{t("show")}</summary>
+                          <Summary s={v.settings} compact />
+                        </details>
+                        {!isActive ? (
+                          <div className="dss-acts">
+                            {v.status === "draft" ? (
+                              <button type="button" className="btn btn--pri btn--sm" onClick={() => setConfirm({ kind: "publish", v })}>
+                                {t("publish")}
+                              </button>
+                            ) : v.status === "published" || v.status === "superseded" || v.status === "archived" ? (
+                              <button type="button" className="btn btn--line btn--sm" onClick={() => setConfirm({ kind: "rollback", v })}>
+                                {t("rollback")}
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
                     </li>
                   );
                 })}
               </ol>
             ) : (
-              <EmptyState size="sm" icon={<IconFileText />} title={t("noVersions")} text={t("noVersionsText")} />
+              <EmptyState size="sm" icon={<IconHistory />} title={t("noVersions")} text={t("noVersionsText")} />
             )}
-          </div>
+          </section>
         </>
       )}
 

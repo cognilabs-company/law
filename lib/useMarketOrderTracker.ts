@@ -15,13 +15,20 @@ import {
 
 const BASE_MS = 4000;
 const CAP_MS = 15000;
+// While the client waits for the seller or the payment check the modal is
+// on screen: a change has to show within seconds, not a quarter minute.
+const LIVE_CAP_MS = 5000;
 const FAIL_CAP_MS = 60000;
 const SETTLE_MS = 500;
 const PENDING_BUDGET_MS = 15 * 60 * 1000;
 const PAID_NO_ROOM_MS = 60 * 1000;
 const FAILS_TO_OFFLINE = 3;
 
-type Snap = { key: string; phase: MarketTrackPhase; roomId: string; slow: boolean; offline: boolean; ended: boolean };
+// known: the phase came from the backend's order. A seed from the bare
+// status ("accepted" covers waiting for the seller, waiting for the advance
+// and paid) is only a guess, so the first real answer replaces it outright
+// instead of being held back by the forward-only merge.
+type Snap = { key: string; phase: MarketTrackPhase; roomId: string; slow: boolean; offline: boolean; ended: boolean; known: boolean };
 
 export type MarketOrderTrack = {
   phase: MarketTrackPhase;
@@ -38,32 +45,35 @@ const ACCEPT_BUDGET_MS = 35 * 60 * 1000;
 
 const isFinal = (p: MarketTrackPhase) => p === "completed" || p === "cancelled";
 
-function seedSnap(key: string, status: string): Snap {
-  return { key, phase: phaseOfStatus(status), roomId: "", slow: false, offline: false, ended: false };
+function seedSnap(key: string, status: string, accepting: boolean): Snap {
+  return { key, phase: accepting ? "accepting" : phaseOfStatus(status), roomId: "", slow: false, offline: false, ended: false, known: false };
 }
 
 function mergeSnap(s: Snap, next: { phase: MarketTrackPhase; roomId: string } | null): Snap {
   if (!next || isFinal(s.phase)) return s;
+  if (!s.known) return { ...s, phase: next.phase, roomId: next.roomId || s.roomId, slow: false, known: true };
   const phase = next.phase === "cancelled" || RANK[next.phase] > RANK[s.phase] ? next.phase : s.phase;
   const roomId = next.roomId || s.roomId;
   if (phase === s.phase && roomId === s.roomId) return s;
   return { ...s, phase, roomId, slow: phase === s.phase ? s.slow : false };
 }
 
-export function useMarketOrderTracker(orderId: string, workId: string, initialStatus: string): MarketOrderTrack | null {
+// accepting: the purchase response said the seller has yet to accept.
+export function useMarketOrderTracker(orderId: string, workId: string, initialStatus: string, accepting = false): MarketOrderTrack | null {
   const key = orderId || workId ? `${orderId}|${workId}` : "";
   const [state, setState] = useState<Snap | null>(null);
   const [nudge, setNudge] = useState({ key: "", n: 0 });
-  const snap = key ? (state && state.key === key ? state : seedSnap(key, initialStatus)) : null;
+  const snap = key ? (state && state.key === key ? state : seedSnap(key, initialStatus, accepting)) : null;
   const phase = snap?.phase ?? "pending";
   const ended = snap?.ended ?? false;
+  const known = snap?.known ?? false;
   const bumps = nudge.key === key ? nudge.n : 0;
 
   useEffect(() => holdMarketOrder(orderId), [orderId]);
 
   useEffect(() => {
     if (!key || ended || phase === "chat" || isFinal(phase)) return;
-    const seed = seedSnap(key, initialStatus);
+    const seed = seedSnap(key, initialStatus, accepting);
     const apply = (f: (s: Snap) => Snap) => setState((cur) => f(cur && cur.key === key ? cur : seed));
     const ctrl = new AbortController();
     const started = Date.now();
@@ -72,6 +82,7 @@ export function useMarketOrderTracker(orderId: string, workId: string, initialSt
     let inFlight = false;
     let again = false;
     let failures = 0;
+    const cap = phase === "accepting" || phase === "pending" ? LIVE_CAP_MS : CAP_MS;
     let delay = BASE_MS;
     let timer = 0;
 
@@ -98,7 +109,7 @@ export function useMarketOrderTracker(orderId: string, workId: string, initialSt
         .then((list) => {
           if (!alive) return;
           failures = 0;
-          delay = Math.min(Math.round(delay * 1.5), CAP_MS);
+          delay = Math.min(Math.round(delay * 1.5), cap);
           const o = findMarketOrder(list, orderId, workId);
           const next = o ? { phase: trackPhaseOf(o), roomId: o.canStartChat ? o.roomId : "" } : null;
           apply((s) => {
@@ -154,7 +165,8 @@ export function useMarketOrderTracker(orderId: string, workId: string, initialSt
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", kick);
     window.addEventListener("online", kick);
-    const now = bumps > 0 || (phase === "paid" && phaseOfStatus(initialStatus) === "paid");
+    // An unconfirmed seed is checked at once.
+    const now = bumps > 0 || !known;
     arm(now ? 0 : BASE_MS, true);
 
     return () => {
@@ -167,13 +179,13 @@ export function useMarketOrderTracker(orderId: string, workId: string, initialSt
       window.removeEventListener("focus", kick);
       window.removeEventListener("online", kick);
     };
-  }, [key, orderId, workId, initialStatus, phase, ended, bumps]);
+  }, [key, orderId, workId, initialStatus, accepting, phase, ended, known, bumps]);
 
   if (!snap) return null;
 
   const recheck = () => {
     setState((cur) => {
-      const base = cur && cur.key === key ? cur : seedSnap(key, initialStatus);
+      const base = cur && cur.key === key ? cur : seedSnap(key, initialStatus, accepting);
       return base.slow || base.offline ? { ...base, slow: false, offline: false } : base;
     });
     setNudge((cur) => ({ key, n: (cur.key === key ? cur.n : 0) + 1 }));

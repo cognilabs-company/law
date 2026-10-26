@@ -60,7 +60,7 @@ test.describe("rating and complaint", () => {
       b.click();
       b.click();
     });
-    await expect(page.getByText("Жалоба отправлена — колл-центр её рассматривает.")).toBeVisible();
+    await expect(page.getByText("Жалоба отправлена — колл-центр её рассматривает.", { exact: false })).toBeVisible();
     expect(sent.complaint).toEqual([{ reason: "Natija kelishilgan hajmda emas, muddat ham o'tib ketdi" }]);
     expect(mock.refused).toEqual([]);
   });

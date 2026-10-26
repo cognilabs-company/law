@@ -179,3 +179,17 @@ describe("2026-10-24 assignment contract", () => {
     expect(soon).toMatchObject({ kind: "assigned", sub: "soon", minutesLeft: 10 });
   });
 });
+
+describe("a direct-seller order before the advance is paid", () => {
+  // Live 26 Oct 2026: the seller accepted, the order stays "accepted" and unpaid.
+  const accepted = normMarketOrder({ id: "o1", status: "accepted", payment_status: "unpaid", payment: { target_type: "marketplace_advance", status: "pending", amount: 87974 }, details: { assignment_status: "accepted" } });
+  it("waits for the advance instead of claiming a payment", () => {
+    expect(isOrderPending(accepted)).toBe(true);
+    expect(trackPhaseOf(accepted)).toBe("pending");
+    expect(phaseOfStatus("accepted")).toBe("pending");
+  });
+  it("is in the chat once paid with a room", () => {
+    const paid = normMarketOrder({ id: "o1", status: "paid", payment_status: "paid", can_start_chat: true, secure_chat_room_id: "r1", details: { assignment_status: "accepted" } });
+    expect(trackPhaseOf(paid)).toBe("chat");
+  });
+});

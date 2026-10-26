@@ -13,12 +13,13 @@ import type { StudioLabels, SxTranslate } from "../useStudioLabels";
 import { promoJoinId, sortByPlacement, type PromoInfo } from "./promoRows";
 import { isTestTitle, quietLast } from "./quiet";
 import type { CtorRecord } from "./recordsApi";
+import { promoTermsOf, promoTiming } from "../ctor/mp09";
 
 export type RecordRow = { rec: CtorRecord; payload?: Readonly<Record<string, unknown>> | null; extra?: Readonly<Record<string, unknown>> };
 
 export type VariantCtx = { code: string; labels: StudioLabels; t: SxTranslate; placements?: readonly string[]; now?: number };
 
-export type CtorVariantKind = "generic" | "k31" | "k33" | "k34" | "k12promo";
+export type CtorVariantKind = "generic" | "k31" | "k33" | "k34" | "k12promo" | "mp09";
 
 export type CtorVariant = {
   kind: CtorVariantKind;
@@ -454,7 +455,71 @@ const K12: CtorVariant = {
   sort: (rows, ctx) => sortK12(rows, ctx?.placements ?? []),
 };
 
-const VARIANTS: Readonly<Record<string, CtorVariant>> = { K31, K33, K34, "K12-PROMO": K12 };
+// MP09 "Aksiya": what it discounts, by how much, for how long and how often.
+const MP09: CtorVariant = {
+  kind: "mp09",
+  needsPayload: true,
+  columns: (ctx) => [
+    titleColumn(ctx),
+    {
+      key: "target",
+      header: ctx.t("sx.cpage.mp09.target"),
+      cell: (row) =>
+        pcell(row, (p) => {
+          const terms = promoTermsOf(p);
+          if (!terms.targetType) return "";
+          const type = ctx.labels.option(terms.targetType, { ctor: "MP09", field: "target_type" });
+          return terms.targetIds.length ? `${type} · ${ctx.t("sx.cpage.mp09.targets", { n: terms.targetIds.length })}` : type;
+        }),
+    },
+    {
+      key: "discount",
+      header: ctx.t("sx.cpage.mp09.discount"),
+      numeric: true,
+      cell: (row) =>
+        pcell(row, (p) => {
+          const terms = promoTermsOf(p);
+          if (terms.value === null || !terms.type) return "";
+          return terms.type === "percent" ? `−${ctx.labels.num(terms.value)}%` : `−${ctx.labels.money(terms.value)}`;
+        }),
+    },
+    {
+      key: "period",
+      header: ctx.t("sx.cpage.mp09.period"),
+      hideBelow: "md",
+      cell: (row) =>
+        pcell(row, (p) => {
+          const terms = promoTermsOf(p);
+          const timing = promoTiming(terms, ctx.now ?? Date.now());
+          const range = [terms.startsAt ? ctx.labels.date(terms.startsAt) : "", terms.endsAt ? ctx.labels.date(terms.endsAt) : ""];
+          const text = range[0] || range[1] ? range.map((x) => x || "…").join(" – ") : ctx.t("sx.cpage.mp09.noPeriod");
+          return (
+            <span className="sx-cp-scope">
+              <span>{text}</span>
+              <span className="sx-cp-tag" data-timing={timing}>
+                {ctx.t(`sx.mp09.pv.state.${timing}`)}
+              </span>
+            </span>
+          );
+        }),
+    },
+    {
+      key: "limit",
+      header: ctx.t("sx.cpage.mp09.limit"),
+      numeric: true,
+      hideBelow: "lg",
+      cell: (row) =>
+        pcell(row, (p) => {
+          const n = promoTermsOf(p).usageLimit;
+          return n === null ? ctx.t("sx.cpage.mp09.noLimit") : ctx.labels.num(n);
+        }),
+    },
+    statusColumn(ctx),
+    updatedColumn(ctx),
+  ],
+};
+
+const VARIANTS: Readonly<Record<string, CtorVariant>> = { K31, K33, K34, "K12-PROMO": K12, MP09 };
 
 export function variantOf(code: string): CtorVariant {
   return VARIANTS[String(code ?? "").trim().toUpperCase()] ?? GENERIC;

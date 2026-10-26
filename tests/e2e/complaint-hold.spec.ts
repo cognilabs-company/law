@@ -13,7 +13,8 @@ const COMPLAINT = {
   seller: { id: "s-1", lexgo_id: "LGA-1", name: "Test Advokat", phone: "+998900000006" },
   evidence: [],
   settlement: { status: "complaint_hold", gross_amount: 500000, held_amount: 500000, refunded_amount: 0, pending_refund_amount: 0, currency: "UZS" },
-  available_actions: ["valid_rework", "partial_refund", "full_refund", "invalid", "resolved"],
+  // The live key (26 Oct 2026); `available_actions` is still read.
+  allowed_actions: ["valid_rework", "partial_refund", "full_refund", "invalid", "resolved"],
   created_at: "2026-10-24T08:00:00Z",
 };
 

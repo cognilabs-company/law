@@ -148,7 +148,7 @@ export default function PurchaseDialog({
   useAiSelection(aiForm ? "preferred_channel" : "", channel);
 
   const tracked = done ?? active;
-  const track = useMarketOrderTracker(service && tracked ? tracked.orderId : "", service && tracked ? tracked.workId : "", service && tracked ? tracked.status : "");
+  const track = useMarketOrderTracker(service && tracked ? tracked.orderId : "", service && tracked ? tracked.workId : "", service && tracked ? tracked.status : "", !!done?.accepting);
   const checkout = useRuntimeFacts(service?.id ?? "", "checkout", { enabled: !!service && !pkg });
   // The seller's acceptance window, as the backend set it.
   const left = useCountdown(done?.accepting ? done.deadlineAt : "", () => track?.recheck());

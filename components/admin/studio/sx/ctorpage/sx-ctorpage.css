@@ -1291,3 +1291,12 @@ html[data-theme="dark"] .sx .sx-cp-tile {
     outline: 2px solid Highlight;
   }
 }
+/* MP09: where a promotion's period stands now */
+.sx .sx-cp-tag[data-timing="scheduled"] {
+  background: var(--sx-submitted-bg);
+  color: var(--sx-submitted-fg);
+}
+.sx .sx-cp-tag[data-timing="ended"] {
+  background: var(--sx-archived-bg);
+  color: var(--sx-archived-fg);
+}

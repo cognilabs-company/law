@@ -97,7 +97,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   const pick = useRef<HTMLInputElement>(null);
 
   const tracked = done ?? active;
-  const track = useMarketOrderTracker(tracked ? tracked.orderId : "", tracked ? tracked.workId : "", tracked ? tracked.status : "");
+  const track = useMarketOrderTracker(tracked ? tracked.orderId : "", tracked ? tracked.workId : "", tracked ? tracked.status : "", !!done?.accepting);
   const checkout = useRuntimeFacts(service.id, "checkout", { enabled: !pkg });
   const left = useCountdown(done?.accepting ? done.deadlineAt : "", () => track?.recheck());
 

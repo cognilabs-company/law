@@ -42,10 +42,39 @@ test("document settings: a draft is checked before it is sent", async ({ page })
   const mock = await mockBackend(page, routes);
   await page.goto("/uz/admin/document-settings");
   await page.getByRole("button", { name: "Yangi versiya tayyorlash" }).click();
-  for (const f of ["PDF", "DOC", "DOCX"]) await page.getByRole("button", { name: f, exact: true }).click();
+  for (const f of ["PDF", "DOC", "DOCX"]) await page.getByRole("button", { name: f, exact: true }).first().click();
   await page.getByRole("button", { name: "Qoralama sifatida saqlash" }).click();
   await expect(page.getByText("Kamida bitta formatni tanlang")).toBeVisible();
   expect(mock.count("POST", /\/admin\/document-service-settings$/)).toBe(0);
+});
+
+test("document settings: plan, review and download rules go into the draft", async ({ page }) => {
+  let sent: Record<string, unknown> | null = null;
+  const routes = await signIn(page, ADMIN, {
+    "/document-service-settings/runtime": { settings, version: 1, settings_id: null },
+    "/admin/document-service-settings": { active: null, versions: [] },
+    "/subscription-plans": [{ id: "p-pro", slug: "pro", name: "LexGo.AI Pro", price: 99000, is_active: true, audiences: ["client"] }],
+    "POST /admin/document-service-settings": (body: unknown) => ((sent = body as Record<string, unknown>), { id: "v2", version: 2, status: "draft", settings: body }),
+  });
+  await mockBackend(page, routes);
+  await page.goto("/uz/admin/document-settings");
+  await expect(page.getByText("Hamma uchun ochiq")).toBeVisible();
+  await page.getByRole("button", { name: "Yangi versiya tayyorlash" }).click();
+  await page.getByRole("switch", { name: "Faqat tarifi borlar foydalana oladi" }).click();
+  await page.getByRole("button", { name: "Qoralama sifatida saqlash" }).click();
+  await expect(page.getByText("Kamida bitta tarif tanlang")).toBeVisible();
+  expect(sent).toBeNull();
+  await page.getByRole("button", { name: "LexGo.AI Pro" }).click();
+  await page.getByRole("switch", { name: /mutaxassis tekshiradi/ }).click();
+  await page.getByRole("button", { name: "Advokat", exact: true }).click();
+  await page.getByRole("switch", { name: "Faylga suv belgisi qo'yiladi" }).click();
+  await page.getByRole("button", { name: "Qoralama sifatida saqlash" }).click();
+  await expect.poll(() => sent).not.toBeNull();
+  expect(sent).toMatchObject({
+    plan_requirements: { required: true, plan_ids: ["p-pro"] },
+    review_policy: { enabled: true, reviewer_type: "advokat", sla_minutes: 1440 },
+    download_policy: { watermark: true, plan_required: false },
+  });
 });
 
 test("tariff draft shows what publishing would change", async ({ page }) => {

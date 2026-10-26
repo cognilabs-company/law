@@ -26,6 +26,8 @@ import { useStudioLabels } from "../useStudioLabels";
 import { useEditorErrorText } from "./useEditorErrorText";
 import type { EditorState } from "./useEditorState";
 import { AudiencePreview } from "../schema/AudiencePreview";
+import { PromoPreview } from "../schema/PromoPreview";
+import { campaignTargetsShape } from "../ctor/k12";
 
 const AI = "admin.studio.editor";
 const SK_FIELDS = [0, 1, 2, 3];
@@ -224,6 +226,7 @@ export function EditorForm({ st, onPick }: { st: EditorState; onPick: (path: str
             />
             {markRo ? <ReviewMarks idPrefix={st.idPrefix} paths={miss} /> : null}
           </SxPanel>
+          {model.code === "MP09" && campaignTargetsShape(st.payload) ? <PromoPreview payload={st.payload} title={st.title} /> : null}
           <AudiencePreview model={model} payload={st.payload} title={st.title} />
         </div>
       </div>

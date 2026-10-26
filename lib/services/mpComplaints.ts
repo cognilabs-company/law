@@ -68,6 +68,11 @@ export const evidenceOf = (v: unknown): MpEvidence => {
   return { id, fileName: asStr(d.file_name ?? d.name), mimeType: asStr(d.mime_type), visibility: asStr(d.visibility), downloadUrl: asStr(d.download_url) };
 };
 
+function actionsOf(v: unknown): MpComplaintAction[] {
+  if (!Array.isArray(v)) return [...MP_COMPLAINT_ACTIONS];
+  return v.map((x) => asStr(x)).filter((a): a is MpComplaintAction => (MP_COMPLAINT_ACTIONS as readonly string[]).includes(a));
+}
+
 export function mpComplaintOf(v: unknown): MpComplaint | null {
   const d = asDict(v);
   const id = asStr(d.id);
@@ -87,9 +92,9 @@ export function mpComplaintOf(v: unknown): MpComplaint | null {
     seller: partyOf(d.seller),
     evidence: asArr(d.evidence).map(evidenceOf).filter((e) => e.id),
     settlement: settlementOf(d.settlement),
-    actions: asArr(d.available_actions)
-      .map((x) => asStr(x))
-      .filter((a): a is MpComplaintAction => (MP_COMPLAINT_ACTIONS as readonly string[]).includes(a)),
+    // The live list sends `allowed_actions` (seen 26 Oct 2026); without
+    // either list every decision is offered and the backend has the last word.
+    actions: actionsOf(d.allowed_actions ?? d.available_actions),
     createdAt: asStr(d.created_at),
   };
 }
