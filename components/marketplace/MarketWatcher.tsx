@@ -8,7 +8,7 @@ import { parseServerTime } from "@/lib/http";
 import { shortDateTime } from "@/lib/date";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { MARKET_EVENT, isMarketOrderHeld, marketChatHref, marketSignalOf, type MarketSignal } from "@/lib/services/marketplace";
-import { IconCheck, IconClock, IconClose, IconInfo, IconTag } from "@/components/icons";
+import { IconCheck, IconClock, IconClose, IconInfo, IconRefresh, IconTag } from "@/components/icons";
 import { noteNegotiationEvent } from "./order/negotiationStore";
 
 type Toast = { id: number; kind: MarketSignal["kind"]; title: string; text: string; href: string };
@@ -95,6 +95,16 @@ export default function MarketWatcher({ role }: { role: Role }) {
         const title = outcome === "expired" ? tt("negotiation.expired") : outcome === "other" ? tt("negotiation.changed") : tt("negotiation.updated");
         toast = { kind: outcome === "accepted" ? "paid" : outcome === "rejected" ? "rejected" : "other", title, text: tt(`negotiation.outcome.${outcome}`), href: sectionHref("mod-negotiation") };
       }
+      if (sig.kind === "complaint" && sig.sub === "resolved") {
+        // The call center's ruling on a complaint. valid_rework moves a
+        // finished order back to work: the seller has to redo it.
+        const out = sig.outcome ?? "";
+        const key = out === "valid_rework" ? "rework" : /refund/.test(out) ? "refund" : out === "invalid" || out === "resolved" ? "closed" : "other";
+        const who = role === "client" ? "client" : "seller";
+        const name = sig.serviceTitle || sig.workId;
+        const text = tt(`complaint.${who}.${key}Text`);
+        toast = { kind: "complaint", title: tt(`complaint.${who}.${key}`), text: name ? `${name}: ${text}` : text, href: orderHref };
+      }
       if (sig.kind === "assigned" && role !== "client") {
         // The seller's answer window: open the order to accept or decline.
         const soon = sig.sub === "soon";
@@ -110,7 +120,7 @@ export default function MarketWatcher({ role }: { role: Role }) {
       const id = nextId.current++;
       setToasts((cur) => [...cur.slice(-2), { id, ...toast }]);
       // A request waiting for an answer stays up longer than news does.
-      setTimeout(() => setToasts((cur) => cur.filter((x) => x.id !== id)), toast.kind === "assigned" ? 30000 : 9000);
+      setTimeout(() => setToasts((cur) => cur.filter((x) => x.id !== id)), toast.kind === "assigned" || toast.kind === "complaint" ? 30000 : 9000);
     });
   }, [role]);
 
@@ -120,7 +130,7 @@ export default function MarketWatcher({ role }: { role: Role }) {
       {toasts.map((x) => (
         <div key={x.id} className={`mk-toast mk-toast--${x.kind}`}>
           <span className="mk-toast__ic" aria-hidden="true">
-            {x.kind === "paid" ? <IconCheck /> : x.kind === "rejected" ? <IconInfo /> : x.kind === "assigned" ? <IconClock /> : <IconTag />}
+            {x.kind === "paid" ? <IconCheck /> : x.kind === "rejected" ? <IconInfo /> : x.kind === "assigned" ? <IconClock /> : x.kind === "complaint" ? <IconRefresh /> : <IconTag />}
           </span>
           <div className="mk-toast__b">
             <b>{x.title}</b>

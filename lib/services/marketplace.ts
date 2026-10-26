@@ -702,9 +702,17 @@ export const CALL_KINDS: readonly CallKind[] = ["audio", "video"];
 
 export type OrderOption = { id: string; label: string; amount: number };
 export type ResultFile = { fileId: string; fileName: string; downloadUrl: string };
+// A complaint ruled valid_rework sends a finished order back to work: the
+// order is in_progress again and the seller's payout waits (settlement
+// rework_hold) until it is redone. `settlement` comes from …/financials.
+export function isReworkOrder(o: Pick<MarketOrder, "status" | "complaint">, settlement = ""): boolean {
+  if (o.status !== "in_progress" && o.status !== "rework" && o.status !== "rework_required") return false;
+  return o.status !== "in_progress" || o.complaint.resolution === "valid_rework" || settlement === "rework_hold";
+}
+
 // The complaint is its own action beside the rating, in the same window
 // (enterprise contract §9.2): offered only while `available`.
-export type OrderComplaint = { available: boolean; status: string; reason: string; deadlineAt: string; url: string };
+export type OrderComplaint = { available: boolean; status: string; reason: string; deadlineAt: string; url: string; resolution: string; resolutionNote: string; resolvedAt: string };
 
 export function complaintOf(d: Dict, details: Dict = asDict(d.details)): OrderComplaint {
   const raw = d.complaint ?? details.complaint;
@@ -715,6 +723,11 @@ export function complaintOf(d: Dict, details: Dict = asDict(d.details)): OrderCo
     reason: asStr(c.reason),
     deadlineAt: asStr(c.deadline_at ?? d.complaint_deadline_at),
     url: asStr(c.url ?? d.complaint_url),
+    // The call center's ruling (2026-10-24 contract §3): valid_rework sends
+    // the order back to work.
+    resolution: asStr(c.resolution ?? c.action ?? d.complaint_resolution ?? details.complaint_resolution).toLowerCase(),
+    resolutionNote: asStr(c.resolution_note ?? c.note ?? details.complaint_resolution_note),
+    resolvedAt: asStr(c.resolved_at ?? details.complaint_resolved_at),
   };
 }
 
@@ -1226,7 +1239,7 @@ export async function requestAdditionalPayment(orderId: string, input: { selecte
 
 export const MARKET_EVENT = "lexgo:marketplace";
 
-export type MarketSignalKind = "paid" | "rejected" | "requested" | "supplemental" | "refund" | "completed" | "started" | "negotiation" | "checklist" | "review" | "rules" | "assigned" | "other";
+export type MarketSignalKind = "paid" | "rejected" | "requested" | "supplemental" | "refund" | "completed" | "started" | "negotiation" | "checklist" | "review" | "rules" | "assigned" | "complaint" | "other";
 
 export type MarketSignal = {
   kind: MarketSignalKind;
@@ -1251,6 +1264,9 @@ const SUB_RE = /(requested|approved|rejected|escalated|expired|warning)$/;
 function specialKind(name: string): Pick<MarketSignal, "kind" | "sub"> | null {
   // A new request for this seller, and its reminders near 20 and 25 minutes.
   if (/assignment_received$/.test(name)) return { kind: "assigned", sub: "new" };
+  // The call center ruled on a complaint (valid_rework reopens the work).
+  if (/complaint_resolved$/.test(name)) return { kind: "complaint", sub: "resolved" };
+  if (/complaint_created$/.test(name)) return { kind: "complaint", sub: "created" };
   if (/assignment_deadline_soon$/.test(name)) return { kind: "assigned", sub: "soon" };
   if (/additional_payment/.test(name)) return { kind: "supplemental", sub: SUB_RE.exec(name)?.[1] ?? "" };
   if (/refund/.test(name)) return { kind: "refund", sub: SUB_RE.exec(name)?.[1] ?? "" };
@@ -1381,6 +1397,7 @@ export function marketSignalOf(ev: { event: string } & Record<string, unknown>):
       serviceTitle: pickStr(srcs, ["service_title"]) || pickIn(srcs, ["order"], ["service_title"]),
       deadlineAt: pickStr(srcs, ["acceptance_deadline_at"]) || undefined,
       minutesLeft: Number(pickStr(srcs, ["minutes_left"])) || undefined,
+      outcome: special?.kind === "complaint" ? (pickStr(srcs, ["resolution", "action", "decision"]) || pickIn(srcs, ["complaint"], ["resolution", "action"])).toLowerCase() || undefined : undefined,
     };
   }
   if (name !== "notification.created") return null;
@@ -1400,7 +1417,15 @@ export function marketSignalOf(ev: { event: string } & Record<string, unknown>):
     return sig.serviceTitle ? sig : { ...sig, serviceTitle: asStr(n.body) };
   }
   const special = specialKind(inner);
-  if (special) return { ...special, orderId: asStr(data.order_id), workId: asStr(data.work_id), roomId: asStr(data.room_id), serviceTitle: asStr(data.service_title) || asStr(n.body) };
+  if (special)
+    return {
+      ...special,
+      orderId: asStr(data.order_id),
+      workId: asStr(data.work_id),
+      roomId: asStr(data.room_id),
+      serviceTitle: asStr(data.service_title) || asStr(n.body),
+      outcome: special.kind === "complaint" ? asStr(data.resolution ?? data.action).toLowerCase() || undefined : undefined,
+    };
   const kind = inner === "marketplace_purchase_approved" || inner === "marketplace_order_paid" ? "paid" : inner === "marketplace_purchase_rejected" ? "rejected" : inner === "marketplace_purchase_requested" ? "requested" : "other";
   return { kind, orderId: asStr(data.order_id), workId: asStr(data.work_id), roomId: asStr(data.room_id), serviceTitle: asStr(data.service_title) || asStr(n.body) };
 }

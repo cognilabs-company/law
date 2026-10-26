@@ -16,6 +16,7 @@ import WarrantyPanel from "./WarrantyPanel";
 import AwaitingSeller from "./AwaitingSeller";
 import SellerAssignment from "./SellerAssignment";
 import ResolutionPanel from "./ResolutionPanel";
+import ReworkNotice from "./ReworkNotice";
 import NegotiationPanel from "./NegotiationPanel";
 import { useNotedNegotiation } from "./negotiationStore";
 import OrderActions from "./OrderActions";
@@ -85,6 +86,8 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDe
   const cancel = <CancellationRequest key="cancel" {...section} lastSignal={d.lastSignal} />;
   const warranty = client ? <WarrantyPanel key="warranty" {...section} /> : null;
   const resolution = client && !preview ? <ResolutionPanel key="resolution" {...section} onRefresh={() => d.refresh("order")} /> : null;
+  // Sent back to work after a complaint: said first, on both sides.
+  const rework = !preview && phase === "in_progress" ? <ReworkNotice key="rework" o={o} view={view} signal={d.lastSignal} /> : null;
   const supplemental = <SupplementalPanel key="supplemental" o={o} view={view} />;
   const retain = client ? <StayInLexGo key="retain" phase={phase} runtime={d.runtime} aiBase={aiBase} /> : null;
   const onStarted = (r: OrderStart) => {
@@ -171,7 +174,7 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDe
       ) : null,
     ];
   }
-  return <div className="mod__main">{[resolution, ...parts]}</div>;
+  return <div className="mod__main">{[rework, resolution, ...parts]}</div>;
 }
 
 export default function OrderDetailPage({ orderId, view, listHref }: { orderId: string; view: OrderView; listHref: string }): ReactElement {

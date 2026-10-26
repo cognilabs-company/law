@@ -11414,6 +11414,8 @@ html[data-theme="dark"] .splan--feat.splan--sel{
 .mk-toast--rejected .mk-toast__ic{background:linear-gradient(135deg,#8A99AC,#5C6E85)}
 .mk-toast--assigned .mk-toast__ic{background:linear-gradient(135deg,#F59E0B,#FBBF24)}
 .mk-toast--assigned{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#F59E0B 55%,transparent),0 18px 40px -18px rgba(15,23,42,.45)}
+.mk-toast--complaint .mk-toast__ic{background:linear-gradient(135deg,#F97316,#EA580C)}
+.mk-toast--complaint{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#EA580C 55%,transparent),0 18px 40px -18px rgba(15,23,42,.45)}
 .mk-toast__b{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
 .mk-toast__b b{color:var(--ink);font-family:var(--fd)}
 .mk-toast__b span{color:var(--gray);font-size:.86rem;line-height:1.4}

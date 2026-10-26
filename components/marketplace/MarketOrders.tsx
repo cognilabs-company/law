@@ -24,6 +24,7 @@ import {
   marketChatHref,
   marketPhaseOf,
   awaitingSeller,
+  isReworkOrder,
   marketStageOf,
   orderDetailHref,
   rememberMarketOrders,
@@ -447,6 +448,12 @@ function OrderCard({
             <i aria-hidden="true" />
             {stageLabel}
           </span>
+          {isReworkOrder(o) ? (
+            <span className="mko-chip" data-tone="warn">
+              <IconRefresh aria-hidden="true" />
+              {t("rework")}
+            </span>
+          ) : null}
           {o.workPaused ? (
             <span className="mko-chip" data-tone="warn">
               <IconPause aria-hidden="true" />

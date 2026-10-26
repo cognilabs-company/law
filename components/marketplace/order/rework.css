@@ -1,0 +1,27 @@
+/* A finished order sent back to work by the call center (ReworkNotice). */
+.mod .mod-rework {
+  --rw: #ea580c;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--rw) 9%, var(--sx-surface, #fff));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--rw) 45%, transparent);
+  animation: modReworkIn .3s ease;
+}
+.mod .mod-rework__ico { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px; background: linear-gradient(135deg, #f97316, #ea580c); color: #fff; box-shadow: 0 10px 22px -12px #ea580c; }
+.mod .mod-rework__body { display: grid; gap: 8px; min-width: 0; }
+.mod .mod-rework__body > b { font-size: 1rem; line-height: 1.3; color: var(--sx-ink, var(--ink)); }
+.mod .mod-rework__body > p { margin: 0; font-size: .88rem; line-height: 1.5; color: var(--sx-ink, var(--ink)); }
+.mod .mod-rework__flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.mod .mod-rework__flow li { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: .78rem; font-weight: 700; }
+.mod .mod-rework__flow li[data-step="was"] { background: color-mix(in srgb, #16a34a 12%, transparent); color: var(--sx-muted, var(--gray)); }
+.mod .mod-rework__flow li[data-step="was"]::after { content: "→"; margin-left: 8px; color: var(--sx-muted, var(--gray)); }
+.mod .mod-rework__flow li[data-step="now"] { background: color-mix(in srgb, var(--rw) 16%, transparent); color: var(--rw); }
+.mod .mod-rework__note { display: grid; gap: 2px; margin: 0; padding: 8px 12px; border-left: 3px solid var(--rw); border-radius: 8px; background: var(--sx-surface, #fff); font-size: .86rem; line-height: 1.45; color: var(--sx-ink, var(--ink)); }
+.mod .mod-rework__note small { font-size: .68rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--sx-muted, var(--gray)); }
+.mod .mod-rework__fine { font-size: .78rem !important; color: var(--sx-muted, var(--gray)) !important; }
+@keyframes modReworkIn { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .mod .mod-rework { animation: none; } }
+@media (max-width: 520px) { .mod .mod-rework { grid-template-columns: 1fr; } }

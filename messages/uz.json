@@ -6996,7 +6996,8 @@
       "awaitingSeller": "Yangi buyurtma — javobingiz kutilmoqda",
       "awaitingClient": "Mutaxassis javobi kutilmoqda",
       "newTitle": "Yangi buyurtmalar — javob bering",
-      "newOver": "Muddat tugadi"
+      "newOver": "Muddat tugadi",
+      "rework": "Qayta bajarishda"
     },
     "toast": {
       "started": "Ish boshlandi",
@@ -7040,7 +7041,29 @@
       "assignNewTextNoService": "30 daqiqa ichida qabul qiling yoki rad eting.",
       "assignSoon": "Javob uchun {n} daqiqa qoldi",
       "assignSoonText": "«{service}» buyurtmasiga hali javob bermadingiz. Muddat tugasa, buyurtma operatorga o'tadi.",
-      "assignSoonTextNoService": "Yangi buyurtmaga hali javob bermadingiz. Muddat tugasa, buyurtma operatorga o'tadi."
+      "assignSoonTextNoService": "Yangi buyurtmaga hali javob bermadingiz. Muddat tugasa, buyurtma operatorga o'tadi.",
+      "complaint": {
+        "seller": {
+          "rework": "Ish qayta ochildi",
+          "reworkText": "shikoyat asosli topildi — buyurtma «Bajarilgan»dan «Jarayonda»ga qaytdi. Ishni qayta bajaring.",
+          "refund": "Shikoyat bo'yicha pul qaytariladi",
+          "refundText": "call-markaz mijozga pul qaytarishni hal qildi.",
+          "closed": "Shikoyat yopildi",
+          "closedText": "shikoyat asossiz topildi — to'lov chiqarishga tayyor.",
+          "other": "Shikoyat bo'yicha qaror chiqdi",
+          "otherText": "buyurtmani oching."
+        },
+        "client": {
+          "rework": "Ish qayta bajariladi",
+          "reworkText": "shikoyatingiz asosli topildi — ijrochi ishni qayta bajaradi.",
+          "refund": "Pul qaytariladi",
+          "refundText": "shikoyatingiz bo'yicha pul qaytarish hal qilindi.",
+          "closed": "Shikoyat ko'rib chiqildi",
+          "closedText": "call-markaz qarorini buyurtmada ko'ring.",
+          "other": "Shikoyat bo'yicha qaror chiqdi",
+          "otherText": "buyurtmani oching."
+        }
+      }
     },
     "priceOptions": {
       "title": "Qo'shimcha opsiyalar",
@@ -7219,7 +7242,20 @@
       "keep": "Bekor qilish"
     },
     "byService": {"title": "Xizmatlar bo'yicha qidirish", "lead": "Kerakli xizmatni tanlang — uni ko'rsatadigan advokat va yuristlarni darhol topamiz.", "search": "Xizmat nomi bo'yicha qidirish", "categories": "Kategoriyalar", "allCategories": "Hammasi", "sellers": "{n} ta mutaxassis", "noSellers": "Hozircha mutaxassis yo'q", "from": "{price} so'mdan", "find": "Topish", "cardAria": "{name}: {n} ta mutaxassis — topish", "cardOff": "{name}: hozircha mutaxassis yo'q", "empty": "Hozircha xizmatlar yo'q.", "noMatch": "Bunday xizmat topilmadi.", "price": "{price} so'm"},
-    "ratingBreakdown": {"title": "Reyting qanday hisoblangan", "titleMine": "Reytingingiz", "lead": "Faqat to'langan va yakunlangan xizmatlar hisobga olinadi; har bir omil 100 balldan.", "leadMine": "Reyting faqat real, to'langan va yakunlangan xizmatlardan hisoblanadi. Past omillarni yaxshilasangiz, ro'yxatda yuqoriroq chiqasiz.", "reviews": "{n} ta baho", "unrated": "Hali baholanmagan", "unratedWhy": "Real baholar yetarli emas", "ranking": "Ro'yxatdagi o'rin bali", "factor": {"client_reviews": "Mijoz baholari", "completion_rate": "Yakunlangan buyurtmalar", "acceptance_rate": "Qabul qilish darajasi", "response_score": "Javob tezligi", "verified_experience": "Tasdiqlangan tajriba", "sla": "Muddatlarga rioya", "complaints": "Asosli shikoyatlar", "cancellations": "Bekor qilish va javobsizlik"}, "hint": {"client_reviews": "To'langan xizmatlardan keyingi mijoz baholari", "completion_rate": "Boshlangan buyurtmalardan nechtasi yakunlangan", "acceptance_rate": "Sizga yuborilgan buyurtmalardan nechtasini qabul qilgansiz", "response_score": "Yangi buyurtmaga qanchalik tez javob berasiz", "verified_experience": "Call-center tasdiqlagan kategoriya tajribasi"}, "completed": "Yakunlangan buyurtmalar", "ofN": "{n} / {of}", "response": "O'rtacha javob vaqti", "minutes": "{n} daqiqa", "hours": "{n} soat", "experience": "Tasdiqlangan tajriba", "years": "{n} yil", "noExperience": "Hali tasdiqlanmagan", "calculatedAt": "Hisoblangan: {date}", "policy": "Reyting qoidalari v{n}", "weight": "ulushi {n}%", "coldStart": "Baholar yetarli bo'lmaguncha «Mijoz baholari» ulushi boshqa omillar bo'yicha hisoblanadi — birinchi buyurtmalaringizni vaqtida va sifatli bajaring.", "penalties": "Jarimalar", "noPenalties": "Jarima yo'q — asosli shikoyat va qaytarishlar bo'lmagan.", "penComplaints": "Asosli shikoyatlar: {n}", "penRefunds": "Pul qaytarishlar: {n}"}
+    "ratingBreakdown": {"title": "Reyting qanday hisoblangan", "titleMine": "Reytingingiz", "lead": "Faqat to'langan va yakunlangan xizmatlar hisobga olinadi; har bir omil 100 balldan.", "leadMine": "Reyting faqat real, to'langan va yakunlangan xizmatlardan hisoblanadi. Past omillarni yaxshilasangiz, ro'yxatda yuqoriroq chiqasiz.", "reviews": "{n} ta baho", "unrated": "Hali baholanmagan", "unratedWhy": "Real baholar yetarli emas", "ranking": "Ro'yxatdagi o'rin bali", "factor": {"client_reviews": "Mijoz baholari", "completion_rate": "Yakunlangan buyurtmalar", "acceptance_rate": "Qabul qilish darajasi", "response_score": "Javob tezligi", "verified_experience": "Tasdiqlangan tajriba", "sla": "Muddatlarga rioya", "complaints": "Asosli shikoyatlar", "cancellations": "Bekor qilish va javobsizlik"}, "hint": {"client_reviews": "To'langan xizmatlardan keyingi mijoz baholari", "completion_rate": "Boshlangan buyurtmalardan nechtasi yakunlangan", "acceptance_rate": "Sizga yuborilgan buyurtmalardan nechtasini qabul qilgansiz", "response_score": "Yangi buyurtmaga qanchalik tez javob berasiz", "verified_experience": "Call-center tasdiqlagan kategoriya tajribasi"}, "completed": "Yakunlangan buyurtmalar", "ofN": "{n} / {of}", "response": "O'rtacha javob vaqti", "minutes": "{n} daqiqa", "hours": "{n} soat", "experience": "Tasdiqlangan tajriba", "years": "{n} yil", "noExperience": "Hali tasdiqlanmagan", "calculatedAt": "Hisoblangan: {date}", "policy": "Reyting qoidalari v{n}", "weight": "ulushi {n}%", "coldStart": "Baholar yetarli bo'lmaguncha «Mijoz baholari» ulushi boshqa omillar bo'yicha hisoblanadi — birinchi buyurtmalaringizni vaqtida va sifatli bajaring.", "penalties": "Jarimalar", "noPenalties": "Jarima yo'q — asosli shikoyat va qaytarishlar bo'lmagan.", "penComplaints": "Asosli shikoyatlar: {n}", "penRefunds": "Pul qaytarishlar: {n}"},
+    "rework": {
+      "sellerTitle": "Ish qayta ochildi — qayta bajarish kerak",
+      "clientTitle": "Ish qayta bajariladi",
+      "flowLabel": "Buyurtma holati o'zgardi",
+      "wasDone": "Bajarilgan",
+      "nowRework": "Qayta bajarishda",
+      "sellerText": "Call-markaz mijoz shikoyatini asosli deb topdi, shuning uchun buyurtma «Bajarilgan»dan «Jarayonda»ga qaytarildi. Kamchiliklarni tuzatib, natijani qayta topshiring.",
+      "clientText": "Shikoyatingiz asosli deb topildi. Ijrochi ishni qayta bajaradi va natijani yana topshiradi.",
+      "note": "Call-markaz izohi",
+      "decidedAt": "Qaror: {date}",
+      "payoutHeld": "Yakuniy to'lov ish qayta bajarilguncha ushlab turiladi",
+      "refundNote": "Ijrochiga to'lov ish qayta bajarilguncha o'tkazilmaydi"
+    }
   },
   "common": {"privateField":{"tag": "Yopiq", "hint": "Faqat siz va LexGo tekshiruvchilari ko‘radi — mijozlar va ochiq profil sahifasida ko‘rinmaydi."},
     "contactGuard": {"verified":"Tajribangiz LexGo tomonidan tekshiriladi.","title":"Aloqa ma'lumotlarini yozib bo'lmaydi","why":"Mijoz bilan aloqa faqat LexGo ichida bo'ladi. Ularni olib tashlang — shundan keyin saqlash mumkin.","removed":"Biz ularni olib tashladik: mijoz bilan aloqa faqat LexGo ichida bo'ladi.","field":"Aloqa ma'lumotlarini olib tashlang","kind":{"phone":"Telefon","email":"E-pochta","link":"Havola","username":"Foydalanuvchi nomi","messenger":"Messenjer"}, "whyPeer": {"specialist": "Mutaxassis bilan aloqa faqat LexGo ichida bo'ladi. Ularni olib tashlang.", "any": "Aloqa faqat LexGo ichida bo'ladi. Ularni olib tashlang."}, "removedPeer": {"specialist": "Biz ularni olib tashladik: mutaxassis bilan aloqa faqat LexGo ichida bo'ladi.", "any": "Biz ularni olib tashladik: aloqa faqat LexGo ichida bo'ladi."}},
