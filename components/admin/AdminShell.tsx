@@ -56,7 +56,7 @@ type SvgC = ComponentType<{ className?: string }>;
 // perm: one code, or a list where any one code is enough. Codes outside
 // ADMIN_PERMISSIONS (b2b.manage, meetings.manage) only gate the item; they
 // don't grant admin access on their own.
-type NavPerm = AdminPermission | "b2b.manage" | "meetings.manage" | "orders.manage" | "tasks.view" | "remote_assist.supervise" | "remote_assist.view_audit";
+type NavPerm = AdminPermission | "b2b.manage" | "meetings.manage" | "orders.manage" | "tasks.view" | "remote_assist.supervise" | "remote_assist.view_audit" | "crm.customers.view";
 type NavItem = { href: string; key: string; Icon: SvgC; perm?: NavPerm | NavPerm[]; hidden?: boolean };
 // CRM modules grouped per the platform plan. `perm` = the backend permission a
 // page needs; items without a perm (overview, ceo, bootstrap…) are full-admin
@@ -75,6 +75,10 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
   {
     group: "sales",
     items: [
+      // The CRM (contract 2026-10-26, /crm/*): customers and leads apart,
+      // the operator queue and the AI copilot. Each page then follows
+      // GET /crm/meta and every lead's allowed_actions.
+      { href: "/admin/crm", key: "crm", Icon: NavPipeline, perm: ["crm.leads.view", "crm.customers.view"] },
       { href: "/admin/pipeline", key: "pipeline", Icon: NavPipeline, perm: "leads.manage" },
       { href: "/admin/call-center", key: "callCenter", Icon: NavCallCenter, perm: ["leads.manage", "callcenter.access"] },
       // Platform-wide meeting history (GET /admin/calls — who created it,

@@ -561,6 +561,8 @@ export const ADMIN_PERMISSIONS = [
   "payments.manage",
   // Call-center staff (queue, call log); sellers never hold it.
   "callcenter.access",
+  // The CRM (contract 2026-10-26): staff-only codes, never held by sellers.
+  "crm.leads.view",
 ] as const;
 export type AdminPermission = (typeof ADMIN_PERMISSIONS)[number];
 
