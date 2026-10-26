@@ -22,6 +22,11 @@ export function useDurationText(): (d: RuntimeDuration | null) => string {
   };
 }
 
+function initialsOf(name: string): string {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  return (words.length > 1 ? words[0][0] + words[1][0] : (words[0] ?? "").slice(0, 2)).toUpperCase();
+}
+
 function Row({ label, children }: { label: string; children: ReactNode }): ReactElement {
   return (
     <div className="mod-facts__row">
@@ -51,8 +56,18 @@ export default function OrderFacts({ o, view, aiBase, runtime }: { o: MarketOrde
 
   return (
     <SxPanel title={t("facts.title")} className="mod-facts" as="section" aiId={`${aiBase}.facts`}>
+      {counterpart ? (
+        <div className="mod-facts__who">
+          <span className="mod-facts__ava" aria-hidden="true">
+            {initialsOf(counterpart)}
+          </span>
+          <dl className="mod-facts__who-text">
+            <dt>{view === "client" ? t("facts.seller") : t("facts.client")}</dt>
+            <dd>{counterpart}</dd>
+          </dl>
+        </div>
+      ) : null}
       <dl className="mod-facts__list">
-        {counterpart ? <Row label={view === "client" ? t("facts.seller") : t("facts.client")}>{counterpart}</Row> : null}
         {view === "seller" ? (
           <Row label={to("phone")}>{phoneShow === "show" ? <a className="sx-link" href={telHref(o.clientPhone)}>{o.clientPhone}</a> : <span className="mod-muted">{phoneShow === "none" ? "—" : phoneShow === "hidden" ? to("phoneConcealed") : to("phoneHidden")}</span>}</Row>
         ) : null}

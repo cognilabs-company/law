@@ -1,0 +1,799 @@
+/* The order page in the site's own look: a deep blue → cyan hero banner
+   with the title, status and price; an icon stage rail with the travelled
+   part in the brand gradient; "start work" as a launch card that shows what
+   starting does and where the deadline would land; soft lifted cards that
+   rise in on load. Tokens and color-mix only, so the light and dark themes
+   follow by themselves; the banner is the same deep gradient in both. */
+
+.sx.mod {
+  --mod-brand: var(--sx-accent);
+  --mod-cyan: #06b6d4;
+  --mod-grad: linear-gradient(135deg, var(--mod-brand), var(--mod-cyan));
+  /* Fills under white text: deep enough ends to keep the text readable. */
+  --mod-grad-solid: linear-gradient(135deg, #1668f0, #0e7490);
+  --mod-hero:
+    radial-gradient(90% 140% at 100% 0%, rgb(34 211 238 / 50%), transparent 55%),
+    radial-gradient(70% 120% at 0% 100%, rgb(99 102 241 / 42%), transparent 60%),
+    linear-gradient(130deg, #0a3696 0%, #1559d6 52%, #0b7fa3 100%);
+  --mod-card-shadow: 0 1px 2px rgb(15 23 42 / 4%), 0 12px 32px -20px rgb(15 23 42 / 22%);
+}
+html[data-theme="dark"] .sx.mod {
+  --mod-cyan: #22d3ee;
+  --mod-card-shadow: 0 1px 0 rgb(255 255 255 / 3%) inset, 0 16px 40px -24px rgb(0 0 0 / 70%);
+}
+
+/* Cards: rounder, a hairline and a soft shadow instead of a flat box. */
+.mod .mod__main > .sx-panel,
+.mod .mod__aside .sx-panel:not(.sx-panel .sx-panel) {
+  border-radius: 18px;
+  border-color: color-mix(in srgb, var(--sx-line) 80%, transparent);
+  box-shadow: var(--mod-card-shadow);
+}
+.mod .sx-panel__title {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+/* The page settles in: the header first, then the cards one after another. */
+@keyframes mod-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+.mod > .mod-head,
+.mod .mod__main > *,
+.mod .mod__aside > * {
+  animation: mod-rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.mod .mod__main > :nth-child(2),
+.mod .mod__aside > :nth-child(1) {
+  animation-delay: 0.08s;
+}
+.mod .mod__main > :nth-child(3),
+.mod .mod__aside > :nth-child(2) {
+  animation-delay: 0.16s;
+}
+.mod .mod__main > :nth-child(n + 4),
+.mod .mod__aside > :nth-child(n + 3) {
+  animation-delay: 0.24s;
+}
+
+/* ---- Header ---- */
+.mod .mod-head {
+  gap: 16px;
+  padding: 14px 16px 18px;
+  border-radius: 22px;
+  box-shadow: var(--mod-card-shadow);
+}
+.mod .mod-head::before {
+  display: none;
+}
+.mod .mod-head--reduced {
+  padding: 12px 16px;
+}
+.mod .mod-head__bar {
+  margin: 0 -4px;
+}
+
+/* The banner. */
+.mod .mod-head__hero {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: 14px;
+  overflow: hidden;
+  padding: 26px 28px 24px;
+  border-radius: 18px;
+  background: var(--mod-hero);
+  color: #fff;
+  box-shadow: 0 22px 44px -28px rgb(10 54 150 / 85%);
+}
+.mod .mod-head[data-phase="cancelled"] .mod-head__hero {
+  background:
+    radial-gradient(80% 140% at 100% 0%, rgb(148 163 184 / 40%), transparent 60%),
+    linear-gradient(130deg, #334155, #475569 60%, #64748b);
+  box-shadow: 0 22px 44px -30px rgb(15 23 42 / 70%);
+}
+.mod .mod-head[data-phase="review"] .mod-head__hero {
+  background:
+    radial-gradient(80% 140% at 100% 0%, rgb(251 191 36 / 45%), transparent 58%),
+    linear-gradient(130deg, #0a3696 0%, #1559d6 60%, #b45309 130%);
+}
+/* A dot grid fading in from the right, rings around the corner and one slow
+   drifting glow: depth without any image. */
+.mod .mod-head__orbs {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(rgb(255 255 255 / 22%) 1px, transparent 1.6px);
+  background-size: 18px 18px;
+  -webkit-mask-image: linear-gradient(105deg, transparent 35%, #000 95%);
+  mask-image: linear-gradient(105deg, transparent 35%, #000 95%);
+}
+.mod .mod-head__orbs::before {
+  content: "";
+  position: absolute;
+  top: -150px;
+  right: -110px;
+  width: 340px;
+  height: 340px;
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 46px rgb(255 255 255 / 4%),
+    0 0 0 47px rgb(255 255 255 / 12%),
+    0 0 0 96px rgb(255 255 255 / 3%);
+}
+.mod .mod-head__orbs::after {
+  content: "";
+  position: absolute;
+  bottom: -90px;
+  left: 30%;
+  width: 260px;
+  height: 180px;
+  border-radius: 50%;
+  background: rgb(34 211 238 / 35%);
+  filter: blur(50px);
+  animation: mod-drift 14s ease-in-out infinite alternate;
+}
+@keyframes mod-drift {
+  to {
+    transform: translate(140px, -30px) scale(1.2);
+  }
+}
+
+.mod .mod-head__main {
+  align-items: center;
+  gap: 16px 28px;
+}
+.mod .mod-head__titles {
+  gap: 10px;
+}
+.mod .mod-head__title {
+  color: #fff;
+  font: 780 30px/38px var(--sx-font-display);
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.mod .mod-head__hero .mod-pill {
+  height: 28px;
+  border-color: rgb(255 255 255 / 28%);
+  background: rgb(255 255 255 / 14%);
+  color: #fff;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.mod .mod-head__hero .mod-pill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-right: 1px;
+  border-radius: 50%;
+  background: #6ee7b7;
+  box-shadow: 0 0 0 3px rgb(110 231 183 / 25%);
+}
+.mod .mod-head[data-phase="cancelled"] .mod-head__hero .mod-pill::before {
+  background: #cbd5e1;
+  box-shadow: none;
+}
+.mod .mod-head__hero .mod-pill > svg {
+  display: none;
+}
+
+/* The work number copies itself on click. */
+.mod .mod-head__wid {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px dashed rgb(255 255 255 / 40%);
+  border-radius: 9px;
+  background: rgb(255 255 255 / 8%);
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.mod .mod-head__wid:hover {
+  border-style: solid;
+  background: rgb(255 255 255 / 16%);
+}
+.mod .mod-head__wid:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+.mod .mod-head__wid > svg {
+  opacity: 0.75;
+}
+.mod .mod-head__wid[data-copied] {
+  border-style: solid;
+  border-color: rgb(110 231 183 / 70%);
+  background: rgb(16 185 129 / 25%);
+}
+.mod .mod-head__wid-done:empty {
+  display: none;
+}
+.mod .mod-head__wid-done {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  z-index: 2;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #0f172a;
+  color: #fff;
+  font: 600 11px/16px var(--sx-font);
+  letter-spacing: 0;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+/* Price: a frosted card on the banner. */
+.mod .mod-head__money {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  min-width: 180px;
+  padding: 14px 18px;
+  border: 1px solid rgb(255 255 255 / 24%);
+  border-radius: 16px;
+  background: linear-gradient(160deg, rgb(255 255 255 / 18%), rgb(255 255 255 / 6%));
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 25%) inset;
+}
+.mod .mod-head__money-label {
+  color: rgb(255 255 255 / 72%);
+  font: 650 11px/14px var(--sx-font);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.mod .mod-head__price {
+  color: #fff;
+}
+.mod .mod-head__price b {
+  font: 800 30px/36px var(--sx-font-display);
+  letter-spacing: -0.02em;
+}
+.mod .mod-head__price small {
+  color: rgb(255 255 255 / 75%);
+  font-weight: 600;
+}
+.mod .mod-head__safe {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  background: rgb(16 185 129 / 24%);
+  color: #d1fae5;
+  font: 600 12px/16px var(--sx-font);
+}
+.mod .mod-head__lead {
+  max-width: 64ch;
+  color: rgb(255 255 255 / 86%);
+  font-size: 15px;
+  line-height: 23px;
+}
+
+/* ---- Stage rail: icon dots, the travelled part in the brand gradient. ---- */
+.mod .mod-head__progress {
+  display: grid;
+  gap: 14px;
+  padding: 14px 10px 14px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--sx-surface-2) 65%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sx-line) 70%, transparent);
+}
+.mod .mod-head__progress-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 0 6px;
+  color: var(--sx-muted);
+  font: 650 11px/16px var(--sx-font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.mod .mod-head__progress-top b {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sx-accent) 12%, var(--sx-surface));
+  color: var(--sx-accent-ink);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.mod .mod-rail__step {
+  gap: 8px;
+}
+.mod .mod-rail__step::before {
+  top: 16px;
+  left: calc(-50% + 24px);
+  right: calc(50% + 24px);
+  height: 4px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sx-line) 90%, transparent);
+}
+.mod .mod-rail__step:is([data-state="done"], [data-state="now"])::before {
+  background: var(--mod-grad);
+}
+.mod .mod-rail__step[data-state="paused"]::before {
+  border: 0;
+  background: repeating-linear-gradient(90deg, var(--sx-returned-fg) 0 8px, transparent 8px 13px);
+}
+.mod .mod-rail__dot {
+  width: 36px;
+  height: 36px;
+  border: 1.5px solid var(--sx-line);
+  background: var(--sx-surface);
+  color: var(--sx-muted);
+}
+.mod .mod-rail__dot > svg {
+  width: 16px;
+  height: 16px;
+}
+.mod .mod-rail__step[data-state="todo"] .mod-rail__dot > svg {
+  opacity: 0.65;
+}
+.mod .mod-rail__step[data-state="done"] .mod-rail__dot {
+  border-color: transparent;
+  background: var(--mod-grad-solid);
+  color: #fff;
+  box-shadow: 0 6px 14px -8px color-mix(in srgb, var(--sx-accent) 90%, transparent);
+}
+.mod .mod-rail__step[data-state="now"] .mod-rail__dot {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--sx-surface), var(--sx-surface)) padding-box,
+    var(--mod-grad) border-box;
+  color: var(--sx-accent);
+  box-shadow: none;
+}
+/* The current stage breathes. */
+.mod .mod-rail__step[data-state="now"] .mod-rail__dot::after {
+  position: absolute;
+  inset: -6px;
+  width: auto;
+  height: auto;
+  border: 2px solid color-mix(in srgb, var(--mod-cyan) 55%, transparent);
+  border-radius: 50%;
+  background: none;
+  animation: mod-pulse 2.2s ease-out infinite;
+}
+@keyframes mod-pulse {
+  from {
+    opacity: 0.9;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+.mod .mod-rail__step[data-state="paused"] .mod-rail__dot {
+  border: 2px solid var(--sx-returned-fg);
+  background: color-mix(in srgb, var(--sx-returned-fg) 10%, var(--sx-surface));
+}
+.mod .mod-rail__step[data-state="now"] .mod-rail__label {
+  color: var(--sx-accent-ink);
+  font-weight: 700;
+}
+
+/* Deadline: a tinted chip, not a grey box. */
+.mod .mod-deadline:not([data-tone]) {
+  border-color: color-mix(in srgb, var(--sx-accent) 25%, var(--sx-line));
+  background: color-mix(in srgb, var(--sx-accent) 8%, var(--sx-surface));
+}
+
+/* ---- Start work: a launch card. ---- */
+.mod .mod-start {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 18px;
+  padding: 24px;
+  border-color: color-mix(in srgb, var(--sx-accent) 32%, var(--sx-line));
+  background:
+    radial-gradient(60% 120% at 100% 0%, color-mix(in srgb, var(--mod-cyan) 16%, transparent), transparent 70%),
+    linear-gradient(165deg, color-mix(in srgb, var(--sx-accent) 8%, var(--sx-surface)), var(--sx-surface) 60%);
+}
+/* A gradient hairline across the top edge. */
+.mod .mod-start::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--mod-grad);
+}
+.mod .mod-start > .sx-panel__head {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  margin-bottom: 0;
+}
+.mod .mod-start > .sx-panel__head .sx-panel__title {
+  font-size: 20px;
+  line-height: 26px;
+}
+.mod .mod-start > .mod-start__ico {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: var(--mod-grad-solid);
+  color: #fff;
+  box-shadow: 0 14px 28px -14px color-mix(in srgb, var(--sx-accent) 85%, transparent);
+}
+/* A dashed orbit slowly turning around the rocket. */
+.mod .mod-start > .mod-start__ico::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border: 1.5px dashed color-mix(in srgb, var(--sx-accent) 45%, transparent);
+  border-radius: 22px;
+  animation: mod-spin 18s linear infinite;
+}
+@keyframes mod-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.mod .mod-start > :is(.mod-start__what, .mod-start__preview, .mod-start__acts) {
+  grid-column: 1 / -1;
+}
+.mod .mod-start__what {
+  margin-top: 20px;
+}
+.mod .mod-start__what-title {
+  margin: 0 0 10px;
+  color: var(--sx-muted);
+  font: 650 11px/16px var(--sx-font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.mod .mod-start__steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: mod-step;
+}
+.mod .mod-start__step {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 14px 12px 12px;
+  border: 1px solid color-mix(in srgb, var(--sx-line) 80%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--sx-surface) 70%, transparent);
+  color: var(--sx-ink);
+  font: 550 13px/18px var(--sx-font);
+  counter-increment: mod-step;
+  animation: mod-rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(0.25s + var(--i, 0) * 0.07s);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.mod .mod-start__step:hover {
+  border-color: color-mix(in srgb, var(--sx-accent) 40%, var(--sx-line));
+  transform: translateY(-2px);
+}
+.mod .mod-start__step::after {
+  content: "0" counter(mod-step);
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: color-mix(in srgb, var(--sx-muted) 60%, transparent);
+  font: 700 11px/1 var(--sx-font-mono, var(--sx-font));
+}
+.mod .mod-start__step-ico {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--sx-accent) 12%, var(--sx-surface));
+  color: var(--sx-accent);
+}
+.mod .mod-start__step:nth-child(even) .mod-start__step-ico {
+  background: color-mix(in srgb, var(--mod-cyan) 14%, var(--sx-surface));
+  color: color-mix(in srgb, var(--mod-cyan) 70%, var(--sx-ink));
+}
+.mod .mod-start__preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border: 1px dashed color-mix(in srgb, var(--sx-accent) 40%, var(--sx-line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--sx-accent) 6%, var(--sx-surface));
+  color: var(--sx-ink-2);
+  font: 500 14px/20px var(--sx-font);
+}
+.mod .mod-start__preview > svg {
+  flex: none;
+  color: var(--sx-accent);
+}
+.mod .mod-start__preview b {
+  color: var(--sx-ink);
+  font-weight: 700;
+}
+.mod .mod-start > .mod-start__acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 18px;
+}
+.mod .mod-start__acts > .mod-start__duration {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--sx-muted);
+  font: 500 13px/18px var(--sx-font);
+}
+.mod .mod-start__duration > svg {
+  flex: none;
+  color: var(--sx-accent);
+}
+
+/* Main buttons in the brand gradient: start, open chat, complete. */
+.mod :is(.mod-start__acts, .mod-actions__list) > .sx-btn--primary:not(:disabled, [aria-disabled="true"]) {
+  overflow: hidden;
+  border-color: transparent;
+  background: var(--mod-grad-solid);
+  color: #fff;
+  box-shadow: 0 10px 22px -12px color-mix(in srgb, var(--sx-accent) 80%, transparent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+/* A light sweep across the button now and then, and on hover. */
+.mod :is(.mod-start__acts, .mod-actions__list) > .sx-btn--primary:not(:disabled, [aria-disabled="true"])::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 32%) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: mod-shine 5s ease-in-out 1.2s infinite;
+  pointer-events: none;
+}
+@keyframes mod-shine {
+  0%,
+  70% {
+    transform: translateX(-120%);
+  }
+  90%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+.mod .mod-start__acts > .sx-btn--primary {
+  min-height: 48px;
+  padding-inline: 26px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.mod :is(.mod-start__acts, .mod-actions__list) > .sx-btn--primary:not(:disabled, [aria-disabled="true"]):hover {
+  background: var(--mod-grad-solid);
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 16px 30px -12px color-mix(in srgb, var(--sx-accent) 85%, transparent);
+}
+.mod .mod-start__acts > .sx-btn--primary:not(:disabled):hover > svg {
+  transform: translate(2px, -2px) rotate(-8deg);
+}
+.mod .mod-start__acts > .sx-btn--primary > svg {
+  transition: transform 0.2s ease;
+}
+
+/* ---- Actions ---- */
+.mod .mod-actions__list {
+  gap: 10px;
+}
+.mod .mod-actions__list .sx-btn {
+  min-height: 44px;
+  border-radius: 12px;
+}
+.mod .mod-actions__list > .sx-btn--primary {
+  min-height: 48px;
+  font-weight: 700;
+}
+/* Audio and video as two tiles with an icon bubble. */
+.mod .mod-actions__calls > .sx-btn {
+  flex-direction: column;
+  gap: 6px;
+  min-height: 78px;
+  padding-block: 10px;
+  font-weight: 600;
+}
+.mod .mod-actions__calls > .sx-btn > svg {
+  box-sizing: content-box;
+  width: 16px;
+  height: 16px;
+  padding: 8px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--sx-accent) 14%, var(--sx-surface));
+}
+.mod .mod-actions__calls > .sx-btn:not(:disabled) {
+  background: color-mix(in srgb, var(--sx-accent) 5%, var(--sx-surface));
+  border-color: color-mix(in srgb, var(--sx-accent) 22%, var(--sx-line));
+  color: var(--sx-accent-ink);
+}
+.mod .mod-actions__calls > .sx-btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--sx-accent) 11%, var(--sx-surface));
+  border-color: color-mix(in srgb, var(--sx-accent) 45%, var(--sx-line));
+  transform: translateY(-1px);
+}
+.mod .mod-actions__calls > .sx-btn:nth-child(2) > svg {
+  background: color-mix(in srgb, var(--mod-cyan) 16%, var(--sx-surface));
+}
+
+/* ---- Facts: the other side as a profile card, then the rows. ---- */
+.mod .mod-facts__who {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 14px;
+  overflow: hidden;
+  border-radius: 16px;
+  background:
+    radial-gradient(80% 140% at 100% 0%, color-mix(in srgb, var(--mod-cyan) 14%, transparent), transparent 70%),
+    color-mix(in srgb, var(--sx-accent) 6%, var(--sx-surface-2));
+  border: 1px solid color-mix(in srgb, var(--sx-accent) 16%, var(--sx-line));
+}
+.mod .mod-facts__ava {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--mod-grad-solid);
+  color: #fff;
+  font: 750 16px/1 var(--sx-font-display);
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 0 0 3px var(--sx-surface),
+    0 0 0 5px color-mix(in srgb, var(--mod-cyan) 55%, transparent);
+}
+.mod .mod-facts__who-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  margin: 0;
+}
+.mod .mod-facts__who-text dt {
+  color: var(--sx-muted);
+  font: 650 11px/14px var(--sx-font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.mod .mod-facts__who-text dd {
+  margin: 0;
+  color: var(--sx-ink);
+  font: 700 16px/22px var(--sx-font);
+  overflow-wrap: anywhere;
+}
+.mod .mod-facts__row {
+  align-items: baseline;
+  padding: 11px 2px;
+  border-top-style: dashed;
+}
+.mod .mod-facts__row dt {
+  color: var(--sx-muted);
+}
+.mod .mod-facts__row dd {
+  font-weight: 600;
+}
+
+/* ---- "Any problem?": a calm secondary card, kept below the main path. ---- */
+.mod .mod__main > .sx-panel.mcr-request {
+  background: color-mix(in srgb, var(--sx-surface-2) 60%, var(--sx-surface));
+  box-shadow: none;
+}
+
+@media (max-width: 860px) {
+  .mod .mod-start__steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .mod .mod-head {
+    padding: 10px 10px 14px;
+    border-radius: 18px;
+  }
+  .mod .mod-head__hero {
+    padding: 20px 18px 18px;
+    border-radius: 14px;
+  }
+  .mod .mod-head__title {
+    font-size: 23px;
+    line-height: 30px;
+  }
+  .mod .mod-head__money {
+    justify-items: start;
+    width: 100%;
+    min-width: 0;
+  }
+  .mod .mod-head__price b {
+    font-size: 26px;
+    line-height: 32px;
+  }
+  .mod .mod-head__progress {
+    padding: 12px 2px;
+  }
+  .mod .mod-rail__dot {
+    width: 30px;
+    height: 30px;
+  }
+  .mod .mod-rail__step::before {
+    top: 13px;
+    left: calc(-50% + 20px);
+    right: calc(50% + 20px);
+  }
+  .mod .mod-start {
+    padding: 18px;
+    column-gap: 14px;
+  }
+  .mod .mod-start > .mod-start__ico {
+    width: 48px;
+    height: 48px;
+    border-radius: 15px;
+  }
+  .mod .mod-start > .sx-panel__head .sx-panel__title {
+    font-size: 18px;
+  }
+  .mod .mod-start__step {
+    padding: 12px 10px 10px;
+    font-size: 12.5px;
+  }
+  .mod .mod-start__acts > .sx-btn--primary {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mod > .mod-head,
+  .mod .mod__main > *,
+  .mod .mod__aside > *,
+  .mod .mod-start__step,
+  .mod .mod-head__orbs::after,
+  .mod .mod-rail__step[data-state="now"] .mod-rail__dot::after,
+  .mod .mod-start > .mod-start__ico::after,
+  .mod :is(.mod-start__acts, .mod-actions__list) > .sx-btn--primary::after {
+    animation: none;
+  }
+  .mod :is(.mod-start__acts, .mod-actions__list) > .sx-btn--primary,
+  .mod .mod-start__step {
+    transition: none;
+  }
+  .mod :is(.mod-start__acts, .mod-actions__list) > .sx-btn--primary:hover,
+  .mod .mod-start__step:hover,
+  .mod .mod-actions__calls > .sx-btn:hover {
+    transform: none;
+  }
+}

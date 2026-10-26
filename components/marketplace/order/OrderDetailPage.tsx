@@ -2,6 +2,7 @@
 
 import "@/components/admin/studio/sx/sx-core.css";
 import "./order.css";
+import "./orderLook.css";
 import { useEffect, useMemo, useRef, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";

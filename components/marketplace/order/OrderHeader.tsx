@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { SxButton, SxLinkButton } from "@/components/admin/studio/sx/Button";
 import CopilotLauncher from "@/components/copilot/CopilotLauncher";
@@ -25,6 +25,9 @@ import {
   RocketIcon,
   StarIcon,
   CircleAlertIcon,
+  ClipboardListIcon,
+  CheckIcon,
+  ShieldCheckIcon,
   glyph,
 } from "./icons";
 import type { OrderView } from "./types";
@@ -52,6 +55,7 @@ const PHASE_ICON: Readonly<Record<MarketPhase, SxIcon>> = {
 };
 
 const STEPS = ["created", "paid", "work", "done", "rated"] as const;
+const STEP_ICON: readonly SxIcon[] = [ClipboardListIcon, CoinsIcon, RocketIcon, CircleCheckIcon, StarIcon];
 
 const STEP_AT: Readonly<Record<MarketPhase, number>> = { pending: 0, paid: 1, in_progress: 2, review: 2, completed: 3, rated: 4, cancelled: -1 };
 
@@ -81,7 +85,7 @@ function StepRail({ phase }: { phase: MarketPhase }): ReactElement {
         return (
           <li key={s} className="mod-rail__step" data-state={state} aria-current={i === at ? "step" : undefined}>
             <span className="mod-rail__dot" aria-hidden="true">
-              {state === "done" ? glyph(CircleCheckIcon, { size: 14, strokeWidth: 2.25 }) : state === "paused" ? glyph(CirclePauseIcon, { size: 14, strokeWidth: 2.25 }) : null}
+              {glyph(state === "done" ? CheckIcon : state === "paused" ? CirclePauseIcon : STEP_ICON[i], { size: 16, strokeWidth: state === "done" ? 2.75 : 2.25 })}
             </span>
             <span className="mod-rail__label">
               {t(s)}
@@ -91,6 +95,32 @@ function StepRail({ phase }: { phase: MarketPhase }): ReactElement {
         );
       })}
     </ol>
+  );
+}
+
+// The work number as a chip that copies itself: sellers paste it into
+// messages to the client and to support.
+function WorkIdChip({ id }: { id: string }): ReactElement {
+  const t = useTranslations("marketplace.orderDetail");
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1600);
+    return () => clearTimeout(timer);
+  }, [copied]);
+  return (
+    <button
+      type="button"
+      className="sx-code mod-head__wid"
+      data-copied={copied || undefined}
+      title={t("copyId")}
+      aria-label={`${t("workId")}: ${id}. ${t("copyId")}`}
+      onClick={() => void navigator.clipboard?.writeText(id).then(() => setCopied(true), () => undefined)}
+    >
+      <span>{id}</span>
+      {glyph(copied ? CheckIcon : ClipboardListIcon, { size: 13 })}
+      <span className="mod-head__wid-done" role="status">{copied ? t("copied") : ""}</span>
+    </button>
   );
 }
 
@@ -185,6 +215,8 @@ export default function OrderHeader({
   const ratingOpen = phase === "completed" && o.rating.canRate && !o.rating.value;
   const locked = phase === "completed" || phase === "rated" || o.chatReadOnly;
   const refundState = o.status === "refunded" || o.status === "refund_pending" ? o.status : "";
+  // Paid and not yet settled: the money waits in LexGo until the work is done.
+  const held = phase === "paid" || phase === "in_progress" || phase === "review";
   return (
     <header className="mod-head" data-phase={accepting ? "accepting" : phase} data-ai-id={`${aiBase}.header`} data-ai-type="section" data-ai-label={title}>
       <div className="mod-head__bar">
@@ -202,23 +234,35 @@ export default function OrderHeader({
           </SxButton>
         </div>
       </div>
-      <div className="mod-head__main">
-        <div className="mod-head__titles">
-          {o.workId ? (
-            <span className="sx-code mod-head__wid" aria-label={`${t("workId")}: ${o.workId}`}>
-              {o.workId}
-            </span>
-          ) : null}
-          <h1 className="mod-head__title">{title}</h1>
-          <PhasePill phase={phase} accepting={accepting} seller={view === "seller"} refund={refundState} />
+      <div className="mod-head__hero">
+        <span className="mod-head__orbs" aria-hidden="true" />
+        <div className="mod-head__main">
+          <div className="mod-head__titles">
+            {o.workId ? <WorkIdChip id={o.workId} /> : null}
+            <h1 className="mod-head__title">{title}</h1>
+            <PhasePill phase={phase} accepting={accepting} seller={view === "seller"} refund={refundState} />
+          </div>
+          <div className="mod-head__money">
+            <span className="mod-head__money-label">{t("facts.price")}</span>
+            <p className="mod-head__price">
+              <b className="sx-num">{o.price ? fmtUzs(o.price) : "—"}</b> <small>{o.currency === "UZS" ? te("currency") : o.currency}</small>
+            </p>
+            {held ? (
+              <span className="mod-head__safe">
+                {glyph(ShieldCheckIcon, { size: 13 })}
+                {t("priceSafe")}
+              </span>
+            ) : null}
+          </div>
         </div>
-        <p className="mod-head__price">
-          <b className="sx-num">{o.price ? fmtUzs(o.price) : "—"}</b> <small>{o.currency === "UZS" ? te("currency") : o.currency}</small>
-        </p>
+        <p className="mod-head__lead">{t(`lead.${view}.${accepting ? "accepting" : phase === "cancelled" && refundState ? refundState : phase}`)}</p>
       </div>
-      <p className="mod-head__lead">{t(`lead.${view}.${accepting ? "accepting" : phase === "cancelled" && refundState ? refundState : phase}`)}</p>
       {phase !== "cancelled" ? (
         <div className="mod-head__progress" data-ai-id={`${aiBase}.progress`} data-ai-type="section" data-ai-label={t("steps.label")}>
+          <p className="mod-head__progress-top">
+            <span>{t("steps.label")}</span>
+            <b>{t("steps.counter", { n: STEP_AT[phase] + 1, total: STEPS.length })}</b>
+          </p>
           <StepRail phase={phase} />
         </div>
       ) : null}
