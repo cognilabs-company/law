@@ -21637,3 +21637,23 @@ html[data-theme="dark"] .wd-wg--earnings,html[data-theme="dark"] .wd-wg--spendin
 html[data-desk-pip] .mtg,html[data-desk-pip] .mtg.mtg--float{inset:0!important;width:auto!important;height:auto!important;border:0!important;border-radius:0!important;box-shadow:none!important;animation:none}
 html[data-desk-pip] .mtg__grip{display:none}
 
+
+/* The call's small always-on-top window (Document Picture-in-Picture,
+   lib/callPip.ts): the main tile, status and the mic / camera / end buttons,
+   the same look as the floating call panel. */
+body.mtgpip-doc{margin:0;background:var(--b900);overflow:hidden}
+.mtgpip{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--b900);color:#fff;font-family:var(--fb);--mtg-panel:var(--b850);--mtg-tile:var(--b800);--mtg-line:rgba(255,255,255,.1);--mtg-acc:var(--b600);--mtg-ok:var(--ok);--mtg-end:#E5484D}
+.mtgpip__top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-bottom:1px solid var(--mtg-line);flex:none;min-width:0}
+.mtgpip__title{display:flex;align-items:center;gap:8px;min-width:0}
+.mtgpip__title b{font:700 .86rem/1.2 var(--fd);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mtgpip__meta{display:flex;align-items:center;gap:10px;flex:none;font-size:.74rem;color:#cbd5e1;font-variant-numeric:tabular-nums}
+.mtgpip__n{display:inline-flex;align-items:center;gap:4px;font-weight:700;color:#fff}
+.mtgpip__n svg{width:14px;height:14px}
+.mtgpip__stage{flex:1;min-height:0;display:flex;padding:8px}
+.mtgpip__stage .mtg__tile{flex:1;aspect-ratio:auto;width:100%;height:100%;animation:none}
+.mtgpip__bar{flex:none;display:flex;justify-content:center;gap:10px;padding:8px 10px 10px;border-top:1px solid var(--mtg-line);background:rgba(11,31,69,.96)}
+.mtgpip__bar .mtg__ctl{min-width:0;padding:0}
+.mtgpip__bar .mtg__cl{display:none}
+.mtgpip__bar .mtg__ci{width:44px;height:44px}
+.mtgpip__bar .mtg__ctl.end .mtg__ci{width:56px;border-radius:16px}
+@media (max-height:220px){.mtgpip__top{display:none}}

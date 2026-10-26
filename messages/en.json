@@ -18982,7 +18982,9 @@
     "recNoAnswer": "No answer — recording did not start.",
     "recNeedApprover": "Recording needs an advocate/operator's permission — none is in the meeting right now.",
     "recChip": "recording",
-    "chatContacts": "Contact details (phone, email, links, Telegram) can't be sent — contact stays inside LexGo."
+    "chatContacts": "Contact details (phone, email, links, Telegram) can't be sent — contact stays inside LexGo.",
+    "pip": "Mini window",
+    "pipHint": "Keep the call in a small window on top of other tabs and apps"
   },
   "theme": {
     "label": "Theme",

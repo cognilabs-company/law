@@ -66,9 +66,11 @@ import { useFlip } from "@/lib/useFlip";
 import { useScrollEdges } from "@/lib/useScrollEdges";
 import { NO_BG, bgSupported, cameraProcessor, claimBgUnavailableNotice, getBgEffect, preloadBgAssets, serverBgEffect, setBgEffect, releaseBackgroundEngine, retainBackgroundEngine, setBgOwner, subscribeBgEffect, syncBackground, type BgEffect, type BgHooks } from "@/lib/callBackground";
 import CallBackgroundPicker from "./CallBackgroundPicker";
-import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord, IconBgPerson } from "../icons";
+import { IconPhone, IconClose, IconMic, IconMicOff, IconVideo, IconUsers, IconUserPlus, IconChat, IconMonitor, IconRefresh, IconSend, IconGrid, IconUser, IconDownload, IconMinus, IconPlus, IconClock, IconRecord, IconBgPerson, IconPip } from "../icons";
 import { regionLabel } from "@/lib/labels";
 import { CALLROOM_EVENT, CALLROOM_FLOAT_EVENT, isCallRoomMounted, trackCallRoomMount } from "@/lib/callEvents";
+import { callPipSupported, onAutoCallPip, openCallPip } from "@/lib/callPip";
+import { createPortal } from "react-dom";
 import { clearRaCallRoom, setRaCallRoom } from "@/lib/remoteAssist/callLinkLiveKit";
 import { tellDesk } from "@/lib/deskBridge";
 import { notify, notifyStore, type NotifyOptions } from "@/lib/toast";
@@ -2096,9 +2098,75 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
   const showPause = canPause && !(paused && !!pendExt && extFor.peer !== "no");
   const aiAt = (part?: string) => (aiScope ? (part ? `${aiScope}.${part}` : aiScope) : undefined);
 
+  // Google Meet's small window: while the call is live, switching to another
+  // tab or app lets the browser open an always-on-top window with the main
+  // tile and the mic / camera / end buttons (lib/callPip.ts). A window the
+  // browser opened by itself closes when you come back to the tab.
+  const [pipWin, setPipWin] = useState<Window | null>(null);
+  const pipOk = useSyncExternalStore(noopSubscribe, callPipSupported, () => false);
+  const pipAutoRef = useRef(false);
+  const pipBusyRef = useRef(false);
+  const openPip = useCallback(async (auto: boolean) => {
+    if (pipBusyRef.current) return;
+    pipBusyRef.current = true;
+    const win = await openCallPip(400, 300);
+    pipBusyRef.current = false;
+    if (!win) return;
+    pipAutoRef.current = auto;
+    win.addEventListener("pagehide", () => setPipWin(null), { once: true });
+    setPipWin(win);
+  }, []);
+  const callLive = status === "live";
+  useEffect(() => {
+    if (!callLive || !pipOk) return;
+    return onAutoCallPip(() => void openPip(true));
+  }, [callLive, pipOk, openPip]);
+  useEffect(() => {
+    if (!pipWin) return;
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && pipAutoRef.current) pipWin.close();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      pipWin.close();
+    };
+  }, [pipWin]);
+  const pipP = stageP ?? participants.find((p) => !p.isLocal) ?? participants[0] ?? null;
+  const pipShare = !!pipP && pipP === stageP && stageIsShare;
+  const pipView = pipWin
+    ? createPortal(
+        <div className="mtgpip" data-ai-private>
+          <header className="mtgpip__top">
+            <span className="mtgpip__title">
+              <b>{title || t("meetingTitle")}</b>
+              <span className={`mtg__badge mtg__badge--${status}`}><i />{statusLabel}</span>
+            </span>
+            <span className="mtgpip__meta">
+              <span className="mtgpip__time">{remaining != null ? (paused ? t("paused") : `${t("remaining")}: ${mmss(remaining)}`) : mmss(elapsed)}</span>
+              <span className="mtgpip__n" title={t("rosterTitle")}><IconUsers />{count}</span>
+            </span>
+          </header>
+          <div className="mtgpip__stage">
+            {pipP ? <Tile key={`pip-${pipP.identity}-${pipShare ? "s" : "c"}`} p={pipP} name={nameOf(pipP)} you={t("you")} camOff={t("camOff")} share={pipShare} mirror={pipP.isLocal && !pipShare && mirror} big /> : null}
+          </div>
+          <footer className="mtgpip__bar">
+            <Ctl mic on={micOn} off={!micOn} label={t("mic")} aria={micOn ? t("micMute") : t("micUnmute")} onClick={() => void toggleMic()} disabled={hostMuted && !micOn}>
+              <span className={`mtg__mic${micOn ? "" : " mtg__mic--off"}`} aria-hidden="true"><IconMic className="mtg__micOn" /><IconMicOff className="mtg__micOff" /></span>
+            </Ctl>
+            {camControl ? <Ctl on={camOn} off={!camOn} label={camOn ? t("camOff2") : t("camOn")} onClick={() => void toggleCam()} disabled={camBusy}><IconVideo /></Ctl> : null}
+            <Ctl end label={isCaller ? t("endAll") : t("end")} onClick={() => void hangUp()}><IconClose /></Ctl>
+          </footer>
+        </div>,
+        pipWin.document.body,
+      )
+    : null;
+
   const Skin = skin;
   if (Skin)
     return (
+      <>
+      {pipView}
       <Skin
         refs={{ root: rootRef, top: topRef, audio: audioRef, stage: stageRef, grid: gridRef, strip: stripRef, chatEnd: chatEndRef }}
         v={{
@@ -2192,6 +2260,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       hangUp: () => void hangUp(),
         }}
       />
+      </>
     );
 
   return (
@@ -2206,6 +2275,7 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
       data-ai-label={aiScope ? t("meetingTitle") : undefined}
     >
       <div ref={audioRef} hidden />
+      {pipView}
       {floating ? (
         <span
           className="mtg__grip"
@@ -2273,6 +2343,11 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
               <IconMinus />
             </button>
           ) : null}
+          {pipOk && callLive ? (
+            <button type="button" className={`mtg__tool${pipWin ? " on" : ""}`} onClick={() => (pipWin ? pipWin.close() : void openPip(false))} aria-label={t("pip")} title={t("pipHint")} aria-pressed={!!pipWin}>
+              <IconPip />
+            </button>
+          ) : null}
         </div>
         {floating ? (
           <div className="mtg__ftools">
@@ -2282,6 +2357,11 @@ export default function CallRoom({ roomId, callId, callType, isCaller, title, lk
             <button type="button" className="mtg__tool" onClick={() => setFmin((m) => !m)} aria-label={fmin ? t("expand") : t("collapse")} title={fmin ? t("expand") : t("collapse")}>
               {fmin ? <IconPlus /> : <IconMinus />}
             </button>
+            {pipOk && callLive ? (
+              <button type="button" className={`mtg__tool${pipWin ? " on" : ""}`} onClick={() => (pipWin ? pipWin.close() : void openPip(false))} aria-label={t("pip")} title={t("pipHint")} aria-pressed={!!pipWin}>
+                <IconPip />
+              </button>
+            ) : null}
             <button type="button" className="mtg__tool" onClick={() => { setFloating(false); setFmin(false); }} aria-label={t("fullScreen")} title={t("fullScreen")}>
               <IconMonitor />
             </button>

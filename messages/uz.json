@@ -18988,7 +18988,9 @@
     "recNoAnswer": "Javob yo'q — yozib olish boshlanmadi.",
     "recNeedApprover": "Yozib olish uchun advokat/operator ruxsati kerak — hozir uchrashuvda ular yo'q.",
     "recChip": "yozib olmoqda",
-    "chatContacts": "Aloqa ma'lumotlarini (telefon, e-pochta, havola, Telegram) yuborib bo'lmaydi — aloqa faqat LexGo ichida."
+    "chatContacts": "Aloqa ma'lumotlarini (telefon, e-pochta, havola, Telegram) yuborib bo'lmaydi — aloqa faqat LexGo ichida.",
+    "pip": "Kichik oyna",
+    "pipHint": "Qo'ng'iroqni boshqa tab yoki dasturlar ustida kichik oynada ko'rsatish"
   },
   "theme": {
     "label": "Mavzu",
