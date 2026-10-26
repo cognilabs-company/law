@@ -44,8 +44,11 @@ test("a lawyer sees grouped revisions, cancels a pending one and submits a typed
   // date picker, typed as dd.mm.yyyy.
   await panel.getByRole("button", { name: "Добавить опыт" }).first().click();
   const form = page.getByRole("dialog", { name: "Новый опыт" });
-  await form.getByLabel("Категория").selectOption("c2");
-  await form.getByLabel("Направление (необязательно)").selectOption("c2-a");
+  // The app's own dropdown and choice chips, not browser controls (26 Oct 2026).
+  await expect(form.locator("select")).toHaveCount(0);
+  await form.getByRole("button", { name: /Категория/ }).click();
+  await page.getByRole("listbox").getByRole("option").nth(1).click(); // c2, shown by its localized name
+  await form.getByRole("radio", { name: "Vasiyatnoma" }).click();
   await form.getByLabel("Место работы").fill("Toshkent advokatlar hay'ati");
   await form.getByLabel("Должность").fill("Advokat");
   await form.getByRole("combobox", { name: "Дата начала" }).fill("01.05.2019");

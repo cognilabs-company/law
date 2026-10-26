@@ -6,7 +6,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import DatePicker from "@/components/DatePicker";
-import { IconAward, IconBriefcase, IconCalendar, IconEdit, IconPaperclip, IconPlus, IconScale, IconUpload } from "@/components/icons";
+import { IconAward, IconBriefcase, IconBuilding, IconCalendar, IconCheck, IconClock, IconClose, IconEdit, IconFileText, IconPaperclip, IconPlus, IconScale, IconUpload } from "@/components/icons";
+import Select from "@/components/Select";
 import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardNote";
 import { dateOnly } from "@/lib/date";
 import { errDetail, isAborted, logApiError } from "@/lib/http";
@@ -70,6 +71,38 @@ const draftOf = (it: ExperienceItem, sourceId: string): Draft => ({
   evidence: it.evidence,
 });
 const toggle = (list: string[], v: string) => (list.includes(v) ? list.filter((x) => x !== v) : [...list, v]);
+
+// Whole years and months between two ISO days ("" = today).
+function spanOf(from: string, to: string): { y: number; m: number } | null {
+  if (!from) return null;
+  const a = new Date(`${from}T00:00:00`);
+  const b = to ? new Date(`${to}T00:00:00`) : new Date();
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime()) || b < a) return null;
+  let months = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+  if (b.getDate() < a.getDate()) months -= 1;
+  months = Math.max(0, months);
+  return { y: Math.floor(months / 12), m: months % 12 };
+}
+
+// A form section's head: its number (a tick once it is complete), title and
+// what it asks for.
+function SecHead({ n, done, title, hint, optional }: { n: number; done: boolean; title: string; hint: string; optional?: boolean }): ReactElement {
+  const t = useTranslations("portal.experience");
+  return (
+    <legend className="exp__legend">
+      <span className="exp__n" data-done={done || undefined} aria-hidden="true">
+        {done ? <IconCheck /> : n}
+      </span>
+      <span className="exp__lt">
+        <b>{title}</b>
+        <small>{hint}</small>
+      </span>
+      <em className="exp__tag" data-done={done || undefined}>
+        {done ? t("secDone") : optional ? t("optional") : t("required")}
+      </em>
+    </legend>
+  );
+}
 
 export default function ExperiencePanel(): ReactElement {
   const t = useTranslations("portal.experience");
@@ -220,6 +253,14 @@ export default function ExperiencePanel(): ReactElement {
   const pending = (groups ?? []).filter((g) => g.pending).length;
   // The first missing field is marked on the field itself, not only below.
   const miss = (k: string) => (issue === k && tried ? true : undefined);
+  const secDone = {
+    area: !!draft?.categoryId,
+    work: !!draft && !!draft.workplace.trim() && !!draft.position.trim() && !!draft.startedOn && (draft.isCurrent || !!draft.endedOn),
+    cases: !!draft && (draft.stages.length > 0 || draft.results.length > 0),
+    proof: desc.length >= DESC_MIN && !descHits.length,
+  };
+  const doneCount = Object.values(secDone).filter(Boolean).length;
+  const span = draft ? spanOf(draft.startedOn, draft.isCurrent ? "" : draft.endedOn) : null;
 
   return (
     <section className="ppanel exp" aria-labelledby="exp-title" data-ai-target="profile:experience">
@@ -388,97 +429,135 @@ export default function ExperiencePanel(): ReactElement {
             }}
             noValidate
           >
-            <fieldset className="exp__sec">
-              <legend>
-                <span className="exp__n">1</span>
-                {t("secArea")}
-              </legend>
-              <label className="exp__f">
-                <span>{t("category")}</span>
-                <select value={draft.categoryId} onChange={(e) => setDraft({ ...draft, categoryId: e.target.value, subcategoryId: "" })} disabled={!!draft.sourceId} aria-invalid={bad("category_id") ?? miss("category")}>
-                  <option value="">{t("pickCategory")}</option>
-                  {cats.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {uzLabel(categoryName({ slug: c.slug, title: c.name }, locale), locale)}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            <div className="exp__progress" role="status">
+              <span>{t("progress", { done: doneCount, total: 4 })}</span>
+              <i aria-hidden="true">
+                <b style={{ width: `${(doneCount / 4) * 100}%` }} />
+              </i>
+            </div>
+
+            <fieldset className="exp__sec" data-done={secDone.area || undefined}>
+              <SecHead n={1} done={secDone.area} title={t("secArea")} hint={t("secAreaHint")} />
+              <div className="exp__f" data-bad={bad("category_id") ?? miss("category")}>
+                <span id="exp-cat-l">{t("category")}</span>
+                <Select
+                  value={draft.categoryId}
+                  onChange={(v) => setDraft({ ...draft, categoryId: v, subcategoryId: "" })}
+                  options={cats.map((c) => ({ value: c.id, label: uzLabel(categoryName({ slug: c.slug, title: c.name }, locale), locale), hint: subsOf(c.id).length ? t("subsN", { n: subsOf(c.id).length }) : undefined }))}
+                  placeholder={t("pickCategory")}
+                  labelId="exp-cat-l"
+                  search
+                  disabled={!!draft.sourceId}
+                  invalid={!!(bad("category_id") ?? miss("category"))}
+                />
+                {draft.sourceId ? <small className="exp__help">{t("categoryLocked")}</small> : null}
+              </div>
               {subsOf(draft.categoryId).length ? (
-                <label className="exp__f">
-                  <span>{t("subcategory")}</span>
-                  <select value={draft.subcategoryId} onChange={(e) => setDraft({ ...draft, subcategoryId: e.target.value })} aria-invalid={bad("subcategory_id")}>
-                    <option value="">{t("anySubcategory")}</option>
-                    {subsOf(draft.categoryId).map((sc) => (
-                      <option key={sc.id} value={sc.id}>
-                        {uzLabel(sc.title, locale)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="exp__f">
+                  <span id="exp-sub-l">{t("subcategory")}</span>
+                  <div className="exp__opts" role="radiogroup" aria-labelledby="exp-sub-l" data-bad={bad("subcategory_id")}>
+                    {[{ id: "", title: t("anySubcategory") }, ...subsOf(draft.categoryId)].map((sc) => {
+                      const on = draft.subcategoryId === sc.id;
+                      return (
+                        <button key={sc.id || "all"} type="button" role="radio" aria-checked={on} className="exp__opt" onClick={() => setDraft({ ...draft, subcategoryId: sc.id })}>
+                          {on ? <IconCheck aria-hidden="true" /> : null}
+                          {sc.id ? uzLabel(sc.title, locale) : sc.title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               ) : null}
             </fieldset>
 
-            <fieldset className="exp__sec">
-              <legend>
-                <span className="exp__n">2</span>
-                {t("secWork")}
-              </legend>
+            <fieldset className="exp__sec" data-done={secDone.work || undefined}>
+              <SecHead n={2} done={secDone.work} title={t("secWork")} hint={t("secWorkHint")} />
               <div className="exp__two">
                 <label className="exp__f">
                   <span>{t("workplace")}</span>
-                  <input value={draft.workplace} maxLength={200} placeholder={t("workplacePh")} onChange={(e) => setDraft({ ...draft, workplace: e.target.value })} aria-invalid={bad("workplace") ?? miss("workplace")} />
+                  <span className="exp__in">
+                    <IconBuilding aria-hidden="true" />
+                    <input value={draft.workplace} maxLength={200} placeholder={t("workplacePh")} onChange={(e) => setDraft({ ...draft, workplace: e.target.value })} aria-invalid={bad("workplace") ?? miss("workplace")} />
+                  </span>
                 </label>
                 <label className="exp__f">
                   <span>{t("position")}</span>
-                  <input value={draft.position} maxLength={200} placeholder={t("positionPh")} onChange={(e) => setDraft({ ...draft, position: e.target.value })} aria-invalid={bad("position") ?? miss("position")} />
+                  <span className="exp__in">
+                    <IconBriefcase aria-hidden="true" />
+                    <input value={draft.position} maxLength={200} placeholder={t("positionPh")} onChange={(e) => setDraft({ ...draft, position: e.target.value })} aria-invalid={bad("position") ?? miss("position")} />
+                  </span>
                 </label>
-                <div className="exp__f" data-bad={bad("started_at") ?? miss("started")}>
-                  <span>{t("startedAt")}</span>
-                  <DatePicker value={draft.startedOn} max={today} onChange={(v) => setDraft({ ...draft, startedOn: v })} placeholder={t("pickDate")} ariaLabel={t("startedAt")} />
-                </div>
-                <div className="exp__f" data-bad={bad("ended_at") ?? miss("ended")}>
-                  <span>{t("endedAt")}</span>
-                  <DatePicker value={draft.isCurrent ? "" : draft.endedOn} min={draft.startedOn || undefined} max={today} disabled={draft.isCurrent} onChange={(v) => setDraft({ ...draft, endedOn: v })} placeholder={draft.isCurrent ? t("now") : t("pickDate")} ariaLabel={t("endedAt")} />
-                </div>
               </div>
-              <label className="exp__switch">
-                <input type="checkbox" role="switch" checked={draft.isCurrent} onChange={(e) => setDraft({ ...draft, isCurrent: e.target.checked })} />
-                <i aria-hidden="true" />
-                <span>{t("isCurrent")}</span>
-              </label>
+              <div className="exp__period">
+                <div className="exp__seg" role="radiogroup" aria-label={t("period")}>
+                  {[true, false].map((cur) => (
+                    <button key={String(cur)} type="button" role="radio" aria-checked={draft.isCurrent === cur} onClick={() => setDraft({ ...draft, isCurrent: cur })}>
+                      {cur ? <IconClock aria-hidden="true" /> : <IconCalendar aria-hidden="true" />}
+                      {cur ? t("periodNow") : t("periodEnded")}
+                    </button>
+                  ))}
+                </div>
+                <div className="exp__two">
+                  <div className="exp__f" data-bad={bad("started_at") ?? miss("started")}>
+                    <span>{t("startedAt")}</span>
+                    <DatePicker value={draft.startedOn} max={today} onChange={(v) => setDraft({ ...draft, startedOn: v })} placeholder={t("pickDate")} ariaLabel={t("startedAt")} />
+                  </div>
+                  {draft.isCurrent ? (
+                    <div className="exp__f">
+                      <span>{t("endedAt")}</span>
+                      <span className="exp__nowbox">
+                        <i aria-hidden="true" />
+                        {t("stillHere")}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="exp__f" data-bad={bad("ended_at") ?? miss("ended")}>
+                      <span>{t("endedAt")}</span>
+                      <DatePicker value={draft.endedOn} min={draft.startedOn || undefined} max={today} onChange={(v) => setDraft({ ...draft, endedOn: v })} placeholder={t("pickDate")} ariaLabel={t("endedAt")} />
+                    </div>
+                  )}
+                </div>
+                {span ? (
+                  <p className="exp__span">
+                    <IconAward aria-hidden="true" />
+                    {t("spanTotal", { span: span.y || span.m ? [span.y ? t("durY", { n: span.y }) : "", span.m ? t("durM", { n: span.m }) : ""].filter(Boolean).join(" ") : t("durLess") })}
+                  </p>
+                ) : null}
+              </div>
             </fieldset>
 
-            <fieldset className="exp__sec">
-              <legend>
-                <span className="exp__n">3</span>
-                {t("secCases")}
-              </legend>
+            <fieldset className="exp__sec" data-done={secDone.cases || undefined}>
+              <SecHead n={3} done={secDone.cases} title={t("secCases")} hint={t("secCasesHint")} optional />
               <div className="exp__pick" role="group" aria-label={t("stages")} data-bad={bad("stages")}>
-                <small>{t("stages")}</small>
+                <small>
+                  {t("stages")}
+                  {draft.stages.length ? <em>{t("picked", { n: draft.stages.length })}</em> : null}
+                </small>
                 {EXPERIENCE_STAGES.map((st) => (
                   <label key={st} data-on={draft.stages.includes(st) ? "" : undefined}>
                     <input type="checkbox" checked={draft.stages.includes(st)} onChange={() => setDraft({ ...draft, stages: toggle(draft.stages, st) })} />
+                    <IconCheck aria-hidden="true" />
                     {t(`stage.${st}`)}
                   </label>
                 ))}
               </div>
               <div className="exp__pick" role="group" aria-label={t("results")} data-bad={bad("results")}>
-                <small>{t("results")}</small>
+                <small>
+                  {t("results")}
+                  {draft.results.length ? <em>{t("picked", { n: draft.results.length })}</em> : null}
+                </small>
                 {EXPERIENCE_RESULTS.map((r) => (
                   <label key={r} data-on={draft.results.includes(r) ? "" : undefined} data-k="result">
                     <input type="checkbox" checked={draft.results.includes(r)} onChange={() => setDraft({ ...draft, results: toggle(draft.results, r) })} />
+                    <IconCheck aria-hidden="true" />
                     {t(`result.${r}`)}
                   </label>
                 ))}
               </div>
             </fieldset>
 
-            <fieldset className="exp__sec">
-              <legend>
-                <span className="exp__n">4</span>
-                {t("secProof")}
-              </legend>
+            <fieldset className="exp__sec" data-done={secDone.proof || undefined}>
+              <SecHead n={4} done={secDone.proof} title={t("secProof")} hint={t("secProofHint")} />
               <label className="exp__f">
                 <span>{t("description")}</span>
                 <textarea
@@ -491,14 +570,21 @@ export default function ExperiencePanel(): ReactElement {
                   aria-describedby="exp-desc-g exp-desc-n"
                   aria-invalid={descHits.length > 0 || miss("description") || undefined}
                 />
-                <small id="exp-desc-n" className="exp__count" data-short={desc.length < DESC_MIN || undefined}>
-                  {desc.length < DESC_MIN ? t("descLeft", { n: DESC_MIN - desc.length }) : t("descCount", { n: desc.length })}
-                </small>
+                <span className="exp__meter" data-ok={desc.length >= DESC_MIN || undefined}>
+                  <i aria-hidden="true">
+                    <b style={{ width: `${Math.min(100, (desc.length / DESC_MIN) * 100)}%` }} />
+                  </i>
+                  <small id="exp-desc-n" className="exp__count" data-short={desc.length < DESC_MIN || undefined}>
+                    {desc.length < DESC_MIN ? t("descLeft", { n: DESC_MIN - desc.length }) : t("descCount", { n: desc.length })}
+                  </small>
+                </span>
               </label>
               <ContactGuardNote id="exp-desc-g" hits={descHits} removed={descStrip.removed} />
               <div className="exp__drop" data-busy={uploading || undefined}>
                 <label>
-                  <IconUpload aria-hidden="true" />
+                  <span className="exp__drop-ic" aria-hidden="true">
+                    <IconUpload />
+                  </span>
                   <b>{uploading ? t("uploading") : t("addFile")}</b>
                   <small>{t("evidenceHint")}</small>
                   <input type="file" multiple accept={EVIDENCE_TYPES.join(",")} disabled={uploading} onChange={(e) => void addFiles(e.target.files).finally(() => (e.target.value = ""))} />
@@ -507,10 +593,12 @@ export default function ExperiencePanel(): ReactElement {
                   <ul>
                     {draft.evidence.map((f) => (
                       <li key={f.id}>
-                        <IconPaperclip aria-hidden="true" />
+                        <span className="exp__file-ic" aria-hidden="true">
+                          <IconFileText />
+                        </span>
                         <span>{f.fileName || t("file")}</span>
                         <button type="button" aria-label={t("removeFile", { name: f.fileName || t("file") })} onClick={() => setDraft({ ...draft, evidence: draft.evidence.filter((x) => x.id !== f.id) })}>
-                          ×
+                          <IconClose />
                         </button>
                       </li>
                     ))}

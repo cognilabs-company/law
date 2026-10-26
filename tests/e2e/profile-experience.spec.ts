@@ -87,6 +87,6 @@ test("on a phone the experience form opens as a dialog and marks the first missi
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "Tekshiruvga yuborish" }).click();
   await expect(dialog.getByRole("alert")).toContainText("Kategoriyani tanlang");
-  await expect(dialog.locator("select").first()).toHaveAttribute("aria-invalid", "true");
+  await expect(dialog.locator(".dsel").first()).toHaveAttribute("data-invalid", "true");
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/exp-phone-form.png`, fullPage: false });
 });
