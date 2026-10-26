@@ -15,6 +15,8 @@ import {
   planForRole,
   requestPlanTelegramPurchase,
   refusedBillingPeriods,
+  getPlanQuote,
+  type PlanQuote,
   BILLING_PERIODS,
   type BackendPlan,
   type ManualDocBillingPeriod,
@@ -51,6 +53,7 @@ import {
   IconChatDots,
   IconChevronRight,
   IconCalendar,
+  IconTag,
 } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
 // The LexGo.AI grid below and the upgrade dialog on the services catalog
@@ -120,6 +123,26 @@ function aiPeriodOf(v: string): { term: Term; upfront: boolean } | null {
 }
 // The same four strings, narrowed for the Telegram approval request (which is
 // the one caller that has to name the period back to the backend).
+// The backend's quote per plan for one period (contract 2026-10-26 §2), so a
+// running promotion shows on the card; free plans are not asked about.
+function usePlanQuotes(plans: BackendPlan[], period: ManualDocBillingPeriod): ReadonlyMap<string, PlanQuote> {
+  const ids = plans.filter((p) => p.monthlyPrice > 0).map((p) => p.id).join(",");
+  const [got, setGot] = useState<{ key: string; map: Map<string, PlanQuote> }>({ key: "", map: new Map() });
+  const key = `${period}|${ids}`;
+  useEffect(() => {
+    if (!ids) return;
+    let alive = true;
+    void Promise.all(ids.split(",").map((id) => getPlanQuote(id, period).then((q) => [id, q] as const, () => null))).then((rows) => {
+      if (alive) setGot({ key, map: new Map(rows.filter((r): r is readonly [string, PlanQuote] => !!r)) });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [ids, period, key]);
+  return got.key === key ? got.map : EMPTY_QUOTES;
+}
+const EMPTY_QUOTES: ReadonlyMap<string, PlanQuote> = new Map();
+
 function asBillingPeriod(v: string): ManualDocBillingPeriod {
   return BILLING_PERIODS.includes(v as ManualDocBillingPeriod) ? (v as ManualDocBillingPeriod) : "monthly";
 }
@@ -244,6 +267,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   // "biznes-abonent-*" tariffs came back as audience "seller" and were visible
   // to nobody at all.
   const aiPlans = sellable.filter((p) => AI_SLUG.test(p.slug));
+  const quotes = usePlanQuotes(aiPlans, asBillingPeriod(billingPeriod(aiTerm, aiUpfront)));
   const otherPlans = sellable.filter((p) => !AI_SLUG.test(p.slug));
   const giftPlan = active.find(isGift);
   const planName = (plan: BackendPlan) => plan.name;
@@ -395,6 +419,8 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
             const featured = hasPro ? plan.slug === FEATURED_SLUG : aiPlans.length > 1 && i === aiPlans.length - 1;
             const isCurrent = !!currentPlanName && planName(plan) === currentPlanName;
             const free = plan.monthlyPrice === 0;
+            const quote = quotes.get(plan.id);
+            const promo = quote && quote.discountAmount > 0 ? quote : null;
             // Everything below is this page's decision, worked out here and
             // handed over finished — PlanCard is told what to show, never how
             // to work it out (see the note at the top of PlanCard.tsx).
@@ -411,13 +437,20 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                 saves={[
                   ...(pr.savePct > 0 && !free ? [`−${pr.savePct}%`] : []),
                   ...(sellerPct && !free ? [`−${sellerPct}%`] : []),
+                  ...(promo ? [t("promo.chip", { amount: som(promo.discountAmount) })] : []),
                 ]}
                 price={
                   free
                     ? { amount: t("freeLabel") }
                     : { amount: som(pr.perMonth), unit: t("perMonth"), was: sellerPct ? som(plan.monthlyPrice) : undefined }
                 }
-                totalNote={!free && aiTerm > 1 ? t("totalNote", { term: aiTerm, total: som(pr.total) }) : undefined}
+                totalNote={
+                  promo
+                    ? t("promo.note", { title: promo.campaign?.title || t("promo.title"), amount: som(promo.amount), was: som(promo.baseAmount) })
+                    : !free && aiTerm > 1
+                      ? t("totalNote", { term: aiTerm, total: som(pr.total) })
+                      : undefined
+                }
                 usage={free && limit ? t("ai.usage", { used: Math.min(aiUsed, limit), limit }) : undefined}
                 cta={
                   isCurrent
@@ -875,6 +908,7 @@ function TelegramPlanRequest({
 }) {
   const ttg = useTranslations("plans.telegram");
   const tdoc = useTranslations("portal.client.documents");
+  const locale = useLocale();
   const [period, setPeriod] = useState<ManualDocBillingPeriod>("monthly");
   const [only, setOnly] = useState<ManualDocBillingPeriod[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -885,6 +919,25 @@ function TelegramPlanRequest({
   // approval. Empty when the backend did not send one; nothing is printed.
   const [sentWorkId, setSentWorkId] = useState("");
   const [warn, setWarn] = useState("");
+  const [paid, setPaid] = useState<PlanQuote | null>(null);
+  // The backend's price for the chosen period, with any promotion.
+  const [quoted, setQuoted] = useState<{ key: string; q: PlanQuote | null } | null>(null);
+  const qPlan = target?.plan.id ?? "";
+  const qAllowed = target?.plan.allowedBillingPeriods?.length ? BILLING_PERIODS.filter((p) => target.plan.allowedBillingPeriods.includes(p)) : BILLING_PERIODS;
+  const qPeriods = only ?? (qAllowed.length ? qAllowed : BILLING_PERIODS);
+  const qEff = qPeriods.includes(period) ? period : qPeriods[0];
+  useEffect(() => {
+    if (!qPlan) return;
+    let alive = true;
+    const key = `${qPlan}|${qEff}`;
+    getPlanQuote(qPlan, qEff).then(
+      (q) => alive && setQuoted({ key, q }),
+      () => alive && setQuoted({ key, q: null }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [qPlan, qEff]);
 
   // The plan the caller was on when the provider failed, and the period they
   // had already chosen there. Reset during render so a second attempt never
@@ -910,6 +963,8 @@ function TelegramPlanRequest({
   const periods = only ?? (allowed.length ? allowed : BILLING_PERIODS);
   const eff = periods.includes(period) ? period : periods[0];
 
+  const quoteKey = `${plan.id}|${eff}`;
+  const quote = quoted && quoted.key === quoteKey ? quoted.q : null;
   const priceFor = (p: ManualDocBillingPeriod): number => {
     if (p === "six_month") return plan.sixMonthPrice || plan.monthlyPrice * 6;
     if (p === "yearly") return plan.yearlyPrice || plan.monthlyPrice * 12;
@@ -926,6 +981,7 @@ function TelegramPlanRequest({
       // status "pending" is the documented success; anything else still means
       // the request exists, so the receipt is shown either way.
       setSentWorkId(r.workId);
+      setPaid(r.pricing);
       setSent(true);
       notify.dismiss("plans-tg");
       onSent();
@@ -963,6 +1019,12 @@ function TelegramPlanRequest({
             <p className="cform__ok"><IconCheck style={{ width: 16, height: 16 }} /> {ttg("sent")}</p>
             <p className="advmuted">{ttg("sentLead")}</p>
             {sentWorkId ? <p><span className="wid">{sentWorkId}</span></p> : null}
+            {paid ? (
+              <div className="tgbuy__sum">
+                <span>{paid.discountAmount > 0 ? ttg("amountPromo", { title: paid.campaign?.title || ttg("promo") }) : ttg("amount")}</span>
+                <b>{fmtUzs(paid.amount)}</b>
+              </div>
+            ) : null}
             {warn ? <InlineAlert tone="warn" compact>{warn}</InlineAlert> : null}
             <button type="button" className="btn btn--line btn--full" onClick={onClose} data-ai-id="pricing.telegram-request-modal.close">{ttg("close")}</button>
           </>
@@ -979,9 +1041,22 @@ function TelegramPlanRequest({
                 ))}
               </ScrollCue>
             </div>
-            <div className="tgbuy__sum">
+            {quote && quote.discountAmount > 0 ? (
+              <div className="tgbuy__promo" role="note">
+                <IconTag aria-hidden="true" />
+                <span>
+                  <b>{quote.campaign?.title || ttg("promo")}</b>
+                  {quote.campaign?.endsAt ? <small>{ttg("promoUntil", { date: dateOnly(quote.campaign.endsAt, locale) })}</small> : null}
+                </span>
+                <em>−{fmtUzs(quote.discountAmount)}</em>
+              </div>
+            ) : null}
+            <div className="tgbuy__sum" aria-busy={!quoted || quoted.key !== quoteKey || undefined}>
               <span>{ttg("amount")}</span>
-              <b>{fmtUzs(priceFor(eff))}</b>
+              <b>
+                {quote && quote.discountAmount > 0 ? <s className="tgbuy__was">{fmtUzs(quote.baseAmount)}</s> : null}
+                {fmtUzs(quote ? quote.amount : priceFor(eff))}
+              </b>
             </div>
             {warn ? <InlineAlert tone="warn" compact>{warn}</InlineAlert> : null}
             <button type="button" className="btn btn--grad btn--full btn--lg" disabled={busy} onClick={() => void submit()} data-ai-id="pricing.telegram-request-modal.confirm">

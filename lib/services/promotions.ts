@@ -66,6 +66,10 @@ export const PROMOTION_ERROR_CODES = [
   "promotion_days_invalid",
   "promotion_seller_not_verified",
   "promotion_placement_invalid",
+  // Advertising selling is off (contract 2026-10-26 §3): test or paused mode,
+  // or the market conditions fell below production criteria.
+  "marketplace_advertising_not_active",
+  "marketplace_advertising_not_ready",
 ] as const;
 export type PromotionErrorCode = (typeof PROMOTION_ERROR_CODES)[number];
 

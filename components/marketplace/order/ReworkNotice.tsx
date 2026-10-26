@@ -1,42 +1,27 @@
 "use client";
 
 import "./rework.css";
-import { useEffect, useState, type ReactElement } from "react";
+import type { ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { shortDateTime } from "@/lib/date";
-import { isAborted, logApiError } from "@/lib/http";
-import { getOrderFinancials, isReworkOrder, type MarketOrder, type MarketSignal } from "@/lib/services/marketplace";
-import { RefreshCwIcon, CircleCheckIcon, HourglassIcon, glyph } from "./icons";
+import { useCountdown } from "@/lib/useCountdown";
+import { isReworkOrder, type MarketOrder, type MarketSignal } from "@/lib/services/marketplace";
+import { RefreshCwIcon, CircleCheckIcon, HourglassIcon, TimerIcon, glyph } from "./icons";
 import type { OrderView } from "./types";
 
 // A finished order the call center sent back to work (complaint ruled
-// valid_rework): the order is in_progress again and the payout waits until
-// the work is redone. Shown on top of the order for both sides, from the
-// order's own complaint ruling, the settlement (rework_hold) or the live
-// complaint_resolved event.
+// valid_rework, contract 2026-10-26 §1): the order is in_progress again with
+// a rework deadline, and the payout waits until the work is redone. Shown on
+// top of the order for both sides, from complaint.rework_required (or the
+// live complaint_resolved event until the order is fetched again).
 
 export default function ReworkNotice({ o, view, signal }: { o: MarketOrder; view: OrderView; signal: MarketSignal | null }): ReactElement | null {
   const t = useTranslations("marketplace.rework");
   const locale = useLocale();
-  const [settlement, setSettlement] = useState({ id: "", value: "" });
   const live = signal?.kind === "complaint" && signal.outcome === "valid_rework" && (!signal.orderId || signal.orderId === o.id);
-  const known = o.complaint.resolution === "valid_rework";
-  const ask = o.status === "in_progress" && !known && !live;
-
-  useEffect(() => {
-    if (!ask || !o.id) return;
-    const ctl = new AbortController();
-    getOrderFinancials(o.id, ctl.signal).then(
-      (f) => setSettlement({ id: o.id, value: f.settlement }),
-      (e) => {
-        if (!isAborted(e)) logApiError("order.rework.financials", e);
-      },
-    );
-    return () => ctl.abort();
-  }, [ask, o.id, o.status]);
-
-  const held = settlement.id === o.id ? settlement.value : "";
-  if (!live && !isReworkOrder(o, held)) return null;
+  const deadline = o.complaint.reworkDeadlineAt;
+  const left = useCountdown(deadline);
+  if (!live && !isReworkOrder(o)) return null;
   const seller = view !== "client";
   const at = o.complaint.resolvedAt;
 
@@ -58,6 +43,15 @@ export default function ReworkNotice({ o, view, signal }: { o: MarketOrder; view
           </li>
         </ol>
         <p>{seller ? t("sellerText") : t("clientText")}</p>
+        {deadline ? (
+          <p className="mod-rework__due" data-late={left === 0 || undefined}>
+            {glyph(TimerIcon, { size: 15 })}
+            <span>
+              {t("due", { date: shortDateTime(deadline, locale) })}
+              {left !== null ? <b>{left === 0 ? t("overdue") : t("left", { h: Math.floor(left / 3600), m: Math.floor((left % 3600) / 60) })}</b> : null}
+            </span>
+          </p>
+        ) : null}
         {o.complaint.resolutionNote ? (
           <blockquote className="mod-rework__note">
             <small>{t("note")}</small>
@@ -65,7 +59,7 @@ export default function ReworkNotice({ o, view, signal }: { o: MarketOrder; view
           </blockquote>
         ) : null}
         <p className="mod-rework__fine">
-          {[at ? t("decidedAt", { date: shortDateTime(at, locale) }) : "", seller ? t("payoutHeld") : t("refundNote")].filter(Boolean).join(" · ")}
+          {[o.complaint.reworkIteration > 1 ? t("iteration", { n: o.complaint.reworkIteration }) : "", at ? t("decidedAt", { date: shortDateTime(at, locale) }) : "", seller ? t("payoutHeld") : t("refundNote")].filter(Boolean).join(" · ")}
         </p>
       </div>
     </section>

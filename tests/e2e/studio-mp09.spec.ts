@@ -52,8 +52,19 @@ test("a promotion picks targets of its type only and sends no campaign_id", asyn
 
 // The editor shows what the buyer will pay for each chosen target, never
 // below zero, before anything is submitted (TSK-537634).
-test("a promotion previews the discounted price of each chosen target", async ({ page }) => {
+test("a promotion previews the backend's price of each chosen target", async ({ page }) => {
+  const previews: unknown[] = [];
   const routes = await signIn(page, ADMIN, {
+    // The backend's numbers (contract 2026-10-26 §2), not the browser's.
+    "POST /studio/constructors/MP09/preview": (b: unknown) => {
+      previews.push(b);
+      const ids = (b as { target_ids?: string[] }).target_ids ?? [];
+      return {
+        ok: true,
+        targets: ids.map((id) => (id === "t-0" ? { id, label: "Profile boost - 7 days", base_price: 149000, discount_amount: 31000, final_price: 118000, currency: "UZS" } : { id, label: "Marketplace banner - 7 days", base_price: 299000, discount_amount: 299000, final_price: 0, currency: "UZS" })),
+        warnings: ids.includes("t-1") ? ["final_price_zero:t-1"] : [],
+      };
+    },
     "/studio/constructors": studio.constructors,
     "/studio/constructors/MP09": studio.mp09,
     "/studio/constructors/MP09/form-context": studio.formContext,
@@ -72,14 +83,16 @@ test("a promotion previews the discounted price of each chosen target", async ({
   await page.getByRole("option", { name: /Profile boost/ }).click();
   await page.getByRole("option", { name: /Marketplace banner/ }).click();
   await page.keyboard.press("Escape");
-  await expect(preview.getByRole("row")).toHaveCount(3);
-  await expect(preview).toContainText("149 000");
 
   await page.getByRole("radiogroup", { name: "Chegirma turi" }).getByText("Foiz", { exact: true }).click();
   await page.getByRole("textbox", { name: /Chegirma (foizi|miqdori)/ }).fill("20");
   await expect(preview.locator(".sx-promo__off")).toHaveText("−20%");
-  await expect(preview.getByRole("row", { name: /Profile boost/ })).toContainText("119 200");
-  await expect(preview.getByRole("row", { name: /Marketplace banner/ })).toContainText("239 200");
+  await expect(preview.getByRole("row")).toHaveCount(3);
+  await expect(preview.getByRole("row", { name: /Profile boost/ })).toContainText("149 000");
+  await expect(preview.getByRole("row", { name: /Profile boost/ })).toContainText("118 000");
+  await expect(preview.getByRole("row", { name: /Marketplace banner/ })).toContainText("Bepul");
+  await expect(preview).toContainText("«Marketplace banner - 7 days» bepulga tushadi");
+  expect(previews.length).toBeGreaterThan(0);
   await expect(preview.locator(".sx-promo__state")).toHaveText("Muddatsiz");
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(preview).toBeVisible();

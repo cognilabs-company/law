@@ -80,10 +80,21 @@ export async function getDocSettingsAdmin(signal?: AbortSignal): Promise<{ activ
   return { active, versions: asArr(d.versions ?? d.items).map(versionOf).filter((v) => v.id) };
 }
 
-export async function getDocSettingsRuntime(signal?: AbortSignal): Promise<{ settings: DocSettings; version: number | null; settingsId: string }> {
+// What the signed-in user may use, per mode (contract 2026-10-26 §4); the
+// backend enforces it, the UI only follows it.
+export type DocAccess = { allowed: boolean; code: string; planId: string };
+const accessOf = (v: unknown): Record<string, DocAccess> =>
+  Object.fromEntries(
+    Object.entries(asDict(v)).map(([mode, x]) => {
+      const a = asDict(x);
+      return [mode, { allowed: a.allowed !== false, code: asStr(a.code), planId: asStr(a.plan_id) }];
+    }),
+  );
+
+export async function getDocSettingsRuntime(signal?: AbortSignal): Promise<{ settings: DocSettings; version: number | null; settingsId: string; access: Record<string, DocAccess> }> {
   const d = asDict(await http("/document-service-settings/runtime", { signal }));
   const n = Number(d.version);
-  return { settings: settingsOf(d.settings), version: Number.isFinite(n) ? n : null, settingsId: asStr(d.settings_id) };
+  return { settings: settingsOf(d.settings), version: Number.isFinite(n) ? n : null, settingsId: asStr(d.settings_id), access: accessOf(d.access) };
 }
 
 export async function createDocSettingsDraft(s: DocSettings): Promise<DocSettingsVersion> {
@@ -115,16 +126,20 @@ export function docSettingsIssues(s: DocSettings): Record<string, string> {
 
 // The runtime settings for client-side checks, read once per page load;
 // the backend's own validation stays final (2026-10-24 §9).
-let runtimeCache: Promise<DocSettings | null> | null = null;
-export function docRuntimeSettings(): Promise<DocSettings | null> {
-  runtimeCache ??= getDocSettingsRuntime().then(
-    (r) => r.settings,
-    () => {
-      runtimeCache = null;
-      return null;
-    },
-  );
+let runtimeCache: Promise<Awaited<ReturnType<typeof getDocSettingsRuntime>> | null> | null = null;
+function runtimeOnce() {
+  runtimeCache ??= getDocSettingsRuntime().catch(() => {
+    runtimeCache = null;
+    return null;
+  });
   return runtimeCache;
+}
+export function docRuntimeSettings(): Promise<DocSettings | null> {
+  return runtimeOnce().then((r) => r?.settings ?? null);
+}
+// This user's access to one mode; null when unknown (the backend decides).
+export function docModeAccess(mode: string): Promise<DocAccess | null> {
+  return runtimeOnce().then((r) => r?.access[mode] ?? null);
 }
 
 const MIME_OF: Record<string, string> = {
@@ -138,10 +153,12 @@ export const acceptFor = (formats: readonly string[]): string => formats.flatMap
 
 // The three free-form policy objects, in the shape Studio K26 gives them.
 // Unknown keys the backend may add are kept when a field is changed.
-export const REVIEWER_TYPES = ["lawyer", "advokat", "any"] as const;
-export type PlanRule = { required: boolean; planIds: string[]; entitlement: string };
+export const REVIEWER_TYPES = ["lawyer", "advokat", "yurist", "operator", "admin", "any"] as const;
+export type ModeRule = { required: boolean; planIds: string[]; entitlement: string };
+// The global rule, and per mode the rule that replaces it (per_mode).
+export type PlanRule = ModeRule & { perMode: Record<string, ModeRule> };
 export type ReviewRule = { enabled: boolean; reviewerType: string; slaMinutes: number | null };
-export type DownloadRule = { planRequired: boolean; formats: string[]; watermark: boolean };
+export type DownloadRule = { planRequired: boolean; planIds: string[]; entitlement: string; formats: string[]; watermark: boolean };
 
 const strList = (v: unknown): string[] => asArr(v).map((x) => asStr(x)).filter(Boolean);
 const posOrNull = (v: unknown): number | null => {
@@ -149,18 +166,37 @@ const posOrNull = (v: unknown): number | null => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-export const planRuleOf = (d: Dict): PlanRule => ({ required: d.required === true, planIds: strList(d.plan_ids), entitlement: asStr(d.entitlement) });
-export const planRuleBody = (d: Dict, r: PlanRule): Dict => ({ ...d, required: r.required, plan_ids: r.required ? r.planIds : [], entitlement: r.entitlement.trim() });
+const modeRuleOf = (d: Dict): ModeRule => ({ required: d.required === true, planIds: strList(d.plan_ids), entitlement: asStr(d.entitlement) });
+const modeRuleBody = (r: ModeRule): Dict => ({ required: r.required, plan_ids: r.required ? r.planIds : [], entitlement: r.required ? r.entitlement.trim() : "" });
+export const planRuleOf = (d: Dict): PlanRule => ({
+  ...modeRuleOf(d),
+  perMode: Object.fromEntries(Object.entries(asDict(d.per_mode)).map(([m, v]) => [m, modeRuleOf(asDict(v))])),
+});
+export const planRuleBody = (d: Dict, r: PlanRule): Dict => {
+  const out: Dict = { ...d, ...modeRuleBody(r) };
+  const per = Object.entries(r.perMode);
+  if (per.length) out.per_mode = Object.fromEntries(per.map(([m, x]) => [m, modeRuleBody(x)]));
+  else delete out.per_mode;
+  return out;
+};
 export const reviewRuleOf = (d: Dict): ReviewRule => ({ enabled: d.enabled === true, reviewerType: asStr(d.reviewer_type), slaMinutes: posOrNull(d.sla_minutes) });
 export const reviewRuleBody = (d: Dict, r: ReviewRule): Dict => ({ ...d, enabled: r.enabled, reviewer_type: r.reviewerType, sla_minutes: r.slaMinutes });
-export const downloadRuleOf = (d: Dict): DownloadRule => ({ planRequired: d.plan_required === true, formats: strList(d.formats), watermark: d.watermark === true });
-export const downloadRuleBody = (d: Dict, r: DownloadRule): Dict => ({ ...d, plan_required: r.planRequired, formats: r.formats, watermark: r.watermark });
+export const downloadRuleOf = (d: Dict): DownloadRule => ({ planRequired: d.plan_required === true, planIds: strList(d.plan_ids), entitlement: asStr(d.entitlement), formats: strList(d.formats), watermark: d.watermark === true });
+export const downloadRuleBody = (d: Dict, r: DownloadRule): Dict => ({
+  ...d,
+  plan_required: r.planRequired,
+  plan_ids: r.planRequired ? r.planIds : [],
+  entitlement: r.planRequired ? r.entitlement.trim() : "",
+  formats: r.formats,
+  watermark: r.watermark,
+});
 
 // Rules that would leave a service unusable, checked before the request.
 export function docPolicyIssues(s: DocSettings): Record<string, string> {
   const out: Record<string, string> = {};
   const plan = planRuleOf(s.planRequirements);
   if (plan.required && !plan.planIds.length && !plan.entitlement.trim()) out.plan = "pickPlan";
+  for (const [m, r] of Object.entries(plan.perMode)) if (r.required && !r.planIds.length && !r.entitlement.trim()) out[`plan_${m}`] = "pickPlan";
   const review = reviewRuleOf(s.reviewPolicy);
   if (review.enabled && !review.slaMinutes) out.sla = "sla";
   return out;

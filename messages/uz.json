@@ -16,7 +16,7 @@
       "k06": {"file":{"elsewhere":"Faylni shablonning to'liq sahifasida yuklaysiz.","pending":"Saqlashda yuklanadi","current":"Yuklangan fayl","remove":"Olib tashlash","replace":"Boshqa fayl tanlash","required":"Yuklash rejimida shablon fayli majburiy — faylni tanlang."},"alert":{"new":"Yuklash rejimi tanlangan: shablon faylini tanlang — u saqlashda yuklanadi.","text":"Yuklash rejimi tanlangan: yuborishdan oldin shablon faylini tanlang.","action":"Faylni tanlash"},"toast":{"uploadAfterCreate":"Shablon saqlandi, lekin fayl yuklanmadi. Faylni qayta tanlang."}},
       "doc": {"toolbar":"Matn formati","para":"Oddiy matn","ol":"Raqamli ro'yxat","quote":"Iqtibos","insert":"Maydon qo'yish","insertNone":"Avval to'ldiriladigan maydon qo'shing","used":"{n} ta maydon ishlatilgan","unknown":"Ro'yxatda yo'q: {list}","chars":"{n} belgi","placeholder":"Hujjat matnini yozing…"},
       "k10": {"field":{"holiday_id":"Tahrirlanadigan dam olish oralig'i","title":"Nomi","starts_on":"Boshlanish sanasi","duration_days":"Necha kun","range":"Dam olish oralig'i"},"help":{"holiday_id":"Mavjud oraliqni o'zgartirish uchun tanlang. Yangi oraliq uchun bo'sh qoldiring.","duration_days":"Birinchi kun ham hisoblanadi. Shanba va yakshanba har doim dam olish kuni."},"holidayLocked":"Bu yozuv tanlangan oraliqqa bog'langan, uni almashtirib bo'lmaydi.","ph":{"title":"Masalan: Yangi yil dam olish kunlari"},"daysSuffix":"kun"},
-      "mp09": {"packagesHelp":"Chegirma faqat shu paketlarga qo'llanadi.","stackHelp":"Bir paketga bir nechta aksiya to'g'ri kelsa, faqat eng katta chegirma beradigan bittasi qo'llanadi — chegirmalar qo'shilmaydi.","valuePercent":"Chegirma foizi","valueFixed":"Chegirma summasi","valueHelp":"Avval chegirma turini tanlang.","valuePercentHelp":"0 dan 100 gacha.","valueFixedHelp":"Paket narxidan ayiriladigan summa, so'mda.","startsHelp":"Aksiya shu vaqtdan boshlab amal qiladi.","endsHelp":"Tugash vaqti yoki xaridlar limitidan kamida bittasini kiriting.","limitHelp":"Shuncha xariddan keyin aksiya tugaydi. Xarid to'lov Telegramda tasdiqlanganda hisoblanadi, buyurtma ochilganda emas.", "targetsHelp": "Tanlangan turdagi paket yoki tariflar. Tur o'zgarsa, tanlov tozalanadi.", "usageHelp": "Aksiyadan necha marta foydalanish mumkin. Bo'sh qoldirilsa — cheklovsiz.", "bestHelp": "Bir vaqtda bir nechta aksiya bo'lsa, tizim mijoz uchun eng foydalisini qo'llaydi.", "pv": {"title": "Xaridor uchun natija", "untitled": "Nomsiz aksiya", "state": {"scheduled": "Hali boshlanmagan", "running": "Hozir amalda", "ended": "Muddati tugagan", "open": "Muddatsiz"}, "between": "{from} — {to}", "from": "{from} dan boshlab", "until": "{to} gacha", "noPeriod": "Muddat belgilanmagan", "limit": "{n} marta foydalanish mumkin", "noLimit": "Foydalanish soni cheklanmagan", "pick": "Aksiya turini va kamida bitta reklama paketi yoki tarifni tanlang — shu yerda har biri uchun yangi narx chiqadi.", "tableLabel": "Tanlangan paket va tariflar narxi", "colPackage": "Reklama paketi", "colPlan": "Tarif", "colPrice": "Hozirgi narx", "colFinal": "Aksiya bilan", "noPrice": "Narx yo'q", "free": "Bepul", "zero": "Chegirma narxdan katta: {names} bepulga tushadi. Narx hech qachon 0 so'mdan pastga tushmaydi.", "note": "Narxlar katalogdagi joriy narxdan hisoblandi. Allaqachon sotib olinganlar narxi o'zgarmaydi, yakuniy summani to'lov sahifasida backend hisoblaydi."}},
+      "mp09": {"packagesHelp":"Chegirma faqat shu paketlarga qo'llanadi.","stackHelp":"Bir paketga bir nechta aksiya to'g'ri kelsa, faqat eng katta chegirma beradigan bittasi qo'llanadi — chegirmalar qo'shilmaydi.","valuePercent":"Chegirma foizi","valueFixed":"Chegirma summasi","valueHelp":"Avval chegirma turini tanlang.","valuePercentHelp":"0 dan 100 gacha.","valueFixedHelp":"Paket narxidan ayiriladigan summa, so'mda.","startsHelp":"Aksiya shu vaqtdan boshlab amal qiladi.","endsHelp":"Tugash vaqti yoki xaridlar limitidan kamida bittasini kiriting.","limitHelp":"Shuncha xariddan keyin aksiya tugaydi. Xarid to'lov Telegramda tasdiqlanganda hisoblanadi, buyurtma ochilganda emas.", "targetsHelp": "Tanlangan turdagi paket yoki tariflar. Tur o'zgarsa, tanlov tozalanadi.", "usageHelp": "Aksiyadan necha marta foydalanish mumkin. Bo'sh qoldirilsa — cheklovsiz.", "bestHelp": "Bir vaqtda bir nechta aksiya bo'lsa, tizim mijoz uchun eng foydalisini qo'llaydi.", "pv": {"title": "Xaridor uchun natija", "untitled": "Nomsiz aksiya", "state": {"scheduled": "Hali boshlanmagan", "running": "Hozir amalda", "ended": "Muddati tugagan", "open": "Muddatsiz"}, "between": "{from} — {to}", "from": "{from} dan boshlab", "until": "{to} gacha", "noPeriod": "Muddat belgilanmagan", "limit": "{n} marta foydalanish mumkin", "noLimit": "Foydalanish soni cheklanmagan", "pick": "Aksiya turini va kamida bitta reklama paketi yoki tarifni tanlang — shu yerda har biri uchun yangi narx chiqadi.", "tableLabel": "Tanlangan paket va tariflar narxi", "colPackage": "Reklama paketi", "colPlan": "Tarif", "colPrice": "Hozirgi narx", "colFinal": "Aksiya bilan", "noPrice": "Narx yo'q", "free": "Bepul", "zero": "Chegirma narxdan katta: {names} bepulga tushadi. Narx hech qachon 0 so'mdan pastga tushmaydi.", "note": "Narxlarni tizim hisobladi. Allaqachon sotib olinganlar narxi o'zgarmaydi.", "failed": "Narxlarni hisoblab bo'lmadi.", "retry": "Qayta urinish", "warn": {"target_not_found": "«{name}» topilmadi — ro'yxatdan olib tashlang.", "target_type_invalid": "Tanlangan paket yoki tarif aksiya turiga mos emas.", "final_price_zero": "«{name}» bepulga tushadi — chegirma narxdan katta."}}},
       "k02": {"ra":{"intro": "Har bir qoida o‘z auditoriyasi bilan saqlanadi. Ijrochi qoidalari faqat advokat va yuristlarga, mijoz qoidalari faqat mijozlarga ko‘rsatiladi — ular hech qachon aralashmaydi.", "count": "{n} ta qoida", "stages": "Qachon ko‘rsatiladi", "stage": {"activation": "Xizmatni faollashtirishda", "purchase": "Sotib olishdan oldin", "work": "Ish jarayonida"}, "shared": "Umumiy qoidalar kutubxonasidan", "own": "Faqat shu xizmat uchun", "remove": "{n}-qoidani olib tashlash", "executor": {"title": "Ijrochi qoidalari", "lead": "Advokat va yuristlar xizmatni faollashtirishda qabul qiladi va ish davomida ko‘radi.", "shared": "Ijrochi uchun umumiy qoidalar", "pick": "Ijrochi qoidasini tanlang", "addShared": "Yangi ijrochi qoidasi", "bodyPh": "Masalan: mijoz ma’lumotlarini uchinchi shaxslarga oshkor qilmang.", "empty": "Shu xizmatga xos ijrochi qoidasi yo‘q.", "add": "Ijrochi qoidasini qo‘shish"}, "client": {"title": "Mijoz qoidalari", "lead": "Mijoz xizmatni sotib olishdan oldin ko‘radi va buyurtma bajarilayotganda ham ko‘rib turadi.", "shared": "Mijoz uchun umumiy qoidalar", "pick": "Mijoz qoidasini tanlang", "addShared": "Yangi mijoz qoidasi", "bodyPh": "Masalan: hujjatlarni ish boshlangandan keyin 2 kun ichida yuboring.", "empty": "Shu xizmatga xos mijoz qoidasi yo‘q.", "add": "Mijoz qoidasini qo‘shish"}},"tpl": {"pendingNote": "Bu shablon hali tasdiqlanmagan. Xizmat e'lon qilinganda u ham birga e'lon qilinadi.", "helpPick": "Katalogdan tayyor shablonni tanlang. Shablon kerak bo'lmasa, «Shablon kerak emas»ni yoqing.", "needLabel": "Shablon qanchalik zarur", "help":"Katalogdan tayyor shablonni tanlang yoki yangisini yuklang. Shablon kerak bo'lmasa, «Shablon kerak emas»ni yoqing.","pick":"Shablonni tanlang yoki yuklang","pickPh":"Katalogdan tanlang","upload":"Yangi shablon yuklash","skip":"Shablon kerak emas","skipHelp":"Yoqilsa, xizmat hujjat shablonisiz ishlaydi va shablon so'ralmaydi.","skipOn":"Bu xizmatga hujjat shabloni kerak emas.","noService":"Yangi shablonni yuklash xizmat e'lon qilingandan keyin ochiladi. Hozircha katalogdan tanlang yoki «Shablon kerak emas»ni yoqing."}, "iq": {"placeholder": "Javob maydonidagi maslahat", "placeholderPh": "Masalan: Shartnoma raqami va sanasini yozing", "placeholderHelp": "Mijoz javob yozadigan maydonda och rangda ko'rinadi.", "add":"Savol qo'shish","empty":"Hali savol yo'q. Ijrochiga ish boshlash uchun nima kerakligini so'rang.","question":"Savol matni","questionPh":"Masalan: Shartnoma qaysi davlat qonunlariga bo'ysunadi?","type":"Javob turi","required":"Javob majburiy","requiredHelp":"Yoqilsa, mijoz javob bermasdan buyurtma bera olmaydi.","choices":"Javob variantlari","choicesHelp":"Mijoz shu variantlardan tanlaydi. Kamida ikkita variant kiriting.","addChoice":"Variant qo'shish"}, "help":{"intake_questions": "Mijoz buyurtma berayotganda shu savollarga javob beradi. Tartibni sudrab o'zgartiring.", "service_terms_text": "Faqat shu xizmatga tegishli shartlar. Umumiy shartlar «Xizmat shartlari» bo'limida yuritiladi.", "duration_calendar":"Muddat xizmat ko'rilgan yoki sotib olingan paytdan emas, ijrochi ishni boshlagan paytdan hisoblanadi.","price_factor_overrides":"Umumiy qiymat qoldirilsa, omil hamma xizmatlarda bir xil ishlaydi. O'z qiymatingiz faqat shu xizmatga ta'sir qiladi, umumiy omil o'zgarmaydi.","completion_checklist":"Ijrochi ishni topshirishdan oldin har bir bandni bajaradi. Buyurtma boshlanganda ro'yxat unga qotiriladi.","checklist_legacy":"Bu xizmat avval tayyor ro'yxatga bog'langan. Yangi bandlarni yuqorida qo'shing.","rule_ids":"Tasdiqlangan, bir nechta xizmatga qo'llanadigan qoidalar. Nomi bo'yicha qidiring.","inline_rules":"Bu qoidalar faqat shu xizmatda ko'rinadi va umumiy ro'yxatga qo'shilmaydi.","guarantee_ids":"Tasdiqlangan mijoz kafolatlari. Nomi bo'yicha qidiring.","inline_guarantees":"Bu kafolatlar faqat shu xizmat sahifasida ko'rinadi va umumiy ro'yxatga qo'shilmaydi."},"field":{"intake_questions": "Mijozga beriladigan savollar", "service_terms_text": "Shu xizmat shartlari", "price_factor_overrides":"Shu xizmat uchun qiymat","completion_checklist":"Ushbu xizmat doirasida bajariladigan vazifalar ro'yxati","checklist_legacy":"Avvalgi vazifalar ro'yxati (eski shablon)","rule_ids":"Umumiy qoidalar","inline_rules":"Faqat shu xizmat uchun qoidalar","guarantee_ids":"Umumiy kafolatlar","inline_guarantees":"Faqat shu xizmat uchun kafolatlar"},"fo":{"nth":"{n}-omil:","effective":"Shu xizmatda","pending":"Tasdiq kutilmoqda","missing":"Omil topilmadi — o'chirilgan bo'lishi mumkin","typeUnknown":"Turi noma'lum","t": {"effective":"Shu tarifda","modeLabel":"{name}: shu tarifda qanday hisoblanadi","own":"Shu tarifda: {value}","valueLabel":"{name}: shu tarif uchun qiymat"}, "p": {"effective":"Shu paketda","modeLabel":"{name}: shu paketda qanday hisoblanadi","own":"Shu paketda: {value}","valueLabel":"{name}: shu paket uchun qiymat"}, "listLabel":"Tanlangan narx omillari","shared":"Umumiy qiymat","fixed":"So'm","percent":"Foiz","modeLabel":"{name}: shu xizmatda qanday hisoblanadi","sharedIs":"Umumiy: {value}","sharedUnknown":"Umumiy qiymat","usesShared":"Umumiy qiymat ishlatiladi","own":"Shu xizmatda: {value}","valueLabel":"{name}: shu xizmat uchun qiymat","percentHint":"0–100","editShared":"Umumiy omilni o'zgartirish","editSharedOf":"Umumiy omilni o'zgartirish: {name}","addShared":"Yangi umumiy omil"},"cl":{"voicePerformer": "Ijrochi uchun", "voiceClient": "Mijoz uchun", "execTitle": "Band nomi (ijrochi)", "execTitlePh": "Masalan: Mijozning pasportini tekshiring", "execDesc": "Ko'rsatma (ijrochi)", "execDescPh": "Masalan: Pasport muddati va F.I.Sh.ni shartnoma bilan solishtiring", "clientTitle": "Band nomi (mijoz)", "clientTitleHelp": "Bo'sh qolsa, mijozga ijrochi uchun yozilgan nom ko'rsatiladi.", "clientTitlePh": "Masalan: Pasport tekshirildi", "clientDesc": "Izoh (mijoz)", "clientDescPh": "Masalan: Advokat yuborgan hujjatingizni tekshiradi", "showToClient": "Mijozga ko'rinsin", "showOf": "{method} mijozga ko'rinsin", "add": "Band qo'shish", "empty": "Hali band yo'q. Ijrochi nimalarni bajarishi kerakligini qo'shing.", "rowName": "band", "required": "Majburiy band", "requiredHelp": "Majburiy bandni bajarmasdan yoki sababini yozmasdan ishni yakunlab bo'lmaydi.", "methods": "Qanday tasdiqlanadi", "methodsHelp": "Belgilash har doim bor. Qo'shimcha dalil kerak bo'lsa, izoh, rasm yoki faylni yoqing va kerak bo'lsa majburiy qiling.", "m": {"checkbox": "Belgilash", "comment": "Izoh", "image": "Rasm", "file": "Fayl"}, "md": {"comment": "Ijrochi matn yozadi", "image": "Ijrochi rasm yuklaydi", "file": "Ijrochi hujjat yuklaydi"}, "locked": "Asosiy usul, o'chirib bo'lmaydi", "always": "Har doim yoqilgan", "mustHave": "Majburiy", "mustOf": "{method} majburiy", "mustOff": "Avval usulni yoqing", "metaRequired": "Majburiy", "metaOptional": "Ixtiyoriy", "metaMust": "{method} (majburiy)"},"rules":{"add":"Qoida qo'shish","empty":"Faqat shu xizmatga tegishli qoida yo'q.","addShared":"Yangi umumiy qoida"},"guarantees":{"add":"Kafolat qo'shish","empty":"Faqat shu xizmatga tegishli kafolat yo'q.","addShared":"Yangi umumiy kafolat"},"f":{"inlineTitle":"Nomi","inlineBody":"Matni","inlineDescription":"Mazmuni"},"ph":{"ruleTitle":"Masalan: Maxfiylik","ruleBody":"Masalan: Mijoz ma'lumotlari maxfiy saqlanadi.","guaranteeTitle":"Masalan: Bepul qayta ko'rib chiqish","guaranteeBody":"Masalan: Natija bir marta bepul qayta ko'rib chiqiladi."}},
       "k02t": {"suggest":"AI bilan taklif olish","need":"Avval nomi va tavsifini yozing","busy":"AI so'zlarni tanlamoqda…","title":"AI takliflari","lead":"Keraklilarini belgilang va qo'shing. Hech narsa o'zi saqlanmaydi.","lang":{"uz_latn":"O'zbekcha (lotin)","uz_cyrl":"O'zbekcha (kirill)","ru":"Ruscha","other":"Boshqa"},"selectAll":"Hammasini belgilash","clear":"Belgilarni olib tashlash","addSelected":"Belgilanganlarni qo'shish ({n})","added":"{n} ta so'z qo'shildi","none":"Yangi taklif yo'q: hammasi ro'yxatda bor.","dismiss":"Yopish","err":{"context":"Taklif olish uchun xizmat nomi va tavsifi kerak.","unavailable":"AI hozir ulanmagan. So'zlarni qo'lda yozing.","failed":"AI javob bermadi. Birozdan keyin qayta urinib ko'ring.","invalid":"AI tushunarsiz javob qaytardi. Qayta urinib ko'ring.","empty":"AI mos so'z topa olmadi. Tavsifni to'ldirib, qayta urinib ko'ring.","other":"Takliflar olinmadi."}},
       "inline": {"add":{"template": "Yangi shablon yuklash", "factor":"Yangi omil","rule":"Yangi qoida","guarantee":"Yangi kafolat","checklist":"Yangi ro'yxat"},"newTitle":{"template": "Yangi hujjat shabloni", "factor":"Yangi narx omili","rule":"Yangi xizmat qoidasi","guarantee":"Yangi mijoz kafolati","checklist":"Yangi vazifalar ro'yxati"},"editTitle":{"template": "Shablonni o'zgartirish", "factor":"Narx omilini o'zgartirish","rule":"Qoidani o'zgartirish","guarantee":"Kafolatni o'zgartirish","checklist":"Vazifalar ro'yxatini o'zgartirish"},"empty":{"template": "Hali hujjat shabloni yo'q.", "factor":"Hali narx omili yo'q.","rule":"Bu xizmatga hali birorta qoida qo'llanmaydi.","guarantee":"Hali mijoz kafolati yo'q.","checklist":"Hali vazifalar ro'yxati yo'q."},"listLabel":{"rule":"Qo'llanadigan qoidalar","guarantee":"E'lon qilingan kafolatlar"},"openFull":"To'liq sahifada ochish","lead":{"new":"To'ldiring va tasdiqlashga yuboring. Tasdiqlanib e'lon qilingach, shu maydonda o'zi tanlanadi.","edit":"O'zgarish tasdiqlangandan keyin kuchga kiradi. Ungacha hozirgi versiya ishlayveradi.","object":"Qoralamani tugating va tasdiqlashga yuboring.","newList":"To'ldiring va tasdiqlashga yuboring. E'lon qilingach, shu ro'yxatda chiqadi."},"state":{"submitted":"Tasdiqlashda","submittedEdit":"O'zgarish tasdiqlashda","draft":"Qoralama","draftEdit":"O'zgarish qoralamada","returned":"Qaytarildi","returnedEdit":"O'zgarish qaytarildi","approved":"E'lon kutilmoqda","approvedEdit":"O'zgarish e'lon kutmoqda"},"continue":"Davom ettirish","continueOf":"«{name}» ustida ishlashni davom ettirish","openOf":"«{name}» yozuvini yangi oynada ochish","edit":"O'zgartirish","editOf":"O'zgartirish: {name}","addQuery":"{add}: «{q}»","pendingList":"Tasdiqlashdagi yozuvlar","toast":{"pendingSelected": "«{name}» tanlandi. Xizmat e'lon qilinganda u ham birga e'lon qilinadi.", "published":"«{name}» e'lon qilindi — endi ro'yxatdan tanlash mumkin","selected":"«{name}» e'lon qilindi va tanlandi","updated":"«{name}» o'zgarishi e'lon qilindi","panelPublished":"«{name}» e'lon qilindi"},"rules":{"thisService":"shu xizmat","lead":"Qoidalar xizmatga o'zi qo'llanadi: umumiy qoidalar va «{category}» kategoriyasining qoidalari.","leadGlobal":"Qoidalar xizmatga o'zi qo'llanadi. Kategoriya hali tanlanmagan, shuning uchun faqat umumiy qoidalar ko'rsatildi.","leadService":"Qoidalar xizmatga o'zi qo'llanadi: umumiy qoidalar, «{category}» kategoriyasining qoidalari va faqat shu xizmat uchun yozilgan qoidalar.","leadGlobalService":"Qoidalar xizmatga o'zi qo'llanadi. Kategoriya hali tanlanmagan, shuning uchun umumiy qoidalar va faqat shu xizmat uchun yozilgan qoidalar ko'rsatildi."},"guarantees":{"lead":"E'lon qilingan mijoz kafolatlari. Keraklisini shu yerda o'zgartiring yoki yangisini qo'shing."},"editKeyHint":"Belgilangan qatorni o'zgartirish","editKeyHintSr":"Belgilangan qatorni o'zgartirish uchun F2 tugmasini bosing."},
@@ -4927,7 +4927,9 @@
         "service_id_not_allowed": "Profil yoki banner targ'ibiga xizmat biriktirib bo'lmaydi.",
         "promotion_days_invalid": "Targ'ib muddati paket qoidasiga mos emas.",
         "promotion_seller_not_verified": "Targ'ib faqat faol va tasdiqlangan mutaxassis uchun ochiladi.",
-        "promotion_placement_invalid": "Targ'ib turi noto'g'ri. Sahifani yangilab, qayta urinib ko'ring."
+        "promotion_placement_invalid": "Targ'ib turi noto'g'ri. Sahifani yangilab, qayta urinib ko'ring.",
+        "marketplace_advertising_not_active": "Reklama sotuvi hozircha yopiq — LexGo uni bozor shartlari bajarilgach ochadi. Keyinroq urinib ko'ring.",
+        "marketplace_advertising_not_ready": "Reklama sotuvi vaqtincha to'xtatildi: bozor shartlari hozir bajarilmayapti. Keyinroq urinib ko'ring."
       },
       "previewSeller": "Sizning profilingiz",
       "previewTop": "Top",
@@ -7063,7 +7065,9 @@
           "other": "Shikoyat bo'yicha qaror chiqdi",
           "otherText": "buyurtmani oching."
         }
-      }
+      },
+      "redone": "Ish qayta topshirildi",
+      "redoneText": "Ijrochi ishni qayta bajardi. Natijani ko'ring — baho va shikoyat uchun yana 15 daqiqa bor."
     },
     "priceOptions": {
       "title": "Qo'shimcha opsiyalar",
@@ -7254,7 +7258,11 @@
       "note": "Call-markaz izohi",
       "decidedAt": "Qaror: {date}",
       "payoutHeld": "Yakuniy to'lov ish qayta bajarilguncha ushlab turiladi",
-      "refundNote": "Ijrochiga to'lov ish qayta bajarilguncha o'tkazilmaydi"
+      "refundNote": "Ijrochiga to'lov ish qayta bajarilguncha o'tkazilmaydi",
+      "due": "Qayta bajarish muddati: {date}",
+      "left": "{h} soat {m} daqiqa qoldi",
+      "overdue": "muddat o'tdi",
+      "iteration": "{n}-marta qayta ochilgan"
     }
   },
   "common": {"privateField":{"tag": "Yopiq", "hint": "Faqat siz va LexGo tekshiruvchilari ko‘radi — mijozlar va ochiq profil sahifasida ko‘rinmaydi."},
@@ -10812,7 +10820,9 @@
         "quoteAiIncluded": "Sun'iy intellekt tahlili ({n} sahifa)",
         "quoteIncluded": "Obunaga kiradi",
         "quoteWritten": "Yozma xulosa",
-        "fileTypeOf": "Bu fayl turi qabul qilinmaydi. Ruxsat etilgan: {list}."
+        "fileTypeOf": "Bu fayl turi qabul qilinmaydi. Ruxsat etilgan: {list}.",
+        "modeOff": "Hujjat tahlili hozir o'chirilgan",
+        "modeOffText": "LexGo bu xizmatni vaqtincha to'xtatgan. Keyinroq qayta urinib ko'ring yoki yordamga yozing."
       },
       "matches": {
         "title": "Siz uchun mos advokat va yuristlar",
@@ -14136,7 +14146,10 @@
       "close": "Yopish",
       "error": "So'rovni yuborib bo'lmadi",
       "periodRefused": "Bu paket tanlangan muddatni qabul qilmaydi. Mavjud muddatlar qoldirildi.",
-      "notDelivered": "So'rov yaratildi, lekin Telegramga yetkazib bo'lmadi. Administrator bilan bog'laning."
+      "notDelivered": "So'rov yaratildi, lekin Telegramga yetkazib bo'lmadi. Administrator bilan bog'laning.",
+      "promo": "Aksiya",
+      "promoUntil": "{date} gacha amal qiladi",
+      "amountPromo": "To'lov ({title} bilan)"
     },
     "otherSubtitle": "Platformadagi qolgan barcha obunalar. Sovg'a tariflari faqat «Sovg'alar» bo'limida sotiladi.",
     "otherTitle": "Boshqa tariflar",
@@ -14283,6 +14296,11 @@
     },
     "personal": {
       "title": "Shaxsiy advokatim"
+    },
+    "promo": {
+      "chip": "Aksiya −{amount}",
+      "note": "{title}: {amount} ({was} o'rniga)",
+      "title": "Aksiya"
     }
   },
   "promotion": {
@@ -18480,8 +18498,8 @@
     },
     "monitoring": {"title": "Monitoring", "lead": "Server, so'rovlar, foydalanuvchilar va integratsiyalar holati. Yangilanishlar real vaqtda keladi.", "live": "Jonli yangilanish", "reconnecting": "Qayta ulanmoqda…", "offline": "Jonli ulanish yo'q", "range": "Davr", "ranges": {"15m": "So'nggi 15 daqiqa", "1h": "So'nggi soat", "24h": "So'nggi 24 soat", "7d": "So'nggi 7 kun", "custom": "Tanlangan davr"}, "refresh": "Yangilash", "refreshing": "Yangilanmoqda…", "snapshot": "Snapshot olish", "snapRunning": "Olinmoqda…", "snapDone": "Snapshot saqlandi.", "snapBusy": "Hozir boshqa server ma'lumot yig'moqda — keyinroq urinib ko'ring.", "snapFailed": "Snapshot olib bo'lmadi.", "updatedAt": "Yangilandi: {time}", "incident": "Nosozlik", "acknowledge": "Ko'rib chiqildi", "cpu": "Protsessor", "cores": "{n} yadro", "memory": "Xotira", "disk": "Disk", "requests": "So'rovlar", "errors": "Xatolar: {n} ({rate})", "users": "Faol foydalanuvchilar", "usersTotal": "Jami: {n}", "realtime": "WebSocket ulanishlar", "realtimeSub": "Onlayn: {online} · kanallar: {channels}", "integrations": "Integratsiyalar", "graphLabel": "Integratsiyalar xaritasi", "noGraph": "Xarita ma'lumoti yo'q", "col": {"uptime": "Ishlash vaqti", "lastSuccess": "Oxirgi muvaffaqiyat", "lastError": "Oxirgi xato", "backlog": "Navbat", "dependencies": "Bog'liqlar", "name": "Xizmat", "status": "Holat", "latency": "Kechikish", "configured": "Sozlangan", "checked": "Tekshirilgan"}, "yes": "Ha", "no": "Yo'q", "close": "Yopish", "detailFailed": "Batafsil ma'lumotni yuklab bo'lmadi.", "history": "Tarix", "noHistory": "Tanlangan davrda yozuv yo'q.", "snapshotRow": "Snapshot · CPU {cpu} · xotira {memory}", "retention": "Snapshotlar {days} kun, nosozliklar {years} yil saqlanadi.", "forbidden": "Ruxsat yo'q", "forbiddenText": "Monitoringni ko'rish uchun administrator huquqi kerak.", "error": "Monitoringni yuklab bo'lmadi", "errorText": "Qayta urinib ko'ring.", "retry": "Qayta urinish", "keys": {"database": "Ma'lumotlar bazasi", "redis": "Redis", "openai": "OpenAI", "livekit": "LiveKit (qo'ng'iroqlar)", "onlyoffice": "OnlyOffice (hujjatlar)", "telegram": "Telegram", "push": "Push-bildirishnomalar", "payme": "Payme", "click": "Click", "atmos": "Atmos", "api": "LexGo API"}, "status": {"healthy": "Ishlayapti", "configured": "Sozlangan", "degraded": "Sekinlashgan", "down": "Ishlamayapti", "error": "Xato", "failed": "Xato", "unhealthy": "Nosoz", "disabled": "O'chirilgan", "not_configured": "Sozlanmagan", "unknown": "Noma'lum", "pending": "Kutilmoqda", "configured_not_verified": "Sozlangan, tekshirilmagan", "not_verified": "Tekshirilmagan", "verified": "Tekshirilgan", "ok": "Ishlayapti", "offline": "Aloqa yo'q", "connected": "Ulangan", "partial": "Qisman ishlayapti"}, "tone": {"ok": "Ishlayapti", "info": "Sozlangan", "warn": "E'tibor talab", "bad": "Nosoz", "off": "O'chiq"}, "thresholds": "Chegaralar", "thresholdsLead": "Ogohlantirish chegaralari (shu brauzerda saqlanadi)", "thresholdsReset": "Standartga qaytarish", "limit": {"cpu": "Protsessor", "memory": "Xotira", "disk": "Disk", "errors": "Xatolar ulushi"}, "overLimit": "Chegaradan oshdi", "usersToday": "Bugun: {n}", "rps": "So'rov/soniya", "statusCodes": "4xx: {c4} · 5xx: {c5}", "latency": "Kechikish p95", "latencySub": "p50 {p50} · p99 {p99}", "network": "Tarmoq (kirish)", "networkOut": "Chiqish: {tx}", "db": "DB ulanishlari", "slowQueries": "Sekin so'rovlar: {n}", "queue": "Navbatdagi ishlar", "failedJobs": "Xato bilan tugagan: {n}", "byRole": "Rollar bo'yicha", "serviceSearch": "Xizmatni qidirish", "serviceFilter": "Xizmat holati", "filterAll": "Hammasi", "filterProblems": "Muammoli", "dateFrom": "Boshlanish sanasi", "dateTo": "Tugash sanasi", "historyType": "Tarix turi", "historyAll": "Hammasi", "historySnapshots": "Snapshotlar", "historyIncidents": "Nosozliklar", "downloadCsv": "CSV yuklab olish", "trend": "Protsessor (ko'k) va xotira (yashil) yuklamasi", "showMore": "Yana ko'rsatish", "uptimeLoaded": "{n}% (oxirgi {count} ta snapshot)", "nodeHistory": "Holat tarixi", "prevPage": "Oldingi", "nextPage": "Keyingi", "pageOf": "{from}–{to} / {total}", "exportStart": "Excel'ga eksport", "exportRunning": "Tayyorlanmoqda… {pct}%", "exportDownload": "Excel'ni yuklab olish ({n} qator)", "exportFailed": "Eksport qilib bo'lmadi.", "exportExpired": "Eksport fayli muddati o'tgan (24 soat). Qaytadan eksport qiling.", "checkNow": "Hozir tekshirish", "checking": "Tekshirilmoqda…"},
     "tariffs": {"registry": "Tarif imkoniyatlari", "versions": "Versiyalar", "versionsOf": "«{name}» versiyalari", "versionN": "{n}-versiya", "current": "Joriy", "publishedAt": "E'lon qilingan: {date}", "createdAt": "Yaratilgan: {date}", "status": {"draft": "Qoralama", "published": "E'lon qilingan", "superseded": "Almashtirilgan", "archived": "Arxivda"}, "checkOk": "Tekshiruvdan o'tdi — e'lon qilish mumkin.", "checkFailed": "Tekshiruvdan o'tmadi.", "edit": "Tahrirlash", "validate": "Tekshirish", "checking": "Tekshirilmoqda…", "publish": "E'lon qilish", "publishing": "E'lon qilinmoqda…", "publishNeedsCheck": "Avval tekshiruvdan o'tkazing", "published": "Versiya e'lon qilindi. Oldingi versiya almashtirildi, mavjud obunachilar shartnomasi yangilanishgacha o'zgarmaydi.", "archive": "Arxivga", "readOnly": "Faqat ko'rish uchun.", "readOnlyCurrent": "Joriy versiya. E'lon qilingan versiyani o'zgartirib bo'lmaydi — yangi qoralama yarating.", "noVersions": "Bu tarifning versiyalari hali yo'q (versiyalashdan oldin yaratilgan). Birinchi versiyani Studio'dagi «Tarif va imkoniyatlar» orqali yarating.", "openStudio": "Studio'da ochish", "newDraft": "Joriy versiyadan yangi qoralama", "creating": "Yaratilmoqda…", "editTitle": "{n}-versiya qoralamasi", "prices": "Narxlar", "price": {"monthly": "Oylik", "six_month": "6 oylik", "yearly": "Yillik", "prepaid_yearly": "Yillik (oldindan)"}, "sales": "Sotuv holati", "salesStatus": {"active": "Sotuvda", "hidden": "Yashirin", "archived": "Arxivda"}, "entitlements": "Imkoniyatlar", "noEntitlements": "Imkoniyat qo'shilmagan.", "feature": "Imkoniyat", "pickFeature": "Imkoniyatni tanlang", "modeLabel": "Rejim", "mode": {"unavailable": "Mavjud emas", "limited": "Cheklangan", "unlimited": "Cheksiz"}, "limit": "Limit", "resetLabel": "Yangilanish davri", "pickReset": "Davr", "reset": {"day": "Har kuni", "month": "Har oy", "billing_period": "To'lov davri", "lifetime": "Butun muddat"}, "removeRow": "Qatorni o'chirish", "addRow": "Imkoniyat qo'shish", "issue": {"feature": "Imkoniyatni tanlang", "duplicate": "Bu imkoniyat allaqachon bor", "limit": "Musbat limit kiriting", "reset": "Bu imkoniyat uchun ruxsat etilmagan davr"}, "cancel": "Bekor qilish", "saving": "Saqlanmoqda…", "saveDraft": "Qoralamani saqlash", "saveFailed": "Saqlab bo'lmadi.", "immutable": "Bu versiya e'lon qilingan va o'zgartirib bo'lmaydi. Yangi qoralama yarating.", "cantArchiveCurrent": "Joriy versiyani arxivlab bo'lmaydi — avval o'rniga boshqasini e'lon qiling.", "actionFailed": "Amalni bajarib bo'lmadi.", "loadFailed": "Ma'lumotni yuklab bo'lmadi.", "featureTitle": "Nomi", "featureKey": "Kalit", "unit": "Birlik", "unitPh": "Masalan: so'rov, hujjat", "resets": "Yangilanish davrlari", "description": "Tavsif", "addFeature": "Imkoniyat qo'shish", "featureAdded": "Imkoniyat qo'shildi.", "keyTaken": "Bu kalit band — boshqasini tanlang.", "keyFormat": "Kichik lotin harflari, raqamlar, nuqta va pastki chiziq.", "keyHint": "Masalan: ai.document_generation. Keyin o'zgarmaydi.", "preview": {"show": "O'zgarishlarni ko'rish", "hide": "Yashirish", "title": "Nashr qilinsa nima o'zgaradi", "failed": "O'zgarishlarni yuklab bo'lmadi.", "subscribers": "Faol obunachi", "pricesChanged": "Narx o'zgarishi", "featuresChanged": "Imkoniyat (+/−)", "fieldsChanged": "Maydon o'zgarishi", "appliesNext": "Amaldagi obunachilarga keyingi yangilanishda qo'llanadi.", "appliesNow": "Amaldagi obunachilarga darhol qo'llanadi.", "appliesNew": "Faqat yangi obunalarga qo'llanadi.", "consent": "Yangilashdan oldin mijozdan rozilik so'raladi.", "immutable": "Amaldagi shartnoma davri oxirigacha o'zgarmaydi.", "nothing": "Joriy versiyadan farq yo'q.", "period": "Davr", "before": "Avval", "after": "Keyin", "difference": "Farq", "som": "so'm", "added": "Qo'shiladi", "changed": "O'zgaradi", "removed": "Olib tashlanadi", "fieldsTitle": "Boshqa o'zgarishlar ({n})", "field": {"title": "Nomi", "description": "Tavsif", "audiences": "Auditoriya", "is_free": "Bepul", "is_active": "Faol", "trial": "Sinov muddati", "auto_renew": "Avtomatik uzaytirish", "renewal_consent_required_on_change": "O'zgarishda rozilik so'rash", "is_giftable": "Sovg'a qilish mumkin", "sales_status": "Sotuv holati", "duration": "Muddat", "billing_type": "To'lov turi"}}},
-    "adsReadiness": {"title": "Reklama sotuviga tayyorlik", "ready": "Sotuv ochiq", "testOnly": "Faqat admin va test rejimi", "readyText": "Bozor shartlari bajarildi — reklama sotilishi mumkin.", "testOnlyText": "Shartlar bajarilmaguncha reklama faqat admin va test rejimida ishlaydi; test xaridlari analitikaga qo'shilmaydi.", "clients": "Ro'yxatdan o'tgan mijozlar", "sellers": "Real baholangan, tasdiqlangan mutaxassislar", "of": "{current} / {required}", "met": "Bajarildi", "missing": "Yana {n} kerak", "premium": "Premium joylashuv uchun real reyting kamida {n} bo'lishi kerak."},
-    "docSettings": {"title": "Hujjat xizmatlari sozlamalari", "lead": "Barcha hujjat xizmatlari uchun umumiy qoidalar: fayl turlari, hajm, bepul sahifalar va narx. O'zgarish yangi versiya sifatida tayyorlanadi va nashr qilingach ishlaydi; avvalgi buyurtmalar o'z shartlarida qoladi.", "refresh": "Yangilash", "activeN": "Faol: v{n}", "defaults": "Standart qiymatlar", "defaultsHint": "Hali versiya nashr qilinmagan — tizim standart qiymatlarda ishlayapti.", "now": "Hozir ishlayotgan qoidalar", "newVersion": "Yangi versiya tayyorlash", "snapshotNote": "Har bir buyurtma yaratilgan paytdagi qoidalar bilan saqlanadi.", "history": "Versiyalar tarixi", "noVersions": "Hali versiya yo'q", "noVersionsText": "Birinchi versiyani tayyorlang va nashr qiling.", "versionN": "Versiya {n}", "publishedAt": "Nashr: {date}", "createdAt": "Yaratilgan: {date}", "show": "Qoidalarni ko'rish", "publish": "Nashr qilish", "rollback": "Shu versiyaga qaytish", "confirmPublish": "Versiya {n} ni nashr qilasizmi?", "confirmRollback": "Versiya {n} ga qaytasizmi?", "publishText": "Nashr qilingach yangi buyurtmalar shu qoidalar bilan yaratiladi. Avvalgi buyurtmalar o'zgarmaydi.", "rollbackText": "Shu versiya yana faol bo'ladi. Avvalgi buyurtmalar o'z shartlarida qoladi.", "published": "Versiya {n} nashr qilindi.", "rolledBack": "Versiya {n} qayta faollashtirildi.", "draftSaved": "Qoralama saqlandi (v{n}). Endi uni nashr qilishingiz mumkin.", "actionFailed": "Amalni bajarib bo'lmadi.", "loadFailed": "Sozlamalarni yuklab bo'lmadi.", "noAccess": "Bu bo'lim sizga ochilmagan", "working": "Bajarilmoqda…", "cancel": "Bekor qilish", "saving": "Saqlanmoqda…", "saveDraft": "Qoralama sifatida saqlash", "saveFailed": "Qoralamani saqlab bo'lmadi.", "editTitle": "Yangi versiya", "formats": "Ruxsat etilgan formatlar", "maxFile": "Fayl hajmi chegarasi", "maxFileHint": "1–500 MB", "mb": "{n} MB", "includedPages": "Narxga kiritilgan sahifalar", "includedHint": "1–1000 sahifa", "pages": "{n} sahifa", "extraPage": "Qo'shimcha sahifa narxi", "som": "so'm", "modes": "Xizmat turlari", "tiers": "Sahifa soni bo'yicha narx", "noTiers": "Pog'onali narx yo'q", "tierFrom": "{from} sahifadan", "tierRange": "{from}–{to} sahifa", "tierMin": "Dan (sahifa)", "tierMax": "Gacha (sahifa)", "tierOpen": "chegarasiz", "tierAmount": "Narx (so'm)", "addTier": "Pog'ona qo'shish", "removeTier": "Pog'onani olib tashlash", "mode": {"manual": "Shablon bo'yicha to'ldirish", "lawyer": "Advokat tayyorlaydi", "review": "Hujjatni tekshirish", "analysis": "Hujjat tahlili"}, "status": {"draft": "Qoralama", "published": "Nashr qilingan", "superseded": "Almashtirilgan", "archived": "Arxivlangan", "active": "Faol"}, "issue": {"pickFormat": "Kamida bitta formatni tanlang", "pickMode": "Kamida bitta xizmat turini tanlang", "tier": "Pog'onani tekshiring: «dan» 1 dan kichik bo'lmasin, «gacha» undan katta bo'lsin", "pickPlan": "Kamida bitta tarif tanlang yoki imkoniyat kalitini yozing.", "sla": "Tekshiruv muddatini daqiqada kiriting."}, "plan": {"title": "Tarif talabi", "required": "Faqat tarifi borlar foydalana oladi", "plans": "Ruxsat beruvchi tariflar", "loading": "Tariflar yuklanmoqda…", "none": "Tariflar topilmadi", "entitlement": "Imkoniyat kaliti (ixtiyoriy)", "entitlementHint": "Tarifda shu imkoniyat bo'lsa ham ruxsat beriladi.", "free": "Hamma uchun ochiq", "freeHint": "Hujjat xizmatlaridan tarifsiz ham foydalanish mumkin.", "needed": "Tarif kerak · {n} ta", "entitlementIs": "Imkoniyat: {key}", "hint": "Xizmatdan foydalanish uchun qaysi tarif kerakligi."}, "review": {"title": "Tekshiruv", "enabled": "Hujjat topshirilishidan oldin mutaxassis tekshiradi", "who": "Kim tekshiradi", "by": {"lawyer": "Yurist", "advokat": "Advokat", "any": "Istalgan mutaxassis"}, "sla": "Tekshiruv muddati, daqiqa", "slaHint": "Tekshiruv necha daqiqada tugashi kerak.", "slaHuman": "≈ {h} soat", "off": "Tekshiruvsiz", "slaIs": "{n} daqiqa ichida", "hint": "Hujjat mijozga berilishidan oldin kim va qancha vaqtda tekshiradi.", "offHint": "Hujjat tekshiruvsiz beriladi."}, "download": {"title": "Yuklab olish", "planRequired": "Yuklab olish uchun tarif kerak", "watermark": "Faylga suv belgisi qo'yiladi", "formats": "Yuklab olinadigan formatlar", "formatsHint": "Hech biri tanlanmasa — ruxsat etilgan barcha formatlarda.", "plan": "Tarif bilan", "anyone": "Hamma yuklab oladi", "allFormats": "Barcha formatlar", "watermarkOn": "suv belgisi bilan", "hint": "Kim, qaysi formatda va qanday yuklab oladi."}, "on": "Yoqilgan", "off": "O'chiq", "files": "Fayllar", "filesHint": "Mijoz yuklay oladigan formatlar va hajm, narxga kiradigan sahifalar.", "modesHint": "Mijozga taklif qilinadigan hujjat xizmatlari.", "pricing": "Narx", "pricingHint": "Bepul sahifalardan keyingi har bir sahifa narxi va ixtiyoriy pog'onalar.", "editLead": "O'zgarishlar qoralama sifatida saqlanadi. Nashr qilinmaguncha hech narsa o'zgarmaydi.", "nowLead": "Yangi buyurtmalar aynan shu qoidalar bilan yaratiladi.", "historyLead": "Har bir nashr va qoralama. Avvalgi versiyaga istalgan payt qaytish mumkin.", "changes": "{n} ta bo'limda o'zgarish", "noChanges": "Hali o'zgarish yo'q", "problems": "{n} ta xatoni tuzating", "meta": {"inEffect": "Amaldagi", "published": "Oxirgi nashr", "never": "Hali yo'q", "versions": "Versiyalar", "drafts": "Qoralamalar"}},
+    "adsReadiness": {"title": "Reklama sotuviga tayyorlik", "ready": "Sotuv ochiq", "testOnly": "Faqat admin va test rejimi", "readyText": "Bozor shartlari bajarildi — reklama sotilishi mumkin.", "testOnlyText": "Shartlar bajarilmaguncha reklama faqat admin va test rejimida ishlaydi; test xaridlari analitikaga qo'shilmaydi.", "clients": "Ro'yxatdan o'tgan mijozlar", "sellers": "Real baholangan, tasdiqlangan mutaxassislar", "of": "{current} / {required}", "met": "Bajarildi", "missing": "Yana {n} kerak", "premium": "Premium joylashuv uchun real reyting kamida {n} bo'lishi kerak.", "mode": {"test": "Test rejimi", "active": "Sotuv ochiq", "paused": "Sotuv to'xtatilgan"}, "activate": "Sotuvni ochish", "reactivate": "Sotuvni qayta ochish", "pause": "Sotuvni to'xtatish", "activateLocked": "Shartlar bajarilmaguncha sotuvni ochib bo'lmaydi", "activeText": "Reklama sotilmoqda. Shartlar bajarilmay qolsa, sotuv avtomatik to'xtaydi.", "pausedText": "Reklama sotuvi admin tomonidan to'xtatilgan. Sotuvchilar xarid qila olmaydi.", "activatedAt": "Ochildi: {date}, {name}", "pausedAt": "To'xtatildi: {date}", "excluded": "{n} ta test/demo hisobga olinmadi", "activateTitle": "Reklama sotuvini ochasizmi?", "activateText": "Sotuvchilar reklama paketlarini haqiqiy pulga sotib ola boshlaydi. Amal auditga yoziladi.", "pauseTitle": "Reklama sotuvini to'xtatasizmi?", "pauseText": "Yangi reklama xaridlari to'xtaydi; faol reklamalar o'z muddatigacha ishlaydi. Amal auditga yoziladi.", "reason": "Sabab (majburiy)", "reasonHint": "Kamida 3 ta belgi.", "activateReasonPh": "Masalan: production reklama tasdiqlandi", "pauseReasonPh": "Masalan: operatsion to'xtatish", "cancel": "Bekor qilish", "activatedToast": "Reklama sotuvi ochildi.", "pausedToast": "Reklama sotuvi to'xtatildi.", "failed": "Amalni bajarib bo'lmadi.", "err": {"marketplace_advertising_readiness_required": "Bozor shartlari hali bajarilmagan — sotuvni ochib bo'lmaydi."}},
+    "docSettings": {"title": "Hujjat xizmatlari sozlamalari", "lead": "Barcha hujjat xizmatlari uchun umumiy qoidalar: fayl turlari, hajm, bepul sahifalar va narx. O'zgarish yangi versiya sifatida tayyorlanadi va nashr qilingach ishlaydi; avvalgi buyurtmalar o'z shartlarida qoladi.", "refresh": "Yangilash", "activeN": "Faol: v{n}", "defaults": "Standart qiymatlar", "defaultsHint": "Hali versiya nashr qilinmagan — tizim standart qiymatlarda ishlayapti.", "now": "Hozir ishlayotgan qoidalar", "newVersion": "Yangi versiya tayyorlash", "snapshotNote": "Har bir buyurtma yaratilgan paytdagi qoidalar bilan saqlanadi.", "history": "Versiyalar tarixi", "noVersions": "Hali versiya yo'q", "noVersionsText": "Birinchi versiyani tayyorlang va nashr qiling.", "versionN": "Versiya {n}", "publishedAt": "Nashr: {date}", "createdAt": "Yaratilgan: {date}", "show": "Qoidalarni ko'rish", "publish": "Nashr qilish", "rollback": "Shu versiyaga qaytish", "confirmPublish": "Versiya {n} ni nashr qilasizmi?", "confirmRollback": "Versiya {n} ga qaytasizmi?", "publishText": "Nashr qilingach yangi buyurtmalar shu qoidalar bilan yaratiladi. Avvalgi buyurtmalar o'zgarmaydi.", "rollbackText": "Shu versiya yana faol bo'ladi. Avvalgi buyurtmalar o'z shartlarida qoladi.", "published": "Versiya {n} nashr qilindi.", "rolledBack": "Versiya {n} qayta faollashtirildi.", "draftSaved": "Qoralama saqlandi (v{n}). Endi uni nashr qilishingiz mumkin.", "actionFailed": "Amalni bajarib bo'lmadi.", "loadFailed": "Sozlamalarni yuklab bo'lmadi.", "noAccess": "Bu bo'lim sizga ochilmagan", "working": "Bajarilmoqda…", "cancel": "Bekor qilish", "saving": "Saqlanmoqda…", "saveDraft": "Qoralama sifatida saqlash", "saveFailed": "Qoralamani saqlab bo'lmadi.", "editTitle": "Yangi versiya", "formats": "Ruxsat etilgan formatlar", "maxFile": "Fayl hajmi chegarasi", "maxFileHint": "1–500 MB", "mb": "{n} MB", "includedPages": "Narxga kiritilgan sahifalar", "includedHint": "1–1000 sahifa", "pages": "{n} sahifa", "extraPage": "Qo'shimcha sahifa narxi", "som": "so'm", "modes": "Xizmat turlari", "tiers": "Sahifa soni bo'yicha narx", "noTiers": "Pog'onali narx yo'q", "tierFrom": "{from} sahifadan", "tierRange": "{from}–{to} sahifa", "tierMin": "Dan (sahifa)", "tierMax": "Gacha (sahifa)", "tierOpen": "chegarasiz", "tierAmount": "Narx (so'm)", "addTier": "Pog'ona qo'shish", "removeTier": "Pog'onani olib tashlash", "mode": {"manual": "Shablon bo'yicha to'ldirish", "lawyer": "Advokat tayyorlaydi", "review": "Hujjatni tekshirish", "analysis": "Hujjat tahlili"}, "status": {"draft": "Qoralama", "published": "Nashr qilingan", "superseded": "Almashtirilgan", "archived": "Arxivlangan", "active": "Faol"}, "issue": {"pickFormat": "Kamida bitta formatni tanlang", "pickMode": "Kamida bitta xizmat turini tanlang", "tier": "Pog'onani tekshiring: «dan» 1 dan kichik bo'lmasin, «gacha» undan katta bo'lsin", "pickPlan": "Kamida bitta tarif tanlang yoki imkoniyat kalitini yozing.", "sla": "Tekshiruv muddatini daqiqada kiriting."}, "plan": {"title": "Tarif talabi", "required": "Faqat tarifi borlar foydalana oladi", "plans": "Ruxsat beruvchi tariflar", "loading": "Tariflar yuklanmoqda…", "none": "Tariflar topilmadi", "entitlement": "Imkoniyat kaliti (ixtiyoriy)", "entitlementHint": "Tarifda shu imkoniyat bo'lsa ham ruxsat beriladi.", "free": "Hamma uchun ochiq", "freeHint": "Hujjat xizmatlaridan tarifsiz ham foydalanish mumkin.", "needed": "Tarif kerak · {n} ta", "entitlementIs": "Imkoniyat: {key}", "hint": "Xizmatdan foydalanish uchun qaysi tarif kerakligi.", "perMode": "Xizmat turi bo'yicha alohida qoida", "perModeHint": "Yoqilgan tur umumiy qoida o'rniga o'zining qoidasiga bo'ysunadi.", "modeOwn": "O'z tarif talabi bor", "modeFree": "Bu tur hamma uchun ochiq", "modeInherits": "Umumiy qoida amal qiladi", "perModeN": "{n} ta turga alohida qoida"}, "review": {"title": "Tekshiruv", "enabled": "Hujjat topshirilishidan oldin mutaxassis tekshiradi", "who": "Kim tekshiradi", "by": {"lawyer": "Yurist", "advokat": "Advokat", "any": "Istalgan mutaxassis", "yurist": "Yurist (yuridik shaxs)", "operator": "Operator", "admin": "Administrator"}, "sla": "Tekshiruv muddati, daqiqa", "slaHint": "Tekshiruv necha daqiqada tugashi kerak.", "slaHuman": "≈ {h} soat", "off": "Tekshiruvsiz", "slaIs": "{n} daqiqa ichida", "hint": "Hujjat mijozga berilishidan oldin kim va qancha vaqtda tekshiradi.", "offHint": "Hujjat tekshiruvsiz beriladi."}, "download": {"title": "Yuklab olish", "planRequired": "Yuklab olish uchun tarif kerak", "watermark": "Faylga suv belgisi qo'yiladi", "formats": "Yuklab olinadigan formatlar", "formatsHint": "Hech biri tanlanmasa — ruxsat etilgan barcha formatlarda.", "plan": "Tarif bilan", "anyone": "Hamma yuklab oladi", "allFormats": "Barcha formatlar", "watermarkOn": "suv belgisi bilan", "hint": "Kim, qaysi formatda va qanday yuklab oladi.", "plans": "Yuklab olishga ruxsat beruvchi tariflar"}, "on": "Yoqilgan", "off": "O'chiq", "files": "Fayllar", "filesHint": "Mijoz yuklay oladigan formatlar va hajm, narxga kiradigan sahifalar.", "modesHint": "Mijozga taklif qilinadigan hujjat xizmatlari.", "pricing": "Narx", "pricingHint": "Bepul sahifalardan keyingi har bir sahifa narxi va ixtiyoriy pog'onalar.", "editLead": "O'zgarishlar qoralama sifatida saqlanadi. Nashr qilinmaguncha hech narsa o'zgarmaydi.", "nowLead": "Yangi buyurtmalar aynan shu qoidalar bilan yaratiladi.", "historyLead": "Har bir nashr va qoralama. Avvalgi versiyaga istalgan payt qaytish mumkin.", "changes": "{n} ta bo'limda o'zgarish", "noChanges": "Hali o'zgarish yo'q", "problems": "{n} ta xatoni tuzating", "meta": {"inEffect": "Amaldagi", "published": "Oxirgi nashr", "never": "Hali yo'q", "versions": "Versiyalar", "drafts": "Qoralamalar"}},
     "promos": {
       "title": "Aksiyalar",
       "lead": "Reklama paketlari va tariflarga muddatli yoki cheklangan sonli chegirmalar. Har bir aksiya Studio orqali yaratiladi, tasdiqlanadi va nashr qilinadi.",
@@ -18495,7 +18513,7 @@
       },
       "howTitle": "Aksiya qanday yaratiladi",
       "how1": "«Yangi aksiya» ni bosing: nom, reklama yoki tarif, chegirma va muddatni kiriting.",
-      "how2": "Muharrir har bir paket yoki tarifning yangi narxini darhol ko'rsatadi.",
+      "how2": "Muharrir har bir paket yoki tarifning yangi narxini tizimdan olib ko'rsatadi.",
       "how3": "Tasdiqlashga yuboring — nashr qilingach aksiya xaridda o'zi qo'llanadi.",
       "listTitle": "Barcha aksiyalar",
       "filter": "Aksiya turi",
@@ -18527,13 +18545,37 @@
         "ended": "Muddati tugagan",
         "paused": "To'xtatilgan",
         "pending": "Tasdiqlashda",
-        "draft": "Qoralama"
+        "draft": "Qoralama",
+        "exhausted": "Limit tugagan"
       },
       "rulesTitle": "Aksiya qoidalari",
       "rule1": "Chegirma foiz yoki qat'iy summa bo'ladi — ikkalasi birga emas.",
       "rule2": "Yakuniy narx hech qachon 0 so'mdan pastga tushmaydi.",
       "rule3": "Foydalanish limiti tugasa, aksiya avtomatik to'xtaydi.",
-      "rule4": "Allaqachon sotib olinganlar narxi o'zgarmaydi; yakuniy summani to'lov paytida tizim hisoblaydi."
+      "rule4": "Allaqachon sotib olinganlar narxi o'zgarmaydi; yakuniy summani to'lov paytida tizim hisoblaydi.",
+      "pausedWhy": "To'xtatildi ({date}): {reason}",
+      "previewFailed": "Narxlarni hisoblab bo'lmadi",
+      "usedOf": "{used} / {limit} ishlatildi",
+      "usedN": "{n} marta ishlatildi",
+      "pause": "To'xtatish",
+      "resume": "Davom ettirish",
+      "pauseTitle": "«{name}» aksiyasini to'xtatasizmi?",
+      "resumeTitle": "«{name}» aksiyasini davom ettirasizmi?",
+      "pauseText": "To'xtatilgan aksiya yangi xaridlarda qo'llanmaydi. Uni istalgan payt davom ettirish mumkin. Amal auditga yoziladi.",
+      "resumeText": "Aksiya yana yangi xaridlarda qo'llanadi. Amal auditga yoziladi.",
+      "reason": "Sabab (majburiy)",
+      "reasonHint": "Kamida 3 ta belgi.",
+      "pauseReasonPh": "Masalan: vaqtincha to'xtatildi",
+      "resumeReasonPh": "Masalan: aksiya davom etadi",
+      "cancel": "Bekor qilish",
+      "pausedToast": "Aksiya to'xtatildi.",
+      "resumedToast": "Aksiya davom ettirildi.",
+      "actionFailed": "Amalni bajarib bo'lmadi.",
+      "err": {
+        "promotion_campaign_not_found": "Aksiya topilmadi — ro'yxatni yangilang.",
+        "promotion_pause_reason_required": "Sababni yozing (kamida 3 ta belgi).",
+        "promotion_resume_reason_required": "Sababni yozing (kamida 3 ta belgi)."
+      }
     }
   },
   "secureChat": {"voiceSpeed":"Tinglash tezligi","voiceReview":"Yuborishdan oldin tinglab ko‘ring","voicePaused":"Pauzada","voiceResume":"Davom ettirish","voicePauseRec":"Pauza","voiceStop":"To‘xtatib tinglash","attachMedia":"Rasm yoki video","attachDoc":"Hujjat yoki fayl","attachCamera":"Kamera","trayTitle":"{n} ta fayl tayyor","trayHint":"Izoh yozib, birga yuboring","trayClear":"Tozalash","trayRemove":"{name} — olib tashlash","emoji":"Emoji","captionPh":"Izoh qo‘shing (ixtiyoriy)…","roleSeller":"Mutaxassis","back":"Barcha chatlar","react":"Munosabat bildirish","reactions":"Munosabatlar","copy":"Nusxa olish","copied":"Matndan nusxa olindi","retrySend":"Qayta yuborish","discard":"Olib tashlash","sendFailed":"Yuborilmadi","newMessages":"{n} ta yangi xabar","toBottom":"Oxirgi xabarlarga","dropHere":"Faylni shu yerga tashlang","dropHint":"Har biri 25 MB gacha — bir nechta faylni birdan yuborish mumkin","hiddenContent":"Xabar matni yashirin","reactFailed":"Munosabatni yuborib bo‘lmadi. Qayta urining.","you":"Siz","emptyTitle":"Suhbatni boshlang","replyingTo":"{name} ga javob","askCopilot":"AI kopilotdan shu chat haqida so‘rash",
@@ -23053,22 +23095,6 @@
       "prepare_draft": "Qoralama tayyorlash",
       "present_confirmation": "Tasdiqlashga ko'rsatish"
     },
-    "scopeText": {
-      "view_page_context": "Qaysi sahifada ekaningiz va undagi maydonlar nomi. Qiymatlar yuborilmaydi.",
-      "highlight": "Kerakli joy atrofida yorqin ramka chiqadi.",
-      "navigate": "Faqat LexGo ichidagi ruxsat etilgan sahifalar.",
-      "scroll": "Sahifani kerakli joyga aylantiradi.",
-      "tooltip": "Element yonida operatorning qisqa izohi.",
-      "focus": "Kursorni kerakli maydonga qo'yadi.",
-      "form_fill": "Oddiy maydonlarga matn yozadi.",
-      "form_select": "Ro'yxatdan variant tanlaydi.",
-      "form_toggle": "Belgi va kalitlarni yoqadi yoki o'chiradi.",
-      "open_modal": "LexGo oynalarini ochadi.",
-      "step_navigation": "Shakl bosqichlarida oldinga yoki orqaga o'tadi.",
-      "personal_form_fill": "Ism, telefon, email kabi maydonlar. Faqat shu ruxsat bilan.",
-      "prepare_draft": "Qiymatlarni avval sizga ko'rsatadi, qo'llash uchun tasdig'ingiz kerak.",
-      "present_confirmation": "Yakuniy tugmani ko'rsatadi; uni faqat o'zingiz bosasiz."
-    },
     "actions": {
       "route_navigate": "Sahifani ochish",
       "element_highlight": "Belgilash",
@@ -23100,7 +23126,30 @@
       "client_support": "Yordam",
       "client_messages": "Xabarlar",
       "client_profile": "Profil",
-      "client_outside": "Ro'yxatdan tashqari sahifa"
+      "client_outside": "Ro'yxatdan tashqari sahifa",
+      "client_ai": "AI yordamchi",
+      "client_ai_help": "AI yordam",
+      "client_notifications": "Bildirishnomalar",
+      "client_academy": "Akademiya",
+      "client_documents_item": "Hujjat xizmati",
+      "client_doc_analysis": "Hujjat tahlili",
+      "client_cases": "Ishlarim",
+      "client_intake": "Murojaat shakli",
+      "client_urgent_advokat": "Shoshilinch advokat (so'rov)",
+      "client_sos": "SOS",
+      "client_marketplace_home": "Marketplace",
+      "client_matches": "Mos advokatlar",
+      "client_packages": "Paketlar",
+      "client_reviews": "Sharhlarim",
+      "client_warranty": "Kafolat",
+      "client_subscriptions": "Obunalarim",
+      "client_referrals": "Takliflar",
+      "client_gifts": "Sovg'alar",
+      "client_team_tasks": "Vazifalar",
+      "client_complaints": "Shikoyatlar",
+      "site_home": "Bosh sahifa",
+      "site_lawyers": "Advokatlar (sayt)",
+      "site_services": "Xizmatlar (sayt)"
     },
     "status": {
       "pending_consent": "Rozilik kutilmoqda",
@@ -23167,7 +23216,7 @@
       "remote_assist_secret_component_blocked": "Maxfiy maydonni boshqarib bo'lmaydi.",
       "remote_assist_personal_scope_required": "Shaxsiy maydonlar uchun mijozdan alohida ruxsat bilan yangi sessiya so'rang.",
       "remote_assist_sensitive_payload_blocked": "Buyruqda yuborib bo'lmaydigan ma'lumot bor.",
-      "remote_assist_sensitive_route_blocked": "Bu sahifani ochib bo'lmaydi.",
+      "remote_assist_sensitive_route_blocked": "Bu sahifani xavfsizlik sababli masofadan ochib bo'lmaydi. Mijozdan uni o'zi ochishini so'rang.",
       "remote_assist_session_expired": "Sessiya muddati tugadi.",
       "remote_assist_command_expired": "Buyruq muddati o'tdi. Holat yangilandi.",
       "remote_assist_rate_limit": "Juda ko'p so'rov. {n} soniyadan keyin urinib ko'ring.",
@@ -23208,29 +23257,18 @@
       "remote_assist_expired": "Muddati tugadi"
     },
     "client": {
-      "consentTitle": "Operator ekraningizda yordam bermoqchi",
-      "consentLead": "{name} qo'ng'iroq davomida LexGo ichida sizga yo'l ko'rsatishni so'ramoqda. Faqat siz tanlagan amallarga ruxsat beriladi.",
+      "consentTitle": "Ekraningizda yordam bersinmi?",
+      "consentLead": "{name} — LexGo yordam xizmatidan. U ekraningizni ko'rib, shu saytda sizga yo'l ko'rsatmoqchi.",
       "operator": "Operator",
-      "operatorLabel": "Operator",
       "lexgoId": "LexGo ID: {id}",
-      "ticket": "Murojaat",
       "expires": "Javob berish uchun",
-      "reason": "Sabab",
-      "modeLabel": "Yordam turi",
-      "scopes": "Nimalarga ruxsat berasiz",
-      "scopesHint": "Keraksizini o'chiring. Keyin ham istalgan payt to'xtatishingiz mumkin.",
-      "required": "Majburiy",
-      "factLexgo": "Faqat LexGo sahifalari ichida ishlaydi — boshqa saytlar, ilovalar va qurilmangiz emas.",
-      "factSecret": "Parol, SMS kod, karta, elektron imzo, fayllar va qurilma boshqaruvi hech qachon berilmaydi.",
-      "factConfirm": "To'lov, rozilik, shaxsni tasdiqlash va yakuniy yuborishni faqat o'zingiz bajarasiz.",
-      "factStop": "Yordam ko'pi bilan {minutes} daqiqa. Uni istalgan payt to'xtatish yoki bekor qilish mumkin.",
       "morePending": "Yana {n} ta so'rov kutmoqda.",
       "deny": "Rad etish",
       "accept": "Ruxsat berish",
       "accepting": "Ulanmoqda…",
       "consentFailed": "Javobni yuborib bo'lmadi.",
       "barLabel": "Masofaviy yordam",
-      "barLive": "Operator sizga yordam bermoqda",
+      "barLive": "{name} yordam bermoqda",
       "barPaused": "Yordam to'xtatilgan",
       "left": "{time} qoldi",
       "pause": "To'xtatish",
@@ -23253,7 +23291,25 @@
         "denied": "So'rov rad etildi"
       },
       "endedNote": "Operator endi ekraningizda hech narsa qila olmaydi.",
-      "close": "Yopish"
+      "close": "Yopish",
+      "fromSupport": "LexGo yordam xizmati",
+      "canTitle": "Operator nima qila oladi",
+      "canSee": "LexGo sahifangizni ko'radi",
+      "canDraw": "Kerakli joyni ko'rsatadi va belgilab beradi",
+      "canOpen": "Sizga kerakli sahifani ochib beradi",
+      "canFill": "Maydonlarni siz bilan birga to'ldiradi",
+      "safe": "Faqat LexGo ichida. Parol, SMS kod, karta va elektron imzo hech qachon ko'rsatilmaydi va ularga tegilmaydi.",
+      "afterAllow": "Ruxsatdan so'ng brauzer qaysi oynani ko'rsatishni so'raydi — «Shu tab»ni tanlang.",
+      "shareOn": "Ekraningiz operatorga ko'rinmoqda",
+      "shareHidden": "Maxfiy joy — ekran vaqtincha yashirildi",
+      "shareOff": "Ekran ulashilmagan",
+      "stopShare": "Ekranni yopish",
+      "share": "Ekranni ko'rsatish",
+      "shareAsked": "Operator ekranni so'ramoqda",
+      "shareDenied": "Ekran ulashilmadi. Xohlasangiz, «Ekranni ko'rsatish»ni bosing.",
+      "shareNoCall": "Ekranni ko'rsatish uchun qo'ng'iroq oynasi ochiq bo'lishi kerak.",
+      "fold": "Panelni yig'ish",
+      "unfold": "Panelni ochish"
     },
     "op": {
       "client": "Mijoz",
@@ -23264,16 +23320,13 @@
       "callReady": "Qo'ng'iroq faol — yordam so'rash mumkin.",
       "needCall": "Avval mijoz bilan audio yoki video qo'ng'iroqni boshlang.",
       "reason": "Sabab",
-      "reasonPh": "Masalan: obuna shaklini to'ldirishga yordam",
-      "reasonShort": "Sababni qisqacha yozing.",
       "mode": "Yordam turi",
-      "scopes": "So'raladigan ruxsatlar",
       "duration": "Davomiyligi",
       "minutes": "{n} daqiqa",
       "setup2fa": "Ikki bosqichli himoyani yoqish",
       "request": "Mijozdan ruxsat so'rash",
       "requesting": "So'ralmoqda…",
-      "privacy": "Siz faqat mijoz ruxsat bergan elementlarni ko'rasiz. Qiymatlar, parollar va fayllar ko'rinmaydi.",
+      "privacy": "Mijoz ekrani faqat u ruxsat bergandan keyin ko'rinadi. Maxfiy sahifa va maydonlarda ekran o'zi yashiriladi; parol, kod va kartalar hech qachon ko'rinmaydi.",
       "loadFailed": "Sessiyani yuklab bo'lmadi.",
       "newRequest": "Yangi so'rov",
       "waiting": "{name} javobi kutilmoqda",
@@ -23288,16 +23341,15 @@
       "networkRetry": "Aloqa uzildi. Buyruqni qayta yuboring.",
       "commandFailed": "Buyruqni yuborib bo'lmadi.",
       "tab": {
-        "screen": "Ekran",
         "commands": "Buyruqlar",
-        "audit": "Audit"
+        "audit": "Audit",
+        "pages": "Sahifalar",
+        "elements": "Elementlar"
       },
       "revision": "Holat №{n}",
       "justNow": "hozirgina",
       "secondsAgo": "{n} soniya oldin",
       "outside": "Mijoz ro'yxatdan tashqari sahifada. Uni ruxsat etilgan sahifaga yo'naltiring.",
-      "route": "Sahifa",
-      "routePick": "Sahifani tanlang",
       "search": "Elementni qidirish",
       "searchPh": "Element nomi",
       "noLabel": "Nomsiz",
@@ -23328,7 +23380,17 @@
         "expired": "Sessiya muddati tugadi.",
         "default": "Sessiya yopildi."
       },
-      "scopesN": "{n} ta ruxsat"
+      "scopesN": "{n} ta ruxsat",
+      "reasonDefault": "Mijozga sayt ichida yordam berish",
+      "changeMode": "Rejimni o'zgartirish",
+      "hideOptions": "Yopish",
+      "clientIsOn": "Mijoz hozir",
+      "unknownPage": "Noma'lum sahifa",
+      "pageSearch": "Sahifani qidirish",
+      "openPage": "«{page}» sahifasini ochish",
+      "here": "Shu yerda",
+      "fit": "Kichraytirish",
+      "expandView": "Kattalashtirish"
     },
     "admin": {
       "title": "Masofaviy yordam",
@@ -23375,6 +23437,46 @@
       "revokeFailed": "Sessiyani to'xtatib bo'lmadi.",
       "noAccess": "Bu bo'lim sizga ochilmagan",
       "noAccessText": "Masofaviy yordamni kuzatish uchun nazoratchi ruxsati kerak."
+    },
+    "screen": {
+      "live": "Jonli",
+      "drawHint": "Mijoz ekrani: belgilash uchun bosing yoki chizing",
+      "noCall": "Qo'ng'iroq oynasi ochiq emas",
+      "noCallText": "Mijoz ekrani qo'ng'iroq orqali keladi. Qo'ng'iroqni shu tabda oching.",
+      "off": "Ekran ulashilmagan",
+      "offText": "Mijoz hali ekranini ko'rsatmadi. Qolgan buyruqlar ishlayveradi.",
+      "askedText": "So'rov yuborildi — mijoz ekranida tugma paydo bo'ldi.",
+      "ask": "Ekranni so'rash",
+      "askAgain": "Yana so'rash",
+      "hidden": "Maxfiylik uchun yashirildi",
+      "hiddenText": "Mijoz maxfiy sahifada yoki maxfiy maydonda. Tugashi bilan ekran qaytadi.",
+      "notTab": "Mijoz butun ekran yoki boshqa oynani ulashdi — belgilar uning sahifasida ko'rinmaydi. Undan «Shu tab»ni ulashishni so'rang.",
+      "tools": "Belgilash vositalari",
+      "toolsShape": "Shakl",
+      "colors": "Rang",
+      "tool": {
+        "pointer": "Ko'rsatkich",
+        "arrow": "Strelka",
+        "circle": "Doira",
+        "rect": "To'rtburchak",
+        "pen": "Qalam"
+      },
+      "color": {
+        "blue": "Ko'k",
+        "cyan": "Moviy",
+        "warm": "To'q sariq"
+      },
+      "clear": "Tozalash",
+      "fade": "Belgi 3 soniyada yo'qoladi",
+      "paused": "Yordam to'xtatilgan — belgilash o'chiq"
+    },
+    "groups": {
+      "main": "Asosiy",
+      "legal": "Huquqiy xizmatlar",
+      "market": "Advokatlar va buyurtmalar",
+      "account": "Hisob va tarif",
+      "help": "Yordam",
+      "site": "Sayt sahifalari"
     }
   }
 }

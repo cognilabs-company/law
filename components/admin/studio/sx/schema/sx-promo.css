@@ -169,3 +169,7 @@
     text-decoration: none;
   }
 }
+.sx-promo__table[data-stale] { opacity: .6; transition: opacity .15s; }
+.sx-promo__sk--wide { width: 140px; }
+.sx-promo__warns { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.sx-promo__retry { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 2px 8px; border: 0; border-radius: 8px; background: transparent; color: inherit; font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; }

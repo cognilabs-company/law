@@ -702,17 +702,31 @@ export const CALL_KINDS: readonly CallKind[] = ["audio", "video"];
 
 export type OrderOption = { id: string; label: string; amount: number };
 export type ResultFile = { fileId: string; fileName: string; downloadUrl: string };
-// A complaint ruled valid_rework sends a finished order back to work: the
-// order is in_progress again and the seller's payout waits (settlement
-// rework_hold) until it is redone. `settlement` comes from …/financials.
-export function isReworkOrder(o: Pick<MarketOrder, "status" | "complaint">, settlement = ""): boolean {
-  if (o.status !== "in_progress" && o.status !== "rework" && o.status !== "rework_required") return false;
-  return o.status !== "in_progress" || o.complaint.resolution === "valid_rework" || settlement === "rework_hold";
+// A complaint ruled valid_rework sends a finished order back to work; the
+// backend says so in complaint.rework_required (contract 2026-10-26 §1 — not
+// to be guessed from the settlement).
+export function isReworkOrder(o: Pick<MarketOrder, "complaint">): boolean {
+  return o.complaint.reworkRequired;
 }
 
 // The complaint is its own action beside the rating, in the same window
 // (enterprise contract §9.2): offered only while `available`.
-export type OrderComplaint = { available: boolean; status: string; reason: string; deadlineAt: string; url: string; resolution: string; resolutionNote: string; resolvedAt: string };
+export type OrderComplaint = {
+  available: boolean;
+  // false while a fresh complaint window is open (after a rework is
+  // re-completed); true once the client has filed one. null = not sent.
+  submitted: boolean | null;
+  status: string;
+  reason: string;
+  deadlineAt: string;
+  url: string;
+  resolution: string;
+  resolutionNote: string;
+  resolvedAt: string;
+  reworkRequired: boolean;
+  reworkIteration: number;
+  reworkDeadlineAt: string;
+};
 
 export function complaintOf(d: Dict, details: Dict = asDict(d.details)): OrderComplaint {
   const raw = d.complaint ?? details.complaint;
@@ -723,11 +737,15 @@ export function complaintOf(d: Dict, details: Dict = asDict(d.details)): OrderCo
     reason: asStr(c.reason),
     deadlineAt: asStr(c.deadline_at ?? d.complaint_deadline_at),
     url: asStr(c.url ?? d.complaint_url),
-    // The call center's ruling (2026-10-24 contract §3): valid_rework sends
-    // the order back to work.
-    resolution: asStr(c.resolution ?? c.action ?? d.complaint_resolution ?? details.complaint_resolution).toLowerCase(),
-    resolutionNote: asStr(c.resolution_note ?? c.note ?? details.complaint_resolution_note),
-    resolvedAt: asStr(c.resolved_at ?? details.complaint_resolved_at),
+    submitted: typeof c.submitted === "boolean" ? c.submitted : null,
+    // The call center's ruling (contract 2026-10-26 §1): valid_rework sends
+    // the order back to work with its own deadline.
+    resolution: asStr(c.resolution ?? c.action).toLowerCase(),
+    resolutionNote: asStr(c.resolution_note ?? c.note),
+    resolvedAt: asStr(c.resolved_at),
+    reworkRequired: c.rework_required === true,
+    reworkIteration: asNum(c.rework_iteration),
+    reworkDeadlineAt: asStr(c.rework_deadline_at),
   };
 }
 
@@ -1397,7 +1415,12 @@ export function marketSignalOf(ev: { event: string } & Record<string, unknown>):
       serviceTitle: pickStr(srcs, ["service_title"]) || pickIn(srcs, ["order"], ["service_title"]),
       deadlineAt: pickStr(srcs, ["acceptance_deadline_at"]) || undefined,
       minutesLeft: Number(pickStr(srcs, ["minutes_left"])) || undefined,
-      outcome: special?.kind === "complaint" ? (pickStr(srcs, ["resolution", "action", "decision"]) || pickIn(srcs, ["complaint"], ["resolution", "action"])).toLowerCase() || undefined : undefined,
+      outcome:
+        special?.kind === "complaint"
+          ? (pickStr(srcs, ["resolution", "action", "decision"]) || pickIn(srcs, ["complaint"], ["resolution", "action"])).toLowerCase() || undefined
+          : special?.kind === "completed" && srcs.some((x) => x.rework_completed === true)
+            ? "rework"
+            : undefined,
     };
   }
   if (name !== "notification.created") return null;

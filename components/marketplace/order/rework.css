@@ -25,3 +25,8 @@
 @keyframes modReworkIn { from { opacity: 0; transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { .mod .mod-rework { animation: none; } }
 @media (max-width: 520px) { .mod .mod-rework { grid-template-columns: 1fr; } }
+.mod .mod-rework__due { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; background: var(--sx-surface, #fff); font-size: .86rem !important; }
+.mod .mod-rework__due > svg { flex: none; color: var(--rw); }
+.mod .mod-rework__due span { display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.mod .mod-rework__due b { color: var(--rw); font-variant-numeric: tabular-nums; }
+.mod .mod-rework__due[data-late] b { color: #dc2626; }

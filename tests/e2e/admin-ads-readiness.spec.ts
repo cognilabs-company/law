@@ -11,7 +11,9 @@ test("ads page shows the backend's readiness and test-only mode", async ({ page 
   await mockBackend(page, routes);
   await page.goto("/ru/admin/ads");
   const card = page.locator(".adsr");
-  await expect(card).toContainText("Только админ и тестовый режим");
+  // No mode from the backend = test mode (contract 2026-10-26 §3).
+  await expect(card).toContainText("Тестовый режим");
+  await expect(card.getByRole("button", { name: "Открыть продажу" })).toBeDisabled();
   await expect(card).toContainText("104 / 500");
   await expect(card).toContainText("Нужно ещё 396");
   await expect(card).toContainText("Выполнено");

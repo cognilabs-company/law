@@ -3,13 +3,18 @@ import { ADVOCATE, CLIENT, mockBackend, signIn } from "./mock";
 import { ORDER_ID, financials, order } from "./fixtures";
 
 // A finished order the call center sends back to work (complaint ruled
-// valid_rework, contract 2026-10-24 §3: order in_progress, settlement
-// rework_hold). The seller is told live and the order says the work moved
-// from "completed" back to "being redone".
+// valid_rework, contract 2026-10-26 §1: order in_progress, settlement
+// rework_hold, complaint.rework_required with its own deadline). The seller
+// is told live and the order says the work moved from "completed" back to
+// "being redone".
 
 const done = () => order({ status: "completed", completed_at: "2026-10-25T10:00:00Z", result_text: "Hujjat tayyor" });
 const reopened = () =>
-  order({ status: "in_progress", started_at: "2026-10-20T10:00:00Z", complaint: { status: "resolved", resolution: "valid_rework", resolution_note: "Shartnomaning 4-bandi to'ldirilmagan", resolved_at: "2026-10-26T09:30:00Z" } });
+  order({
+    status: "in_progress",
+    started_at: "2026-10-20T10:00:00Z",
+    complaint: { available: false, submitted: true, status: "rework_required", resolution: "valid_rework", resolution_note: "Shartnomaning 4-bandi to'ldirilmagan", resolved_at: "2026-10-26T09:30:00Z", rework_required: true, rework_iteration: 1, rework_deadline_at: new Date(Date.now() + 26 * 3600_000).toISOString() },
+  });
 
 test("the seller is told live and the order shows it moved back from completed to rework", async ({ page }) => {
   const state = { order: done(), settlement: "complaint_hold" };
@@ -28,7 +33,7 @@ test("the seller is told live and the order shows it moved back from completed t
   state.order = reopened();
   state.settlement = "rework_hold";
   await expect.poll(() => mock.sockets.some((s) => s.url.includes("/ws/users/me"))).toBe(true);
-  await mock.push({ event: "marketplace.complaint_resolved", order_id: ORDER_ID, work_id: "MP-TEST1", resolution: "valid_rework" });
+  await mock.push({ event: "marketplace.complaint_resolved", complaint_id: "mc-1", order_id: ORDER_ID, work_id: "MP-TEST1", resolution: "valid_rework", complaint_status: "rework_required", order_status: "in_progress", settlement_status: "rework_hold" });
 
   const toast = page.locator(".mk-toast--complaint");
   await expect(toast).toContainText("Ish qayta ochildi");
@@ -39,6 +44,7 @@ test("the seller is told live and the order shows it moved back from completed t
   await expect(notice).toContainText("Qayta bajarishda");
   await expect(notice).toContainText("Shartnomaning 4-bandi to'ldirilmagan");
   await expect(notice).toContainText("Yakuniy to'lov ish qayta bajarilguncha ushlab turiladi");
+  await expect(notice).toContainText(/Qayta bajarish muddati: .*2[45] soat \d+ daqiqa qoldi/);
   await expect(page.locator(".mod")).toHaveAttribute("data-phase", "in_progress");
   if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/rework-seller.png` });
 
@@ -47,15 +53,37 @@ test("the seller is told live and the order shows it moved back from completed t
   await expect(page.locator(".mko-card").first()).toContainText("Qayta bajarishda");
 });
 
-test("the rework is recognised from the settlement alone, and the client is told too", async ({ page }) => {
+test("a held settlement alone is not a rework; the backend's flag is, and the client is told", async ({ page }) => {
+  const state = { order: order({ status: "in_progress", started_at: "2026-10-20T10:00:00Z" }) };
   const routes = await signIn(page, CLIENT, {
-    [`/marketplace/me/orders/${ORDER_ID}`]: order({ status: "in_progress", started_at: "2026-10-20T10:00:00Z" }),
+    [`/marketplace/me/orders/${ORDER_ID}`]: () => state.order,
     "/marketplace/me/orders": { items: [], total: 0 },
     [`/marketplace/me/orders/${ORDER_ID}/financials`]: financials([{ stage: "marketplace_advance", status: "paid", amount: 50000 }], "rework_hold"),
   });
   await mockBackend(page, routes);
   await page.goto(`/uz/portal/client/marketplace-orders/${ORDER_ID}`);
+  await expect(page.locator(".mod")).toHaveAttribute("data-phase", "in_progress");
+  await expect(page.locator(".mod-rework")).toHaveCount(0);
+  state.order = reopened();
+  await page.reload();
   const notice = page.locator(".mod-rework");
   await expect(notice).toContainText("Ish qayta bajariladi");
   await expect(notice).toContainText("Ijrochi ishni qayta bajaradi");
+});
+
+test("after the redo the client gets a fresh complaint window despite the old ruling", async ({ page }) => {
+  const routes = await signIn(page, CLIENT, {
+    [`/marketplace/me/orders/${ORDER_ID}`]: order({
+      status: "completed",
+      completed_at: "2026-10-27T08:00:00Z",
+      result_text: "Tuzatilgan hujjat",
+      rating: { value: 1 },
+      complaint: { available: true, submitted: false, status: "resolved", resolution: "valid_rework", latest_resolved_complaint_id: "mc-1", rework_required: false, url: `/marketplace/me/orders/${ORDER_ID}/complaint`, deadline_at: new Date(Date.now() + 14 * 60_000).toISOString() },
+    }),
+    "/marketplace/me/orders": { items: [], total: 0 },
+  });
+  await mockBackend(page, routes);
+  await page.goto(`/uz/portal/client/marketplace-orders/${ORDER_ID}`);
+  await expect(page.locator(".mod-rework")).toHaveCount(0);
+  await expect(page.getByText("Shikoyat yuborildi", { exact: false })).toHaveCount(0);
 });

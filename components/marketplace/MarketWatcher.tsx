@@ -76,7 +76,9 @@ export default function MarketWatcher({ role }: { role: Role }) {
       } else if (sig.kind === "refund" && (sig.sub === "approved" || sig.sub === "rejected")) {
         toast = { kind: sig.sub === "approved" ? "paid" : "rejected", title: tt(`refund.${sig.sub}`), text: tt(`refund.${sig.sub}Text`), href: orderHref };
       } else if (sig.kind === "completed" && role === "client") {
-        toast = { kind: "paid", title: tt("completed"), text: tt("completedText"), href: sectionHref("mod-rating") };
+        // A redone order (rework_completed) opens fresh rating and complaint windows.
+        const redone = [ev, ev.data, ev.payload].some((x) => !!x && typeof x === "object" && (x as Record<string, unknown>).rework_completed === true);
+        toast = { kind: "paid", title: redone ? tt("redone") : tt("completed"), text: redone ? tt("redoneText") : tt("completedText"), href: sectionHref("mod-rating") };
       } else if (sig.kind === "started" && role === "client") {
         const at = parseServerTime(sig.deadlineAt ?? "");
         const deadline = Number.isFinite(at) ? shortDateTime(new Date(at).toISOString(), localeRef.current) : "";

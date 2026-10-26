@@ -1582,6 +1582,8 @@ export type PlanPurchaseRequest = {
   // means the plan request exists but nobody was told about it.
   telegramDelivered: number;
   telegramFailed: number;
+  // The backend's price breakdown with any promotion (contract 2026-10-26 §2).
+  pricing: PlanQuote | null;
 };
 // POST /subscription-plans/{id}/telegram-purchase-request — the approval flow:
 // a Payment is created and the request is pushed to the admin Telegram chats,
@@ -1612,7 +1614,40 @@ export async function requestPlanTelegramPurchase(
     telegramSent: Boolean(d.telegram_sent),
     telegramDelivered: results.filter((r) => r.ok !== false).length,
     telegramFailed: results.filter((r) => r.ok === false).length,
+    pricing: d.pricing && typeof d.pricing === "object" ? planQuoteOf(d.pricing) : null,
   };
+}
+
+// ── Plan quote with promotions (contract 2026-10-26 §2) ───────────────
+// GET /subscription-plans/{id}/quote?billing_period= — the backend's price
+// for a period, with the MP09 promotion it applies (campaign null when
+// none). The frontend shows these amounts and never works a discount out.
+export type PlanQuoteCampaign = { id: string; title: string; discountType: string; discountValue: number; endsAt: string };
+export type PlanQuote = { months: number; baseAmount: number; discountAmount: number; amount: number; currency: string; campaign: PlanQuoteCampaign | null };
+
+export function planQuoteOf(raw: unknown): PlanQuote {
+  const d = asDict(raw);
+  const c = asDict(d.campaign);
+  return {
+    months: asNum(d.months),
+    baseAmount: asNum(d.base_amount),
+    discountAmount: asNum(d.discount_amount),
+    amount: asNum(d.amount),
+    currency: asStr(d.currency, "UZS"),
+    campaign: asStr(c.id) || asStr(c.title) ? { id: asStr(c.id), title: asStr(c.title), discountType: asStr(c.discount_type), discountValue: asNum(c.discount_value), endsAt: asStr(c.ends_at) } : null,
+  };
+}
+
+const QUOTE_TTL_MS = 60_000;
+const quoteCache = new Map<string, { at: number; p: Promise<PlanQuote> }>();
+export function getPlanQuote(planId: string, period: ManualDocBillingPeriod): Promise<PlanQuote> {
+  const key = `${planId}|${period}`;
+  const hit = quoteCache.get(key);
+  if (hit && Date.now() - hit.at < QUOTE_TTL_MS) return hit.p;
+  const p = http(`/subscription-plans/${encodeURIComponent(planId)}/quote?billing_period=${encodeURIComponent(period)}`).then(planQuoteOf);
+  p.catch(() => quoteCache.delete(key));
+  quoteCache.set(key, { at: Date.now(), p });
+  return p;
 }
 // A period the plan does not sell answers 422 with the ones it does. Returning
 // them lets the caller correct the choice instead of repeating the refusal.

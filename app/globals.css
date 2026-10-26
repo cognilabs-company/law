@@ -7074,6 +7074,13 @@ input.cbx__in:checked + .cbx__row .cbx__box::before{height:calc(var(--cbx-h) * 1
   border-radius:var(--rl);background:var(--dk-surface-2, #F7FAFE);box-shadow:inset 0 0 0 1.5px var(--line);
   font-size:.88rem;font-weight:700}
 .tgbuy__sum b{font-size:1.08rem;white-space:nowrap}
+.tgbuy__was{margin-right:8px;font-size:.82rem;font-weight:600;color:var(--gray)}
+.tgbuy__promo{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,#e11d48 9%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,#e11d48 30%,transparent)}
+.tgbuy__promo>svg{flex:none;width:18px;height:18px;color:#e11d48}
+.tgbuy__promo>span{display:grid;flex:1;min-width:0;gap:1px}
+.tgbuy__promo b{font-size:.88rem;color:var(--ink)}
+.tgbuy__promo small{font-size:.74rem;color:var(--gray)}
+.tgbuy__promo em{font-style:normal;font-weight:800;color:#e11d48;white-space:nowrap}
 
 @media (max-width:860px){
   .uad__cols{grid-template-columns:1fr}

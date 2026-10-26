@@ -1,7 +1,7 @@
 "use client";
 
 import PlanGateCard from "@/components/ui/PlanGateCard";
-import { planGateOf, type PlanGate } from "@/lib/planGate";
+import { docAccessGate, planGateOf, type PlanGate } from "@/lib/planGate";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
@@ -15,7 +15,7 @@ import {
   type DocQuoteInput,
 } from "@/lib/services/backend";
 import { fmtUzs } from "@/lib/money";
-import { acceptFor, docRuntimeSettings } from "@/lib/services/documentSettings";
+import { acceptFor, docModeAccess, docRuntimeSettings, type DocAccess } from "@/lib/services/documentSettings";
 import { ApiError, errDetail, logApiError } from "@/lib/http";
 import { IconFileText, IconAlert, IconCheck, IconSparkle, IconShieldCheck, IconArrowRight } from "@/components/icons";
 
@@ -61,10 +61,15 @@ export default function ClientDocAnalysis() {
   const [handOff, setHandOff] = useState<"" | "busy" | "sent" | "failed">("");
   const [handOffNote, setHandOffNote] = useState("");
   const [limits, setLimits] = useState({ maxMb: MAX_FILE_MB, formats: FORMATS, included: INCLUDED_PAGES });
+  // Whether analysis is open to this user (runtime access, contract 2026-10-26 §4).
+  const [access, setAccess] = useState<DocAccess | null>(null);
   useEffect(() => {
     let alive = true;
     void docRuntimeSettings().then((s) => {
       if (alive && s) setLimits({ maxMb: s.maxFileMb || MAX_FILE_MB, formats: s.allowedFormats.length ? s.allowedFormats : FORMATS, included: s.includedPages || INCLUDED_PAGES });
+    });
+    void docModeAccess("analysis").then((a) => {
+      if (alive) setAccess(a);
     });
     return () => {
       alive = false;
@@ -321,6 +326,13 @@ export default function ClientDocAnalysis() {
       ) : null}
 
       {gate ? <PlanGateCard gate={gate} onClose={() => setGate(null)} /> : null}
+      {!gate && docAccessGate(access, "ai_document_analysis") ? <PlanGateCard gate={docAccessGate(access, "ai_document_analysis") as PlanGate} /> : null}
+      {access && !access.allowed && access.code === "document_mode_disabled" ? (
+        <div className="ppanel" role="status">
+          <div className="ppanel__h"><span className="intake__failicon"><IconAlert /></span><b>{t("modeOff")}</b></div>
+          <p className="advmuted">{t("modeOffText")}</p>
+        </div>
+      ) : null}
 
       {failed ? (
         <div className="ppanel">

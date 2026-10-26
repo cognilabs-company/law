@@ -105,3 +105,27 @@
   .prm-hero__acts .btn { flex: 1; justify-content: center; }
   .prm-facts { grid-template-columns: 1fr; }
 }
+
+.prm-card[data-state="paused"] { --s: #f59e0b; }
+.prm-card[data-state="exhausted"] { --s: #e11d48; }
+.prm-state[data-state="paused"] { background: var(--prm-warn-soft); color: var(--prm-warn); }
+.prm-state[data-state="exhausted"] { background: var(--prm-hot-soft); color: var(--prm-hot); }
+.prm-paused { margin: 0; padding: 7px 10px; border-radius: 10px; background: var(--prm-warn-soft); color: var(--prm-warn); font-size: .8rem; line-height: 1.4; }
+.prm-sk { display: inline-block; width: 120px; height: 12px; border-radius: 6px; background: var(--prm-soft); animation: prmPulse 1.1s ease-in-out infinite alternate; }
+.prm-sk--sm { width: 70px; }
+@keyframes prmPulse { from { opacity: .5; } to { opacity: 1; } }
+.prm-targets__err { color: var(--gray) !important; font-size: .8rem !important; }
+.prm-bar { position: relative; display: block; height: 5px; margin-top: 6px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.prm-bar b { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--prm-acc); }
+.prm-bar[data-full] b { background: var(--prm-hot); }
+.prm-card__acts { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.prm-card__acts .btn svg { width: 14px; height: 14px; }
+.prm-danger { background: #dc2626; color: #fff; }
+.prm-danger:hover:not(:disabled) { background: #b91c1c; }
+.prm-danger svg { width: 15px; height: 15px; }
+.prm-field { display: grid; gap: 6px; font-size: .8rem; font-weight: 600; color: var(--gray); }
+.prm-field textarea { width: 100%; padding: 10px 12px; border: 0; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; font-size: .9rem; font-weight: 400; resize: vertical; }
+.prm-field textarea:focus-visible { outline: none; box-shadow: inset 0 0 0 1.5px var(--dk-acc, var(--b600)); }
+.prm-field small { font-weight: 500; }
+.prm-err { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #dc2626 12%, transparent); color: #dc2626; font-size: .82rem; }
+@media (prefers-reduced-motion: reduce) { .prm-sk { animation: none; } }

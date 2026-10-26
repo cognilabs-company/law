@@ -130,6 +130,7 @@ function Summary({ s, compact = false }: { s: DocSettings; compact?: boolean }):
       <Card icon={<IconCrown />} title={t("plan.title")} on={plan.required}>
         <p className="dss-lead">{plan.required ? t("plan.needed", { n: plan.planIds.length }) : t("plan.free")}</p>
         {plan.required && plan.entitlement ? <p className="dss-muted">{t("plan.entitlementIs", { key: plan.entitlement })}</p> : !plan.required ? <p className="dss-muted">{t("plan.freeHint")}</p> : null}
+        {Object.keys(plan.perMode).length ? <p className="dss-muted">{t("plan.perModeN", { n: Object.keys(plan.perMode).length })}</p> : null}
       </Card>
       <Card icon={<IconClipboardCheck />} title={t("review.title")} on={review.enabled}>
         <p className="dss-lead">{review.enabled ? t(`review.by.${review.reviewerType || "any"}`) : t("review.off")}</p>
@@ -140,6 +141,34 @@ function Summary({ s, compact = false }: { s: DocSettings; compact?: boolean }):
         <p className="dss-muted">{[dl.formats.length ? dl.formats.map((f) => f.toUpperCase()).join(", ") : t("download.allFormats"), dl.watermark ? t("download.watermarkOn") : ""].filter(Boolean).join(" · ")}</p>
       </Card>
     </div>
+  );
+}
+
+// Which plans (or which entitlement) a rule asks for.
+function PlanPick({ plans, ids, entitlement, onIds, onEntitlement, label }: { plans: BackendPlan[] | null; ids: string[]; entitlement: string; onIds: (v: string[]) => void; onEntitlement: (v: string) => void; label: string }): ReactElement {
+  const t = useTranslations("admin.docSettings");
+  const flip = (id: string) => onIds(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]);
+  return (
+    <>
+      <div className="dss-toggles" role="group" aria-label={label}>
+        {plans === null ? (
+          <span className="dss-muted">{t("plan.loading")}</span>
+        ) : plans.length ? (
+          plans.map((p) => (
+            <button key={p.id} type="button" aria-pressed={ids.includes(p.id)} onClick={() => flip(p.id)}>
+              {p.name}
+            </button>
+          ))
+        ) : (
+          <span className="dss-muted">{t("plan.none")}</span>
+        )}
+      </div>
+      <label className="dss-line">
+        <span>{t("plan.entitlement")}</span>
+        <input value={entitlement} placeholder="documents.unlimited" onChange={(e) => onEntitlement(e.target.value)} />
+        <small>{t("plan.entitlementHint")}</small>
+      </label>
+    </>
   );
 }
 
@@ -319,29 +348,42 @@ function Editor({ start, onSaved, onCancel }: { start: DocSettings; onSaved: (v:
           </div>
           {plan.required ? (
             <>
-              <div className="dss-toggles" role="group" aria-label={t("plan.plans")}>
-                {plans === null ? (
-                  <span className="dss-muted">{t("plan.loading")}</span>
-                ) : plans.length ? (
-                  plans.map((p) => (
-                    <button key={p.id} type="button" aria-pressed={plan.planIds.includes(p.id)} onClick={() => setPlan({ planIds: toggle(plan.planIds, p.id) })}>
-                      {p.name}
-                    </button>
-                  ))
-                ) : (
-                  <span className="dss-muted">{t("plan.none")}</span>
-                )}
-              </div>
-              <label className="dss-line">
-                <span>{t("plan.entitlement")}</span>
-                <input value={plan.entitlement} placeholder="documents.unlimited" onChange={(e) => setPlan({ entitlement: e.target.value })} />
-                <small>{t("plan.entitlementHint")}</small>
-              </label>
+              <PlanPick plans={plans} ids={plan.planIds} entitlement={plan.entitlement} onIds={(v) => setPlan({ planIds: v })} onEntitlement={(v) => setPlan({ entitlement: v })} label={t("plan.plans")} />
               {shown.plan ? <small className="dss-bad">{t("issue.pickPlan")}</small> : null}
             </>
           ) : (
             <small className="dss-muted">{t("plan.freeHint")}</small>
           )}
+          <div className="dss-permode">
+            <b className="dss-sub">{t("plan.perMode")}</b>
+            <small className="dss-muted">{t("plan.perModeHint")}</small>
+            {s.modes.map((m) => {
+              const own = plan.perMode[m];
+              const setOwn = (next: (typeof plan.perMode)[string] | null) =>
+                setPlan({ perMode: next ? { ...plan.perMode, [m]: next } : Object.fromEntries(Object.entries(plan.perMode).filter(([k]) => k !== m)) });
+              return (
+                <div key={m} className="dss-mode" data-on={own ? "" : undefined}>
+                  <div className="dss-sw">
+                    <Switch id={`${uid}-pm-${m}`} checked={!!own} onChange={(v) => setOwn(v ? { required: true, planIds: [], entitlement: "" } : null)} aria-labelledby={`${uid}-pm-${m}-t`} aiId={`admin.docSettings.plan-mode.${m}`} />
+                    <span id={`${uid}-pm-${m}-t`}>
+                      <b>{t(`mode.${m}`)}</b>
+                      <small>{own ? (own.required ? t("plan.modeOwn") : t("plan.modeFree")) : t("plan.modeInherits")}</small>
+                    </span>
+                  </div>
+                  {own ? (
+                    <div className="dss-mode__b">
+                      <div className="dss-sw">
+                        <Switch id={`${uid}-pmr-${m}`} checked={own.required} onChange={(v) => setOwn({ ...own, required: v })} aria-labelledby={`${uid}-pmr-${m}-t`} />
+                        <span id={`${uid}-pmr-${m}-t`}>{t("plan.required")}</span>
+                      </div>
+                      {own.required ? <PlanPick plans={plans} ids={own.planIds} entitlement={own.entitlement} onIds={(v) => setOwn({ ...own, planIds: v })} onEntitlement={(v) => setOwn({ ...own, entitlement: v })} label={t("plan.plans")} /> : null}
+                      {shown[`plan_${m}`] ? <small className="dss-bad">{t("issue.pickPlan")}</small> : null}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
         </Step>
 
         <Step n={5} title={t("review.title")} hint={t("review.hint")}>
@@ -372,6 +414,7 @@ function Editor({ start, onSaved, onCancel }: { start: DocSettings; onSaved: (v:
             <Switch id={`${uid}-dlp`} checked={dl.planRequired} onChange={(v) => setDl({ planRequired: v })} aria-labelledby={`${uid}-dlp-t`} aiId="admin.docSettings.download-plan" />
             <span id={`${uid}-dlp-t`}>{t("download.planRequired")}</span>
           </div>
+          {dl.planRequired ? <PlanPick plans={plans} ids={dl.planIds} entitlement={dl.entitlement} onIds={(v) => setDl({ planIds: v })} onEntitlement={(v) => setDl({ entitlement: v })} label={t("download.plans")} /> : null}
           <div className="dss-sw">
             <Switch id={`${uid}-wm`} checked={dl.watermark} onChange={(v) => setDl({ watermark: v })} aria-labelledby={`${uid}-wm-t`} aiId="admin.docSettings.watermark" />
             <span id={`${uid}-wm-t`}>{t("download.watermark")}</span>

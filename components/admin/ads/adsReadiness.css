@@ -76,3 +76,17 @@
 .adsr__note { display: flex; align-items: center; gap: 7px; margin: 0; font-size: .8rem; color: var(--gray); }
 .adsr__note svg { flex: none; width: 15px; height: 15px; color: #f59e0b; }
 @media (max-width: 760px) { .adsr ul { grid-template-columns: 1fr; } }
+.adsr[data-mode="active"] { --adsr-c: #16a34a; --adsr-ink: var(--dk-txt-ok, #15803d); }
+.adsr[data-mode="paused"] { --adsr-c: #64748b; --adsr-ink: var(--gray); }
+.adsr__acts { margin-left: auto; display: flex; gap: 8px; }
+.adsr__acts .btn svg { width: 14px; height: 14px; }
+.adsr__who { margin: 0; font-size: .8rem; color: var(--gray); }
+.adsr__danger { background: #dc2626; color: #fff; }
+.adsr__danger:hover:not(:disabled) { background: #b91c1c; }
+.adsr__danger svg, .adsr .btn--pri svg { width: 15px; height: 15px; }
+.adsr__field { display: grid; gap: 6px; font-size: .8rem; font-weight: 600; color: var(--gray); }
+.adsr__field textarea { width: 100%; padding: 10px 12px; border: 0; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; font-size: .9rem; font-weight: 400; resize: vertical; }
+.adsr__field textarea:focus-visible { outline: none; box-shadow: inset 0 0 0 1.5px var(--dk-acc, var(--b600)); }
+.adsr__field small { font-weight: 500; }
+.adsr__err { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #dc2626 12%, transparent); color: #dc2626; font-size: .82rem; }
+@media (max-width: 560px) { .adsr__acts { margin-left: 0; flex-basis: 100%; } .adsr__acts .btn { flex: 1; justify-content: center; } }

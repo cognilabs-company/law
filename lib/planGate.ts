@@ -34,3 +34,12 @@ export function planGateOf(e: unknown): PlanGate | null {
     resetsAt: typeof d.resets_at === "string" ? d.resets_at : "",
   };
 }
+
+// A document mode the runtime settings close to this user (contract
+// 2026-10-26 §4), as the same plan card; null when it is open, or disabled
+// outright (no plan opens it — the caller says so in words).
+export function docAccessGate(a: { allowed: boolean; code: string } | null, featureKey: string): PlanGate | null {
+  if (!a || a.allowed || !a.code || a.code === "document_mode_disabled") return null;
+  const code: PlanGateCode = a.code === "document_subscription_required" ? "active_subscription_required" : "feature_not_in_plan";
+  return { code, featureKey, limit: null, used: null, remaining: null, unit: "", resetsAt: "" };
+}

@@ -177,8 +177,11 @@ export function ComplaintPanel({ o, onFiled }: { o: MarketOrder; onFiled: () => 
   const [filed, setFiled] = useState(false);
   const [closed, setClosed] = useState(false);
   const fieldId = useId();
-  const lowRated = o.rating.value > 0 && o.rating.value <= 2;
-  if (filed || FILED.has(o.complaint.status) || (lowRated && o.complaint.status !== "")) {
+  // A fresh window after a re-completed rework (contract 2026-10-26 §1):
+  // the old ruling stays in history and must not hide the new form.
+  const fresh = o.complaint.available && o.complaint.submitted === false;
+  const lowRated = !fresh && o.rating.value > 0 && o.rating.value <= 2;
+  if (filed || (!fresh && (FILED.has(o.complaint.status) || (lowRated && o.complaint.status !== "")))) {
     return (
       <p className="mko__cmp is-filed" role="status">
         <IconHourglass aria-hidden="true" />
