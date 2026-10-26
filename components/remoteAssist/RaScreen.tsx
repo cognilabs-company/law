@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, ty
 import { useTranslations } from "next-intl";
 import { IconClose, IconEdit, IconEyeOff, IconMonitor, IconRefresh, IconTarget } from "@/components/icons";
 import type { RaLink, RaRemoteShare } from "@/lib/remoteAssist/callLink";
-import { RA_MARK_COLORS, containRect, raMarkId, simplifyPath, type RaMark, type RaMarkColor, type RaMarkTool, type RaPoint, type RaShareState } from "@/lib/remoteAssist/marks";
+import { RA_MARK_COLORS, containRect, raMarkId, raWireAllowed, simplifyPath, type RaMark, type RaMarkColor, type RaMarkTool, type RaPoint, type RaProbeHit, type RaShareState } from "@/lib/remoteAssist/marks";
 import { raTabHandle } from "@/lib/remoteAssist/tabHandle";
 import { RaMarkLayer, useMarks } from "./RaMarks";
 
@@ -13,7 +13,11 @@ import { RaMarkLayer, useMarks } from "./RaMarks";
 // sent over the call's data channel; both sides drop it after 3 s. Nothing
 // here touches the remote-assistance API.
 
-const TOOLS: { key: RaMarkTool; label: string }[] = [
+// "click" is not a mark: it asks the client what sits under the point and
+// opens it (a link) or points at it (a component) through the console.
+type Tool = RaMarkTool | "click";
+const TOOLS: { key: Tool; label: string }[] = [
+  { key: "click", label: "tool.click" },
   { key: "pointer", label: "tool.pointer" },
   { key: "arrow", label: "tool.arrow" },
   { key: "circle", label: "tool.circle" },
@@ -21,8 +25,15 @@ const TOOLS: { key: RaMarkTool; label: string }[] = [
   { key: "pen", label: "tool.pen" },
 ];
 
-function ToolGlyph({ tool }: { tool: RaMarkTool }): ReactElement {
+function ToolGlyph({ tool }: { tool: Tool }): ReactElement {
   const p = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
+  if (tool === "click")
+    return (
+      <svg {...p}>
+        <path d="M5 3l5.5 15 2.2-6.3L19 9.5z" />
+        <path d="M13 13l6 6" />
+      </svg>
+    );
   if (tool === "pointer") return <IconTarget aria-hidden="true" />;
   if (tool === "arrow")
     return (
@@ -52,6 +63,7 @@ export function RaScreen({
   canDraw,
   pageTitle,
   route,
+  onHit,
 }: {
   link: RaLink | null;
   clientId: string;
@@ -59,12 +71,20 @@ export function RaScreen({
   canDraw: boolean;
   pageTitle: string;
   route: string;
+  // The client's answer to a click: a route to open or a component to point at.
+  onHit: (hit: RaProbeHit) => void;
 }): ReactElement {
   const t = useTranslations("remoteAssist.screen");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
   const [remote, setRemote] = useState<RaRemoteShare>({ video: null, muted: false });
-  const [tool, setTool] = useState<RaMarkTool>("arrow");
+  const [tool, setTool] = useState<Tool>("click");
+  const [probe, setProbe] = useState<"" | "wait" | "none">("");
+  const probeRef = useRef("");
+  const onHitRef = useRef(onHit);
+  useEffect(() => {
+    onHitRef.current = onHit;
+  }, [onHit]);
   const [color, setColor] = useState<RaMarkColor>("blue");
   const [box, setBox] = useState({ x: 0, y: 0, w: 0, h: 0 });
   const [draft, setDraft] = useState<RaPoint[] | null>(null);
@@ -74,6 +94,27 @@ export function RaScreen({
   // The client captured this very tab (both in one browser): showing it here
   // would be an endless mirror that crashes the page, so it is never shown.
   const mirrorOfSelf = !!share?.tab && share.tab === raTabHandle();
+
+  // The client's answer to the last click (older answers are ignored).
+  useEffect(() => {
+    if (!link || !clientId) return;
+    return link.onWire((msg, from) => {
+      if (msg.t !== "probe-hit" || !raWireAllowed(msg, from, { operator: link.self(), client: clientId }) || msg.id !== probeRef.current) return;
+      probeRef.current = "";
+      if (msg.route || msg.componentId) {
+        setProbe("");
+        onHitRef.current(msg);
+      } else setProbe("none");
+    });
+  }, [link, clientId]);
+  useEffect(() => {
+    if (probe !== "wait") return;
+    const id = window.setTimeout(() => {
+      probeRef.current = "";
+      setProbe("none");
+    }, 3000);
+    return () => window.clearTimeout(id);
+  }, [probe]);
 
   // Follow the client's track as it comes, goes, mutes.
   useEffect(() => {
@@ -126,7 +167,7 @@ export function RaScreen({
     return [x, y];
   };
   const send = (points: RaPoint[]) => {
-    const mark: RaMark = { v: 1, id: raMarkId(), tool, color, points: tool === "pen" ? simplifyPath(points) : points.map(([x, y]) => [Math.round(x * 1e4) / 1e4, Math.round(y * 1e4) / 1e4]), w: Math.round(box.w), h: Math.round(box.h) };
+    const mark: RaMark = { v: 1, id: raMarkId(), tool: tool === "click" ? "pointer" : tool, color, points: tool === "pen" ? simplifyPath(points) : points.map(([x, y]) => [Math.round(x * 1e4) / 1e4, Math.round(y * 1e4) / 1e4]), w: Math.round(box.w), h: Math.round(box.h) };
     add(mark);
     link?.send({ t: "mark", mark });
   };
@@ -138,6 +179,15 @@ export function RaScreen({
     e.currentTarget.setPointerCapture(e.pointerId);
     if (tool === "pointer") {
       send([p]);
+      return;
+    }
+    if (tool === "click") {
+      // Show the client where, then ask what is there.
+      send([p]);
+      const id = raMarkId();
+      probeRef.current = id;
+      setProbe("wait");
+      link?.send({ t: "probe", id, x: p[0], y: p[1] });
       return;
     }
     setDraft([p]);
@@ -160,7 +210,7 @@ export function RaScreen({
   };
 
   const draftMark: RaMark | null =
-    draft && draft.length >= (tool === "pen" ? 2 : 2) ? { v: 1, id: "draft", tool, color, points: tool === "pen" ? draft : [draft[0], draft[draft.length - 1]], w: 1, h: 1 } : null;
+    draft && draft.length >= 2 && tool !== "click" ? { v: 1, id: "draft", tool, color, points: tool === "pen" ? draft : [draft[0], draft[draft.length - 1]], w: 1, h: 1 } : null;
 
   return (
     <div className="ra-scr" data-state={!link ? "nocall" : !remote.video ? "off" : mirrorOfSelf ? "self" : hidden ? "hidden" : "live"}>
@@ -249,7 +299,7 @@ export function RaScreen({
           <IconClose aria-hidden="true" />
           {t("clear")}
         </button>
-        <small className="ra-tools__hint">{canDraw ? t("fade") : t("paused")}</small>
+        <small className="ra-tools__hint" role="status">{!canDraw ? t("paused") : tool === "click" ? (probe === "wait" ? t("probeWait") : probe === "none" ? t("probeNone") : t("clickHint")) : t("fade")}</small>
       </div>
     </div>
   );

@@ -39,7 +39,7 @@ import {
 } from "@/lib/services/remoteAssist";
 import { closeRaConsole, patchRaConsole, type RaConsoleState } from "@/lib/remoteAssist/store";
 import { useRaLink } from "@/lib/remoteAssist/callLink";
-import { raWireAllowed, type RaShareState } from "@/lib/remoteAssist/marks";
+import { raWireAllowed, type RaProbeHit, type RaShareState } from "@/lib/remoteAssist/marks";
 import { CALLROOM_EVENT, CALLROOM_FLOAT_EVENT } from "@/lib/callEvents";
 import { RaScreen } from "./RaScreen";
 import { RaPagePicker } from "./RaPagePicker";
@@ -402,6 +402,21 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
     void dispatch({ key: raIdempotencyKey(actionId), actionId, componentId: el?.componentId ?? "", payload, pageId: mirror.pageId, revision: mirror.revision || 1 });
   };
 
+  // A click on the live picture, answered by the client: open the link
+  // (route.navigate) or point at the component (element.highlight) — the
+  // same audited commands as the side panel's buttons.
+  const onProbeHit = (hit: RaProbeHit) => {
+    if (!canCommand) return;
+    if (hit.route) {
+      if (granted.has("route.navigate")) send("route.navigate", null, { route: hit.route });
+      else toast(t("screen.noOpen"), { tone: "info" });
+      return;
+    }
+    const el = mirror?.elements.find((x) => x.componentId === hit.componentId);
+    if (el && granted.has("element.highlight") && raElementActions(el, granted, session?.grantedScopes ?? []).includes("element.highlight")) send("element.highlight", el);
+    else toast(t("screen.probeNone"), { tone: "info" });
+  };
+
   const end = async () => {
     if (!session || busy) return;
     const ok = await confirmDialog({ title: t("op.endTitle"), text: t("op.endText"), confirmLabel: t("op.end"), tone: "danger" });
@@ -653,6 +668,7 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
             canDraw={canDraw}
             pageTitle={mirror ? pageLabel(mirror.pageId) : t("op.waitingScreen")}
             route={mirror?.route ?? ""}
+            onHit={onProbeHit}
           />
           <div className="ra-con__side">
           <div className="ra-con__strip">

@@ -33,14 +33,21 @@ export type RaMark = {
 // `tab`: the captured tab's capture handle, so the operator can refuse to
 // render a capture of their own tab.
 export type RaShareState = { surface: string; hidden: boolean; on: boolean; tab?: string };
+// "probe": the operator clicked the live picture at (x, y); the client says
+// what is there ("probe-hit": a safe LexGo route, or a registered component),
+// and the operator's console turns that into a normal, audited command.
+export type RaProbeHit = { t: "probe-hit"; id: string; route?: string; componentId?: string; label?: string };
 export type RaWire =
   | { t: "mark"; mark: RaMark }
   | { t: "clear" }
   | { t: "share"; state: RaShareState }
-  | { t: "ask-share" };
+  | { t: "ask-share" }
+  | { t: "probe"; id: string; x: number; y: number }
+  | RaProbeHit;
 
 const POINTS_FOR: Record<RaMarkTool, [number, number]> = { pointer: [1, 1], arrow: [2, 2], circle: [2, 2], rect: [2, 2], pen: [2, RA_MARK_MAX_POINTS] };
 
+const ID = /^[A-Za-z0-9_-]{1,40}$/;
 const isUnit = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1;
 const round = (n: number) => Math.round(n * 10000) / 10000;
 
@@ -73,6 +80,14 @@ export function parseRaWire(payload: Uint8Array | string): RaWire | null {
   if (d.t === "mark") return isRaMark(d.mark) ? { t: "mark", mark: d.mark } : null;
   if (d.t === "clear") return { t: "clear" };
   if (d.t === "ask-share") return { t: "ask-share" };
+  if (d.t === "probe") return typeof d.id === "string" && ID.test(d.id) && isUnit(d.x) && isUnit(d.y) ? { t: "probe", id: d.id, x: d.x, y: d.y } : null;
+  if (d.t === "probe-hit") {
+    if (typeof d.id !== "string" || !ID.test(d.id)) return null;
+    const route = typeof d.route === "string" && d.route.startsWith("/") && d.route.length <= 500 ? d.route : "";
+    const componentId = typeof d.componentId === "string" && /^[A-Za-z0-9_.:-]{1,120}$/.test(d.componentId) ? d.componentId : "";
+    const label = typeof d.label === "string" ? d.label.replace(/\s+/g, " ").trim().slice(0, 80) : "";
+    return { t: "probe-hit", id: d.id, ...(route ? { route } : {}), ...(componentId ? { componentId } : {}), ...(label ? { label } : {}) };
+  }
   if (d.t === "share" && d.state && typeof d.state === "object") {
     const s = d.state as Record<string, unknown>;
     const tab = typeof s.tab === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(s.tab) ? s.tab : "";
@@ -85,11 +100,11 @@ export function encodeRaWire(msg: RaWire): Uint8Array<ArrayBuffer> {
   return new TextEncoder().encode(JSON.stringify(msg));
 }
 
-// Who may send what: marks, clear and ask-share only from the session's
-// operator; share state only from its client.
+// Who may send what: marks, clear, ask-share and probes only from the
+// session's operator; share state and probe answers only from its client.
 export function raWireAllowed(msg: RaWire, from: string, ids: { operator: string; client: string }): boolean {
   if (!from) return false;
-  return msg.t === "share" ? from === ids.client : from === ids.operator;
+  return msg.t === "share" || msg.t === "probe-hit" ? from === ids.client : from === ids.operator;
 }
 
 // A free pen line simplified (Ramer–Douglas–Peucker) and capped, in 0..1

@@ -23454,7 +23454,8 @@
         "arrow": "Arrow",
         "circle": "Circle",
         "rect": "Box",
-        "pen": "Pen"
+        "pen": "Pen",
+        "click": "Click (open)"
       },
       "color": {
         "blue": "Blue",
@@ -23465,7 +23466,11 @@
       "fade": "Marks fade after 3 seconds",
       "paused": "Help is paused — drawing is off",
       "selfTab": "The client shared your tab",
-      "selfTabText": "The client picked your page in the browser. Ask them to share “This tab” instead."
+      "selfTabText": "The client picked your page in the browser. Ask them to share “This tab” instead.",
+      "clickHint": "Click a link or button on the client's screen — the page opens or the spot is pointed at",
+      "probeWait": "Checking on the client's side…",
+      "probeNone": "Nothing to open here",
+      "noOpen": "This help mode can't open pages"
     },
     "groups": {
       "main": "Main",

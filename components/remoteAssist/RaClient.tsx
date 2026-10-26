@@ -44,6 +44,7 @@ import { useRaLink } from "@/lib/remoteAssist/callLink";
 import { raWireAllowed, type RaShareState } from "@/lib/remoteAssist/marks";
 import { raScreenFacts, raShareHidden } from "@/lib/remoteAssist/privacy";
 import { raOtherTab } from "@/lib/remoteAssist/tabHandle";
+import { raProbeAt } from "@/lib/remoteAssist/probe";
 import { RaMarkLayer, useMarks } from "./RaMarks";
 import { createRaRunner, type RaRunner } from "@/lib/remoteAssist/runner";
 import { openRaSocket, type RaSocket, type RaSocketEvent } from "@/lib/remoteAssist/socket";
@@ -335,6 +336,13 @@ export default function RaClient({ selfId }: { selfId: string }) {
         if (shareRef.current.on && shareRef.current.surface === "browser" && activeRef.current?.phase === "active") addMark(msg.mark);
       } else if (msg.t === "clear") clearMarks();
       else if (msg.t === "ask-share") setAskedShare(true);
+      else if (msg.t === "probe") {
+        // The operator clicked the picture of this tab: say what is there
+        // (a safe route or a registered component — never a value).
+        const cur = shareRef.current;
+        if (!cur.on || cur.hidden || cur.surface !== "browser" || activeRef.current?.phase !== "active") return;
+        linkRef.current?.send({ t: "probe-hit", id: msg.id, ...raProbeAt(msg.x, msg.y) });
+      }
     });
   }, [link, shareSid, activeOperator, selfId, addMark, clearMarks]);
 

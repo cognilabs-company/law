@@ -471,6 +471,28 @@ test("one click to ask, one to allow: the operator sees the tab, draws, opens pa
   await expect(op.page.getByText("Bu sahifani xavfsizlik sababli masofadan ochib bo'lmaydi").first()).toBeVisible();
   await expect(cl.page).toHaveURL(/\/portal\/client\/subscription$/);
 
+  // Click on the live picture: the client's side-nav link under that point opens.
+  const navLink = cl.page.locator('a[href$="/portal/client/notifications"]').first();
+  const at = await navLink.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return { x: (r.left + r.width / 2) / window.innerWidth, y: (r.top + r.height / 2) / window.innerHeight };
+  });
+  const pic = await screen.locator(".ra-scr__frame").evaluate((frame) => {
+    const v = frame.querySelector("video") as HTMLVideoElement;
+    const r = frame.getBoundingClientRect();
+    const s = Math.min(r.width / v.videoWidth, r.height / v.videoHeight);
+    const w = v.videoWidth * s;
+    const h = v.videoHeight * s;
+    return { x: r.left + (r.width - w) / 2, y: r.top + (r.height - h) / 2, w, h };
+  });
+  await screen.getByRole("radio", { name: "Bosish (ochish)" }).click();
+  await op.page.mouse.click(pic.x + at.x * pic.w, pic.y + at.y * pic.h);
+  await expect(cl.page).toHaveURL(/\/portal\/client\/notifications$/);
+  // An empty spot: nothing opens, the operator is told so.
+  await op.page.mouse.click(pic.x + pic.w * 0.98, pic.y + pic.h * 0.98);
+  await expect(screen.locator(".ra-tools__hint")).toContainText(/Bu joyda ochiladigan narsa yo'q|Mijoz ekranidagi/);
+  await expect(cl.page).toHaveURL(/\/portal\/client\/notifications$/);
+
   // Privacy: a secret field hides the picture until focus leaves it.
   await cl.page.evaluate(() => {
     const i = document.createElement("input");
@@ -515,7 +537,7 @@ test("one click to ask, one to allow: the operator sees the tab, draws, opens pa
   await expect(bar).toBeHidden();
   await expect(con.getByText("Mijoz ruxsatni olib qo'ydi.")).toBeVisible();
   expect(await cl.page.evaluate(() => (window as unknown as { __raTestLink: { localShare: () => { on: boolean } } }).__raTestLink.localShare().on)).toBe(false);
-  expect(srv.s.commands.filter((c) => c.action_id === "route.navigate").length).toBe(1);
+  expect(srv.s.commands.filter((c) => c.action_id === "route.navigate").length).toBe(2);
   expect(op.mock.refused).toEqual([]);
   expect(cl.mock.refused).toEqual([]);
 });

@@ -115,6 +115,23 @@ describe("the shared tab is the client's own", () => {
   });
 });
 
+describe("clicks on the live picture", () => {
+  it("parses a probe and its answer, dropping anything unsafe", () => {
+    expect(parseRaWire(JSON.stringify({ t: "probe", id: "p1", x: 0.2, y: 0.9 }))).toEqual({ t: "probe", id: "p1", x: 0.2, y: 0.9 });
+    expect(parseRaWire(JSON.stringify({ t: "probe", id: "p1", x: 1.5, y: 0.9 }))).toBeNull();
+    expect(parseRaWire(JSON.stringify({ t: "probe", id: "<p>", x: 0.1, y: 0.1 }))).toBeNull();
+    expect(parseRaWire(JSON.stringify({ t: "probe-hit", id: "p1", route: "/portal/client/ai", label: "  AI \n yordamchi " }))).toEqual({ t: "probe-hit", id: "p1", route: "/portal/client/ai", label: "AI yordamchi" });
+    expect(parseRaWire(JSON.stringify({ t: "probe-hit", id: "p1", route: "https://evil.example", componentId: "a b" }))).toEqual({ t: "probe-hit", id: "p1" });
+  });
+  it("takes probes only from the operator and answers only from the client", () => {
+    const ids = { operator: "op-1", client: "cl-1" };
+    expect(raWireAllowed({ t: "probe", id: "p", x: 0, y: 0 }, "op-1", ids)).toBe(true);
+    expect(raWireAllowed({ t: "probe", id: "p", x: 0, y: 0 }, "cl-1", ids)).toBe(false);
+    expect(raWireAllowed({ t: "probe-hit", id: "p" }, "cl-1", ids)).toBe(true);
+    expect(raWireAllowed({ t: "probe-hit", id: "p" }, "op-1", ids)).toBe(false);
+  });
+});
+
 describe("marks fade after 3 seconds", () => {
   it("is exactly 3000 ms", () => {
     expect(RA_MARK_TTL_MS).toBe(3000);

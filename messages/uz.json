@@ -23460,7 +23460,8 @@
         "arrow": "Strelka",
         "circle": "Doira",
         "rect": "To'rtburchak",
-        "pen": "Qalam"
+        "pen": "Qalam",
+        "click": "Bosish (ochish)"
       },
       "color": {
         "blue": "Ko'k",
@@ -23471,7 +23472,11 @@
       "fade": "Belgi 3 soniyada yo'qoladi",
       "paused": "Yordam to'xtatilgan — belgilash o'chiq",
       "selfTab": "Mijoz sizning tabingizni ulashdi",
-      "selfTabText": "Mijoz brauzerda sizning sahifangizni tanladi. Undan «Shu tab»ni tanlab, qayta ulashishni so'rang."
+      "selfTabText": "Mijoz brauzerda sizning sahifangizni tanladi. Undan «Shu tab»ni tanlab, qayta ulashishni so'rang.",
+      "clickHint": "Mijoz ekranidagi havola yoki tugmani bosing — sahifa ochiladi yoki joy belgilanadi",
+      "probeWait": "Mijoz tomonida tekshirilmoqda…",
+      "probeNone": "Bu joyda ochiladigan narsa yo'q",
+      "noOpen": "Bu yordam rejimida sahifa ochib bo'lmaydi"
     },
     "groups": {
       "main": "Asosiy",
