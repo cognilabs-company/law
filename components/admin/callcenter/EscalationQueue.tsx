@@ -20,7 +20,7 @@ import { humanize } from "@/lib/labels";
 import PersonName from "@/components/ui/PersonName";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
-import { escalationClosed, idemKeyFor, idemLost, idemSettle, isResolutionEvent, listAssignmentEscalations, resolveAssignmentEscalation, type AssignmentEscalation, type EscalationAction, type IdemSlot } from "@/lib/services/resolution";
+import { escalationClosed, idemKeyFor, idemLost, idemSettle, isResolutionEvent, listAssignmentEscalations, refundFinal, refundStepOf, resolveAssignmentEscalation, type AssignmentEscalation, type EscalationAction, type IdemSlot } from "@/lib/services/resolution";
 
 // Orders the seller declined or let the 30-minute acceptance pass
 // (TSK-131840): one row per order (the backend keeps escalations unique),
@@ -142,6 +142,33 @@ function ActionDialog({ esc, action, onClose, onDone, onClosed }: { esc: Assignm
   );
 }
 
+// Where the client's offer stands, live: sent → the client chose → the
+// order went to a new seller, or the refund ran → refunded / rejected; or
+// the time ran out. Built only from what the backend reports.
+type FlowStep = { key: string; label: string; state: "done" | "now" | "todo" | "bad" };
+function offerFlow(esc: AssignmentEscalation, t: ReturnType<typeof useTranslations>): FlowStep[] | null {
+  const offer = esc.resolution?.offer ?? null;
+  const refund = esc.resolution?.refund ?? null;
+  if (!offer && !refund) return null;
+  const choice = offer?.selectedChoice || (refund ? "refund" : "");
+  const expired = offer?.status === "expired" && !choice;
+  const steps: FlowStep[] = [{ key: "sent", label: t("flow.sent"), state: "done" }];
+  if (expired) {
+    steps.push({ key: "expired", label: t("flow.expired"), state: "bad" });
+    return steps;
+  }
+  steps.push({ key: "chose", label: choice ? t("flow.chose", { choice: t(`choice.${choice}`) }) : t("flow.waiting"), state: choice ? "done" : "now" });
+  if (choice === "reassign") {
+    const moved = esc.status === "resolved" || esc.order.status !== "resolution_required";
+    steps.push({ key: "moved", label: moved ? t("flow.reassigned") : t("flow.reassigning"), state: moved ? "done" : choice ? "now" : "todo" });
+  } else {
+    const step = refund ? refundStepOf(refund.status) : "requested";
+    steps.push({ key: "refund", label: t("flow.refunding"), state: !choice ? "todo" : refund && refundFinal(step) ? "done" : "now" });
+    steps.push({ key: "end", label: step === "rejected" ? t("flow.rejected") : step === "none" ? t("flow.notCharged") : t("flow.refunded"), state: step === "rejected" ? "bad" : refund && refundFinal(step) ? "done" : "todo" });
+  }
+  return steps;
+}
+
 function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationAction) => void }): ReactElement {
   const t = useTranslations("callCenter.escalations");
   const none = useTranslations("common")("none");
@@ -149,6 +176,8 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
   const [open, setOpen] = useState(false);
   const o = esc.order;
   const offer = esc.resolution?.offer ?? null;
+  const refund = esc.resolution?.refund ?? null;
+  const flow = offerFlow(esc, t);
   const when = (iso: string) => (iso ? shortDateTime(iso, locale) : "");
   const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : humanize(v) || none);
   // The order names its seller; a previous seller who is that seller takes
@@ -158,8 +187,8 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
     <li className="esc__item" data-open={open || undefined}>
       <button type="button" className="esc__row" aria-expanded={open} onClick={() => setOpen(!open)}>
         <b>{o.serviceTitle || o.packageTitle || o.workId || t("orderUntitled")}</b>
-        <span className="esc__chip" data-s={esc.status}>
-          {label("status", esc.status)}
+        <span className="esc__chip" data-s={offer?.status === "pending_client_choice" ? "waiting_client_choice" : esc.status}>
+          {offer?.status === "pending_client_choice" ? label("status", "waiting_client_choice") : label("status", esc.status)}
         </span>
         <span>{label("why", esc.reason)}</span>
         <time>{when(esc.createdAt)}</time>
@@ -199,7 +228,27 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
                 </dd>
               </div>
             ) : null}
+            {refund ? (
+              <div>
+                <dt>{t("f.refund")}</dt>
+                <dd>
+                  {label("refund", refundStepOf(refund.status))}
+                  {refund.amount !== null ? ` · ${fmtUzs(refund.amount)} ${refund.currency === "UZS" ? t("som") : refund.currency}` : ""}
+                  {!refund.providerEnabled && refund.status !== "not_charged" ? ` · ${t("manual")}` : ""}
+                </dd>
+              </div>
+            ) : null}
           </dl>
+          {flow ? (
+            <ol className="esc__flow" aria-label={t("flow.title")} aria-live="polite">
+              {flow.map((f) => (
+                <li key={f.key} data-state={f.state}>
+                  <i aria-hidden="true" />
+                  <span>{f.label}</span>
+                </li>
+              ))}
+            </ol>
+          ) : null}
           {esc.attempts.length ? (
             <section aria-label={t("attempts")}>
               <b className="esc__h">{t("attempts")}</b>
@@ -223,9 +272,16 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
                 {esc.history.map((h, i) => (
                   <li key={h.id || `${h.at}-${i}`}>
                     <time>{when(h.at)}</time>
-                    <span>{label("event", h.type || h.status)}</span>
-                    {h.actor ? <span className="esc__muted">{h.actor}</span> : null}
-                    {h.message ? <span>{h.message}</span> : null}
+                    <span className="esc__ev-what">
+                      {label("event", h.type || h.status)}
+                      {h.choice ? ` · ${label("choice", h.choice)}` : ""}
+                    </span>
+                    {h.actor || h.actorId ? (
+                      <span className="esc__muted">
+                        <PersonName id={h.actorId} name={h.actor} />
+                      </span>
+                    ) : null}
+                    {h.message ? <span className="esc__ev-msg">{h.message}</span> : null}
                   </li>
                 ))}
               </ol>
@@ -276,6 +332,16 @@ export default function EscalationQueue({ onCount }: { onCount?: (n: number) => 
       setFailed(true);
     }
   }, []);
+  // The realtime channel is the main source; while an offer or a refund is
+  // still moving, a slow refresh covers a missed event.
+  const moving = !!items?.some((e) => e.resolution?.offer?.status === "pending_client_choice" || (e.resolution?.refund && !refundFinal(refundStepOf(e.resolution.refund.status))));
+  useEffect(() => {
+    if (!moving) return;
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") void load();
+    }, 15_000);
+    return () => window.clearInterval(id);
+  }, [moving, load]);
   useEffect(() => {
     const ctl = new AbortController();
     void Promise.resolve().then(() => load(ctl.signal));

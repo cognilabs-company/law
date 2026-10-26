@@ -78,7 +78,8 @@ test("the client picks another specialist from the offer", async ({ page }) => {
   await expect(page.getByText("Вам предложен выбор")).toBeVisible();
   await page.getByRole("button", { name: "Другой специалист" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Другой специалист" }).click();
-  await expect(page.getByText("Выбор принят: заказ отправлен другому специалисту.")).toBeVisible();
+  await expect(page.getByText("Ищем специалиста")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Другой специалист/ })).toHaveCount(0);
   const c = mock.calls.find((x) => x.method === "POST" && x.path.endsWith("/resolution"));
   choice = c ? { body: c.body, key: c.headers["idempotency-key"] } : null;
   expect(choice?.body).toEqual({ choice: "reassign", reason: "" });
@@ -94,8 +95,9 @@ test("a refund shows its status and the manual-processing label", async ({ page 
   });
   await mockBackend(page, routes);
   await page.goto(`/ru/portal/client/marketplace-orders/${ORDER_ID}`);
-  await expect(page.getByText("Возврат: Ожидает")).toBeVisible();
-  await expect(page.getByText("Обрабатывается вручную")).toBeVisible();
+  await expect(page.locator(".mrs-refund")).toContainText("Запрос принят");
+  await expect(page.locator(".mrs-refund")).toContainText("110 000");
+  await expect(page.getByText(/Автоматический возврат через платёжную систему сейчас не включён/)).toBeVisible();
 });
 
 test("a refund sends the operator's reason as the message; an already-closed escalation refreshes", async ({ page }) => {

@@ -59,12 +59,13 @@ const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 
 // `accepting`: still with the seller to take; nothing is owed yet.
-export function PhasePill({ phase, accepting = false, seller = false }: { phase: MarketPhase; accepting?: boolean; seller?: boolean }): ReactElement {
+// `refund`: a cancelled order closed by a refund says so, not "cancelled".
+export function PhasePill({ phase, accepting = false, seller = false, refund = "" }: { phase: MarketPhase; accepting?: boolean; seller?: boolean; refund?: "" | "refund_pending" | "refunded" }): ReactElement {
   const t = useTranslations("marketplace.orderDetail.phase");
   return (
     <span className="sx-pill mod-pill" data-tone={PHASE_TONE[phase]} data-phase={accepting ? "accepting" : phase}>
       {glyph(PHASE_ICON[phase], { size: 14 })}
-      <span className="sx-pill__text">{t(accepting ? (seller ? "acceptingSeller" : "accepting") : phase)}</span>
+      <span className="sx-pill__text">{t(accepting ? (seller ? "acceptingSeller" : "accepting") : phase === "cancelled" && refund ? refund : phase)}</span>
     </span>
   );
 }
@@ -183,6 +184,7 @@ export default function OrderHeader({
   const title = o.serviceTitle || o.packageTitle || "—";
   const ratingOpen = phase === "completed" && o.rating.canRate && !o.rating.value;
   const locked = phase === "completed" || phase === "rated" || o.chatReadOnly;
+  const refundState = o.status === "refunded" || o.status === "refund_pending" ? o.status : "";
   return (
     <header className="mod-head" data-phase={accepting ? "accepting" : phase} data-ai-id={`${aiBase}.header`} data-ai-type="section" data-ai-label={title}>
       <div className="mod-head__bar">
@@ -208,13 +210,13 @@ export default function OrderHeader({
             </span>
           ) : null}
           <h1 className="mod-head__title">{title}</h1>
-          <PhasePill phase={phase} accepting={accepting} seller={view === "seller"} />
+          <PhasePill phase={phase} accepting={accepting} seller={view === "seller"} refund={refundState} />
         </div>
         <p className="mod-head__price">
           <b className="sx-num">{o.price ? fmtUzs(o.price) : "—"}</b> <small>{o.currency === "UZS" ? te("currency") : o.currency}</small>
         </p>
       </div>
-      <p className="mod-head__lead">{t(`lead.${view}.${accepting ? "accepting" : phase}`)}</p>
+      <p className="mod-head__lead">{t(`lead.${view}.${accepting ? "accepting" : phase === "cancelled" && refundState ? refundState : phase}`)}</p>
       {phase !== "cancelled" ? (
         <div className="mod-head__progress" data-ai-id={`${aiBase}.progress`} data-ai-type="section" data-ai-label={t("steps.label")}>
           <StepRail phase={phase} />

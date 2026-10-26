@@ -11,7 +11,9 @@ import { normMarketOrder, type MarketOrder } from "./marketplace";
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 
-export type ResolutionOffer = { id: string; status: string; options: string[]; deadlineAt: string; message: string; selectedChoice: string };
+// `refundAmount`: what a refund would return, when the backend says so on
+// the offer (null otherwise; see refundPreviewOf).
+export type ResolutionOffer = { id: string; status: string; options: string[]; deadlineAt: string; message: string; selectedChoice: string; selectedAt: string; refundAmount: number | null; currency: string };
 export type OrderRefund = { requestId: string; amount: number | null; currency: string; status: string; providerEnabled: boolean; createdAt: string; updatedAt: string };
 export type OrderResolution = { offer: ResolutionOffer | null; refund: OrderRefund | null; canChoose: boolean };
 
@@ -19,7 +21,18 @@ function offerOf(v: unknown): ResolutionOffer | null {
   const d = asDict(v);
   const id = asStr(d.id);
   if (!id && !asStr(d.status)) return null;
-  return { id, status: asStr(d.status), options: asArr(d.options).map((x) => asStr(x)).filter(Boolean), deadlineAt: asStr(d.deadline_at), message: asStr(d.message), selectedChoice: asStr(d.selected_choice) };
+  const preview = asDict(d.refund_preview);
+  return {
+    id,
+    status: asStr(d.status),
+    options: asArr(d.options).map((x) => asStr(x)).filter(Boolean),
+    deadlineAt: asStr(d.deadline_at),
+    message: asStr(d.message),
+    selectedChoice: asStr(d.selected_choice),
+    selectedAt: asStr(d.selected_at),
+    refundAmount: num(d.refund_amount ?? preview.amount),
+    currency: asStr(d.currency ?? preview.currency) || "UZS",
+  };
 }
 
 export function refundOf(v: unknown, providerEnabled?: unknown): OrderRefund | null {
@@ -46,6 +59,48 @@ export function resolutionOf(v: unknown): OrderResolution | null {
   return { offer, refund, canChoose: d.can_choose === true };
 }
 
+// Where a refund stands, whatever word the backend or provider used:
+// requested → processing → refunded, or rejected; "none" when nothing was
+// charged, so nothing goes back.
+export type RefundStep = "requested" | "processing" | "refunded" | "rejected" | "none";
+const REFUND_STEP: Record<string, RefundStep> = {
+  pending: "requested",
+  requested: "requested",
+  created: "requested",
+  refund_pending: "requested",
+  processing: "processing",
+  in_progress: "processing",
+  refund_processing: "processing",
+  approved: "processing",
+  succeeded: "refunded",
+  success: "refunded",
+  completed: "refunded",
+  refunded: "refunded",
+  failed: "rejected",
+  rejected: "rejected",
+  declined: "rejected",
+  cancelled: "rejected",
+  canceled: "rejected",
+  refund_rejected: "rejected",
+  not_charged: "none",
+};
+export const refundStepOf = (status: string): RefundStep => REFUND_STEP[status.trim().toLowerCase()] ?? "requested";
+export const refundFinal = (step: RefundStep): boolean => step === "refunded" || step === "rejected" || step === "none";
+
+// What a full refund would return, shown before the client confirms: the
+// backend's own figure (refund.amount, offer.refund_amount) when there is
+// one, else what was paid on this order so far. `known: false` when no
+// payment is recorded at all — nothing to return then.
+export function refundPreviewOf(o: Pick<MarketOrder, "price" | "paymentStatus" | "advance" | "resolution">): { amount: number; currency: string; source: "backend" | "paid" | "none" } {
+  const r = o.resolution;
+  if (r?.refund && r.refund.amount !== null) return { amount: r.refund.amount, currency: r.refund.currency, source: "backend" };
+  if (r?.offer && r.offer.refundAmount !== null) return { amount: r.offer.refundAmount, currency: r.offer.currency, source: "backend" };
+  const paidAll = ["paid", "succeeded", "captured", "completed"].includes(o.paymentStatus.toLowerCase());
+  if (paidAll && o.price > 0) return { amount: o.price, currency: "UZS", source: "paid" };
+  if (o.advance && ["paid", "succeeded", "captured"].includes(o.advance.status.toLowerCase()) && o.advance.amount > 0) return { amount: o.advance.amount, currency: o.advance.currency || "UZS", source: "paid" };
+  return { amount: 0, currency: "UZS", source: "none" };
+}
+
 // One key per user action; the same key again only when retrying that
 // exact request after its result was lost (a network failure). Any answer
 // from the server settles it.
@@ -69,7 +124,7 @@ export const escalationClosed = (e: unknown): boolean => e instanceof ApiError &
 
 export const ESCALATION_ACTIONS = ["offer_resolution", "reassign", "message", "cancel", "full_refund"] as const;
 export type EscalationAction = (typeof ESCALATION_ACTIONS)[number];
-export type EscalationEvent = { id: string; type: string; status: string; message: string; actor: string; at: string };
+export type EscalationEvent = { id: string; type: string; status: string; message: string; actor: string; actorId: string; choice: string; at: string };
 export type EscalationAttempt = { sellerUserId: string; sellerName: string; status: string; reason: string; rank: number | null; at: string };
 export type AssignmentEscalation = {
   id: string;
@@ -94,7 +149,10 @@ const eventOf = (v: unknown): EscalationEvent => {
     type: asStr(d.type ?? d.event ?? d.action),
     status: asStr(d.status ?? d.to_status),
     message: asStr(d.message ?? d.comment ?? d.note ?? d.reason),
-    actor: asStr(actor.name ?? d.actor_name ?? d.operator_name),
+    actor: asStr(actor.name ?? actor.full_name ?? d.actor_name ?? d.operator_name),
+    // Live events name the person by id only (24–26 Oct 2026).
+    actorId: asStr(actor.id ?? d.actor_user_id ?? d.operator_user_id ?? d.user_id ?? d.client_user_id),
+    choice: asStr(d.choice ?? d.selected_choice),
     at: asStr(d.at ?? d.created_at),
   };
 };
@@ -174,13 +232,24 @@ export async function getOrderRefund(orderId: string, signal?: AbortSignal): Pro
   return refundOf(d.refund, d.provider_enabled);
 }
 
-export type TimelineItem = { id: string; type: string; status: string; at: string };
+export type TimelineItem = { id: string; type: string; status: string; at: string; actor: string; actorRole: string; choice: string; message: string; amount: number | null };
 
 export async function getOrderTimeline(orderId: string, signal?: AbortSignal): Promise<TimelineItem[]> {
   const d = asDict(await http(`/marketplace/me/orders/${encodeURIComponent(orderId)}/timeline`, { signal }));
   return asArr(d.items).map((x) => {
     const i = asDict(x);
-    return { id: asStr(i.id), type: asStr(i.type), status: asStr(i.status), at: asStr(i.at) };
+    const actor = asDict(i.actor);
+    return {
+      id: asStr(i.id),
+      type: asStr(i.type ?? i.event ?? i.action),
+      status: asStr(i.status),
+      at: asStr(i.at ?? i.created_at),
+      actor: asStr(actor.name ?? i.actor_name),
+      actorRole: asStr(actor.role ?? i.actor_role),
+      choice: asStr(i.choice ?? i.selected_choice),
+      message: asStr(i.message ?? i.note ?? i.comment),
+      amount: num(i.amount),
+    };
   });
 }
 

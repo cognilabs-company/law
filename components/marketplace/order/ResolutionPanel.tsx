@@ -1,37 +1,147 @@
 "use client";
 
-import "./deal.css";
+import "./resolution.css";
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { SxPanel } from "@/components/admin/studio/sx/layout/Panel";
-import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { SxButton } from "@/components/admin/studio/sx/Button";
 import { SxDialog, SxDialogError, type SxDialogErrorText } from "@/components/admin/studio/sx/editor/SxDialog";
 import { Field } from "@/components/admin/studio/sx/form/Field";
 import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
+import { IconAlert, IconChat, IconCheck, IconCircleCheck, IconCircleX, IconClock, IconCoins, IconHistory, IconHourglass, IconLock, IconPhone, IconRefresh, IconUsers } from "@/components/icons";
 import { useMarketError } from "@/components/marketplace/useMarketError";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import { chooseOrderResolution, escalationClosed, getOrderRefund, getOrderTimeline, idemKeyFor, idemLost, idemSettle, isResolutionEvent, type IdemSlot, type OrderRefund, type ResolutionChoice, type TimelineItem } from "@/lib/services/resolution";
+import { awaitingSeller } from "@/lib/services/marketplace";
+import {
+  chooseOrderResolution,
+  escalationClosed,
+  getOrderRefund,
+  getOrderTimeline,
+  idemKeyFor,
+  idemLost,
+  idemSettle,
+  isResolutionEvent,
+  refundFinal,
+  refundPreviewOf,
+  refundStepOf,
+  type IdemSlot,
+  type OrderRefund,
+  type RefundStep,
+  type ResolutionChoice,
+  type TimelineItem,
+} from "@/lib/services/resolution";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import { useCountdown } from "@/lib/useCountdown";
 import type { OrderSectionProps } from "./types";
 
 // The client's side of an assignment the seller declined or let expire
 // (TSK-131840): when the call center offers a choice, another specialist or
-// a full refund, the client picks one here; a refund's progress follows.
-// The buttons come from the offer and show only while the backend says
+// a full refund, the client picks one here — once: one Idempotency-Key per
+// choice, the buttons gone the moment it is sent. Then the chosen path
+// follows live (realtime events, with a slow refresh as the fallback): a new
+// specialist on the same order, or the refund's steps up to "refunded". The
+// buttons come from the offer and show only while the backend says
 // `can_choose`; the deadline is the backend's, the countdown only redraws.
 
 const REFUND_STATUSES = new Set(["refund_pending", "refunded"]);
+// Still looking for the new specialist: the order may still carry the
+// previous seller's name then, so no name is shown as the new one.
+const ASSIGNING = new Set(["resolution_required", "sent_to_seller", "seller_selection", "awaiting_seller", "awaiting_seller_acceptance", "pending_assignment", "reassigning"]);
+const STEPS: RefundStep[] = ["requested", "processing", "refunded"];
+const POLL_MS = 15_000;
 
+const money = (amount: number, currency: string, som: string) => `${fmtUzs(amount)} ${currency === "UZS" ? som : currency}`;
 
-export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSectionProps & { onRefresh: () => void }): ReactElement | null {
+function RefundTracker({ rf, step, amount, currency }: { rf: OrderRefund | null; step: RefundStep; amount: number; currency: string }): ReactElement {
+  const t = useTranslations("marketplace.orderDetail.resolution");
+  const locale = useLocale();
+  const at = STEPS.indexOf(step === "rejected" ? "processing" : step);
+  return (
+    <div className="mrs-refund" data-step={step} role="status" aria-live="polite">
+      <div className="mrs-refund__head">
+        <span className="mrs-refund__ico" aria-hidden="true">
+          {step === "refunded" || step === "none" ? <IconCircleCheck /> : step === "rejected" ? <IconCircleX /> : <IconCoins />}
+        </span>
+        <span className="mrs-refund__txt">
+          <small>{t("refundAmount")}</small>
+          <b>{step === "none" ? t("refund.not_charged") : money(amount, currency, t("som"))}</b>
+        </span>
+        <span className="mrs-chip" data-tone={step === "refunded" || step === "none" ? "ok" : step === "rejected" ? "bad" : "wait"}>
+          {t(`step.${step}`)}
+        </span>
+      </div>
+      {step !== "none" ? (
+        <ol className="mrs-steps" aria-label={t("refundSteps")}>
+          {STEPS.map((s, i) => {
+            const state = step === "rejected" && s === "refunded" ? "bad" : i < at || step === "refunded" ? "done" : i === at ? "now" : "todo";
+            return (
+              <li key={s} data-state={state}>
+                <i aria-hidden="true">{state === "done" ? <IconCheck /> : state === "bad" ? <IconCircleX /> : null}</i>
+                <span>{s === "refunded" && step === "rejected" ? t("step.rejected") : t(`step.${s}`)}</span>
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
+      <p className="mrs-meta">
+        {step === "rejected"
+          ? t("refundRejected")
+          : step === "refunded"
+            ? t("refundDone")
+            : step === "none"
+              ? t("refundNone")
+              : rf && !rf.providerEnabled
+                ? t("manualText")
+                : t("refundWait")}
+        {rf?.updatedAt ? ` · ${t("updated", { time: shortDateTime(rf.updatedAt, locale) })}` : ""}
+      </p>
+    </div>
+  );
+}
+
+function Timeline({ items }: { items: TimelineItem[] }): ReactElement | null {
   const t = useTranslations("marketplace.orderDetail.resolution");
   const ts = useTranslations("portal.common.orderStatus");
   const locale = useLocale();
+  if (!items.length) return null;
+  const label = (it: TimelineItem) => {
+    if (it.type === "refund" && t.has(`refund.${it.status}`)) return `${t("refundStatus")}: ${t(`refund.${it.status}`)}`;
+    if (it.choice && t.has(`picked.${it.choice}`)) return t(`picked.${it.choice}`);
+    if (t.has(`event.${it.status}`)) return t(`event.${it.status}`);
+    if (t.has(`event.${it.type}`)) return t(`event.${it.type}`);
+    if (it.status && ts.has(it.status)) return ts(it.status);
+    return it.status || it.type;
+  };
+  const who = (it: TimelineItem) => it.actor || (it.actorRole && t.has(`role.${it.actorRole}`) ? t(`role.${it.actorRole}`) : "");
+  return (
+    <section className="mrs-tl" aria-label={t("timeline")}>
+      <h3 className="mrs-h">
+        <IconHistory aria-hidden="true" />
+        {t("timeline")}
+      </h3>
+      <ol>
+        {items.map((it) => (
+          <li key={it.id || `${it.type}-${it.at}`}>
+            <i aria-hidden="true" />
+            <div>
+              <b>{label(it)}</b>
+              <small>
+                {[it.at ? shortDateTime(it.at, locale) : "", who(it)].filter(Boolean).join(" · ")}
+                {it.amount !== null ? ` · ${money(it.amount, "UZS", t("som"))}` : ""}
+              </small>
+              {it.message ? <p>{it.message}</p> : null}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSectionProps & { onRefresh: () => void }): ReactElement | null {
+  const t = useTranslations("marketplace.orderDetail.resolution");
   const marketError = useMarketError();
   const [choice, setChoice] = useState<ResolutionChoice | "">("");
   const [note, setNote] = useState("");
@@ -39,15 +149,25 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
   const once = useSameTickGuard();
   const slot = useRef<IdemSlot["current"]>(null);
   const [error, setError] = useState<SxDialogErrorText>(null);
-  const [chosen, setChosen] = useState<ResolutionChoice | "">("");
+  // Sent this session: the buttons never come back, whatever a stale
+  // refresh says, until the backend reports the choice itself.
+  const [sent, setSent] = useState<ResolutionChoice | "">("");
   // A lost answer freezes the note: only the same request goes again.
   const [lost, setLost] = useState(false);
   const [refund, setRefund] = useState<OrderRefund | null>(null);
-  const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+  const [timeline, setTimeline] = useState<TimelineItem[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const r = o.resolution;
   const offer = r?.offer ?? null;
-  const refunding = REFUND_STATUSES.has(o.status) || !!r?.refund;
+  const rf = refund ?? r?.refund ?? null;
+  const chosen: ResolutionChoice | "" = sent || (offer?.selectedChoice === "reassign" || offer?.selectedChoice === "refund" ? offer.selectedChoice : "") || (rf ? "refund" : "");
+  const refunding = REFUND_STATUSES.has(o.status) || !!rf || chosen === "refund";
   const involved = !!r || o.status === "resolution_required" || refunding;
+  const step: RefundStep = o.status === "refunded" ? "refunded" : rf ? refundStepOf(rf.status) : "requested";
+  const canChoose = !!r?.canChoose && !!offer && !chosen;
+  const preview = refundPreviewOf(o);
+  // Still moving: the live channel is the main source, a slow refresh the net.
+  const moving = canChoose || (refunding && !refundFinal(step)) || (chosen === "reassign" && (ASSIGNING.has(o.status) || awaitingSeller(o)));
   const refreshRef = useRef(onRefresh);
   useEffect(() => {
     refreshRef.current = onRefresh;
@@ -57,8 +177,19 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
     if (!involved) return;
     const ctl = new AbortController();
     const load = () => {
-      getOrderTimeline(o.id, ctl.signal).then(setTimeline, (e) => !isAborted(e) && logApiError("order.timeline", e));
-      if (refunding) getOrderRefund(o.id, ctl.signal).then(setRefund, (e) => !isAborted(e) && logApiError("order.refund", e));
+      getOrderTimeline(o.id, ctl.signal).then(
+        (items) => {
+          setTimeline(items);
+          setLoadFailed(false);
+        },
+        (e) => {
+          if (isAborted(e)) return;
+          logApiError("order.timeline", e);
+          setLoadFailed(true);
+          setTimeline((cur) => cur ?? []);
+        },
+      );
+      if (refunding) getOrderRefund(o.id, ctl.signal).then((x) => x && setRefund(x), (e) => !isAborted(e) && logApiError("order.refund", e));
     };
     load();
     const off = subscribeUserEvents((ev) => {
@@ -68,19 +199,26 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
       load();
       refreshRef.current();
     });
+    const poll = moving
+      ? window.setInterval(() => {
+          if (document.visibilityState !== "visible") return;
+          load();
+          refreshRef.current();
+        }, POLL_MS)
+      : 0;
     return () => {
       ctl.abort();
       off();
+      window.clearInterval(poll);
     };
-  }, [involved, refunding, o.id, o.status]);
+  }, [involved, refunding, moving, o.id, o.status]);
 
-  const left = useCountdown(r?.canChoose ? (offer?.deadlineAt ?? "") : "", () => refreshRef.current());
+  const left = useCountdown(canChoose ? (offer?.deadlineAt ?? "") : "", () => refreshRef.current());
   if (view !== "client" || !involved) return null;
   const ai = `${aiBase}.resolution`;
-  const rf = refund ?? r?.refund ?? null;
 
   async function submit() {
-    if (!choice || busy || !once()) return;
+    if (!choice || busy || sent || !once()) return;
     setBusy(true);
     setError(null);
     const box: IdemSlot = { current: slot.current };
@@ -90,7 +228,7 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
       await chooseOrderResolution(o.id, choice, note, key);
       idemSettle(box);
       slot.current = box.current;
-      setChosen(choice);
+      setSent(choice);
       setChoice("");
       onRefresh();
     } catch (e) {
@@ -110,58 +248,134 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
     }
   }
 
-  const eventLabel = (it: TimelineItem) => {
-    if (it.type === "refund" && t.has(`refund.${it.status}`)) return `${t("refundStatus")}: ${t(`refund.${it.status}`)}`;
-    if (t.has(`event.${it.status}`)) return t(`event.${it.status}`);
-    if (it.status && ts.has(it.status)) return ts(it.status);
-    return t.has(`event.${it.type}`) ? t(`event.${it.type}`) : it.status || it.type;
-  };
   const clock = left === null ? "" : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+  const closed = refunding && (step === "refunded" || step === "none" || o.status === "refunded");
+  const tone = canChoose ? "choose" : chosen === "refund" || refunding ? (step === "rejected" ? "bad" : closed ? "done" : "refund") : chosen === "reassign" ? "reassign" : offer?.status === "expired" ? "expired" : "wait";
+  const title = canChoose ? t("titleChoose") : refunding ? (closed ? t("titleClosed") : t("titleRefund")) : chosen === "reassign" ? t("titleReassign") : offer?.status === "expired" ? t("titleExpired") : t("title");
+  const lead = canChoose ? t("leadChoose") : refunding ? (closed ? t("leadClosed") : t("leadRefund")) : chosen === "reassign" ? t("leadReassign") : offer?.status === "expired" ? t("expired") : t("leadWorking");
+  const newSeller = chosen === "reassign" && o.lawyerName && !awaitingSeller(o) && !ASSIGNING.has(o.status) ? o.lawyerName : "";
+
   return (
-    <SxPanel className="mcr" title={t("title")} lead={r?.canChoose && offer ? t("leadChoose") : refunding ? t("leadRefund") : t("leadWorking")} aiId={ai}>
-      {chosen ? <SxNote tone="success">{t(`chosen.${chosen}`)}</SxNote> : null}
-      {r?.canChoose && offer && !chosen ? (
+    <section className="mrs" data-tone={tone} aria-labelledby={`${ai}-title`} data-ai-id={ai}>
+      <header className="mrs__head">
+        <span className="mrs__ico" aria-hidden="true">
+          {tone === "choose" ? <IconAlert /> : tone === "reassign" ? <IconUsers /> : tone === "done" ? <IconCircleCheck /> : tone === "bad" ? <IconCircleX /> : tone === "refund" ? <IconCoins /> : <IconHourglass />}
+        </span>
+        <span className="mrs__titles">
+          <h2 id={`${ai}-title`}>{title}</h2>
+          <p>{lead}</p>
+        </span>
+        {canChoose && clock ? (
+          <span className="mrs-chip" data-tone={left !== null && left < 300 ? "bad" : "wait"} aria-label={t("deadline", { time: clock })} title={t("deadline", { time: clock })}>
+            <IconClock aria-hidden="true" />
+            {clock}
+          </span>
+        ) : null}
+      </header>
+
+      {canChoose && offer ? (
         <>
-          {offer.message ? <blockquote className="mcr-quote">{offer.message}</blockquote> : null}
-          {clock ? (
-            <p className="mcr-meta" aria-live="off">
-              {t("deadline", { time: clock })}
-            </p>
+          {offer.message ? (
+            <figure className="mrs-quote">
+              <figcaption>{t("fromOperator")}</figcaption>
+              <blockquote>{offer.message}</blockquote>
+            </figure>
           ) : null}
-          <div className="mcr-actions">
+          <div className="mrs-choices" role="group" aria-label={t("chooseLabel")}>
             {offer.options.includes("reassign") ? (
-              <SxButton variant="primary" onClick={() => setChoice("reassign")} aiId={`${ai}.reassign`}>
-                {t("choice.reassign")}
-              </SxButton>
+              <button type="button" className="mrs-choice" onClick={() => setChoice("reassign")} data-ai-id={`${ai}.reassign`} disabled={busy}>
+                <span className="mrs-choice__ico" aria-hidden="true">
+                  <IconUsers />
+                </span>
+                <b>{t("choice.reassign")}</b>
+                <span>{t("choiceText.reassign")}</span>
+                <small>{t("choiceMeta.reassign")}</small>
+              </button>
             ) : null}
             {offer.options.includes("refund") ? (
-              <SxButton variant="secondary" onClick={() => setChoice("refund")} aiId={`${ai}.refund`}>
-                {t("choice.refund")}
-              </SxButton>
+              <button type="button" className="mrs-choice" data-kind="refund" onClick={() => setChoice("refund")} data-ai-id={`${ai}.refund`} disabled={busy}>
+                <span className="mrs-choice__ico" aria-hidden="true">
+                  <IconCoins />
+                </span>
+                <b>{t("choice.refund")}</b>
+                <span>{t("choiceText.refund")}</span>
+                <small>{preview.source === "none" ? t("refund.not_charged") : money(preview.amount, preview.currency, t("som"))}</small>
+              </button>
             ) : null}
           </div>
+          {clock ? <p className="mrs-meta">{t("deadline", { time: clock })}</p> : null}
         </>
       ) : null}
-      {offer?.status === "expired" && !r?.canChoose ? <SxNote tone="info">{t("expired")}</SxNote> : null}
-      {rf ? (
-        <div className="mcr-refund" role="status">
-          <p className="mcr-meta">
-            {t("refundStatus")}: <b>{t.has(`refund.${rf.status}`) ? t(`refund.${rf.status}`) : rf.status || "—"}</b>
-            {rf.amount !== null ? ` · ${fmtUzs(rf.amount)} ${rf.currency === "UZS" ? t("som") : rf.currency}` : ""}
-          </p>
-          {!rf.providerEnabled && rf.status !== "not_charged" ? <small className="mcr-meta">{t("manual")}</small> : null}
+
+      {!canChoose && offer?.status === "expired" && !chosen ? (
+        <p className="mrs-meta">
+          <IconClock aria-hidden="true" /> {t("expiredText")}
+        </p>
+      ) : null}
+
+      {chosen === "reassign" ? (
+        <div className="mrs-path" role="status" aria-live="polite">
+          <ol className="mrs-steps" aria-label={t("reassignSteps")}>
+            <li data-state="done">
+              <i aria-hidden="true">
+                <IconCheck />
+              </i>
+              <span>{t("rstep.chosen")}</span>
+            </li>
+            <li data-state={newSeller ? "done" : "now"}>
+              <i aria-hidden="true">{newSeller ? <IconCheck /> : null}</i>
+              <span>{newSeller ? t("rstep.found", { name: newSeller }) : t("rstep.searching")}</span>
+            </li>
+            <li data-state={newSeller ? "now" : "todo"}>
+              <i aria-hidden="true" />
+              <span>{t("rstep.continue")}</span>
+            </li>
+          </ol>
+          <p className="mrs-meta">{newSeller ? t("reassignGoing") : t("reassignWait")}</p>
         </div>
       ) : null}
-      {timeline.length ? (
-        <ol className="mcr-timeline" aria-label={t("timeline")}>
-          {timeline.map((it) => (
-            <li key={it.id || `${it.type}-${it.at}`}>
-              <time>{it.at ? shortDateTime(it.at, locale) : ""}</time>
-              <span>{eventLabel(it)}</span>
-            </li>
-          ))}
-        </ol>
+
+      {refunding ? <RefundTracker rf={rf} step={step} amount={rf?.amount ?? preview.amount} currency={rf?.currency ?? preview.currency} /> : null}
+
+      {closed ? (
+        <ul className="mrs-closed" aria-label={t("closedLabel")}>
+          <li>
+            <IconLock aria-hidden="true" />
+            {t("closed.order")}
+          </li>
+          <li>
+            <IconChat aria-hidden="true" />
+            {o.chatReadOnly ? t("closed.chatRead") : o.canStartChat ? t("closed.chatOpen") : t("closed.chat")}
+          </li>
+          <li>
+            <IconPhone aria-hidden="true" />
+            {t("closed.calls")}
+          </li>
+          <li>
+            <IconCircleX aria-hidden="true" />
+            {t("closed.services")}
+          </li>
+        </ul>
       ) : null}
+
+      {timeline === null ? (
+        <div className="mrs-sk" aria-hidden="true">
+          <span className="sx-sk" />
+          <span className="sx-sk" />
+        </div>
+      ) : (
+        <Timeline items={timeline} />
+      )}
+      {loadFailed ? (
+        <p className="mrs-meta mrs-meta--err">
+          {t("loadFailed")}{" "}
+          <button type="button" className="mrs-link" onClick={() => onRefresh()}>
+            <IconRefresh aria-hidden="true" />
+            {t("retry")}
+          </button>
+        </p>
+      ) : null}
+
       {choice ? (
         <SxDialog
           open
@@ -175,18 +389,25 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
               <SxButton variant="secondary" onClick={() => setChoice("")} disabled={busy || lost}>
                 {t("back")}
               </SxButton>
-              <SxButton variant={choice === "refund" ? "danger" : "primary"} busy={busy} onClick={() => void submit()} aiId={`${ai}.submit`}>
+              <SxButton variant={choice === "refund" ? "danger" : "primary"} busy={busy} disabled={!!sent} onClick={() => void submit()} aiId={`${ai}.submit`}>
                 {t(`submit.${choice}`)}
               </SxButton>
             </>
           }
         >
+          {choice === "refund" ? (
+            <div className="mrs-sum">
+              <small>{t("refundAmount")}</small>
+              <b>{preview.source === "none" ? t("refund.not_charged") : money(preview.amount, preview.currency, t("som"))}</b>
+              <span>{preview.source === "none" ? t("refundNone") : preview.source === "paid" ? t("sumPaid") : t("sumBackend")}</span>
+            </div>
+          ) : null}
           <Field id={`${ai}-note`} label={t("note")}>
             {(a) => <TextArea {...a} value={note} onChange={setNote} minRows={3} maxLength={1000} placeholder={t("notePh")} readOnly={lost} />}
           </Field>
           <SxDialogError error={error} />
         </SxDialog>
       ) : null}
-    </SxPanel>
+    </section>
   );
 }

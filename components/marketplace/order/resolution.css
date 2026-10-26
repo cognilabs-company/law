@@ -1,0 +1,181 @@
+/* ResolutionPanel (TSK-131840): no suitable specialist — the client picks
+   another specialist or a full refund, then follows the chosen path live.
+   The order page's sx tokens, with the site's blue → cyan accent. */
+
+.mod .mrs {
+  --mrs-acc: var(--sx-accent);
+  --mrs-soft: var(--sx-accent-soft);
+  --mrs-ok: #16a34a;
+  --mrs-ok-soft: color-mix(in srgb, #16a34a 12%, transparent);
+  --mrs-wait: #b45309;
+  --mrs-wait-soft: color-mix(in srgb, #f59e0b 15%, transparent);
+  --mrs-bad: var(--sx-danger);
+  --mrs-bad-soft: var(--sx-danger-soft);
+  position: relative;
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  border-radius: var(--sx-r-lg);
+  background: var(--sx-surface);
+  box-shadow: inset 0 0 0 1px var(--sx-line);
+  overflow: hidden;
+  container-type: inline-size;
+}
+.mod .mrs::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: var(--grad, linear-gradient(90deg, var(--sx-accent), #06b6d4));
+}
+.mod .mrs[data-tone="done"]::before { background: linear-gradient(90deg, #16a34a, #22c55e); }
+.mod .mrs[data-tone="bad"]::before { background: linear-gradient(90deg, var(--sx-danger), #f97316); }
+html[data-theme="dark"] .mod .mrs { --mrs-ok: #4ade80; --mrs-wait: #fbbf24; }
+
+.mod .mrs__head { display: flex; align-items: flex-start; gap: 14px; }
+.mod .mrs__ico {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--grad, linear-gradient(135deg, var(--sx-accent), #06b6d4));
+  color: #fff;
+  box-shadow: 0 10px 24px -12px color-mix(in srgb, var(--sx-accent) 70%, transparent);
+}
+.mod .mrs__ico svg { width: 22px; height: 22px; }
+.mod .mrs[data-tone="done"] .mrs__ico { background: linear-gradient(135deg, #16a34a, #22c55e); }
+.mod .mrs[data-tone="bad"] .mrs__ico { background: linear-gradient(135deg, var(--sx-danger), #f97316); }
+.mod .mrs[data-tone="wait"] .mrs__ico,
+.mod .mrs[data-tone="expired"] .mrs__ico { background: var(--sx-surface-2); color: var(--sx-accent-ink); box-shadow: inset 0 0 0 1px var(--sx-line); }
+.mod .mrs__titles { display: grid; flex: 1; gap: 4px; min-width: 0; }
+.mod .mrs__titles h2 { margin: 0; color: var(--sx-ink); font: 700 18px/24px var(--sx-font-display, var(--sx-font)); letter-spacing: -.01em; }
+.mod .mrs__titles p { margin: 0; color: var(--sx-ink-2); font: 400 14px/20px var(--sx-font); }
+
+.mod .mrs-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--mrs-soft);
+  color: var(--sx-accent-ink);
+  font: 700 13px/16px var(--sx-font);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mod .mrs-chip svg { width: 14px; height: 14px; }
+.mod .mrs-chip[data-tone="wait"] { background: var(--mrs-wait-soft); color: var(--mrs-wait); }
+.mod .mrs-chip[data-tone="ok"] { background: var(--mrs-ok-soft); color: var(--mrs-ok); }
+.mod .mrs-chip[data-tone="bad"] { background: var(--mrs-bad-soft); color: var(--mrs-bad); }
+
+.mod .mrs-quote { display: grid; gap: 4px; margin: 0; padding: 12px 14px; border-radius: var(--sx-r); background: var(--sx-surface-2); }
+.mod .mrs-quote figcaption { color: var(--sx-muted); font: 600 12px/16px var(--sx-font); }
+.mod .mrs-quote blockquote { margin: 0; color: var(--sx-ink); font: 400 14px/20px var(--sx-font); white-space: pre-wrap; overflow-wrap: anywhere; }
+.mod .mrs-meta { margin: 0; color: var(--sx-muted); font: 400 13px/18px var(--sx-font); }
+
+/* the two equal choices */
+.mod .mrs-choices { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+@container (min-width: 520px) { .mod .mrs-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.mod .mrs-choice {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 6px;
+  padding: 16px;
+  border: 0;
+  border-radius: var(--sx-r-lg);
+  background: var(--sx-surface);
+  box-shadow: inset 0 0 0 1.5px var(--sx-line-strong);
+  color: var(--sx-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow var(--sx-fast, .15s), transform var(--sx-fast, .15s), background var(--sx-fast, .15s);
+}
+.mod .mrs-choice:hover:not(:disabled) { background: var(--mrs-soft); box-shadow: inset 0 0 0 2px var(--mrs-acc); transform: translateY(-1px); }
+.mod .mrs-choice:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--mrs-acc), 0 0 0 4px var(--sx-ring, color-mix(in srgb, var(--sx-accent) 30%, transparent)); }
+.mod .mrs-choice:disabled { opacity: .6; cursor: default; }
+.mod .mrs-choice__ico { display: grid; place-items: center; width: 38px; height: 38px; margin-bottom: 4px; border-radius: 12px; background: var(--mrs-soft); color: var(--sx-accent-ink); }
+.mod .mrs-choice__ico svg { width: 20px; height: 20px; }
+.mod .mrs-choice b { font: 700 16px/22px var(--sx-font-display, var(--sx-font)); }
+.mod .mrs-choice > span:not(.mrs-choice__ico) { color: var(--sx-ink-2); font: 400 13px/19px var(--sx-font); }
+.mod .mrs-choice small { margin-top: 4px; padding: 3px 10px; border-radius: 999px; background: var(--sx-surface-2); color: var(--sx-ink); font: 700 13px/18px var(--sx-font); font-variant-numeric: tabular-nums; }
+
+/* steps: refund and reassign */
+.mod .mrs-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; counter-reset: mrs; }
+.mod .mrs-steps li { position: relative; display: grid; justify-items: center; gap: 6px; text-align: center; color: var(--sx-muted); font: 600 12px/16px var(--sx-font); }
+.mod .mrs-steps li::before { content: ""; position: absolute; top: 13px; left: calc(-50% + 18px); right: calc(50% + 18px); height: 2px; background: var(--sx-line); }
+.mod .mrs-steps li:first-child::before { display: none; }
+.mod .mrs-steps li[data-state="done"]::before,
+.mod .mrs-steps li[data-state="now"]::before { background: var(--mrs-acc); }
+.mod .mrs-steps i { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: var(--sx-surface-2); box-shadow: inset 0 0 0 2px var(--sx-line); color: #fff; font-style: normal; }
+.mod .mrs-steps i svg { width: 14px; height: 14px; }
+.mod .mrs-steps li[data-state="done"] { color: var(--sx-ink); }
+.mod .mrs-steps li[data-state="done"] i { background: var(--mrs-acc); box-shadow: none; }
+.mod .mrs-steps li[data-state="now"] { color: var(--sx-accent-ink); }
+.mod .mrs-steps li[data-state="now"] i { background: var(--sx-surface); box-shadow: inset 0 0 0 3px var(--mrs-acc), 0 0 0 4px var(--mrs-soft); animation: mrsPulse 1.6s ease-in-out infinite; }
+.mod .mrs-steps li[data-state="bad"] { color: var(--mrs-bad); }
+.mod .mrs-steps li[data-state="bad"] i { background: var(--mrs-bad); box-shadow: none; }
+.mod .mrs[data-tone="done"] .mrs-steps li[data-state="done"] i { background: var(--mrs-ok); }
+.mod .mrs[data-tone="done"] .mrs-steps li[data-state="done"]::before { background: var(--mrs-ok); }
+
+.mod .mrs-refund,
+.mod .mrs-path { display: grid; gap: 14px; padding: 16px; border-radius: var(--sx-r-lg); background: var(--sx-surface-2); }
+.mod .mrs-refund__head { display: flex; align-items: center; gap: 12px; }
+.mod .mrs-refund__ico { display: grid; flex: none; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--mrs-soft); color: var(--sx-accent-ink); }
+.mod .mrs-refund__ico svg { width: 20px; height: 20px; }
+.mod .mrs-refund[data-step="refunded"] .mrs-refund__ico,
+.mod .mrs-refund[data-step="none"] .mrs-refund__ico { background: var(--mrs-ok-soft); color: var(--mrs-ok); }
+.mod .mrs-refund[data-step="rejected"] .mrs-refund__ico { background: var(--mrs-bad-soft); color: var(--mrs-bad); }
+.mod .mrs-refund__txt { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.mod .mrs-refund__txt small { color: var(--sx-muted); font: 600 12px/16px var(--sx-font); text-transform: uppercase; letter-spacing: .04em; }
+.mod .mrs-refund__txt b { color: var(--sx-ink); font: 800 22px/28px var(--sx-font-display, var(--sx-font)); font-variant-numeric: tabular-nums; }
+
+.mod .mrs .mrs-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mod .mrs .mrs-meta svg { width: 14px; height: 14px; }
+.mod .mrs-meta--err { color: var(--mrs-bad); }
+.mod .mrs-link { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: var(--sx-accent-ink); font: 600 13px/18px var(--sx-font); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.mod .mrs-link svg { width: 13px; height: 13px; }
+
+/* closed after a refund */
+.mod .mrs-closed { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding: 0; list-style: none; }
+@container (min-width: 520px) { .mod .mrs-closed { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.mod .mrs-closed li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--sx-r); box-shadow: inset 0 0 0 1px var(--sx-line); color: var(--sx-ink-2); font: 500 13px/18px var(--sx-font); }
+.mod .mrs-closed svg { flex: none; width: 16px; height: 16px; color: var(--sx-muted); }
+
+/* history */
+.mod .mrs-h { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; color: var(--sx-ink); font: 700 14px/20px var(--sx-font); }
+.mod .mrs-h svg { width: 16px; height: 16px; color: var(--sx-muted); }
+.mod .mrs-tl ol { display: grid; margin: 0; padding: 0; list-style: none; }
+.mod .mrs-tl li { position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 10px; padding-bottom: 12px; }
+.mod .mrs-tl li::before { content: ""; position: absolute; top: 14px; bottom: 0; left: 9px; width: 2px; background: var(--sx-line); }
+.mod .mrs-tl li:last-child { padding-bottom: 0; }
+.mod .mrs-tl li:last-child::before { display: none; }
+.mod .mrs-tl li > i { width: 10px; height: 10px; margin: 5px 0 0 5px; border-radius: 50%; background: var(--mrs-acc); box-shadow: 0 0 0 3px var(--mrs-soft); }
+.mod .mrs-tl li > div { display: grid; gap: 2px; min-width: 0; }
+.mod .mrs-tl b { color: var(--sx-ink); font: 600 14px/20px var(--sx-font); }
+.mod .mrs-tl small { color: var(--sx-muted); font: 400 12px/16px var(--sx-font); }
+.mod .mrs-tl p { margin: 4px 0 0; padding: 8px 10px; border-radius: var(--sx-r-sm, 8px); background: var(--sx-surface-2); color: var(--sx-ink-2); font: 400 13px/18px var(--sx-font); overflow-wrap: anywhere; white-space: pre-wrap; }
+.mod .mrs-sk { display: grid; gap: 8px; }
+.mod .mrs-sk .sx-sk { height: 14px; border-radius: 6px; }
+.mod .mrs-sk .sx-sk:last-child { width: 60%; }
+
+/* the refund confirm dialog's summary */
+.mrs-sum { display: grid; gap: 2px; margin-bottom: 12px; padding: 14px 16px; border-radius: var(--sx-r-lg, 14px); background: var(--sx-surface-2); }
+.mrs-sum small { color: var(--sx-muted); font: 600 12px/16px var(--sx-font); text-transform: uppercase; letter-spacing: .04em; }
+.mrs-sum b { color: var(--sx-ink); font: 800 24px/30px var(--sx-font-display, var(--sx-font)); font-variant-numeric: tabular-nums; }
+.mrs-sum span { color: var(--sx-ink-2); font: 400 13px/18px var(--sx-font); }
+
+@keyframes mrsPulse { 50% { box-shadow: inset 0 0 0 3px var(--mrs-acc), 0 0 0 7px transparent; } }
+@media (max-width: 560px) {
+  .mod .mrs { padding: 16px; }
+  .mod .mrs__head { flex-wrap: wrap; }
+  .mod .mrs-steps li { font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mod .mrs-steps li[data-state="now"] i { animation: none; }
+  .mod .mrs-choice { transition: none; }
+}
