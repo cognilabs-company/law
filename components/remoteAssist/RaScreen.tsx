@@ -159,10 +159,15 @@ export function RaScreen({
 
   const at = (e: ReactPointerEvent<HTMLDivElement>): RaPoint | null => {
     const frame = boxRef.current;
-    if (!frame || !box.w || !box.h) return null;
+    if (!frame) return null;
+    // Measured now, not from the last resize: the frame changes height when
+    // the hint line below it wraps.
+    const v = videoRef.current;
+    const live = containRect(frame.clientWidth, frame.clientHeight, v?.videoWidth || 16, v?.videoHeight || 9);
+    if (!live.w || !live.h) return null;
     const r = frame.getBoundingClientRect();
-    const x = (e.clientX - r.left - box.x) / box.w;
-    const y = (e.clientY - r.top - box.y) / box.h;
+    const x = (e.clientX - r.left - live.x) / live.w;
+    const y = (e.clientY - r.top - live.y) / live.h;
     if (x < 0 || x > 1 || y < 0 || y > 1) return null;
     return [x, y];
   };

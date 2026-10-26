@@ -472,7 +472,10 @@ test("one click to ask, one to allow: the operator sees the tab, draws, opens pa
   await expect(cl.page).toHaveURL(/\/portal\/client\/subscription$/);
 
   // Click on the live picture: the client's side-nav link under that point opens.
-  const navLink = cl.page.locator('a[href$="/portal/client/notifications"]').first();
+  await screen.getByRole("radio", { name: "Bosish (ochish)" }).click();
+  const navLink = cl.page.locator('a[href$="/portal/client/notifications"]').filter({ visible: true }).first();
+  await navLink.scrollIntoViewIfNeeded();
+  await cl.page.waitForTimeout(400); // let the side nav settle (hover/scroll animations)
   const at = await navLink.evaluate((el) => {
     const r = el.getBoundingClientRect();
     return { x: (r.left + r.width / 2) / window.innerWidth, y: (r.top + r.height / 2) / window.innerHeight };
@@ -485,7 +488,6 @@ test("one click to ask, one to allow: the operator sees the tab, draws, opens pa
     const h = v.videoHeight * s;
     return { x: r.left + (r.width - w) / 2, y: r.top + (r.height - h) / 2, w, h };
   });
-  await screen.getByRole("radio", { name: "Bosish (ochish)" }).click();
   await op.page.mouse.click(pic.x + at.x * pic.w, pic.y + at.y * pic.h);
   await expect(cl.page).toHaveURL(/\/portal\/client\/notifications$/);
   // An empty spot: nothing opens, the operator is told so.
