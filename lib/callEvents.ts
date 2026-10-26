@@ -6,6 +6,20 @@ export const CALLROOM_EVENT = "lexgo:callroom";
 // needs the client's page visible).
 export const CALLROOM_FLOAT_EVENT = "lexgo:callroom-float";
 
+// Opens a call in the app-wide call host (IncomingCallWatcher, mounted in the
+// locale layout), so the call stays up while the person moves between pages —
+// remote assistance opens other pages for the client in the middle of a
+// support call. Returns false when no host took it; the caller then falls
+// back to the chat page's call.
+export const CALLROOM_OPEN_EVENT = "lexgo:callroom-open";
+export type CallRoomOpen = { roomId: string; callId: string; callType: "audio" | "video"; taken?: boolean };
+export function openCallRoom(c: Omit<CallRoomOpen, "taken">): boolean {
+  if (typeof window === "undefined") return false;
+  const detail: CallRoomOpen = { ...c };
+  window.dispatchEvent(new CustomEvent<CallRoomOpen>(CALLROOM_OPEN_EVENT, { detail }));
+  return detail.taken === true;
+}
+
 // Whether a CallRoom is on screen (any page). IncomingCallWatcher uses it so a
 // meeting resumed by a launcher isn't offered a second time by its own card;
 // mounting also fires CALLROOM_EVENT. Kept here, not in CallRoom.tsx, so

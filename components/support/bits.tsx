@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
+import { openCallRoom } from "@/lib/callEvents";
 import { useAuth } from "@/lib/auth";
 import { parseServerTime } from "@/lib/http";
 import { errorText } from "@/lib/errorText";
@@ -137,7 +138,7 @@ export function useSupportCall(ticketId: string, workId = "") {
       // folded console on screen so it is one click away inside the call.
       rememberSupportCall(ticketId, s.id);
       openRaConsole({ ticketId, callId: s.id, workId }, false);
-      router.push(supportCallHref(s.roomId, s.id));
+      if (!openCallRoom({ roomId: s.roomId, callId: s.id, callType: kind === "video" ? "video" : "audio" })) router.push(supportCallHref(s.roomId, s.id));
     } catch (e) {
       pending.current = false;
       setCalling("");

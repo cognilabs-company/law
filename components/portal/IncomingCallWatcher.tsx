@@ -7,7 +7,7 @@ import { useRouter, usePathname } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { listInvitedCalls, listLawyers, getCall, updateCallParticipant } from "@/lib/services/backend";
 import { connectUserSocket, disconnectUserSocket, subscribeUserEvents, subscribeUserSocketState, type UserEvent } from "@/lib/userSocket";
-import { CALLROOM_EVENT, isCallRoomMounted, subscribeRoomCallEvents } from "@/lib/callEvents";
+import { CALLROOM_EVENT, CALLROOM_OPEN_EVENT, isCallRoomMounted, subscribeRoomCallEvents, type CallRoomOpen } from "@/lib/callEvents";
 import { playRingtone, primeCallAudio, stopAllCallTones } from "@/lib/callSounds";
 import { IconPhone, IconVideo, IconClose } from "@/components/icons";
 
@@ -103,6 +103,27 @@ export default function IncomingCallWatcher() {
   useEffect(() => { onChatPageRef.current = onChatPage; }, [onChatPage]);
   const inMeetRef = useRef(!!meet);
   useEffect(() => { inMeetRef.current = !!meet; }, [meet]);
+  // Calls opened through openCallRoom (support calls) live here, above the
+  // pages, so leaving a page doesn't drop them.
+  const meetRef = useRef(meet);
+  useEffect(() => { meetRef.current = meet; }, [meet]);
+  useEffect(() => {
+    if (!session?.id) return;
+    const onOpen = (e: Event) => {
+      const d = (e as CustomEvent<CallRoomOpen>).detail;
+      if (!d?.roomId || !d.callId) return;
+      const cur = meetRef.current;
+      if (cur && cur.callId !== d.callId) return; // another call is on: leave it to the caller
+      d.taken = true;
+      if (cur) return;
+      stopAllCallTones();
+      dismissed.current.add(d.callId);
+      setInc(null);
+      setMeet({ kind: "meet", roomId: d.roomId, callId: d.callId, callType: d.callType, callerName: "" });
+    };
+    window.addEventListener(CALLROOM_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(CALLROOM_OPEN_EVENT, onOpen);
+  }, [session?.id]);
   const incRef = useRef(inc);
   useEffect(() => { incRef.current = inc; }, [inc]);
   const selfId = session?.id ?? "";

@@ -31,7 +31,7 @@ import { errorText } from "@/lib/errorText";
 import { toast } from "@/lib/toast";
 import { fmtUzs } from "@/lib/money";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import { CALLROOM_EVENT } from "@/lib/callEvents";
+import { CALLROOM_EVENT, openCallRoom } from "@/lib/callEvents";
 import { docRealtimeOf, getCall } from "@/lib/services/backend";
 import { primeCallAudio, stopAllCallTones } from "@/lib/callSounds";
 import { usePoll, useSupportEvents } from "@/lib/useSupportEvents";
@@ -487,7 +487,9 @@ export default function SupportChat({
     primeCallAudio();
     const href = supportCallHref(ring.roomId, ring.callId);
     setRing(null);
-    router.push(href);
+    // Stay on this page: the call opens in the app-wide host and survives
+    // navigation (remote assistance opens pages for the client mid-call).
+    if (!openCallRoom({ roomId: ring.roomId, callId: ring.callId, callType: ring.callType === "video" ? "video" : "audio" })) router.push(href);
   };
 
   const doReopen = async () => {
