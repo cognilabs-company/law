@@ -9,7 +9,8 @@ import { isAborted, logApiError } from "@/lib/http";
 import { CRM_STATUSES, crmCan, getMyCrmMetrics, listCrmLeads, type CrmLead, type CrmMeta, type CrmMetrics } from "@/lib/services/crm";
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import CrmFrame from "./CrmFrame";
-import { Empty, StatusPill, WhenChip, statusVar, useCrmError } from "./bits";
+import { Empty, StatusPill, WhenChip, useCrmError } from "./bits";
+import { StatusDonut } from "./StatusDonut";
 
 type Period = "7" | "30" | "all";
 const PERIODS: Period[] = ["7", "30", "all"];
@@ -67,7 +68,6 @@ function Ring({ value, max, label, display }: { value: number; max: number; labe
 
 function Mission({ meta }: { meta: CrmMeta }): ReactElement {
   const t = useTranslations("crm.overview");
-  const ts = useTranslations("crm.status");
   const locale = useLocale();
   const router = useRouter();
   const crmErr = useCrmError();
@@ -141,7 +141,6 @@ function Mission({ meta }: { meta: CrmMeta }): ReactElement {
     .sort((a, b) => Date.parse(a.nextActionAt) - Date.parse(b.nextActionAt))
     .slice(0, 8);
   const overdue = metrics?.overdue ?? agenda.filter((l) => now && Date.parse(l.nextActionAt) < now).length;
-  const total = CRM_STATUSES.reduce((s, k) => s + (counts[k] ?? 0), 0);
 
   return (
     <>
@@ -181,21 +180,13 @@ function Mission({ meta }: { meta: CrmMeta }): ReactElement {
       ) : null}
 
       {canLeads ? (
-        <section aria-label={t("ribbon")}>
-          <div className="crm-ribbon">
-            {CRM_STATUSES.map((s) => (
-              <button
-                key={s}
-                type="button"
-                style={{ ...statusVar(s), flexGrow: Math.max(1, total ? ((counts[s] ?? 0) / total) * 12 : 1) }}
-                onClick={() => router.push(`/admin/crm/leads?tab=all&status=${s}`)}
-                aria-label={`${ts(s)}: ${counts[s] ?? 0}`}
-              >
-                <b>{counts[s] ?? 0}</b>
-                <small>{ts(s)}</small>
-              </button>
-            ))}
-          </div>
+        <section className="crm-card crm-rise" aria-labelledby="crm-by-status">
+          <h3 className="crm-card__h" id="crm-by-status">
+            <IconChartBar aria-hidden="true" />
+            {t("ribbon")}
+            <small className="crm-hide-sm">{t("donut.hint")}</small>
+          </h3>
+          <StatusDonut counts={counts} statuses={CRM_STATUSES} onPick={(s) => router.push(`/admin/crm/leads?tab=all&status=${s}`)} />
         </section>
       ) : null}
 

@@ -27,6 +27,7 @@ import {
   type CrmLead,
 } from "@/lib/services/crm";
 import { placeLead } from "@/components/crm/leadQuery";
+import { donutArcs } from "@/components/crm/StatusDonut";
 
 // The CRM client against the production shapes of 26 Oct 2026 (GET
 // /crm/meta, /crm/leads, /crm/me/metrics, /crm/analytics).
@@ -217,5 +218,24 @@ describe("board placement", () => {
     const out = placeLead([{ status: "contacted", items: [L("a", "contacted")], total: 0 }], L("a", "won"));
     expect(out[0].items).toEqual([]);
     expect(out[0].total).toBe(0);
+  });
+});
+
+describe("status donut", () => {
+  it("gives each non-empty status its share of the ring, in order, with gaps", () => {
+    const arcs = donutArcs([
+      { status: "new", count: 1 },
+      { status: "contacted", count: 0 },
+      { status: "won", count: 3 },
+    ]);
+    const C = 2 * Math.PI * 70;
+    expect(arcs.map((a) => a.status)).toEqual(["new", "won"]);
+    expect(arcs[0].share).toBe(0.25);
+    expect(arcs[1].offset).toBeCloseTo(C / 4);
+    expect(arcs[0].length).toBeLessThan(C / 4);
+  });
+  it("draws one full ring for a single status and nothing for none", () => {
+    expect(donutArcs([{ status: "won", count: 4 }])[0].length).toBeCloseTo(2 * Math.PI * 70);
+    expect(donutArcs([{ status: "won", count: 0 }])).toEqual([]);
   });
 });

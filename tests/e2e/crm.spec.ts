@@ -215,17 +215,27 @@ test("operator mission control: queue, mine, overdue, my metrics, no revenue, ho
   await mockBackend(page, await signIn(page, OPERATOR, routes as never));
   await page.goto("/uz/admin/crm");
   const hero = page.locator(".crm-hero");
-  await expect(hero.locator(".crm-counter").nth(0)).toContainText("3");
+  await expect(hero.locator(".crm-counter").nth(0)).toContainText("3", { timeout: 20000 }); // first page of the run: cold dev compile
   await expect(hero.locator(".crm-counter").nth(1)).toContainText("7");
   await expect(hero.locator(".crm-counter").nth(2)).toContainText("1");
   await expect(page.locator(".crm-agenda li").first()).toContainText("kechikdi");
-  await expect(page.locator(".crm-ribbon button")).toHaveCount(7);
+  // Leads by status: a donut of the seven, the total in the middle.
+  const donut = page.locator(".crm-donut");
+  await expect(donut.locator(".crm-donut__slice")).toHaveCount(7);
+  await expect(donut.locator(".crm-donut__center")).toContainText("17");
   await expect(page.getByText("IP-telefoniya hali ulanmagan")).toBeVisible();
   // Operators: no analytics section, no revenue anywhere.
   await expect(page.locator(".crm-nav").getByText("Tahlil")).toHaveCount(0);
   await expect(page.locator(".crm")).not.toContainText("25 039 162");
   await expect(page.getByText("To'langan tushum")).toHaveCount(0);
   await shot(page, "overview");
+  // Hover shows one status in the middle; a click opens its list.
+  const row = donut.getByRole("button", { name: /^Bog'lanildi: 5 ta, 29%/ });
+  await row.hover();
+  await expect(donut.locator(".crm-donut__center")).toContainText("Bog'lanildi");
+  await expect(donut.locator(".crm-donut__center")).toContainText("29%");
+  await row.click();
+  await expect(page).toHaveURL(/\/admin\/crm\/leads\?tab=all&status=contacted/);
   expect(missing).toEqual([]);
 });
 
