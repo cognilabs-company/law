@@ -58,12 +58,12 @@ function Foot({ onClose, onOk, busy, okText, danger = false, disabled = false }:
   );
 }
 
-// A move along the backend's transition map, with why and what's next.
+// A move along the backend's transition map, with why. The next action is set
+// from its own sheet; a move resends the lead's current one so it isn't cleared.
 export function StatusSheet({ lead, to, write, onClose }: { lead: CrmLead; to: string; write: LeadWrite; onClose: () => void }): ReactElement {
   const t = useTranslations("crm.sheet");
   const ts = useTranslations("crm.status");
   const [reason, setReason] = useState("");
-  const [next, setNext] = useState(toLocalInput(lead.nextActionAt));
   const [busy, setBusy] = useState(false);
   const closing = to === "closed";
   const [tried, setTried] = useState(false);
@@ -72,7 +72,7 @@ export function StatusSheet({ lead, to, write, onClose }: { lead: CrmLead; to: s
     setTried(true);
     if (busy || (closing && reason.trim().length < 3)) return;
     setBusy(true);
-    const done = await write((l) => changeLeadStatus(l, to, reason, fromLocalInput(next) || null), t("moved", { status: ts.has(to) ? ts(to) : to }));
+    const done = await write((l) => changeLeadStatus(l, to, reason, l.nextActionAt || null), t("moved", { status: ts.has(to) ? ts(to) : to }));
     setBusy(false);
     if (done) onClose();
   };
@@ -93,12 +93,6 @@ export function StatusSheet({ lead, to, write, onClose }: { lead: CrmLead; to: s
           <textarea className="crm-textarea" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus maxLength={1000} />
           {reasonErr ? <em>{reasonErr}</em> : <small>{t("reasonHelp")}</small>}
         </label>
-        {to !== "closed" && to !== "won" ? (
-          <div className="crm-field">
-            <span>{t("next")}</span>
-            <CrmDateTime value={next} onChange={setNext} label={t("next")} />
-          </div>
-        ) : null}
       </div>
     </Modal>
   );
