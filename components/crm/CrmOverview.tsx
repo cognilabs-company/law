@@ -57,7 +57,9 @@ function Ring({ value, max, label, display }: { value: number; max: number; labe
         <circle className="bg" cx="46" cy="46" r={r} />
         <circle className="fg" cx="46" cy="46" r={r} strokeDasharray={c} strokeDashoffset={c * (1 - p)} />
       </svg>
-      <b className="crm-gauge__v">{display}</b>
+      <b className="crm-gauge__v" data-long={String(display).length > 4 || undefined}>
+        {display}
+      </b>
       <small>{label}</small>
     </div>
   );

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ADMIN, CALL_CENTER, mockBackend, signIn, type Who } from "./mock";
 
 // The CRM and the operator AI copilot (contract 2026-10-26, /crm/*) against
@@ -13,6 +13,14 @@ test.describe.configure({ timeout: 120_000 });
 const shot = async (page: Page, name: string) => {
   if (!process.env.CRM_SHOTS) return;
   await page.waitForTimeout(600);
+  // On a phone nothing in the CRM may stick out past the screen.
+  if (process.env.CRM_NARROW) {
+    const wide = await page.evaluate(() => {
+      const root = document.querySelector(".crm")?.getBoundingClientRect();
+      return root ? [...document.querySelectorAll(".crm > *")].filter((el) => el.getBoundingClientRect().right > root.right + 1).map((el) => el.className) : [];
+    });
+    expect(wide).toEqual([]);
+  }
   const suffix = `${process.env.CRM_DARK ? "dark" : "light"}${process.env.CRM_NARROW ? "-phone" : ""}`;
   await page.screenshot({ path: `${process.env.CRM_SHOTS}/crm-${name}-${suffix}.png`, fullPage: false });
 };
@@ -99,7 +107,11 @@ function crmServer(perms: string[], revenue = false) {
     conflictOnce: true,
     exportPolls: 0,
   };
-  const page = (items: unknown[], url: URL) => ({ items, total: items.length, limit: Number(url.searchParams.get("limit") ?? 50), offset: 0, counts: { new: 3, contacted: 5, qualified: 3, proposal: 2, payment_pending: 1, won: 2, closed: 1 } });
+  const page = (all: Record<string, unknown>[], url: URL) => {
+    const want = url.searchParams.get("status");
+    const items = want ? all.filter((l) => l.status === want) : all;
+    return { items, total: items.length, limit: Number(url.searchParams.get("limit") ?? 50), offset: 0, counts: { new: 3, contacted: 5, qualified: 3, proposal: 2, payment_pending: 1, won: 2, closed: 1 } };
+  };
   const routes: Record<string, unknown> = {
     "/crm/meta": meta(perms, revenue),
     "/crm/leads": (_: unknown, url: URL) => (url.searchParams.get("queue_only") ? page(st.queue, url) : url.searchParams.get("mine_only") ? page(st.mine, url) : page([...st.mine, ...st.queue], url)),
@@ -298,8 +310,11 @@ test("AI copilot: 202 → poll → cards; only the ticked paths, with edits and 
   await expect(ai.locator(".crm-flag")).toHaveCount(2);
   // Nothing was applied by itself.
   expect(st.applied).toBeNull();
-  await ai.getByRole("checkbox", { name: /Qisqacha/ }).check();
-  await ai.getByRole("checkbox", { name: /Shoshilinchlik/ }).check();
+  // Ticked the way an operator does: on the card's label.
+  for (const name of [/^Qisqacha/, /^Shoshilinchlik/]) {
+    await ai.locator("label.cbx__row").filter({ hasText: name }).click();
+    await expect(ai.getByRole("checkbox", { name })).toBeChecked();
+  }
   await ai.getByRole("textbox", { name: "Qisqacha" }).fill("Operator tuzatgan qisqacha matn");
   // A draft can be edited and copied, never applied.
   await expect(ai.getByRole("checkbox", { name: /Javob qoralamalari/ })).toBeDisabled();
@@ -357,5 +372,53 @@ test("superadmin: global analytics with revenue; merge asks for a typed confirma
   await expect(page.locator(".crm-job")).toBeVisible();
   await expect(page.locator(".crm-job").getByRole("button", { name: "Yuklab olish" })).toBeVisible({ timeout: 15000 });
   expect(mock.calls.find((c) => c.method === "POST" && c.path === "/crm/exports")?.body).toMatchObject({ scope: "leads" });
+  expect(missing).toEqual([]);
+});
+
+// A real HTML5 drag: press, nudge (so the browser starts a drag), glide over
+// the column, release.
+async function dragCard(page: Page, from: Locator, to: Locator) {
+  await from.hover(); // waits until the card has stopped animating in
+  await to.scrollIntoViewIfNeeded();
+  const a = (await from.boundingBox())!;
+  const b = (await to.boundingBox())!;
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(a.x + a.width / 2 + 10, a.y + a.height / 2 + 10, { steps: 5 });
+  await page.mouse.move(b.x + b.width / 2, b.y + 140, { steps: 12 });
+  await page.mouse.up();
+}
+
+test("kanban: one column per status; a card moves only where the map allows, with its lock", async ({ page }) => {
+  const missing = watchIntl(page);
+  const { st, routes } = crmServer(OPERATOR.permissions ?? []);
+  st.conflictOnce = false;
+  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await page.goto("/uz/admin/crm/leads?tab=mine&view=board");
+  const cols = page.locator(".crm-col");
+  await expect(cols).toHaveCount(7);
+  const contacted = cols.filter({ hasText: "Bog'lanildi" });
+  const card = contacted.locator(".crm-kcard").filter({ hasText: "Ijara shartnomasi tekshiruvi" });
+  await expect(card).toBeVisible();
+  await shot(page, "board");
+  // The move menu offers only the map's next statuses (and works on touch).
+  await card.getByRole("button", { name: "Ko'chirish…" }).click();
+  await expect(card.getByRole("group", { name: "Ko'chirish…" }).getByRole("button")).toHaveText(["Yopilgan", "Taklif", "Saralangan"]);
+  if (process.env.CRM_NARROW) {
+    await card.getByRole("group", { name: "Ko'chirish…" }).getByRole("button", { name: "Saralangan" }).click();
+  } else {
+    await card.getByRole("button", { name: "Ko'chirish…" }).click();
+    // contacted → new is not on the map: refused, nothing sent.
+    await dragCard(page, card, cols.filter({ hasText: "Yangi" }));
+    await expect(page.getByText(/dan “Yangi” ga o'tkazib bo'lmaydi/).first()).toBeVisible();
+    expect(st.writes).toHaveLength(0);
+    // contacted → qualified is allowed: the reason sheet opens and the lock goes along.
+    await dragCard(page, card, cols.filter({ hasText: "Saralangan" }));
+  }
+  const sheet = page.getByRole("dialog", { name: /Saralangan/ });
+  await sheet.getByRole("textbox", { name: /Sabab/ }).fill("Hujjatlar keldi");
+  await sheet.getByRole("button", { name: "O'tkazish" }).click();
+  await expect.poll(() => st.writes.length).toBe(1);
+  expect(st.writes[0].body).toMatchObject({ status: "qualified", reason: "Hujjatlar keldi", expected_lock_version: 4 });
   expect(missing).toEqual([]);
 });

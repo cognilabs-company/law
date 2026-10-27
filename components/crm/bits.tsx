@@ -3,8 +3,8 @@
 import "./crm.css";
 import { useEffect, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { Link, usePathname } from "@/i18n/navigation";
-import { IconChartBar, IconFileText, IconFlame, IconGrid, IconInbox, IconLayers, IconSearch, IconUsers } from "@/components/icons";
+import { Link, usePathname, useRouter } from "@/i18n/navigation";
+import { IconChartBar, IconChevronLeft, IconFileText, IconFlame, IconGrid, IconInbox, IconLayers, IconSearch, IconUsers } from "@/components/icons";
 import { errDetail } from "@/lib/http";
 import { CRM_STATUSES, crmCan, crmCode, crmGlobalAnalytics, type CrmMeta } from "@/lib/services/crm";
 import { minutesUntil, useLiveState } from "@/lib/crm/useCrm";
@@ -131,7 +131,28 @@ const SECTIONS = [
 ];
 
 // The CRM's own header on every page: sections, the live dot and search.
-export function CrmTop({ meta, title, onPalette, tools }: { meta: CrmMeta | null; title: string; onPalette: () => void; tools?: ReactNode }): ReactElement {
+export type CrmBack = { href: string; label: string };
+
+// Back to where the operator came from inside the CRM; the list otherwise.
+export function BackButton({ back }: { back: CrmBack }): ReactElement {
+  const router = useRouter();
+  return (
+    <button
+      type="button"
+      className="crm-back"
+      onClick={() => {
+        const fromCrm = typeof document !== "undefined" && document.referrer.startsWith(window.location.origin) && /\/admin\/crm/.test(document.referrer);
+        if (fromCrm && window.history.length > 1) router.back();
+        else router.push(back.href);
+      }}
+    >
+      <IconChevronLeft aria-hidden="true" />
+      {back.label}
+    </button>
+  );
+}
+
+export function CrmTop({ meta, title, onPalette, tools, back }: { meta: CrmMeta | null; title: string; onPalette: () => void; tools?: ReactNode; back?: CrmBack }): ReactElement {
   const t = useTranslations("crm");
   const path = usePathname();
   const current = SECTIONS.filter((s) => s.ok(meta))
@@ -150,6 +171,7 @@ export function CrmTop({ meta, title, onPalette, tools }: { meta: CrmMeta | null
   }, [onPalette]);
   return (
     <header className="crm-top">
+      {back ? <BackButton back={back} /> : null}
       <h1 className="crm-top__title">
         <i aria-hidden="true">
           <IconLayers />

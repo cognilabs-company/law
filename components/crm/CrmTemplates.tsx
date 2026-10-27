@@ -9,6 +9,7 @@ import { toast } from "@/lib/toast";
 import { TEMPLATE_TYPES, createCrmTemplate, crmCan, listCrmTemplates, type CrmMeta, type CrmTemplate } from "@/lib/services/crm";
 import CrmFrame from "./CrmFrame";
 import { Empty, useCrmError } from "./bits";
+import { CrmSelect } from "./fields";
 import { copyText } from "./LeadSide";
 
 export default function CrmTemplates(): ReactElement {
@@ -61,22 +62,8 @@ function Library({ meta }: { meta: CrmMeta }): ReactElement {
           <IconSearch aria-hidden="true" />
           <input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
         </label>
-        <select className="crm-select" value={type} onChange={(e) => setType(e.target.value)} aria-label={t("type")}>
-          <option value="">{t("anyType")}</option>
-          {TEMPLATE_TYPES.map((x) => (
-            <option key={x} value={x}>
-              {t(`t.${x}`)}
-            </option>
-          ))}
-        </select>
-        <select className="crm-select" value={language} onChange={(e) => setLanguage(e.target.value)} aria-label={t("language")}>
-          <option value="">{t("anyLanguage")}</option>
-          {meta.languages.map((l) => (
-            <option key={l} value={l}>
-              {tl.has(l) ? tl(l) : l}
-            </option>
-          ))}
-        </select>
+        <CrmSelect value={type} onChange={setType} label={t("type")} options={[{ value: "", label: t("anyType") }, ...TEMPLATE_TYPES.map((x) => ({ value: x, label: t(`t.${x}`) }))]} />
+        <CrmSelect value={language} onChange={setLanguage} label={t("language")} options={[{ value: "", label: t("anyLanguage") }, ...meta.languages.map((l) => ({ value: l, label: tl.has(l) ? tl(l) : l }))]} />
         {canManage ? (
           <button type="button" className="crm-btn crm-btn--pri" style={{ marginLeft: "auto" }} onClick={() => setCreating(true)}>
             <IconPlus aria-hidden="true" />
@@ -167,26 +154,14 @@ function NewTemplate({ meta, onClose, onSaved }: { meta: CrmMeta; onClose: () =>
           <input className="crm-input" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
         </label>
         <div className="crm-row2">
-          <label className="crm-field">
+          <div className="crm-field">
             <span>{t("type")}</span>
-            <select className="crm-select" value={type} onChange={(e) => setType(e.target.value)}>
-              {TEMPLATE_TYPES.map((x) => (
-                <option key={x} value={x}>
-                  {t(`t.${x}`)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="crm-field">
+            <CrmSelect value={type} onChange={setType} label={t("type")} options={TEMPLATE_TYPES.map((x) => ({ value: x, label: t(`t.${x}`) }))} />
+          </div>
+          <div className="crm-field">
             <span>{t("language")}</span>
-            <select className="crm-select" value={language} onChange={(e) => setLanguage(e.target.value)}>
-              {meta.languages.map((l) => (
-                <option key={l} value={l}>
-                  {tl.has(l) ? tl(l) : l}
-                </option>
-              ))}
-            </select>
-          </label>
+            <CrmSelect value={language} onChange={setLanguage} label={t("language")} options={meta.languages.map((l) => ({ value: l, label: tl.has(l) ? tl(l) : l }))} />
+          </div>
         </div>
         <label className="crm-field">
           <span>{t("content")}</span>

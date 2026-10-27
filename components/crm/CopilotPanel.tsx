@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
+import CheckBox from "@/components/CheckBox";
 import { IconAlert, IconArrowRight, IconCopy, IconShieldCheck, IconSparkle } from "@/components/icons";
 import { shortDateTime, timeOnly } from "@/lib/date";
 import { asArr, asDict, asStr, isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { AI_LANGUAGES, AI_RUN_TYPES, aiCardsOf, aiRunDone, applyAiRun, crmCode, getAiRun, listAiRuns, startAiRun, type AiCard, type CrmAiRun, type CrmLead, type CrmMeta } from "@/lib/services/crm";
 import { useCrmError } from "./bits";
+import { CrmDateTime, CrmSelect } from "./fields";
 import { copyText } from "./LeadSide";
 import type { LeadWrite } from "./CrmLeadPage";
 
@@ -28,10 +30,13 @@ const pct = (v: unknown): number | null => {
   return Math.max(0, Math.min(100, n <= 1 ? n * 100 : n));
 };
 
+const URGENCIES = ["low", "normal", "high", "urgent"];
+
 // Advisory only: a run reads, suggests and waits. Nothing is sent, changed
 // or created until the operator ticks cards and applies them (§5).
 export function CopilotPanel({ meta, lead, write, refreshKey }: { meta: CrmMeta; lead: CrmLead; write: LeadWrite; refreshKey: number }): ReactElement {
   const t = useTranslations("crm.ai");
+  const tu = useTranslations("crm.newLead");
   const locale = useLocale();
   const crmErr = useCrmError();
   const [runType, setRunType] = useState<string>("full_analysis");
@@ -166,14 +171,8 @@ export function CopilotPanel({ meta, lead, write, refreshKey }: { meta: CrmMeta;
             </button>
           ))}
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <select className="crm-select" value={language} onChange={(e) => setLanguage(e.target.value)} aria-label={t("language")}>
-            {AI_LANGUAGES.map((l) => (
-              <option key={l} value={l}>
-                {t(`lang.${l}`)}
-              </option>
-            ))}
-          </select>
+        <div className="crm-ai__ask">
+          <CrmSelect value={language} onChange={setLanguage} label={t("language")} options={AI_LANGUAGES.map((l) => ({ value: l, label: t(`lang.${l}`) }))} />
           <input className="crm-input" value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder={t("instruction")} aria-label={t("instruction")} maxLength={1000} />
         </div>
         <button type="button" className="crm-btn crm-btn--pri" onClick={() => void run()} disabled={starting || thinking} aria-busy={starting || undefined}>
@@ -248,11 +247,12 @@ export function CopilotPanel({ meta, lead, write, refreshKey }: { meta: CrmMeta;
                 const id = `crm-ai-${c.path}`;
                 return (
                   <div key={c.path} className="crm-sugg" data-on={on || undefined}>
-                    <input type="checkbox" id={id} checked={on} onChange={() => toggle(c.path)} disabled={!c.applicable} aria-label={t("pick", { what: t.has(pathKey(c.path)) ? t(pathKey(c.path)) : c.path })} title={c.applicable ? undefined : t("copyOnly")} />
-                    <p className="crm-sugg__h">
-                      <label htmlFor={id}>{t.has(pathKey(c.path)) ? t(pathKey(c.path)) : c.path}</label>
+                    <div className="crm-sugg__h">
+                      <CheckBox id={id} checked={on} onChange={() => toggle(c.path)} disabled={!c.applicable}>
+                        {t.has(pathKey(c.path)) ? t(pathKey(c.path)) : c.path}
+                      </CheckBox>
                       {!c.applicable ? <small>{t("copyOnly")}</small> : null}
-                    </p>
+                    </div>
                     {c.kind === "chips" ? (
                       <div>
                         {asArr(c.value).map((x, i) => (
@@ -281,8 +281,12 @@ export function CopilotPanel({ meta, lead, write, refreshKey }: { meta: CrmMeta;
                           );
                         })}
                       </div>
+                    ) : c.path === "urgency" ? (
+                      <CrmSelect value={valueOf(c)} onChange={(v) => setEdits((cur) => ({ ...cur, [c.path]: v }))} label={t(pathKey("urgency"))} options={URGENCIES.map((u) => ({ value: u, label: tu(`urg.${u}`) }))} />
+                    ) : c.path === "category" || c.path === "subcategory" ? (
+                      <input className="crm-input" value={valueOf(c)} onChange={(e) => setEdits((cur) => ({ ...cur, [c.path]: e.target.value }))} aria-label={t.has(pathKey(c.path)) ? t(pathKey(c.path)) : c.path} maxLength={120} />
                     ) : c.kind === "next" ? (
-                      <input className="crm-input" type="datetime-local" value={edits[c.path] ?? toLocal(String(c.value))} onChange={(e) => setEdits((cur) => ({ ...cur, [c.path]: e.target.value }))} aria-label={t(pathKey("next_action.at"))} />
+                      <CrmDateTime value={edits[c.path] ?? toLocal(String(c.value))} onChange={(v) => setEdits((cur) => ({ ...cur, [c.path]: v }))} label={t(pathKey("next_action.at"))} />
                     ) : (
                       <>
                         <textarea className="crm-textarea" value={valueOf(c)} onChange={(e) => setEdits((cur) => ({ ...cur, [c.path]: e.target.value }))} aria-label={t.has(pathKey(c.path)) ? t(pathKey(c.path)) : c.path} style={{ minHeight: c.kind === "draft" ? 110 : 60 }} />

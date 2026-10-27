@@ -4,20 +4,19 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
-import { IconAlert, IconCheck, IconDownload, IconLayers, IconPlus, IconRefresh, IconSearch } from "@/components/icons";
+import { IconAlert, IconCheck, IconDownload, IconGrid, IconLayers, IconList, IconPlus, IconRefresh, IconSearch } from "@/components/icons";
 import { IconBookmark, IconX } from "./icons";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { CRM_STATUSES, claimCrmLead, crmCan, isClaimRace, leadCan, listCrmLeads, listCrmOperators, type CrmLead, type CrmMeta, type CrmOperator, type LeadQuery } from "@/lib/services/crm";
+import { CRM_STATUSES, claimCrmLead, crmCan, isClaimRace, leadCan, listCrmLeads, listCrmOperators, type CrmLead, type CrmMeta, type CrmOperator } from "@/lib/services/crm";
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import CrmFrame from "./CrmFrame";
+import { LeadBoard } from "./LeadBoard";
+import { EMPTY, LIMIT, queryOf, type Filters, type Tab } from "./leadQuery";
 import { Avatar, Empty, ScoreChip, StageDots, StatusPill, WhenChip, useCrmError } from "./bits";
+import { CrmDate, CrmSelect } from "./fields";
 
-type Tab = "queue" | "mine" | "all";
-type Filters = { status: string; score: string; source: string; category: string; region: string; q: string; operator: string; due: string; createdFrom: string; createdTo: string };
-const EMPTY: Filters = { status: "", score: "", source: "", category: "", region: "", q: "", operator: "", due: "", createdFrom: "", createdTo: "" };
-const LIMIT = 50;
 const VIEWS_KEY = "lexgo.crm.views";
 type View = { name: string; tab: Tab; f: Filters };
 
@@ -36,28 +35,6 @@ const writeViews = (v: View[]) => {
     /* storage off: views stay for this visit */
   }
 };
-
-// Backend filters only: the due chips become next_action_from/to.
-export function queryOf(tab: Tab, f: Filters, offset: number, now: number): LeadQuery {
-  const day = new Date(now || Date.now());
-  const endOfDay = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23, 59, 59).toISOString();
-  return {
-    queueOnly: tab === "queue",
-    mineOnly: tab === "mine",
-    status: f.status,
-    score: f.score,
-    source: f.source,
-    category: f.category,
-    region: f.region,
-    q: f.q,
-    operator: tab === "all" ? f.operator : "",
-    nextTo: f.due === "overdue" ? new Date(now || Date.now()).toISOString() : f.due === "today" ? endOfDay : "",
-    createdFrom: f.createdFrom ? new Date(f.createdFrom).toISOString() : "",
-    createdTo: f.createdTo ? new Date(`${f.createdTo}T23:59:59`).toISOString() : "",
-    limit: LIMIT,
-    offset,
-  };
-}
 
 export default function CrmLeads(): ReactElement {
   const t = useTranslations("crm");
@@ -96,6 +73,27 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
   const now = useNow();
   const initialTab = (["queue", "mine", "all"] as Tab[]).includes(params.get("tab") as Tab) ? (params.get("tab") as Tab) : "queue";
   const [tab, setTab] = useState<Tab>(initialTab);
+  // Table or board: the URL first, then the operator's last choice.
+  const [view, setView] = useState<"table" | "board">(params.get("view") === "board" ? "board" : "table");
+  useEffect(() => {
+    if (params.get("view")) return;
+    const id = window.setTimeout(() => {
+      try {
+        if (localStorage.getItem("lexgo.crm.view") === "board") setView("board");
+      } catch {
+        /* storage off */
+      }
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [params]);
+  const pickView = (v: "table" | "board") => {
+    setView(v);
+    try {
+      localStorage.setItem("lexgo.crm.view", v);
+    } catch {
+      /* storage off */
+    }
+  };
   const [f, setF] = useState<Filters>({ ...EMPTY, status: params.get("status") ?? "", due: params.get("due") ?? "" });
   const [qInput, setQInput] = useState("");
   const [offset, setOffset] = useState(0);
@@ -159,13 +157,14 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
     }
   }, []);
   useEffect(() => {
+    if (view === "board") return;
     const ctl = new AbortController();
     const id = window.setTimeout(() => void load(ctl.signal), 0);
     return () => {
       ctl.abort();
       window.clearTimeout(id);
     };
-  }, [load]);
+  }, [load, view]);
   useEffect(() => {
     const ctl = new AbortController();
     const id = window.setTimeout(() => void loadCounts(ctl.signal), 0);
@@ -235,7 +234,7 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName ?? "";
       if (/INPUT|TEXTAREA|SELECT/.test(tag) || (e.target as HTMLElement | null)?.isContentEditable || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (!rows?.length && e.key !== "/") return;
+      if (view !== "table" || (!rows?.length && e.key !== "/")) return;
       if (e.key === "j") setActive((a) => Math.min((rows?.length ?? 1) - 1, a + 1));
       else if (e.key === "k") setActive((a) => Math.max(0, a - 1));
       else if (e.key === "Enter" && rows?.[active]) router.push(`/admin/crm/leads/${encodeURIComponent(rows[active].id)}`);
@@ -257,13 +256,17 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
     setF((cur) => ({ ...cur, ...patch }));
     setOffset(0);
   };
+  // The board's columns are the statuses, so its filters leave status out.
+  const boardFilters = useMemo(() => ({ ...f, status: "" }), [f]);
   const activeFilters = useMemo(() => Object.entries(f).filter(([k, v]) => v && k !== "q"), [f]);
+  const [naming, setNaming] = useState<string | null>(null);
   const saveView = () => {
-    const name = window.prompt(t("viewName"))?.trim();
+    const name = (naming ?? "").trim();
     if (!name) return;
     const next = [{ name, tab, f }, ...views.filter((v) => v.name !== name)];
     setViews(next);
     writeViews(next);
+    setNaming(null);
   };
 
   const tabs: Tab[] = ["queue", "mine", "all"];
@@ -286,9 +289,17 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
             <em>{tabCounts[k] ?? "·"}</em>
           </button>
         ))}
-        <span className="crm-hint" style={{ marginLeft: "auto" }}>
-          {t.rich("keys", { k: (c) => <kbd>{c}</kbd> })}
+        <span className="crm-seg" role="group" aria-label={t("view")} style={{ marginLeft: "auto" }}>
+          <button type="button" aria-pressed={view === "table"} onClick={() => pickView("table")}>
+            <IconList aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: "-2px", marginRight: 4 }} />
+            {t("viewTable")}
+          </button>
+          <button type="button" aria-pressed={view === "board"} onClick={() => pickView("board")}>
+            <IconGrid aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: "-2px", marginRight: 4 }} />
+            {t("viewBoard")}
+          </button>
         </span>
+        {view === "table" ? <span className="crm-hint crm-hide-sm">{t.rich("keys", { k: (c) => <kbd>{c}</kbd> })}</span> : null}
       </div>
 
       <div className="crm-filters">
@@ -296,39 +307,11 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
           <IconSearch aria-hidden="true" />
           <input ref={searchRef} value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
         </label>
-        <select className="crm-select" value={f.status} onChange={(e) => setFilter({ status: e.target.value })} aria-label={t("f.status")}>
-          <option value="">{t("f.anyStatus")}</option>
-          {(meta.statuses.length ? meta.statuses : [...CRM_STATUSES]).map((s) => (
-            <option key={s} value={s}>
-              {ts.has(s) ? ts(s) : s}
-            </option>
-          ))}
-        </select>
-        <select className="crm-select" value={f.score} onChange={(e) => setFilter({ score: e.target.value })} aria-label={t("f.score")}>
-          <option value="">{t("f.anyScore")}</option>
-          {meta.scores.map((s) => (
-            <option key={s} value={s}>
-              {tsc.has(s) ? tsc(s) : s}
-            </option>
-          ))}
-        </select>
-        <select className="crm-select" value={f.source} onChange={(e) => setFilter({ source: e.target.value })} aria-label={t("f.source")}>
-          <option value="">{t("f.anySource")}</option>
-          {meta.sources.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+        {view === "table" ? <CrmSelect value={f.status} onChange={(v) => setFilter({ status: v })} label={t("f.status")} options={[{ value: "", label: t("f.anyStatus") }, ...(meta.statuses.length ? meta.statuses : [...CRM_STATUSES]).map((s) => ({ value: s, label: ts.has(s) ? ts(s) : s }))]} /> : null}
+        <CrmSelect value={f.score} onChange={(v) => setFilter({ score: v })} label={t("f.score")} options={[{ value: "", label: t("f.anyScore") }, ...meta.scores.map((s) => ({ value: s, label: tsc.has(s) ? tsc(s) : s }))]} />
+        <CrmSelect value={f.source} onChange={(v) => setFilter({ source: v })} label={t("f.source")} options={[{ value: "", label: t("f.anySource") }, ...meta.sources.map((s) => ({ value: s, label: s }))]} />
         {tab === "all" && ops.length ? (
-          <select className="crm-select" value={f.operator} onChange={(e) => setFilter({ operator: e.target.value })} aria-label={t("f.operator")}>
-            <option value="">{t("f.anyOperator")}</option>
-            {ops.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </select>
+          <CrmSelect value={f.operator} onChange={(v) => setFilter({ operator: v })} label={t("f.operator")} options={[{ value: "", label: t("f.anyOperator") }, ...ops.map((o) => ({ value: o.id, label: o.name }))]} />
         ) : null}
         <input className="crm-input" style={{ width: 140 }} value={f.category} onChange={(e) => setFilter({ category: e.target.value })} placeholder={t("f.category")} aria-label={t("f.category")} />
         <input className="crm-input" style={{ width: 130 }} value={f.region} onChange={(e) => setFilter({ region: e.target.value })} placeholder={t("f.region")} aria-label={t("f.region")} />
@@ -339,22 +322,44 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
         <button type="button" className="crm-chip" aria-pressed={f.due === "today"} onClick={() => setFilter({ due: f.due === "today" ? "" : "today" })}>
           {t("f.today")}
         </button>
-        <label className="crm-chip" style={{ cursor: "default" }}>
-          {t("f.created")}
-          <input type="date" value={f.createdFrom} onChange={(e) => setFilter({ createdFrom: e.target.value })} aria-label={t("f.createdFrom")} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }} />
-          –
-          <input type="date" value={f.createdTo} onChange={(e) => setFilter({ createdTo: e.target.value })} aria-label={t("f.createdTo")} style={{ border: 0, background: "transparent", color: "inherit", font: "inherit" }} />
-        </label>
+        <span className="crm-range" role="group" aria-label={t("f.created")}>
+          <CrmDate value={f.createdFrom} onChange={(v) => setFilter({ createdFrom: v })} label={t("f.createdFrom")} max={f.createdTo || undefined} />
+          <CrmDate value={f.createdTo} onChange={(v) => setFilter({ createdTo: v })} label={t("f.createdTo")} min={f.createdFrom || undefined} />
+        </span>
         {activeFilters.length ? (
           <button type="button" className="crm-btn crm-btn--ghost crm-btn--sm" onClick={() => setFilter({ ...EMPTY, q: f.q })}>
             <IconX aria-hidden="true" />
             {t("f.clear")}
           </button>
         ) : null}
-        <button type="button" className="crm-btn crm-btn--ghost crm-btn--sm" onClick={saveView}>
-          <IconBookmark aria-hidden="true" />
-          {t("saveView")}
-        </button>
+        {naming === null ? (
+          <button type="button" className="crm-btn crm-btn--ghost crm-btn--sm" onClick={() => setNaming("")}>
+            <IconBookmark aria-hidden="true" />
+            {t("saveView")}
+          </button>
+        ) : (
+          <span className="crm-viewname">
+            <input
+              className="crm-input"
+              autoFocus
+              value={naming}
+              onChange={(e) => setNaming(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveView();
+                if (e.key === "Escape") setNaming(null);
+              }}
+              placeholder={t("viewName")}
+              aria-label={t("viewName")}
+              maxLength={40}
+            />
+            <button type="button" className="crm-btn crm-btn--pri crm-btn--sm" onClick={saveView} disabled={!naming.trim()}>
+              <IconCheck aria-hidden="true" />
+            </button>
+            <button type="button" className="crm-btn crm-btn--ghost crm-btn--sm" onClick={() => setNaming(null)} aria-label={t("f.clear")}>
+              <IconX aria-hidden="true" />
+            </button>
+          </span>
+        )}
       </div>
       {views.length ? (
         <div className="crm-filters" aria-label={t("views")}>
@@ -400,7 +405,9 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
         </div>
       ) : null}
 
-      {rows === null ? (
+      {view === "board" ? (
+        <LeadBoard meta={meta} tab={tab} filters={boardFilters} onClaim={(l) => void claim(l)} claiming={holding} />
+      ) : rows === null ? (
         <div className="crm-card" aria-busy="true">
           {Array.from({ length: 8 }, (_, i) => (
             <span key={i} className="crm-sk" style={{ height: 22, width: `${96 - ((i * 11) % 30)}%` }} />
@@ -488,7 +495,7 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
           </table>
         </div>
       )}
-      {rows && total > LIMIT ? (
+      {view === "table" && rows && total > LIMIT ? (
         <div className="crm-pager">
           <span>{t("range", { from: offset + 1, to: Math.min(total, offset + LIMIT), total })}</span>
           <span style={{ display: "flex", gap: 6 }}>

@@ -26,14 +26,15 @@ import {
   type ContactInput,
 } from "@/lib/services/crm";
 import { dismissCrmExport, loadCrmMeta, refreshCrmExport, trackCrmExport, useCrmEvents, useCrmExports, useCrmMeta } from "@/lib/crm/useCrm";
-import { CrmTop, Empty, SkeletonRows, useCrmError } from "./bits";
+import { CrmTop, Empty, SkeletonRows, useCrmError, type CrmBack } from "./bits";
+import { CrmDate, CrmDateTime, CrmSelect } from "./fields";
 
 type Sheet = "" | "lead" | "customer" | "export";
 export type CrmApi = { meta: CrmMeta; open: (s: Exclude<Sheet, "">, preset?: { customerId?: string; customerName?: string }) => void };
 
 // Every CRM page: the meta gate, the header, the ⌘K palette, the create
 // sheets and the export tray. `children` gets the meta and the openers.
-export default function CrmFrame({ title, tools, children }: { title?: string; tools?: (api: CrmApi) => ReactNode; children: (api: CrmApi) => ReactNode }): ReactElement {
+export default function CrmFrame({ title, tools, back, children }: { title?: string; tools?: (api: CrmApi) => ReactNode; back?: CrmBack; children: (api: CrmApi) => ReactNode }): ReactElement {
   const t = useTranslations("crm");
   const { meta, error } = useCrmMeta();
   const [palette, setPalette] = useState(false);
@@ -86,7 +87,7 @@ export default function CrmFrame({ title, tools, children }: { title?: string; t
   }
   return (
     <div className="crm">
-      <CrmTop meta={api.meta} title={title ?? t("title")} onPalette={openPalette} tools={tools?.(api)} />
+      <CrmTop meta={api.meta} title={title ?? t("title")} onPalette={openPalette} tools={tools?.(api)} back={back} />
       {children(api)}
       <ExportTray />
       {palette ? <Palette api={api} onClose={() => setPalette(false)} /> : null}
@@ -316,27 +317,20 @@ function ExportSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void }):
           ))}
         </div>
         <div className="crm-row2">
-          <label className="crm-field">
+          <div className="crm-field">
             <span>{t("from")}</span>
-            <input className="crm-input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-          </label>
-          <label className="crm-field">
+            <CrmDate value={from} onChange={setFrom} label={t("from")} />
+          </div>
+          <div className="crm-field">
             <span>{t("to")}</span>
-            <input className="crm-input" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-          </label>
+            <CrmDate value={to} onChange={setTo} label={t("to")} />
+          </div>
         </div>
         {scope === "leads" ? (
-          <label className="crm-field">
+          <div className="crm-field">
             <span>{t("status")}</span>
-            <select className="crm-select" value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="">{t("anyStatus")}</option>
-              {(meta.statuses.length ? meta.statuses : [...CRM_STATUSES]).map((s) => (
-                <option key={s} value={s}>
-                  {ts.has(s) ? ts(s) : s}
-                </option>
-              ))}
-            </select>
-          </label>
+            <CrmSelect value={status} onChange={setStatus} label={t("status")} options={[{ value: "", label: t("anyStatus") }, ...(meta.statuses.length ? meta.statuses : [...CRM_STATUSES]).map((s) => ({ value: s, label: ts.has(s) ? ts(s) : s }))]} />
+          </div>
         ) : null}
         <p className="crm-sub">{t("note")}</p>
       </div>
@@ -428,16 +422,10 @@ function CustomerSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void }
             <input className="crm-input" value={region} onChange={(e) => setRegion(e.target.value)} />
           </label>
         </div>
-        <label className="crm-field">
+        <div className="crm-field">
           <span>{t("language")}</span>
-          <select className="crm-select" value={language} onChange={(e) => setLanguage(e.target.value)}>
-            {meta.languages.map((l) => (
-              <option key={l} value={l}>
-                {tl.has(l) ? tl(l) : l}
-              </option>
-            ))}
-          </select>
-        </label>
+          <CrmSelect value={language} onChange={setLanguage} label={t("language")} options={meta.languages.map((l) => ({ value: l, label: tl.has(l) ? tl(l) : l }))} />
+        </div>
         <label className="crm-field">
           <span>{t("userId")}</span>
           <input className="crm-input" value={userId} onChange={(e) => setUserId(e.target.value)} />
@@ -628,42 +616,24 @@ function LeadSheet({ meta, preset, onClose }: { meta: CrmMeta; preset: { custome
           </label>
         </div>
         <div className="crm-row2">
-          <label className="crm-field">
+          <div className="crm-field">
             <span>{t("source")}</span>
-            <select className="crm-select" value={source} onChange={(e) => setSource(e.target.value)}>
-              {meta.sources.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="crm-field">
+            <CrmSelect value={source} onChange={setSource} label={t("source")} options={meta.sources.map((s) => ({ value: s, label: s }))} />
+          </div>
+          <div className="crm-field">
             <span>{t("urgency")}</span>
-            <select className="crm-select" value={urgency} onChange={(e) => setUrgency(e.target.value)}>
-              {["low", "normal", "high", "urgent"].map((u) => (
-                <option key={u} value={u}>
-                  {t(`urg.${u}`)}
-                </option>
-              ))}
-            </select>
-          </label>
+            <CrmSelect value={urgency} onChange={setUrgency} label={t("urgency")} options={["low", "normal", "high", "urgent"].map((u) => ({ value: u, label: t(`urg.${u}`) }))} />
+          </div>
         </div>
         <div className="crm-row2">
-          <label className="crm-field">
+          <div className="crm-field">
             <span>{t("language")}</span>
-            <select className="crm-select" value={language} onChange={(e) => setLanguage(e.target.value)}>
-              {meta.languages.map((l) => (
-                <option key={l} value={l}>
-                  {tl.has(l) ? tl(l) : l}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="crm-field">
+            <CrmSelect value={language} onChange={setLanguage} label={t("language")} options={meta.languages.map((l) => ({ value: l, label: tl.has(l) ? tl(l) : l }))} />
+          </div>
+          <div className="crm-field">
             <span>{t("next")}</span>
-            <input className="crm-input" type="datetime-local" value={next} onChange={(e) => setNext(e.target.value)} />
-          </label>
+            <CrmDateTime value={next} onChange={setNext} label={t("next")} />
+          </div>
         </div>
         {dupWarn ? (
           <div className="crm-banner crm-banner--warn">

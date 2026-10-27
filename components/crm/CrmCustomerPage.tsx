@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
+import CheckBox from "@/components/CheckBox";
 import { Link, useRouter } from "@/i18n/navigation";
 import { IconAlert, IconArrowRight, IconCheck, IconEdit, IconHistory, IconLayers, IconPlus, IconUsers } from "@/components/icons";
 import { IconShoppingBag } from "./icons";
@@ -30,12 +31,17 @@ import CrmFrame, { type CrmApi } from "./CrmFrame";
 import { Avatar, Empty, StatusPill, WhenChip, statusVar, useCrmError } from "./bits";
 import { ContactRow } from "./LeadSide";
 import { Timeline } from "./LeadTimeline";
+import { CrmSelect } from "./fields";
 
 const CLOSED = new Set(["won", "closed"]);
 
 export default function CrmCustomerPage({ customerId }: { customerId: string }): ReactElement {
   const t = useTranslations("crm");
-  return <CrmFrame title={t("customer.title")}>{(api) => <Profile api={api} customerId={customerId} />}</CrmFrame>;
+  return (
+    <CrmFrame title={t("customer.title")} back={{ href: "/admin/crm/customers", label: t("customer.back") }}>
+      {(api) => <Profile api={api} customerId={customerId} />}
+    </CrmFrame>
+  );
 }
 
 function Profile({ api, customerId }: { api: CrmApi; customerId: string }): ReactElement {
@@ -131,7 +137,6 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
     <>
       <section className="crm-lhead" aria-labelledby="crm-cust-title">
         <div className="crm-lhead__top">
-          <Link href="/admin/crm/customers">← {t("back")}</Link>
           <span className="crm-code">{c.publicId}</span>
           {c.userId ? (
             <span className="crm-badge" style={{ background: "rgb(255 255 255 / 18%)", color: "#fff" }}>
@@ -345,16 +350,10 @@ function EditCustomer({ c, meta, onClose, onSaved }: { c: CrmCustomerDetail; met
             <span>{tn("region")}</span>
             <input className="crm-input" value={f.region} onChange={(e) => setF({ ...f, region: e.target.value })} />
           </label>
-          <label className="crm-field">
+          <div className="crm-field">
             <span>{tn("language")}</span>
-            <select className="crm-select" value={f.language} onChange={(e) => setF({ ...f, language: e.target.value })}>
-              {meta.languages.map((l) => (
-                <option key={l} value={l}>
-                  {tl.has(l) ? tl(l) : l}
-                </option>
-              ))}
-            </select>
-          </label>
+            <CrmSelect value={f.language} onChange={(v) => setF({ ...f, language: v })} label={tn("language")} options={meta.languages.map((l) => ({ value: l, label: tl.has(l) ? tl(l) : l }))} />
+          </div>
         </div>
         <label className="crm-field">
           <span>{tn("userId")}</span>
@@ -428,10 +427,9 @@ function AddContact({ c, meta, onClose, onSaved }: { c: CrmCustomerDetail; meta:
             <input className="crm-input" value={label} onChange={(e) => setLabel(e.target.value)} />
           </label>
         </div>
-        <label className="crm-confirm" style={{ background: "var(--crm-soft)" }}>
-          <input type="checkbox" checked={primary} onChange={(e) => setPrimary(e.target.checked)} />
-          <span>{tc("makePrimary")}</span>
-        </label>
+        <CheckBox checked={primary} onChange={setPrimary}>
+          {tc("makePrimary")}
+        </CheckBox>
       </div>
     </Modal>
   );

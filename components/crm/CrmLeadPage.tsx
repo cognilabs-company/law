@@ -20,7 +20,11 @@ export type LeadWrite = (run: (lead: CrmLead) => Promise<CrmLead | null | void>,
 
 export default function CrmLeadPage({ leadId }: { leadId: string }): ReactElement {
   const t = useTranslations("crm");
-  return <CrmFrame title={t("lead.title")}>{(api) => <Workspace meta={api.meta} leadId={leadId} />}</CrmFrame>;
+  return (
+    <CrmFrame title={t("lead.title")} back={{ href: "/admin/crm/leads", label: t("lead.back") }}>
+      {(api) => <Workspace meta={api.meta} leadId={leadId} />}
+    </CrmFrame>
+  );
 }
 
 function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactElement {
@@ -182,7 +186,6 @@ function LeadHead({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; write: 
   return (
     <section className="crm-lhead" aria-labelledby="crm-lead-title">
       <div className="crm-lhead__top">
-        <Link href="/admin/crm/leads">← {t("back")}</Link>
         <span className="crm-code">{lead.workId}</span>
         <StatusPill status={lead.status} />
       </div>

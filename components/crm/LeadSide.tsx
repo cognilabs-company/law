@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import CheckBox from "@/components/CheckBox";
 import { IconAlert, IconCheck, IconClock, IconCopy, IconEdit, IconMail, IconPhone, IconSend, IconShieldCheck, IconStar, IconUserPlus, IconUsers, IconClose, IconFileText, IconArrowRight } from "@/components/icons";
 import { useAuth } from "@/lib/auth";
 import { shortDateTime } from "@/lib/date";
@@ -331,10 +332,9 @@ function Calls({ meta, lead }: { meta: CrmMeta; lead: CrmLead }): ReactElement {
         <div style={{ display: "grid", gap: 8 }}>
           <input className="crm-input" value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder={t("purpose")} aria-label={t("purpose")} />
           {tel.recordingConsentRequired ? (
-            <label className="crm-confirm" style={{ background: "var(--crm-soft)" }}>
-              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-              <span>{t("consent")}</span>
-            </label>
+            <CheckBox checked={consent} onChange={setConsent}>
+              {t("consent")}
+            </CheckBox>
           ) : null}
           <button type="button" className="crm-btn crm-btn--pri crm-btn--sm" onClick={() => void start()} disabled={busy || (tel.recordingConsentRequired && !consent)} aria-busy={busy || undefined}>
             <IconPhone aria-hidden="true" />

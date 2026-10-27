@@ -25,6 +25,7 @@ import {
   type CrmOperator,
 } from "@/lib/services/crm";
 import { Avatar, StatusPill, useCrmError } from "./bits";
+import { CrmDateTime, CrmSelect } from "./fields";
 import type { LeadWrite } from "./CrmLeadPage";
 
 const toLocalInput = (iso: string): string => {
@@ -93,10 +94,10 @@ export function StatusSheet({ lead, to, write, onClose }: { lead: CrmLead; to: s
           {reasonErr ? <em>{reasonErr}</em> : <small>{t("reasonHelp")}</small>}
         </label>
         {to !== "closed" && to !== "won" ? (
-          <label className="crm-field">
+          <div className="crm-field">
             <span>{t("next")}</span>
-            <input className="crm-input" type="datetime-local" value={next} onChange={(e) => setNext(e.target.value)} />
-          </label>
+            <CrmDateTime value={next} onChange={setNext} label={t("next")} />
+          </div>
         ) : null}
       </div>
     </Modal>
@@ -127,10 +128,10 @@ export function NextActionSheet({ lead, write, onClose }: { lead: CrmLead; write
             {t("clearNext")}
           </button>
         </div>
-        <label className="crm-field">
+        <div className="crm-field">
           <span>{t("next")}</span>
-          <input className="crm-input" type="datetime-local" value={next} onChange={(e) => setNext(e.target.value)} autoFocus />
-        </label>
+          <CrmDateTime value={next} onChange={setNext} label={t("next")} />
+        </div>
       </div>
     </Modal>
   );
@@ -173,37 +174,19 @@ export function EditSheet({ meta, lead, write, onClose }: { meta: CrmMeta; lead:
           </label>
         </div>
         <div className="crm-row2">
-          <label className="crm-field">
+          <div className="crm-field">
             <span>{tn("urgency")}</span>
-            <select className="crm-select" value={f.urgency} onChange={(e) => set("urgency")(e.target.value)}>
-              {["low", "normal", "high", "urgent"].map((u) => (
-                <option key={u} value={u}>
-                  {tn(`urg.${u}`)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="crm-field">
+            <CrmSelect value={f.urgency} onChange={set("urgency")} label={tn("urgency")} options={["low", "normal", "high", "urgent"].map((u) => ({ value: u, label: tn(`urg.${u}`) }))} />
+          </div>
+          <div className="crm-field">
             <span>{t("score")}</span>
-            <select className="crm-select" value={f.score} onChange={(e) => set("score")(e.target.value)}>
-              {meta.scores.map((s) => (
-                <option key={s} value={s}>
-                  {tsc.has(s) ? tsc(s) : s}
-                </option>
-              ))}
-            </select>
-          </label>
+            <CrmSelect value={f.score} onChange={set("score")} label={t("score")} options={meta.scores.map((s) => ({ value: s, label: tsc.has(s) ? tsc(s) : s }))} />
+          </div>
         </div>
-        <label className="crm-field">
+        <div className="crm-field">
           <span>{tn("language")}</span>
-          <select className="crm-select" value={f.language} onChange={(e) => set("language")(e.target.value)}>
-            {meta.languages.map((l) => (
-              <option key={l} value={l}>
-                {tl.has(l) ? tl(l) : l}
-              </option>
-            ))}
-          </select>
-        </label>
+          <CrmSelect value={f.language} onChange={set("language")} label={tn("language")} options={meta.languages.map((l) => ({ value: l, label: tl.has(l) ? tl(l) : l }))} />
+        </div>
       </div>
     </Modal>
   );
@@ -376,13 +359,7 @@ export function DuplicateSheet({ lead, write, onClose }: { lead: CrmLead; write:
         ) : (
           <>
             {others.length > 1 ? (
-              <select className="crm-select" value={other?.id ?? ""} onChange={(e) => setOther(others.find((o) => o.id === e.target.value) ?? null)} aria-label={t("compareWith")}>
-                {others.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.workId} · {o.title}
-                  </option>
-                ))}
-              </select>
+              <CrmSelect value={other?.id ?? ""} onChange={(v) => setOther(others.find((o) => o.id === v) ?? null)} label={t("compareWith")} options={others.map((o) => ({ value: o.id, label: `${o.workId} · ${o.title}` }))} />
             ) : null}
             <div className="crm-compare">
               {side(lead, decision === "duplicate" ? "drop" : undefined)}
