@@ -174,12 +174,33 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
     };
   }, [loadCounts]);
 
+  // One refresh per burst: the visible list (the board refreshes itself
+  // through boardTick) and the tab counts.
+  const [boardTick, setBoardTick] = useState(0);
+  const refreshTimer = useRef(0);
+  const refreshNow = useRef<() => void>(() => {});
+  useEffect(() => {
+    refreshNow.current = () => {
+      if (view === "board") setBoardTick((n) => n + 1);
+      else void load();
+      void loadCounts();
+    };
+  });
+  const refresh = useCallback((wait = 350) => {
+    window.clearTimeout(refreshTimer.current);
+    refreshTimer.current = window.setTimeout(() => refreshNow.current(), wait);
+  }, []);
+  useEffect(() => () => window.clearTimeout(refreshTimer.current), []);
+
   // Realtime: refetch, never append; a touched row flashes once it is back.
+  // The board listens for itself, so here only the table and the counts.
   useCrmEvents((ev) => {
     if (!ev.invalidate.some((k) => k === "all" || k === "lists" || k === "queue" || k === "counts" || k === "lead")) return;
-    if (ev.leadId) setFlash((cur) => ({ ...cur, [ev.leadId]: Date.now() }));
-    void load();
-    void loadCounts();
+    if (ev.leadId && view === "table") setFlash((cur) => ({ ...cur, [ev.leadId]: Date.now() }));
+    if (view === "board") {
+      window.clearTimeout(refreshTimer.current);
+      refreshTimer.current = window.setTimeout(() => void loadCounts(), 350);
+    } else refresh();
   });
   useEffect(() => {
     const keys = Object.keys(flash);
@@ -201,8 +222,7 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
           delete n[lead.id];
           return n;
         });
-        void load();
-        void loadCounts();
+        refresh(0);
       }, 650);
     } catch (e) {
       // Someone else was faster: never shown as ours; the row leaves (§4.5).
@@ -215,8 +235,7 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
             delete n[lead.id];
             return n;
           });
-          void load();
-          void loadCounts();
+          refresh(0);
         }, 950);
       } else {
         setHolding((h) => {
@@ -256,6 +275,18 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
     setF((cur) => ({ ...cur, ...patch }));
     setOffset(0);
   };
+  // Stable for the memoized board cards; always the latest claim().
+  const claimRef = useRef(claim);
+  useEffect(() => {
+    claimRef.current = claim;
+  });
+  const onBoardClaim = useCallback((l: CrmLead) => void claimRef.current(l), []);
+  // "N more" on a column: the same tab and filters as a table of that status.
+  const showAllOf = useCallback((status: string) => {
+    setView("table");
+    setOffset(0);
+    setF((cur) => ({ ...cur, status }));
+  }, []);
   // The board's columns are the statuses, so its filters leave status out.
   const boardFilters = useMemo(() => ({ ...f, status: "" }), [f]);
   const activeFilters = useMemo(() => Object.entries(f).filter(([k, v]) => v && k !== "q"), [f]);
@@ -406,7 +437,7 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
       ) : null}
 
       {view === "board" ? (
-        <LeadBoard meta={meta} tab={tab} filters={boardFilters} onClaim={(l) => void claim(l)} claiming={holding} />
+        <LeadBoard meta={meta} tab={tab} filters={boardFilters} onClaim={onBoardClaim} claiming={holding} refreshKey={boardTick} onShowAll={showAllOf} />
       ) : rows === null ? (
         <div className="crm-card" aria-busy="true">
           {Array.from({ length: 8 }, (_, i) => (

@@ -1,4 +1,4 @@
-import type { LeadQuery } from "@/lib/services/crm";
+import type { CrmLead, LeadQuery } from "@/lib/services/crm";
 
 // What the lead table and board ask the backend for: the tab, every
 // filter, and the due chips as next_action_from/to. Nothing is filtered in
@@ -29,3 +29,16 @@ export function queryOf(tab: Tab, f: Filters, offset: number, now: number): Lead
   };
 }
 
+export type BoardColumn = { status: string; items: CrmLead[]; total: number };
+
+// Puts the server's copy of a lead where its status says, at the top of
+// that column, and out of every other one; totals follow. Server truth
+// arrives with the next reload anyway, this only removes the wait.
+export function placeLead(cols: BoardColumn[], lead: CrmLead): BoardColumn[] {
+  return cols.map((c) => {
+    const had = c.items.some((x) => x.id === lead.id);
+    const items = c.items.filter((x) => x.id !== lead.id);
+    if (c.status === lead.status) return { ...c, items: [lead, ...items], total: c.total + (had ? 0 : 1) };
+    return had ? { ...c, items, total: Math.max(0, c.total - 1) } : c;
+  });
+}

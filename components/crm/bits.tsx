@@ -1,7 +1,7 @@
 "use client";
 
 import "./crm.css";
-import { useEffect, type ReactElement, type ReactNode } from "react";
+import { useCallback, useEffect, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { IconChartBar, IconChevronLeft, IconFileText, IconFlame, IconGrid, IconInbox, IconLayers, IconSearch, IconUsers } from "@/components/icons";
@@ -102,13 +102,18 @@ export function SkeletonRows({ n = 5 }: { n?: number }): ReactElement {
 
 // A short, helpful line for an error: the code's own text when we have one,
 // the server's message otherwise. Logic elsewhere branches on the code.
+// Stable across renders: loaders list it as a dependency, and a new
+// function every render would make them refetch forever.
 export function useCrmError(): (e: unknown) => string {
   const t = useTranslations("crm.err");
-  return (e: unknown) => {
-    const code = crmCode(e);
-    if (code && t.has(code)) return t(code);
-    return errDetail(e) || t("generic");
-  };
+  return useCallback(
+    (e: unknown) => {
+      const code = crmCode(e);
+      if (code && t.has(code)) return t(code);
+      return errDetail(e) || t("generic");
+    },
+    [t],
+  );
 }
 
 export function LiveDot(): ReactElement {

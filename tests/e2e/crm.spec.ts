@@ -106,9 +106,11 @@ function crmServer(perms: string[], revenue = false) {
     applied: null as null | Record<string, unknown>,
     conflictOnce: true,
     exportPolls: 0,
+    boardCalls: 0,
   };
   const page = (all: Record<string, unknown>[], url: URL) => {
     const want = url.searchParams.get("status");
+    if (want && url.searchParams.get("limit") === "30") st.boardCalls++;
     const items = want ? all.filter((l) => l.status === want) : all;
     return { items, total: items.length, limit: Number(url.searchParams.get("limit") ?? 50), offset: 0, counts: { new: 3, contacted: 5, qualified: 3, proposal: 2, payment_pending: 1, won: 2, closed: 1 } };
   };
@@ -134,6 +136,8 @@ function crmServer(perms: string[], revenue = false) {
         st.mine[0] = { ...st.mine[0], lock_version: 5, updated_at: new Date().toISOString() };
         return { status: 409, json: { detail: { code: "crm_lead_version_conflict", message: "changed" } } };
       }
+      // A stale lock is refused, as the backend does.
+      if (b.expected_lock_version !== st.mine[0].lock_version) return { status: 409, json: { detail: { code: "crm_lead_version_conflict", message: "changed" } } };
       st.mine[0] = { ...st.mine[0], status: String(b.status), lock_version: Number(b.expected_lock_version) + 1 };
       return st.mine[0];
     },
@@ -389,36 +393,98 @@ async function dragCard(page: Page, from: Locator, to: Locator) {
   await page.mouse.up();
 }
 
-test("kanban: one column per status; a card moves only where the map allows, with its lock", async ({ page }) => {
+test("kanban: moves follow the map, carry the lock, survive a conflict and land at once", async ({ page }) => {
   const missing = watchIntl(page);
   const { st, routes } = crmServer(OPERATOR.permissions ?? []);
-  st.conflictOnce = false;
   await mockBackend(page, await signIn(page, OPERATOR, routes as never));
   await page.goto("/uz/admin/crm/leads?tab=mine&view=board");
   const cols = page.locator(".crm-col");
   await expect(cols).toHaveCount(7);
-  const contacted = cols.filter({ hasText: "Bog'lanildi" });
-  const card = contacted.locator(".crm-kcard").filter({ hasText: "Ijara shartnomasi tekshiruvi" });
-  await expect(card).toBeVisible();
+  const col = (name: string) => cols.filter({ has: page.locator(".crm-col__h b", { hasText: new RegExp(`^${name}$`) }) });
+  const card = page.locator(".crm-kcard").filter({ hasText: "Ijara shartnomasi tekshiruvi" });
+  await expect(col("Bog'lanildi").locator(".crm-kcard")).toHaveCount(1);
   await shot(page, "board");
-  // The move menu offers only the map's next statuses (and works on touch).
+  // One column = one request; nothing more while idle.
+  await page.waitForTimeout(800);
+  expect(st.boardCalls).toBe(7);
+
+  // The menu offers only the map's next statuses and closes on Escape.
+  const menu = card.getByRole("group", { name: "Ko'chirish…" });
   await card.getByRole("button", { name: "Ko'chirish…" }).click();
-  await expect(card.getByRole("group", { name: "Ko'chirish…" }).getByRole("button")).toHaveText(["Yopilgan", "Taklif", "Saralangan"]);
-  if (process.env.CRM_NARROW) {
-    await card.getByRole("group", { name: "Ko'chirish…" }).getByRole("button", { name: "Saralangan" }).click();
-  } else {
-    await card.getByRole("button", { name: "Ko'chirish…" }).click();
+  await expect(menu.getByRole("button")).toHaveText(["Yopilgan", "Taklif", "Saralangan"]);
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+
+  if (!process.env.CRM_NARROW) {
     // contacted → new is not on the map: refused, nothing sent.
-    await dragCard(page, card, cols.filter({ hasText: "Yangi" }));
+    await dragCard(page, card, col("Yangi"));
     await expect(page.getByText(/dan “Yangi” ga o'tkazib bo'lmaydi/).first()).toBeVisible();
     expect(st.writes).toHaveLength(0);
-    // contacted → qualified is allowed: the reason sheet opens and the lock goes along.
-    await dragCard(page, card, cols.filter({ hasText: "Saralangan" }));
+    await dragCard(page, card, col("Saralangan"));
+  } else {
+    await card.getByRole("button", { name: "Ko'chirish…" }).click();
+    await menu.getByRole("button", { name: "Saralangan" }).click();
   }
+  // contacted → qualified. The lead changed meanwhile (409): the sheet stays
+  // open with the typed reason, the retry carries the new lock.
   const sheet = page.getByRole("dialog", { name: /Saralangan/ });
   await sheet.getByRole("textbox", { name: /Sabab/ }).fill("Hujjatlar keldi");
   await sheet.getByRole("button", { name: "O'tkazish" }).click();
-  await expect.poll(() => st.writes.length).toBe(1);
-  expect(st.writes[0].body).toMatchObject({ status: "qualified", reason: "Hujjatlar keldi", expected_lock_version: 4 });
+  await expect(page.getByText(/lid o'zgardi|o'zgargan/i).first()).toBeVisible();
+  await expect(sheet.getByRole("textbox", { name: /Sabab/ })).toHaveValue("Hujjatlar keldi");
+  await sheet.getByRole("button", { name: "O'tkazish" }).click();
+  await expect(sheet).toHaveCount(0);
+  // Lands in its new column at once, before any reload.
+  await expect(col("Saralangan").locator(".crm-kcard").filter({ hasText: "Ijara shartnomasi" })).toBeVisible({ timeout: 300 });
+  await expect(col("Bog'lanildi").locator(".crm-kcard")).toHaveCount(0);
+  await expect(col("Saralangan").locator(".crm-col__h em")).toHaveText("2");
+
+  // Straight on to the next move: it must carry the new lock (6), not 5.
+  await card.getByRole("button", { name: "Ko'chirish…" }).click();
+  await expect(menu.getByRole("button")).toHaveText(["Yopilgan", "To'lov kutilmoqda", "Taklif", "Yutildi"]);
+  await menu.getByRole("button", { name: "Taklif" }).click();
+  await page.getByRole("dialog", { name: /Taklif/ }).getByRole("textbox", { name: /Sabab/ }).fill("Narx yuborildi");
+  await page.getByRole("dialog", { name: /Taklif/ }).getByRole("button", { name: "O'tkazish" }).click();
+  await expect(col("Taklif").locator(".crm-kcard").filter({ hasText: "Ijara shartnomasi" })).toBeVisible({ timeout: 300 });
+  expect(st.writes.map((w) => [w.body.status, w.body.expected_lock_version])).toEqual([
+    ["qualified", 4],
+    ["qualified", 5],
+    ["proposal", 6],
+  ]);
+  // Back-to-back moves cost one debounced reload, not one per event.
+  await page.waitForTimeout(900);
+  expect(st.boardCalls).toBeLessThanOrEqual(7 * 3);
+  await expect(col("Taklif").locator(".crm-kcard").filter({ hasText: "Ijara shartnomasi" })).toBeVisible();
   expect(missing).toEqual([]);
+});
+
+test("kanban: a claim from the queue board refreshes the board; a lost race says so", async ({ page }) => {
+  const { st, routes } = crmServer(OPERATOR.permissions ?? []);
+  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await page.goto("/uz/admin/crm/leads?tab=queue&view=board");
+  const fresh = page.locator(".crm-col").first();
+  await expect(fresh.locator(".crm-kcard")).toHaveCount(3);
+  await fresh.locator(".crm-kcard").filter({ hasText: "Ijara shartnomasi" }).getByRole("button", { name: "Olish" }).click();
+  await expect.poll(() => st.claims).toEqual(["q1"]);
+  // Out of the queue board once it is mine.
+  await expect(fresh.locator(".crm-kcard")).toHaveCount(2);
+  await fresh.locator(".crm-kcard").filter({ hasText: "Aliment undirish" }).getByRole("button", { name: "Olish" }).click();
+  await expect(page.getByText(/Kimdir tezroq bo'ldi/).first()).toBeVisible();
+  await expect(page.getByRole("tab", { name: /Meniki/ })).toContainText("3");
+});
+
+
+test("no page refetches by itself: once loaded, every CRM screen stays quiet", async ({ page }) => {
+  const ALL = ["crm.customers.view", "crm.customers.manage", "crm.customers.merge", "crm.leads.view", "crm.leads.manage", "crm.leads.claim", "crm.leads.assign", "crm.analytics.self", "crm.analytics.global", "crm.revenue.view", "crm.ai.use", "crm.exports.create", "crm.templates.manage"];
+  const { routes } = crmServer(ALL, true);
+  const mock = await mockBackend(page, await signIn(page, ADMIN, routes as never));
+  const crmCalls = () => mock.calls.filter((c) => c.path.startsWith("/crm")).length;
+  for (const url of ["/uz/admin/crm", "/uz/admin/crm/leads?tab=all", "/uz/admin/crm/leads?tab=all&view=board", "/uz/admin/crm/leads/m1", "/uz/admin/crm/customers", "/uz/admin/crm/customers/c1", "/uz/admin/crm/templates", "/uz/admin/crm/analytics"]) {
+    await page.goto(url);
+    await expect(page.locator(".crm-top")).toBeVisible();
+    await page.waitForTimeout(1500);
+    const before = crmCalls();
+    await page.waitForTimeout(2000);
+    expect(crmCalls() - before, `${url} kept fetching`).toBe(0);
+  }
 });

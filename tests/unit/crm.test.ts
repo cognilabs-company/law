@@ -24,7 +24,9 @@ import {
   leadQueryString,
   transferLead,
   updateCrmLead,
+  type CrmLead,
 } from "@/lib/services/crm";
+import { placeLead } from "@/components/crm/leadQuery";
 
 // The CRM client against the production shapes of 26 Oct 2026 (GET
 // /crm/meta, /crm/leads, /crm/me/metrics, /crm/analytics).
@@ -188,5 +190,32 @@ describe("realtime → what refetches", () => {
     expect(crmEventOf({ event: "crm.export.ready", export_id: "x1" })).toMatchObject({ exportId: "x1", invalidate: ["export"] });
     expect(crmEventOf({ event: "notification.created", notification: { data: { event: "crm.lead.created", lead_id: "l9" } } })).toMatchObject({ name: "crm.lead.created", leadId: "l9" });
     expect(crmEventOf({ event: "marketplace.order_paid" })).toBeNull();
+  });
+});
+
+describe("board placement", () => {
+  const L = (id: string, status: string) => ({ id, status }) as unknown as CrmLead;
+  const cols = () => [
+    { status: "contacted", items: [L("a", "contacted"), L("b", "contacted")], total: 5 },
+    { status: "qualified", items: [L("c", "qualified")], total: 1 },
+  ];
+  it("moves a lead to the top of its new column and fixes both totals", () => {
+    const out = placeLead(cols(), L("a", "qualified"));
+    expect(out[0].items.map((x) => x.id)).toEqual(["b"]);
+    expect(out[0].total).toBe(4);
+    expect(out[1].items.map((x) => x.id)).toEqual(["a", "c"]);
+    expect(out[1].total).toBe(2);
+  });
+  it("replaces in place when the status did not change (fresh lock, same column)", () => {
+    const fresh = { ...L("b", "contacted"), lockVersion: 9 } as CrmLead;
+    const out = placeLead(cols(), fresh);
+    expect(out[0].items[0]).toBe(fresh);
+    expect(out[0].items).toHaveLength(2);
+    expect(out[0].total).toBe(5);
+  });
+  it("drops a lead whose status has no column, never below zero", () => {
+    const out = placeLead([{ status: "contacted", items: [L("a", "contacted")], total: 0 }], L("a", "won"));
+    expect(out[0].items).toEqual([]);
+    expect(out[0].total).toBe(0);
   });
 });
