@@ -290,7 +290,7 @@ export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => voi
   const shown = hover || value;
 
   async function submit() {
-    if (busy || !value || (low && !comment.trim())) return;
+    if (busy || !value) return;
     setBusy(true);
     setErr("");
     try {
@@ -362,7 +362,7 @@ export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => voi
         </div>
       ) : null}
       {value ? (
-        <button ref={submitBtn} type="button" className="btn btn--grad btn--sm" disabled={busy || (low && !comment.trim())} aria-describedby={err ? errId : undefined} onClick={() => void submit()} data-ai-id={`marketplace.orders.rating.${o.id}.submit`}>
+        <button ref={submitBtn} type="button" className="btn btn--grad btn--sm" disabled={busy} aria-describedby={err ? errId : undefined} onClick={() => void submit()} data-ai-id={`marketplace.orders.rating.${o.id}.submit`}>
           <IconStarRate aria-hidden="true" />
           {busy ? t("rating.sending") : t("rating.submit")}
         </button>

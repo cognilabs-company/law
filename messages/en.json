@@ -7316,7 +7316,7 @@
           "4": "Good",
           "5": "Excellent"
         },
-        "lowLabel": "What went wrong? (required)",
+        "lowLabel": "What went wrong? (optional)",
         "commentLabel": "Comment (optional)",
         "lowPh": "For example: the result didn't cover the agreed scope",
         "commentPh": "Your feedback about the provider",

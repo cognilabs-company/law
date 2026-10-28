@@ -372,7 +372,7 @@ function RateDialog({ o, onClose, onDone }: { o: MarketOrder; onClose: () => voi
   const mins = Number.isFinite(left) ? Math.max(0, Math.floor(left / 60000)) : 0;
   const secs = Number.isFinite(left) ? Math.max(0, Math.floor((left % 60000) / 1000)) : 0;
   async function send() {
-    if (busy || !value || (low && !comment.trim())) return;
+    if (busy || !value) return;
     setBusy(true);
     setErr("");
     try {
@@ -396,7 +396,7 @@ function RateDialog({ o, onClose, onDone }: { o: MarketOrder; onClose: () => voi
       actions={
         <>
           <Btn onClick={onClose}>{d("cancel")}</Btn>
-          <Btn kind="primary" type="submit" busy={busy} disabled={over || !value || (low && !comment.trim())}>
+          <Btn kind="primary" type="submit" busy={busy} disabled={over || !value}>
             {busy ? t("rating.sending") : t("rating.submit")}
           </Btn>
         </>
