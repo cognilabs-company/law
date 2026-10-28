@@ -1,0 +1,81 @@
+/* The shared experience / achievement verification screen
+   (TSK-100467, TSK-874927, TSK-365169). */
+.vrf { --vrf-ok: #16a34a; --vrf-bad: #dc2626; --vrf-warn: #d97706; --vrf-acc: var(--dk-acc, var(--b600, #1668f0)); display: grid; gap: 14px; padding: 14px; border-radius: 16px; background: var(--dk-surface-2, #f6f8fc); min-width: 0; }
+html[data-theme="dark"] .vrf { --vrf-ok: #4ade80; --vrf-bad: #f87171; --vrf-warn: #fbbf24; }
+.vrf > * { min-width: 0; }
+.vrf h4 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: .9rem; font-weight: 800; }
+.vrf h4 em { margin-left: auto; padding: 2px 9px; border-radius: 999px; background: var(--dk-surface-2, #eef2f8); color: var(--gray); font-size: .72rem; font-style: normal; font-weight: 700; }
+.vrf__muted { margin: 0; color: var(--gray); font-size: .8rem; line-height: 1.45; }
+.vrf__top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.vrf__card { padding: 14px; border-radius: 14px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); }
+.vrf__facts { display: grid; gap: 8px; margin: 0 0 10px; }
+.vrf__facts div { display: grid; grid-template-columns: minmax(90px, 34%) minmax(0, 1fr); gap: 10px; font-size: .82rem; }
+.vrf__facts dt { color: var(--gray); }
+.vrf__facts dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.vrf__files { display: flex; flex-wrap: wrap; gap: 6px; }
+.vrf__file { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 6px 10px; border: 0; border-radius: 10px; background: var(--dk-surface-2, #f1f5fb); color: var(--ink); font-size: .78rem; font-weight: 700; cursor: pointer; }
+.vrf__file svg { flex: none; width: 13px; height: 13px; }
+.vrf__file:hover { background: color-mix(in srgb, var(--vrf-acc) 12%, var(--dk-surface-2, #f1f5fb)); }
+.vrf__diff { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.vrf__diff li { display: grid; gap: 4px; padding: 10px 12px; border-radius: 12px; background: var(--dk-surface-2, #f6f8fc); box-shadow: inset 3px 0 0 var(--vrf-warn); font-size: .82rem; }
+.vrf__diff li[data-kind="added"] { box-shadow: inset 3px 0 0 var(--vrf-ok); }
+.vrf__diff li[data-kind="removed"] { box-shadow: inset 3px 0 0 var(--vrf-bad); }
+.vrf__diff b { font-size: .76rem; color: var(--gray); text-transform: uppercase; letter-spacing: .04em; }
+.vrf__diff del { padding: 3px 8px; border-radius: 8px; background: color-mix(in srgb, var(--vrf-bad) 10%, transparent); color: color-mix(in srgb, var(--vrf-bad) 70%, var(--ink)); text-decoration: line-through; overflow-wrap: anywhere; }
+.vrf__diff ins { padding: 3px 8px; border-radius: 8px; background: color-mix(in srgb, var(--vrf-ok) 12%, transparent); color: color-mix(in srgb, var(--vrf-ok) 70%, var(--ink)); text-decoration: none; overflow-wrap: anywhere; }
+.vrf__room { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; border-radius: 14px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); }
+.vrf__room[data-open] { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--vrf-acc) 45%, var(--line)); }
+.vrf__roomic { display: grid; flex: none; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: color-mix(in srgb, var(--vrf-acc) 12%, transparent); color: var(--vrf-acc); }
+.vrf__roomic svg { width: 18px; height: 18px; }
+.vrf__roomm { display: grid; flex: 1 1 220px; gap: 2px; min-width: 0; }
+.vrf__roomm b { font-size: .86rem; }
+.vrf__roomm small { color: var(--gray); font-size: .76rem; line-height: 1.4; }
+.vrf__roomacts { display: flex; flex-wrap: wrap; gap: 8px; }
+.vrf__check { padding: 14px; border-radius: 14px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); }
+.vrf__check ol { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.vrf__check li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 14px; padding: 10px 12px; border-radius: 12px; background: var(--dk-surface-2, #f6f8fc); transition: box-shadow .15s; }
+.vrf__check li[data-verdict="approved"] { box-shadow: inset 3px 0 0 var(--vrf-ok); }
+.vrf__check li[data-verdict="not_applicable"] { box-shadow: inset 3px 0 0 var(--gray); }
+.vrf__check li[data-verdict="rejected"] { box-shadow: inset 3px 0 0 var(--vrf-bad); }
+.vrf__q { display: grid; gap: 2px; min-width: 0; }
+.vrf__q b { font-size: .84rem; }
+.vrf__q small { color: var(--gray); font-size: .75rem; }
+.vrf__v { display: inline-flex; gap: 4px; padding: 3px; border-radius: 11px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); }
+.vrf__v button { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--gray); font-size: .76rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.vrf__v button svg { width: 13px; height: 13px; }
+.vrf__v button:disabled { cursor: default; opacity: .6; }
+.vrf__v button[aria-checked="true"][data-v="approved"] { background: color-mix(in srgb, var(--vrf-ok) 15%, transparent); color: color-mix(in srgb, var(--vrf-ok) 75%, var(--ink)); }
+.vrf__v button[aria-checked="true"][data-v="not_applicable"] { background: var(--dk-surface-2, #eef2f8); color: var(--ink); }
+.vrf__v button[aria-checked="true"][data-v="rejected"] { background: color-mix(in srgb, var(--vrf-bad) 14%, transparent); color: color-mix(in srgb, var(--vrf-bad) 75%, var(--ink)); }
+.vrf__note { grid-column: 1 / -1; min-height: 34px; padding: 6px 10px; border: 0; border-radius: 9px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); font: inherit; font-size: .8rem; }
+.vrf__past { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.vrf__past li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: .8rem; }
+.vrf__past time { color: var(--gray); font-size: .74rem; }
+.vrf__chip { padding: 2px 9px; border-radius: 999px; background: var(--dk-surface-2, #eef2f8); font-size: .72rem; font-weight: 800; }
+.vrf__chip[data-s="approved"] { background: color-mix(in srgb, var(--vrf-ok) 14%, transparent); color: color-mix(in srgb, var(--vrf-ok) 70%, var(--ink)); }
+.vrf__chip[data-s="rejected"] { background: color-mix(in srgb, var(--vrf-bad) 14%, transparent); color: color-mix(in srgb, var(--vrf-bad) 70%, var(--ink)); }
+.vrf__chip[data-s="changes_requested"] { background: color-mix(in srgb, var(--vrf-warn) 16%, transparent); color: color-mix(in srgb, var(--vrf-warn) 70%, var(--ink)); }
+.vrf__decide { display: grid; gap: 10px; padding: 14px; border-radius: 14px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); }
+.vrf__dec { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.vrf__dec button { display: grid; gap: 3px; padding: 12px; border: 0; border-radius: 12px; background: var(--dk-surface-2, #f6f8fc); color: var(--ink); text-align: left; cursor: pointer; transition: box-shadow .15s; }
+.vrf__dec button b { font-size: .86rem; }
+.vrf__dec button small { color: var(--gray); font-size: .74rem; line-height: 1.35; }
+.vrf__dec button:disabled { cursor: not-allowed; opacity: .55; }
+.vrf__dec button[aria-checked="true"][data-d="approved"] { box-shadow: inset 0 0 0 2px var(--vrf-ok); }
+.vrf__dec button[aria-checked="true"][data-d="changes_requested"] { box-shadow: inset 0 0 0 2px var(--vrf-warn); }
+.vrf__dec button[aria-checked="true"][data-d="rejected"] { box-shadow: inset 0 0 0 2px var(--vrf-bad); }
+.vrf__reason { display: grid; gap: 6px; font-size: .82rem; font-weight: 700; }
+.vrf__acts { display: flex; justify-content: flex-end; }
+.vrf__sk { height: 220px; border-radius: 16px; background: linear-gradient(90deg, var(--dk-surface-2, #f1f5fb), var(--dk-surface, #fff), var(--dk-surface-2, #f1f5fb)); background-size: 200% 100%; animation: vrf-sk 1.2s linear infinite; }
+.vrf__fail { display: grid; gap: 8px; justify-items: start; }
+@keyframes vrf-sk { to { background-position: -200% 0; } }
+@media (max-width: 860px) {
+  .vrf__top { grid-template-columns: minmax(0, 1fr); }
+  .vrf__check li { grid-template-columns: minmax(0, 1fr); }
+  .vrf__v { justify-self: start; flex-wrap: wrap; }
+  .vrf__dec { grid-template-columns: minmax(0, 1fr); }
+  .vrf__acts > * { flex: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vrf__sk { animation: none; }
+}

@@ -171,10 +171,14 @@ describe("lists and timeline", () => {
     expect(q).toContain("offset=100");
     expect(q).not.toContain("mine_only");
   });
-  it("creates a lead for one customer source only", () => {
-    expect(leadCreateBody({ title: "A", customerId: "c1", clientUserId: "u1" })).toMatchObject({ customer_id: "c1" });
-    expect(leadCreateBody({ title: "A", clientUserId: "u1" })).toMatchObject({ client_user_id: "u1" });
-    expect(leadCreateBody({ title: "A", customer: { name: "Yangi" } }).customer).toMatchObject({ name: "Yangi" });
+  // CRM contract 2026-10-27 §7: always one CRM customer; no category,
+  // no client_user_id, no inline customer.
+  it("creates a lead for one CRM customer, never sending category or a user id", () => {
+    const b = leadCreateBody({ title: " A ", customerId: "c1", region: "Samarqand" });
+    expect(b).toMatchObject({ customer_id: "c1", title: "A", region: "Samarqand" });
+    expect(b).not.toHaveProperty("category");
+    expect(b).not.toHaveProperty("client_user_id");
+    expect(b).not.toHaveProperty("customer");
   });
   it("shows the timeline oldest first", () => {
     const items = [crmActivityOf({ id: "b", created_at: "2026-10-26T10:00:00Z" }), crmActivityOf({ id: "a", created_at: "2026-10-26T09:00:00Z" })];
@@ -237,5 +241,34 @@ describe("status donut", () => {
   it("draws one full ring for a single status and nothing for none", () => {
     expect(donutArcs([{ status: "won", count: 4 }])[0].length).toBeCloseTo(2 * Math.PI * 70);
     expect(donutArcs([{ status: "won", count: 0 }])).toEqual([]);
+  });
+});
+
+describe("CRM customer / lead contract 2026-10-27", () => {
+  it("a customer body never carries user_id", async () => {
+    const { customerBody } = await import("@/lib/services/crm");
+    expect(customerBody({ name: " Aziza ", contacts: [{ type: "phone", value: "+998901234567", primary: true }] })).not.toHaveProperty("user_id");
+  });
+  it("reads the select's options with their display label and badge", async () => {
+    const { customerOptionOf } = await import("@/lib/services/crm");
+    const o = customerOptionOf({ id: "c1", public_id: "CRM-12AB34CD", name: "Aziza", region: "Toshkent", primary_phone: "+998901234567", is_lexgo_user: true, lexgo_user_label: "LexGo foydalanuvchisi", lead_count: 3, display_label: "Aziza · CRM-12AB34CD · +998901234567" });
+    expect(o).toMatchObject({ id: "c1", label: "Aziza · CRM-12AB34CD · +998901234567", isLexgoUser: true, region: "Toshkent", leadCount: 3 });
+    expect(customerOptionOf({ id: "c2", name: "Bek", public_id: "CRM-1" }).label).toBe("Bek · CRM-1");
+  });
+  it("reads detail_sections with nested groups; empty sections dropped", async () => {
+    const { detailSectionsOf } = await import("@/lib/services/crm");
+    const s = detailSectionsOf([
+      { key: "request", title: "Murojaat", items: [{ key: "title", label: "Nomi", value_type: "text", value: "X", items: [] }] },
+      { key: "additional", title: "Qo'shimcha", items: [{ key: "g", label: "G", value_type: "group", value: null, items: [{ key: "a", label: "A", value_type: "boolean", value: true, items: [] }] }] },
+      { key: "empty", title: "E", items: [] },
+    ]);
+    expect(s.map((x) => x.key)).toEqual(["request", "additional"]);
+    expect(s[1].items[0].items[0]).toMatchObject({ type: "boolean", value: true });
+  });
+  it("a payload is readable only when something besides ids and codes is left", async () => {
+    const { hasReadable } = await import("@/components/crm/DetailSections");
+    expect(hasReadable({ moved_by_user_id: "2b0a4af1-b3b9-421c-8b5a-229c20bd59f3", column_key: "new_lead" })).toBe(false);
+    expect(hasReadable({ note: "Mijoz qayta qo'ng'iroq qiladi" })).toBe(true);
+    expect(hasReadable({ duration_sec: 240 })).toBe(true);
   });
 });

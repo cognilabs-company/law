@@ -5,13 +5,15 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconAlert, IconChat, IconCheck, IconChevronDown, IconChevronLeft, IconClock, IconClose, IconHourglass, IconPhone, IconRefresh, IconSend, IconUsers, IconVideo } from "@/components/icons";
+import { IconAlert, IconCard, IconChat, IconCheck, IconChevronDown, IconChevronLeft, IconClock, IconClose, IconExternal, IconHourglass, IconPhone, IconRefresh, IconSend, IconUsers, IconVideo } from "@/components/icons";
 import { ApiError, errDetail } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { setReturnTo } from "@/lib/returnTo";
 import {
   CONTACT_SPEEDS,
   PACKAGE_SELLER_ERRORS,
+  PAYMENT_PROVIDER_ERRORS,
+  PURCHASE_PROVIDERS,
   PREFERRED_CHANNELS,
   PRICE_OPTION_ERRORS,
   activePurchaseOf,
@@ -28,6 +30,7 @@ import {
   type MarketTrackPhase,
   type PreferredChannel,
   type PurchaseAttachment,
+  type PurchaseProvider,
   type PurchaseUrgency,
   type PurchaseVoice,
 } from "@/lib/services/marketplace";
@@ -50,14 +53,18 @@ import "./runtime/checkout.css";
 import ContactAdvocate from "./order/ContactAdvocate";
 import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardNote";
 import { findContacts } from "@/lib/contactGuard";
+import { goToPaymentPage } from "@/lib/services/paymentProviders";
 
 export type PackagePurchaseTarget = { id: string; purchaseUrl: string; duration: string };
 
 const CHANNEL_ICON = { chat: IconChat, audio: IconPhone, video: IconVideo, meeting: IconUsers } as const;
 const NOTE_MAX = 1000;
-// The request, the seller taking it, the 10% advance confirmed, then work.
-const STEPS = ["request", "accept", "confirm", "chat"] as const;
-const STEP_OF: Record<MarketTrackPhase, number> = { accepting: 1, pending: 2, paid: 3, chat: 3, completed: 4, cancelled: 1 };
+// Enterprise contract 2026-10-27 §4: the request, the full payment (100%),
+// the seller taking the paid order within 30 minutes, then work. No 10%
+// advance any more.
+const STEPS = ["request", "pay", "accept", "chat"] as const;
+const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, accepting: 2, paid: 3, chat: 3, completed: 4, cancelled: 1 };
+const PROVIDER_ICON = { telegram_manual: IconSend, payme: IconCard, click: IconCard } as const;
 const URGENCY_OF: Record<ContactSpeed, PurchaseUrgency> = { within_15_min: "today", within_1_hour: "today", today: "today", tomorrow: "tomorrow" };
 export const CLIENT_ORDERS_HREF = "/portal/client/marketplace-orders";
 
@@ -94,6 +101,10 @@ export default function PurchaseDialog({
   const [channel, setChannel] = useState<PreferredChannel>("chat");
   const [chOpen, setChOpen] = useState(false);
   const [speed, setSpeed] = useState<ContactSpeed | "">("");
+  // Telegram first: Payme / Click work once their production keys are on.
+  const [provider, setProvider] = useState<PurchaseProvider>("telegram_manual");
+  // The chosen online provider cannot take the payment right now.
+  const [provErr, setProvErr] = useState("");
   const [files, setFiles] = useState<PurchaseAttachment[]>([]);
   const [voices, setVoices] = useState<(PurchaseVoice & { url: string })[]>([]);
   const [attaching, setAttaching] = useState(false);
@@ -114,6 +125,8 @@ export default function PurchaseDialog({
     setChannel("chat");
     setChOpen(false);
     setSpeed("");
+    setProvider("telegram_manual");
+    setProvErr("");
     setFiles([]);
     setVoices([]);
     setErr("");
@@ -151,7 +164,7 @@ export default function PurchaseDialog({
   const track = useMarketOrderTracker(service && tracked ? tracked.orderId : "", service && tracked ? tracked.workId : "", service && tracked ? tracked.status : "", !!done?.accepting);
   const checkout = useRuntimeFacts(service?.id ?? "", "checkout", { enabled: !!service && !pkg });
   // The seller's acceptance window, as the backend set it.
-  const left = useCountdown(done?.accepting ? done.deadlineAt : "", () => track?.recheck());
+  const left = useCountdown(track?.phase === "accepting" ? track.deadlineAt || (done?.accepting ? done.deadlineAt : "") : "", () => track?.recheck());
 
   if (!service) return <Modal open={false} onClose={onClose} title="">{null}</Modal>;
   const noteHits = findContacts(note);
@@ -170,7 +183,7 @@ export default function PurchaseDialog({
     setErr("");
   }
 
-  async function submit() {
+  async function submit(via: PurchaseProvider = provider) {
     if (busy || done || !service || price.pending || price.failed || attaching) return;
     if (findContacts(note).length) return;
     if (note.length > NOTE_MAX) {
@@ -179,8 +192,9 @@ export default function PurchaseDialog({
     }
     setBusy(true);
     setErr("");
+    setProvErr("");
     try {
-      const input = { note, preferredChannel: channel, contactSpeed: speed, preferredTime: speed ? t(`speeds.${speed}`) : "", selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })) };
+      const input = { paymentProvider: via, note, preferredChannel: channel, contactSpeed: speed, preferredTime: speed ? t(`speeds.${speed}`) : "", selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })) };
       const r = auto
         ? await requestMarketplaceMatch(service.id, input)
         : pkg
@@ -195,6 +209,9 @@ export default function PurchaseDialog({
       } else if (e instanceof ApiError && e.status === 401) {
         setReturnTo(returnPath);
         router.push("/login");
+      } else if (PAYMENT_PROVIDER_ERRORS.includes(marketErrorCode(e)) && via !== "telegram_manual") {
+        // §5: a controlled message and the Telegram way instead of a dead end.
+        setProvErr(via);
       } else if (marketErrorCode(e)) {
         const code = marketErrorCode(e);
         setErr(marketErr(e, t("error")));
@@ -228,9 +245,12 @@ export default function PurchaseDialog({
   const basePrice = price.quote?.basePrice || service.price;
   const chatHref = track?.roomId && tracked ? marketChatHref({ roomId: track.roomId, workId: tracked.workId, serviceTitle: service.title }) : "";
 
+  const paidVia = (done?.payment?.provider || provider) as string;
+  const online = paidVia === "payme" || paidVia === "click";
+  const payUrl = done?.payment?.url && online && done.payment.status !== "paid" ? done.payment.url : "";
   const titles: Record<MarketTrackPhase, string> = {
     accepting: isActive ? t("active") : t("acceptTitle"),
-    pending: isActive ? t("active") : t("advanceTitle"),
+    pending: isActive ? t("active") : t("payTitle"),
     paid: isActive ? t("activePaid") : t("paidTitle"),
     chat: isActive ? t("activePaid") : t("chatTitle"),
     completed: t("completedTitle"),
@@ -239,7 +259,7 @@ export default function PurchaseDialog({
   const leads: Record<MarketTrackPhase, string> = {
     // The backend's own words for the client come first.
     accepting: done?.message || t("acceptLead"),
-    pending: track?.slow ? t("slow") : t("advanceLead"),
+    pending: track?.slow ? t("slow") : online ? t("payLeadOnline", { provider: t(`providers.${paidVia}.name`) }) : t("payLeadTelegram"),
     paid: track?.slow ? t("paidNoRoom") : "",
     chat: t("chatLead"),
     completed: "",
@@ -297,7 +317,15 @@ export default function PurchaseDialog({
           ]
         : ended
           ? [ordersLink(true)]
-          : phase === "pending" && slow
+          : phase === "pending" && payUrl && done?.payment
+            ? [
+                <button key="pay" type="button" className="btn btn--grad" onClick={() => goToPaymentPage(payUrl, done.payment?.id, done.payment?.amount)} data-ai-id="marketplace.purchase.pay">
+                  <IconExternal />
+                  {t("payProceed", { provider: t(`providers.${paidVia}.name`) })}
+                </button>,
+                ordersLink(false),
+              ]
+            : phase === "pending" && slow
             ? [recheckButton(true), ordersLink(false)]
             : phase === "paid" && slow
               ? [ordersLink(true), recheckButton(false)]
@@ -334,7 +362,7 @@ export default function PurchaseDialog({
             {guarantees.length ? <GuaranteeList items={guarantees} tone="ticket" aiId="marketplace.purchase.guarantees" /> : null}
           </div>
           <div className="mk-buy__sum">
-            <small>{t("total")}</small>
+            <small>{t("totalFull")}</small>
             <b>{fmtUzs(done?.amount || price.quote?.totalPrice || service.price)}</b>
             <span>{service.currency === "UZS" ? te("currency") : service.currency}</span>
           </div>
@@ -381,8 +409,8 @@ export default function PurchaseDialog({
                   </span>
                 ) : null}
                 {receiptLead ? <p>{receiptLead}</p> : null}
-                {phase === "accepting" ? <p className="mk-receipt__note">{done?.advanceAmount ? t("advanceNext", { amount: fmtUzs(done.advanceAmount) }) : t("advanceNextPlain")}</p> : null}
-                {phase === "pending" && done && !done.telegramSent ? <Notice ok={false} msg={t("notDelivered")} /> : null}
+                {phase === "accepting" ? <p className="mk-receipt__note">{t("acceptNote")}</p> : null}
+                {phase === "pending" && done && !online && !done.telegramSent ? <Notice ok={false} msg={t("notDelivered")} /> : null}
               </div>
               {live ? (
                 <div className="mk-live">
@@ -478,7 +506,62 @@ export default function PurchaseDialog({
                 </fieldset>
               ) : null}
             </div>
+            <fieldset className="mk-pay" data-ai-id="marketplace.purchase.provider" data-ai-type="select" data-ai-label={t("providerTitle")}>
+              <legend>{t("providerTitle")}</legend>
+              <div className="mk-pay__opts">
+                {PURCHASE_PROVIDERS.map((pv) => {
+                  const Icon = PROVIDER_ICON[pv];
+                  return (
+                    <button
+                      key={pv}
+                      type="button"
+                      className="mk-pay__opt"
+                      data-p={pv}
+                      aria-pressed={provider === pv}
+                      onClick={() => {
+                        setProvider(pv);
+                        setProvErr("");
+                      }}
+                      data-ai-id={`marketplace.purchase.provider.${pv}`}
+                    >
+                      <span className="mk-pay__ic" aria-hidden="true">
+                        <Icon />
+                      </span>
+                      <span className="mk-pay__m">
+                        <b>{t(`providers.${pv}.name`)}</b>
+                        <small>{t(`providers.${pv}.hint`)}</small>
+                      </span>
+                      <span className="mk-pay__tick" aria-hidden="true">
+                        <IconCheck />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
             <p className="mk-buy__note">{auto ? t("autoNote") : t("totalNote")}</p>
+            {provErr ? (
+              <div className="mk-pay__fallback" role="alert">
+                <IconAlert aria-hidden="true" />
+                <span>
+                  <b>{t("providerOff", { provider: t(`providers.${provErr}.name`) })}</b>
+                  {t("providerOffText")}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn--grad btn--sm"
+                  disabled={busy}
+                  onClick={() => {
+                    setProvider("telegram_manual");
+                    void submit("telegram_manual");
+                  }}
+                  data-ai-id="marketplace.purchase.provider-fallback"
+                >
+                  <IconSend />
+                  {t("providerUseTelegram")}
+                </button>
+              </div>
+            ) : null}
             {err ? <Notice ok={false} msg={err} /> : null}
             <button type="submit" className="btn btn--grad btn--full btn--lg" disabled={busy || price.pending || price.failed || attaching} data-ai-target="button:marketplace-purchase-submit" data-ai-id="marketplace.purchase.submit" data-ai-entity-type={pkg ? "marketplace_package" : "marketplace_service"} data-ai-entity-id={service.id}>
               {busy ? t("sending") : price.pending ? t("pricing") : auto ? t("autoSubmit") : t("submit")}

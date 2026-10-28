@@ -8,66 +8,114 @@ const helpOf = (path: string, key: string): SxLayoutField => ({ path, help: key 
 const labelOf = (path: string, key: string): SxLayoutField => ({ path, label: key });
 const clears = (path: string, sibling: string): SxLayoutField => ({ path, clears: [sibling] });
 const when = (path: string): SxLayoutField => ({ path, control: "datetime", help: false });
-const noSlug: SxLayoutField = { path: "slug", hidden: true };
 
 function titled(code: string, fields: readonly SxLayoutField[] = [], ownLabel = false): SxCtorLayout {
   const title: SxLayoutField = ownLabel ? { path: "title", label: `sx.field.${code}__title`, placeholder: `sx.ph.${code}__title` } : { path: "title", placeholder: `sx.ph.${code}__title` };
   return { code, fields: [title, ...fields] };
 }
 
-// A tariff's entitlements (contract §4): a feature once per tariff, and a
-// limited one needs a positive limit. The backend checks the registry.
+// K17 v3 (2026-10-27, TSK-342697): one tariff for one or more audiences;
+// three prices (1 / 6 / 12 months) unless it is free; the numbered lines the
+// client reads, in order; a note and deadline for the developers that never
+// reach the client. The old types, per-feature toggles and trial are gone.
+const K17_PRICES = ["monthly_price", "six_month_price", "yearly_price"] as const;
 function k17Validate(payload: SxValues): SxErrors {
   const out: Record<string, string> = {};
-  const rows = Array.isArray(payload.entitlements) ? payload.entitlements : [];
+  const free = payload.is_free === true;
+  const priced = K17_PRICES.some((k) => {
+    const n = Number(payload[k]);
+    return payload[k] !== null && payload[k] !== undefined && payload[k] !== "" && Number.isFinite(n) && n > 0;
+  });
+  if (!free && !priced) out.monthly_price = "@code:k17_price_required";
+  const lines = Array.isArray(payload.benefits) ? payload.benefits : [];
   const seen = new Set<string>();
-  rows.forEach((row, i) => {
-    const r = row && typeof row === "object" ? (row as Record<string, unknown>) : {};
-    const key = typeof r.feature_key === "string" ? r.feature_key.trim() : "";
-    if (key && seen.has(key)) out[`entitlements.${i}.feature_key`] = "@code:entitlement_duplicate";
-    if (key) seen.add(key);
-    if (r.mode === "limited") {
-      const n = Number(r.limit);
-      if (!(r.limit !== null && r.limit !== undefined && r.limit !== "" && Number.isFinite(n) && n > 0)) out[`entitlements.${i}.limit`] = "@code:entitlement_limit_required";
-    }
+  lines.forEach((row, i) => {
+    const v = (typeof row === "string" ? row : row && typeof row === "object" ? String((row as Record<string, unknown>).value ?? "") : "").trim().toLowerCase();
+    if (v && seen.has(v)) out[`benefits.${i}`] = "@code:benefit_duplicate";
+    if (v) seen.add(v);
   });
   return out;
 }
 
-// The tariff constructor (TSK-490457): the type first, then only what that
-// type uses — trial, grace, renewal and plan-change rules belong to a
-// subscription; a one-time or gift tariff does not show them. Features come
-// from the registry; a feature's limit and reset period show only when it
-// is limited. The legacy per-feature trial numbers and the free-form
-// cancellation object are not edited here.
-const isSubscription = (ctx: SxLayoutCtx): boolean => {
-  const b = ctx.root.billing_type;
-  return !b || b === "subscription";
+const isPaid = (ctx: SxLayoutCtx): boolean => ctx.root.is_free !== true;
+const benefitText = (item: SxValues): string => {
+  const v = (item as unknown as { value?: unknown }).value ?? item;
+  return typeof v === "string" ? v : "";
 };
-const isLimited = (ctx: SxLayoutCtx): boolean => ctx.scope.mode === "limited";
 
 function k17Layout(): SxCtorLayout {
-  const subscriptionOnly = (path: string, extra: Partial<SxLayoutField> = {}): SxLayoutField => ({ path, visible: isSubscription, ...extra });
   return {
     ...titled("K17", [
-      noSlug,
-      off("description"),
-      { path: "plan_type", control: "choices", columns: 3, choices: Object.fromEntries(["client", "personal_lawyer", "seller", "organization", "gift"].map((k) => [k, { descriptionKey: `sx.optd.K17__plan_type.${k}` }])) },
-      { path: "billing_type", control: "choices", columns: 3, choices: Object.fromEntries(["subscription", "one_time", "gift"].map((k) => [k, { descriptionKey: `sx.optd.K17__billing_type.${k}` }])) },
-      { path: "entitlements.*.mode", control: "choices", columns: 3, clears: ["limit", "reset_period"] },
-      { path: "entitlements.*.limit", visible: isLimited, help: "sx.help.K17__limit" },
-      { path: "entitlements.*.reset_period", visible: isLimited, help: false },
-      subscriptionOnly("trial"),
-      { path: "trial.entitlements", hidden: true },
-      subscriptionOnly("grace_period_days"),
-      subscriptionOnly("renewal_notice_days"),
-      subscriptionOnly("renewal_consent_required_on_change", { help: "sx.help.K17__renewal_consent" }),
-      subscriptionOnly("upgrade_rules"),
-      subscriptionOnly("downgrade_rules"),
-      { path: "cancellation_rules", hidden: true },
-      { path: "sales_status", control: "choices", columns: 3 },
+      {
+        path: "audiences",
+        control: "choicesMulti",
+        columns: 2,
+        choices: Object.fromEntries(["client", "advokat", "yurist", "organization"].map((k) => [k, { descriptionKey: `sx.optd.K17__audiences.${k}` }])),
+        help: "sx.help.K17__audiences",
+      },
+      { path: "is_active", help: "sx.help.K17__is_active" },
+      { path: "is_free", clears: [...K17_PRICES], help: "sx.help.K17__is_free" },
+      ...K17_PRICES.map((path) => ({ path, visible: isPaid, span: 1 as const })),
+      {
+        path: "benefits",
+        control: "repeater",
+        addKey: "sx.add.K17__benefit",
+        summary: (item: SxValues, i: number) => `${i + 1}. ${benefitText(item)}`,
+        help: "sx.help.K17__benefits",
+      },
+      { path: "developer_note", help: "sx.help.K17__developer_note" },
+      { path: "developer_deadline_at", help: "sx.help.K17__developer_deadline" },
     ], true),
     validate: k17Validate,
+  };
+}
+
+// K36 (TSK-331025): a price coefficient built from ready criteria only —
+// pick what it measures, the condition, the threshold that condition needs,
+// and how much it raises the price. The backend owns the formula, the
+// validation and the preview; nothing is worked out here.
+const K36_CRITERIA = ["region", "lawyer_experience", "category_experience", "sector_experience", "lexgo_verified", "client_rating", "reviews_count", "wins_count", "success_rate", "response_time", "completion_rate", "substantiated_complaints", "super_lawyer"] as const;
+const opIs = (...ops: string[]) => (ctx: SxLayoutCtx): boolean => ops.includes(String(ctx.root.operator ?? ""));
+const categoryScoped = (ctx: SxLayoutCtx): boolean => ctx.root.criterion_type === "category_experience" || ctx.root.criterion_type === "sector_experience";
+function k36Validate(payload: SxValues): SxErrors {
+  const out: Record<string, string> = {};
+  const op = String(payload.operator ?? "");
+  const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
+  if ((op === "gte" || op === "lte" || op === "eq") && num(payload.threshold) === null) out.threshold = "@code:required";
+  if (op === "between") {
+    const lo = num(payload.range_min);
+    const hi = num(payload.range_max);
+    if (lo === null) out.range_min = "@code:required";
+    if (hi === null) out.range_max = "@code:required";
+    if (lo !== null && hi !== null && lo >= hi) out.range_max = "@code:k36_range_order";
+  }
+  if (op === "in" && !(Array.isArray(payload.allowed_values) && payload.allowed_values.length)) out.allowed_values = "@code:required";
+  const pct = num(payload.increase_percent);
+  if (pct !== null && (pct <= 0 || pct > 100)) out.increase_percent = "@code:k36_percent_range";
+  return out;
+}
+function k36Layout(): SxCtorLayout {
+  return {
+    ...titled("K36", [
+      { path: "coefficient_id", hidden: true },
+      {
+        path: "criterion_type",
+        control: "choices",
+        columns: 2,
+        choices: Object.fromEntries(K36_CRITERIA.map((k) => [k, { descriptionKey: `sx.optd.K36__criterion_type.${k}` }])),
+        help: "sx.help.K36__criterion_type",
+      },
+      { path: "operator", control: "choices", columns: 3, clears: ["threshold", "range_min", "range_max", "allowed_values"] },
+      { path: "threshold", visible: opIs("gte", "lte", "eq") },
+      { path: "range_min", visible: opIs("between"), span: 1 },
+      { path: "range_max", visible: opIs("between"), span: 1 },
+      { path: "allowed_values", visible: opIs("in"), help: "sx.help.K36__allowed_values" },
+      { path: "unit", help: "sx.help.K36__unit" },
+      { path: "increase_percent", help: "sx.help.K36__increase_percent" },
+      { path: "category_id", visible: categoryScoped, span: 1 },
+      { path: "subcategory_id", visible: categoryScoped, span: 1 },
+    ], true),
+    validate: k36Validate,
   };
 }
 
@@ -113,6 +161,7 @@ const LIST: readonly SxCtorLayout[] = [
     labelOf("blocks.*.title", "sx.field.K19__blocks__title"),
     off("blocks.*.content"),
   ]),
+  k36Layout(),
   titled("CORE"),
   record("K16", [off("language")]),
   record("OPS07"),

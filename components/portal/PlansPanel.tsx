@@ -63,6 +63,7 @@ import { dateOnly } from "@/lib/date";
 import PlanCard, { FEATURED_CTA } from "./PlanCard";
 import MyPlanCard from "./MyPlanCard";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
+import { goToPaymentPage } from "@/lib/services/paymentProviders";
 
 type Term = 1 | 3 | 6 | 12;
 type Variant = "personal" | "all";
@@ -319,7 +320,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         if (r.paymentUrl) {
           leaving = true;
           notify.info(t("payRedirect"), { id: "plans-buy" });
-          window.location.assign(r.paymentUrl);
+          goToPaymentPage(r.paymentUrl, r.paymentId);
         } else {
           notify.success(t("activated", { plan: planName(plan) }), { id: "plans-buy" });
         }
@@ -337,7 +338,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       if (r.paymentUrl) {
         leaving = true;
         notify.info(t("payRedirect"), { id: "plans-buy" });
-        window.location.assign(r.paymentUrl);
+        goToPaymentPage(r.paymentUrl, r.paymentId);
       } else {
         notify.success(t("activated", { plan: planName(plan) }), { id: "plans-buy" });
       }

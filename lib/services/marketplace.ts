@@ -389,14 +389,19 @@ export type MarketPurchase = {
   amount: number;
   currency: string;
   telegramSent: boolean;
-  // Sent to the seller, who has until `deadlineAt` to accept; the 10%
-  // advance is asked for only then. `message` is the backend's own words
-  // for the client.
+  // Enterprise contract 2026-10-27 §4: the order is paid in full first
+  // (`payment`, 100% of the price); only then does the seller get it and
+  // have until `deadlineAt` to accept. `message` is the backend's own
+  // words for the client.
   accepting: boolean;
   deadlineAt: string;
   message: string;
   advanceAmount: number;
+  payment: PurchasePayment | null;
 };
+// The one full payment the request created: never "paid" until its own
+// status says so (§4: not from the request, not from Telegram delivery).
+export type PurchasePayment = { id: string; status: string; amount: number; currency: string; provider: string; url: string };
 
 // How soon the client needs it (2026-10-18 contract), and what they sent
 // with the request: workspace files uploaded first, by id — up to 20 files
@@ -412,7 +417,14 @@ export const MAX_PURCHASE_FILES = 20;
 export const MAX_PURCHASE_VOICES = 10;
 export type PurchaseAttachment = { fileId: string; title: string };
 export type PurchaseVoice = { fileId: string; seconds: number };
+// How the client pays the 100% (§3, §5). Telegram: an operator confirms the
+// transfer; Payme / Click: the provider page, once production keys exist.
+export const PURCHASE_PROVIDERS = ["telegram_manual", "payme", "click"] as const;
+export type PurchaseProvider = (typeof PURCHASE_PROVIDERS)[number];
+// A provider the backend cannot use right now; the client is offered Telegram.
+export const PAYMENT_PROVIDER_ERRORS: readonly string[] = ["payment_provider_not_configured", "payment_provider_unavailable", "marketplace_payment_provider_invalid", "payment_invoice_rejected"];
 export type PurchaseInput = {
+  paymentProvider?: PurchaseProvider;
   note: string;
   preferredChannel: PreferredChannel;
   preferredTime?: string;
@@ -440,6 +452,10 @@ export function purchaseBodyOf(input: PurchaseInput): Record<string, unknown> {
     body.details = details;
   }
   if (input.urgency) body.urgency = input.urgency;
+  if (input.paymentProvider) {
+    body.payment_provider = input.paymentProvider;
+    body.currency = "UZS";
+  }
   if (input.attachments?.length) body.attachments = input.attachments.slice(0, MAX_PURCHASE_FILES).map((a) => ({ file_id: a.fileId, title: a.title }));
   if (input.voiceMessages?.length) body.voice_messages = input.voiceMessages.slice(0, MAX_PURCHASE_VOICES).map((v) => ({ file_id: v.fileId, duration_seconds: Math.max(1, Math.round(v.seconds)) }));
   return body;
@@ -466,7 +482,9 @@ export async function requestMarketplaceMatch(serviceId: string, input: Purchase
   const body = purchaseBodyOf(input);
   const { details: nested, ...rest } = body;
   const details = { ...rest, ...(nested && typeof nested === "object" ? (nested as Record<string, unknown>) : {}), problem: input.note.trim() };
-  const raw = await http("/orders", { method: "POST", body: JSON.stringify({ service_id: serviceId, source: "marketplace", details }) });
+  // Contract 2026-10-27 §3: how the 100% is paid rides at the top too.
+  const pay = input.paymentProvider ? { payment_provider: input.paymentProvider, currency: "UZS" } : {};
+  const raw = await http("/orders", { method: "POST", body: JSON.stringify({ service_id: serviceId, source: "marketplace", ...pay, details }) });
   const d = asDict(raw);
   return purchaseOf(d.order ? d : { order: d, payment: d.payment });
 }
@@ -501,8 +519,19 @@ export function purchaseOf(raw: unknown): MarketPurchase {
     deadlineAt: a.assignment?.deadlineAt || asStr(d.acceptance_deadline_at),
     message: a.clientMessage || asStr(d.client_status_message ?? d.message),
     advanceAmount: a.advance?.amount || (asStr(payment.status) === "awaiting_seller_acceptance" ? uzs(payment, "amount") : 0),
-    // The order's price; the payment row may be only the 10% advance.
+    // The order's price (the full payment is the same amount).
     amount: uzs(order, "price") || uzs(payment, "amount"),
+    payment: asStr(payment.id)
+      ? {
+          id: asStr(payment.id),
+          status: asStr(payment.status, "pending"),
+          amount: uzs(payment, "amount"),
+          currency: asStr(payment.currency, "UZS") || "UZS",
+          provider: asStr(payment.provider),
+          // Only an https provider page is ever followed.
+          url: /^https:\/\/\S+$/i.test(asStr(payment.payment_url ?? payment.checkout_url).trim()) ? asStr(payment.payment_url ?? payment.checkout_url).trim() : "",
+        }
+      : null,
     currency: asStr(payment.currency ?? order.currency, "UZS") || "UZS",
     // Omitted delivery metadata is unknown, not proof that Telegram sent it.
     telegramSent: d.telegram_sent === true || payment.telegram_sent === true || gate.telegram_sent === true,
@@ -524,6 +553,21 @@ export const MARKET_ERROR_CODES = [
   "marketplace_result_required",
   "rating_window_closed",
   "ticket_closed",
+  "marketplace_client_required",
+  "marketplace_seller_unavailable",
+  "marketplace_full_payment_required",
+  "marketplace_payment_provider_invalid",
+  "marketplace_currency_not_supported",
+  "payment_provider_not_configured",
+  "payment_provider_unavailable",
+  "payment_invoice_rejected",
+  "purchase_attachments_limit",
+  "preferred_channel_invalid",
+  "contact_speed_invalid",
+  "assignment_not_accepting",
+  "assignment_not_declinable",
+  "assignment_response_deadline_expired",
+  "decline_reason_required",
   ...RUNTIME_ERROR_CODES,
 ] as const;
 export const PRICE_OPTION_ERRORS: readonly string[] = ["unknown_price_options", "duplicate_price_option", "negative_price_adjustment_forbidden"];
@@ -644,7 +688,31 @@ export type OrderPricing = {
   components: { code: string; amount: number; percent: number | null; label: Record<string, string> }[];
   // An old order normalised on read: its eligibility rules were not kept.
   historical: boolean;
+  // TSK-787056 / contract §11: the backend's diplomatic, client-safe words
+  // for why this specialist's price differs from the base — never the
+  // formula, the coefficients, commission or anything about requirements.
+  // Localised lines in the backend's order; empty when it sent none.
+  clientReasons: Record<string, string>[];
 };
+
+// "Narx tanlangan mutaxassisning tasdiqlangan tajribasi sabab…" or
+// {uz, ru, en} or {text|label|reason}: one localised line.
+function reasonLine(v: unknown): Record<string, string> {
+  if (typeof v === "string") return v.trim() ? { uz: v.trim() } : {};
+  const d = asDict(v);
+  const own = d.text ?? d.label ?? d.reason ?? d.message ?? d.explanation;
+  if (typeof own === "string") return own.trim() ? { uz: own.trim() } : {};
+  const loc = asDict(own ?? d);
+  return Object.fromEntries(Object.entries(loc).filter(([k, x]) => /^(uz|ru|en)/.test(k) && typeof x === "string" && x.trim()).map(([k, x]) => [k.slice(0, 2), String(x).trim()]));
+}
+export function clientReasonsOf(...srcs: unknown[]): Record<string, string>[] {
+  for (const s of srcs) {
+    const list = Array.isArray(s) ? s : typeof s === "string" ? [s] : asArr(asDict(s).items ?? asDict(s).lines ?? asDict(s).reasons);
+    const out = list.map(reasonLine).filter((x) => Object.keys(x).length);
+    if (out.length) return out;
+  }
+  return [];
+}
 
 const present = (v: unknown) => v !== null && v !== undefined && v !== "";
 const pctOf = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
@@ -684,6 +752,7 @@ function orderPricingOf(d: Dict, details: Dict): OrderPricing | null {
       return { code: asStr(c.code), amount: uzs(c, "amount"), percent: pctOf(c.percent), label };
     }),
     historical: p.historical_policy_exact === false,
+    clientReasons: clientReasonsOf(p.client_reasons, p.client_safe_reasons, p.client_explanation, details.client_price_explanation, d.client_price_explanation, p.price_explanation_client),
   };
 }
 
@@ -1529,7 +1598,7 @@ export function awaitingSeller(o: Pick<MarketOrder, "status" | "paymentStatus"> 
 export function isOrderPending(o: Pick<MarketOrder, "status" | "paymentStatus">): boolean {
   // "accepted" stays the order status from the request until the advance is
   // paid (seen 26 Oct 2026: accepted + unpaid once the seller took it).
-  return o.status === "pending_payment" || o.status === "waiting_payment" || ((o.status === "pending" || o.status === "accepted") && o.paymentStatus !== "paid") || awaitingSeller(o);
+  return o.status === "pending_payment" || o.status === "payment_pending" || o.status === "waiting_payment" || ((o.status === "pending" || o.status === "accepted") && o.paymentStatus !== "paid") || awaitingSeller(o);
 }
 
 export const MARKET_DONE = new Set(["completed", "rated", "done", "closed"]);
@@ -1568,7 +1637,7 @@ export function phaseOfStatus(status: string): MarketTrackPhase {
   if (MARKET_DONE.has(s)) return "completed";
   if (AWAITING_STATUSES.has(s)) return "accepting";
   // "accepted" alone does not prove a payment (see isOrderPending).
-  if (!s || s === "pending" || s === "accepted" || s === "pending_payment" || s === "waiting_payment") return "pending";
+  if (!s || s === "pending" || s === "accepted" || s === "pending_payment" || s === "payment_pending" || s === "waiting_payment" || s === "full_payment_required") return "pending";
   return "paid";
 }
 

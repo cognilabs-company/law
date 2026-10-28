@@ -6,17 +6,18 @@ import { useTranslations } from "next-intl";
 import { registerReveal, revealTarget } from "@/lib/guide/targets";
 import { useScrollEdges } from "@/lib/useScrollEdges";
 import "./callcenter/console.css";
-import { IconArrowRight, IconAward, IconBolt, IconCircleX, IconFlag, IconHeadset, IconInbox, IconSearch, IconShield, IconUsers } from "@/components/icons";
+import { IconArrowRight, IconAward, IconBolt, IconCircleX, IconCoins, IconFlag, IconGrid, IconStar, IconHeadset, IconInbox, IconSearch, IconShield, IconUsers } from "@/components/icons";
 
-export type CcTab = "queue" | "urgent" | "escalations" | "complaints" | "mpComplaints" | "warranty" | "cancellations" | "experience" | "leads" | "clients";
+export type CcTab = "cockpit" | "queue" | "urgent" | "escalations" | "complaints" | "mpComplaints" | "warranty" | "cancellations" | "experience" | "achievements" | "payouts" | "leads" | "clients";
 export type CcSearch = { q: string; n: number };
-type Counted = "queue" | "urgent" | "escalations" | "complaints" | "mpComplaints" | "warranty" | "cancellations" | "experience";
+type Counted = "cockpit" | "queue" | "urgent" | "escalations" | "complaints" | "mpComplaints" | "warranty" | "cancellations" | "experience" | "achievements" | "payouts";
 
-const ALL: CcTab[] = ["queue", "urgent", "escalations", "complaints", "mpComplaints", "warranty", "cancellations", "experience", "leads", "clients"];
+const ALL: CcTab[] = ["cockpit", "queue", "urgent", "escalations", "complaints", "mpComplaints", "warranty", "cancellations", "experience", "achievements", "payouts", "leads", "clients"];
 const OPEN: CcTab[] = ["leads", "clients"];
 const STORE = "lexgo_cc_tab";
 
 const ICON: Record<CcTab, ComponentType<SVGProps<SVGSVGElement>>> = {
+  cockpit: IconGrid,
   queue: IconInbox,
   urgent: IconBolt,
   escalations: IconArrowRight,
@@ -25,11 +26,14 @@ const ICON: Record<CcTab, ComponentType<SVGProps<SVGSVGElement>>> = {
   warranty: IconShield,
   cancellations: IconCircleX,
   experience: IconAward,
+  achievements: IconStar,
+  payouts: IconCoins,
   leads: IconUsers,
   clients: IconHeadset,
 };
 
 const REVEAL: Record<CcTab, RegExp> = {
+  cockpit: /^(?:call_center\.cockpit(?:\.|$)|callcenter:cockpit$)/,
   queue: /^(?:call_center\.leads(?:\.|$)|callcenter:queue$)/,
   urgent: /^(?:call_center\.urgent-advokat(?:\.|$)|callcenter:urgent(?:-[a-z]+)?$|button:urgent-claim$)/,
   complaints: /^(?:call_center\.complaints(?:\.|$)|callcenter:complaints$)/,
@@ -38,6 +42,8 @@ const REVEAL: Record<CcTab, RegExp> = {
   mpComplaints: /^(?:call_center\.mp_complaints(?:\.|$)|callcenter:mp-complaints$)/,
   warranty: /^(?:call_center\.warranty(?:\.|$)|callcenter:warranty$)/,
   experience: /^(?:call_center\.experience(?:\.|$)|callcenter:experience(?:-review)?$)/,
+  achievements: /^(?:call_center\.achievements(?:\.|$)|callcenter:achievements$)/,
+  payouts: /^(?:call_center\.payouts(?:\.|$)|callcenter:payouts$)/,
   leads: /^(?:call_center\.board(?:\.|$)|callcenter:board$|leads:filters$)/,
   clients: /^(?:call_center\.(?:calls|clients)(?:\.|$)|callcenter:(?:client-search|call-log)$|button:log-call$)/,
 };
@@ -143,7 +149,7 @@ export function useCcConsole(cc: boolean): CcConsole {
 
   const count = useMemo(() => {
     const put = (k: Counted) => (n: number) => setCounts((c) => (c[k] === n ? c : { ...c, [k]: n }));
-    return { queue: put("queue"), urgent: put("urgent"), escalations: put("escalations"), complaints: put("complaints"), mpComplaints: put("mpComplaints"), warranty: put("warranty"), cancellations: put("cancellations"), experience: put("experience") };
+    return { cockpit: put("cockpit"), queue: put("queue"), urgent: put("urgent"), escalations: put("escalations"), complaints: put("complaints"), mpComplaints: put("mpComplaints"), warranty: put("warranty"), cancellations: put("cancellations"), experience: put("experience"), achievements: put("achievements"), payouts: put("payouts") };
   }, []);
 
   const hiddenKey = tabs.filter((k) => k !== active).join(",");
@@ -250,12 +256,15 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
   }
 
   function badge(k: CcTab) {
+    if (k === "cockpit" && counts.cockpit) return <span className="ccon__n ccon__n--hot">{counts.cockpit}</span>;
     if (k === "queue") return counts.queue === undefined ? null : <span className="ccon__n">{counts.queue}</span>;
     if (k === "urgent" && counts.urgent) return <span className="ccon__n ccon__n--hot">{t("newUrgent", { n: counts.urgent })}</span>;
     if (k === "complaints" && counts.complaints) return <span className="ccon__n ccon__n--warn">{t("newComplaints", { n: counts.complaints })}</span>;
     if (k === "cancellations" && counts.cancellations) return <span className="ccon__n ccon__n--warn">{t("openCancellations", { n: counts.cancellations })}</span>;
     if (k === "escalations" && counts.escalations) return <span className="ccon__n ccon__n--hot">{t("openCancellations", { n: counts.escalations })}</span>;
     if (k === "experience" && counts.experience) return <span className="ccon__n">{counts.experience}</span>;
+    if (k === "achievements" && counts.achievements) return <span className="ccon__n">{counts.achievements}</span>;
+    if (k === "payouts" && counts.payouts) return <span className="ccon__n ccon__n--warn">{counts.payouts}</span>;
     if (k === "mpComplaints" && counts.mpComplaints) return <span className="ccon__n ccon__n--warn">{t("newComplaints", { n: counts.mpComplaints })}</span>;
     if (k === "warranty" && counts.warranty) return <span className="ccon__n ccon__n--warn">{t("newComplaints", { n: counts.warranty })}</span>;
     return null;

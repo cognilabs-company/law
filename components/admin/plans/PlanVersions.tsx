@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
 import { Skeleton } from "@/components/portal/DataState";
 import { Link } from "@/i18n/navigation";
+import { IconClipboardList } from "@/components/icons";
 import PlanChangePreview from "./PlanChangePreview";
 import { shortDateTime } from "@/lib/date";
 import { errDetail, isAborted, logApiError, type Dict } from "@/lib/http";
@@ -43,6 +44,42 @@ function useVersionLabels() {
     mode: (m: string) => (t.has(`mode.${m}`) ? t(`mode.${m}`) : m),
     reset: (r: string) => (t.has(`reset.${r}`) ? t(`reset.${r}`) : r),
   };
+}
+
+// TSK-692647: the developers' task behind this version and the
+// superadmin's approval — a version is not on sale before it is approved.
+function DevTask({ v }: { v: PlanVersion }): ReactElement {
+  const t = useTranslations("admin.tariffs.dev");
+  const tt = useTranslations("teamTasks.status");
+  const locale = useLocale();
+  const task = v.devTask;
+  const ap = v.approval;
+  return (
+    <div className="trf-dev">
+      {task ? (
+        <div className="trf-dev__task">
+          <span className="trf-dev__ic" aria-hidden="true">
+            <IconClipboardList />
+          </span>
+          <span className="trf-dev__m">
+            <b>
+              {t("task")} {task.code ? <code>{task.code}</code> : null}
+            </b>
+            <small>
+              {[tt.has(task.status) ? tt(task.status) : task.status ? t("statusOther") : "", task.deadlineAt ? t("deadline", { date: shortDateTime(task.deadlineAt, locale) }) : "", task.assignees.length ? task.assignees.join(", ") : t("noAssignees")]
+                .filter(Boolean)
+                .join(" · ")}
+            </small>
+          </span>
+        </div>
+      ) : null}
+      {ap ? (
+        <span className="trf-chip" data-status={ap.status === "approved" ? "published" : "draft"}>
+          {ap.status === "approved" ? t("approved", { by: ap.by || t("superadmin"), date: ap.at ? shortDateTime(ap.at, locale) : "" }) : t("awaiting")}
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 function DraftEditor({ version, registry, onSaved, onCancel }: { version: PlanVersion; registry: FeatureRegistry | null; onSaved: (v: PlanVersion) => void; onCancel: () => void }): ReactElement {
@@ -266,6 +303,7 @@ export default function PlanVersions({ planId }: { planId: string }): ReactEleme
                   {isCurrent ? <span className="trf-chip" data-status="current">{t("current")}</span> : null}
                   <small>{v.publishedAt ? t("publishedAt", { date: shortDateTime(v.publishedAt, locale) }) : v.createdAt ? t("createdAt", { date: shortDateTime(v.createdAt, locale) }) : ""}</small>
                 </div>
+                {v.devTask || v.approval ? <DevTask v={v} /> : null}
                 {draft ? (
                   <>
                     {check.ok === true ? <p className="trf-ok">{t("checkOk")}</p> : null}

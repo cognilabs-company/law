@@ -138,10 +138,10 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
       <section className="crm-lhead" aria-labelledby="crm-cust-title">
         <div className="crm-lhead__top">
           <span className="crm-code">{c.publicId}</span>
-          {c.userId ? (
+          {c.isLexgoUser ? (
             <span className="crm-badge" style={{ background: "rgb(255 255 255 / 18%)", color: "#fff" }}>
               <IconCheck aria-hidden="true" />
-              {t("linked")}
+              {c.lexgoLabel || t("linked")}
             </span>
           ) : (
             <span className="crm-badge crm-badge--muted">{t("notLinked")}</span>
@@ -199,7 +199,7 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
                       {l.nextActionAt ? <WhenChip at={l.nextActionAt} now={now} /> : null}
                     </span>
                     <small>
-                      {l.workId} · {l.category || "—"} · {l.operator?.name || t("unassigned")}
+                      {[l.workId, l.region, l.operator?.name || t("unassigned")].filter(Boolean).join(" · ")}
                     </small>
                   </Link>
                 ))}
@@ -287,7 +287,7 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
                 ))}
               </ul>
             ) : (
-              <p className="crm-sub">{c.userId ? t("noOrders") : t("ordersNeedLink")}</p>
+              <p className="crm-sub">{c.isLexgoUser ? t("noOrders") : t("ordersNeedLink")}</p>
             )}
           </section>
         </div>
@@ -305,13 +305,13 @@ function EditCustomer({ c, meta, onClose, onSaved }: { c: CrmCustomerDetail; met
   const tn = useTranslations("crm.newCustomer");
   const tl = useTranslations("crm.lang");
   const crmErr = useCrmError();
-  const [f, setF] = useState({ name: c.name, region: c.region, language: c.language, notes: c.notes, userId: c.userId });
+  const [f, setF] = useState({ name: c.name, region: c.region, language: c.language, notes: c.notes });
   const [busy, setBusy] = useState(false);
   const save = async () => {
     if (!f.name.trim() || busy) return;
     setBusy(true);
     try {
-      await updateCrmCustomer(c.id, { name: f.name, region: f.region, language: f.language, notes: f.notes, userId: f.userId || null });
+      await updateCrmCustomer(c.id, { name: f.name, region: f.region, language: f.language, notes: f.notes });
       toast(t("saved"), { tone: "ok" });
       onSaved();
       onClose();
@@ -355,11 +355,6 @@ function EditCustomer({ c, meta, onClose, onSaved }: { c: CrmCustomerDetail; met
             <CrmSelect value={f.language} onChange={(v) => setF({ ...f, language: v })} label={tn("language")} options={meta.languages.map((l) => ({ value: l, label: tl.has(l) ? tl(l) : l }))} />
           </div>
         </div>
-        <label className="crm-field">
-          <span>{tn("userId")}</span>
-          <input className="crm-input" value={f.userId} onChange={(e) => setF({ ...f, userId: e.target.value })} />
-          <small>{tn("userIdHelp")}</small>
-        </label>
         <label className="crm-field">
           <span>{tn("notes")}</span>
           <textarea className="crm-textarea" value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
@@ -486,7 +481,7 @@ function MergeDialog({ target, onClose, onMerged }: { target: CrmCustomerDetail;
     [t("f.telegram"), x.telegram],
     [t("f.email"), x.email],
     [t("f.region"), x.region],
-    [t("f.account"), x.userId ? t("yes") : t("no")],
+    [t("f.account"), x.isLexgoUser ? t("yes") : t("no")],
     [t("f.leads"), String(x.leadCount)],
   ];
   return (

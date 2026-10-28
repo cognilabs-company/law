@@ -3,39 +3,30 @@
 import "./experienceReview.css";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Notice } from "@/components/admin/AdminBits";
 import { IconAward } from "@/components/icons";
 import QueueHead from "./QueueHead";
 import PersonName from "@/components/ui/PersonName";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import { categoryName } from "@/lib/categoryNames";
 import { dateOnly } from "@/lib/date";
-import { errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
+import { isAborted, isForbidden, logApiError } from "@/lib/http";
 import { getServiceCategories, type BackendCategory } from "@/lib/services/backend";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import {
-  canApprove,
+  closeExperienceRoom,
   downloadExperienceEvidence,
-  experienceErrorOf,
   getExperienceForReview,
-  isMandatoryCheck,
   listExperienceQueue,
+  openExperienceRoom,
   reviewExperience,
-  type CheckRows,
-  type CheckVerdict,
-  type ExperienceItem,
   type ExperienceQueueItem,
-  type ExperienceReviewDetail,
 } from "@/lib/services/experience";
+import VerifyReview, { type VerifySource } from "./VerifyReview";
 
-// Experience verification for the call center (TSK-659111): the queue,
-// oldest first, and for each record the submitted revision next to the
-// approved one it would replace, with a checklist where every item gets its
-// own verdict and note. Approval waits until every item is approved or not
-// applicable (mandatory ones approved); a rejection needs a reason, which
-// the lawyer sees.
+// Experience verification for the call center (TSK-659111, TSK-100467,
+// TSK-874927, TSK-365169): the queue, oldest first; each record opens the
+// shared verification screen (VerifyReview).
 
-const VERDICTS: readonly Exclude<CheckVerdict, "">[] = ["approved", "rejected", "not_applicable"];
 const isExperienceEvent = (e: { event?: unknown }) => String(e.event ?? "").startsWith("marketplace.experience_");
 
 function useCategories() {
@@ -53,7 +44,7 @@ function useCategories() {
   }, []);
   return (id: string) => {
     const c = cats.find((x) => x.id === id);
-    return c ? categoryName({ slug: c.slug, title: c.name }, locale) : id;
+    return c ? categoryName({ slug: c.slug, title: c.name }, locale) : "";
   };
 }
 
@@ -122,7 +113,7 @@ export function ExperienceQueue({ onCount }: { onCount?: (n: number) => void }):
             <li key={it.id} data-open={open === it.id || undefined}>
               <button type="button" className="xpr__qrow" onClick={() => setOpen(open === it.id ? "" : it.id)} aria-expanded={open === it.id}>
                 <b>{it.sellerName || it.sellerUserId ? <PersonName id={it.sellerUserId} name={it.sellerName} /> : t("seller")}</b>
-                <span>{catName(it.categoryId)}</span>
+                <span>{[it.workplace, catName(it.categoryId)].filter(Boolean).join(" · ")}</span>
                 <span>{it.sourceId ? t("revision", { n: it.version ?? 2 }) : t("newRecord")}</span>
                 <time>{it.submittedAt ? dateOnly(it.submittedAt, locale) : ""}</time>
               </button>
@@ -143,169 +134,52 @@ export function ExperienceQueue({ onCount }: { onCount?: (n: number) => void }):
   );
 }
 
-function Side({ title, it, catName }: { title: string; it: ExperienceItem | null; catName: (id: string) => string }) {
-  const t = useTranslations("callCenter.experience");
-  const tp = useTranslations("portal.experience");
-  const locale = useLocale();
-  if (!it) {
-    return (
-      <section className="xpr__side" aria-label={title}>
-        <b>{title}</b>
-        <p className="ppanel__note">{t("noPrevious")}</p>
-      </section>
-    );
-  }
-  const row = (label: string, value: string) =>
-    value ? (
-      <div>
-        <dt>{label}</dt>
-        <dd>{value}</dd>
-      </div>
-    ) : null;
-  return (
-    <section className="xpr__side" aria-label={title}>
-      <b>{title}</b>
-      <dl>
-        {row(tp("category"), catName(it.categoryId))}
-        {row(tp("workplace"), it.workplace)}
-        {row(tp("position"), it.position)}
-        {row(t("period"), [it.startedAt ? dateOnly(it.startedAt, locale) : "", it.isCurrent ? tp("now") : it.endedAt ? dateOnly(it.endedAt, locale) : ""].filter(Boolean).join(" — "))}
-        {row(t("years"), it.years === null ? "" : String(it.years))}
-        {row(tp("stages"), it.stages.map((s) => (tp.has(`stage.${s}`) ? tp(`stage.${s}`) : s)).join(", "))}
-        {row(tp("results"), it.results.map((r) => (tp.has(`result.${r}`) ? tp(`result.${r}`) : r)).join(", "))}
-        {row(tp("description"), it.description)}
-      </dl>
-      {it.evidence.length ? (
-        <span className="xpr__files">
-          {it.evidence.map((f) => (
-            <button key={f.id} type="button" className="btn btn--ghost btn--sm" onClick={() => void downloadExperienceEvidence(f).catch((e) => logApiError("experience.download", e))}>
-              {f.fileName || tp("file")}
-            </button>
-          ))}
-        </span>
-      ) : (
-        <small className="ppanel__note">{t("noFiles")}</small>
-      )}
-    </section>
-  );
-}
-
+// TSK-874927 / TSK-100467 / TSK-365169: the shared verification screen,
+// fed with this record's facts, diff, checklist and review room.
 export default function ExperienceReview({ experienceId, onDone }: { experienceId: string; onDone?: () => void }): ReactElement {
   const t = useTranslations("callCenter.experience");
-  const tc = useTranslations("common");
+  const tp = useTranslations("portal.experience");
+  const tv = useTranslations("callCenter.verify.field");
+  const locale = useLocale();
   const catName = useCategories();
-  const [detail, setDetail] = useState<ExperienceReviewDetail | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
-  const [rows, setRows] = useState<CheckRows>({});
-  const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
-  const sending = useRef(false);
-  const [done, setDone] = useState<"" | "approved" | "rejected">("");
-  const [err, setErr] = useState("");
-  const [flagged, setFlagged] = useState<string[]>([]);
-
-  useEffect(() => {
-    const ctl = new AbortController();
-    getExperienceForReview(experienceId, ctl.signal).then(setDetail, (e) => {
-      if (isAborted(e)) return;
-      logApiError("experience.detail", e);
-      setLoadFailed(true);
-    });
-    return () => ctl.abort();
-  }, [experienceId]);
-
-  const keys = detail?.checklistKeys ?? [];
-  const set = (k: string, patch: Partial<{ verdict: CheckVerdict; note: string }>) => setRows((r) => ({ ...r, [k]: { verdict: r[k]?.verdict ?? "", note: r[k]?.note ?? "", ...patch } }));
-  const approvable = keys.length > 0 && canApprove(keys, rows);
-  const pending = detail?.record?.status === "pending_review";
-
-  async function decide(decision: "approved" | "rejected") {
-    if (busy || sending.current || !detail) return;
-    if (decision === "approved" && !approvable) return;
-    if (decision === "rejected" && reason.trim().length < 10) return;
-    sending.current = true;
-    setBusy(true);
-    setErr("");
-    setFlagged([]);
-    try {
-      await reviewExperience(experienceId, { decision, reason, keys, rows });
-      setDone(decision);
-      onDone?.();
-    } catch (e) {
-      sending.current = false;
-      logApiError("experience.review", e);
-      const fe = experienceErrorOf(e);
-      if (fe?.code === "verification_checklist_incomplete") {
-        const d = (e as { data?: { detail?: { missing?: string[]; failed?: string[] } } }).data?.detail;
-        setFlagged([...(d?.missing ?? []), ...(d?.failed ?? [])]);
-        setErr(t("incomplete"));
-      } else setErr(errDetail(e) || t("failed"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (done) return <Notice ok msg={done === "approved" ? t("approved") : t("rejected")} />;
-  if (loadFailed) return <Notice ok={false} msg={t("loadFailed")} />;
-  if (!detail) return <p className="ppanel__note">{t("loading")}</p>;
-  return (
-    <div className="xpr__detail" data-ai-target="callcenter:experience-review">
-      <div className="xpr__cmp">
-        <Side title={t("submitted")} it={detail.record} catName={catName} />
-        <Side title={t("previous")} it={detail.previous} catName={catName} />
-      </div>
-      {detail.reviews.length ? (
-        <ol className="xpr__past" aria-label={t("pastReviews")}>
-          {detail.reviews.map((r) => (
-            <li key={r.id || r.reviewedAt}>
-              <span className="xpr__chip" data-s={r.decision}>
-                {r.decision ? t(`decision.${r.decision}`) : tc("none")}
-              </span>
-              {r.reason ? <span>{r.reason}</span> : null}
-            </li>
-          ))}
-        </ol>
-      ) : null}
-      {!pending ? <Notice ok={false} msg={t("notPending")} /> : null}
-      <ol className="xpr__list">
-        {keys.map((k) => {
-          const row = rows[k];
-          const label = t.has(`check.${k}`) ? t(`check.${k}`) : k;
-          return (
-            <li key={k} data-verdict={row?.verdict || undefined} data-flag={flagged.includes(k) || undefined}>
-              <fieldset disabled={!pending}>
-                <legend>
-                  {label}
-                  {isMandatoryCheck(k) ? <span className="xpr__req"> · {t("mandatory")}</span> : null}
-                </legend>
-                <div className="xpr__verdicts" role="radiogroup" aria-label={label}>
-                  {VERDICTS.map((v) => (
-                    <label key={v} data-on={row?.verdict === v ? "" : undefined}>
-                      <input type="radio" name={`v-${experienceId}-${k}`} value={v} checked={row?.verdict === v} onChange={() => set(k, { verdict: v })} disabled={v === "not_applicable" && isMandatoryCheck(k)} />
-                      {t(`verdict.${v}`)}
-                    </label>
-                  ))}
-                </div>
-                <input className="xpr__note" value={row?.note ?? ""} onChange={(e) => set(k, { note: e.target.value })} placeholder={t("notePh")} aria-label={t("note", { item: label })} />
-              </fieldset>
-            </li>
-          );
-        })}
-      </ol>
-      <label className="xpr__reason">
-        <span>{t("reason")}</span>
-        <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("reasonPh")} disabled={!pending} />
-      </label>
-      {pending && !approvable ? <small className="xpr__hint">{t("approveNeeds")}</small> : null}
-      {err ? <Notice ok={false} msg={err} /> : null}
-      <div className="xpr__acts">
-        <button type="button" className="btn btn--danger btn--sm" onClick={() => void decide("rejected")} disabled={!pending || busy || reason.trim().length < 10}>
-          {t("reject")}
-        </button>
-        <button type="button" className="btn btn--pri btn--sm" onClick={() => void decide("approved")} disabled={!pending || busy || !approvable}>
-          {t("approve")}
-        </button>
-      </div>
-    </div>
-  );
+  const period = (p: { startedAt: string; endedAt: string; isCurrent: boolean }) => [p.startedAt ? dateOnly(p.startedAt, locale) : "", p.isCurrent ? tp("now") : p.endedAt ? dateOnly(p.endedAt, locale) : ""].filter(Boolean).join(" — ");
+  const source: VerifySource = {
+    kind: "experience",
+    title: experienceId,
+    load: async (signal) => {
+      const d = await getExperienceForReview(experienceId, signal);
+      const it = d.record;
+      return {
+        pending: it?.status === "pending_review",
+        isRevision: !!d.previous,
+        record: it,
+        evidence: it?.evidence ?? [],
+        diff: d.diff,
+        checks: d.checks,
+        reviews: d.reviews,
+        room: d.room,
+      };
+    },
+    review: (input) => reviewExperience(experienceId, input),
+    openRoom: () => openExperienceRoom(experienceId),
+    closeRoom: (room) => closeExperienceRoom(experienceId, room),
+    download: downloadExperienceEvidence,
+    facts: (raw) => {
+      const it = raw as ExperienceQueueItem | null;
+      if (!it) return [];
+      return [
+        { label: tp("category"), value: catName(it.categoryId) },
+        { label: tp("workplace"), value: it.workplace },
+        ...it.positions.map((p, i) => ({ label: tp("positionN", { n: i + 1 }), value: [p.title, period(p)].filter(Boolean).join(" · ") })),
+        { label: t("years"), value: it.years === null ? "" : String(it.years) },
+        { label: tp("description"), value: it.description },
+      ];
+    },
+    fieldLabel: (field) => {
+      const m = /^positions\.(\d+)/.exec(field);
+      if (m) return tp("positionN", { n: Number(m[1]) + 1 });
+      return tv.has(field) ? tv(field) : tv("other");
+    },
+  };
+  return <VerifyReview source={source} onDone={onDone} />;
 }

@@ -218,7 +218,9 @@ test("replacement seller: a paid order, 30 minutes, accept without any payment s
   const deadline = new Date(Date.now() + 29 * 60_000).toISOString();
   let accepted = 0;
   const st = {
-    order: order({ status: "sent_to_seller", payment_status: "paid", assignment_status: "waiting_seller_response", acceptance_deadline_at: deadline, client_name: "Test Mijoz", secure_chat_room_id: "", can_start_chat: false, calls_enabled: false }) as Record<string, unknown>,
+    // Every assignment is paid now (contract 2026-10-27 §4); the handover
+    // shows in the order's reassignment history.
+    order: order({ status: "sent_to_seller", payment_status: "paid", assignment_status: "waiting_seller_response", acceptance_deadline_at: deadline, client_name: "Test Mijoz", secure_chat_room_id: "", can_start_chat: false, calls_enabled: false, reassignment_history: [{ id: "ra-1", status: "pending", previous_seller: { id: "u-old", name: "Avvalgi Advokat" }, new_seller: { id: "u-adv", name: "Test Advokat" }, reassigned_at: "2026-10-26T18:30:00Z" }] }) as Record<string, unknown>,
   };
   const routes = await signIn(page, ADVOCATE, {
     [`/marketplace/me/orders/${ORDER_ID}`]: () => st.order,

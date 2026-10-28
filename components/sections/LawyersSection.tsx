@@ -26,6 +26,7 @@ import FilterBar, { type FilterField } from "../filters/FilterBar";
 import { IconChevronLeft, IconChevronRight, IconInfo, IconScale, IconShieldCheck, IconStar, IconUsers } from "../icons";
 import { fmtRating } from "@/lib/date";
 import VerifiedBadge from "../VerifiedBadge";
+import { goToPaymentPage } from "@/lib/services/paymentProviders";
 
 type Kind = "" | "advocate" | "lawyer";
 const KINDS: [Kind, string][] = [
@@ -170,7 +171,7 @@ export default function LawyersSection({
       // Real checkout: same-tab navigation (a popup after an await is blocked).
       else if (r.paymentUrl) {
         leaving = true;
-        window.location.assign(r.paymentUrl);
+        goToPaymentPage(r.paymentUrl, r.paymentId);
       }
     } catch (e) {
       // 503 (provider not configured) / demo closed in production → "payments

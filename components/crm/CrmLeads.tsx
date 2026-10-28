@@ -64,6 +64,7 @@ export default function CrmLeads(): ReactElement {
 
 function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
   const t = useTranslations("crm.leads");
+  const tsrc = useTranslations("crm.source");
   const ts = useTranslations("crm.status");
   const tsc = useTranslations("crm.score");
   const locale = useLocale();
@@ -340,11 +341,10 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
         </label>
         {view === "table" ? <CrmSelect value={f.status} onChange={(v) => setFilter({ status: v })} label={t("f.status")} options={[{ value: "", label: t("f.anyStatus") }, ...(meta.statuses.length ? meta.statuses : [...CRM_STATUSES]).map((s) => ({ value: s, label: ts.has(s) ? ts(s) : s }))]} /> : null}
         <CrmSelect value={f.score} onChange={(v) => setFilter({ score: v })} label={t("f.score")} options={[{ value: "", label: t("f.anyScore") }, ...meta.scores.map((s) => ({ value: s, label: tsc.has(s) ? tsc(s) : s }))]} />
-        <CrmSelect value={f.source} onChange={(v) => setFilter({ source: v })} label={t("f.source")} options={[{ value: "", label: t("f.anySource") }, ...meta.sources.map((s) => ({ value: s, label: s }))]} />
+        <CrmSelect value={f.source} onChange={(v) => setFilter({ source: v })} label={t("f.source")} options={[{ value: "", label: t("f.anySource") }, ...meta.sources.map((s) => ({ value: s, label: tsrc.has(s) ? tsrc(s) : tsrc("other") }))]} />
         {tab === "all" && ops.length ? (
           <CrmSelect value={f.operator} onChange={(v) => setFilter({ operator: v })} label={t("f.operator")} options={[{ value: "", label: t("f.anyOperator") }, ...ops.map((o) => ({ value: o.id, label: o.name }))]} />
         ) : null}
-        <input className="crm-input" style={{ width: 140 }} value={f.category} onChange={(e) => setFilter({ category: e.target.value })} placeholder={t("f.category")} aria-label={t("f.category")} />
         <input className="crm-input" style={{ width: 130 }} value={f.region} onChange={(e) => setFilter({ region: e.target.value })} placeholder={t("f.region")} aria-label={t("f.region")} />
         <button type="button" className="crm-chip" aria-pressed={f.due === "overdue"} onClick={() => setFilter({ due: f.due === "overdue" ? "" : "overdue" })}>
           <IconAlert aria-hidden="true" />
@@ -487,7 +487,7 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
                         <b>{l.title || l.workId}</b>
                         <small>
                           <span className="crm-code">{l.workId}</span> · {l.customer?.name || "—"}
-                          {l.category ? ` · ${l.category}` : ""}
+                          {l.region ? ` · ${l.region}` : ""}
                         </small>
                       </span>
                     </td>

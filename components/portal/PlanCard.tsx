@@ -157,14 +157,14 @@ export default function PlanCard({
       </div>
       {totalNote ? <p className="splan__total">{totalNote}</p> : null}
       {usage ? <p className="splan__usage">{usage}</p> : null}
-      <ul className="splan__feats" data-ai-id={aiId ? `${aiId}.features` : undefined} data-ai-type={aiId ? "list" : undefined}>
+      <ol className="splan__feats" data-ai-id={aiId ? `${aiId}.features` : undefined} data-ai-type={aiId ? "list" : undefined}>
         {features.map((f, k) => (
           <li key={k}>
             <IconCheck />
             {f}
           </li>
         ))}
-      </ul>
+      </ol>
       {cta.onClick ? (
         <button
           type="button"

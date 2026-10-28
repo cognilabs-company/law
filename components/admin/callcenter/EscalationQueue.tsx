@@ -339,7 +339,8 @@ export default function EscalationQueue({ onCount }: { onCount?: (n: number) => 
     const ctl = new AbortController();
     void Promise.resolve().then(() => load(ctl.signal));
     const off = subscribeUserEvents((e) => {
-      if (isResolutionEvent(e.event) || /marketplace\.(order_declined|assignment_)/.test(String(e.event ?? ""))) void load();
+      // TSK-635882: a missed contact deadline lands here too.
+      if (isResolutionEvent(e.event) || /marketplace\.(order_declined|assignment_|contact_sla_)/.test(String(e.event ?? ""))) void load();
     });
     return () => {
       ctl.abort();

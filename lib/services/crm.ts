@@ -117,11 +117,14 @@ export async function listCrmOperators(q = "", signal?: AbortSignal): Promise<Cr
 
 // ── Customers ──────────────────────────────────────────────────────────
 
-export type CrmCustomerBrief = { id: string; publicId: string; userId: string; name: string; language: string; region: string; phone: string; telegram: string; email: string };
+// Contract 2026-10-27 (CRM customer/lead): the backend links the LexGo
+// account by the verified phone and says so with is_lexgo_user and its own
+// label; `userId` is kept only for internal links, never shown or sent.
+export type CrmCustomerBrief = { id: string; publicId: string; userId: string; isLexgoUser: boolean; lexgoLabel: string; name: string; language: string; region: string; phone: string; telegram: string; email: string };
 export type CrmCustomer = CrmCustomerBrief & { status: string; source: string; leadCount: number; activeLeadCount: number; createdAt: string; updatedAt: string };
 export type CrmContact = { id: string; type: string; value: string; label: string; primary: boolean; verified: boolean; status: string; source: string; createdAt: string };
 export type CrmOrderRef = { id: string; serviceId: string; serviceTitle: string; status: string; paymentStatus: string; createdAt: string };
-export type CrmCustomerDetail = CrmCustomer & { notes: string; contacts: CrmContact[]; leads: CrmLead[]; orders: CrmOrderRef[]; activityCount: number };
+export type CrmCustomerDetail = CrmCustomer & { notes: string; contacts: CrmContact[]; leads: CrmLead[]; orders: CrmOrderRef[]; activityCount: number; sections: DetailSection[] };
 
 export function crmCustomerBriefOf(v: unknown): CrmCustomerBrief | null {
   const d = asDict(v);
@@ -131,6 +134,8 @@ export function crmCustomerBriefOf(v: unknown): CrmCustomerBrief | null {
     id,
     publicId: asStr(d.public_id),
     userId: asStr(d.user_id),
+    isLexgoUser: d.is_lexgo_user === true || (d.is_lexgo_user === undefined && !!asStr(d.user_id)),
+    lexgoLabel: asStr(d.lexgo_user_label),
     name: asStr(d.name),
     language: asStr(d.preferred_language),
     region: asStr(d.region),
@@ -141,7 +146,7 @@ export function crmCustomerBriefOf(v: unknown): CrmCustomerBrief | null {
 }
 export function crmCustomerOf(v: unknown): CrmCustomer {
   const d = asDict(v);
-  const b = crmCustomerBriefOf(d) ?? { id: "", publicId: "", userId: "", name: "", language: "", region: "", phone: "", telegram: "", email: "" };
+  const b = crmCustomerBriefOf(d) ?? { id: "", publicId: "", userId: "", isLexgoUser: false, lexgoLabel: "", name: "", language: "", region: "", phone: "", telegram: "", email: "" };
   return { ...b, status: asStr(d.status), source: asStr(d.source), leadCount: int(d.lead_count), activeLeadCount: int(d.active_lead_count), createdAt: asStr(d.created_at), updatedAt: asStr(d.updated_at) };
 }
 export function crmContactOf(v: unknown): CrmContact {
@@ -160,8 +165,61 @@ export function crmCustomerDetailOf(v: unknown): CrmCustomerDetail {
       return { id: asStr(o.id), serviceId: asStr(o.service_id), serviceTitle: asStr(o.service_title), status: asStr(o.status), paymentStatus: asStr(o.payment_status), createdAt: asStr(o.created_at) };
     }),
     activityCount: int(d.activity_count),
+    sections: detailSectionsOf(d.detail_sections),
   };
 }
+
+// ── detail_sections: the backend's readable view of a record ──
+// Never raw JSON (contract §10): each section is a card of labelled values;
+// a group nests, a list repeats. The values can still be codes, dates or
+// ids — the UI translates, formats or drops them (DetailSections).
+export type DetailItem = { key: string; label: string; type: "text" | "number" | "boolean" | "datetime" | "group" | "list"; value: unknown; items: DetailItem[] };
+export type DetailSection = { key: string; title: string; items: DetailItem[] };
+const DETAIL_TYPES = new Set(["text", "number", "boolean", "datetime", "group", "list"]);
+function detailItemOf(v: unknown): DetailItem {
+  const d = asDict(v);
+  const type = asStr(d.value_type);
+  return { key: asStr(d.key), label: asStr(d.label), type: (DETAIL_TYPES.has(type) ? type : "text") as DetailItem["type"], value: d.value ?? null, items: asArr(d.items).map(detailItemOf) };
+}
+export function detailSectionsOf(v: unknown): DetailSection[] {
+  return asArr(v)
+    .map((x) => {
+      const d = asDict(x);
+      return { key: asStr(d.key), title: asStr(d.title), items: asArr(d.items).map(detailItemOf) };
+    })
+    .filter((s) => s.items.length);
+}
+
+// ── The lead form's one customer source (contract §5) ──
+// GET /crm/customers/select: paged, searched by name, phone, CRM ID or
+// LexGo ID; display_label is the option's title.
+export type CustomerOption = { id: string; publicId: string; name: string; region: string; phone: string; isLexgoUser: boolean; lexgoLabel: string; leadCount: number; label: string };
+export function customerOptionOf(v: unknown): CustomerOption {
+  const d = asDict(v);
+  const name = asStr(d.name);
+  return {
+    id: asStr(d.id),
+    publicId: asStr(d.public_id),
+    name,
+    region: asStr(d.region),
+    phone: asStr(d.primary_phone),
+    isLexgoUser: d.is_lexgo_user === true,
+    lexgoLabel: asStr(d.lexgo_user_label),
+    leadCount: int(d.lead_count),
+    label: asStr(d.display_label) || [name, asStr(d.public_id), asStr(d.primary_phone)].filter(Boolean).join(" · "),
+  };
+}
+export const SELECT_PAGE = 30;
+export async function selectCrmCustomers(q: { q?: string; offset?: number; limit?: number }, signal?: AbortSignal): Promise<{ items: CustomerOption[]; total: number; hasMore: boolean }> {
+  const limit = q.limit ?? SELECT_PAGE;
+  const offset = q.offset ?? 0;
+  const d = asDict(await http(`/crm/customers/select${qs({ q: q.q?.trim(), status: "active", limit, offset })}`, { signal }));
+  const items = asArr(d.items).map(customerOptionOf).filter((c) => c.id);
+  const total = int(d.total);
+  return { items, total, hasMore: typeof d.has_more === "boolean" ? d.has_more : offset + items.length < total };
+}
+// A customer just created, as an option (no refetch, contract §14).
+export const optionOfCustomer = (c: CrmCustomer): CustomerOption => ({ id: c.id, publicId: c.publicId, name: c.name, region: c.region, phone: c.phone, isLexgoUser: c.isLexgoUser, lexgoLabel: c.lexgoLabel, leadCount: c.leadCount, label: [c.name, c.publicId, c.phone].filter(Boolean).join(" · ") });
 
 export type CrmPage<T> = { items: T[]; total: number; limit: number; offset: number };
 export type CustomerQuery = { q?: string; region?: string; status?: string; limit?: number; offset?: number };
@@ -175,9 +233,9 @@ export async function getCrmCustomer(id: string, signal?: AbortSignal): Promise<
 
 export type ContactInput = { type: string; value: string; label?: string; primary?: boolean; verified?: boolean };
 const contactBody = (c: ContactInput): Dict => ({ contact_type: c.type, value: c.value.trim(), label: (c.label ?? "").trim(), is_primary: !!c.primary, is_verified: !!c.verified, source: "operator" });
-export type CustomerInput = { userId?: string; name: string; language?: string; region?: string; source?: string; notes?: string; contacts?: ContactInput[] };
+// No user_id: the backend links the LexGo account itself (contract §4).
+export type CustomerInput = { name: string; language?: string; region?: string; source?: string; notes?: string; contacts?: ContactInput[] };
 export const customerBody = (c: CustomerInput): Dict => ({
-  user_id: c.userId?.trim() || null,
   name: c.name.trim(),
   preferred_language: c.language || "uz_latn",
   region: (c.region ?? "").trim(),
@@ -188,9 +246,8 @@ export const customerBody = (c: CustomerInput): Dict => ({
 export async function createCrmCustomer(c: CustomerInput): Promise<CrmCustomerDetail> {
   return crmCustomerDetailOf(await http("/crm/customers", { method: "POST", body: JSON.stringify(customerBody(c)) }));
 }
-export async function updateCrmCustomer(id: string, patch: Partial<{ userId: string | null; name: string; language: string; region: string; status: string; notes: string }>): Promise<CrmCustomerDetail> {
+export async function updateCrmCustomer(id: string, patch: Partial<{ name: string; language: string; region: string; status: string; notes: string }>): Promise<CrmCustomerDetail> {
   const body: Dict = {};
-  if (patch.userId !== undefined) body.user_id = patch.userId || null;
   if (patch.name !== undefined) body.name = patch.name.trim();
   if (patch.language !== undefined) body.preferred_language = patch.language;
   if (patch.region !== undefined) body.region = patch.region.trim();
@@ -241,6 +298,8 @@ export type CrmLead = {
   nextActionAt: string;
   claimedAt: string;
   duplicateStatus: string;
+  // The backend's readable view (contract 2026-10-27 §12).
+  sections: DetailSection[];
   duplicateOfId: string;
   convertedServiceId: string;
   convertedOrderId: string;
@@ -276,6 +335,7 @@ export function crmLeadOf(v: unknown): CrmLead {
     nextActionAt: asStr(d.next_action_at),
     claimedAt: asStr(d.claimed_at),
     duplicateStatus: asStr(d.duplicate_status),
+    sections: detailSectionsOf(d.detail_sections),
     duplicateOfId: asStr(d.duplicate_of_lead_id),
     convertedServiceId: asStr(d.converted_service_id),
     convertedOrderId: asStr(d.converted_order_id),
@@ -344,14 +404,13 @@ export async function getCrmLead(id: string, signal?: AbortSignal): Promise<CrmL
   return crmLeadOf(await http(`/crm/leads/${enc(id)}`, { signal }));
 }
 
+// Contract 2026-10-27 §7: always one CRM customer; no category, no
+// client_user_id, no inline customer.
 export type LeadInput = {
-  customerId?: string;
-  clientUserId?: string;
-  customer?: CustomerInput;
+  customerId: string;
   source?: string;
   title: string;
   problem?: string;
-  category?: string;
   region?: string;
   urgency?: string;
   language?: string;
@@ -359,13 +418,12 @@ export type LeadInput = {
   operatorId?: string;
   forceCreate?: boolean;
 };
-// One of customer_id, client_user_id or an inline customer (§4.4).
 export function leadCreateBody(l: LeadInput): Dict {
   const body: Dict = {
+    customer_id: l.customerId,
     source: l.source || "manual",
     title: l.title.trim(),
     problem: (l.problem ?? "").trim(),
-    category: (l.category ?? "").trim(),
     region: (l.region ?? "").trim(),
     urgency: l.urgency || "normal",
     preferred_language: l.language || "uz_latn",
@@ -374,9 +432,6 @@ export function leadCreateBody(l: LeadInput): Dict {
     assigned_operator_user_id: l.operatorId || null,
     force_create: !!l.forceCreate,
   };
-  if (l.customerId) body.customer_id = l.customerId;
-  else if (l.clientUserId) body.client_user_id = l.clientUserId.trim();
-  else if (l.customer) body.customer = customerBody(l.customer);
   return body;
 }
 export async function createCrmLead(l: LeadInput): Promise<CrmLead> {
@@ -388,12 +443,11 @@ type Locked = Pick<CrmLead, "id" | "lockVersion">;
 const leadWrite = async (lead: Locked, path: string, body: Dict, method = "POST"): Promise<CrmLead> =>
   crmLeadOf(await http(`/crm/leads/${enc(lead.id)}${path}`, { method, body: JSON.stringify({ ...body, expected_lock_version: lead.lockVersion }) }));
 
-export type LeadPatch = Partial<{ title: string; problem: string; category: string; region: string; urgency: string; score: string; language: string; nextActionAt: string | null }>;
+export type LeadPatch = Partial<{ title: string; problem: string; region: string; urgency: string; score: string; language: string; nextActionAt: string | null }>;
 export function leadPatchBody(p: LeadPatch): Dict {
   const body: Dict = {};
   if (p.title !== undefined) body.title = p.title.trim();
   if (p.problem !== undefined) body.problem = p.problem.trim();
-  if (p.category !== undefined) body.category = p.category.trim();
   if (p.region !== undefined) body.region = p.region.trim();
   if (p.urgency !== undefined) body.urgency = p.urgency;
   if (p.score !== undefined) body.score = p.score;
@@ -462,6 +516,43 @@ export async function addLeadActivity(id: string, a: { type: string; title?: str
 }
 
 // ── Conversion ─────────────────────────────────────────────────────────
+
+// What a draft order is made of, chosen by name (never typed ids): a
+// catalog service, the sellers offering it, a published package.
+export type ConvOption = { id: string; title: string; sub: string };
+const LOOKUP_PAGE = 30;
+export async function lookupServices(q: string, offset: number, signal?: AbortSignal): Promise<{ items: ConvOption[]; hasMore: boolean }> {
+  const d = await http(`/services${qs({ q: q.trim(), catalog_only: true, limit: LOOKUP_PAGE, offset })}`, { signal });
+  const items = (Array.isArray(d) ? d : asArr(asDict(d).items))
+    .map((v) => {
+      const x = asDict(v);
+      return { id: asStr(x.id), title: asStr(x.title ?? x.name), sub: [asStr(x.category_title), asStr(x.subcategory)].filter(Boolean).join(" · ") };
+    })
+    .filter((x) => x.id && x.title);
+  return { items, hasMore: items.length >= LOOKUP_PAGE };
+}
+export async function lookupSellers(serviceId: string, q: string, offset: number, signal?: AbortSignal): Promise<{ items: ConvOption[]; hasMore: boolean }> {
+  const d = asDict(await http(`/marketplace/lawyers${qs({ q: q.trim(), service_id: serviceId || undefined, verified: true, limit: LOOKUP_PAGE, offset })}`, { signal }));
+  const items = asArr(d.items)
+    .map((v) => {
+      const x = asDict(v);
+      const rating = Number(x.rating);
+      return { id: asStr(x.user_id), title: asStr(x.display_name ?? x.name ?? x.lawyer_name), sub: [asStr(x.region || x.district), rating > 0 ? `★ ${rating.toFixed(1)}` : ""].filter(Boolean).join(" · ") };
+    })
+    .filter((x) => x.id && x.title);
+  return { items, hasMore: offset + items.length < int(d.total) };
+}
+export async function lookupPackages(q: string, signal?: AbortSignal): Promise<{ items: ConvOption[]; hasMore: boolean }> {
+  const d = await http(`/service-packages`, { signal });
+  const needle = q.trim().toLowerCase();
+  const items = (Array.isArray(d) ? d : asArr(asDict(d).items ?? asDict(d).packages))
+    .map((v) => {
+      const x = asDict(v);
+      return { id: asStr(x.id), title: asStr(x.title ?? x.name), sub: asStr(x.tariff_title ?? x.subtitle ?? x.description).slice(0, 80) };
+    })
+    .filter((x) => x.id && x.title && (!needle || x.title.toLowerCase().includes(needle)));
+  return { items, hasMore: false };
+}
 
 export type ConversionInput = { serviceId?: string; packageId?: string; sellerUserId?: string; price?: number | null; currency?: string; note?: string };
 export async function prepareConversion(id: string, c: ConversionInput): Promise<Dict> {

@@ -68,9 +68,9 @@ test("practice areas read as words and services show who can see them", async ({
   await expect(svc.getByText("Ota-onalik huquqidan mahrum qilish")).toBeVisible();
   await expect(svc.getByText("1 ta xizmat mijozlarga ko'rinmayapti", { exact: false })).toBeVisible();
   await expect(svc.getByRole("link", { name: "Xizmatlarni boshqarish" })).toHaveAttribute("href", /\/portal\/advocate\/services$/);
-  const xp = page.locator(".exp");
-  await expect(xp.getByText("Oila va nikoh").first()).toBeVisible();
-  await expect(xp.locator(".exp__card-t small").first()).toHaveText("Aliment undirish");
+  const xp = page.locator(".exp:not(.ach)");
+  await expect(xp.getByText("Oila va nikoh", { exact: false }).first()).toBeVisible();
+  await expect(xp.locator(".exp__card-t small").first()).toHaveText("Oila va nikoh · Aliment undirish");
   await expect(xp.getByText("Rad etish sababi: Ish joyi dalili yetarli emas")).toBeVisible();
   if (SHOTS) {
     await xp.screenshot({ path: `${SHOTS}/exp-desktop.png` });
@@ -80,7 +80,7 @@ test("practice areas read as words and services show who can see them", async ({
 
 test("on a phone the experience form opens as a dialog and marks the first missing field", async ({ page }) => {
   await open(page, 390);
-  const xp = page.locator(".exp");
+  const xp = page.locator(".exp:not(.ach)");
   if (SHOTS) await xp.screenshot({ path: `${SHOTS}/exp-phone.png` });
   await xp.getByRole("button", { name: "Tajriba qo'shish" }).first().click();
   const dialog = page.getByRole("dialog", { name: "Yangi tajriba" });

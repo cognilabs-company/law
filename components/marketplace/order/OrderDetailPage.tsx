@@ -27,6 +27,7 @@ import OrderChecklist from "./OrderChecklist";
 import OrderDocuments from "./OrderDocuments";
 import OrderFacts from "./OrderFacts";
 import OrderPricing from "./OrderPricing";
+import PayoutStages from "./PayoutStages";
 import OrderRules from "./OrderRules";
 import OrderHeader from "./OrderHeader";
 import SecondOpinion from "./SecondOpinion";
@@ -117,12 +118,13 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDe
   if (o.status === "resolution_required") {
     parts = [documents];
   } else if (phase === "pending" && awaitingSeller(o)) {
-    // Still with the seller to accept: no payment is due yet.
+    // Paid in full and with the seller to accept (contract 2026-10-27 §4).
     parts = [
-      // A paid order the call center handed to another specialist: no
-      // payment step, no seller named until they accept (§9).
+      // An order the call center handed to another specialist: no seller
+      // named until they accept (§9). Every order is paid here now, so the
+      // handover is what decides, not the payment.
       client ? (
-        o.waitingReplacement || o.paymentStatus === "paid" ? (
+        o.waitingReplacement || o.reassignments.length > 0 ? (
           <ReplacementPending key="replacement" o={o} onRefresh={() => d.refresh("order")} />
         ) : (
           <AwaitingSeller key="awaiting" o={o} onRefresh={() => d.refresh("order")} />
@@ -323,6 +325,7 @@ export function OrderDetailView({
             <div className="mod__facts">
               <OrderFacts o={o} view={view} aiBase={aiBase} runtime={d.runtime} />
               {o.pricing ? <OrderPricing pricing={o.pricing} view={view} currency={o.currency} aiBase={aiBase} orderId={o.id} refreshKey={`${o.status}:${o.paymentStatus}:${d.changed}`} /> : null}
+              {view === "seller" ? <PayoutStages orderId={o.id} aiBase={aiBase} refreshKey={`${o.status}:${o.paymentStatus}:${d.changed}`} /> : null}
               <OrderRules view={view} runtime={d.runtime} aiBase={aiBase} />
             </div>
           </aside>

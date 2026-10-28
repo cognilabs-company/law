@@ -8,6 +8,7 @@ import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { addLeadActivity, getLeadTimeline, leadCan, listCrmTemplates, type CrmActivity, type CrmLead, type CrmTemplate } from "@/lib/services/crm";
 import { Empty, useCrmError } from "./bits";
+import { PayloadDetails, hasReadable } from "./DetailSections";
 
 const TYPE_ICON: Record<string, typeof IconChat> = { note: IconFileText, call_note: IconPhone, message: IconChat, meeting: IconUsers, follow_up: IconClock, document: IconFileText, system: IconLayers };
 const WRITABLE = ["note", "call_note", "message", "meeting", "follow_up", "document"] as const;
@@ -30,7 +31,8 @@ export function Timeline({ items, empty }: { items: CrmActivity[]; empty?: strin
       );
     }
     const Icon = TYPE_ICON[a.type] ?? IconLayers;
-    const payload = Object.keys(a.payload).length ? JSON.stringify(a.payload, null, 2) : "";
+    // Never raw JSON: the payload as labelled values, when anything is readable.
+    const payload = hasReadable(a.payload);
     out.push(
       <li key={a.id || `${a.createdAt}-${a.type}`} className="crm-tl__ev" data-t={a.type}>
         <span className="crm-tl__ico" aria-hidden="true">
@@ -46,7 +48,7 @@ export function Timeline({ items, empty }: { items: CrmActivity[]; empty?: strin
           {payload ? (
             <details>
               <summary>{t("payload")}</summary>
-              <pre>{payload}</pre>
+              <PayloadDetails payload={a.payload} />
             </details>
           ) : null}
         </article>

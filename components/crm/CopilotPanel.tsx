@@ -20,7 +20,8 @@ const textOf = (v: unknown): string => {
   if (typeof v === "number") return String(v);
   if (Array.isArray(v)) return v.map(textOf).filter(Boolean).join("\n\n");
   const d = asDict(v);
-  return asStr(d.text ?? d.body ?? d.content ?? d.message ?? d.title ?? d.name) || (Object.keys(d).length ? JSON.stringify(d, null, 2) : "");
+  // Never raw JSON: an unknown object reads as its own text values.
+  return asStr(d.text ?? d.body ?? d.content ?? d.message ?? d.title ?? d.name) || Object.values(d).map(textOf).filter(Boolean).join("\n");
 };
 // "next_action.at" → "path.next_action_at": a dot would nest the message key.
 const pathKey = (p: string) => `path.${p.replace(/\./g, "_")}`;

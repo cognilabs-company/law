@@ -134,3 +134,10 @@
   background: var(--sx-danger-soft);
   color: var(--sx-danger);
 }
+
+/* TSK-787056 — the client's diplomatic "why this price". */
+.mod-price__why { display: grid; gap: 6px; margin-top: 4px; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--b500, #2563eb) 7%, var(--dk-surface-2, #f4f7fd)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--b500, #2563eb) 18%, transparent); }
+.mod-price__why .mod-price__sub { margin: 0; }
+.mod-price__why ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.mod-price__why li, .mod-price__why > p { position: relative; margin: 0; padding-left: 18px; font-size: .84rem; line-height: 1.5; }
+.mod-price__why li::before, .mod-price__why > p::before { content: ""; position: absolute; left: 4px; top: .6em; width: 6px; height: 6px; border-radius: 50%; background: var(--b500, #2563eb); }

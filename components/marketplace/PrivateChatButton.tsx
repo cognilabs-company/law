@@ -13,6 +13,7 @@ import { Notice } from "@/components/admin/AdminBits";
 import { IconChat } from "@/components/icons";
 import { setReturnTo } from "@/lib/returnTo";
 import { trackPromoContact } from "@/lib/services/promoEvents";
+import { goToPaymentPage } from "@/lib/services/paymentProviders";
 
 export default function PrivateChatButton({ sellerUserId, returnPath }: { sellerUserId: string; returnPath: string }) {
   const t = useTranslations("marketplace.detail");
@@ -57,7 +58,7 @@ export default function PrivateChatButton({ sellerUserId, returnPath }: { seller
       if (r.chatRoomId) router.push(`/portal/chat/${r.chatRoomId}`);
       else if (r.paymentUrl) {
         leaving = true;
-        window.location.assign(r.paymentUrl);
+        goToPaymentPage(r.paymentUrl, r.paymentId);
       }
     } catch (e) {
       const demoClosed = e instanceof ApiError && e.status === 400 && /demo/i.test(e.detail || "");

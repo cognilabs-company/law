@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { IconAlert, IconArrowRight, IconCheck, IconClock, IconFlame, IconLayers, IconMapPin, IconRefresh, IconTag } from "@/components/icons";
+import { IconAlert, IconArrowRight, IconCheck, IconClock, IconFlame, IconLayers, IconMapPin, IconRefresh } from "@/components/icons";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
@@ -195,12 +195,6 @@ function LeadHead({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; write: 
           <span>
             <IconFlame aria-hidden="true" />
             {tsc.has(lead.score) ? tsc(lead.score) : lead.score}
-          </span>
-        ) : null}
-        {lead.category ? (
-          <span>
-            <IconTag aria-hidden="true" />
-            {lead.category}
           </span>
         ) : null}
         {lead.region ? (

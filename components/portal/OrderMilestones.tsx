@@ -10,6 +10,7 @@ import {
   type OrderMilestone,
 } from "@/lib/services/backend";
 import { isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
+import { rememberPendingPayment } from "@/lib/services/paymentProviders";
 import { isConflict, isForbidden, isProviderUnavailable } from "@/lib/http";
 import { humanizeSlug } from "@/lib/lawyers";
 import { fmtUzs } from "@/lib/money";
@@ -49,7 +50,11 @@ export function CheckoutIntent({
         <div className="opay__row"><span>{t("intentStatus")}</span><span>{t.has(`intentStates.${st}`) ? t(`intentStates.${st}`) : humanizeSlug(st)}</span></div>
       </div>
       {intent.paymentUrl ? (
-        <button className="btn btn--grad btn--full" type="button" onClick={() => window.location.assign(intent.paymentUrl!)} data-ai-id={`${aiId}.proceed`}>
+        <button className="btn btn--grad btn--full" type="button" onClick={() => {
+            // Watched on return until the verified callback marks it paid (TSK-664399).
+            rememberPendingPayment({ id: intent.id, amount: intent.amount });
+            window.location.assign(intent.paymentUrl!);
+          }} data-ai-id={`${aiId}.proceed`}>
           {t("proceed")}
         </button>
       ) : (

@@ -6,7 +6,9 @@ import { ApiError, errDetail } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import {
   PACKAGE_SELLER_ERRORS,
+  PAYMENT_PROVIDER_ERRORS,
   PREFERRED_CHANNELS,
+  PURCHASE_PROVIDERS,
   PRICE_OPTION_ERRORS,
   PURCHASE_URGENCIES,
   activePurchaseOf,
@@ -23,6 +25,7 @@ import {
   type MarketTrackPhase,
   type PreferredChannel,
   type PurchaseAttachment,
+  type PurchaseProvider,
   type PurchaseUrgency,
 } from "@/lib/services/marketplace";
 import { useMarketOrderTracker } from "@/lib/useMarketOrderTracker";
@@ -36,10 +39,11 @@ import { durationParts, guaranteesOf } from "@/components/marketplace/runtime/fa
 import { useDurationText } from "@/components/marketplace/runtime/DurationChip";
 import { deliveryLabel } from "@/components/marketplace/bits";
 import { CLIENT_ORDERS_HREF, type PackagePurchaseTarget } from "@/components/marketplace/PurchaseDialog";
-import { IconChat, IconCheck, IconClock, IconClose, IconHourglass, IconMic, IconPaperclip, IconPhone, IconRecord, IconRefresh, IconSend, IconShieldCheck, IconUsers, IconVideo } from "@/components/icons";
+import { IconCard, IconExternal, IconChat, IconCheck, IconClock, IconClose, IconHourglass, IconMic, IconPaperclip, IconPhone, IconRecord, IconRefresh, IconSend, IconShieldCheck, IconUsers, IconVideo } from "@/components/icons";
 import { Banner, Btn, Check, Dialog, Field, Input, Seg, Spinner, TextArea } from "../../kit/kit";
 import type { NativeProps } from "../../native";
 import { useGuardedField } from "@/components/ui/ContactGuardNote";
+import { goToPaymentPage } from "@/lib/services/paymentProviders";
 
 // Ordering a service as a desktop sheet — the Mac's sheet that drops from
 // the toolbar, Windows' content dialog: the three steps on top, the
@@ -51,8 +55,11 @@ import { useGuardedField } from "@/components/ui/ContactGuardNote";
 
 const CHANNEL_ICON = { chat: IconChat, audio: IconPhone, video: IconVideo, meeting: IconUsers } as const;
 const NOTE_MAX = 1000;
-const STEPS = ["request", "accept", "confirm", "chat"] as const;
-const STEP_OF: Record<MarketTrackPhase, number> = { accepting: 1, pending: 2, paid: 3, chat: 3, completed: 4, cancelled: 1 };
+// Enterprise contract 2026-10-27 §4: request → full payment → the seller
+// accepts the paid order within 30 minutes → chat. No 10% advance.
+const STEPS = ["request", "pay", "accept", "chat"] as const;
+const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, accepting: 2, paid: 3, chat: 3, completed: 4, cancelled: 1 };
+const PROVIDER_ICON = { telegram_manual: IconSend, payme: IconCard, click: IconCard } as const;
 
 type Props = {
   sellerUserId: string;
@@ -82,6 +89,8 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   const [channel, setChannel] = useState<PreferredChannel>("chat");
   const [time, setTime] = useState("");
   const [urgency, setUrgency] = useState<PurchaseUrgency | "">("");
+  const [provider, setProvider] = useState<PurchaseProvider>("telegram_manual");
+  const [provErr, setProvErr] = useState("");
   const [files, setFiles] = useState<PurchaseAttachment[]>([]);
   const [voices, setVoices] = useState<Voice[]>([]);
   const [attaching, setAttaching] = useState(false);
@@ -99,7 +108,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   const tracked = done ?? active;
   const track = useMarketOrderTracker(tracked ? tracked.orderId : "", tracked ? tracked.workId : "", tracked ? tracked.status : "", !!done?.accepting);
   const checkout = useRuntimeFacts(service.id, "checkout", { enabled: !pkg });
-  const left = useCountdown(done?.accepting ? done.deadlineAt : "", () => track?.recheck());
+  const left = useCountdown(track?.phase === "accepting" ? track.deadlineAt || (done?.accepting ? done.deadlineAt : "") : "", () => track?.recheck());
 
   const phase: MarketTrackPhase | null = tracked ? (track?.phase ?? phaseOfStatus(tracked.status)) : null;
   const step = phase ? STEP_OF[phase] : 0;
@@ -116,13 +125,14 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   const quick = [t("quick.today"), t("quick.evening"), t("quick.tomorrow"), t("quick.week")];
   const go = (route: string) => (onClose(), openLink({ appId: "", route }));
 
-  async function submit() {
+  async function submit(via: PurchaseProvider = provider) {
     if (busy || done || price.pending || price.failed || attaching) return;
     if (note.length > NOTE_MAX) return setErr(t("noteTooLong"));
     setBusy(true);
     setErr("");
+    setProvErr("");
     try {
-      const input = { note, preferredChannel: channel, preferredTime: time, selectedOptionIds: price.ids, urgency, attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })) };
+      const input = { paymentProvider: via, note, preferredChannel: channel, preferredTime: time, selectedOptionIds: price.ids, urgency, attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })) };
       const r = pkg ? await requestPackagePurchase(pkg.purchaseUrl, input) : await requestMarketplacePurchase(sellerUserId, service.id, input);
       setDone(r);
       trackPromoContact(sellerUserId, "purchase");
@@ -130,6 +140,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
       const act = activePurchaseOf(e);
       const code = marketErrorCode(e);
       if (act) setActive(act);
+      else if (PAYMENT_PROVIDER_ERRORS.includes(code) && via !== "telegram_manual") setProvErr(via);
       else if (code) {
         setErr(marketErr(e, t("error")));
         if (PRICE_OPTION_ERRORS.includes(code)) setOptReload((n) => n + 1);
@@ -148,9 +159,12 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
     }
   }
 
+  const paidVia = (done?.payment?.provider || provider) as string;
+  const online = paidVia === "payme" || paidVia === "click";
+  const payUrl = done?.payment?.url && online && done.payment.status !== "paid" ? done.payment.url : "";
   const titles: Record<MarketTrackPhase, string> = {
     accepting: isActive ? t("active") : t("acceptTitle"),
-    pending: isActive ? t("active") : t("advanceTitle"),
+    pending: isActive ? t("active") : t("payTitle"),
     paid: isActive ? t("activePaid") : t("paidTitle"),
     chat: isActive ? t("activePaid") : t("chatTitle"),
     completed: t("completedTitle"),
@@ -158,7 +172,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   };
   const leads: Record<MarketTrackPhase, string> = {
     accepting: done?.message || t("acceptLead"),
-    pending: track?.slow ? t("slow") : t("advanceLead"),
+    pending: track?.slow ? t("slow") : online ? t("payLeadOnline", { provider: t(`providers.${paidVia}.name`) }) : t("payLeadTelegram"),
     paid: track?.slow ? t("paidNoRoom") : "",
     chat: t("chatLead"),
     completed: "",
@@ -201,7 +215,9 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
         ? [close, <Btn key="retry" kind="primary" icon={<IconSend />} onClick={() => (setDone(null), setActive(null), setErr(""))}>{t("retry")}</Btn>]
         : ended
           ? [toOrders(true)]
-          : phase === "pending" && slow
+          : phase === "pending" && payUrl && done?.payment
+            ? [toOrders(false), <Btn key="pay" kind="primary" icon={<IconExternal />} onClick={() => goToPaymentPage(payUrl, done.payment?.id, done.payment?.amount)}>{t("payProceed", { provider: t(`providers.${paidVia}.name`) })}</Btn>]
+            : phase === "pending" && slow
             ? [toOrders(false), recheck(true)]
             : phase === "paid" && slow
               ? [recheck(false), toOrders(true)]
@@ -233,7 +249,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
           ) : null}
         </span>
         <span className="dxcp-sum">
-          <small>{t("total")}</small>
+          <small>{t("totalFull")}</small>
           <b>{fmtUzs(total)}</b>
           <em>{service.currency === "UZS" ? te("currency") : service.currency}</em>
         </span>
@@ -262,9 +278,9 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
             </span>
           ) : null}
           {leads[phase] ? <p>{leads[phase]}</p> : null}
-          {phase === "accepting" ? <p>{done?.advanceAmount ? t("advanceNext", { amount: fmtUzs(done.advanceAmount) }) : t("advanceNextPlain")}</p> : null}
+          {phase === "accepting" ? <p>{t("acceptNote")}</p> : null}
           {live ? <small>{t("liveNote")}</small> : null}
-          {phase === "pending" && done && !done.telegramSent ? <Banner tone="warn">{t("notDelivered")}</Banner> : null}
+          {phase === "pending" && done && !online && !done.telegramSent ? <Banner tone="warn">{t("notDelivered")}</Banner> : null}
           {track?.offline && !ended && (phase === "pending" || phase === "paid") ? (
             <Banner tone="warn">
               {t("offline")}
@@ -305,7 +321,26 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
               </button>
             ))}
           </span>
+          <Field label={t("providerTitle")}>
+            <Seg<PurchaseProvider>
+              label={t("providerTitle")}
+              value={provider}
+              onChange={(v) => (setProvider(v), setProvErr(""))}
+              items={PURCHASE_PROVIDERS.map((pv) => {
+                const Icon = PROVIDER_ICON[pv];
+                return { id: pv, label: t(`providers.${pv}.name`), icon: <Icon /> };
+              })}
+            />
+          </Field>
           <p className="dx-dlg__text dxcp-note">{t("totalNote")}</p>
+          {provErr ? (
+            <Banner tone="warn">
+              <b>{t("providerOff", { provider: t(`providers.${provErr}.name`) })}</b> {t("providerOffText")}{" "}
+              <Btn kind="primary" icon={<IconSend />} busy={busy} onClick={() => (setProvider("telegram_manual"), void submit("telegram_manual"))}>
+                {t("providerUseTelegram")}
+              </Btn>
+            </Banner>
+          ) : null}
           {err ? <Banner tone="err">{err}</Banner> : null}
         </>
       )}

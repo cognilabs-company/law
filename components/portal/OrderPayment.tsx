@@ -10,6 +10,7 @@ import { fmtUzs } from "@/lib/money";
 import { Skeleton, ErrorState } from "./DataState";
 import { notify } from "@/lib/toast";
 import { IconLock, IconCheck } from "@/components/icons";
+import { goToPaymentPage } from "@/lib/services/paymentProviders";
 
 const som = (n: number) => (n ? fmtUzs(n) : "0");
 
@@ -84,7 +85,7 @@ export default function OrderPayment({
         // A real provider checkout: same-tab navigation (a popup opened after
         // an await is blocked).
         leaving = true;
-        window.location.assign(r.paymentUrl);
+        goToPaymentPage(r.paymentUrl, r.paymentId);
         return;
       }
       const next = await getPaymentPolicy(orderId).catch(() => null);

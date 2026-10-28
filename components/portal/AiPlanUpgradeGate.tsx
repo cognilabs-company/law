@@ -13,6 +13,7 @@ import { notify } from "@/lib/toast";
 import { fmtUzs } from "@/lib/money";
 import { IconCheck, IconCrown } from "@/components/icons";
 import PlanCard from "./PlanCard";
+import { goToPaymentPage } from "@/lib/services/paymentProviders";
 
 // The services catalog's download button used to send a Free-tier client
 // away to /portal/client/subscription to upgrade, then they had to find
@@ -100,7 +101,7 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
         if (r.paymentUrl) {
           leaving = true;
           notify.info(t("payRedirect"), { id: "ai-plan-gate" });
-          window.location.assign(r.paymentUrl);
+          goToPaymentPage(r.paymentUrl, r.paymentId);
         } else {
           notify.success(t("activated", { plan: plan.name }), { id: "ai-plan-gate" });
           onClose();
@@ -120,7 +121,7 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
       if (r.paymentUrl) {
         leaving = true;
         notify.info(t("payRedirect"), { id: "ai-plan-gate" });
-        window.location.assign(r.paymentUrl);
+        goToPaymentPage(r.paymentUrl, r.paymentId);
       } else {
         notify.success(t("activated", { plan: plan.name }), { id: "ai-plan-gate" });
         onClose();

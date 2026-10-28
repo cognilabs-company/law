@@ -22,7 +22,6 @@ const SELLERS = [
 test("by service: the full purchase form goes to the backend's matcher, without a seller or region", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   let sent: Record<string, unknown> | null = null;
-  const deadline = new Date(Date.now() + 29 * 60_000).toISOString();
   const routes = await signIn(page, CLIENT, {
     "/marketplace/lawyers": { items: SELLERS, count: 3, total: 3, meta: META },
     "/marketplace/services/v1/price-options": { items: [] },
@@ -30,14 +29,15 @@ test("by service: the full purchase form goes to the backend's matcher, without 
     "/marketplace/me/orders": { items: [] },
     "POST /orders": (b: unknown) => (
       (sent = b as Record<string, unknown>),
+      // Contract 2026-10-27 §4: the full payment first, no seller yet.
       {
         id: "ord-9",
         work_id: "ADV-9",
-        status: "sent_to_seller",
-        payment_status: "unpaid",
+        status: "pending_payment",
+        payment_status: "pending",
         price: 250000,
-        payment: { target_type: "marketplace_advance", status: "awaiting_seller_acceptance", amount: 25000, currency: "UZS" },
-        details: { assignment_status: "waiting_seller_response", acceptance_deadline_at: deadline, client_status_message: "So‘rovingiz qabul qilindi." },
+        payment: { id: "pay-9", status: "pending", amount: 250000, currency: "UZS", provider: "telegram_manual", payment_url: "" },
+        details: { assignment_status: "payment_pending" },
       }
     ),
   });
@@ -59,9 +59,9 @@ test("by service: the full purchase form goes to the backend's matcher, without 
   await dialog.getByText("1 soat ichida").click();
   await page.screenshot({ path: "/tmp/claude-1000/-home-abdurahmon-Desktop-law/1b23aff7-656c-46a8-a16f-81213b23ff98/scratchpad/shots/by-service-form.png" });
   await dialog.getByRole("button", { name: "LexGo mutaxassis tanlasin" }).click();
-  await expect(dialog.getByText("So'rov mutaxassisga yuborildi")).toBeVisible();
-  await expect(dialog.getByText(/10% oldindan to'lov \(25\s000 so'm\)/)).toBeVisible();
-  expect(sent).toMatchObject({ service_id: "v1", source: "marketplace", details: { problem: "Ajrashish bo'yicha maslahat kerak, bolalar masalasi bor", note: "Ajrashish bo'yicha maslahat kerak, bolalar masalasi bor", contact_speed: "within_1_hour", preferred_channel: "chat", selected_option_ids: [] } });
+  await expect(dialog.getByText("To'lov kutilmoqda")).toBeVisible();
+  await expect(dialog).not.toContainText("10%");
+  expect(sent).toMatchObject({ service_id: "v1", source: "marketplace", payment_provider: "telegram_manual", currency: "UZS", details: { problem: "Ajrashish bo'yicha maslahat kerak, bolalar masalasi bor", note: "Ajrashish bo'yicha maslahat kerak, bolalar masalasi bor", contact_speed: "within_1_hour", preferred_channel: "chat", selected_option_ids: [] } });
   expect(sent).not.toHaveProperty("lawyer_user_id");
   expect((sent as unknown as { details: Record<string, unknown> }).details).not.toHaveProperty("region");
 });

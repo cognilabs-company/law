@@ -498,3 +498,166 @@ test("no page refetches by itself: once loaded, every CRM screen stays quiet", a
     expect(crmCalls() - before, `${url} kept fetching`).toBe(0);
   }
 });
+
+// CRM customer/lead contract 2026-10-27: one paged, searchable customer
+// select; a new customer is made above the still-open lead form and comes
+// back selected with its region; no category and no user id are sent; the
+// details render as labelled sections — no raw JSON, codes or ids.
+test("new lead: one customer select, a new customer above the form, region from the customer, readable details", async ({ page }) => {
+  const missing = watchIntl(page);
+  const ALL = ["crm.customers.view", "crm.customers.manage", "crm.leads.view", "crm.leads.manage", "crm.leads.claim", "crm.analytics.self", "crm.ai.use"];
+  const { st, routes } = crmServer(ALL);
+  const opt = (i: number, extra: Record<string, unknown> = {}) => ({ id: `s${i}`, public_id: `CRM-${1000 + i}`, name: `Mijoz ${i}`, region: i % 2 ? "Toshkent" : "Buxoro", primary_phone: `+99890000${String(i).padStart(4, "0")}`, is_lexgo_user: i === 1, lexgo_user_label: "LexGo foydalanuvchisi", lexgo_id: i === 1 ? "LGC-1" : null, lead_count: i, display_label: `Mijoz ${i} · CRM-${1000 + i}`, ...extra });
+  const selectQs: string[] = [];
+  const created: Record<string, unknown>[] = [];
+  const NEW = { id: "c-new", public_id: "CRM-NEW00001", user_id: null, is_lexgo_user: false, lexgo_user_label: "", name: "Aziza Karimova", preferred_language: "uz_latn", region: "Samarqand", primary_phone: "+998901112233", status: "active", source: "manual", lead_count: 0, active_lead_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), notes: "", contacts: [], leads: [], orders: [], activity_count: 0 };
+  Object.assign(routes, {
+    "/crm/customers/select": (_: unknown, url: URL) => {
+      const q = url.searchParams.get("q") ?? "";
+      const offset = Number(url.searchParams.get("offset") ?? 0);
+      selectQs.push(`${q}|${offset}`);
+      if (q === "yo'q") return { items: [], total: 0, limit: 30, offset: 0, has_more: false };
+      const all = Array.from({ length: 45 }, (_, i) => opt(i + 1)).filter((o) => !q || o.name.toLowerCase().includes(q.toLowerCase()));
+      const items = all.slice(offset, offset + 30);
+      return { items, total: all.length, limit: 30, offset, has_more: offset + items.length < all.length };
+    },
+    "POST /crm/customers": (b: Record<string, unknown>) => (created.push(b), NEW),
+    "POST /crm/leads": (b: Record<string, unknown>) => (created.push({ lead: b }), { ...st.mine[0], id: "m1" }),
+  });
+  const mock = await mockBackend(page, await signIn(page, ADMIN, routes as never));
+  await page.goto("/uz/admin/crm/leads");
+  await page.getByRole("button", { name: "Yangi lid" }).first().click();
+  const lead = page.getByRole("dialog", { name: "Yangi lid" });
+  await expect(lead).toBeVisible();
+  // A category field and a LexGo user-id field are gone.
+  await expect(lead.getByText("Kategoriya")).toHaveCount(0);
+  await expect(lead.getByText(/foydalanuvchi ID/)).toHaveCount(0);
+  await lead.getByLabel("Nomi", { exact: true }).fill("Shartnomani tekshirish");
+  await lead.getByLabel("Murojaat to'liq").fill("Ijara shartnomasi");
+
+  // The select loads its first page on open, shows the badge, and appends on scroll.
+  await lead.getByRole("button", { name: /Mijoz/ }).first().click();
+  const list = page.getByRole("listbox", { name: "Mijozni qidirish" });
+  await expect(list.getByRole("option")).toHaveCount(30);
+  await expect(list.getByRole("option").first().locator(".crm-lxbadge")).toHaveText("LexGo foydalanuvchisi");
+  await expect(list.getByRole("option").nth(1).locator(".crm-lxbadge")).toHaveCount(0);
+  await list.evaluate((el) => (el.scrollTop = el.scrollHeight));
+  await expect(list.getByRole("option")).toHaveCount(45);
+  await shot(page, "lead-picker");
+  // A search is debounced into one request; nothing found offers a new customer.
+  await page.getByRole("textbox", { name: "Mijozni qidirish" }).fill("yo'q");
+  await expect(page.getByText("Mijoz topilmadi. Yangi mijoz qo'shishingiz mumkin.")).toBeVisible();
+  expect(selectQs.filter((q) => q.startsWith("y")).length).toBeLessThanOrEqual(1);
+  await page.getByRole("button", { name: "Yangi mijoz qo'shish" }).click();
+
+  // The customer form opens above the lead form; no LexGo account field.
+  const cust = page.getByRole("dialog", { name: "Yangi mijoz" });
+  await expect(cust).toBeVisible();
+  await expect(lead).toBeVisible();
+  await expect(cust.getByText(/LexGo akkaunt ID/)).toHaveCount(0);
+  await cust.getByLabel("Ism", { exact: true }).fill("Aziza Karimova");
+  await cust.getByLabel("Telefon").fill("+998901112233");
+  await shot(page, "lead-new-customer");
+  await cust.getByRole("button", { name: "Yaratish va tanlash" }).click();
+  await expect(cust).toHaveCount(0);
+  expect(created[0]).not.toHaveProperty("user_id");
+  expect(created[0]).toMatchObject({ name: "Aziza Karimova" });
+
+  // Back on the same lead form: the draft stayed, the customer is picked, the region came with it.
+  await expect(lead.getByLabel("Nomi", { exact: true })).toHaveValue("Shartnomani tekshirish");
+  await expect(lead.getByLabel("Murojaat to'liq")).toHaveValue("Ijara shartnomasi");
+  await expect(lead.locator(".crm-picker")).toContainText("Aziza Karimova");
+  await expect(lead.getByLabel("Hudud")).toHaveValue("Samarqand");
+  await lead.getByLabel("Hudud").fill("Buxoro");
+  await expect(lead.getByText("Saqlangach mijozning hududi ham yangilanadi.")).toBeVisible();
+  // Sources read as words, never codes.
+  await expect(lead.locator(".crm-field", { hasText: "Manba" })).toContainText("Telefon");
+  await lead.getByRole("button", { name: "Lidni yaratish" }).click();
+  await expect(page).toHaveURL(/\/admin\/crm\/leads\/m1$/);
+  const body = (created[1] as { lead: Record<string, unknown> }).lead;
+  expect(body).toMatchObject({ customer_id: "c-new", title: "Shartnomani tekshirish", region: "Buxoro", source: "phone" });
+  expect(body).not.toHaveProperty("category");
+  expect(body).not.toHaveProperty("client_user_id");
+  expect(body).not.toHaveProperty("customer");
+  expect(mock.refused).toEqual([]);
+  expect(missing).toEqual([]);
+});
+
+test("lead details: detail_sections read as labelled values; ids, codes and raw JSON never show", async ({ page }) => {
+  const missing = watchIntl(page);
+  const { st, routes } = crmServer(OPERATOR.permissions ?? []);
+  st.mine[0] = {
+    ...st.mine[0],
+    detail_sections: [
+      { key: "request", title: "Murojaat", items: [{ key: "title", label: "Murojaat nomi", value_type: "text", value: "Ijara", items: [] }] },
+      {
+        key: "additional",
+        title: "Qo'shimcha",
+        items: [
+          { key: "kanban", label: "Kanban", value_type: "group", value: null, items: [{ key: "moved_by_user_id", label: "Moved by user id", value_type: "text", value: "2b0a4af1-b3b9-421c-8b5a-229c20bd59f3", items: [] }] },
+          { key: "documents", label: "Hujjatlar", value_type: "group", value: null, items: [{ key: "has_contract", label: "Shartnoma bor", value_type: "boolean", value: true, items: [] }, { key: "signed_at", label: "Imzolangan", value_type: "datetime", value: "2026-10-20T09:30:00Z", items: [] }, { key: "pipeline", label: "Yo'l", value_type: "text", value: "ai_classify", items: [] }] },
+          { key: "tags", label: "Teglar", value_type: "list", value: null, items: [{ key: "t0", label: "", value_type: "text", value: "Ijara", items: [] }, { key: "t1", label: "", value_type: "text", value: "Shoshilinch", items: [] }] },
+        ],
+      },
+    ],
+  };
+  const mock = await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await page.goto("/uz/admin/crm/leads/m1");
+  await wsTab(page, /Mijoz|Ma'lumot/);
+  const more = page.locator("section", { has: page.locator("#crm-more-t") });
+  await expect(more).toContainText("Shartnoma bor");
+  await expect(more.locator(".crm-yn")).toHaveText("Ha");
+  await expect(more).toContainText("Teglar");
+  await expect(more.locator(".crm-dl__chips i")).toHaveCount(2);
+  await expect(more).not.toContainText("2b0a4af1");
+  await expect(more).not.toContainText("Moved by");
+  await expect(more).not.toContainText("ai_classify");
+  await expect(more).not.toContainText("2026-10-20T");
+  // The timeline payload is labelled values too — never a <pre> of JSON.
+  await expect(page.locator(".crm-tl pre")).toHaveCount(0);
+  await shot(page, "lead-details");
+  expect(mock.refused).toEqual([]);
+  expect(missing).toEqual([]);
+});
+
+test("draft order: service, specialist and package are chosen by name; the review and the result show no ids", async ({ page }) => {
+  const missing = watchIntl(page);
+  const { routes } = crmServer(OPERATOR.permissions ?? []);
+  let conv: Record<string, unknown> | null = null;
+  const sellerQs: string[] = [];
+  Object.assign(routes, {
+    "/services": [
+      { id: "svc-1", title: "Shartnoma ekspertizasi", category_title: "Shartnomalar", subcategory: "Ijara" },
+      { id: "svc-2", title: "Da'vo arizasi", category_title: "Fuqarolik", subcategory: "" },
+    ],
+    "/marketplace/lawyers": (_: unknown, url: URL) => (sellerQs.push(url.searchParams.get("service_id") ?? ""), { items: [{ user_id: "u-s1", display_name: "Madina Yusupova", region: "Toshkent", rating: 4.8 }], total: 1, limit: 30, offset: 0 }),
+    "/service-packages": [{ id: "pk-1", title: "Biznes start", description: "Oyiga 5 ta konsultatsiya" }],
+    "POST /crm/leads/m1/conversion": (b: Record<string, unknown>) => ((conv = b), { order: { id: "0f9d8c7b-0000-4000-8000-000000000001", work_id: "ORD-7Q2K" } }),
+  });
+  const mock = await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await page.goto("/uz/admin/crm/leads/m1");
+  await wsTab(page, /Mijoz|Ma'lumot/);
+  await page.getByRole("button", { name: "Buyurtma tayyorlash" }).click();
+  const dlg = page.getByRole("dialog", { name: "Buyurtma tayyorlash" });
+  await expect(dlg.getByPlaceholder("uuid")).toHaveCount(0);
+  await dlg.getByRole("button", { name: "Xizmat", exact: true }).click();
+  await page.getByRole("option", { name: /Shartnoma ekspertizasi/ }).click();
+  await dlg.getByRole("button", { name: "Mutaxassis", exact: true }).click();
+  await expect(page.getByRole("option", { name: /Madina Yusupova/ })).toContainText("★ 4.8");
+  await page.getByRole("option", { name: /Madina Yusupova/ }).click();
+  expect(sellerQs.at(-1)).toBe("svc-1");
+  await dlg.getByRole("button", { name: "Paket", exact: true }).click();
+  await page.getByRole("option", { name: /Biznes start/ }).click();
+  await dlg.getByLabel("Narx, so'm").fill("450000");
+  await shot(page, "conversion");
+  await dlg.getByRole("button", { name: "Ko'rib chiqish" }).click();
+  await expect(dlg.locator(".crm-draft")).toContainText("Shartnoma ekspertizasi");
+  await expect(dlg.locator(".crm-draft")).toContainText("Madina Yusupova");
+  await expect(dlg.locator(".crm-draft")).toContainText("Biznes start");
+  await dlg.getByRole("button", { name: "Qoralama yaratish" }).click();
+  await expect(dlg).toContainText("ORD-7Q2K");
+  await expect(dlg).not.toContainText("0f9d8c7b");
+  expect(conv).toMatchObject({ service_id: "svc-1", seller_user_id: "u-s1", package_id: "pk-1", price: 450000 });
+  expect(mock.refused).toEqual([]);
+  expect(missing).toEqual([]);
+});

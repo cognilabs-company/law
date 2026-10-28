@@ -61,3 +61,13 @@
 .trf-pv__fields dt { color: var(--gray); }
 .trf-pv__fields dd { margin: 0; overflow-wrap: anywhere; }
 .trf-pv__fields s { color: var(--gray); }
+
+/* TSK-692647 — the developers' task and the superadmin's approval. */
+.trf-dev { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--dk-surface-2, #f4f7fd); }
+.trf-dev__task { display: flex; flex: 1 1 260px; align-items: center; gap: 10px; min-width: 0; }
+.trf-dev__ic { display: grid; flex: none; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: color-mix(in srgb, var(--b500) 14%, transparent); color: var(--b600); }
+.trf-dev__ic svg { width: 16px; height: 16px; }
+.trf-dev__m { display: grid; gap: 2px; min-width: 0; }
+.trf-dev__m b { font-size: .84rem; }
+.trf-dev__m code { margin-left: 4px; padding: 1px 6px; border-radius: 6px; background: var(--dk-surface, #fff); font-size: .76rem; }
+.trf-dev__m small { overflow: hidden; color: var(--gray); font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }

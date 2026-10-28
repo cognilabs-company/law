@@ -25,37 +25,43 @@ const PAID_NO_ROOM_MS = 60 * 1000;
 const FAILS_TO_OFFLINE = 3;
 
 // known: the phase came from the backend's order. A seed from the bare
-// status ("accepted" covers waiting for the seller, waiting for the advance
-// and paid) is only a guess, so the first real answer replaces it outright
+// status ("accepted" covers waiting for the seller and paid) is only a guess, so the first real answer replaces it outright
 // instead of being held back by the forward-only merge.
-type Snap = { key: string; phase: MarketTrackPhase; roomId: string; slow: boolean; offline: boolean; ended: boolean; known: boolean };
+// deadlineAt: the seller's acceptance deadline from the latest order (it is
+// set only once the full payment is confirmed, so the purchase response
+// itself never carries it).
+type Snap = { key: string; phase: MarketTrackPhase; roomId: string; deadlineAt: string; slow: boolean; offline: boolean; ended: boolean; known: boolean };
 
 export type MarketOrderTrack = {
   phase: MarketTrackPhase;
   roomId: string;
+  deadlineAt: string;
   slow: boolean;
   offline: boolean;
   ended: boolean;
   recheck: () => void;
 };
 
-const RANK: Record<MarketTrackPhase, number> = { accepting: 0, pending: 1, paid: 2, chat: 3, completed: 4, cancelled: 4 };
+// Contract 2026-10-27 §4: the full payment comes first, then the seller's
+// acceptance — so "pending" (payment) ranks before "accepting".
+const RANK: Record<MarketTrackPhase, number> = { pending: 0, accepting: 1, paid: 2, chat: 3, completed: 4, cancelled: 4 };
 // The seller has 30 minutes to accept; watch a little longer than that.
 const ACCEPT_BUDGET_MS = 35 * 60 * 1000;
 
 const isFinal = (p: MarketTrackPhase) => p === "completed" || p === "cancelled";
 
 function seedSnap(key: string, status: string, accepting: boolean): Snap {
-  return { key, phase: accepting ? "accepting" : phaseOfStatus(status), roomId: "", slow: false, offline: false, ended: false, known: false };
+  return { key, phase: accepting ? "accepting" : phaseOfStatus(status), roomId: "", deadlineAt: "", slow: false, offline: false, ended: false, known: false };
 }
 
-function mergeSnap(s: Snap, next: { phase: MarketTrackPhase; roomId: string } | null): Snap {
+function mergeSnap(s: Snap, next: { phase: MarketTrackPhase; roomId: string; deadlineAt?: string } | null): Snap {
   if (!next || isFinal(s.phase)) return s;
-  if (!s.known) return { ...s, phase: next.phase, roomId: next.roomId || s.roomId, slow: false, known: true };
+  const deadlineAt = next.deadlineAt ?? s.deadlineAt;
+  if (!s.known) return { ...s, phase: next.phase, roomId: next.roomId || s.roomId, deadlineAt, slow: false, known: true };
   const phase = next.phase === "cancelled" || RANK[next.phase] > RANK[s.phase] ? next.phase : s.phase;
   const roomId = next.roomId || s.roomId;
-  if (phase === s.phase && roomId === s.roomId) return s;
-  return { ...s, phase, roomId, slow: phase === s.phase ? s.slow : false };
+  if (phase === s.phase && roomId === s.roomId && deadlineAt === s.deadlineAt) return s;
+  return { ...s, phase, roomId, deadlineAt, slow: phase === s.phase ? s.slow : false };
 }
 
 // accepting: the purchase response said the seller has yet to accept.
@@ -111,7 +117,7 @@ export function useMarketOrderTracker(orderId: string, workId: string, initialSt
           failures = 0;
           delay = Math.min(Math.round(delay * 1.5), cap);
           const o = findMarketOrder(list, orderId, workId);
-          const next = o ? { phase: trackPhaseOf(o), roomId: o.canStartChat ? o.roomId : "" } : null;
+          const next = o ? { phase: trackPhaseOf(o), roomId: o.canStartChat ? o.roomId : "", deadlineAt: o.assignment?.deadlineAt ?? "" } : null;
           apply((s) => {
             const m = mergeSnap(s, next);
             return m.offline ? { ...m, offline: false } : m;
@@ -191,5 +197,5 @@ export function useMarketOrderTracker(orderId: string, workId: string, initialSt
     setNudge((cur) => ({ key, n: (cur.key === key ? cur.n : 0) + 1 }));
   };
 
-  return { phase: snap.phase, roomId: snap.roomId, slow: snap.slow, offline: snap.offline, ended: snap.ended, recheck };
+  return { phase: snap.phase, roomId: snap.roomId, deadlineAt: snap.deadlineAt, slow: snap.slow, offline: snap.offline, ended: snap.ended, recheck };
 }

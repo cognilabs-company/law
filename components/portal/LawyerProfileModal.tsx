@@ -22,6 +22,7 @@ import Modal from "@/components/admin/Modal";
 import { Skeleton } from "./DataState";
 import { regionLabel } from "@/lib/labels";
 import { fmtRating } from "@/lib/date";
+import { goToPaymentPage } from "@/lib/services/paymentProviders";
 
 const som = (n: number) => (n ? fmtUzs(n) : "—");
 
@@ -134,7 +135,7 @@ export default function LawyerProfileModal({
       // Real checkout: same-tab navigation (a popup after an await is blocked).
       else if (r.paymentUrl) {
         leaving = true;
-        window.location.assign(r.paymentUrl);
+        goToPaymentPage(r.paymentUrl, r.paymentId);
       }
     } catch (e) {
       const demoClosed = e instanceof ApiError && e.status === 400 && /demo/i.test(e.detail || "");

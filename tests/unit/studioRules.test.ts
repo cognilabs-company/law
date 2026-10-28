@@ -20,19 +20,16 @@ describe("removed Studio constructors", () => {
   });
 });
 
-describe("K17 entitlements", () => {
+describe("K17 v3 (TSK-342697)", () => {
   const validate = GENERIC_LAYOUTS.K17.validate!;
-  it("refuses a repeated feature and a limited one without a positive limit", () => {
-    expect(
-      validate({
-        entitlements: [
-          { feature_key: "ai_requests", mode: "limited", limit: 10 },
-          { feature_key: "ai_requests", mode: "unlimited" },
-          { feature_key: "export", mode: "limited", limit: 0 },
-        ],
-      }),
-    ).toEqual({ "entitlements.1.feature_key": "@code:entitlement_duplicate", "entitlements.2.limit": "@code:entitlement_limit_required" });
-    expect(validate({ entitlements: [{ feature_key: "export", mode: "unlimited" }] })).toEqual({});
+  it("a paid plan needs a price; a free one does not", () => {
+    expect(validate({ is_free: false, benefits: ["A"] })).toEqual({ monthly_price: "@code:k17_price_required" });
+    expect(validate({ is_free: false, six_month_price: 0, yearly_price: "" })).toEqual({ monthly_price: "@code:k17_price_required" });
+    expect(validate({ is_free: false, yearly_price: 1609200 })).toEqual({});
+    expect(validate({ is_free: true })).toEqual({});
+  });
+  it("refuses the same benefit line twice, whatever the case", () => {
+    expect(validate({ is_free: true, benefits: ["Cheksiz konsultatsiya", { value: "200+ shablon" }, " cheksiz KONSULTATSIYA "] })).toEqual({ "benefits.2": "@code:benefit_duplicate" });
   });
 });
 
@@ -45,5 +42,29 @@ describe("MP09 promotion", () => {
     });
     expect(mp09Validate({ target_type: "advertising", discount_type: "fixed", discount_value: 0 })).toEqual({ discount_value: "@code:minimum:1" });
     expect(mp09Validate({ target_type: "advertising", discount_type: "fixed", discount_value: 15000 })).toEqual({});
+  });
+});
+
+describe("tariff version: developer task (TSK-692647)", () => {
+  it("reads the task by its human code and the approval; nothing when absent", async () => {
+    const { versionOf } = await import("@/lib/services/tariffs");
+    const v = versionOf({ id: "v1", version: 3, status: "pending_approval", developer_task: { id: "uuid-x", task_code: "TSK-123456", status: "in_progress", deadline_at: "2026-11-30T00:00:00Z", assignees: [{ full_name: "Abdurahmon" }] }, approval: { status: "pending" } });
+    expect(v.devTask).toEqual({ code: "TSK-123456", title: "", status: "in_progress", deadlineAt: "2026-11-30T00:00:00Z", assignees: ["Abdurahmon"] });
+    expect(v.approval?.status).toBe("pending");
+    expect(versionOf({ id: "v2", status: "published" }).devTask).toBeNull();
+  });
+});
+
+describe("K36 price coefficient (TSK-331025)", () => {
+  const validate = GENERIC_LAYOUTS.K36.validate!;
+  it("the condition decides what must be filled", () => {
+    expect(validate({ operator: "gte", increase_percent: 10 })).toEqual({ threshold: "@code:required" });
+    expect(validate({ operator: "gte", threshold: 10, increase_percent: 10 })).toEqual({});
+    expect(validate({ operator: "between", range_min: 10, range_max: 5, increase_percent: 10 })).toEqual({ range_max: "@code:k36_range_order" });
+    expect(validate({ operator: "in", allowed_values: [], increase_percent: 10 })).toEqual({ allowed_values: "@code:required" });
+  });
+  it("the increase stays above 0 and at most 100", () => {
+    expect(validate({ operator: "eq", threshold: 1, increase_percent: 0 })).toEqual({ increase_percent: "@code:k36_percent_range" });
+    expect(validate({ operator: "eq", threshold: 1, increase_percent: 150 })).toEqual({ increase_percent: "@code:k36_percent_range" });
   });
 });

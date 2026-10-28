@@ -10,6 +10,9 @@ import EscalationQueue from "@/components/admin/callcenter/EscalationQueue";
 import MarketplaceComplaints from "@/components/admin/callcenter/MarketplaceComplaints";
 import WarrantyQueue from "@/components/admin/callcenter/WarrantyQueue";
 import { ExperienceQueue } from "@/components/admin/callcenter/ExperienceReview";
+import PayoutQueue from "@/components/admin/callcenter/PayoutQueue";
+import CockpitView from "@/components/admin/callcenter/Cockpit";
+import { AchievementQueue } from "@/components/admin/callcenter/AchievementReview";
 import CallCenterBoard from "@/components/admin/CallCenterBoard";
 import CcClientSearch from "@/components/admin/CcClientSearch";
 import CcCallLog from "@/components/admin/CcCallLog";
@@ -33,6 +36,10 @@ function AdminCallCenterConsole() {
       {/* Live cards for new cancellation requests, discussions and
           escalations (contract 2026-10-26 §14). */}
       {cc ? <MarketWatcher role="client" staff /> : null}
+      {/* TSK-635882: every marketplace queue at a glance (operators only). */}
+      <CcTabPanel con={con} tab="cockpit">
+        {cc ? <CockpitView onGo={con.select} onCount={con.count.cockpit} /> : null}
+      </CcTabPanel>
       <CcTabPanel con={con} tab="queue">
         {cc ? <CallCenterQueue onCount={con.count.queue} /> : null}
       </CcTabPanel>
@@ -65,6 +72,14 @@ function AdminCallCenterConsole() {
       </CcTabPanel>
       <CcTabPanel con={con} tab="experience">
         {cc ? <ExperienceQueue onCount={con.count.experience} /> : null}
+      </CcTabPanel>
+      {/* TSK-906326: seller payout stages and recoveries, paid by hand
+          until an automatic payout provider exists. */}
+      <CcTabPanel con={con} tab="achievements">
+        {cc ? <AchievementQueue onCount={con.count.achievements} /> : null}
+      </CcTabPanel>
+      <CcTabPanel con={con} tab="payouts">
+        {cc ? <PayoutQueue onCount={con.count.payouts} /> : null}
       </CcTabPanel>
       <CcTabPanel con={con} tab="leads">
         <CallCenterBoard />

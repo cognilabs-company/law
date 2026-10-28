@@ -23,6 +23,7 @@ export default function CrmAnalytics(): ReactElement {
 // else gets a lock, never a number.
 function Board({ meta }: { meta: CrmMeta }): ReactElement {
   const t = useTranslations("crm.analytics");
+  const tsrc = useTranslations("crm.source");
   const ts = useTranslations("crm.status");
   const locale = useLocale();
   const crmErr = useCrmError();
@@ -113,7 +114,7 @@ function Board({ meta }: { meta: CrmMeta }): ReactElement {
                 <IconChartBar aria-hidden="true" />
                 {t("sources")}
               </h3>
-              {Object.keys(data.sourceCounts).length ? <DonutChart data={Object.entries(data.sourceCounts).map(([label, value]) => ({ label, value }))} centerLabel={t("leads")} /> : <p className="crm-sub">{t("none")}</p>}
+              {Object.keys(data.sourceCounts).length ? <DonutChart data={Object.entries(data.sourceCounts).map(([k, value]) => ({ label: tsrc.has(k) ? tsrc(k) : tsrc("other"), value }))} centerLabel={t("leads")} /> : <p className="crm-sub">{t("none")}</p>}
             </section>
           </div>
           <section className="crm-card" aria-labelledby="crm-lb-t">

@@ -51,7 +51,26 @@ export type PlanVersion = {
   publishedAt: string;
   payload: Dict;
   validation: { ok: boolean | null; errors: ValidationIssue[] };
+  // TSK-692647: publishing a version with a developer note creates a real
+  // LexGo task; the version waits for the superadmin's approval once the
+  // work is done, and is not on sale before. Shown when the backend sends it.
+  devTask: PlanDevTask | null;
+  approval: { status: string; by: string; at: string } | null;
 };
+// The task's human code (TSK-…), never its id.
+export type PlanDevTask = { code: string; title: string; status: string; deadlineAt: string; assignees: string[] };
+export function devTaskOf(v: unknown): PlanDevTask | null {
+  const d = asDict(v);
+  const code = asStr(d.task_code ?? d.code);
+  if (!code && !asStr(d.status)) return null;
+  return {
+    code,
+    title: asStr(d.title),
+    status: asStr(d.status).toLowerCase(),
+    deadlineAt: asStr(d.deadline_at ?? d.developer_deadline_at),
+    assignees: asArr(d.assignees).map((a) => asStr(asDict(a).full_name ?? asDict(a).name ?? a)).filter(Boolean),
+  };
+}
 export type PlanVersions = { planId: string; items: PlanVersion[]; currentVersionId: string };
 
 const issueOf = (v: unknown): ValidationIssue => {
@@ -77,6 +96,8 @@ export function versionOf(v: unknown): PlanVersion {
     publishedAt: asStr(d.published_at),
     payload: asDict(d.payload ?? d.snapshot ?? d.data),
     validation: validationOf(d.validation),
+    devTask: devTaskOf(d.developer_task ?? d.linked_task ?? d.task),
+    approval: d.approval || d.superadmin_approval ? { status: asStr(asDict(d.approval ?? d.superadmin_approval).status).toLowerCase(), by: asStr(asDict(asDict(d.approval ?? d.superadmin_approval).approved_by).name ?? asDict(d.approval ?? d.superadmin_approval).approved_by_name), at: asStr(asDict(d.approval ?? d.superadmin_approval).approved_at ?? asDict(d.approval ?? d.superadmin_approval).at) } : null,
   };
 }
 

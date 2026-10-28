@@ -116,6 +116,8 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       // date filter + stats) — no separate "verifications" nav entry.
       { href: "/admin/register-requests", key: "registerRequests", Icon: NavRegisterRequests, perm: "users.manage" },
       { href: "/admin/reviews", key: "reviews", Icon: NavReviews, perm: "lawyers.verify" },
+      // TSK-664399: Click / Payme readiness and provider reconciliation.
+      { href: "/admin/payments", key: "payments", Icon: NavPayouts, perm: "payments.manage" },
       { href: "/admin/payouts", key: "payouts", Icon: NavPayouts, perm: "payments.manage" },
       { href: "/admin/approvals", key: "approvals", Icon: NavApprovals, perm: "approvals.manage" },
     ],

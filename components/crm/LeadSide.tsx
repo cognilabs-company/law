@@ -14,6 +14,7 @@ import { Avatar, useCrmError } from "./bits";
 import { Telephony } from "./CrmOverview";
 import type { LeadWrite } from "./CrmLeadPage";
 import { AssignSheet, ConversionSheet, DuplicateSheet, EditSheet, NextActionSheet, WatcherSheet } from "./LeadSheets";
+import { DetailSections } from "./DetailSections";
 
 type Sheet = "" | "edit" | "next" | "assign" | "transfer" | "watchers" | "dup" | "conv";
 
@@ -61,6 +62,7 @@ export function ContactRow({ c, onPrimary, onArchive }: { c: CrmContact; onPrima
 export function LeadSide({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; write: LeadWrite }): ReactElement {
   const t = useTranslations("crm.side");
   const tl = useTranslations("crm.lang");
+  const tsrc = useTranslations("crm.source");
   const locale = useLocale();
   const me = useAuth().session?.id ?? "";
   const crmErr = useCrmError();
@@ -131,10 +133,10 @@ export function LeadSide({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; 
               <b id="crm-cust-t">{t("noCustomer")}</b>
             )}
             <span className="crm-code">{c?.publicId}</span>
-            {c?.userId ? (
+            {c?.isLexgoUser ? (
               <span className="crm-badge" style={{ marginTop: 4 }}>
                 <IconCheck aria-hidden="true" />
-                {t("linked")}
+                {c.lexgoLabel || t("linked")}
               </span>
             ) : (
               <span className="crm-badge crm-badge--muted" style={{ marginTop: 4 }}>
@@ -171,11 +173,7 @@ export function LeadSide({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; 
         <dl className="crm-facts">
           <div>
             <dt>{t("source")}</dt>
-            <dd>{lead.source || "—"}</dd>
-          </div>
-          <div>
-            <dt>{t("category")}</dt>
-            <dd>{lead.category || "—"}</dd>
+            <dd>{lead.source ? (tsrc.has(lead.source) ? tsrc(lead.source) : tsrc("other")) : "—"}</dd>
           </div>
           <div>
             <dt>{t("created")}</dt>
@@ -218,6 +216,14 @@ export function LeadSide({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; 
           ) : null}
         </div>
       </section>
+      {lead.sections.some((sec) => sec.key === "additional") ? (
+        <section className="crm-card" aria-labelledby="crm-more-t">
+          <h3 className="crm-card__h" id="crm-more-t">
+            {t("more")}
+          </h3>
+          <DetailSections sections={lead.sections} only={["additional"]} compact />
+        </section>
+      ) : null}
 
       <section className="crm-card" aria-labelledby="crm-owner-t">
         <h3 className="crm-card__h" id="crm-owner-t">

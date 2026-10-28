@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
-import { IconAlert, IconArrowRight, IconCheck, IconUserPlus } from "@/components/icons";
+import { IconAlert, IconArrowRight, IconCheck, IconClose, IconLayers, IconUser, IconUserPlus } from "@/components/icons";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
@@ -16,7 +16,11 @@ import {
   getCrmCustomer,
   getCrmLead,
   listCrmOperators,
+  lookupPackages,
+  lookupSellers,
+  lookupServices,
   prepareConversion,
+  type ConvOption,
   resolveDuplicate,
   transferLead,
   updateCrmLead,
@@ -27,6 +31,7 @@ import {
 import { Avatar, StatusPill, useCrmError } from "./bits";
 import { CrmDateTime, CrmSelect } from "./fields";
 import type { LeadWrite } from "./CrmLeadPage";
+import { LookupPicker } from "./LookupPicker";
 
 const toLocalInput = (iso: string): string => {
   if (!iso) return "";
@@ -136,7 +141,7 @@ export function EditSheet({ meta, lead, write, onClose }: { meta: CrmMeta; lead:
   const tl = useTranslations("crm.lang");
   const tsc = useTranslations("crm.score");
   const tn = useTranslations("crm.newLead");
-  const [f, setF] = useState({ title: lead.title, problem: lead.problem, category: lead.category, region: lead.region, urgency: lead.urgency || "normal", score: lead.score, language: lead.language });
+  const [f, setF] = useState({ title: lead.title, problem: lead.problem, region: lead.region, urgency: lead.urgency || "normal", score: lead.score, language: lead.language });
   const [busy, setBusy] = useState(false);
   const ok = async () => {
     if (!f.title.trim()) return;
@@ -158,10 +163,6 @@ export function EditSheet({ meta, lead, write, onClose }: { meta: CrmMeta; lead:
           <textarea className="crm-textarea" value={f.problem} onChange={(e) => set("problem")(e.target.value)} />
         </label>
         <div className="crm-row2">
-          <label className="crm-field">
-            <span>{tn("category")}</span>
-            <input className="crm-input" value={f.category} onChange={(e) => set("category")(e.target.value)} />
-          </label>
           <label className="crm-field">
             <span>{tn("region")}</span>
             <input className="crm-input" value={f.region} onChange={(e) => set("region")(e.target.value)} />
@@ -285,6 +286,7 @@ export function WatcherSheet({ lead, write, onClose }: { lead: CrmLead; write: L
 // Duplicate review: side by side, then the operator decides (§4.7).
 export function DuplicateSheet({ lead, write, onClose }: { lead: CrmLead; write: LeadWrite; onClose: () => void }): ReactElement {
   const t = useTranslations("crm.dup");
+  const tsrc = useTranslations("crm.source");
   const locale = useLocale();
   const [others, setOthers] = useState<CrmLead[] | null>(null);
   const [other, setOther] = useState<CrmLead | null>(null);
@@ -315,8 +317,8 @@ export function DuplicateSheet({ lead, write, onClose }: { lead: CrmLead; write:
   }, [lead.duplicateOfId, lead.customerId, lead.id]);
   const rows: [string, (l: CrmLead) => string][] = [
     ["title", (l) => l.title],
-    ["category", (l) => l.category],
-    ["source", (l) => l.source],
+    ["region", (l) => l.region],
+    ["source", (l) => (l.source ? (tsrc.has(l.source) ? tsrc(l.source) : tsrc("other")) : "")],
     ["region", (l) => l.region],
     ["status", (l) => l.status],
     ["created", (l) => (l.createdAt ? shortDateTime(l.createdAt, locale) : "")],
@@ -385,9 +387,9 @@ export function ConversionSheet({ lead, onClose, onDone }: { lead: CrmLead; onCl
   const t = useTranslations("crm.conv");
   const crmErr = useCrmError();
   const [step, setStep] = useState<"form" | "review" | "done">("form");
-  const [serviceId, setServiceId] = useState("");
-  const [packageId, setPackageId] = useState("");
-  const [sellerId, setSellerId] = useState("");
+  const [service, setService] = useState<ConvOption | null>(null);
+  const [pkg, setPkg] = useState<ConvOption | null>(null);
+  const [seller, setSeller] = useState<ConvOption | null>(null);
   const [price, setPrice] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -398,8 +400,10 @@ export function ConversionSheet({ lead, onClose, onDone }: { lead: CrmLead; onCl
     if (busy) return;
     setBusy(true);
     try {
-      const r = await prepareConversion(lead.id, { serviceId, packageId, sellerUserId: sellerId, price: amount, note });
-      setOrderId(String((r.order as { id?: unknown } | undefined)?.id ?? r.order_id ?? r.converted_order_id ?? ""));
+      const r = await prepareConversion(lead.id, { serviceId: service?.id, packageId: pkg?.id, sellerUserId: seller?.id, price: amount, note });
+      // The order's human code (never its id) for the confirmation.
+      const o = (r.order ?? {}) as { work_id?: unknown; public_id?: unknown; order_number?: unknown };
+      setOrderId(String(o.work_id ?? o.public_id ?? o.order_number ?? r.work_id ?? ""));
       setStep("done");
       onDone();
     } catch (e) {
@@ -432,21 +436,56 @@ export function ConversionSheet({ lead, onClose, onDone }: { lead: CrmLead; onCl
       <div className="crm-pop">
         {step === "form" ? (
           <>
-            <div className="crm-row2">
-              <label className="crm-field">
-                <span>{t("service")}</span>
-                <input className="crm-input" value={serviceId} onChange={(e) => setServiceId(e.target.value)} placeholder="uuid" />
-              </label>
-              <label className="crm-field">
-                <span>{t("package")}</span>
-                <input className="crm-input" value={packageId} onChange={(e) => setPackageId(e.target.value)} placeholder="uuid" />
-              </label>
+            <div className="crm-field">
+              <span id="crm-conv-svc">{t("service")}</span>
+              <LookupPicker<ConvOption>
+                value={service}
+                onChange={(v) => {
+                  setService(v);
+                  // The seller is picked among those offering this service.
+                  if (v?.id !== service?.id) setSeller(null);
+                }}
+                load={(q, offset, signal) => lookupServices(q, offset, signal)}
+                title={(o) => o.title}
+                sub={(o) => o.sub}
+                text={{ placeholder: t("pickService"), search: t("findService"), searchPh: t("findService"), empty: t("noService") }}
+                action={service ? { label: t("clear"), icon: <IconClose aria-hidden="true" />, run: () => (setService(null), setSeller(null)) } : undefined}
+                labelId="crm-conv-svc"
+              />
             </div>
             <div className="crm-row2">
-              <label className="crm-field">
-                <span>{t("seller")}</span>
-                <input className="crm-input" value={sellerId} onChange={(e) => setSellerId(e.target.value)} placeholder="uuid" />
-              </label>
+              <div className="crm-field">
+                <span id="crm-conv-seller">{t("seller")}</span>
+                <LookupPicker<ConvOption>
+                  key={service?.id ?? ""}
+                  value={seller}
+                  onChange={setSeller}
+                  load={(q, offset, signal) => lookupSellers(service?.id ?? "", q, offset, signal)}
+                  title={(o) => o.title}
+                  sub={(o) => o.sub}
+                  icon={<IconUser aria-hidden="true" />}
+                  text={{ placeholder: t("pickSeller"), search: t("findSeller"), searchPh: t("findSeller"), empty: t("noSeller") }}
+                  action={seller ? { label: t("clear"), icon: <IconClose aria-hidden="true" />, run: () => setSeller(null) } : undefined}
+                  labelId="crm-conv-seller"
+                />
+                <small>{service ? t("sellerHelp") : t("sellerAny")}</small>
+              </div>
+              <div className="crm-field">
+                <span id="crm-conv-pkg">{t("package")}</span>
+                <LookupPicker<ConvOption>
+                  value={pkg}
+                  onChange={setPkg}
+                  load={(q, _offset, signal) => lookupPackages(q, signal)}
+                  title={(o) => o.title}
+                  sub={(o) => o.sub}
+                  icon={<IconLayers aria-hidden="true" />}
+                  text={{ placeholder: t("pickPackage"), search: t("findPackage"), searchPh: t("findPackage"), empty: t("noPackage") }}
+                  action={pkg ? { label: t("clear"), icon: <IconClose aria-hidden="true" />, run: () => setPkg(null) } : undefined}
+                  labelId="crm-conv-pkg"
+                />
+              </div>
+            </div>
+            <div className="crm-row2">
               <label className="crm-field">
                 <span>{t("price")}</span>
                 <input className="crm-input" inputMode="numeric" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="100 000" />
@@ -467,18 +506,18 @@ export function ConversionSheet({ lead, onClose, onDone }: { lead: CrmLead; onCl
               </div>
               <div>
                 <dt>{t("service")}</dt>
-                <dd>{serviceId || "—"}</dd>
+                <dd>{service?.title || "—"}</dd>
               </div>
               <div>
                 <dt>{t("package")}</dt>
-                <dd>{packageId || "—"}</dd>
+                <dd>{pkg?.title || "—"}</dd>
               </div>
               <div>
                 <dt>{t("seller")}</dt>
-                <dd>{sellerId || "—"}</dd>
+                <dd>{seller?.title || "—"}</dd>
               </div>
             </dl>
-            <p className="crm-sub">{step === "done" ? t("doneText", { id: orderId || "—" }) : t("reviewText")}</p>
+            <p className="crm-sub">{step === "done" ? (orderId ? t("doneText", { id: orderId }) : t("doneNoCode")) : t("reviewText")}</p>
           </div>
         )}
         {needAccount ? (

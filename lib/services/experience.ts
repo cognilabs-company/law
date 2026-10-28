@@ -8,8 +8,11 @@
 import { ApiError, asArr, asDict, asStr, http, httpBlob, type Dict } from "@/lib/http";
 import { saveBlob } from "@/lib/download";
 
-export const EXPERIENCE_STAGES = ["pre_investigation", "investigation", "first_instance", "appeal", "cassation", "supervision", "enforcement", "advisory", "transactional"] as const;
-export const EXPERIENCE_RESULTS = ["full_success", "partial_success", "settlement", "dismissed", "acquittal", "sentence_reduced", "claim_granted", "claim_partially_granted", "defense_success", "other"] as const;
+// TSK-415946 (contract 2026-10-27 §15): one record is one workplace with one
+// or more positions, each with its own dates; parallel workplaces are
+// separate records and overlapping periods are allowed (the backend merges
+// them, so the same months never count twice). The old "which cases" and
+// "results" fields are gone.
 export const EVIDENCE_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"] as const;
 export const EVIDENCE_MAX_BYTES = 20 * 1024 * 1024;
 
@@ -24,19 +27,34 @@ export type ExperienceItem = {
   categoryId: string;
   subcategoryId: string;
   workplace: string;
-  position: string;
+  positions: ExperiencePosition[];
+  // The earliest start and the latest end over the positions (for the card).
   startedAt: string;
   endedAt: string;
   isCurrent: boolean;
   description: string;
-  stages: string[];
-  results: string[];
   evidence: ExperienceEvidence[];
   years: number | null;
   rejectionReason: string;
   submittedAt: string;
   reviewedAt: string;
 };
+export type ExperiencePosition = { title: string; startedAt: string; endedAt: string; isCurrent: boolean; description: string };
+function positionOf(v: unknown): ExperiencePosition | null {
+  const d = asDict(v);
+  const title = asStr(d.title ?? d.position ?? d.name).trim();
+  if (!title) return null;
+  const ended = asStr(d.ended_at);
+  return { title, startedAt: asStr(d.started_at), endedAt: ended, isCurrent: d.is_current === true || (d.is_current === undefined && !ended), description: asStr(d.description) };
+}
+// The record's positions; an older record carries one flat position.
+export function positionsOf(d: Dict): ExperiencePosition[] {
+  const list = asArr(d.positions).map(positionOf).filter((x): x is ExperiencePosition => !!x);
+  if (list.length) return list;
+  const one = positionOf({ title: d.position, started_at: d.started_at, ended_at: d.ended_at, is_current: d.is_current });
+  return one ? [one] : [];
+}
+
 // One experience over its revisions: what counts now, what waits, and the
 // newest record (a rejection shows there).
 export type ExperienceGroup = { rootId: string; current: ExperienceItem | null; pending: ExperienceItem | null; latest: ExperienceItem | null; revisionCount: number };
@@ -61,7 +79,10 @@ export function experienceItemOf(v: unknown): ExperienceItem | null {
   const d = asDict(v);
   const id = asStr(d.id);
   if (!id) return null;
-  const ended = asStr(d.ended_at);
+  const positions = positionsOf(d);
+  const starts = positions.map((p) => p.startedAt).filter(Boolean).sort();
+  const ends = positions.map((p) => p.endedAt).filter(Boolean).sort();
+  const current = positions.some((p) => p.isCurrent);
   return {
     id,
     rootId: asStr(d.root_id) || id,
@@ -71,13 +92,11 @@ export function experienceItemOf(v: unknown): ExperienceItem | null {
     categoryId: asStr(d.category_id),
     subcategoryId: asStr(d.subcategory_id),
     workplace: asStr(d.workplace),
-    position: asStr(d.position),
-    startedAt: asStr(d.started_at),
-    endedAt: ended,
-    isCurrent: d.is_current === true || (d.is_current === undefined && !ended),
+    positions,
+    startedAt: starts[0] ?? asStr(d.started_at),
+    endedAt: current ? "" : (ends[ends.length - 1] ?? asStr(d.ended_at)),
+    isCurrent: current,
     description: asStr(d.description),
-    stages: strs(d.stages),
-    results: strs(d.results),
     evidence: asArr(d.evidence ?? d.evidence_files).map(evidenceOf).filter((e) => e.id),
     years: num(d.years),
     rejectionReason: asStr(d.rejection_reason ?? d.reason),
@@ -125,36 +144,34 @@ export async function listMyExperience(signal?: AbortSignal): Promise<Experience
   return experienceGroupsOf(await http("/marketplace/me/experience?limit=50&offset=0", { signal }));
 }
 
+// Dates are YYYY-MM-DD from the date pickers.
+export type PositionInput = { title: string; startedOn: string; endedOn: string; isCurrent: boolean; description: string };
 export type ExperienceInput = {
   sourceId?: string;
   categoryId: string;
   subcategoryId?: string;
   workplace: string;
-  position: string;
-  // YYYY-MM-DD from the date inputs.
-  startedOn: string;
-  endedOn: string;
-  isCurrent: boolean;
+  positions: PositionInput[];
   description: string;
-  stages: string[];
-  results: string[];
   evidenceIds: string[];
 };
 
 const isoDay = (day: string) => (day ? `${day}T00:00:00Z` : null);
 
 export async function submitExperience(input: ExperienceInput): Promise<ExperienceItem | null> {
+  const positions = input.positions.map((p) => ({
+    title: p.title.trim(),
+    started_at: isoDay(p.startedOn),
+    ended_at: p.isCurrent ? null : isoDay(p.endedOn),
+    is_current: p.isCurrent,
+    description: p.description.trim(),
+  }));
   const body: Dict = {
     source_id: input.sourceId || null,
     category_id: input.categoryId,
     workplace: input.workplace.trim(),
-    position: input.position.trim(),
-    started_at: isoDay(input.startedOn),
-    ended_at: input.isCurrent ? null : isoDay(input.endedOn),
-    is_current: input.isCurrent,
+    positions,
     description: input.description.trim(),
-    stages: input.stages,
-    results: input.results,
     evidence_ids: input.evidenceIds,
   };
   // Optional: a real child id from /service-categories/tree, else left out.
@@ -229,8 +246,87 @@ export type CheckRows = Partial<Record<string, CheckRow>>;
 const MANDATORY = new Set<string>(EXPERIENCE_CHECKS.filter((c) => c.mandatory).map((c) => c.key));
 export const isMandatoryCheck = (key: string) => MANDATORY.has(key);
 
+// TSK-100467: approve stays shut until every item the backend asked for is
+// approved or not applicable (none rejected, none left open).
 export function canApprove(keys: readonly string[], rows: CheckRows): boolean {
-  return keys.every((k) => (isMandatoryCheck(k) ? rows[k]?.verdict === "approved" : rows[k]?.verdict === "approved" || rows[k]?.verdict === "not_applicable"));
+  return keys.length > 0 && keys.every((k) => rows[k]?.verdict === "approved" || rows[k]?.verdict === "not_applicable");
+}
+
+// The backend's dynamic checklist (contract §16): keys depend on the
+// positions, current jobs, parallel periods, the revision's changes and the
+// evidence — "position_2_dates", "evidence_3_readable", … Each gets a human
+// label: the backend's own when it sends one, else built from the key.
+export type CheckItem = { key: string; label: string; hint: string };
+export function checkItemsOf(raw: unknown, keys: readonly string[]): CheckItem[] {
+  const given = new Map<string, CheckItem>();
+  for (const x of asArr(raw)) {
+    const d = asDict(x);
+    const key = asStr(d.key);
+    if (key) given.set(key, { key, label: asStr(d.label ?? d.title), hint: asStr(d.hint ?? d.description) });
+  }
+  return keys.map((k) => given.get(k) ?? { key: k, label: "", hint: "" });
+}
+// "position_2_dates" → { base: "position_dates", n: 2 }; no number → n null.
+export function checkKeyParts(key: string): { base: string; n: number | null } {
+  const m = /^(.*?)_(\d+)(?:_(.*))?$/.exec(key);
+  if (!m) return { base: key, n: null };
+  return { base: [m[1], m[3]].filter(Boolean).join("_"), n: Number(m[2]) };
+}
+
+// TSK-874927: what changed in a revision, field by field. The backend's
+// diff when it sends one; otherwise the two records compared here (a plain
+// comparison of what is shown, nothing computed about the experience).
+export type DiffKind = "changed" | "added" | "removed";
+export type DiffRow = { field: string; before: string; after: string; kind: DiffKind };
+const plain = (v: unknown): string => {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "number" || typeof v === "boolean") return String(v);
+  if (Array.isArray(v)) return v.map(plain).filter(Boolean).join("; ");
+  const d = asDict(v);
+  const t = asStr(d.title ?? d.name ?? d.file_name ?? d.label);
+  const when = [asStr(d.started_at).slice(0, 10), d.is_current === true ? "…" : asStr(d.ended_at).slice(0, 10)].filter(Boolean).join(" — ");
+  return [t, when].filter(Boolean).join(" · ");
+};
+const kindOf = (before: string, after: string): DiffKind => (!before ? "added" : !after ? "removed" : "changed");
+export function diffRowsOf(raw: unknown): DiffRow[] {
+  const list = Array.isArray(raw) ? raw : Object.entries(asDict(raw)).map(([field, v]) => ({ field, ...asDict(v) }));
+  return list
+    .map((x) => {
+      const d = asDict(x);
+      const before = plain(d.before ?? d.old ?? d.previous);
+      const after = plain(d.after ?? d.new ?? d.current);
+      return { field: asStr(d.field ?? d.path ?? d.key), before, after, kind: kindOf(before, after) };
+    })
+    .filter((r) => r.field && r.before !== r.after);
+}
+const positionLine = (p: ExperiencePosition) => [p.title, [p.startedAt.slice(0, 10), p.isCurrent ? "…" : p.endedAt.slice(0, 10)].filter(Boolean).join(" — ")].filter(Boolean).join(" · ");
+export function localDiff(next: ExperienceItem | null, prev: ExperienceItem | null): DiffRow[] {
+  if (!next || !prev) return [];
+  const rows: DiffRow[] = [];
+  const add = (field: string, before: string, after: string) => {
+    if (before !== after) rows.push({ field, before, after, kind: kindOf(before, after) });
+  };
+  add("category_id", prev.categoryId, next.categoryId);
+  add("subcategory_id", prev.subcategoryId, next.subcategoryId);
+  add("workplace", prev.workplace, next.workplace);
+  const n = Math.max(prev.positions.length, next.positions.length);
+  for (let i = 0; i < n; i++) add(`positions.${i}`, prev.positions[i] ? positionLine(prev.positions[i]) : "", next.positions[i] ? positionLine(next.positions[i]) : "");
+  add("description", prev.description, next.description);
+  add("evidence", prev.evidence.map((e) => e.fileName).join("; "), next.evidence.map((e) => e.fileName).join("; "));
+  return rows;
+}
+
+// The protected review room (TSK-365169): only the operator closes it; once
+// closed it stays readable but takes no new messages.
+export type ReviewRoom = { roomId: string; status: string; readOnly: boolean; closedAt: string };
+export function reviewRoomOf(v: unknown): ReviewRoom | null {
+  const d = asDict(v);
+  const room = asDict(d.room ?? d.chat ?? d.communication);
+  const roomId = asStr(d.room_id ?? d.chat_room_id ?? room.room_id ?? room.id ?? d.id);
+  if (!roomId) return null;
+  const status = asStr(d.status ?? room.status).toLowerCase();
+  return { roomId, status, readOnly: d.read_only === true || room.read_only === true || status === "closed", closedAt: asStr(d.closed_at ?? room.closed_at) };
 }
 
 export type ExperienceQueueItem = ExperienceItem & { sellerUserId: string; sellerName: string };
@@ -249,25 +345,45 @@ export async function listExperienceQueue(opts: { status?: string; offset?: numb
   return { items: list, total: num(d.total) ?? list.length, hasMore: d.has_more === true };
 }
 
-export type ExperienceReviewDetail = { record: ExperienceQueueItem | null; previous: ExperienceItem | null; reviews: ExperienceReviewEntry[]; checklistKeys: string[] };
+export type ExperienceReviewDetail = { record: ExperienceQueueItem | null; previous: ExperienceItem | null; reviews: ExperienceReviewEntry[]; checklistKeys: string[]; checks: CheckItem[]; diff: DiffRow[]; room: ReviewRoom | null };
 
 export async function getExperienceForReview(experienceId: string, signal?: AbortSignal): Promise<ExperienceReviewDetail> {
   const d = asDict(await http(`/call-center/marketplace/experience/${encodeURIComponent(experienceId)}`, { signal }));
   const keys = strs(d.checklist_keys);
+  const checklistKeys = keys.length ? keys : EXPERIENCE_CHECKS.map((c) => c.key);
+  const record = queueItemOf(d.record);
+  const previous = experienceItemOf(d.previous_approved_revision);
+  const given = diffRowsOf(d.diff ?? d.changes ?? d.revision_diff);
   return {
-    record: queueItemOf(d.record),
-    previous: experienceItemOf(d.previous_approved_revision),
+    record,
+    previous,
     reviews: asArr(d.reviews).map(reviewOf),
-    checklistKeys: keys.length ? keys : EXPERIENCE_CHECKS.map((c) => c.key),
+    checklistKeys,
+    checks: checkItemsOf(d.checklist ?? d.checklist_items, checklistKeys),
+    diff: given.length ? given : localDiff(record, previous),
+    room: reviewRoomOf(d.communication ?? d.review_room ?? {}),
   };
 }
 
-export async function reviewExperience(experienceId: string, input: { decision: "approved" | "rejected"; reason: string; keys: readonly string[]; rows: CheckRows }): Promise<void> {
+export type ReviewDecision = "approved" | "changes_requested" | "rejected";
+export async function reviewExperience(experienceId: string, input: { decision: ReviewDecision; reason: string; keys: readonly string[]; rows: CheckRows }): Promise<void> {
   const checklist = input.keys.map((key) => ({ key, verdict: input.rows[key]?.verdict || "not_applicable", note: (input.rows[key]?.note ?? "").trim() }));
   await http(`/call-center/marketplace/experience/${encodeURIComponent(experienceId)}/review`, {
     method: "POST",
     body: JSON.stringify({ decision: input.decision, reason: input.reason.trim(), checklist }),
   });
+}
+
+// TSK-365169: a protected chat (and calls from it) between the operator
+// and the seller about this record; creating it again returns the same room.
+export async function openExperienceRoom(experienceId: string): Promise<ReviewRoom> {
+  const r = reviewRoomOf(await http(`/call-center/marketplace/experience/${encodeURIComponent(experienceId)}/communication`, { method: "POST", body: JSON.stringify({}) }));
+  if (!r) throw new ApiError(0, "experience communication: no room in the answer");
+  return r;
+}
+export async function closeExperienceRoom(experienceId: string, current: ReviewRoom): Promise<ReviewRoom> {
+  const r = reviewRoomOf(await http(`/call-center/marketplace/experience/${encodeURIComponent(experienceId)}/communication/close`, { method: "POST", body: JSON.stringify({}) }));
+  return { ...current, ...(r ?? {}), roomId: r?.roomId || current.roomId, readOnly: true, status: r?.status || "closed" };
 }
 
 // The category tree with real ids (backend 24 Oct 2026 §6): a root's

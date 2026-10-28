@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { MKM_PAGE, type MkmPage, type MkmSeller } from "@/lib/services/adminMarketplace";
 import { dateOnly, fmtRating } from "@/lib/date";
 import { humanize, regionLabel } from "@/lib/labels";
 import { Skeleton, EmptyState } from "@/components/portal/DataState";
 import ScrollCue from "@/components/ui/ScrollCue";
-import { IconAlert, IconChevronRight, IconClock, IconClose, IconShieldCheck, IconStar, IconUsers } from "@/components/icons";
+import { IconAlert, IconChevronRight, IconClock, IconClose, IconCrown, IconShieldCheck, IconStar, IconUsers } from "@/components/icons";
+import { useAuth } from "@/lib/auth";
+import SuperadvokatDialog from "./SuperadvokatDialog";
 import type { Live } from "./useLive";
 import { Avatar, LoadFailed, Pager, RefreshFailed, useCount, useMoney, useTypeLabel } from "./bits";
 
@@ -60,6 +63,10 @@ export default function MkmSellers({
   const money = useMoney();
   const count = useCount();
   const typeLabel = useTypeLabel();
+  // TSK-460646: superadmins see the override; the backend still lets only
+  // the primary one save it.
+  const superadmin = useAuth().session?.backendRole === "superadmin";
+  const [superFor, setSuperFor] = useState<MkmSeller | null>(null);
   const page = live.data;
   const rows = page?.items ?? [];
   const shown = !!page && !(live.failed && live.stale);
@@ -150,6 +157,19 @@ export default function MkmSellers({
                           {s.lexgoId ? <small>{s.lexgoId}</small> : null}
                           {s.phone ? <small>{s.phone}</small> : null}
                           {s.accountStatus && s.accountStatus !== "active" ? <em className="mkm-acc">{account(s.accountStatus)}</em> : null}
+                          {superadmin ? (
+                            <button
+                              type="button"
+                              className="mkm-superbtn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSuperFor(s);
+                              }}
+                            >
+                              <IconCrown aria-hidden="true" />
+                              {t("superadvokat")}
+                            </button>
+                          ) : null}
                         </span>
                       </span>
                     </td>
@@ -197,6 +217,7 @@ export default function MkmSellers({
         </>
       )}
 
+      {superFor ? <SuperadvokatDialog sellerUserId={superFor.userId} sellerName={superFor.name || superFor.phone} onClose={() => setSuperFor(null)} /> : null}
       {shown && page ? <Pager total={page.total} offset={offset} limit={page.limit || MKM_PAGE} busy={live.changing || live.loading} onOffset={onOffset} /> : null}
     </section>
   );

@@ -43,6 +43,7 @@ import FieldError from "@/components/ui/FieldError";
 import { Notice } from "@/components/admin/AdminBits";
 import { IconEye, IconInfo, IconUser, IconShieldCheck, IconBriefcase, IconClock, IconSun, IconCard, IconEdit, IconAward, IconScale, IconMapPin, IconPhone, IconMail, IconCheck, IconBell } from "@/components/icons";
 import ExperiencePanel from "./ExperiencePanel";
+import AchievementsPanel from "./AchievementsPanel";
 import ProfileServices from "./ProfileServices";
 
 const ZERO_STATS: AdvocateStats = { totalCases: 0, fullyWonCases: 0, partiallyWonCases: 0, successRate: 0 };
@@ -518,6 +519,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
         {pProfessional}
         {pAreas}
         <ExperiencePanel />
+        <AchievementsPanel />
         {pHistory}
         <ProfileServices role={isAdvocate ? "advocate" : "lawyer"} />
       </div>

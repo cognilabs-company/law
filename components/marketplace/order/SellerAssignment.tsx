@@ -10,8 +10,9 @@ import type { MarketOrder } from "@/lib/services/marketplace";
 
 // An order assigned to this seller and not yet answered (enterprise
 // contract §5): the time left, what the client asked for, and accept or
-// decline — the same controls as the opportunities list. Accepting is what
-// starts the client's advance payment; at zero the call center takes over.
+// decline — the same controls as the opportunities list. Every assignment
+// arrives already paid in full (contract 2026-10-27 §4); accepting opens the
+// service chat; at zero the call center takes over.
 export default function SellerAssignment({ o, aiBase, onRefresh }: { o: MarketOrder; aiBase: string; onRefresh: () => void }): ReactElement {
   const t = useTranslations("marketplace.orderDetail.assignment");
   const left = useCountdown(o.assignment?.deadlineAt ?? "", onRefresh);
@@ -19,7 +20,7 @@ export default function SellerAssignment({ o, aiBase, onRefresh }: { o: MarketOr
   // Handed over by the call center after the client already paid (contract
   // 2026-10-26 §8): accepting starts no payment step, and the previous
   // seller's private chat is not shared; a fresh room opens on acceptance.
-  const reassigned = o.paymentStatus === "paid";
+  const reassigned = o.reassignments.length > 0 || o.waitingReplacement;
   return (
     <SxPanel
       className="mcr mod-assign"

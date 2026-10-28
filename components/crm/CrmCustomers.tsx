@@ -128,8 +128,8 @@ function CustomerGrid({ meta }: { meta: CrmMeta }): ReactElement {
                   <b>{c.name || c.publicId}</b>
                   <span className="crm-code">{c.publicId}</span>
                 </span>
-                {c.userId ? (
-                  <span className="crm-badge" style={{ marginLeft: "auto" }} title={t("linked")}>
+                {c.isLexgoUser ? (
+                  <span className="crm-badge" style={{ marginLeft: "auto" }} title={c.lexgoLabel || t("linked")}>
                     <IconCheck aria-hidden="true" />
                     LexGo
                   </span>

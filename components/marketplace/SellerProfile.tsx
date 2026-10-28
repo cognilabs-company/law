@@ -34,6 +34,8 @@ import { DurationChip } from "./runtime/DurationChip";
 import { GuaranteeList } from "./runtime/Guarantees";
 import { ServiceFacts, ServiceFactsSkeleton } from "./runtime/ServiceFacts";
 import SecondOpinionEntry from "./order/SecondOpinionEntry";
+import PublicAchievements from "./PublicAchievements";
+import "./runtime/checkout.css";
 
 type Status = "loading" | "ready" | "notfound" | "error";
 
@@ -290,6 +292,7 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
           </section>
 
           <RatingBreakdown sellerId={userId} />
+          {live ? <PublicAchievements sellerId={userId} /> : null}
 
           <section className="mk-panel" data-ai-target="marketplace:seller-reviews" data-ai-id={`${sellerAiId}.reviews`} data-ai-type="list">
             <h2 className="mk-panel__t">{t("detail.reviews")}</h2>

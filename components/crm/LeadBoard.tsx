@@ -333,7 +333,7 @@ const BoardCard = memo(function BoardCard({
         <ScoreChip score={l.score} />
       </span>
       <b>{l.title || l.workId}</b>
-      <small>{[l.customer?.name, l.category].filter(Boolean).join(" · ")}</small>
+      <small>{[l.customer?.name, l.region].filter(Boolean).join(" · ")}</small>
       <span className="crm-kcard__foot">
         {l.nextActionAt ? <WhenChip at={l.nextActionAt} now={now} /> : <span className="crm-muted">—</span>}
         {l.operator ? (

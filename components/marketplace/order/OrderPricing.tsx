@@ -80,6 +80,68 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
   // has advance/final rows), or when the rows could not be read; an order
   // paid in one step shows that one payment instead.
   const split = got === "failed" || !!advanceRow || !!stageRow(FINAL);
+  // TSK-787056: the client sees what they pay and, when this specialist's
+  // price differs from the base, the backend's diplomatic reasons — never
+  // the factors, the seller's allowed range, caps or commission.
+  if (view === "client") {
+    if (!(pricing.final > 0)) return null;
+    const changed = pricing.base > 0 && pricing.final !== pricing.base;
+    const reasons = pricing.clientReasons.map((r) => r[locale] || r.uz || Object.values(r)[0]).filter(Boolean);
+    return (
+      <SxPanel title={t("title")} className="mod-price mod-price--client" as="section" aiId={`${aiBase}.pricing`}>
+        {changed ? (
+          <div className="mod-price__row">
+            <span>{t("base")}</span>
+            <b className="sx-num">{money(pricing.base)}</b>
+          </div>
+        ) : null}
+        {pricing.options.length ? (
+          <div className="mod-price__group">
+            <p className="mod-price__sub">{t("options")}</p>
+            {pricing.options.map((x, i) => (
+              <div key={`${x.label}-${i}`} className="mod-price__row">
+                <span>{x.label}</span>
+                <b className="sx-num">{`${x.amount > 0 ? "+" : "−"}${money(Math.abs(x.amount))}`}</b>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <div className="mod-price__row mod-price__row--total">
+          <span>{t("final")}</span>
+          <b className="sx-num">{money(pricing.final)}</b>
+        </div>
+        {changed ? (
+          <div className="mod-price__why">
+            <p className="mod-price__sub">{pricing.final > pricing.base ? t("whyUp") : t("whyDown")}</p>
+            {reasons.length ? (
+              <ul>
+                {reasons.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
+              </ul>
+            ) : (
+              <p>{pricing.final > pricing.base ? t("whyUpDefault") : t("whyDownDefault")}</p>
+            )}
+          </div>
+        ) : null}
+        {fin?.payments.length ? (
+          <div className="mod-price__group">
+            <p className="mod-price__sub">{t("payments")}</p>
+            {fin.payments.map((p) => (
+              <div key={p.id || p.stage} className="mod-price__row">
+                <span>
+                  {t("payment")}
+                  {chip(p.status)}
+                </span>
+                <b className="sx-num">{money(p.amount)}</b>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <p className="mod-price__foot">{t("fixed")}</p>
+      </SxPanel>
+    );
+  }
   const settlement = view === "seller" && fin && SETTLEMENT_KEYS.has(fin.settlement) ? fin.settlement : "";
   if (!(pricing.final > 0 || mods.length)) return null;
   const pct = (n: number | null) => (n === null ? "" : ` · ${n}%`);
@@ -192,7 +254,7 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
               <b className="sx-num">{money(p.amount)}</b>
             </div>
           ))}
-          {advanceRow && WAITING.has(advanceRow.status) ? <p className="mod-price__note">{view === "client" ? t("advanceWait") : t("advanceWaitSeller")}</p> : null}
+          {advanceRow && WAITING.has(advanceRow.status) ? <p className="mod-price__note">{t("advanceWaitSeller")}</p> : null}
           {settlement ? (
             <div className="mod-price__row">
               <span>{t("settlement")}</span>

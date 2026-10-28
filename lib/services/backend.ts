@@ -4299,7 +4299,8 @@ export type DeclineReason = (typeof DECLINE_REASONS)[number];
 // The marketplace contract names the code `reason_code` and the free text
 // `reason`; the older `reason` (code) + `note` pair is sent alongside.
 export async function declineOrder(orderId: string, reason?: DeclineReason, note?: string): Promise<{ id: string; status: string }> {
-  const body = reason ? { reason_code: reason, reason: note || reason, note: note || undefined } : {};
+  // Contract 2026-10-27 §4: `reason_code` + optional `reason_text`.
+  const body = reason ? { reason_code: reason, reason_text: note || undefined, reason: note || reason, note: note || undefined } : {};
   const d = asDict(await http(`/orders/${orderId}/decline`, { method: "POST", body: JSON.stringify(body) }));
   return { id: asStr(d.id), status: asStr(d.status) };
 }
