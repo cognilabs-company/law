@@ -11226,6 +11226,12 @@
         "error": "Xatolik. Qayta urining.",
         "claimsTitle": "So'rovlarim",
         "noClaims": "Hali so'rov yo'q.",
+        "ordersTitle": "Kafolat so'rash mumkin",
+        "ordersLead": "Mutaxassis javob bermasa, muddatni buzsa yoki ishni yakunlamasa, buyurtma sahifasida kafolat so'rang.",
+        "noOrders": "Hozircha kafolat so'rash mumkin bo'lgan buyurtma yo'q.",
+        "ask": "Kafolat so'rash",
+        "reviewing": "Ko'rib chiqilmoqda",
+        "decided": "Qaror qabul qilindi",
         "claim": "Almashtirish so'rovi",
         "status": {
           "new": "Yangi",

@@ -123,7 +123,7 @@ export default function CProfileApp({ route, onRoute, openApp, openLink }: Nativ
         ) : sec === "complaints" ? (
           <>
             <Complaints key={link.key} work={link.work} about={link.about} fresh={link.fresh} openLink={openLink} say={say} />
-            <Warranty say={say} />
+            <Warranty openLink={openLink} />
           </>
         ) : failed ? (
           <Empty icon={<IconUser />} title={t("loadError")} action={<Btn onClick={() => setTick((n) => n + 1)}>{t("edit")}</Btn>} />

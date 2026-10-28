@@ -20,6 +20,7 @@ export const SECTION_ID = {
   cancel: "mod-cancel",
   rating: "mod-rating",
   result: "mod-result",
+  warranty: "mod-warranty",
 } as const;
 
 export function orderAiBase(view: OrderView): string {

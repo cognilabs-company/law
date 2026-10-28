@@ -15,7 +15,7 @@ import { requestOrderWarranty, warrantyResolutions, type OrderWarranty, type War
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import { ApiError } from "@/lib/http";
 import { LifeBuoyIcon } from "./icons";
-import type { OrderSectionProps } from "./types";
+import { SECTION_ID, type OrderSectionProps } from "./types";
 
 // The LexGo guarantee on an order (enterprise contract §10): when the
 // seller did not answer in time, broke the deadline, dropped the work, did
@@ -58,7 +58,7 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
   if (filed) {
     const pending = PENDING.has(w.status);
     return (
-      <SxPanel className="mcr mcr-review" title={t("title")} lead={pending ? t("pending") : t("decided")} aiId={ai}>
+      <SxPanel id={SECTION_ID.warranty} className="mcr mcr-review" title={t("title")} lead={pending ? t("pending") : t("decided")} aiId={ai}>
         {w.resolution && !pending ? (
           <p className="mcr-meta">
             {t("decision")}: <b>{t.has(`resolution.${w.resolution}`) ? t(`resolution.${w.resolution}`) : w.resolution}</b>
@@ -101,7 +101,7 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
   }
 
   return (
-    <SxPanel className="mcr" title={t("title")} lead={t("lead")} aiId={ai}>
+    <SxPanel id={SECTION_ID.warranty} className="mcr" title={t("title")} lead={t("lead")} aiId={ai}>
       <SxButton variant="secondary" icon={LifeBuoyIcon} onClick={() => setOpen(true)} aiId={`${ai}.open`}>
         {t("open")}
       </SxButton>

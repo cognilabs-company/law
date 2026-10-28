@@ -1,122 +1,74 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useLocale, useTranslations } from "next-intl";
-import { createWarrantyClaim, listWarrantyClaims, type WarrantyClaim } from "@/lib/services/backend";
-import { dateOnly } from "@/lib/date";
-import { IconCheck, IconPlus, IconShieldCheck } from "@/components/icons";
-import { Banner, Btn, Dialog, Field, Group, Input, SettingRow, Spinner, Tag, TextArea } from "../../kit/kit";
-import { toneOf } from "./bits";
+import { useTranslations } from "next-intl";
+import { listMarketplaceOrders, warrantyOrdersOf, type MarketOrder } from "@/lib/services/marketplace";
+import { IconArrowRight, IconCheck, IconShieldCheck } from "@/components/icons";
+import { Btn, Group, SettingRow, Spinner, Tag } from "../../kit/kit";
+import type { NativeProps } from "../../native";
 
-// The LexGo guarantee as a settings group: what it promises, the client's
-// claims with their status, and "New claim" — which case and why — in a
-// sheet that answers with the claim's status. The rules are ClientWarranty's.
+// The LexGo guarantee as a settings group: what it promises, the orders a
+// claim can still be filed for, and the claims already filed. A claim is
+// filed on the order itself (POST /marketplace/me/orders/{id}/warranty).
 
-export default function Warranty({ say }: { say: (m: string, tone?: "err") => void }) {
+const PENDING = new Set(["pending", "open", "submitted", "in_review", "under_review", "created", "new"]);
+
+export default function Warranty({ openLink }: { openLink: NativeProps["openLink"] }) {
   const t = useTranslations("portal.client.warranty");
-  const tc = useTranslations("common");
-  const d = useTranslations("portal.desk.client");
-  const locale = useLocale();
-  const [claims, setClaims] = useState<WarrantyClaim[] | null>(null);
-  const [tick, setTick] = useState(0);
-  const [open, setOpen] = useState(false);
-  const [caseTitle, setCaseTitle] = useState("");
-  const [reason, setReason] = useState("");
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<WarrantyClaim | null>(null);
+  const tw = useTranslations("marketplace.orderDetail.warranty");
+  const [orders, setOrders] = useState<MarketOrder[] | null>(null);
   useEffect(() => {
     let alive = true;
-    listWarrantyClaims()
-      .then((l) => alive && setClaims(l))
-      .catch(() => alive && setClaims([]));
+    listMarketplaceOrders("client")
+      .then((l) => alive && setOrders(l))
+      .catch(() => alive && setOrders([]));
     return () => {
       alive = false;
     };
-  }, [tick]);
-  const status = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : s);
-  async function send() {
-    if (busy) return;
-    if (!reason.trim()) return setErr(tc("required"));
-    setBusy(true);
-    try {
-      const c = await createWarrantyClaim({ reason: `${caseTitle ? caseTitle + ": " : ""}${reason.trim()}` });
-      setResult(c);
-      setCaseTitle("");
-      setReason("");
-      setTick((n) => n + 1);
-    } catch {
-      say(t("sendFailed"), "err");
-    } finally {
-      setBusy(false);
-    }
-  }
+  }, []);
+  const { filed, open } = warrantyOrdersOf(orders ?? []);
+  const name = (o: MarketOrder) => o.serviceTitle || o.workId || t("claim");
+  const go = (o: MarketOrder) => openLink({ appId: "", route: `/portal/client/marketplace-orders/${encodeURIComponent(o.id)}#mod-warranty` });
+  const stateOf = (o: MarketOrder) => {
+    if (PENDING.has(o.warranty.status)) return t("reviewing");
+    const r = o.warranty.resolution;
+    return r && tw.has(`resolution.${r}`) ? tw(`resolution.${r}`) : t("decided");
+  };
   return (
     <>
-      <Group
-        title={t("title")}
-        end={
-          <Btn small icon={<IconPlus />} onClick={() => (setErr(""), setResult(null), setOpen(true))}>
-            {t("requestTitle")}
-          </Btn>
-        }
-        footer={t("subtitle")}
-      >
+      <Group title={t("title")} footer={t("subtitle")}>
         {(["p1", "p2", "p3"] as const).map((p) => (
           <SettingRow key={p} icon={<IconCheck />} title={t(p)} />
         ))}
       </Group>
-      <Group title={t("claimsTitle")}>
-        {claims === null ? (
+      <Group title={t("ordersTitle")} footer={t("ordersLead")}>
+        {orders === null ? (
           <Spinner small />
-        ) : !claims.length ? (
-          <SettingRow icon={<IconShieldCheck />} title={t("noClaims")} />
+        ) : !open.length ? (
+          <SettingRow icon={<IconShieldCheck />} title={t("noOrders")} />
         ) : (
-          claims.map((c) => (
-            <SettingRow key={c.id} icon={<IconShieldCheck />} title={c.caseTitle || t("claim")} desc={[c.reason, c.createdAt ? dateOnly(c.createdAt, locale) : ""].filter(Boolean).join(" · ")}>
-              <Tag tone={toneOf(c.status)}>{status(c.status)}</Tag>
+          open.map((o) => (
+            <SettingRow key={o.id} icon={<IconShieldCheck />} title={name(o)} desc={[o.workId, o.lawyerName].filter(Boolean).join(" · ")}>
+              <Btn small icon={<IconArrowRight />} onClick={() => go(o)}>
+                {t("ask")}
+              </Btn>
             </SettingRow>
           ))
         )}
       </Group>
-      {open ? (
-        <Dialog
-          open
-          title={result ? t("resultTitle") : t("requestTitle")}
-          onClose={() => setOpen(false)}
-          onSubmit={result ? undefined : () => void send()}
-          actions={
-            result ? (
-              <Btn kind="primary" onClick={() => setOpen(false)}>
-                {t("resultClose")}
-              </Btn>
-            ) : (
-              <>
-                <Btn onClick={() => setOpen(false)}>{d("cancel")}</Btn>
-                <Btn kind="primary" type="submit" busy={busy}>
-                  {t("submit")}
-                </Btn>
-              </>
-            )
-          }
-        >
-          {result ? (
-            <Banner tone="ok" title={t("resultSentTitle")}>
-              {`${t("resultStatus", { status: status(result.status) })} ${t("resultNote")}`}
-            </Banner>
-          ) : (
-            <>
-              <p className="dx-dlg__text">{t("requestLead")}</p>
-              <Field label={t("caseLabel")}>
-                <Input value={caseTitle} onChange={setCaseTitle} placeholder={t("casePh")} />
-              </Field>
-              <Field label={t("reasonLabel")} error={err || undefined}>
-                <TextArea value={reason} onChange={(v) => (setReason(v), setErr(""))} placeholder={t("reasonPh")} rows={4} />
-              </Field>
-            </>
-          )}
-        </Dialog>
-      ) : null}
+      <Group title={t("claimsTitle")}>
+        {orders === null ? (
+          <Spinner small />
+        ) : !filed.length ? (
+          <SettingRow icon={<IconShieldCheck />} title={t("noClaims")} />
+        ) : (
+          filed.map((o) => (
+            <SettingRow key={o.id} icon={<IconShieldCheck />} title={name(o)} desc={[o.workId, o.warranty.reason].filter(Boolean).join(" · ")} onClick={() => go(o)}>
+              <Tag tone={PENDING.has(o.warranty.status) ? "warn" : "ok"}>{stateOf(o)}</Tag>
+            </SettingRow>
+          ))
+        )}
+      </Group>
     </>
   );
 }

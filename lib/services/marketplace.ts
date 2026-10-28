@@ -870,6 +870,12 @@ export function warrantyResolutions(): Promise<WarrantyResolution[]> {
   return capsCache;
 }
 
+export function warrantyOrdersOf(orders: MarketOrder[]): { filed: MarketOrder[]; open: MarketOrder[] } {
+  const filed = orders.filter((o) => !!o.warranty.status);
+  const open = orders.filter((o) => !o.warranty.status && !!o.warranty.url && marketPhaseOf(o) !== "pending" && marketPhaseOf(o) !== "cancelled");
+  return { filed, open };
+}
+
 export async function requestOrderWarranty(order: Pick<MarketOrder, "id" | "warranty">, input: { reasonCode: string; reason: string; allowMaterialTransfer?: boolean }): Promise<OrderWarranty> {
   const path = order.warranty.url.replace(/^https?:\/\/[^/]+/i, "") || `/marketplace/me/orders/${encodeURIComponent(order.id)}/warranty`;
   // The client says why (`kind`) and in what words; the call center then

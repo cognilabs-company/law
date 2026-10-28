@@ -11220,6 +11220,12 @@
         "error": "Error. Please try again.",
         "claimsTitle": "My requests",
         "noClaims": "No requests yet.",
+        "ordersTitle": "Orders you can claim on",
+        "ordersLead": "If the specialist stops replying, misses the deadline or doesn't finish the work, request the warranty on the order page.",
+        "noOrders": "No orders you can claim the warranty on yet.",
+        "ask": "Request warranty",
+        "reviewing": "Under review",
+        "decided": "Decided",
         "claim": "Replacement request",
         "status": {
           "new": "New",
