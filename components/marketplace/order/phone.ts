@@ -9,6 +9,13 @@ export function clientPhoneShow(o: Pick<MarketOrder, "clientPhone" | "clientPhon
   return o.clientPhone ? "show" : "none";
 }
 
+// The client's view of the advocate's phone: shown once paid, else why not.
+export function lawyerPhoneShow(o: Pick<MarketOrder, "lawyerPhone" | "lawyerPhoneVisible" | "lawyerPhoneHiddenReason" | "paymentStatus">): ClientPhoneShow {
+  if (o.lawyerPhoneVisible === false) return phoneWaitsForPayment(o.lawyerPhoneHiddenReason) ? "payment" : "hidden";
+  if (o.lawyerPhoneVisible !== true && o.paymentStatus !== "paid") return "payment";
+  return o.lawyerPhone ? "show" : "none";
+}
+
 export function telHref(phone: string): string {
   return `tel:${phone.replace(/[^\d+]/g, "")}`;
 }

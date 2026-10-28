@@ -10,7 +10,7 @@ import type { RuntimeConfig, RuntimeDuration } from "@/lib/services/marketRuntim
 import { OptionLines } from "../OrderExtras";
 import { durationParts } from "./deadline";
 import { useContactSpeedText } from "./contactSpeed";
-import { clientPhoneShow, telHref } from "./phone";
+import { clientPhoneShow, lawyerPhoneShow, telHref } from "./phone";
 import type { OrderView } from "./types";
 
 export function useDurationText(): (d: RuntimeDuration | null) => string {
@@ -47,6 +47,7 @@ export default function OrderFacts({ o, view, aiBase, runtime }: { o: MarketOrde
   const speed = useContactSpeedText()(o);
   const counterpart = view === "client" ? o.lawyerName : o.clientName;
   const phoneShow = clientPhoneShow(o);
+  const sellerPhone = lawyerPhoneShow(o);
   const duration = o.duration ?? (runtime && runtime.duration.value > 0 ? runtime.duration : null);
   const durationLine = durationText(duration);
   const pkgLine = [o.packageTitle, o.packageTier && tpk.has(`tiers.${o.packageTier}`) ? tpk(`tiers.${o.packageTier}`) : o.packageTier].filter(Boolean).join(" · ");
@@ -70,6 +71,9 @@ export default function OrderFacts({ o, view, aiBase, runtime }: { o: MarketOrde
       <dl className="mod-facts__list">
         {view === "seller" ? (
           <Row label={to("phone")}>{phoneShow === "show" ? <a className="sx-link" href={telHref(o.clientPhone)}>{o.clientPhone}</a> : <span className="mod-muted">{phoneShow === "none" ? "—" : phoneShow === "hidden" ? to("phoneConcealed") : to("phoneHidden")}</span>}</Row>
+        ) : o.lawyerName ? (
+          // Point 8: the advocate's phone, once the client has paid.
+          <Row label={t("facts.sellerPhone")}>{sellerPhone === "show" ? <a className="sx-link" href={telHref(o.lawyerPhone)}>{o.lawyerPhone}</a> : <span className="mod-muted">{sellerPhone === "none" ? "—" : sellerPhone === "hidden" ? to("phoneConcealed") : to("phoneHidden")}</span>}</Row>
         ) : null}
         <Row label={t("facts.price")}>
           <span>

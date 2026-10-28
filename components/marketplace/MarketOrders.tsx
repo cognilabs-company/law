@@ -38,7 +38,7 @@ import { OptionLines, RatingPanel, ResultBlock, SupplementalPanel } from "./Orde
 import { dealAmount as dealOf } from "./order/negotiationRules";
 import ContactAdvocate, { callStateOf } from "./order/ContactAdvocate";
 import { useContactSpeedText } from "./order/contactSpeed";
-import { clientPhoneShow, telHref } from "./order/phone";
+import { clientPhoneShow, lawyerPhoneShow, telHref } from "./order/phone";
 import "./order/cards.css";
 import "./order/orderList.css";
 import SellerOrderActions from "@/components/portal/OrderActions";
@@ -424,6 +424,7 @@ function OrderCard({
   const facts = [
     counterpart ? { k: "who", icon: <IconUser aria-hidden="true" />, text: counterpart } : null,
     view === "seller" && phoneShow === "show" ? { k: "tel", icon: <IconPhone aria-hidden="true" />, text: <a href={telHref(o.clientPhone)}>{o.clientPhone}</a> } : null,
+    view === "client" && o.lawyerPhone && lawyerPhoneShow(o) === "show" ? { k: "tel", icon: <IconPhone aria-hidden="true" />, text: <a href={telHref(o.lawyerPhone)}>{o.lawyerPhone}</a> } : null,
     o.preferredChannel ? { k: "ch", icon: <IconChat aria-hidden="true" />, text: tch.has(o.preferredChannel) ? tch(o.preferredChannel) : o.preferredChannel } : null,
     speed || o.preferredTime ? { k: "speed", icon: <IconClock aria-hidden="true" />, text: speed || o.preferredTime } : null,
     o.createdAt ? { k: "at", icon: null, text: shortDateTime(o.createdAt, locale) } : null,

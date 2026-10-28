@@ -604,7 +604,11 @@ export type MarketOrder = {
   clientPhoneHiddenReason: string;
   clientUserId: string;
   lawyerName: string;
+  // The advocate's phone: the backend sends it only once the order is paid
+  // (lawyer.phone_visible); before that it is empty with a reason.
   lawyerPhone: string;
+  lawyerPhoneVisible: boolean | null;
+  lawyerPhoneHiddenReason: string;
   lawyerUserId: string;
   roomId: string;
   canStartChat: boolean;
@@ -1092,6 +1096,7 @@ export function normMarketOrder(v: unknown): MarketOrder {
   const callsFlag = firstBool(d.calls_allowed, details.calls_allowed, chatState.calls_allowed, callsEnabled, callKinds ? callKinds.length > 0 : null, callsDisabled === null ? null : !callsDisabled);
   const createCallFlag = typeof d.can_create_call === "boolean" ? d.can_create_call : callsEnabled === true || !!callKinds?.length;
   const phoneGate = phoneGateOf([client, details.client], [d, details]);
+  const lawyerGate = phoneGateOf([lawyer]);
   const reviewRaw = filledDict(d.cancellation_review) ?? filledDict(d.cancellation_review_request) ?? filledDict(details.cancellation_review);
   const actions = filledDict(d.actions) ?? {};
   const actionUrl = (k: string): string => {
@@ -1130,7 +1135,9 @@ export function normMarketOrder(v: unknown): MarketOrder {
     // is shown no seller at all (contract 2026-10-26 §9): stray flat fields
     // must not bring the previous one, or the candidate, back.
     lawyerName: hideSeller ? "" : asStr(d.lawyer_name ?? lawyer.name).trim(),
-    lawyerPhone: hideSeller ? "" : asStr(lawyer.phone ?? d.lawyer_phone).trim(),
+    lawyerPhone: hideSeller ? "" : gatedPhone(lawyerGate, lawyer.phone, d.lawyer_phone),
+    lawyerPhoneVisible: hideSeller ? false : lawyerGate.visible,
+    lawyerPhoneHiddenReason: hideSeller ? "" : lawyerGate.reason,
     lawyerUserId: hideSeller ? "" : asStr(d.lawyer_user_id ?? lawyer.id),
     roomId,
     // contact_unlocked=false: the advance payment is not confirmed by the
