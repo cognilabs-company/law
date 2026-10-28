@@ -6,7 +6,7 @@ import { Link, useRouter } from "@/i18n/navigation";
 import { IconAlert, IconCalendar, IconChartBar, IconDownload, IconPlus, IconPower, IconRefresh, IconTarget } from "@/components/icons";
 import { fmtNum } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
-import { CRM_STATUSES, crmCan, getMyCrmMetrics, listCrmLeads, type CrmLead, type CrmMeta, type CrmMetrics } from "@/lib/services/crm";
+import { crmCan, isFinalStatus, getMyCrmMetrics, listCrmLeads, type CrmLead, type CrmMeta, type CrmMetrics } from "@/lib/services/crm";
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import CrmFrame from "./CrmFrame";
 import { Empty, StatusPill, WhenChip, useCrmError } from "./bits";
@@ -152,7 +152,7 @@ function Mission({ meta }: { meta: CrmMeta }): ReactElement {
   });
 
   const agenda = (mine ?? [])
-    .filter((l) => l.nextActionAt && l.status !== "closed" && l.status !== "won")
+    .filter((l) => l.nextActionAt && !isFinalStatus(meta, l.status))
     .sort((a, b) => Date.parse(a.nextActionAt) - Date.parse(b.nextActionAt))
     .slice(0, 8);
   const overdue = metrics?.overdue ?? agenda.filter((l) => now && Date.parse(l.nextActionAt) < now).length;
@@ -201,7 +201,7 @@ function Mission({ meta }: { meta: CrmMeta }): ReactElement {
             {t("ribbon")}
             <small className="crm-hide-sm">{t("donut.hint")}</small>
           </h3>
-          <StatusDonut counts={counts} statuses={CRM_STATUSES} onPick={(s) => router.push(`/admin/crm/leads?tab=all&status=${s}`)} />
+          <StatusDonut counts={counts} statuses={meta.statuses} onPick={(s) => router.push(`/admin/crm/leads?tab=all&status=${s}`)} />
         </section>
       ) : null}
 

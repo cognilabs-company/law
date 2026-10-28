@@ -4,6 +4,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { fmtNum, shortDateTime } from "@/lib/date";
 import type { DetailItem, DetailSection } from "@/lib/services/crm";
+import { useStatusLabel } from "./bits";
 
 // The backend's readable view of a record (CRM contract 2026-10-27 §10):
 // sections of labelled values — never raw JSON. The backend's display_value
@@ -20,7 +21,7 @@ const hiddenKey = (k: string) => !KEEP_ID.has(k) && HIDDEN_KEY.test(k);
 
 function useValue() {
   const t = useTranslations("crm.detail");
-  const ts = useTranslations("crm.status");
+  const stl = useStatusLabel();
   const tsc = useTranslations("crm.score");
   const tl = useTranslations("crm.lang");
   const tu = useTranslations("crm.newLead.urg");
@@ -28,7 +29,7 @@ function useValue() {
   const locale = useLocale();
   // A coded value under a known key reads as words; an unknown code is left out.
   const coded: Record<string, (v: string) => string> = {
-    status: (v) => (ts.has(v) ? ts(v) : t.has(`status.${v}`) ? t(`status.${v}`) : ""),
+    status: (v) => (t.has(`status.${v}`) ? t(`status.${v}`) : stl(v)),
     score: (v) => (tsc.has(v) ? tsc(v) : ""),
     preferred_language: (v) => (tl.has(v) ? tl(v) : ""),
     language: (v) => (tl.has(v) ? tl(v) : ""),

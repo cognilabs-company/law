@@ -576,7 +576,7 @@ export default function AdminCeo() {
         { kind: "steps", title: tr("steps"), rows: steps.map((s) => ({ label: stage(s.key), value: num(s.value), n: s.value, sub: s.sub })) },
         { kind: "note", text: [tr("paidLine", { n: num(paid), count: paid }), paidTag ?? ""].filter(Boolean).join(" · ") },
       ],
-      link: { href: "/admin/pipeline", label: td("drill.goPipeline"), primary: true },
+      link: { href: "/admin/crm/leads?tab=all&view=board", label: td("drill.goPipeline"), primary: true },
     });
   const more = (onClick: () => void, label: string) => (
     <button type="button" className="ceo-more" onClick={onClick} aria-label={`${td("drill.details")}: ${label}`}>

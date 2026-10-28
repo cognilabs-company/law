@@ -3,7 +3,7 @@
 import { useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { fmtNum } from "@/lib/date";
-import { statusVar } from "./bits";
+import { statusVar, useStatusLabel } from "./bits";
 
 const R = 70;
 const C = 2 * Math.PI * R;
@@ -35,14 +35,14 @@ export function donutArcs(slices: DonutSlice[]): { status: string; count: number
 // slice or a legend row shows it in the centre; either opens that status.
 export function StatusDonut({ counts, statuses, onPick }: { counts: Record<string, number>; statuses: readonly string[]; onPick: (status: string) => void }): ReactElement {
   const t = useTranslations("crm.overview.donut");
-  const ts = useTranslations("crm.status");
+  const ts = useStatusLabel();
   const locale = useLocale();
   const [active, setActive] = useState("");
   const slices = statuses.map((s) => ({ status: s, count: counts[s] ?? 0 }));
   const total = slices.reduce((s, x) => s + x.count, 0);
   const arcs = donutArcs(slices);
   const pct = (n: number) => (total ? Math.round((n / total) * 100) : 0);
-  const name = (s: string) => (ts.has(s) ? ts(s) : s);
+  const name = (s: string) => (ts(s));
   const focus = active ? slices.find((x) => x.status === active) : null;
   return (
     <div className="crm-donut" data-active={active || undefined}>

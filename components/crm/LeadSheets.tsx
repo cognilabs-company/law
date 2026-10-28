@@ -9,6 +9,7 @@ import { isAborted, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { toast } from "@/lib/toast";
 import {
+  isFinalStatus,
   addLeadWatcher,
   assignLead,
   changeLeadStatus,
@@ -28,7 +29,8 @@ import {
   type CrmMeta,
   type CrmOperator,
 } from "@/lib/services/crm";
-import { Avatar, StatusPill, useCrmError } from "./bits";
+import { useCrmMeta } from "@/lib/crm/useCrm";
+import { Avatar, StatusPill, useCrmError, useStatusLabel } from "./bits";
 import { CrmDateTime, CrmSelect } from "./fields";
 import type { LeadWrite } from "./CrmLeadPage";
 import { LookupPicker } from "./LookupPicker";
@@ -67,22 +69,23 @@ function Foot({ onClose, onOk, busy, okText, danger = false, disabled = false }:
 // from its own sheet; a move resends the lead's current one so it isn't cleared.
 export function StatusSheet({ lead, to, write, onClose }: { lead: CrmLead; to: string; write: LeadWrite; onClose: () => void }): ReactElement {
   const t = useTranslations("crm.sheet");
-  const ts = useTranslations("crm.status");
+  const ts = useStatusLabel();
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
-  const closing = to === "closed";
-  const [tried, setTried] = useState(false);
-  const reasonErr = tried && closing && reason.trim().length < 3 ? t("reasonRequired") : "";
+  // Into a final column (dynamic, from the backend): the reason asks why it
+  // ends. It stays optional — the backend decides what it requires.
+  const { meta } = useCrmMeta();
+  const closing = isFinalStatus(meta, to);
+  const reasonErr = "";
   const ok = async () => {
-    setTried(true);
-    if (busy || (closing && reason.trim().length < 3)) return;
+    if (busy) return;
     setBusy(true);
-    const done = await write((l) => changeLeadStatus(l, to, reason, l.nextActionAt || null), t("moved", { status: ts.has(to) ? ts(to) : to }));
+    const done = await write((l) => changeLeadStatus(l, to, reason, l.nextActionAt || null), t("moved", { status: ts(to) }));
     setBusy(false);
     if (done) onClose();
   };
   return (
-    <Modal open onClose={onClose} title={t("statusTitle", { status: ts.has(to) ? ts(to) : to })} busy={busy} dirty={!!reason} footer={<Foot onClose={onClose} onOk={() => void ok()} busy={busy} okText={t("move")} danger={closing} />}>
+    <Modal open onClose={onClose} title={t("statusTitle", { status: ts(to) })} busy={busy} dirty={!!reason} footer={<Foot onClose={onClose} onOk={() => void ok()} busy={busy} okText={t("move")} />}>
       <div className="crm-pop">
         <div className="crm-diff__pair" style={{ alignItems: "center" }}>
           <span style={{ textDecoration: "none" }}>

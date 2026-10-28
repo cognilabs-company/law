@@ -10,7 +10,6 @@ import { saveBlob } from "@/lib/download";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import {
-  CRM_STATUSES,
   EXPORT_SCOPES,
   createCrmExport,
   createCrmLead,
@@ -25,7 +24,7 @@ import {
   type CustomerOption,
 } from "@/lib/services/crm";
 import { dismissCrmExport, loadCrmMeta, refreshCrmExport, trackCrmExport, useCrmEvents, useCrmExports, useCrmMeta } from "@/lib/crm/useCrm";
-import { CrmTop, Empty, SkeletonRows, useCrmError, type CrmBack } from "./bits";
+import { CrmTop, Empty, SkeletonRows, statusColorVars, useCrmError, useStatusLabel, type CrmBack } from "./bits";
 import { CustomerPicker, NewCustomerModal, optionOfCustomer } from "./CustomerPicker";
 import { CrmDate, CrmDateTime, CrmSelect } from "./fields";
 
@@ -86,7 +85,8 @@ export default function CrmFrame({ title, tools, back, children }: { title?: str
     );
   }
   return (
-    <div className="crm">
+    <div className="crm" style={statusColorVars(api.meta)}>
+      <MetaSync />
       <CrmTop meta={api.meta} title={title ?? t("title")} onPalette={openPalette} tools={tools?.(api)} back={back} />
       {children(api)}
       <ExportTray />
@@ -96,6 +96,15 @@ export default function CrmFrame({ title, tools, back, children }: { title?: str
       {sheet === "export" ? <ExportSheet meta={api.meta} onClose={() => setSheet("")} /> : null}
     </div>
   );
+}
+
+// Columns changed on another screen (or the socket reconnected): the meta
+// holds the columns, so it is read again (dynamic kanban contract §realtime).
+function MetaSync(): null {
+  useCrmEvents((ev) => {
+    if (ev.invalidate.includes("meta") || ev.invalidate.includes("all")) void loadCrmMeta(true);
+  });
+  return null;
 }
 
 // ── ⌘K: customers and leads from the backend, plus quick actions ──
@@ -267,7 +276,7 @@ function ExportTray(): ReactElement | null {
 
 function ExportSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void }): ReactElement {
   const t = useTranslations("crm.export");
-  const ts = useTranslations("crm.status");
+  const label = useStatusLabel();
   const crmErr = useCrmError();
   const [scope, setScope] = useState<string>("leads");
   const [from, setFrom] = useState("");
@@ -329,7 +338,7 @@ function ExportSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void }):
         {scope === "leads" ? (
           <div className="crm-field">
             <span>{t("status")}</span>
-            <CrmSelect value={status} onChange={setStatus} label={t("status")} options={[{ value: "", label: t("anyStatus") }, ...(meta.statuses.length ? meta.statuses : [...CRM_STATUSES]).map((s) => ({ value: s, label: ts.has(s) ? ts(s) : s }))]} />
+            <CrmSelect value={status} onChange={setStatus} label={t("status")} options={[{ value: "", label: t("anyStatus") }, ...meta.statuses.map((s) => ({ value: s, label: label(s) }))]} />
           </div>
         ) : null}
         <p className="crm-sub">{t("note")}</p>

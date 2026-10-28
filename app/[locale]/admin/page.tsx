@@ -301,7 +301,7 @@ export default function AdminOverview() {
       { kind: "bars", title: td("drill.funnel"), rows: funnel.map((f2) => ({ label: label("stage", f2.label), value: num(f2.value), n: f2.value })) },
       { kind: "bars", title: td("drill.byScore"), rows: byScore.map((x) => ({ label: label("score", x.label), value: num(x.value), n: x.value })) },
     ],
-    link: adminLinkFor("pipeline", "/admin/pipeline", td("drill.goPipeline"), session),
+    link: adminLinkFor("pipeline", "/admin/crm/leads?tab=all&view=board", td("drill.goPipeline"), session),
   });
   const drillQuality = () => open({
     title: tc("quality"), value: q?.avgRating ? fmtRating(q.avgRating, locale) : DASH, note: td("drill.constNote"),
@@ -320,7 +320,7 @@ export default function AdminOverview() {
       { kind: "bars", title: td("drill.byScore"), rows: byScore.map((x) => ({ label: label("score", x.label), value: num(x.value), n: x.value })) },
       { kind: "bars", title: td("drill.byRegion"), rows: byRegion.map((x) => ({ label: regionName(x.label), value: num(x.value), n: x.value })), empty: td("drill.regionUnknown") },
     ],
-    link: adminLinkFor("pipeline", "/admin/pipeline", td("drill.goLeads"), session),
+    link: adminLinkFor("pipeline", "/admin/crm/leads?tab=all&view=board", td("drill.goLeads"), session),
   });
   const drillOrders = () => withDetail("orders", {
     title: tc("ordersByStatus"), value: num(byStatus.reduce((s, x) => s + x.value, 0)),

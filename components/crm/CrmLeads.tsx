@@ -9,12 +9,12 @@ import { IconBookmark, IconX } from "./icons";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { CRM_STATUSES, claimCrmLead, crmCan, isClaimRace, leadCan, listCrmLeads, listCrmOperators, type CrmLead, type CrmMeta, type CrmOperator } from "@/lib/services/crm";
+import { claimCrmLead, crmCan, isClaimRace, leadCan, listCrmLeads, listCrmOperators, type CrmLead, type CrmMeta, type CrmOperator } from "@/lib/services/crm";
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import CrmFrame from "./CrmFrame";
 import { LeadBoard } from "./LeadBoard";
 import { EMPTY, LIMIT, queryOf, type Filters, type Tab } from "./leadQuery";
-import { Avatar, Empty, ScoreChip, StageDots, StatusPill, WhenChip, useCrmError } from "./bits";
+import { Avatar, Empty, ScoreChip, StageDots, StatusPill, WhenChip, useCrmError, useStatusLabel } from "./bits";
 import { CrmDate, CrmSelect } from "./fields";
 
 const VIEWS_KEY = "lexgo.crm.views";
@@ -65,7 +65,7 @@ export default function CrmLeads(): ReactElement {
 function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
   const t = useTranslations("crm.leads");
   const tsrc = useTranslations("crm.source");
-  const ts = useTranslations("crm.status");
+  const ts = useStatusLabel();
   const tsc = useTranslations("crm.score");
   const locale = useLocale();
   const router = useRouter();
@@ -339,7 +339,7 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
           <IconSearch aria-hidden="true" />
           <input ref={searchRef} value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
         </label>
-        {view === "table" ? <CrmSelect value={f.status} onChange={(v) => setFilter({ status: v })} label={t("f.status")} options={[{ value: "", label: t("f.anyStatus") }, ...(meta.statuses.length ? meta.statuses : [...CRM_STATUSES]).map((s) => ({ value: s, label: ts.has(s) ? ts(s) : s }))]} /> : null}
+        {view === "table" ? <CrmSelect value={f.status} onChange={(v) => setFilter({ status: v })} label={t("f.status")} options={[{ value: "", label: t("f.anyStatus") }, ...meta.statuses.map((s) => ({ value: s, label: ts(s) }))]} /> : null}
         <CrmSelect value={f.score} onChange={(v) => setFilter({ score: v })} label={t("f.score")} options={[{ value: "", label: t("f.anyScore") }, ...meta.scores.map((s) => ({ value: s, label: tsc.has(s) ? tsc(s) : s }))]} />
         <CrmSelect value={f.source} onChange={(v) => setFilter({ source: v })} label={t("f.source")} options={[{ value: "", label: t("f.anySource") }, ...meta.sources.map((s) => ({ value: s, label: tsrc.has(s) ? tsrc(s) : tsrc("other") }))]} />
         {tab === "all" && ops.length ? (

@@ -25,6 +25,7 @@ import {
   type CrmCustomer,
   type CrmCustomerDetail,
   type CrmMeta,
+  isFinalStatus,
 } from "@/lib/services/crm";
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import CrmFrame, { type CrmApi } from "./CrmFrame";
@@ -33,7 +34,7 @@ import { ContactRow } from "./LeadSide";
 import { Timeline } from "./LeadTimeline";
 import { CrmSelect } from "./fields";
 
-const CLOSED = new Set(["won", "closed"]);
+
 
 export default function CrmCustomerPage({ customerId }: { customerId: string }): ReactElement {
   const t = useTranslations("crm");
@@ -113,8 +114,9 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
       </>
     );
 
-  const current = c.leads.filter((l) => !CLOSED.has(l.status));
-  const past = c.leads.filter((l) => CLOSED.has(l.status));
+  // Past: the leads in a final column (the backend says which ones are).
+  const current = c.leads.filter((l) => !isFinalStatus(meta, l.status));
+  const past = c.leads.filter((l) => isFinalStatus(meta, l.status));
   const contacts = [...c.contacts].sort((a, b) => Number(b.primary) - Number(a.primary) || Number(a.status === "archived") - Number(b.status === "archived"));
   const setPrimary = async (id: string) => {
     try {

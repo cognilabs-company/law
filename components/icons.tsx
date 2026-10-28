@@ -54,6 +54,27 @@ export const IconArrowRight = (p: P) => (
   </svg>
 );
 
+export const IconArrowUp = (p: P) => (
+  <svg {...base} strokeWidth={2.4} {...p}>
+    <path d="M12 19V5M6 11l6-6 6 6" />
+  </svg>
+);
+
+export const IconArrowDown = (p: P) => (
+  <svg {...base} strokeWidth={2.4} {...p}>
+    <path d="M12 5v14M6 13l6 6 6-6" />
+  </svg>
+);
+
+// Board columns side by side.
+export const IconColumns = (p: P) => (
+  <svg {...base} {...p}>
+    <rect x="3" y="4" width="5" height="16" rx="1.5" />
+    <rect x="10" y="4" width="5" height="11" rx="1.5" />
+    <rect x="17" y="4" width="4" height="14" rx="1.5" />
+  </svg>
+);
+
 export const IconBolt = (p: P) => (
   <svg {...base} {...p}>
     <path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" />

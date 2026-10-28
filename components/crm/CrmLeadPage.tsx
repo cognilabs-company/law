@@ -7,10 +7,10 @@ import { IconAlert, IconArrowRight, IconClock, IconFlame, IconMapPin, IconRefres
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { CRM_STATUSES, crmNextStatuses, getCrmLead, isClaimRace, isCrmDenied, isVersionConflict, leadCan, type CrmLead, type CrmMeta } from "@/lib/services/crm";
+import { crmNextStatuses, isFinalStatus, journeyOf, getCrmLead, isClaimRace, isCrmDenied, isVersionConflict, leadCan, type CrmLead, type CrmMeta } from "@/lib/services/crm";
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import CrmFrame from "./CrmFrame";
-import { Empty, StatusIcon, StatusPill, WhenChip, statusVar, useCrmError } from "./bits";
+import { Empty, StatusIcon, StatusPill, WhenChip, statusVar, useCrmError, useStatusLabel } from "./bits";
 import { LeadSide } from "./LeadSide";
 import { LeadTimeline } from "./LeadTimeline";
 import { CopilotPanel } from "./CopilotPanel";
@@ -175,13 +175,16 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
 // The banner: who, what, the journey, and only the moves the backend allows.
 function LeadHead({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; write: LeadWrite }): ReactElement {
   const t = useTranslations("crm.lead");
-  const ts = useTranslations("crm.status");
+  const ts = useStatusLabel();
   const tsc = useTranslations("crm.score");
   const locale = useLocale();
   const now = useNow();
   const [to, setTo] = useState("");
-  const journey = CRM_STATUSES.slice(0, 6);
-  const at = journey.indexOf(lead.status as (typeof journey)[number]);
+  // The open columns in the backend's order, then where the lead ended
+  // (or the first final column, as the goal).
+  const journey = journeyOf(meta, lead.status);
+  const at = journey.indexOf(lead.status);
+  const ended = isFinalStatus(meta, lead.status);
   const moves = leadCan(lead, "change_status") ? crmNextStatuses(meta, lead.status) : [];
   return (
     <section className="crm-lhead" aria-labelledby="crm-lead-title">
@@ -222,9 +225,9 @@ function LeadHead({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; write: 
       </div>
       <ol className="crm-stepper" aria-label={t("journey")}>
         {journey.map((s, i) => {
-          const state = lead.status === "closed" ? "todo" : i < at ? "done" : i === at ? "now" : "todo";
+          const state = i < at ? "done" : i === at ? (ended ? "end" : "now") : "todo";
           return (
-            <li key={s} data-state={state} aria-current={state === "now" ? "step" : undefined}>
+            <li key={s} data-state={state} style={statusVar(s)} aria-current={i === at ? "step" : undefined}>
               <i aria-hidden="true">
                 <StatusIcon status={s} />
               </i>
@@ -232,21 +235,13 @@ function LeadHead({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; write: 
             </li>
           );
         })}
-        {lead.status === "closed" ? (
-          <li data-state="closed" aria-current="step">
-            <i aria-hidden="true">
-              <StatusIcon status="closed" />
-            </i>
-            {ts("closed")}
-          </li>
-        ) : null}
       </ol>
       {moves.length ? (
         <div className="crm-moves" role="group" aria-label={t("nextMoves")}>
           {moves.map((s) => (
             <button key={s} type="button" className="crm-move" style={statusVar(s)} onClick={() => setTo(s)}>
               <i aria-hidden="true" />
-              {ts.has(s) ? ts(s) : s}
+              {ts(s)}
               <IconArrowRight aria-hidden="true" />
             </button>
           ))}

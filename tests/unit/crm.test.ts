@@ -272,3 +272,35 @@ describe("CRM customer / lead contract 2026-10-27", () => {
     expect(hasReadable({ duration_sec: 240 })).toBe(true);
   });
 });
+
+describe("dynamic kanban (contract 2026-10-28)", () => {
+  it("reads columns from the meta, in the backend's order, with colour and the final flag", async () => {
+    const { crmMetaOf } = await import("@/lib/services/crm");
+    const m = crmMetaOf({ statuses: [{ key: "won", title: "Won", color: "#059669", order: 50, is_final: true }, { key: "new", title: "New", color: "#2563eb", order: 10, is_final: false }, { key: "follow_up", title: "Qayta aloqa", color: "nope", order: 20 }] });
+    expect(m.statuses).toEqual(["new", "follow_up", "won"]);
+    expect(m.statusInfo[1]).toEqual({ key: "follow_up", title: "Qayta aloqa", color: "", order: 20, isFinal: false });
+  });
+  it("the journey is the open columns, then where the lead ended (or the first final one)", async () => {
+    const { crmMetaOf, journeyOf } = await import("@/lib/services/crm");
+    const m = crmMetaOf({ statuses: [{ key: "new", order: 10 }, { key: "contacted", order: 20 }, { key: "won", order: 50, is_final: true }, { key: "lost", order: 60, is_final: true }] });
+    expect(journeyOf(m, "contacted")).toEqual(["new", "contacted", "won"]);
+    expect(journeyOf(m, "lost")).toEqual(["new", "contacted", "lost"]);
+  });
+  it("a drop between two cards becomes the exact zero-based position in the full column", async () => {
+    const { positionIn } = await import("@/lib/services/crm");
+    const order = ["a", "b", "x", "c", "d"];
+    expect(positionIn(order, "x", "c", "b")).toBe(2); // where it already is
+    expect(positionIn(order, "x", "a", null)).toBe(0); // to the top
+    expect(positionIn(order, "x", null, "d")).toBe(4); // to the end
+    expect(positionIn(order, "n", "c", null)).toBe(3); // from another column
+    expect(positionIn(["a", "b"], "n", "gone", null)).toBe(0);
+  });
+  it("a new column key is Latin, lowercase and unique", async () => {
+    const { columnKeyOf } = await import("@/lib/services/crm");
+    expect(columnKeyOf("Qayta aloqa", [])).toBe("qayta_aloqa");
+    expect(columnKeyOf("Qayta aloqa", ["qayta_aloqa"])).toBe("qayta_aloqa_2");
+    expect(columnKeyOf("Повторный звонок", [])).toBe("povtorniy_zvonok");
+    expect(columnKeyOf("Mijoz o'ylab ko'rmoqda", [])).toBe("mijoz_oylab_kormoqda");
+    expect(columnKeyOf("!!!", [])).toBe("column");
+  });
+});

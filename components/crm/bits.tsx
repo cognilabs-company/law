@@ -4,12 +4,32 @@ import "./crm.css";
 import { useCallback, useEffect, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
-import { IconAward, IconChartBar, IconChevronLeft, IconClipboardCheck, IconCoins, IconFileText, IconFlame, IconGrid, IconInbox, IconLayers, IconLock, IconPhone, IconSearch, IconSparkle, IconUsers } from "@/components/icons";
+import { IconAward, IconChartBar, IconChevronLeft, IconCircleX, IconClipboardCheck, IconCoins, IconCopy, IconFileText, IconFlame, IconGrid, IconInbox, IconLayers, IconLock, IconPhone, IconSearch, IconSparkle, IconUsers } from "@/components/icons";
 import { errDetail } from "@/lib/http";
-import { CRM_STATUSES, crmCan, crmCode, crmGlobalAnalytics, type CrmMeta } from "@/lib/services/crm";
-import { minutesUntil, useLiveState } from "@/lib/crm/useCrm";
+import { crmCan, crmCode, crmGlobalAnalytics, journeyOf, type CrmMeta } from "@/lib/services/crm";
+import { minutesUntil, useCrmMeta, useLiveState } from "@/lib/crm/useCrm";
 
+// A column's colour: the backend's (set on .crm by CrmFrame as --s-<key>),
+// else the built-in one for that key.
 export const statusVar = (s: string) => ({ ["--sc" as string]: `var(--s-${s}, var(--crm-muted))` });
+// The CSS variables for every backend column colour.
+export const statusColorVars = (meta: CrmMeta | null): Record<string, string> =>
+  Object.fromEntries((meta?.statusInfo ?? []).filter((x) => x.color).map((x) => [`--s-${x.key}`, x.color]));
+
+// A column's name. The backend's own title when someone named it; a
+// built-in key still at its default English title ("New") reads in the
+// page's language.
+const seedTitle = (key: string, title: string) => !title || title.trim().toLowerCase() === key.replace(/[_-]+/g, " ").toLowerCase();
+export function useStatusLabel(): (key: string) => string {
+  const t = useTranslations("crm.status");
+  const { meta } = useCrmMeta();
+  return (key) => {
+    const info = meta?.statusInfo.find((x) => x.key === key);
+    if (info && !seedTitle(key, info.title)) return info.title;
+    if (t.has(key)) return t(key);
+    return info?.title || t("other");
+  };
+}
 
 // Every stage has its own icon, so a step circle is never empty (UI law #7).
 export const STATUS_ICON: Record<string, (p: { "aria-hidden"?: boolean | "true" }) => ReactElement> = {
@@ -20,6 +40,8 @@ export const STATUS_ICON: Record<string, (p: { "aria-hidden"?: boolean | "true" 
   payment_pending: IconCoins,
   won: IconAward,
   closed: IconLock,
+  lost: IconCircleX,
+  duplicate: IconCopy,
 };
 export function StatusIcon({ status }: { status: string }): ReactElement {
   const Icon = STATUS_ICON[status] ?? IconLayers;
@@ -27,24 +49,25 @@ export function StatusIcon({ status }: { status: string }): ReactElement {
 }
 
 export function StatusPill({ status }: { status: string }): ReactElement {
-  const t = useTranslations("crm.status");
+  const label = useStatusLabel();
   return (
     <span className="crm-pill" style={statusVar(status)}>
       <i aria-hidden="true" />
-      {t.has(status) ? t(status) : status}
+      {label(status)}
     </span>
   );
 }
 
-// The seven stages as dots; `closed` lights none of the journey.
+// The journey as dots: the open columns, then where the lead ended.
 export function StageDots({ status }: { status: string }): ReactElement {
-  const t = useTranslations("crm.status");
-  const at = CRM_STATUSES.indexOf(status as (typeof CRM_STATUSES)[number]);
-  const journey = CRM_STATUSES.slice(0, 6);
+  const label = useStatusLabel();
+  const { meta } = useCrmMeta();
+  const journey = journeyOf(meta, status);
+  const at = journey.indexOf(status);
   return (
-    <span className="crm-dots" style={statusVar(status)} aria-label={t.has(status) ? t(status) : status} role="img">
+    <span className="crm-dots" style={statusVar(status)} aria-label={label(status)} role="img">
       {journey.map((s, i) => (
-        <i key={s} data-on={status !== "closed" && i <= at ? "" : undefined} />
+        <i key={s} data-on={at >= 0 && i <= at ? "" : undefined} />
       ))}
     </span>
   );

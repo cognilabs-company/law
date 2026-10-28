@@ -79,7 +79,9 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       // the operator queue and the AI copilot. Each page then follows
       // GET /crm/meta and every lead's allowed_actions.
       { href: "/admin/crm", key: "crm", Icon: NavPipeline, perm: ["crm.leads.view", "crm.customers.view"] },
-      { href: "/admin/pipeline", key: "pipeline", Icon: NavPipeline, perm: "leads.manage" },
+      // Hidden for now: the same board as the CRM kanban since 2026-10-28;
+      // /admin/pipeline redirects there.
+      // { href: "/admin/pipeline", key: "pipeline", Icon: NavPipeline, perm: "leads.manage" },
       { href: "/admin/call-center", key: "callCenter", Icon: NavCallCenter, perm: ["leads.manage", "callcenter.access"] },
       // Platform-wide meeting history (GET /admin/calls — who created it,
       // participants, duration) is a tab inside this same page now, not a

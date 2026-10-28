@@ -7,10 +7,10 @@ import { IconAlert, IconChartBar, IconLock, IconTarget, IconUsers } from "@/comp
 import { fmtNum } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
-import { CRM_STATUSES, crmGlobalAnalytics, getCrmAnalytics, type CrmAnalytics as Data, type CrmMeta } from "@/lib/services/crm";
+import { crmGlobalAnalytics, getCrmAnalytics, type CrmAnalytics as Data, type CrmMeta } from "@/lib/services/crm";
 import { useCrmEvents } from "@/lib/crm/useCrm";
 import CrmFrame from "./CrmFrame";
-import { Avatar, Empty, statusVar, useCrmError } from "./bits";
+import { Avatar, Empty, statusVar, useCrmError, useStatusLabel } from "./bits";
 
 type Period = "7" | "30" | "90" | "all";
 
@@ -24,7 +24,7 @@ export default function CrmAnalytics(): ReactElement {
 function Board({ meta }: { meta: CrmMeta }): ReactElement {
   const t = useTranslations("crm.analytics");
   const tsrc = useTranslations("crm.source");
-  const ts = useTranslations("crm.status");
+  const ts = useStatusLabel();
   const locale = useLocale();
   const crmErr = useCrmError();
   const [period, setPeriod] = useState<Period>("30");
@@ -53,7 +53,7 @@ function Board({ meta }: { meta: CrmMeta }): ReactElement {
     if (ev.invalidate.some((k) => k === "all" || k === "metrics")) setTick((n) => n + 1);
   });
   if (!allowed) return <div className="crm-card"><Empty icon={<IconLock />} title={t("locked")} text={t("lockedText")} /></div>;
-  const max = Math.max(1, ...CRM_STATUSES.map((s) => data?.statusCounts[s] ?? 0));
+  const max = Math.max(1, ...meta.statuses.map((s) => data?.statusCounts[s] ?? 0));
   return (
     <>
       <div className="crm-filters">
@@ -100,7 +100,7 @@ function Board({ meta }: { meta: CrmMeta }): ReactElement {
                 {t("funnel")}
               </h3>
               <div className="crm-funnel">
-                {CRM_STATUSES.map((s) => (
+                {meta.statuses.map((s) => (
                   <div key={s} style={statusVar(s)}>
                     <small>{ts(s)}</small>
                     <span style={{ width: `${((data.statusCounts[s] ?? 0) / max) * 100}%` }} />

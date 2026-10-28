@@ -22,8 +22,10 @@ const qs = (q: Record<string, string | number | boolean | null | undefined>): st
 
 // ── Meta ───────────────────────────────────────────────────────────────
 
-export const CRM_STATUSES = ["new", "contacted", "qualified", "proposal", "payment_pending", "won", "closed"] as const;
-export type CrmStatus = (typeof CRM_STATUSES)[number];
+// Statuses are the backend's Kanban columns (dynamic kanban contract
+// 2026-10-28): key, title, colour, order and whether it ends the journey
+// all come from GET /crm/meta — nothing about them is hardcoded here.
+export type CrmStatusInfo = { key: string; title: string; color: string; order: number; isFinal: boolean };
 export const CRM_PERMS = [
   "crm.customers.view",
   "crm.customers.manage",
@@ -45,7 +47,9 @@ export type CrmPerm = (typeof CRM_PERMS)[number];
 
 export type CrmTelephony = { provider: string; enabled: boolean; recordingConsentRequired: boolean; liveTranscription: string; recordingAccess: boolean };
 export type CrmMeta = {
+  // Column keys in the board's order.
   statuses: string[];
+  statusInfo: CrmStatusInfo[];
   transitions: Record<string, string[]>;
   scores: string[];
   languages: string[];
@@ -59,12 +63,14 @@ export type CrmMeta = {
 
 export function crmMetaOf(v: unknown): CrmMeta {
   const d = asDict(v);
-  const rows = asArr(d.statuses).map(asDict);
+  const rows = asArr(d.statuses).map(asDict).filter((r) => asStr(r.key));
   const transitions: Record<string, string[]> = {};
   for (const r of rows) transitions[asStr(r.key)] = asArr(r.transitions).map((x) => asStr(x)).filter(Boolean);
+  const statusInfo = rows.map(statusInfoOf).sort((a, b) => a.order - b.order);
   const tel = asDict(d.telephony);
   return {
-    statuses: rows.map((r) => asStr(r.key)).filter(Boolean),
+    statuses: statusInfo.map((x) => x.key),
+    statusInfo,
     transitions,
     scores: asArr(d.scores).map((x) => asStr(x)),
     languages: asArr(d.languages).map((x) => asStr(x)),
@@ -81,6 +87,20 @@ export function crmMetaOf(v: unknown): CrmMeta {
       recordingAccess: bool(tel.recording_access),
     },
   };
+}
+
+const HEX = /^#[0-9a-f]{3,8}$/i;
+export function statusInfoOf(r: Dict, i = 0): CrmStatusInfo {
+  const order = Number(r.order);
+  return { key: asStr(r.key), title: asStr(r.title).trim(), color: HEX.test(asStr(r.color)) ? asStr(r.color) : "", order: Number.isFinite(order) ? order : (i + 1) * 10, isFinal: r.is_final === true };
+}
+export const isFinalStatus = (meta: CrmMeta | null, key: string): boolean => !!meta?.statusInfo.find((s) => s.key === key)?.isFinal;
+// The journey a lead walks: the open columns in order, then where it ended.
+export function journeyOf(meta: CrmMeta | null, status: string): string[] {
+  const all = meta?.statusInfo ?? [];
+  const open = all.filter((s) => !s.isFinal).map((s) => s.key);
+  const end = all.find((s) => s.key === status && s.isFinal) ?? all.find((s) => s.isFinal);
+  return end ? [...open, end.key] : open;
 }
 
 export const crmCan = (meta: CrmMeta | null, perm: CrmPerm): boolean => !!meta && meta.permissions.includes(perm);
@@ -794,7 +814,7 @@ export const isCrmDenied = (e: unknown): boolean => e instanceof ApiError && (e.
 
 // What a /ws/users/me event means for the CRM screens (§10). Nothing is
 // appended from an event: the named caches refetch.
-export type CrmInvalidate = "all" | "queue" | "counts" | "lists" | "lead" | "metrics" | "customer" | "ai" | "export";
+export type CrmInvalidate = "all" | "meta" | "queue" | "counts" | "lists" | "lead" | "metrics" | "customer" | "ai" | "export";
 export type CrmEvent = { name: string; leadId: string; runId: string; exportId: string; customerId: string; invalidate: CrmInvalidate[] };
 const pick = (ev: Dict, ...keys: string[]): string => {
   const pools = [ev, asDict(ev.data), asDict(ev.payload), asDict(asDict(ev.notification).data)];
@@ -816,9 +836,82 @@ export function crmEventOf(raw: unknown): CrmEvent | null {
     "crm.lead.status_changed": ["lead", "lists", "counts", "metrics"],
     "crm.lead.watcher_added": ["lead"],
     "crm.lead.next_action_due": ["lead", "lists", "metrics"],
+    // Dynamic kanban (2026-10-28): a card moved, or the columns changed.
+    "crm.lead.moved": ["lead", "lists", "counts"],
+    "crm.kanban.columns_updated": ["meta", "lists", "counts"],
+    "crm.kanban.column_archived": ["meta", "lists", "counts", "lead"],
     "crm.ai.completed": ["ai"],
     "crm.ai.failed": ["ai"],
     "crm.export.ready": ["export"],
   };
   return { ...base, invalidate: map[name] ?? (base.leadId ? ["lead", "lists"] : ["lists"]) };
+}
+
+// ── Dynamic Kanban (contract 2026-10-28) ──
+// Columns: GET/PUT /call-center/leads/kanban/columns (the whole ordered
+// active list; a new key creates one), DELETE …/columns/{key}[?reassign_to=]
+// archives one. A move sets column and exact position atomically.
+export type KanbanColumnInput = { key: string; title: string; color: string; order: number; isFinal: boolean };
+export async function listKanbanColumns(signal?: AbortSignal): Promise<CrmStatusInfo[]> {
+  const d = await http("/call-center/leads/kanban/columns", { signal });
+  return (Array.isArray(d) ? d : asArr(asDict(d).columns ?? asDict(d).items)).map((x, i) => statusInfoOf(asDict(x), i)).filter((c) => c.key).sort((a, b) => a.order - b.order);
+}
+export const columnsBody = (cols: KanbanColumnInput[]): Dict[] => cols.map((c, i) => ({ key: c.key, title: c.title.trim(), color: c.color, order: (i + 1) * 10, is_final: c.isFinal }));
+export async function saveKanbanColumns(cols: KanbanColumnInput[]): Promise<CrmStatusInfo[]> {
+  const d = await http("/call-center/leads/kanban/columns", { method: "PUT", body: JSON.stringify(columnsBody(cols)) });
+  return (Array.isArray(d) ? d : asArr(asDict(d).columns ?? asDict(d).items)).map((x, i) => statusInfoOf(asDict(x), i)).filter((c) => c.key);
+}
+export async function archiveKanbanColumn(key: string, reassignTo?: string): Promise<void> {
+  await http(`/call-center/leads/kanban/columns/${enc(key)}${qs({ reassign_to: reassignTo || undefined })}`, { method: "DELETE" });
+}
+// A stable key for a new column from its title: Latin lowercase, digits, _ and -.
+export function columnKeyOf(title: string, taken: readonly string[]): string {
+  const map: Record<string, string> = { "ʻ": "", "‘": "", "'": "", "’": "", "ў": "o", "қ": "q", "ғ": "g", "ҳ": "h", "ш": "sh", "ч": "ch", "ю": "yu", "я": "ya", "ё": "yo", "ж": "j", "ц": "ts", "щ": "sh", "ъ": "", "ь": "", "э": "e", "й": "y", "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "з": "z", "и": "i", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u", "ф": "f", "х": "x", "ы": "i" };
+  const base =
+    title
+      .toLowerCase()
+      .split("")
+      .map((ch) => map[ch] ?? ch)
+      .join("")
+      .normalize("NFKD")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 40) || "column";
+  let key = base;
+  for (let n = 2; taken.includes(key); n++) key = `${base}_${n}`;
+  return key;
+}
+// Every column's full lead count (the board without any tab or filter).
+export async function kanbanCounts(signal?: AbortSignal): Promise<Record<string, number>> {
+  const d = asDict(await http("/call-center/leads/kanban", { signal }));
+  return Object.fromEntries(asArr(d.columns).map(asDict).map((c) => [asStr(c.key), int(c.count ?? asArr(c.leads).length)]));
+}
+// The full order of one column (every lead, not only the filtered view),
+// to turn "between these two cards" into the exact zero-based position.
+export async function columnOrder(key: string, signal?: AbortSignal): Promise<string[]> {
+  const d = asDict(await http(`/call-center/leads/kanban${qs({ status: key })}`, { signal }));
+  const col = asArr(d.columns).map(asDict).find((c) => asStr(c.key) === key);
+  return asArr(col?.leads)
+    .map(asDict)
+    .sort((a, b) => Number(a.position) - Number(b.position))
+    .map((e) => asStr(asDict(e.lead).id))
+    .filter(Boolean);
+}
+// Where the dragged lead lands: before `beforeId` (or after `afterId`) in
+// the column's full order with the dragged lead taken out.
+export function positionIn(order: readonly string[], leadId: string, beforeId: string | null, afterId: string | null): number {
+  const rest = order.filter((id) => id !== leadId);
+  if (beforeId) {
+    const i = rest.indexOf(beforeId);
+    if (i >= 0) return i;
+  }
+  if (afterId) {
+    const i = rest.indexOf(afterId);
+    if (i >= 0) return i + 1;
+  }
+  return beforeId ? 0 : rest.length;
+}
+export async function moveCrmLead(lead: Locked, columnKey: string, position: number): Promise<{ lead: CrmLead; position: number }> {
+  const d = asDict(await http(`/call-center/leads/${enc(lead.id)}/move`, { method: "PATCH", body: JSON.stringify({ column_key: columnKey, position: Math.max(0, Math.round(position)), expected_lock_version: lead.lockVersion }) }));
+  return { lead: crmLeadOf(d.lead), position: Number(asDict(d.kanban).position ?? position) };
 }
