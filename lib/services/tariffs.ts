@@ -55,14 +55,38 @@ export type PlanVersion = {
   // LexGo task; the version waits for the superadmin's approval once the
   // work is done, and is not on sale before. Shown when the backend sends it.
   devTask: PlanDevTask | null;
+  approval: PlanApproval | null;
 };
-// Backend answers 2026-10-28 §4.2: a version carries only
-// developer_task_id and developer_deadline_at — the task's code, status,
-// assignees and any approval are not sent yet and are not guessed. The id
-// only says a task exists; it is never shown.
-export type PlanDevTask = { deadlineAt: string };
+// Gaps closed 2026-10-28 §10: developer_task { task_code, title, status,
+// deadline_at, assignees }, approval { status, … } and superadmin_approval
+// { status, decision, decided_at, actor }; any can be null on historical
+// versions. The task shows by its human code, never its id.
+export type PlanDevTask = { code: string; title: string; status: string; deadlineAt: string; assignees: string[] };
+export type PlanApproval = { status: string; decision: string; by: string; at: string };
 export function devTaskOf(d: Record<string, unknown>): PlanDevTask | null {
-  return asStr(d.developer_task_id) ? { deadlineAt: asStr(d.developer_deadline_at) } : null;
+  const t = asDict(d.developer_task);
+  if (!Object.keys(t).length) return asStr(d.developer_task_id) ? { code: "", title: "", status: "", deadlineAt: asStr(d.developer_deadline_at), assignees: [] } : null;
+  return {
+    code: asStr(t.task_code ?? t.code),
+    title: asStr(t.title),
+    status: asStr(t.status).toLowerCase(),
+    deadlineAt: asStr(t.deadline_at ?? t.developer_deadline_at ?? d.developer_deadline_at),
+    assignees: asArr(t.assignees).map((a) => (typeof a === "string" ? a : asStr(asDict(a).name ?? asDict(a).full_name))).filter((x) => x && !/^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(x)),
+  };
+}
+// The superadmin's decision when there is one, else the workflow's own status.
+export function approvalOf(d: Record<string, unknown>): PlanApproval | null {
+  const sa = asDict(d.superadmin_approval);
+  const ap = asDict(d.approval);
+  if (Object.keys(sa).length) {
+    const done = asStr(sa.status).toLowerCase() === "done";
+    return { status: done ? asStr(sa.decision).toLowerCase() || "approve" : "pending", decision: asStr(sa.decision).toLowerCase(), by: asStr(asDict(sa.actor).name), at: asStr(sa.decided_at) };
+  }
+  if (Object.keys(ap).length) {
+    const st = asStr(ap.status).toLowerCase();
+    return { status: st, decision: "", by: "", at: asStr(ap.published_at ?? ap.approved_at ?? ap.submitted_at) };
+  }
+  return null;
 }
 export type PlanVersions = { planId: string; items: PlanVersion[]; currentVersionId: string };
 
@@ -90,6 +114,7 @@ export function versionOf(v: unknown): PlanVersion {
     payload: asDict(d.payload ?? d.snapshot ?? d.data),
     validation: validationOf(d.validation),
     devTask: devTaskOf(d),
+    approval: approvalOf(d),
   };
 }
 

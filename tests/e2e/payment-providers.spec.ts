@@ -97,9 +97,10 @@ test("back from the provider: waiting until the confirmed callback, then paid", 
   await mockBackend(
     page,
     await signIn(page, CLIENT, {
-      "/payments": () => {
+      // One payment, polled by id (gaps closed §2) — never the whole history.
+      "/payments/pay-1": () => {
         polls++;
-        return [{ id: "pay-1", work_id: "PAY-1", amount: 150000, currency: "UZS", status: polls < 3 ? "pending" : "paid", method: "payme", kind: "order", description: "", order_id: null, created_at: new Date().toISOString() }];
+        return { id: "pay-1", amount: 150000, currency: "UZS", status: polls < 3 ? "pending" : "paid", method: "payme", kind: "marketplace_full", description: "", order_id: null, created_at: new Date().toISOString(), receipt_url: null };
       },
     } as never),
   );
@@ -115,9 +116,17 @@ test("back from the provider: waiting until the confirmed callback, then paid", 
   expect(missing).toEqual([]);
 });
 
+test("back from the provider: an unknown payment is dropped quietly", async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem("lexgo.pendingPayment", JSON.stringify({ id: "pay-x", amount: 0, at: Date.now() })));
+  await mockBackend(page, await signIn(page, CLIENT, { "/payments/pay-x": { status: 404, json: { detail: { code: "payment_not_found" } } } } as never));
+  await page.goto("/uz/portal/client");
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("lexgo.pendingPayment")), { timeout: 20000 }).toBeNull();
+  await expect(page.locator(".payret")).toHaveCount(0);
+});
+
 test("back from the provider: a failed payment says so and points to the history", async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem("lexgo.pendingPayment", JSON.stringify({ id: "pay-2", amount: 0, at: Date.now() })));
-  await mockBackend(page, await signIn(page, CLIENT, { "/payments": [{ id: "pay-2", amount: 5000, currency: "UZS", status: "cancelled", method: "click", kind: "order", description: "", created_at: new Date().toISOString() }] } as never));
+  await mockBackend(page, await signIn(page, CLIENT, { "/payments/pay-2": { id: "pay-2", amount: 5000, currency: "UZS", status: "cancelled", method: "click", kind: "marketplace_full", description: "", created_at: new Date().toISOString() } } as never));
   await page.goto("/uz/portal/client");
   const card = page.locator(".payret");
   await expect(card).toContainText("To'lov o'tmadi", { timeout: 20000 });

@@ -6,8 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { IconCheck, IconClose, IconAlert, IconClock } from "@/components/icons";
 import { useAuth } from "@/lib/auth";
 import { fmtUzs } from "@/lib/money";
-import { listPayments } from "@/lib/services/backend";
-import { forgetPendingPayment, paymentOutcome, readPendingPayment, type PendingPayment } from "@/lib/services/paymentProviders";
+import { forgetPendingPayment, getPaymentState, readPendingPayment, type PendingPayment } from "@/lib/services/paymentProviders";
 import "./payment-return.css";
 
 // Polling after a return from the provider page: quick at first (the
@@ -46,13 +45,17 @@ export default function PaymentReturnWatcher(): ReactElement | null {
     const tick = async (step: number) => {
       if (mine !== run.current) return;
       try {
-        const list = await listPayments();
+        const { outcome, amount } = await getPaymentState(p.id);
         if (mine !== run.current) return;
-        const hit = list.find((x) => x.id === p.id);
-        const outcome = hit ? paymentOutcome(hit.status) : "waiting";
+        if (outcome === "gone") {
+          // Not this account's, or no longer there: nothing to watch.
+          forgetPendingPayment();
+          setView(null);
+          return;
+        }
         if (outcome === "paid") {
           forgetPendingPayment();
-          setView({ state: "paid", p: { ...p, amount: hit?.amount || p.amount } });
+          setView({ state: "paid", p: { ...p, amount: amount || p.amount } });
           window.dispatchEvent(new CustomEvent(PAYMENT_CONFIRMED_EVENT, { detail: { id: p.id } }));
           timer.current = window.setTimeout(() => setView(null), 7000);
           return;

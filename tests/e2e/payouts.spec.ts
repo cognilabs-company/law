@@ -2,8 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { ADVOCATE, CALL_CENTER, CLIENT, mockBackend, signIn } from "./mock";
 import { ORDER_ID, order } from "./fixtures";
 
-// TSK-906326 — 30-30-22 payouts (shapes from the backend answers 2026-10-28
-// §3): the call center pays each stage with a transfer reference and
+// TSK-906326 — 30-30-22 payouts (shapes from the backend's "gaps closed"
+// 2026-10-28 §6–9): the call center pays each stage with a transfer reference and
 // records recoveries; the seller sees their stages; the client never does. Screenshots: PO_SHOTS=<dir>, PO_DARK=1, PO_NARROW=1.
 test.use({
   viewport: process.env.PO_NARROW ? { width: 375, height: 812 } : { width: 1440, height: 960 },
@@ -14,11 +14,11 @@ const shot = async (page: Page, name: string) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${process.env.PO_SHOTS}/po-${name}${process.env.PO_DARK ? "-dark" : "-light"}${process.env.PO_NARROW ? "-phone" : ""}.png` });
 };
-// No nested seller in the rows: the name is looked up by id.
+const SELLER = { id: "u-adv", lexgo_id: "LGA-1", name: "Aziz Karimov", phone: "+998901112233", role: "advokat", account_status: "active" };
 const payouts = () => [
-  { id: "po-1", order_id: ORDER_ID, stage: "acceptance", status: "operator_required", gross_percent: 30, gross_amount: 33000, commission_amount: 0, payable_amount: 33000, currency: "UZS", seller_user_id: "u-adv", mode: "operator_managed", reason: "", transaction_reference: "", paid_at: null, created_at: "2026-10-28T08:00:00Z" },
-  { id: "po-2", order_id: ORDER_ID, stage: "first_checklist", status: "operator_required", gross_percent: 30, gross_amount: 33000, commission_amount: 0, payable_amount: 33000, currency: "UZS", seller_user_id: "u-adv", mode: "operator_managed", reason: "", transaction_reference: "", paid_at: null, created_at: "2026-10-28T09:00:00Z" },
-  { id: "po-3", order_id: ORDER_ID, stage: "completion", status: "provider_pending", gross_percent: 40, gross_amount: 44000, commission_amount: 19800, payable_amount: 24200, currency: "UZS", seller_user_id: "u-adv", mode: "automatic_provider_payout", reason: "", transaction_reference: "", paid_at: null, created_at: "2026-10-28T10:00:00Z" },
+  { id: "po-1", order_id: ORDER_ID, work_id: "ADV-7Q2", service_title: "Ajrashish bo'yicha maslahat", seller: SELLER, stage: "acceptance", status: "operator_required", gross_percent: 30, gross_amount: 33000, commission_amount: 0, payable_amount: 33000, currency: "UZS", seller_user_id: "u-adv", mode: "operator_managed", reason: "", transaction_reference: "", paid_at: null, created_at: "2026-10-28T08:00:00Z" },
+  { id: "po-2", order_id: ORDER_ID, work_id: "ADV-7Q2", service_title: "Ajrashish bo'yicha maslahat", seller: SELLER, stage: "first_checklist", status: "operator_required", gross_percent: 30, gross_amount: 33000, commission_amount: 0, payable_amount: 33000, currency: "UZS", seller_user_id: "u-adv", mode: "operator_managed", reason: "", transaction_reference: "", paid_at: null, created_at: "2026-10-28T09:00:00Z" },
+  { id: "po-3", order_id: ORDER_ID, work_id: "ADV-7Q2", service_title: "Ajrashish bo'yicha maslahat", seller: SELLER, stage: "completion", status: "provider_pending", gross_percent: 40, gross_amount: 44000, commission_amount: 19800, payable_amount: 24200, currency: "UZS", seller_user_id: "u-adv", mode: "automatic_provider_payout", reason: "", transaction_reference: "", paid_at: null, created_at: "2026-10-28T10:00:00Z" },
 ];
 
 test("call center: pay a stage with a transfer number; recover a refunded payout", async ({ page }) => {
@@ -32,10 +32,8 @@ test("call center: pay a stage with a transfer number; recover a refunded payout
         st.payouts = st.payouts.map((p) => (p.id === "po-1" ? { ...p, status: "paid", transaction_reference: "TRX-9001" } : p));
         return st.payouts[0];
       },
-      "/call-center/marketplace/payout-recoveries": () => ({ items: [{ id: "rc-1", order_id: "o-2", seller_user_id: "u-adv2", status: st.recovered.length ? "recovered" : "operator_required", amount: 66000, currency: "UZS", payload: { reason: "Mijozga pul qaytarildi" }, created_at: "2026-10-28T08:00:00Z" }], total: 1, has_more: false }),
+      "/call-center/marketplace/payout-recoveries": () => ({ items: [{ id: "rc-1", order_id: "o-2", work_id: "ADV-1KX", service_title: "Meros ulushi", seller_user_id: "u-adv2", seller: { id: "u-adv2", name: "Malika Yusupova" }, status: st.recovered.length ? "recovered" : "operator_required", amount: 66000, currency: "UZS", reason: "Mijozga pul qaytarildi", payload: {}, created_at: "2026-10-28T08:00:00Z" }], total: 1, has_more: false }),
       "POST /call-center/marketplace/payout-recoveries/rc-1/resolve": (b: unknown) => (st.recovered.push(b as Record<string, unknown>), { id: "rc-1", status: "recovered" }),
-      "/call-center/clients/u-adv": { id: "u-adv", full_name: "Aziz Karimov" },
-      "/call-center/clients/u-adv2": { id: "u-adv2", full_name: "Malika Yusupova" },
     } as never),
   );
   await page.goto("/uz/admin/call-center?tab=payouts");
@@ -45,6 +43,7 @@ test("call center: pay a stage with a transfer number; recover a refunded payout
   await expect(q.locator(".pyq__row").first()).toContainText("Qabul qilinganda");
   await expect(q.locator(".pyq__row").nth(1)).toContainText("Birinchi bosqich");
   await expect(q).toContainText("33 000 so'm");
+  await expect(q.locator(".pyq__row").first()).toContainText("ADV-7Q2 · Ajrashish bo'yicha maslahat");
   // The provider is sending the third: nothing to press there.
   await expect(q.locator(".pyq__row").nth(2)).toContainText("Provayder o'tkazmoqda");
   await expect(q.locator(".pyq__row").nth(2).getByRole("button")).toHaveCount(0);
@@ -76,13 +75,14 @@ test("call center: pay a stage with a transfer number; recover a refunded payout
   expect(st.recovered[0]).toMatchObject({ transaction_reference: "RET-12" });
 });
 
-// Stages come with the checklist; the hold is the settlement's own status.
-const checklist = { items: [], payouts: [
+// Stages come with the financials; the hold is the settlement's own status.
+const stages = [
   { id: "a", stage: "acceptance", gross_percent: 30, payable_amount: 33000, status: "paid", paid_at: "2026-10-28T09:10:00Z" },
   { id: "b", stage: "first_checklist", gross_percent: 30, payable_amount: 33000, status: "operator_required" },
   { id: "c", stage: "completion", gross_percent: 40, payable_amount: 24200, status: "operator_required" },
-] };
-const financials = { order_id: ORDER_ID, snapshot: {}, payments: [{ id: "p", stage: "full_payment", status: "paid", amount: 110000 }], settlement: { status: "held", held_amount: 24200, hold_reason: "rating_and_complaint_window", release_after: "2026-10-28T10:15:00Z" } };
+];
+// A client's financials carry empty payout arrays.
+const financials = (seller: boolean) => ({ order_id: ORDER_ID, work_id: "ADV-7Q2", snapshot: {}, payments: [{ id: "p", stage: "full_payment", status: "paid", amount: 110000 }], payouts: seller ? stages : [], payout_stages: seller ? stages : [], settlement: { status: "held", held_amount: 24200, hold_reason: "rating_and_complaint_window", release_after: "2026-10-28T10:15:00Z" } });
 
 test("the seller sees their three payout stages; the client sees none of it", async ({ browser }) => {
   for (const [who, expectStages] of [[ADVOCATE, true], [CLIENT, false]] as const) {
@@ -91,8 +91,7 @@ test("the seller sees their three payout stages; the client sees none of it", as
       page,
       await signIn(page, who, {
         [`/marketplace/me/orders/${ORDER_ID}`]: order({ status: "in_progress", payment_status: "paid", price: 110000 }),
-        [`/marketplace/me/orders/${ORDER_ID}/financials`]: financials,
-        [`/marketplace/me/orders/${ORDER_ID}/checklist`]: checklist,
+        [`/marketplace/me/orders/${ORDER_ID}/financials`]: financials(expectStages),
         [`/marketplace/me/orders/${ORDER_ID}/timeline`]: { items: [] },
         "/marketplace/me/orders": { items: [], total: 0 },
       }),

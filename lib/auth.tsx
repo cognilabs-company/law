@@ -54,6 +54,8 @@ export type Session = {
   backendRole?: string;
   // Backend says 2FA is mandatory for this account.
   twoFactorRequired?: boolean;
+  // /auth/me can_set_superadvokat: the primary superadmin only.
+  canSetSuperadvokat?: boolean;
   // undefined = unknown (/auth/me doesn't expose the link state).
   telegramLinked?: boolean;
   // Legal consents the server reports as accepted (lib/consents.ts seeds them
@@ -341,6 +343,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             twoFactorEnabled: u.twoFactorEnabled,
             twoFactorMethod: u.twoFactorMethod,
             twoFactorRequired: u.twoFactorRequired,
+            canSetSuperadvokat: u.canSetSuperadvokat,
             telegramLinked: u.telegramLinked ?? cur.telegramLinked,
             acceptedConsents: u.acceptedConsents?.length ? u.acceptedConsents : cur.acceptedConsents,
           });
@@ -372,6 +375,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         twoFactorMethod: user.twoFactorMethod,
         backendRole: user.primaryRole,
         twoFactorRequired: user.twoFactorRequired,
+        canSetSuperadvokat: user.canSetSuperadvokat,
         telegramLinked: user.telegramLinked,
         acceptedConsents: user.acceptedConsents,
       };
@@ -464,6 +468,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         twoFactorEnabled: user.twoFactorEnabled,
         twoFactorMethod: user.twoFactorMethod,
         twoFactorRequired: user.twoFactorRequired,
+        canSetSuperadvokat: user.canSetSuperadvokat,
         telegramLinked: user.telegramLinked,
         acceptedConsents: user.acceptedConsents,
       });

@@ -273,7 +273,10 @@ function Recon({ recon, pname, locale }: { recon: Reconciliation; pname: (k: str
           <ul className="pmx__rows">
             {rows.map((r) => (
               <li key={r.key}>
-                <span className="pmx__rowp">{pname(r.provider)}</span>
+                <span className="pmx__rowp">
+                  <b>{r.workId || pname(r.provider)}</b>
+                  <small>{[r.workId ? pname(r.provider) : "", r.paymentWorkId, r.serviceTitle].filter(Boolean).join(" · ")}</small>
+                </span>
                 <span className="pmx__rows-st" data-s={r.status}>
                   {statusOf(r.status)}
                 </span>

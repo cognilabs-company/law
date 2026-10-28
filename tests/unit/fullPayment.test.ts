@@ -47,12 +47,14 @@ describe("full payment first", () => {
 });
 
 describe("client-safe price reasons (TSK-787056)", () => {
-  // Backend answers 2026-10-28 §5: [{ code, amount, percent }] — the code is
-  // worded by the UI, never shown; a backend text wins when it arrives.
-  it("reads code, amount and percent; keeps a backend text; empty when none", async () => {
+  // Gaps closed 2026-10-28 §11: the backend's text (in the client's
+  // language) with text_i18n as the fallback; the code is never shown.
+  it("reads text, translations, amount and percent; empty when none", async () => {
     const { clientReasonsOf } = await import("@/lib/services/marketplace");
-    expect(clientReasonsOf([{ code: "professional_qualification", amount: 45000, percent: 5 }])).toEqual([{ code: "professional_qualification", amount: 45000, percent: 5, text: {} }]);
-    expect(clientReasonsOf([{ code: "region", amount: 0, percent: null, text: { uz: "Hudud", ru: "Регион" } }])[0].text).toEqual({ uz: "Hudud", ru: "Регион" });
+    const [r] = clientReasonsOf([{ code: "lawyer_experience", text: "Tajriba inobatga olingan.", label: "x", text_i18n: { uz_latn: "Tajriba", ru: "Опыт", en: " " }, amount: 45000, percent: 10 }]);
+    expect(r).toEqual({ code: "lawyer_experience", text: "Tajriba inobatga olingan.", i18n: { uz_latn: "Tajriba", ru: "Опыт" }, amount: 45000, percent: 10 });
+    expect(clientReasonsOf([{ code: "region", amount: 0 }])[0].text).toBe("");
     expect(clientReasonsOf(null)).toEqual([]);
     expect(clientReasonsOf([{ amount: 5 }])).toEqual([]);
-  });});
+  });
+});

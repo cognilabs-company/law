@@ -28,17 +28,19 @@ describe("payout stages", () => {
   it("the mark-paid body: a trimmed reference, evidence ids and a note", () => {
     expect(paidBody({ reference: "  TRX-77 ", note: " bank " })).toEqual({ transaction_reference: "TRX-77", evidence_ids: [], note: "bank" });
   });
-  it("an order's stages come from the checklist, in order; the hold is the settlement's", () => {
+  it("an order's stages come from the financials, in order; the hold is the settlement's", () => {
     const settlement = settlementOf({ settlement: { status: "complaint_hold", held_amount: 220000, hold_reason: "complaint_open", release_after: "" } });
     expect(settlement).toMatchObject({ held: true, heldAmount: 220000, holdReason: "complaint_open" });
-    const raw = { items: [], payouts: [{ id: "c", stage: "completion", payable_amount: 22, status: "operator_required" }, { id: "a", stage: "acceptance", payable_amount: 30, status: "paid" }, { id: "b", stage: "first_checklist", payable_amount: 30, status: "paid" }] };
-    const rows = orderPayoutsOf(raw, settlement);
+    const payouts = [{ id: "c", stage: "completion", payable_amount: 22, status: "operator_required" }, { id: "a", stage: "acceptance", payable_amount: 30, status: "paid" }, { id: "b", stage: "first_checklist", payable_amount: 30, status: "paid" }];
+    const rows = orderPayoutsOf({ payouts, settlement: { status: "complaint_hold" } });
     expect(rows.map((p) => p.id)).toEqual(["a", "b", "c"]);
     expect(rows[2].status).toBe("held");
-    expect(orderPayoutsOf(raw, settlementOf({ settlement: { status: "released" } }))[2].status).toBe("due");
-    expect(orderPayoutsOf({ items: [] })).toEqual([]);
+    expect(orderPayoutsOf({ payouts, settlement: { status: "rework_hold" } })[2].status).toBe("held");
+    expect(orderPayoutsOf({ payouts, settlement: { status: "released" } })[2].status).toBe("due");
+    // A client's financials: no payout rows at all.
+    expect(orderPayoutsOf({ payouts: [], settlement: {} })).toEqual([]);
   });
-  it("a recovery reads its reason from payload.reason", () => {
-    expect(recoveryOf({ id: "r1", order_id: "o2", amount: 60000, status: "under_review", seller_user_id: "s2", payload: { reason: "Mijozga qaytarildi" } })).toMatchObject({ amount: 60000, status: "review", reason: "Mijozga qaytarildi", seller: { id: "s2", name: "" } });
+  it("a recovery reads its normalized top-level fields, never the payload", () => {
+    expect(recoveryOf({ id: "r1", order_id: "o2", work_id: "ADV-2", service_title: "Meros", amount: 60000, status: "under_review", seller_user_id: "s2", seller: { id: "s2", name: "Malika" }, reason: "Mijozga qaytarildi", payload: { reason: "eski" } })).toMatchObject({ amount: 60000, status: "review", workId: "ADV-2", reason: "Mijozga qaytarildi", seller: { id: "s2", name: "Malika" } });
   });
 });

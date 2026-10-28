@@ -175,7 +175,7 @@ export function achievementDiff(next: Achievement | null, prev: Achievement | nu
   if (!next || !prev) return [];
   const rows: DiffRow[] = [];
   const add = (field: string, before: string, after: string) => {
-    if (before !== after) rows.push({ field, before, after, kind: !before ? "added" : !after ? "removed" : "changed" });
+    if (before !== after) rows.push({ field, label: "", before, after, kind: !before ? "added" : !after ? "removed" : "changed" });
   };
   add("achievement_type", prev.type, next.type);
   add("title", prev.title, next.title);
@@ -195,7 +195,7 @@ export async function getAchievementForReview(id: string, signal?: AbortSignal):
     record,
     previous,
     reviews: asArr(d.reviews).map(reviewOf),
-    checks: checkItemsOf(d.checklist ?? d.checklist_items, keys),
+    checks: checkItemsOf(d.checklist, keys),
     diff: given.length ? given : achievementDiff(record, previous),
     room: reviewRoomOf(d.communication ?? d.review_room ?? {}),
   };

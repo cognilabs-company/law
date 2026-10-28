@@ -1,5 +1,5 @@
 // TSK-906326 — marketplace 30-30-22 payouts (enterprise contract 2026-10-27
-// §9, §13; backend answers 2026-10-28 §3). The backend owns the arithmetic:
+// §9, §13; backend "gaps closed" 2026-10-28 §6–9). The backend owns the arithmetic:
 // seller acceptance 30% of the gross, the first required checklist stage
 // 30%, completion after the 15-minute rating/complaint window 40% less
 // LexGo's 18% (22% to the seller). Nothing here works an amount out.
@@ -37,12 +37,11 @@ const personOf = (v: unknown, id: unknown): Person | null => {
   const pname = asStr(d.name);
   return pid || pname ? { id: pid, name: pname } : null;
 };
+// Order and seller come with the row now: work_id, service_title, seller{ id, name, … }.
 
 export type Payout = {
   id: string;
   orderId: string;
-  // Backend gap (answers §3.1): no work_id, service_title or nested seller
-  // yet — read when they arrive, the seller's name is looked up by id.
   workId: string;
   serviceTitle: string;
   stage: PayoutStage;
@@ -55,6 +54,7 @@ export type Payout = {
   seller: Person | null;
   reason: string;
   reference: string;
+  note: string;
   paidAt: string;
   createdAt: string;
 };
@@ -77,6 +77,7 @@ export function payoutOf(v: unknown): Payout {
     seller: personOf(d.seller, d.seller_user_id),
     reason: asStr(d.reason),
     reference: asStr(d.transaction_reference),
+    note: asStr(d.operator_note),
     paidAt: asStr(d.paid_at),
     createdAt: asStr(d.created_at),
   };
@@ -134,8 +135,8 @@ export function recoveryOf(v: unknown): Recovery {
     amount: uzs(d, "amount"),
     status: payoutStatusOf(asStr(d.status)),
     seller: personOf(d.seller, d.seller_user_id),
-    // Answers §3.1: the reason sits in payload.reason.
-    reason: asStr(asDict(d.payload).reason),
+    // Gaps closed §7: the normalized top-level reason (payload is not read).
+    reason: asStr(d.reason),
     reference: asStr(d.transaction_reference),
     createdAt: asStr(d.created_at),
   };
@@ -150,26 +151,26 @@ export async function resolvePayoutRecovery(id: string, input: PaidInput): Promi
   return recoveryOf(await http(`/call-center/marketplace/payout-recoveries/${encodeURIComponent(id)}/resolve`, { method: "POST", body: JSON.stringify(paidBody(input)) }));
 }
 
-// The seller's own view (answers §3.2): the payout rows come with the
-// order checklist ({ items, payouts }); the hold is the settlement's own
-// status from …/financials, never worked out here.
+// The seller's own view (gaps closed §9): GET …/financials carries the
+// payout rows (empty for a client) and the settlement's own hold status —
+// never worked out here.
 export type Settlement = { status: string; held: boolean; heldAmount: number; holdReason: string; releaseAfter: string };
+const HELD = new Set(["held", "complaint_hold", "rework_hold"]);
 export function settlementOf(raw: unknown): Settlement {
   const s = asDict(asDict(raw).settlement);
   const status = asStr(s.status).toLowerCase();
-  return { status, held: status === "held" || status === "complaint_hold", heldAmount: uzs(s, "held_amount"), holdReason: asStr(s.hold_reason), releaseAfter: asStr(s.release_after) };
+  return { status, held: HELD.has(status), heldAmount: uzs(s, "held_amount"), holdReason: asStr(s.hold_reason), releaseAfter: asStr(s.release_after) };
 }
-export function orderPayoutsOf(checklist: unknown, settlement?: Settlement): Payout[] {
-  const out = asArr(asDict(checklist).payouts)
+export function orderPayoutsOf(raw: unknown): Payout[] {
+  const settlement = settlementOf(raw);
+  const out = asArr(asDict(raw).payouts)
     .map(payoutOf)
     .filter((p) => p.stage !== "other" || p.amount > 0)
-    .map((p) => (settlement?.held && p.stage === "completion" && p.status !== "paid" ? { ...p, status: "held" as const } : p));
+    .map((p) => (settlement.held && p.stage === "completion" && p.status !== "paid" ? { ...p, status: "held" as const } : p));
   const order = (s: PayoutStage) => (s === "other" ? 9 : PAYOUT_STAGES.indexOf(s));
   return out.sort((a, b) => order(a.stage) - order(b.stage));
 }
 export async function getOrderPayouts(orderId: string, signal?: AbortSignal): Promise<{ rows: Payout[]; settlement: Settlement }> {
-  const id = encodeURIComponent(orderId);
-  const [checklist, financials] = await Promise.all([http(`/marketplace/me/orders/${id}/checklist`, { signal }), http(`/marketplace/me/orders/${id}/financials`, { signal }).catch(() => ({}))]);
-  const settlement = settlementOf(financials);
-  return { rows: orderPayoutsOf(checklist, settlement), settlement };
+  const d = await http(`/marketplace/me/orders/${encodeURIComponent(orderId)}/financials`, { signal });
+  return { rows: orderPayoutsOf(d), settlement: settlementOf(d) };
 }

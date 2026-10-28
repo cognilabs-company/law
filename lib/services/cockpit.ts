@@ -2,8 +2,9 @@
 // 2026-10-27 §8): every queue's open total and its oldest items in one view.
 // GET /call-center/marketplace/cockpit?limit= answers only for operators
 // with marketplace access (call-center lawyers get 403 and never see it).
-// The backend's item titles can carry raw ids, so they are never shown: each
-// line is built from the item's own human fields.
+// Gaps closed 2026-10-28 §15: every item has a ready human title, work_id
+// and an owner summary — the title is shown as given (a line is rebuilt
+// from the item's fields only when an older answer has none).
 import { asArr, asDict, asNum, asStr, http } from "@/lib/http";
 import { uzs } from "@/lib/money";
 
@@ -12,6 +13,8 @@ export type CockpitQueue = (typeof COCKPIT_QUEUES)[number];
 
 export type CockpitItem = {
   id: string;
+  title: string;
+  ownerName: string;
   queue: CockpitQueue;
   status: string;
   reason: string;
@@ -47,6 +50,9 @@ export function cockpitItemOf(queue: CockpitQueue, v: unknown): CockpitItem {
   const coded = /^[a-z0-9_]+$/.test(reason);
   return {
     id: asStr(d.id),
+    // Still guarded: a title with an id in it (an older record) is not shown.
+    title: /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-/i.test(asStr(d.title)) ? "" : asStr(d.title).trim(),
+    ownerName: human(asDict(d.owner).name),
     queue,
     status: asStr(d.status).toLowerCase(),
     reason: coded ? reason : "",
@@ -54,7 +60,7 @@ export function cockpitItemOf(queue: CockpitQueue, v: unknown): CockpitItem {
     clientName: human(p.client_name),
     clientUserId: asStr(p.client_user_id),
     sellerUserId: asStr(p.lawyer_user_id ?? p.seller_user_id ?? p.previous_seller_user_id),
-    workId: human(p.work_id),
+    workId: human(d.work_id ?? p.work_id),
     docTitle: human(p.document_title ?? p.service_title),
     amount: uzs(p, "amount"),
     rating,

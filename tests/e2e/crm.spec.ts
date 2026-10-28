@@ -510,7 +510,7 @@ test("new lead: one customer select, a new customer above the form, region from 
   const opt = (i: number, extra: Record<string, unknown> = {}) => ({ id: `s${i}`, public_id: `CRM-${1000 + i}`, name: `Mijoz ${i}`, region: i % 2 ? "Toshkent" : "Buxoro", primary_phone: `+99890000${String(i).padStart(4, "0")}`, is_lexgo_user: i === 1, lexgo_user_label: "LexGo foydalanuvchisi", lexgo_id: i === 1 ? "LGC-1" : null, lead_count: i, display_label: `Mijoz ${i} · CRM-${1000 + i}`, ...extra });
   const selectQs: string[] = [];
   const created: Record<string, unknown>[] = [];
-  const NEW = { id: "c-new", public_id: "CRM-NEW00001", user_id: null, is_lexgo_user: false, lexgo_user_label: "", name: "Aziza Karimova", preferred_language: "uz_latn", region: "Samarqand", primary_phone: "+998901112233", status: "active", source: "manual", lead_count: 0, active_lead_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), notes: "", contacts: [], leads: [], orders: [], activity_count: 0 };
+  const NEW = { id: "c-new", public_id: "CRM-NEW00001", user_id: null, is_lexgo_user: false, lexgo_user_label: "", reused: false, account_linking: { status: "unlinked", user_id: null, automatic_by_verified_phone: true, required_action: "" }, name: "Aziza Karimova", preferred_language: "uz_latn", region: "Samarqand", primary_phone: "+998901112233", status: "active", source: "manual", lead_count: 0, active_lead_count: 0, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), notes: "", contacts: [], leads: [], orders: [], activity_count: 0 };
   Object.assign(routes, {
     "/crm/customers/select": (_: unknown, url: URL) => {
       const q = url.searchParams.get("q") ?? "";
@@ -625,14 +625,16 @@ test("draft order: service, specialist and package are chosen by name; the revie
   const { routes } = crmServer(OPERATOR.permissions ?? []);
   let conv: Record<string, unknown> | null = null;
   const sellerQs: string[] = [];
+  const pkgQs: string[] = [];
   Object.assign(routes, {
     "/services": [
       { id: "svc-1", title: "Shartnoma ekspertizasi", category_title: "Shartnomalar", subcategory: "Ijara" },
       { id: "svc-2", title: "Da'vo arizasi", category_title: "Fuqarolik", subcategory: "" },
     ],
     "/marketplace/lawyers": (_: unknown, url: URL) => (sellerQs.push(url.searchParams.get("service_id") ?? ""), { items: [{ user_id: "u-s1", display_name: "Madina Yusupova", region: "Toshkent", rating: 4.8 }], total: 1, limit: 30, offset: 0 }),
-    "/service-packages": [{ id: "pk-1", title: "Biznes start", description: "Oyiga 5 ta konsultatsiya" }],
-    "POST /crm/leads/m1/conversion": (b: Record<string, unknown>) => ((conv = b), { order: { id: "0f9d8c7b-0000-4000-8000-000000000001", work_id: "ORD-7Q2K" } }),
+    "/service-packages": (_: unknown, url: URL) => (pkgQs.push(url.searchParams.get("service_id") ?? ""), [{ id: "pk-1", title: "Biznes start", category_title: "Biznes", duration: "1 oy", is_active: true }]),
+    // Gaps closed §20: the updated lead with converted_order { work_id }.
+    "POST /crm/leads/m1/conversion": (b: Record<string, unknown>) => ((conv = b), { id: "m1", work_id: "LEAD-M1", converted_order_id: "0f9d8c7b-0000-4000-8000-000000000001", converted_order: { id: "0f9d8c7b-0000-4000-8000-000000000001", work_id: "ORD-7Q2K", status: "operator_draft", payment_status: "unpaid" } }),
   });
   const mock = await mockBackend(page, await signIn(page, OPERATOR, routes as never));
   await page.goto("/uz/admin/crm/leads/m1");
@@ -647,7 +649,10 @@ test("draft order: service, specialist and package are chosen by name; the revie
   await page.getByRole("option", { name: /Madina Yusupova/ }).click();
   expect(sellerQs.at(-1)).toBe("svc-1");
   await dlg.getByRole("button", { name: "Paket", exact: true }).click();
+  await expect(page.getByRole("option", { name: /Biznes start/ })).toContainText("Biznes · 1 oy");
   await page.getByRole("option", { name: /Biznes start/ }).click();
+  // Packages are asked for the chosen service (gaps closed §21).
+  expect(pkgQs.at(-1)).toBe("svc-1");
   await dlg.getByLabel("Narx, so'm").fill("450000");
   await shot(page, "conversion");
   await dlg.getByRole("button", { name: "Ko'rib chiqish" }).click();
@@ -657,6 +662,7 @@ test("draft order: service, specialist and package are chosen by name; the revie
   await dlg.getByRole("button", { name: "Qoralama yaratish" }).click();
   await expect(dlg).toContainText("ORD-7Q2K");
   await expect(dlg).not.toContainText("0f9d8c7b");
+  await expect(dlg).not.toContainText("LEAD-M1");
   expect(conv).toMatchObject({ service_id: "svc-1", seller_user_id: "u-s1", package_id: "pk-1", price: 450000 });
   expect(mock.refused).toEqual([]);
   expect(missing).toEqual([]);

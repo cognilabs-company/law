@@ -62,9 +62,8 @@ export function NewCustomerModal({ meta, onClose, onCreated, nested }: { meta: C
     ].filter((c) => c.value.trim());
     try {
       const c = await createCrmCustomer({ name, region, language, notes, contacts, source: "manual" });
-      // The backend answers with the existing customer when the contact is already one.
-      const reused = c.leadCount > 0 || (!!c.createdAt && Date.parse(c.createdAt) < Date.now() - 60_000);
-      toast(reused ? t("doneExisting", { id: c.publicId }) : t("done", { id: c.publicId }), { tone: "ok" });
+      // reused: the contact already belonged to a customer, who comes back (gaps closed §19).
+      toast(c.reused ? t("doneExisting", { id: c.publicId }) : t("done", { id: c.publicId }), { tone: "ok" });
       onCreated(c);
     } catch (e) {
       toast(crmErr(e), { tone: "err" });

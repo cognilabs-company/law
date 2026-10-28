@@ -697,20 +697,19 @@ export type OrderPricing = {
 
 // "Narx tanlangan mutaxassisning tasdiqlangan tajribasi sabab…" or
 // {uz, ru, en} or {text|label|reason}: one localised line.
-// Backend answers 2026-10-28 §5: details.pricing_snapshot.client_price_reasons,
-// [{ code, amount, percent }], client-safe. No localized text yet: the UI
-// words each code itself and never shows the code ("text" is read once the
-// backend sends it).
-export type ClientReason = { code: string; amount: number; percent: number | null; text: Record<string, string> };
+// Gaps closed 2026-10-28 §11: details.pricing_snapshot.client_price_reasons,
+// [{ code, text, label, text_i18n, amount, percent }]. "text" is already in
+// the client's language; text_i18n (uz_latn, uz_cyrl, ru, en) is the
+// fallback; the code is never shown.
+export type ClientReason = { code: string; text: string; i18n: Record<string, string>; amount: number; percent: number | null };
 export function clientReasonsOf(v: unknown): ClientReason[] {
   return asArr(v)
     .map((x) => {
       const d = asDict(x);
-      const own = d.text ?? d.label;
-      const text = typeof own === "string" ? (own.trim() ? { uz: own.trim() } : {}) : Object.fromEntries(Object.entries(asDict(own)).filter(([k, y]) => /^(uz|ru|en)/.test(k) && typeof y === "string" && y.trim()).map(([k, y]) => [k.slice(0, 2), String(y).trim()]));
-      return { code: asStr(d.code).trim().toLowerCase(), amount: uzs(d, "amount"), percent: pctOf(d.percent), text };
+      const i18n = Object.fromEntries(Object.entries(asDict(d.text_i18n)).filter(([, y]) => typeof y === "string" && y.trim()).map(([k, y]) => [k, String(y).trim()]));
+      return { code: asStr(d.code).trim().toLowerCase(), text: asStr(d.text ?? d.label).trim(), i18n, amount: uzs(d, "amount"), percent: pctOf(d.percent) };
     })
-    .filter((r) => r.code || Object.keys(r.text).length);
+    .filter((r) => r.code || r.text || Object.keys(r.i18n).length);
 }
 
 const present = (v: unknown) => v !== null && v !== undefined && v !== "";

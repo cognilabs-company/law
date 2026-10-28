@@ -256,15 +256,20 @@ export function canApprove(keys: readonly string[], rows: CheckRows): boolean {
 // positions, current jobs, parallel periods, the revision's changes and the
 // evidence — "position_2_dates", "evidence_3_readable", … Each gets a human
 // label: the backend's own when it sends one, else built from the key.
-export type CheckItem = { key: string; label: string; hint: string };
+// Gaps closed 2026-10-28 §12: the detail's checklist [{ key, label, hint,
+// label_i18n }] is the list to render, in its order; checklist_keys stays
+// only for an older answer without it.
+export type CheckItem = { key: string; label: string; hint: string; i18n: Record<string, string> };
 export function checkItemsOf(raw: unknown, keys: readonly string[]): CheckItem[] {
-  const given = new Map<string, CheckItem>();
-  for (const x of asArr(raw)) {
-    const d = asDict(x);
-    const key = asStr(d.key);
-    if (key) given.set(key, { key, label: asStr(d.label ?? d.title), hint: asStr(d.hint ?? d.description) });
-  }
-  return keys.map((k) => given.get(k) ?? { key: k, label: "", hint: "" });
+  const given = asArr(raw)
+    .map((x) => {
+      const d = asDict(x);
+      const i18n = Object.fromEntries(Object.entries(asDict(d.label_i18n)).filter(([, y]) => typeof y === "string" && y.trim()).map(([k, y]) => [k, String(y).trim()]));
+      return { key: asStr(d.key), label: asStr(d.label), hint: asStr(d.hint), i18n };
+    })
+    .filter((c) => c.key);
+  if (given.length) return given;
+  return keys.map((k) => ({ key: k, label: "", hint: "", i18n: {} }));
 }
 // "position_2_dates" → { base: "position_dates", n: 2 }; no number → n null.
 export function checkKeyParts(key: string): { base: string; n: number | null } {
@@ -277,7 +282,8 @@ export function checkKeyParts(key: string): { base: string; n: number | null } {
 // diff when it sends one; otherwise the two records compared here (a plain
 // comparison of what is shown, nothing computed about the experience).
 export type DiffKind = "changed" | "added" | "removed";
-export type DiffRow = { field: string; before: string; after: string; kind: DiffKind };
+// "label" is the backend's human name for the field (gaps closed §13).
+export type DiffRow = { field: string; label: string; before: string; after: string; kind: DiffKind };
 const plain = (v: unknown): string => {
   if (v === null || v === undefined) return "";
   if (typeof v === "string") return v;
@@ -296,7 +302,7 @@ export function diffRowsOf(raw: unknown): DiffRow[] {
       const d = asDict(x);
       const before = plain(d.before ?? d.old ?? d.previous);
       const after = plain(d.after ?? d.new ?? d.current);
-      return { field: asStr(d.field ?? d.path ?? d.key), before, after, kind: kindOf(before, after) };
+      return { field: asStr(d.field), label: asStr(d.label), before, after, kind: kindOf(before, after) };
     })
     .filter((r) => r.field && r.before !== r.after);
 }
@@ -305,7 +311,7 @@ export function localDiff(next: ExperienceItem | null, prev: ExperienceItem | nu
   if (!next || !prev) return [];
   const rows: DiffRow[] = [];
   const add = (field: string, before: string, after: string) => {
-    if (before !== after) rows.push({ field, before, after, kind: kindOf(before, after) });
+    if (before !== after) rows.push({ field, label: "", before, after, kind: kindOf(before, after) });
   };
   add("category_id", prev.categoryId, next.categoryId);
   add("subcategory_id", prev.subcategoryId, next.subcategoryId);
@@ -360,7 +366,7 @@ export async function getExperienceForReview(experienceId: string, signal?: Abor
     previous,
     reviews: asArr(d.reviews).map(reviewOf),
     checklistKeys,
-    checks: checkItemsOf(d.checklist ?? d.checklist_items, checklistKeys),
+    checks: checkItemsOf(d.checklist, checklistKeys),
     diff: given.length ? given : localDiff(record, previous),
     room: reviewRoomOf(d.communication ?? d.review_room ?? {}),
   };

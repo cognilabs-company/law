@@ -87,9 +87,10 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
   if (view === "client") {
     if (!(pricing.final > 0)) return null;
     const changed = pricing.base > 0 && pricing.final !== pricing.base;
-    // The backend's own words when it sends them, else the code worded here — never the code.
+    // The backend's own sentence (already in the client's language), else
+    // its translations, else the code worded here — never the code.
     const reasons = pricing.clientReasons.map((r) => ({
-      text: r.text[locale] || r.text.uz || (tr.has(r.code) ? tr(r.code) : tr("other")),
+      text: r.text || r.i18n[locale === "uz" ? "uz_latn" : locale] || r.i18n.uz_latn || (tr.has(r.code) ? tr(r.code) : tr("other")),
       amount: r.amount,
       percent: r.percent,
     }));

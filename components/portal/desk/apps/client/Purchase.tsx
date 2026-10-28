@@ -44,6 +44,7 @@ import { Banner, Btn, Check, Dialog, Field, Input, Seg, Spinner, TextArea } from
 import type { NativeProps } from "../../native";
 import { useGuardedField } from "@/components/ui/ContactGuardNote";
 import { goToPaymentPage } from "@/lib/services/paymentProviders";
+import { useCheckoutProviders } from "@/lib/useCheckoutProviders";
 
 // Ordering a service as a desktop sheet — the Mac's sheet that drops from
 // the toolbar, Windows' content dialog: the three steps on top, the
@@ -90,6 +91,11 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   const [time, setTime] = useState("");
   const [urgency, setUrgency] = useState<PurchaseUrgency | "">("");
   const [provider, setProvider] = useState<PurchaseProvider>("telegram_manual");
+  // Only what the backend has switched on, under its own labels.
+  const pays = useCheckoutProviders();
+  const offered = PURCHASE_PROVIDERS.filter((pv) => pays.options.some((o) => o.provider === pv));
+  const fallback = (PURCHASE_PROVIDERS as readonly string[]).includes(pays.fallback) ? (pays.fallback as PurchaseProvider) : "telegram_manual";
+  const providerName = (pv: string) => pays.labelOf(pv) || (t.has(`providers.${pv}.name`) ? t(`providers.${pv}.name`) : pv);
   const [provErr, setProvErr] = useState("");
   const [files, setFiles] = useState<PurchaseAttachment[]>([]);
   const [voices, setVoices] = useState<Voice[]>([]);
@@ -140,7 +146,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
       const act = activePurchaseOf(e);
       const code = marketErrorCode(e);
       if (act) setActive(act);
-      else if (PAYMENT_PROVIDER_ERRORS.includes(code) && via !== "telegram_manual") setProvErr(via);
+      else if (PAYMENT_PROVIDER_ERRORS.includes(code) && via !== fallback) setProvErr(via);
       else if (code) {
         setErr(marketErr(e, t("error")));
         if (PRICE_OPTION_ERRORS.includes(code)) setOptReload((n) => n + 1);
@@ -172,7 +178,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   };
   const leads: Record<MarketTrackPhase, string> = {
     accepting: done?.message || t("acceptLead"),
-    pending: track?.slow ? t("slow") : online ? t("payLeadOnline", { provider: t(`providers.${paidVia}.name`) }) : t("payLeadTelegram"),
+    pending: track?.slow ? t("slow") : online ? t("payLeadOnline", { provider: providerName(paidVia) }) : t("payLeadTelegram"),
     paid: track?.slow ? t("paidNoRoom") : "",
     chat: t("chatLead"),
     completed: "",
@@ -216,7 +222,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
         : ended
           ? [toOrders(true)]
           : phase === "pending" && payUrl && done?.payment
-            ? [toOrders(false), <Btn key="pay" kind="primary" icon={<IconExternal />} onClick={() => goToPaymentPage(payUrl, done.payment?.id, done.payment?.amount)}>{t("payProceed", { provider: t(`providers.${paidVia}.name`) })}</Btn>]
+            ? [toOrders(false), <Btn key="pay" kind="primary" icon={<IconExternal />} onClick={() => goToPaymentPage(payUrl, done.payment?.id, done.payment?.amount)}>{t("payProceed", { provider: providerName(paidVia) })}</Btn>]
             : phase === "pending" && slow
             ? [toOrders(false), recheck(true)]
             : phase === "paid" && slow
@@ -326,17 +332,17 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
               label={t("providerTitle")}
               value={provider}
               onChange={(v) => (setProvider(v), setProvErr(""))}
-              items={PURCHASE_PROVIDERS.map((pv) => {
+              items={offered.map((pv) => {
                 const Icon = PROVIDER_ICON[pv];
-                return { id: pv, label: t(`providers.${pv}.name`), icon: <Icon /> };
+                return { id: pv, label: providerName(pv), icon: <Icon /> };
               })}
             />
           </Field>
           <p className="dx-dlg__text dxcp-note">{t("totalNote")}</p>
           {provErr ? (
             <Banner tone="warn">
-              <b>{t("providerOff", { provider: t(`providers.${provErr}.name`) })}</b> {t("providerOffText")}{" "}
-              <Btn kind="primary" icon={<IconSend />} busy={busy} onClick={() => (setProvider("telegram_manual"), void submit("telegram_manual"))}>
+              <b>{t("providerOff", { provider: providerName(provErr) })}</b> {t("providerOffText")}{" "}
+              <Btn kind="primary" icon={<IconSend />} busy={busy} onClick={() => (setProvider(fallback), void submit(fallback))}>
                 {t("providerUseTelegram")}
               </Btn>
             </Banner>

@@ -16,7 +16,7 @@ const cockpit = {
         { id: "x2", record_type: UUID, title: `Marketplace ijrochi eskalatsiyasi: ${UUID}`, status: "open", payload: { order_id: UUID, client_user_id: "u-c2", reason: "seller_acceptance_timeout", opened_at: new Date(Date.now() - 90 * 60000).toISOString() } },
       ],
     },
-    complaints: { total: 3, items: [{ id: "c1", record_type: "marketplace_order", title: "Shikoyat", status: "new", payload: { client_name: "Dilnoza Karimova", rating: 1, reason: "low_rating", priority: "high", work_id: "CMP-TPGNT" } }] },
+    complaints: { total: 3, items: [{ id: "c1", record_type: "marketplace_order", work_id: "CMP-TPGNT", order_id: UUID, title: "Marketplace shikoyati · CMP-TPGNT · Shartnoma tahlili", owner: { id: "u-c3", name: "Dilnoza Karimova" }, status: "new", payload: { client_name: "Dilnoza Karimova", rating: 1, reason: "low_rating", priority: "high", work_id: "CMP-TPGNT" } }] },
     refunds: { total: 2, items: [{ id: "r1", record_type: UUID, title: "test xizmat", status: "pending", payload: { client_name: "Aziz Rahimov", amount: 8000, currency: "UZS", reason: "Mijoz haq chiqdi", order_id: UUID, payment_id: UUID } }] },
     payouts: { total: 0, items: [] },
     payout_recoveries: { total: 0, items: [] },
@@ -45,6 +45,8 @@ test("the cockpit lists every queue in human words and opens the right one", asy
   await expect(assign).toContainText("Mijoz bilan tanlangan muddatda bog'lanilmadi");
   await expect(assign).toContainText("30 daqiqada javob bo'lmadi");
   await expect(assign).toContainText("Malika Yusupova");
+  // The backend's own title leads (gaps closed §15); an older title with an id never shows.
+  await expect(lanes.filter({ hasText: "Shikoyatlar" }).locator(".ckp__it b").first()).toHaveText("Marketplace shikoyati · CMP-TPGNT · Shartnoma tahlili");
   await expect(lanes.filter({ hasText: "Shikoyatlar" })).toContainText("Dilnoza Karimova · ★");
   await expect(lanes.filter({ hasText: "Pul qaytarish" })).toContainText("8 000 so'm");
   await expect(lanes.filter({ hasText: "Tajriba tekshiruvi" })).toContainText("Hammasi joyida");

@@ -5,7 +5,7 @@
 // GET /admin/payments/reconciliation-v2[?provider=]: per-provider totals and
 // the payments whose provider record does not match ours.
 // Payment ids are kept only as React keys — never rendered (UI law).
-import { http } from "@/lib/http";
+import { ApiError, http } from "@/lib/http";
 
 type Dict = Record<string, unknown>;
 const asDict = (v: unknown): Dict => (v && typeof v === "object" && !Array.isArray(v) ? (v as Dict) : {});
@@ -21,7 +21,8 @@ export const LIVE_PROVIDERS = ["click", "payme", "atmos"] as const;
 export type ProviderTone = "ok" | "warn" | "off" | "bad";
 export function providerTone(status: string, configured: boolean): ProviderTone {
   const s = status.toLowerCase();
-  if (s === "enabled" || s === "ready" || s === "healthy" || s === "live" || s === "verified") return "ok";
+  // Backend 2026-10-28 (gaps closed §3): configured | disabled.
+  if (s === "configured" || s === "enabled" || s === "ready") return "ok";
   if (s === "error" || s === "failed" || s === "unreachable" || s === "invalid_credentials") return "bad";
   if (s === "disabled" || s === "not_configured" || !configured) return "off";
   return "warn";
@@ -64,7 +65,8 @@ export async function getProviderReadiness(signal?: AbortSignal): Promise<Readin
 }
 
 export type ReconProvider = { provider: string; count: number; paidCount: number; amount: number; paidAmount: number; discrepancies: number };
-export type Discrepancy = { key: string; provider: string; status: string; amount: number; paidAmount: number; reasons: string[] };
+// Gaps closed §4: each row names its order (work_id), payment (payment_work_id) and service.
+export type Discrepancy = { key: string; workId: string; paymentWorkId: string; serviceTitle: string; provider: string; status: string; amount: number; paidAmount: number; reasons: string[] };
 export type ReasonGroup = { reason: string; count: number; amount: number; providers: string[] };
 export type Reconciliation = { providers: ReconProvider[]; discrepancies: Discrepancy[]; reasons: ReasonGroup[]; discrepancyCount: number; checkedCount: number; generatedAt: string };
 
@@ -79,6 +81,9 @@ export function reconciliationOf(raw: unknown): Reconciliation {
     const r = asDict(x);
     return {
       key: asStr(r.payment_id) || `row-${i}`,
+      workId: asStr(r.work_id),
+      paymentWorkId: asStr(r.payment_work_id),
+      serviceTitle: asStr(r.service_title),
       provider: asStr(r.provider).toLowerCase(),
       status: asStr(r.status),
       amount: asNum(r.amount),
@@ -117,9 +122,28 @@ export async function getReconciliationV2(provider = "", signal?: AbortSignal): 
 }
 
 // ── Checkout return: "paid" only after the provider's confirmed callback ──
+// ── Checkout providers (gaps closed §1): GET /payments/providers, public.
+// Only enabled ones are offered, under the backend's own label; when the
+// picked one fails, the backend's fallback takes over.
+export type CheckoutProvider = { provider: string; enabled: boolean; label: string; status: string };
+export type CheckoutProviders = { items: CheckoutProvider[]; fallback: string };
+export function checkoutProvidersOf(raw: unknown): CheckoutProviders {
+  const d = asDict(raw);
+  const items = asArr(d.items)
+    .map((x) => {
+      const r = asDict(x);
+      return { provider: asStr(r.provider), enabled: r.enabled === true, label: asStr(r.label), status: asStr(r.status) };
+    })
+    .filter((p) => p.provider);
+  return { items, fallback: asStr(d.fallback_provider) || "telegram_manual" };
+}
+export async function getCheckoutProviders(signal?: AbortSignal): Promise<CheckoutProviders> {
+  return checkoutProvidersOf(await http("/payments/providers", { signal }));
+}
+
 // The client leaves for the provider page; when they come back nothing is
-// assumed — the payment is watched in GET /payments until the backend (which
-// only marks it paid from a verified callback) says paid or failed.
+// assumed — the payment is watched in GET /payments/{id} until the backend
+// (which only marks it paid from a verified callback) says paid or failed.
 export const PENDING_KEY = "lexgo.pendingPayment";
 export type PendingPayment = { id: string; amount: number; at: number };
 export const PENDING_TTL_MS = 30 * 60 * 1000;
@@ -159,11 +183,21 @@ export function forgetPendingPayment(): void {
   }
 }
 
-// Where a watched payment stands, from its status in the history list.
-export type PaymentOutcome = "waiting" | "paid" | "failed";
+// Where a watched payment stands (gaps closed §2): pending | paid | failed |
+// cancelled | refunded; an unknown or inaccessible payment is "gone".
+export type PaymentOutcome = "waiting" | "paid" | "failed" | "gone";
 export function paymentOutcome(status: string): PaymentOutcome {
   const s = status.toLowerCase();
-  if (s === "paid" || s === "succeeded" || s === "success" || s === "completed" || s === "confirmed") return "paid";
-  if (s === "failed" || s === "cancelled" || s === "canceled" || s === "declined" || s === "expired" || s === "rejected" || s === "refunded") return "failed";
+  if (s === "paid") return "paid";
+  if (s === "failed" || s === "cancelled" || s === "refunded") return "failed";
   return "waiting";
+}
+export async function getPaymentState(id: string, signal?: AbortSignal): Promise<{ outcome: PaymentOutcome; amount: number }> {
+  try {
+    const d = asDict(await http(`/payments/${encodeURIComponent(id)}`, { signal }));
+    return { outcome: paymentOutcome(asStr(d.status)), amount: asNum(d.amount) };
+  } catch (e) {
+    if (e instanceof ApiError && (e.code === "payment_not_found" || e.status === 404)) return { outcome: "gone", amount: 0 };
+    throw e;
+  }
 }

@@ -90,7 +90,8 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
   const needsReason = decision === "rejected" || decision === "changes_requested";
   const reasonShort = needsReason && reason.trim().length < REASON_MIN;
   const label = (c: CheckItem, i: number) => {
-    if (c.label) return c.label;
+    const given = c.i18n[locale === "uz" ? "uz_latn" : locale] || c.label;
+    if (given) return given;
     const { base, n } = checkKeyParts(c.key);
     const own = t.has(`check.${c.key}`) ? t(`check.${c.key}`) : t.has(`check.${base}`) ? t(`check.${base}`) : "";
     if (!own) return t("checkN", { n: i + 1 });
@@ -188,7 +189,7 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
             <ul className="vrf__diff">
               {detail.diff.map((r) => (
                 <li key={r.field} data-kind={r.kind}>
-                  <b>{source.fieldLabel(r.field)}</b>
+                  <b>{r.label || source.fieldLabel(r.field)}</b>
                   {r.before ? <del>{r.before}</del> : null}
                   {r.after ? <ins>{r.after}</ins> : null}
                 </li>

@@ -31,7 +31,7 @@ function Line({ it, now }: { it: CockpitItem; now: number }): ReactElement {
   const t = useTranslations("callCenter.cockpit");
   const tw = useTranslations("callCenter.escalations.why");
   const locale = useLocale();
-  const who = it.clientName ? it.clientName : it.clientUserId ? <PersonName id={it.clientUserId} fallback={t("client")} /> : t("client");
+  const who = it.ownerName || it.clientName ? it.ownerName || it.clientName : it.clientUserId ? <PersonName id={it.clientUserId} fallback={t("client")} /> : t("client");
   const reason = it.reason && tw.has(it.reason) ? tw(it.reason) : it.reason && t.has(`reason.${it.reason}`) ? t(`reason.${it.reason}`) : "";
   const main =
     it.queue === "refunds" || it.queue === "payouts" || it.queue === "payout_recoveries" ? (
@@ -46,7 +46,22 @@ function Line({ it, now }: { it: CockpitItem; now: number }): ReactElement {
     ) : (
       who
     );
-  const sub = [reason || it.note || it.docTitle, it.workId, it.at && now ? t("ago", { ago: fmtAge(it.at, locale, now) }) : ""].filter(Boolean).join(" · ");
+  const age = it.at && now ? t("ago", { ago: fmtAge(it.at, locale, now) }) : "";
+  // The backend's own title leads; who and how much follow under it.
+  if (it.title)
+    return (
+      <li className="ckp__it" data-prio={it.priority === "high" || it.priority === "urgent" ? "high" : undefined}>
+        <i aria-hidden="true" />
+        <span>
+          <b>{it.title}</b>
+          <small>
+            {main}
+            {age ? ` · ${age}` : ""}
+          </small>
+        </span>
+      </li>
+    );
+  const sub = [reason || it.note || it.docTitle, it.workId, age].filter(Boolean).join(" · ");
   return (
     <li className="ckp__it" data-prio={it.priority === "high" || it.priority === "urgent" ? "high" : undefined}>
       <i aria-hidden="true" />

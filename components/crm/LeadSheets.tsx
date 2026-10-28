@@ -394,6 +394,7 @@ export function ConversionSheet({ lead, onClose, onDone }: { lead: CrmLead; onCl
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [needAccount, setNeedAccount] = useState(false);
+  const [linkHelp, setLinkHelp] = useState("");
   const [orderId, setOrderId] = useState("");
   const amount = price ? Math.round(Number(price.replace(/\D/g, ""))) : null;
   const ok = async () => {
@@ -401,14 +402,18 @@ export function ConversionSheet({ lead, onClose, onDone }: { lead: CrmLead; onCl
     setBusy(true);
     try {
       const r = await prepareConversion(lead.id, { serviceId: service?.id, packageId: pkg?.id, sellerUserId: seller?.id, price: amount, note });
-      // The answer is the updated lead with converted_order_id only (backend
-      // answers 2026-10-28 §9.3): no order code yet, and the id is not shown.
-      const o = (r.order ?? {}) as { work_id?: unknown };
+      // The answer is the updated lead with converted_order { work_id, … }
+      // (gaps closed §20): its code is shown, never converted_order_id.
+      const o = (r.converted_order ?? {}) as { work_id?: unknown };
       setOrderId(typeof o.work_id === "string" ? o.work_id : "");
       setStep("done");
       onDone();
     } catch (e) {
-      if (crmCode(e) === "crm_customer_account_required") setNeedAccount(true);
+      if (crmCode(e) === "crm_customer_account_required") {
+        setNeedAccount(true);
+        // The backend's own instruction for this customer, when it has one.
+        if (lead.customer?.id) void getCrmCustomer(lead.customer.id).then((c) => setLinkHelp(c.linking.requiredAction), () => undefined);
+      }
       else toast(crmErr(e), { tone: "err" });
     } finally {
       setBusy(false);
@@ -444,13 +449,16 @@ export function ConversionSheet({ lead, onClose, onDone }: { lead: CrmLead; onCl
                 onChange={(v) => {
                   setService(v);
                   // The seller is picked among those offering this service.
-                  if (v?.id !== service?.id) setSeller(null);
+                  if (v?.id !== service?.id) {
+                    setSeller(null);
+                    setPkg(null);
+                  }
                 }}
                 load={(q, offset, signal) => lookupServices(q, offset, signal)}
                 title={(o) => o.title}
                 sub={(o) => o.sub}
                 text={{ placeholder: t("pickService"), search: t("findService"), searchPh: t("findService"), empty: t("noService") }}
-                action={service ? { label: t("clear"), icon: <IconClose aria-hidden="true" />, run: () => (setService(null), setSeller(null)) } : undefined}
+                action={service ? { label: t("clear"), icon: <IconClose aria-hidden="true" />, run: () => (setService(null), setSeller(null), setPkg(null)) } : undefined}
                 labelId="crm-conv-svc"
               />
             </div>
@@ -476,7 +484,8 @@ export function ConversionSheet({ lead, onClose, onDone }: { lead: CrmLead; onCl
                 <LookupPicker<ConvOption>
                   value={pkg}
                   onChange={setPkg}
-                  load={(q, _offset, signal) => lookupPackages(q, signal)}
+                  key={`pkg-${service?.id ?? ""}`}
+                  load={(q, _offset, signal) => lookupPackages(service?.id ?? "", q, signal)}
                   title={(o) => o.title}
                   sub={(o) => o.sub}
                   icon={<IconLayers aria-hidden="true" />}
@@ -526,7 +535,7 @@ export function ConversionSheet({ lead, onClose, onDone }: { lead: CrmLead; onCl
             <IconAlert aria-hidden="true" />
             <span>
               <b>{t("needAccount")}</b>
-              {t("needAccountText")}
+              {linkHelp || t("needAccountText")}
             </span>
           </div>
         ) : null}

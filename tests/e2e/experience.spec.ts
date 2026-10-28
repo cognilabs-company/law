@@ -98,10 +98,21 @@ const reviewRoutes = (decisions: unknown[], rooms: string[]) => ({
     previous_approved_revision: rec({ id: "e1", root_id: "r1", status: "approved", version: 1, workplace: "Eski joy" }),
     reviews: [],
     checklist_keys: ["identity_license", "position_1_dates", "evidence_1_readable", "file_authenticity"],
+    // Gaps closed §12–13: the checklist with labels, and a labelled diff.
+    checklist: [
+      { key: "identity_license", label: "Shaxs va litsenziya", hint: "", label_i18n: { uz_latn: "Shaxs va litsenziya", ru: "Личность и лицензия" } },
+      { key: "position_1_dates", label: "1-lavozim sanalari", hint: "", label_i18n: { uz_latn: "1-lavozim sanalari", ru: "Даты должности 1" } },
+      { key: "evidence_1_readable", label: "1-fayl o'qiladi", hint: "", label_i18n: { uz_latn: "1-fayl o'qiladi", ru: "Файл 1 читается" } },
+      { key: "file_authenticity", label: "Fayllar haqiqiy", hint: "Soxta emasligini tekshiring", label_i18n: { uz_latn: "Fayllar haqiqiy", ru: "Файлы подлинные" } },
+    ],
+    diff: [
+      { field: "workplace", label: "Ish joyi", before: "Eski joy", after: "Yangi joy" },
+      { field: "evidence", label: "Dalillar", before: [], after: [{ file_name: "buyruq.pdf" }] },
+    ],
   },
   "POST /call-center/marketplace/experience/e9/review": (b: unknown) => (decisions.push(b), { status: "ok" }),
-  "POST /call-center/marketplace/experience/e9/communication": () => (rooms.push("open"), { room_id: "room-rev-1", status: "open" }),
-  "POST /call-center/marketplace/experience/e9/communication/close": () => (rooms.push("close"), { room_id: "room-rev-1", status: "closed", read_only: true }),
+  "POST /call-center/marketplace/experience/e9/communication": () => (rooms.push("open"), { idempotent: false, room_id: "room-rev-1", messages_url: "/secure-chats/room-rev-1/messages", calls_url: "/secure-chats/room-rev-1/calls", call_types: ["audio", "video"], close_by_operator_only: true }),
+  "POST /call-center/marketplace/experience/e9/communication/close": () => (rooms.push("close"), { event: "marketplace.review_chat_closed", record_id: "e9", room_id: "room-rev-1", status: "read_only" }),
 });
 
 test("the call center sees what changed, ticks every item, then approves", async ({ page }) => {
@@ -115,9 +126,10 @@ test("the call center sees what changed, ticks every item, then approves", async
   await expect(box.locator(".vrf__facts")).toContainText("Семья и брак");
   await expect(box.locator(".vrf__diff del")).toHaveText("Eski joy");
   await expect(box.locator(".vrf__diff ins")).toHaveText(["Yangi joy", "buyruq.pdf"]);
-  // Dynamic keys get human names, numbered — never the raw key.
-  await expect(box).toContainText("Даты должности · 1");
-  await expect(box).toContainText("Файл читается · 1");
+  // The backend's labels, in the page's language — never the raw key.
+  await expect(box).toContainText("Даты должности 1");
+  await expect(box).toContainText("Файл 1 читается");
+  await expect(box.locator(".vrf__diff b").first()).toHaveText("Ish joyi");
   expect(await box.innerText()).not.toMatch(/position_1_dates|evidence_1_readable/);
   await shot(page, "review");
   const approve = box.getByRole("radio", { name: /^Подтвердить/ });

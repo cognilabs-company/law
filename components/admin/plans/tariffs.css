@@ -71,3 +71,5 @@
 .trf-dev__m b { font-size: .84rem; }
 .trf-dev__m code { margin-left: 4px; padding: 1px 6px; border-radius: 6px; background: var(--dk-surface, #fff); font-size: .76rem; }
 .trf-dev__m small { overflow: hidden; color: var(--gray); font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
+.trf-chip[data-status="rejected"] { background: color-mix(in srgb, #dc2626 15%, transparent); }
+.trf-dev__title { overflow: hidden; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }

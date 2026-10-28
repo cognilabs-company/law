@@ -36,14 +36,14 @@ describe("review: checklist, diff", () => {
     expect(checkKeyParts("position_2_dates")).toEqual({ base: "position_dates", n: 2 });
     expect(checkKeyParts("evidence_3")).toEqual({ base: "evidence", n: 3 });
     expect(checkKeyParts("file_authenticity")).toEqual({ base: "file_authenticity", n: null });
-    expect(checkItemsOf([{ key: "x", label: "Custom" }], ["x", "y"])).toEqual([
-      { key: "x", label: "Custom", hint: "" },
-      { key: "y", label: "", hint: "" },
-    ]);
+    // Gaps closed §12: the backend's checklist is the list, in its order.
+    expect(checkItemsOf([{ key: "dates_valid", label: "Sanalar mantiqan to'g'ri", hint: "h", label_i18n: { ru: "Даты логичны" } }], ["x", "y"])).toEqual([{ key: "dates_valid", label: "Sanalar mantiqan to'g'ri", hint: "h", i18n: { ru: "Даты логичны" } }]);
+    // An older answer with checklist_keys only.
+    expect(checkItemsOf(undefined, ["x"])).toEqual([{ key: "x", label: "", hint: "", i18n: {} }]);
   });
-  it("reads the backend's diff as a list or a map, dropping no-ops", () => {
-    expect(diffRowsOf([{ field: "workplace", before: "A", after: "B" }, { field: "title", before: "x", after: "x" }])).toEqual([{ field: "workplace", before: "A", after: "B", kind: "changed" }]);
-    expect(diffRowsOf({ description: { old: "", new: "Yangi" } })).toEqual([{ field: "description", before: "", after: "Yangi", kind: "added" }]);
+  it("reads the backend's diff with its labels, dropping no-ops", () => {
+    expect(diffRowsOf([{ field: "workplace", label: "Ish joyi", before: "A", after: "B" }, { field: "title", before: "x", after: "x" }])).toEqual([{ field: "workplace", label: "Ish joyi", before: "A", after: "B", kind: "changed" }]);
+    expect(diffRowsOf([{ field: "description", label: "Tavsif", before: "", after: "Yangi" }])[0].kind).toBe("added");
   });
   it("compares two revisions field by field when no diff is sent", () => {
     const prev = experienceItemOf({ id: "1", workplace: "A", positions: [{ title: "Yurist", started_at: "2018-01-01", is_current: true }] });
@@ -71,6 +71,6 @@ describe("achievements", () => {
   it("compares two achievement revisions", () => {
     const a = achievementOf({ id: "1", achievement_type: "other", title: "A", achieved_at: "2025-01-01" });
     const b = achievementOf({ id: "2", achievement_type: "award_recognition", title: "A", achieved_at: "2025-01-01" });
-    expect(achievementDiff(b, a)).toEqual([{ field: "achievement_type", before: "other", after: "award_recognition", kind: "changed" }]);
+    expect(achievementDiff(b, a)).toEqual([{ field: "achievement_type", label: "", before: "other", after: "award_recognition", kind: "changed" }]);
   });
 });

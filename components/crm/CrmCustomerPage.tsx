@@ -46,6 +46,8 @@ export default function CrmCustomerPage({ customerId }: { customerId: string }):
 
 function Profile({ api, customerId }: { api: CrmApi; customerId: string }): ReactElement {
   const t = useTranslations("crm.customer");
+  const tos = useTranslations("crm.customer.orderStatus");
+  const tps = useTranslations("crm.customer.payStatus");
   const tl = useTranslations("crm.lang");
   const locale = useLocale();
   const crmErr = useCrmError();
@@ -276,11 +278,13 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
                   <li key={o.id}>
                     <IconShoppingBag aria-hidden="true" />
                     <span>
-                      {o.serviceTitle || o.id}
+                      {o.serviceTitle || o.workId || t("order")}
                       <small className="crm-muted">
                         {" "}
-                        · {o.status} · {o.paymentStatus}
-                        {o.createdAt ? ` · ${shortDateTime(o.createdAt, locale)}` : ""}
+                        {[o.serviceTitle ? o.workId : "", tos.has(o.status) ? tos(o.status) : "", tps.has(o.paymentStatus) ? tps(o.paymentStatus) : "", o.createdAt ? shortDateTime(o.createdAt, locale) : ""]
+                          .filter(Boolean)
+                          .map((x) => ` · ${x}`)
+                          .join("")}
                       </small>
                     </span>
                   </li>

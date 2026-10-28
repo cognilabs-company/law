@@ -6,10 +6,10 @@ import { fmtNum, shortDateTime } from "@/lib/date";
 import type { DetailItem, DetailSection } from "@/lib/services/crm";
 
 // The backend's readable view of a record (CRM contract 2026-10-27 §10):
-// sections of labelled values — never raw JSON. Values can still be codes
-// ("uz_latn", "warm"), ISO dates or ids, so each is translated, formatted
-// or left out here; internal bookkeeping (kanban positions, who moved what
-// by id) is not shown at all.
+// sections of labelled values — never raw JSON. The backend's display_value
+// is shown as given (gaps closed 2026-10-28 §18) and datetimes are formatted
+// in the user's locale; an item without one is still translated, formatted
+// or left out here, and ids or internal bookkeeping never show.
 
 const UUIDISH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
@@ -68,7 +68,7 @@ function Items({ items, depth }: { items: DetailItem[]; depth: number }): ReactE
       }
       if (it.type === "list") {
         const chips = it.items.length
-          ? it.items.map((x) => (x.items.length ? null : value(x.key, x.type, x.value))).filter(Boolean)
+          ? it.items.map((x) => (x.items.length ? null : x.type !== "datetime" && x.display ? x.display : value(x.key, x.type, x.value))).filter(Boolean)
           : Array.isArray(it.value)
             ? (it.value as unknown[]).map((x) => value(it.key, "text", x)).filter(Boolean)
             : [];
@@ -91,7 +91,7 @@ function Items({ items, depth }: { items: DetailItem[]; depth: number }): ReactE
             ) : null,
         };
       }
-      return { it, group: false, node: value(it.key, it.type, it.value) };
+      return { it, group: false, node: it.type !== "datetime" && it.display ? it.display : value(it.key, it.type, it.value) };
     })
     .filter((r) => r.node !== null && r.node !== undefined && (r.it.label || label(r.it.key, "")));
   if (!rows.length) return null;
@@ -129,10 +129,10 @@ export function DetailSections({ sections, only, compact }: { sections: DetailSe
 // Any loose object (an activity's payload) as the same readable list: keys
 // become labels, values are formatted, ids and internals are left out.
 export function treeOf(v: unknown, key = ""): DetailItem {
-  if (Array.isArray(v)) return { key, label: "", type: "list", value: null, items: v.map((x, i) => treeOf(x, `${key}_${i}`)) };
-  if (v && typeof v === "object") return { key, label: "", type: "group", value: null, items: Object.entries(v as Record<string, unknown>).map(([k, x]) => treeOf(x, k)) };
+  if (Array.isArray(v)) return { key, label: "", type: "list", value: null, display: "", items: v.map((x, i) => treeOf(x, `${key}_${i}`)) };
+  if (v && typeof v === "object") return { key, label: "", type: "group", value: null, display: "", items: Object.entries(v as Record<string, unknown>).map(([k, x]) => treeOf(x, k)) };
   const type: DetailItem["type"] = typeof v === "boolean" ? "boolean" : typeof v === "number" ? "number" : "text";
-  return { key, label: "", type, value: v, items: [] };
+  return { key, label: "", type, value: v, display: "", items: [] };
 }
 const humanKey = (k: string) => k.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 function labelTree(it: DetailItem): DetailItem {

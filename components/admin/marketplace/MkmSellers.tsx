@@ -65,7 +65,8 @@ export default function MkmSellers({
   const typeLabel = useTypeLabel();
   // TSK-460646: superadmins see the override; the backend still lets only
   // the primary one save it.
-  const superadmin = useAuth().session?.backendRole === "superadmin";
+  const session = useAuth().session;
+  const superadmin = session?.backendRole === "superadmin";
   const [superFor, setSuperFor] = useState<MkmSeller | null>(null);
   const page = live.data;
   const rows = page?.items ?? [];
@@ -217,7 +218,7 @@ export default function MkmSellers({
         </>
       )}
 
-      {superFor ? <SuperadvokatDialog sellerUserId={superFor.userId} sellerName={superFor.name || superFor.phone} onClose={() => setSuperFor(null)} /> : null}
+      {superFor ? <SuperadvokatDialog sellerUserId={superFor.userId} sellerName={superFor.name || superFor.phone} canEdit={session?.canSetSuperadvokat === true} onClose={() => setSuperFor(null)} /> : null}
       {shown && page ? <Pager total={page.total} offset={offset} limit={page.limit || MKM_PAGE} busy={live.changing || live.loading} onOffset={onOffset} /> : null}
     </section>
   );

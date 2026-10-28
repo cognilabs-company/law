@@ -42,6 +42,8 @@ export type AuthUser = {
   primaryRole: string;
   // Backend flag: 2FA is mandatory for this account (staff/seller roles).
   twoFactorRequired: boolean;
+  // Only the primary superadmin may change the Superadvokat status (gaps closed §16).
+  canSetSuperadvokat: boolean;
   telegramLinked?: boolean; // undefined = /auth/me doesn't expose it
   // Legal consents the server reports as accepted ([] today: /auth/me has no
   // such field yet). Seeds lib/consents.ts as already-synced records.
@@ -84,6 +86,7 @@ function normUser(v: unknown): AuthUser {
     twoFactorMethod: asStr(d.two_factor_method ?? tf.method).toLowerCase(),
     primaryRole: rawRole,
     twoFactorRequired: Boolean(d.two_factor_required ?? d.two_factor_mandatory ?? tf.required ?? tf.mandatory),
+    canSetSuperadvokat: d.can_set_superadvokat === true,
     telegramLinked: telegramLinkedOf(d),
     acceptedConsents: acceptedConsentsOf(d),
   };

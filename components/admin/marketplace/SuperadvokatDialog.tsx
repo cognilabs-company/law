@@ -15,15 +15,15 @@ import { getSuperHistory, isPrimaryOnly, setSuperadvokat, superActiveAt, type Su
 
 // TSK-460646 — the manual Superadvokat override for one seller: the state
 // now, the change (on/off, a required reason, from, optional until) and the
-// audit history. Only the primary superadmin may save; anyone else gets a
-// clear lock instead of a failure.
+// audit history. Only the primary superadmin may save (/auth/me
+// can_set_superadvokat); anyone else sees the lock before trying.
 
 const REASON_MIN = 10;
 const pad = (n: number) => String(n).padStart(2, "0");
 const dayOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const isoOf = (day: string, time: string) => (day ? new Date(`${day}T${time || "00:00"}:00`).toISOString() : "");
 
-export default function SuperadvokatDialog({ sellerUserId, sellerName, onClose }: { sellerUserId: string; sellerName: string; onClose: () => void }): ReactElement {
+export default function SuperadvokatDialog({ sellerUserId, sellerName, canEdit, onClose }: { sellerUserId: string; sellerName: string; canEdit: boolean; onClose: () => void }): ReactElement {
   const t = useTranslations("admin.superadvokat");
   const locale = useLocale();
   const [history, setHistory] = useState<SuperEntry[] | null>(null);
@@ -36,13 +36,15 @@ export default function SuperadvokatDialog({ sellerUserId, sellerName, onClose }
   const [endTime, setEndTime] = useState("");
   const [busy, setBusy] = useState(false);
   const sending = useRef(false);
-  const [locked, setLocked] = useState(false);
+  const [locked, setLocked] = useState(!canEdit);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [tried, setTried] = useState(false);
   const [now, setNow] = useState(0);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
+    // The history is the primary superadmin's too: nobody else asks for it.
+    if (!canEdit) return;
     const ctl = new AbortController();
     getSuperHistory(sellerUserId, ctl.signal).then(
       (h) => {
@@ -60,7 +62,7 @@ export default function SuperadvokatDialog({ sellerUserId, sellerName, onClose }
       },
     );
     return () => ctl.abort();
-  }, [sellerUserId, tick]);
+  }, [sellerUserId, tick, canEdit]);
 
   const current = history && now ? superActiveAt(history, now) : null;
   const startsAt = isoOf(startDay, startTime);
@@ -121,8 +123,8 @@ export default function SuperadvokatDialog({ sellerUserId, sellerName, onClose }
             <IconCrown />
           </span>
           <span>
-            <b>{!current ? t("loading") : current.active ? t("nowOn") : t("nowOff")}</b>
-            <small>{current?.active ? (current.until ? t("until", { date: shortDateTime(current.until, locale) }) : t("noEnd")) : t("nowOffText")}</small>
+            <b>{!current ? (locked ? t("lockedTitle") : t("loading")) : current.active ? t("nowOn") : t("nowOff")}</b>
+            <small>{!current && locked ? t("lockedText") : current?.active ? (current.until ? t("until", { date: shortDateTime(current.until, locale) }) : t("noEnd")) : t("nowOffText")}</small>
           </span>
         </div>
 
@@ -170,41 +172,43 @@ export default function SuperadvokatDialog({ sellerUserId, sellerName, onClose }
           <p className="sav__note">{t("recalc")}</p>
         </fieldset>
 
-        <section className="sav__hist" aria-labelledby="sav-h">
-          <h4 id="sav-h">
-            <IconHistory aria-hidden="true" />
-            {t("history")}
-          </h4>
-          {!history ? (
-            <div className="sav__sk" aria-hidden="true" />
-          ) : !history.length ? (
-            <p className="sav__muted">{t("historyEmpty")}</p>
-          ) : (
-            <ol>
-              {history.map((h, i) => (
-                <li key={h.id || i} data-on={h.active || undefined}>
-                  <i aria-hidden="true" />
-                  <span>
-                    <b>
-                      {h.active ? t("histOn") : t("histOff")}
-                      {h.status === "superseded" || h.status === "revoked" ? <em className="sav__st">{t(`histStatus.${h.status}`)}</em> : null}
-                    </b>
-                    <small>
-                      {[h.at ? shortDateTime(h.at, locale) : "", h.startsAt ? t("histFrom", { date: shortDateTime(h.startsAt, locale) }) : "", h.endsAt ? t("histTo", { date: shortDateTime(h.endsAt, locale) }) : ""].filter(Boolean).join(" · ")}
-                      {h.byId ? (
-                        <>
-                          {" · "}
-                          <PersonName id={h.byId} fallback={t("superadmin")} />
-                        </>
-                      ) : null}
-                    </small>
-                    {h.reason ? <q>{h.reason}</q> : null}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
+        {canEdit ? (
+          <section className="sav__hist" aria-labelledby="sav-h">
+            <h4 id="sav-h">
+              <IconHistory aria-hidden="true" />
+              {t("history")}
+            </h4>
+            {!history ? (
+              <div className="sav__sk" aria-hidden="true" />
+            ) : !history.length ? (
+              <p className="sav__muted">{t("historyEmpty")}</p>
+            ) : (
+              <ol>
+                {history.map((h, i) => (
+                  <li key={h.id || i} data-on={h.active || undefined}>
+                    <i aria-hidden="true" />
+                    <span>
+                      <b>
+                        {h.active ? t("histOn") : t("histOff")}
+                        {h.status === "superseded" || h.status === "revoked" ? <em className="sav__st">{t(`histStatus.${h.status}`)}</em> : null}
+                      </b>
+                      <small>
+                        {[h.at ? shortDateTime(h.at, locale) : "", h.startsAt ? t("histFrom", { date: shortDateTime(h.startsAt, locale) }) : "", h.endsAt ? t("histTo", { date: shortDateTime(h.endsAt, locale) }) : ""].filter(Boolean).join(" · ")}
+                        {h.byId || h.byName ? (
+                          <>
+                            {" · "}
+                            <PersonName id={h.byId} name={h.byName} fallback={t("superadmin")} />
+                          </>
+                        ) : null}
+                      </small>
+                      {h.reason ? <q>{h.reason}</q> : null}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </section>
+        ) : null}
       </div>
     </Modal>
   );

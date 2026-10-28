@@ -46,13 +46,24 @@ describe("MP09 promotion", () => {
 });
 
 describe("tariff version: developer task (TSK-692647)", () => {
-  // Backend answers 2026-10-28 §4.2: only developer_task_id and
-  // developer_deadline_at; no code, status, assignees or approval are guessed.
-  it("knows only that a task exists and its deadline; nothing when absent", async () => {
+  // Gaps closed 2026-10-28 §10: the task, the workflow approval and the
+  // superadmin's decision; any may be null on a historical version.
+  it("reads the task by its human code and the superadmin's decision", async () => {
     const { versionOf } = await import("@/lib/services/tariffs");
-    const v = versionOf({ id: "v1", version: 3, status: "draft", developer_task_id: "uuid-x", developer_deadline_at: "2026-11-30T00:00:00Z" });
-    expect(v.devTask).toEqual({ deadlineAt: "2026-11-30T00:00:00Z" });
-    expect(versionOf({ id: "v2", status: "published" }).devTask).toBeNull();
+    const v = versionOf({
+      id: "v1",
+      version: 3,
+      status: "draft",
+      developer_task_id: "uuid-x",
+      developer_deadline_at: "2026-11-30T00:00:00Z",
+      developer_task: { id: "uuid-x", task_code: "TSK-123456", title: "Tarifni ishlab chiqish", status: "in_progress", deadline_at: "2026-11-30T00:00:00Z", assignees: [{ id: "2b0a4af1-b3b9-421c-8b5a-229c20bd59f3", name: "Abdurahmon" }] },
+      approval: { status: "submitted" },
+      superadmin_approval: { status: "done", decision: "approve", decided_at: "2026-11-01T00:00:00Z", actor: { id: "a", name: "Bosh admin" } },
+    });
+    expect(v.devTask).toEqual({ code: "TSK-123456", title: "Tarifni ishlab chiqish", status: "in_progress", deadlineAt: "2026-11-30T00:00:00Z", assignees: ["Abdurahmon"] });
+    expect(v.approval).toEqual({ status: "approve", decision: "approve", by: "Bosh admin", at: "2026-11-01T00:00:00Z" });
+    expect(versionOf({ id: "v2", status: "draft", approval: { status: "submitted" }, superadmin_approval: { status: "pending" } }).approval?.status).toBe("pending");
+    expect(versionOf({ id: "v3", status: "published", developer_task: null, approval: null, superadmin_approval: null })).toMatchObject({ devTask: null, approval: null });
   });
 });
 

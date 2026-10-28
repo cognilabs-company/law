@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { forgetPendingPayment, groupReasons, paymentOutcome, providerTone, readPendingPayment, readinessOf, reconciliationOf, rememberPendingPayment, PENDING_TTL_MS } from "@/lib/services/paymentProviders";
+import { checkoutProvidersOf, forgetPendingPayment, groupReasons, paymentOutcome, providerTone, readPendingPayment, readinessOf, reconciliationOf, rememberPendingPayment, PENDING_TTL_MS } from "@/lib/services/paymentProviders";
 
 describe("provider readiness", () => {
   it("reads the live shape, Click → Payme → ATMOS, with a tone per state", () => {
@@ -23,7 +23,8 @@ describe("provider readiness", () => {
     expect(r.requirements).toEqual(["merchant_contract", "signed_webhook"]);
   });
   it("only a working state is green; a failure is red", () => {
-    expect(providerTone("enabled", true)).toBe("ok");
+    expect(providerTone("configured", true)).toBe("ok");
+    expect(providerTone("disabled", false)).toBe("off");
     expect(providerTone("error", true)).toBe("bad");
     expect(providerTone("something_new", false)).toBe("off");
     expect(providerTone("something_new", true)).toBe("warn");
@@ -50,8 +51,12 @@ describe("reconciliation", () => {
     expect(r.reasons[1].reason).toBe("amount_mismatch");
     expect(r.checkedCount).toBe(205);
   });
+  it("names each row by its order and payment codes (gaps closed §4)", () => {
+    const r = reconciliationOf({ discrepancies: [{ payment_id: "u", payment_work_id: "PAY-1A", order_id: "o", work_id: "ADV-9Z", service_title: "Maslahat", provider: "payme", status: "paid", amount: 1, paid_amount: 1, reasons: [] }] });
+    expect(r.discrepancies[0]).toMatchObject({ workId: "ADV-9Z", paymentWorkId: "PAY-1A", serviceTitle: "Maslahat" });
+  });
   it("a row without a reason still counts", () => {
-    expect(groupReasons([{ key: "k", provider: "click", status: "paid", amount: 5, paidAmount: 5, reasons: [] }])[0].reason).toBe("unknown");
+    expect(groupReasons([{ key: "k", workId: "", paymentWorkId: "", serviceTitle: "", provider: "click", status: "paid", amount: 5, paidAmount: 5, reasons: [] }])[0].reason).toBe("unknown");
   });
 });
 
@@ -79,5 +84,14 @@ describe("return from the provider", () => {
     expect(readPendingPayment(2000)).toEqual({ id: "p1", amount: 150000, at: 1000 });
     expect(readPendingPayment(1000 + PENDING_TTL_MS + 1)).toBeNull();
     expect(readPendingPayment(2000)).toBeNull();
+  });
+});
+
+describe("checkout providers (gaps closed §1)", () => {
+  it("keeps the backend's label, enabled flag and fallback", () => {
+    const r = checkoutProvidersOf({ items: [{ provider: "telegram_manual", enabled: true, label: "Telegram orqali tasdiqlash", status: "ready" }, { provider: "payme", enabled: false, label: "Payme", status: "disabled" }], fallback_provider: "telegram_manual" });
+    expect(r.items.filter((p) => p.enabled).map((p) => p.label)).toEqual(["Telegram orqali tasdiqlash"]);
+    expect(r.fallback).toBe("telegram_manual");
+    expect(checkoutProvidersOf({}).fallback).toBe("telegram_manual");
   });
 });

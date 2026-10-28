@@ -92,8 +92,12 @@ test.describe("order price breakdown", () => {
           min_allowed: 70000,
           max_allowed: 150000,
           modifiers: [{ code: "experience", key: "verified_10y", multiplier: 1.2, amount: 20000 }],
-          // Backend answers 2026-10-28 §5: codes with amount and percent only.
-          client_price_reasons: [{ code: "professional_qualification", amount: 15000, percent: 15 }, { code: "some_new_code", amount: 5000, percent: 5 }],
+          // Gaps closed 2026-10-28 §11: the backend's sentence in the client's
+          // language; an older item without one is worded here from its code.
+          client_price_reasons: [
+            { code: "lawyer_experience", text: "Подтверждённый опыт специалиста учтён в стоимости.", label: "x", text_i18n: { uz_latn: "Tajriba", ru: "Опыт" }, amount: 15000, percent: 15 },
+            { code: "some_new_code", amount: 5000, percent: 5 },
+          ],
         },
       },
     });
@@ -104,11 +108,11 @@ test.describe("order price breakdown", () => {
     await expect(p).toContainText("120 000");
     const why = p.locator(".mod-price__why");
     await expect(why).toContainText("Почему цена немного выше");
-    await expect(why).toContainText("Квалификация и опыт специалиста");
+    await expect(why).toContainText("Подтверждённый опыт специалиста учтён в стоимости.");
     await expect(why).toContainText("+15 000");
     // An unknown code is still words, never the code.
     await expect(why).toContainText("Уровень специалиста и условия работы");
-    await expect(p).not.toContainText("professional_qualification");
+    await expect(p).not.toContainText("lawyer_experience");
     await expect(p).not.toContainText("some_new_code");
     // Nothing internal: no multiplier, no range, no factor code.
     await expect(p).not.toContainText("×1.2");

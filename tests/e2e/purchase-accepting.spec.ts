@@ -59,6 +59,17 @@ const shopRoutes = (state: { order: Record<string, unknown> }, purchase: (body: 
   [`/marketplace/me/orders/${ORDER_ID}`]: () => state.order,
   [`/marketplace/me/orders/${ORDER_ID}/financials`]: () => financials([{ stage: "full_payment", status: String((state.order.payment as { status: string }).status), amount: PRICE }]),
   [`/marketplace/me/orders/${ORDER_ID}/timeline`]: { items: [] },
+  // GET /payments/providers (gaps closed §1): Payme is on in these tests, Click is not.
+  "/payments/providers": {
+    items: [
+      { provider: "telegram_manual", enabled: true, label: "Telegram orqali tasdiqlash", status: "ready" },
+      { provider: "payme", enabled: true, label: "Payme", status: "configured" },
+      { provider: "click", enabled: false, label: "Click", status: "disabled" },
+    ],
+    fallback_provider: "telegram_manual",
+    currency: "UZS",
+  },
+  "/payments/pay-1": { id: "pay-1", amount: PRICE, currency: "UZS", status: "pending", method: "payme", kind: "marketplace_full" },
 });
 const respond = (o: Record<string, unknown>, telegramSent = true) => ({
   work_id: "ADV-5IIPV",

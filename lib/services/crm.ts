@@ -123,8 +123,8 @@ export async function listCrmOperators(q = "", signal?: AbortSignal): Promise<Cr
 export type CrmCustomerBrief = { id: string; publicId: string; userId: string; isLexgoUser: boolean; lexgoLabel: string; name: string; language: string; region: string; phone: string; telegram: string; email: string };
 export type CrmCustomer = CrmCustomerBrief & { status: string; source: string; leadCount: number; activeLeadCount: number; createdAt: string; updatedAt: string };
 export type CrmContact = { id: string; type: string; value: string; label: string; primary: boolean; verified: boolean; status: string; source: string; createdAt: string };
-export type CrmOrderRef = { id: string; serviceId: string; serviceTitle: string; status: string; paymentStatus: string; createdAt: string };
-export type CrmCustomerDetail = CrmCustomer & { notes: string; contacts: CrmContact[]; leads: CrmLead[]; orders: CrmOrderRef[]; activityCount: number; sections: DetailSection[] };
+export type CrmOrderRef = { id: string; workId: string; serviceId: string; serviceTitle: string; status: string; paymentStatus: string; createdAt: string };
+export type CrmCustomerDetail = CrmCustomer & { notes: string; contacts: CrmContact[]; leads: CrmLead[]; orders: CrmOrderRef[]; activityCount: number; sections: DetailSection[]; reused: boolean; linking: { linked: boolean; requiredAction: string } };
 
 export function crmCustomerBriefOf(v: unknown): CrmCustomerBrief | null {
   const d = asDict(v);
@@ -162,10 +162,14 @@ export function crmCustomerDetailOf(v: unknown): CrmCustomerDetail {
     leads: asArr(d.leads).map(crmLeadOf).filter((l) => l.id),
     orders: asArr(d.orders).map((x) => {
       const o = asDict(x);
-      return { id: asStr(o.id), serviceId: asStr(o.service_id), serviceTitle: asStr(o.service_title), status: asStr(o.status), paymentStatus: asStr(o.payment_status), createdAt: asStr(o.created_at) };
+      return { id: asStr(o.id), workId: asStr(o.work_id), serviceId: asStr(o.service_id), serviceTitle: asStr(o.service_title), status: asStr(o.status), paymentStatus: asStr(o.payment_status), createdAt: asStr(o.created_at) };
     }),
     activityCount: int(d.activity_count),
     sections: detailSectionsOf(d.detail_sections),
+    // POST /crm/customers (gaps closed §19): whether an existing customer
+    // came back, and what the operator must do to link the LexGo account.
+    reused: d.reused === true,
+    linking: { linked: asStr(asDict(d.account_linking).status) === "linked", requiredAction: asStr(asDict(d.account_linking).required_action).trim() },
   };
 }
 
@@ -173,13 +177,15 @@ export function crmCustomerDetailOf(v: unknown): CrmCustomerDetail {
 // Never raw JSON (contract §10): each section is a card of labelled values;
 // a group nests, a list repeats. The values can still be codes, dates or
 // ids — the UI translates, formats or drops them (DetailSections).
-export type DetailItem = { key: string; label: string; type: "text" | "number" | "boolean" | "datetime" | "group" | "list"; value: unknown; items: DetailItem[] };
+// "display" is the backend's ready text for the value (gaps closed §18);
+// "value" stays the machine value.
+export type DetailItem = { key: string; label: string; type: "text" | "number" | "boolean" | "datetime" | "group" | "list"; value: unknown; display: string; items: DetailItem[] };
 export type DetailSection = { key: string; title: string; items: DetailItem[] };
 const DETAIL_TYPES = new Set(["text", "number", "boolean", "datetime", "group", "list"]);
 function detailItemOf(v: unknown): DetailItem {
   const d = asDict(v);
   const type = asStr(d.value_type);
-  return { key: asStr(d.key), label: asStr(d.label), type: (DETAIL_TYPES.has(type) ? type : "text") as DetailItem["type"], value: d.value ?? null, items: asArr(d.items).map(detailItemOf) };
+  return { key: asStr(d.key), label: asStr(d.label), type: (DETAIL_TYPES.has(type) ? type : "text") as DetailItem["type"], value: d.value ?? null, display: asStr(d.display_value).trim(), items: asArr(d.items).map(detailItemOf) };
 }
 export function detailSectionsOf(v: unknown): DetailSection[] {
   return asArr(v)
@@ -542,16 +548,16 @@ export async function lookupSellers(serviceId: string, q: string, offset: number
     .filter((x) => x.id && x.title);
   return { items, hasMore: offset + items.length < int(d.total) };
 }
-export async function lookupPackages(q: string, signal?: AbortSignal): Promise<{ items: ConvOption[]; hasMore: boolean }> {
-  const d = await http(`/service-packages`, { signal });
-  const needle = q.trim().toLowerCase();
+// Gaps closed §21: filtered by the chosen service and the search on the server.
+export async function lookupPackages(serviceId: string, q: string, signal?: AbortSignal): Promise<{ items: ConvOption[]; hasMore: boolean }> {
+  const d = await http(`/service-packages${qs({ service_id: serviceId || undefined, q: q.trim() || undefined })}`, { signal });
   const items = (Array.isArray(d) ? d : asArr(asDict(d).items))
     .filter((v) => asDict(v).is_active !== false)
     .map((v) => {
       const x = asDict(v);
       return { id: asStr(x.id), title: asStr(x.title), sub: [asStr(x.category_title), asStr(x.duration)].filter(Boolean).join(" · ") };
     })
-    .filter((x) => x.id && x.title && (!needle || x.title.toLowerCase().includes(needle)));
+    .filter((x) => x.id && x.title);
   return { items, hasMore: false };
 }
 

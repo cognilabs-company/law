@@ -5,10 +5,9 @@
 // applying on its own; the backend recalculates price and rating.
 import { ApiError, asArr, asDict, asStr, http } from "@/lib/http";
 
-// Backend answers 2026-10-28 §8.2: { id, status: active | superseded |
-// revoked, active, reason, starts_at, ends_at, changed_by_user_id,
-// changed_at }. No nested actor or before/after yet: the person is looked
-// up by id for their name (never shown as an id).
+// Gaps closed 2026-10-28 §17: { id, status: active | superseded | revoked,
+// active, reason, starts_at, ends_at, changed_by { name }, before, after,
+// changed_at }; before/after are { active, starts_at, ends_at } snapshots.
 export type SuperEntry = {
   id: string;
   status: string;
@@ -17,6 +16,9 @@ export type SuperEntry = {
   startsAt: string;
   endsAt: string;
   byId: string;
+  byName: string;
+  // What it was before this change: null when there was nothing.
+  wasActive: boolean | null;
   at: string;
 };
 
@@ -25,11 +27,13 @@ export function superEntryOf(v: unknown): SuperEntry {
   return {
     id: asStr(d.id),
     status: asStr(d.status).toLowerCase(),
-    active: d.active === true,
+    active: (asDict(d.after).active ?? d.active) === true,
     reason: asStr(d.reason),
     startsAt: asStr(d.starts_at),
     endsAt: asStr(d.ends_at),
-    byId: asStr(d.changed_by_user_id),
+    byId: asStr(asDict(d.changed_by).id ?? d.changed_by_user_id),
+    byName: asStr(asDict(d.changed_by).name),
+    wasActive: typeof asDict(d.before).active === "boolean" ? (asDict(d.before).active as boolean) : null,
     at: asStr(d.changed_at ?? d.created_at),
   };
 }

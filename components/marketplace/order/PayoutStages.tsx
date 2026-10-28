@@ -74,8 +74,8 @@ export default function PayoutStages({ orderId, refreshKey, aiBase }: { orderId:
       </ol>
       {hold ? (
         <p className="pst__note">
-          {t(hold.holdReason === "complaint_open" ? "heldComplaint" : "heldWindow")}
-          {hold.releaseAfter && hold.holdReason !== "complaint_open" ? ` ${t("releaseAfter", { at: shortDateTime(hold.releaseAfter, locale) })}` : ""}
+          {t(hold.status === "rework_hold" ? "heldRework" : hold.status === "complaint_hold" || hold.holdReason === "complaint_open" ? "heldComplaint" : "heldWindow")}
+          {hold.releaseAfter && hold.status === "held" ? ` ${t("releaseAfter", { at: shortDateTime(hold.releaseAfter, locale) })}` : ""}
         </p>
       ) : null}
     </section>

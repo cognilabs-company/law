@@ -54,6 +54,7 @@ import ContactAdvocate from "./order/ContactAdvocate";
 import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardNote";
 import { findContacts } from "@/lib/contactGuard";
 import { goToPaymentPage } from "@/lib/services/paymentProviders";
+import { useCheckoutProviders } from "@/lib/useCheckoutProviders";
 
 export type PackagePurchaseTarget = { id: string; purchaseUrl: string; duration: string };
 
@@ -103,6 +104,11 @@ export default function PurchaseDialog({
   const [speed, setSpeed] = useState<ContactSpeed | "">("");
   // Telegram first: Payme / Click work once their production keys are on.
   const [provider, setProvider] = useState<PurchaseProvider>("telegram_manual");
+  // Only what the backend has switched on, under its own labels.
+  const pays = useCheckoutProviders();
+  const offered = PURCHASE_PROVIDERS.filter((pv) => pays.options.some((o) => o.provider === pv));
+  const fallback = (PURCHASE_PROVIDERS as readonly string[]).includes(pays.fallback) ? (pays.fallback as PurchaseProvider) : "telegram_manual";
+  const providerName = (pv: string) => pays.labelOf(pv) || (t.has(`providers.${pv}.name`) ? t(`providers.${pv}.name`) : pv);
   // The chosen online provider cannot take the payment right now.
   const [provErr, setProvErr] = useState("");
   const [files, setFiles] = useState<PurchaseAttachment[]>([]);
@@ -209,7 +215,7 @@ export default function PurchaseDialog({
       } else if (e instanceof ApiError && e.status === 401) {
         setReturnTo(returnPath);
         router.push("/login");
-      } else if (PAYMENT_PROVIDER_ERRORS.includes(marketErrorCode(e)) && via !== "telegram_manual") {
+      } else if (PAYMENT_PROVIDER_ERRORS.includes(marketErrorCode(e)) && via !== fallback) {
         // §5: a controlled message and the Telegram way instead of a dead end.
         setProvErr(via);
       } else if (marketErrorCode(e)) {
@@ -259,7 +265,7 @@ export default function PurchaseDialog({
   const leads: Record<MarketTrackPhase, string> = {
     // The backend's own words for the client come first.
     accepting: done?.message || t("acceptLead"),
-    pending: track?.slow ? t("slow") : online ? t("payLeadOnline", { provider: t(`providers.${paidVia}.name`) }) : t("payLeadTelegram"),
+    pending: track?.slow ? t("slow") : online ? t("payLeadOnline", { provider: providerName(paidVia) }) : t("payLeadTelegram"),
     paid: track?.slow ? t("paidNoRoom") : "",
     chat: t("chatLead"),
     completed: "",
@@ -321,7 +327,7 @@ export default function PurchaseDialog({
             ? [
                 <button key="pay" type="button" className="btn btn--grad" onClick={() => goToPaymentPage(payUrl, done.payment?.id, done.payment?.amount)} data-ai-id="marketplace.purchase.pay">
                   <IconExternal />
-                  {t("payProceed", { provider: t(`providers.${paidVia}.name`) })}
+                  {t("payProceed", { provider: providerName(paidVia) })}
                 </button>,
                 ordersLink(false),
               ]
@@ -509,7 +515,7 @@ export default function PurchaseDialog({
             <fieldset className="mk-pay" data-ai-id="marketplace.purchase.provider" data-ai-type="select" data-ai-label={t("providerTitle")}>
               <legend>{t("providerTitle")}</legend>
               <div className="mk-pay__opts">
-                {PURCHASE_PROVIDERS.map((pv) => {
+                {offered.map((pv) => {
                   const Icon = PROVIDER_ICON[pv];
                   return (
                     <button
@@ -528,7 +534,7 @@ export default function PurchaseDialog({
                         <Icon />
                       </span>
                       <span className="mk-pay__m">
-                        <b>{t(`providers.${pv}.name`)}</b>
+                        <b>{providerName(pv)}</b>
                         <small>{t(`providers.${pv}.hint`)}</small>
                       </span>
                       <span className="mk-pay__tick" aria-hidden="true">
@@ -544,7 +550,7 @@ export default function PurchaseDialog({
               <div className="mk-pay__fallback" role="alert">
                 <IconAlert aria-hidden="true" />
                 <span>
-                  <b>{t("providerOff", { provider: t(`providers.${provErr}.name`) })}</b>
+                  <b>{t("providerOff", { provider: providerName(provErr) })}</b>
                   {t("providerOffText")}
                 </span>
                 <button
@@ -552,8 +558,8 @@ export default function PurchaseDialog({
                   className="btn btn--grad btn--sm"
                   disabled={busy}
                   onClick={() => {
-                    setProvider("telegram_manual");
-                    void submit("telegram_manual");
+                    setProvider(fallback);
+                    void submit(fallback);
                   }}
                   data-ai-id="marketplace.purchase.provider-fallback"
                 >
