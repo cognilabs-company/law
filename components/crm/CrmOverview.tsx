@@ -42,6 +42,20 @@ export default function CrmOverview(): ReactElement {
   );
 }
 
+// A duration in its largest sensible unit, so it fits inside a ring:
+// 45 → "45 daq", 300 → "5 soat", 4457 → "3,1 kun" (never "4457 daq").
+function useSpan(): (min: number) => string {
+  const tw = useTranslations("crm.when");
+  const locale = useLocale();
+  return (min) => {
+    const m = Math.max(0, min);
+    if (m < 60) return tw("min", { n: Math.round(m) });
+    const one = (v: number) => fmtNum(v, locale, v < 10 ? 1 : 0);
+    if (m < 1440) return tw("h", { n: one(m / 60) });
+    return tw("d", { n: one(m / 1440) });
+  };
+}
+
 function Ring({ value, max, label, display }: { value: number; max: number; label: string; display: string }): ReactElement {
   const r = 38;
   const c = 2 * Math.PI * r;
@@ -68,6 +82,7 @@ function Ring({ value, max, label, display }: { value: number; max: number; labe
 
 function Mission({ meta }: { meta: CrmMeta }): ReactElement {
   const t = useTranslations("crm.overview");
+  const span = useSpan();
   const locale = useLocale();
   const router = useRouter();
   const crmErr = useCrmError();
@@ -246,7 +261,7 @@ function Mission({ meta }: { meta: CrmMeta }): ReactElement {
                   <Ring
                     value={metrics.firstResponseMin === null ? 0 : Math.max(0, 120 - metrics.firstResponseMin)}
                     max={120}
-                    display={metrics.firstResponseMin === null ? "—" : t("minShort", { n: Math.round(metrics.firstResponseMin) })}
+                    display={metrics.firstResponseMin === null ? "—" : span(metrics.firstResponseMin)}
                     label={t("firstResponse")}
                   />
                   <Ring value={metrics.won} max={Math.max(1, metrics.total)} display={fmtNum(metrics.won, locale)} label={t("won", { n: metrics.total })} />

@@ -166,7 +166,8 @@ a.crm-counter:hover { background: rgb(255 255 255 / 17%); transform: translateY(
 .crm-gauge circle { fill: none; stroke-width: 9; stroke-linecap: round; }
 .crm-gauge .bg { stroke: color-mix(in srgb, var(--crm-line) 90%, transparent); }
 .crm-gauge .fg { stroke: url(#crm-g); transition: stroke-dashoffset 1s cubic-bezier(.2, .7, .2, 1); }
-.crm-gauge__v { margin-top: -66px; margin-bottom: 30px; font: 800 1.2rem/1 var(--fd); font-variant-numeric: tabular-nums; }
+/* The value sits inside the ring's 64px middle: never wider than that. */
+.crm-gauge__v { max-width: 66px; margin-top: -66px; margin-bottom: 30px; overflow: hidden; font: 800 1.2rem/1 var(--fd); font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
 .crm-gauge small { color: var(--crm-muted); font: 700 .72rem/1.3 var(--fb); }
 .crm-period { display: inline-flex; gap: 2px; margin-left: auto; padding: 3px; border-radius: 10px; background: var(--crm-soft); }
 .crm-period button { height: 26px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; color: var(--crm-muted); font: 700 .72rem/1 var(--fb); cursor: pointer; }
@@ -637,7 +638,7 @@ html[data-theme="dark"] .crm-pop { --crm-acc: var(--dk-acc, #6ea8ff); --crm-cyan
 .crm-lhead .crm-when[data-tone="soon"] { background: #fff; color: #b45309; }
 
 /* a long gauge value ("14 daq") shrinks to sit inside its ring */
-.crm-gauge__v[data-long] { font-size: .92rem; letter-spacing: -.01em; }
+.crm-gauge__v[data-long] { font-size: .9rem; letter-spacing: -.02em; }
 
 /* lead cards: the pill hugs its text */
 .crm-leadcard .crm-pill, .crm-leadcard .crm-when { justify-self: start; width: max-content; }
