@@ -66,6 +66,11 @@
       "file": "../../md/BACKEND_OWNER_CHECKLIST_ASKS_2026_10_21.md",
       "title": "Egasining 25 bandlik ro'yxati — backend'dan kerakli ishlar (21.10, YAKUNIY)",
       "description": "Yakuniy versiya: frontend barcha bandlarni qurdi, endi backend'dan 11 ta ish va 8 ta shaklni tasdiqlash kerak. Shoshilinch: Yandex kaliti 403 (JS API + referer), mijoz telefoni to'lovgacha null + phone_visible, contact_speed va details saqlanmayapti. Keyin: can_edit_in_review, K02 template_required + K06 ni jarayonda tanlash, katalog pricing_limits va price_below_minimum, seller_selectable qoidalar, K34 birinchi, K35 tarif shartlari, xarita uchun ofis manzili va 5/10 daqiqa, targ'ib rasmi mezonlari."
+    },
+    {
+      "file": "../../md/BACKEND_ACHIEVEMENTS_TENURE_2026_10_28.md",
+      "title": "Yutuqlar, advokatlik staji va enterprise kamchiliklari — backend'dan kerakli ishlar (28.10)",
+      "description": "Frontend vaqtinchalik yechim bilan qurdi. Yuqori: yutuqda result_level (full/partial), daraja bilan title/sana/tur ixtiyoriy, dalil majburiy; litsenziya berilgan sana (license_issued_at) va undan staj; ro'yxatdan o'tishda staj, litsenziya va ish tarixi backend'ga bormayapti. O'rta: oldingi ish joylari, litsenziyadan stajni avtomatik aniqlash, rating_status hamma kartalarda, mijoz kafolat ro'yxati. Past: hodisalar payload'i, server_time, tajriba jami."
     }
   ]
 }
