@@ -36,3 +36,19 @@ test("public lawyer profile shows no private contact or professional fields", as
   expect(text).not.toContain("555 44 33");
   expect(mock.refused).toEqual([]);
 });
+
+// Point 3: a specialist whose price differs from the catalog's gets one
+// polite line — never the formula, multipliers, range or amounts.
+test("a price above the catalog's is explained in one line, without the formula", async ({ page }) => {
+  await mockBackend(page, {
+    [`/marketplace/lawyers/${SELLER}`]: { user_id: SELLER, name: "Aziz Karimov", seller_type: "advokat", lexgo_verified: true, region: "tashkent" },
+    [`/marketplace/lawyers/${SELLER}/services`]: { items: [{ service_id: "svc-1", title: "Ota-onalik huquqidan mahrum qilish", base_price: 900000, selected_price: 1035000, effective_price: 1035000, currency: "UZS" }] },
+    "/marketplace/pricing-policy": { regions: [{ key: "tashkent", coef: 1.15 }], experience: [{ min_years: 3, percent: 10 }] },
+  });
+  await page.goto(`/uz/lawyers/${SELLER}`);
+  const note = page.locator(".mk-pricenote");
+  await expect(note).toHaveText("Bu mutaxassis narxida uning tasdiqlangan tajribasi va natijalari hisobga olingan.", { timeout: 20000 });
+  const body = await page.locator("main").innerText();
+  expect(body).not.toContain("Narx qanday hisoblanadi");
+  expect(body).not.toMatch(/×1[.,]\d|\+10%|70–100%/);
+});

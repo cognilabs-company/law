@@ -6886,7 +6886,9 @@
       "safe1": "The specialist is not paid until the payment is confirmed.",
       "safe2": "Contacts open only after payment.",
       "safe3": "Chat and calls stay inside LexGo, with history kept.",
-      "chatError": "Could not open the chat."
+      "chatError": "Could not open the chat.",
+      "priceNoteUp": "This specialist's price reflects their confirmed experience and results.",
+      "priceNoteDown": "This specialist offers the service below the catalog price."
     },
     "purchase": {
       "speed": "How soon should we contact you?",

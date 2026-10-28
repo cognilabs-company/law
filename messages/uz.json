@@ -6886,7 +6886,9 @@
       "safe1": "To'lov tasdiqlanmaguncha mutaxassisga pul o'tmaydi.",
       "safe2": "Kontaktlar faqat to'lovdan keyin ochiladi.",
       "safe3": "Chat va qo'ng'iroq LexGo ichida, yozuvlar saqlanadi.",
-      "chatError": "Chatni ochib bo'lmadi."
+      "chatError": "Chatni ochib bo'lmadi.",
+      "priceNoteUp": "Bu mutaxassis narxida uning tasdiqlangan tajribasi va natijalari hisobga olingan.",
+      "priceNoteDown": "Bu mutaxassis xizmatni katalogdagidan qulayroq narxda taklif qiladi."
     },
     "purchase": {
       "speed": "Siz bilan qanchalik tez bog'lanishimiz kerak?",
