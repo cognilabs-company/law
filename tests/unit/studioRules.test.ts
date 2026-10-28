@@ -80,3 +80,12 @@ describe("K36 price coefficient (TSK-331025)", () => {
     expect(validate({ operator: "eq", threshold: 1, increase_percent: 150 })).toEqual({ increase_percent: "@code:k36_percent_range" });
   });
 });
+
+describe("K02 checklist by payout stage", () => {
+  it("first-stage items come first, each list keeps its order; no stage means final", async () => {
+    const { byStage, stageOf } = await import("@/components/admin/studio/sx/schema/k02/ChecklistEditor");
+    const rows = [{ executor_title: "a", payout_stage: "final_completion" }, { executor_title: "b", payout_stage: "first_checklist" }, { executor_title: "c" }, { executor_title: "d", payout_stage: "first_checklist" }];
+    expect(byStage(rows).map((r) => r.executor_title)).toEqual(["b", "d", "a", "c"]);
+    expect(stageOf({})).toBe("final_completion");
+  });
+});

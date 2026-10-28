@@ -12,9 +12,10 @@ import { Field, FormGrid } from "../../form/Field";
 import type { SxFormPolicy } from "../../form/formPolicy";
 import { Repeater } from "../../form/Repeater";
 import { Switch } from "../../form/Switch";
+import { SxSegmented } from "../../shared/Segmented";
 import { TextArea } from "../../form/TextArea";
 import { TextInput } from "../../form/TextInput";
-import { BriefcaseBusinessIcon, CheckIcon, CircleAlertIcon, ImageIcon, ListChecksIcon, LockIcon, MessageSquareTextIcon, PaperclipIcon, glyph } from "../../icons";
+import { BriefcaseBusinessIcon, CheckIcon, CircleAlertIcon, CoinsIcon, FlagIcon, ImageIcon, ListChecksIcon, LockIcon, MessageSquareTextIcon, PaperclipIcon, glyph } from "../../icons";
 import { UserRound as UserRoundIcon } from "lucide-react";
 import { AudienceNote } from "../AudienceNote";
 import type { SxErrors, SxIcon } from "../../types";
@@ -58,6 +59,15 @@ export type ChecklistEditorProps = {
   onChange: (next: unknown[] | undefined) => void;
   errorText: (token: string, path: string, type: string) => string;
 };
+
+// Payout stages (backend item field payout_stage, required): the items the
+// advocate completes for the second 30%, and the final ones for the 40%
+// paid once the service is done and the 15-minute window closes.
+export type PayoutStage = "first_checklist" | "final_completion";
+export const PAYOUT_STAGES: readonly PayoutStage[] = ["first_checklist", "final_completion"];
+export const stageOf = (row: Dict): PayoutStage => (row.payout_stage === "first_checklist" ? "first_checklist" : "final_completion");
+// The first-stage items first, then the final ones; each keeps its order.
+export const byStage = (rows: readonly Dict[]): Dict[] => [...rows.filter((r) => stageOf(r) === "first_checklist"), ...rows.filter((r) => stageOf(r) === "final_completion")];
 
 type RowProps = {
   row: Dict;
@@ -143,6 +153,20 @@ function MethodTile({ m, row, base, idBase, ai, readOnly, set }: { m: ProofMetho
 }
 
 function CheckRow({ row, base, idBase, ai, readOnly, errors, policy, set, errorText }: RowProps): ReactElement {
+  const ts = useTranslations("studio");
+  const stageSwitch = (
+    <div className="sx-k2cl__stage" data-path={`${base}.payout_stage`}>
+      <span className="sx-field__label">{ts("sx.k02.cl.stage")}</span>
+      <SxSegmented<PayoutStage>
+        label={ts("sx.k02.cl.stage")}
+        value={stageOf(row)}
+        onChange={(v) => (readOnly ? undefined : set({ ...row, payout_stage: v }))}
+        items={PAYOUT_STAGES.map((s) => ({ value: s, label: ts(`sx.k02.cl.stageOpt.${s}`), icon: s === "first_checklist" ? CoinsIcon : FlagIcon, disabled: readOnly }))}
+        size="sm"
+        aiId={makeAiId(ai, "payout_stage")}
+      />
+    </div>
+  );
   const t = useTranslations("studio");
   const shownAt = (p: string, type: string): string => {
     const tok = policy.visible(p, errors);
@@ -163,6 +187,7 @@ function CheckRow({ row, base, idBase, ai, readOnly, errors, policy, set, errorT
   const required = row.required !== false;
   return (
     <div className="sx-k2cl">
+      {stageSwitch}
       <div className="sx-k2cl__voices">
         <section className="sx-k2cl__voice" data-who="performer" aria-labelledby={`${idBase}-v-perf`}>
           <h4 className="sx-k2cl__voice-h" id={`${idBase}-v-perf`}>
@@ -300,7 +325,8 @@ function CheckRow({ row, base, idBase, ai, readOnly, errors, policy, set, errorT
 export function ChecklistEditor({ id, path, label, ai, readOnly, value, item, errors, policy, onChange, errorText }: ChecklistEditorProps): ReactElement {
   const t = useTranslations("studio");
   const [absent] = useState(() => !Array.isArray(value));
-  const items: Dict[] = Array.isArray(value) ? value.map((x) => (isDict(x) ? x : {})) : [];
+  // Shown and saved as two lists — the 30% items, then the final 40% ones.
+  const items: Dict[] = byStage(Array.isArray(value) ? value.map((x) => (isDict(x) ? x : {})) : []);
   const summary = (row: Dict) => executorTitleOf(row).trim();
   const meta = (row: Dict): string => {
     const parts = [t(row.required === false ? "sx.k02.cl.metaOptional" : "sx.k02.cl.metaRequired")];
@@ -310,23 +336,43 @@ export function ChecklistEditor({ id, path, label, ai, readOnly, value, item, er
   };
   return (
     <div className="sx-k2cl-wrap" data-ai-id={makeAiId(ai, "list")} data-ai-type="section" data-ai-label={label}>
-      <Repeater<Dict>
-        id={id}
-        label={label}
-        itemName={t("sx.k02.cl.rowName")}
-        items={items}
-        onChange={(next) => onChange(checklistValueAfter(next, absent))}
-        newItem={() => newCheckRow(emptyItem(item))}
-        summary={summary}
-        meta={meta}
-        renderItem={(row, i, set) => <CheckRow row={row} base={`${path}.${i}`} idBase={`${id}-${i}`} ai={makeAiId(ai, i)} readOnly={readOnly} errors={errors} policy={policy} set={set} errorText={errorText} />}
-        rowErrors={(i) => policy.visibleCount(`${path}.${i}`, errors)}
-        addLabel={t("sx.k02.cl.add")}
-        emptyText={t("sx.k02.cl.empty")}
-        readOnly={readOnly}
-        onTouched={() => policy.touch(path)}
-        aiId={ai}
-      />
+      {PAYOUT_STAGES.map((stage) => {
+        const offset = stage === "first_checklist" ? 0 : items.filter((r) => stageOf(r) === "first_checklist").length;
+        const group = items.filter((r) => stageOf(r) === stage);
+        const other = items.filter((r) => stageOf(r) !== stage);
+        return (
+          <section key={stage} className="sx-k2stage" data-stage={stage} aria-labelledby={`${id}-${stage}-h`}>
+            <header className="sx-k2stage__h">
+              <span className="sx-k2stage__ic" aria-hidden="true">
+                {glyph(stage === "first_checklist" ? CoinsIcon : FlagIcon, { size: 17 })}
+              </span>
+              <span>
+                <b id={`${id}-${stage}-h`}>{t(`sx.k02.cl.group.${stage}`)}</b>
+                <small>{t(`sx.k02.cl.groupHelp.${stage}`)}</small>
+              </span>
+              <em>{group.length}</em>
+            </header>
+            <Repeater<Dict>
+              id={`${id}-${stage}`}
+              label={t(`sx.k02.cl.group.${stage}`)}
+              itemName={t("sx.k02.cl.rowName")}
+              items={group}
+              // A row whose stage was switched moves to the other list.
+              onChange={(next) => onChange(checklistValueAfter(byStage(stage === "first_checklist" ? [...next, ...other] : [...other, ...next]), absent))}
+              newItem={() => ({ ...newCheckRow(emptyItem(item)), payout_stage: stage })}
+              summary={summary}
+              meta={meta}
+              renderItem={(row, i, set) => <CheckRow row={row} base={`${path}.${offset + i}`} idBase={`${id}-${stage}-${i}`} ai={makeAiId(ai, stage, i)} readOnly={readOnly} errors={errors} policy={policy} set={set} errorText={errorText} />}
+              rowErrors={(i) => policy.visibleCount(`${path}.${offset + i}`, errors)}
+              addLabel={t(`sx.k02.cl.addTo.${stage}`)}
+              emptyText={t(`sx.k02.cl.emptyGroup.${stage}`)}
+              readOnly={readOnly}
+              onTouched={() => policy.touch(path)}
+              aiId={makeAiId(ai, stage)}
+            />
+          </section>
+        );
+      })}
     </div>
   );
 }

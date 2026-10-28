@@ -588,3 +588,16 @@ html[data-theme="dark"] .sx-k2m__show[data-on] {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Two checklists by payout stage: the second 30% and the final 40%. */
+.sx-k2stage { display: grid; gap: 10px; padding: 12px; border-radius: 16px; background: color-mix(in srgb, var(--stg) 6%, var(--sx-surface-2, #f6f8fc)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--stg) 22%, var(--sx-line, #e3e8f2)); }
+.sx-k2stage + .sx-k2stage { margin-top: 14px; }
+.sx-k2stage[data-stage="first_checklist"] { --stg: #2563eb; }
+.sx-k2stage[data-stage="final_completion"] { --stg: #059669; }
+.sx-k2stage__h { display: flex; align-items: flex-start; gap: 10px; }
+.sx-k2stage__ic { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 11px; background: var(--stg); color: #fff; }
+.sx-k2stage__h > span:nth-child(2) { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.sx-k2stage__h b { color: var(--sx-ink, inherit); font-size: .92rem; }
+.sx-k2stage__h small { color: var(--sx-ink-3, #64748b); font-size: .78rem; line-height: 1.45; }
+.sx-k2stage__h em { flex: none; min-width: 26px; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--stg) 14%, transparent); color: var(--stg); font-style: normal; font-weight: 800; font-size: .78rem; text-align: center; }
+.sx-k2cl__stage { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-bottom: 4px; }
