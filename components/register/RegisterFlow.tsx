@@ -24,6 +24,8 @@ import {
 import { REGION_KEYS } from "@/lib/mock/catalog";
 import Select, { type Option } from "@/components/Select";
 import TimePicker from "@/components/TimePicker";
+import DatePicker from "@/components/DatePicker";
+import { yearsSince } from "@/lib/tenure";
 import { IconLogo, IconChevronLeft, IconArrowRight, IconCheck } from "../icons";
 import PhoneStep from "./PhoneStep";
 import AccountTypeCards from "./AccountTypeCards";
@@ -79,6 +81,7 @@ const ADV_STEPS = STEPS_BY_TYPE.advocate;
 export default function RegisterFlow() {
   const t = useTranslations("register");
   const locale = useLocale();
+  const [today] = useState(() => new Date().toISOString().slice(0, 10));
   const te = useTranslations("enums");
   const tc = useTranslations("common");
   const tOtp = useTranslations("register.otp");
@@ -765,24 +768,38 @@ export default function RegisterFlow() {
                   <label>{t("advocate.licenseDoc")}</label>
                   <PhotoUpload value={p.licenseDoc?.startsWith("data:") ? p.licenseDoc : undefined} name="" capture="environment" onChange={(u) => setProfile({ licenseDoc: u })} label={t("advocate.upload")} hint={p.licenseDoc ? t("advocate.uploaded") : t("advocate.licenseHint")} />
                 </div>
-                <div className="cform__row2">
-                  <div>
-                    <label>{t("advocate.advExp")}</label>
-                    <input type="number" min={0} value={p.advocateYears ?? ""} onChange={(e) => setProfile({ advocateYears: parseInt(e.target.value || "0", 10) || 0 })} placeholder={t("fields.experiencePh")} />
+                <div className="rf__wh">
+                  <label>{t("advocate.tenureTitle")}</label>
+                  <p className="rf__hint">{t("advocate.tenureHint")}</p>
+                  <div className="cform__row2">
+                    <div>
+                      <label>{t("advocate.licenseIssued")}</label>
+                      <DatePicker value={p.licenseIssuedAt ?? ""} max={today} onChange={(v) => setProfile(v ? { licenseIssuedAt: v, advocateYears: yearsSince(v, today) ?? 0 } : { licenseIssuedAt: "" })} placeholder={t("advocate.licenseIssuedPh")} ariaLabel={t("advocate.licenseIssued")} />
+                    </div>
+                    <div>
+                      <label>{t("advocate.advExp")}</label>
+                      <input type="number" min={0} value={p.advocateYears ?? ""} readOnly={!!p.licenseIssuedAt} onChange={(e) => setProfile({ advocateYears: parseInt(e.target.value || "0", 10) || 0 })} placeholder={t("fields.experiencePh")} />
+                      {p.licenseIssuedAt ? <small className="rf__hint">{t("advocate.autoYears")}</small> : null}
+                    </div>
                   </div>
-                  <div>
-                    <label>{t("advocate.lawExp")}</label>
-                    <input type="number" min={0} value={p.lawyerYears ?? ""} onChange={(e) => setProfile({ lawyerYears: parseInt(e.target.value || "0", 10) || 0 })} placeholder={t("fields.experiencePh")} />
+                </div>
+                <div className="rf__wh">
+                  <label>{t("advocate.priorTitle")}</label>
+                  <p className="rf__hint">{t("advocate.priorHint")}</p>
+                  <div className="cform__row2">
+                    <div>
+                      <label>{t("advocate.lawExp")}</label>
+                      <input type="number" min={0} value={p.lawyerYears ?? ""} onChange={(e) => setProfile({ lawyerYears: parseInt(e.target.value || "0", 10) || 0 })} placeholder={t("fields.experiencePh")} />
+                    </div>
+                    <div />
                   </div>
+                  <label>{t("advocate.work.priorTitle")}</label>
+                  <p className="rf__hint">{t("advocate.work.priorSubtitle")}</p>
+                  <WorkHistoryEditor value={p.workHistory} onChange={(v) => setProfile({ workHistory: v })} />
                 </div>
                 <div className="rf__benefit">
                   <b>{t("advocate.expBenefitTitle")}</b>
                   <p>{t("advocate.expBenefit")}</p>
-                </div>
-                <div className="rf__wh">
-                  <label>{t("advocate.work.title")}</label>
-                  <p className="rf__hint">{t("advocate.work.subtitle")}</p>
-                  <WorkHistoryEditor value={p.workHistory} onChange={(v) => setProfile({ workHistory: v })} />
                 </div>
               </div>
             </div>

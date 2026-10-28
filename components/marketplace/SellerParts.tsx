@@ -27,7 +27,8 @@ export function SellerHero({ seller, top }: { seller: MarketSeller; top: boolean
   const tiles: { k: string; v: string; sub?: string }[] = [
     { k: t("detail.stats.rating"), v: rated ? fmtRating(seller.rating, locale) : t("detail.newRating") },
     { k: t("detail.stats.reviews"), v: String(seller.reviewsCount) },
-    { k: t("detail.stats.experience"), v: seller.experienceYears ? String(seller.experienceYears) : "—" },
+    { k: seller.sellerType === "advokat" ? t("detail.stats.advocacy") : t("detail.stats.experience"), v: seller.experienceYears ? String(seller.experienceYears) : "—" },
+    ...(seller.sellerType === "advokat" && seller.priorYears ? [{ k: t("detail.stats.prior"), v: String(seller.priorYears) }] : []),
     { k: t("detail.stats.cases"), v: seller.totalCases ? String(seller.totalCases) : "—" },
     { k: t("detail.stats.success"), v: success ? `${Math.round(seller.successRate)}%` : "—", sub: success ? undefined : t("detail.gathering") },
     { k: t("detail.stats.completed"), v: String(seller.completedOrders) },

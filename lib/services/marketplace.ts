@@ -76,6 +76,7 @@ export type MarketSeller = {
   languages: string[];
   bio: string;
   experienceYears: number;
+  priorYears?: number;
   totalCases: number;
   winsCount: number;
   partialWins: number;
@@ -228,6 +229,7 @@ export function normMarketSeller(v: unknown): MarketSeller {
     languages: strList(d.languages),
     bio: asStr(d.bio).trim(),
     experienceYears: exp,
+    priorYears: asNum(d.experience_years) ? asNum(d.lawyer_experience_years) : 0,
     totalCases: asNum(d.total_cases),
     winsCount: asNum(d.wins_count),
     partialWins: asNum(d.partial_wins_count),

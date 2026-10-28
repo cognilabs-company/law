@@ -6870,6 +6870,8 @@
       "anonymous": "Client",
       "sellerReply": "Specialist's reply",
       "stats": {
+        "advocacy": "Years as an advocate",
+        "prior": "Years before advocacy",
         "rating": "Rating",
         "reviews": "Ratings",
         "experience": "Years",
@@ -14227,6 +14229,13 @@
       "selectAll": "Select all"
     },
     "advocate": {
+      "tenureTitle": "Years as an advocate",
+      "tenureHint": "Pick the license issue date and your tenure is counted automatically. Without a date, enter the years by hand.",
+      "licenseIssued": "License issue date",
+      "licenseIssuedPh": "Pick a date",
+      "autoYears": "Counted automatically from the license date",
+      "priorTitle": "Work experience before advocacy",
+      "priorHint": "Experience you gained in state bodies or private companies before becoming an advocate. It is counted separately from your advocate tenure.",
       "steps": {
         "personal": "Personal",
         "professional": "Professional",
@@ -14256,8 +14265,8 @@
         "economicCivil": "Economic-civil",
         "both": "Criminal-administrative and economic-civil"
       },
-      "advExp": "Experience as advocate (years)",
-      "lawExp": "Experience as lawyer (years)",
+      "advExp": "Years as an advocate",
+      "lawExp": "Experience before advocacy (years)",
       "expBenefitTitle": "Why experience matters",
       "expBenefit": "Experience is your key advantage. Clients find you more easily: experienced advocates rank higher in search and recommendations. More experience means a trusted profile, higher rating, \"Super advocate\" status, and more income.",
       "structure": "Advocate structure",
@@ -14271,6 +14280,8 @@
       "orgNamePh": "Bureau / firm name or address",
       "experience": "Years of experience",
       "work": {
+        "priorTitle": "Workplaces before advocacy",
+        "priorSubtitle": "Add your workplaces in state bodies or private companies.",
         "title": "Work experience",
         "subtitle": "Add your previous and current workplaces.",
         "org": "Organization",

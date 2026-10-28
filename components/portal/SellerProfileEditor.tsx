@@ -29,6 +29,9 @@ import ChipMulti from "@/components/register/ChipMulti";
 import WorkHistoryEditor from "@/components/register/WorkHistoryEditor";
 import Select, { type Option } from "@/components/Select";
 import TimePicker from "@/components/TimePicker";
+import DatePicker from "@/components/DatePicker";
+import { dateOnly } from "@/lib/date";
+import { yearsSince } from "@/lib/tenure";
 import { ApiError, contactBlockedOf } from "@/lib/http";
 import { getMyAvailability, putMyAvailability, enabledDays, weeklyFrom, DEFAULT_DEADLINES, type ResponseDeadlines } from "@/lib/services/availability";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
@@ -69,13 +72,13 @@ const TAB_REVEAL: Record<SellerTab, RegExp> = {
 // Fields the backend profile (PUT /lawyers/me) has no columns for yet
 // (reported: gender, work hours, work history). Kept per user in the browser
 // so the cabinet, onboarding and the "Ish vaqtim" panel agree.
-type Extras = { gender?: string; workDays: string[]; workFrom: string; workTo: string; workHistory: WorkEntry[] };
+type Extras = { gender?: string; workDays: string[]; workFrom: string; workTo: string; workHistory: WorkEntry[]; licenseIssuedAt?: string };
 const EXTRA_KEY = (uid: string) => `lexgo_seller_extra_${uid}`;
 function readExtras(uid: string): Extras {
   try {
     const raw = localStorage.getItem(EXTRA_KEY(uid));
     const s = raw ? (JSON.parse(raw) as Partial<Extras>) : {};
-    return { gender: s.gender, workDays: s.workDays ?? DEFAULT_DAYS, workFrom: s.workFrom ?? "09:00", workTo: s.workTo ?? "19:00", workHistory: s.workHistory ?? [] };
+    return { gender: s.gender, workDays: s.workDays ?? DEFAULT_DAYS, workFrom: s.workFrom ?? "09:00", workTo: s.workTo ?? "19:00", workHistory: s.workHistory ?? [], licenseIssuedAt: s.licenseIssuedAt };
   } catch {
     return { workDays: DEFAULT_DAYS, workFrom: "09:00", workTo: "19:00", workHistory: [] };
   }
@@ -134,6 +137,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
   const tcm = useTranslations("portal.common");
   const tc = useTranslations("common");
   const locale = useLocale() as CatalogLocale;
+  const [today] = useState(() => new Date().toISOString().slice(0, 10));
   const { session, update } = useAuth();
   const fid = useId();
   const [tab, pick] = useUrlTab(SELLER_TABS, "personal");
@@ -233,7 +237,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
           ...(d.photo !== saved.photo ? { avatar_url: d.photo || "" } : {}),
         });
       }
-      writeExtras(uid, { gender: d.gender, workDays: d.workDays, workFrom: d.workFrom, workTo: d.workTo, workHistory: d.workHistory });
+      writeExtras(uid, { gender: d.gender, workDays: d.workDays, workFrom: d.workFrom, workTo: d.workTo, workHistory: d.workHistory, licenseIssuedAt: d.licenseIssuedAt });
       writeVacation(uid, vacation);
       if (section === "hours") {
         try {
@@ -365,6 +369,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
         [tr("advocate.specialization"), d.specialization ? (tr.has(`advocate.specOptions.${d.specialization}`) ? tr(`advocate.specOptions.${d.specialization}`) : d.specialization) : ""],
         [tr("advocate.structure"), d.advocateStructure ? (tr.has(`advocate.structureOptions.${d.advocateStructure}`) ? tr(`advocate.structureOptions.${d.advocateStructure}`) : d.advocateStructure) : ""],
         [tr("advocate.orgName"), d.orgName],
+        [tr("advocate.licenseIssued"), d.licenseIssuedAt ? dateOnly(d.licenseIssuedAt, locale) : ""],
         [tr("advocate.advExp"), years(d.advocateYears)],
       ] as [string, ReactNode][]) : []),
       [isAdvocate ? tr("advocate.lawExp") : tr("lawyer.expLabel"), years(d.lawyerYears ?? d.experienceYears)],
@@ -381,9 +386,31 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
             <div><label>{tr("advocate.structure")}</label><Select value={d.advocateStructure ?? ""} onChange={(v) => set({ advocateStructure: v })} options={structureOpts} ariaLabel={tr("advocate.structure")} placeholder={tr("advocate.structurePlaceholder")} /></div>
             <div><label>{tr("advocate.orgName")}</label><input value={d.orgName ?? ""} onChange={(e) => set({ orgName: e.target.value })} placeholder={tr("advocate.orgNamePh")} /></div>
           </div>
-          <div className="cform__row2">
-            <div><label>{tr("advocate.advExp")}</label><input type="number" min={0} value={d.advocateYears ?? ""} onChange={(e) => set({ advocateYears: parseInt(e.target.value || "0", 10) || 0 })} /></div>
-            <div><label>{tr("advocate.lawExp")}</label><input type="number" min={0} value={d.lawyerYears ?? ""} onChange={(e) => set({ lawyerYears: parseInt(e.target.value || "0", 10) || 0 })} /></div>
+          <div className="rf__wh">
+            <label>{tr("advocate.tenureTitle")}</label>
+            <p className="rf__hint">{tr("advocate.tenureHint")}</p>
+            <div className="cform__row2">
+              <div>
+                <label>{tr("advocate.licenseIssued")}</label>
+                <DatePicker value={d.licenseIssuedAt ?? ""} max={today} onChange={(v) => set(v ? { licenseIssuedAt: v, advocateYears: yearsSince(v, today) ?? 0 } : { licenseIssuedAt: "" })} placeholder={tr("advocate.licenseIssuedPh")} ariaLabel={tr("advocate.licenseIssued")} />
+              </div>
+              <div>
+                <label>{tr("advocate.advExp")}</label>
+                <input type="number" min={0} value={d.advocateYears ?? ""} readOnly={!!d.licenseIssuedAt} onChange={(e) => set({ advocateYears: parseInt(e.target.value || "0", 10) || 0 })} />
+                {d.licenseIssuedAt ? <small className="rf__hint">{tr("advocate.autoYears")}</small> : null}
+              </div>
+            </div>
+          </div>
+          <div className="rf__wh">
+            <label>{tr("advocate.priorTitle")}</label>
+            <p className="rf__hint">{tr("advocate.priorHint")}</p>
+            <div className="cform__row2">
+              <div>
+                <label>{tr("advocate.lawExp")}</label>
+                <input type="number" min={0} value={d.lawyerYears ?? ""} onChange={(e) => set({ lawyerYears: parseInt(e.target.value || "0", 10) || 0 })} />
+              </div>
+              <div />
+            </div>
           </div>
           <div>
             <label>{tr("advocate.licenseDoc")}</label>
@@ -486,7 +513,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
     </div>,
   );
 
-  const pHistory = panel("history", ico(IconBriefcase), tr("advocate.work.title"),
+  const pHistory = panel("history", ico(IconBriefcase), isAdvocate ? tr("advocate.work.priorTitle") : tr("advocate.work.title"),
     d.workHistory.length ? (
       <div className="alist">
         {d.workHistory.map((w) => (

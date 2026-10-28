@@ -66,6 +66,7 @@ export type ProfessionalProfile = {
   advocateYears?: number; // years practised as an advocate
   lawyerYears?: number; // years practised as a lawyer (yurist)
   licenseNumber?: string;
+  licenseIssuedAt?: string;
   licenseDoc?: string; // file name
   barAssociation?: string;
   specialization?: string;
