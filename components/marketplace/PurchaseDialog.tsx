@@ -79,6 +79,7 @@ export default function PurchaseDialog({
   onClose,
   onStale,
   auto,
+  region,
 }: {
   // No seller picked: the backend matches one; the client may still pick
   // themselves instead.
@@ -91,6 +92,7 @@ export default function PurchaseDialog({
   onBack?: () => void;
   onClose: () => void;
   onStale: (what: "seller" | "service") => void;
+  region?: string;
 }) {
   const t = useTranslations("marketplace.purchase");
   const tm = useTranslations("marketplace");
@@ -200,7 +202,7 @@ export default function PurchaseDialog({
     setErr("");
     setProvErr("");
     try {
-      const input = { paymentProvider: via, note, preferredChannel: channel, contactSpeed: speed, preferredTime: speed ? t(`speeds.${speed}`) : "", selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })) };
+      const input = { paymentProvider: via, note, preferredChannel: channel, contactSpeed: speed, preferredTime: speed ? t(`speeds.${speed}`) : "", selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })), region };
       const r = auto
         ? await requestMarketplaceMatch(service.id, input)
         : pkg

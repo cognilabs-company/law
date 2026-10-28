@@ -10,7 +10,7 @@ import {
   PREFERRED_CHANNELS,
   PURCHASE_PROVIDERS,
   PRICE_OPTION_ERRORS,
-  PURCHASE_URGENCIES,
+  CONTACT_SPEEDS,
   activePurchaseOf,
   marketChatHref,
   marketErrorCode,
@@ -27,6 +27,7 @@ import {
   type PurchaseAttachment,
   type PurchaseProvider,
   type PurchaseUrgency,
+  type ContactSpeed,
 } from "@/lib/services/marketplace";
 import { useMarketOrderTracker } from "@/lib/useMarketOrderTracker";
 import { clockOf, useCountdown } from "@/lib/useCountdown";
@@ -60,6 +61,7 @@ const NOTE_MAX = 1000;
 // accepts the paid order within 30 minutes → chat. No 10% advance.
 const STEPS = ["request", "pay", "accept", "chat"] as const;
 const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, accepting: 2, paid: 3, chat: 3, completed: 4, cancelled: 1 };
+const URGENCY_OF: Record<ContactSpeed, PurchaseUrgency> = { within_15_min: "today", within_1_hour: "today", today: "today", tomorrow: "tomorrow" };
 const PROVIDER_ICON = { telegram_manual: IconSend, payme: IconCard, click: IconCard } as const;
 
 type Props = {
@@ -72,6 +74,7 @@ type Props = {
   onStale: (what: "seller" | "service") => void;
   // Back to choosing the advocate (a package's sheet comes from that list).
   onBack?: () => void;
+  region?: string;
 };
 
 export default function PurchaseSheet(props: Props) {
@@ -79,7 +82,7 @@ export default function PurchaseSheet(props: Props) {
   return <Sheet key={`${props.pkg ? "pkg" : "svc"}:${props.service.id}:${props.sellerUserId}`} {...props} />;
 }
 
-function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onStale, onBack }: Props) {
+function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onStale, onBack, region }: Props) {
   const t = useTranslations("marketplace.purchase");
   const tm = useTranslations("marketplace");
   const te = useTranslations("enums");
@@ -89,7 +92,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   const noteGuard = useGuardedField(note, (v) => setNote(v.slice(0, NOTE_MAX)), "specialist");
   const [channel, setChannel] = useState<PreferredChannel>("chat");
   const [time, setTime] = useState("");
-  const [urgency, setUrgency] = useState<PurchaseUrgency | "">("");
+  const [speed, setSpeed] = useState<ContactSpeed | "">("");
   const [provider, setProvider] = useState<PurchaseProvider>("telegram_manual");
   // Only what the backend has switched on, under its own labels.
   const pays = useCheckoutProviders();
@@ -138,8 +141,8 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
     setErr("");
     setProvErr("");
     try {
-      const input = { paymentProvider: via, note, preferredChannel: channel, preferredTime: time, selectedOptionIds: price.ids, urgency, attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })) };
-      const r = pkg ? await requestPackagePurchase(pkg.purchaseUrl, input) : await requestMarketplacePurchase(sellerUserId, service.id, input);
+      const input = { paymentProvider: via, note, preferredChannel: channel, preferredTime: time, contactSpeed: speed, selectedOptionIds: price.ids, urgency: speed ? URGENCY_OF[speed] : ("" as const), attachments: files, voiceMessages: voices.map(({ fileId, seconds }) => ({ fileId, seconds })), region };
+      const r = pkg ? await requestPackagePurchase(pkg.purchaseUrl, input, { packageId: pkg.id, lawyerUserId: sellerUserId }) : await requestMarketplacePurchase(sellerUserId, service.id, input);
       setDone(r);
       trackPromoContact(sellerUserId, "purchase");
     } catch (e) {
@@ -306,11 +309,11 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
             <TextArea value={note} onChange={(v) => noteGuard.change(v)} onBlur={noteGuard.blur} placeholder={t("notePh")} maxLength={NOTE_MAX} rows={4} />
             {noteGuard.note}
           </Field>
-          <Field label={t("urgency")}>
+          <Field label={t("speed")}>
             <span className="dxcp-chips">
-              {PURCHASE_URGENCIES.map((u) => (
-                <button key={u} type="button" className={urgency === u ? "is-on" : ""} aria-pressed={urgency === u} onClick={() => setUrgency(urgency === u ? "" : u)}>
-                  {t(`urgencies.${u}`)}
+              {CONTACT_SPEEDS.map((c) => (
+                <button key={c} type="button" className={speed === c ? "is-on" : ""} aria-pressed={speed === c} onClick={() => setSpeed(speed === c ? "" : c)}>
+                  {t(`speeds.${c}`)}
                 </button>
               ))}
             </span>

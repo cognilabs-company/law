@@ -9,7 +9,6 @@ import {
   listLawyers,
   getPackageEligibleSellers,
   type PackageSellers,
-  createOrder,
   getPricingQuote,
   getMatchingCandidates,
   type BackendService,
@@ -19,8 +18,9 @@ import {
   type PriceQuote,
   getLawyerServices,
 } from "@/lib/services/backend";
-import { http, asDict, asStr, ApiError } from "@/lib/http";
-import OrderPayment from "@/components/portal/OrderPayment";
+import { http, asDict, asStr } from "@/lib/http";
+import PurchaseDialog from "@/components/marketplace/PurchaseDialog";
+import type { MarketService } from "@/lib/services/marketplace";
 import ServicePassport from "@/components/portal/ServicePassport";
 import ServiceDocumentRequest from "@/components/portal/ServiceDocumentRequest";
 import NewDocumentOrder from "@/components/portal/NewDocumentOrder";
@@ -32,7 +32,6 @@ import { initials, humanizeSlug } from "@/lib/lawyers";
 import { Skeleton } from "@/components/portal/DataState";
 import Select from "@/components/Select";
 import Modal from "@/components/admin/Modal";
-import { notify } from "@/lib/toast";
 import FieldError from "@/components/ui/FieldError";
 import { evalBusinessHours, responseDeadline, deadlineLabel } from "@/lib/businessHours";
 import { getBusinessHours, DEFAULT_BUSINESS_HOURS } from "@/lib/services/backend";
@@ -135,7 +134,6 @@ export default function ClientServices() {
       alive = false;
     };
   }, []);
-  const [buying, setBuying] = useState(false);
   // Which required field stopped the last press of "Buyurtma berish" ("" when
   // nothing did). Same shape as the shipped pattern in
   // components/portal/DocumentLawyerAssist.tsx, deliberately: the order button
@@ -146,10 +144,7 @@ export default function ClientServices() {
   const [missing, setMissing] = useState<"" | "seller">("");
   const [quote, setQuote] = useState<PriceQuote | null>(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
-  const [payOrderId, setPayOrderId] = useState<string | null>(null);
-  // The price region the backend settled on for the order just created, and
-  // where it took it from (request, client profile or default).
-  const [placed, setPlaced] = useState<{ region: string; source: string } | null>(null);
+  const [purchase, setPurchase] = useState<{ order: BackendService; service: MarketService; sellerUserId: string; sellerName: string; packageId: string } | null>(null);
   // "Advokat yo'llash" reuses the advocate-picker/buy branch below even for a
   // document-template service (normally that branch is skipped in favor of
   // the self-fill flow) — set only by that button, reset with the modal.
@@ -199,7 +194,6 @@ export default function ClientServices() {
       setCands(new Map());
       setSellerId("");
       setQuote(null);
-      setPayOrderId(null);
       setMissing("");
     } else {
       setForceAdvocate(false);
@@ -309,8 +303,8 @@ export default function ClientServices() {
     };
   }, [order, sellerId, myRegion]);
 
-  async function buy() {
-    if (!order || buying) return;
+  function buy() {
+    if (!order) return;
     // A package the backend could not resolve is not ordered (contract §15).
     if (pkg?.unresolvedServiceCodes.length) return;
     // The one required field on this form. Marked, named in words and focused
@@ -321,39 +315,32 @@ export default function ClientServices() {
       return;
     }
     setMissing("");
-    setBuying(true);
-    try {
-      const o = await createOrder({
-        service_id: order.id,
-        lawyer_user_id: sellerId,
-        ...(packageId ? { package_id: packageId, source: "marketplace_package", details: myRegion ? { region: myRegion } : {} } : {}),
-      });
-      setBuying(false);
-      setPlaced(o.region ? { region: o.region, source: o.regionSource ?? "" } : null);
-      if (o.id) setPayOrderId(o.id);
-      else router.push("/portal/client/cases");
-    } catch (e) {
-      setBuying(false);
-      // The backend says why a package order was refused; the client reads
-      // that reason, and the list is asked for again since it has changed.
-      const code = e instanceof ApiError ? e.code ?? "" : "";
-      notify.error(code && t.has(`packageErrors.${code}`) ? t(`packageErrors.${code}`) : t("orderError"), { id: `svc-order-${order.id}`, error: e });
-      if (packageId && e instanceof ApiError && (e.status === 409 || t.has(`packageErrors.${code}`))) {
-        setSellerId("");
-        setSellersLoading(true);
-        loadPackageSellers();
-      }
-    }
-  }
-  function afterPay(roomId?: string) {
-    setPayOrderId(null);
+    const price = quote?.totalAmount || order.price || 0;
+    setPurchase({
+      order,
+      service: {
+        id: order.id,
+        title: order.name,
+        categoryId: order.categoryId ?? "",
+        categoryTitle: order.categoryTitle ?? "",
+        basePrice: quote?.baseAmount || order.price || 0,
+        selectedPrice: price,
+        price,
+        currency: "UZS",
+        deliveryMinutes: 0,
+        experienceNote: "",
+        advokatRequired: false,
+        isSponsored: false,
+      },
+      sellerUserId: sellerId,
+      sellerName: sellers.find((s) => s.userId === sellerId)?.name ?? "",
+      packageId,
+    });
     setOrder(null);
-    if (roomId) router.push(`/portal/chat/${roomId}`);
-    else router.push("/portal/client/cases");
   }
 
   useAiModal("documents.create.modal", () => setNewDocOpen(true));
-  const pickerOpen = Boolean(order && orderAsAdvocate && !payOrderId && !docLawyer);
+  const pickerOpen = Boolean(order && orderAsAdvocate && !docLawyer);
   useAiField(pickerOpen && sortable ? "services.order.sellers.sort" : "", {
     get: () => sort,
     set: (v) => {
@@ -363,9 +350,7 @@ export default function ClientServices() {
     },
   });
 
-  const orderModalId = payOrderId
-    ? "services.order.payment"
-    : order && docLawyer
+  const orderModalId = order && docLawyer
       ? "documents.lawyer.modal"
       : order && !orderAsAdvocate
         ? "documents.constructor.modal"
@@ -430,7 +415,7 @@ export default function ClientServices() {
         </div>
       </Modal>
 
-      <Modal open={!!order} onClose={() => { setOrder(null); setPayOrderId(null); setDocLawyer(false); }} title={order?.name || t("orderTitle")} wide={!orderAsAdvocate}>
+      <Modal open={!!order} onClose={() => { setOrder(null); setDocLawyer(false); }} title={order?.name || t("orderTitle")} wide={!orderAsAdvocate}>
         <div
           data-ai-id={orderModalId}
           data-ai-type="modal"
@@ -438,18 +423,7 @@ export default function ClientServices() {
           data-ai-entity-type={order ? "service" : undefined}
           data-ai-entity-id={order?.id || undefined}
         >
-          {payOrderId ? (
-            <>
-              {placed ? (
-                <p className="bhnote" role="note">
-                  <IconMapPin />
-                  {t("placedRegion", { region: te.has(`regions.${placed.region}`) ? te(`regions.${placed.region}`) : placed.region })}
-                  {placed.source && t.has(`regionSource.${placed.source}`) ? ` · ${t(`regionSource.${placed.source}`)}` : ""}
-                </p>
-              ) : null}
-              <OrderPayment orderId={payOrderId} onChat={afterPay} />
-            </>
-          ) : order && docLawyer ? (
+          {order && docLawyer ? (
             <ServiceDocumentRequest serviceId={order.id} initialMode="lawyer" />
           ) : order && !orderAsAdvocate ? (
             <ServiceDocumentRequest serviceId={order.id} />
@@ -584,17 +558,34 @@ export default function ClientServices() {
                 <p className="bhnote bhnote--ok" role="status"><IconClock />{t("respondBy", { when: respondBy })}</p>
               ) : null}
               {/* Not disabled while the advocate is unpicked: buy() answers the
-                  press instead — see `missing`. Only the in-flight request
-                  disables it, which is the one state a second press would
-                  actually break. */}
-              <button className="btn btn--grad btn--full btn--lg" type="button" disabled={buying || Boolean(pkg?.unresolvedServiceCodes.length)} onClick={buy}>
-                {buying ? t("buying") : t("buy")}
+                  press instead — see `missing`. */}
+              <button className="btn btn--grad btn--full btn--lg" type="button" disabled={Boolean(pkg?.unresolvedServiceCodes.length)} onClick={buy}>
+                {t("buy")}
               </button>
               <p className="rf__hint">{t("orderNote")}</p>
             </div>
           )}
         </div>
       </Modal>
+
+      {purchase ? (
+        <PurchaseDialog
+          sellerUserId={purchase.sellerUserId}
+          sellerName={purchase.sellerName}
+          service={purchase.service}
+          pkg={purchase.packageId ? { id: purchase.packageId, purchaseUrl: pkg?.items.find((l) => l.userId === purchase.sellerUserId)?.packagePurchaseUrl ?? "", duration: "" } : undefined}
+          region={myRegion || undefined}
+          returnPath="/portal/client/services"
+          onBack={() => {
+            setOrder(purchase.order);
+            setPurchase(null);
+          }}
+          onClose={() => setPurchase(null)}
+          onStale={() => {
+            if (purchase.packageId) loadPackageSellers();
+          }}
+        />
+      ) : null}
 
     </div>
   );

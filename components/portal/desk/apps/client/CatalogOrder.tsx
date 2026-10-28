@@ -3,12 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {
-  createOrder,
-  demoPayOrder,
   getBusinessHours,
   getMatchingCandidates,
   getPackageEligibleSellers,
-  getPaymentPolicy,
   getPricingQuote,
   listLawyers,
   DEFAULT_BUSINESS_HOURS,
@@ -16,20 +13,17 @@ import {
   type BackendService,
   type MatchCandidate,
   type PackageSellers,
-  type PaymentPolicy,
   type PriceModifier,
   type PriceQuote,
 } from "@/lib/services/backend";
-import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
-import { ApiError, isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { deadlineLabel, evalBusinessHours, responseDeadline } from "@/lib/businessHours";
 import { humanizeSlug } from "@/lib/lawyers";
 import { fmtUzs } from "@/lib/money";
 import { fmtRating } from "@/lib/date";
-import { IconArrowRight, IconCard, IconChat, IconCheck, IconClock, IconShieldCheck } from "@/components/icons";
-import { Avatar, Banner, Btn, Dialog, Loading, Progress, Select, Spinner, Tag } from "../../kit/kit";
+import { IconArrowRight, IconCheck, IconClock, IconShieldCheck } from "@/components/icons";
+import { Avatar, Banner, Btn, Dialog, Loading, Select, Tag } from "../../kit/kit";
 import type { NativeProps } from "../../native";
-import Milestones from "./Milestones";
+import PurchaseSheet from "./Purchase";
 import Passport from "./Passport";
 
 // Ordering a catalog service from an advocate, as a desktop sheet: the
@@ -70,10 +64,8 @@ export default function CatalogOrder({
   const [sellerId, setSellerId] = useState("");
   const [missing, setMissing] = useState(false);
   const [quote, setQuote] = useState<{ key: string; q: PriceQuote | null } | null>(null);
-  const [buying, setBuying] = useState(false);
   const [err, setErr] = useState("");
-  const [orderId, setOrderId] = useState("");
-  const [placed, setPlaced] = useState<{ region: string; source: string } | null>(null);
+  const [buyNow, setBuyNow] = useState(false);
   const [hours, setHours] = useState<{ after: boolean; by: string } | null>(null);
 
   useEffect(() => {
@@ -148,43 +140,37 @@ export default function CatalogOrder({
   const modValue = (m: PriceModifier) => (m.percent ? `${m.percent > 0 ? "+" : ""}${m.percent}%` : m.multiplier && m.multiplier !== 1 ? `×${Number(m.multiplier.toFixed(2))}` : m.amount ? `${som(m.amount)} ${t("som")}` : "×1");
   const reason = (r: string) => (t.has(`matchReasons.${r}`) ? t(`matchReasons.${r}`) : humanizeSlug(r));
   const broken = !!pkg?.unresolvedServiceCodes.length;
-  const go = (route: string) => (onClose(), openLink({ appId: "", route }));
 
-  async function buy() {
-    if (buying || broken) return;
+  function buy() {
+    if (broken) return;
     if (!sellerId) return setMissing(true);
-    setBuying(true);
     setErr("");
-    try {
-      const o = await createOrder({ service_id: service.id, lawyer_user_id: sellerId, ...(packageId ? { package_id: packageId, source: "marketplace_package", details: region ? { region } : {} } : {}) });
-      setPlaced(o.region ? { region: o.region, source: o.regionSource ?? "" } : null);
-      if (o.id) setOrderId(o.id);
-      else go("/portal/client/cases");
-    } catch (e) {
-      const code = e instanceof ApiError ? (e.code ?? "") : "";
-      setErr(code && t.has(`packageErrors.${code}`) ? t(`packageErrors.${code}`) : t("orderError"));
-      if (packageId && e instanceof ApiError && (e.status === 409 || t.has(`packageErrors.${code}`))) {
-        setSellerId("");
-        setSellers(null);
-        setPkgTry((n) => n + 1);
-      }
-    } finally {
-      setBuying(false);
-    }
+    setBuyNow(true);
   }
 
-  if (orderId)
+  if (buyNow) {
+    const price = q?.totalAmount || service.price || 0;
     return (
-      <Dialog open title={service.name} width={560} onClose={onClose} actions={<Btn onClick={onClose}>{d("close")}</Btn>}>
-        {placed ? (
-          <Banner tone="info">
-            {t("placedRegion", { region: te.has(`regions.${placed.region}`) ? te(`regions.${placed.region}`) : placed.region })}
-            {placed.source && t.has(`regionSource.${placed.source}`) ? ` · ${t(`regionSource.${placed.source}`)}` : ""}
-          </Banner>
-        ) : null}
-        <Payment orderId={orderId} onChat={(room) => go(room ? `/portal/chat/${room}` : "/portal/client/cases")} />
-      </Dialog>
+      <PurchaseSheet
+        sellerUserId={sellerId}
+        sellerName={(sellers ?? []).find((l) => l.userId === sellerId)?.name ?? ""}
+        service={{ id: service.id, title: service.name, categoryId: service.categoryId ?? "", categoryTitle: service.categoryTitle ?? "", basePrice: q?.baseAmount || service.price || 0, selectedPrice: price, price, currency: "UZS", deliveryMinutes: 0, experienceNote: "", advokatRequired: false, isSponsored: false }}
+        pkg={packageId ? { id: packageId, purchaseUrl: pkg?.items.find((l) => l.userId === sellerId)?.packagePurchaseUrl ?? "", duration: "" } : undefined}
+        region={region || undefined}
+        openLink={openLink}
+        onClose={onClose}
+        onBack={() => setBuyNow(false)}
+        onStale={() => {
+          setBuyNow(false);
+          if (packageId) {
+            setSellerId("");
+            setSellers(null);
+            setPkgTry((n) => n + 1);
+          }
+        }}
+      />
     );
+  }
 
   return (
     <Dialog
@@ -200,7 +186,7 @@ export default function CatalogOrder({
             <b>{q ? `${som(q.totalAmount)} ${t("som")}` : quoting ? t("priceCalc") : service.price ? `${som(service.price)} ${t("som")}` : t("byRequest")}</b>
           </span>
           <Btn onClick={onClose}>{d("cancel")}</Btn>
-          <Btn kind="primary" type="submit" busy={buying} disabled={broken} icon={<IconArrowRight />}>
+          <Btn kind="primary" type="submit" disabled={broken} icon={<IconArrowRight />}>
             {t("buy")}
           </Btn>
         </>
@@ -301,131 +287,5 @@ export default function CatalogOrder({
       ) : null}
       {err ? <Banner tone="err">{err}</Banner> : null}
     </Dialog>
-  );
-}
-
-// The advance that opens the chat, then the payment stages.
-function Payment({ orderId, onChat }: { orderId: string; onChat: (roomId?: string) => void }) {
-  const t = useTranslations("portal.payment");
-  const d = useTranslations("portal.desk.client");
-  const tc = useTranslations("common");
-  const [pol, setPol] = useState<PaymentPolicy | null>(null);
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
-  const [tick, setTick] = useState(0);
-  const [paying, setPaying] = useState(false);
-  const [intent, setIntent] = useState<PaymentIntent | null>(null);
-  const [err, setErr] = useState("");
-  useEffect(() => {
-    let alive = true;
-    getPaymentPolicy(orderId)
-      .then((p) => alive && (setPol(p), setState("ready")))
-      .catch(() => alive && setState("error"));
-    return () => {
-      alive = false;
-    };
-  }, [orderId, tick]);
-
-  async function pay() {
-    if (paying || !pol) return;
-    setPaying(true);
-    setErr("");
-    setIntent(null);
-    try {
-      if (!isDemoCheckout()) {
-        const due = pol.contactUnlocked ? pol.totalAmount - pol.paidAmount : pol.remainingToUnlock || pol.advanceAmount;
-        if (due <= 0) return setErr(t("error"));
-        setIntent(await createCheckout({ kind: "order", orderId, amount: due, payload: { purpose: "order_advance" } }));
-        return;
-      }
-      const r = await demoPayOrder(orderId);
-      if (r.paymentUrl) {
-        window.open(r.paymentUrl, "_blank", "noopener");
-        return;
-      }
-      const next = await getPaymentPolicy(orderId).catch(() => null);
-      if (next) setPol(next);
-      if (r.chatRoomId || next?.contactUnlocked) onChat(r.chatRoomId);
-    } catch (e) {
-      setErr(isProviderUnavailable(e) || isDemoUnavailable(e) ? tc("paymentUnavailable") : t("error"));
-    } finally {
-      setPaying(false);
-    }
-  }
-
-  if (state === "loading") return <Spinner />;
-  if (state === "error" || !pol)
-    return (
-      <Banner tone="err" action={<Btn small onClick={() => (setState("loading"), setTick((n) => n + 1))}>{d("refresh")}</Btn>}>
-        {t("error")}
-      </Banner>
-    );
-  const pct = pol.totalAmount ? Math.min(100, Math.round((pol.paidAmount / pol.totalAmount) * 100)) : 0;
-  const adv = pol.advancePercent || 10;
-  const st = (intent?.status || "pending").toLowerCase();
-  return (
-    <div className="dxco-pay">
-      <dl className="dxcp-bill">
-        <div>
-          <dt>{t("total")}</dt>
-          <dd>{`${som(pol.totalAmount)} ${t("som")}`}</dd>
-        </div>
-        <div>
-          <dt>{t("advance", { pct: adv })}</dt>
-          <dd>{`${som(pol.advanceAmount)} ${t("som")}`}</dd>
-        </div>
-        <div className="is-total">
-          <dt>{t("paid")}</dt>
-          <dd>{`${som(pol.paidAmount)} ${t("som")}`}</dd>
-        </div>
-      </dl>
-      <Progress value={pct} label={`${pct}%`} />
-      {pol.contactUnlocked ? (
-        <Banner tone="ok">
-          {t("unlocked")}
-        </Banner>
-      ) : (
-        <Banner tone="info">
-          {t("locked", { amount: `${som(pol.remainingToUnlock)} ${t("som")}` })}
-        </Banner>
-      )}
-      {intent ? (
-        <div className="dxco-intent">
-          <span>
-            <IconCard aria-hidden />
-            <b>{t("intentTitle")}</b>
-          </span>
-          <dl className="dxcp-bill">
-            <div>
-              <dt>{t("intentAmount")}</dt>
-              <dd>{`${som(intent.amount)} ${t("som")}`}</dd>
-            </div>
-            <div>
-              <dt>{t("intentStatus")}</dt>
-              <dd>{t.has(`intentStates.${st}`) ? t(`intentStates.${st}`) : humanizeSlug(st)}</dd>
-            </div>
-          </dl>
-          {intent.paymentUrl ? (
-            <Btn kind="primary" icon={<IconArrowRight />} onClick={() => (window.open(intent.paymentUrl!, "_blank", "noopener"), setIntent(null), setTick((n) => n + 1))}>
-              {t("proceed")}
-            </Btn>
-          ) : (
-            <Banner tone="err">{t("noLink")}</Banner>
-          )}
-          <Btn kind="plain" onClick={() => setIntent(null)}>
-            {t("cancel")}
-          </Btn>
-        </div>
-      ) : pol.contactUnlocked ? (
-        <Btn kind="primary" icon={<IconChat />} onClick={() => onChat()}>
-          {t("openChat")}
-        </Btn>
-      ) : (
-        <Btn kind="primary" icon={<IconCard />} busy={paying} onClick={() => void pay()}>
-          {t("payAdvance", { pct: adv })}
-        </Btn>
-      )}
-      {err ? <Banner tone="err">{err}</Banner> : null}
-      <Milestones orderId={orderId} onError={setErr} onDone={() => setTick((n) => n + 1)} />
-    </div>
   );
 }

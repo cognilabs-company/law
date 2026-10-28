@@ -12,6 +12,11 @@ describe("full payment first", () => {
     expect(purchaseBodyOf({ note: "x", preferredChannel: "chat" }).payment_provider).toBeUndefined();
   });
 
+  it("sends the client's region only when it is known", () => {
+    expect(purchaseBodyOf({ note: "x", preferredChannel: "chat", region: " Toshkent " }).region).toBe("Toshkent");
+    expect("region" in purchaseBodyOf({ note: "x", preferredChannel: "chat", region: "" })).toBe(false);
+  });
+
   it("reads the initial response: pending payment, the one 100% payment, nothing for the seller yet", () => {
     const r = purchaseOf({
       work_id: "ADV-1",

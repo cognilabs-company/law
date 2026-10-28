@@ -435,6 +435,7 @@ export type PurchaseInput = {
   urgency?: PurchaseUrgency | "";
   attachments?: PurchaseAttachment[];
   voiceMessages?: PurchaseVoice[];
+  region?: string;
 };
 
 export function purchaseBodyOf(input: PurchaseInput): Record<string, unknown> {
@@ -454,6 +455,7 @@ export function purchaseBodyOf(input: PurchaseInput): Record<string, unknown> {
     body.details = details;
   }
   if (input.urgency) body.urgency = input.urgency;
+  if (input.region?.trim()) body.region = input.region.trim();
   if (input.paymentProvider) {
     body.payment_provider = input.paymentProvider;
     body.currency = "UZS";
