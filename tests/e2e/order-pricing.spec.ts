@@ -109,7 +109,9 @@ test.describe("order price breakdown", () => {
     const why = p.locator(".mod-price__why");
     await expect(why).toContainText("Почему цена немного выше");
     await expect(why).toContainText("Подтверждённый опыт специалиста учтён в стоимости.");
-    await expect(why).toContainText("+15 000");
+    // Only the sentences — not what each reason adds.
+    await expect(why).not.toContainText("15 000");
+    await expect(why).not.toContainText("15%");
     // An unknown code is still words, never the code.
     await expect(why).toContainText("Уровень специалиста и условия работы");
     await expect(p).not.toContainText("lawyer_experience");

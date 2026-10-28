@@ -89,11 +89,9 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
     const changed = pricing.base > 0 && pricing.final !== pricing.base;
     // The backend's own sentence (already in the client's language), else
     // its translations, else the code worded here — never the code.
-    const reasons = pricing.clientReasons.map((r) => ({
-      text: r.text || r.i18n[locale === "uz" ? "uz_latn" : locale] || r.i18n.uz_latn || (tr.has(r.code) ? tr(r.code) : tr("other")),
-      amount: r.amount,
-      percent: r.percent,
-    }));
+    // Only the sentences: what each reason adds is not shown, so the price
+    // build-up stays private ("to'liq chiqarmaslik kerak"). Same sentence twice → once.
+    const reasons = [...new Set(pricing.clientReasons.map((r) => r.text || r.i18n[locale === "uz" ? "uz_latn" : locale] || r.i18n.uz_latn || (tr.has(r.code) ? tr(r.code) : tr("other"))))];
     return (
       <SxPanel title={t("title")} className="mod-price mod-price--client" as="section" aiId={`${aiBase}.pricing`}>
         {changed ? (
@@ -123,10 +121,7 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
             {reasons.length ? (
               <ul>
                 {reasons.map((r, i) => (
-                  <li key={i}>
-                    <span>{r.text}</span>
-                    {r.amount ? <b className="sx-num">{`${r.amount > 0 ? "+" : "−"}${money(Math.abs(r.amount))}${r.percent ? ` · ${Math.abs(r.percent)}%` : ""}`}</b> : null}
-                  </li>
+                  <li key={i}>{r}</li>
                 ))}
               </ul>
             ) : (
