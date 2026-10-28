@@ -140,6 +140,33 @@ export function experienceGroupsOf(raw: unknown): ExperienceGroup[] {
   });
 }
 
+const YEAR_MS = 365 * 86400000;
+
+export function approvedYears(groups: ExperienceGroup[], today: string): number {
+  const items = groups.map((g) => g.current).filter((x): x is ExperienceItem => !!x);
+  if (items.some((it) => !it.positions.some((p) => p.startedAt))) return items.reduce((n, it) => n + (it.years ?? 0), 0);
+  const end = Date.parse(today);
+  const spans = items
+    .flatMap((it) => it.positions)
+    .map((p) => [Date.parse(p.startedAt.slice(0, 10)), p.isCurrent || !p.endedAt ? end : Math.min(end, Date.parse(p.endedAt.slice(0, 10)))] as const)
+    .filter(([a, b]) => Number.isFinite(a) && Number.isFinite(b) && b > a)
+    .sort((x, y) => x[0] - y[0]);
+  let total = 0;
+  let from = NaN;
+  let to = NaN;
+  for (const [a, b] of spans) {
+    if (Number.isFinite(from) && a <= to) {
+      to = Math.max(to, b);
+      continue;
+    }
+    if (Number.isFinite(from)) total += to - from;
+    from = a;
+    to = b;
+  }
+  if (Number.isFinite(from)) total += to - from;
+  return Math.floor(total / YEAR_MS);
+}
+
 export async function listMyExperience(signal?: AbortSignal): Promise<ExperienceGroup[]> {
   return experienceGroupsOf(await http("/marketplace/me/experience?limit=50&offset=0", { signal }));
 }

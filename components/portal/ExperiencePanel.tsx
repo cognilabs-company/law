@@ -19,6 +19,7 @@ import { subscribeUserEvents } from "@/lib/userSocket";
 import {
   EVIDENCE_MAX_BYTES,
   EVIDENCE_TYPES,
+  approvedYears,
   cancelExperience,
   downloadExperienceEvidence,
   experienceErrorOf,
@@ -32,6 +33,7 @@ import {
   getCategoryTree,
   type CategoryNode,
 } from "@/lib/services/experience";
+import { getMySellerRating } from "@/lib/services/sellerRating";
 
 // A lawyer's experience (TSK-415946, TSK-920636; contract 2026-10-27 §15,
 // §18): one record per workplace with its positions, each with its own
@@ -119,6 +121,7 @@ export default function ExperiencePanel(): ReactElement {
   const t = useTranslations("portal.experience");
   const locale = useLocale();
   const [groups, setGroups] = useState<ExperienceGroup[] | null>(null);
+  const [backendYears, setBackendYears] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
   const [cats, setCats] = useState<BackendCategory[]>([]);
   const [tree, setTree] = useState<CategoryNode[]>([]);
@@ -135,6 +138,10 @@ export default function ExperiencePanel(): ReactElement {
     try {
       setGroups(await listMyExperience());
       setFailed(false);
+      getMySellerRating().then(
+        (r) => setBackendYears(r?.experienceYears ?? null),
+        () => undefined,
+      );
     } catch (e) {
       if (isAborted(e)) return;
       logApiError("experience.list", e);
@@ -257,7 +264,7 @@ export default function ExperiencePanel(): ReactElement {
   const miss = (k: string, pos = -1) => (tried && issue?.key === k && issue.pos === pos ? true : undefined);
   const periodOf = (p: { startedAt: string; endedAt: string; isCurrent: boolean }) => [p.startedAt ? dateOnly(p.startedAt, locale) : "", p.isCurrent ? t("now") : p.endedAt ? dateOnly(p.endedAt, locale) : ""].filter(Boolean).join(" — ");
   const approved = (groups ?? []).filter((g) => g.current);
-  const years = approved.reduce((n, g) => n + (g.current?.years ?? 0), 0);
+  const years = backendYears ?? approvedYears(approved, today);
   const pending = (groups ?? []).filter((g) => g.pending).length;
   const secDone = {
     area: !!draft?.categoryId,
