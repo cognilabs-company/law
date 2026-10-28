@@ -27,6 +27,7 @@ import { useReload } from "@/components/admin/AdminBits";
 import FieldError from "@/components/ui/FieldError";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
+import CheckBox from "@/components/CheckBox";
 import FilterBar from "@/components/filters/FilterBar";
 import { IconStar, IconPlus, IconSearch, IconEdit, IconTrash, IconEyeOff, IconEye, IconRefresh, IconUsers, IconClock, IconSliders, IconTag } from "@/components/icons";
 import { Link } from "@/i18n/navigation";
@@ -221,19 +222,13 @@ function PlanForm({
         <label>{t("plans.targetRoles")}</label>
         <div className="afield--check" style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
           {TARGET_ROLES.map((r) => (
-            <label className="wh__check" key={r}>
-              <input
-                type="checkbox"
-                checked={v.targetRoles.includes(r)}
-                onChange={(e) =>
-                  set(
-                    "targetRoles",
-                    e.target.checked ? [...v.targetRoles, r] : v.targetRoles.filter((x) => x !== r),
-                  )
-                }
-              />
+            <CheckBox
+              key={r}
+              checked={v.targetRoles.includes(r)}
+              onChange={(on) => set("targetRoles", on ? [...v.targetRoles, r] : v.targetRoles.filter((x) => x !== r))}
+            >
               {t(`plans.audiences.${r}`)}
-            </label>
+            </CheckBox>
           ))}
         </div>
         <small className="aplan__hint">{t("plans.targetRolesHint")}</small>
@@ -284,16 +279,14 @@ function PlanForm({
         <textarea rows={4} value={v.benefits} onChange={(e) => set("benefits", e.target.value)} placeholder={t("plans.benefitsPh")} />
       </div>
       <div className="afield--check">
-        <label className="wh__check">
-          <input type="checkbox" checked={v.is_giftable} onChange={(e) => set("is_giftable", e.target.checked)} />
+        <CheckBox checked={v.is_giftable} onChange={(on) => set("is_giftable", on)}>
           {t("plans.giftable")}
-        </label>
+        </CheckBox>
       </div>
       <div className="afield--check">
-        <label className="wh__check">
-          <input type="checkbox" checked={v.is_active} onChange={(e) => set("is_active", e.target.checked)} />
+        <CheckBox checked={v.is_active} onChange={(on) => set("is_active", on)}>
           {t("form.active")}
-        </label>
+        </CheckBox>
       </div>
       <button className="btn btn--pri" type="submit" disabled={busy}>
         {busy ? t("form.saving") : plan ? t("form.update") : t("form.save")}
