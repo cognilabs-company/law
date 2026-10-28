@@ -1,7 +1,7 @@
 import { http, asDict, asStr, asNum, asArr, ApiError, isAborted, parseServerTime, type Dict } from "@/lib/http";
 import { uzs } from "@/lib/money";
 import { cleanDocTitle } from "@/lib/docTitle";
-import { sellerTrustOf, type RatingStatus } from "./trust";
+import { sellerTrustOf, shownRating, type RatingStatus } from "./trust";
 import { featureMissing, noteFeatureError } from "@/lib/endpointGate";
 import { gatedPhone, phoneGateOf } from "./clientPhone";
 import { resolutionOf, type OrderResolution } from "./resolution";
@@ -189,7 +189,7 @@ export function normPromotionSurface(v: unknown): MarketPromotionSurface {
     daysLeft: daysUntil(asStr(d.ends_at)),
     seller: Object.keys(profile).length
       ? {
-          rating: asNum(profile.rating),
+          rating: shownRating(asNum(profile.rating), profile),
           reviews: asNum(profile.reviews_count),
           // Public payloads carry only is_verified / lexgo_verified (2026-10-24).
           verified: profile.is_verified === true || profile.lexgo_verified === true,

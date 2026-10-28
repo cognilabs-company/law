@@ -381,7 +381,9 @@ export default function SellersYandexMap({
                 {fmtRating(v.rating, locale)}
                 {v.reviewsCount > 0 ? <small>({tm("card.reviews", { count: v.reviewsCount })})</small> : null}
               </span>
-            ) : null}
+            ) : (
+              <span className="ymk-card__rate">{tm("card.newSeller")}</span>
+            )}
           </span>
           {s.source ? (
             <span className="ymk-card__src" data-src={s.source} data-ai-id="marketplace.map.card.source">

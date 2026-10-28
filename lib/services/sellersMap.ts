@@ -363,7 +363,7 @@ function firstText(own: string, more: readonly MarketSeller[], get: (m: MarketSe
 
 export function mapSellerView(s: MapSeller, ...more: (MarketSeller | null | undefined)[]): MapSellerView {
   const src = more.filter((m): m is MarketSeller => !!m);
-  const rated = s.rating > 0 ? { rating: s.rating, reviewsCount: s.reviewsCount } : (src.find((m) => m.rating > 0) ?? null);
+  const rated = s.rating > 0 ? { rating: s.rating, reviewsCount: s.reviewsCount } : (src.find((m) => m.rated && m.rating > 0) ?? null);
   const priced = src.find((m) => m.priceFrom > 0);
   return {
     name: firstText(s.name, src, (m) => m.name),

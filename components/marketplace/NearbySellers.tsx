@@ -208,10 +208,15 @@ export default function NearbySellers({
                   {s.reviewsCount > 0 ? <small>({tm("card.reviews", { count: s.reviewsCount })})</small> : null}
                 </span>
               </>
-            ) : null}
+            ) : (
+              <>
+                {type || region ? <i aria-hidden="true">·</i> : null}
+                <span className="mknb-row__rate">{tm("card.newSeller")}</span>
+              </>
+            )}
             {src ? (
               <>
-                {type || region || s.rating > 0 ? <i aria-hidden="true">·</i> : null}
+                <i aria-hidden="true">·</i>
                 <span className="mknb-row__src" data-src={src}>
                   {src === "office" ? <IconBuilding aria-hidden="true" /> : <IconMapPin aria-hidden="true" />}
                   {ty(`src.${src}`)}

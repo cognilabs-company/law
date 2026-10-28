@@ -8,6 +8,15 @@ export type SellerTrust = {
   badgeLabel: string;
 };
 
+export function shownRating(rating: number, ...srcs: Record<string, unknown>[]): number {
+  const pick = (k: string) => srcs.map((d) => d[k]).find((v) => v !== undefined && v !== null);
+  const status = pick("rating_status");
+  if (status === "unrated") return 0;
+  if (status === "rated") return rating;
+  const reviews = pick("reviews_count");
+  return reviews !== undefined && Number(reviews) <= 0 ? 0 : rating;
+}
+
 export function sellerTrustOf(d: Record<string, unknown>, rating: number, reviews: number): SellerTrust {
   const status: RatingStatus = d.rating_status === "rated" || d.rating_status === "unrated" ? d.rating_status : "";
   const badge = d.verification_badge && typeof d.verification_badge === "object" && !Array.isArray(d.verification_badge) ? (d.verification_badge as Record<string, unknown>) : null;

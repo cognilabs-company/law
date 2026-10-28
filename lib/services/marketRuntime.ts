@@ -1,5 +1,6 @@
 import { ApiError, asArr, asNum, asStr, http, parseServerTime, type Dict } from "@/lib/http";
 import { uzs } from "@/lib/money";
+import { shownRating } from "./trust";
 
 const dictOf = (v: unknown): Dict => (v && typeof v === "object" && !Array.isArray(v) ? (v as Dict) : {});
 const enc = encodeURIComponent;
@@ -880,7 +881,7 @@ function normNearbySeller(v: unknown): NearbySeller {
     longitude: numOrNull(d.longitude ?? d.lng ?? d.lon ?? loc.longitude),
     precision,
     exact: /exact/.test(precision) && !/approx/.test(precision),
-    rating: asNum(d.rating ?? seller.rating),
+    rating: shownRating(asNum(d.rating ?? seller.rating), d, seller),
     reviewsCount: asNum(d.reviews_count ?? seller.reviews_count),
     verified: (d.is_verified ?? seller.is_verified ?? d.verified) === true,
     region: trimmed(d.region ?? seller.region),
@@ -1732,7 +1733,7 @@ function normOpinionSeller(v: unknown): SecondOpinionSeller {
     sellerUserId: trimmed(d.seller_user_id ?? d.lawyer_user_id ?? d.user_id ?? seller.user_id ?? seller.id),
     name: trimmed(d.name ?? d.lawyer_name ?? d.seller_name ?? seller.name),
     sellerType: trimmed(d.seller_type ?? seller.seller_type).toLowerCase(),
-    rating: asNum(d.rating ?? seller.rating),
+    rating: shownRating(asNum(d.rating ?? seller.rating), d, seller),
     reviewsCount: asNum(d.reviews_count ?? seller.reviews_count),
     verified: (d.is_verified ?? seller.is_verified ?? d.verified) === true,
     serviceId: trimmed(d.service_id ?? service.id),
