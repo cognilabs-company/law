@@ -13933,13 +13933,13 @@
     },
     "achievements": {
       "title": "Yutuqlar",
-      "lead": "Sud natijasidan tashqari mukofot, sertifikat, ilmiy ish, mediatsiya va boshqalarni qo'shing. Faqat tasdiqlangan yutuq profilda ko'rinadi va reytingga ta'sir qiladi.",
+      "lead": "Tergovga qadar tekshiruv, surishtiruv, dastlabki tergov va sud jarayonlarida to'liq yoki qisman erishgan ijobiy natijalaringizni qo'shing.",
       "add": "Yutuq qo'shish",
       "sumApproved": "Tasdiqlangan",
       "sumPending": "Tekshiruvda",
       "loadFailed": "Yutuqlarni yuklab bo'lmadi.",
       "emptyTitle": "Hali yutuq qo'shilmagan",
-      "emptyText": "Mukofot, sertifikat yoki muhim ish natijasini qo'shing — tasdiqlangach profilingizda chiqadi.",
+      "emptyText": "To'liq yoki qisman erishgan ijobiy natijangizni qo'shing — tasdiqlangach profilingizda ko'rinadi.",
       "editNamed": "«{name}»ni tahrirlash",
       "status": {
         "approved": "Tasdiqlangan",
@@ -13952,6 +13952,37 @@
       "addTitle": "Yangi yutuq",
       "editTitle": "Yutuqni tahrirlash",
       "verifyNote": "Yutuq LexGo tomonidan tekshiriladi; dalillar ommaga chiqmaydi.",
+      "aboutTitle": "Nima yutuq hisoblanadi?",
+      "aboutText": "Yutuq sifatida tergovga qadar tekshiruv, surishtiruv, dastlabki tergov va sud jarayonlarida to'liq yoki qisman erishilgan ijobiy natijalar kiritilishi mumkin. Masalan:",
+      "aboutEx": {
+        "ex1": "Da'voning to'liq qanoatlantirilishi",
+        "ex2": "Da'voning qisman qanoatlantirilishi",
+        "ex3": "Jazo yoki javobgarlikning yengillashtirilishi",
+        "ex4": "Oqlov hukmiga erishilishi",
+        "ex5": "Boshqa huquqiy jihatdan ijobiy natijalarga erishilishi"
+      },
+      "mustLabel": "Muhim:",
+      "aboutMust": "Har bir yutuq tegishli davlat organining qarori yoki sud hujjatlarida rasman aks etgan bo'lishi shart. Aks holda, ushbu yutuq inobatga olinmaydi.",
+      "aboutAfter": "Kiritilgan yutuqlar LexGo tomonidan tekshiriladi va tasdiqlanadi. Tasdiqlangan yutuqlar shaxsga oid ma'lumotlar oshkor qilinmagan holda profilingizda ko'rsatiladi hamda reytingingiz va xizmat narxingizga ijobiy ta'sir ko'rsatadi.",
+      "levelTitle": "Erishilgan natija qanday?",
+      "levelHint": "Avval natija darajasini tanlang.",
+      "level": {
+        "full": "To'liq yutuq",
+        "partial": "Qisman yutuq"
+      },
+      "levelText": {
+        "full": "Da'vo to'liq qanoatlantirilgan, oqlov hukmiga yoki boshqa to'liq ijobiy natijaga erishilgan.",
+        "partial": "Da'vo qisman qanoatlantirilgan yoki jazo, javobgarlik yengillashtirilgan."
+      },
+      "levelLabel": "Yutuq darajasi",
+      "change": "O'zgartirish",
+      "noteLabel": "Yutuq haqida izoh",
+      "noteHint": "Aynan qaysi jihatdan, nimada va qanday holatda ijobiy natijaga erishganingizni batafsil yozing. Ism, familiya va boshqa shaxsga oid ma'lumotlarni yozmang.",
+      "notePh": "Masalan: tuman sudi mijozning undiruv to'g'risidagi da'vosini to'liq qanoatlantirdi…",
+      "docLabel": "Tasdiqlovchi hujjat",
+      "docHint": "Huquqiy kuchga ega, rasmiy tasdiqlangan va imzolangan hujjat: sud qarori, hukm yoki davlat organining qarori.",
+      "warnTitle": "Diqqat!",
+      "warnText": "Soxta, qalbakilashtirilgan yoki sun'iy ravishda yaratilgan hujjatlarni yuklash salbiy oqibatlarga olib kelishi mumkin. LexGo tomonidan taqdim etilgan ma'lumotlarning haqiqatga mosligi, haqqoniyligi va hujjatlarning turli sun'iy intellekt vositalari yordamida yaratilmaganligi maxsus kuchli dasturiy vositalar orqali chuqur tekshiriladi.",
       "sent": "Yutuq tekshiruvga yuborildi.",
       "failed": "Yutuqni saqlab bo'lmadi.",
       "secType": "Yutuq turi",
@@ -13967,6 +13998,8 @@
       "secProofHint": "Diplom, sertifikat, qaror yoki boshqa hujjat.",
       "privateNote": "Dalillar maxfiy: ularni faqat siz va tekshiruvchi ko'radi. Profilda faqat nomi, turi va sanasi chiqadi.",
       "issue": {
+        "level": "Yutuq darajasini tanlang.",
+        "evidence": "Tasdiqlovchi hujjatni yuklang.",
         "type": "Yutuq turini tanlang.",
         "title": "Yutuq nomini kiriting.",
         "date": "Sanani tanlang (kelajakda bo'lmasin).",

@@ -1,47 +1,43 @@
 "use client";
 
 import "./experience.css";
+import "./achievementForm.css";
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
-import DatePicker from "@/components/DatePicker";
-import { IconAward, IconCalendar, IconCheck, IconClose, IconEdit, IconFileText, IconLock, IconPaperclip, IconPlus, IconStar, IconUpload } from "@/components/icons";
+import { IconAlert, IconAward, IconCalendar, IconClose, IconEdit, IconFileText, IconPaperclip, IconPlus, IconStar, IconUpload } from "@/components/icons";
 import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardNote";
+import AchievementLevelMark from "./AchievementLevelMark";
 import { dateOnly } from "@/lib/date";
 import { errDetail, isAborted, logApiError } from "@/lib/http";
 import { findContacts } from "@/lib/contactGuard";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { EVIDENCE_MAX_BYTES, EVIDENCE_TYPES, experienceErrorOf, type ExperienceEvidence } from "@/lib/services/experience";
 import {
-  ACHIEVEMENT_TYPES,
+  ACHIEVEMENT_LEVELS,
   downloadAchievementEvidence,
+  levelInput,
   listMyAchievements,
   submitAchievement,
   uploadAchievementEvidence,
   type Achievement,
   type AchievementGroup,
-  type AchievementType,
+  type AchievementLevel,
 } from "@/lib/services/achievements";
 
-// A seller's achievements, separate from experience (TSK-493303; contract
-// 2026-10-27 §17): court results and far more — awards, certificates,
-// research, mediation, pro bono. Every change is a revision the call center
-// verifies; only approved ones show on the public profile and count for the
-// rating, and the evidence files never go public.
-
-type Draft = { sourceId: string; type: AchievementType | ""; title: string; achievedOn: string; description: string; evidence: ExperienceEvidence[] };
-const empty = (): Draft => ({ sourceId: "", type: "", title: "", achievedOn: "", description: "", evidence: [] });
+type Draft = { sourceId: string; level: AchievementLevel | null; description: string; evidence: ExperienceEvidence[] };
+const empty = (): Draft => ({ sourceId: "", level: null, description: "", evidence: [] });
 const DESC_MIN = 20;
-const draftOf = (a: Achievement, sourceId: string): Draft => ({ sourceId, type: a.type, title: a.title, achievedOn: a.achievedAt.slice(0, 10), description: a.description, evidence: a.evidence });
+const EXAMPLES = ["ex1", "ex2", "ex3", "ex4", "ex5"] as const;
+const draftOf = (a: Achievement, sourceId: string): Draft => ({ sourceId, level: a.level, description: a.description, evidence: a.evidence });
 
-export function achievementIssue(d: Draft | null, today: string): string {
+export function achievementIssue(d: Draft | null): string {
   if (!d) return "";
-  if (!d.type) return "type";
-  if (!d.title.trim()) return "title";
-  if (!d.achievedOn || d.achievedOn > today) return "date";
+  if (!d.level) return "level";
   if (d.description.trim().length < DESC_MIN) return "description";
   if (findContacts(d.description).length) return "contacts";
+  if (!d.evidence.length) return "evidence";
   return "";
 }
 
@@ -77,8 +73,7 @@ export default function AchievementsPanel(): ReactElement {
     return off;
   }, [load]);
 
-  const today = new Date().toISOString().slice(0, 10);
-  const issue = achievementIssue(draft, today);
+  const issue = achievementIssue(draft);
   const desc = draft?.description.trim() ?? "";
   const descHits = draft ? findContacts(draft.description) : [];
   const open = (d: Draft) => {
@@ -86,6 +81,10 @@ export default function AchievementsPanel(): ReactElement {
     setTried(false);
     setNote(null);
     setDraft(d);
+  };
+  const pickLevel = (level: AchievementLevel) => {
+    setTried(false);
+    setDraft((d) => (d ? { ...d, level } : d));
   };
 
   async function addFiles(files: FileList | null) {
@@ -111,12 +110,13 @@ export default function AchievementsPanel(): ReactElement {
   }
 
   async function save() {
-    if (!draft || !draft.type || issue || busy || uploading || sending.current) return;
+    if (!draft || !draft.level || issue || busy || uploading || sending.current) return;
     sending.current = true;
     setBusy(true);
     setNote(null);
     try {
-      await submitAchievement({ sourceId: draft.sourceId || undefined, type: draft.type, title: draft.title, achievedOn: draft.achievedOn, description: draft.description, evidenceIds: draft.evidence.map((x) => x.id) });
+      const today = new Date().toISOString().slice(0, 10);
+      await submitAchievement(levelInput(draft.level, draft.description, draft.evidence.map((x) => x.id), today, draft.sourceId || undefined));
       setDraft(null);
       setNote({ ok: true, msg: t("sent") });
       await load();
@@ -147,6 +147,19 @@ export default function AchievementsPanel(): ReactElement {
         </button>
       </div>
       <p className="exp__lead">{t("lead")}</p>
+      <details className="achf__about">
+        <summary>{t("aboutTitle")}</summary>
+        <p>{t("aboutText")}</p>
+        <ul>
+          {EXAMPLES.map((k) => (
+            <li key={k}>{t(`aboutEx.${k}`)}</li>
+          ))}
+        </ul>
+        <p className="achf__must">
+          <b>{t("mustLabel")}</b> {t("aboutMust")}
+        </p>
+        <p>{t("aboutAfter")}</p>
+      </details>
       {groups?.length ? (
         <div className="exp__sum" role="status">
           <div>
@@ -186,15 +199,25 @@ export default function AchievementsPanel(): ReactElement {
             if (!shown) return null;
             const turned = g.latest && (g.latest.status === "rejected" || g.latest.status === "changes_requested") ? g.latest : null;
             const state = g.current ? "approved" : g.pending ? "pending" : turned ? "rejected" : "draft";
+            const name = shown.level ? t(`level.${shown.level}`) : shown.title;
             return (
               <li key={g.rootId} className="exp__card" data-s={state}>
                 <div className="exp__card-h">
                   <div className="exp__card-t">
-                    <b>{shown.title}</b>
-                    <small>{t(`type.${shown.type}`)}</small>
+                    {shown.level ? (
+                      <b className="achf__name" data-level={shown.level}>
+                        <AchievementLevelMark level={shown.level} />
+                        {name}
+                      </b>
+                    ) : (
+                      <>
+                        <b>{name}</b>
+                        <small>{t(`type.${shown.type}`)}</small>
+                      </>
+                    )}
                   </div>
                   {!g.pending ? (
-                    <button type="button" className="exp__edit" onClick={() => open(draftOf(g.latest ?? shown, g.current?.id ?? ""))} aria-label={t("editNamed", { name: shown.title })} disabled={!!draft}>
+                    <button type="button" className="exp__edit" onClick={() => open(draftOf(g.latest ?? shown, g.current?.id ?? ""))} aria-label={t("editNamed", { name })} disabled={!!draft}>
                       <IconEdit aria-hidden="true" />
                     </button>
                   ) : null}
@@ -205,7 +228,7 @@ export default function AchievementsPanel(): ReactElement {
                   {turned ? <span className="exp__chip" data-s="rejected">{t(`status.${turned.status}`)}</span> : null}
                   {g.current ? null : <span className="exp__chip">{t("notPublic")}</span>}
                 </div>
-                {shown.achievedAt ? (
+                {!shown.level && shown.achievedAt ? (
                   <p className="exp__date">
                     <IconCalendar aria-hidden="true" />
                     {dateOnly(shown.achievedAt, locale)}
@@ -236,29 +259,54 @@ export default function AchievementsPanel(): ReactElement {
         title={draft?.sourceId ? t("editTitle") : t("addTitle")}
         description={t("verifyNote")}
         icon={<IconStar />}
-        size="lg"
+        size="md"
         busy={busy}
-        dirty={!!draft && (!!draft.title || !!draft.description)}
+        dirty={!!draft && (!!draft.description || draft.evidence.length > 0)}
         footer={
-          <>
-            {tried && issue ? (
-              <small className="exp__issue" role="alert">
-                {t(`issue.${issue}`, { n: DESC_MIN })}
-              </small>
-            ) : null}
-            <button type="button" className="btn btn--line" onClick={() => setDraft(null)} disabled={busy}>
+          draft?.level ? (
+            <>
+              {tried && issue ? (
+                <small className="exp__issue" role="alert">
+                  {t(`issue.${issue}`, { n: DESC_MIN })}
+                </small>
+              ) : null}
+              <button type="button" className="btn btn--line" onClick={() => setDraft(null)} disabled={busy}>
+                {te("cancel")}
+              </button>
+              <button type="submit" form="ach-form" className="btn btn--pri" disabled={busy || uploading}>
+                {busy ? te("sending") : te("submit")}
+              </button>
+            </>
+          ) : (
+            <button type="button" className="btn btn--line" onClick={() => setDraft(null)}>
               {te("cancel")}
             </button>
-            <button type="submit" form="ach-form" className="btn btn--pri" disabled={busy || uploading}>
-              {busy ? te("sending") : te("submit")}
-            </button>
-          </>
+          )
         }
       >
-        {draft ? (
+        {draft && !draft.level ? (
+          <div className="exp__form achf">
+            <div className="achf__q">
+              <b>{t("levelTitle")}</b>
+              <small>{t("levelHint")}</small>
+            </div>
+            <div className="achf__levels" role="radiogroup" aria-label={t("levelTitle")}>
+              {ACHIEVEMENT_LEVELS.map((k) => (
+                <button key={k} type="button" role="radio" aria-checked={false} className="achf__level" data-level={k} onClick={() => pickLevel(k)}>
+                  <AchievementLevelMark level={k} />
+                  <span className="achf__lt">
+                    <b>{t(`level.${k}`)}</b>
+                    <small>{t(`levelText.${k}`)}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {draft?.level ? (
           <form
             id="ach-form"
-            className="exp__form"
+            className="exp__form achf"
             onSubmit={(e) => {
               e.preventDefault();
               setTried(true);
@@ -266,76 +314,33 @@ export default function AchievementsPanel(): ReactElement {
             }}
             noValidate
           >
-            <fieldset className="exp__sec" data-done={!!draft.type || undefined}>
-              <legend className="exp__legend">
-                <span className="exp__n" data-done={!!draft.type || undefined} aria-hidden="true">
-                  {draft.type ? <IconCheck /> : 1}
-                </span>
-                <span className="exp__lt">
-                  <b>{t("secType")}</b>
-                  <small>{t("secTypeHint")}</small>
-                </span>
-              </legend>
-              <div className="ach__types" role="radiogroup" aria-label={t("secType")} data-bad={tried && issue === "type" ? true : undefined}>
-                {ACHIEVEMENT_TYPES.map((k) => (
-                  <button key={k} type="button" role="radio" aria-checked={draft.type === k} className="ach__type" onClick={() => setDraft({ ...draft, type: k })}>
-                    <b>{t(`type.${k}`)}</b>
-                    <small>{t(`typeHint.${k}`)}</small>
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-            <fieldset className="exp__sec">
-              <legend className="exp__legend">
-                <span className="exp__n" aria-hidden="true">
-                  2
-                </span>
-                <span className="exp__lt">
-                  <b>{t("secWhat")}</b>
-                  <small>{t("secWhatHint")}</small>
-                </span>
-              </legend>
-              <div className="exp__two">
-                <label className="exp__f">
-                  <span>{t("titleLabel")}</span>
-                  <span className="exp__in">
-                    <IconAward aria-hidden="true" />
-                    <input value={draft.title} maxLength={200} placeholder={t("titlePh")} onChange={(e) => setDraft({ ...draft, title: e.target.value })} aria-invalid={tried && issue === "title" ? true : undefined} />
-                  </span>
-                </label>
-                <div className="exp__f" data-bad={tried && issue === "date" ? true : undefined}>
-                  <span>{t("date")}</span>
-                  <DatePicker value={draft.achievedOn} max={today} onChange={(v) => setDraft({ ...draft, achievedOn: v })} placeholder={te("pickDate")} ariaLabel={t("date")} />
-                </div>
-              </div>
-              <label className="exp__f">
-                <span>{t("description")}</span>
-                <textarea rows={4} maxLength={2000} value={draft.description} onChange={(e) => descStrip.change(e.target.value, e)} onBlur={() => descStrip.blur(draft.description)} placeholder={t("descriptionPh")} aria-invalid={descHits.length > 0 || (tried && issue === "description") || undefined} />
-                <span className="exp__meter" data-ok={desc.length >= DESC_MIN || undefined}>
-                  <i aria-hidden="true">
-                    <b style={{ width: `${Math.min(100, (desc.length / DESC_MIN) * 100)}%` }} />
-                  </i>
-                  <small className="exp__count" data-short={desc.length < DESC_MIN || undefined}>
-                    {desc.length < DESC_MIN ? te("descLeft", { n: DESC_MIN - desc.length }) : te("descCount", { n: desc.length })}
-                  </small>
-                </span>
-              </label>
-              <ContactGuardNote hits={descHits} removed={descStrip.removed} />
-            </fieldset>
-            <fieldset className="exp__sec">
-              <legend className="exp__legend">
-                <span className="exp__n" aria-hidden="true">
-                  3
-                </span>
-                <span className="exp__lt">
-                  <b>{t("secProof")}</b>
-                  <small>{t("secProofHint")}</small>
-                </span>
-              </legend>
-              <p className="ach__private">
-                <IconLock aria-hidden="true" />
-                {t("privateNote")}
-              </p>
+            <div className="achf__chosen" data-level={draft.level}>
+              <AchievementLevelMark level={draft.level} />
+              <span className="achf__lt">
+                <small>{t("levelLabel")}</small>
+                <b>{t(`level.${draft.level}`)}</b>
+              </span>
+              <button type="button" className="achf__change" onClick={() => setDraft({ ...draft, level: null })} disabled={busy}>
+                {t("change")}
+              </button>
+            </div>
+            <label className="exp__f">
+              <span>{t("noteLabel")}</span>
+              <small className="achf__hint">{t("noteHint")}</small>
+              <textarea rows={5} maxLength={2000} value={draft.description} onChange={(e) => descStrip.change(e.target.value, e)} onBlur={() => descStrip.blur(draft.description)} placeholder={t("notePh")} aria-invalid={descHits.length > 0 || (tried && issue === "description") || undefined} />
+              <span className="exp__meter" data-ok={desc.length >= DESC_MIN || undefined}>
+                <i aria-hidden="true">
+                  <b style={{ width: `${Math.min(100, (desc.length / DESC_MIN) * 100)}%` }} />
+                </i>
+                <small className="exp__count" data-short={desc.length < DESC_MIN || undefined}>
+                  {desc.length < DESC_MIN ? te("descLeft", { n: DESC_MIN - desc.length }) : te("descCount", { n: desc.length })}
+                </small>
+              </span>
+            </label>
+            <ContactGuardNote hits={descHits} removed={descStrip.removed} />
+            <div className="exp__f" data-bad={tried && issue === "evidence" ? true : undefined}>
+              <span>{t("docLabel")}</span>
+              <small className="achf__hint">{t("docHint")}</small>
               <div className="exp__drop" data-busy={uploading || undefined}>
                 <label>
                   <span className="exp__drop-ic" aria-hidden="true">
@@ -361,7 +366,14 @@ export default function AchievementsPanel(): ReactElement {
                   </ul>
                 ) : null}
               </div>
-            </fieldset>
+            </div>
+            <div className="achf__warn" role="note">
+              <IconAlert aria-hidden="true" />
+              <span>
+                <b>{t("warnTitle")}</b>
+                <span>{t("warnText")}</span>
+              </span>
+            </div>
           </form>
         ) : null}
       </Modal>

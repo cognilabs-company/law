@@ -13927,13 +13927,13 @@
     },
     "achievements": {
       "title": "Achievements",
-      "lead": "Beyond court results, add awards, certificates, research, mediation and more. Only a verified achievement shows on your profile and counts for your rating.",
+      "lead": "Add positive outcomes you achieved in full or in part at a pre-investigation check, inquiry, preliminary investigation or in court.",
       "add": "Add an achievement",
       "sumApproved": "Verified",
       "sumPending": "Under review",
       "loadFailed": "Couldn't load your achievements.",
       "emptyTitle": "No achievements yet",
-      "emptyText": "Add an award, a certificate or an important result — it shows on your profile once verified.",
+      "emptyText": "Add a positive outcome you achieved in full or in part — once approved, it shows on your profile.",
       "editNamed": "Edit “{name}”",
       "status": {
         "approved": "Verified",
@@ -13946,6 +13946,37 @@
       "addTitle": "New achievement",
       "editTitle": "Edit achievement",
       "verifyNote": "LexGo verifies the achievement; the evidence is never published.",
+      "aboutTitle": "What counts as an achievement?",
+      "aboutText": "An achievement is a positive outcome achieved in full or in part at a pre-investigation check, inquiry, preliminary investigation or in court. For example:",
+      "aboutEx": {
+        "ex1": "A claim satisfied in full",
+        "ex2": "A claim satisfied in part",
+        "ex3": "A reduced sentence or liability",
+        "ex4": "An acquittal",
+        "ex5": "Another legally positive outcome"
+      },
+      "mustLabel": "Important:",
+      "aboutMust": "Each achievement must be officially reflected in a decision of the relevant state body or in court documents. Otherwise it is not counted.",
+      "aboutAfter": "LexGo checks and approves submitted achievements. Approved achievements appear on your profile without personal data and improve your rating and service price.",
+      "levelTitle": "What was the outcome?",
+      "levelHint": "Choose the outcome level first.",
+      "level": {
+        "full": "Full win",
+        "partial": "Partial win"
+      },
+      "levelText": {
+        "full": "The claim was satisfied in full, an acquittal was reached, or another fully positive outcome.",
+        "partial": "The claim was satisfied in part, or the sentence or liability was reduced."
+      },
+      "levelLabel": "Outcome level",
+      "change": "Change",
+      "noteLabel": "About the achievement",
+      "noteHint": "Describe in detail in what respect, how and in what situation you reached the positive outcome. Do not include names or other personal data.",
+      "notePh": "For example: the district court fully satisfied the client's claim for…",
+      "docLabel": "Supporting document",
+      "docHint": "An officially certified, signed document with legal force: a court decision, a verdict or a state body's decision.",
+      "warnTitle": "Warning!",
+      "warnText": "Uploading forged, falsified or artificially created documents may have negative consequences. LexGo uses specialized software to check thoroughly that the data is accurate and that documents were not created with AI tools.",
       "sent": "The achievement was sent for review.",
       "failed": "Couldn't save the achievement.",
       "secType": "Kind of achievement",
@@ -13961,6 +13992,8 @@
       "secProofHint": "A diploma, certificate, decision or other document.",
       "privateNote": "Evidence is private: only you and the reviewer see it. Your profile shows just the name, kind and date.",
       "issue": {
+        "level": "Choose the outcome level.",
+        "evidence": "Upload the supporting document.",
         "type": "Choose the kind of achievement.",
         "title": "Enter the name.",
         "date": "Pick the date (not in the future).",

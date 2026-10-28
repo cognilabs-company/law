@@ -26,6 +26,17 @@ export const ACHIEVEMENT_TYPES = [
 export type AchievementType = (typeof ACHIEVEMENT_TYPES)[number];
 export const isAchievementType = (v: string): v is AchievementType => (ACHIEVEMENT_TYPES as readonly string[]).includes(v);
 
+export const ACHIEVEMENT_LEVELS = ["full", "partial"] as const;
+export type AchievementLevel = (typeof ACHIEVEMENT_LEVELS)[number];
+export const LEVEL_TYPE: AchievementType = "court_dispute_result";
+export const LEVEL_TITLE: Readonly<Record<AchievementLevel, string>> = { full: "To'liq yutuq", partial: "Qisman yutuq" };
+export function levelOf(raw: unknown, title: string): AchievementLevel | null {
+  const given = asStr(raw).toLowerCase();
+  if (given === "full" || given === "partial") return given;
+  const t = title.trim();
+  return t === LEVEL_TITLE.full ? "full" : t === LEVEL_TITLE.partial ? "partial" : null;
+}
+
 export type AchievementStatus = "pending_review" | "approved" | "rejected" | "changes_requested" | "cancelled" | "other";
 export type Achievement = {
   id: string;
@@ -34,6 +45,7 @@ export type Achievement = {
   version: number | null;
   status: AchievementStatus;
   type: AchievementType;
+  level: AchievementLevel | null;
   title: string;
   categoryId: string;
   achievedAt: string;
@@ -68,6 +80,7 @@ export function achievementOf(v: unknown): Achievement | null {
     version: num(d.version),
     status: statusOf(d.status),
     type: isAchievementType(type) ? type : "other",
+    level: levelOf(d.result_level ?? d.outcome_level, asStr(d.title)),
     title: asStr(d.title),
     categoryId: asStr(d.category_id),
     achievedAt: asStr(d.achieved_at),
@@ -110,7 +123,7 @@ export async function listMyAchievements(signal?: AbortSignal): Promise<Achievem
 }
 
 // achieved_on: YYYY-MM-DD from the date picker.
-export type AchievementInput = { sourceId?: string; type: AchievementType; title: string; categoryId?: string; achievedOn: string; description: string; evidenceIds: string[] };
+export type AchievementInput = { sourceId?: string; type: AchievementType; title: string; categoryId?: string; achievedOn: string; description: string; evidenceIds: string[]; level?: AchievementLevel };
 export function achievementBody(input: AchievementInput): Dict {
   const body: Dict = {
     source_id: input.sourceId || null,
@@ -121,7 +134,11 @@ export function achievementBody(input: AchievementInput): Dict {
     evidence_ids: input.evidenceIds,
   };
   if (input.categoryId) body.category_id = input.categoryId;
+  if (input.level) body.result_level = input.level;
   return body;
+}
+export function levelInput(level: AchievementLevel, description: string, evidenceIds: string[], today: string, sourceId?: string): AchievementInput {
+  return { sourceId, type: LEVEL_TYPE, title: LEVEL_TITLE[level], achievedOn: today, description, evidenceIds, level };
 }
 export async function submitAchievement(input: AchievementInput): Promise<Achievement | null> {
   return achievementOf(await http("/marketplace/me/achievements", { method: "POST", body: JSON.stringify(achievementBody(input)) }));
@@ -137,14 +154,14 @@ export async function downloadAchievementEvidence(ev: ExperienceEvidence): Promi
 }
 
 // The public, safe view on a seller's profile: approved only, no evidence.
-export type PublicAchievement = { id: string; type: AchievementType; title: string; achievedAt: string; description: string };
+export type PublicAchievement = { id: string; type: AchievementType; level: AchievementLevel | null; title: string; achievedAt: string; description: string };
 export async function listPublicAchievements(sellerUserId: string, signal?: AbortSignal): Promise<PublicAchievement[]> {
   const d = await http(`/marketplace/lawyers/${encodeURIComponent(sellerUserId)}/achievements`, { signal });
   return asArr(Array.isArray(d) ? d : asDict(d).items)
     .map((v) => {
       const x = asDict(v);
       const type = asStr(x.achievement_type ?? x.type);
-      return { id: asStr(x.id), type: isAchievementType(type) ? type : "other", title: asStr(x.title), achievedAt: asStr(x.achieved_at), description: asStr(x.description) };
+      return { id: asStr(x.id), type: isAchievementType(type) ? type : "other", level: levelOf(x.result_level ?? x.outcome_level, asStr(x.title)), title: asStr(x.title), achievedAt: asStr(x.achieved_at), description: asStr(x.description) };
     })
     .filter((x) => x.id && x.title);
 }

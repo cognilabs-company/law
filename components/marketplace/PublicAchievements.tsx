@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { IconAward } from "@/components/icons";
+import AchievementLevelMark from "@/components/portal/AchievementLevelMark";
 import { dateOnly } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { listPublicAchievements, type PublicAchievement } from "@/lib/services/achievements";
@@ -28,12 +29,12 @@ export default function PublicAchievements({ sellerId }: { sellerId: string }): 
       <ul className="mk-ach__list">
         {items.map((a) => (
           <li key={a.id} className="mk-ach__item">
-            <span className="mk-ach__ic" aria-hidden="true">
-              <IconAward />
+            <span className="mk-ach__ic mk-ach__lv" data-level={a.level ?? undefined} aria-hidden="true">
+              {a.level ? <AchievementLevelMark level={a.level} /> : <IconAward />}
             </span>
             <span className="mk-ach__m">
-              <b>{a.title}</b>
-              <small>{[t(`type.${a.type}`), a.achievedAt ? dateOnly(a.achievedAt, locale) : ""].filter(Boolean).join(" · ")}</small>
+              <b>{a.level ? t(`level.${a.level}`) : a.title}</b>
+              {a.level ? null : <small>{[t(`type.${a.type}`), a.achievedAt ? dateOnly(a.achievedAt, locale) : ""].filter(Boolean).join(" · ")}</small>}
               {a.description ? <p>{a.description}</p> : null}
             </span>
           </li>

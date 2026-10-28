@@ -48,6 +48,12 @@ function AchievementReview({ id, onDone }: { id: string; onDone: () => void }): 
     facts: (raw) => {
       const it = raw as AchievementQueueItem | null;
       if (!it) return [];
+      if (it.level) {
+        return [
+          { label: t("levelLabel"), value: t(`level.${it.level}`) },
+          { label: t("noteLabel"), value: it.description },
+        ];
+      }
       return [
         { label: t("secType"), value: t(`type.${it.type}`) },
         { label: t("titleLabel"), value: it.title },
