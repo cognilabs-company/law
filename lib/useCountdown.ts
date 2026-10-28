@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { parseServerTime } from "./http";
 
 // Seconds left until a backend deadline, redrawn each second; `onZero`
 // runs once when it passes. The deadline itself is never moved here.
@@ -10,7 +11,7 @@ export function useCountdown(deadline: string, onZero?: () => void): number | nu
   useEffect(() => {
     zero.current = onZero;
   });
-  const end = deadline ? Date.parse(deadline) : NaN;
+  const end = deadline ? parseServerTime(deadline) : NaN;
   useEffect(() => {
     if (!Number.isFinite(end)) return;
     const id = window.setInterval(() => {
