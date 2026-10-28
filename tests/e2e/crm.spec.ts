@@ -474,6 +474,11 @@ test("kanban: a claim from the queue board refreshes the board; a lost race says
   await page.goto("/uz/admin/crm/leads?tab=queue&view=board");
   const fresh = page.locator(".crm-col").first();
   await expect(fresh.locator(".crm-kcard")).toHaveCount(3);
+  // No next action yet: the card shows the customer's phone, not a dash.
+  const reach = fresh.locator(".crm-kcard").first().locator(".crm-kcard__reach");
+  await expect(reach).toHaveText("+998901234567");
+  await expect(reach).toHaveAttribute("href", "tel:+998901234567");
+  await shot(page, "board-queue");
   await fresh.locator(".crm-kcard").filter({ hasText: "Ijara shartnomasi" }).getByRole("button", { name: "Olish" }).click();
   await expect.poll(() => st.claims).toEqual(["q1"]);
   // Out of the queue board once it is mine.

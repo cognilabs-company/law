@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useRef, useState, type DragEvent, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { IconAlert } from "@/components/icons";
+import { IconAlert, IconPhone, IconSend } from "@/components/icons";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { crmNextStatuses, getCrmLead, isClaimRace, isVersionConflict, leadCan, listCrmLeads, type CrmLead, type CrmMeta } from "@/lib/services/crm";
@@ -335,7 +335,25 @@ const BoardCard = memo(function BoardCard({
       <b>{l.title || l.workId}</b>
       <small>{[l.customer?.name, l.region].filter(Boolean).join(" · ")}</small>
       <span className="crm-kcard__foot">
-        {l.nextActionAt ? <WhenChip at={l.nextActionAt} now={now} /> : <span className="crm-muted">—</span>}
+        {l.nextActionAt ? (
+          <WhenChip at={l.nextActionAt} now={now} />
+        ) : l.customer?.phone || l.customer?.telegram ? (
+          // No next action yet: how to reach the customer instead of a dash.
+          <a
+            className="crm-kcard__reach"
+            href={l.customer.phone ? `tel:${l.customer.phone.replace(/[^\d+]/g, "")}` : `https://t.me/${l.customer.telegram.replace(/^@/, "")}`}
+            target={l.customer.phone ? undefined : "_blank"}
+            rel={l.customer.phone ? undefined : "noopener noreferrer"}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            draggable={false}
+          >
+            {l.customer.phone ? <IconPhone aria-hidden="true" /> : <IconSend aria-hidden="true" />}
+            <span dir="ltr">{l.customer.phone || l.customer.telegram}</span>
+          </a>
+        ) : (
+          <span className="crm-muted">—</span>
+        )}
         {l.operator ? (
           <Avatar name={l.operator.name} title={l.operator.name} />
         ) : leadCan(l, "claim") ? (
