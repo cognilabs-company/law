@@ -4,7 +4,7 @@ import "./cockpit.css";
 import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactElement, type SVGProps } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import PersonName from "@/components/ui/PersonName";
-import { IconArrowRight, IconAward, IconCheck, IconCoins, IconFlag, IconRefresh, IconReply, IconStar, IconUsers } from "@/components/icons";
+import { IconArrowRight, IconAward, IconCheck, IconCoins, IconFlag, IconLock, IconRefresh, IconReply, IconStar, IconUsers } from "@/components/icons";
 import { fmtAge } from "@/lib/date";
 import { isAborted, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
@@ -73,7 +73,26 @@ function Line({ it, now }: { it: CockpitItem; now: number }): ReactElement {
   );
 }
 
-export default function CockpitView({ onGo, onCount }: { onGo: (tab: CcTab) => void; onCount?: (n: number) => void }): ReactElement | null {
+function LaneGo({ target, total, tabs, onGo }: { target: CcTab; total: number; tabs?: readonly CcTab[]; onGo: (tab: CcTab) => void }): ReactElement {
+  const t = useTranslations("callCenter.cockpit");
+  if (tabs && !tabs.includes(target))
+    return (
+      <p className="ckp__locked">
+        <IconLock aria-hidden="true" />
+        {t("noAccess")}
+      </p>
+    );
+  return (
+    <button type="button" className="ckp__go" onClick={() => onGo(target)}>
+      {t("go", { n: total })}
+      <IconArrowRight aria-hidden="true" />
+    </button>
+  );
+}
+
+// `tabs`: the console's tabs this operator can open. A queue the backend
+// refuses (403) hides its tab, so its lane says so instead of a dead button.
+export default function CockpitView({ onGo, onCount, tabs }: { onGo: (tab: CcTab) => void; onCount?: (n: number) => void; tabs?: readonly CcTab[] }): ReactElement | null {
   const t = useTranslations("callCenter.cockpit");
   const locale = useLocale();
   const [data, setData] = useState<Cockpit | null>(null);
@@ -197,12 +216,7 @@ export default function CockpitView({ onGo, onCount }: { onGo: (tab: CcTab) => v
                   {t("clear")}
                 </p>
               )}
-              {l.total ? (
-                <button type="button" className="ckp__go" onClick={() => onGo(l.queue === "complaints" && items[0]?.quality ? "complaints" : meta.tab)}>
-                  {t("go", { n: l.total })}
-                  <IconArrowRight aria-hidden="true" />
-                </button>
-              ) : null}
+              {l.total ? <LaneGo target={l.queue === "complaints" && items[0]?.quality ? "complaints" : meta.tab} total={l.total} tabs={tabs} onGo={onGo} /> : null}
             </article>
           );
         })}

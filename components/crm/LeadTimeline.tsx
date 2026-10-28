@@ -6,8 +6,11 @@ import { IconChat, IconClock, IconFileText, IconHistory, IconLayers, IconPhone, 
 import { dateOnly, timeOnly } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { addLeadActivity, getLeadTimeline, leadCan, listCrmTemplates, type CrmActivity, type CrmLead, type CrmTemplate } from "@/lib/services/crm";
+import { addLeadActivity, getLeadTimeline, leadCan, listCrmTemplates, updateCrmLead, type CrmActivity, type CrmLead, type CrmTemplate } from "@/lib/services/crm";
 import { Empty, useCrmError } from "./bits";
+import type { LeadWrite } from "./CrmLeadPage";
+import { CrmDateTime } from "./fields";
+import { fromLocalInput, inHours } from "./LeadSheets";
 import { PayloadDetails, hasReadable } from "./DetailSections";
 
 const TYPE_ICON: Record<string, typeof IconChat> = { note: IconFileText, call_note: IconPhone, message: IconChat, meeting: IconUsers, follow_up: IconClock, document: IconFileText, system: IconLayers };
@@ -62,7 +65,7 @@ export function Timeline({ items, empty }: { items: CrmActivity[]; empty?: strin
   );
 }
 
-export function LeadTimeline({ lead, refreshKey, onAdded }: { lead: CrmLead; refreshKey: number; onAdded: () => void }): ReactElement {
+export function LeadTimeline({ lead, write, refreshKey, onAdded }: { lead: CrmLead; write: LeadWrite; refreshKey: number; onAdded: () => void }): ReactElement {
   const t = useTranslations("crm.tl");
   const crmErr = useCrmError();
   const [items, setItems] = useState<CrmActivity[] | null>(null);
@@ -105,14 +108,16 @@ export function LeadTimeline({ lead, refreshKey, onAdded }: { lead: CrmLead; ref
           <Timeline items={items} />
         </>
       )}
-      {leadCan(lead, "add_activity") ? <Composer lead={lead} onAdded={onAdded} /> : null}
+      {leadCan(lead, "add_activity") ? <Composer lead={lead} write={write} onAdded={onAdded} /> : null}
     </section>
   );
 }
 
 // The sticky composer. "/" picks an operator template: it fills the
-// editor, it never sends (§6).
-function Composer({ lead, onAdded }: { lead: CrmLead; onAdded: () => void }): ReactElement {
+// editor, it never sends (§6). An "Eslatma" (follow-up) can also carry a
+// time: it becomes the lead's next action, so it shows on the card, in
+// "Keyingi amallar" and turns red when overdue.
+function Composer({ lead, write, onAdded }: { lead: CrmLead; write: LeadWrite; onAdded: () => void }): ReactElement {
   const t = useTranslations("crm.tl");
   const crmErr = useCrmError();
   const [type, setType] = useState<(typeof WRITABLE)[number]>("note");
@@ -122,6 +127,9 @@ function Composer({ lead, onAdded }: { lead: CrmLead; onAdded: () => void }): Re
   const [slash, setSlash] = useState<string | null>(null);
   const [templates, setTemplates] = useState<CrmTemplate[] | null>(null);
   const [sel, setSel] = useState(0);
+  const [remindAt, setRemindAt] = useState("");
+  const [chip, setChip] = useState<number | null>(null);
+  const canRemind = type === "follow_up" && leadCan(lead, "set_next_action");
   const ref = useRef<HTMLTextAreaElement | null>(null);
   useEffect(() => {
     if (slash === null || templates) return;
@@ -152,10 +160,16 @@ function Composer({ lead, onAdded }: { lead: CrmLead; onAdded: () => void }): Re
     if (!body.trim() || busy) return;
     setBusy(true);
     try {
-      await addLeadActivity(lead.id, { type, title, body });
+      const at = canRemind ? fromLocalInput(remindAt) : "";
+      // The reminder first: it carries the lead's lock, and a conflict stops
+      // here with the text still in the composer.
+      if (at && !(await write((l) => updateCrmLead(l, { nextActionAt: at })))) return;
+      await addLeadActivity(lead.id, { type, title, body, payload: at ? { remind_at: at } : undefined });
       setBody("");
       setTitle("");
-      toast(t("added"), { tone: "ok" });
+      setRemindAt("");
+      setChip(null);
+      toast(at ? t("addedReminder") : t("added"), { tone: "ok" });
       onAdded();
     } catch (e) {
       toast(crmErr(e), { tone: "err" });
@@ -177,6 +191,39 @@ function Composer({ lead, onAdded }: { lead: CrmLead; onAdded: () => void }): Re
         })}
       </div>
       <input className="crm-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} aria-label={t("titlePh")} />
+      {canRemind ? (
+        <div className="crm-remind" role="group" aria-label={t("remindLabel")}>
+          <span className="crm-remind__h">
+            <IconClock aria-hidden="true" />
+            {t("remindLabel")}
+            <small>{t("remindHint")}</small>
+          </span>
+          <span className="crm-remind__chips">
+            {[1, 3, 24, 72].map((h) => (
+              <button
+                key={h}
+                type="button"
+                className="crm-chip"
+                aria-pressed={chip === h}
+                onClick={() => {
+                  setRemindAt(inHours(h));
+                  setChip(h);
+                }}
+              >
+                {t("remindIn", { n: h })}
+              </button>
+            ))}
+          </span>
+          <CrmDateTime
+            value={remindAt}
+            onChange={(v) => {
+              setRemindAt(v);
+              setChip(null);
+            }}
+            label={t("remindLabel")}
+          />
+        </div>
+      ) : null}
       <textarea
         ref={ref}
         className="crm-textarea"

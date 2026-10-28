@@ -785,3 +785,11 @@ html[data-theme="dark"] .crm-picker__new { color: #6ea8ff; }
 /* A sheet's footer is outside .crm-pop: give its CRM buttons the same tokens. */
 .amodal__f:has(.crm-btn) { --crm-acc: var(--b600, #1668f0); --crm-cyan: #06b6d4; --crm-grad: linear-gradient(135deg, var(--crm-acc), var(--crm-cyan)); --crm-card: var(--dk-surface, #fff); --crm-soft: var(--dk-surface-2, #f4f7fd); --crm-line: var(--line, #e3e8f2); --crm-ink: var(--ink, #0b1b3a); --crm-muted: var(--gray, #64748b); --crm-bad: #dc2626; }
 html[data-theme="dark"] .amodal__f:has(.crm-btn) { --crm-acc: var(--dk-acc, #6ea8ff); --crm-cyan: #22d3ee; --crm-bad: #f87171; }
+
+/* ---- "Eslatma" reminder in the composer: becomes the lead's next action ---- */
+.crm-remind { display: grid; gap: 8px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--crm-warn) 9%, var(--crm-soft)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--crm-warn) 22%, transparent); animation: crm-picker-in .16s ease both; }
+.crm-remind__h { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--crm-ink); font: 800 .8rem/1.3 var(--fb); }
+.crm-remind__h svg { width: 15px; height: 15px; color: var(--crm-warn); }
+.crm-remind__h small { flex-basis: 100%; color: var(--crm-muted); font-weight: 600; font-size: .74rem; }
+.crm-remind__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.crm-remind__chips .crm-chip[aria-pressed="true"] { background: var(--crm-warn); color: #fff; box-shadow: none; }

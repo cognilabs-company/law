@@ -33,16 +33,16 @@ import { CrmDateTime, CrmSelect } from "./fields";
 import type { LeadWrite } from "./CrmLeadPage";
 import { LookupPicker } from "./LookupPicker";
 
-const toLocalInput = (iso: string): string => {
+export const toLocalInput = (iso: string): string => {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
 };
-const fromLocalInput = (v: string): string => (v ? new Date(v).toISOString() : "");
+export const fromLocalInput = (v: string): string => (v ? new Date(v).toISOString() : "");
 // The top of the hour `h` hours from now, for the quick chips.
-function inHours(h: number): string {
+export function inHours(h: number): string {
   const d = new Date(Date.now() + h * 3_600_000);
   d.setMinutes(0, 0, 0);
   return toLocalInput(d.toISOString());

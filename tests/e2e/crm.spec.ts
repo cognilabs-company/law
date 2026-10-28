@@ -143,8 +143,14 @@ function crmServer(perms: string[], revenue = false) {
     },
     "POST /crm/leads/m1/transfer": (b: Record<string, unknown>) => (st.writes.push({ path: "transfer", body: b }), st.mine[0]),
     "/crm/leads/m1/timeline": () => st.activities,
+    "PATCH /crm/leads/m1": (b: Record<string, unknown>) => {
+      st.writes.push({ path: "patch", body: b });
+      if (b.expected_lock_version !== st.mine[0].lock_version) return { status: 409, json: { detail: { code: "crm_lead_version_conflict", message: "changed" } } };
+      st.mine[0] = { ...st.mine[0], ...("next_action_at" in b ? { next_action_at: b.next_action_at } : {}), lock_version: Number(b.expected_lock_version) + 1 };
+      return st.mine[0];
+    },
     "POST /crm/leads/m1/activities": (b: Record<string, unknown>) => {
-      const a = { id: `a${st.activities.length + 1}`, activity_type: b.activity_type, title: b.title, body: b.body, actor: ME, actor_user_id: ME.id, payload: {}, created_at: new Date().toISOString(), visibility: "staff" };
+      const a = { id: `a${st.activities.length + 1}`, activity_type: b.activity_type, title: b.title, body: b.body, actor: ME, actor_user_id: ME.id, payload: (b.payload as Record<string, unknown>) ?? {}, created_at: new Date().toISOString(), visibility: "staff" };
       st.activities = [a, ...st.activities];
       return a;
     },
@@ -669,6 +675,42 @@ test("draft order: service, specialist and package are chosen by name; the revie
   await expect(dlg).not.toContainText("0f9d8c7b");
   await expect(dlg).not.toContainText("LEAD-M1");
   expect(conv).toMatchObject({ service_id: "svc-1", seller_user_id: "u-s1", package_id: "pk-1", price: 450000 });
+  expect(mock.refused).toEqual([]);
+  expect(missing).toEqual([]);
+});
+
+test("Eslatma: a reminder time becomes the lead's next action and shows in the history", async ({ page }) => {
+  const missing = watchIntl(page);
+  const { st, routes } = crmServer(OPERATOR.permissions ?? []);
+  const mock = await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await page.goto("/uz/admin/crm/leads/m1");
+  await wsTab(page, /Tarix/);
+  const composer = page.locator(".crm-composer");
+  // Only the follow-up type offers a time.
+  await expect(composer.locator(".crm-remind")).toHaveCount(0);
+  await composer.getByRole("button", { name: "Eslatma" }).click();
+  await expect(composer.locator(".crm-remind")).toBeVisible();
+  await composer.getByRole("button", { name: "24 soatdan keyin" }).click();
+  await composer.getByRole("textbox", { name: /Izoh yozing/ }).fill("Shartnoma nusxasini so'rab qayta qo'ng'iroq qilish");
+  await shot(page, "remind");
+  await composer.getByRole("button", { name: "Qo'shish" }).click();
+  await expect(page.getByText("Eslatma qo'shildi va keyingi amal belgilandi.").first()).toBeVisible();
+  // The lock-carrying PATCH first, then the history entry with the time in it.
+  const patch = st.writes.find((w) => w.path === "patch")?.body as Record<string, unknown>;
+  expect(patch).toMatchObject({ expected_lock_version: 4 });
+  const at = Date.parse(String(patch.next_action_at));
+  expect(at - Date.now()).toBeGreaterThan(22 * 3_600_000);
+  expect(at - Date.now()).toBeLessThan(25 * 3_600_000);
+  const call = mock.calls.find((c) => c.method === "POST" && c.path === "/crm/leads/m1/activities");
+  expect(call?.body).toMatchObject({ activity_type: "follow_up", payload: { remind_at: patch.next_action_at } });
+  // The composer is cleared and the reminder box resets.
+  await expect(composer.getByRole("textbox", { name: /Izoh yozing/ })).toHaveValue("");
+  // A note without a time does not touch the lead.
+  await composer.getByRole("button", { name: "Izoh" }).click();
+  await composer.getByRole("textbox", { name: /Izoh yozing/ }).fill("Oddiy izoh");
+  await composer.getByRole("button", { name: "Qo'shish" }).click();
+  await expect(page.getByText("Tarixga qo'shildi.").first()).toBeVisible();
+  expect(st.writes.filter((w) => w.path === "patch")).toHaveLength(1);
   expect(mock.refused).toEqual([]);
   expect(missing).toEqual([]);
 });

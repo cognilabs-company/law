@@ -63,3 +63,25 @@ test("a call-center lawyer the backend refuses never sees the cockpit", async ({
   await page.goto("/uz/admin/call-center?tab=cockpit");
   await expect(page.locator(".ckp")).toHaveCount(0);
 });
+
+test("a queue the operator's role cannot open says so instead of a dead button", async ({ page }) => {
+  const ach = { ...cockpit, queues: { ...cockpit.queues, achievements: { total: 1, items: [{ id: "a1", work_id: "MKT-A4OKA", title: "Yutuq tekshiruvi · MKT-A4OKA · sss", owner: { id: "s", name: "Demo Advokat 1" }, status: "pending_review", payload: {}, created_at: new Date().toISOString() }] } } };
+  await mockBackend(
+    page,
+    await signIn(page, CALL_CENTER, {
+      "/call-center/marketplace/cockpit": ach,
+      "/call-center/clients/u-c1": { client: { id: "u-c1", name: "Malika Yusupova" } },
+      "/call-center/clients/u-c2": { client: { id: "u-c2", name: "Bobur Aliyev" } },
+      "/call-center/marketplace/assignment-escalations": { items: [], total: 0 },
+      // The backend refuses this role the achievements queue itself.
+      "/call-center/marketplace/achievements": { status: 403, json: { detail: "forbidden" } },
+    } as never),
+  );
+  await page.goto("/uz/admin/call-center?tab=cockpit");
+  const lane = page.locator(".ckp__lane", { hasText: "Yutuq" });
+  await expect(lane.locator(".ckp__locked")).toHaveText("Bu navbat sizning rolingizga ochiq emas", { timeout: 20000 });
+  await expect(lane.getByRole("button", { name: /Navbatga o'tish/ })).toHaveCount(0);
+  // Queues the role can open still go there.
+  await page.locator(".ckp__lane", { hasText: "Ijrochi muammosi" }).getByRole("button", { name: /Navbatga o'tish/ }).click();
+  await expect(page).toHaveURL(/tab=escalations/);
+});

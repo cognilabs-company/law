@@ -56,3 +56,6 @@ html[data-theme="dark"] .ckp { --ckp-hot: #fb7185; --ckp-warn: #fbbf24; --ckp-ba
 @media (prefers-reduced-motion: reduce) {
   .ckp__lane, .ckp__live { animation: none; }
 }
+/* A queue this operator's role cannot open (its endpoint answers 403). */
+.ckp__locked { display: flex; align-items: center; justify-content: center; gap: 6px; margin: auto 0 0; padding: 9px 12px; border-radius: 12px; background: var(--dk-surface-2, #f6f8fc); color: var(--gray); font-size: .78rem; font-weight: 700; text-align: center; }
+.ckp__locked svg { flex: none; width: 14px; height: 14px; }

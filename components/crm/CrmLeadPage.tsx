@@ -164,7 +164,7 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
           <LeadSide meta={meta} lead={lead} write={write} />
         </div>
         <div className="crm-ws__col crm-ws__main">
-          <LeadTimeline lead={lead} refreshKey={timelineKey} onAdded={() => setTimelineKey((k) => k + 1)} />
+          <LeadTimeline lead={lead} write={write} refreshKey={timelineKey} onAdded={() => setTimelineKey((k) => k + 1)} />
         </div>
         <div className="crm-ws__col crm-ws__ai">{leadCan(lead, "run_ai") ? <CopilotPanel meta={meta} lead={lead} write={write} refreshKey={aiKey} /> : null}</div>
       </div>

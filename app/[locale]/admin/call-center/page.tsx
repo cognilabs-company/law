@@ -38,7 +38,7 @@ function AdminCallCenterConsole() {
       {cc ? <MarketWatcher role="client" staff /> : null}
       {/* TSK-635882: every marketplace queue at a glance (operators only). */}
       <CcTabPanel con={con} tab="cockpit">
-        {cc ? <CockpitView onGo={con.select} onCount={con.count.cockpit} /> : null}
+        {cc ? <CockpitView onGo={con.select} onCount={con.count.cockpit} tabs={con.tabs} /> : null}
       </CcTabPanel>
       <CcTabPanel con={con} tab="queue">
         {cc ? <CallCenterQueue onCount={con.count.queue} /> : null}
