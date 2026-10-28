@@ -22,7 +22,7 @@ import { IconArrowRight, IconChevronLeft, IconClock, IconLock, IconRefresh, Icon
 import PurchaseDialog from "./PurchaseDialog";
 import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import "@/components/portal/clientCopilot.css";
-
+import PricingExplainer from "./PricingExplainer";
 import { Stars, deliveryLabel } from "./bits";
 import { SellerHero, SellerServiceRow } from "./SellerParts";
 import { aiId } from "@/lib/ai/ids";
@@ -246,17 +246,11 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
       <div className="mk-prof__body">
         <div className="mk-prof__main">
           <section className="mk-panel" data-ai-target="marketplace:seller-services" data-ai-id={`${sellerAiId}.services`} data-ai-type="list">
-            <h2 className="mk-panel__t">{t("detail.services")}</h2>
+            <div className="mkpx-row">
+              <h2 className="mk-panel__t">{t("detail.services")}</h2>
+              {services.length && selected?.id !== PH_SERVICE_ID ? <PricingExplainer service={selected} factors={detail.config?.pricing.factors} aiId={`${sellerAiId}.price-info`} /> : null}
+            </div>
             <p className="mk-panel__l">{t("detail.servicesLead")}</p>
-            {/* Point 3: when this specialist's price differs from the catalog's,
-                one polite line says why — never the formula, multipliers,
-                range or amounts (those stay in the seller's and admin's screens). */}
-            {selected && selected.id !== PH_SERVICE_ID && selected.basePrice > 0 && selected.price > 0 && selected.price !== selected.basePrice ? (
-              <p className="mk-pricenote" data-ai-id={`${sellerAiId}.price-note`}>
-                <IconShieldCheck aria-hidden="true" />
-                {selected.price > selected.basePrice ? t("detail.priceNoteUp") : t("detail.priceNoteDown")}
-              </p>
-            ) : null}
             {services.length ? (
               <>
                 <div className="mk-svcs" role="radiogroup" aria-label={t("detail.services")}>
