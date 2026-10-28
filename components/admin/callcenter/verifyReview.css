@@ -79,3 +79,19 @@ html[data-theme="dark"] .vrf { --vrf-ok: #4ade80; --vrf-bad: #f87171; --vrf-warn
 @media (prefers-reduced-motion: reduce) {
   .vrf__sk { animation: none; }
 }
+
+/* The advocate under review (point 6): who, and a phone to call now. */
+.vrf__seller { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; margin-bottom: 12px; padding: 12px 14px; border-radius: 16px; background: var(--sx-surface, var(--dk-surface, #fff)); box-shadow: inset 0 0 0 1px var(--sx-line, var(--line, #e3e8f2)); }
+.vrf__sav { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, var(--b600, #1668f0), #06b6d4); color: #fff; font: 800 .95rem/1 var(--fd); }
+.vrf__sav svg { width: 20px; height: 20px; }
+.vrf__sm { display: grid; flex: 1 1 200px; gap: 3px; min-width: 0; }
+.vrf__sm > small { color: var(--sx-ink-3, var(--gray, #64748b)); font-size: .7rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.vrf__sm > b { overflow: hidden; font-size: 1rem; text-overflow: ellipsis; white-space: nowrap; }
+.vrf__stags { display: flex; flex-wrap: wrap; gap: 6px; }
+.vrf__stags i { padding: 2px 8px; border-radius: 999px; background: var(--sx-surface-2, var(--dk-surface-2, #f1f5f9)); color: var(--sx-ink-2, var(--ink, #0b1b3a)); font-size: .72rem; font-style: normal; font-weight: 700; }
+.vrf__stags i.vrf__code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.vrf__stags i[data-st="active"] { background: color-mix(in srgb, #16a34a 14%, transparent); color: #15803d; }
+.vrf__stags i[data-st="blocked"], .vrf__stags i[data-st="suspended"] { background: color-mix(in srgb, #dc2626 14%, transparent); color: #b91c1c; }
+.vrf__call { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; background: color-mix(in srgb, var(--b600, #1668f0) 10%, transparent); color: var(--b600, #1668f0); font-size: .86rem; font-weight: 800; font-variant-numeric: tabular-nums; text-decoration: none; }
+.vrf__call:hover { background: color-mix(in srgb, var(--b600, #1668f0) 16%, transparent); }
+.vrf__call svg { width: 15px; height: 15px; }

@@ -352,7 +352,15 @@ export async function listExperienceQueue(opts: { status?: string; offset?: numb
   return { items: list, total: num(d.total) ?? list.length, hasMore: d.has_more === true };
 }
 
-export type ExperienceReviewDetail = { record: ExperienceQueueItem | null; previous: ExperienceItem | null; reviews: ExperienceReviewEntry[]; checklistKeys: string[]; checks: CheckItem[]; diff: DiffRow[]; room: ReviewRoom | null };
+// The seller under review, from the review detail's `seller`: who the
+// operator is checking and how to reach them (never shown as an id).
+export type ReviewSeller = { id: string; name: string; lexgoId: string; phone: string; role: string; status: string };
+export function reviewSellerOf(v: unknown): ReviewSeller | null {
+  const d = asDict(v);
+  const s = { id: asStr(d.id), name: asStr(d.name ?? d.full_name).trim(), lexgoId: asStr(d.lexgo_id).trim(), phone: asStr(d.phone).trim(), role: asStr(d.role).toLowerCase(), status: asStr(d.account_status).toLowerCase() };
+  return s.name || s.phone || s.lexgoId ? s : null;
+}
+export type ExperienceReviewDetail = { record: ExperienceQueueItem | null; previous: ExperienceItem | null; reviews: ExperienceReviewEntry[]; checklistKeys: string[]; checks: CheckItem[]; diff: DiffRow[]; room: ReviewRoom | null; seller: ReviewSeller | null };
 
 export async function getExperienceForReview(experienceId: string, signal?: AbortSignal): Promise<ExperienceReviewDetail> {
   const d = asDict(await http(`/call-center/marketplace/experience/${encodeURIComponent(experienceId)}`, { signal }));
@@ -369,6 +377,7 @@ export async function getExperienceForReview(experienceId: string, signal?: Abor
     checks: checkItemsOf(d.checklist, checklistKeys),
     diff: given.length ? given : localDiff(record, previous),
     room: reviewRoomOf(d.communication ?? d.review_room ?? {}),
+    seller: reviewSellerOf(d.seller),
   };
 }
 

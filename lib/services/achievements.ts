@@ -5,7 +5,7 @@
 // profile and the rating, and evidence never goes public.
 import { ApiError, asArr, asDict, asStr, http, httpBlob, type Dict } from "@/lib/http";
 import { saveBlob } from "@/lib/download";
-import { checkItemsOf, diffRowsOf, reviewRoomOf, type CheckItem, type CheckRows, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type ReviewDecision, type ReviewRoom } from "./experience";
+import { checkItemsOf, diffRowsOf, reviewRoomOf, reviewSellerOf, type CheckItem, type CheckRows, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type ReviewDecision, type ReviewRoom, type ReviewSeller } from "./experience";
 
 export const ACHIEVEMENT_TYPES = [
   "court_dispute_result",
@@ -164,7 +164,7 @@ export async function listAchievementQueue(opts: { status?: string; offset?: num
   const items = asArr(d.items).map(queueItemOf).filter((x): x is AchievementQueueItem => !!x);
   return { items, total: num(d.total) ?? items.length, hasMore: d.has_more === true };
 }
-export type AchievementReviewDetail = { record: AchievementQueueItem | null; previous: Achievement | null; reviews: ExperienceReviewEntry[]; checks: CheckItem[]; diff: DiffRow[]; room: ReviewRoom | null };
+export type AchievementReviewDetail = { record: AchievementQueueItem | null; previous: Achievement | null; reviews: ExperienceReviewEntry[]; checks: CheckItem[]; diff: DiffRow[]; room: ReviewRoom | null; seller: ReviewSeller | null };
 const reviewOf = (v: unknown): ExperienceReviewEntry => {
   const d = asDict(v);
   const dec = asStr(d.decision ?? d.status);
@@ -198,6 +198,7 @@ export async function getAchievementForReview(id: string, signal?: AbortSignal):
     checks: checkItemsOf(d.checklist, keys),
     diff: given.length ? given : achievementDiff(record, previous),
     room: reviewRoomOf(d.communication ?? d.review_room ?? {}),
+    seller: reviewSellerOf(d.seller),
   };
 }
 export async function reviewAchievement(id: string, input: { decision: ReviewDecision; reason: string; keys: readonly string[]; rows: CheckRows }): Promise<void> {

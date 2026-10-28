@@ -98,6 +98,8 @@ const reviewRoutes = (decisions: unknown[], rooms: string[]) => ({
     previous_approved_revision: rec({ id: "e1", root_id: "r1", status: "approved", version: 1, workplace: "Eski joy" }),
     reviews: [],
     checklist_keys: ["identity_license", "position_1_dates", "evidence_1_readable", "file_authenticity"],
+    // Point 6: the advocate in full, from the detail's `seller`.
+    seller: { id: "u-adv", name: "Test Advokat", phone: "+998901112233", lexgo_id: "LGA-7K2Q", role: "advokat", account_status: "active" },
     // Gaps closed §12–13: the checklist with labels, and a labelled diff.
     checklist: [
       { key: "identity_license", label: "Shaxs va litsenziya", hint: "", label_i18n: { uz_latn: "Shaxs va litsenziya", ru: "Личность и лицензия" } },
@@ -130,6 +132,11 @@ test("the call center sees what changed, ticks every item, then approves", async
   await expect(box).toContainText("Даты должности 1");
   await expect(box).toContainText("Файл 1 читается");
   await expect(box.locator(".vrf__diff b").first()).toHaveText("Ish joyi");
+  const who = box.locator(".vrf__seller");
+  await expect(who).toContainText("Test Advokat");
+  await expect(who).toContainText("LGA-7K2Q");
+  await expect(who).toContainText("Адвокат");
+  await expect(who.getByRole("link", { name: "+998901112233" })).toHaveAttribute("href", "tel:+998901112233");
   expect(await box.innerText()).not.toMatch(/position_1_dates|evidence_1_readable/);
   await shot(page, "review");
   const approve = box.getByRole("radio", { name: /^Подтвердить/ });

@@ -158,6 +158,7 @@ export default function ExperienceReview({ experienceId, onDone }: { experienceI
         checks: d.checks,
         reviews: d.reviews,
         room: d.room,
+        seller: d.seller,
       };
     },
     review: (input) => reviewExperience(experienceId, input),

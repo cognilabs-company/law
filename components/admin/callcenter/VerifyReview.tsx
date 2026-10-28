@@ -6,10 +6,10 @@ import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
 import { SxButton, SxLinkButton } from "@/components/admin/studio/sx/Button";
 import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
-import { IconCheck, IconChat, IconCircleX, IconFileText, IconLock, IconMinus, IconPaperclip, IconRefresh } from "@/components/icons";
+import { IconChat, IconCheck, IconCircleX, IconFileText, IconLock, IconMinus, IconPaperclip, IconPhone, IconRefresh, IconUser } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
 import { errDetail, isAborted, logApiError } from "@/lib/http";
-import { canApprove, checkKeyParts, type CheckItem, type CheckRows, type CheckVerdict, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type ReviewDecision, type ReviewRoom } from "@/lib/services/experience";
+import { canApprove, checkKeyParts, type CheckItem, type CheckRows, type CheckVerdict, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type ReviewDecision, type ReviewRoom, type ReviewSeller } from "@/lib/services/experience";
 import { staffChatHref } from "./cancellations/model";
 
 // One verification screen for a seller's experience or achievement
@@ -30,6 +30,8 @@ export type VerifyDetail = {
   checks: CheckItem[];
   reviews: ExperienceReviewEntry[];
   room: ReviewRoom | null;
+  // Who submitted it (point 6: the operator sees the advocate in full).
+  seller: ReviewSeller | null;
 };
 export type VerifySource = {
   kind: "experience" | "achievement";
@@ -148,6 +150,7 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
   const pending = detail.pending;
   return (
     <div className="vrf sx" data-ai-target={`callcenter:${source.kind}-review`}>
+      {detail.seller ? <SellerCard seller={detail.seller} /> : null}
       <div className="vrf__top">
         <section className="vrf__card" aria-label={t("submitted")}>
           <h4>{t("submitted")}</h4>
@@ -301,5 +304,39 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
         </div>
       </section>
     </div>
+  );
+}
+
+// The advocate under review: name, LexGo ID, role, account state and a
+// phone the operator can call right away.
+function SellerCard({ seller }: { seller: ReviewSeller }): ReactElement {
+  const t = useTranslations("callCenter.verify.seller");
+  const initials = seller.name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
+  return (
+    <section className="vrf__seller" aria-label={t("title")}>
+      <span className="vrf__sav" aria-hidden="true">
+        {initials || <IconUser />}
+      </span>
+      <span className="vrf__sm">
+        <small>{t("title")}</small>
+        <b>{seller.name || t("noName")}</b>
+        <span className="vrf__stags">
+          {seller.role ? <i>{t.has(`role.${seller.role}`) ? t(`role.${seller.role}`) : t("role.other")}</i> : null}
+          {seller.lexgoId ? <i className="vrf__code">{seller.lexgoId}</i> : null}
+          {seller.status ? <i data-st={seller.status}>{t.has(`status.${seller.status}`) ? t(`status.${seller.status}`) : t("status.other")}</i> : null}
+        </span>
+      </span>
+      {seller.phone ? (
+        <a className="vrf__call" href={`tel:${seller.phone.replace(/[^\d+]/g, "")}`}>
+          <IconPhone aria-hidden="true" />
+          <span dir="ltr">{seller.phone}</span>
+        </a>
+      ) : null}
+    </section>
   );
 }

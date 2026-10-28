@@ -38,6 +38,7 @@ function AchievementReview({ id, onDone }: { id: string; onDone: () => void }): 
         checks: d.checks,
         reviews: d.reviews,
         room: d.room,
+        seller: d.seller,
       };
     },
     review: (input) => reviewAchievement(id, input),
