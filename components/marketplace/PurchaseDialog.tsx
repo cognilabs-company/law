@@ -64,7 +64,7 @@ const NOTE_MAX = 1000;
 // the seller taking the paid order within 30 minutes, then work. No 10%
 // advance any more.
 const STEPS = ["request", "pay", "accept", "chat"] as const;
-const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, accepting: 2, paid: 3, chat: 3, completed: 4, cancelled: 1 };
+const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, accepting: 2, paid: 3, resolution: 2, chat: 3, completed: 4, cancelled: 1 };
 const PROVIDER_ICON = { telegram_manual: IconSend, payme: IconCard, click: IconCard } as const;
 const URGENCY_OF: Record<ContactSpeed, PurchaseUrgency> = { within_15_min: "today", within_1_hour: "today", today: "today", tomorrow: "tomorrow" };
 export const CLIENT_ORDERS_HREF = "/portal/client/marketplace-orders";
@@ -256,10 +256,12 @@ export default function PurchaseDialog({
   const paidVia = (done?.payment?.provider || provider) as string;
   const online = paidVia === "payme" || paidVia === "click";
   const payUrl = done?.payment?.url && online && done.payment.status !== "paid" ? done.payment.url : "";
+  const paidSure = !!track?.paid || done?.payment?.status === "paid";
   const titles: Record<MarketTrackPhase, string> = {
-    accepting: isActive ? t("active") : t("acceptTitle"),
+    accepting: isActive ? t("active") : paidSure ? t("acceptTitle") : t("sentTitle"),
     pending: isActive ? t("active") : t("payTitle"),
     paid: isActive ? t("activePaid") : t("paidTitle"),
+    resolution: t("resolveTitle"),
     chat: isActive ? t("activePaid") : t("chatTitle"),
     completed: t("completedTitle"),
     cancelled: t("rejectedTitle"),
@@ -269,6 +271,7 @@ export default function PurchaseDialog({
     accepting: done?.message || t("acceptLead"),
     pending: track?.slow ? t("slow") : online ? t("payLeadOnline", { provider: providerName(paidVia) }) : t("payLeadTelegram"),
     paid: track?.slow ? t("paidNoRoom") : "",
+    resolution: t("resolveLead"),
     chat: t("chatLead"),
     completed: "",
     cancelled: t("rejectedLead"),
@@ -385,7 +388,7 @@ export default function PurchaseDialog({
           >
             <div className="mk-receipt__msg" role="status">
               <div key={phase} className="mk-receipt__in">
-                {phase === "pending" || phase === "accepting" ? (
+                {phase === "pending" || phase === "accepting" || phase === "resolution" ? (
                   <span className={`mk-receipt__stamp mk-receipt__stamp--wait${live ? "" : " is-idle"}`} aria-hidden="true">
                     <IconHourglass />
                   </span>

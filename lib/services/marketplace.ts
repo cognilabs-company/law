@@ -1405,6 +1405,10 @@ export type MarketSignal = {
 
 const SUB_RE = /(requested|approved|rejected|escalated|expired|warning)$/;
 function specialKind(name: string): Pick<MarketSignal, "kind" | "sub"> | null {
+  if (/full_payment_paid$/.test(name)) return { kind: "paid", sub: "full_payment" };
+  if (/order_accepted$/.test(name)) return { kind: "paid", sub: "accepted" };
+  const payout = /payout_(created|paid)$/.exec(name);
+  if (payout) return { kind: "other", sub: payout[0] };
   // A new request for this seller, and its reminders near 20 and 25 minutes.
   if (/assignment_received$/.test(name)) return { kind: "assigned", sub: "new" };
   // The call center ruled on a complaint (valid_rework reopens the work).
@@ -1639,12 +1643,13 @@ export function marketStageOf(o: Pick<MarketOrder, "status" | "paymentStatus"> &
 
 // accepting: sent to the seller, not yet taken; pending: the advance waits
 // for confirmation; paid: confirmed, the chat is being opened.
-export type MarketTrackPhase = "accepting" | "pending" | "paid" | "chat" | "completed" | "cancelled";
+export type MarketTrackPhase = "accepting" | "pending" | "paid" | "resolution" | "chat" | "completed" | "cancelled";
 
 export function phaseOfStatus(status: string): MarketTrackPhase {
   const s = status.trim().toLowerCase();
   if (MARKET_STOPPED.has(s)) return "cancelled";
   if (MARKET_DONE.has(s)) return "completed";
+  if (s === "resolution_required") return "resolution";
   if (AWAITING_STATUSES.has(s)) return "accepting";
   // "accepted" alone does not prove a payment (see isOrderPending).
   if (!s || s === "pending" || s === "accepted" || s === "pending_payment" || s === "payment_pending" || s === "waiting_payment" || s === "full_payment_required") return "pending";
@@ -1652,6 +1657,7 @@ export function phaseOfStatus(status: string): MarketTrackPhase {
 }
 
 export function trackPhaseOf(o: Pick<MarketOrder, "status" | "paymentStatus" | "canStartChat"> & { assignment?: MarketOrder["assignment"]; advance?: MarketOrder["advance"] }): MarketTrackPhase {
+  if (o.status === "resolution_required") return "resolution";
   if (!MARKET_STOPPED.has(o.status) && awaitingSeller(o)) return "accepting";
   const stage = marketStageOf(o);
   if (stage !== "active") return stage;

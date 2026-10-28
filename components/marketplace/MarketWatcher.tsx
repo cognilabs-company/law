@@ -94,15 +94,19 @@ export default function MarketWatcher({ role, staff = false }: { role: Role; sta
       const orderHref = sig.orderId ? `${ordersHref}/${encodeURIComponent(sig.orderId)}` : ordersHref;
       const sectionHref = (section: string) => (sig.orderId ? `${orderHref}#${section}` : ordersHref);
       let toast: (Omit<Toast, "id" | "workId"> & { workId?: string }) | null = null;
-      if (sig.kind === "paid" && role === "client") {
+      if (sig.kind === "paid" && role === "client" && (sig.sub === "full_payment" || (sig.sub !== "accepted" && !sig.roomId))) {
+        toast = { kind: "paid", look: "refund", title: tt("paymentConfirmed"), text: tt("paymentConfirmedText"), href: orderHref };
+      } else if (sig.kind === "paid" && role === "client") {
         toast = {
           kind: "paid",
           title: tt("paid"),
           text: sig.serviceTitle ? tt("paidText", { service: sig.serviceTitle }) : tt("paidTextNoService"),
           href: sig.roomId ? marketChatHref({ roomId: sig.roomId, workId: sig.workId, serviceTitle: sig.serviceTitle }) : orderHref,
         };
-      } else if (sig.kind === "paid") {
+      } else if (sig.kind === "paid" && !sig.sub) {
         toast = { kind: "paid", title: tt("newOrder"), text: tt("newOrderText"), href: orderHref };
+      } else if (sig.kind === "other" && sig.sub === "payout_paid" && role !== "client") {
+        toast = { kind: "paid", look: "refund", title: tt("payoutPaid"), text: tt("payoutPaidText"), href: orderHref };
       } else if (sig.kind === "rejected" && role === "client") {
         toast = { kind: "rejected", title: tt("rejected"), text: tt("rejectedText"), href: orderHref };
       } else if (sig.kind === "supplemental" && sig.sub && (role === "client" || sig.sub !== "requested")) {

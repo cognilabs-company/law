@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { awaitingSeller, phaseOfStatus, purchaseBodyOf, purchaseOf, trackPhaseOf } from "@/lib/services/marketplace";
+import { awaitingSeller, marketSignalOf, phaseOfStatus, purchaseBodyOf, purchaseOf, trackPhaseOf } from "@/lib/services/marketplace";
 
 // TSK-900422 — enterprise contract 2026-10-27 §4: request → 100% payment →
 // the seller's 30-minute acceptance → chat. No 10% advance.
@@ -48,6 +48,18 @@ describe("full payment first", () => {
     expect(awaitingSeller(waiting)).toBe(true);
     expect(trackPhaseOf(waiting)).toBe("accepting");
     expect(trackPhaseOf({ status: "in_progress", paymentStatus: "paid", canStartChat: true, assignment: { status: "accepted", mode: "", deadlineAt: "", responseMinutes: 5 } })).toBe("chat");
+  });
+
+  it("an order waiting for the client's choice is not a paid order opening its chat", () => {
+    expect(phaseOfStatus("resolution_required")).toBe("resolution");
+    expect(trackPhaseOf({ status: "resolution_required", paymentStatus: "paid", canStartChat: false, assignment: { status: "waiting_seller_response", mode: "", deadlineAt: "", responseMinutes: 30 } })).toBe("resolution");
+  });
+
+  it("tells the full payment, the acceptance and a payout apart", () => {
+    expect(marketSignalOf({ event: "marketplace.full_payment_paid", order_id: "o1" })).toMatchObject({ kind: "paid", sub: "full_payment", orderId: "o1" });
+    expect(marketSignalOf({ event: "marketplace.order_accepted", order_id: "o1", room_id: "r1" })).toMatchObject({ kind: "paid", sub: "accepted", roomId: "r1" });
+    expect(marketSignalOf({ event: "marketplace.payout_paid", order_id: "o1" })).toMatchObject({ kind: "other", sub: "payout_paid" });
+    expect(marketSignalOf({ event: "marketplace.payout_created", order_id: "o1" })).toMatchObject({ kind: "other", sub: "payout_created" });
   });
 });
 

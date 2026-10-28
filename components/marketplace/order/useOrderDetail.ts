@@ -57,7 +57,7 @@ const isMissing = (e: unknown) => e instanceof ApiError && (e.status === 404 || 
 const wantsNegotiation = (o: MarketOrder | null): boolean => !!o && marketPhaseOf(o) === "pending" && (o.canNegotiate === true || !!o.negotiation || !!o.urls.negotiations || o.negotiationAvailable === true);
 
 function routeOf(sig: MarketSignal): Res[] {
-  if (sig.kind === "checklist") return ["checklist"];
+  if (sig.kind === "checklist") return ["checklist", "order"];
   if (sig.kind === "started") return ["order", "checklist"];
   if (sig.kind === "completed") return ["order", "checklist", "opinion"];
   if (sig.kind === "negotiation") return ["negotiation", "order"];

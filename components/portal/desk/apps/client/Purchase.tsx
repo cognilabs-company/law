@@ -60,7 +60,7 @@ const NOTE_MAX = 1000;
 // Enterprise contract 2026-10-27 §4: request → full payment → the seller
 // accepts the paid order within 30 minutes → chat. No 10% advance.
 const STEPS = ["request", "pay", "accept", "chat"] as const;
-const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, accepting: 2, paid: 3, chat: 3, completed: 4, cancelled: 1 };
+const STEP_OF: Record<MarketTrackPhase, number> = { pending: 1, accepting: 2, paid: 3, resolution: 2, chat: 3, completed: 4, cancelled: 1 };
 const URGENCY_OF: Record<ContactSpeed, PurchaseUrgency> = { within_15_min: "today", within_1_hour: "today", today: "today", tomorrow: "tomorrow" };
 const PROVIDER_ICON = { telegram_manual: IconSend, payme: IconCard, click: IconCard } as const;
 
@@ -171,10 +171,12 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
   const paidVia = (done?.payment?.provider || provider) as string;
   const online = paidVia === "payme" || paidVia === "click";
   const payUrl = done?.payment?.url && online && done.payment.status !== "paid" ? done.payment.url : "";
+  const paidSure = !!track?.paid || done?.payment?.status === "paid";
   const titles: Record<MarketTrackPhase, string> = {
-    accepting: isActive ? t("active") : t("acceptTitle"),
+    accepting: isActive ? t("active") : paidSure ? t("acceptTitle") : t("sentTitle"),
     pending: isActive ? t("active") : t("payTitle"),
     paid: isActive ? t("activePaid") : t("paidTitle"),
+    resolution: t("resolveTitle"),
     chat: isActive ? t("activePaid") : t("chatTitle"),
     completed: t("completedTitle"),
     cancelled: t("rejectedTitle"),
@@ -183,6 +185,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
     accepting: done?.message || t("acceptLead"),
     pending: track?.slow ? t("slow") : online ? t("payLeadOnline", { provider: providerName(paidVia) }) : t("payLeadTelegram"),
     paid: track?.slow ? t("paidNoRoom") : "",
+    resolution: t("resolveLead"),
     chat: t("chatLead"),
     completed: "",
     cancelled: t("rejectedLead"),
@@ -276,7 +279,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
       {phase ? (
         <div className={`dxcp-receipt is-${phase}`} role="status">
           <span className="dxcp-stamp" aria-hidden>
-            {phase === "pending" || phase === "accepting" ? <IconHourglass /> : phase === "cancelled" ? <IconClose /> : <IconCheck />}
+            {phase === "pending" || phase === "accepting" || phase === "resolution" ? <IconHourglass /> : phase === "cancelled" ? <IconClose /> : <IconCheck />}
           </span>
           <b>{titles[phase]}</b>
           {tracked?.workId ? <code className="dxcw-code">{tracked.workId}</code> : null}
