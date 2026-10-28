@@ -32,12 +32,12 @@ export type Readiness = { providers: ProviderReadiness[]; allEnabled: boolean; f
 
 export function readinessOf(raw: unknown): Readiness {
   const d = asDict(raw);
-  const providers = asArr(d.items ?? d.providers).map((x) => {
+  const providers = asArr(d.items).map((x) => {
     const r = asDict(x);
     const configured = r.configured === true;
     const status = asStr(r.status, configured ? "configured_not_verified" : "disabled");
     return {
-      key: asStr(r.key ?? r.provider).toLowerCase(),
+      key: asStr(r.key).toLowerCase(),
       configured,
       status,
       detail: asStr(r.detail),

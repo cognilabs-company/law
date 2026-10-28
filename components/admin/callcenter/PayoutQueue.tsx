@@ -19,7 +19,7 @@ import { ApiError, errDetail, isAborted, isForbidden, logApiError } from "@/lib/
 import { fmtUzs } from "@/lib/money";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
-import { listCcPayouts, listPayoutRecoveries, markPayoutPaid, resolvePayoutRecovery, type Page, type Payout, type Recovery } from "@/lib/services/payouts";
+import { listCcPayouts, listPayoutRecoveries, markPayoutPaid, payoutActionable, resolvePayoutRecovery, type Page, type Payout, type Recovery } from "@/lib/services/payouts";
 import QueueHead from "./QueueHead";
 
 // TSK-906326 — the seller payouts the call center pays by hand until an
@@ -120,7 +120,7 @@ function Row({ kind, item, onClose }: { kind: View; item: Payout | Recovery; onC
   const locale = useLocale();
   const payout = kind === "payouts" ? (item as Payout) : null;
   const rec = kind === "recoveries" ? (item as Recovery) : null;
-  const closed = item.status === "paid" || item.status === "cancelled";
+  const closed = item.status === "paid";
   return (
     <li className="pyq__row" data-status={item.status}>
       <span className="pyq__who">
@@ -138,11 +138,12 @@ function Row({ kind, item, onClose }: { kind: View; item: Payout | Recovery; onC
         {closed ? (
           <span className="pyq__done">
             <IconCheck aria-hidden="true" />
-            {item.status === "paid" ? (kind === "payouts" ? t("statusPaid") : t("statusRecovered")) : t("statusCancelled")}
+            {kind === "payouts" ? t("statusPaid") : t("statusRecovered")}
             {item.reference ? <code>{item.reference}</code> : null}
           </span>
-        ) : item.status === "held" ? (
-          <span className="pyq__held">{t("statusHeld")}</span>
+        ) : !payoutActionable(item.status) ? (
+          // The provider is sending it, or it waits for a recovery: nothing to press here.
+          <span className="pyq__held">{t(`status.${item.status}`)}</span>
         ) : (
           <SxButton size="sm" variant="primary" onClick={onClose} aiId={`call_center.payouts.${kind}.open`}>
             {kind === "payouts" ? t("markPaid") : t("markRecovered")}
@@ -168,18 +169,18 @@ export default function PayoutQueue({ onCount }: { onCount?: (n: number) => void
   useEffect(() => {
     onCountRef.current = onCount;
   });
-  // "open" asks for everything and keeps what still needs the operator: the
-  // backend's own status words for this queue are not documented yet.
-  const apiStatus = status === "open" ? "" : status;
+  // "open" asks for everything and keeps what is not finished yet; "paid"
+  // is the backend's paid (payouts) or recovered (recoveries).
+  const apiStatus = status === "open" ? "" : status === "paid" && view === "recoveries" ? "recovered" : status;
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
       try {
         const r = view === "payouts" ? await listCcPayouts({ status: apiStatus, offset, limit: PAGE }, signal) : await listPayoutRecoveries({ status: apiStatus, offset, limit: PAGE }, signal);
-        const items = status === "open" ? r.items.filter((x) => x.status === "due" || x.status === "waiting" || x.status === "held") : r.items;
+        const items = status === "open" ? r.items.filter((x) => x.status !== "paid") : r.items;
         setPage({ ...r, items });
         setFailed(false);
-        if (view === "payouts" && status === "open") onCountRef.current?.(items.filter((x) => x.status === "due").length);
+        if (view === "payouts" && status === "open") onCountRef.current?.(items.filter((x) => payoutActionable(x.status)).length);
       } catch (e) {
         if (isAborted(e)) return;
         if (isForbidden(e)) return setDenied(true);

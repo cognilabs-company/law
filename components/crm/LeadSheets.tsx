@@ -401,9 +401,10 @@ export function ConversionSheet({ lead, onClose, onDone }: { lead: CrmLead; onCl
     setBusy(true);
     try {
       const r = await prepareConversion(lead.id, { serviceId: service?.id, packageId: pkg?.id, sellerUserId: seller?.id, price: amount, note });
-      // The order's human code (never its id) for the confirmation.
-      const o = (r.order ?? {}) as { work_id?: unknown; public_id?: unknown; order_number?: unknown };
-      setOrderId(String(o.work_id ?? o.public_id ?? o.order_number ?? r.work_id ?? ""));
+      // The answer is the updated lead with converted_order_id only (backend
+      // answers 2026-10-28 §9.3): no order code yet, and the id is not shown.
+      const o = (r.order ?? {}) as { work_id?: unknown };
+      setOrderId(typeof o.work_id === "string" ? o.work_id : "");
       setStep("done");
       onDone();
     } catch (e) {

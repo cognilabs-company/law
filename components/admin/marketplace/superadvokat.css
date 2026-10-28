@@ -46,3 +46,4 @@
 @media (max-width: 640px) {
   .sav__two, .sav__seg { grid-template-columns: minmax(0, 1fr); }
 }
+.sav__st { margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: var(--dk-surface-2, #f1f5f9); color: var(--gray, #64748b); font-size: .7rem; font-style: normal; font-weight: 700; }

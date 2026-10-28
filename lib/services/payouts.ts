@@ -1,54 +1,59 @@
-// TSK-906326 — marketplace 30-30-40 payouts (enterprise contract 2026-10-27
-// §9, §13). The backend owns the arithmetic: seller acceptance 30% of the
-// gross, the first required checklist stage 30%, completion after the
-// 15-minute rating/complaint window 40% less LexGo's 18% (22% to the seller).
-// Nothing here works an amount out — every number is the backend's.
-// No typed schema exists yet, so the readers accept the field names the
-// contract uses and the usual variants; an unknown stage is "other".
+// TSK-906326 — marketplace 30-30-22 payouts (enterprise contract 2026-10-27
+// §9, §13; backend answers 2026-10-28 §3). The backend owns the arithmetic:
+// seller acceptance 30% of the gross, the first required checklist stage
+// 30%, completion after the 15-minute rating/complaint window 40% less
+// LexGo's 18% (22% to the seller). Nothing here works an amount out.
 import { http, asArr, asDict, asNum, asStr, type Dict } from "@/lib/http";
 import { uzs } from "@/lib/money";
 
+// The backend's stage values: acceptance | first_checklist | completion.
 export type PayoutStage = "accept" | "checklist" | "completion" | "other";
 export const PAYOUT_STAGES: readonly PayoutStage[] = ["accept", "checklist", "completion"];
+const STAGE: Record<string, PayoutStage> = { acceptance: "accept", first_checklist: "checklist", completion: "completion" };
+export const payoutStageOf = (raw: string): PayoutStage => STAGE[raw.toLowerCase()] ?? "other";
 
-// "seller_accept_30", "first_checklist_complete", "completion_40", …
-export function payoutStageOf(raw: string): PayoutStage {
-  const s = raw.toLowerCase();
-  if (/accept/.test(s)) return "accept";
-  if (/checklist|first_stage|stage_1|milestone/.test(s)) return "checklist";
-  if (/complet|final|settle/.test(s)) return "completion";
-  return "other";
-}
-
-export type PayoutStatus = "waiting" | "due" | "held" | "paid" | "cancelled";
-export function payoutStatusOf(raw: string): PayoutStatus {
-  const s = raw.toLowerCase();
-  if (s === "paid" || s === "completed" || s === "settled" || s === "transferred") return "paid";
-  if (s === "held" || s === "on_hold" || s === "hold" || s === "blocked") return "held";
-  if (s === "cancelled" || s === "canceled" || s === "voided" || s === "reversed" || s === "recovered") return "cancelled";
-  if (s === "required" || s === "due" || s === "queued" || s === "pending" || s === "ready" || s === "operator_required" || s === "created") return "due";
-  return "waiting";
-}
+// Payout: operator_required | provider_pending | provider_failed |
+// recovery_required | paid. Recovery: operator_required | under_review |
+// recovered. "held" is the seller view's completion stage while the
+// settlement is on hold (settlement.status, never derived).
+export type PayoutStatus = "due" | "processing" | "failed" | "recovery" | "review" | "held" | "paid" | "other";
+const STATUS: Record<string, PayoutStatus> = {
+  operator_required: "due",
+  provider_pending: "processing",
+  provider_failed: "failed",
+  recovery_required: "recovery",
+  under_review: "review",
+  paid: "paid",
+  recovered: "paid",
+};
+export const payoutStatusOf = (raw: string): PayoutStatus => STATUS[raw.toLowerCase()] ?? "other";
+// What the operator can act on: pay by hand, or record a recovery.
+export const payoutActionable = (s: PayoutStatus) => s === "due" || s === "failed" || s === "review";
 
 export type Person = { id: string; name: string };
-const personOf = (v: unknown, id: unknown, name: unknown): Person | null => {
+const personOf = (v: unknown, id: unknown): Person | null => {
   const d = asDict(v);
-  const pid = asStr(d.id ?? d.user_id ?? id);
-  const pname = asStr(d.name ?? d.full_name ?? name);
+  const pid = asStr(d.id ?? id);
+  const pname = asStr(d.name);
   return pid || pname ? { id: pid, name: pname } : null;
 };
 
 export type Payout = {
   id: string;
   orderId: string;
+  // Backend gap (answers §3.1): no work_id, service_title or nested seller
+  // yet — read when they arrive, the seller's name is looked up by id.
   workId: string;
   serviceTitle: string;
   stage: PayoutStage;
   percent: number | null;
+  gross: number;
   amount: number;
   commission: number;
   status: PayoutStatus;
+  automatic: boolean;
   seller: Person | null;
+  reason: string;
   reference: string;
   paidAt: string;
   createdAt: string;
@@ -56,22 +61,24 @@ export type Payout = {
 
 export function payoutOf(v: unknown): Payout {
   const d = asDict(v);
-  const order = asDict(d.order);
-  const pct = d.stage_percent ?? d.percent ?? d.gross_percent;
+  const pct = d.gross_percent;
   return {
     id: asStr(d.id),
-    orderId: asStr(d.order_id ?? order.id),
-    workId: asStr(d.work_id ?? d.order_work_id ?? order.work_id),
-    serviceTitle: asStr(d.service_title ?? order.service_title ?? d.title),
-    stage: payoutStageOf(asStr(d.stage ?? d.stage_key ?? d.payout_stage ?? d.kind)),
+    orderId: asStr(d.order_id),
+    workId: asStr(d.work_id),
+    serviceTitle: asStr(d.service_title),
+    stage: payoutStageOf(asStr(d.stage)),
     percent: pct === undefined || pct === null || pct === "" ? null : asNum(pct),
-    amount: uzs(d, "amount", "net_amount", "seller_amount", "payout_amount"),
-    commission: uzs(d, "commission_amount", "platform_fee"),
+    gross: uzs(d, "gross_amount"),
+    amount: uzs(d, "payable_amount"),
+    commission: uzs(d, "commission_amount"),
     status: payoutStatusOf(asStr(d.status)),
-    seller: personOf(d.seller, d.seller_user_id, d.seller_name),
+    automatic: asStr(d.mode) === "automatic_provider_payout",
+    seller: personOf(d.seller, d.seller_user_id),
+    reason: asStr(d.reason),
     reference: asStr(d.transaction_reference),
     paidAt: asStr(d.paid_at),
-    createdAt: asStr(d.created_at ?? d.due_at),
+    createdAt: asStr(d.created_at),
   };
 }
 
@@ -119,16 +126,16 @@ export type Recovery = {
 };
 export function recoveryOf(v: unknown): Recovery {
   const d = asDict(v);
-  const order = asDict(d.order);
   return {
     id: asStr(d.id),
-    orderId: asStr(d.order_id ?? order.id),
-    workId: asStr(d.work_id ?? order.work_id),
-    serviceTitle: asStr(d.service_title ?? order.service_title),
-    amount: uzs(d, "amount", "recovery_amount", "paid_amount"),
+    orderId: asStr(d.order_id),
+    workId: asStr(d.work_id),
+    serviceTitle: asStr(d.service_title),
+    amount: uzs(d, "amount"),
     status: payoutStatusOf(asStr(d.status)),
-    seller: personOf(d.seller, d.seller_user_id, d.seller_name),
-    reason: asStr(d.client_visible_reason ?? d.reason_text ?? d.reason),
+    seller: personOf(d.seller, d.seller_user_id),
+    // Answers §3.1: the reason sits in payload.reason.
+    reason: asStr(asDict(d.payload).reason),
     reference: asStr(d.transaction_reference),
     createdAt: asStr(d.created_at),
   };
@@ -143,22 +150,26 @@ export async function resolvePayoutRecovery(id: string, input: PaidInput): Promi
   return recoveryOf(await http(`/call-center/marketplace/payout-recoveries/${encodeURIComponent(id)}/resolve`, { method: "POST", body: JSON.stringify(paidBody(input)) }));
 }
 
-// The seller's own view of an order's payouts, from …/financials. Only the
-// seller and staff get these rows; the client's response leaves them out.
-export function orderPayoutsOf(raw: unknown): Payout[] {
-  const d = asDict(raw);
-  const settlement = asDict(d.settlement);
-  const list = asArr(d.payouts ?? d.payout_stages ?? settlement.stages ?? settlement.payouts);
-  const out = list.map(payoutOf).filter((p) => p.stage !== "other" || p.amount > 0);
+// The seller's own view (answers §3.2): the payout rows come with the
+// order checklist ({ items, payouts }); the hold is the settlement's own
+// status from …/financials, never worked out here.
+export type Settlement = { status: string; held: boolean; heldAmount: number; holdReason: string; releaseAfter: string };
+export function settlementOf(raw: unknown): Settlement {
+  const s = asDict(asDict(raw).settlement);
+  const status = asStr(s.status).toLowerCase();
+  return { status, held: status === "held" || status === "complaint_hold", heldAmount: uzs(s, "held_amount"), holdReason: asStr(s.hold_reason), releaseAfter: asStr(s.release_after) };
+}
+export function orderPayoutsOf(checklist: unknown, settlement?: Settlement): Payout[] {
+  const out = asArr(asDict(checklist).payouts)
+    .map(payoutOf)
+    .filter((p) => p.stage !== "other" || p.amount > 0)
+    .map((p) => (settlement?.held && p.stage === "completion" && p.status !== "paid" ? { ...p, status: "held" as const } : p));
   const order = (s: PayoutStage) => (s === "other" ? 9 : PAYOUT_STAGES.indexOf(s));
   return out.sort((a, b) => order(a.stage) - order(b.stage));
 }
-export async function getOrderPayouts(orderId: string, signal?: AbortSignal): Promise<Payout[]> {
-  return orderPayoutsOf(await http(`/marketplace/me/orders/${encodeURIComponent(orderId)}/financials`, { signal }));
-}
-// The settlement is held while the 15-minute window or a complaint is open.
-export function settlementHeld(raw: unknown): boolean {
-  const s = asDict(raw).settlement;
-  const st = typeof s === "string" ? s : asStr(asDict(s).status);
-  return /hold|held/.test(st.toLowerCase());
+export async function getOrderPayouts(orderId: string, signal?: AbortSignal): Promise<{ rows: Payout[]; settlement: Settlement }> {
+  const id = encodeURIComponent(orderId);
+  const [checklist, financials] = await Promise.all([http(`/marketplace/me/orders/${id}/checklist`, { signal }), http(`/marketplace/me/orders/${id}/financials`, { signal }).catch(() => ({}))]);
+  const settlement = settlementOf(financials);
+  return { rows: orderPayoutsOf(checklist, settlement), settlement };
 }

@@ -8,23 +8,27 @@ import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { subscribeUserEvents } from "@/lib/userSocket";
-import { getOrderPayouts, type Payout } from "@/lib/services/payouts";
+import { getOrderPayouts, type Payout, type Settlement } from "@/lib/services/payouts";
 
 // TSK-906326 — the seller's own payout stages for this order (contract
 // 2026-10-27 §9): on acceptance, after the first checklist stage, and after
 // completion once the 15-minute window closes. Seller and staff only — the
-// client view never mounts this. Amounts are the backend's; when it sends
-// no stages, nothing is shown.
+// client view never mounts this. Amounts and the hold are the backend's;
+// when it sends no stages, nothing is shown.
 export default function PayoutStages({ orderId, refreshKey, aiBase }: { orderId: string; refreshKey: string; aiBase: string }): ReactElement | null {
   const t = useTranslations("marketplace.orderDetail.payouts");
   const locale = useLocale();
   const [rows, setRows] = useState<Payout[] | null>(null);
+  const [hold, setHold] = useState<Settlement | null>(null);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
     const ctl = new AbortController();
     getOrderPayouts(orderId, ctl.signal)
-      .then(setRows)
+      .then((r) => {
+        setRows(r.rows);
+        setHold(r.settlement.held ? r.settlement : null);
+      })
       .catch((e) => {
         if (isAborted(e)) return;
         logApiError("order.payouts", e);
@@ -68,7 +72,12 @@ export default function PayoutStages({ orderId, refreshKey, aiBase }: { orderId:
           </li>
         ))}
       </ol>
-      {rows.some((p) => p.status === "held") ? <p className="pst__note">{t("heldNote")}</p> : null}
+      {hold ? (
+        <p className="pst__note">
+          {t(hold.holdReason === "complaint_open" ? "heldComplaint" : "heldWindow")}
+          {hold.releaseAfter && hold.holdReason !== "complaint_open" ? ` ${t("releaseAfter", { at: shortDateTime(hold.releaseAfter, locale) })}` : ""}
+        </p>
+      ) : null}
     </section>
   );
 }

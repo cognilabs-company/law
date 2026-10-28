@@ -46,38 +46,22 @@ function useVersionLabels() {
   };
 }
 
-// TSK-692647: the developers' task behind this version and the
-// superadmin's approval — a version is not on sale before it is approved.
-function DevTask({ v }: { v: PlanVersion }): ReactElement {
+// TSK-692647: a version's changes become a task for the developers, with a
+// deadline (backend answers 2026-10-28 §4.2: only that it exists and when).
+function DevTask({ task }: { task: NonNullable<PlanVersion["devTask"]> }): ReactElement {
   const t = useTranslations("admin.tariffs.dev");
-  const tt = useTranslations("teamTasks.status");
   const locale = useLocale();
-  const task = v.devTask;
-  const ap = v.approval;
   return (
     <div className="trf-dev">
-      {task ? (
-        <div className="trf-dev__task">
-          <span className="trf-dev__ic" aria-hidden="true">
-            <IconClipboardList />
-          </span>
-          <span className="trf-dev__m">
-            <b>
-              {t("task")} {task.code ? <code>{task.code}</code> : null}
-            </b>
-            <small>
-              {[tt.has(task.status) ? tt(task.status) : task.status ? t("statusOther") : "", task.deadlineAt ? t("deadline", { date: shortDateTime(task.deadlineAt, locale) }) : "", task.assignees.length ? task.assignees.join(", ") : t("noAssignees")]
-                .filter(Boolean)
-                .join(" · ")}
-            </small>
-          </span>
-        </div>
-      ) : null}
-      {ap ? (
-        <span className="trf-chip" data-status={ap.status === "approved" ? "published" : "draft"}>
-          {ap.status === "approved" ? t("approved", { by: ap.by || t("superadmin"), date: ap.at ? shortDateTime(ap.at, locale) : "" }) : t("awaiting")}
+      <div className="trf-dev__task">
+        <span className="trf-dev__ic" aria-hidden="true">
+          <IconClipboardList />
         </span>
-      ) : null}
+        <span className="trf-dev__m">
+          <b>{t("taskCreated")}</b>
+          <small>{task.deadlineAt ? t("deadline", { date: shortDateTime(task.deadlineAt, locale) }) : t("noDeadline")}</small>
+        </span>
+      </div>
     </div>
   );
 }
@@ -303,7 +287,7 @@ export default function PlanVersions({ planId }: { planId: string }): ReactEleme
                   {isCurrent ? <span className="trf-chip" data-status="current">{t("current")}</span> : null}
                   <small>{v.publishedAt ? t("publishedAt", { date: shortDateTime(v.publishedAt, locale) }) : v.createdAt ? t("createdAt", { date: shortDateTime(v.createdAt, locale) }) : ""}</small>
                 </div>
-                {v.devTask || v.approval ? <DevTask v={v} /> : null}
+                {v.devTask ? <DevTask task={v.devTask} /> : null}
                 {draft ? (
                   <>
                     {check.ok === true ? <p className="trf-ok">{t("checkOk")}</p> : null}

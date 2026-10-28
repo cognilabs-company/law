@@ -190,7 +190,7 @@ export async function getAchievementForReview(id: string, signal?: AbortSignal):
   const keys = asArr(d.checklist_keys).map((x) => asStr(x)).filter(Boolean);
   const record = queueItemOf(d.record ?? d.achievement ?? d);
   const previous = achievementOf(d.previous_approved_revision);
-  const given = diffRowsOf(d.diff ?? d.changes ?? d.revision_diff);
+  const given = diffRowsOf(d.diff);
   return {
     record,
     previous,
@@ -211,5 +211,5 @@ export async function openAchievementRoom(id: string): Promise<ReviewRoom> {
 }
 export async function closeAchievementRoom(id: string, current: ReviewRoom): Promise<ReviewRoom> {
   const r = reviewRoomOf(await http(`/call-center/marketplace/achievements/${encodeURIComponent(id)}/communication/close`, { method: "POST", body: JSON.stringify({}) }));
-  return { ...current, ...(r ?? {}), roomId: r?.roomId || current.roomId, readOnly: true, status: r?.status || "closed" };
+  return { ...current, ...(r ?? {}), roomId: r?.roomId || current.roomId, readOnly: true, status: r?.status || "read_only" };
 }

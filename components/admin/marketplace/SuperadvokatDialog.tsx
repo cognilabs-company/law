@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import { Notice } from "@/components/admin/AdminBits";
+import PersonName from "@/components/ui/PersonName";
 import DatePicker from "@/components/DatePicker";
 import TimePicker from "@/components/TimePicker";
 import { IconCrown, IconHistory, IconLock } from "@/components/icons";
@@ -184,9 +185,18 @@ export default function SuperadvokatDialog({ sellerUserId, sellerName, onClose }
                 <li key={h.id || i} data-on={h.active || undefined}>
                   <i aria-hidden="true" />
                   <span>
-                    <b>{h.active ? t("histOn") : t("histOff")}</b>
+                    <b>
+                      {h.active ? t("histOn") : t("histOff")}
+                      {h.status === "superseded" || h.status === "revoked" ? <em className="sav__st">{t(`histStatus.${h.status}`)}</em> : null}
+                    </b>
                     <small>
-                      {[h.at ? shortDateTime(h.at, locale) : "", h.by, h.startsAt ? t("histFrom", { date: shortDateTime(h.startsAt, locale) }) : "", h.endsAt ? t("histTo", { date: shortDateTime(h.endsAt, locale) }) : ""].filter(Boolean).join(" · ")}
+                      {[h.at ? shortDateTime(h.at, locale) : "", h.startsAt ? t("histFrom", { date: shortDateTime(h.startsAt, locale) }) : "", h.endsAt ? t("histTo", { date: shortDateTime(h.endsAt, locale) }) : ""].filter(Boolean).join(" · ")}
+                      {h.byId ? (
+                        <>
+                          {" · "}
+                          <PersonName id={h.byId} fallback={t("superadmin")} />
+                        </>
+                      ) : null}
                     </small>
                     {h.reason ? <q>{h.reason}</q> : null}
                   </span>

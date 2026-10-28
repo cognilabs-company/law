@@ -47,11 +47,12 @@ describe("full payment first", () => {
 });
 
 describe("client-safe price reasons (TSK-787056)", () => {
-  it("reads strings, localised dicts and {text} items, in order; empty when none", async () => {
+  // Backend answers 2026-10-28 §5: [{ code, amount, percent }] — the code is
+  // worded by the UI, never shown; a backend text wins when it arrives.
+  it("reads code, amount and percent; keeps a backend text; empty when none", async () => {
     const { clientReasonsOf } = await import("@/lib/services/marketplace");
-    expect(clientReasonsOf(undefined, ["A"])).toEqual([{ uz: "A" }]);
-    expect(clientReasonsOf([{ uz: "Tajriba", ru: "Опыт", internal_formula: "x*1.2" }])).toEqual([{ uz: "Tajriba", ru: "Опыт" }]);
-    expect(clientReasonsOf({ items: [{ text: "Hudud" }, { text: "  " }] })).toEqual([{ uz: "Hudud" }]);
-    expect(clientReasonsOf(null, [], "")).toEqual([]);
-  });
-});
+    expect(clientReasonsOf([{ code: "professional_qualification", amount: 45000, percent: 5 }])).toEqual([{ code: "professional_qualification", amount: 45000, percent: 5, text: {} }]);
+    expect(clientReasonsOf([{ code: "region", amount: 0, percent: null, text: { uz: "Hudud", ru: "Регион" } }])[0].text).toEqual({ uz: "Hudud", ru: "Регион" });
+    expect(clientReasonsOf(null)).toEqual([]);
+    expect(clientReasonsOf([{ amount: 5 }])).toEqual([]);
+  });});

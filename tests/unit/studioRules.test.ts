@@ -46,11 +46,12 @@ describe("MP09 promotion", () => {
 });
 
 describe("tariff version: developer task (TSK-692647)", () => {
-  it("reads the task by its human code and the approval; nothing when absent", async () => {
+  // Backend answers 2026-10-28 §4.2: only developer_task_id and
+  // developer_deadline_at; no code, status, assignees or approval are guessed.
+  it("knows only that a task exists and its deadline; nothing when absent", async () => {
     const { versionOf } = await import("@/lib/services/tariffs");
-    const v = versionOf({ id: "v1", version: 3, status: "pending_approval", developer_task: { id: "uuid-x", task_code: "TSK-123456", status: "in_progress", deadline_at: "2026-11-30T00:00:00Z", assignees: [{ full_name: "Abdurahmon" }] }, approval: { status: "pending" } });
-    expect(v.devTask).toEqual({ code: "TSK-123456", title: "", status: "in_progress", deadlineAt: "2026-11-30T00:00:00Z", assignees: ["Abdurahmon"] });
-    expect(v.approval?.status).toBe("pending");
+    const v = versionOf({ id: "v1", version: 3, status: "draft", developer_task_id: "uuid-x", developer_deadline_at: "2026-11-30T00:00:00Z" });
+    expect(v.devTask).toEqual({ deadlineAt: "2026-11-30T00:00:00Z" });
     expect(versionOf({ id: "v2", status: "published" }).devTask).toBeNull();
   });
 });

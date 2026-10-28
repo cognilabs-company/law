@@ -2,6 +2,7 @@
 
 Date: 2026-10-28
 From: Frontend
+Status: answered in `LEXGO_BACKEND_ANSWERS_FOR_FRONTEND_2026_10_28.md` (backend, 2026-10-28); the frontend now reads the real field names, and the marked backend gaps stay open.
 Applies to:
 
 - `LEXGO_MARKETPLACE_ENTERPRISE_FRONTEND_FINAL_2026_10_27.md`

@@ -141,3 +141,5 @@
 .mod-price__why ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .mod-price__why li, .mod-price__why > p { position: relative; margin: 0; padding-left: 18px; font-size: .84rem; line-height: 1.5; }
 .mod-price__why li::before, .mod-price__why > p::before { content: ""; position: absolute; left: 4px; top: .6em; width: 6px; height: 6px; border-radius: 50%; background: var(--b500, #2563eb); }
+.mod-price__why li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
+.mod-price__why li > b { flex: none; font-size: .8rem; font-weight: 800; }

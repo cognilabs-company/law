@@ -5,34 +5,32 @@
 // applying on its own; the backend recalculates price and rating.
 import { ApiError, asArr, asDict, asStr, http } from "@/lib/http";
 
+// Backend answers 2026-10-28 §8.2: { id, status: active | superseded |
+// revoked, active, reason, starts_at, ends_at, changed_by_user_id,
+// changed_at }. No nested actor or before/after yet: the person is looked
+// up by id for their name (never shown as an id).
 export type SuperEntry = {
   id: string;
+  status: string;
   active: boolean;
   reason: string;
   startsAt: string;
   endsAt: string;
-  before: string;
-  after: string;
-  by: string;
+  byId: string;
   at: string;
 };
 
-const flag = (v: unknown): string => (v === true ? "on" : v === false ? "off" : typeof v === "string" ? v : asStr(asDict(v).active === true ? "on" : asDict(v).active === false ? "off" : ""));
-
 export function superEntryOf(v: unknown): SuperEntry {
   const d = asDict(v);
-  const actor = asDict(d.changed_by ?? d.actor ?? d.created_by);
-  const next = d.new_value ?? d.after ?? d.active;
   return {
     id: asStr(d.id),
-    active: d.active === true || asDict(d.new_value).active === true || next === true,
+    status: asStr(d.status).toLowerCase(),
+    active: d.active === true,
     reason: asStr(d.reason),
-    startsAt: asStr(d.starts_at ?? asDict(d.new_value).starts_at),
-    endsAt: asStr(d.ends_at ?? asDict(d.new_value).ends_at),
-    before: flag(d.old_value ?? d.before ?? d.previous_value),
-    after: flag(next),
-    by: asStr(actor.name ?? actor.full_name ?? d.changed_by_name),
-    at: asStr(d.created_at ?? d.changed_at),
+    startsAt: asStr(d.starts_at),
+    endsAt: asStr(d.ends_at),
+    byId: asStr(d.changed_by_user_id),
+    at: asStr(d.changed_at ?? d.created_at),
   };
 }
 
@@ -45,7 +43,9 @@ export async function getSuperHistory(sellerUserId: string, signal?: AbortSignal
 // Whether an override applies at `now`: the newest entry decides, and an
 // end date in the past means it no longer applies.
 export function superActiveAt(history: SuperEntry[], now: number): { active: boolean; until: string } {
-  const last = history[0];
+  // A superseded or revoked entry no longer decides anything.
+  const last = history.find((h) => h.status !== "superseded") ?? history[0];
+  if (last?.status === "revoked") return { active: false, until: "" };
   if (!last || !last.active) return { active: false, until: "" };
   const start = Date.parse(last.startsAt);
   const end = Date.parse(last.endsAt);

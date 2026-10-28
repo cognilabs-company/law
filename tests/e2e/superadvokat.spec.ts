@@ -10,10 +10,12 @@ const routesWith = (put: (b: Record<string, unknown>) => unknown, history: unkno
   "/admin/marketplace/sellers": { items: [SELLER], total: 1 },
   "/admin/marketplace/sellers/u-adv/superadvokat/history": () => ({ items: history, count: history.length }),
   "PUT /admin/marketplace/sellers/u-adv/superadvokat": (b: unknown) => put(b as Record<string, unknown>),
+  // History rows carry only changed_by_user_id (backend answers 2026-10-28 §8.2).
+  "/call-center/clients/u-boss": { id: "u-boss", full_name: "Bosh admin" },
 });
 
 test("the primary superadmin grants the status with a reason and a period; the history keeps it", async ({ page }) => {
-  const history: Record<string, unknown>[] = [{ id: "h1", active: false, reason: "Shikoyat tasdiqlandi", starts_at: "2026-09-01T00:00:00Z", created_at: "2026-09-01T00:00:00Z", changed_by: { name: "Bosh admin" } }];
+  const history: Record<string, unknown>[] = [{ id: "h1", status: "active", active: false, reason: "Shikoyat tasdiqlandi", starts_at: "2026-09-01T00:00:00Z", ends_at: null, changed_by_user_id: "u-boss", changed_at: "2026-09-01T00:00:00Z", created_at: "2026-09-01T00:00:00Z" }];
   const puts: Record<string, unknown>[] = [];
   await mockBackend(
     page,
@@ -22,7 +24,8 @@ test("the primary superadmin grants the status with a reason and a period; the h
       ADMIN,
       routesWith((b) => {
         puts.push(b);
-        history.unshift({ id: "h2", ...b, created_at: new Date().toISOString(), changed_by: { name: "Bosh admin" } });
+        history[0] = { ...history[0], status: "superseded" };
+        history.unshift({ id: "h2", status: "active", ...b, changed_at: new Date().toISOString(), created_at: new Date().toISOString(), changed_by_user_id: "u-boss" });
         return { ok: true };
       }, history) as never,
     ),
@@ -34,6 +37,8 @@ test("the primary superadmin grants the status with a reason and a period; the h
   await expect(dlg).toContainText("Hozir Superadvokat emas");
   await expect(dlg.locator(".sav__hist li")).toHaveCount(1);
   await expect(dlg).toContainText("Shikoyat tasdiqlandi");
+  await expect(dlg.locator(".sav__hist")).toContainText("Bosh admin");
+  await expect(dlg.locator(".sav__hist")).not.toContainText("u-boss");
   // A reason is required.
   await dlg.getByRole("button", { name: "Maqom berish" }).last().click();
   await expect(dlg.getByRole("alert")).toContainText("Sababni kamida 10 belgida yozing");

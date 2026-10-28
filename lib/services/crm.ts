@@ -545,10 +545,11 @@ export async function lookupSellers(serviceId: string, q: string, offset: number
 export async function lookupPackages(q: string, signal?: AbortSignal): Promise<{ items: ConvOption[]; hasMore: boolean }> {
   const d = await http(`/service-packages`, { signal });
   const needle = q.trim().toLowerCase();
-  const items = (Array.isArray(d) ? d : asArr(asDict(d).items ?? asDict(d).packages))
+  const items = (Array.isArray(d) ? d : asArr(asDict(d).items))
+    .filter((v) => asDict(v).is_active !== false)
     .map((v) => {
       const x = asDict(v);
-      return { id: asStr(x.id), title: asStr(x.title ?? x.name), sub: asStr(x.tariff_title ?? x.subtitle ?? x.description).slice(0, 80) };
+      return { id: asStr(x.id), title: asStr(x.title), sub: [asStr(x.category_title), asStr(x.duration)].filter(Boolean).join(" · ") };
     })
     .filter((x) => x.id && x.title && (!needle || x.title.toLowerCase().includes(needle)));
   return { items, hasMore: false };

@@ -320,13 +320,14 @@ export function localDiff(next: ExperienceItem | null, prev: ExperienceItem | nu
 // The protected review room (TSK-365169): only the operator closes it; once
 // closed it stays readable but takes no new messages.
 export type ReviewRoom = { roomId: string; status: string; readOnly: boolean; closedAt: string };
+// Backend answers 2026-10-28 §6.2: create → { room_id, messages_url,
+// calls_url, close_by_operator_only }; close → { room_id, status: "read_only" }.
 export function reviewRoomOf(v: unknown): ReviewRoom | null {
   const d = asDict(v);
-  const room = asDict(d.room ?? d.chat ?? d.communication);
-  const roomId = asStr(d.room_id ?? d.chat_room_id ?? room.room_id ?? room.id ?? d.id);
+  const roomId = asStr(d.room_id);
   if (!roomId) return null;
-  const status = asStr(d.status ?? room.status).toLowerCase();
-  return { roomId, status, readOnly: d.read_only === true || room.read_only === true || status === "closed", closedAt: asStr(d.closed_at ?? room.closed_at) };
+  const status = asStr(d.status).toLowerCase();
+  return { roomId, status, readOnly: status === "read_only" || status === "closed", closedAt: asStr(d.closed_at) };
 }
 
 export type ExperienceQueueItem = ExperienceItem & { sellerUserId: string; sellerName: string };
@@ -353,7 +354,7 @@ export async function getExperienceForReview(experienceId: string, signal?: Abor
   const checklistKeys = keys.length ? keys : EXPERIENCE_CHECKS.map((c) => c.key);
   const record = queueItemOf(d.record);
   const previous = experienceItemOf(d.previous_approved_revision);
-  const given = diffRowsOf(d.diff ?? d.changes ?? d.revision_diff);
+  const given = diffRowsOf(d.diff);
   return {
     record,
     previous,
@@ -383,7 +384,7 @@ export async function openExperienceRoom(experienceId: string): Promise<ReviewRo
 }
 export async function closeExperienceRoom(experienceId: string, current: ReviewRoom): Promise<ReviewRoom> {
   const r = reviewRoomOf(await http(`/call-center/marketplace/experience/${encodeURIComponent(experienceId)}/communication/close`, { method: "POST", body: JSON.stringify({}) }));
-  return { ...current, ...(r ?? {}), roomId: r?.roomId || current.roomId, readOnly: true, status: r?.status || "closed" };
+  return { ...current, ...(r ?? {}), roomId: r?.roomId || current.roomId, readOnly: true, status: r?.status || "read_only" };
 }
 
 // The category tree with real ids (backend 24 Oct 2026 §6): a root's

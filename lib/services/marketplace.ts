@@ -692,26 +692,25 @@ export type OrderPricing = {
   // for why this specialist's price differs from the base — never the
   // formula, the coefficients, commission or anything about requirements.
   // Localised lines in the backend's order; empty when it sent none.
-  clientReasons: Record<string, string>[];
+  clientReasons: ClientReason[];
 };
 
 // "Narx tanlangan mutaxassisning tasdiqlangan tajribasi sabab…" or
 // {uz, ru, en} or {text|label|reason}: one localised line.
-function reasonLine(v: unknown): Record<string, string> {
-  if (typeof v === "string") return v.trim() ? { uz: v.trim() } : {};
-  const d = asDict(v);
-  const own = d.text ?? d.label ?? d.reason ?? d.message ?? d.explanation;
-  if (typeof own === "string") return own.trim() ? { uz: own.trim() } : {};
-  const loc = asDict(own ?? d);
-  return Object.fromEntries(Object.entries(loc).filter(([k, x]) => /^(uz|ru|en)/.test(k) && typeof x === "string" && x.trim()).map(([k, x]) => [k.slice(0, 2), String(x).trim()]));
-}
-export function clientReasonsOf(...srcs: unknown[]): Record<string, string>[] {
-  for (const s of srcs) {
-    const list = Array.isArray(s) ? s : typeof s === "string" ? [s] : asArr(asDict(s).items ?? asDict(s).lines ?? asDict(s).reasons);
-    const out = list.map(reasonLine).filter((x) => Object.keys(x).length);
-    if (out.length) return out;
-  }
-  return [];
+// Backend answers 2026-10-28 §5: details.pricing_snapshot.client_price_reasons,
+// [{ code, amount, percent }], client-safe. No localized text yet: the UI
+// words each code itself and never shows the code ("text" is read once the
+// backend sends it).
+export type ClientReason = { code: string; amount: number; percent: number | null; text: Record<string, string> };
+export function clientReasonsOf(v: unknown): ClientReason[] {
+  return asArr(v)
+    .map((x) => {
+      const d = asDict(x);
+      const own = d.text ?? d.label;
+      const text = typeof own === "string" ? (own.trim() ? { uz: own.trim() } : {}) : Object.fromEntries(Object.entries(asDict(own)).filter(([k, y]) => /^(uz|ru|en)/.test(k) && typeof y === "string" && y.trim()).map(([k, y]) => [k.slice(0, 2), String(y).trim()]));
+      return { code: asStr(d.code).trim().toLowerCase(), amount: uzs(d, "amount"), percent: pctOf(d.percent), text };
+    })
+    .filter((r) => r.code || Object.keys(r.text).length);
 }
 
 const present = (v: unknown) => v !== null && v !== undefined && v !== "";
@@ -752,7 +751,7 @@ function orderPricingOf(d: Dict, details: Dict): OrderPricing | null {
       return { code: asStr(c.code), amount: uzs(c, "amount"), percent: pctOf(c.percent), label };
     }),
     historical: p.historical_policy_exact === false,
-    clientReasons: clientReasonsOf(p.client_reasons, p.client_safe_reasons, p.client_explanation, details.client_price_explanation, d.client_price_explanation, p.price_explanation_client),
+    clientReasons: clientReasonsOf(p.client_price_reasons),
   };
 }
 
@@ -898,12 +897,13 @@ export function reassignmentOf(v: unknown): OrderReassignment {
   return {
     id: asStr(d.id),
     status: asStr(d.status).toLowerCase(),
-    previousSeller: reassignPersonOf(d.previous_seller ?? d.old_seller, d.previous_seller_user_id ?? d.old_lawyer_user_id, d.previous_seller_name),
-    newSeller: reassignPersonOf(d.new_seller ?? d.replacement_seller, d.new_seller_user_id ?? d.new_lawyer_user_id, d.new_seller_name),
-    operator: reassignPersonOf(d.operator ?? d.reassigned_by, d.operator_user_id, d.operator_name),
-    reason: asStr(d.client_visible_reason ?? d.reason).trim(),
-    reassignedAt: asStr(d.reassigned_at ?? d.created_at),
-    deadlineAt: asStr(d.acceptance_deadline_at ?? d.deadline_at),
+    // Backend answers 2026-10-28 §2.2: reassignment_history items.
+    previousSeller: reassignPersonOf(d.previous_seller, d.previous_seller_user_id),
+    newSeller: reassignPersonOf(d.new_seller, d.new_seller_user_id),
+    operator: reassignPersonOf(d.operator, d.operator_user_id),
+    reason: asStr(d.client_visible_reason).trim(),
+    reassignedAt: asStr(d.reassigned_at),
+    deadlineAt: asStr(d.acceptance_deadline_at),
     acceptedAt: asStr(d.accepted_at),
   };
 }

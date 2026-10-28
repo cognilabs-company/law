@@ -48,6 +48,7 @@ const WHY = new Set(["region", "experience", "sector_experience_premium", "clien
 
 export default function OrderPricing({ pricing, view, currency, aiBase, orderId, refreshKey }: { pricing: Pricing; view: OrderView; currency: string; aiBase: string; orderId: string; refreshKey: string }): ReactElement | null {
   const t = useTranslations("marketplace.orderDetail.pricing");
+  const tr = useTranslations("marketplace.orderDetail.pricing.reason");
   const tm = useTranslations("marketPricing");
   const te = useTranslations("enums");
   const locale = useLocale();
@@ -86,7 +87,12 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
   if (view === "client") {
     if (!(pricing.final > 0)) return null;
     const changed = pricing.base > 0 && pricing.final !== pricing.base;
-    const reasons = pricing.clientReasons.map((r) => r[locale] || r.uz || Object.values(r)[0]).filter(Boolean);
+    // The backend's own words when it sends them, else the code worded here — never the code.
+    const reasons = pricing.clientReasons.map((r) => ({
+      text: r.text[locale] || r.text.uz || (tr.has(r.code) ? tr(r.code) : tr("other")),
+      amount: r.amount,
+      percent: r.percent,
+    }));
     return (
       <SxPanel title={t("title")} className="mod-price mod-price--client" as="section" aiId={`${aiBase}.pricing`}>
         {changed ? (
@@ -116,7 +122,10 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
             {reasons.length ? (
               <ul>
                 {reasons.map((r, i) => (
-                  <li key={i}>{r}</li>
+                  <li key={i}>
+                    <span>{r.text}</span>
+                    {r.amount ? <b className="sx-num">{`${r.amount > 0 ? "+" : "−"}${money(Math.abs(r.amount))}${r.percent ? ` · ${Math.abs(r.percent)}%` : ""}`}</b> : null}
+                  </li>
                 ))}
               </ul>
             ) : (
