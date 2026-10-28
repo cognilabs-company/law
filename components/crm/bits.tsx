@@ -4,12 +4,27 @@ import "./crm.css";
 import { useCallback, useEffect, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
-import { IconChartBar, IconChevronLeft, IconFileText, IconFlame, IconGrid, IconInbox, IconLayers, IconSearch, IconUsers } from "@/components/icons";
+import { IconAward, IconChartBar, IconChevronLeft, IconClipboardCheck, IconCoins, IconFileText, IconFlame, IconGrid, IconInbox, IconLayers, IconLock, IconPhone, IconSearch, IconSparkle, IconUsers } from "@/components/icons";
 import { errDetail } from "@/lib/http";
 import { CRM_STATUSES, crmCan, crmCode, crmGlobalAnalytics, type CrmMeta } from "@/lib/services/crm";
 import { minutesUntil, useLiveState } from "@/lib/crm/useCrm";
 
 export const statusVar = (s: string) => ({ ["--sc" as string]: `var(--s-${s}, var(--crm-muted))` });
+
+// Every stage has its own icon, so a step circle is never empty (UI law #7).
+export const STATUS_ICON: Record<string, (p: { "aria-hidden"?: boolean | "true" }) => ReactElement> = {
+  new: IconSparkle,
+  contacted: IconPhone,
+  qualified: IconClipboardCheck,
+  proposal: IconFileText,
+  payment_pending: IconCoins,
+  won: IconAward,
+  closed: IconLock,
+};
+export function StatusIcon({ status }: { status: string }): ReactElement {
+  const Icon = STATUS_ICON[status] ?? IconLayers;
+  return <Icon aria-hidden="true" />;
+}
 
 export function StatusPill({ status }: { status: string }): ReactElement {
   const t = useTranslations("crm.status");

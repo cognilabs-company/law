@@ -43,14 +43,15 @@ html[data-theme="dark"] .esc { --esc-acc: var(--dk-acc, #6ea8ff); --esc-soft: rg
 .esc__flow li { display: inline-flex; align-items: center; gap: 7px; color: var(--gray); font-weight: 600; }
 .esc__flow li + li::before { content: ""; width: 18px; height: 2px; margin: 0 8px; border-radius: 2px; background: var(--line); }
 .esc__flow li[data-state="done"] + li::before, .esc__flow li[data-state="now"]::before { background: var(--esc-acc); }
-.esc__flow i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.esc__flow i { display: grid; place-items: center; flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1.5px var(--line); color: var(--gray); font-style: normal; }
+.esc__flow i svg { width: 12px; height: 12px; }
 .esc__flow li[data-state="done"] { color: var(--ink); }
-.esc__flow li[data-state="done"] i { background: var(--esc-acc); }
+.esc__flow li[data-state="done"] i { background: var(--esc-acc); box-shadow: none; color: #fff; }
 .esc__flow li[data-state="now"] { color: var(--esc-acc); }
-.esc__flow li[data-state="now"] i { background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 3px var(--esc-acc); animation: escPulse 1.6s ease-in-out infinite; }
+.esc__flow li[data-state="now"] i { background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 2px var(--esc-acc); color: var(--esc-acc); animation: escPulse 1.6s ease-in-out infinite; }
 .esc__flow li[data-state="bad"] { color: var(--esc-bad); }
-.esc__flow li[data-state="bad"] i { background: var(--esc-bad); }
-@keyframes escPulse { 50% { box-shadow: inset 0 0 0 3px var(--esc-acc), 0 0 0 5px var(--esc-soft); } }
+.esc__flow li[data-state="bad"] i { background: var(--esc-bad); box-shadow: none; color: #fff; }
+@keyframes escPulse { 50% { box-shadow: inset 0 0 0 2px var(--esc-acc), 0 0 0 5px var(--esc-soft); } }
 @media (prefers-reduced-motion: reduce) { .esc__flow li[data-state="now"] i { animation: none; } }
 @media (max-width: 720px) {
   .esc__row { grid-template-columns: 1fr auto; }

@@ -14,7 +14,15 @@ import { HrmDrawer, HrmError, HrmLoading, HrmPanel, useStatusLabel } from "@/com
 import { useHrmText } from "@/components/internal/hrm/text";
 import { domainHref } from "@/components/internal/hrm/routes";
 import { useHrmCatalog } from "@/lib/services/hrm";
-import { IconAlert, IconCheck, IconClipboardCheck, IconDownload, IconFolder, IconLogout, IconRefresh, IconUserPlus } from "@/components/icons";
+import { IconAlert, IconBriefcase, IconCheck, IconClipboardCheck, IconDocLines, IconDownload, IconFileText, IconFolder, IconGraduation, IconLogout, IconRefresh, IconUser, IconUserPlus } from "@/components/icons";
+
+// Each readiness check shows what it is about until it is done (UI law: no
+// empty step markers); a finished one gets a tick.
+const CHECK_ICON: Record<string, typeof IconUser> = { profile: IconUser, assignment: IconBriefcase, documents: IconFileText, contract: IconDocLines, training: IconGraduation };
+function CheckMark({ k, ok }: { k: string; ok: boolean }) {
+  const Icon = ok ? IconCheck : (CHECK_ICON[k] ?? IconClipboardCheck);
+  return <Icon />;
+}
 import { dayToIso, opsError, todayIso, useOps } from "./useOps";
 import FieldErr from "./FieldErr";
 
@@ -33,9 +41,11 @@ export function ReadinessPanel({ id }: { id: string }) {
           <ul className="ops-ready">
             {data.checks.map((c) => (
               <li key={c.key} className={`is-${c.status === "ok" ? "ok" : c.status === "warning" || c.status === "pending" ? "warn" : "miss"}`}>
-                <span className="ops-ready__dot" aria-hidden>{c.status === "ok" ? <IconCheck /> : null}</span>
-                <b>{c.label || (t.has(`check.${c.key}`) ? t(`check.${c.key}`) : c.key)}</b>
-                <small>{t.has(`state.${c.status}`) ? t(`state.${c.status}`) : c.status}</small>
+                <span className="ops-ready__dot" aria-hidden>
+                  <CheckMark k={c.key} ok={c.status === "ok"} />
+                </span>
+                <b>{c.label || (t.has(`check.${c.key}`) ? t(`check.${c.key}`) : t("check.other"))}</b>
+                <small>{t.has(`state.${c.status}`) ? t(`state.${c.status}`) : t("state.other")}</small>
               </li>
             ))}
           </ul>

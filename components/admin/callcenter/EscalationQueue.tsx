@@ -1,7 +1,7 @@
 "use client";
 
 import "./escalations.css";
-import { IconArrowRight } from "@/components/icons";
+import { IconArrowRight, IconCircleCheck, IconCircleX, IconCoins, IconHourglass, IconSend, IconTarget, IconUsers } from "@/components/icons";
 import QueueHead from "./QueueHead";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import { useCallback, useEffect, useId, useRef, useState, type ReactElement } from "react";
@@ -146,6 +146,12 @@ function ActionDialog({ esc, action, onClose, onDone, onClosed }: { esc: Assignm
 // order went to a new seller, or the refund ran → refunded / rejected; or
 // the time ran out. Built only from what the backend reports.
 type FlowStep = { key: string; label: string; state: "done" | "now" | "todo" | "bad" };
+// Every step of the offer shows what it is — never an empty circle.
+const FLOW_ICON: Record<string, typeof IconSend> = { sent: IconSend, expired: IconHourglass, chose: IconTarget, moved: IconUsers, refund: IconCoins };
+function FlowIcon({ step }: { step: FlowStep }) {
+  const Icon = step.key === "end" ? (step.state === "bad" ? IconCircleX : IconCircleCheck) : (FLOW_ICON[step.key] ?? IconCircleCheck);
+  return <Icon />;
+}
 function offerFlow(esc: AssignmentEscalation, t: ReturnType<typeof useTranslations>): FlowStep[] | null {
   const offer = esc.resolution?.offer ?? null;
   const refund = esc.resolution?.refund ?? null;
@@ -243,7 +249,9 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
             <ol className="esc__flow" aria-label={t("flow.title")} aria-live="polite">
               {flow.map((f) => (
                 <li key={f.key} data-state={f.state}>
-                  <i aria-hidden="true" />
+                  <i aria-hidden="true">
+                    <FlowIcon step={f} />
+                  </i>
                   <span>{f.label}</span>
                 </li>
               ))}

@@ -7,7 +7,7 @@ import { SxButton } from "@/components/admin/studio/sx/Button";
 import { SxDialog, SxDialogError, type SxDialogErrorText } from "@/components/admin/studio/sx/editor/SxDialog";
 import { Field } from "@/components/admin/studio/sx/form/Field";
 import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
-import { IconAlert, IconChat, IconCheck, IconCircleCheck, IconCircleX, IconClock, IconCoins, IconHistory, IconHourglass, IconLock, IconPhone, IconRefresh, IconUsers } from "@/components/icons";
+import { IconAlert, IconArrowRight, IconChat, IconCheck, IconCircleCheck, IconCircleX, IconClock, IconCoins, IconHistory, IconHourglass, IconLock, IconPhone, IconRefresh, IconSend, IconUsers } from "@/components/icons";
 import { useMarketError } from "@/components/marketplace/useMarketError";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
@@ -49,6 +49,8 @@ const REFUND_STATUSES = new Set(["refund_pending", "refunded"]);
 // previous seller's name then, so no name is shown as the new one.
 const ASSIGNING = new Set(["resolution_required", "sent_to_seller", "seller_selection", "awaiting_seller", "awaiting_seller_acceptance", "pending_assignment", "reassigning"]);
 const STEPS: RefundStep[] = ["requested", "processing", "refunded"];
+// A step not reached yet shows what it is; a passed one gets a tick.
+const STEP_ICON: Partial<Record<RefundStep, typeof IconSend>> = { requested: IconSend, processing: IconHourglass, refunded: IconCoins };
 
 const money = (amount: number, currency: string, som: string) => `${fmtUzs(amount)} ${currency === "UZS" ? som : currency}`;
 
@@ -74,9 +76,12 @@ function RefundTracker({ rf, step, amount, currency }: { rf: OrderRefund | null;
         <ol className="mrs-steps" aria-label={t("refundSteps")}>
           {STEPS.map((s, i) => {
             const state = step === "rejected" && s === "refunded" ? "bad" : i < at || step === "refunded" ? "done" : i === at ? "now" : "todo";
+            const Mark = state === "done" ? IconCheck : state === "bad" ? IconCircleX : (STEP_ICON[s] ?? IconClock);
             return (
               <li key={s} data-state={state}>
-                <i aria-hidden="true">{state === "done" ? <IconCheck /> : state === "bad" ? <IconCircleX /> : null}</i>
+                <i aria-hidden="true">
+                  <Mark />
+                </i>
                 <span>{s === "refunded" && step === "rejected" ? t("step.rejected") : t(`step.${s}`)}</span>
               </li>
             );
@@ -318,11 +323,13 @@ export default function ResolutionPanel({ o, view, aiBase, onRefresh }: OrderSec
               <span>{t("rstep.chosen")}</span>
             </li>
             <li data-state={newSeller ? "done" : "now"}>
-              <i aria-hidden="true">{newSeller ? <IconCheck /> : null}</i>
+              <i aria-hidden="true">{newSeller ? <IconCheck /> : <IconUsers />}</i>
               <span>{newSeller ? t("rstep.found", { name: newSeller }) : t("rstep.searching")}</span>
             </li>
             <li data-state={newSeller ? "now" : "todo"}>
-              <i aria-hidden="true" />
+              <i aria-hidden="true">
+                <IconArrowRight />
+              </i>
               <span>{t("rstep.continue")}</span>
             </li>
           </ol>

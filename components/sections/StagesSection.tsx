@@ -1,12 +1,14 @@
 import { useTranslations } from "next-intl";
 import ScrollCue from "@/components/ui/ScrollCue";
+import { IconBuilding, IconDocSearch, IconGavel, IconScale, IconSearch } from "@/components/icons";
 
-const KEYS = [
-  "preInvestigation",
-  "investigation",
-  "firstInstance",
-  "appeal",
-  "cassation",
+// Each stage's marker carries its own icon — never an empty circle.
+const STAGES = [
+  { key: "preInvestigation", Icon: IconDocSearch },
+  { key: "investigation", Icon: IconSearch },
+  { key: "firstInstance", Icon: IconGavel },
+  { key: "appeal", Icon: IconScale },
+  { key: "cassation", Icon: IconBuilding },
 ];
 
 // The stepper used to run a second IntersectionObserver of its own, at
@@ -32,9 +34,13 @@ export default function StagesSection() {
           <p className="lead">{t("lead")}</p>
         </div>
         <ScrollCue arrows className="steps">
-          {KEYS.map((k) => (
+          {STAGES.map(({ key: k, Icon }) => (
             <div className="step hit" key={k}>
-              <div className="step__l" />
+              <div className="step__l">
+                <span className="step__ic" aria-hidden="true">
+                  <Icon />
+                </span>
+              </div>
               <div className="step__c">{te(`stages.${k}.code`)}</div>
               <b>{te(`stages.${k}.name`)}</b>
               <p>{te(`stages.${k}.desc`)}</p>

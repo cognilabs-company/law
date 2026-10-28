@@ -116,7 +116,8 @@ html[data-theme="dark"] .mod .mrs { --mrs-ok: #4ade80; --mrs-wait: #fbbf24; }
 .mod .mrs-steps li[data-state="done"] { color: var(--sx-ink); }
 .mod .mrs-steps li[data-state="done"] i { background: var(--mrs-acc); box-shadow: none; }
 .mod .mrs-steps li[data-state="now"] { color: var(--sx-accent-ink); }
-.mod .mrs-steps li[data-state="now"] i { background: var(--sx-surface); box-shadow: inset 0 0 0 3px var(--mrs-acc), 0 0 0 4px var(--mrs-soft); animation: mrsPulse 1.6s ease-in-out infinite; }
+.mod .mrs-steps li[data-state="todo"] i { color: var(--sx-ink-3, #94a3b8); }
+.mod .mrs-steps li[data-state="now"] i { background: var(--sx-surface); color: var(--mrs-acc); box-shadow: inset 0 0 0 3px var(--mrs-acc), 0 0 0 4px var(--mrs-soft); animation: mrsPulse 1.6s ease-in-out infinite; }
 .mod .mrs-steps li[data-state="bad"] { color: var(--mrs-bad); }
 .mod .mrs-steps li[data-state="bad"] i { background: var(--mrs-bad); box-shadow: none; }
 .mod .mrs[data-tone="done"] .mrs-steps li[data-state="done"] i { background: var(--mrs-ok); }

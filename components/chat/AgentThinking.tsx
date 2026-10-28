@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { IconCheck } from "../icons";
+import { IconDocLines, IconEdit, IconLightbulb, IconSearch, IconShieldCheck, IconTarget } from "../icons";
 
 // What the legal agent is doing while an answer is pending. The backend sends
 // no progress events and does not stream (md/FRONTEND_LEGAL_AGENT.md §2.1), so
@@ -10,13 +10,14 @@ import { IconCheck } from "../icons";
 // article selection → answer → verification) on a clock. The last step holds
 // until the answer lands; a greeting answers in a second or two and only ever
 // shows the first one.
+// Each step carries its own icon, so no circle is ever empty.
 const STEPS = [
-  { key: "thinking", at: 0 },
-  { key: "searching", at: 3 },
-  { key: "reading", at: 9 },
-  { key: "selecting", at: 18 },
-  { key: "writing", at: 30 },
-  { key: "verifying", at: 46 },
+  { key: "thinking", at: 0, Icon: IconLightbulb },
+  { key: "searching", at: 3, Icon: IconSearch },
+  { key: "reading", at: 9, Icon: IconDocLines },
+  { key: "selecting", at: 18, Icon: IconTarget },
+  { key: "writing", at: 30, Icon: IconEdit },
+  { key: "verifying", at: 46, Icon: IconShieldCheck },
 ] as const;
 const SLOW_AFTER = 60;
 
@@ -59,7 +60,9 @@ export default function AgentThinking({ compact = false }: { compact?: boolean }
       <ol className="agt__steps" aria-hidden>
         {STEPS.map((s, i) => (
           <li key={s.key} className={i < cur ? "done" : i === cur ? "on" : ""}>
-            <span className="agt__dot">{i < cur ? <IconCheck /> : null}</span>
+            <span className="agt__dot">
+              <s.Icon />
+            </span>
             <span>{t(s.key)}</span>
           </li>
         ))}

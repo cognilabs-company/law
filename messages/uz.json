@@ -22888,13 +22888,15 @@
           "assignment": "Lavozim va bo'lim",
           "documents": "Hujjatlar",
           "contract": "Shartnoma",
-          "training": "O'qish"
+          "training": "O'qish",
+          "other": "Boshqa tekshiruv"
         },
         "state": {
           "ok": "Tayyor",
           "missing": "Yo'q",
           "warning": "Tekshirish kerak",
-          "pending": "Jarayonda"
+          "pending": "Jarayonda",
+          "other": "Noma'lum holat"
         }
       },
       "life": {

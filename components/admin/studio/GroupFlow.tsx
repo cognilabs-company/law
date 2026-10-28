@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { aiId } from "@/lib/ai/ids";
 import { useStudioAccess, useStudioRegistry, type StudioConstructor, type StudioGroup, type StudioJourney } from "@/lib/services/studio";
+import { ctorMeta } from "@/lib/studio/constructors";
 import StudioShell from "./StudioShell";
 import { ConstructorIcon, StudioEmpty, StudioLoading } from "./bits";
 import { useStudioHuman } from "./human";
@@ -72,6 +73,15 @@ function Ring({ value, label, size = 56 }: { value: number; label: string; size?
   );
 }
 
+// A step square always shows something: a tick when done, a lock when
+// blocked, else the constructor's own icon (UI law: no empty step markers).
+function StepGlyph({ code, state }: { code: string; state: string }) {
+  if (state === "done") return <IconCheck aria-hidden />;
+  if (state === "blocked") return <IconLock aria-hidden />;
+  const Glyph = ctorMeta(code).icon;
+  return <Glyph aria-hidden />;
+}
+
 function CtorPath({ g, items }: { g: StudioGroup; items: StudioConstructor[] }) {
   const { t, ctorName } = useStudioHuman();
   if (!g.codes.length) return null;
@@ -86,7 +96,7 @@ function CtorPath({ g, items }: { g: StudioGroup; items: StudioConstructor[] }) 
         return (
           <li key={code} className={`stu-gc__dot is-${state}`} title={`${name} · ${stateText}`}>
             <Link href={wsHref(code)} aria-label={`${name} · ${stateText}`} tabIndex={-1}>
-              {state === "done" ? <IconCheck aria-hidden /> : state === "blocked" ? <IconLock aria-hidden /> : null}
+              <StepGlyph code={code} state={state} />
             </Link>
           </li>
         );
@@ -203,7 +213,9 @@ export function DashJourneys({ journeys }: { journeys: StudioJourney[] }) {
               </span>
               <span className="stu-jcard__dots" aria-hidden>
                 {j.steps.map((s) => (
-                  <i key={`${s.step}-${s.code}`} className={s.completed ? "is-done" : s.blocked ? "is-blocked" : undefined} />
+                  <i key={`${s.step}-${s.code}`} className={s.completed ? "is-done" : s.blocked ? "is-blocked" : undefined}>
+                    <StepGlyph code={s.code} state={s.completed ? "done" : s.blocked ? "blocked" : "open"} />
+                  </i>
                 ))}
               </span>
               <span className="stu-jcard__foot">

@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { IconAlert, IconArrowRight, IconCheck, IconClock, IconFlame, IconLayers, IconMapPin, IconRefresh } from "@/components/icons";
+import { IconAlert, IconArrowRight, IconClock, IconFlame, IconMapPin, IconRefresh } from "@/components/icons";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { CRM_STATUSES, crmNextStatuses, getCrmLead, isClaimRace, isCrmDenied, isVersionConflict, leadCan, type CrmLead, type CrmMeta } from "@/lib/services/crm";
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import CrmFrame from "./CrmFrame";
-import { Empty, StatusPill, WhenChip, statusVar, useCrmError } from "./bits";
+import { Empty, StatusIcon, StatusPill, WhenChip, statusVar, useCrmError } from "./bits";
 import { LeadSide } from "./LeadSide";
 import { LeadTimeline } from "./LeadTimeline";
 import { CopilotPanel } from "./CopilotPanel";
@@ -225,7 +225,9 @@ function LeadHead({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; write: 
           const state = lead.status === "closed" ? "todo" : i < at ? "done" : i === at ? "now" : "todo";
           return (
             <li key={s} data-state={state} aria-current={state === "now" ? "step" : undefined}>
-              <i aria-hidden="true">{state === "done" ? <IconCheck /> : null}</i>
+              <i aria-hidden="true">
+                <StatusIcon status={s} />
+              </i>
               {ts(s)}
             </li>
           );
@@ -233,7 +235,7 @@ function LeadHead({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; write: 
         {lead.status === "closed" ? (
           <li data-state="closed" aria-current="step">
             <i aria-hidden="true">
-              <IconLayers />
+              <StatusIcon status="closed" />
             </i>
             {ts("closed")}
           </li>

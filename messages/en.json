@@ -22882,13 +22882,15 @@
           "assignment": "Position and unit",
           "documents": "Documents",
           "contract": "Contract",
-          "training": "Training"
+          "training": "Training",
+          "other": "Another check"
         },
         "state": {
           "ok": "Done",
           "missing": "Missing",
           "warning": "Needs a look",
-          "pending": "In progress"
+          "pending": "In progress",
+          "other": "Unknown state"
         }
       },
       "life": {
