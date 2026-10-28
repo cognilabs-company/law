@@ -7229,6 +7229,8 @@
       "contact_speed_invalid": "Выберите скорость связи заново.",
       "assignment_not_accepting": "Этот заказ сейчас нельзя принять.",
       "assignment_not_declinable": "От этого заказа уже нельзя отказаться.",
+      "complaint_reason_required": "Выберите причину жалобы.",
+      "warranty_already_open": "Гарантийный запрос по этому заказу уже открыт.",
       "assignment_response_deadline_expired": "Время на ответ истекло.",
       "decline_reason_required": "Выберите причину отказа."
     },
@@ -9777,6 +9779,7 @@
         "confirm": "Отклонить",
         "declining": "Отклонение…",
         "conflict_of_interest": "Конфликт интересов",
+        "capacity_or_conflict": "Загруженность или конфликт интересов",
         "not_my_specialization": "Не моя специализация",
         "busy": "Занят",
         "region_far": "Регион далеко",

@@ -7229,6 +7229,8 @@
       "contact_speed_invalid": "Choose the contact speed again.",
       "assignment_not_accepting": "This order can't be accepted right now.",
       "assignment_not_declinable": "This order can no longer be declined.",
+      "complaint_reason_required": "Choose the reason for the complaint.",
+      "warranty_already_open": "A warranty request for this order is already open.",
       "assignment_response_deadline_expired": "The time to answer is over.",
       "decline_reason_required": "Choose a reason for declining."
     },
@@ -9777,6 +9779,7 @@
         "confirm": "Decline",
         "declining": "Declining…",
         "conflict_of_interest": "Conflict of interest",
+        "capacity_or_conflict": "No capacity or a conflict of interest",
         "not_my_specialization": "Not my specialization",
         "busy": "Busy",
         "region_far": "Region too far",

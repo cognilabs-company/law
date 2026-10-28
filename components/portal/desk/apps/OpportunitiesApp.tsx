@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { acceptOrder, declineOrder, DECLINE_REASONS, listOpenOrders, type BackendOrder, type DeclineReason } from "@/lib/services/backend";
 import { errDetail, isConflict, isForbidden } from "@/lib/http";
+import { marketErrorCode } from "@/lib/services/marketplace";
+import { useMarketError } from "@/components/marketplace/useMarketError";
 import { shortDateTime } from "@/lib/date";
 import { useOrderStatusLabel } from "@/lib/orderStatus";
 import { IconAlert, IconBriefcase, IconCheck, IconClock, IconClose, IconCoins, IconMapPin, IconRefresh } from "@/components/icons";
@@ -22,6 +24,7 @@ type Outcome = "accept" | "decline" | "taken";
 export default function OpportunitiesApp({ openApp, base }: NativeProps) {
   const t = useTranslations("portal.advocate.opportunities");
   const tc = useTranslations("portal.common");
+  const marketErr = useMarketError();
   const tr = useTranslations("portal.common.declineReasons");
   const d = useTranslations("portal.desk.opps");
   const locale = useLocale();
@@ -88,12 +91,14 @@ export default function OpportunitiesApp({ openApp, base }: NativeProps) {
       setNote("");
       say(action === "accept" ? tc("accepted") : tc("declined"));
     } catch (e) {
-      if (isConflict(e)) {
+      const code = marketErrorCode(e);
+      if (code === "assignment_not_accepting" || code === "assignment_not_declinable" || code === "decline_reason_required" || code === "assignment_response_deadline_expired") say(marketErr(e, tc("orderActionFailed")), "err");
+      else if (isConflict(e)) {
         setDone((x) => ({ ...x, [o.id]: "taken" }));
         setSel("");
         say(tc("orderTaken"), "err");
       } else if (isForbidden(e)) setBlocked(errDetail(e) || tc("orderForbidden"));
-      else say(tc("orderActionFailed"), "err");
+      else say(marketErr(e, tc("orderActionFailed")), "err");
     } finally {
       setBusy("");
     }

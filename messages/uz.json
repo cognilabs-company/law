@@ -7229,6 +7229,8 @@
       "contact_speed_invalid": "Aloqa tezligini qayta tanlang.",
       "assignment_not_accepting": "Bu buyurtmani hozir qabul qilib bo'lmaydi.",
       "assignment_not_declinable": "Bu buyurtmani endi rad etib bo'lmaydi.",
+      "complaint_reason_required": "Shikoyat sababini tanlang.",
+      "warranty_already_open": "Bu buyurtma bo'yicha kafolat so'rovi allaqachon ochilgan.",
       "assignment_response_deadline_expired": "Javob berish muddati tugagan.",
       "decline_reason_required": "Rad etish sababini tanlang."
     },
@@ -9783,6 +9785,7 @@
         "confirm": "Rad etish",
         "declining": "Rad etilmoqda…",
         "conflict_of_interest": "Manfaatlar to'qnashuvi",
+        "capacity_or_conflict": "Bandlik yoki manfaatlar to'qnashuvi",
         "not_my_specialization": "Ixtisosligim emas",
         "busy": "Bandman",
         "region_far": "Hudud uzoq",

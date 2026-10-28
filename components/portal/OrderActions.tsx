@@ -8,6 +8,7 @@ import Select from "@/components/Select";
 import { ApiError, errDetail, isConflict, isForbidden } from "@/lib/http";
 import { IconAlert, IconCheck, IconClose, IconLock } from "@/components/icons";
 import { useSellerCabinet } from "./SellerCabinet";
+import { useMarketError } from "@/components/marketplace/useMarketError";
 
 type Outcome = "accept" | "decline" | "taken";
 type Shown = Outcome | "expired";
@@ -29,7 +30,8 @@ export default function OrderActions({
   const [busy, setBusy] = useState<null | "accept" | "decline">(null);
   const [done, setDone] = useState<null | Shown>(null);
   const [forbidden, setForbidden] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState("");
+  const marketErr = useMarketError();
   // available_actions.accept_orders from the seller cabinet (allowed until it loads).
   const cabinet = useSellerCabinet();
   const canAct = cabinet.data ? cabinet.data.actions.acceptOrders : true;
@@ -42,10 +44,10 @@ export default function OrderActions({
 
   async function run(action: "accept" | "decline") {
     if (busy || done || !canAct || forbidden) return;
-    if (action === "decline" && !askReason) { setAskReason(true); return; }
+    if (action === "decline" && !askReason) { setFailed(""); setAskReason(true); return; }
     if (action === "decline" && reason === "other" && !reasonNote.trim()) return;
     setBusy(action);
-    setFailed(false);
+    setFailed("");
     try {
       if (action === "accept") await acceptOrder(orderId);
       else { await declineOrder(orderId, reason, reasonNote.trim()); setAskReason(false); }
@@ -57,13 +59,15 @@ export default function OrderActions({
         // The answer window closed; the call center reassigns. Not an error
         // on the seller's side: the note stays until the list next refreshes.
         setDone("expired");
+      } else if (code === "assignment_not_accepting" || code === "assignment_not_declinable" || code === "decline_reason_required") {
+        setFailed(marketErr(e, tc("orderActionFailed")));
       } else if (isConflict(e)) {
         setDone("taken");
         onDone?.("taken");
       } else if (isForbidden(e)) {
         setForbidden(errDetail(e) || tc("orderForbidden"));
       } else {
-        setFailed(true); // button re-enables
+        setFailed(marketErr(e, tc("orderActionFailed")));
       }
     } finally {
       setBusy(null);
@@ -96,7 +100,7 @@ export default function OrderActions({
       <button className="btn btn--line btn--sm" type="button" disabled={!!busy || !canAct} onClick={() => run("decline")} data-ai-id={aiBase ? `${aiBase}.decline` : undefined} data-ai-label={aiBase ? tc("decline") : undefined}>
         {tc("decline")}
       </button>
-      {failed ? <span className="pcase__err" role="alert">{tc("orderActionFailed")}</span> : null}
+      {failed && !askReason ? <span className="pcase__err" role="alert">{failed}</span> : null}
       <Modal open={askReason} onClose={() => setAskReason(false)} title={tr("title")}>
         <div className="cform" style={{ maxWidth: "none" }} data-ai-id={aiBase ? `${aiBase}.decline-modal` : undefined} data-ai-type={aiBase ? "modal" : undefined}>
           <p className="advmuted">{tr("lead")}</p>
@@ -108,6 +112,7 @@ export default function OrderActions({
             <label>{reason === "other" ? tr("noteRequired") : tr("note")}</label>
             <textarea rows={3} value={reasonNote} onChange={(e) => setReasonNote(e.target.value)} placeholder={tr("notePh")} />
           </div>
+          {failed ? <p className="pcase__err" role="alert">{failed}</p> : null}
           <button className="btn btn--pri btn--full" type="button" disabled={!!busy || (reason === "other" && !reasonNote.trim())} onClick={() => run("decline")}>
             {busy === "decline" ? tr("declining") : tr("confirm")}
           </button>

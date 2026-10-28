@@ -4296,7 +4296,7 @@ export async function getLawyerPrivateChat(lawyerUserId: string): Promise<Secure
 export async function acceptOrder(orderId: string): Promise<BackendOrder> {
   return normOrder(await http(`/orders/${orderId}/accept`, { method: "POST" }));
 }
-export const DECLINE_REASONS = ["conflict_of_interest", "not_my_specialization", "busy", "region_far", "price_mismatch", "documents_insufficient", "prior_dispute", "sick_or_vacation", "other"] as const;
+export const DECLINE_REASONS = ["capacity_or_conflict", "conflict_of_interest", "not_my_specialization", "busy", "region_far", "price_mismatch", "documents_insufficient", "prior_dispute", "sick_or_vacation", "other"] as const;
 export type DeclineReason = (typeof DECLINE_REASONS)[number];
 // T2-10: the reason list (S-20) goes in the body; "other" carries a note.
 // The marketplace contract names the code `reason_code` and the free text
