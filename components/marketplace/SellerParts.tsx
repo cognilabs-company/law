@@ -6,13 +6,15 @@ import { fmtRating } from "@/lib/date";
 import { regionLabel } from "@/lib/labels";
 import type { MarketSeller, MarketService } from "@/lib/services/marketplace";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { IconClock, IconGlobe, IconMapPin, IconStar } from "@/components/icons";
+import { IconCheck, IconClock, IconGlobe, IconMapPin, IconStar } from "@/components/icons";
 import { Monogram, categoryLabel, deliveryLabel, hasRating, hasSuccess, langLabel, sellerTypeLabel } from "./bits";
 import { aiId } from "@/lib/ai/ids";
 import { useRuntimeFacts } from "./runtime/useRuntimeFacts";
 import { durationParts, guaranteesOf } from "./runtime/facts";
 import { DurationChip } from "./runtime/DurationChip";
 import { GuaranteeBadges } from "./runtime/Guarantees";
+import type { BoughtOrder } from "@/lib/useBoughtServices";
+import { Link } from "@/i18n/navigation";
 
 export function SellerHero({ seller, top }: { seller: MarketSeller; top: boolean }) {
   const t = useTranslations("marketplace");
@@ -100,6 +102,7 @@ export function SellerServiceRow({
   onBuy,
   ph,
   runtime = false,
+  bought = null,
 }: {
   svc: MarketService;
   sellerUserId: string;
@@ -110,6 +113,8 @@ export function SellerServiceRow({
   onBuy: () => void;
   ph?: { title: string; category: string; price: string };
   runtime?: boolean;
+  // An open order of this client for this service: no second purchase.
+  bought?: BoughtOrder | null;
 }) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
@@ -155,6 +160,12 @@ export function SellerServiceRow({
       </button>
       <div className="mk-svc__end">
         <b title={!ph && svc.priceCapped ? t("card.priceCapped") : undefined}>{ph ? <span className="mk-ph">{ph.price}</span> : svc.price > 0 ? fmtUzs(svc.price) : t("card.priceAsk")}</b>
+        {bought ? (
+          <Link href={bought.href} className="btn btn--line btn--sm mk-bought" data-ai-id={`${svcAiId}.bought`} title={bought.workId || undefined}>
+            <IconCheck aria-hidden="true" />
+            {t("detail.bought")}
+          </Link>
+        ) : (
         <button
           type="button"
           className="btn btn--pri btn--sm"
@@ -167,6 +178,7 @@ export function SellerServiceRow({
         >
           {t("detail.buy")}
         </button>
+        )}
       </div>
     </div>
   );

@@ -49,13 +49,16 @@ const chatOpen = () =>
     details: { assignment_status: "accepted", secure_chat_room_id: "room-live" },
   });
 
+const placed = new WeakSet<object>();
 const shopRoutes = (state: { order: Record<string, unknown> }, purchase: (body: Record<string, unknown>) => unknown): Routes => ({
   "/marketplace/lawyers": { items: [{ user_id: SELLER, name: "Test Advokat", seller_type: "advokat", region: "tashkent", rating: 4.8, reviews_count: 12, specializations: ["oila-va-nikoh"], is_verified: true }], count: 1, total: 1 },
   [`/marketplace/lawyers/${SELLER}`]: { user_id: SELLER, name: "Test Advokat", seller_type: "advokat", region: "tashkent", rating: 4.8, reviews_count: 12, is_verified: true },
   [`/marketplace/lawyers/${SELLER}/services`]: { items: [{ service_id: "svc-1", title: "Test xizmat", base_price: PRICE, selected_price: PRICE, effective_price: PRICE, currency: "UZS", category_title: "Оила ва никоҳ" }] },
   "POST /marketplace/services/svc-1/quote": { base_price: PRICE, total_price: PRICE, currency: "UZS", breakdown: [] },
-  [`POST /marketplace/lawyers/${SELLER}/services/svc-1/purchase-request`]: (b: unknown) => purchase(b as Record<string, unknown>),
-  "/marketplace/me/orders": () => ({ items: [state.order], total: 1 }),
+  [`POST /marketplace/lawyers/${SELLER}/services/svc-1/purchase-request`]: (b: unknown) => ((placed.add(state), purchase(b as Record<string, unknown>))),
+  // The order exists only once it was requested (before that, the service
+  // would show as already bought).
+  "/marketplace/me/orders": () => (placed.has(state) || state.order.payment_status === "paid" ? { items: [state.order], total: 1 } : { items: [], total: 0 }),
   [`/marketplace/me/orders/${ORDER_ID}`]: () => state.order,
   [`/marketplace/me/orders/${ORDER_ID}/financials`]: () => financials([{ stage: "full_payment", status: String((state.order.payment as { status: string }).status), amount: PRICE }]),
   [`/marketplace/me/orders/${ORDER_ID}/timeline`]: { items: [] },

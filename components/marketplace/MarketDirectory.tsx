@@ -26,6 +26,8 @@ import ServiceBrowser from "./ServiceBrowser";
 import PurchaseDialog from "./PurchaseDialog";
 import SecondOpinionEntry from "./order/SecondOpinionEntry";
 import { categoryName, categoryTitleName } from "@/lib/categoryNames";
+import { useBoughtServices } from "@/lib/useBoughtServices";
+import { useAuth } from "@/lib/auth";
 
 type Status = "loading" | "ready" | "error";
 
@@ -581,6 +583,9 @@ export default function MarketDirectory({
   useAiSelection("min_rating", minRating);
   useAiSelection("price_max", priceMax);
   useAiSelection("min_experience", minExp);
+  // A client's open orders mark their services as already bought.
+  const authSession = useAuth().session;
+  const { bought } = useBoughtServices(variant === "portal" && authSession?.role === "client");
 
   return (
     <section className={`mk mk--${variant}`}>
@@ -749,6 +754,7 @@ export default function MarketDirectory({
 
       {mode === "services" ? (
         <ServiceBrowser
+          bought={bought}
           services={allServices}
           categories={categories}
           sellers={shownItems}

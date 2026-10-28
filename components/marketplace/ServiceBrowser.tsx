@@ -3,7 +3,9 @@
 import "./serviceBrowser.css";
 import { useMemo, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { IconArrowRight, IconBriefcase, IconSearch, IconStarRate, IconUsers } from "@/components/icons";
+import { IconArrowRight, IconBriefcase, IconCheck, IconSearch, IconStarRate, IconUsers } from "@/components/icons";
+import { useRouter } from "@/i18n/navigation";
+import type { BoughtOrder } from "@/lib/useBoughtServices";
 import { fmtRating } from "@/lib/date";
 import { fmtUzs } from "@/lib/money";
 import type { MarketSeller } from "@/lib/services/marketplace";
@@ -24,14 +26,18 @@ export default function ServiceBrowser({
   sellers,
   loading,
   onPick,
+  bought,
 }: {
   services: readonly ServiceOption[];
   categories: readonly { value: string; label: string }[];
   sellers: readonly MarketSeller[];
   loading: boolean;
   onPick: (serviceId: string) => void;
+  // Services this client already bought (open orders): the card opens the order.
+  bought?: ReadonlyMap<string, BoughtOrder>;
 }): ReactElement {
   const t = useTranslations("marketplace.byService");
+  const router = useRouter();
   const locale = useLocale();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("");
@@ -95,7 +101,8 @@ export default function ServiceBrowser({
       ) : (
         <ul className="mksv__grid">
           {shown.map((c) => {
-            const off = c.sellers === 0;
+            const mine = bought?.get(c.value) ?? null;
+            const off = c.sellers === 0 && !mine;
             return (
               <li key={c.value}>
                 <button
@@ -103,9 +110,10 @@ export default function ServiceBrowser({
                   className="mksv__card"
                   data-hue={hueOf(c.categoryId)}
                   data-off={off || undefined}
+                  data-bought={mine ? "" : undefined}
                   disabled={off}
-                  onClick={() => onPick(c.value)}
-                  aria-label={off ? t("cardOff", { name: c.label }) : t("cardAria", { name: c.label, n: c.sellers })}
+                  onClick={() => (mine ? router.push(mine.href) : onPick(c.value))}
+                  aria-label={mine ? t("cardBought", { name: c.label }) : off ? t("cardOff", { name: c.label }) : t("cardAria", { name: c.label, n: c.sellers })}
                   data-ai-id={`marketplace.by-service.${c.value}`}
                   data-ai-type="button"
                   data-ai-label={c.label}
@@ -131,7 +139,12 @@ export default function ServiceBrowser({
                   </span>
                   <span className="mksv__foot">
                     <span className="mksv__price">{c.basePrice > 0 ? t("price", { price: fmtUzs(c.basePrice) }) : " "}</span>
-                    {!off ? (
+                    {mine ? (
+                      <span className="mksv__bought">
+                        <IconCheck aria-hidden="true" />
+                        {t("bought")}
+                      </span>
+                    ) : !off ? (
                       <span className="mksv__go">
                         {t("find")}
                         <IconArrowRight aria-hidden="true" />

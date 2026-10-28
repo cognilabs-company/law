@@ -18,7 +18,7 @@ import {
   type MarketService,
 } from "@/lib/services/marketplace";
 import { listActivePromotions } from "@/lib/services/promotions";
-import { IconArrowRight, IconChevronLeft, IconClock, IconLock, IconRefresh, IconShieldCheck, IconStar, IconBriefcase } from "@/components/icons";
+import { IconArrowRight, IconBriefcase, IconCheck, IconChevronLeft, IconClock, IconLock, IconRefresh, IconShieldCheck, IconStar } from "@/components/icons";
 import PurchaseDialog from "./PurchaseDialog";
 import CopilotLauncher from "@/components/copilot/CopilotLauncher";
 import "@/components/portal/clientCopilot.css";
@@ -36,6 +36,7 @@ import { ServiceFacts, ServiceFactsSkeleton } from "./runtime/ServiceFacts";
 import SecondOpinionEntry from "./order/SecondOpinionEntry";
 import PublicAchievements from "./PublicAchievements";
 import "./runtime/checkout.css";
+import { useBoughtServices } from "@/lib/useBoughtServices";
 
 type Status = "loading" | "ready" | "notfound" | "error";
 
@@ -142,6 +143,10 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
   const detail = preview?.facts ? { ...fetched, state: "ready" as const, config: preview.facts } : fetched;
   const detailDur = durationParts(detail.config?.duration) ? (detail.config?.duration ?? null) : null;
   const guarantees = guaranteesOf(detail.config);
+
+  // Services this client already bought and has not finished: shown as such.
+  const { bought, refresh: refreshBought } = useBoughtServices(!!session && !blocked && !preview);
+  const selectedBought = selected ? (bought.get(selected.id) ?? null) : null;
 
   const startBuy = useCallback(
     (svc: MarketService) => {
@@ -266,6 +271,7 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
                       ph={preview?.ph && svc.id === PH_SERVICE_ID ? preview.ph : undefined}
                       onBuy={() => startBuy(svc)}
                       runtime={live && svc.id !== PH_SERVICE_ID}
+                      bought={bought.get(svc.id) ?? null}
                     />
                   ))}
                 </div>
@@ -348,6 +354,18 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
                 {blocked}
               </p>
             ) : null}
+            {selectedBought ? (
+              <>
+                <p className="mk-side__bought">
+                  <IconCheck aria-hidden="true" />
+                  {selectedBought.workId ? t("detail.boughtText", { id: selectedBought.workId }) : t("detail.boughtTextNoId")}
+                </p>
+                <Link href={selectedBought.href} className="btn btn--line btn--full btn--lg" data-ai-id={`${sellerAiId}.bought`}>
+                  {t("detail.openOrder")}
+                  <IconArrowRight />
+                </Link>
+              </>
+            ) : (
             <button
               type="button"
               className="btn btn--grad btn--full btn--lg"
@@ -360,6 +378,7 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
               {ready && !session && !preview?.signedIn ? t("detail.loginToBuy") : t("detail.buy")}
               <IconArrowRight />
             </button>
+            )}
           </div>
           <div className="mk-safe" data-ai-target="marketplace:safe-deal" data-ai-id="marketplace.safe-deal" data-ai-type="section">
             {guarantees.length ? (
@@ -393,7 +412,10 @@ export default function SellerProfile({ userId, variant, preview }: { userId: st
         sellerName={seller.name}
         service={buying}
         returnPath={`/portal/client/lawyers/${encodeURIComponent(userId)}`}
-        onClose={() => setBuying(null)}
+        onClose={() => {
+          setBuying(null);
+          refreshBought();
+        }}
         onStale={(what) => {
           if (what === "service") refreshServices();
           else setReload((n) => n + 1);

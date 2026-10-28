@@ -21659,3 +21659,9 @@ body.mtgpip-doc{margin:0;background:var(--b900);overflow:hidden}
 .mtgpip__bar .mtg__ci{width:44px;height:44px}
 .mtgpip__bar .mtg__ctl.end .mtg__ci{width:56px;border-radius:16px}
 @media (max-height:220px){.mtgpip__top{display:none}}
+/* A service the client already bought (an open order): no second purchase. */
+.mk-bought{display:inline-flex;align-items:center;gap:6px;color:var(--dk-txt-ok,#0a7d55);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,#16a34a 45%,transparent);text-decoration:none}
+.mk-bought svg{width:14px;height:14px}
+.mk-side__bought{display:flex;align-items:flex-start;gap:8px;margin:0 0 10px;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,#16a34a 12%,transparent);color:var(--dk-txt-ok,#0a7d55);font-size:.84rem;font-weight:600;line-height:1.45}
+.mk-side__bought svg{flex:none;width:16px;height:16px;margin-top:2px}
+html[data-theme="dark"] .mk-bought,html[data-theme="dark"] .mk-side__bought{color:#4ade80}
