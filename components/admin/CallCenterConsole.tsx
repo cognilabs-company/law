@@ -55,6 +55,37 @@ const REVEAL: Record<CcTab, RegExp> = {
   clients: /^(?:call_center\.(?:calls|clients)(?:\.|$)|callcenter:(?:client-search|call-log)$|button:log-call$)/,
 };
 
+const FAMILIES = ["work", "disputes", "verify", "money", "people"] as const;
+type CcFamily = (typeof FAMILIES)[number];
+
+const FAMILY: Record<CcTab, CcFamily> = {
+  cockpit: "work",
+  queue: "work",
+  urgent: "work",
+  escalations: "disputes",
+  complaints: "disputes",
+  mpComplaints: "disputes",
+  warranty: "disputes",
+  cancellations: "disputes",
+  experience: "verify",
+  achievements: "verify",
+  licenses: "verify",
+  payouts: "money",
+  leads: "people",
+  clients: "people",
+};
+
+const TONE: Partial<Record<CcTab, "hot" | "warn">> = {
+  cockpit: "hot",
+  urgent: "hot",
+  escalations: "hot",
+  complaints: "warn",
+  mpComplaints: "warn",
+  warranty: "warn",
+  cancellations: "warn",
+  payouts: "warn",
+};
+
 const isTab = (v: string): v is CcTab => (ALL as string[]).includes(v);
 
 function readTab(): string {
@@ -254,28 +285,13 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
   function onKey(e: KeyboardEvent<HTMLButtonElement>, k: CcTab) {
     const i = tabs.indexOf(k);
     const n = tabs.length;
-    const next =
-      e.key === "ArrowRight" ? tabs[(i + 1) % n] : e.key === "ArrowLeft" ? tabs[(i + n - 1) % n] : e.key === "Home" ? tabs[0] : e.key === "End" ? tabs[n - 1] : null;
+    const fwd = e.key === "ArrowRight" || e.key === "ArrowDown";
+    const back = e.key === "ArrowLeft" || e.key === "ArrowUp";
+    const next = fwd ? tabs[(i + 1) % n] : back ? tabs[(i + n - 1) % n] : e.key === "Home" ? tabs[0] : e.key === "End" ? tabs[n - 1] : null;
     if (!next) return;
     e.preventDefault();
     select(next);
     document.getElementById(`ccon-tab-${next}`)?.focus();
-  }
-
-  function badge(k: CcTab) {
-    if (k === "cockpit" && counts.cockpit) return <span className="ccon__n ccon__n--hot">{counts.cockpit}</span>;
-    if (k === "queue") return counts.queue === undefined ? null : <span className="ccon__n">{counts.queue}</span>;
-    if (k === "urgent" && counts.urgent) return <span className="ccon__n ccon__n--hot">{t("newUrgent", { n: counts.urgent })}</span>;
-    if (k === "complaints" && counts.complaints) return <span className="ccon__n ccon__n--warn">{t("newComplaints", { n: counts.complaints })}</span>;
-    if (k === "cancellations" && counts.cancellations) return <span className="ccon__n ccon__n--warn">{t("openCancellations", { n: counts.cancellations })}</span>;
-    if (k === "escalations" && counts.escalations) return <span className="ccon__n ccon__n--hot">{t("openCancellations", { n: counts.escalations })}</span>;
-    if (k === "experience" && counts.experience) return <span className="ccon__n">{counts.experience}</span>;
-    if (k === "achievements" && counts.achievements) return <span className="ccon__n">{counts.achievements}</span>;
-    if (k === "licenses" && counts.licenses) return <span className="ccon__n">{counts.licenses}</span>;
-    if (k === "payouts" && counts.payouts) return <span className="ccon__n ccon__n--warn">{counts.payouts}</span>;
-    if (k === "mpComplaints" && counts.mpComplaints) return <span className="ccon__n ccon__n--warn">{t("newComplaints", { n: counts.mpComplaints })}</span>;
-    if (k === "warranty" && counts.warranty) return <span className="ccon__n ccon__n--warn">{t("newComplaints", { n: counts.warranty })}</span>;
-    return null;
   }
 
   return (
@@ -288,35 +304,52 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
           </p>
           <SearchBox q={q} setQ={setQ} find={find} select={select} />
         </div>
-        <div className="ccon__tabs scue-x" role="tablist" aria-label={t("tabsAria")} ref={listRef}>
-          {tabs.map((k) => {
-            const Icon = ICON[k];
-            const on = active === k;
+      </div>
+      <div className="ccon__body">
+        <div className="ccq scue-x" role="tablist" aria-label={t("tabsAria")} aria-orientation="vertical" ref={listRef}>
+          {FAMILIES.map((fam) => {
+            const items = tabs.filter((k) => FAMILY[k] === fam);
+            if (!items.length) return null;
+            const sum = items.reduce((n, k) => n + (counts[k as Counted] ?? 0), 0);
             return (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                id={`ccon-tab-${k}`}
-                aria-controls={`ccon-panel-${k}`}
-                aria-selected={on}
-                tabIndex={on ? 0 : -1}
-                className="ccon__tab"
-                onClick={() => select(k)}
-                onKeyDown={(e) => onKey(e, k)}
-                data-ai-id={`call_center.console.tab.${k}`}
-                data-ai-type="tab"
-                data-ai-label={t(`tabs.${k}`)}
-              >
-                <Icon aria-hidden="true" />
-                <span>{t(`tabs.${k}`)}</span>
-                {badge(k)}
-              </button>
+              <div className="ccq__fam" key={fam}>
+                <p className="ccq__famh">
+                  <span>{t(`fam.${fam}`)}</span>
+                  {sum ? <b className="cc-num">{sum}</b> : null}
+                </p>
+                {items.map((k) => {
+                  const Icon = ICON[k];
+                  const on = active === k;
+                  const n = counts[k as Counted];
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      role="tab"
+                      id={`ccon-tab-${k}`}
+                      aria-controls={`ccon-panel-${k}`}
+                      aria-selected={on}
+                      tabIndex={on ? 0 : -1}
+                      className="ccq__tab"
+                      data-tone={n ? TONE[k] : undefined}
+                      onClick={() => select(k)}
+                      onKeyDown={(e) => onKey(e, k)}
+                      data-ai-id={`call_center.console.tab.${k}`}
+                      data-ai-type="tab"
+                      data-ai-label={t(`tabs.${k}`)}
+                    >
+                      <Icon aria-hidden="true" />
+                      <span>{t(`tabs.${k}`)}</span>
+                      {n ? <b className="ccq__n cc-num">{n > 99 ? "99+" : n}</b> : null}
+                    </button>
+                  );
+                })}
+              </div>
             );
           })}
         </div>
+        <div className="ccon__panels">{children}</div>
       </div>
-      {children}
     </div>
   );
 }

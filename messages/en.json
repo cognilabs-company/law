@@ -17753,7 +17753,7 @@
           "cockpit": "Cockpit",
           "licenses": "Advocate certificates"
         },
-        "newUrgent": "{n} new",
+        "fam": {"work":"Work","disputes":"Disputes","verify":"Verification","money":"Money","people":"Customers"}, "newUrgent": "{n} new",
         "newComplaints": "{n} new",
         "searchPh": "Find a client: name or phone",
         "waiting": "{n, plural, one {# new item is} other {# new items are}} waiting for you",

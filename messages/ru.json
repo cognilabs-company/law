@@ -17753,7 +17753,7 @@
           "cockpit": "Панель оператора",
           "licenses": "Удостоверения адвокатов"
         },
-        "newUrgent": "{n, plural, one {# новая} few {# новые} many {# новых} other {# новых}}",
+        "fam": {"work":"Работа","disputes":"Споры","verify":"Проверка","money":"Деньги","people":"Клиенты"}, "newUrgent": "{n, plural, one {# новая} few {# новые} many {# новых} other {# новых}}",
         "newComplaints": "{n, plural, one {# новая} few {# новые} many {# новых} other {# новых}}",
         "searchPh": "Найти клиента: имя или телефон",
         "waiting": "{n, plural, one {# новое дело ждёт} few {# новых дела ждут} other {# новых дел ждут}} вашего ответа",

@@ -17759,7 +17759,7 @@
           "cockpit": "Operator paneli",
           "licenses": "Advokat guvohnomalari"
         },
-        "newUrgent": "{n} yangi",
+        "fam": {"work":"Ish","disputes":"Nizolar","verify":"Tekshiruv","money":"Pul","people":"Mijozlar"}, "newUrgent": "{n} yangi",
         "newComplaints": "{n} yangi",
         "searchPh": "Mijozni topish: ism yoki telefon",
         "waiting": "{n} ta yangi ish javobingizni kutmoqda",
