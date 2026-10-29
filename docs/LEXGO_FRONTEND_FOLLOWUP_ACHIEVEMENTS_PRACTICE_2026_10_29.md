@@ -2,67 +2,67 @@
 
 Date: 2026-10-29
 From: Frontend
-Status: open
+Status: partially answered. The backend checked items 1, 2, 3, 5, 7, 9 and 10 against production on 2026-10-29. Items 4, 6, 8 and 11 are not checked yet.
 Applies to: `LEXGO_ACHIEVEMENTS_PRACTICE_FRONTEND_CONTRACT_2026_10_29.md` (backend commit 69c11a6)
 
-The frontend now reads only the canonical fields from the final contract. The alias guessing is removed. A few points are still not covered by the contract, or could be read two ways. For each one, the frontend took the safest reading, listed under **"What the frontend does now"**. Please confirm it or send the exact answer.
+The frontend reads only the canonical fields from the final contract. Under each item:
+
+- **Backend check**: what the backend confirmed or will fix.
+- **What the frontend does now**: how the frontend handles it today.
 
 ---
 
 **1. Decision words in `reviews[]` history.**
-- The contract names the request words (`approve`, `reject`, `changes_requested`) and the stored status words (`approved`, `rejected`, `changes_requested`). It does not say which ones `reviews[].decision` carries.
-- What the frontend does now: it reads both forms as the stored decision.
-- Please confirm the exact values.
+- Backend check 2026-10-29: **fix pending.** Achievement and certificate history uses `approve | reject | changes_requested`; experience history uses `approved | rejected | changes_requested`. The backend will make these the same.
+- What the frontend does now: one temporary helper reads both forms as the stored decision. It goes away once the backend has normalized the words.
 
-**2. Stage and result labels outside the config.**
-- `process_stage` / `result_scope` labels come only from `GET /marketplace/me/achievements/config`. That endpoint is advocate-only, so a superadmin gets `403 advocate_role_required`.
-- The public profile (`/marketplace/lawyers/{id}/achievements`) and the call-center queue and detail have no config. They cannot show the stage or result in the user's language.
-- What the frontend does now: those two screens fall back to the frontend's own names for the 4 stages and 2 results. A value without a name is left out.
-- Can public items and review records carry `process_stage_label` / `result_scope_label` with `label_i18n`? Or can the config be readable without the advokat role?
+**2. Stage and result labels on records.**
+- Backend check 2026-10-29: **fix pending.** Records don't return labels yet; the labels exist only in the advocate-only config. The backend will add them.
+- What the frontend does now:
+  - it already reads `process_stage_label` + `process_stage_label_i18n` and `result_scope_label` + `result_scope_label_i18n` (the same pattern as `warning` / `warning_i18n`), so the screens switch over by themselves;
+  - until then, the public profile and the call center use the frontend's own names for the 4 stages and 2 results;
+  - a value without a label is left out.
+- Please use that field shape, or tell us the one you choose.
 
 **3. Certificate field mismatches.**
-- `mismatched_fields` is gone from the contract.
-- What the frontend does now: it compares `record` with `ai_analysis.extracted_fields` field by field and marks the differences for the operator. It also shows `risk_items` / `risk_catalog`.
-- Is that the intended source, or will `diff[]` / `risk_items` carry explicit mismatches?
+- Backend check 2026-10-29: **fix pending.** There is no `mismatched_fields[]`; `extracted_fields`, risk data and the revision diff exist. The backend will add `mismatched_fields[]`.
+- What the frontend does now: it compares `record` with `ai_analysis.extracted_fields` and marks the differences. It waits for `mismatched_fields[]` and doesn't guess its shape. Please send one example when it ships.
 
 **4. `risk_items[]` item shape.**
-- The contract says labels come in `risk_catalog` and/or `risk_items` but doesn't show one item.
-- What the frontend does now: it reads `{ code, label, label_i18n }` from both.
+- Backend check: **not checked yet.**
+- What the frontend does now: it reads `{ code, label, label_i18n }` from `risk_items` and `risk_catalog`.
 - Do `risk_items` carry more, for example severity?
 
 **5. Seller fields on queue rows.**
-- The queues (`/call-center/marketplace/achievements`, `/advocate-licenses`, `/experience`) return `PaginatedContractOut.items[]`, but the contract doesn't name the seller fields on a row.
-- What the frontend does now: it reads `seller_user_id` and `seller.name`.
-- Please confirm, or send the field names.
+- Backend check 2026-10-29: **confirmed.** `seller: { id, lexgo_id, name, phone, role, account_status }`.
+- What the frontend does now:
+  - it reads only that object; `seller.id` is the seller's user id;
+  - the row shows the name, the LexGo ID and phone under it, and the role and account state as words.
 
 **6. Timestamps on records.**
-- §4 says "timestamps and review metadata when available".
-- What the frontend does now: it reads `submitted_at` and `reviewed_at`.
-- Please confirm these names for achievement, certificate and history records.
+- Backend check: **not checked yet.**
+- What the frontend does now: it reads `submitted_at` and `reviewed_at`. Please confirm these names for achievement, certificate and history records.
 
 **7. `ai_analysis_status` values.**
-- The record status is `ai_analysis_pending`, and the normalized analysis has `status: "completed"`. The values of the separate `ai_analysis_status` field are not listed.
+- Backend check 2026-10-29: **confirmed:** exactly `pending | completed | manual_review_required`.
+- Also a **bug, fix pending:** a freshly created item that is still `pending` can come back as `manual_review_required`.
 - What the frontend does now:
-  - `pending` / `processing` / `queued` / `running` → running;
-  - `failed` / `manual_review_required` / `skipped` → left to the operator;
-  - anything else → done.
-- Please send the list.
+  - `pending` → running; `completed` → done; `manual_review_required` → left to the operator;
+  - any other value is also left to the operator, never shown as done;
+  - there is no frontend workaround for the bug.
 
 **8. Certificate rejection reason on the record.**
-- `latest_verification.reason` is used on the advocate's card.
-- What the frontend does now: on a certificate review record it reads `rejection_reason`, as on achievements.
-- Please confirm.
+- Backend check: **not checked yet.**
+- What the frontend does now: the advocate's card uses `latest_verification.reason`; a certificate review record reads `rejection_reason`, as achievements do. Please confirm.
 
 **9. Experience review decision words.**
-- §6 and §11 give `approve` / `reject` / `changes_requested` for achievements and certificates. §13 doesn't list the words for `POST /call-center/marketplace/experience/{id}/review`.
-- What the frontend does now: it still sends `approved` / `rejected` / `changes_requested` there, as the earlier contract did.
-- Should experience switch to `approve` / `reject` too?
+- Backend check 2026-10-29: **confirmed:** `approved | rejected | changes_requested`.
+- What the frontend does now: it sends exactly these. No change.
 
-**10. Experience review permission name.**
-- §1: review screens must use the marketplace experience-review permission, not the role name, but the permission isn't named.
-- What the frontend does now: anyone who opens the call-center page sees the three review tabs. A `403` from the queue hides the tab.
-- If you send the permission name, the tabs can be hidden before the request.
+**10. Experience review permission.**
+- Backend check 2026-10-29: **fix pending.** There is no permission code yet. Access depends on the call_center / admin / manager role or `approvals.manage`. The backend will add one, for example `marketplace.experience.review`.
+- What the frontend does now: a `403` from the queue hides its tab. It doesn't gate on role names, and it won't gate on a permission until the backend names it.
 
-**11. Suspension evidence download name.**
-- Suspension items carry `evidence_ids` only, so the operator sees "Document 1, 2, …".
-- Can suspension items carry `evidence[]` with `file_name`, like achievements?
+**11. Suspension evidence file names.**
+- Backend check: **not checked yet.**
+- What the frontend does now: suspension items carry `evidence_ids` only, so the operator sees "Document 1, 2, …". Can suspension items carry `evidence[]` with `file_name`, like achievements?
