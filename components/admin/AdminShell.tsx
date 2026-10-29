@@ -267,9 +267,27 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const allowed = adminAccess || isBootstrap || studioUser || (isStudioPath && studioPending);
   const ccSkin = !isFullAdmin && isCallCenterUser(session);
   const ccOpen = useCcOpen(ccSkin);
+  const ccTheme = themePref === "light" ? "light" : "dark";
   useEffect(() => {
     if (ccSkin) startCcShift();
   }, [ccSkin]);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!ccSkin) {
+      root.removeAttribute("data-cc");
+      root.removeAttribute("data-cc-theme");
+      root.removeAttribute("data-cc-bg");
+      return;
+    }
+    root.setAttribute("data-cc", "1");
+    root.setAttribute("data-cc-theme", ccTheme);
+    root.setAttribute("data-cc-bg", "aurora");
+    return () => {
+      root.removeAttribute("data-cc");
+      root.removeAttribute("data-cc-theme");
+      root.removeAttribute("data-cc-bg");
+    };
+  }, [ccSkin, ccTheme]);
   // Test OTP is a staging tool: hidden where the backend's demo routes are off (T0-01).
   const demoTools = useDemoTools(isFullAdmin);
   // Meetings: anyone who may start calls (meetings.manage, or a call-center
@@ -352,7 +370,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     <div
       className="portal portal--admin"
       data-cc={ccSkin ? "1" : undefined}
-      data-cc-theme={ccSkin ? (themePref === "light" ? "light" : "dark") : undefined}
+      data-cc-theme={ccSkin ? ccTheme : undefined}
       data-cc-bg={ccSkin ? "aurora" : undefined}
     >
       {ccSkin ? <CcBackground /> : null}

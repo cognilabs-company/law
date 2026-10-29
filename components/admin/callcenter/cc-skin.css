@@ -844,3 +844,157 @@
 [data-cc] .ckp__total button:hover {
   background: rgba(59, 130, 246, 0.24);
 }
+
+[data-cc]:not([data-cc-theme="light"]) :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) {
+  --sx-bg: var(--cc-bg);
+  --sx-surface: var(--cc-panel);
+  --sx-surface-2: var(--cc-panel-2);
+  --sx-line: var(--cc-line);
+  --sx-line-strong: var(--cc-raise);
+  --sx-control-line: #5f6f8f;
+  --sx-ink: var(--cc-ink);
+  --sx-ink-2: #c7d2e3;
+  --sx-muted: var(--cc-ink-2);
+  --sx-placeholder: var(--cc-muted);
+  --sx-accent: var(--cc-accent);
+  --sx-accent-ink: var(--cc-accent-text);
+  --sx-accent-soft: var(--cc-accent-soft);
+  --sx-on-accent: #ffffff;
+  --sx-danger: var(--cc-hot-text);
+  --sx-danger-soft: var(--cc-hot-soft);
+  --sx-draft-fg: #a3b3c8;
+  --sx-draft-bg: rgba(163, 179, 200, 0.14);
+  --sx-draft-line: rgba(163, 179, 200, 0.32);
+  --sx-submitted-fg: var(--cc-warn-text);
+  --sx-submitted-bg: var(--cc-warn-soft);
+  --sx-submitted-line: rgba(245, 158, 11, 0.32);
+  --sx-review-fg: #a78bfa;
+  --sx-review-bg: rgba(167, 139, 250, 0.14);
+  --sx-review-line: rgba(167, 139, 250, 0.32);
+  --sx-approved-fg: var(--cc-accent-text);
+  --sx-approved-bg: var(--cc-accent-soft);
+  --sx-approved-line: rgba(59, 130, 246, 0.32);
+  --sx-published-fg: var(--cc-ok-text);
+  --sx-published-bg: var(--cc-ok-soft);
+  --sx-published-line: rgba(16, 185, 129, 0.32);
+  --sx-returned-fg: var(--cc-hot-text);
+  --sx-returned-bg: var(--cc-hot-soft);
+  --sx-returned-line: rgba(239, 68, 68, 0.32);
+  --sx-archived-fg: #9ca3af;
+  --sx-archived-bg: rgba(156, 163, 175, 0.14);
+  --sx-archived-line: rgba(156, 163, 175, 0.32);
+  --sx-pop: var(--cc-shadow-lg);
+}
+
+[data-cc][data-cc-theme="light"] :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) {
+  --sx-bg: #f6f7f9;
+  --sx-surface: #ffffff;
+  --sx-surface-2: #f9fafb;
+  --sx-line: #e5e7eb;
+  --sx-line-strong: #d1d5db;
+  --sx-ink: #0b1220;
+  --sx-ink-2: #374151;
+  --sx-muted: #5b6474;
+  --sx-placeholder: #6b7280;
+  --sx-accent: var(--cc-accent);
+  --sx-accent-ink: var(--cc-accent-text);
+  --sx-accent-soft: #eaf2ff;
+  --sx-on-accent: #ffffff;
+  --sx-danger: #b91c1c;
+  --sx-danger-soft: #fdeded;
+}
+
+[data-cc] .amodal__c {
+  border: 1px solid var(--cc-line);
+  background: var(--dk-surface, #fff);
+}
+
+[data-cc] .amodal {
+  background: rgba(6, 11, 18, 0.62);
+}
+
+[data-cc] .crm-stagem,
+[data-cc] .crm-card,
+[data-cc] .crm-kcard {
+  border-color: var(--cc-line);
+}
+
+[data-cc] .ccq__tab,
+[data-cc] .ccsb__link,
+[data-cc] .ccst__btn,
+[data-cc] .ccst__opt,
+[data-cc] .crm-col__cog {
+  will-change: auto;
+}
+
+[data-cc] .ccq__tab:active,
+[data-cc] .ccsb__link:active,
+[data-cc] .ccst__btn:active {
+  transform: translateY(1px);
+}
+
+[data-cc] .ccq__n,
+[data-cc] .ccsb__count {
+  animation: ccCount var(--cc-slow) var(--cc-ease);
+}
+
+@keyframes ccCount {
+  from {
+    transform: scale(0.72);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+[data-cc] .ckp__lane,
+[data-cc] .esc,
+[data-cc] .crm-kcard {
+  animation: ccRise var(--cc-mid) var(--cc-ease) both;
+}
+
+@keyframes ccRise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+[data-cc] .ccsb__link.on::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  width: 3px;
+  height: 18px;
+  border-radius: 0 3px 3px 0;
+  background: var(--cc-accent);
+}
+
+[data-cc] .ccsb__link {
+  position: relative;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-cc] .ccq__n,
+  [data-cc] .ccsb__count,
+  [data-cc] .ckp__lane,
+  [data-cc] .esc,
+  [data-cc] .crm-kcard {
+    animation: none;
+  }
+
+  [data-cc] .ccq__tab:active,
+  [data-cc] .ccsb__link:active,
+  [data-cc] .ccst__btn:active {
+    transform: none;
+  }
+}
