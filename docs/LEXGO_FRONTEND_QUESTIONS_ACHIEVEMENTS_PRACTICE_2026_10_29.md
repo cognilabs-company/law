@@ -8,7 +8,6 @@ Applies to: `LEXGO_FRONTEND_ADVOCATE_ACHIEVEMENTS_PRACTICE_2026-10-29.md`
 The frontend for this contract is built (Parts A–E). The OpenAPI types every answer below as a free-form object (`additionalProperties: true`). We could not read the real answers either:
 
 - the superadmin account gets `403 advocate_role_required` on the config and practice endpoints;
-- the advocate test accounts need 2FA;
 - the production queues are empty.
 
 So the readers are defensive. Under each question, **"What the frontend reads now"** lists the names it accepts. Please confirm them or send the real shape, so we can remove the guesses.
@@ -157,7 +156,3 @@ What the frontend reads now:
 - With a record, the frontend can patch one row instead of re-reading the loaded rows. Today it re-reads once per burst of events.
 
 **11.2 Experience events.** Do `marketplace.experience_reviewed` / `experience_review_chat_opened` carry `experience_kind`? The frontend uses it to decide which panel shows the toast.
-
-## 12. Test access
-
-**12.1 Test account.** Can we get a test advokat account without 2FA, or with a TOTP secret for the test environment? We need it to check the real config, practice and certificate answers before release. Without it, every shape above stays a guess.

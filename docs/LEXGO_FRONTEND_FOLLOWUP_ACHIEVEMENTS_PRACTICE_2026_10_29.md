@@ -66,6 +66,3 @@ The frontend now reads only the canonical fields from the final contract. The al
 **11. Suspension evidence download name.**
 - Suspension items carry `evidence_ids` only, so the operator sees "Document 1, 2, …".
 - Can suspension items carry `evidence[]` with `file_name`, like achievements?
-
-**12. Test advocate account (question 12.1, still open).**
-- We need an advokat test account without 2FA, or with a test-environment TOTP secret. Then we can check the real config, practice and certificate answers before release.
