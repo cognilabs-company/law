@@ -4,16 +4,34 @@ import { memo, useCallback, useEffect, useRef, useState, type DragEvent, type Re
 import { useAuth } from "@/lib/auth";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { IconAlert, IconArrowDown, IconArrowUp, IconColumns, IconPhone, IconSend } from "@/components/icons";
+import { IconAlert, IconArrowDown, IconArrowUp, IconColumns, IconPhone, IconSend, IconSliders } from "@/components/icons";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { columnOrder, crmNextStatuses, isVersionConflict, leadCan, listCrmLeads, moveCrmLead, positionIn, type CrmLead, type CrmMeta } from "@/lib/services/crm";
-import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
+import { minutesUntil, useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import { Avatar, ScoreChip, WhenChip, statusVar, useCrmError, useStatusLabel } from "./bits";
 import { KanbanColumns } from "./KanbanColumns";
+import { StageMenu } from "./StageMenu";
 import { queryOf, type BoardColumn, type Filters, type Tab } from "./leadQuery";
 
 const PER_COLUMN = 30;
+
+function idleOf(c: BoardColumn, now: number): number | null {
+  let worst: number | null = null;
+  for (const l of c.items) {
+    const m = minutesUntil(l.updatedAt || l.createdAt, now);
+    if (m === null) continue;
+    const idle = -m;
+    if (idle > 0 && (worst === null || idle > worst)) worst = idle;
+  }
+  return worst;
+}
+
+function idleText(mins: number, t: (k: string, v?: Record<string, number>) => string): string {
+  if (mins >= 1440) return t("idleD", { n: Math.floor(mins / 1440) });
+  if (mins >= 60) return t("idleH", { n: Math.floor(mins / 60) });
+  return t("idleM", { n: mins });
+}
 // Realtime events come in bursts (status_changed + assigned + metrics…):
 // one board reload per quiet spell, not one per event.
 const RELOAD_DEBOUNCE = 350;
@@ -39,6 +57,7 @@ export function LeadBoard({ meta, tab, filters, onClaim, claiming, refreshKey, o
     setOverState((cur) => (cur?.col === o?.col && cur?.before === o?.before ? cur : o));
   }, []);
   const [managing, setManaging] = useState(false);
+  const [stageFor, setStageFor] = useState("");
   const { session } = useAuth();
   // Column management needs leads.manage (the backend still has the last word).
   const perms = session?.permissions ?? [];
@@ -273,6 +292,19 @@ export function LeadBoard({ meta, tab, filters, onClaim, claiming, refreshKey, o
                 <i aria-hidden="true" />
                 <b>{label}</b>
                 <em>{c.total}</em>
+                {idleOf(c, now) ? (
+                  <span className="crm-col__idle" title={t("idleTitle")} data-tone={idleOf(c, now)! >= 2880 ? "hot" : idleOf(c, now)! >= 480 ? "warn" : undefined}>
+                    {idleText(idleOf(c, now)!, t)}
+                  </span>
+                ) : null}
+                {canManage ? (
+                  <button type="button" className="crm-col__cog" aria-label={t("stageSettings")} aria-expanded={stageFor === c.status} onClick={() => setStageFor(stageFor === c.status ? "" : c.status)}>
+                    <IconSliders aria-hidden="true" />
+                  </button>
+                ) : null}
+                {stageFor && stageFor === c.status ? (
+                  <StageMenu meta={meta} status={c.status} counts={Object.fromEntries(cols.map((x) => [x.status, x.total]))} onClose={() => setStageFor("")} />
+                ) : null}
               </header>
               <div className="crm-col__body">
                 {c.items.length ? (

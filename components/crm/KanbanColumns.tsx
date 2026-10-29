@@ -18,7 +18,7 @@ import { CrmSelect } from "./fields";
 // sends the whole ordered list (PUT); a new column's key is made once from
 // its title and never changes. No key or number is ever shown.
 
-const SWATCHES = ["#2563eb", "#0891b2", "#059669", "#16a34a", "#65a30d", "#d97706", "#ea580c", "#dc2626", "#db2777", "#7c3aed", "#4f46e5", "#6b7280"];
+export const SWATCHES = ["#2563eb", "#0891b2", "#059669", "#16a34a", "#65a30d", "#d97706", "#ea580c", "#dc2626", "#db2777", "#7c3aed", "#4f46e5", "#6b7280"];
 
 type Row = { key: string; title: string; color: string; isFinal: boolean; fresh: boolean; uid: string };
 

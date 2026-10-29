@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
-import { IconAlert, IconCheck, IconDownload, IconGrid, IconLayers, IconList, IconPlus, IconRefresh, IconSearch } from "@/components/icons";
+import { isCallCenterUser, useAuth } from "@/lib/auth";
+import { IconAlert, IconCheck, IconColumns, IconDownload, IconGrid, IconLayers, IconList, IconPlus, IconRefresh, IconSearch } from "@/components/icons";
 import { IconBookmark, IconX } from "./icons";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
@@ -13,6 +14,7 @@ import { claimCrmLead, crmCan, isClaimRace, leadCan, listCrmLeads, listCrmOperat
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import CrmFrame from "./CrmFrame";
 import { LeadBoard } from "./LeadBoard";
+import { KanbanColumns } from "./KanbanColumns";
 import { EMPTY, LIMIT, queryOf, type Filters, type Tab } from "./leadQuery";
 import { Avatar, Empty, ScoreChip, StageDots, StatusPill, WhenChip, useCrmError, useStatusLabel } from "./bits";
 import { CrmDate, CrmSelect } from "./fields";
@@ -64,6 +66,7 @@ export default function CrmLeads(): ReactElement {
 
 function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
   const t = useTranslations("crm.leads");
+  const tb = useTranslations("crm.board");
   const tsrc = useTranslations("crm.source");
   const ts = useStatusLabel();
   const tsc = useTranslations("crm.score");
@@ -73,20 +76,26 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
   const crmErr = useCrmError();
   const now = useNow();
   const initialTab = (["queue", "mine", "all"] as Tab[]).includes(params.get("tab") as Tab) ? (params.get("tab") as Tab) : "queue";
+  const { session } = useAuth();
+  const canManageCols = session?.backendRole === "superadmin" || (session?.permissions ?? []).includes("*") || (session?.permissions ?? []).includes("leads.manage");
+  const [managingCols, setManagingCols] = useState(false);
   const [tab, setTab] = useState<Tab>(initialTab);
   // Table or board: the URL first, then the operator's last choice.
   const [view, setView] = useState<"table" | "board">(params.get("view") === "board" ? "board" : "table");
   useEffect(() => {
     if (params.get("view")) return;
     const id = window.setTimeout(() => {
+      let saved = "";
       try {
-        if (localStorage.getItem("lexgo.crm.view") === "board") setView("board");
+        saved = localStorage.getItem("lexgo.crm.view") ?? "";
       } catch {
-        /* storage off */
+        saved = "";
       }
+      if (saved === "board") setView("board");
+      else if (!saved && isCallCenterUser(session)) setView("board");
     }, 0);
     return () => window.clearTimeout(id);
-  }, [params]);
+  }, [params, session]);
   const pickView = (v: "table" | "board") => {
     setView(v);
     try {
@@ -331,8 +340,15 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
             {t("viewBoard")}
           </button>
         </span>
+        {view === "table" && canManageCols ? (
+          <button type="button" className="crm-btn crm-btn--sm" onClick={() => setManagingCols(true)}>
+            <IconColumns aria-hidden="true" />
+            {tb("manage")}
+          </button>
+        ) : null}
         {view === "table" ? <span className="crm-hint crm-hide-sm">{t.rich("keys", { k: (c) => <kbd>{c}</kbd> })}</span> : null}
       </div>
+      {managingCols ? <KanbanColumns meta={meta} counts={{}} onClose={() => setManagingCols(false)} /> : null}
 
       <div className="crm-filters">
         <label className="crm-search">
