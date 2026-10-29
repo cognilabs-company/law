@@ -66,7 +66,7 @@ export function useCrmEvents(handler: (ev: CrmEvent) => void): void {
       const ev = crmEventOf(raw);
       if (ev) ref.current(ev);
     });
-    const offResync = onUserSocketResync(() => ref.current({ name: "crm.resync", leadId: "", runId: "", exportId: "", customerId: "", invalidate: ["all"] }));
+    const offResync = onUserSocketResync(() => ref.current({ name: "crm.resync", leadId: "", runId: "", exportId: "", customerId: "", callId: "", toStatus: "", position: 0, title: "", body: "", invalidate: ["all"] }));
     return () => {
       off();
       offResync();

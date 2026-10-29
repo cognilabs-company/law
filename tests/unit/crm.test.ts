@@ -301,14 +301,6 @@ describe("dynamic kanban (contract 2026-10-28)", () => {
     expect(positionIn(order, "n", "c", null)).toBe(3); // from another column
     expect(positionIn(["a", "b"], "n", "gone", null)).toBe(0);
   });
-  it("a new column key is Latin, lowercase and unique", async () => {
-    const { columnKeyOf } = await import("@/lib/services/crm");
-    expect(columnKeyOf("Qayta aloqa", [])).toBe("qayta_aloqa");
-    expect(columnKeyOf("Qayta aloqa", ["qayta_aloqa"])).toBe("qayta_aloqa_2");
-    expect(columnKeyOf("Повторный звонок", [])).toBe("povtorniy_zvonok");
-    expect(columnKeyOf("Mijoz o'ylab ko'rmoqda", [])).toBe("mijoz_oylab_kormoqda");
-    expect(columnKeyOf("!!!", [])).toBe("column");
-  });
 });
 
 // Contract 13cb257 §5/§20: the menu is built from permissions, never roles.

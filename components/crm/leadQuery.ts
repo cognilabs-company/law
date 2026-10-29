@@ -4,8 +4,8 @@ import type { CrmLead, LeadQuery } from "@/lib/services/crm";
 // filter, and the due chips as next_action_from/to. Nothing is filtered in
 // the browser.
 export type Tab = "queue" | "mine" | "all";
-export type Filters = { status: string; score: string; source: string; category: string; region: string; q: string; operator: string; due: string; createdFrom: string; createdTo: string };
-export const EMPTY: Filters = { status: "", score: "", source: "", category: "", region: "", q: "", operator: "", due: "", createdFrom: "", createdTo: "" };
+export type Filters = { status: string; score: string; source: string; region: string; q: string; operator: string; due: string; nextFrom: string; nextTo: string; createdFrom: string; createdTo: string };
+export const EMPTY: Filters = { status: "", score: "", source: "", region: "", q: "", operator: "", due: "", nextFrom: "", nextTo: "", createdFrom: "", createdTo: "" };
 export const LIMIT = 50;
 
 export function queryOf(tab: Tab, f: Filters, offset: number, now: number): LeadQuery {
@@ -17,11 +17,12 @@ export function queryOf(tab: Tab, f: Filters, offset: number, now: number): Lead
     status: f.status,
     score: f.score,
     source: f.source,
-    category: f.category,
     region: f.region,
     q: f.q,
     operator: tab === "all" ? f.operator : "",
-    nextTo: f.due === "overdue" ? new Date(now || Date.now()).toISOString() : f.due === "today" ? endOfDay : "",
+    // The due chips, or the explicit next-action range (§6).
+    nextFrom: f.due ? "" : f.nextFrom ? new Date(`${f.nextFrom}T00:00:00`).toISOString() : "",
+    nextTo: f.due === "overdue" ? new Date(now || Date.now()).toISOString() : f.due === "today" ? endOfDay : f.nextTo ? new Date(`${f.nextTo}T23:59:59`).toISOString() : "",
     createdFrom: f.createdFrom ? new Date(f.createdFrom).toISOString() : "",
     createdTo: f.createdTo ? new Date(`${f.createdTo}T23:59:59`).toISOString() : "",
     limit: LIMIT,
@@ -29,7 +30,7 @@ export function queryOf(tab: Tab, f: Filters, offset: number, now: number): Lead
   };
 }
 
-export type BoardColumn = { status: string; items: CrmLead[]; total: number };
+export type BoardColumn = { status: string; items: CrmLead[]; total: number; hasMore?: boolean };
 
 // Puts the server's copy of a lead where its status says, at the top of
 // that column, and out of every other one; totals follow. Server truth

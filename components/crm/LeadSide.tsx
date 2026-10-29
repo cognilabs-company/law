@@ -65,6 +65,7 @@ export function LeadSide({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; 
   const t = useTranslations("crm.side");
   const tl = useTranslations("crm.lang");
   const tsrc = useTranslations("crm.source");
+  const tps = useTranslations("crm.customer.payStatus");
   const locale = useLocale();
   const me = useAuth().session?.id ?? "";
   const crmErr = useCrmError();
@@ -185,10 +186,18 @@ export function LeadSide({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; 
             <dt>{t("claimedAt")}</dt>
             <dd>{lead.claimedAt ? shortDateTime(lead.claimedAt, locale) : "—"}</dd>
           </div>
-          {lead.convertedOrderId ? (
+          <div>
+            <dt>{t("cycle")}</dt>
+            <dd>{t("cycleN", { n: lead.cycleNumber })}</dd>
+          </div>
+          {lead.order ? (
+            // §9/§12: the prepared order and its payment state, by its work ID.
             <div style={{ gridColumn: "1 / -1" }}>
               <dt>{t("order")}</dt>
-              <dd className="crm-code">{lead.convertedOrderId}</dd>
+              <dd className="crm-orderstate" data-paid={lead.order.paymentStatus === "paid" || undefined}>
+                {lead.order.workId ? <span className="crm-code">{lead.order.workId}</span> : null}
+                <span>{tps.has(lead.order.paymentStatus) ? tps(lead.order.paymentStatus) : t("orderPrepared")}</span>
+              </dd>
             </div>
           ) : null}
           {lead.lostReason ? (

@@ -1,21 +1,22 @@
 "use client";
 
 import { memo, useCallback, useEffect, useRef, useState, type DragEvent, type ReactElement } from "react";
-import { useAuth } from "@/lib/auth";
 import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
-import { IconAlert, IconArrowDown, IconArrowUp, IconColumns, IconPhone, IconSend, IconSliders } from "@/components/icons";
+import Modal from "@/components/admin/Modal";
+import { IconAlert, IconArrowDown, IconArrowUp, IconCircleX, IconColumns, IconPhone, IconSend, IconSliders } from "@/components/icons";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { columnOrder, crmNextStatuses, isVersionConflict, leadCan, listCrmLeads, moveCrmLead, positionIn, type CrmLead, type CrmMeta } from "@/lib/services/crm";
+import { changeLeadStatus, crmCan, crmNextStatuses, getCrmKanban, isVersionConflict, leadCan, moreKanbanLeads, positionIn, reorderCrmLead, KANBAN_PAGE, type CrmLead, type CrmMeta } from "@/lib/services/crm";
+import { fromLocalInput } from "./LeadSheets";
 import { minutesUntil, useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import { Avatar, ScoreChip, WhenChip, statusVar, useCrmError, useStatusLabel } from "./bits";
+import { CrmDateTime } from "./fields";
 import { KanbanColumns } from "./KanbanColumns";
 import { StageMenu } from "./StageMenu";
-import { queryOf, type BoardColumn, type Filters, type Tab } from "./leadQuery";
+import type { BoardColumn } from "./leadQuery";
 
-const PER_COLUMN = 30;
-
+// How long the stage's most forgotten lead has sat still (minutes).
 function idleOf(c: BoardColumn, now: number): number | null {
   let worst: number | null = null;
   for (const l of c.items) {
@@ -26,28 +27,32 @@ function idleOf(c: BoardColumn, now: number): number | null {
   }
   return worst;
 }
-
 function idleText(mins: number, t: (k: string, v?: Record<string, number>) => string): string {
   if (mins >= 1440) return t("idleD", { n: Math.floor(mins / 1440) });
   if (mins >= 60) return t("idleH", { n: Math.floor(mins / 60) });
   return t("idleM", { n: mins });
 }
+
 // Realtime events come in bursts (status_changed + assigned + metrics…):
 // one board reload per quiet spell, not one per event.
 const RELOAD_DEBOUNCE = 350;
-// The same leads as a board (dynamic kanban contract 2026-10-28): the
-// columns, their order and colours are the backend's; each column is its
-// own backend page in Kanban order (status filter + the tab and filters
-// above). A card can be dropped at an exact place in the same or another
-// column — PATCH …/move sets column and position at once with the card's
-// lock_version; a version conflict puts it back and reloads.
-export function LeadBoard({ meta, tab, filters, onClaim, claiming, refreshKey, onShowAll }: { meta: CrmMeta; tab: Tab; filters: Filters; onClaim: (l: CrmLead) => void; claiming: Record<string, string>; refreshKey: number; onShowAll: (status: string) => void }): ReactElement {
+// The leads as a board (contract 13cb257 §6): GET /crm/kanban gives the six
+// fixed columns with their first cards in the backend's rank order, a
+// count and has_more ("load more" pages that one column). Moving a card to
+// another column is a status change (POST …/status with its lock_version):
+// the card waits in place, marked as moving, and goes over only when the
+// backend agrees — a refusal (won without a paid order, a stale version…)
+// leaves it where it was and says why. Rejected first asks for a reason.
+// Inside a column the order changes at once and is confirmed by the
+// backend. Phones use the "move to…" menu instead of dragging.
+export function LeadBoard({ meta, mineOnly, q, onClaim, claiming, refreshKey }: { meta: CrmMeta; mineOnly: boolean; q: string; onClaim: (l: CrmLead) => void; claiming: Record<string, string>; refreshKey: number }): ReactElement {
   const t = useTranslations("crm.board");
   const ts = useStatusLabel();
   const router = useRouter();
   const crmErr = useCrmError();
   const now = useNow();
   const [cols, setCols] = useState<BoardColumn[] | null>(null);
+  const [failed, setFailed] = useState("");
   const [drag, setDragState] = useState<CrmLead | null>(null);
   // Where the dragged card would land: the column, and the card it would go before (null = the end).
   const [over, setOverState] = useState<{ col: string; before: string | null } | null>(null);
@@ -57,11 +62,12 @@ export function LeadBoard({ meta, tab, filters, onClaim, claiming, refreshKey, o
     setOverState((cur) => (cur?.col === o?.col && cur?.before === o?.before ? cur : o));
   }, []);
   const [managing, setManaging] = useState(false);
+  // Cards whose status change is waiting for the backend.
+  const [moving, setMoving] = useState<Record<string, string>>({});
+  const [loadingMore, setLoadingMore] = useState("");
+  const [reject, setReject] = useState<CrmLead | null>(null);
   const [stageFor, setStageFor] = useState("");
-  const { session } = useAuth();
-  // Column management needs leads.manage (the backend still has the last word).
-  const perms = session?.permissions ?? [];
-  const canManage = session?.backendRole === "superadmin" || perms.includes("*") || perms.includes("leads.manage");
+  const canManage = crmCan(meta, "crm.automation.manage");
   // The same moves without dragging (touch screens have no HTML5 drag).
   const [menuFor, setMenuFor] = useState("");
   const seq = useRef(0);
@@ -70,27 +76,31 @@ export function LeadBoard({ meta, tab, filters, onClaim, claiming, refreshKey, o
   // re-rendered with the state, and a missed preventDefault loses the drop.
   const dragRef = useRef<CrmLead | null>(null);
   const timer = useRef(0);
-  const statuses = meta.statuses.length ? meta.statuses : Object.keys(meta.transitions);
-  const statusKey = statuses.join(",");
 
   // `loud` only for the first paint; a failed background refresh keeps the
-  // board as it is instead of toasting on every realtime event.
+  // board as it is (never cleared) instead of toasting on every event.
   const load = useCallback(
     async (signal?: AbortSignal, loud = false) => {
       const n = ++seq.current;
-      const list = statusKey.split(",");
       try {
-        const pages = await Promise.all(list.map((s) => listCrmLeads({ ...queryOf(tab, { ...filters, status: s }, 0, Date.now()), limit: PER_COLUMN }, signal)));
+        const k = await getCrmKanban({ q, mineOnly, columnLimit: KANBAN_PAGE }, signal);
         if (n !== seq.current) return;
-        setCols(list.map((s, i) => ({ status: s, items: pages[i].items, total: pages[i].total })));
+        setCols((cur) =>
+          k.columns.map((c) => {
+            // Keep the extra pages an operator already opened.
+            const had = cur?.find((x) => x.status === c.key);
+            const extra = had ? had.items.slice(c.items.length).filter((x) => !c.items.some((y) => y.id === x.id) && x.status === c.key) : [];
+            return { status: c.key, items: [...c.items, ...extra], total: c.count, hasMore: c.hasMore && c.items.length + extra.length < c.count };
+          }),
+        );
+        setFailed("");
       } catch (e) {
         if (isAborted(e) || n !== seq.current) return;
         logApiError("crm.board", e);
-        if (loud) toast(crmErr(e), { tone: "err" });
-        setCols((cur) => cur ?? list.map((s) => ({ status: s, items: [], total: 0 })));
+        if (loud) setFailed(crmErr(e));
       }
     },
-    [tab, filters, crmErr, statusKey],
+    [q, mineOnly, crmErr],
   );
   const loadRef = useRef(load);
   useEffect(() => {
@@ -124,8 +134,11 @@ export function LeadBoard({ meta, tab, filters, onClaim, claiming, refreshKey, o
   useEffect(() => {
     if (refreshKey !== firstKey.current) schedule();
   }, [refreshKey, schedule]);
+  // §21: a card another user moved goes to its new column at once; the
+  // board is then read again to reconcile with the backend.
   useCrmEvents((ev) => {
-    if (ev.invalidate.some((k) => k === "all" || k === "lists" || k === "queue" || k === "lead" || k === "counts")) schedule();
+    if (ev.leadId && ev.toStatus && !moving[ev.leadId]) setCols((cur) => (cur ? moveLocal(cur, ev.leadId, ev.toStatus, ev.position) : cur));
+    if (ev.invalidate.some((k) => k === "all" || k === "lists" || k === "queue" || k === "lead" || k === "counts" || k === "meta")) schedule();
   });
 
   // The move menu closes on Escape or a press anywhere outside its card.
@@ -144,22 +157,58 @@ export function LeadBoard({ meta, tab, filters, onClaim, claiming, refreshKey, o
     };
   }, [menuFor]);
 
-  // A move: the card goes to its new place at once, the backend confirms
-  // with its copy and position; a conflict or failure reloads the board.
-  const moveTo = useCallback(
-    async (lead: CrmLead, col: string, before: string | null, after: string | null) => {
-      seq.current++; // a reload in flight would put the card back
-      setCols((cur) => (cur ? placeAt(cur, lead, col, before) : cur));
+  const say = useCallback((e: unknown) => toast(isVersionConflict(e) ? t("conflict") : crmErr(e), { tone: isVersionConflict(e) ? "info" : "err" }), [crmErr, t]);
+
+  // Another column: a status change, confirmed before the card moves.
+  const changeStatus = useCallback(
+    async (lead: CrmLead, to: string, reason = "", nextActionAt: string | null = null) => {
+      if (moving[lead.id]) return false;
+      setMoving((m) => ({ ...m, [lead.id]: to }));
+      seq.current++; // a reload in flight must not undo the confirmed move
       try {
-        const order = await columnOrder(col);
-        const { lead: saved } = await moveCrmLead(lead, col, positionIn(order, lead.id, before, after));
+        const saved = await changeLeadStatus(lead, to, reason, nextActionAt);
+        setCols((cur) => (cur ? moveLocal(cur, saved.id, saved.status, 0, saved) : cur));
+        toast(t("moved", { to: ts(saved.status) }), { tone: "ok" });
+        return true;
+      } catch (e) {
+        say(e);
+        return false;
+      } finally {
+        setMoving((m) => {
+          const next = { ...m };
+          delete next[lead.id];
+          return next;
+        });
+        schedule();
+      }
+    },
+    [moving, say, schedule, t, ts],
+  );
+  // The same column: a new place, shown at once and confirmed.
+  const reorder = useCallback(
+    async (lead: CrmLead, before: string | null, after: string | null) => {
+      const col = cols?.find((c) => c.status === lead.status);
+      if (!col) return;
+      const position = positionIn(col.items.map((x) => x.id), lead.id, before, after);
+      seq.current++;
+      setCols((cur) => (cur ? moveLocal(cur, lead.id, lead.status, position) : cur));
+      try {
+        const saved = await reorderCrmLead(lead, position);
         setCols((cur) => (cur ? cur.map((c) => ({ ...c, items: c.items.map((x) => (x.id === saved.id ? { ...x, ...saved } : x)) })) : cur));
       } catch (e) {
-        toast(isVersionConflict(e) ? t("conflict") : crmErr(e), { tone: isVersionConflict(e) ? "info" : "err" });
+        say(e);
+      } finally {
+        schedule();
       }
-      schedule();
     },
-    [crmErr, schedule, t],
+    [cols, say, schedule],
+  );
+  const goTo = useCallback(
+    (lead: CrmLead, to: string) => {
+      if (to === "rejected") setReject(lead);
+      else void changeStatus(lead, to);
+    },
+    [changeStatus],
   );
 
   const allowed = useCallback((lead: CrmLead | null, to: string) => !!lead && lead.status !== to && leadCan(lead, "change_status") && crmNextStatuses(meta, lead.status).includes(to), [meta]);
@@ -183,14 +232,13 @@ export function LeadBoard({ meta, tab, filters, onClaim, claiming, refreshKey, o
   }, [setDrag, setOver]);
   const open = useCallback((l: CrmLead) => router.push(`/admin/crm/leads/${encodeURIComponent(l.id)}`), [router]);
   const toggleMenu = useCallback((id: string) => setMenuFor((m) => (m === id ? "" : id)), []);
-  // The menu (touch, keyboard): to the top of another column, or one place up / down.
+  // The menu (touch, keyboard): to another column, or one place up / down.
   const pick = useCallback(
     (l: CrmLead, to: string) => {
       setMenuFor("");
-      const col = cols?.find((c) => c.status === to);
-      void moveTo(l, to, col?.items.find((x) => x.id !== l.id)?.id ?? null, null);
+      goTo(l, to);
     },
-    [cols, moveTo],
+    [goTo],
   );
   const nudge = useCallback(
     (l: CrmLead, dir: -1 | 1) => {
@@ -199,15 +247,46 @@ export function LeadBoard({ meta, tab, filters, onClaim, claiming, refreshKey, o
       const i = items.findIndex((x) => x.id === l.id);
       const rest = items.filter((x) => x.id !== l.id);
       const j = Math.max(0, Math.min(rest.length, i + dir));
-      void moveTo(l, l.status, rest[j]?.id ?? null, rest[j - 1]?.id ?? null);
+      void reorder(l, rest[j]?.id ?? null, rest[j - 1]?.id ?? null);
     },
-    [cols, moveTo],
+    [cols, reorder],
   );
+  const more = async (status: string) => {
+    const col = cols?.find((c) => c.status === status);
+    if (!col || loadingMore) return;
+    setLoadingMore(status);
+    try {
+      const page = await moreKanbanLeads(status, col.items.length, { q, mineOnly });
+      setCols((cur) =>
+        cur
+          ? cur.map((c) => {
+              if (c.status !== status) return c;
+              const items = [...c.items, ...page.items.filter((x) => !c.items.some((y) => y.id === x.id))];
+              return { ...c, items, total: page.total || c.total, hasMore: items.length < (page.total || c.total) && page.items.length > 0 };
+            })
+          : cur,
+      );
+    } catch (e) {
+      if (!isAborted(e)) toast(crmErr(e), { tone: "err" });
+    } finally {
+      setLoadingMore("");
+    }
+  };
 
   if (!cols) {
+    if (failed)
+      return (
+        <div className="crm-card crm-err" role="alert">
+          <IconAlert aria-hidden="true" />
+          <span>{failed}</span>
+          <button type="button" className="crm-btn crm-btn--sm" onClick={() => void load(undefined, true)}>
+            {t("retry")}
+          </button>
+        </div>
+      );
     return (
       <div className="crm-board" aria-busy="true">
-        {statuses.map((s) => (
+        {meta.statuses.map((s) => (
           <div key={s} className="crm-col" style={statusVar(s)}>
             <span className="crm-sk" style={{ height: 22 }} />
             <span className="crm-sk crm-sk--block" style={{ height: 90 }} />
@@ -273,19 +352,18 @@ export function LeadBoard({ meta, tab, filters, onClaim, claiming, refreshKey, o
                 setDrag(null);
                 setOver(null);
                 if (!lead || !at) return;
-                if (lead.status !== c.status && !allowed(lead, c.status)) {
-                  toast(t("notAllowed", { from: ts(lead.status), to: label }), { tone: "info" });
+                if (lead.status !== c.status) {
+                  if (!allowed(lead, c.status)) toast(t("notAllowed", { from: ts(lead.status), to: label }), { tone: "info" });
+                  else goTo(lead, c.status);
                   return;
                 }
                 const rest = c.items.filter((x) => x.id !== lead.id);
                 const bi = at.before ? rest.findIndex((x) => x.id === at.before) : rest.length;
                 const after = rest[bi - 1]?.id ?? null;
                 // Dropped where it already was: nothing to do.
-                if (lead.status === c.status) {
-                  const i = c.items.findIndex((x) => x.id === lead.id);
-                  if (c.items[i + 1]?.id === (at.before ?? undefined) || (!at.before && i === c.items.length - 1)) return;
-                }
-                void moveTo(lead, c.status, at.before, after);
+                const i = c.items.findIndex((x) => x.id === lead.id);
+                if (c.items[i + 1]?.id === (at.before ?? undefined) || (!at.before && i === c.items.length - 1)) return;
+                void reorder(lead, at.before, after);
               }}
             >
               <header className="crm-col__h">
@@ -302,39 +380,38 @@ export function LeadBoard({ meta, tab, filters, onClaim, claiming, refreshKey, o
                     <IconSliders aria-hidden="true" />
                   </button>
                 ) : null}
-                {stageFor && stageFor === c.status ? (
-                  <StageMenu meta={meta} status={c.status} counts={Object.fromEntries(cols.map((x) => [x.status, x.total]))} onClose={() => setStageFor("")} />
-                ) : null}
+                {stageFor && stageFor === c.status ? <StageMenu meta={meta} status={c.status} onClose={() => setStageFor("")} /> : null}
               </header>
               <div className="crm-col__body">
                 {c.items.length ? (
                   c.items.map((l) => (
                     <BoardSlot key={l.id} line={over?.col === c.status && over.before === l.id}>
-                    <BoardCard
-                      key={l.id}
-                      lead={l}
-                      meta={meta}
-                      now={now}
-                      dragging={drag?.id === l.id}
-                      menuOpen={menuFor === l.id}
-                      claimState={claiming[l.id] ?? ""}
-                      onDragStart={onCardDragStart}
-                      onDragEnd={onCardDragEnd}
-                      onOpen={open}
-                      onToggleMenu={toggleMenu}
-                      onPick={pick}
-                      onNudge={nudge}
-                      onClaim={onClaim}
-                    />
+                      <BoardCard
+                        key={l.id}
+                        lead={l}
+                        meta={meta}
+                        now={now}
+                        dragging={drag?.id === l.id}
+                        movingTo={moving[l.id] ? ts(moving[l.id]) : ""}
+                        menuOpen={menuFor === l.id}
+                        claimState={claiming[l.id] ?? ""}
+                        onDragStart={onCardDragStart}
+                        onDragEnd={onCardDragEnd}
+                        onOpen={open}
+                        onToggleMenu={toggleMenu}
+                        onPick={pick}
+                        onNudge={nudge}
+                        onClaim={onClaim}
+                      />
                     </BoardSlot>
                   ))
                 ) : (
                   <p className="crm-col__empty">{t("empty")}</p>
                 )}
                 {over?.col === c.status && over.before === null && c.items.length ? <span className="crm-dropline" aria-hidden="true" /> : null}
-                {c.total > c.items.length ? (
-                  <button type="button" className="crm-link crm-col__more" onClick={() => onShowAll(c.status)}>
-                    {t("more", { n: c.total - c.items.length })}
+                {c.hasMore ? (
+                  <button type="button" className="crm-btn crm-btn--sm crm-col__more" onClick={() => void more(c.status)} disabled={!!loadingMore} aria-busy={loadingMore === c.status || undefined}>
+                    {t("loadMore", { n: Math.max(0, c.total - c.items.length) })}
                   </button>
                 ) : null}
               </div>
@@ -343,7 +420,71 @@ export function LeadBoard({ meta, tab, filters, onClaim, claiming, refreshKey, o
         })}
       </div>
       {managing ? <KanbanColumns meta={meta} counts={Object.fromEntries(cols.map((c) => [c.status, c.total]))} onClose={() => setManaging(false)} /> : null}
+      {reject ? (
+        <RejectSheet
+          lead={reject}
+          onClose={() => setReject(null)}
+          onSend={async (reason, next) => {
+            const ok = await changeStatus(reject, "rejected", reason, next);
+            if (ok) setReject(null);
+          }}
+        />
+      ) : null}
     </>
+  );
+}
+
+// Rejected needs a reason (§6); the next step is optional.
+function RejectSheet({ lead, onClose, onSend }: { lead: CrmLead; onClose: () => void; onSend: (reason: string, next: string | null) => Promise<void> }): ReactElement {
+  const t = useTranslations("crm.board");
+  const [reason, setReason] = useState("");
+  const [next, setNext] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [tried, setTried] = useState(false);
+  const bad = reason.trim().length < 3;
+  const send = async () => {
+    setTried(true);
+    if (bad || busy) return;
+    setBusy(true);
+    try {
+      await onSend(reason.trim(), next ? fromLocalInput(next) : null);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={t("rejectTitle", { lead: lead.title || lead.workId })}
+      description={t("rejectLead")}
+      icon={<IconCircleX />}
+      busy={busy}
+      dirty={!!reason}
+      footer={
+        <>
+          <button type="button" className="crm-btn" onClick={onClose} disabled={busy}>
+            {t("cancel")}
+          </button>
+          <button type="button" className="crm-btn crm-btn--danger" onClick={() => void send()} disabled={busy} aria-busy={busy || undefined}>
+            <IconCircleX aria-hidden="true" />
+            {t("rejectOk")}
+          </button>
+        </>
+      }
+    >
+      <div className="crm-pop">
+        <label className="crm-field" data-bad={tried && bad ? "" : undefined}>
+          <span>{t("rejectReason")}</span>
+          <textarea className="crm-textarea" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={2000} aria-invalid={tried && bad ? true : undefined} />
+          {tried && bad ? <small className="crm-bad">{t("rejectNeed")}</small> : null}
+        </label>
+        <div className="crm-field">
+          <span>{t("rejectNext")}</span>
+          <CrmDateTime value={next} onChange={setNext} label={t("rejectNext")} />
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -354,6 +495,7 @@ const BoardCard = memo(function BoardCard({
   meta,
   now,
   dragging,
+  movingTo,
   menuOpen,
   claimState,
   onDragStart,
@@ -368,6 +510,7 @@ const BoardCard = memo(function BoardCard({
   meta: CrmMeta;
   now: number;
   dragging: boolean;
+  movingTo: string;
   menuOpen: boolean;
   claimState: string;
   onDragStart: (l: CrmLead, e: DragEvent) => void;
@@ -383,12 +526,14 @@ const BoardCard = memo(function BoardCard({
   const tl = useTranslations("crm.leads");
   const movable = leadCan(l, "change_status") || leadCan(l, "move");
   const nextOnes = movable ? crmNextStatuses(meta, l.status) : [];
-  const canMove = movable;
+  const canMove = movable && !movingTo;
   return (
     <article
       className="crm-kcard"
       data-urgency={l.urgency || "normal"}
       data-dragging={dragging || undefined}
+      data-moving={movingTo ? "" : undefined}
+      aria-busy={movingTo ? true : undefined}
       data-menu-for={l.id}
       data-card-id={l.id}
       draggable={canMove}
@@ -407,6 +552,11 @@ const BoardCard = memo(function BoardCard({
       </span>
       <b>{l.title || l.workId}</b>
       <small>{[l.customer?.name, l.region].filter(Boolean).join(" · ")}</small>
+      {movingTo ? (
+        <span className="crm-kcard__moving" role="status">
+          {t("movingTo", { to: movingTo })}
+        </span>
+      ) : null}
       <span className="crm-kcard__foot">
         {l.nextActionAt ? (
           <WhenChip at={l.nextActionAt} now={now} />
@@ -525,15 +675,17 @@ function cardBelow(col: HTMLElement, y: number, dragId: string): string | null {
   return null;
 }
 
-// The card in its new column right away, before `before` (or at the end).
-function placeAt(cols: BoardColumn[], lead: CrmLead, col: string, before: string | null): BoardColumn[] {
+// A card to `col` at `position` (0 = the top), out of every other column;
+// `saved` replaces it with the backend's copy. Totals follow.
+export function moveLocal(cols: BoardColumn[], leadId: string, col: string, position: number, saved?: CrmLead): BoardColumn[] {
+  const lead = saved ?? cols.flatMap((c) => c.items).find((x) => x.id === leadId);
+  if (!lead || !cols.some((c) => c.status === col)) return cols;
   const moved = { ...lead, status: col };
   return cols.map((c) => {
-    const had = c.items.some((x) => x.id === lead.id);
-    const items = c.items.filter((x) => x.id !== lead.id);
+    const had = c.items.some((x) => x.id === leadId);
+    const items = c.items.filter((x) => x.id !== leadId);
     if (c.status !== col) return had ? { ...c, items, total: Math.max(0, c.total - 1) } : c;
-    const i = before ? items.findIndex((x) => x.id === before) : -1;
-    items.splice(i < 0 ? items.length : i, 0, moved);
+    items.splice(Math.max(0, Math.min(items.length, position)), 0, moved);
     return { ...c, items, total: c.total + (had ? 0 : 1) };
   });
 }

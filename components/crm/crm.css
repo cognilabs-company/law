@@ -851,3 +851,18 @@ html[data-theme="dark"] .amodal__f:has(.crm-btn) { --crm-acc: var(--dk-acc, #6ea
 .crm-note { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--crm-warn) 10%, var(--crm-soft)); color: var(--crm-ink); font-size: .78rem; line-height: 1.45; }
 .crm-note svg { flex: none; width: 14px; height: 14px; margin-top: 1px; color: var(--crm-warn); }
 .crm-icobtn:disabled { opacity: .4; cursor: not-allowed; }
+/* Fixed kanban (contract 13cb257 §6): a card waiting for the backend to
+   confirm its status change stays in place, marked. */
+.crm-kcard[data-moving] { opacity: .72; box-shadow: 0 0 0 2px color-mix(in srgb, var(--crm-acc) 45%, transparent), inset 0 0 0 1px var(--crm-line); }
+.crm-kcard__moving { display: inline-flex; align-items: center; gap: 6px; justify-self: start; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--crm-acc) 12%, transparent); color: var(--crm-acc); font: 700 .7rem/1.4 var(--fb); }
+.crm-kcard__moving::before { content: ""; width: 10px; height: 10px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: crm-spin .8s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .crm-kcard__moving::before { animation: none; } }
+.crm-col__more { justify-self: center; margin-top: 4px; }
+.crm-colmgr__name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.crm-colmgr__name > i { display: grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: 9px; background: color-mix(in srgb, var(--sc) 16%, transparent); color: var(--sc); }
+.crm-colmgr__name > i svg { width: 15px; height: 15px; }
+.crm-colmgr__name .crm-input { flex: 1; min-width: 0; }
+.crm-orderstate { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.crm-orderstate > span:last-child { padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--crm-warn) 14%, transparent); color: var(--crm-warn); font-weight: 700; font-size: .76rem; }
+.crm-orderstate[data-paid] > span:last-child { background: color-mix(in srgb, var(--crm-ok) 14%, transparent); color: var(--crm-ok); }
+.crm-bad { color: var(--crm-bad); }

@@ -38,16 +38,18 @@ const watchIntl = (page: Page) => {
 };
 
 const OPERATOR: Who = { ...CALL_CENTER, permissions: ["callcenter.access", "crm.leads.view", "crm.leads.claim", "crm.leads.manage", "crm.customers.view", "crm.ai.use", "crm.analytics.self", "crm.exports.create"] };
-const STATUSES = ["new", "contacted", "qualified", "proposal", "payment_pending", "won", "closed"];
-const TRANSITIONS: Record<string, string[]> = { new: ["closed", "contacted"], contacted: ["closed", "proposal", "qualified"], qualified: ["closed", "payment_pending", "proposal", "won"], proposal: ["closed", "payment_pending", "qualified", "won"], payment_pending: ["closed", "proposal", "won"], won: ["closed"], closed: ["new"] };
-// Columns are the backend's (dynamic kanban 2026-10-28): title, colour,
-// order and the final flag come with each status.
-const COLORS = ["#2563eb", "#7c3aed", "#0891b2", "#d97706", "#ea580c", "#059669", "#6b7280"];
-type Col = { key: string; title: string; color: string; order: number; is_final: boolean };
-const COLUMNS = (): Col[] => STATUSES.map((key, i) => ({ key, title: key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()), color: COLORS[i], order: (i + 1) * 10, is_final: key === "won" || key === "closed" }));
+// Contract 13cb257 §6: six fixed statuses.
+const STATUSES = ["new", "qualified", "proposal", "decision_pending", "won", "rejected"];
+const TRANSITIONS: Record<string, string[]> = { new: ["qualified", "proposal", "decision_pending", "won", "rejected"], qualified: ["proposal", "decision_pending", "won", "rejected"], proposal: ["qualified", "decision_pending", "won", "rejected"], decision_pending: ["proposal", "won", "rejected"], won: [], rejected: [] };
+const COLORS = ["#2563eb", "#7c3aed", "#0891b2", "#d97706", "#16a34a", "#dc2626"];
+type Col = { key: string; title: string; color: string; order: number; is_final?: boolean };
+const COLUMNS = (): Col[] => STATUSES.map((key, i) => ({ key, title: key.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase()), color: COLORS[i], order: (i + 1) * 10, is_final: key === "won" || key === "rejected" }));
 const meta = (perms: string[], revenue = false, cols: Col[] = COLUMNS()) => ({
-  statuses: cols.map((c) => ({ ...c, transitions: TRANSITIONS[c.key] ?? cols.map((x) => x.key).filter((k) => k !== c.key) })),
-  kanban: { columns_url: "/call-center/leads/kanban/columns", move_url_template: "/call-center/leads/{lead_id}/move", realtime_events: ["crm.kanban.columns_updated", "crm.kanban.column_archived", "crm.lead.moved"] },
+  statuses: cols.map((c) => ({ ...c, is_final: c.key === "won" || c.key === "rejected", transitions: TRANSITIONS[c.key] ?? [] })),
+  kanban: { columns_url: "/crm/kanban", settings_url: "/crm/kanban/columns", fixed_status_keys: STATUSES, move_url_template: "/crm/leads/{lead_id}/status", realtime_events: ["crm.kanban.columns_updated", "crm.lead.moved"] },
+  customer_lifecycles: ["prospect", "customer"],
+  automation: { rule_url: "/crm/automation/rules", actions: ["add_tags", "assign_owner", "change_status", "create_task", "escalate", "send_notification", "send_sms"], sms_operator_approval_default: true, no_answer_sms_delay_seconds: 180 },
+  detail_rendering: { field: "detail_sections", raw_json_forbidden: true },
   scores: ["cold", "warm", "hot"],
   languages: ["uz_latn", "uz_cyrl", "ru"],
   contact_types: ["phone", "telegram", "email"],
@@ -55,7 +57,7 @@ const meta = (perms: string[], revenue = false, cols: Col[] = COLUMNS()) => ({
   permissions: perms,
   scope: perms.includes("crm.analytics.global") ? "all" : "own_and_queue",
   revenue_visible: revenue,
-  telephony: { provider: "disabled", enabled: false, recording_consent_required: true, live_transcription: "provider_pending" },
+  telephony: { provider: "disabled", enabled: false, recording_consent_required: true, live_transcription: true, transcript_append_url: "/crm/calls/{call_id}/transcript" },
 });
 const CUSTOMER = { id: "c1", public_id: "CRM-3CD76084", user_id: null, name: "Dilnoza Karimova", preferred_language: "uz_latn", region: "Toshkent", primary_phone: "+998901234567", primary_telegram: "@dilnoza", primary_email: "" };
 const soon = (min: number) => new Date(Date.now() + min * 60_000).toISOString();
@@ -98,8 +100,8 @@ function crmServer(perms: string[], revenue = false) {
   const st = {
     queue: [lead("q1", { urgency: "urgent", score: "hot" }), lead("q2", { title: "Aliment undirish", score: "cold" }), lead("q3", { title: "Mehnat nizosi" })],
     mine: [
-      lead("m1", { status: "contacted", assigned_operator_user_id: ME.id, assigned_operator: ME, next_action_at: soon(-180), allowed_actions: ["view_timeline", "add_activity", "run_ai", "edit", "change_status", "set_next_action", "manage_watchers", "transfer", "prepare_conversion"], lock_version: 4, duplicate_status: "needs_review" }),
-      lead("m2", { status: "qualified", title: "Meros ulushi", assigned_operator_user_id: ME.id, assigned_operator: ME, next_action_at: soon(25) }),
+      lead("m1", { status: "qualified", assigned_operator_user_id: ME.id, assigned_operator: ME, next_action_at: soon(-180), allowed_actions: ["view_timeline", "add_activity", "run_ai", "edit", "change_status", "set_next_action", "manage_watchers", "transfer", "prepare_conversion"], lock_version: 4, duplicate_status: "needs_review" }),
+      lead("m2", { status: "proposal", title: "Meros ulushi", assigned_operator_user_id: ME.id, assigned_operator: ME, next_action_at: soon(25) }),
     ],
     claims: [] as string[],
     writes: [] as { path: string; body: Record<string, unknown> }[],
@@ -125,22 +127,29 @@ function crmServer(perms: string[], revenue = false) {
     if (want && url.searchParams.get("limit") === "30") st.boardCalls++;
     const rk = (l: Record<string, unknown>) => st.rank[String(l.id)] ?? 1e6;
     const items = want ? all.filter((l) => l.status === want).sort((a, b) => rk(a) - rk(b)) : all;
-    return { items, total: items.length, limit: Number(url.searchParams.get("limit") ?? 50), offset: 0, counts: { new: 3, contacted: 5, qualified: 3, proposal: 2, payment_pending: 1, won: 2, closed: 1 } };
+    const offset = Number(url.searchParams.get("offset") ?? 0);
+    const limit = Number(url.searchParams.get("limit") ?? 50);
+    return { items: items.slice(offset, offset + limit), total: items.length, limit, offset, counts: { new: 3, qualified: 5, proposal: 3, decision_pending: 2, won: 2, rejected: 2 } };
   };
   const allLeads = () => [...st.mine, ...st.queue];
   const routes: Record<string, unknown> = {
     "/crm/meta": () => meta(perms, revenue, st.columns),
-    "/call-center/leads/kanban": (_: unknown, url: URL) => {
-      const want = url.searchParams.get("status");
+    "/crm/kanban": (_: unknown, url: URL) => {
+      st.boardCalls++;
+      const lim = Number(url.searchParams.get("column_limit") ?? 30);
+      const mine = url.searchParams.get("mine_only") === "true";
+      const q = (url.searchParams.get("q") ?? "").toLowerCase();
       const rk = (l: Record<string, unknown>) => st.rank[String(l.id)] ?? 1e6;
+      const pool = (mine ? st.mine : allLeads()).filter((l) => !q || String(l.title).toLowerCase().includes(q));
       return {
-        columns: st.columns
-          .filter((c) => !want || c.key === want)
-          .map((c) => {
-            const leads = allLeads().filter((l) => l.status === c.key).sort((a, b) => rk(a) - rk(b));
-            return { ...c, count: leads.length, leads: leads.map((l, i) => ({ lead: { id: l.id, work_id: l.work_id, status: l.status, lock_version: l.lock_version, details: {} }, position: i, moved_at: null, moved_by_user_id: null })) };
-          }),
-        total_count: allLeads().length,
+        columns: st.columns.map((c) => {
+          const leads = pool.filter((l) => l.status === c.key).sort((a, b) => rk(a) - rk(b));
+          return { ...c, is_final: c.key === "won" || c.key === "rejected", count: leads.length, has_more: leads.length > lim, items: leads.slice(0, lim) };
+        }),
+        total: pool.length,
+        column_limit: lim,
+        fixed_statuses: true,
+        reorder_supported: true,
       };
     },
     "PATCH /call-center/leads/[^/]+/move": (b: Record<string, unknown>, url: URL) => {
@@ -157,20 +166,24 @@ function crmServer(perms: string[], revenue = false) {
       const col = allLeads().filter((x) => x.status === b.column_key && x.id !== id).sort((a, c) => rk(a) - rk(c));
       col.splice(Number(b.position), 0, l);
       col.forEach((x, i) => (st.rank[String(x.id)] = (i + 1) * 10));
-      Object.assign(l, { status: b.column_key, lock_version: Number(l.lock_version) + 1 });
+      Object.assign(l, { lock_version: Number(l.lock_version) + 1 });
       return { lead: l, kanban: { column_key: b.column_key, position: b.position, rank: st.rank[id], moved_at: new Date().toISOString(), moved_by_user_id: ME.id } };
     },
-    "/call-center/leads/kanban/columns": () => st.columns,
-    "PUT /call-center/leads/kanban/columns": (b: Col[], url: URL) => {
+    "PUT /crm/kanban/columns": (b: { columns: Col[] }, url: URL) => {
       st.colWrites.push({ method: "PUT", body: b, url: url.search });
-      st.columns = b;
-      return st.columns;
+      st.columns = b.columns;
+      return { columns: st.columns };
     },
-    "DELETE /call-center/leads/kanban/columns/[^/]+": (_: unknown, url: URL) => {
-      st.colWrites.push({ method: "DELETE", body: null, url: url.pathname + url.search });
-      const key = url.pathname.split("/").at(-1);
-      st.columns = st.columns.filter((c) => c.key !== key);
-      return { ok: true };
+    // Any lead's status (§6): won needs a paid order, rejected a reason.
+    "POST /crm/leads/(?!m1/)[^/]+/status": (b: Record<string, unknown>, url: URL) => {
+      const id = url.pathname.split("/").at(-2) ?? "";
+      const l = allLeads().find((x) => x.id === id)!;
+      st.writes.push({ path: `status:${id}`, body: b });
+      if (b.status === "won" && !l.converted_order_id) return { status: 409, json: { detail: { code: "crm_paid_order_required", message: "paid order required" } } };
+      if (b.status === "rejected" && !String(b.reason ?? "").trim()) return { status: 422, json: { detail: { code: "crm_rejection_reason_required", field: "reason" } } };
+      if (b.expected_lock_version !== l.lock_version) return { status: 409, json: { detail: { code: "crm_lead_version_conflict", current_lock_version: l.lock_version } } };
+      Object.assign(l, { status: b.status, lock_version: Number(l.lock_version) + 1, lost_reason: b.status === "rejected" ? b.reason : l.lost_reason });
+      return l;
     },
     "/crm/leads": (_: unknown, url: URL) => (url.searchParams.get("queue_only") ? page(st.queue, url) : url.searchParams.get("mine_only") ? page(st.mine, url) : page([...st.mine, ...st.queue], url)),
     "/crm/leads/m1": () => st.mine[0],
@@ -241,8 +254,8 @@ function crmServer(perms: string[], revenue = false) {
       return st.run;
     },
     "POST /crm/ai/runs/run-1/apply": (b: Record<string, unknown>) => ((st.applied = b), { ok: true }),
-    "/crm/me/metrics": { operator: ME, total: 12, active: 7, won: 3, closed: 2, conversion_percent: 25, average_first_response_minutes: 14, overdue_next_actions: 1, status_counts: { new: 0, contacted: 4 }, revenue_visible: false },
-    "/crm/analytics": { total_leads: 17, status_counts: { new: 3, contacted: 5, qualified: 3, proposal: 2, payment_pending: 1, won: 2, closed: 1 }, source_counts: { phone: 9, web: 5, telegram: 3 }, operators: [{ operator_user_id: ME.id, operator: ME, total: 12, won: 3, conversion_percent: 25 }], paid_revenue: 25039162, currency: "UZS", revenue_visible: true },
+    "/crm/me/metrics": { operator: ME, total: 12, active: 7, won: 3, closed: 2, conversion_percent: 25, average_first_response_minutes: 14, overdue_next_actions: 1, status_counts: { new: 0, qualified: 4, proposal: 2, decision_pending: 1, won: 3, rejected: 2 }, cycle_metrics: { total: 14, open: 7, won: 4, rejected: 2, completed: 6, conversion_percent: 66.7 }, revenue_visible: false },
+    "/crm/analytics": { total_leads: 17, status_counts: { new: 3, qualified: 5, proposal: 3, decision_pending: 2, won: 2, rejected: 2 }, source_counts: { phone: 9, web: 5, telegram: 3 }, operators: [{ operator_user_id: ME.id, operator: ME, total: 12, won: 3, conversion_percent: 25 }], paid_revenue: 25039162, currency: "UZS", revenue_visible: true },
     "/crm/customers": { items: [{ ...CUSTOMER, status: "active", source: "phone", lead_count: 4, active_lead_count: 2, created_at: "2026-10-20T08:00:00Z", updated_at: "2026-10-26T08:00:00Z" }, { ...CUSTOMER, id: "c2", public_id: "CRM-AA11", name: "Dilnoza K.", primary_phone: "+998901234560", lead_count: 1, active_lead_count: 1, status: "active", source: "web", created_at: "2026-10-25T08:00:00Z", updated_at: "2026-10-25T08:00:00Z" }], total: 2, limit: 48, offset: 0 },
     "/crm/customers/c1": () => ({
       ...CUSTOMER,
@@ -257,7 +270,7 @@ function crmServer(perms: string[], revenue = false) {
         { id: "k1", customer_id: "c1", contact_type: "phone", value: "+998901234567", label: "Asosiy", is_primary: true, is_verified: true, status: "active", source: "operator", created_at: "", updated_at: "" },
         { id: "k2", customer_id: "c1", contact_type: "telegram", value: "@dilnoza", label: "", is_primary: false, is_verified: false, status: "active", source: "operator", created_at: "", updated_at: "" },
       ],
-      leads: [st.mine[0], st.mine[1], lead("old1", { status: "won", title: "Nikoh shartnomasi", closed_at: "2026-09-01T08:00:00Z" }), lead("old2", { status: "closed", title: "Eski murojaat", closed_at: "2026-08-01T08:00:00Z" })],
+      leads: [st.mine[0], st.mine[1], lead("old1", { status: "won", title: "Nikoh shartnomasi", closed_at: "2026-09-01T08:00:00Z" }), lead("old2", { status: "rejected", title: "Eski murojaat", closed_at: "2026-08-01T08:00:00Z" })],
       orders: [],
       activity_count: 9,
     }),
@@ -281,9 +294,9 @@ test("operator mission control: queue, mine, overdue, my metrics, no revenue, ho
   await expect(hero.locator(".crm-counter").nth(1)).toContainText("7");
   await expect(hero.locator(".crm-counter").nth(2)).toContainText("1");
   await expect(page.locator(".crm-agenda li").first()).toContainText("kechikdi");
-  // Leads by status: a donut of the seven, the total in the middle.
+  // Leads by status: a donut of the six, the total in the middle.
   const donut = page.locator(".crm-donut");
-  await expect(donut.locator(".crm-donut__slice")).toHaveCount(7);
+  await expect(donut.locator(".crm-donut__slice")).toHaveCount(6);
   await expect(donut.locator(".crm-donut__center")).toContainText("17");
   await expect(page.getByText("IP-telefoniya hali ulanmagan")).toBeVisible();
   // Operators: no analytics section, no revenue anywhere.
@@ -292,12 +305,12 @@ test("operator mission control: queue, mine, overdue, my metrics, no revenue, ho
   await expect(page.getByText("To'langan tushum")).toHaveCount(0);
   await shot(page, "overview");
   // Hover shows one status in the middle; a click opens its list.
-  const row = donut.getByRole("button", { name: /^Bog'lanildi: 5 ta, 29%/ });
+  const row = donut.getByRole("button", { name: /^Saralangan: 5 ta, 29%/ });
   await row.hover();
-  await expect(donut.locator(".crm-donut__center")).toContainText("Bog'lanildi");
+  await expect(donut.locator(".crm-donut__center")).toContainText("Saralangan");
   await expect(donut.locator(".crm-donut__center")).toContainText("29%");
   await row.click();
-  await expect(page).toHaveURL(/\/admin\/crm\/leads\?tab=all&status=contacted/);
+  await expect(page).toHaveURL(/\/admin\/crm\/leads\?tab=all&status=qualified/);
   expect(missing).toEqual([]);
 });
 
@@ -333,8 +346,8 @@ test("lead workspace: status moves follow meta, carry the lock, recover from a v
   await page.goto("/uz/admin/crm/leads/m1");
   const head = page.locator(".crm-lhead");
   await expect(head).toContainText("Ijara shartnomasi tekshiruvi");
-  // contacted → closed, proposal, qualified only (the meta map).
-  await expect(head.locator(".crm-move")).toHaveCount(3);
+  // qualified → proposal, decision pending, won, rejected only (the meta map).
+  await expect(head.locator(".crm-move")).toHaveCount(4);
   await wsTab(page, /Ma'lumot/);
   await expect(page.getByText("Ehtimoliy dublikat").first()).toBeVisible();
   await wsTab(page, /Tarix/);
@@ -344,8 +357,8 @@ test("lead workspace: status moves follow meta, carry the lock, recover from a v
   await expect(page.locator(".crm-tl").getByRole("button", { name: /tahrir|o'chir/i })).toHaveCount(0);
   await shot(page, "lead");
 
-  await head.getByRole("button", { name: /Saralangan/ }).click();
-  const sheet = page.getByRole("dialog", { name: /Saralangan/ });
+  await head.getByRole("button", { name: /Taklif/ }).click();
+  const sheet = page.getByRole("dialog", { name: /Taklif/ });
   await sheet.getByRole("textbox", { name: /Sabab/ }).fill("Mijoz bilan gaplashildi");
   await sheet.getByRole("button", { name: "O'tkazish" }).click();
   // 409: the lead reloads, the banner explains, the typed reason stays.
@@ -354,7 +367,7 @@ test("lead workspace: status moves follow meta, carry the lock, recover from a v
   await sheet.getByRole("button", { name: "O'tkazish" }).click();
   await expect(sheet).toBeHidden();
   expect(st.writes.map((w) => w.body.expected_lock_version)).toEqual([4, 5]);
-  expect(st.writes[1].body).toMatchObject({ status: "qualified", reason: "Mijoz bilan gaplashildi" });
+  expect(st.writes[1].body).toMatchObject({ status: "proposal", reason: "Mijoz bilan gaplashildi" });
 
   // Transfer without a reason never reaches the backend.
   await wsTab(page, /Ma'lumot/);
@@ -468,127 +481,93 @@ async function dragCard(page: Page, from: Locator, to: Locator, onCard = false) 
   await page.mouse.up();
 }
 
-test("kanban: a card lands at the exact place, carries the lock, and a conflict puts it back", async ({ page }) => {
+test("kanban: GET /crm/kanban, reorder in a column, status moves with the lock; won without a paid order snaps back", async ({ page }) => {
   const missing = watchIntl(page);
   const { st, routes } = crmServer(OPERATOR.permissions ?? []);
-  st.moveConflictOnce = true;
+  st.queue = [lead("q1"), lead("q2", { title: "Aliment undirish" }), lead("q3", { title: "Mehnat nizosi", lock_version: 3 })];
+  st.queue.forEach((l) => (l.allowed_actions = ["view_timeline", "change_status", "claim"]));
   await mockBackend(page, await signIn(page, OPERATOR, routes as never));
-  await page.goto("/uz/admin/crm/leads?tab=mine&view=board");
-  const cols = page.locator(".crm-col");
-  await expect(cols).toHaveCount(7);
-  const col = (name: string) => cols.filter({ has: page.locator(".crm-col__h b", { hasText: new RegExp(`^${name}$`) }) });
-  const card = page.locator(".crm-kcard").filter({ hasText: "Ijara shartnomasi tekshiruvi" });
-  const other = page.locator(".crm-kcard").filter({ hasText: "Meros ulushi" });
-  await expect(col("Bog'lanildi").locator(".crm-kcard")).toHaveCount(1);
-  // Column names, colours and order come from the backend.
-  await expect(cols.locator(".crm-col__h b")).toHaveText(["Yangi", "Bog'lanildi", "Saralangan", "Taklif", "To'lov kutilmoqda", "Yutildi", "Yopilgan"]);
-  await shot(page, "board");
-  await page.waitForTimeout(800);
-  expect(st.boardCalls).toBe(7);
-  // No column manager for an operator without leads.manage.
-  await expect(page.getByRole("button", { name: "Ustunlarni boshqarish" })).toHaveCount(0);
-
-  // The menu: one place up/down, then the map's next columns; Escape closes it.
-  const menu = card.getByRole("group", { name: "Ko'chirish…" });
-  await card.getByRole("button", { name: "Ko'chirish…" }).click();
-  await expect(menu.getByRole("button")).toHaveText(["Yuqoriga", "Pastga", "Yopilgan", "Taklif", "Saralangan"]);
-  await page.keyboard.press("Escape");
-  await expect(menu).toHaveCount(0);
-
-  // Above "Meros ulushi" in "Saralangan". The lead changed meanwhile (409):
-  // the card goes back and nothing is retried with the stale lock.
-  const move = async () => {
-    if (!process.env.CRM_NARROW) await dragCard(page, card, other, true);
-    else {
-      await card.getByRole("button", { name: "Ko'chirish…" }).click();
-      await menu.getByRole("button", { name: "Saralangan" }).click();
-    }
-  };
-  await move();
-  await expect(page.getByText("Bu lidni boshqa operator hozirgina o'zgartirdi — doska yangilandi.").first()).toBeVisible();
-  await expect(col("Bog'lanildi").locator(".crm-kcard")).toHaveCount(1);
-  expect(st.moves).toHaveLength(1);
-  // Again, with the fresh lock: it lands above the other card at once.
-  await move();
-  await expect(col("Saralangan").locator(".crm-kcard").first()).toContainText("Ijara shartnomasi", { timeout: 1500 });
-  await expect(col("Saralangan").locator(".crm-kcard").nth(1)).toContainText("Meros ulushi");
-  await expect(col("Bog'lanildi").locator(".crm-kcard")).toHaveCount(0);
-  expect(st.moves[1]).toMatchObject({ id: "m1", column_key: "qualified", position: 0, expected_lock_version: 5 });
-  // One place down inside the column: position 1, the new lock.
-  await card.getByRole("button", { name: "Ko'chirish…" }).click();
-  await menu.getByRole("button", { name: "Pastga" }).click();
-  await expect(col("Saralangan").locator(".crm-kcard").nth(1)).toContainText("Ijara shartnomasi");
-  expect(st.moves[2]).toMatchObject({ id: "m1", column_key: "qualified", position: 1, expected_lock_version: 6 });
-  // Never a second status request: the move is the status change.
-  expect(st.writes.filter((w) => w.path === "status")).toHaveLength(0);
-  await page.waitForTimeout(900);
-  expect(st.boardCalls).toBeLessThanOrEqual(7 * 4);
-  expect(missing).toEqual([]);
-});
-
-test("kanban columns: add, recolour, reorder and archive with a destination", async ({ page }) => {
-  const missing = watchIntl(page);
-  const ALL = ["crm.customers.view", "crm.leads.view", "crm.leads.manage", "crm.leads.claim", "crm.analytics.self"];
-  const { st, routes } = crmServer(ALL);
-  const mock = await mockBackend(page, await signIn(page, ADMIN, routes as never));
   await page.goto("/uz/admin/crm/leads?tab=all&view=board");
-  await expect(page.locator(".crm-col")).toHaveCount(7);
-  await page.getByRole("button", { name: "Ustunlarni boshqarish" }).click();
-  const dlg = page.getByRole("dialog", { name: "Doska ustunlari" });
-  await expect(dlg.locator(".crm-colmgr__row")).toHaveCount(7);
-  // No key and no number field anywhere.
-  await expect(dlg).not.toContainText("payment_pending");
-  await expect(dlg.locator('input[type="number"]')).toHaveCount(0);
-  // A new column, named and coloured, moved up to second place.
-  await dlg.getByRole("button", { name: "Ustun qo'shish" }).click();
-  const fresh = dlg.locator(".crm-colmgr__row").last();
-  await fresh.getByRole("textbox").fill("Qayta aloqa");
-  await fresh.getByRole("radio", { name: "10-rang" }).click();
-  // The new row climbs one place per press: follow it by index.
-  for (let i = 7; i > 1; i--) await dlg.locator(".crm-colmgr__row").nth(i).getByRole("button", { name: /yuqoriga$/ }).click();
-  await expect(dlg.locator(".crm-colmgr__row").nth(1).getByRole("textbox")).toHaveValue("Qayta aloqa");
-  await shot(page, "columns");
-  await dlg.getByRole("button", { name: "Saqlash" }).click();
-  await expect(dlg).toHaveCount(0);
-  const put = st.colWrites.find((w) => w.method === "PUT")!.body as Col[];
-  expect(put.map((c) => c.key)).toEqual(["new", "qayta_aloqa", "contacted", "qualified", "proposal", "payment_pending", "won", "closed"]);
-  expect(put.map((c) => c.order)).toEqual([10, 20, 30, 40, 50, 60, 70, 80]);
-  expect(put[1]).toMatchObject({ title: "Qayta aloqa", color: "#7c3aed", is_final: false });
-  // The board follows the backend's columns at once.
-  await expect(page.locator(".crm-col")).toHaveCount(8);
-  await expect(page.locator(".crm-col").nth(1).locator(".crm-col__h b")).toHaveText("Qayta aloqa");
-  // Archive it: the leads go to the chosen column.
-  await page.getByRole("button", { name: "Ustunlarni boshqarish" }).click();
-  const dlg2 = page.getByRole("dialog", { name: "Doska ustunlari" });
-  await dlg2.getByRole("button", { name: "Qayta aloqa — arxivlash" }).click();
-  const arch = page.getByRole("dialog", { name: "«Qayta aloqa» ustunini arxivlash" });
-  await arch.getByRole("button", { name: "Arxivlash" }).click();
-  await expect(arch).toHaveCount(0);
-  expect(st.colWrites.find((w) => w.method === "DELETE")?.url).toMatch(/\/call-center\/leads\/kanban\/columns\/qayta_aloqa\?reassign_to=new$/);
-  expect(mock.refused).toEqual([]);
+  const cols = page.locator(".crm-col");
+  await expect(cols).toHaveCount(6);
+  const fresh = cols.first();
+  await expect(fresh.locator(".crm-kcard")).toHaveCount(3);
+  // Six fixed columns, each with its own icon in the stepper set; no old ones.
+  await expect(page.locator(".crm-board")).not.toContainText(/Bog'lanildi|To'lov kutilmoqda/);
+  await shot(page, "board");
+
+  // Inside a column: the new place goes to the move endpoint with the lock.
+  await dragCard(page, fresh.locator(".crm-kcard").nth(2), fresh.locator(".crm-kcard").first(), true);
+  await expect.poll(() => st.moves.length).toBe(1);
+  expect(st.moves[0]).toMatchObject({ id: "q3", column_key: "new", position: 0, expected_lock_version: 3 });
+  await expect(fresh.locator(".crm-kcard").first()).toContainText("Mehnat nizosi");
+
+  // Another column: a status change with the lock, the card follows only after the backend agrees.
+  const target = cols.nth(1);
+  await dragCard(page, fresh.locator(".crm-kcard").filter({ hasText: "Aliment undirish" }), target);
+  await expect.poll(() => st.writes.find((w) => w.path === "status:q2")?.body).toMatchObject({ status: "qualified", expected_lock_version: 1 });
+  await expect(target.locator(".crm-kcard")).toContainText(["Aliment undirish"]);
+
+  // Won without a paid order: refused, the card stays where it was, the reason is said.
+  await fresh.locator(".crm-kcard").filter({ hasText: "Ijara shartnomasi" }).getByRole("button", { name: "Ko'chirish…" }).click();
+  await fresh.locator(".crm-kcard__menu").getByRole("button", { name: "Yutildi" }).click();
+  await expect(page.getByText("«Yutildi» uchun to'langan buyurtma kerak.").first()).toBeVisible();
+  await expect(fresh.locator(".crm-kcard")).toContainText(["Ijara shartnomasi"]);
+  await expect(cols.nth(4).locator(".crm-kcard")).toHaveCount(0);
+
+  // Rejected asks for a reason first.
+  await fresh.locator(".crm-kcard").filter({ hasText: "Ijara shartnomasi" }).getByRole("button", { name: "Ko'chirish…" }).click();
+  await fresh.locator(".crm-kcard__menu").getByRole("button", { name: "Rad etilgan" }).click();
+  const sheet = page.getByRole("dialog", { name: /rad etilsinmi/ });
+  await sheet.getByRole("button", { name: "Rad etish" }).click();
+  await expect(sheet).toContainText("Sababni yozing.");
+  await sheet.getByRole("textbox").fill("Mijoz boshqa yurist bilan ishlaydi");
+  await sheet.getByRole("button", { name: "Rad etish" }).click();
+  await expect.poll(() => st.writes.filter((w) => w.path === "status:q1").at(-1)?.body).toMatchObject({ status: "rejected", reason: "Mijoz boshqa yurist bilan ishlaydi" });
+  await expect(cols.nth(5).locator(".crm-kcard")).toContainText(["Ijara shartnomasi"]);
   expect(missing).toEqual([]);
 });
 
-test("kanban: a claim from the queue board refreshes the board; a lost race says so", async ({ page }) => {
+test("kanban: load more pages one column; status settings keep all six keys", async ({ page }) => {
+  const { st, routes } = crmServer([...(OPERATOR.permissions ?? []), "crm.automation.manage"]);
+  st.queue = Array.from({ length: 33 }, (_, i) => lead(`n${i}`, { title: `Murojaat ${i + 1}` }));
+  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await page.goto("/uz/admin/crm/leads?tab=all&view=board");
+  const fresh = page.locator(".crm-col").first();
+  await expect(fresh.locator(".crm-kcard")).toHaveCount(30);
+  await fresh.getByRole("button", { name: /Yana yuklash \(3\)/ }).click();
+  await expect(fresh.locator(".crm-kcard")).toHaveCount(33);
+  await expect(fresh.getByRole("button", { name: /Yana yuklash/ })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Holat sozlamalari" }).click();
+  const drawer = page.getByRole("dialog", { name: "Holat sozlamalari" });
+  await expect(drawer.locator(".crm-colmgr__row")).toHaveCount(6);
+  await expect(drawer.getByRole("button", { name: /olib tashlash|arxivlash/i })).toHaveCount(0);
+  await drawer.getByRole("textbox", { name: "2-holat nomi" }).fill("Ehtiyoj aniqlandi");
+  await drawer.getByRole("button", { name: "Ehtiyoj aniqlandi — yuqoriga" }).click();
+  await drawer.getByRole("button", { name: "Saqlash" }).click();
+  await expect.poll(() => st.colWrites.length).toBe(1);
+  const body = st.colWrites[0].body as { columns: { key: string; title: string; order: number }[] };
+  expect(body.columns.map((c) => c.key)).toEqual(["qualified", "new", "proposal", "decision_pending", "won", "rejected"]);
+  expect(body.columns.map((c) => c.order)).toEqual([10, 20, 30, 40, 50, 60]);
+  expect(body.columns[0].title).toBe("Ehtiyoj aniqlandi");
+});
+
+test("kanban: without crm.automation.manage there are no status settings; a claim from the board says who has it", async ({ page }) => {
   const { st, routes } = crmServer(OPERATOR.permissions ?? []);
   await mockBackend(page, await signIn(page, OPERATOR, routes as never));
   await page.goto("/uz/admin/crm/leads?tab=queue&view=board");
+  await expect(page.getByRole("tab", { name: /Hammasi/ })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("button", { name: "Holat sozlamalari" })).toHaveCount(0);
   const fresh = page.locator(".crm-col").first();
-  await expect(fresh.locator(".crm-kcard")).toHaveCount(3);
   // No next action yet: the card shows the customer's phone, not a dash.
-  const reach = fresh.locator(".crm-kcard").first().locator(".crm-kcard__reach");
+  const reach = fresh.locator(".crm-kcard").filter({ hasText: "Mehnat nizosi" }).locator(".crm-kcard__reach");
   await expect(reach).toHaveText("+998901234567");
-  await expect(reach).toHaveAttribute("href", "tel:+998901234567");
-  await shot(page, "board-queue");
   await fresh.locator(".crm-kcard").filter({ hasText: "Ijara shartnomasi" }).getByRole("button", { name: "Olish" }).click();
   await expect.poll(() => st.claims).toEqual(["q1"]);
-  // Out of the queue board once it is mine.
-  await expect(fresh.locator(".crm-kcard")).toHaveCount(2);
   await fresh.locator(".crm-kcard").filter({ hasText: "Aliment undirish" }).getByRole("button", { name: "Olish" }).click();
   await expect(page.getByText(/Kimdir tezroq bo'ldi/).first()).toBeVisible();
-  await expect(page.getByRole("tab", { name: /Meniki/ })).toContainText("3");
 });
-
 
 test("no page refetches by itself: once loaded, every CRM screen stays quiet", async ({ page }) => {
   const ALL = ["crm.customers.view", "crm.customers.manage", "crm.customers.merge", "crm.leads.view", "crm.leads.manage", "crm.leads.claim", "crm.leads.assign", "crm.analytics.self", "crm.analytics.global", "crm.revenue.view", "crm.ai.use", "crm.exports.create", "crm.templates.manage"];
