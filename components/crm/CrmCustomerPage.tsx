@@ -5,13 +5,15 @@ import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import CheckBox from "@/components/CheckBox";
 import { Link, useRouter } from "@/i18n/navigation";
-import { IconAlert, IconArrowRight, IconCheck, IconEdit, IconHistory, IconLayers, IconPlus, IconUsers } from "@/components/icons";
+import { IconAlert, IconArrowRight, IconAward, IconCheck, IconEdit, IconHistory, IconInfo, IconLayers, IconPlus, IconShieldCheck, IconUsers } from "@/components/icons";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { IconShoppingBag } from "./icons";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import {
   addCrmContact,
+  activeContacts,
   archiveCrmContact,
   crmCan,
   getCrmCustomer,
@@ -31,6 +33,7 @@ import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import CrmFrame, { type CrmApi } from "./CrmFrame";
 import { Avatar, Empty, StatusPill, WhenChip, statusVar, useCrmError } from "./bits";
 import { ContactRow } from "./LeadSide";
+import { DetailSections } from "./DetailSections";
 import { Timeline } from "./LeadTimeline";
 import { CrmSelect } from "./fields";
 
@@ -58,6 +61,7 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
   const [err, setErr] = useState<unknown>(null);
   const [tl2, setTl] = useState<CrmActivity[] | null>(null);
   const [sheet, setSheet] = useState<"" | "edit" | "contact" | "merge">("");
+  const [contactBusy, setContactBusy] = useState("");
   const canManage = crmCan(meta, "crm.customers.manage");
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -119,23 +123,35 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
   const past = c.leads.filter((l) => isFinalStatus(meta, l.status));
   const contacts = [...c.contacts].sort((a, b) => Number(b.primary) - Number(a.primary) || Number(a.status === "archived") - Number(b.status === "archived"));
   const setPrimary = async (id: string) => {
+    if (contactBusy) return;
+    setContactBusy(id);
     try {
       await updateCrmContact(c.id, id, { primary: true });
       toast(t("primarySet"), { tone: "ok" });
       void load();
     } catch (e) {
       toast(crmErr(e), { tone: "err" });
+    } finally {
+      setContactBusy("");
     }
   };
   const archive = async (id: string) => {
+    if (contactBusy) return;
+    const x = c.contacts.find((k) => k.id === id);
+    const ok = await confirmDialog({ title: t("archiveAsk"), text: x?.value, confirmLabel: t("archiveYes"), tone: "danger" });
+    if (!ok) return;
+    setContactBusy(id);
     try {
       await archiveCrmContact(c.id, id);
       toast(t("archived"), { tone: "ok" });
       void load();
     } catch (e) {
       toast(crmErr(e), { tone: "err" });
+    } finally {
+      setContactBusy("");
     }
   };
+  const onlyOne = activeContacts(c.contacts).length <= 1;
 
   return (
     <>
@@ -150,6 +166,10 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
           ) : (
             <span className="crm-badge crm-badge--muted">{t("notLinked")}</span>
           )}
+          <span className="crm-badge crm-life" data-life={c.lifecycle}>
+            {c.lifecycle === "customer" ? <IconAward aria-hidden="true" /> : <IconUsers aria-hidden="true" />}
+            {t(`life.${c.lifecycle === "customer" ? "customer" : "prospect"}`)}
+          </span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <Avatar name={c.name} large />
@@ -252,10 +272,23 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
                 </button>
               ) : null}
             </h3>
+            {canManage && onlyOne && contacts.length ? (
+              <p className="crm-note">
+                <IconInfo aria-hidden="true" />
+                {t("lastContact")}
+              </p>
+            ) : null}
             {contacts.length ? (
               <ul className="crm-contacts">
                 {contacts.map((x) => (
-                  <ContactRow key={x.id} c={x} onPrimary={canManage ? () => void setPrimary(x.id) : undefined} onArchive={canManage ? () => void archive(x.id) : undefined} />
+                  <ContactRow
+                    key={x.id}
+                    c={x}
+                    busy={!!contactBusy}
+                    onPrimary={canManage ? () => void setPrimary(x.id) : undefined}
+                    onArchive={canManage ? () => void archive(x.id) : undefined}
+                    archiveBlocked={onlyOne && x.status !== "archived" ? t("lastContact") : undefined}
+                  />
                 ))}
               </ul>
             ) : (
@@ -267,6 +300,29 @@ function Profile({ api, customerId }: { api: CrmApi; customerId: string }): Reac
               </p>
             ) : null}
           </section>
+
+          <section className="crm-card crm-link" aria-labelledby="crm-lk-t" data-linked={c.linking.linked || undefined}>
+            <h3 className="crm-card__h" id="crm-lk-t">
+              <IconShieldCheck aria-hidden="true" />
+              {t("linkTitle")}
+            </h3>
+            <p className="crm-link__state">
+              {c.linking.linked ? <IconCheck aria-hidden="true" /> : <IconInfo aria-hidden="true" />}
+              <b>{c.linking.linked ? c.lexgoLabel || t("linked") : t("notLinked")}</b>
+            </p>
+            {!c.linking.linked ? <p className="crm-sub">{c.linking.requiredAction || (c.linking.automatic ? t("linkAuto") : t("linkManual"))}</p> : null}
+            <p className="crm-sub">{c.lifecycle === "customer" ? t("lifeCustomerSince", { date: c.becameCustomerAt ? shortDateTime(c.becameCustomerAt, locale) : "—" }) : t("lifeProspect")}</p>
+          </section>
+
+          {c.sections.length ? (
+            <section className="crm-card" aria-labelledby="crm-cds-t">
+              <h3 className="crm-card__h" id="crm-cds-t">
+                <IconLayers aria-hidden="true" />
+                {t("details")}
+              </h3>
+              <DetailSections sections={c.sections} />
+            </section>
+          ) : null}
 
           <section className="crm-card" aria-labelledby="crm-co-t">
             <h3 className="crm-card__h" id="crm-co-t">

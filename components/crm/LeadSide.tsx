@@ -25,7 +25,9 @@ export function copyText(text: string, done: string): void {
   );
 }
 
-export function ContactRow({ c, onPrimary, onArchive }: { c: CrmContact; onPrimary?: () => void; onArchive?: () => void }): ReactElement {
+// `archiveBlocked`: why this contact cannot be archived (the last active
+// one); the button then stays visible but disabled, with the reason.
+export function ContactRow({ c, onPrimary, onArchive, archiveBlocked, busy }: { c: CrmContact; onPrimary?: () => void; onArchive?: () => void; archiveBlocked?: string; busy?: boolean }): ReactElement {
   const t = useTranslations("crm.contact");
   const Icon = c.type === "phone" ? IconPhone : c.type === "email" ? IconMail : IconSend;
   const href = c.type === "phone" ? `tel:${c.value.replace(/\s+/g, "")}` : c.type === "email" ? `mailto:${c.value}` : c.type === "telegram" ? `https://t.me/${c.value.replace(/^@/, "")}` : "";
@@ -37,7 +39,7 @@ export function ContactRow({ c, onPrimary, onArchive }: { c: CrmContact; onPrima
         {c.label ? <small className="crm-muted"> · {c.label}</small> : null}
       </span>
       {c.primary ? <IconStar className="crm-star" aria-label={t("primary")} style={{ width: 14, height: 14 }} /> : onPrimary && c.status !== "archived" ? (
-        <button type="button" className="crm-icobtn" onClick={onPrimary} aria-label={t("makePrimary")} title={t("makePrimary")}>
+        <button type="button" className="crm-icobtn" onClick={onPrimary} aria-label={t("makePrimary")} title={t("makePrimary")} disabled={busy}>
           <IconStar aria-hidden="true" />
         </button>
       ) : null}
@@ -51,7 +53,7 @@ export function ContactRow({ c, onPrimary, onArchive }: { c: CrmContact; onPrima
         </a>
       ) : null}
       {onArchive && c.status !== "archived" ? (
-        <button type="button" className="crm-icobtn" onClick={onArchive} aria-label={t("archive")} title={t("archive")}>
+        <button type="button" className="crm-icobtn" onClick={onArchive} aria-label={archiveBlocked ? `${t("archive")}: ${archiveBlocked}` : t("archive")} title={archiveBlocked || t("archive")} disabled={busy || !!archiveBlocked}>
           <IconClose aria-hidden="true" />
         </button>
       ) : null}

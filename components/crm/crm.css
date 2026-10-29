@@ -25,12 +25,11 @@
      (dataviz validate_palette.js, adjacent pairs incl. closed → new) for
      lightness, chroma, colour-blind and normal-vision separation. */
   --s-new: #2a78d6;
-  --s-contacted: #1baf7a;
   --s-qualified: #6250d6;
-  --s-proposal: #e87ba4;
-  --s-payment_pending: #eda100;
+  --s-proposal: #0891b2;
+  --s-decision_pending: #d97706;
   --s-won: #008300;
-  --s-closed: #e34948;
+  --s-rejected: #e34948;
   display: grid;
   gap: 16px;
   color: var(--crm-ink);
@@ -45,12 +44,11 @@ html[data-theme="dark"] .crm {
   --crm-warn: #fbbf24;
   --crm-bad: #f87171;
   --s-new: #3987e5;
-  --s-contacted: #199e70;
   --s-qualified: #9085e9;
-  --s-proposal: #d55181;
-  --s-payment_pending: #c98500;
-  --s-won: #008300;
-  --s-closed: #e66767;
+  --s-proposal: #22b8d6;
+  --s-decision_pending: #f0a530;
+  --s-won: #1fa83a;
+  --s-rejected: #e66767;
 }
 .crm *,
 .crm-pop * {
@@ -844,3 +842,12 @@ html[data-theme="dark"] .amodal__f:has(.crm-btn) { --crm-acc: var(--dk-acc, #6ea
 .crm-stagem__acts { display: flex; gap: 8px; justify-content: flex-end; }
 @keyframes crm-stagem-in { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: none } }
 @media (prefers-reduced-motion: reduce) { .crm-stagem { animation: none } }
+/* Customer lifecycle, account linking, notes (contract 13cb257 §2, §8). */
+.crm-life { background: rgb(255 255 255 / 18%); color: #fff; }
+.crm-life[data-life="customer"] { background: color-mix(in srgb, #fbbf24 30%, transparent); color: #fff7d6; }
+.crm-link[data-linked] .crm-link__state svg { color: var(--crm-ok); }
+.crm-link__state { display: flex; align-items: center; gap: 8px; margin: 0; font-size: .9rem; }
+.crm-link__state svg { width: 16px; height: 16px; flex: none; color: var(--crm-warn); }
+.crm-note { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--crm-warn) 10%, var(--crm-soft)); color: var(--crm-ink); font-size: .78rem; line-height: 1.45; }
+.crm-note svg { flex: none; width: 14px; height: 14px; margin-top: 1px; color: var(--crm-warn); }
+.crm-icobtn:disabled { opacity: .4; cursor: not-allowed; }

@@ -5,6 +5,9 @@ import {
   aiCardsOf,
   applyAiRun,
   assignLead,
+  canArchiveContact,
+  crmContactOf,
+  crmCustomerDetailOf,
   changeLeadStatus,
   chronological,
   crmActivityOf,
@@ -327,5 +330,21 @@ describe("sections by permission", () => {
   });
   it("nothing without meta", () => {
     expect(visibleSections(null)).toEqual([]);
+  });
+});
+
+// §2/§8: lifecycle, account linking and the last active contact.
+describe("customers", () => {
+  const contact = (id: string, status = "active") => crmContactOf({ id, contact_type: "phone", value: "+998901234567", status });
+  it("the last active contact cannot be archived", () => {
+    expect(canArchiveContact([contact("a")], "a")).toBe(false);
+    expect(canArchiveContact([contact("a"), contact("b", "archived")], "a")).toBe(false);
+    expect(canArchiveContact([contact("a"), contact("b")], "a")).toBe(true);
+  });
+  it("reads lifecycle and account linking; prospect until a paid purchase", () => {
+    const c = crmCustomerDetailOf({ id: "c1", public_id: "CRM-1", lifecycle: "customer", became_customer_at: "2026-10-20T10:00:00Z", account_linking: { status: "linked", automatic_by_verified_phone: true, required_action: "" } });
+    expect([c.lifecycle, c.becameCustomerAt, c.linking.linked]).toEqual(["customer", "2026-10-20T10:00:00Z", true]);
+    const p = crmCustomerDetailOf({ id: "c2", account_linking: { status: "unlinked", automatic_by_verified_phone: true, required_action: "Telefonni tasdiqlang" } });
+    expect([p.lifecycle, p.linking.linked, p.linking.requiredAction]).toEqual(["prospect", false, "Telefonni tasdiqlang"]);
   });
 });

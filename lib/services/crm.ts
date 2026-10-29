@@ -158,10 +158,15 @@ export async function listCrmOperators(q = "", signal?: AbortSignal): Promise<Cr
 // account by the verified phone and says so with is_lexgo_user and its own
 // label; `userId` is kept only for internal links, never shown or sent.
 export type CrmCustomerBrief = { id: string; publicId: string; userId: string; isLexgoUser: boolean; lexgoLabel: string; name: string; language: string; region: string; phone: string; telegram: string; email: string };
-export type CrmCustomer = CrmCustomerBrief & { status: string; source: string; leadCount: number; activeLeadCount: number; createdAt: string; updatedAt: string };
+// lifecycle (§2): "prospect" until the first confirmed paid purchase, then
+// "customer" (becameCustomerAt).
+export type CrmCustomer = CrmCustomerBrief & { status: string; source: string; lifecycle: string; becameCustomerAt: string; leadCount: number; activeLeadCount: number; createdAt: string; updatedAt: string };
+// Account linking (§8): automatic by verified phone; the backend says what
+// the operator must do when it is not linked yet.
+export type CrmLinking = { status: string; linked: boolean; automatic: boolean; requiredAction: string };
 export type CrmContact = { id: string; type: string; value: string; label: string; primary: boolean; verified: boolean; status: string; source: string; createdAt: string };
 export type CrmOrderRef = { id: string; workId: string; serviceId: string; serviceTitle: string; status: string; paymentStatus: string; createdAt: string };
-export type CrmCustomerDetail = CrmCustomer & { notes: string; contacts: CrmContact[]; leads: CrmLead[]; orders: CrmOrderRef[]; activityCount: number; sections: DetailSection[]; reused: boolean; linking: { linked: boolean; requiredAction: string } };
+export type CrmCustomerDetail = CrmCustomer & { notes: string; contacts: CrmContact[]; leads: CrmLead[]; orders: CrmOrderRef[]; activityCount: number; sections: DetailSection[]; reused: boolean; linking: CrmLinking };
 
 export function crmCustomerBriefOf(v: unknown): CrmCustomerBrief | null {
   const d = asDict(v);
@@ -184,7 +189,7 @@ export function crmCustomerBriefOf(v: unknown): CrmCustomerBrief | null {
 export function crmCustomerOf(v: unknown): CrmCustomer {
   const d = asDict(v);
   const b = crmCustomerBriefOf(d) ?? { id: "", publicId: "", userId: "", isLexgoUser: false, lexgoLabel: "", name: "", language: "", region: "", phone: "", telegram: "", email: "" };
-  return { ...b, status: asStr(d.status), source: asStr(d.source), leadCount: int(d.lead_count), activeLeadCount: int(d.active_lead_count), createdAt: asStr(d.created_at), updatedAt: asStr(d.updated_at) };
+  return { ...b, status: asStr(d.status), source: asStr(d.source), lifecycle: asStr(d.lifecycle) || "prospect", becameCustomerAt: asStr(d.became_customer_at), leadCount: int(d.lead_count), activeLeadCount: int(d.active_lead_count), createdAt: asStr(d.created_at), updatedAt: asStr(d.updated_at) };
 }
 export function crmContactOf(v: unknown): CrmContact {
   const d = asDict(v);
@@ -206,9 +211,18 @@ export function crmCustomerDetailOf(v: unknown): CrmCustomerDetail {
     // POST /crm/customers (gaps closed §19): whether an existing customer
     // came back, and what the operator must do to link the LexGo account.
     reused: d.reused === true,
-    linking: { linked: asStr(asDict(d.account_linking).status) === "linked", requiredAction: asStr(asDict(d.account_linking).required_action).trim() },
+    linking: linkingOf(d),
   };
 }
+
+function linkingOf(d: Dict): CrmLinking {
+  const l = asDict(d.account_linking);
+  const status = asStr(l.status) || (asStr(d.user_id) || d.is_lexgo_user === true ? "linked" : "unlinked");
+  return { status, linked: status === "linked", automatic: l.automatic_by_verified_phone !== false, requiredAction: asStr(l.required_action).trim() };
+}
+// The last active contact of a customer cannot be archived (§8).
+export const activeContacts = (cs: readonly CrmContact[]): CrmContact[] => cs.filter((c) => c.status !== "archived");
+export const canArchiveContact = (cs: readonly CrmContact[], id: string): boolean => activeContacts(cs).some((c) => c.id === id) && activeContacts(cs).length > 1;
 
 // ── detail_sections: the backend's readable view of a record ──
 // Never raw JSON (contract §10): each section is a card of labelled values;
@@ -801,26 +815,47 @@ export async function createCrmTemplate(t: { title: string; type: string; langua
 
 // ── Errors ─────────────────────────────────────────────────────────────
 
+// Contract 13cb257 §22, plus the lock and claim codes of the earlier CRM
+// contracts. Every one has its own translated text (crm.err.*).
 export const CRM_ERROR_CODES = [
-  "crm_access_denied",
   "crm_permission_required",
-  "crm_customer_not_found",
-  "crm_lead_not_found",
   "crm_operator_scope_denied",
   "crm_operator_invalid",
+  "crm_lead_not_found",
+  "crm_customer_not_found",
+  "crm_contact_not_found",
+  "crm_last_contact_cannot_archive",
+  "crm_customer_account_required",
+  "crm_rejection_reason_required",
+  "crm_paid_order_required",
+  "crm_payment_confirmation_required",
+  "crm_phone_contact_required",
+  "crm_ai_lead_scope_denied",
+  "crm_ai_run_active",
+  "crm_ai_run_not_found",
+  "crm_ai_run_not_completed",
+  "crm_ai_path_invalid",
+  "crm_ai_next_action_invalid",
+  "crm_call_scope_denied",
+  "crm_call_not_found",
+  "crm_call_complete_denied",
+  "crm_live_transcript_denied",
+  "crm_sms_not_found",
+  "crm_sms_not_approvable",
+  "crm_automation_action_invalid",
+  "crm_automation_rule_not_found",
+  "crm_automation_context_not_found",
+  "crm_export_scope_denied",
+  "crm_export_not_found",
+  "crm_export_not_ready",
+  "crm_kanban_fixed_statuses_required",
+  "crm_global_analytics_superadmin_only",
+  "crm_access_denied",
   "crm_lead_already_claimed",
   "crm_lead_version_conflict",
   "crm_status_transition_invalid",
   "crm_duplicate_target_invalid",
-  "crm_customer_account_required",
-  "crm_ai_run_active",
-  "crm_ai_run_not_completed",
-  "crm_ai_path_invalid",
-  "crm_export_scope_denied",
-  "crm_export_not_ready",
-  "crm_export_not_found",
-  "crm_phone_contact_required",
-  "crm_call_scope_denied",
+  "crm_transfer_reason_required",
 ] as const;
 export const crmCode = (e: unknown): string => (e instanceof ApiError ? (e.code ?? "") : "");
 export const isVersionConflict = (e: unknown): boolean => crmCode(e) === "crm_lead_version_conflict";

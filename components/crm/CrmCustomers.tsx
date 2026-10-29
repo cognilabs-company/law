@@ -34,6 +34,7 @@ export default function CrmCustomers(): ReactElement {
 
 function CustomerGrid({ meta }: { meta: CrmMeta }): ReactElement {
   const t = useTranslations("crm.customers");
+  const tc = useTranslations("crm.customer");
   const crmErr = useCrmError();
   const [qInput, setQInput] = useState("");
   const [q, setQ] = useState("");
@@ -151,6 +152,10 @@ function CustomerGrid({ meta }: { meta: CrmMeta }): ReactElement {
                 ) : null}
               </span>
               <span className="crm-ccard__meta">
+                <span className="crm-pill" style={{ ["--sc" as string]: c.lifecycle === "customer" ? "var(--crm-ok)" : "var(--crm-muted)" }}>
+                  <i aria-hidden="true" />
+                  {tc(`life.${c.lifecycle === "customer" ? "customer" : "prospect"}`)}
+                </span>
                 <span className="crm-pill" style={{ ["--sc" as string]: "var(--crm-acc)" }}>
                   <IconLayers aria-hidden="true" style={{ width: 12, height: 12 }} />
                   {t("leads", { n: c.leadCount })}
