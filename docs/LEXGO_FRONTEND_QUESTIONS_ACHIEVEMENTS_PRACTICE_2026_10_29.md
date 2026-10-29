@@ -2,7 +2,7 @@
 
 Date: 2026-10-29
 From: Frontend
-Status: open
+Status: answered by the backend in `LEXGO_ACHIEVEMENTS_PRACTICE_FRONTEND_CONTRACT_2026_10_29.md` (backend commit 69c11a6). The frontend now reads only the canonical fields from that contract. What is still open is in `LEXGO_FRONTEND_FOLLOWUP_ACHIEVEMENTS_PRACTICE_2026_10_29.md`.
 Applies to: `LEXGO_FRONTEND_ADVOCATE_ACHIEVEMENTS_PRACTICE_2026-10-29.md`
 
 The frontend for this contract is built (Parts A–E). The OpenAPI types every answer below as a free-form object (`additionalProperties: true`). We could not read the real answers either:
