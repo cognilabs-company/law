@@ -39,6 +39,7 @@ const exp = (id: string, status: string, extra: Record<string, unknown> = {}) =>
   years: status === "approved" ? 7 : null,
   ...extra,
 });
+const group = (r: { id: string; status: string }) => ({ root_id: r.id, current: r.status === "approved" ? r : null, pending_revision: null, latest: r, revision_count: 1 });
 const SERVICES = {
   items: [
     { id: "s1", title: "Ота-оналик ҳуқуқидан маҳрум қилиш", category_title: "Оила ва никоҳ", status: "active", configured_price: 879749, is_marketplace_visible: true },
@@ -52,7 +53,8 @@ async function open(page: Page, width: number) {
     "/lawyers/me": ME,
     "/service-categories": CATS,
     "/service-categories/tree": TREE,
-    "/marketplace/me/experience": { items: [exp("e1", "approved"), exp("e2", "rejected", { category_id: "c-crim", subcategory_id: "", rejection_reason: "Ish joyi dalili yetarli emas" })] },
+    // The backend's groups (2026-10-29 §13).
+    "/marketplace/me/experience": { items: [], groups: [group(exp("e1", "approved")), group(exp("e2", "rejected", { category_id: "c-crim", subcategory_id: "", rejection_reason: "Ish joyi dalili yetarli emas" }))] },
     "/lawyers/me/services/manage": SERVICES,
   });
   await mockBackend(page, routes);

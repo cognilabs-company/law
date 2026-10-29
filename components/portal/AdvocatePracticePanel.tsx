@@ -8,7 +8,7 @@ import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import DatePicker from "@/components/DatePicker";
 import FieldError from "@/components/ui/FieldError";
-import { IconAlert, IconBuilding, IconCalendar, IconCheck, IconClock, IconFileText, IconHourglass, IconPause, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconUpload, IconUser } from "@/components/icons";
+import { IconAlert, IconBuilding, IconCalendar, IconCheck, IconClock, IconFileText, IconHourglass, IconLock, IconPause, IconRefresh, IconScale, IconShieldCheck, IconSparkle, IconUpload, IconUser } from "@/components/icons";
 import { dateOnly, fmtNum } from "@/lib/date";
 import { backoffMs, errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
@@ -16,7 +16,9 @@ import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import {
   downloadLicenseEvidence,
   getLicenseEvidence,
+  getLicenseConfig,
   getMyPractice,
+  licenseAnalyzedOf,
   licenseErrorOf,
   licenseIssue,
   submitLicense,
@@ -25,6 +27,7 @@ import {
   type LicenseFields,
   type Practice,
 } from "@/lib/services/advocatePractice";
+import { acceptOf, fileIssue, type EvidenceRules } from "@/lib/services/achievements";
 
 // "Advokatlik amaliyoti" (contract 2026-10-29 §4): the advocate's verified
 // status and tenure exactly as the backend counts them — active years and
@@ -45,6 +48,7 @@ export default function AdvocatePracticePanel(): ReactElement | null {
   const [p, setP] = useState<Practice | null>(null);
   const [failed, setFailed] = useState(false);
   const [denied, setDenied] = useState(false);
+  const [rules, setRules] = useState<EvidenceRules | null>(null);
   const [flow, setFlow] = useState<Flow | null>(null);
   const [busy, setBusy] = useState(false);
   const [tried, setTried] = useState(false);
@@ -67,6 +71,15 @@ export default function AdvocatePracticePanel(): ReactElement | null {
       logApiError("practice.load", e);
       setFailed(true);
     }
+  }, []);
+
+  // The certificate file rules (§9), for the picker and the checks.
+  useEffect(() => {
+    const ctl = new AbortController();
+    getLicenseConfig(ctl.signal).then(setRules, (e) => {
+      if (!isAborted(e)) logApiError("practice.config", e);
+    });
+    return () => ctl.abort();
   }, []);
 
   // Software's suggestions fill only the fields still empty, and say so.
@@ -96,7 +109,12 @@ export default function AdvocatePracticePanel(): ReactElement | null {
       const ev = String(e.event ?? "");
       if (!EVENTS.test(ev)) return;
       if (ev.endsWith("evidence_analyzed")) {
-        setPollKick((n) => n + 1);
+        // The event carries the reading (§9): patch the card at once; the
+        // GET stays only for recovery.
+        const got = licenseAnalyzedOf(e);
+        const cur = flowRef.current?.evidence;
+        if (got && cur && got.id === cur.id) applyEvidence({ ...cur, state: got.state, suggested: got.suggested });
+        else setPollKick((n) => n + 1);
         return;
       }
       window.clearTimeout(timer);
@@ -113,7 +131,7 @@ export default function AdvocatePracticePanel(): ReactElement | null {
       off();
       offSync();
     };
-  }, [load, t]);
+  }, [load, t, applyEvidence]);
 
   // While software reads the file: ask again with growing pauses (or at
   // once when the "analyzed" event arrives); stop when done or closed.
@@ -145,6 +163,8 @@ export default function AdvocatePracticePanel(): ReactElement | null {
 
   async function upload(file: File | undefined) {
     if (!file || !flow || flow.uploading) return;
+    const bad = rules ? fileIssue(file, rules) : "";
+    if (bad) return setFlow({ ...flow, fileErr: bad === "type" ? t("fileType") : t("fileBig", { mb: fmtNum((rules?.maxBytes ?? 0) / (1024 * 1024), locale, 1) }) });
     setFlow({ ...flow, uploading: true, progress: 0, fileErr: "", evidence: null, suggested: {} });
     setFieldErr(null);
     try {
@@ -167,7 +187,9 @@ export default function AdvocatePracticePanel(): ReactElement | null {
     setFormNote("");
     setFieldErr(null);
     try {
-      await submitLicense({ evidenceId: flow.evidence.id, ...flow.fields });
+      // After a refusal the new verification names the last one (§9).
+      const again = p?.latest && (p.latest.status === "rejected" || p.latest.status === "changes_requested") ? p.latest.id : undefined;
+      await submitLicense({ sourceId: again, evidenceId: flow.evidence.id, ...flow.fields });
       setFlow(null);
       setNote({ ok: true, msg: t("sent") });
       await load();
@@ -183,7 +205,6 @@ export default function AdvocatePracticePanel(): ReactElement | null {
     }
   }
 
-  if (denied) return null;
   const pending = p?.verification === "pending_review";
   const verified = p?.verification === "approved";
   const set = (k: keyof LicenseFields, v: string) => setFlow((f) => (f ? { ...f, fields: { ...f.fields, [k]: v }, suggested: { ...f.suggested, [k]: false } } : f));
@@ -214,6 +235,12 @@ export default function AdvocatePracticePanel(): ReactElement | null {
         ) : null}
       </div>
       <p className="exp__lead">{t("lead")}</p>
+      {denied ? (
+        <p className="ach__denied" role="note">
+          <IconLock aria-hidden="true" />
+          {t("advocateOnly")}
+        </p>
+      ) : null}
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {failed ? (
         <div className="prc__fail">
@@ -224,7 +251,7 @@ export default function AdvocatePracticePanel(): ReactElement | null {
           </button>
         </div>
       ) : null}
-      {!p && !failed ? <div className="exp__card exp__card--ghost" aria-hidden="true" /> : null}
+      {!p && !failed && !denied ? <div className="exp__card exp__card--ghost" aria-hidden="true" /> : null}
       {p ? (
         <>
           <div className="prc__tenure" role="group" aria-label={t("tenure")}>
@@ -296,16 +323,17 @@ export default function AdvocatePracticePanel(): ReactElement | null {
               </ul>
             </div>
           ) : null}
-          {p.legalBasis ? (
+          {p.legalBasis.text ? (
             <p className="prc__basis">
               <IconScale aria-hidden="true" />
               <span>
                 <b>{t("legalBasis")}</b>
-                {p.legalBasis}
+                {p.legalBasis.text}
+                {p.legalBasis.suspensionExcluded ? <small>{t("suspExcluded")}</small> : null}
               </span>
             </p>
           ) : null}
-          {(p.verification === "rejected" || p.verification === "changes_requested") && p.reason ? <p className="exp__note" data-tone="bad">{t("reason", { text: p.reason })}</p> : null}
+          {(p.verification === "rejected" || p.verification === "changes_requested") && p.latest?.reason ? <p className="exp__note" data-tone="bad">{t("reason", { text: p.latest.reason })}</p> : null}
           <div className="prc__acts">
             {pending ? (
               <p className="prc__wait">
@@ -315,7 +343,7 @@ export default function AdvocatePracticePanel(): ReactElement | null {
             ) : (
               <button type="button" className={verified ? "btn btn--line btn--sm" : "btn btn--pri btn--sm"} onClick={start} disabled={!!flow}>
                 <IconUpload aria-hidden="true" />
-                {verified ? t("reupload") : p.verification === "none" ? t("upload") : t("resubmit")}
+                {verified ? t("reupload") : p.verification === "not_submitted" ? t("upload") : t("resubmit")}
               </button>
             )}
             <small>{t("onlyBackend")}</small>
@@ -376,8 +404,8 @@ export default function AdvocatePracticePanel(): ReactElement | null {
                     <IconUpload />
                   </span>
                   <b>{flow.uploading ? t("uploading", { n: Math.round(flow.progress * 100) }) : flow.evidence ? t("replaceFile") : t("pickFile")}</b>
-                  <small>{t("fileHint")}</small>
-                  <input type="file" accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png" disabled={flow.uploading} onChange={(e) => (void upload(e.target.files?.[0]), (e.target.value = ""))} aria-label={t("pickFile")} />
+                  {rules ? <small>{[rules.extensions.map((x) => x.toUpperCase()).join(", "), rules.maxBytes > 0 ? t("upToMb", { mb: fmtNum(rules.maxBytes / (1024 * 1024), locale, 1) }) : ""].filter(Boolean).join(" · ")}</small> : null}
+                  <input type="file" accept={rules ? acceptOf(rules) || undefined : undefined} disabled={flow.uploading} onChange={(e) => (void upload(e.target.files?.[0]), (e.target.value = ""))} aria-label={t("pickFile")} />
                 </label>
                 {flow.uploading ? (
                   <i className="ach__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(flow.progress * 100)} aria-label={t("pickFile")}>

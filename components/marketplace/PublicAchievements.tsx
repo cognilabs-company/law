@@ -10,10 +10,10 @@ import { isAborted, logApiError } from "@/lib/http";
 import { uzLabel } from "@/lib/uzScript";
 import { listPublicAchievements, type PublicAchievement } from "@/lib/services/achievements";
 
-// An advocate's verified achievements on the public profile (contract
-// 2026-10-29 §2.5): the sanitized endpoint only — stage, result, category,
-// year, the safe text and LexGo's mark. Never evidence, the software's
-// analysis, or anything about the client or the case.
+// An advocate's verified achievements on the public profile (final
+// contract 2026-10-29 §5): the sanitized endpoint only — stage, result,
+// category, year, the operator-approved public_description and LexGo's
+// mark. Never the private description, evidence or the software's analysis.
 const PAGE = 20;
 export default function PublicAchievements({ sellerId }: { sellerId: string }): ReactElement | null {
   const t = useTranslations("portal.achievements");
@@ -54,15 +54,15 @@ export default function PublicAchievements({ sellerId }: { sellerId: string }): 
     <section className="mk-panel mk-ach" data-ai-target="marketplace:seller-achievements">
       <h2 className="mk-panel__t">{t("title")}</h2>
       <ul className="mk-ach__list">
-        {items.map((a, i) => (
-          <li key={a.id || `${a.stage}-${a.achievedAt}-${i}`} className="mk-ach__item">
+        {items.map((a) => (
+          <li key={a.id} className="mk-ach__item">
             <span className="mk-ach__ic" aria-hidden="true">
               <IconAward />
             </span>
             <span className="mk-ach__m">
-              <b>{L.stage(a.stage)}</b>
-              <small>{[L.result(a.result), cat(a), a.year ? String(a.year) : ""].filter(Boolean).join(" · ")}</small>
-              {a.description ? <p>{a.description}</p> : null}
+              <b>{L.stage(a.stage) || L.result(a.result)}</b>
+              <small>{[L.stage(a.stage) ? L.result(a.result) : "", cat(a), a.year ? String(a.year) : ""].filter(Boolean).join(" · ")}</small>
+              {a.publicDescription ? <p>{a.publicDescription}</p> : null}
               {a.verified ? (
                 <em className="mk-ach__ok">
                   <IconShieldCheck aria-hidden="true" />

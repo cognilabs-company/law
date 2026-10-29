@@ -72,16 +72,16 @@ function AdminCallCenterConsole() {
         {cc ? <CancellationQueue onCount={con.count.cancellations} /> : null}
       </CcTabPanel>
       <CcTabPanel con={con} tab="experience">
-        {cc ? <ExperienceQueue onCount={con.count.experience} /> : null}
+        <ExperienceQueue onCount={con.count.experience} />
       </CcTabPanel>
       {/* TSK-906326: seller payout stages and recoveries, paid by hand
           until an automatic payout provider exists. */}
       <CcTabPanel con={con} tab="achievements">
-        {cc ? <AchievementQueue onCount={con.count.achievements} /> : null}
+        <AchievementQueue onCount={con.count.achievements} />
       </CcTabPanel>
       {/* 2026-10-29 §4.3: advocate-status certificates and suspensions. */}
       <CcTabPanel con={con} tab="licenses">
-        {cc ? <AdvocateLicenseQueue onCount={con.count.licenses} /> : null}
+        <AdvocateLicenseQueue onCount={con.count.licenses} />
       </CcTabPanel>
       <CcTabPanel con={con} tab="payouts">
         {cc ? <PayoutQueue onCount={con.count.payouts} /> : null}

@@ -61,7 +61,7 @@ export default function ProfilePreview({ p }: { p: ProfessionalProfile }) {
             </span>
             <span>
               <IconClock />
-              {p.advocateYears ?? p.experienceYears ?? 0} {t("yrs")}
+              {p.advocateActiveYears ?? p.experienceYears ?? 0} {t("yrs")}
             </span>
           </div>
         </div>

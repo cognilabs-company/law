@@ -9,8 +9,9 @@ import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
 import { useGuardedField } from "@/components/ui/ContactGuardNote";
 import { IconChat, IconCheck, IconCircleX, IconClock, IconFileText, IconLock, IconMinus, IconPaperclip, IconPhone, IconRefresh, IconUser } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
+import { labelIn } from "@/lib/backendLabel";
 import { ApiError, asDict, asStr, errDetail, isAborted, logApiError } from "@/lib/http";
-import { canApprove, checkKeyParts, type CheckItem, type CheckRows, type CheckVerdict, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type HistoryRow, type ReviewDecision, type ReviewRoom, type ReviewSeller } from "@/lib/services/experience";
+import { canApprove, type CheckItem, type CheckRows, type CheckVerdict, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type HistoryRow, type ReviewDecision, type ReviewRoom, type ReviewSeller } from "@/lib/services/experience";
 import { staffChatHref } from "./cancellations/model";
 
 // One verification screen for a seller's experience or achievement
@@ -122,14 +123,8 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
   const answered = keys.filter((k) => rows[k]?.verdict).length;
   const needsReason = decision === "rejected" || decision === "changes_requested";
   const reasonShort = needsReason && reason.trim().length < REASON_MIN;
-  const label = (c: CheckItem, i: number) => {
-    const given = c.i18n[locale === "uz" ? "uz_latn" : locale] || c.label;
-    if (given) return given;
-    const { base, n } = checkKeyParts(c.key);
-    const own = t.has(`check.${c.key}`) ? t(`check.${c.key}`) : t.has(`check.${base}`) ? t(`check.${base}`) : "";
-    if (!own) return t("checkN", { n: i + 1 });
-    return n === null ? own : t("checkNth", { label: own, n });
-  };
+  // The backend's own label (§8); a row it sent none for is numbered.
+  const label = (c: CheckItem, i: number) => labelIn(c, locale) || t("checkN", { n: i + 1 });
 
   async function submit() {
     if (busy || sending.current || !detail || !decision || blocked) return;

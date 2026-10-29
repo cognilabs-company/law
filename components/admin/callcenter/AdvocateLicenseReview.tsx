@@ -8,43 +8,62 @@ import { Notice } from "@/components/admin/AdminBits";
 import { SxButton } from "@/components/admin/studio/sx/Button";
 import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
 import DatePicker from "@/components/DatePicker";
-import { IconCalendar, IconEdit, IconPause, IconShieldCheck, IconSparkle } from "@/components/icons";
+import { IconCalendar, IconClose, IconEdit, IconFileText, IconPaperclip, IconPause, IconShieldCheck, IconSparkle, IconTrash, IconUpload } from "@/components/icons";
 import QueueHead from "./QueueHead";
 import PersonName from "@/components/ui/PersonName";
 import ListPager from "@/components/ui/ListPager";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import { dateOnly, fmtNum } from "@/lib/date";
 import { errDetail, logApiError } from "@/lib/http";
+import type { AiRisk } from "@/lib/services/achievements";
+import type { ExperienceEvidence } from "@/lib/services/experience";
 import {
+  SUSPENSION_FILE_MAX,
+  SUSPENSION_FILE_TYPES,
+  archiveSuspension,
+  closeLicenseRoom,
   createSuspension,
   downloadLicenseEvidence,
+  downloadSuspensionEvidence,
   getLicenseForReview,
+  licenseRecordOf,
+  licenseFieldsOf,
   listLicenseQueue,
+  openLicenseRoom,
   reviewLicense,
   updateSuspension,
-  type LicenseAi,
+  uploadSuspensionEvidence,
   type LicenseFields,
   type LicenseRecord,
   type Practice,
   type Suspension,
 } from "@/lib/services/advocatePractice";
+import { AiRiskPanel } from "./AchievementReview";
 import { useReviewQueue } from "./useReviewQueue";
 import VerifyReview, { type VerifySource } from "./VerifyReview";
 
-// Contract 2026-10-29 §4.3–4.5: the operator verifies an advocate's
-// status certificate against the backend's checklist (software suggestions
-// are advice only), and records suspension periods. The backend recounts
-// the tenure; the answer is shown as it comes.
+// Final contract 2026-10-29 §9–12: the operator verifies an advocate's
+// status certificate against the backend's checklist (the software's
+// reading and risks are advice only), talks to the advocate in a protected
+// review chat with calls, and records suspension periods with their
+// documents. The backend recounts the tenure; every answer is shown as it
+// comes.
 
-const EVENTS = /^marketplace\.advocate_license_(submitted|queue_updated)$/;
+const EVENTS = /^marketplace\.advocate_license_(submitted|queue_updated|reviewed)$/;
 const STATUSES = ["pending_review", "changes_requested", "approved", "rejected", ""] as const;
 const FIELDS: readonly (keyof LicenseFields)[] = ["holderName", "certificateNumber", "licenseNumber", "issuingAuthority", "statusStartedAt"];
 
-function LicenseAiPanel({ ai, record }: { ai: LicenseAi; record: LicenseRecord | null }): ReactElement {
+// What software read from the certificate beside what the advocate typed;
+// a value that differs is marked for the operator to compare.
+function ReadValues({ extracted, record }: { extracted: Record<string, string>; record: LicenseRecord | null }): ReactElement | null {
   const t = useTranslations("callCenter.licenses");
   const tf = useTranslations("portal.practice.f");
   const locale = useLocale();
+  const read = licenseFieldsOf(extracted);
   const shown = (k: keyof LicenseFields, v: string) => (k === "statusStartedAt" && v ? dateOnly(v, locale) : v);
+  const rows = FIELDS.filter((k) => read[k]);
+  if (!rows.length) return null;
   return (
     <section className="vrf__ai" aria-label={t("aiTitle")}>
       <div className="vrf__ai-h">
@@ -55,55 +74,46 @@ function LicenseAiPanel({ ai, record }: { ai: LicenseAi; record: LicenseRecord |
           <b>{t("aiTitle")}</b>
           <small>{t("aiAdvisory")}</small>
         </div>
-        {ai.status === "processing" ? <span className="vrf__lvl">{t("aiRunning")}</span> : ai.status === "manual_review_required" ? <span className="vrf__lvl" data-l="medium">{t("aiManual")}</span> : null}
-        {ai.confidence !== null ? <span className="vrf__lvl" data-l={ai.confidence >= 0.66 ? "low" : ai.confidence >= 0.33 ? "medium" : "high"}>{t("confidence", { n: fmtNum(Math.round(ai.confidence * 100), locale) })}</span> : null}
       </div>
       <ul className="vrf__sig">
-        {FIELDS.map((k) => {
-          const read = ai.extracted[k];
-          if (!read) return null;
+        {rows.map((k) => {
           const typed = record?.[k] ?? "";
-          const same = !typed || read.trim().toLowerCase() === typed.trim().toLowerCase();
+          const same = !typed || read[k].trim().toLowerCase() === typed.trim().toLowerCase();
           return (
             <li key={k} data-tone={same ? "ok" : "warn"}>
               <span>
                 <small>{tf(k)}</small>
-                <b>{shown(k, read)}</b>
+                <b>{shown(k, read[k])}</b>
                 {!same ? <small>{t("typed", { v: shown(k, typed) })}</small> : null}
               </span>
             </li>
           );
         })}
       </ul>
-      {ai.notes.length ? (
-        <ul className="vrf__notes" aria-label={t("notes")}>
-          {ai.notes.map((n, i) => (
-            <li key={i}>{n}</li>
-          ))}
-        </ul>
-      ) : null}
     </section>
   );
 }
 
-// Suspension periods: add one, or close / reword an open one. Every answer
-// is the recounted practice, shown as it is.
+type SuspForm = { id: string; startedOn: string; endedOn: string; reason: string; files: ExperienceEvidence[]; uploading: number | null };
+
+// Suspension periods: add one with its documents, close or reword an open
+// one, or archive a wrong one. Every answer is the recounted practice.
 function Suspensions({ sellerUserId, practice, onPractice }: { sellerUserId: string; practice: Practice | null; onPractice: (p: Practice) => void }): ReactElement {
   const t = useTranslations("callCenter.licenses.susp");
   const tp = useTranslations("portal.practice");
   const locale = useLocale();
   const today = new Date().toISOString().slice(0, 10);
-  const [form, setForm] = useState<{ id: string; startedOn: string; endedOn: string; reason: string } | null>(null);
+  const [form, setForm] = useState<SuspForm | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
-  const bad = form ? (!form.id && !form.startedOn) || form.reason.trim().length < 2 || (!!form.endedOn && !!form.startedOn && form.endedOn < form.startedOn) : true;
+  const bad = form ? (!form.id && !form.startedOn) || form.reason.trim().length < 2 || (!!form.endedOn && !!form.startedOn && form.endedOn < form.startedOn) || form.uploading !== null : true;
 
   async function save() {
     if (!form || bad || busy) return;
     setBusy(true);
     setNote(null);
     try {
-      const p = form.id ? await updateSuspension(sellerUserId, form.id, form) : await createSuspension(sellerUserId, form);
+      const p = form.id ? await updateSuspension(sellerUserId, form.id, form) : await createSuspension(sellerUserId, { ...form, evidenceIds: form.files.map((f) => f.id) });
       onPractice(p);
       setForm(null);
       setNote({ ok: true, msg: t("saved") });
@@ -114,7 +124,42 @@ function Suspensions({ sellerUserId, practice, onPractice }: { sellerUserId: str
       setBusy(false);
     }
   }
-  const edit = (s: Suspension) => setForm({ id: s.id, startedOn: s.startedAt, endedOn: s.endedAt, reason: s.reason });
+  async function attach(file: File | undefined) {
+    if (!file || !form) return;
+    if (!(SUSPENSION_FILE_TYPES as readonly string[]).includes(file.type)) return setNote({ ok: false, msg: t("fileType") });
+    if (file.size > SUSPENSION_FILE_MAX) return setNote({ ok: false, msg: t("fileBig") });
+    setNote(null);
+    setForm({ ...form, uploading: 0 });
+    try {
+      const ev = await uploadSuspensionEvidence(sellerUserId, file, (x) => setForm((f) => (f ? { ...f, uploading: x } : f)));
+      setForm((f) => (f ? { ...f, uploading: null, files: [...f.files, ev] } : f));
+    } catch (e) {
+      logApiError("practice.suspension.evidence", e);
+      setForm((f) => (f ? { ...f, uploading: null } : f));
+      setNote({ ok: false, msg: errDetail(e) || t("fileFailed") });
+    }
+  }
+  async function archive(s: Suspension) {
+    const ok = await confirmDialog({
+      title: t("archiveTitle"),
+      text: t("archiveText", { period: [dateOnly(s.startedAt, locale), s.endedAt ? dateOnly(s.endedAt, locale) : tp("suspOpen")].join(" — ") }),
+      confirmLabel: t("archive"),
+      tone: "danger",
+    });
+    if (!ok) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      onPractice(await archiveSuspension(sellerUserId, s.id));
+      setNote({ ok: true, msg: t("archived") });
+    } catch (e) {
+      logApiError("practice.suspension.archive", e);
+      setNote({ ok: false, msg: errDetail(e) || t("failed") });
+    } finally {
+      setBusy(false);
+    }
+  }
+  const edit = (s: Suspension) => setForm({ id: s.id, startedOn: s.startedAt, endedOn: s.endedAt, reason: s.reason, files: [], uploading: null });
 
   return (
     <section className="alr__susp" aria-labelledby={`alr-s-${sellerUserId}`}>
@@ -127,7 +172,7 @@ function Suspensions({ sellerUserId, practice, onPractice }: { sellerUserId: str
           <small>{t("lead")}</small>
         </span>
         {!form ? (
-          <SxButton size="sm" variant="add" onClick={() => setForm({ id: "", startedOn: "", endedOn: "", reason: "" })}>
+          <SxButton size="sm" variant="add" onClick={() => setForm({ id: "", startedOn: "", endedOn: "", reason: "", files: [], uploading: null })}>
             {t("add")}
           </SxButton>
         ) : null}
@@ -154,13 +199,31 @@ function Suspensions({ sellerUserId, practice, onPractice }: { sellerUserId: str
             <li key={s.id || s.startedAt} data-open={!s.endedAt || undefined}>
               <IconCalendar aria-hidden="true" />
               <span>
-                <b>{[dateOnly(s.startedAt, locale), s.endedAt ? dateOnly(s.endedAt, locale) : tp("suspOpen")].join(" — ")}</b>
+                <b>
+                  {[dateOnly(s.startedAt, locale), s.endedAt ? dateOnly(s.endedAt, locale) : tp("suspOpen")].join(" — ")}
+                  {s.days !== null ? <em>{tp("daysN", { n: fmtNum(s.days, locale) })}</em> : null}
+                </b>
                 {s.reason ? <small>{s.reason}</small> : null}
+                {s.evidenceIds.length ? (
+                  <span className="alr__sfiles">
+                    {s.evidenceIds.map((id, i) => (
+                      <button key={id} type="button" className="vrf__file" onClick={() => void downloadSuspensionEvidence(sellerUserId, id, t("fileN", { n: i + 1 })).catch((e) => logApiError("practice.suspension.download", e))}>
+                        <IconPaperclip aria-hidden="true" />
+                        {t("fileN", { n: i + 1 })}
+                      </button>
+                    ))}
+                  </span>
+                ) : null}
               </span>
               {s.id && !form ? (
-                <button type="button" className="alr__sedit" onClick={() => edit(s)} aria-label={t("edit")}>
-                  <IconEdit aria-hidden="true" />
-                </button>
+                <span className="alr__sacts2">
+                  <button type="button" className="alr__sedit" onClick={() => edit(s)} aria-label={t("edit")} disabled={busy}>
+                    <IconEdit aria-hidden="true" />
+                  </button>
+                  <button type="button" className="alr__sedit alr__sdel" onClick={() => void archive(s)} aria-label={t("archive")} disabled={busy}>
+                    <IconTrash aria-hidden="true" />
+                  </button>
+                </span>
               ) : null}
             </li>
           ))}
@@ -184,6 +247,30 @@ function Suspensions({ sellerUserId, practice, onPractice }: { sellerUserId: str
             <span>{t("reason")}</span>
             <TextArea value={form.reason} onChange={(v) => setForm({ ...form, reason: v })} minRows={2} maxLength={2000} counter placeholder={t("reasonPh")} />
           </label>
+          {form.id ? null : (
+            <div className="alr__f">
+              <span>{t("files")}</span>
+              <label className="alr__drop" data-busy={form.uploading !== null || undefined}>
+                <IconUpload aria-hidden="true" />
+                <b>{form.uploading !== null ? t("uploading", { n: Math.round(form.uploading * 100) }) : t("addFile")}</b>
+                <small>{t("fileHint")}</small>
+                <input type="file" accept={SUSPENSION_FILE_TYPES.join(",")} disabled={form.uploading !== null} onChange={(e) => (void attach(e.target.files?.[0]), (e.target.value = ""))} aria-label={t("addFile")} />
+              </label>
+              {form.files.length ? (
+                <ul className="alr__flist">
+                  {form.files.map((f) => (
+                    <li key={f.id}>
+                      <IconFileText aria-hidden="true" />
+                      <span>{f.fileName || t("fileN", { n: 1 })}</span>
+                      <button type="button" aria-label={t("removeFile", { name: f.fileName })} onClick={() => setForm({ ...form, files: form.files.filter((x) => x.id !== f.id) })}>
+                        <IconClose />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          )}
           <div className="alr__sacts">
             <SxButton size="sm" variant="secondary" onClick={() => setForm(null)} disabled={busy}>
               {t("cancel")}
@@ -202,9 +289,10 @@ function Suspensions({ sellerUserId, practice, onPractice }: { sellerUserId: str
 function LicenseReview({ id, onDone }: { id: string; onDone: () => void }): ReactElement {
   const t = useTranslations("callCenter.licenses");
   const tf = useTranslations("portal.practice.f");
+  const ts = useTranslations("portal.practice.status");
   const tv = useTranslations("callCenter.verify.field");
   const locale = useLocale();
-  const [ai, setAi] = useState<LicenseAi | null>(null);
+  const [ai, setAi] = useState<{ risk: AiRisk; advisory: boolean } | null>(null);
   const [record, setRecord] = useState<LicenseRecord | null>(null);
   const [practice, setPractice] = useState<Practice | null>(null);
   const [seller, setSeller] = useState("");
@@ -213,24 +301,27 @@ function LicenseReview({ id, onDone }: { id: string; onDone: () => void }): Reac
     title: id,
     load: async (signal) => {
       const d = await getLicenseForReview(id, signal);
-      setAi(d.ai);
+      setAi(d.ai ? { risk: d.ai, advisory: d.advisoryOnly } : null);
       setRecord(d.record);
       setPractice(d.practice);
-      setSeller(d.record?.sellerUserId || d.seller?.id || "");
+      setSeller(d.record?.sellerUserId || d.practice?.sellerUserId || d.seller?.id || "");
       return {
         pending: d.record?.status === "pending_review",
-        blocked: d.ai?.status === "processing" ? t("aiPendingBlock") : "",
+        blocked: d.ai?.status === "running" ? t("aiPendingBlock") : "",
         isRevision: d.isRevision,
         record: d.record,
-        evidence: d.record?.evidence ?? [],
+        evidence: d.evidence,
         diff: d.diff,
         checks: d.checks,
         reviews: d.reviews,
-        room: null,
+        room: d.room,
         seller: d.seller,
+        history: d.history,
       };
     },
     review: (input) => reviewLicense(id, input),
+    openRoom: () => openLicenseRoom(id),
+    closeRoom: (room) => closeLicenseRoom(id, room),
     download: downloadLicenseEvidence,
     facts: (raw) => {
       const it = raw as LicenseRecord | null;
@@ -238,9 +329,11 @@ function LicenseReview({ id, onDone }: { id: string; onDone: () => void }): Reac
       return FIELDS.map((k) => ({ label: tf(k), value: k === "statusStartedAt" && it[k] ? dateOnly(it[k], locale) : it[k] }));
     },
     fieldLabel: (field) => (tv.has(field) ? tv(field) : tv("other")),
+    historyLabel: (h) => (ts.has(h.status) ? ts(h.status) : ""),
     aside: () => (
       <>
-        {ai ? <LicenseAiPanel ai={ai} record={record} /> : null}
+        {ai ? <AiRiskPanel ai={ai.risk} advisory={ai.advisory} /> : null}
+        {ai ? <ReadValues extracted={ai.risk.extracted} record={record} /> : null}
         {seller ? <Suspensions sellerUserId={seller} practice={practice} onPractice={setPractice} /> : null}
       </>
     ),
@@ -252,7 +345,7 @@ export function AdvocateLicenseQueue({ onCount }: { onCount?: (n: number) => voi
   const t = useTranslations("callCenter.licenses");
   const ts = useTranslations("portal.practice.status");
   const locale = useLocale();
-  const q = useReviewQueue<LicenseRecord>((o, signal) => listLicenseQueue(o, signal), { scope: "licenses", events: EVENTS, onCount });
+  const q = useReviewQueue<LicenseRecord>((o, signal) => listLicenseQueue(o, signal), { scope: "licenses", events: EVENTS, parse: licenseRecordOf, onCount });
   const [open, setOpen] = useState("");
 
   if (q.denied) return null;
@@ -287,7 +380,7 @@ export function AdvocateLicenseQueue({ onCount }: { onCount?: (n: number) => voi
                 <button type="button" className="xpr__qrow" onClick={() => setOpen(open === it.id ? "" : it.id)} aria-expanded={open === it.id}>
                   <b>{it.sellerName || it.sellerUserId ? <PersonName id={it.sellerUserId} name={it.sellerName || it.holderName} /> : it.holderName || t("seller")}</b>
                   <span>{[it.issuingAuthority, it.statusStartedAt ? t("since", { date: dateOnly(it.statusStartedAt, locale) }) : ""].filter(Boolean).join(" · ")}</span>
-                  <span>{ts(it.status)}</span>
+                  <span>{ts.has(it.status) ? ts(it.status) : ""}</span>
                   <time>{it.submittedAt ? dateOnly(it.submittedAt, locale) : ""}</time>
                 </button>
                 {open === it.id ? (

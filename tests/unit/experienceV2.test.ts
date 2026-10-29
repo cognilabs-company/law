@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canApprove, checkItemsOf, checkKeyParts, diffRowsOf, experienceItemOf, localDiff, positionsOf } from "@/lib/services/experience";
-import { achievementDiff, achievementOf } from "@/lib/services/achievements";
+import { canApprove, checkItemsOf, diffRowsOf, experienceItemOf, positionsOf } from "@/lib/services/experience";
 import { experienceIssue } from "@/components/portal/ExperiencePanel";
 
 // TSK-415946 / 920636 / 874927 / 100467 / 493303.
@@ -32,34 +31,12 @@ describe("review: checklist, diff", () => {
     expect(canApprove(["a"], {})).toBe(false);
     expect(canApprove([], {})).toBe(false);
   });
-  it("dynamic keys split into a label and a number; the backend's labels win", () => {
-    expect(checkKeyParts("position_2_dates")).toEqual({ base: "position_dates", n: 2 });
-    expect(checkKeyParts("evidence_3")).toEqual({ base: "evidence", n: 3 });
-    expect(checkKeyParts("file_authenticity")).toEqual({ base: "file_authenticity", n: null });
-    // Gaps closed §12: the backend's checklist is the list, in its order.
-    expect(checkItemsOf([{ key: "dates_valid", label: "Sanalar mantiqan to'g'ri", hint: "h", label_i18n: { ru: "Даты логичны" } }], ["x", "y"])).toEqual([{ key: "dates_valid", label: "Sanalar mantiqan to'g'ri", hint: "h", i18n: { ru: "Даты логичны" } }]);
-    // An older answer with checklist_keys only.
-    expect(checkItemsOf(undefined, ["x"])).toEqual([{ key: "x", label: "", hint: "", i18n: {} }]);
+  it("renders the backend's checklist as given, in its order (2026-10-29 §8)", () => {
+    expect(checkItemsOf([{ key: "dates_valid", label: "Sanalar mantiqan to'g'ri", hint: "h", label_i18n: { ru: "Даты логичны" } }])).toEqual([{ key: "dates_valid", label: "Sanalar mantiqan to'g'ri", hint: "h", i18n: { ru: "Даты логичны" } }]);
+    expect(checkItemsOf(undefined)).toEqual([]);
   });
   it("reads the backend's diff with its labels, dropping no-ops", () => {
     expect(diffRowsOf([{ field: "workplace", label: "Ish joyi", before: "A", after: "B" }, { field: "title", before: "x", after: "x" }])).toEqual([{ field: "workplace", label: "Ish joyi", before: "A", after: "B", kind: "changed" }]);
     expect(diffRowsOf([{ field: "description", label: "Tavsif", before: "", after: "Yangi" }])[0].kind).toBe("added");
-  });
-  it("compares two revisions field by field when no diff is sent", () => {
-    const prev = experienceItemOf({ id: "1", workplace: "A", positions: [{ title: "Yurist", started_at: "2018-01-01", is_current: true }] });
-    const next = experienceItemOf({ id: "2", workplace: "A", positions: [{ title: "Yurist", started_at: "2018-01-01", ended_at: "2020-01-01" }, { title: "Advokat", started_at: "2020-02-01", is_current: true }] });
-    const rows = localDiff(next, prev);
-    expect(rows.map((r) => [r.field, r.kind])).toEqual([
-      ["positions.0", "changed"],
-      ["positions.1", "added"],
-    ]);
-  });
-});
-
-describe("achievements", () => {
-  it("compares two achievement revisions by stage, result and date", () => {
-    const a = achievementOf({ id: "1", process_stage: "inquiry", result_scope: "full", achieved_at: "2025-01-01" });
-    const b = achievementOf({ id: "2", process_stage: "court", result_scope: "full", achieved_at: "2025-01-01T00:00:00Z" });
-    expect(achievementDiff(b, a)).toEqual([{ field: "process_stage", label: "", before: "inquiry", after: "court", kind: "changed" }]);
   });
 });

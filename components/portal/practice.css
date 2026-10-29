@@ -55,3 +55,4 @@
 .spe__ro { display: flex; align-items: flex-start; gap: 10px; }
 .spe__ro > svg { flex: none; width: 18px; height: 18px; margin-top: 2px; color: var(--dk-acc, var(--b600, #1668f0)); }
 .spe__ro > span { display: grid; gap: 3px; min-width: 0; font-size: .82rem; line-height: 1.45; }
+.prc__basis small { display: block; margin-top: 4px; color: var(--gray); font-size: .74rem; }

@@ -10,7 +10,8 @@ import ListPager from "@/components/ui/ListPager";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import { useAchievementLabels } from "@/components/portal/achievementLabels";
 import { dateOnly, fmtNum } from "@/lib/date";
-import { closeAchievementRoom, downloadAchievementEvidence, getAchievementForReview, listAchievementQueue, openAchievementRoom, reviewAchievement, type AchievementQueueItem, type AiRisk, type Level } from "@/lib/services/achievements";
+import { closeAchievementRoom, downloadAchievementEvidence, getAchievementForReview, listAchievementQueue, openAchievementRoom, queueItemOf, reviewAchievement, type AchievementQueueItem, type AiRisk } from "@/lib/services/achievements";
+import { labelIn } from "@/lib/backendLabel";
 import { useCategories } from "./ExperienceReview";
 import { useReviewQueue } from "./useReviewQueue";
 import VerifyReview, { type VerifySource } from "./VerifyReview";
@@ -20,7 +21,7 @@ import VerifyReview, { type VerifySource } from "./VerifyReview";
 // beside it — advice only; the operator alone decides, and approval needs a
 // safe public text for the profile.
 
-const EVENTS = /^marketplace\.achievement_(submitted|queue_updated)$/;
+const EVENTS = /^marketplace\.achievement_(submitted|queue_updated|reviewed)$/;
 const STATUSES = ["pending_review", "ai_analysis_pending", "changes_requested", "approved", "rejected", ""] as const;
 
 // A yes/no indicator: is a "yes" good news (readable) or a warning (PII)?
@@ -41,26 +42,29 @@ function Sig({ label, v, good = true }: { label: string; v: boolean | null; good
     </li>
   );
 }
-function Risk({ label, level, score }: { label: string; level: Level; score: number | null }): ReactElement | null {
-  const t = useTranslations("callCenter.achievements.ai");
+// A risk share 0…1 (§7): lower is better.
+function Risk({ label, score }: { label: string; score: number | null }): ReactElement | null {
   const locale = useLocale();
-  if (!level && score === null) return null;
-  const lv: Level = level || (score === null ? "" : score >= 0.66 ? "high" : score >= 0.33 ? "medium" : "low");
+  if (score === null) return null;
+  const tone = score < 0.33 ? "ok" : score < 0.66 ? "warn" : "bad";
   return (
-    <li data-tone={lv === "low" ? "ok" : lv === "high" ? "bad" : "warn"}>
-      <i aria-hidden="true">{lv === "low" ? <IconCheck /> : lv === "high" ? <IconAlert /> : <IconMinus />}</i>
+    <li data-tone={tone}>
+      <i aria-hidden="true">{tone === "ok" ? <IconCheck /> : tone === "bad" ? <IconAlert /> : <IconMinus />}</i>
       <span>
         <small>{label}</small>
-        <b>{[lv ? t(`level.${lv}`) : "", score !== null ? `${fmtNum(Math.round(score * 100), locale)}%` : ""].filter(Boolean).join(" · ")}</b>
+        <b>{`${fmtNum(Math.round(score * 100), locale)}%`}</b>
       </span>
     </li>
   );
 }
 
-export function AiRiskPanel({ ai }: { ai: AiRisk }): ReactElement {
+// The normalized software analysis (§7), shared by achievements and
+// certificates: indicators for the operator, never a verdict. Risks show
+// with the backend's labels only.
+export function AiRiskPanel({ ai, advisory = true }: { ai: AiRisk; advisory?: boolean }): ReactElement {
   const t = useTranslations("callCenter.achievements.ai");
   const locale = useLocale();
-  const codeLabel = (c: { code: string; label: string }) => c.label || (t.has(`code.${c.code}`) ? t(`code.${c.code}`) : t("codeOther"));
+  const risks = ai.risks.map((r) => ({ code: r.code, text: labelIn(r, locale) })).filter((r) => r.text);
   return (
     <section className="vrf__ai" aria-label={t("title")}>
       <div className="vrf__ai-h">
@@ -69,7 +73,7 @@ export function AiRiskPanel({ ai }: { ai: AiRisk }): ReactElement {
         </span>
         <div>
           <b>{t("title")}</b>
-          <small>{t("advisory")}</small>
+          <small>{advisory ? t("advisory") : t("advisoryShort")}</small>
         </div>
         {ai.status === "running" ? <span className="vrf__lvl">{t("running")}</span> : ai.riskLevel ? <span className="vrf__lvl" data-l={ai.riskLevel}>{t("risk", { level: t(`level.${ai.riskLevel}`) })}</span> : null}
       </div>
@@ -87,17 +91,23 @@ export function AiRiskPanel({ ai }: { ai: AiRisk }): ReactElement {
             </span>
           </li>
         ) : null}
-        <Risk label={t("manipulation")} {...ai.manipulation} />
-        <Risk label={t("aiGenerated")} {...ai.aiGenerated} />
+        <Risk label={t("manipulation")} score={ai.manipulation} />
+        <Risk label={t("aiGenerated")} score={ai.aiGenerated} />
         <Sig label={t("signature")} v={ai.signature} />
         <Sig label={t("seal")} v={ai.seal} />
         <Sig label={t("eSignature")} v={ai.eSignature} />
-        <Sig label={t("pii")} v={ai.pii} good={false} />
+        <li data-tone={ai.piiCount ? "bad" : "ok"}>
+          <i aria-hidden="true">{ai.piiCount ? <IconCircleX /> : <IconCheck />}</i>
+          <span>
+            <small>{t("pii")}</small>
+            <b>{ai.piiCount ? t("piiN", { n: ai.piiCount }) : t("no")}</b>
+          </span>
+        </li>
       </ul>
-      {ai.riskCodes.length ? (
+      {risks.length ? (
         <ul className="vrf__codes" aria-label={t("codes")}>
-          {ai.riskCodes.map((c) => (
-            <li key={c.code}>{codeLabel(c)}</li>
+          {risks.map((r) => (
+            <li key={r.code}>{r.text}</li>
           ))}
         </ul>
       ) : null}
@@ -119,14 +129,14 @@ function AchievementReview({ id, onDone }: { id: string; onDone: () => void }): 
   const locale = useLocale();
   const L = useAchievementLabels();
   const catName = useCategories();
-  const [ai, setAi] = useState<AiRisk | null>(null);
+  const [ai, setAi] = useState<{ risk: AiRisk; advisory: boolean } | null>(null);
   const source: VerifySource = {
     kind: "achievement",
     title: id,
     load: async (signal) => {
       const d = await getAchievementForReview(id, signal);
       const it = d.record;
-      setAi(d.ai);
+      setAi(d.ai ? { risk: d.ai, advisory: d.advisoryOnly } : null);
       const running = it?.status === "ai_analysis_pending" || d.ai?.status === "running";
       return {
         pending: it?.status === "pending_review" || it?.status === "ai_analysis_pending",
@@ -142,8 +152,10 @@ function AchievementReview({ id, onDone }: { id: string; onDone: () => void }): 
         reviews: d.reviews,
         room: d.room,
         seller: d.seller,
+        history: d.history,
       };
     },
+    historyLabel: (h) => (t.has(`status.${h.status}`) ? t(`status.${h.status}`) : ""),
     review: (input) => reviewAchievement(id, input),
     openRoom: () => openAchievementRoom(id),
     closeRoom: (room) => closeAchievementRoom(id, room),
@@ -161,7 +173,7 @@ function AchievementReview({ id, onDone }: { id: string; onDone: () => void }): 
       ];
     },
     fieldLabel: (field) => (tv.has(field) ? tv(field) : tv("other")),
-    aside: () => (ai ? <AiRiskPanel ai={ai} /> : null),
+    aside: () => (ai ? <AiRiskPanel ai={ai.risk} advisory={ai.advisory} /> : null),
     publicText: { label: tc("publicLabel"), hint: tc("publicHint") },
   };
   return <VerifyReview source={source} onDone={onDone} />;
@@ -173,7 +185,7 @@ export function AchievementQueue({ onCount }: { onCount?: (n: number) => void })
   const locale = useLocale();
   const L = useAchievementLabels();
   const catName = useCategories();
-  const q = useReviewQueue<AchievementQueueItem>((o, signal) => listAchievementQueue(o, signal), { scope: "achievements", events: EVENTS, onCount });
+  const q = useReviewQueue<AchievementQueueItem>((o, signal) => listAchievementQueue(o, signal), { scope: "achievements", events: EVENTS, parse: queueItemOf, onCount });
   const [open, setOpen] = useState("");
 
   if (q.denied) return null;

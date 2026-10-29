@@ -92,7 +92,7 @@ test("a lawyer adds a workplace with two positions and evidence; no old stages o
 
 const reviewRoutes = (decisions: unknown[], rooms: string[]) => ({
   "/service-categories": CATS,
-  "/call-center/marketplace/experience": { items: [rec({ id: "e9", root_id: "r1", source_id: "e1", status: "pending_review", version: 2, seller_name: "Test Advokat", submitted_at: "2026-10-24T08:00:00Z" })], total: 1 },
+  "/call-center/marketplace/experience": { items: [rec({ id: "e9", root_id: "r1", source_id: "e1", status: "pending_review", version: 2, seller_user_id: "u-adv", seller: { id: "u-adv", name: "Test Advokat" }, submitted_at: "2026-10-24T08:00:00Z" })], total: 1 },
   "/call-center/marketplace/experience/e9": {
     record: rec({ id: "e9", root_id: "r1", source_id: "e1", status: "pending_review", version: 2, workplace: "Yangi joy", evidence: [{ id: "ev1", file_name: "buyruq.pdf" }] }),
     previous_approved_revision: rec({ id: "e1", root_id: "r1", status: "approved", version: 1, workplace: "Eski joy" }),
@@ -179,56 +179,59 @@ test("asking for changes needs a reason; the review chat opens and only the oper
   expect(decisions[0]).toMatchObject({ decision: "changes_requested", reason: "Iltimos, buyruq nusxasini yuklang" });
 });
 
+// Final contract 2026-10-29 §2: the config with the backend's labels.
+const L = (uz: string, ru: string, en: string) => ({ label: uz, title: uz, label_i18n: { uz_latn: uz, ru, en } });
 const ACH_CONFIG = {
   process_stages: [
-    { value: "pre_investigation", label: "Tergovga qadar tekshiruv" },
-    { value: "inquiry", label: "Surishtiruv" },
-    { value: "preliminary_investigation", label: "Dastlabki tergov" },
-    { value: "court", label: "Sud jarayoni" },
+    { value: "pre_investigation", ...L("Tergovga qadar tekshiruv", "Доследственная проверка", "Pre-investigation review") },
+    { value: "inquiry", ...L("Surishtiruv", "Дознание", "Inquiry") },
+    { value: "preliminary_investigation", ...L("Dastlabki tergov", "Предварительное следствие", "Preliminary investigation") },
+    { value: "court", ...L("Sud jarayoni", "Судебный процесс", "Court proceedings") },
   ],
   result_scopes: [
-    { value: "full", label: "To'liq ijobiy natija" },
-    { value: "partial", label: "Qisman ijobiy natija" },
+    { value: "full", ...L("To‘liq ijobiy natija", "Полный положительный результат", "Full positive result") },
+    { value: "partial", ...L("Qisman ijobiy natija", "Частичный положительный результат", "Partial positive result") },
   ],
-  evidence: { required: true, min_files: 1, max_files: 20, max_file_size_mb: 20, allowed_mime_types: ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "image/png"], allowed_extensions: ["pdf", "docx", "jpg", "jpeg", "png"] },
+  evidence: { required: true, min_files: 1, max_files: 20, max_file_size_bytes: 20971520, allowed_mime_types: ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "image/png"], allowed_extensions: [".docx", ".jpg", ".pdf", ".png"] },
+  description: { min_length: 5, max_length: 5000 },
   warning: "Faqat haqiqiy va o'zingizga tegishli hujjatlarni yuklang.",
+  warning_i18n: { uz_latn: "Faqat haqiqiy va o'zingizga tegishli hujjatlarni yuklang.", ru: "Загружайте только подлинные документы, относящиеся к вам.", en: "Upload only genuine documents of your own." },
+  public_fields: ["process_stage", "result_scope", "category", "year", "public_description", "lexgo_verified"],
+  workflow: ["evidence_upload", "submission", "ai_advisory_analysis", "operator_review", "public_profile"],
 };
-const ach = (extra: Record<string, unknown>) => ({ process_stage: "court", result_scope: "full", category_id: "c1", achieved_at: "2025-12-20", description: "Sud bosqichida to'liq oqlov hukmi", version: 1, evidence: [], ...extra });
+const ach = (extra: Record<string, unknown>) => ({ process_stage: "court", result_scope: "full", category_id: "c1", category_title: "Оила ва никоҳ", achieved_at: "2025-12-20", description: "Sud bosqichida to'liq oqlov hukmi", public_description: "", version: 1, evidence: [], ai_analysis_status: "completed", rejection_reason: "", ...extra });
+const group = (a: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({ root_id: a.root_id, current: a.status === "approved" ? a : null, pending_revision: null, latest: a, revision_count: 1, ...extra });
 
 test("an advocate adds an achievement from the backend's config", async ({ page }) => {
   let sent: Record<string, unknown> | null = null;
+  const a1 = ach({ id: "a1", root_id: "a1", status: "approved" });
+  const a3 = ach({ id: "a3", root_id: "a3", status: "changes_requested", process_stage: "inquiry", result_scope: "partial", rejection_reason: "Qaror nusxasi o'qilmaydi" });
   await mockBackend(
     page,
     await signIn(page, ADVOCATE, {
       "/lawyers/me": ME,
       "/service-categories": CATS,
-      "/marketplace/me/experience": { items: [] },
+      "/marketplace/me/experience": { items: [], groups: [] },
       "/marketplace/me/achievements/config": ACH_CONFIG,
-      "/marketplace/me/achievements": {
-        items: [
-          ach({ id: "a1", root_id: "a1", status: "approved" }),
-          ach({ id: "a3", root_id: "a3", status: "changes_requested", process_stage: "inquiry", result_scope: "partial", rejection_reason: "Qaror nusxasi o'qilmaydi", ai_analysis_status: "completed" }),
-        ],
-        total: 2,
-        count: 2,
-        limit: 50,
-        offset: 0,
-        has_more: false,
-      },
-      "POST /marketplace/me/achievements/evidence": { status: 201, json: { id: "av1", file_name: "qaror.pdf", mime_type: "application/pdf", size: 8 } },
-      "POST /marketplace/me/achievements": (b: unknown) => ((sent = b as Record<string, unknown>), { id: "a2", status: "ai_analysis_pending" }),
+      "/marketplace/me/achievements": { items: [], groups: [group(a1), group(a3)], total: 2, total_records: 2, count: 2, limit: 50, offset: 0, has_more: false },
+      "POST /marketplace/me/achievements/evidence": { status: 201, json: { id: "av1", file_name: "qaror.pdf", mime_type: "application/pdf", size: 8, download_url: "/marketplace/achievements/evidence/av1" } },
+      "POST /marketplace/me/achievements": (b: unknown) => ((sent = b as Record<string, unknown>), { status: 201, json: { id: "a2", status: "ai_analysis_pending" } }),
     }),
   );
   await page.goto("/ru/portal/advocate/profile");
   await page.getByRole("tab").nth(1).click();
   const panel = page.locator(".ach");
+  // The backend's own labels in the page's language.
   await expect(panel).toContainText("Судебный процесс");
-  await expect(panel).toContainText("Полностью положительный результат");
+  await expect(panel).toContainText("Полный положительный результат");
   await expect(panel).toContainText("Нужна доработка");
   await expect(panel).toContainText("Комментарий оператора: Qaror nusxasi o'qilmaydi");
   await expect(panel).toContainText("Анализ ИИ — только рекомендация");
+  // The workflow track, every step with its icon; the approved one is done.
+  await expect(panel.locator(".ach__track").first().locator("li")).toHaveCount(5);
+  await expect(panel.locator(".ach__track").first().locator("li i svg")).toHaveCount(5);
   // Never the price, never a raw key.
-  expect(await panel.innerText()).not.toMatch(/цена|цены|ценообраз|стоимост|court|changes_requested|ai_analysis/i);
+  expect(await panel.innerText()).not.toMatch(/цена|цены|ценообраз|стоимост|court|changes_requested|ai_analysis|operator_review/i);
   await panel.getByRole("button", { name: "Добавить достижение" }).first().click();
   const form = page.getByRole("dialog", { name: "Новое достижение" });
   await expect(form.locator("select, input[type=date], input[type=checkbox]")).toHaveCount(0);
@@ -237,7 +240,7 @@ test("an advocate adds an achievement from the backend's config", async ({ page 
   await expect(form.locator(".ach__res")).toHaveCount(2);
   await expect(form.getByText(/инстанц/i)).toHaveCount(0);
   await form.getByRole("radio", { name: /Судебный процесс/ }).click();
-  await form.getByRole("radio", { name: "Частично положительный результат" }).click();
+  await form.getByRole("radio", { name: "Частичный положительный результат" }).click();
   await form.getByRole("button", { name: /Категория услуг/ }).click();
   await page.getByRole("listbox").getByRole("option").nth(1).click();
   await form.getByRole("combobox", { name: "Дата результата" }).fill("15.03.2026");
@@ -249,47 +252,62 @@ test("an advocate adds an achievement from the backend's config", async ({ page 
   await form.locator(".ach__files li[data-state=error]").getByRole("button").click();
   await form.locator('input[type="file"]').setInputFiles({ name: "qaror.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") });
   await expect(form.locator(".ach__files li[data-state=done]")).toContainText("qaror.pdf");
-  // The backend's warning sits right above the send button.
-  await expect(page.locator(".amodal__f .ach__warn")).toHaveText(ACH_CONFIG.warning);
+  // The backend's warning, in the page's language, right above the send button.
+  await expect(page.locator(".amodal__f .ach__warn")).toHaveText(ACH_CONFIG.warning_i18n.ru);
   await shot(page, "achievement-form");
   await page.locator(".amodal__f").getByRole("button", { name: "Отправить на проверку" }).click();
   await expect.poll(() => sent).not.toBeNull();
-  expect(sent).toEqual({ process_stage: "court", result_scope: "partial", category_id: "c2", achieved_at: "2026-03-15", description: "Apellyatsiyada jazo yengillashtirildi", evidence_ids: ["av1"] });
+  expect(sent).toEqual({ source_id: null, process_stage: "court", result_scope: "partial", category_id: "c2", achieved_at: "2026-03-15", description: "Apellyatsiyada jazo yengillashtirildi", evidence_ids: ["av1"] });
 });
 
+const CHECKS = [
+  ["type_and_date", "Turi va sanasi", "Тип и дата"],
+  ["evidence_supports_claim", "Dalillar ma’lumotni tasdiqlaydi", "Доказательства подтверждают сведения"],
+  ["category_relevance", "Kategoriyaga mosligi", "Соответствие категории"],
+  ["public_confidentiality", "Ommaviy matnda maxfiylik", "Конфиденциальность публичного текста"],
+  ["authenticity", "Hujjat haqiqiyligi", "Подлинность документа"],
+  ["verifier_conclusion", "Tekshiruvchi xulosasi", "Заключение проверяющего"],
+].map(([key, uz, ru]) => ({ key, label: uz, hint: uz, label_i18n: { uz_latn: uz, ru } }));
 const ccAch = (decided: unknown[], record: Record<string, unknown>, ai: Record<string, unknown>) => ({
   "/service-categories": CATS,
-  "/call-center/marketplace/achievements": { items: [{ ...record, seller_name: "Test Advokat", submitted_at: "2026-10-28T08:00:00Z" }], total: 1, has_more: false },
+  "/call-center/marketplace/achievements": { items: [{ ...record, seller_user_id: "u-adv", seller: { id: "u-adv", name: "Test Advokat" }, submitted_at: "2026-10-28T08:00:00Z" }], total: 1, count: 1, limit: 50, offset: 0, has_more: false },
   "/call-center/marketplace/achievements/a2": {
-    record: { ...record, evidence: [{ id: "av1", file_name: "qaror.pdf" }] },
+    record: { ...record, evidence: [{ id: "av1", file_name: "qaror.pdf", download_url: "/marketplace/achievements/evidence/av1" }] },
     seller: { id: "u-adv", name: "Test Advokat", phone: "+998901112233", lexgo_id: "LGA-7K2Q", role: "advokat", account_status: "active" },
     previous_approved_revision: null,
+    diff: [],
+    history: [],
+    reviews: [],
+    ai_analysis: ai,
+    risk_catalog: [{ code: "date_mismatch", label: "Sana mos emas", label_i18n: { uz_latn: "Sana mos emas", ru: "Дата не совпадает" } }],
+    checklist_keys: CHECKS.map((c) => c.key),
+    checklist: CHECKS,
+    communication: {},
     ai_advisory_only: true,
     final_decision_by: "operator",
-    ai_analysis: ai,
-    checklist: ["type_and_date", "evidence_supports_claim", "category_relevance", "public_confidentiality", "authenticity", "verifier_conclusion"].map((key) => ({ key })),
-    reviews: [],
   },
   "POST /call-center/marketplace/achievements/a2/review": (b: unknown) => (decided.push(b), { status: "approved" }),
 });
+const AI = { status: "completed", analysis_type: "achievement", document_readable: true, claim_supported: true, stage_matches: true, result_scope_matches: false, authenticity_confidence: 0.82, manipulation_risk: 0.04, ai_generated_risk: 0.4, risk_level: "medium", risk_codes: ["date_mismatch", "code_without_label"], risk_items: [], signature_detection: { signature: true, seal: false, electronic_signature: false }, pii_detected: ["phone"], operator_notes: ["Sanani qaror bilan solishtiring"], extracted_fields: {}, final_decision: "operator_required", reason: "" };
 
 test("the call center weighs the risk indicators and approves with a safe public text", async ({ page }) => {
   const decided: unknown[] = [];
-  const record = { id: "a2", status: "pending_review", process_stage: "court", result_scope: "partial", category_id: "c1", achieved_at: "2026-03-15", description: "Apellyatsiyada jazo yengillashtirildi", version: 1 };
-  const ai = { status: "completed", document_readable: true, claim_supported: true, stage_matches: true, result_scope_matches: false, authenticity_confidence: 0.82, manipulation_risk: "low", ai_generated_risk: "medium", risk_level: "medium", risk_codes: ["date_mismatch"], signature_detected: true, seal_detected: false, pii_detected: true, operator_notes: ["Sanani qaror bilan solishtiring"] };
-  await mockBackend(page, await signIn(page, CALL_CENTER, ccAch(decided, record, ai)));
+  const record = { id: "a2", root_id: "r2", status: "pending_review", process_stage: "court", result_scope: "partial", category_id: "c1", category_title: "Оила ва никоҳ", achieved_at: "2026-03-15", description: "Apellyatsiyada jazo yengillashtirildi", version: 1 };
+  await mockBackend(page, await signIn(page, CALL_CENTER, ccAch(decided, record, AI)));
   await page.goto("/ru/admin/call-center?tab=achievements");
   await page.getByRole("button", { name: /Test Advokat/ }).click();
   const box = page.locator(".vrf");
   await expect(box.locator(".vrf__facts")).toContainText("Судебный процесс");
-  await expect(box.locator(".vrf__facts")).toContainText("Семья и брак");
   const risk = box.locator(".vrf__ai");
   await expect(risk).toContainText("Индикаторы риска");
   await expect(risk).toContainText("не вердикт");
-  await expect(risk).toContainText("Дата не совпадает");
+  // A risk shows with the backend's label; a code without one is left out.
+  await expect(risk.locator(".vrf__codes li")).toHaveText(["Дата не совпадает"]);
   await expect(risk).toContainText("82%");
-  await expect(box).toContainText("Доказательство подтверждает утверждение");
-  expect(await box.innerText()).not.toMatch(/date_mismatch|type_and_date|evidence_supports_claim|pending_review/);
+  await expect(risk).toContainText("40%");
+  // The backend's checklist labels.
+  await expect(box).toContainText("Доказательства подтверждают сведения");
+  expect(await box.innerText()).not.toMatch(/date_mismatch|code_without_label|type_and_date|evidence_supports_claim|pending_review|phone/);
   await shot(page, "achievement-review");
   for (const g of await box.locator(".vrf__v").all()) await g.getByRole("radio", { name: "Да" }).click();
   await box.getByRole("radio", { name: /^Подтвердить/ }).click();
@@ -304,13 +322,13 @@ test("the call center weighs the risk indicators and approves with a safe public
     decision: "approve",
     reason: "",
     public_description: "Sud bosqichida jazo yengillashtirildi",
-    checklist: ["type_and_date", "evidence_supports_claim", "category_relevance", "public_confidentiality", "authenticity", "verifier_conclusion"].map((key) => ({ key, verdict: "approved", note: "" })),
+    checklist: CHECKS.map((c) => ({ key: c.key, verdict: "approved", note: "" })),
   });
 });
 
 test("no decision while the software is still reading the files", async ({ page }) => {
-  const record = { id: "a2", status: "ai_analysis_pending", process_stage: "inquiry", result_scope: "full", category_id: "c1", achieved_at: "2026-03-15", description: "Ish to'xtatildi", version: 1 };
-  await mockBackend(page, await signIn(page, CALL_CENTER, { ...ccAch([], record, { status: "processing" }), "/call-center/marketplace/achievements": { items: [{ ...record, seller_name: "Test Advokat" }], total: 1 } }));
+  const record = { id: "a2", root_id: "r2", status: "ai_analysis_pending", process_stage: "inquiry", result_scope: "full", category_id: "c1", achieved_at: "2026-03-15", description: "Ish to'xtatildi", version: 1 };
+  await mockBackend(page, await signIn(page, CALL_CENTER, ccAch([], record, { ...AI, status: "processing" })));
   await page.goto("/ru/admin/call-center?tab=achievements");
   await page.getByRole("button", { name: /Test Advokat/ }).click();
   const box = page.locator(".vrf");
@@ -318,18 +336,19 @@ test("no decision while the software is still reading the files", async ({ page 
   for (const d of ["Подтвердить", "Запросить правки", "Отклонить"]) await expect(box.getByRole("radio", { name: new RegExp(`^${d}`) })).toBeDisabled();
 });
 
-test("the public profile shows verified achievements only, with no evidence", async ({ page }) => {
+test("the public profile shows the operator-approved text only, never the private one", async ({ page }) => {
   await mockBackend(page, {
     "/marketplace/lawyers": { items: [{ user_id: "u-adv", name: "Test Advokat", seller_type: "advokat", is_verified: true }], total: 1 },
     "/marketplace/lawyers/u-adv": { user_id: "u-adv", name: "Test Advokat", seller_type: "advokat", rating: 4.8, reviews_count: 3, is_verified: true },
     "/marketplace/lawyers/u-adv/services": { items: [] },
-    "/marketplace/lawyers/u-adv/achievements": { items: [{ process_stage: "court", result_scope: "full", category_id: "c1", category_title: "Oila ishlari", year: 2025, achieved_at: "2025-12-20", description: "Sud bosqichida to'liq ijobiy natija", lexgo_verified: true, verified_at: "2026-01-10T09:00:00Z" }], total: 1, has_more: false },
+    "/marketplace/lawyers/u-adv/achievements": { items: [{ id: "a1", process_stage: "court", result_scope: "full", category_id: "c1", category_title: "Oila ishlari", year: 2025, achieved_at: "2025-12-20", public_description: "Sud bosqichida to'liq ijobiy natija", description: "Maxfiy: mijoz Aliyev, ish raqami 12-345", lexgo_verified: true, verified_at: "2026-01-10T09:00:00Z" }], total: 1, count: 1, limit: 20, offset: 0, has_more: false },
   });
   await page.goto("/uz/lawyers/u-adv");
   const panel = page.locator(".mk-ach");
   await expect(panel).toContainText("Sud jarayoni", { timeout: 20000 });
   await expect(panel).toContainText("To'liq ijobiy natija");
-  await expect(panel).toContainText("2025");
+  await expect(panel).toContainText("Sud bosqichida to'liq ijobiy natija");
+  await expect(panel).not.toContainText("Maxfiy");
   await expect(panel).toContainText("LexGo tasdiqlagan");
   await expect(panel.locator("a, button")).toHaveCount(0);
 });

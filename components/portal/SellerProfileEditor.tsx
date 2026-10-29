@@ -72,13 +72,13 @@ const TAB_REVEAL: Record<SellerTab, RegExp> = {
 // Fields the backend profile (PUT /lawyers/me) has no columns for yet
 // (reported: gender, work hours, work history). Kept per user in the browser
 // so the cabinet, onboarding and the "Ish vaqtim" panel agree.
-type Extras = { gender?: string; workDays: string[]; workFrom: string; workTo: string; workHistory: WorkEntry[]; licenseIssuedAt?: string };
+type Extras = { gender?: string; workDays: string[]; workFrom: string; workTo: string; workHistory: WorkEntry[] };
 const EXTRA_KEY = (uid: string) => `lexgo_seller_extra_${uid}`;
 function readExtras(uid: string): Extras {
   try {
     const raw = localStorage.getItem(EXTRA_KEY(uid));
     const s = raw ? (JSON.parse(raw) as Partial<Extras>) : {};
-    return { gender: s.gender, workDays: s.workDays ?? DEFAULT_DAYS, workFrom: s.workFrom ?? "09:00", workTo: s.workTo ?? "19:00", workHistory: s.workHistory ?? [], licenseIssuedAt: s.licenseIssuedAt };
+    return { gender: s.gender, workDays: s.workDays ?? DEFAULT_DAYS, workFrom: s.workFrom ?? "09:00", workTo: s.workTo ?? "19:00", workHistory: s.workHistory ?? [] };
   } catch {
     return { workDays: DEFAULT_DAYS, workFrom: "09:00", workTo: "19:00", workHistory: [] };
   }
@@ -237,7 +237,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
           ...(d.photo !== saved.photo ? { avatar_url: d.photo || "" } : {}),
         });
       }
-      writeExtras(uid, { gender: d.gender, workDays: d.workDays, workFrom: d.workFrom, workTo: d.workTo, workHistory: d.workHistory, licenseIssuedAt: d.licenseIssuedAt });
+      writeExtras(uid, { gender: d.gender, workDays: d.workDays, workFrom: d.workFrom, workTo: d.workTo, workHistory: d.workHistory });
       writeVacation(uid, vacation);
       if (section === "hours") {
         try {

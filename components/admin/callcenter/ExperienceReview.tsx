@@ -14,6 +14,7 @@ import { dateOnly } from "@/lib/date";
 import { getServiceCategories, type BackendCategory } from "@/lib/services/backend";
 import {
   EXPERIENCE_KINDS,
+  experienceQueueItemOf,
   closeExperienceRoom,
   downloadExperienceEvidence,
   getExperienceForReview,
@@ -30,7 +31,7 @@ import VerifyReview, { type VerifySource } from "./VerifyReview";
 // TSK-874927, TSK-365169): the queue, oldest first; each record opens the
 // shared verification screen (VerifyReview).
 
-const EVENTS = /^marketplace\.experience_(submitted|queue_updated)$/;
+const EVENTS = /^marketplace\.experience_(submitted|queue_updated|reviewed)$/;
 const STATUSES = ["pending_review", "approved", "rejected", ""] as const;
 
 // A category's name by id (the list is read once per screen).
@@ -60,14 +61,14 @@ export function ExperienceQueue({ onCount }: { onCount?: (n: number) => void }):
   const catName = useCategories();
   // The queue is for call_center/admin/manager or approvals.manage;
   // callcenter.access alone answers 403, and the tab then stays away.
-  const q = useReviewQueue<ExperienceQueueItem>((o, signal) => listExperienceQueue(o, signal), { scope: "experience", events: EVENTS, onCount });
-  // Category experience and pre-advocate employment, apart (2026-10-29 §5);
-  // the backend has no kind filter, so this narrows the loaded rows.
+  // Category experience and pre-advocate employment, apart: experience_kind
+  // is the backend's own filter (2026-10-29 §13).
   const [kind, setKind] = useState<ExperienceKind | "">("");
+  const q = useReviewQueue<ExperienceQueueItem>((o, signal) => listExperienceQueue({ ...o, kind }, signal), { scope: "experience", events: EVENTS, parse: experienceQueueItemOf, filterKey: kind, onCount });
   const [open, setOpen] = useState("");
 
   if (q.denied) return null;
-  const items = q.items?.filter((it) => !kind || it.kind === kind) ?? null;
+  const { items } = q;
   return (
     <section className="ppanel xpr esc" data-ai-target="callcenter:experience">
       <QueueHead
@@ -154,8 +155,7 @@ export default function ExperienceReview({ experienceId, onDone }: { experienceI
         isRevision: !!d.previous,
         record: it,
         evidence: it?.evidence ?? [],
-        // The backend's changed_fields mark rows its diff left out.
-        diff: d.diff.length ? d.diff : d.changedFields.map((field) => ({ field, label: "", before: "", after: tp("changed"), kind: "changed" as const })),
+        diff: d.diff,
         checks: d.checks,
         reviews: d.reviews,
         room: d.room,
@@ -163,7 +163,7 @@ export default function ExperienceReview({ experienceId, onDone }: { experienceI
         history: d.history,
       };
     },
-    historyLabel: (h) => (tp.has(`status.${h.status}`) ? tp(`status.${h.status}`) : tp("status.other")),
+    historyLabel: (h) => (tp.has(`status.${h.status}`) ? tp(`status.${h.status}`) : ""),
     review: (input) => reviewExperience(experienceId, input),
     openRoom: () => openExperienceRoom(experienceId),
     closeRoom: (room) => closeExperienceRoom(experienceId, room),

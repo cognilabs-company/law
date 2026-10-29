@@ -13,7 +13,10 @@ export type CcSearch = { q: string; n: number };
 type Counted = "cockpit" | "queue" | "urgent" | "escalations" | "complaints" | "mpComplaints" | "warranty" | "cancellations" | "experience" | "achievements" | "licenses" | "payouts";
 
 const ALL: CcTab[] = ["cockpit", "queue", "urgent", "escalations", "complaints", "mpComplaints", "warranty", "cancellations", "experience", "achievements", "licenses", "payouts", "leads", "clients"];
-const OPEN: CcTab[] = ["leads", "clients"];
+// Open to anyone on this page: the verification queues are decided by the
+// backend's experience-review permission (2026-10-29 §1) — a 403 hides the
+// tab — never by the role name.
+const OPEN: CcTab[] = ["experience", "achievements", "licenses", "leads", "clients"];
 const STORE = "lexgo_cc_tab";
 
 const ICON: Record<CcTab, ComponentType<SVGProps<SVGSVGElement>>> = {

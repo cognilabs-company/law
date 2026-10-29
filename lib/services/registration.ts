@@ -56,7 +56,7 @@ export function scoreCompleteness(
           !!p.region,
           !!p.licenseNumber,
           !!p.specialization,
-          !!(p.advocateYears || p.lawyerYears),
+          !!(p.advocateActiveYears || p.lawyerYears),
           p.practiceAreas.length > 0,
           !!(p.stats && (p.stats.fullyWonCases || p.stats.partiallyWonCases)),
         ];

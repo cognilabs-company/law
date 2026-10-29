@@ -266,3 +266,20 @@
 .exp--pre .exp__why { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 720px) { .exp--pre .exp__why { grid-template-columns: minmax(0, 1fr); } }
 .exp--pre .exp__sum { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Final contract 2026-10-29 — the backend's workflow, each step its own icon. */
+.ach__track { display: flex; align-items: flex-start; gap: 0; margin: 2px 0 0; padding: 0; list-style: none; min-width: 0; }
+.ach__track li { position: relative; display: grid; justify-items: center; gap: 4px; flex: 1 1 0; min-width: 0; color: var(--gray); font-size: .66rem; font-weight: 700; text-align: center; line-height: 1.2; }
+.ach__track li:not(:last-child)::after { content: ""; position: absolute; top: 12px; left: calc(50% + 14px); right: calc(-50% + 14px); height: 2px; border-radius: 2px; background: var(--line); }
+.ach__track li[data-state="done"]:not(:last-child)::after { background: #16a34a; }
+.ach__track i { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 999px; background: var(--dk-surface-2, #eef2f8); color: var(--gray); box-shadow: inset 0 0 0 1px var(--line); }
+.ach__track i svg { width: 13px; height: 13px; }
+.ach__track span { overflow-wrap: anywhere; }
+.ach__track li[data-state="done"] { color: var(--dk-txt-ok, #15803d); }
+.ach__track li[data-state="done"] i { background: #16a34a; color: #fff; box-shadow: none; }
+.ach__track li[data-state="now"] { color: var(--ink); }
+.ach__track li[data-state="now"] i { background: var(--b600, #1668f0); color: #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--b500, #3b82f6) 22%, transparent); }
+.ach__track li[data-state="bad"] { color: var(--dk-txt-err, #b91c1c); }
+.ach__track li[data-state="bad"] i { background: #ef4444; color: #fff; box-shadow: 0 0 0 4px color-mix(in srgb, #ef4444 20%, transparent); }
+.ach__denied { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--dk-surface-2, #f6f8fc); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); font-size: .84rem; line-height: 1.45; }
+.ach__denied svg { flex: none; width: 16px; height: 16px; margin-top: 1px; color: var(--gray); }
+@media (max-width: 420px) { .ach__track li { font-size: .6rem; } }

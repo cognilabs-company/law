@@ -26,9 +26,12 @@ import {
   IconLock,
   IconPaperclip,
   IconPlus,
+  IconGlobe,
   IconRefresh,
   IconScale,
   IconSearch,
+  IconSend,
+  IconShieldCheck,
   IconSparkle,
   IconStar,
   IconTag,
@@ -52,15 +55,17 @@ import {
   downloadAchievementEvidence,
   fileIssue,
   getAchievementConfig,
-  groupAchievements,
   isPendingStatus,
   listMyAchievements,
   submitAchievement,
   uploadAchievementEvidence,
   type Achievement,
   type AchievementConfig,
+  type AchievementGroup,
+  type AchievementStatus,
   type AchievementErrorField,
 } from "@/lib/services/achievements";
+import { labelIn } from "@/lib/backendLabel";
 import { useAchievementLabels } from "./achievementLabels";
 
 // An advocate's professional achievements (contract 2026-10-29 §2): one
@@ -70,10 +75,6 @@ import { useAchievementLabels } from "./achievementLabels";
 // checks the files first (advice only), then a LexGo operator decides; an
 // approved achievement counts for the rating. Evidence never goes public.
 
-// The backend's own field limits (AchievementSubmission), for when the
-// config does not repeat them.
-const DESC_MIN = 5;
-const DESC_MAX = 5000;
 const PAGE = 50;
 const EVENTS = /^marketplace\.achievement_(ai_analysis_completed|reviewed|review_chat_opened)$/;
 const STAGE_ICON: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
@@ -99,14 +100,14 @@ export function achievementIssue(d: Pick<Draft, "stage" | "result" | "categoryId
   if (!d.categoryId) return "category";
   if (!d.achievedOn || d.achievedOn > today) return "date";
   const n = d.description.trim().length;
-  if (n < (cfg?.descMin ?? DESC_MIN) || n > (cfg?.descMax ?? DESC_MAX)) return "description";
+  if (cfg && (n < cfg.descMin || (cfg.descMax > 0 && n > cfg.descMax))) return "description";
   if (findContacts(d.description).length) return "contacts";
   if (d.files.some((f) => f.state === "uploading")) return "uploading";
   if (d.files.some((f) => f.state === "error")) return "fileErrors";
   const done = d.files.filter((f) => f.state === "done").length;
-  const min = cfg?.minFiles ?? (cfg?.evidenceRequired === false ? 0 : 1);
-  if (done < min) return "files";
-  if (cfg?.maxFiles !== null && cfg?.maxFiles !== undefined && done > cfg.maxFiles) return "tooMany";
+  const ev = cfg?.evidence;
+  if (ev && done < (ev.required ? Math.max(1, ev.minFiles) : ev.minFiles)) return "files";
+  if (ev && ev.maxFiles > 0 && done > ev.maxFiles) return "tooMany";
   return "";
 }
 // The issue → the field it belongs to.
@@ -126,6 +127,38 @@ function Step({ icon: Icon, done, title, hint }: { icon: ComponentType<SVGProps<
   );
 }
 
+// The backend's workflow (§2: evidence_upload → submission →
+// ai_advisory_analysis → operator_review → public_profile), each step with
+// its own icon, marked by where this record stands.
+const STEP_ICON: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
+  evidence_upload: IconUpload,
+  submission: IconSend,
+  ai_advisory_analysis: IconSparkle,
+  operator_review: IconShieldCheck,
+  public_profile: IconGlobe,
+};
+const STEP_AT: Partial<Record<AchievementStatus, string>> = { ai_analysis_pending: "ai_advisory_analysis", pending_review: "operator_review", changes_requested: "operator_review", rejected: "operator_review", approved: "public_profile" };
+export function WorkTrack({ steps, status }: { steps: readonly string[]; status: AchievementStatus }): ReactElement {
+  const t = useTranslations("portal.achievements.workflow");
+  const known = steps.filter((s) => STEP_ICON[s] && t.has(s));
+  const at = known.indexOf(STEP_AT[status] ?? "");
+  const stuck = status === "rejected" || status === "changes_requested";
+  return (
+    <ol className="ach__track" aria-label={t("title")}>
+      {known.map((s, i) => {
+        const Icon = STEP_ICON[s];
+        const state = status === "approved" || status === "superseded" || i < at ? "done" : i === at ? (stuck ? "bad" : "now") : "todo";
+        return (
+          <li key={s} data-state={state} aria-current={i === at ? "step" : undefined}>
+            <i aria-hidden="true">{state === "done" ? <IconCheck /> : <Icon />}</i>
+            <span>{t(s)}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export default function AchievementsPanel(): ReactElement | null {
   const t = useTranslations("portal.achievements");
   const te = useTranslations("portal.experience");
@@ -134,8 +167,10 @@ export default function AchievementsPanel(): ReactElement | null {
   const [denied, setDenied] = useState(false);
   const L = useAchievementLabels(cfg);
   const [cats, setCats] = useState<BackendCategory[]>([]);
-  const [items, setItems] = useState<Achievement[] | null>(null);
+  // The list is paged by revision root (§4): groups[], total = roots.
+  const [groups, setGroups] = useState<AchievementGroup[] | null>(null);
   const [total, setTotal] = useState(0);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -154,9 +189,10 @@ export default function AchievementsPanel(): ReactElement | null {
       setLoading(true);
       try {
         const r = await listMyAchievements({ status, limit: Math.max(PAGE, shown.current), offset: 0 }, signal);
-        shown.current = r.items.length;
-        setItems(r.items);
+        shown.current = r.groups.length;
+        setGroups(r.groups);
         setTotal(r.total);
+        setTotalRecords(r.totalRecords);
         setFailed(false);
       } catch (e) {
         if (isAborted(e)) return;
@@ -170,15 +206,16 @@ export default function AchievementsPanel(): ReactElement | null {
     [status],
   );
   async function more() {
-    if (!items || loading) return;
+    if (!groups || loading) return;
     setLoading(true);
     try {
-      const r = await listMyAchievements({ status, limit: PAGE, offset: items.length });
-      const seen = new Set(items.map((x) => x.id));
-      const next = [...items, ...r.items.filter((x) => !seen.has(x.id))];
+      const r = await listMyAchievements({ status, limit: PAGE, offset: groups.length });
+      const seen = new Set(groups.map((g) => g.rootId));
+      const next = [...groups, ...r.groups.filter((g) => !seen.has(g.rootId))];
       shown.current = next.length;
-      setItems(next);
+      setGroups(next);
       setTotal(r.total);
+      setTotalRecords(r.totalRecords);
     } catch (e) {
       if (!isAborted(e)) logApiError("achievements.more", e);
     } finally {
@@ -227,14 +264,14 @@ export default function AchievementsPanel(): ReactElement | null {
   const today = new Date().toISOString().slice(0, 10);
   const issue = achievementIssue(draft, cfg, today);
   const desc = draft?.description.trim() ?? "";
-  const descMin = cfg?.descMin ?? DESC_MIN;
-  const descMax = cfg?.descMax ?? DESC_MAX;
+  const descMin = cfg?.descMin ?? 0;
+  const descMax = cfg?.descMax ?? 0;
   const descHits = draft ? findContacts(draft.description) : [];
   const catName = (id: string, title = "") => {
     const c = cats.find((x) => x.id === id);
     return c ? uzLabel(categoryName({ slug: c.slug, title: c.name }, locale), locale) : title;
   };
-  const warning = cfg ? cfg.warningI18n[locale === "uz" ? "uz_latn" : locale] || cfg.warningI18n[locale] || cfg.warning : "";
+  const warning = labelIn(cfg?.warning, locale);
   const open = (d: Draft) => {
     descStrip.reset();
     setTried(false);
@@ -259,13 +296,14 @@ export default function AchievementsPanel(): ReactElement | null {
   }
   function addFiles(files: FileList | null) {
     if (!draft || !files?.length || !cfg) return;
-    const room = cfg.maxFiles === null ? Infinity : cfg.maxFiles - draft.files.length;
+    const ev = cfg.evidence;
+    const room = ev.maxFiles > 0 ? ev.maxFiles - draft.files.length : Infinity;
     const picked = Array.from(files);
-    if (picked.length > room) setFormNote(t("tooManyFiles", { n: cfg.maxFiles ?? 0 }));
+    if (picked.length > room) setFormNote(t("tooManyFiles", { n: ev.maxFiles }));
     else setFormNote("");
     const rows: FileRow[] = picked.slice(0, Math.max(0, room)).map((f) => {
-      const bad = fileIssue(f, cfg);
-      return { key: ++keySeq, file: f, name: f.name, state: bad ? "error" : "uploading", progress: 0, error: bad === "type" ? t("fileType") : bad === "size" ? t("fileBig", { mb: fmtNum((cfg.maxBytes ?? 0) / (1024 * 1024), locale, 1) }) : "", evidence: null };
+      const bad = fileIssue(f, ev);
+      return { key: ++keySeq, file: f, name: f.name, state: bad ? "error" : "uploading", progress: 0, error: bad === "type" ? t("fileType") : bad === "size" ? t("fileBig", { mb: fmtNum(ev.maxBytes / (1024 * 1024), locale, 1) }) : "", evidence: null };
     });
     setDraft((d) => (d ? { ...d, files: [...d.files, ...rows] } : d));
     // One file per request, one after another.
@@ -309,10 +347,8 @@ export default function AchievementsPanel(): ReactElement | null {
     }
   }
 
-  if (denied) return null;
-  const groups = groupAchievements(items ?? []);
-  const approved = (items ?? []).filter((x) => x.status === "approved").length;
-  const pending = (items ?? []).filter((x) => isPendingStatus(x.status)).length;
+  const approved = (groups ?? []).filter((g) => g.current).length;
+  const pending = (groups ?? []).filter((g) => g.pending).length;
   // A server refusal is written under its field; a local gap only marks the
   // field (its sentence is in the footer, once).
   const errAt = (f: AchievementErrorField) => (fieldErr?.field === f ? fieldErr.msg : "");
@@ -320,9 +356,9 @@ export default function AchievementsPanel(): ReactElement | null {
   const filesDone = draft?.files.filter((f) => f.state === "done").length ?? 0;
   const hint = cfg
     ? [
-        cfg.extensions.length ? cfg.extensions.map((x) => x.toUpperCase()).join(", ") : "",
-        cfg.maxBytes !== null ? t("upToMb", { mb: fmtNum(cfg.maxBytes / (1024 * 1024), locale, 1) }) : "",
-        cfg.maxFiles !== null ? t("filesRange", { min: cfg.minFiles ?? 1, max: cfg.maxFiles }) : "",
+        cfg.evidence.extensions.map((x) => x.toUpperCase()).join(", "),
+        cfg.evidence.maxBytes > 0 ? t("upToMb", { mb: fmtNum(cfg.evidence.maxBytes / (1024 * 1024), locale, 1) }) : "",
+        cfg.evidence.maxFiles > 0 ? t("filesRange", { min: Math.max(cfg.evidence.minFiles, 1), max: cfg.evidence.maxFiles }) : "",
       ]
         .filter(Boolean)
         .join(" · ")
@@ -347,7 +383,13 @@ export default function AchievementsPanel(): ReactElement | null {
         <IconSparkle aria-hidden="true" />
         {t("aiAdvisory")}
       </p>
-      {items?.length || status ? (
+      {denied ? (
+        <p className="ach__denied" role="note">
+          <IconLock aria-hidden="true" />
+          {t("advocateOnly")}
+        </p>
+      ) : null}
+      {groups?.length || status ? (
         <div className="exp__sum" role="status">
           <div>
             <b className="sx-num">{approved}</b>
@@ -357,20 +399,20 @@ export default function AchievementsPanel(): ReactElement | null {
             <b className="sx-num">{pending}</b>
             <small>{t("sumPending")}</small>
           </div>
-          <div>
+          <div title={totalRecords > total ? t("revisionsTotal", { n: totalRecords }) : undefined}>
             <b className="sx-num">{total}</b>
             <small>{t("sumTotal")}</small>
           </div>
         </div>
       ) : null}
-      {items?.length || status ? (
+      {groups?.length || status ? (
         <div className="ach__filter">
           <Segmented
             size="sm"
             value={status}
             onChange={(v) => {
               shown.current = 0;
-              setItems(null);
+              setGroups(null);
               setStatus(v);
             }}
             label={t("filter")}
@@ -381,12 +423,12 @@ export default function AchievementsPanel(): ReactElement | null {
       ) : null}
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {failed ? <Notice ok={false} msg={t("loadFailed")} /> : null}
-      {!items && !failed ? (
+      {!groups && !failed && !denied ? (
         <div className="exp__grid" aria-hidden="true">
           <div className="exp__card exp__card--ghost" />
         </div>
       ) : null}
-      {items && !items.length ? (
+      {groups && !groups.length ? (
         <div className="exp__empty">
           <span className="exp__empty-ic" aria-hidden="true">
             <IconScale />
@@ -401,7 +443,7 @@ export default function AchievementsPanel(): ReactElement | null {
           )}
         </div>
       ) : null}
-      {groups.length ? (
+      {groups?.length ? (
         <ul className="exp__grid">
           {groups.map((g) => {
             const a = g.pending ?? g.latest ?? g.current;
@@ -449,6 +491,7 @@ export default function AchievementsPanel(): ReactElement | null {
                     </>
                   ) : null}
                 </p>
+                {cfg?.workflow.length ? <WorkTrack steps={cfg.workflow} status={a.status} /> : null}
                 {a.description ? <p className="exp__desc">{a.description}</p> : null}
                 {a.evidence.length ? (
                   <span className="exp__files">
@@ -473,7 +516,7 @@ export default function AchievementsPanel(): ReactElement | null {
           })}
         </ul>
       ) : null}
-      {items ? <ListPager count={items.length} total={total} step={PAGE} onMore={() => void more()} loading={loading} /> : null}
+      {groups ? <ListPager count={groups.length} total={total} step={PAGE} onMore={() => void more()} loading={loading} /> : null}
 
       <Modal
         open={!!draft}
@@ -494,7 +537,7 @@ export default function AchievementsPanel(): ReactElement | null {
             ) : null}
             {tried && issue ? (
               <small className="exp__issue" role="alert">
-                {t(`issue.${issue}`, { min: descMin, max: descMax, n: cfg?.minFiles ?? 1, max_files: cfg?.maxFiles ?? 0 })}
+                {t(`issue.${issue}`, { min: descMin, max: descMax, n: Math.max(cfg?.evidence.minFiles ?? 1, 1), max_files: cfg?.evidence.maxFiles ?? 0 })}
               </small>
             ) : null}
             <button type="button" className="btn btn--line" onClick={() => setDraft(null)} disabled={busy}>
@@ -529,7 +572,6 @@ export default function AchievementsPanel(): ReactElement | null {
                         <Icon />
                       </i>
                       <b>{L.stage(s.value)}</b>
-                      {s.hint ? <small>{s.hint}</small> : null}
                     </button>
                   );
                 })}
@@ -598,21 +640,21 @@ export default function AchievementsPanel(): ReactElement | null {
               <ContactGuardNote hits={descHits} removed={descStrip.removed} verifiedLine={false} />
             </fieldset>
 
-            <fieldset className="exp__sec" data-done={(filesDone >= (cfg.minFiles ?? 1) && !draft.files.some((f) => f.state !== "done")) || undefined}>
-              <Step icon={IconPaperclip} done={filesDone >= (cfg.minFiles ?? 1) && !draft.files.some((f) => f.state !== "done")} title={t("secProof")} hint={t("secProofHint")} />
+            <fieldset className="exp__sec" data-done={(filesDone >= Math.max(cfg.evidence.minFiles, 1) && !draft.files.some((f) => f.state !== "done")) || undefined}>
+              <Step icon={IconPaperclip} done={filesDone >= Math.max(cfg.evidence.minFiles, 1) && !draft.files.some((f) => f.state !== "done")} title={t("secProof")} hint={t("secProofHint")} />
               <p className="ach__private">
                 <IconLock aria-hidden="true" />
                 {t("privateNote")}
               </p>
               <div className="exp__drop" data-bad={badAt("evidence")}>
-                {cfg.maxFiles === null || draft.files.length < cfg.maxFiles ? (
+                {cfg.evidence.maxFiles <= 0 || draft.files.length < cfg.evidence.maxFiles ? (
                   <label>
                     <span className="exp__drop-ic" aria-hidden="true">
                       <IconUpload />
                     </span>
                     <b>{te("addFile")}</b>
                     {hint ? <small>{hint}</small> : null}
-                    <input type="file" multiple accept={acceptOf(cfg) || undefined} onChange={(e) => (addFiles(e.target.files), (e.target.value = ""))} aria-label={te("addFile")} />
+                    <input type="file" multiple accept={acceptOf(cfg.evidence) || undefined} onChange={(e) => (addFiles(e.target.files), (e.target.value = ""))} aria-label={te("addFile")} />
                   </label>
                 ) : null}
                 {draft.files.length ? (
@@ -633,7 +675,7 @@ export default function AchievementsPanel(): ReactElement | null {
                           ) : null}
                         </span>
                         <span className="ach__facts">
-                          {f.state === "error" && f.file && !fileIssue(f.file, cfg) ? (
+                          {f.state === "error" && f.file && !fileIssue(f.file, cfg.evidence) ? (
                             <button type="button" aria-label={t("retryNamed", { name: f.name })} onClick={() => void upload(f)}>
                               <IconRefresh />
                             </button>
