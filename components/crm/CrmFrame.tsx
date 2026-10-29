@@ -400,7 +400,9 @@ function LeadSheet({ meta, preset, onClose }: { meta: CrmMeta; preset: { custome
         forceCreate: force,
       });
       if (n !== reqRef.current) return;
-      toast(lead.duplicateStatus === "needs_review" ? t("doneDup") : t("done"), { tone: lead.duplicateStatus === "needs_review" ? "info" : "ok" });
+      // The backend may have reopened the same inquiry's lead as a new cycle.
+      const reopened = lead.cycleNumber > 1 && !force;
+      toast(reopened ? t("doneReopened", { n: lead.cycleNumber }) : lead.duplicateStatus === "needs_review" ? t("doneDup") : t("done"), { tone: reopened || lead.duplicateStatus === "needs_review" ? "info" : "ok" });
       onClose();
       router.push(`/admin/crm/leads/${encodeURIComponent(lead.id)}`);
     } catch (e) {

@@ -511,6 +511,9 @@ export function leadCreateBody(l: LeadInput): Dict {
     next_action_at: l.nextActionAt || null,
     assigned_operator_user_id: l.operatorId || null,
     force_create: !!l.forceCreate,
+    // §7: a similar inquiry reopens the existing lead as a new cycle,
+    // unless the operator chose to create a separate one.
+    reuse_similar: !l.forceCreate,
   };
   return body;
 }
