@@ -25,6 +25,7 @@ function Board({ meta }: { meta: CrmMeta }): ReactElement {
   const t = useTranslations("crm.analytics");
   const tsrc = useTranslations("crm.source");
   const ts = useStatusLabel();
+  const tp = useTranslations("crm.perf");
   const locale = useLocale();
   const crmErr = useCrmError();
   const [period, setPeriod] = useState<Period>("30");
@@ -93,6 +94,25 @@ function Board({ meta }: { meta: CrmMeta }): ReactElement {
               <b style={{ font: "800 2rem/1 var(--fd)" }}>{fmtNum(data.statusCounts.won ?? 0, locale)}</b>
             </div>
           </div>
+          <section className="crm-card" aria-labelledby="crm-cy-t">
+            <h3 className="crm-card__h" id="crm-cy-t">
+              <IconTarget aria-hidden="true" />
+              {t("cycles")}
+            </h3>
+            <p className="crm-sub">{t("cyclesLead")}</p>
+            <dl className="crm-cyclestats">
+              {(["total", "open", "won", "rejected", "completed"] as const).map((k) => (
+                <div key={k} data-tone={k === "won" ? "ok" : k === "rejected" ? "bad" : undefined}>
+                  <dt>{tp(`c.${k}`)}</dt>
+                  <dd>{fmtNum(data.cycles[k], locale)}</dd>
+                </div>
+              ))}
+              <div>
+                <dt>{tp("c.conversion")}</dt>
+                <dd>{`${fmtNum(data.cycles.conversion, locale, 1)}%`}</dd>
+              </div>
+            </dl>
+          </section>
           <div className="crm-grid">
             <section className="crm-card" aria-labelledby="crm-fun-t">
               <h3 className="crm-card__h" id="crm-fun-t">
@@ -133,7 +153,10 @@ function Board({ meta }: { meta: CrmMeta }): ReactElement {
                         <Avatar name={o.operator?.name ?? ""} />
                         <b style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.operator?.name || "—"}</b>
                       </span>
-                      <span className="crm-muted">{t("wonOf", { won: o.won, total: o.total })}</span>
+                      <span className="crm-muted">
+                        {t("wonOf", { won: o.won, total: o.total })}
+                        {o.cycles.total ? ` · ${t("cyclesWon", { won: o.cycles.won, total: o.cycles.total })}` : ""}
+                      </span>
                       <b>{fmtNum(o.conversion, locale, 1)}%</b>
                     </li>
                   ))}

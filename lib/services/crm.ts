@@ -775,7 +775,14 @@ export async function startLeadCall(id: string, input: { contactId?: string; pur
 
 // ── Metrics and analytics ──────────────────────────────────────────────
 
-export type CrmMetrics = { operator: CrmPerson | null; total: number; active: number; won: number; closed: number; conversion: number; firstResponseMin: number | null; overdue: number; statusCounts: Record<string, number> };
+// Historical cycle metrics (§18): every cycle counts, so a won lead that was
+// later reopened still shows as won here.
+export type CrmCycleMetrics = { total: number; open: number; won: number; rejected: number; completed: number; conversion: number };
+export const cycleMetricsOf = (v: unknown): CrmCycleMetrics => {
+  const d = asDict(v);
+  return { total: int(d.total), open: int(d.open), won: int(d.won), rejected: int(d.rejected), completed: int(d.completed), conversion: num(d.conversion_percent) ?? 0 };
+};
+export type CrmMetrics = { operator: CrmPerson | null; total: number; active: number; won: number; closed: number; conversion: number; firstResponseMin: number | null; overdue: number; statusCounts: Record<string, number>; cycles: CrmCycleMetrics };
 const countsOf = (v: unknown): Record<string, number> => {
   const out: Record<string, number> = {};
   for (const [k, x] of Object.entries(asDict(v))) out[k] = int(x);
@@ -794,13 +801,14 @@ export function crmMetricsOf(v: unknown): CrmMetrics {
     firstResponseMin: num(d.average_first_response_minutes),
     overdue: int(d.overdue_next_actions),
     statusCounts: countsOf(d.status_counts),
+    cycles: cycleMetricsOf(d.cycle_metrics),
   };
 }
 export async function getMyCrmMetrics(range: { from?: string; to?: string } = {}, signal?: AbortSignal): Promise<CrmMetrics> {
   return crmMetricsOf(await http(`/crm/me/metrics${qs({ date_from: range.from, date_to: range.to })}`, { signal }));
 }
 
-export type CrmAnalytics = { totalLeads: number; statusCounts: Record<string, number>; sourceCounts: Record<string, number>; operators: { operator: CrmPerson | null; total: number; won: number; conversion: number }[]; paidRevenue: number | null; currency: string; revenueVisible: boolean };
+export type CrmAnalytics = { totalLeads: number; statusCounts: Record<string, number>; sourceCounts: Record<string, number>; cycles: CrmCycleMetrics; operators: { operator: CrmPerson | null; total: number; won: number; conversion: number; cycles: CrmCycleMetrics }[]; paidRevenue: number | null; currency: string; revenueVisible: boolean };
 export function crmAnalyticsOf(v: unknown): CrmAnalytics {
   const d = asDict(v);
   const visible = bool(d.revenue_visible);
@@ -808,9 +816,10 @@ export function crmAnalyticsOf(v: unknown): CrmAnalytics {
     totalLeads: int(d.total_leads),
     statusCounts: countsOf(d.status_counts),
     sourceCounts: countsOf(d.source_counts),
+    cycles: cycleMetricsOf(d.cycle_metrics),
     operators: asArr(d.operators).map((x) => {
       const o = asDict(x);
-      return { operator: crmPersonOf(o.operator) ?? (asStr(o.operator_user_id) ? { id: asStr(o.operator_user_id), name: "", lexgoId: "", role: "" } : null), total: int(o.total), won: int(o.won), conversion: num(o.conversion_percent) ?? 0 };
+      return { operator: crmPersonOf(o.operator) ?? (asStr(o.operator_user_id) ? { id: asStr(o.operator_user_id), name: "", lexgoId: "", role: "" } : null), total: int(o.total), won: int(o.won), conversion: num(o.conversion_percent) ?? 0, cycles: cycleMetricsOf(o.cycle_metrics) };
     }),
     paidRevenue: visible ? num(d.paid_revenue) : null,
     currency: asStr(d.currency) || "UZS",
