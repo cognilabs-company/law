@@ -3,15 +3,13 @@
 import { useEffect, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import CheckBox from "@/components/CheckBox";
 import { IconAlert, IconCheck, IconClock, IconCopy, IconEdit, IconMail, IconPhone, IconSend, IconShieldCheck, IconStar, IconUserPlus, IconUsers, IconClose, IconFileText, IconArrowRight } from "@/components/icons";
 import { useAuth } from "@/lib/auth";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { claimCrmLead, getCrmCustomer, isClaimRace, leadCan, listLeadCalls, removeLeadWatcher, startLeadCall, type CrmCall, type CrmContact, type CrmLead, type CrmMeta } from "@/lib/services/crm";
+import { claimCrmLead, getCrmCustomer, isClaimRace, leadCan, removeLeadWatcher, type CrmContact, type CrmLead, type CrmMeta } from "@/lib/services/crm";
 import { Avatar, useCrmError } from "./bits";
-import { Telephony } from "./CrmOverview";
 import type { LeadWrite } from "./CrmLeadPage";
 import { AssignSheet, ConversionSheet, DuplicateSheet, EditSheet, NextActionSheet, WatcherSheet } from "./LeadSheets";
 import { DetailSections } from "./DetailSections";
@@ -293,7 +291,6 @@ export function LeadSide({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; 
         </div>
       </section>
 
-      <Calls meta={meta} lead={lead} />
 
       {sheet === "edit" ? <EditSheet meta={meta} lead={lead} write={write} onClose={() => setSheet("")} /> : null}
       {sheet === "next" ? <NextActionSheet lead={lead} write={write} onClose={() => setSheet("")} /> : null}
@@ -305,82 +302,3 @@ export function LeadSide({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; 
   );
 }
 
-// Calls: the honest disabled card, or the provider's call log (§7).
-function Calls({ meta, lead }: { meta: CrmMeta; lead: CrmLead }): ReactElement {
-  const t = useTranslations("crm.calls");
-  const locale = useLocale();
-  const crmErr = useCrmError();
-  const tel = meta.telephony;
-  const [calls, setCalls] = useState<CrmCall[] | null>(null);
-  const [consent, setConsent] = useState(false);
-  const [purpose, setPurpose] = useState("");
-  const [busy, setBusy] = useState(false);
-  const enabled = tel.enabled;
-  useEffect(() => {
-    if (!enabled) return;
-    const ctl = new AbortController();
-    listLeadCalls(lead.id, tel.recordingAccess, ctl.signal).then(setCalls, (e) => {
-      if (!isAborted(e)) logApiError("crm.calls", e);
-      setCalls([]);
-    });
-    return () => ctl.abort();
-  }, [enabled, lead.id, tel.recordingAccess]);
-  if (!enabled) return <Telephony meta={meta} />;
-  const start = async () => {
-    if (busy || (tel.recordingConsentRequired && !consent)) return;
-    setBusy(true);
-    try {
-      const c = await startLeadCall(lead.id, { purpose }, tel.recordingAccess);
-      setCalls((cur) => [c, ...(cur ?? []).filter((x) => x.id !== c.id)]);
-      setPurpose("");
-    } catch (e) {
-      toast(crmErr(e), { tone: "err" });
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <section className="crm-card" aria-labelledby="crm-calls-t">
-      <h3 className="crm-card__h" id="crm-calls-t">
-        <IconPhone aria-hidden="true" />
-        {t("title")}
-      </h3>
-      {leadCan(lead, "start_call") ? (
-        <div style={{ display: "grid", gap: 8 }}>
-          <input className="crm-input" value={purpose} onChange={(e) => setPurpose(e.target.value)} placeholder={t("purpose")} aria-label={t("purpose")} />
-          {tel.recordingConsentRequired ? (
-            <CheckBox checked={consent} onChange={setConsent}>
-              {t("consent")}
-            </CheckBox>
-          ) : null}
-          <button type="button" className="crm-btn crm-btn--pri crm-btn--sm" onClick={() => void start()} disabled={busy || (tel.recordingConsentRequired && !consent)} aria-busy={busy || undefined}>
-            <IconPhone aria-hidden="true" />
-            {t("start")}
-          </button>
-        </div>
-      ) : null}
-      {calls === null ? (
-        <span className="crm-sk" />
-      ) : calls.length ? (
-        <ul className="crm-contacts">
-          {calls.map((c) => (
-            <li key={c.id}>
-              <IconPhone aria-hidden="true" />
-              <span>
-                {t.has(`s.${c.status}`) ? t(`s.${c.status}`) : c.status} · {c.createdAt ? shortDateTime(c.createdAt, locale) : ""}
-                {c.summary ? <small className="crm-muted"> · {c.summary}</small> : null}
-              </span>
-              {tel.recordingAccess && c.recordingUrl ? (
-                <a className="crm-icobtn" href={c.recordingUrl} target="_blank" rel="noreferrer" aria-label={t("recording")}>
-                  <IconArrowRight aria-hidden="true" />
-                </a>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="crm-sub">{t("none")}</p>
-      )}
-    </section>
-  );
-}

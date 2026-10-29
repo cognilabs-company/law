@@ -15,7 +15,7 @@ import { copyText } from "./LeadSide";
 import type { LeadWrite } from "./CrmLeadPage";
 
 const POLL = [1200, 2000, 3000, 4000, 6000];
-const textOf = (v: unknown): string => {
+export const textOf = (v: unknown): string => {
   if (typeof v === "string") return v;
   if (typeof v === "number") return String(v);
   if (Array.isArray(v)) return v.map(textOf).filter(Boolean).join("\n\n");
@@ -24,7 +24,7 @@ const textOf = (v: unknown): string => {
   return asStr(d.text ?? d.body ?? d.content ?? d.message ?? d.title ?? d.name) || Object.values(d).map(textOf).filter(Boolean).join("\n");
 };
 // "next_action.at" → "path.next_action_at": a dot would nest the message key.
-const pathKey = (p: string) => `path.${p.replace(/\./g, "_")}`;
+export const pathKey = (p: string) => `path.${p.replace(/\./g, "_")}`;
 const pct = (v: unknown): number | null => {
   const n = Number(v);
   if (!Number.isFinite(n)) return null;
