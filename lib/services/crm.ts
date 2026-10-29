@@ -22,30 +22,36 @@ const qs = (q: Record<string, string | number | boolean | null | undefined>): st
 
 // ── Meta ───────────────────────────────────────────────────────────────
 
-// Statuses are the backend's Kanban columns (dynamic kanban contract
-// 2026-10-28): key, title, colour, order and whether it ends the journey
-// all come from GET /crm/meta — nothing about them is hardcoded here.
+// The six fixed business statuses (CRM contract 13cb257 §6). Their title,
+// colour, order and transitions come from GET /crm/meta; the keys never
+// change and no other column exists.
+export const CRM_STATUSES = ["new", "qualified", "proposal", "decision_pending", "won", "rejected"] as const;
 export type CrmStatusInfo = { key: string; title: string; color: string; order: number; isFinal: boolean };
+// §20: every permission the UI gates on.
 export const CRM_PERMS = [
   "crm.customers.view",
   "crm.customers.manage",
   "crm.customers.merge",
   "crm.leads.view",
+  "crm.leads.view_all",
   "crm.leads.manage",
   "crm.leads.claim",
   "crm.leads.assign",
-  "crm.analytics.self",
-  "crm.analytics.global",
-  "crm.revenue.view",
   "crm.ai.use",
   "crm.calls.start",
   "crm.calls.recordings.view",
+  "crm.live_calls.view",
+  "crm.sms.manage",
+  "crm.analytics.self",
+  "crm.analytics.global",
+  "crm.revenue.view",
+  "crm.automation.manage",
   "crm.exports.create",
   "crm.templates.manage",
 ] as const;
 export type CrmPerm = (typeof CRM_PERMS)[number];
 
-export type CrmTelephony = { provider: string; enabled: boolean; recordingConsentRequired: boolean; liveTranscription: string; recordingAccess: boolean };
+export type CrmTelephony = { provider: string; enabled: boolean; recordingConsentRequired: boolean; liveTranscription: boolean; recordingAccess: boolean };
 export type CrmMeta = {
   // Column keys in the board's order.
   statuses: string[];
@@ -59,6 +65,11 @@ export type CrmMeta = {
   scope: string;
   revenueVisible: boolean;
   telephony: CrmTelephony;
+  lifecycles: string[];
+  // Automation (§16): the actions the backend offers and the no-answer SMS delay.
+  automationActions: string[];
+  noAnswerSmsDelaySec: number | null;
+  smsApprovalDefault: boolean;
 };
 
 export function crmMetaOf(v: unknown): CrmMeta {
@@ -68,6 +79,7 @@ export function crmMetaOf(v: unknown): CrmMeta {
   for (const r of rows) transitions[asStr(r.key)] = asArr(r.transitions).map((x) => asStr(x)).filter(Boolean);
   const statusInfo = rows.map(statusInfoOf).sort((a, b) => a.order - b.order);
   const tel = asDict(d.telephony);
+  const auto = asDict(d.automation);
   return {
     statuses: statusInfo.map((x) => x.key),
     statusInfo,
@@ -83,9 +95,13 @@ export function crmMetaOf(v: unknown): CrmMeta {
       provider: asStr(tel.provider),
       enabled: bool(tel.enabled),
       recordingConsentRequired: tel.recording_consent_required !== false,
-      liveTranscription: asStr(tel.live_transcription),
+      liveTranscription: tel.live_transcription === true,
       recordingAccess: bool(tel.recording_access),
     },
+    lifecycles: asArr(d.customer_lifecycles).map((x) => asStr(x)).filter(Boolean),
+    automationActions: asArr(auto.actions).map((x) => asStr(x)).filter(Boolean),
+    noAnswerSmsDelaySec: num(auto.no_answer_sms_delay_seconds),
+    smsApprovalDefault: auto.sms_operator_approval_default !== false,
   };
 }
 
@@ -104,8 +120,9 @@ export function journeyOf(meta: CrmMeta | null, status: string): string[] {
 }
 
 export const crmCan = (meta: CrmMeta | null, perm: CrmPerm): boolean => !!meta && meta.permissions.includes(perm);
-// Global analytics and paid revenue: both the permission and the flag (§8).
-export const crmGlobalAnalytics = (meta: CrmMeta | null): boolean => crmCan(meta, "crm.analytics.global") && !!meta?.revenueVisible;
+// Global analytics: the permission (§18, §20); revenue inside it only with
+// revenue_visible.
+export const crmGlobalAnalytics = (meta: CrmMeta | null): boolean => crmCan(meta, "crm.analytics.global");
 // The statuses a lead may move to next, from the backend's own map.
 export const crmNextStatuses = (meta: CrmMeta | null, status: string): string[] => meta?.transitions[status] ?? [];
 

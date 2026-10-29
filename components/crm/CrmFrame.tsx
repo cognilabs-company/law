@@ -27,13 +27,16 @@ import { dismissCrmExport, loadCrmMeta, refreshCrmExport, trackCrmExport, useCrm
 import { CrmTop, Empty, SkeletonRows, statusColorVars, useCrmError, useStatusLabel, type CrmBack } from "./bits";
 import { CustomerPicker, NewCustomerModal, optionOfCustomer } from "./CustomerPicker";
 import { CrmDate, CrmDateTime, CrmSelect } from "./fields";
+import { sectionOk, type CrmSectionKey } from "./sections";
 
 type Sheet = "" | "lead" | "customer" | "export";
 export type CrmApi = { meta: CrmMeta; open: (s: Exclude<Sheet, "">, preset?: { customerId?: string; customerName?: string }) => void };
 
 // Every CRM page: the meta gate, the header, the ⌘K palette, the create
 // sheets and the export tray. `children` gets the meta and the openers.
-export default function CrmFrame({ title, tools, back, children }: { title?: string; tools?: (api: CrmApi) => ReactNode; back?: CrmBack; children: (api: CrmApi) => ReactNode }): ReactElement {
+// `section`: the page's CRM section; without its permission the page shows
+// only a "no access" state (contract 13cb257 §20).
+export default function CrmFrame({ title, tools, back, section, children }: { title?: string; tools?: (api: CrmApi) => ReactNode; back?: CrmBack; section?: CrmSectionKey; children: (api: CrmApi) => ReactNode }): ReactElement {
   const t = useTranslations("crm");
   const { meta, error } = useCrmMeta();
   const [palette, setPalette] = useState(false);
@@ -84,11 +87,18 @@ export default function CrmFrame({ title, tools, back, children }: { title?: str
       </div>
     );
   }
+  const allowed = !section || sectionOk(section, api.meta);
   return (
     <div className="crm" style={statusColorVars(api.meta)}>
       <MetaSync />
-      <CrmTop meta={api.meta} title={title ?? t("title")} onPalette={openPalette} tools={tools?.(api)} back={back} />
-      {children(api)}
+      <CrmTop meta={api.meta} title={title ?? t("title")} onPalette={openPalette} tools={allowed ? tools?.(api) : null} back={back} />
+      {allowed ? (
+        children(api)
+      ) : (
+        <div className="crm-card" data-denied="">
+          <Empty icon={<IconLock />} title={t("denied")} text={t("sectionDenied")} />
+        </div>
+      )}
       <ExportTray />
       {palette ? <Palette api={api} onClose={() => setPalette(false)} /> : null}
       {sheet === "lead" ? <LeadSheet meta={api.meta} preset={preset} onClose={() => setSheet("")} /> : null}

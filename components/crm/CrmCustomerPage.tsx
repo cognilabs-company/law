@@ -39,7 +39,7 @@ import { CrmSelect } from "./fields";
 export default function CrmCustomerPage({ customerId }: { customerId: string }): ReactElement {
   const t = useTranslations("crm");
   return (
-    <CrmFrame title={t("customer.title")} back={{ href: "/admin/crm/customers", label: t("customer.back") }}>
+    <CrmFrame section="customers" title={t("customer.title")} back={{ href: "/admin/crm/customers", label: t("customer.back") }}>
       {(api) => <Profile api={api} customerId={customerId} />}
     </CrmFrame>
   );

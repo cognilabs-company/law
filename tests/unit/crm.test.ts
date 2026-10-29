@@ -28,50 +28,53 @@ import {
 } from "@/lib/services/crm";
 import { placeLead } from "@/components/crm/leadQuery";
 import { donutArcs } from "@/components/crm/StatusDonut";
+import { sectionOk, visibleSections } from "@/components/crm/sections";
 
 // The CRM client against the production shapes of 26 Oct 2026 (GET
 // /crm/meta, /crm/leads, /crm/me/metrics, /crm/analytics).
 
+// GET /crm/meta of release 13cb257 (29 Oct 2026): the six fixed statuses.
 const LIVE_META = {
   statuses: [
-    { key: "new", transitions: ["closed", "contacted"] },
-    { key: "contacted", transitions: ["closed", "proposal", "qualified"] },
-    { key: "qualified", transitions: ["closed", "payment_pending", "proposal", "won"] },
-    { key: "proposal", transitions: ["closed", "payment_pending", "qualified", "won"] },
-    { key: "payment_pending", transitions: ["closed", "proposal", "won"] },
-    { key: "won", transitions: ["closed"] },
-    { key: "closed", transitions: ["new"] },
+    { key: "new", title: "Yangi", color: "#2563eb", order: 10, is_final: false, transitions: ["qualified", "proposal", "decision_pending", "won", "rejected"] },
+    { key: "qualified", title: "Saralangan", color: "#7c3aed", order: 20, is_final: false, transitions: ["proposal", "decision_pending", "won", "rejected"] },
+    { key: "proposal", title: "Taklif", color: "#0891b2", order: 30, is_final: false, transitions: ["qualified", "decision_pending", "won", "rejected"] },
+    { key: "decision_pending", title: "Qaror kutilmoqda", color: "#d97706", order: 40, is_final: false, transitions: ["proposal", "won", "rejected"] },
+    { key: "won", title: "Yutildi", color: "#16a34a", order: 50, is_final: true, transitions: [] },
+    { key: "rejected", title: "Rad etilgan", color: "#dc2626", order: 60, is_final: true, transitions: [] },
   ],
   scores: ["cold", "warm", "hot"],
   languages: ["uz_latn", "uz_cyrl", "ru"],
   contact_types: ["phone", "telegram", "email"],
   sources: ["manual", "web", "phone"],
+  customer_lifecycles: ["prospect", "customer"],
   permissions: ["crm.leads.view", "crm.leads.claim", "crm.analytics.self"],
-  scope: "own_and_queue",
+  scope: "own_and_unassigned",
   revenue_visible: false,
-  telephony: { provider: "disabled", enabled: false, recording_consent_required: true, live_transcription: "provider_pending" },
+  telephony: { provider: "disabled", enabled: false, recording_consent_required: true, live_transcription: true },
+  automation: { actions: ["send_sms", "create_task"], sms_operator_approval_default: true, no_answer_sms_delay_seconds: 180 },
+  detail_rendering: { field: "detail_sections", raw_json_forbidden: true },
 };
 
-const LEAD = { id: "l1", work_id: "LEAD-1", status: "contacted", lock_version: 4, allowed_actions: ["view_timeline", "change_status", "claim"], customer: { id: "c1", public_id: "CRM-1", name: "Mijoz" }, watchers: [] };
+const LEAD = { id: "l1", work_id: "LEAD-1", status: "qualified", lock_version: 4, allowed_actions: ["view_timeline", "change_status", "claim"], customer: { id: "c1", public_id: "CRM-1", name: "Mijoz" }, watchers: [] };
 
 describe("meta", () => {
   it("builds the status selector from the backend's own map", () => {
     const m = crmMetaOf(LIVE_META);
-    expect(crmNextStatuses(m, "new")).toEqual(["closed", "contacted"]);
-    expect(crmNextStatuses(m, "won")).toEqual(["closed"]);
-    expect(crmNextStatuses(m, "closed")).toEqual(["new"]);
+    expect(m.statuses).toEqual(["new", "qualified", "proposal", "decision_pending", "won", "rejected"]);
+    expect(crmNextStatuses(m, "new")).toEqual(["qualified", "proposal", "decision_pending", "won", "rejected"]);
+    expect(crmNextStatuses(m, "won")).toEqual([]);
     expect(crmNextStatuses(m, "nonsense")).toEqual([]);
-    expect(m.telephony.enabled).toBe(false);
-    expect(m.telephony.recordingAccess).toBe(false);
+    expect([m.telephony.enabled, m.telephony.liveTranscription, m.telephony.recordingAccess]).toEqual([false, true, false]);
+    expect([m.automationActions, m.noAnswerSmsDelaySec, m.lifecycles]).toEqual([["send_sms", "create_task"], 180, ["prospect", "customer"]]);
   });
   it("gates by permission codes, never by role", () => {
     const m = crmMetaOf(LIVE_META);
     expect(crmCan(m, "crm.leads.view")).toBe(true);
     expect(crmCan(m, "crm.customers.merge")).toBe(false);
     expect(crmGlobalAnalytics(m)).toBe(false);
-    // The permission alone is not enough: revenue_visible must be true too.
-    expect(crmGlobalAnalytics(crmMetaOf({ ...LIVE_META, permissions: ["crm.analytics.global"], revenue_visible: false }))).toBe(false);
-    expect(crmGlobalAnalytics(crmMetaOf({ ...LIVE_META, permissions: ["crm.analytics.global"], revenue_visible: true }))).toBe(true);
+    // The permission opens global analytics; revenue_visible only shows money.
+    expect(crmGlobalAnalytics(crmMetaOf({ ...LIVE_META, permissions: ["crm.analytics.global"], revenue_visible: false }))).toBe(true);
   });
   it("uses each lead's allowed_actions", () => {
     const l = crmLeadOf(LEAD);
@@ -302,5 +305,27 @@ describe("dynamic kanban (contract 2026-10-28)", () => {
     expect(columnKeyOf("Повторный звонок", [])).toBe("povtorniy_zvonok");
     expect(columnKeyOf("Mijoz o'ylab ko'rmoqda", [])).toBe("mijoz_oylab_kormoqda");
     expect(columnKeyOf("!!!", [])).toBe("column");
+  });
+});
+
+// Contract 13cb257 §5/§20: the menu is built from permissions, never roles.
+describe("sections by permission", () => {
+  const keys = (perms: string[]) => visibleSections(crmMetaOf({ ...LIVE_META, permissions: perms })).map((s) => s.key);
+  const OPERATOR = ["crm.customers.view", "crm.customers.manage", "crm.leads.view", "crm.leads.manage", "crm.leads.claim", "crm.ai.use", "crm.calls.start", "crm.sms.manage", "crm.analytics.self"];
+  const ROP = [...OPERATOR, "crm.leads.view_all", "crm.leads.assign", "crm.customers.merge", "crm.automation.manage", "crm.exports.create", "crm.templates.manage"];
+  const SUPER = [...ROP, "crm.analytics.global", "crm.revenue.view", "crm.live_calls.view", "crm.calls.recordings.view"];
+  it("an operator sees their own work, never robots, global analytics, live office or exports", () => {
+    expect(keys(OPERATOR)).toEqual(["overview", "leads", "customers", "performance", "calls", "sms", "templates"]);
+  });
+  it("a sales head adds robots and exports", () => {
+    expect(keys(ROP)).toEqual(["overview", "leads", "customers", "performance", "calls", "sms", "templates", "automation", "exports"]);
+  });
+  it("a superadmin sees all eleven", () => {
+    expect(keys(SUPER)).toHaveLength(11);
+    expect(sectionOk("live", crmMetaOf({ ...LIVE_META, permissions: SUPER }))).toBe(true);
+    expect(sectionOk("live", crmMetaOf({ ...LIVE_META, permissions: OPERATOR }))).toBe(false);
+  });
+  it("nothing without meta", () => {
+    expect(visibleSections(null)).toEqual([]);
   });
 });

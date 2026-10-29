@@ -16,7 +16,7 @@ type Period = "7" | "30" | "90" | "all";
 
 export default function CrmAnalytics(): ReactElement {
   const t = useTranslations("crm");
-  return <CrmFrame title={t("analytics.title")}>{(api) => <Board meta={api.meta} />}</CrmFrame>;
+  return <CrmFrame title={t("analytics.title")} section="analytics">{(api) => <Board meta={api.meta} />}</CrmFrame>;
 }
 
 // Superadmin only: crm.analytics.global AND revenue_visible (§8). Anyone

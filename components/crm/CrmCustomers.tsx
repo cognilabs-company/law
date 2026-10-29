@@ -16,6 +16,7 @@ export default function CrmCustomers(): ReactElement {
   const t = useTranslations("crm");
   return (
     <CrmFrame
+      section="customers"
       title={t("customers.title")}
       tools={(api) =>
         crmCan(api.meta, "crm.customers.manage") ? (

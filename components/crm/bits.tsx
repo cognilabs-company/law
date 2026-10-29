@@ -4,9 +4,10 @@ import "./crm.css";
 import { useCallback, useEffect, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
-import { IconAward, IconChartBar, IconChevronLeft, IconCircleX, IconClipboardCheck, IconCoins, IconCopy, IconFileText, IconFlame, IconGrid, IconInbox, IconLayers, IconLock, IconPhone, IconSearch, IconSparkle, IconUsers } from "@/components/icons";
+import { IconAward, IconChevronLeft, IconCircleX, IconClipboardCheck, IconFileText, IconFlame, IconHourglass, IconInbox, IconLayers, IconSearch, IconSparkle } from "@/components/icons";
 import { errDetail } from "@/lib/http";
-import { crmCan, crmCode, crmGlobalAnalytics, journeyOf, type CrmMeta } from "@/lib/services/crm";
+import { crmCode, journeyOf, type CrmMeta } from "@/lib/services/crm";
+import { visibleSections } from "./sections";
 import { minutesUntil, useCrmMeta, useLiveState } from "@/lib/crm/useCrm";
 
 // A column's colour: the backend's (set on .crm by CrmFrame as --s-<key>),
@@ -31,17 +32,15 @@ export function useStatusLabel(): (key: string) => string {
   };
 }
 
-// Every stage has its own icon, so a step circle is never empty (UI law #7).
+// Every one of the six fixed statuses has its own icon, so a step circle
+// is never empty (UI law #7; contract 13cb257 §6).
 export const STATUS_ICON: Record<string, (p: { "aria-hidden"?: boolean | "true" }) => ReactElement> = {
   new: IconSparkle,
-  contacted: IconPhone,
   qualified: IconClipboardCheck,
   proposal: IconFileText,
-  payment_pending: IconCoins,
+  decision_pending: IconHourglass,
   won: IconAward,
-  closed: IconLock,
-  lost: IconCircleX,
-  duplicate: IconCopy,
+  rejected: IconCircleX,
 };
 export function StatusIcon({ status }: { status: string }): ReactElement {
   const Icon = STATUS_ICON[status] ?? IconLayers;
@@ -165,13 +164,6 @@ export function LiveDot(): ReactElement {
   );
 }
 
-const SECTIONS = [
-  { href: "/admin/crm", key: "overview", Icon: IconGrid, ok: (m: CrmMeta | null) => crmCan(m, "crm.leads.view") || crmCan(m, "crm.customers.view") },
-  { href: "/admin/crm/leads", key: "leads", Icon: IconLayers, ok: (m: CrmMeta | null) => crmCan(m, "crm.leads.view") },
-  { href: "/admin/crm/customers", key: "customers", Icon: IconUsers, ok: (m: CrmMeta | null) => crmCan(m, "crm.customers.view") },
-  { href: "/admin/crm/templates", key: "templates", Icon: IconFileText, ok: (m: CrmMeta | null) => crmCan(m, "crm.leads.view") },
-  { href: "/admin/crm/analytics", key: "analytics", Icon: IconChartBar, ok: (m: CrmMeta | null) => crmGlobalAnalytics(m) },
-];
 
 // The CRM's own header on every page: sections, the live dot and search.
 export type CrmBack = { href: string; label: string };
@@ -198,7 +190,7 @@ export function BackButton({ back }: { back: CrmBack }): ReactElement {
 export function CrmTop({ meta, title, onPalette, tools, back }: { meta: CrmMeta | null; title: string; onPalette: () => void; tools?: ReactNode; back?: CrmBack }): ReactElement {
   const t = useTranslations("crm");
   const path = usePathname();
-  const current = SECTIONS.filter((s) => s.ok(meta))
+  const current = visibleSections(meta)
     .slice()
     .sort((a, b) => b.href.length - a.href.length)
     .find((s) => path === s.href || path.startsWith(`${s.href}/`));
@@ -222,7 +214,7 @@ export function CrmTop({ meta, title, onPalette, tools, back }: { meta: CrmMeta 
         {title}
       </h1>
       <nav className="crm-nav" aria-label={t("navLabel")}>
-        {SECTIONS.filter((s) => s.ok(meta)).map((s) => (
+        {visibleSections(meta).map((s) => (
           <Link key={s.key} href={s.href} aria-current={current?.key === s.key ? "page" : undefined}>
             <s.Icon aria-hidden="true" />
             {t(`nav.${s.key}`)}

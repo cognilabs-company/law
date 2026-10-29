@@ -42,6 +42,7 @@ export default function CrmLeads(): ReactElement {
   const t = useTranslations("crm");
   return (
     <CrmFrame
+      section="leads"
       title={t("leads.title")}
       tools={(api) => (
         <>

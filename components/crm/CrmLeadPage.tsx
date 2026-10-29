@@ -21,7 +21,7 @@ export type LeadWrite = (run: (lead: CrmLead) => Promise<CrmLead | null | void>,
 export default function CrmLeadPage({ leadId }: { leadId: string }): ReactElement {
   const t = useTranslations("crm");
   return (
-    <CrmFrame title={t("lead.title")} back={{ href: "/admin/crm/leads", label: t("lead.back") }}>
+    <CrmFrame section="leads" title={t("lead.title")} back={{ href: "/admin/crm/leads", label: t("lead.back") }}>
       {(api) => <Workspace meta={api.meta} leadId={leadId} />}
     </CrmFrame>
   );

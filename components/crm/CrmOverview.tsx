@@ -20,6 +20,7 @@ export default function CrmOverview(): ReactElement {
   const t = useTranslations("crm");
   return (
     <CrmFrame
+      section="overview"
       title={t("overview.title")}
       tools={(api) => (
         <>

@@ -14,7 +14,7 @@ import { copyText } from "./LeadSide";
 
 export default function CrmTemplates(): ReactElement {
   const t = useTranslations("crm");
-  return <CrmFrame title={t("templates.title")}>{(api) => <Library meta={api.meta} />}</CrmFrame>;
+  return <CrmFrame title={t("templates.title")} section="templates">{(api) => <Library meta={api.meta} />}</CrmFrame>;
 }
 
 // Operator aids: copied into an editor, never sent from here (§6).
