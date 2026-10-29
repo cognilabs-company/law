@@ -13,10 +13,12 @@ export type CcSearch = { q: string; n: number };
 type Counted = "cockpit" | "queue" | "urgent" | "escalations" | "complaints" | "mpComplaints" | "warranty" | "cancellations" | "experience" | "achievements" | "licenses" | "payouts";
 
 const ALL: CcTab[] = ["cockpit", "queue", "urgent", "escalations", "complaints", "mpComplaints", "warranty", "cancellations", "experience", "achievements", "licenses", "payouts", "leads", "clients"];
-// Open to anyone on this page: the verification queues are decided by the
-// backend's experience-review permission (2026-10-29 §1) — a 403 hides the
-// tab — never by the role name.
-const OPEN: CcTab[] = ["experience", "achievements", "licenses", "leads", "clients"];
+const OPEN: CcTab[] = ["leads", "clients"];
+// The three verification queues need marketplace.experience.review (final
+// contract 2026-10-29 §1), never a role name; a 403 still hides a tab.
+export const REVIEW_PERMISSION = "marketplace.experience.review";
+const REVIEW: CcTab[] = ["experience", "achievements", "licenses"];
+const baseTabs = (cc: boolean, canReview: boolean): CcTab[] => (cc ? ALL : [...REVIEW, ...OPEN]).filter((k) => canReview || !REVIEW.includes(k));
 const STORE = "lexgo_cc_tab";
 
 const ICON: Record<CcTab, ComponentType<SVGProps<SVGSVGElement>>> = {
@@ -103,10 +105,10 @@ export type CcConsole = {
   attach: (el: HTMLDivElement | null) => void;
 };
 
-export function useCcConsole(cc: boolean): CcConsole {
+export function useCcConsole(cc: boolean, canReview = false): CcConsole {
   const params = useSearchParams();
   const fromUrl = params.get("tab") ?? "";
-  const base = cc ? ALL : OPEN;
+  const base = useMemo(() => baseTabs(cc, canReview), [cc, canReview]);
   const [gone, setGone] = useState<CcTab[]>([]);
   const tabs = base.filter((k) => !gone.includes(k));
   const [pick, setPick] = useState(() => (isTab(fromUrl) ? fromUrl : readTab()));

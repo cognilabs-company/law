@@ -17,7 +17,7 @@ import { AdvocateLicenseQueue } from "@/components/admin/callcenter/AdvocateLice
 import CallCenterBoard from "@/components/admin/CallCenterBoard";
 import CcClientSearch from "@/components/admin/CcClientSearch";
 import CcCallLog from "@/components/admin/CcCallLog";
-import CallCenterConsole, { CcTabPanel, useCcConsole } from "@/components/admin/CallCenterConsole";
+import CallCenterConsole, { CcTabPanel, REVIEW_PERMISSION, useCcConsole } from "@/components/admin/CallCenterConsole";
 import MarketWatcher from "@/components/marketplace/MarketWatcher";
 
 // Call-center console (T4-01/T4-02): queue (call-center staff), lead board,
@@ -30,7 +30,9 @@ function AdminCallCenterConsole() {
   const cc = isCallCenterUser(session);
   const [logged, setLogged] = useState({ key: 0, phone: "" });
   const onLogged = (phone = "") => setLogged((s) => ({ key: s.key + 1, phone }));
-  const con = useCcConsole(cc);
+  // Verification queues follow the review permission, not the role (2026-10-29 §1).
+  const canReview = (session?.permissions ?? []).includes(REVIEW_PERMISSION);
+  const con = useCcConsole(cc, canReview);
 
   return (
     <CallCenterConsole con={con}>
@@ -72,16 +74,16 @@ function AdminCallCenterConsole() {
         {cc ? <CancellationQueue onCount={con.count.cancellations} /> : null}
       </CcTabPanel>
       <CcTabPanel con={con} tab="experience">
-        <ExperienceQueue onCount={con.count.experience} />
+        {canReview ? <ExperienceQueue onCount={con.count.experience} /> : null}
       </CcTabPanel>
       {/* TSK-906326: seller payout stages and recoveries, paid by hand
           until an automatic payout provider exists. */}
       <CcTabPanel con={con} tab="achievements">
-        <AchievementQueue onCount={con.count.achievements} />
+        {canReview ? <AchievementQueue onCount={con.count.achievements} /> : null}
       </CcTabPanel>
       {/* 2026-10-29 §4.3: advocate-status certificates and suspensions. */}
       <CcTabPanel con={con} tab="licenses">
-        <AdvocateLicenseQueue onCount={con.count.licenses} />
+        {canReview ? <AdvocateLicenseQueue onCount={con.count.licenses} /> : null}
       </CcTabPanel>
       <CcTabPanel con={con} tab="payouts">
         {cc ? <PayoutQueue onCount={con.count.payouts} /> : null}

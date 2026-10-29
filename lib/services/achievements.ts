@@ -10,7 +10,7 @@
 import { ApiError, asArr, asDict, asStr, http, httpBlob, httpUpload, type Dict } from "@/lib/http";
 import { saveBlob } from "@/lib/download";
 import { labelledOf, type Labelled } from "@/lib/backendLabel";
-import { checkItemsOf, diffRowsOf, historyOf, reviewOf, reviewRoomOf, reviewSellerOf, type CheckItem, type CheckRows, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type HistoryRow, type ReviewDecision, type ReviewRoom, type ReviewSeller } from "./experience";
+import { DECISION_WIRE, checkItemsOf, diffRowsOf, historyOf, reviewOf, reviewRoomOf, reviewSellerOf, type CheckItem, type CheckRows, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type HistoryRow, type ReviewDecision, type ReviewRoom, type ReviewSeller } from "./experience";
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 const bool = (v: unknown): boolean | null => (v === true || v === false ? v : null);
@@ -86,8 +86,7 @@ export type Achievement = {
   status: AchievementStatus;
   stage: string;
   result: string;
-  // The record's own labels once the backend sends them (follow-up 2);
-  // null until then, and the screens fall back.
+  // The record's own stage/result labels (final contract §3–4).
   stageLabel: Labelled | null;
   resultLabel: Labelled | null;
   categoryId: string;
@@ -109,8 +108,8 @@ const statusOf = (v: unknown): AchievementStatus => {
   return (ACHIEVEMENT_STATUSES as readonly string[]).includes(s) ? (s as AchievementStatus) : "other";
 };
 export const isPendingStatus = (s: AchievementStatus) => s === "ai_analysis_pending" || s === "pending_review";
-// ai_analysis_status (backend check 2026-10-29: exactly pending | completed |
-// manual_review_required) → what is shown. Anything else is left to the
+// ai_analysis_status (final contract 2026-10-29 §3: exactly pending |
+// completed | manual_review_required) → what is shown. Anything else is left to the
 // operator, never read as done.
 export function aiStateOf(v: unknown): AiState {
   const s = asStr(v);
@@ -121,8 +120,8 @@ export function evidenceOf(v: unknown): ExperienceEvidence {
   const d = asDict(v);
   return { id: asStr(d.id), fileName: asStr(d.file_name), mimeType: asStr(d.mime_type), size: num(d.size), downloadUrl: asStr(d.download_url) };
 }
-// process_stage_label + process_stage_label_i18n (the config's warning /
-// warning_i18n pattern); null when absent.
+// process_stage_label + process_stage_label_i18n (final contract §3–4);
+// null when absent.
 export function recordLabelOf(d: Record<string, unknown>, field: "process_stage" | "result_scope"): Labelled | null {
   const l = labelledOf({ label: d[`${field}_label`], label_i18n: d[`${field}_label_i18n`] });
   return l.label || Object.keys(l.i18n).length ? l : null;
@@ -256,7 +255,7 @@ export async function listPublicAchievements(sellerUserId: string, opts: { limit
 
 // ── Call center (§6) ──
 // A queue row's advocate: seller { id, lexgo_id, name, phone, role,
-// account_status } (backend check 2026-10-29).
+// account_status } (final contract §5, PaginatedReviewQueueOut).
 export type AchievementQueueItem = Achievement & { sellerUserId: string; seller: ReviewSeller | null };
 export const queueItemOf = (v: unknown): AchievementQueueItem | null => {
   const it = achievementOf(v);
@@ -293,7 +292,6 @@ export type AiRisk = {
   // How many kinds of personal data were found (the kinds stay private).
   piiCount: number;
   notes: string[];
-  extracted: Record<string, string>;
 };
 const levelOf = (v: unknown): Level => {
   const s = asStr(v);
@@ -323,7 +321,6 @@ export function aiRiskOf(raw: unknown, catalog: unknown = []): AiRisk | null {
     eSignature: bool(sig.electronic_signature),
     piiCount: asArr(d.pii_detected).length,
     notes: strs(d.operator_notes),
-    extracted: Object.fromEntries(Object.entries(asDict(d.extracted_fields)).map(([k, x]) => [k, asStr(x)]).filter(([, x]) => x)),
   };
 }
 
@@ -354,8 +351,7 @@ export async function getAchievementForReview(id: string, signal?: AbortSignal):
     advisoryOnly: d.ai_advisory_only === true,
   };
 }
-// Our decisions in the backend's words (§6).
-export const DECISION_WIRE: Record<ReviewDecision, string> = { approved: "approve", rejected: "reject", changes_requested: "changes_requested" };
+export { DECISION_WIRE };
 export function achievementReviewBody(input: { decision: ReviewDecision; reason: string; keys: readonly string[]; rows: CheckRows; publicDescription?: string }): Dict {
   const checklist = input.keys.map((key) => ({ key, verdict: input.rows[key]?.verdict || "not_applicable", note: (input.rows[key]?.note ?? "").trim() }));
   return {

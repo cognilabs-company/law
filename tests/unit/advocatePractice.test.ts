@@ -13,7 +13,7 @@ import {
   publicAchievementOf,
   queueItemOf,
 } from "@/lib/services/achievements";
-import { licenseAnalyzedOf, licenseBody, licenseRecordOf, licenseErrorOf, licenseEvidenceOf, licenseIssue, practiceOf, suspensionBody } from "@/lib/services/advocatePractice";
+import { analyzedEvidenceId, licenseBody, licenseRecordOf, licenseErrorOf, licenseEvidenceOf, licenseIssue, practiceOf, suspensionBody } from "@/lib/services/advocatePractice";
 import { checkItemsOf, experienceBody, experienceItemOf, historyOf, reviewOf, reviewRoomOf } from "@/lib/services/experience";
 import { verifiedAdvocateYears } from "@/lib/services/tenure";
 import { achievementIssue } from "@/components/portal/AchievementsPanel";
@@ -146,8 +146,10 @@ describe("review (§6–8)", () => {
   it("the review room, history and past reviews", () => {
     expect(reviewRoomOf(ROOM)).toEqual({ roomId: "room-1", status: "", readOnly: false, closedAt: "" });
     expect(historyOf([{ id: "a2", version: 2, status: "pending_review" }, { id: "a1", version: 1, status: "approved" }]).map((h) => h.id)).toEqual(["a1", "a2"]);
-    expect(reviewOf({ id: "r", decision: "approved" }).decision).toBe("approved");
-    expect(reviewOf({ id: "r", decision: "approve" }).decision).toBe("approved");
+    // Final contract §5: decision is the stored status, decision_action the sent word.
+    expect(reviewOf({ id: "r", decision: "approved", decision_action: "approve" }).decision).toBe("approved");
+    expect(reviewOf({ id: "r", decision: "changes_requested", decision_action: "changes_requested" }).decision).toBe("changes_requested");
+    expect(reviewOf({ id: "r", decision: "approve" }).decision).toBe("");
   });
   it("each review refusal lands on its spot", () => {
     expect(reviewErrorSpot("achievement_checklist_incomplete")).toBe("checklist");
@@ -165,9 +167,9 @@ describe("advocate certificate and practice (§9–12)", () => {
     const ev = licenseEvidenceOf({ ...LICENSE_EVIDENCE, extracted_fields: { holder_name: "Aliyev Vali", certificate_number: "ADV-1", advocate_status_started_at: "2020-05-12", issue_date: "2020-05-12" } });
     expect([ev.state, ev.suggested.holderName, ev.suggested.certificateNumber, ev.suggested.statusStartedAt, ev.downloadUrl]).toEqual(["analyzed", "Aliyev Vali", "ADV-1", "2020-05-12", "/marketplace/advocate-license/evidence/v1/download"]);
   });
-  it("the analyzed event patches the card directly", () => {
-    expect(licenseAnalyzedOf({ event: "marketplace.advocate_license_evidence_analyzed", evidence_id: "v1", status: "analyzed", extracted_fields: { holder_name: "Aliyev Vali" }, ai_analysis: AI })).toMatchObject({ id: "v1", state: "analyzed", suggested: { holderName: "Aliyev Vali" } });
-    expect(licenseAnalyzedOf({ event: "x" })).toBeNull();
+  it("the analyzed event names the evidence to read again", () => {
+    expect(analyzedEvidenceId({ event: "marketplace.advocate_license_evidence_analyzed", evidence_id: "v1" })).toBe("v1");
+    expect(analyzedEvidenceId({ event: "x" })).toBe("");
   });
   it("submits the §9 body; a resubmission names the latest verification", () => {
     const f = { evidenceId: "v1", holderName: " Full name ", certificateNumber: "C-1", licenseNumber: "", issuingAuthority: "Adliya", statusStartedAt: "2020-01-10" };
@@ -214,5 +216,17 @@ describe("pre-advocate employment (§13)", () => {
   it("legacy records read as category experience", () => {
     expect(experienceItemOf({ id: "x", experience_kind: "pre_advocate_employment" })?.kind).toBe("pre_advocate_employment");
     expect(experienceItemOf({ id: "y", experience_kind: "category_experience" })?.kind).toBe("category_experience");
+  });
+});
+
+describe("final contract 2026-10-29 (backend 0829278)", () => {
+  it("every review endpoint gets the action words", async () => {
+    const { DECISION_WIRE } = await import("@/lib/services/experience");
+    expect(DECISION_WIRE).toEqual({ approved: "approve", rejected: "reject", changes_requested: "changes_requested" });
+  });
+  it("records carry their own stage and result labels", () => {
+    const a = achievementOf(item({ process_stage_label: "Sud jarayoni", process_stage_label_i18n: { uz_latn: "Sud jarayoni", ru: "Судебный процесс" }, result_scope_label: "To‘liq ijobiy natija", result_scope_label_i18n: { ru: "Полный положительный результат" } }))!;
+    expect([labelIn(a.stageLabel, "ru"), labelIn(a.resultLabel, "ru"), labelIn(a.stageLabel, "uz")]).toEqual(["Судебный процесс", "Полный положительный результат", "Sud jarayoni"]);
+    expect(publicAchievementOf({ id: "p", process_stage: "court", process_stage_label: "Sud jarayoni" })!.stageLabel?.label).toBe("Sud jarayoni");
   });
 });

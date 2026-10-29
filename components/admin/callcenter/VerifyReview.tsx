@@ -21,7 +21,8 @@ import { staffChatHref } from "./cancellations/model";
 // (the last two need a reason the seller sees), and a protected chat with
 // the seller that only the operator closes.
 
-export type VerifyFact = { label: string; value: string };
+// `field`: the backend field it shows, to mark it when this revision changed it.
+export type VerifyFact = { label: string; value: string; field?: string };
 export type VerifyDetail = {
   pending: boolean;
   // The loaded record, for `source.facts` to read at render time.
@@ -38,6 +39,8 @@ export type VerifyDetail = {
   blocked?: string;
   // The record's revisions, oldest first (experience).
   history?: HistoryRow[];
+  // revision.changed_fields (final contract §8): facts to highlight.
+  changedFields?: string[];
 };
 export type ReviewInput = { decision: ReviewDecision; reason: string; keys: readonly string[]; rows: CheckRows; publicDescription?: string };
 export type VerifySource = {
@@ -190,7 +193,7 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
               .facts(detail.record)
               .filter((f) => f.value)
               .map((f) => (
-                <div key={f.label}>
+                <div key={f.label} data-changed={f.field && detail.changedFields?.some((c) => c === f.field || c.startsWith(`${f.field}.`)) ? "" : undefined}>
                   <dt>{f.label}</dt>
                   <dd>{f.value}</dd>
                 </div>

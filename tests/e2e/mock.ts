@@ -91,7 +91,7 @@ export type Who = { id: string; name: string; phone: string; role: Role; backend
 export const CLIENT: Who = { id: "u-client", name: "Test Mijoz", phone: "+998900000005", role: "client", backendRole: "client" };
 export const ADVOCATE: Who = { id: "u-adv", name: "Test Advokat", phone: "+998900000006", role: "advocate", backendRole: "advokat" };
 export const ADMIN: Who = { id: "u-admin", name: "Test Superadmin", phone: "+998900000001", role: "client", backendRole: "superadmin" };
-export const CALL_CENTER: Who = { id: "u-cc", name: "Test Operator", phone: "+998900000003", role: "client", backendRole: "call_center", permissions: ["callcenter.access", "leads.manage"] };
+export const CALL_CENTER: Who = { id: "u-cc", name: "Test Operator", phone: "+998900000003", role: "client", backendRole: "call_center", permissions: ["callcenter.access", "leads.manage", "marketplace.experience.review"] };
 
 // Signs the browser in the way the app keeps a session (lib/auth.tsx), and
 // answers /auth/me for it.

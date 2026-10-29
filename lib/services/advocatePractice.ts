@@ -44,12 +44,9 @@ export function licenseEvidenceOf(v: unknown): LicenseEvidence {
   const id = asStr(d.id);
   return { id, fileName: asStr(d.file_name), mimeType: asStr(d.mime_type), size: num(d.size), downloadUrl: id ? evidenceUrl(id) : "", state: stateOf(d.status), suggested: licenseFieldsOf(d.extracted_fields) };
 }
-// marketplace.advocate_license_evidence_analyzed: { evidence_id, status,
-// extracted_fields, ai_analysis } — patches the card at once.
-export function licenseAnalyzedOf(e: Record<string, unknown>): { id: string; state: LicenseEvidenceState; suggested: LicenseFields } | null {
-  const id = asStr(e.evidence_id);
-  return id ? { id, state: stateOf(e.status), suggested: licenseFieldsOf(e.extracted_fields) } : null;
-}
+// marketplace.advocate_license_evidence_analyzed names the evidence; the
+// state is then read again (final contract §6: the supported flow).
+export const analyzedEvidenceId = (e: Record<string, unknown>) => asStr(e.evidence_id);
 export async function uploadLicenseEvidence(file: File, onProgress?: (f: number) => void, signal?: AbortSignal): Promise<LicenseEvidence> {
   const form = new FormData();
   form.append("file", file);
@@ -195,8 +192,15 @@ export async function listLicenseQueue(opts: { status?: string; limit?: number; 
   return pageOf(await http(`/call-center/marketplace/advocate-licenses?${query({ status: opts.status ?? "pending_review", limit: opts.limit ?? 50, offset: opts.offset ?? 0 })}`, { signal }), licenseRecordOf);
 }
 
+// A field the advocate typed beside what software read (§6).
+export type Mismatch = { field: string; submitted: string; extracted: string; matches: boolean };
+const mismatchOf = (v: unknown): Mismatch => {
+  const d = asDict(v);
+  return { field: asStr(d.field), submitted: asStr(d.submitted_value), extracted: asStr(d.extracted_value), matches: d.matches === true };
+};
 export type LicenseReviewDetail = {
   record: LicenseRecord | null;
+  mismatches: Mismatch[];
   seller: ReviewSeller | null;
   evidence: ExperienceEvidence[];
   checks: CheckItem[];
@@ -214,6 +218,9 @@ export async function getLicenseForReview(id: string, signal?: AbortSignal): Pro
   const ev = evidenceOf(d.evidence);
   return {
     record: licenseRecordOf(d.record),
+    mismatches: asArr(d.mismatched_fields)
+      .map(mismatchOf)
+      .filter((m) => m.field),
     seller: reviewSellerOf(d.seller),
     evidence: ev.id ? [{ ...ev, downloadUrl: ev.downloadUrl || evidenceUrl(ev.id) }] : [],
     checks: checkItemsOf(d.checklist),
@@ -245,22 +252,28 @@ export async function closeLicenseRoom(id: string, current: ReviewRoom): Promise
   return { ...current, ...(r ?? {}), roomId: r?.roomId || current.roomId, readOnly: true, status: r?.status || "read_only" };
 }
 
-// ── Call center: suspension periods (§12). Every write answers with the
-// recounted practice object itself. ──
+// ── Call center: suspension periods (final contract §6). A write answers
+// with the recounted practice in `practice`. The contract names that for
+// create and edit only; archive is read the same way, and an answer
+// without `practice` is taken as the practice itself (follow-up 1). ──
+const practiceAfterWrite = (raw: unknown) => {
+  const d = asDict(raw);
+  return practiceOf(Object.keys(asDict(d.practice)).length ? d.practice : d);
+};
 const suspBase = (sellerUserId: string) => `/call-center/marketplace/advocate-practice/${encodeURIComponent(sellerUserId)}/suspensions`;
 export type SuspensionInput = { startedOn: string; endedOn: string; reason: string; evidenceIds: string[] };
 export function suspensionBody(s: SuspensionInput): Dict {
   return { started_at: s.startedOn.slice(0, 10), ended_at: s.endedOn ? s.endedOn.slice(0, 10) : null, reason: s.reason.trim(), evidence_ids: s.evidenceIds };
 }
 export async function createSuspension(sellerUserId: string, s: SuspensionInput): Promise<Practice> {
-  return practiceOf(await http(suspBase(sellerUserId), { method: "POST", body: JSON.stringify(suspensionBody(s)) }));
+  return practiceAfterWrite(await http(suspBase(sellerUserId), { method: "POST", body: JSON.stringify(suspensionBody(s)) }));
 }
 export async function updateSuspension(sellerUserId: string, suspensionId: string, s: { endedOn: string; reason: string }): Promise<Practice> {
-  return practiceOf(await http(`${suspBase(sellerUserId)}/${encodeURIComponent(suspensionId)}`, { method: "PATCH", body: JSON.stringify({ ended_at: s.endedOn ? s.endedOn.slice(0, 10) : null, reason: s.reason.trim() }) }));
+  return practiceAfterWrite(await http(`${suspBase(sellerUserId)}/${encodeURIComponent(suspensionId)}`, { method: "PATCH", body: JSON.stringify({ ended_at: s.endedOn ? s.endedOn.slice(0, 10) : null, reason: s.reason.trim() }) }));
 }
 // A wrong period is archived (audit-safe), never erased.
 export async function archiveSuspension(sellerUserId: string, suspensionId: string): Promise<Practice> {
-  return practiceOf(await http(`${suspBase(sellerUserId)}/${encodeURIComponent(suspensionId)}`, { method: "DELETE" }));
+  return practiceAfterWrite(await http(`${suspBase(sellerUserId)}/${encodeURIComponent(suspensionId)}`, { method: "DELETE" }));
 }
 // PDF, JPG/JPEG, PNG, WEBP, DOC, DOCX, up to 20 MB (§12).
 export const SUSPENSION_FILE_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"] as const;

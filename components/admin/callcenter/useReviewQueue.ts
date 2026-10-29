@@ -6,9 +6,10 @@ import { isAborted, isForbidden, logApiError } from "@/lib/http";
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 
 // One verification queue (experience, achievements, certificates): a status
-// filter, pages of 50 added with "show more", and live updates (contract
-// 2026-10-29 §15): an event carrying the changed `record` patches the loaded
-// row in place; anything else reads the loaded rows again, once per burst,
+// filter, pages of 50 added with "show more", and live updates (final
+// contract 2026-10-29 §10): an event's `record` is upserted by id — patched
+// in place, added when it newly fits the filter, dropped when it no longer
+// does; an event without one reads the loaded rows again, once per burst,
 // never once per event. 403 means this operator may not review this kind.
 
 type Fetch<T> = (o: { status: string; offset: number; limit: number }, signal?: AbortSignal) => Promise<{ items: T[]; total: number; hasMore: boolean }>;
@@ -17,7 +18,8 @@ const DEBOUNCE = 600;
 
 export function useReviewQueue<T extends { id: string; status: string }>(
   fetch: Fetch<T>,
-  opts: { scope: string; events: RegExp; parse?: (v: unknown) => T | null; initial?: string; onCount?: (n: number) => void; filterKey?: string },
+  // accept: whether a record fits the queue's other filters (experience kind).
+  opts: { scope: string; events: RegExp; parse?: (v: unknown) => T | null; accept?: (rec: T) => boolean; initial?: string; onCount?: (n: number) => void; filterKey?: string },
 ) {
   const [status, setStatus] = useState(opts.initial ?? "pending_review");
   const [items, setItems] = useState<T[] | null>(null);
@@ -28,6 +30,7 @@ export function useReviewQueue<T extends { id: string; status: string }>(
   const [loading, setLoading] = useState(false);
   const fetchRef = useRef(fetch);
   const parseRef = useRef(opts.parse);
+  const acceptRef = useRef(opts.accept);
   const onCountRef = useRef(opts.onCount);
   const itemsRef = useRef<T[] | null>(null);
   const statusRef = useRef(status);
@@ -35,6 +38,7 @@ export function useReviewQueue<T extends { id: string; status: string }>(
   useEffect(() => {
     fetchRef.current = fetch;
     parseRef.current = opts.parse;
+    acceptRef.current = opts.accept;
     onCountRef.current = opts.onCount;
     itemsRef.current = items;
     statusRef.current = status;
@@ -92,15 +96,16 @@ export function useReviewQueue<T extends { id: string; status: string }>(
       window.clearTimeout(timer);
       timer = window.setTimeout(() => void load(), DEBOUNCE);
     };
-    // A loaded row with the event's record: patched in place (dropped when
-    // it no longer fits the status filter). Otherwise one debounced read.
+    // Upsert the event's record by id; without one, one debounced read.
     const patch = (raw: unknown): boolean => {
       const rec = parseRef.current?.(raw);
       const rows = itemsRef.current;
-      if (!rec || !rows || !rows.some((x) => x.id === rec.id)) return false;
-      const keep = !statusRef.current || rec.status === statusRef.current;
-      setItems(rows.flatMap((x) => (x.id !== rec.id ? [x] : keep ? [rec] : [])));
-      if (!keep) setTotal((n) => Math.max(0, n - 1));
+      if (!rec || !rows) return false;
+      const fits = (!statusRef.current || rec.status === statusRef.current) && (acceptRef.current?.(rec) ?? true);
+      const had = rows.some((x) => x.id === rec.id);
+      if (had) setItems(rows.flatMap((x) => (x.id !== rec.id ? [x] : fits ? [rec] : [])));
+      else if (fits) setItems([rec, ...rows]);
+      if (had !== fits) setTotal((n) => Math.max(0, n + (fits ? 1 : -1)));
       return true;
     };
     const offEv = subscribeUserEvents((e) => {

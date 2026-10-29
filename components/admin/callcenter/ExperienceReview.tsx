@@ -64,7 +64,7 @@ export function ExperienceQueue({ onCount }: { onCount?: (n: number) => void }):
   // Category experience and pre-advocate employment, apart: experience_kind
   // is the backend's own filter (2026-10-29 §13).
   const [kind, setKind] = useState<ExperienceKind | "">("");
-  const q = useReviewQueue<ExperienceQueueItem>((o, signal) => listExperienceQueue({ ...o, kind }, signal), { scope: "experience", events: EVENTS, parse: experienceQueueItemOf, filterKey: kind, onCount });
+  const q = useReviewQueue<ExperienceQueueItem>((o, signal) => listExperienceQueue({ ...o, kind }, signal), { scope: "experience", events: EVENTS, parse: experienceQueueItemOf, accept: (r) => !kind || r.kind === kind, filterKey: kind, onCount });
   const [open, setOpen] = useState("");
 
   if (q.denied) return null;
@@ -161,6 +161,7 @@ export default function ExperienceReview({ experienceId, onDone }: { experienceI
         room: d.room,
         seller: d.seller,
         history: d.history,
+        changedFields: d.changedFields,
       };
     },
     historyLabel: (h) => (tp.has(`status.${h.status}`) ? tp(`status.${h.status}`) : ""),
@@ -174,11 +175,11 @@ export default function ExperienceReview({ experienceId, onDone }: { experienceI
       const pre = it.kind === "pre_advocate_employment";
       return [
         { label: tp("kindLabel"), value: tp(`kind.${it.kind}`) },
-        { label: tp("category"), value: pre ? "" : catName(it.categoryId) },
-        { label: tp("workplace"), value: it.workplace },
-        ...it.positions.map((p, i) => ({ label: tp("positionN", { n: i + 1 }), value: [p.title, period(p)].filter(Boolean).join(" · ") })),
+        { label: tp("category"), value: pre ? "" : catName(it.categoryId), field: "category_id" },
+        { label: tp("workplace"), value: it.workplace, field: "workplace" },
+        ...it.positions.map((p, i) => ({ label: tp("positionN", { n: i + 1 }), value: [p.title, period(p)].filter(Boolean).join(" · "), field: "positions" })),
         { label: t("years"), value: it.years === null || pre ? "" : String(it.years) },
-        { label: tp("description"), value: it.description },
+        { label: tp("description"), value: it.description, field: "description" },
       ];
     },
     fieldLabel: (field) => {

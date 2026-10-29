@@ -215,15 +215,16 @@ export async function cancelExperience(experienceId: string): Promise<void> {
 }
 
 export type ExperienceReviewEntry = { id: string; decision: "approved" | "rejected" | "changes_requested" | ""; reason: string; checklist: { key: string; verdict: string; note: string }[]; reviewedAt: string };
-// One past review. Temporary until the backend normalizes reviews[].decision
-// (check 2026-10-29: achievements/certificates send approve / reject,
-// experience approved / rejected): both read as the stored decision here.
-const DECIDED: Record<string, ExperienceReviewEntry["decision"]> = { approve: "approved", approved: "approved", reject: "rejected", rejected: "rejected", changes_requested: "changes_requested" };
+// One past review (final contract 2026-10-29 §5): `decision` is the stored
+// status (approved | rejected | changes_requested); `decision_action`, the
+// word the operator sent, is not shown.
+const DECIDED = new Set(["approved", "rejected", "changes_requested"]);
 export const reviewOf = (v: unknown): ExperienceReviewEntry => {
   const d = asDict(v);
+  const dec = asStr(d.decision);
   return {
     id: asStr(d.id),
-    decision: DECIDED[asStr(d.decision)] ?? "",
+    decision: DECIDED.has(dec) ? (dec as ExperienceReviewEntry["decision"]) : "",
     reason: asStr(d.reason),
     checklist: asArr(d.checklist).map((c) => {
       const x = asDict(c);
@@ -357,6 +358,8 @@ export type ExperienceReviewDetail = {
   room: ReviewRoom | null;
   seller: ReviewSeller | null;
   history: HistoryRow[];
+  // revision.changed_fields: what this revision changed, for highlighting.
+  changedFields: string[];
 };
 
 export async function getExperienceForReview(experienceId: string, signal?: AbortSignal): Promise<ExperienceReviewDetail> {
@@ -370,15 +373,19 @@ export async function getExperienceForReview(experienceId: string, signal?: Abor
     room: reviewRoomOf(d.communication),
     seller: reviewSellerOf(d.seller),
     history: historyOf(d.history),
+    changedFields: strs(asDict(d.revision).changed_fields),
   };
 }
 
 export type ReviewDecision = "approved" | "changes_requested" | "rejected";
+// Our decisions in the backend's action words (final contract 2026-10-29
+// §5, §7, §8): every review endpoint takes approve | reject | changes_requested.
+export const DECISION_WIRE: Record<ReviewDecision, string> = { approved: "approve", rejected: "reject", changes_requested: "changes_requested" };
 export async function reviewExperience(experienceId: string, input: { decision: ReviewDecision; reason: string; keys: readonly string[]; rows: CheckRows }): Promise<void> {
   const checklist = input.keys.map((key) => ({ key, verdict: input.rows[key]?.verdict || "not_applicable", note: (input.rows[key]?.note ?? "").trim() }));
   await http(`/call-center/marketplace/experience/${encodeURIComponent(experienceId)}/review`, {
     method: "POST",
-    body: JSON.stringify({ decision: input.decision, reason: input.reason.trim(), checklist }),
+    body: JSON.stringify({ decision: DECISION_WIRE[input.decision], reason: input.reason.trim(), checklist }),
   });
 }
 

@@ -129,3 +129,5 @@ html[data-theme="dark"] .vrf { --vrf-ok: #4ade80; --vrf-bad: #f87171; --vrf-warn
 .vrf__call { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; background: color-mix(in srgb, var(--b600, #1668f0) 10%, transparent); color: var(--b600, #1668f0); font-size: .86rem; font-weight: 800; font-variant-numeric: tabular-nums; text-decoration: none; }
 .vrf__call:hover { background: color-mix(in srgb, var(--b600, #1668f0) 16%, transparent); }
 .vrf__call svg { width: 15px; height: 15px; }
+/* A fact this revision changed (revision.changed_fields). */
+.vrf__facts div[data-changed] { margin: 0 -6px; padding: 4px 6px; border-radius: 8px; background: color-mix(in srgb, var(--vrf-warn) 12%, transparent); box-shadow: inset 3px 0 0 var(--vrf-warn); }

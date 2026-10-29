@@ -231,6 +231,11 @@ test("the operator verifies a certificate, talks to the advocate, records and ar
         practice: recounted(2300, 6.3, []),
         evidence: { id: "v1", file_name: "guvohnoma.pdf", mime_type: "application/pdf", size: 8 },
         ai_analysis: { status: "completed", analysis_type: "advocate_license", document_readable: true, authenticity_confidence: 0.91, manipulation_risk: 0.05, ai_generated_risk: 0.02, risk_level: "low", risk_codes: [], risk_items: [], signature_detection: { signature: true, seal: true, electronic_signature: false }, pii_detected: [], operator_notes: [], extracted_fields: { holder_name: "Aliyev Vali", certificate_number: "ADV-12345", issuing_authority: "Adliya vazirligi", advocate_status_started_at: "2020-05-12" }, final_decision: "operator_required" },
+        // Final contract §6: the backend's mismatches.
+        mismatched_fields: [
+          { field: "holder_name", submitted_value: "Aliyev Vali", extracted_value: "Aliyev Vali", matches: true },
+          { field: "certificate_number", submitted_value: "ADV-12346", extracted_value: "ADV-12345", matches: false },
+        ],
         previous_approved_verification: null,
         diff: [],
         history: [],
@@ -244,8 +249,8 @@ test("the operator verifies a certificate, talks to the advocate, records and ar
       "POST /call-center/marketplace/advocate-licenses/lv1/communication": () => (rooms.push("open"), { status: 201, json: { idempotent: false, room_id: "room-lic-1", messages_url: "/secure-chats/room-lic-1/messages", calls_url: "/secure-chats/room-lic-1/calls", call_types: ["audio", "video"], close_by_operator_only: true } }),
       "POST /call-center/marketplace/advocate-licenses/lv1/communication/close": () => (rooms.push("close"), { event: "marketplace.review_chat_closed", record_id: "lv1", room_id: "room-lic-1", status: "read_only" }),
       "POST /call-center/marketplace/advocate-practice/u-adv/suspensions/evidence": { status: 201, json: { id: "d1", file_name: "buyruq.pdf", mime_type: "application/pdf", size: 8, download_url: "/call-center/marketplace/advocate-practice/u-adv/suspensions/evidence/d1" } },
-      "POST /call-center/marketplace/advocate-practice/u-adv/suspensions": (b: unknown) => (susp.push(b), { status: 201, json: recounted(2269, 6.21, [s2]) }),
-      "DELETE /call-center/marketplace/advocate-practice/u-adv/suspensions/s2": () => ((archived = "s2"), recounted(2300, 6.3, [])),
+      "POST /call-center/marketplace/advocate-practice/u-adv/suspensions": (b: unknown) => (susp.push(b), { status: 201, json: { practice: recounted(2269, 6.21, [s2]) } }),
+      "DELETE /call-center/marketplace/advocate-practice/u-adv/suspensions/s2": () => ((archived = "s2"), { practice: recounted(2300, 6.3, []) }),
       "POST /call-center/marketplace/advocate-licenses/lv1/review": (b: unknown) => (decided.push(b), { status: "approved" }),
     }),
   );
@@ -303,4 +308,12 @@ test("the operator verifies a certificate, talks to the advocate, records and ar
   const d = decided[0] as { decision: string; reason: string; checklist: { key: string; verdict: string }[] };
   expect([d.decision, d.reason]).toEqual(["approve", ""]);
   expect(d.checklist.map((c) => `${c.key}:${c.verdict}`)).toEqual(LICENSE_CHECKS.map((c) => `${c.key}:approved`));
+});
+
+test("without marketplace.experience.review the three review tabs are not offered", async ({ page }) => {
+  const lawyer = { ...CALL_CENTER, permissions: ["callcenter.access", "leads.manage"] };
+  await mockBackend(page, await signIn(page, lawyer, { "/service-categories": [] }));
+  await page.goto("/ru/admin/call-center");
+  await expect(page.getByRole("tab", { name: /Лиды/ })).toBeVisible();
+  for (const name of [/Проверка опыта/, /Проверка достижений/, /Удостоверения адвокатов/]) await expect(page.getByRole("tab", { name })).toHaveCount(0);
 });

@@ -150,7 +150,8 @@ test("the call center sees what changed, ticks every item, then approves", async
   await box.getByRole("button", { name: "Подтвердить" }).click();
   await expect.poll(() => decisions.length).toBe(1);
   const d = decisions[0] as { decision: string; checklist: { key: string; verdict: string }[] };
-  expect(d.decision).toBe("approved");
+  // Final contract 2026-10-29 §8: the action word.
+  expect(d.decision).toBe("approve");
   expect(d.checklist.map((c) => c.verdict)).toEqual(["approved", "approved", "approved", "not_applicable"]);
 });
 
@@ -292,7 +293,7 @@ const AI = { status: "completed", analysis_type: "achievement", document_readabl
 
 test("the call center weighs the risk indicators and approves with a safe public text", async ({ page }) => {
   const decided: unknown[] = [];
-  const record = { id: "a2", root_id: "r2", status: "pending_review", process_stage: "court", result_scope: "partial", category_id: "c1", category_title: "Оила ва никоҳ", achieved_at: "2026-03-15", description: "Apellyatsiyada jazo yengillashtirildi", version: 1 };
+  const record = { id: "a2", root_id: "r2", status: "pending_review", process_stage: "court", process_stage_label: "Sud jarayoni", process_stage_label_i18n: { uz_latn: "Sud jarayoni", ru: "Судебный процесс" }, result_scope: "partial", result_scope_label: "Qisman ijobiy natija", result_scope_label_i18n: { uz_latn: "Qisman ijobiy natija", ru: "Частичный положительный результат" }, category_id: "c1", category_title: "Оила ва никоҳ", achieved_at: "2026-03-15", description: "Apellyatsiyada jazo yengillashtirildi", version: 1 };
   await mockBackend(page, await signIn(page, CALL_CENTER, ccAch(decided, record, AI)));
   await page.goto("/ru/admin/call-center?tab=achievements");
   await page.getByRole("button", { name: /Test Advokat/ }).click();
@@ -341,7 +342,7 @@ test("the public profile shows the operator-approved text only, never the privat
     "/marketplace/lawyers": { items: [{ user_id: "u-adv", name: "Test Advokat", seller_type: "advokat", is_verified: true }], total: 1 },
     "/marketplace/lawyers/u-adv": { user_id: "u-adv", name: "Test Advokat", seller_type: "advokat", rating: 4.8, reviews_count: 3, is_verified: true },
     "/marketplace/lawyers/u-adv/services": { items: [] },
-    "/marketplace/lawyers/u-adv/achievements": { items: [{ id: "a1", process_stage: "court", result_scope: "full", category_id: "c1", category_title: "Oila ishlari", year: 2025, achieved_at: "2025-12-20", public_description: "Sud bosqichida to'liq ijobiy natija", description: "Maxfiy: mijoz Aliyev, ish raqami 12-345", lexgo_verified: true, verified_at: "2026-01-10T09:00:00Z" }], total: 1, count: 1, limit: 20, offset: 0, has_more: false },
+    "/marketplace/lawyers/u-adv/achievements": { items: [{ id: "a1", process_stage: "court", process_stage_label: "Sud jarayoni", process_stage_label_i18n: { uz_latn: "Sud jarayoni", ru: "Судебный процесс" }, result_scope: "full", result_scope_label: "To'liq ijobiy natija", result_scope_label_i18n: { uz_latn: "To'liq ijobiy natija", ru: "Полный положительный результат" }, category_id: "c1", category_title: "Oila ishlari", year: 2025, achieved_at: "2025-12-20", public_description: "Sud bosqichida to'liq ijobiy natija", description: "Maxfiy: mijoz Aliyev, ish raqami 12-345", lexgo_verified: true, verified_at: "2026-01-10T09:00:00Z" }], total: 1, count: 1, limit: 20, offset: 0, has_more: false },
   });
   await page.goto("/uz/lawyers/u-adv");
   const panel = page.locator(".mk-ach");

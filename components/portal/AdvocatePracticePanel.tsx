@@ -18,7 +18,7 @@ import {
   getLicenseEvidence,
   getLicenseConfig,
   getMyPractice,
-  licenseAnalyzedOf,
+  analyzedEvidenceId,
   licenseErrorOf,
   licenseIssue,
   submitLicense,
@@ -109,12 +109,9 @@ export default function AdvocatePracticePanel(): ReactElement | null {
       const ev = String(e.event ?? "");
       if (!EVENTS.test(ev)) return;
       if (ev.endsWith("evidence_analyzed")) {
-        // The event carries the reading (§9): patch the card at once; the
-        // GET stays only for recovery.
-        const got = licenseAnalyzedOf(e);
-        const cur = flowRef.current?.evidence;
-        if (got && cur && got.id === cur.id) applyEvidence({ ...cur, state: got.state, suggested: got.suggested });
-        else setPollKick((n) => n + 1);
+        // The event names the evidence; its state is read again at once
+        // (final contract §6: the supported flow).
+        if (analyzedEvidenceId(e) === flowRef.current?.evidence?.id) setPollKick((n) => n + 1);
         return;
       }
       window.clearTimeout(timer);
@@ -131,7 +128,7 @@ export default function AdvocatePracticePanel(): ReactElement | null {
       off();
       offSync();
     };
-  }, [load, t, applyEvidence]);
+  }, [load, t]);
 
   // While software reads the file: ask again with growing pauses (or at
   // once when the "analyzed" event arrives); stop when done or closed.

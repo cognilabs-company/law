@@ -28,7 +28,6 @@ import {
   downloadSuspensionEvidence,
   getLicenseForReview,
   licenseRecordOf,
-  licenseFieldsOf,
   listLicenseQueue,
   openLicenseRoom,
   reviewLicense,
@@ -36,6 +35,7 @@ import {
   uploadSuspensionEvidence,
   type LicenseFields,
   type LicenseRecord,
+  type Mismatch,
   type Practice,
   type Suspension,
 } from "@/lib/services/advocatePractice";
@@ -54,16 +54,16 @@ const EVENTS = /^marketplace\.advocate_license_(submitted|queue_updated|reviewed
 const STATUSES = ["pending_review", "changes_requested", "approved", "rejected", ""] as const;
 const FIELDS: readonly (keyof LicenseFields)[] = ["holderName", "certificateNumber", "licenseNumber", "issuingAuthority", "statusStartedAt"];
 
-// What software read from the certificate beside what the advocate typed;
-// a value that differs is marked for the operator to compare.
-function ReadValues({ extracted, record }: { extracted: Record<string, string>; record: LicenseRecord | null }): ReactElement | null {
+// The backend's mismatches (final contract §6): what the advocate typed
+// beside what software read, a differing value marked for the operator. A
+// field we have no name for is left out.
+function Mismatches({ rows }: { rows: Mismatch[] }): ReactElement | null {
   const t = useTranslations("callCenter.licenses");
-  const tf = useTranslations("portal.practice.f");
+  const tv = useTranslations("callCenter.verify.field");
   const locale = useLocale();
-  const read = licenseFieldsOf(extracted);
-  const shown = (k: keyof LicenseFields, v: string) => (k === "statusStartedAt" && v ? dateOnly(v, locale) : v);
-  const rows = FIELDS.filter((k) => read[k]);
-  if (!rows.length) return null;
+  const shown = (field: string, v: string) => (field === "advocate_status_started_at" && /^\d{4}-\d{2}-\d{2}/.test(v) ? dateOnly(v.slice(0, 10), locale) : v);
+  const named = rows.filter((m) => tv.has(m.field) && (m.extracted || m.submitted));
+  if (!named.length) return null;
   return (
     <section className="vrf__ai" aria-label={t("aiTitle")}>
       <div className="vrf__ai-h">
@@ -76,19 +76,15 @@ function ReadValues({ extracted, record }: { extracted: Record<string, string>; 
         </div>
       </div>
       <ul className="vrf__sig">
-        {rows.map((k) => {
-          const typed = record?.[k] ?? "";
-          const same = !typed || read[k].trim().toLowerCase() === typed.trim().toLowerCase();
-          return (
-            <li key={k} data-tone={same ? "ok" : "warn"}>
-              <span>
-                <small>{tf(k)}</small>
-                <b>{shown(k, read[k])}</b>
-                {!same ? <small>{t("typed", { v: shown(k, typed) })}</small> : null}
-              </span>
-            </li>
-          );
-        })}
+        {named.map((m) => (
+          <li key={m.field} data-tone={m.matches ? "ok" : "warn"}>
+            <span>
+              <small>{tv(m.field)}</small>
+              <b>{shown(m.field, m.extracted) || t("notRead")}</b>
+              {!m.matches ? <small>{t("typed", { v: shown(m.field, m.submitted) || "—" })}</small> : null}
+            </span>
+          </li>
+        ))}
       </ul>
     </section>
   );
@@ -293,7 +289,7 @@ function LicenseReview({ id, onDone }: { id: string; onDone: () => void }): Reac
   const tv = useTranslations("callCenter.verify.field");
   const locale = useLocale();
   const [ai, setAi] = useState<{ risk: AiRisk; advisory: boolean } | null>(null);
-  const [record, setRecord] = useState<LicenseRecord | null>(null);
+  const [mismatches, setMismatches] = useState<Mismatch[]>([]);
   const [practice, setPractice] = useState<Practice | null>(null);
   const [seller, setSeller] = useState("");
   const source: VerifySource = {
@@ -302,7 +298,7 @@ function LicenseReview({ id, onDone }: { id: string; onDone: () => void }): Reac
     load: async (signal) => {
       const d = await getLicenseForReview(id, signal);
       setAi(d.ai ? { risk: d.ai, advisory: d.advisoryOnly } : null);
-      setRecord(d.record);
+      setMismatches(d.mismatches);
       setPractice(d.practice);
       setSeller(d.record?.sellerUserId || d.practice?.sellerUserId || d.seller?.id || "");
       return {
@@ -333,7 +329,7 @@ function LicenseReview({ id, onDone }: { id: string; onDone: () => void }): Reac
     aside: () => (
       <>
         {ai ? <AiRiskPanel ai={ai.risk} advisory={ai.advisory} /> : null}
-        {ai ? <ReadValues extracted={ai.risk.extracted} record={record} /> : null}
+        <Mismatches rows={mismatches} />
         {seller ? <Suspensions sellerUserId={seller} practice={practice} onPractice={setPractice} /> : null}
       </>
     ),
