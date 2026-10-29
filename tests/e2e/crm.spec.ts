@@ -318,7 +318,7 @@ test("queue claim: mine on success; a 409 race shakes the row out and never show
   const missing = watchIntl(page);
   const { st, routes } = crmServer(OPERATOR.permissions ?? []);
   await mockBackend(page, await signIn(page, OPERATOR, routes as never));
-  await page.goto("/uz/admin/crm/leads?tab=queue");
+  await page.goto("/uz/admin/crm/leads?tab=queue&view=table");
   const rows = page.locator(".crm-table tbody tr");
   await expect(rows).toHaveCount(3);
   await shot(page, "leads");
