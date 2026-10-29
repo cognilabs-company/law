@@ -16,6 +16,8 @@ import {
   crmCan,
   crmEventOf,
   crmGlobalAnalytics,
+  crmHistoryOf,
+  reopenBody,
   crmLeadOf,
   crmMetaOf,
   crmMetricsOf,
@@ -338,5 +340,29 @@ describe("customers", () => {
     expect([c.lifecycle, c.becameCustomerAt, c.linking.linked]).toEqual(["customer", "2026-10-20T10:00:00Z", true]);
     const p = crmCustomerDetailOf({ id: "c2", account_linking: { status: "unlinked", automatic_by_verified_phone: true, required_action: "Telefonni tasdiqlang" } });
     expect([p.lifecycle, p.linking.linked, p.linking.requiredAction]).toEqual(["prospect", false, "Telefonni tasdiqlang"]);
+  });
+});
+
+// §2/§7: reopen as a new cycle; the history keeps every cycle.
+describe("cycles", () => {
+  it("a reopen sends the new inquiry, its source and reason", () => {
+    expect(reopenBody({ inquiry: " Yana ", source: "phone", reason: "", operatorId: "" })).toEqual({ inquiry: "Yana", source: "phone", reason: "Yangi murojaat", assigned_operator_user_id: null });
+  });
+  it("reads cycles newest first with their final status", () => {
+    const h = crmHistoryOf({ current_cycle_id: "b", cycle_number: 2, cycles: [{ id: "a", sequence: 1, terminal_status: "won" }, { id: "b", sequence: 2, terminal_status: "" }], status_history: [{ id: "e1", title: "Holat o'zgardi" }] });
+    expect(h.cycles.map((c) => [c.sequence, c.terminalStatus])).toEqual([
+      [2, ""],
+      [1, "won"],
+    ]);
+    expect(h.events).toHaveLength(1);
+  });
+  it("a lead carries its cycle number and order state by work ID", () => {
+    const l = crmLeadOf({ id: "l", cycle_number: 3, converted_order_id: "o-uuid", converted_order: { id: "o-uuid", work_id: "ORD-7", payment_status: "unpaid" } });
+    expect([l.cycleNumber, l.order?.workId, l.order?.paymentStatus]).toEqual([3, "ORD-7", "unpaid"]);
+  });
+  it("a stale write is any 409 about the version", () => {
+    expect(isVersionConflict(new ApiError(409, "x", undefined, { code: "crm_lead_version_conflict" }))).toBe(true);
+    expect(isVersionConflict(new ApiError(409, "x", undefined, { code: "crm_lead_stale_version" }))).toBe(true);
+    expect(isVersionConflict(new ApiError(409, "x", undefined, { code: "crm_ai_run_active" }))).toBe(false);
   });
 });

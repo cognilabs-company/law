@@ -538,6 +538,33 @@ export function leadPatchBody(p: LeadPatch): Dict {
 export const updateCrmLead = (lead: Locked, p: LeadPatch) => leadWrite(lead, "", leadPatchBody(p), "PATCH");
 export const changeLeadStatus = (lead: Locked, status: string, reason: string, nextActionAt?: string | null) =>
   leadWrite(lead, "/status", { status, reason: reason.trim(), next_action_at: nextActionAt || null });
+// §7: the same inquiry again reopens the lead as a new cycle; the old one
+// stays in the history with its final status.
+export type ReopenInput = { inquiry: string; source: string; reason: string; operatorId?: string; title?: string };
+export const reopenBody = (r: ReopenInput): Dict => {
+  const b: Dict = { inquiry: r.inquiry.trim(), source: r.source || "manual", reason: r.reason.trim() || "Yangi murojaat", assigned_operator_user_id: r.operatorId || null };
+  if (r.title?.trim()) b.title = r.title.trim();
+  return b;
+};
+export const reopenCrmLead = (lead: Locked, r: ReopenInput) => leadWrite(lead, "/reopen", reopenBody(r));
+// GET …/history: every cycle (old ones with their final status) and the
+// lead's status history.
+export type CrmHistory = { cycleNumber: number; currentCycleId: string; cycles: CrmCycle[]; events: CrmActivity[] };
+export async function getLeadHistory(id: string, signal?: AbortSignal): Promise<CrmHistory> {
+  return crmHistoryOf(await http(`/crm/leads/${enc(id)}/history`, { signal }));
+}
+export function crmHistoryOf(v: unknown): CrmHistory {
+  const d = asDict(v);
+  return {
+    cycleNumber: int(d.cycle_number, 1),
+    currentCycleId: asStr(d.current_cycle_id),
+    cycles: asArr(d.cycles)
+      .map(crmCycleOf)
+      .filter((c): c is CrmCycle => !!c)
+      .sort((a, b) => b.sequence - a.sequence),
+    events: asArr(d.status_history).map(crmActivityOf).filter((a) => a.id),
+  };
+}
 export const assignLead = (lead: Locked, operatorId: string, reason: string) => leadWrite(lead, "/assign", { operator_user_id: operatorId, reason: reason.trim() });
 // A transfer always says why (§12).
 export const transferLead = (lead: Locked, operatorId: string, reason: string) => {
@@ -881,7 +908,11 @@ export const CRM_ERROR_CODES = [
   "crm_transfer_reason_required",
 ] as const;
 export const crmCode = (e: unknown): string => (e instanceof ApiError ? (e.code ?? "") : "");
-export const isVersionConflict = (e: unknown): boolean => crmCode(e) === "crm_lead_version_conflict";
+// A stale lock_version (§3, §22: 409 for stale state).
+export const isVersionConflict = (e: unknown): boolean => {
+  const c = crmCode(e);
+  return c === "crm_lead_version_conflict" || (e instanceof ApiError && e.status === 409 && /version|stale|lock/.test(c));
+};
 export const isClaimRace = (e: unknown): boolean => crmCode(e) === "crm_lead_already_claimed" || (e instanceof ApiError && e.status === 409 && !crmCode(e));
 export const isCrmDenied = (e: unknown): boolean => e instanceof ApiError && (e.status === 403 || crmCode(e) === "crm_access_denied" || crmCode(e) === "crm_permission_required");
 

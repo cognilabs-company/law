@@ -10,6 +10,8 @@ import { fmtUzs } from "@/lib/money";
 import { toast } from "@/lib/toast";
 import {
   isFinalStatus,
+  crmCan,
+  reopenCrmLead,
   addLeadWatcher,
   assignLead,
   changeLeadStatus,
@@ -76,9 +78,13 @@ export function StatusSheet({ lead, to, write, onClose }: { lead: CrmLead; to: s
   // ends. It stays optional — the backend decides what it requires.
   const { meta } = useCrmMeta();
   const closing = isFinalStatus(meta, to);
-  const reasonErr = "";
+  // §6: rejected needs a reason; won needs a paid order (the backend checks).
+  const [tried, setTried] = useState(false);
+  const needReason = to === "rejected";
+  const reasonErr = tried && needReason && !reason.trim() ? t("reasonNeeded") : "";
   const ok = async () => {
-    if (busy) return;
+    setTried(true);
+    if (busy || (needReason && !reason.trim())) return;
     setBusy(true);
     const done = await write((l) => changeLeadStatus(l, to, reason, l.nextActionAt || null), t("moved", { status: ts(to) }));
     setBusy(false);
@@ -99,8 +105,69 @@ export function StatusSheet({ lead, to, write, onClose }: { lead: CrmLead; to: s
         <label className="crm-field" data-err={reasonErr ? "" : undefined}>
           <span>{closing ? t("reasonClose") : t("reason")}</span>
           <textarea className="crm-textarea" value={reason} onChange={(e) => setReason(e.target.value)} autoFocus maxLength={1000} />
-          {reasonErr ? <em>{reasonErr}</em> : <small>{t("reasonHelp")}</small>}
+          {reasonErr ? <em>{reasonErr}</em> : <small>{needReason ? t("reasonRequired") : t("reasonHelp")}</small>}
         </label>
+        {to === "won" ? (
+          <p className="crm-note">
+            <IconAlert aria-hidden="true" />
+            {t("wonNeedsPaid")}
+          </p>
+        ) : null}
+      </div>
+    </Modal>
+  );
+}
+
+// §7: reopen a finished lead as a new cycle — the new inquiry, where it came
+// from and why; the earlier cycle keeps its final status in the history.
+export function ReopenSheet({ meta, lead, write, onClose }: { meta: CrmMeta; lead: CrmLead; write: LeadWrite; onClose: () => void }): ReactElement {
+  const t = useTranslations("crm.reopen");
+  const tsrc = useTranslations("crm.source");
+  const [inquiry, setInquiry] = useState("");
+  const [source, setSource] = useState(lead.source || meta.sources[0] || "manual");
+  const [reason, setReason] = useState("");
+  const [operator, setOperator] = useState("");
+  const [ops, setOps] = useState<CrmOperator[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [tried, setTried] = useState(false);
+  const canAssign = crmCan(meta, "crm.leads.assign");
+  useEffect(() => {
+    if (!canAssign) return;
+    const ctl = new AbortController();
+    listCrmOperators("", ctl.signal).then(setOps, (e) => !isAborted(e) && logApiError("crm.operators", e));
+    return () => ctl.abort();
+  }, [canAssign]);
+  const bad = inquiry.trim().length < 2;
+  const ok = async () => {
+    setTried(true);
+    if (busy || bad) return;
+    setBusy(true);
+    const done = await write((l) => reopenCrmLead(l, { inquiry, source, reason, operatorId: operator }), t("done"));
+    setBusy(false);
+    if (done) onClose();
+  };
+  return (
+    <Modal open onClose={onClose} title={t("title", { lead: lead.workId })} description={t("lead", { n: lead.cycleNumber + 1 })} busy={busy} dirty={!!inquiry || !!reason} footer={<Foot onClose={onClose} onOk={() => void ok()} busy={busy} okText={t("ok")} />}>
+      <div className="crm-pop">
+        <label className="crm-field" data-err={tried && bad ? "" : undefined}>
+          <span>{t("inquiry")}</span>
+          <textarea className="crm-textarea" value={inquiry} onChange={(e) => setInquiry(e.target.value)} autoFocus maxLength={20000} aria-invalid={tried && bad ? true : undefined} />
+          {tried && bad ? <em>{t("inquiryNeed")}</em> : <small>{t("inquiryHelp")}</small>}
+        </label>
+        <div className="crm-field">
+          <span>{t("source")}</span>
+          <CrmSelect value={source} onChange={setSource} label={t("source")} options={meta.sources.map((s) => ({ value: s, label: tsrc.has(s) ? tsrc(s) : tsrc("other") }))} />
+        </div>
+        <label className="crm-field">
+          <span>{t("reason")}</span>
+          <input className="crm-input" value={reason} onChange={(e) => setReason(e.target.value)} maxLength={2000} placeholder={t("reasonPh")} />
+        </label>
+        {canAssign ? (
+          <div className="crm-field">
+            <span>{t("operator")}</span>
+            <CrmSelect value={operator} onChange={setOperator} label={t("operator")} options={[{ value: "", label: t("keepOperator") }, ...ops.map((o) => ({ value: o.id, label: o.name }))]} search />
+          </div>
+        ) : null}
       </div>
     </Modal>
   );

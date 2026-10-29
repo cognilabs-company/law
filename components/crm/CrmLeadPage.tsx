@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { IconAlert, IconArrowRight, IconClock, IconFlame, IconMapPin, IconRefresh } from "@/components/icons";
+import Modal from "@/components/admin/Modal";
+import { IconAlert, IconArrowRight, IconClock, IconFlame, IconHistory, IconLayers, IconMapPin, IconRefresh } from "@/components/icons";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
@@ -14,7 +15,8 @@ import { Empty, StatusIcon, StatusPill, WhenChip, statusVar, useCrmError, useSta
 import { LeadSide } from "./LeadSide";
 import { LeadTimeline } from "./LeadTimeline";
 import { CopilotPanel } from "./CopilotPanel";
-import { StatusSheet } from "./LeadSheets";
+import { ReopenSheet, StatusSheet } from "./LeadSheets";
+import { LeadHistory } from "./LeadHistory";
 
 export type LeadWrite = (run: (lead: CrmLead) => Promise<CrmLead | null | void>, okText?: string) => Promise<boolean>;
 
@@ -32,7 +34,9 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
   const crmErr = useCrmError();
   const [lead, setLead] = useState<CrmLead | null>(null);
   const [loadErr, setLoadErr] = useState<unknown>(null);
-  const [conflict, setConflict] = useState(false);
+  // A stale write (§3, §22): both copies, so the operator sees what changed.
+  const [conflict, setConflict] = useState<{ mine: CrmLead; fresh: CrmLead | null } | null>(null);
+  const [pane, setPane] = useState<"timeline" | "history">("timeline");
   const [timelineKey, setTimelineKey] = useState(0);
   const [aiKey, setAiKey] = useState(0);
   const [tab, setTab] = useState<"info" | "timeline" | "ai">("timeline");
@@ -78,7 +82,6 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
         const next = await run(cur);
         if (next && next.id) setLead(next);
         else await reload();
-        setConflict(false);
         setTimelineKey((k) => k + 1);
         if (okText) toast(okText, { tone: "ok" });
         return true;
@@ -90,8 +93,8 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
           return false;
         }
         if (isVersionConflict(e)) {
-          setConflict(true);
-          await reload();
+          const fresh = await reload();
+          setConflict({ mine: cur, fresh });
           return false;
         }
         toast(crmErr(e), { tone: "err" });
@@ -140,18 +143,7 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
   return (
     <>
       <LeadHead meta={meta} lead={lead} write={write} />
-      {conflict ? (
-        <div className="crm-banner crm-banner--warn" role="alert">
-          <IconRefresh aria-hidden="true" />
-          <span>
-            <b>{t("conflict")}</b>
-            {t("conflictText")}
-          </span>
-          <button type="button" className="crm-btn crm-btn--sm" onClick={() => setConflict(false)}>
-            {t("gotIt")}
-          </button>
-        </div>
-      ) : null}
+      {conflict ? <ConflictDialog mine={conflict.mine} fresh={conflict.fresh} onClose={() => setConflict(null)} /> : null}
       <div className="crm-ws__tabs crm-tabs" role="tablist" aria-label={t("sections")}>
         {(["info", "timeline", "ai"] as const).map((k) => (
           <button key={k} type="button" role="tab" className="crm-tab" aria-selected={tab === k} onClick={() => setTab(k)}>
@@ -164,7 +156,17 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
           <LeadSide meta={meta} lead={lead} write={write} />
         </div>
         <div className="crm-ws__col crm-ws__main">
-          <LeadTimeline lead={lead} write={write} refreshKey={timelineKey} onAdded={() => setTimelineKey((k) => k + 1)} />
+          <div className="crm-panes" role="tablist" aria-label={t("panes")}>
+            <button type="button" role="tab" aria-selected={pane === "timeline"} onClick={() => setPane("timeline")}>
+              <IconLayers aria-hidden="true" />
+              {t("pane.timeline")}
+            </button>
+            <button type="button" role="tab" aria-selected={pane === "history"} onClick={() => setPane("history")}>
+              <IconHistory aria-hidden="true" />
+              {t("pane.history", { n: lead.cycleNumber })}
+            </button>
+          </div>
+          {pane === "timeline" ? <LeadTimeline lead={lead} write={write} refreshKey={timelineKey} onAdded={() => setTimelineKey((k) => k + 1)} /> : <LeadHistory lead={lead} />}
         </div>
         <div className="crm-ws__col crm-ws__ai">{leadCan(lead, "run_ai") ? <CopilotPanel meta={meta} lead={lead} write={write} refreshKey={aiKey} /> : null}</div>
       </div>
@@ -177,9 +179,11 @@ function LeadHead({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; write: 
   const t = useTranslations("crm.lead");
   const ts = useStatusLabel();
   const tsc = useTranslations("crm.score");
+  const tsrc = useTranslations("crm.source");
   const locale = useLocale();
   const now = useNow();
   const [to, setTo] = useState("");
+  const [reopening, setReopening] = useState(false);
   // The open columns in the backend's order, then where the lead ended
   // (or the first final column, as the goal).
   const journey = journeyOf(meta, lead.status);
@@ -191,6 +195,7 @@ function LeadHead({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; write: 
       <div className="crm-lhead__top">
         <span className="crm-code">{lead.workId}</span>
         <StatusPill status={lead.status} />
+        <span className="crm-cyclebadge">{t("cycleN", { n: lead.cycleNumber })}</span>
       </div>
       <h1 id="crm-lead-title">{lead.title || lead.workId}</h1>
       <div className="crm-lhead__meta">
@@ -200,6 +205,7 @@ function LeadHead({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; write: 
             {tsc.has(lead.score) ? tsc(lead.score) : lead.score}
           </span>
         ) : null}
+        {lead.source ? <span>{tsrc.has(lead.source) ? tsrc(lead.source) : tsrc("other")}</span> : null}
         {lead.region ? (
           <span>
             <IconMapPin aria-hidden="true" />
@@ -247,7 +253,67 @@ function LeadHead({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; write: 
           ))}
         </div>
       ) : null}
+      {ended && (leadCan(lead, "reopen") || leadCan(lead, "edit")) ? (
+        <div className="crm-moves">
+          <button type="button" className="crm-move" onClick={() => setReopening(true)}>
+            <IconRefresh aria-hidden="true" />
+            {t("reopen")}
+          </button>
+        </div>
+      ) : null}
       {to ? <StatusSheet lead={lead} to={to} write={write} onClose={() => setTo("")} /> : null}
+      {reopening ? <ReopenSheet meta={meta} lead={lead} write={write} onClose={() => setReopening(false)} /> : null}
     </section>
+  );
+}
+
+// A stale write never overwrites silently (§3, §22): what the other user
+// changed, side by side; the operator's own typing stays in its sheet.
+function ConflictDialog({ mine, fresh, onClose }: { mine: CrmLead; fresh: CrmLead | null; onClose: () => void }): ReactElement {
+  const t = useTranslations("crm.lead");
+  const ts = useStatusLabel();
+  const locale = useLocale();
+  const when = (v: string) => (v ? shortDateTime(v, locale) : t("none"));
+  const urg = (v: string) => (v && t.has(`urg.${v}`) ? t(`urg.${v}`) : "");
+  const rows = fresh
+    ? ([
+        [t("cf.status"), ts(mine.status), ts(fresh.status)],
+        [t("cf.operator"), mine.operator?.name || t("none"), fresh.operator?.name || t("none")],
+        [t("cf.next"), when(mine.nextActionAt), when(fresh.nextActionAt)],
+        [t("cf.title"), mine.title, fresh.title],
+        [t("cf.urgency"), urg(mine.urgency), urg(fresh.urgency)],
+        [t("cf.region"), mine.region, fresh.region],
+      ] as [string, string, string][]).filter(([, a, b]) => a !== b)
+    : [];
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={t("conflict")}
+      description={t("conflictText")}
+      icon={<IconRefresh />}
+      footer={
+        <button type="button" className="crm-btn crm-btn--pri" onClick={onClose}>
+          {t("gotIt")}
+        </button>
+      }
+    >
+      <div className="crm-pop">
+        {rows.length ? (
+          <ul className="crm-conflict">
+            {rows.map(([k, a, b]) => (
+              <li key={k}>
+                <small>{k}</small>
+                <del>{a || t("none")}</del>
+                <IconArrowRight aria-hidden="true" />
+                <ins>{b || t("none")}</ins>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="crm-sub">{t("conflictSame")}</p>
+        )}
+      </div>
+    </Modal>
   );
 }

@@ -211,6 +211,28 @@ function crmServer(perms: string[], revenue = false) {
       return st.mine[0];
     },
     "POST /crm/leads/m1/transfer": (b: Record<string, unknown>) => (st.writes.push({ path: "transfer", body: b }), st.mine[0]),
+    "/crm/leads/[^/]+/history": (_: unknown, url: URL) => {
+      const id = url.pathname.split("/").at(-2) ?? "";
+      const l = allLeads().find((x) => x.id === id) ?? st.mine[0];
+      const n = Number(l.cycle_number ?? 1);
+      return {
+        lead_id: id,
+        current_cycle_id: `cy${n}`,
+        cycle_number: n,
+        cycles: Array.from({ length: n }, (_, i) => ({ id: `cy${i + 1}`, sequence: i + 1, inquiry: i === 0 ? "Ijara shartnomasini tekshirish" : "Yana murojaat: shartnomaga o'zgartirish", source: "phone", status: i + 1 < n ? "closed" : "open", initial_status: "new", terminal_status: i + 1 < n ? "won" : "", order_id: null, payment_id: null, opened_at: "2026-09-01T08:00:00Z", closed_at: i + 1 < n ? "2026-09-20T08:00:00Z" : null, snapshot: { previous_status: null, reason: "" } })),
+        status_history: [{ id: "h1", customer_id: "c1", lead_id: id, actor: ME, actor_user_id: ME.id, activity_type: "status_changed", title: "Holat o'zgardi", body: "Yangi → Saralangan", payload: {}, visibility: "staff", created_at: "2026-10-26T09:00:00Z" }],
+      };
+    },
+    "POST /crm/leads/[^/]+/reopen": (b: Record<string, unknown>, url: URL) => {
+      const id = url.pathname.split("/").at(-2) ?? "";
+      const l = allLeads().find((x) => x.id === id)!;
+      st.writes.push({ path: `reopen:${id}`, body: b });
+      if (b.expected_lock_version !== l.lock_version) return { status: 409, json: { detail: { code: "crm_lead_version_conflict" } } };
+      Object.assign(l, { status: "new", cycle_number: Number(l.cycle_number ?? 1) + 1, lock_version: Number(l.lock_version) + 1 });
+      return l;
+    },
+    "/crm/leads/w1": () => allLeads().find((x) => x.id === "w1"),
+    "/crm/leads/w1/timeline": [],
     "/crm/leads/m1/timeline": () => st.activities,
     "PATCH /crm/leads/m1": (b: Record<string, unknown>) => {
       st.writes.push({ path: "patch", body: b });
@@ -361,8 +383,11 @@ test("lead workspace: status moves follow meta, carry the lock, recover from a v
   const sheet = page.getByRole("dialog", { name: /Taklif/ });
   await sheet.getByRole("textbox", { name: /Sabab/ }).fill("Mijoz bilan gaplashildi");
   await sheet.getByRole("button", { name: "O'tkazish" }).click();
-  // 409: the lead reloads, the banner explains, the typed reason stays.
-  await expect(page.getByText("Siz ishlayotganda lid o'zgardi.").first()).toBeVisible();
+  // 409: the lead reloads, a dialog shows what the other user changed
+  // (never a silent overwrite), and the typed reason stays.
+  const cf = page.getByRole("dialog", { name: "Siz ishlayotganda lid o'zgardi." });
+  await expect(cf).toBeVisible();
+  await cf.getByRole("button", { name: "Tushunarli" }).click();
   await expect(sheet.getByRole("textbox", { name: /Sabab/ })).toHaveValue("Mijoz bilan gaplashildi");
   await sheet.getByRole("button", { name: "O'tkazish" }).click();
   await expect(sheet).toBeHidden();
@@ -567,6 +592,33 @@ test("kanban: without crm.automation.manage there are no status settings; a clai
   await expect.poll(() => st.claims).toEqual(["q1"]);
   await fresh.locator(".crm-kcard").filter({ hasText: "Aliment undirish" }).getByRole("button", { name: "Olish" }).click();
   await expect(page.getByText(/Kimdir tezroq bo'ldi/).first()).toBeVisible();
+});
+
+test("a finished lead reopens as a new cycle; the old cycle keeps its final status", async ({ page }) => {
+  const missing = watchIntl(page);
+  const { st, routes } = crmServer(OPERATOR.permissions ?? []);
+  st.mine = [...st.mine, lead("w1", { status: "won", title: "Nikoh shartnomasi", cycle_number: 1, lock_version: 7, assigned_operator_user_id: ME.id, assigned_operator: ME, allowed_actions: ["view_timeline", "edit", "reopen"], closed_at: "2026-09-20T08:00:00Z" })];
+  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await page.goto("/uz/admin/crm/leads/w1");
+  const head = page.locator(".crm-lhead");
+  await expect(head).toContainText("1-sikl");
+  await head.getByRole("button", { name: "Qayta ochish" }).click();
+  const sheet = page.getByRole("dialog", { name: /qayta ochish/ });
+  await sheet.getByRole("button", { name: "Qayta ochish" }).click();
+  await expect(sheet).toContainText("Murojaat matnini yozing.");
+  await sheet.getByRole("textbox").first().fill("Yana murojaat: shartnomaga o'zgartirish");
+  await sheet.getByRole("button", { name: "Qayta ochish" }).click();
+  await expect.poll(() => st.writes.find((w) => w.path === "reopen:w1")?.body).toMatchObject({ inquiry: "Yana murojaat: shartnomaga o'zgartirish", source: "phone", expected_lock_version: 7 });
+  await expect(head).toContainText("2-sikl");
+  await wsTab(page, /Tarix/);
+  await page.getByRole("tab", { name: /Sikllar/ }).click();
+  const cycles = page.locator(".crm-cycles li");
+  await expect(cycles).toHaveCount(2);
+  await expect(cycles.nth(1)).toContainText("Yutildi");
+  await expect(cycles.first()).toContainText("Joriy");
+  await expect(page.locator(".crm-shist")).toContainText("Holat o'zgardi");
+  await shot(page, "history");
+  expect(missing).toEqual([]);
 });
 
 test("no page refetches by itself: once loaded, every CRM screen stays quiet", async ({ page }) => {

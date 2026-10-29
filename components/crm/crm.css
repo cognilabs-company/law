@@ -866,3 +866,32 @@ html[data-theme="dark"] .amodal__f:has(.crm-btn) { --crm-acc: var(--dk-acc, #6ea
 .crm-orderstate > span:last-child { padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--crm-warn) 14%, transparent); color: var(--crm-warn); font-weight: 700; font-size: .76rem; }
 .crm-orderstate[data-paid] > span:last-child { background: color-mix(in srgb, var(--crm-ok) 14%, transparent); color: var(--crm-ok); }
 .crm-bad { color: var(--crm-bad); }
+/* Lead cycles and history, the conflict dialog (contract 13cb257 §2, §3). */
+.crm-cyclebadge { padding: 2px 9px; border-radius: 999px; background: rgb(255 255 255 / 18%); color: #fff; font: 700 .7rem/1.6 var(--fb); }
+.crm-panes { display: flex; gap: 6px; padding: 4px; border-radius: 12px; background: var(--crm-soft); overflow-x: auto; scrollbar-width: none; }
+.crm-panes::-webkit-scrollbar { display: none; }
+.crm-panes button { display: inline-flex; align-items: center; gap: 6px; flex: none; height: 34px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--crm-muted); font: 700 .8rem/1 var(--fb); cursor: pointer; }
+.crm-panes button svg { width: 14px; height: 14px; }
+.crm-panes button[aria-selected="true"] { background: var(--crm-card); color: var(--crm-ink); box-shadow: var(--crm-shadow); }
+.crm-hist { display: grid; gap: 12px; min-width: 0; }
+.crm-cycles, .crm-shist { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.crm-cycles li { --sc: var(--crm-acc); display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 12px; border-radius: 14px; background: var(--crm-card); box-shadow: inset 0 0 0 1px var(--crm-line); }
+.crm-cycles li[data-current] { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--crm-acc) 55%, var(--crm-line)); }
+.crm-cycles li > i { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: color-mix(in srgb, var(--sc) 14%, transparent); color: var(--sc); }
+.crm-cycles li > i svg { width: 16px; height: 16px; }
+.crm-cycles li > span { display: grid; gap: 3px; min-width: 0; }
+.crm-cycles b { display: flex; align-items: center; gap: 8px; font-size: .86rem; }
+.crm-cycles small { color: var(--crm-muted); font-size: .74rem; }
+.crm-cycles p { margin: 2px 0 0; font-size: .82rem; line-height: 1.45; overflow-wrap: anywhere; white-space: pre-wrap; }
+.crm-cycles__now { padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--crm-acc) 14%, transparent); color: var(--crm-acc); font: 700 .66rem/1.6 var(--fb); font-style: normal; }
+.crm-shist li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 12px; background: var(--crm-soft); }
+.crm-shist li > span { display: grid; gap: 2px; min-width: 0; }
+.crm-shist b { font-size: .82rem; }
+.crm-shist small { font-size: .74rem; overflow-wrap: anywhere; }
+.crm-conflict { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.crm-conflict li { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 4px 8px; padding: 10px; border-radius: 12px; background: var(--crm-soft); }
+.crm-conflict small { grid-column: 1 / -1; color: var(--crm-muted); font: 700 .7rem/1.4 var(--fb); text-transform: uppercase; letter-spacing: .04em; }
+.crm-conflict del { color: var(--crm-bad); overflow-wrap: anywhere; }
+.crm-conflict ins { color: var(--crm-ok); text-decoration: none; font-weight: 700; overflow-wrap: anywhere; }
+.crm-conflict svg { width: 14px; height: 14px; color: var(--crm-muted); }
+@media (max-width: 560px) { .crm-cycles li { grid-template-columns: 34px minmax(0, 1fr); } .crm-cycles li > .crm-pill { grid-column: 2; justify-self: start; } }
