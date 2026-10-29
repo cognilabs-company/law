@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { IconAward } from "@/components/icons";
 import QueueHead from "./QueueHead";
-import PersonName from "@/components/ui/PersonName";
+import QueueSeller from "./QueueSeller";
 import ListPager from "@/components/ui/ListPager";
 import Segmented from "@/components/ui/Segmented";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
@@ -111,7 +111,7 @@ export function ExperienceQueue({ onCount }: { onCount?: (n: number) => void }):
             {items.map((it) => (
               <li key={it.id} data-open={open === it.id || undefined} data-kind={it.kind}>
                 <button type="button" className="xpr__qrow" onClick={() => setOpen(open === it.id ? "" : it.id)} aria-expanded={open === it.id}>
-                  <b>{it.sellerName || it.sellerUserId ? <PersonName id={it.sellerUserId} name={it.sellerName} /> : t("seller")}</b>
+                  <QueueSeller seller={it.seller} fallback={t("seller")} />
                   <span>{[it.workplace, it.kind === "pre_advocate_employment" ? tp(`kind.${it.kind}`) : catName(it.categoryId)].filter(Boolean).join(" · ")}</span>
                   <span>{it.sourceId ? t("revision", { n: it.version ?? 2 }) : t("newRecord")}</span>
                   <time>{it.submittedAt ? dateOnly(it.submittedAt, locale) : ""}</time>

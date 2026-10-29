@@ -60,8 +60,8 @@ export default function PublicAchievements({ sellerId }: { sellerId: string }): 
               <IconAward />
             </span>
             <span className="mk-ach__m">
-              <b>{L.stage(a.stage) || L.result(a.result)}</b>
-              <small>{[L.stage(a.stage) ? L.result(a.result) : "", cat(a), a.year ? String(a.year) : ""].filter(Boolean).join(" · ")}</small>
+              <b>{L.stage(a.stage, a.stageLabel) || L.result(a.result, a.resultLabel)}</b>
+              <small>{[L.stage(a.stage, a.stageLabel) ? L.result(a.result, a.resultLabel) : "", cat(a), a.year ? String(a.year) : ""].filter(Boolean).join(" · ")}</small>
               {a.publicDescription ? <p>{a.publicDescription}</p> : null}
               {a.verified ? (
                 <em className="mk-ach__ok">

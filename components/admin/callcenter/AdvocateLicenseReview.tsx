@@ -10,7 +10,7 @@ import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
 import DatePicker from "@/components/DatePicker";
 import { IconCalendar, IconClose, IconEdit, IconFileText, IconPaperclip, IconPause, IconShieldCheck, IconSparkle, IconTrash, IconUpload } from "@/components/icons";
 import QueueHead from "./QueueHead";
-import PersonName from "@/components/ui/PersonName";
+import QueueSeller from "./QueueSeller";
 import ListPager from "@/components/ui/ListPager";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
@@ -378,7 +378,7 @@ export function AdvocateLicenseQueue({ onCount }: { onCount?: (n: number) => voi
             {items.map((it) => (
               <li key={it.id} data-open={open === it.id || undefined}>
                 <button type="button" className="xpr__qrow" onClick={() => setOpen(open === it.id ? "" : it.id)} aria-expanded={open === it.id}>
-                  <b>{it.sellerName || it.sellerUserId ? <PersonName id={it.sellerUserId} name={it.sellerName || it.holderName} /> : it.holderName || t("seller")}</b>
+                  <QueueSeller seller={it.seller} fallback={it.holderName || t("seller")} />
                   <span>{[it.issuingAuthority, it.statusStartedAt ? t("since", { date: dateOnly(it.statusStartedAt, locale) }) : ""].filter(Boolean).join(" · ")}</span>
                   <span>{ts.has(it.status) ? ts(it.status) : ""}</span>
                   <time>{it.submittedAt ? dateOnly(it.submittedAt, locale) : ""}</time>

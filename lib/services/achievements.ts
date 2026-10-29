@@ -86,6 +86,10 @@ export type Achievement = {
   status: AchievementStatus;
   stage: string;
   result: string;
+  // The record's own labels once the backend sends them (follow-up 2);
+  // null until then, and the screens fall back.
+  stageLabel: Labelled | null;
+  resultLabel: Labelled | null;
   categoryId: string;
   categoryTitle: string;
   // YYYY-MM-DD, as sent.
@@ -105,17 +109,23 @@ const statusOf = (v: unknown): AchievementStatus => {
   return (ACHIEVEMENT_STATUSES as readonly string[]).includes(s) ? (s as AchievementStatus) : "other";
 };
 export const isPendingStatus = (s: AchievementStatus) => s === "ai_analysis_pending" || s === "pending_review";
-// ai_analysis_status / ai_analysis.status → what the advocate is told.
+// ai_analysis_status (backend check 2026-10-29: exactly pending | completed |
+// manual_review_required) → what is shown. Anything else is left to the
+// operator, never read as done.
 export function aiStateOf(v: unknown): AiState {
-  const s = asStr(v).toLowerCase();
+  const s = asStr(v);
   if (!s) return "";
-  if (s === "pending" || s === "processing" || s === "queued" || s === "running") return "running";
-  if (s === "failed" || s === "manual_review_required" || s === "skipped") return "manual";
-  return "done";
+  return s === "pending" ? "running" : s === "completed" ? "done" : "manual";
 }
 export function evidenceOf(v: unknown): ExperienceEvidence {
   const d = asDict(v);
   return { id: asStr(d.id), fileName: asStr(d.file_name), mimeType: asStr(d.mime_type), size: num(d.size), downloadUrl: asStr(d.download_url) };
+}
+// process_stage_label + process_stage_label_i18n (the config's warning /
+// warning_i18n pattern); null when absent.
+export function recordLabelOf(d: Record<string, unknown>, field: "process_stage" | "result_scope"): Labelled | null {
+  const l = labelledOf({ label: d[`${field}_label`], label_i18n: d[`${field}_label_i18n`] });
+  return l.label || Object.keys(l.i18n).length ? l : null;
 }
 export function achievementOf(v: unknown): Achievement | null {
   const d = asDict(v);
@@ -129,6 +139,8 @@ export function achievementOf(v: unknown): Achievement | null {
     status: statusOf(d.status),
     stage: asStr(d.process_stage),
     result: asStr(d.result_scope),
+    stageLabel: recordLabelOf(d, "process_stage"),
+    resultLabel: recordLabelOf(d, "result_scope"),
     categoryId: asStr(d.category_id),
     categoryTitle: asStr(d.category_title),
     achievedAt: day(d.achieved_at),
@@ -220,7 +232,7 @@ export function achievementErrorOf(e: unknown): { code: string; field: Achieveme
 }
 
 // ── The public profile (§5): approved, operator-approved text only ──
-export type PublicAchievement = { id: string; stage: string; result: string; categoryTitle: string; year: number | null; publicDescription: string; verified: boolean; verifiedAt: string };
+export type PublicAchievement = { id: string; stage: string; result: string; stageLabel: Labelled | null; resultLabel: Labelled | null; categoryTitle: string; year: number | null; publicDescription: string; verified: boolean; verifiedAt: string };
 export function publicAchievementOf(v: unknown): PublicAchievement | null {
   const x = asDict(v);
   const id = asStr(x.id);
@@ -229,6 +241,8 @@ export function publicAchievementOf(v: unknown): PublicAchievement | null {
     id,
     stage: asStr(x.process_stage),
     result: asStr(x.result_scope),
+    stageLabel: recordLabelOf(x, "process_stage"),
+    resultLabel: recordLabelOf(x, "result_scope"),
     categoryTitle: asStr(x.category_title),
     year: num(x.year),
     publicDescription: asStr(x.public_description),
@@ -241,12 +255,14 @@ export async function listPublicAchievements(sellerUserId: string, opts: { limit
 }
 
 // ── Call center (§6) ──
-export type AchievementQueueItem = Achievement & { sellerUserId: string; sellerName: string };
+// A queue row's advocate: seller { id, lexgo_id, name, phone, role,
+// account_status } (backend check 2026-10-29).
+export type AchievementQueueItem = Achievement & { sellerUserId: string; seller: ReviewSeller | null };
 export const queueItemOf = (v: unknown): AchievementQueueItem | null => {
   const it = achievementOf(v);
   if (!it) return null;
-  const d = asDict(v);
-  return { ...it, sellerUserId: asStr(d.seller_user_id), sellerName: asStr(asDict(d.seller).name) };
+  const seller = reviewSellerOf(asDict(v).seller);
+  return { ...it, sellerUserId: seller?.id ?? "", seller };
 };
 export async function listAchievementQueue(opts: { status?: string; sellerUserId?: string; offset?: number; limit?: number } = {}, signal?: AbortSignal): Promise<Page<AchievementQueueItem>> {
   const qs = query({ status: opts.status ?? "pending_review", seller_user_id: opts.sellerUserId, limit: opts.limit ?? 50, offset: opts.offset ?? 0 });

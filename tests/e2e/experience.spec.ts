@@ -92,7 +92,7 @@ test("a lawyer adds a workplace with two positions and evidence; no old stages o
 
 const reviewRoutes = (decisions: unknown[], rooms: string[]) => ({
   "/service-categories": CATS,
-  "/call-center/marketplace/experience": { items: [rec({ id: "e9", root_id: "r1", source_id: "e1", status: "pending_review", version: 2, seller_user_id: "u-adv", seller: { id: "u-adv", name: "Test Advokat" }, submitted_at: "2026-10-24T08:00:00Z" })], total: 1 },
+  "/call-center/marketplace/experience": { items: [rec({ id: "e9", root_id: "r1", source_id: "e1", status: "pending_review", version: 2, seller: { id: "u-adv", lexgo_id: "LGA-7K2Q", name: "Test Advokat", phone: "+998901112233", role: "advokat", account_status: "active" }, submitted_at: "2026-10-24T08:00:00Z" })], total: 1 },
   "/call-center/marketplace/experience/e9": {
     record: rec({ id: "e9", root_id: "r1", source_id: "e1", status: "pending_review", version: 2, workplace: "Yangi joy", evidence: [{ id: "ev1", file_name: "buyruq.pdf" }] }),
     previous_approved_revision: rec({ id: "e1", root_id: "r1", status: "approved", version: 1, workplace: "Eski joy" }),
@@ -270,7 +270,7 @@ const CHECKS = [
 ].map(([key, uz, ru]) => ({ key, label: uz, hint: uz, label_i18n: { uz_latn: uz, ru } }));
 const ccAch = (decided: unknown[], record: Record<string, unknown>, ai: Record<string, unknown>) => ({
   "/service-categories": CATS,
-  "/call-center/marketplace/achievements": { items: [{ ...record, seller_user_id: "u-adv", seller: { id: "u-adv", name: "Test Advokat" }, submitted_at: "2026-10-28T08:00:00Z" }], total: 1, count: 1, limit: 50, offset: 0, has_more: false },
+  "/call-center/marketplace/achievements": { items: [{ ...record, seller: { id: "u-adv", lexgo_id: "LGA-7K2Q", name: "Test Advokat", phone: "+998901112233", role: "advokat", account_status: "active" }, submitted_at: "2026-10-28T08:00:00Z" }], total: 1, count: 1, limit: 50, offset: 0, has_more: false },
   "/call-center/marketplace/achievements/a2": {
     record: { ...record, evidence: [{ id: "av1", file_name: "qaror.pdf", download_url: "/marketplace/achievements/evidence/av1" }] },
     seller: { id: "u-adv", name: "Test Advokat", phone: "+998901112233", lexgo_id: "LGA-7K2Q", role: "advokat", account_status: "active" },

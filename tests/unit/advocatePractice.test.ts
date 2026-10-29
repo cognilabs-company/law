@@ -11,8 +11,9 @@ import {
   fileIssue,
   groupPageOf,
   publicAchievementOf,
+  queueItemOf,
 } from "@/lib/services/achievements";
-import { licenseAnalyzedOf, licenseBody, licenseErrorOf, licenseEvidenceOf, licenseIssue, practiceOf, suspensionBody } from "@/lib/services/advocatePractice";
+import { licenseAnalyzedOf, licenseBody, licenseRecordOf, licenseErrorOf, licenseEvidenceOf, licenseIssue, practiceOf, suspensionBody } from "@/lib/services/advocatePractice";
 import { checkItemsOf, experienceBody, experienceItemOf, historyOf, reviewOf, reviewRoomOf } from "@/lib/services/experience";
 import { verifiedAdvocateYears } from "@/lib/services/tenure";
 import { achievementIssue } from "@/components/portal/AchievementsPanel";
@@ -71,7 +72,14 @@ describe("advocate's achievements (§3–4)", () => {
     const a = achievementOf(item({ status: "changes_requested", rejection_reason: "Qaror o'qilmaydi", ai_analysis_status: "completed" }))!;
     expect([a.status, a.stage, a.result, a.categoryTitle, a.achievedAt, a.version, a.sourceId, a.reason, a.ai]).toEqual(["changes_requested", "court", "full", "Jinoyat ishlari", "2026-10-20", 2, "a1", "Qaror o'qilmaydi", "done"]);
     expect(a.evidence[0]).toEqual({ id: "e1", fileName: "decision.pdf", mimeType: "application/pdf", size: 12345, downloadUrl: "/marketplace/achievements/evidence/e1" });
-    expect(achievementOf(item({ ai_analysis_status: "pending" }))!.ai).toBe("running");
+    // Exactly pending | completed | manual_review_required (check 2026-10-29);
+    // anything else is left to the operator, never "done".
+    expect(["pending", "completed", "manual_review_required", "processing", ""].map((x) => achievementOf(item({ ai_analysis_status: x }))!.ai)).toEqual(["running", "done", "manual", "manual", ""]);
+  });
+  it("record labels win once the backend sends them; until then none", () => {
+    expect(achievementOf(item())!.stageLabel).toBeNull();
+    const a = achievementOf(item({ process_stage_label: "Sud jarayoni", process_stage_label_i18n: { ru: "Судебный процесс" } }))!;
+    expect(labelIn(a.stageLabel, "ru")).toBe("Судебный процесс");
   });
   it("submits the §3 body: plain day, source_id null for a new record", () => {
     expect(achievementBody({ stage: "court", result: "full", categoryId: "category-uuid", achievedOn: "2026-10-20", description: " What was achieved ", evidenceIds: ["evidence-uuid"] })).toEqual({
@@ -96,7 +104,7 @@ describe("advocate's achievements (§3–4)", () => {
   });
   it("the public card keeps public_description only, never the private text (§5)", () => {
     const p = publicAchievementOf({ id: "a1", process_stage: "court", result_scope: "partial", category_title: "Oila", year: 2025, public_description: "Xavfsiz matn", description: "Maxfiy matn", lexgo_verified: true, verified_at: "2025-07-01T10:00:00Z", evidence: [{ id: "e" }] })!;
-    expect(p).toEqual({ id: "a1", stage: "court", result: "partial", categoryTitle: "Oila", year: 2025, publicDescription: "Xavfsiz matn", verified: true, verifiedAt: "2025-07-01T10:00:00Z" });
+    expect(p).toEqual({ id: "a1", stage: "court", result: "partial", stageLabel: null, resultLabel: null, categoryTitle: "Oila", year: 2025, publicDescription: "Xavfsiz matn", verified: true, verifiedAt: "2025-07-01T10:00:00Z" });
   });
 });
 
@@ -129,6 +137,11 @@ describe("review (§6–8)", () => {
   });
   it("renders the §8 checklist as given", () => {
     expect(checkItemsOf([CHECK])).toEqual([{ key: "evidence_supports_claim", label: "Dalillar ma’lumotni tasdiqlaydi", hint: "Dalillar ma’lumotni tasdiqlaydi", i18n: { uz_latn: "...", uz_cyrl: "...", ru: "..." } }]);
+  });
+  it("a queue row's advocate is the seller object (check 2026-10-29)", () => {
+    const row = queueItemOf({ ...item(), seller: { id: "u-adv", lexgo_id: "LGA-7K2Q", name: "Test Advokat", phone: "+998901112233", role: "advokat", account_status: "blocked" } })!;
+    expect([row.sellerUserId, row.seller]).toEqual(["u-adv", { id: "u-adv", name: "Test Advokat", lexgoId: "LGA-7K2Q", phone: "+998901112233", role: "advokat", status: "blocked" }]);
+    expect(licenseRecordOf({ id: "lv1", status: "pending_review", seller: { id: "u-adv", name: "Test Advokat" } })!.sellerUserId).toBe("u-adv");
   });
   it("the review room, history and past reviews", () => {
     expect(reviewRoomOf(ROOM)).toEqual({ roomId: "room-1", status: "", readOnly: false, closedAt: "" });

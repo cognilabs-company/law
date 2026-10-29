@@ -38,3 +38,10 @@
 .xpr__list li[data-verdict="approved"] { border-color: color-mix(in srgb, #16a34a 45%, transparent); }
 .xpr__verdicts label:has(input:disabled) { opacity: .45; cursor: not-allowed; }
 @media (max-width: 720px) { .xpr__cmp { grid-template-columns: 1fr; } .xpr__qrow { grid-template-columns: 1fr auto; } }
+/* The advocate on a queue row: name, LexGo ID / phone, role and state. */
+.xpr__who { display: grid; gap: 3px; min-width: 0; }
+.xpr__who > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.xpr__who > small { color: var(--gray); font-size: .74rem; font-variant-numeric: tabular-nums; }
+.xpr__who .vrf__stags i { font-size: .68rem; padding: 1px 7px; }
+.xpr__who > small { overflow-wrap: anywhere; }
+@media (max-width: 720px) { .xpr__qrow > .xpr__who { grid-column: 1 / -1; } }

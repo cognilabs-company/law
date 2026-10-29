@@ -458,8 +458,8 @@ export default function AchievementsPanel(): ReactElement | null {
                     <SIcon />
                   </span>
                   <div className="exp__card-t">
-                    <b>{L.stage(a.stage)}</b>
-                    <small>{L.result(a.result)}</small>
+                    <b>{L.stage(a.stage, a.stageLabel)}</b>
+                    <small>{L.result(a.result, a.resultLabel)}</small>
                   </div>
                   {a.status !== "superseded" ? (
                     <button

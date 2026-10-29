@@ -188,7 +188,7 @@ test("pre-advocate employment is its own section: no category, never mixed in", 
 
 test("the operator's experience queue filters the kind on the backend", async ({ page }) => {
   const kinds: string[] = [];
-  const row = { id: "p9", root_id: "p9", status: "pending_review", version: 1, experience_kind: "pre_advocate_employment", workplace: "Ichki ishlar vazirligi", positions: [], seller_user_id: "u-adv", seller: { id: "u-adv", name: "Test Advokat" }, submitted_at: "2026-10-28T08:00:00Z" };
+  const row = { id: "p9", root_id: "p9", status: "pending_review", version: 1, experience_kind: "pre_advocate_employment", workplace: "Ichki ishlar vazirligi", positions: [], seller: { id: "u-adv", lexgo_id: "LGA-7K2Q", name: "Test Advokat", phone: "+998901112233", role: "advokat", account_status: "active" }, submitted_at: "2026-10-28T08:00:00Z" };
   await mockBackend(
     page,
     await signIn(page, CALL_CENTER, {
@@ -223,7 +223,7 @@ test("the operator verifies a certificate, talks to the advocate, records and ar
   await mockBackend(
     page,
     await signIn(page, CALL_CENTER, {
-      "/call-center/marketplace/advocate-licenses": { items: [{ ...record, seller: { id: "u-adv", name: "Test Advokat" } }], total: 1, count: 1, limit: 50, offset: 0, has_more: false },
+      "/call-center/marketplace/advocate-licenses": { items: [{ ...record, seller: { id: "u-adv", lexgo_id: "LGA-7K2Q", name: "Test Advokat", phone: "+998901112233", role: "advokat", account_status: "active" } }], total: 1, count: 1, limit: 50, offset: 0, has_more: false },
       "/call-center/marketplace/advocate-licenses/lv1": {
         record,
         seller: { id: "u-adv", name: "Test Advokat", phone: "+998901112233", lexgo_id: "LGA-7K2Q", role: "advokat", account_status: "active" },

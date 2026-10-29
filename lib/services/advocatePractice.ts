@@ -167,7 +167,8 @@ export type LicenseRecord = LicenseFields & {
   status: LicenseStatus;
   version: number | null;
   sellerUserId: string;
-  sellerName: string;
+  // seller { id, lexgo_id, name, phone, role, account_status } (check 2026-10-29).
+  seller: ReviewSeller | null;
   submittedAt: string;
   reason: string;
 };
@@ -176,12 +177,13 @@ export function licenseRecordOf(v: unknown): LicenseRecord | null {
   const id = asStr(d.id);
   if (!id) return null;
   const st = verificationStatusOf(d.status);
+  const seller = reviewSellerOf(d.seller);
   return {
     id,
     status: st === "not_submitted" ? "other" : st,
     version: num(d.version),
-    sellerUserId: asStr(d.seller_user_id),
-    sellerName: asStr(asDict(d.seller).name),
+    sellerUserId: seller?.id ?? "",
+    seller,
     ...licenseFieldsOf(d),
     submittedAt: asStr(d.submitted_at),
     reason: asStr(d.rejection_reason),

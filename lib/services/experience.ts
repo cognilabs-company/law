@@ -215,9 +215,9 @@ export async function cancelExperience(experienceId: string): Promise<void> {
 }
 
 export type ExperienceReviewEntry = { id: string; decision: "approved" | "rejected" | "changes_requested" | ""; reason: string; checklist: { key: string; verdict: string; note: string }[]; reviewedAt: string };
-// One past review. The contract names the request words (approve / reject)
-// and the stored ones (approved / rejected) but not which `reviews[].decision`
-// carries, so both read as the stored decision (follow-up question 1).
+// One past review. Temporary until the backend normalizes reviews[].decision
+// (check 2026-10-29: achievements/certificates send approve / reject,
+// experience approved / rejected): both read as the stored decision here.
 const DECIDED: Record<string, ExperienceReviewEntry["decision"]> = { approve: "approved", approved: "approved", reject: "rejected", rejected: "rejected", changes_requested: "changes_requested" };
 export const reviewOf = (v: unknown): ExperienceReviewEntry => {
   const d = asDict(v);
@@ -308,13 +308,14 @@ export function reviewRoomOf(v: unknown): ReviewRoom | null {
   return { roomId, status, readOnly: status === "read_only" || status === "closed", closedAt: asStr(d.closed_at) };
 }
 
-export type ExperienceQueueItem = ExperienceItem & { sellerUserId: string; sellerName: string };
+// A queue row's advocate: seller { id, lexgo_id, name, phone, role,
+// account_status } (backend check 2026-10-29).
+export type ExperienceQueueItem = ExperienceItem & { sellerUserId: string; seller: ReviewSeller | null };
 const queueItemOf = (v: unknown): ExperienceQueueItem | null => {
   const it = experienceItemOf(v);
   if (!it) return null;
-  const d = asDict(v);
-  const seller = asDict(d.seller);
-  return { ...it, sellerUserId: asStr(d.seller_user_id), sellerName: asStr(seller.name) };
+  const seller = reviewSellerOf(asDict(v).seller);
+  return { ...it, sellerUserId: seller?.id ?? "", seller };
 };
 export { queueItemOf as experienceQueueItemOf };
 

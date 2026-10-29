@@ -5,7 +5,7 @@ import { useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { IconAlert, IconCheck, IconCircleX, IconMinus, IconSparkle, IconStar } from "@/components/icons";
 import QueueHead from "./QueueHead";
-import PersonName from "@/components/ui/PersonName";
+import QueueSeller from "./QueueSeller";
 import ListPager from "@/components/ui/ListPager";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import { useAchievementLabels } from "@/components/portal/achievementLabels";
@@ -164,8 +164,8 @@ function AchievementReview({ id, onDone }: { id: string; onDone: () => void }): 
       const it = raw as AchievementQueueItem | null;
       if (!it) return [];
       return [
-        { label: t("stageLabel"), value: L.stage(it.stage) },
-        { label: t("resultLabel"), value: L.result(it.result) },
+        { label: t("stageLabel"), value: L.stage(it.stage, it.stageLabel) },
+        { label: t("resultLabel"), value: L.result(it.result, it.resultLabel) },
         { label: t("category"), value: it.categoryTitle || catName(it.categoryId) },
         { label: t("date"), value: it.achievedAt ? dateOnly(it.achievedAt, locale) : "" },
         { label: t("version"), value: it.version ? String(it.version) : "" },
@@ -218,8 +218,8 @@ export function AchievementQueue({ onCount }: { onCount?: (n: number) => void })
             {items.map((it) => (
               <li key={it.id} data-open={open === it.id || undefined}>
                 <button type="button" className="xpr__qrow" onClick={() => setOpen(open === it.id ? "" : it.id)} aria-expanded={open === it.id}>
-                  <b>{it.sellerName || it.sellerUserId ? <PersonName id={it.sellerUserId} name={it.sellerName} /> : t("seller")}</b>
-                  <span>{[L.stage(it.stage), L.result(it.result), it.categoryTitle || catName(it.categoryId)].filter(Boolean).join(" · ")}</span>
+                  <QueueSeller seller={it.seller} fallback={t("seller")} />
+                  <span>{[L.stage(it.stage, it.stageLabel), L.result(it.result, it.resultLabel), it.categoryTitle || catName(it.categoryId)].filter(Boolean).join(" · ")}</span>
                   <span>{[it.sourceId ? t("revision") : t("newRecord"), q.status ? "" : L.status(it.status)].filter(Boolean).join(" · ")}</span>
                   <time>{it.submittedAt ? dateOnly(it.submittedAt, locale) : ""}</time>
                 </button>
