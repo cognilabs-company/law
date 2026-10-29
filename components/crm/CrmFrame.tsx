@@ -10,8 +10,6 @@ import { saveBlob } from "@/lib/download";
 import { isAborted, logApiError } from "@/lib/http";
 import { notify, toast } from "@/lib/toast";
 import {
-  EXPORT_SCOPES,
-  createCrmExport,
   createCrmLead,
   crmCan,
   downloadCrmExport,
@@ -23,11 +21,12 @@ import {
   type CrmMeta,
   type CustomerOption,
 } from "@/lib/services/crm";
-import { dismissCrmExport, loadCrmMeta, refreshCrmExport, trackCrmExport, useCrmEvents, useCrmExports, useCrmMeta } from "@/lib/crm/useCrm";
-import { CrmTop, Empty, SkeletonRows, statusColorVars, useCrmError, useStatusLabel, type CrmBack } from "./bits";
+import { dismissCrmExport, loadCrmMeta, refreshCrmExport, useCrmEvents, useCrmExports, useCrmMeta } from "@/lib/crm/useCrm";
+import { CrmTop, Empty, SkeletonRows, statusColorVars, useCrmError, type CrmBack } from "./bits";
 import { CustomerPicker, NewCustomerModal, optionOfCustomer } from "./CustomerPicker";
-import { CrmDate, CrmDateTime, CrmSelect } from "./fields";
+import { CrmDateTime, CrmSelect } from "./fields";
 import { sectionOk, type CrmSectionKey } from "./sections";
+import { ExportForm } from "./CrmExports";
 
 type Sheet = "" | "lead" | "customer" | "export";
 export type CrmApi = { meta: CrmMeta; open: (s: Exclude<Sheet, "">, preset?: { customerId?: string; customerName?: string }) => void };
@@ -36,7 +35,7 @@ export type CrmApi = { meta: CrmMeta; open: (s: Exclude<Sheet, "">, preset?: { c
 // sheets and the export tray. `children` gets the meta and the openers.
 // `section`: the page's CRM section; without its permission the page shows
 // only a "no access" state (contract 13cb257 §20).
-export default function CrmFrame({ title, tools, back, section, children }: { title?: string; tools?: (api: CrmApi) => ReactNode; back?: CrmBack; section?: CrmSectionKey; children: (api: CrmApi) => ReactNode }): ReactElement {
+export default function CrmFrame({ title, tools, back, section, noTray, children }: { title?: string; tools?: (api: CrmApi) => ReactNode; back?: CrmBack; section?: CrmSectionKey; noTray?: boolean; children: (api: CrmApi) => ReactNode }): ReactElement {
   const t = useTranslations("crm");
   const { meta, error } = useCrmMeta();
   const [palette, setPalette] = useState(false);
@@ -100,7 +99,7 @@ export default function CrmFrame({ title, tools, back, section, children }: { ti
           <Empty icon={<IconLock />} title={t("denied")} text={t("sectionDenied")} />
         </div>
       )}
-      <ExportTray />
+      {noTray ? null : <ExportTray />}
       {palette ? <Palette api={api} onClose={() => setPalette(false)} /> : null}
       {sheet === "lead" ? <LeadSheet meta={api.meta} preset={preset} onClose={() => setSheet("")} /> : null}
       {sheet === "customer" ? <CustomerSheet meta={api.meta} onClose={() => setSheet("")} /> : null}
@@ -327,73 +326,9 @@ function ExportTray(): ReactElement | null {
 
 function ExportSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void }): ReactElement {
   const t = useTranslations("crm.export");
-  const label = useStatusLabel();
-  const crmErr = useCrmError();
-  const [scope, setScope] = useState<string>("leads");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [status, setStatus] = useState("");
-  const [busy, setBusy] = useState(false);
-  const submit = async () => {
-    if (busy) return;
-    setBusy(true);
-    try {
-      // The backend applies every filter and the viewer's scope (§9).
-      const job = await createCrmExport({ scope, from: from ? new Date(from).toISOString() : "", to: to ? new Date(to).toISOString() : "", status: scope === "leads" ? status : "" });
-      trackCrmExport(job);
-      toast(t("started"), { tone: "ok" });
-      onClose();
-    } catch (e) {
-      toast(crmErr(e), { tone: "err" });
-    } finally {
-      setBusy(false);
-    }
-  };
   return (
-    <Modal
-      open
-      onClose={onClose}
-      title={t("title")}
-      description={t("lead")}
-      busy={busy}
-      footer={
-        <>
-          <button type="button" className="crm-btn" onClick={onClose}>
-            {t("cancel")}
-          </button>
-          <button type="button" className="crm-btn crm-btn--pri" onClick={() => void submit()} aria-busy={busy || undefined} disabled={busy}>
-            <IconDownload aria-hidden="true" />
-            {t("create")}
-          </button>
-        </>
-      }
-    >
-      <div className="crm-pop">
-        <div className="crm-seg" role="group" aria-label={t("scopeLabel")}>
-          {EXPORT_SCOPES.map((s) => (
-            <button key={s} type="button" aria-pressed={scope === s} onClick={() => setScope(s)}>
-              {t(`scope.${s}`)}
-            </button>
-          ))}
-        </div>
-        <div className="crm-row2">
-          <div className="crm-field">
-            <span>{t("from")}</span>
-            <CrmDate value={from} onChange={setFrom} label={t("from")} />
-          </div>
-          <div className="crm-field">
-            <span>{t("to")}</span>
-            <CrmDate value={to} onChange={setTo} label={t("to")} />
-          </div>
-        </div>
-        {scope === "leads" ? (
-          <div className="crm-field">
-            <span>{t("status")}</span>
-            <CrmSelect value={status} onChange={setStatus} label={t("status")} options={[{ value: "", label: t("anyStatus") }, ...meta.statuses.map((s) => ({ value: s, label: label(s) }))]} />
-          </div>
-        ) : null}
-        <p className="crm-sub">{t("note")}</p>
-      </div>
+    <Modal open onClose={onClose} title={t("title")} description={t("lead")}>
+      <ExportForm meta={meta} onCreated={onClose} />
     </Modal>
   );
 }

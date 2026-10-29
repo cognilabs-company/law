@@ -895,3 +895,22 @@ html[data-theme="dark"] .amodal__f:has(.crm-btn) { --crm-acc: var(--dk-acc, #6ea
 .crm-conflict ins { color: var(--crm-ok); text-decoration: none; font-weight: 700; overflow-wrap: anywhere; }
 .crm-conflict svg { width: 14px; height: 14px; color: var(--crm-muted); }
 @media (max-width: 560px) { .crm-cycles li { grid-template-columns: 34px minmax(0, 1fr); } .crm-cycles li > .crm-pill { grid-column: 2; justify-self: start; } }
+/* My performance and cycle metrics (contract 13cb257 §18). */
+.crm-perf { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); }
+.crm-cyclestats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 110px), 1fr)); gap: 8px; margin: 0; }
+.crm-cyclestats div { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--crm-soft); }
+.crm-cyclestats dt { color: var(--crm-muted); font: 700 .7rem/1.4 var(--fb); text-transform: uppercase; letter-spacing: .04em; }
+.crm-cyclestats dd { margin: 0; font: 800 1.3rem/1.2 var(--fd, var(--fb)); font-variant-numeric: tabular-nums; }
+.crm-cyclestats [data-tone="ok"] dd { color: var(--crm-ok); }
+.crm-cyclestats [data-tone="bad"] dd { color: var(--crm-bad); }
+/* The Exports page's job list (contract 13cb257 §19). */
+.crm-jobs { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.crm-jobs .crm-job { animation: none; backdrop-filter: none; box-shadow: inset 0 0 0 1px var(--crm-line); }
+.crm-jobs .crm-job > span { display: grid; gap: 3px; flex: 1; min-width: 0; }
+.crm-jobs .crm-job b { font-size: .84rem; }
+.crm-jobs .crm-job small { color: var(--crm-muted); font-size: .74rem; }
+.crm-job[data-s="ready"] > i { background: var(--crm-ok); }
+.crm-job[data-s="failed"] > i, .crm-job[data-s="expired"] > i { background: var(--crm-bad); }
+.crm-jobbar { position: relative; display: block; height: 4px; border-radius: 999px; background: var(--crm-soft); overflow: hidden; }
+.crm-jobbar::after { content: ""; position: absolute; inset: 0; width: 40%; border-radius: inherit; background: var(--crm-grad); animation: crm-sweep 1.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .crm-jobbar::after { animation: none; width: 100%; opacity: .5; } }
