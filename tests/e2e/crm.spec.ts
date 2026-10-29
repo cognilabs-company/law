@@ -273,6 +273,8 @@ function crmServer(perms: string[], revenue = false) {
       st.ruleWrites.push({ path: "dry", body: b });
       return { rule_id: "r1", matched: true, matched_context: { lead: { status: "qualified", source: "phone" } }, proposed_actions: [{ type: "send_notification", message: "Qayta qo'ng'iroq qiling", recipient: "assigned_operator" }], writes_performed: false };
     },
+    "/crm/live-calls": { items: [{ call: { id: "lc1", status: "in_progress", started_at: new Date(Date.now() - 95_000).toISOString() }, operator: { id: "op-2", name: "Akmal Operator", lexgo_id: "LGCC-2", role: "call_center" }, lead: { id: "m1", work_id: "LEAD-M1", title: "Ijara shartnomasi tekshiruvi", status: "qualified", customer: CUSTOMER } }], count: 1, realtime_channel: "crm:live-calls", privacy: { permission_required: "crm.live_calls.view", audit_required: true } },
+    "/crm/live-calls/lc1": { call: { id: "lc1", status: "in_progress", started_at: new Date(Date.now() - 95_000).toISOString(), transcript: [{ speaker: "customer", text: "Shartnomada kafil bandi bor." }, { speaker: "operator", text: "Uni yurist ko'rib chiqadi." }] }, operator: { id: "op-2", name: "Akmal Operator", lexgo_id: "LGCC-2", role: "call_center" }, lead: { id: "m1", work_id: "LEAD-M1", title: "Ijara shartnomasi tekshiruvi", status: "qualified", customer: CUSTOMER }, ai_suggestions: { reply_drafts: ["Kafil bandi bo'yicha yuristimiz izoh beradi."] } },
     "/crm/automation/runs": { items: [{ id: "run9", rule_id: "r1", rule_name: "Javobsiz qo'ng'iroq", lead_id: "m1", lead_work_id: "LEAD-M1", status: "completed", attempts: 1, scheduled_at: "2026-10-29T10:00:00Z", started_at: "2026-10-29T10:00:01Z", completed_at: "2026-10-29T10:00:02Z", context: {}, result: { notified: true }, error: "" }], total: 1, limit: 30, offset: 0 },
     "POST /crm/leads/m1/sms": (b: Record<string, unknown>) => {
       const x = { id: `s${st.sms.length + 1}`, lead_id: "m1", body: b.body, language: b.language, contact_id: b.contact_id, status: "draft", created_at: new Date().toISOString() };
@@ -756,6 +758,35 @@ test("robots: built with pickers, a draft until a dry run on a real lead; Turn o
   await page.getByRole("tab", { name: "Ishga tushishlar" }).click();
   await expect(page.locator(".crm-runlog")).toContainText("1 urinish");
   expect(missing).toEqual([]);
+});
+
+test("live office: read-only, audited, transcript with lead context and live AI hints; hidden without permission", async ({ page }) => {
+  const missing = watchIntl(page);
+  const { routes } = crmServer([...(OPERATOR.permissions ?? []), "crm.live_calls.view"]);
+  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await page.goto("/uz/admin/crm/live");
+  await expect(page.getByRole("note")).toContainText("Har bir ko'rish jurnalga yoziladi");
+  await page.getByRole("button", { name: /Akmal Operator/ }).click();
+  const d = page.locator(".crm-live__detail");
+  await expect(d.locator(".crm-tscript")).toContainText("Shartnomada kafil bandi bor.");
+  await expect(d).toContainText("LEAD-M1");
+  await expect(d.locator(".crm-live__ai")).toContainText("Kafil bandi bo'yicha yuristimiz izoh beradi.");
+  // Nothing to change from here.
+  await expect(d.getByRole("button")).toHaveCount(0);
+  await shot(page, "live-office");
+  expect(missing).toEqual([]);
+});
+
+test("a hidden section is out of the menu and its URL says no access", async ({ page }) => {
+  const { routes } = crmServer(OPERATOR.permissions ?? []);
+  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await page.goto("/uz/admin/crm/live");
+  await expect(page.locator("[data-denied]")).toContainText("Bu bo'lim sizning ruxsatlaringizga kirmaydi");
+  const nav = page.locator(".crm-nav");
+  await expect(nav.getByRole("link", { name: "Jonli ofis" })).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: "Robotlar" })).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: "Umumiy tahlil" })).toHaveCount(0);
+  await expect(nav.getByRole("link", { name: "Lidlar" })).toHaveCount(1);
 });
 
 test("a finished lead reopens as a new cycle; the old cycle keeps its final status", async ({ page }) => {

@@ -873,6 +873,36 @@ export async function approveSms(smsId: string, body?: string): Promise<CrmSms> 
   return crmSmsOf(await http(`/crm/sms/${enc(smsId)}/approve`, { method: "POST", body: JSON.stringify({ body: body === undefined ? null : body.trim() }) }));
 }
 
+// ── Live Office (§14, crm.live_calls.view) ──
+// Read-only and audited: every view is logged by the backend.
+export type LiveCall = { id: string; status: string; startedAt: string; durationSec: number | null; operator: CrmPerson | null; lead: CrmLead | null; customerName: string; transcript: CallSegment[]; suggestions: Dict };
+export function liveCallOf(v: unknown): LiveCall {
+  const d = asDict(v);
+  const call = Object.keys(asDict(d.call)).length ? asDict(d.call) : d;
+  const lead = asDict(d.lead ?? call.lead);
+  const ai = asDict(d.ai_suggestions ?? d.live_ai ?? asDict(d.ai_run).output ?? asDict(d.latest_ai_run).output ?? d.suggestions);
+  return {
+    id: asStr(call.id ?? d.call_id),
+    status: asStr(call.status),
+    startedAt: asStr(call.started_at ?? call.created_at),
+    durationSec: num(call.duration_seconds ?? call.duration_sec),
+    operator: crmPersonOf(d.operator ?? call.operator),
+    lead: asStr(lead.id) ? crmLeadOf(lead) : null,
+    customerName: asStr(asDict(d.customer ?? lead.customer).name),
+    transcript: asArr(d.transcript ?? call.transcript ?? call.segments)
+      .map(segmentOf)
+      .filter((x): x is CallSegment => !!x),
+    suggestions: ai,
+  };
+}
+export async function listLiveCalls(signal?: AbortSignal): Promise<{ items: LiveCall[]; auditRequired: boolean }> {
+  const d = asDict(await http("/crm/live-calls?limit=100", { signal }));
+  return { items: asArr(d.items).map(liveCallOf).filter((c) => c.id), auditRequired: asDict(d.privacy).audit_required !== false };
+}
+export async function getLiveCall(id: string, signal?: AbortSignal): Promise<LiveCall> {
+  return liveCallOf(await http(`/crm/live-calls/${enc(id)}`, { signal }));
+}
+
 // ── Automation robots (§16, crm.automation.manage) ──
 export const AUTOMATION_TRIGGERS = ["lead_created", "status_changed", "lead_reopened", "call_no_answer", "call_completed", "next_action_due", "payment_confirmed"] as const;
 export const AUTOMATION_ACTIONS = ["send_sms", "send_notification", "create_task", "change_status", "assign_owner", "add_tags", "escalate"] as const;
