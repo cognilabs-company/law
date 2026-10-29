@@ -8,7 +8,7 @@ import { useRouter } from "@/i18n/navigation";
 import { IconAlert, IconCheck, IconDownload, IconLayers, IconLock, IconPlus, IconRefresh, IconSearch, IconUser } from "@/components/icons";
 import { saveBlob } from "@/lib/download";
 import { isAborted, logApiError } from "@/lib/http";
-import { toast } from "@/lib/toast";
+import { notify, toast } from "@/lib/toast";
 import {
   EXPORT_SCOPES,
   createCrmExport,
@@ -91,6 +91,7 @@ export default function CrmFrame({ title, tools, back, section, children }: { ti
   return (
     <div className="crm" style={statusColorVars(api.meta)}>
       <MetaSync />
+      <CrmNotifier />
       <CrmTop meta={api.meta} title={title ?? t("title")} onPalette={openPalette} tools={allowed ? tools?.(api) : null} back={back} />
       {allowed ? (
         children(api)
@@ -113,6 +114,46 @@ export default function CrmFrame({ title, tools, back, section, children }: { ti
 function MetaSync(): null {
   useCrmEvents((ev) => {
     if (ev.invalidate.includes("meta") || ev.invalidate.includes("all")) void loadCrmMeta(true);
+  });
+  return null;
+}
+
+// §21: an actionable CRM event pops an animated top-right card that opens
+// the right page. The same event arriving twice (its own name and inside
+// notification.created) shows once.
+const NOTIFY: Record<string, "info" | "warning" | "success" | "error"> = {
+  "crm.lead.created": "info",
+  "crm.lead.reopened": "info",
+  "crm.lead.assigned": "info",
+  "crm.lead.transferred": "info",
+  "crm.lead.watcher_added": "info",
+  "crm.lead.next_action_due": "warning",
+  "crm.lead.payment_confirmed": "success",
+  "crm.ai.completed": "success",
+  "crm.ai.failed": "error",
+  "crm.call.completed": "info",
+  "crm.automation.notification": "info",
+  "crm.automation.escalated": "warning",
+  "crm.export.ready": "success",
+};
+export function crmEventRoute(ev: { name: string; leadId: string; customerId: string }): string {
+  if (ev.name === "crm.export.ready") return "/admin/crm/exports";
+  if (ev.leadId) return `/admin/crm/leads/${encodeURIComponent(ev.leadId)}`;
+  if (ev.customerId) return `/admin/crm/customers/${encodeURIComponent(ev.customerId)}`;
+  return "/admin/crm/leads";
+}
+function CrmNotifier(): null {
+  const t = useTranslations("crm.notify");
+  const seen = useRef(new Map<string, number>());
+  useCrmEvents((ev) => {
+    const tone = NOTIFY[ev.name];
+    if (!tone) return;
+    const key = `${ev.name}:${ev.leadId || ev.runId || ev.exportId || ev.callId}`;
+    const now = Date.now();
+    if ((seen.current.get(key) ?? 0) > now - 4000) return;
+    seen.current.set(key, now);
+    const short = ev.name.replace(/^crm\./, "").replace(/\./g, "_");
+    notify[tone](ev.title || t(`ev.${short}`), { body: ev.body || undefined, action: { label: t("open"), href: crmEventRoute(ev) }, duration: 7000 });
   });
   return null;
 }

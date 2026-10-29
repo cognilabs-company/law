@@ -594,6 +594,27 @@ test("kanban: without crm.automation.manage there are no status settings; a clai
   await expect(page.getByText(/Kimdir tezroq bo'ldi/).first()).toBeVisible();
 });
 
+test("realtime: another user's move slides the card over; an actionable event pops a card that opens the lead", async ({ page }) => {
+  const { st, routes } = crmServer(OPERATOR.permissions ?? []);
+  const mock = await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await page.goto("/uz/admin/crm/leads?tab=all&view=board");
+  const cols = page.locator(".crm-col");
+  await expect(cols.first().locator(".crm-kcard")).toHaveCount(3);
+  await expect.poll(() => mock.sockets.length).toBeGreaterThan(0);
+  // The backend moved q3 to "qualified" (another operator): the card moves at once.
+  const q3 = st.queue.find((l) => l.id === "q3")!;
+  Object.assign(q3, { status: "qualified", lock_version: 2 });
+  await mock.push({ event: "crm.lead.moved", lead_id: "q3", from: "new", to: "qualified", position: 0, lock_version: 2 });
+  await expect(cols.nth(1).locator(".crm-kcard").first()).toContainText("Mehnat nizosi");
+  await expect(cols.first().locator(".crm-kcard")).toHaveCount(2);
+  // An assignment pops a card; its button opens the lead.
+  await mock.push({ event: "crm.lead.assigned", lead_id: "m1", notification: { title: "", body: "Ijara shartnomasi tekshiruvi" } });
+  const card = page.locator(".ntf").filter({ hasText: "Sizga lid biriktirildi" });
+  await expect(card).toBeVisible();
+  await card.getByRole("link", { name: "Ochish" }).click();
+  await expect(page).toHaveURL(/\/admin\/crm\/leads\/m1$/);
+});
+
 test("a finished lead reopens as a new cycle; the old cycle keeps its final status", async ({ page }) => {
   const missing = watchIntl(page);
   const { st, routes } = crmServer(OPERATOR.permissions ?? []);
