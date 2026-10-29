@@ -14,6 +14,8 @@ import {
   callEnded,
   completeCall,
   crmCan,
+  crmCode,
+  crmField,
   getAiRun,
   getCrmCustomer,
   leadCan,
@@ -51,6 +53,7 @@ export function LeadCalls({ meta, lead }: { meta: CrmMeta; lead: CrmLead }): Rea
   const [contact, setContact] = useState("");
   const [purpose, setPurpose] = useState("");
   const [starting, setStarting] = useState(false);
+  const [bad, setBad] = useState("");
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -100,7 +103,9 @@ export function LeadCalls({ meta, lead }: { meta: CrmMeta; lead: CrmLead }): Rea
       const c = await startLeadCall(lead.id, { contactId: contact, purpose }, recordings);
       setCalls((cur) => [c, ...(cur ?? []).filter((x) => x.id !== c.id)]);
       setPurpose("");
+      setBad("");
     } catch (e) {
+      setBad(crmField(e) || (crmCode(e) === "crm_phone_contact_required" ? "contact_id" : ""));
       toast(crmErr(e), { tone: "err" });
     } finally {
       setStarting(false);
@@ -129,7 +134,7 @@ export function LeadCalls({ meta, lead }: { meta: CrmMeta; lead: CrmLead }): Rea
           ) : phones.length ? (
             <>
               <div className="crm-row2">
-                <div className="crm-field">
+                <div className="crm-field" data-err={bad === "contact_id" ? "" : undefined}>
                   <span>{t("contact")}</span>
                   <CrmSelect value={contact} onChange={setContact} label={t("contact")} options={phones.map((p) => ({ value: p.id, label: [p.value, p.label].filter(Boolean).join(" · ") }))} />
                 </div>

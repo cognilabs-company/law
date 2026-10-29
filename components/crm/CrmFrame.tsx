@@ -12,6 +12,7 @@ import { notify, toast } from "@/lib/toast";
 import {
   createCrmLead,
   crmCan,
+  crmField,
   downloadCrmExport,
   isCrmDenied,
   listCrmCustomers,
@@ -378,11 +379,14 @@ function LeadSheet({ meta, preset, onClose }: { meta: CrmMeta; preset: { custome
     // The region follows the customer until the operator changes it.
     if (c && !regionTouched) setRegion(c.region);
   };
-  const errs = { who: !customer ? t("pickCustomer") : "", title: !title.trim() ? t("titleRequired") : "" };
+  // The field a refusal names (detail.field) is marked like a local gap.
+  const [serverField, setServerField] = useState("");
+  const errs = { who: !customer || serverField === "customer_id" ? t("pickCustomer") : "", title: !title.trim() || serverField === "title" ? t("titleRequired") : "" };
   const submit = async (force = false) => {
     setTried(true);
-    if (errs.who || errs.title || busy || !customer) {
-      if (!errs.who && errs.title) titleRef.current?.focus();
+    setServerField("");
+    if (!customer || !title.trim() || busy) {
+      if (customer && !title.trim()) titleRef.current?.focus();
       return;
     }
     setBusy(true);
@@ -407,6 +411,7 @@ function LeadSheet({ meta, preset, onClose }: { meta: CrmMeta; preset: { custome
       router.push(`/admin/crm/leads/${encodeURIComponent(lead.id)}`);
     } catch (e) {
       if (/duplicate/.test(String((e as { code?: string })?.code ?? ""))) setDupWarn(true);
+      setServerField(crmField(e));
       toast(crmErr(e), { tone: "err" });
     } finally {
       setBusy(false);

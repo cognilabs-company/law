@@ -6,7 +6,7 @@ import { IconAlert, IconCheck, IconClock, IconEdit, IconInfo, IconRefresh, IconS
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { AI_LANGUAGES, approveSms, createLeadSms, crmCan, getCrmCustomer, listLeadSms, smsEditable, type CrmContact, type CrmLead, type CrmMeta, type CrmSms } from "@/lib/services/crm";
+import { AI_LANGUAGES, approveSms, createLeadSms, crmCan, crmField, getCrmCustomer, listLeadSms, smsEditable, type CrmContact, type CrmLead, type CrmMeta, type CrmSms } from "@/lib/services/crm";
 import { useCrmEvents } from "@/lib/crm/useCrm";
 import { Empty, useCrmError } from "./bits";
 import { CrmDateTime, CrmSelect } from "./fields";
@@ -32,6 +32,8 @@ export function LeadSms({ meta, lead, preset, onPresetUsed }: { meta: CrmMeta; l
   const [contact, setContact] = useState("");
   const [when, setWhen] = useState("");
   const [busy, setBusy] = useState("");
+  // The field a refusal names (detail.field), marked in place.
+  const [bad, setBad] = useState("");
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -89,7 +91,9 @@ export function LeadSms({ meta, lead, preset, onPresetUsed }: { meta: CrmMeta; l
       setBody("");
       setWhen("");
       toast(t("drafted"), { tone: "ok" });
+      setBad("");
     } catch (e) {
+      setBad(crmField(e));
       toast(crmErr(e), { tone: "err" });
     } finally {
       setBusy("");
@@ -125,13 +129,13 @@ export function LeadSms({ meta, lead, preset, onPresetUsed }: { meta: CrmMeta; l
           </h4>
           {phones.length ? (
             <>
-              <label className="crm-field">
+              <label className="crm-field" data-err={bad === "body" ? "" : undefined}>
                 <span>{t("text")}</span>
                 <textarea className="crm-textarea" rows={3} value={body} onChange={(e) => setBody(e.target.value.slice(0, MAX))} maxLength={MAX} placeholder={t("textPh")} />
                 <small>{t("chars", { n: body.length, max: MAX })}</small>
               </label>
               <div className="crm-row2">
-                <div className="crm-field">
+                <div className="crm-field" data-err={bad === "contact_id" ? "" : undefined}>
                   <span>{t("to")}</span>
                   <CrmSelect value={contact} onChange={setContact} label={t("to")} options={phones.map((p) => ({ value: p.id, label: [p.value, p.label].filter(Boolean).join(" · ") }))} />
                 </div>

@@ -1161,6 +1161,8 @@ export const CRM_ERROR_CODES = [
   "crm_transfer_reason_required",
 ] as const;
 export const crmCode = (e: unknown): string => (e instanceof ApiError ? (e.code ?? "") : "");
+// §3/§22: the field a refusal names (detail.field, or a 422's first loc).
+export const crmField = (e: unknown): string => (e instanceof ApiError ? asStr(asDict(e.data.detail).field) || Object.keys(e.fieldErrors)[0] || "" : "");
 // A stale lock_version (§3, §22: 409 for stale state).
 export const isVersionConflict = (e: unknown): boolean => {
   const c = crmCode(e);

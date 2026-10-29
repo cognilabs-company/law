@@ -11,6 +11,7 @@ import { toast } from "@/lib/toast";
 import {
   isFinalStatus,
   crmCan,
+  crmField,
   reopenCrmLead,
   addLeadWatcher,
   assignLead,
@@ -81,12 +82,20 @@ export function StatusSheet({ lead, to, write, onClose }: { lead: CrmLead; to: s
   // §6: rejected needs a reason; won needs a paid order (the backend checks).
   const [tried, setTried] = useState(false);
   const needReason = to === "rejected";
-  const reasonErr = tried && needReason && !reason.trim() ? t("reasonNeeded") : "";
+  const [serverField, setServerField] = useState("");
+  const reasonErr = (tried && needReason && !reason.trim()) || serverField === "reason" ? t("reasonNeeded") : "";
   const ok = async () => {
     setTried(true);
     if (busy || (needReason && !reason.trim())) return;
     setBusy(true);
-    const done = await write((l) => changeLeadStatus(l, to, reason, l.nextActionAt || null), t("moved", { status: ts(to) }));
+    const done = await write(async (l) => {
+      try {
+        return await changeLeadStatus(l, to, reason, l.nextActionAt || null);
+      } catch (e) {
+        setServerField(crmField(e));
+        throw e;
+      }
+    }, t("moved", { status: ts(to) }));
     setBusy(false);
     if (done) onClose();
   };
@@ -137,12 +146,20 @@ export function ReopenSheet({ meta, lead, write, onClose }: { meta: CrmMeta; lea
     listCrmOperators("", ctl.signal).then(setOps, (e) => !isAborted(e) && logApiError("crm.operators", e));
     return () => ctl.abort();
   }, [canAssign]);
-  const bad = inquiry.trim().length < 2;
+  const [serverField, setServerField] = useState("");
+  const bad = inquiry.trim().length < 2 || serverField === "inquiry";
   const ok = async () => {
     setTried(true);
     if (busy || bad) return;
     setBusy(true);
-    const done = await write((l) => reopenCrmLead(l, { inquiry, source, reason, operatorId: operator }), t("done"));
+    const done = await write(async (l) => {
+      try {
+        return await reopenCrmLead(l, { inquiry, source, reason, operatorId: operator });
+      } catch (e) {
+        setServerField(crmField(e));
+        throw e;
+      }
+    }, t("done"));
     setBusy(false);
     if (done) onClose();
   };
