@@ -54,7 +54,8 @@ import CcSidebar from "./callcenter/CcSidebar";
 import CcTopbar from "./callcenter/CcTopbar";
 import { startCcShift } from "@/lib/callcenter/ccOperator";
 import { useCcOpen } from "@/lib/callcenter/useCcOpen";
-import { useThemePref } from "@/lib/theme";
+import { useCcTheme } from "@/lib/callcenter/ccTheme";
+import CcThemeToggle from "./callcenter/CcThemeToggle";
 
 const AiSystemAssistant = dynamic(() => import("../portal/AiSystemAssistant"), { ssr: false });
 
@@ -226,7 +227,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const navRaw = useSyncExternalStore(subscribeNav, readNav, () => "");
   const navState = useMemo(() => parseNav(navRaw), [navRaw]);
   const mobile = useSyncExternalStore(subscribeMobile, () => window.matchMedia(MOBILE).matches, () => false);
-  const themePref = useThemePref();
+  const ccTheme = useCcTheme();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -267,7 +268,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const allowed = adminAccess || isBootstrap || studioUser || (isStudioPath && studioPending);
   const ccSkin = !isFullAdmin && isCallCenterUser(session);
   const ccOpen = useCcOpen(ccSkin);
-  const ccTheme = themePref === "light" ? "light" : "dark";
   useEffect(() => {
     if (ccSkin) startCcShift();
   }, [ccSkin]);
@@ -361,7 +361,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const ccTools = (
     <>
       <FeedbackButton />
-      <ThemeToggle variant="square" />
+      <CcThemeToggle />
       <LanguageSwitcher />
     </>
   );

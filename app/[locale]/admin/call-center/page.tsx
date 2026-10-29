@@ -11,7 +11,7 @@ import MarketplaceComplaints from "@/components/admin/callcenter/MarketplaceComp
 import WarrantyQueue from "@/components/admin/callcenter/WarrantyQueue";
 import { ExperienceQueue } from "@/components/admin/callcenter/ExperienceReview";
 import PayoutQueue from "@/components/admin/callcenter/PayoutQueue";
-import CockpitView from "@/components/admin/callcenter/Cockpit";
+import CcFocus from "@/components/admin/callcenter/CcFocus";
 import { AchievementQueue } from "@/components/admin/callcenter/AchievementReview";
 import { AdvocateLicenseQueue } from "@/components/admin/callcenter/AdvocateLicenseReview";
 import CrmBoardEmbed from "@/components/crm/CrmBoardEmbed";
@@ -41,7 +41,7 @@ function AdminCallCenterConsole() {
       {cc ? <MarketWatcher role="client" staff /> : null}
       {/* TSK-635882: every marketplace queue at a glance (operators only). */}
       <CcTabPanel con={con} tab="cockpit">
-        {cc ? <CockpitView onGo={con.select} onCount={con.count.cockpit} tabs={con.tabs} /> : null}
+        {cc ? <CcFocus onGo={con.select} onCount={con.count.cockpit} tabs={con.tabs} /> : null}
       </CcTabPanel>
       <CcTabPanel con={con} tab="queue">
         {cc ? <CallCenterQueue onCount={con.count.queue} /> : null}
