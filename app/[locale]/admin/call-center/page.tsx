@@ -14,7 +14,7 @@ import PayoutQueue from "@/components/admin/callcenter/PayoutQueue";
 import CockpitView from "@/components/admin/callcenter/Cockpit";
 import { AchievementQueue } from "@/components/admin/callcenter/AchievementReview";
 import { AdvocateLicenseQueue } from "@/components/admin/callcenter/AdvocateLicenseReview";
-import CallCenterBoard from "@/components/admin/CallCenterBoard";
+import CrmBoardEmbed from "@/components/crm/CrmBoardEmbed";
 import CcClientSearch from "@/components/admin/CcClientSearch";
 import CcCallLog from "@/components/admin/CcCallLog";
 import CallCenterConsole, { CcTabPanel, REVIEW_PERMISSION, useCcConsole } from "@/components/admin/CallCenterConsole";
@@ -89,7 +89,7 @@ function AdminCallCenterConsole() {
         {cc ? <PayoutQueue onCount={con.count.payouts} /> : null}
       </CcTabPanel>
       <CcTabPanel con={con} tab="leads">
-        <CallCenterBoard />
+        <CrmBoardEmbed />
       </CcTabPanel>
       <CcTabPanel con={con} tab="clients">
         <div className="pgrid2">

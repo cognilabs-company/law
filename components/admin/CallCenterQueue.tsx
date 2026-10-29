@@ -5,12 +5,12 @@ import { useLocale, useTranslations } from "next-intl";
 import { leadCategoryLabel } from "@/lib/leadLabels";
 import { fmtAgeMin } from "@/lib/date";
 import { humanize, labelOf, regionLabel, statusSpecOf } from "@/lib/labels";
-import { getCallCenterQueue, assignNextSeller, moveCallCenterLead, type QueueItem } from "@/lib/services/backend";
+import { getCallCenterQueue, assignNextSeller, type QueueItem } from "@/lib/services/backend";
+import { Link } from "@/i18n/navigation";
 import { ApiError, isForbidden } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { aiId, aiSeg } from "@/lib/ai/ids";
 import { useAiReveal } from "@/lib/guide/targets";
-import Select from "@/components/Select";
 import ListPager, { PAGE_STEP, usePaged } from "@/components/ui/ListPager";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import PersonName from "@/components/ui/PersonName";
@@ -21,7 +21,6 @@ import { IconClock, IconRefresh, IconArrowRight, IconInbox, IconUser } from "@/c
 
 const REFRESH_MS = 60_000;
 // Default lead board columns a call-center operator moves a lead to.
-const LEAD_STAGES = ["contacted", "qualified", "proposal", "won", "lost"] as const;
 // Titles the backend sends when the record has none of its own; the row
 // shows the client's name instead.
 const GENERIC_TITLE = new Set(["", "order", "lead", "buyurtma", "заказ"]);
@@ -135,26 +134,6 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
     }
   }
 
-  async function moveLead(item: QueueItem, stage: string) {
-    if (busyId || !stage) return;
-    setBusyId(item.id);
-    try {
-      await moveCallCenterLead(item.id, stage, 0);
-      notify.dismiss(`cc-lead-move:${item.id}`);
-      notify.success(tp("notify.moved", { stage: t(`stages.${stage}`) }), { id: "cc-lead-move" });
-      await load();
-    } catch (e) {
-      notify.error(t("moveFailed"), {
-        id: `cc-lead-move:${item.id}`,
-        error: e,
-        map: { 403: t("noPermission") },
-        action: isForbidden(e) ? undefined : { label: tn("retry"), onClick: () => void moveLead(item, stage) },
-      });
-    } finally {
-      setBusyId("");
-    }
-  }
-
   const age = (min: number) => fmtAgeMin(min, locale);
   const breached = state.items.filter((i) => i.slaBreached).length;
   const ready = state.status === "ready";
@@ -250,13 +229,13 @@ export default function CallCenterQueue({ onCount }: { onCount?: (n: number) => 
                         <IconArrowRight />
                       </button>
                     ) : (
-                      <Select
-                        value=""
-                        onChange={(v) => moveLead(item, v)}
-                        options={LEAD_STAGES.filter((s) => s !== item.status).map((s) => ({ value: s, label: t(`stages.${s}`) }))}
-                        ariaLabel={t("moveTo")}
-                        placeholder={busyId === item.id ? t("working") : t("moveTo")}
-                      />
+                      // A lead's status changes in the CRM, with its lock,
+                      // a reason for Rejected and the paid order Won needs
+                      // (CRM contract 13cb257 §6).
+                      <Link className="btn btn--line btn--sm" href={`/admin/crm/leads/${encodeURIComponent(item.id)}`}>
+                        {t("openInCrm")}
+                        <IconArrowRight />
+                      </Link>
                     )}
                   </div>
                 </div>
