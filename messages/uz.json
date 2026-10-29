@@ -18382,6 +18382,7 @@
         "payment_routes": "To'lov route'lari"
       }
     },
+    "cc": {"statusLabel":"Operator holati","shift":"Smena","openWork":"Ochiq ish","status":{"available":"Bo'sh","busy":"Band","break":"Tanaffus","wrap":"Yakunlash"},"key":{"available":"Shift A","busy":"Shift B","break":"Shift P","wrap":"Shift W"}},
     "roleBadges": {
       "superadmin": "Superadmin",
       "admin": "Admin",

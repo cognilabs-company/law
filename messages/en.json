@@ -18376,6 +18376,7 @@
         "payment_routes": "Payment routes"
       }
     },
+    "cc": {"statusLabel":"Operator status","shift":"Shift","openWork":"Open work","status":{"available":"Available","busy":"Busy","break":"Break","wrap":"Wrap-up"},"key":{"available":"Shift A","busy":"Shift B","break":"Shift P","wrap":"Shift W"}},
     "roleBadges": {
       "superadmin": "Superadmin",
       "admin": "Admin",

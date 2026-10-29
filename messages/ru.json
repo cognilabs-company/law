@@ -18376,6 +18376,7 @@
         "payment_routes": "Маршруты оплаты"
       }
     },
+    "cc": {"statusLabel":"Статус оператора","shift":"Смена","openWork":"Открытые","status":{"available":"Свободен","busy":"Занят","break":"Перерыв","wrap":"Завершение"},"key":{"available":"Shift A","busy":"Shift B","break":"Shift P","wrap":"Shift W"}},
     "roleBadges": {
       "superadmin": "Суперадмин",
       "admin": "Админ",

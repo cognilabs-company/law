@@ -48,6 +48,13 @@ import {
   NavChevron,
 } from "./navIcons";
 import { IconLogo, IconGrid, IconLogout, IconMenu, IconClose, IconSearch } from "../icons";
+import "./callcenter/cc-skin.css";
+import CcBackground from "./callcenter/CcBackground";
+import CcSidebar from "./callcenter/CcSidebar";
+import CcTopbar from "./callcenter/CcTopbar";
+import { startCcShift } from "@/lib/callcenter/ccOperator";
+import { useCcOpen } from "@/lib/callcenter/useCcOpen";
+import { useThemePref } from "@/lib/theme";
 
 const AiSystemAssistant = dynamic(() => import("../portal/AiSystemAssistant"), { ssr: false });
 
@@ -219,6 +226,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const navRaw = useSyncExternalStore(subscribeNav, readNav, () => "");
   const navState = useMemo(() => parseNav(navRaw), [navRaw]);
   const mobile = useSyncExternalStore(subscribeMobile, () => window.matchMedia(MOBILE).matches, () => false);
+  const themePref = useThemePref();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -257,6 +265,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const studioPending = Boolean(session) && !studioUser && studioReg.avail === "checking";
   const adminAccess = hasAdminAccess(session);
   const allowed = adminAccess || isBootstrap || studioUser || (isStudioPath && studioPending);
+  const ccSkin = !isFullAdmin && isCallCenterUser(session);
+  const ccOpen = useCcOpen(ccSkin);
+  useEffect(() => {
+    if (ccSkin) startCcShift();
+  }, [ccSkin]);
   // Test OTP is a staging tool: hidden where the backend's demo routes are off (T0-01).
   const demoTools = useDemoTools(isFullAdmin);
   // Meetings: anyone who may start calls (meetings.manage, or a call-center
@@ -327,9 +340,41 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const roleBadge = badgeKey && t.has(`roleBadges.${badgeKey}`) ? t(`roleBadges.${badgeKey}`) : t("badge");
   const profileHref = staffSession ? "/admin/profile" : `/portal/${role}/profile`;
 
+  const ccTools = (
+    <>
+      <FeedbackButton />
+      <ThemeToggle variant="square" />
+      <LanguageSwitcher />
+    </>
+  );
+
   return (
-    <div className="portal portal--admin">
+    <div
+      className="portal portal--admin"
+      data-cc={ccSkin ? "1" : undefined}
+      data-cc-theme={ccSkin ? (themePref === "light" ? "light" : "dark") : undefined}
+      data-cc-bg={ccSkin ? "aurora" : undefined}
+    >
+      {ccSkin ? <CcBackground /> : null}
       <div className={`psb__scrim${open ? " on" : ""}`} onClick={() => setOpenPath(null)} />
+      {ccSkin ? (
+        <CcSidebar
+          items={visibleNav
+            .filter((n) => !n.hidden)
+            .map(({ href, key, Icon }) => ({ href, key, Icon, count: key === "callCenter" ? ccOpen : null }))}
+          activeHref={active?.href ?? ""}
+          labelOf={(key) => t(`nav.${key}`)}
+          badge={roleBadge}
+          open={open}
+          mobile={mobile}
+          portalHref={staffSession ? null : session ? `/portal/${session.role}` : "/portal/client"}
+          logoutLabel={t("logout")}
+          portalLabel={t("backToPortal")}
+          menuLabel={t("menu")}
+          onNavigate={() => setOpenPath(null)}
+          onLogout={logout}
+        />
+      ) : (
       <aside className={`psb psb--admin${open ? " on" : ""}`} inert={mobile && !open}>
         <div className="psb__brand">
           <div className="psb__logo">
@@ -422,8 +467,21 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           </button>
         </div>
       </aside>
+      )}
 
       <div className="pmain">
+        {ccSkin ? (
+          <CcTopbar
+            title={title}
+            open={open}
+            menuLabel={t("menu")}
+            openCount={ccOpen}
+            profileHref={profileHref}
+            userName={session?.name || t("badge")}
+            onBurger={() => setOpenPath(open ? null : pathname)}
+            tools={ccTools}
+          />
+        ) : (
         <header className="ptop">
           <button className="ptop__burger" type="button" aria-label={t("menu")} onClick={() => setOpenPath(open ? null : pathname)}>
             {open ? <IconClose /> : <IconMenu />}
@@ -447,6 +505,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
+        )}
         <div className="pbody" ref={setBodyEl} tabIndex={-1}>
           <div className="pbody__in">{children}</div>
         </div>
