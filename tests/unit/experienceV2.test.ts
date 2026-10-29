@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canApprove, checkItemsOf, checkKeyParts, diffRowsOf, experienceItemOf, localDiff, positionsOf } from "@/lib/services/experience";
-import { achievementBody, achievementDiff, achievementOf } from "@/lib/services/achievements";
+import { achievementDiff, achievementOf } from "@/lib/services/achievements";
 import { experienceIssue } from "@/components/portal/ExperiencePanel";
 
 // TSK-415946 / 920636 / 874927 / 100467 / 493303.
@@ -57,20 +57,9 @@ describe("review: checklist, diff", () => {
 });
 
 describe("achievements", () => {
-  it("the body names the kind and the date; an unknown kind reads as other", () => {
-    expect(achievementBody({ type: "award_recognition", title: " Yil advokati ", achievedOn: "2025-12-01", description: " Mukofot ", evidenceIds: ["f1"] })).toEqual({
-      source_id: null,
-      achievement_type: "award_recognition",
-      title: "Yil advokati",
-      achieved_at: "2025-12-01T00:00:00Z",
-      description: "Mukofot",
-      evidence_ids: ["f1"],
-    });
-    expect(achievementOf({ id: "a", achievement_type: "space_flight", title: "X" })?.type).toBe("other");
-  });
-  it("compares two achievement revisions", () => {
-    const a = achievementOf({ id: "1", achievement_type: "other", title: "A", achieved_at: "2025-01-01" });
-    const b = achievementOf({ id: "2", achievement_type: "award_recognition", title: "A", achieved_at: "2025-01-01" });
-    expect(achievementDiff(b, a)).toEqual([{ field: "achievement_type", label: "", before: "other", after: "award_recognition", kind: "changed" }]);
+  it("compares two achievement revisions by stage, result and date", () => {
+    const a = achievementOf({ id: "1", process_stage: "inquiry", result_scope: "full", achieved_at: "2025-01-01" });
+    const b = achievementOf({ id: "2", process_stage: "court", result_scope: "full", achieved_at: "2025-01-01T00:00:00Z" });
+    expect(achievementDiff(b, a)).toEqual([{ field: "process_stage", label: "", before: "inquiry", after: "court", kind: "changed" }]);
   });
 });

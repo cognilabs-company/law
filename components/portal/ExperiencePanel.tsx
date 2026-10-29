@@ -1,21 +1,22 @@
 "use client";
 
 import "./experience.css";
-import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactElement, type SVGProps } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
 import DatePicker from "@/components/DatePicker";
-import { IconAward, IconBriefcase, IconBuilding, IconCalendar, IconCheck, IconClock, IconClose, IconEdit, IconFileText, IconLock, IconPaperclip, IconPlus, IconScale, IconShieldCheck, IconTrash, IconTrendingUp, IconUpload } from "@/components/icons";
+import { IconAward, IconBriefcase, IconBuilding, IconCalendar, IconCheck, IconClock, IconClose, IconEdit, IconFileText, IconHistory, IconLock, IconPaperclip, IconPlus, IconScale, IconShieldCheck, IconTrash, IconTrendingUp, IconUpload } from "@/components/icons";
 import Select from "@/components/Select";
 import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardNote";
 import { dateOnly } from "@/lib/date";
 import { errDetail, isAborted, logApiError } from "@/lib/http";
+import { toast } from "@/lib/toast";
 import { getServiceCategories, type BackendCategory } from "@/lib/services/backend";
 import { categoryName } from "@/lib/categoryNames";
 import { uzLabel } from "@/lib/uzScript";
 import { findContacts } from "@/lib/contactGuard";
-import { subscribeUserEvents } from "@/lib/userSocket";
+import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import {
   EVIDENCE_MAX_BYTES,
   EVIDENCE_TYPES,
@@ -29,6 +30,7 @@ import {
   type ExperienceEvidence,
   type ExperienceGroup,
   type ExperienceItem,
+  type ExperienceKind,
   type ExperiencePosition,
   getCategoryTree,
   type CategoryNode,
@@ -41,6 +43,12 @@ import { getMySellerRating } from "@/lib/services/sellerRating";
 // never counts the same months twice). Every change is a new revision the
 // call center checks; the approved one stays in force meanwhile. Evidence
 // files go up first and the record carries their ids.
+//
+// Contract 2026-10-29 §5: the same editor, with kind="pre_advocate_employment",
+// is an advocate's employment before advocate status (public bodies or
+// private organizations) — one record per organization with its positions,
+// no category, never priced and never part of the advocate tenure; the two
+// kinds never mix on screen.
 
 type PositionDraft = { key: number; title: string; startedOn: string; endedOn: string; isCurrent: boolean; description: string };
 type Draft = {
@@ -56,6 +64,7 @@ let keySeq = 0;
 const newPosition = (): PositionDraft => ({ key: ++keySeq, title: "", startedOn: "", endedOn: "", isCurrent: true, description: "" });
 const emptyDraft = (): Draft => ({ sourceId: "", categoryId: "", subcategoryId: "", workplace: "", positions: [newPosition()], description: "", evidence: [] });
 const DESC_MIN = 30;
+const asKind = (v: unknown): ExperienceKind | "" => (v === "pre_advocate_employment" || v === "category_experience" ? v : "");
 const MAX_POSITIONS = 10;
 const day = (iso: string) => iso.slice(0, 10);
 const posDraft = (p: ExperiencePosition): PositionDraft => ({ key: ++keySeq, title: p.title, startedOn: day(p.startedAt), endedOn: day(p.endedAt), isCurrent: p.isCurrent, description: p.description });
@@ -83,9 +92,9 @@ function spanOf(from: string, to: string): { y: number; m: number } | null {
 }
 
 // The first thing still missing, with the position it is in.
-export function experienceIssue(d: Draft | null, today: string): { key: string; pos: number } | null {
+export function experienceIssue(d: Draft | null, today: string, noCategory = false): { key: string; pos: number } | null {
   if (!d) return null;
-  if (!d.categoryId) return { key: "category", pos: -1 };
+  if (!noCategory && !d.categoryId) return { key: "category", pos: -1 };
   if (!d.workplace.trim()) return { key: "workplace", pos: -1 };
   for (let i = 0; i < d.positions.length; i++) {
     const p = d.positions[i];
@@ -99,12 +108,12 @@ export function experienceIssue(d: Draft | null, today: string): { key: string; 
   return null;
 }
 
-function SecHead({ n, done, title, hint, optional }: { n: number; done: boolean; title: string; hint: string; optional?: boolean }): ReactElement {
+function SecHead({ icon: Icon, done, title, hint, optional }: { icon: ComponentType<SVGProps<SVGSVGElement>>; done: boolean; title: string; hint: string; optional?: boolean }): ReactElement {
   const t = useTranslations("portal.experience");
   return (
     <legend className="exp__legend">
       <span className="exp__n" data-done={done || undefined} aria-hidden="true">
-        {done ? <IconCheck /> : n}
+        {done ? <IconCheck /> : <Icon />}
       </span>
       <span className="exp__lt">
         <b>{title}</b>
@@ -117,8 +126,11 @@ function SecHead({ n, done, title, hint, optional }: { n: number; done: boolean;
   );
 }
 
-export default function ExperiencePanel(): ReactElement {
+export default function ExperiencePanel({ kind = "category_experience" }: { kind?: ExperienceKind }): ReactElement {
   const t = useTranslations("portal.experience");
+  const pre = kind === "pre_advocate_employment";
+  // This kind's own wording where it differs.
+  const tk = (k: string) => (pre && t.has(`pre.${k}`) ? t(`pre.${k}`) : t(k));
   const locale = useLocale();
   const [groups, setGroups] = useState<ExperienceGroup[] | null>(null);
   const [backendYears, setBackendYears] = useState<number | null>(null);
@@ -161,15 +173,28 @@ export default function ExperiencePanel(): ReactElement {
       (tr) => alive && setTree(tr),
       () => undefined,
     );
-    // A review reaches the lawyer as a notification; refetch on it.
+    // A review or a review chat reaches the lawyer live: read again, and
+    // say so once (by the panel of the record's kind).
+    let timer = 0;
+    const soon = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => void load(), 500);
+    };
     const off = subscribeUserEvents((e) => {
-      if (String(e.event ?? "").startsWith("marketplace.experience_")) void load();
+      const ev = String(e.event ?? "");
+      if (!ev.startsWith("marketplace.experience_")) return;
+      soon();
+      const said = asKind(e.experience_kind ?? (e.experience as { experience_kind?: unknown } | undefined)?.experience_kind);
+      if ((said ? said === kind : !pre) && (ev === "marketplace.experience_reviewed" || ev === "marketplace.experience_review_chat_opened")) toast(t(ev.endsWith("reviewed") ? "live.reviewed" : "live.chat"), { tone: "info" });
     });
+    const offSync = onUserSocketResync(soon);
     return () => {
       alive = false;
+      window.clearTimeout(timer);
       off();
+      offSync();
     };
-  }, [load]);
+  }, [load, kind, pre, t]);
 
   const catName = (id: string) => {
     const c = cats.find((x) => x.id === id);
@@ -186,7 +211,7 @@ export default function ExperiencePanel(): ReactElement {
   };
   const setPos = (i: number, patch: Partial<PositionDraft>) => setDraft((d) => (d ? { ...d, positions: d.positions.map((p, k) => (k === i ? { ...p, ...patch } : p)) } : d));
   const today = new Date().toISOString().slice(0, 10);
-  const issue = experienceIssue(draft, today);
+  const issue = experienceIssue(draft, today, pre);
   const desc = draft?.description.trim() ?? "";
   const descHits = draft ? findContacts(draft.description) : [];
 
@@ -221,6 +246,7 @@ export default function ExperiencePanel(): ReactElement {
     try {
       await submitExperience({
         sourceId: draft.sourceId || undefined,
+        kind,
         categoryId: draft.categoryId,
         subcategoryId: draft.subcategoryId,
         workplace: draft.workplace,
@@ -263,44 +289,47 @@ export default function ExperiencePanel(): ReactElement {
   const bad = (field: string) => (fieldErr?.field === field ? true : undefined);
   const miss = (k: string, pos = -1) => (tried && issue?.key === k && issue.pos === pos ? true : undefined);
   const periodOf = (p: { startedAt: string; endedAt: string; isCurrent: boolean }) => [p.startedAt ? dateOnly(p.startedAt, locale) : "", p.isCurrent ? t("now") : p.endedAt ? dateOnly(p.endedAt, locale) : ""].filter(Boolean).join(" — ");
-  const approved = (groups ?? []).filter((g) => g.current);
+  const mine = groups?.filter((g) => (g.current ?? g.pending ?? g.latest)?.kind === kind) ?? null;
+  const approved = (mine ?? []).filter((g) => g.current);
+  // Category experience only; pre-advocate employment never shows years.
   const years = backendYears ?? approvedYears(approved, today);
-  const pending = (groups ?? []).filter((g) => g.pending).length;
+  const pending = (mine ?? []).filter((g) => g.pending).length;
   const secDone = {
-    area: !!draft?.categoryId,
+    area: pre || !!draft?.categoryId,
     work: !!draft && !!draft.workplace.trim() && draft.positions.every((p) => p.title.trim() && p.startedOn && (p.isCurrent || p.endedOn)),
     proof: desc.length >= DESC_MIN && !descHits.length,
     files: !!draft?.evidence.length,
   };
-  const doneCount = Object.values(secDone).filter(Boolean).length;
+  const doneCount = Object.values(secDone).filter(Boolean).length - (pre ? 1 : 0);
+  const secTotal = pre ? 3 : 4;
   const durText = (s: { y: number; m: number } | null) => (s ? (s.y || s.m ? [s.y ? t("durY", { n: s.y }) : "", s.m ? t("durM", { n: s.m }) : ""].filter(Boolean).join(" ") : t("durLess")) : "");
 
   return (
-    <section className="ppanel exp" aria-labelledby="exp-title" data-ai-target="profile:experience">
+    <section className={pre ? "ppanel exp exp--pre" : "ppanel exp"} aria-labelledby={`exp-title-${kind}`} data-ai-target={pre ? "profile:pre-advocate" : "profile:experience"}>
       <div className="ppanel__h exp__h">
-        <b className="ppanel__t" id="exp-title">
-          <span className="pico">
-            <IconAward />
-          </span>
-          {t("title")}
+        <b className="ppanel__t" id={`exp-title-${kind}`}>
+          <span className="pico">{pre ? <IconHistory /> : <IconAward />}</span>
+          {tk("title")}
         </b>
         <button type="button" className="btn btn--pri btn--sm" onClick={() => open(emptyDraft())} disabled={!!draft}>
           <IconPlus aria-hidden="true" />
-          {t("add")}
+          {tk("add")}
         </button>
       </div>
-      <p className="exp__lead">{t("lead")}</p>
+      <p className="exp__lead">{tk("lead")}</p>
 
-      {groups?.length ? (
+      {mine?.length ? (
         <div className="exp__sum" role="status">
           <div>
             <b className="sx-num">{approved.length}</b>
-            <small>{t("sumApproved")}</small>
+            <small>{tk("sumApproved")}</small>
           </div>
-          <div>
-            <b className="sx-num">{years}</b>
-            <small>{t("sumYears")}</small>
-          </div>
+          {pre ? null : (
+            <div>
+              <b className="sx-num">{years}</b>
+              <small>{t("sumYears")}</small>
+            </div>
+          )}
           <div data-tone={pending ? "warn" : undefined}>
             <b className="sx-num">{pending}</b>
             <small>{t("sumPending")}</small>
@@ -316,46 +345,47 @@ export default function ExperiencePanel(): ReactElement {
           <div className="exp__card exp__card--ghost" />
         </div>
       ) : null}
-      {groups && !groups.length ? (
+      {mine && !mine.length ? (
         <div className="exp__empty">
           <span className="exp__empty-ic" aria-hidden="true">
-            <IconScale />
+            {pre ? <IconBuilding /> : <IconScale />}
           </span>
-          <b>{t("emptyTitle")}</b>
-          <p>{t("emptyText")}</p>
+          <b>{tk("emptyTitle")}</b>
+          <p>{tk("emptyText")}</p>
           <button type="button" className="btn btn--line btn--sm" onClick={() => open(emptyDraft())}>
             <IconPlus aria-hidden="true" />
-            {t("add")}
+            {tk("add")}
           </button>
         </div>
       ) : null}
-      {groups?.length ? (
+      {mine?.length ? (
         <ul className="exp__grid">
-          {groups.map((g) => {
+          {mine.map((g) => {
             const shown = g.current ?? g.pending ?? g.latest;
             if (!shown) return null;
             const rejected = g.latest?.status === "rejected" ? g.latest : null;
             const state = g.current ? "approved" : g.pending ? "pending" : rejected ? "rejected" : "draft";
-            const sub = subName(shown.categoryId, shown.subcategoryId);
+            const sub = pre ? "" : subName(shown.categoryId, shown.subcategoryId);
+            const head = pre ? t("pre.org") : catName(shown.categoryId);
             return (
               <li key={g.rootId} className="exp__card" data-s={state}>
                 <div className="exp__card-h">
                   <div className="exp__card-t">
-                    <b>{shown.workplace || catName(shown.categoryId)}</b>
-                    <small>{[catName(shown.categoryId), sub].filter(Boolean).join(" · ")}</small>
+                    <b>{shown.workplace || head}</b>
+                    <small>{[head, sub].filter(Boolean).join(" · ")}</small>
                   </div>
                   {g.pending ? (
                     <button type="button" className="btn btn--soft btn--sm" onClick={() => void cancel(g.pending!.id)} disabled={busy}>
                       {t("cancelPending")}
                     </button>
                   ) : (
-                    <button type="button" className="exp__edit" onClick={() => open(draftOf(g.latest ?? shown, g.current?.id ?? ""))} aria-label={t("editNamed", { name: shown.workplace || catName(shown.categoryId) })} disabled={!!draft}>
+                    <button type="button" className="exp__edit" onClick={() => open(draftOf(g.latest ?? shown, g.current?.id ?? ""))} aria-label={t("editNamed", { name: shown.workplace || head })} disabled={!!draft}>
                       <IconEdit aria-hidden="true" />
                     </button>
                   )}
                 </div>
                 <div className="exp__chips">
-                  {g.current ? <span className="exp__chip" data-s="approved">{g.current.years !== null ? t("status.approvedYears", { n: g.current.years }) : t("status.approved")}</span> : null}
+                  {g.current ? <span className="exp__chip" data-s="approved">{g.current.years !== null && !pre ? t("status.approvedYears", { n: g.current.years }) : t("status.approved")}</span> : null}
                   {g.pending ? <span className="exp__chip" data-s="pending">{t("status.pending")}</span> : null}
                   {rejected ? <span className="exp__chip" data-s="rejected">{t("status.rejected")}</span> : null}
                   {g.revisionCount > 1 ? <span className="exp__chip">{t("revisions", { n: g.revisionCount })}</span> : null}
@@ -398,9 +428,9 @@ export default function ExperiencePanel(): ReactElement {
       <Modal
         open={!!draft}
         onClose={() => (busy ? undefined : setDraft(null))}
-        title={draft?.sourceId ? t("editTitle") : t("addTitle")}
-        description={draft?.sourceId ? t("editNote") : t("verifyNote")}
-        icon={<IconAward />}
+        title={draft?.sourceId ? tk("editTitle") : tk("addTitle")}
+        description={draft?.sourceId ? t("editNote") : tk("verifyNote")}
+        icon={pre ? <IconHistory /> : <IconAward />}
         size="lg"
         busy={busy}
         dirty={!!draft && (!!draft.workplace || !!draft.description)}
@@ -415,7 +445,7 @@ export default function ExperiencePanel(): ReactElement {
             <button type="button" className="btn btn--line" onClick={() => setDraft(null)} disabled={busy}>
               {t("cancel")}
             </button>
-            <button type="submit" form="exp-form" className="btn btn--pri" disabled={busy || uploading}>
+            <button type="submit" form={`exp-form-${kind}`} className="btn btn--pri" disabled={busy || uploading}>
               {busy ? t("sending") : t("submit")}
             </button>
           </>
@@ -423,7 +453,7 @@ export default function ExperiencePanel(): ReactElement {
       >
         {draft ? (
           <form
-            id="exp-form"
+            id={`exp-form-${kind}`}
             className="exp__form"
             onSubmit={(e) => {
               e.preventDefault();
@@ -433,14 +463,15 @@ export default function ExperiencePanel(): ReactElement {
             noValidate
           >
             <div className="exp__progress" role="status">
-              <span>{t("progress", { done: doneCount, total: 4 })}</span>
+              <span>{t("progress", { done: doneCount, total: secTotal })}</span>
               <i aria-hidden="true">
-                <b style={{ width: `${(doneCount / 4) * 100}%` }} />
+                <b style={{ width: `${(doneCount / secTotal) * 100}%` }} />
               </i>
             </div>
 
+            {pre ? null : (
             <fieldset className="exp__sec" data-done={secDone.area || undefined}>
-              <SecHead n={1} done={secDone.area} title={t("secArea")} hint={t("secAreaHint")} />
+              <SecHead icon={IconScale} done={secDone.area} title={t("secArea")} hint={t("secAreaHint")} />
               <div className="exp__f" data-bad={bad("category_id") ?? miss("category")}>
                 <span id="exp-cat-l">{t("category")}</span>
                 <Select
@@ -472,14 +503,15 @@ export default function ExperiencePanel(): ReactElement {
                 </div>
               ) : null}
             </fieldset>
+            )}
 
             <fieldset className="exp__sec" data-done={secDone.work || undefined}>
-              <SecHead n={2} done={secDone.work} title={t("secWork")} hint={t("secWorkHint")} />
+              <SecHead icon={IconBriefcase} done={secDone.work} title={tk("secWork")} hint={tk("secWorkHint")} />
               <label className="exp__f">
-                <span>{t("workplace")}</span>
+                <span>{tk("workplace")}</span>
                 <span className="exp__in">
                   <IconBuilding aria-hidden="true" />
-                  <input value={draft.workplace} maxLength={200} placeholder={t("workplacePh")} onChange={(e) => setDraft({ ...draft, workplace: e.target.value })} aria-invalid={bad("workplace") ?? miss("workplace")} />
+                  <input value={draft.workplace} maxLength={200} placeholder={tk("workplacePh")} onChange={(e) => setDraft({ ...draft, workplace: e.target.value })} aria-invalid={bad("workplace") ?? miss("workplace")} />
                 </span>
               </label>
               <ol className="exp__positions">
@@ -550,11 +582,11 @@ export default function ExperiencePanel(): ReactElement {
                   {t("addPosition")}
                 </button>
               ) : null}
-              <p className="exp__help">{t("parallelNote")}</p>
+              <p className="exp__help">{tk("parallelNote")}</p>
             </fieldset>
 
             <fieldset className="exp__sec" data-done={secDone.proof || undefined}>
-              <SecHead n={3} done={secDone.proof} title={t("secProof")} hint={t("secProofHint")} />
+              <SecHead icon={IconFileText} done={secDone.proof} title={t("secProof")} hint={tk("secProofHint")} />
               <label className="exp__f">
                 <span>{t("description")}</span>
                 <textarea
@@ -564,23 +596,23 @@ export default function ExperiencePanel(): ReactElement {
                   onChange={(e) => descStrip.change(e.target.value, e)}
                   onBlur={() => descStrip.blur(draft.description)}
                   placeholder={t("descriptionPh")}
-                  aria-describedby="exp-desc-g exp-desc-n"
+                  aria-describedby={`exp-desc-g-${kind} exp-desc-n-${kind}`}
                   aria-invalid={descHits.length > 0 || miss("description") || undefined}
                 />
                 <span className="exp__meter" data-ok={desc.length >= DESC_MIN || undefined}>
                   <i aria-hidden="true">
                     <b style={{ width: `${Math.min(100, (desc.length / DESC_MIN) * 100)}%` }} />
                   </i>
-                  <small id="exp-desc-n" className="exp__count" data-short={desc.length < DESC_MIN || undefined}>
+                  <small id={`exp-desc-n-${kind}`} className="exp__count" data-short={desc.length < DESC_MIN || undefined}>
                     {desc.length < DESC_MIN ? t("descLeft", { n: DESC_MIN - desc.length }) : t("descCount", { n: desc.length })}
                   </small>
                 </span>
               </label>
-              <ContactGuardNote id="exp-desc-g" hits={descHits} removed={descStrip.removed} />
+              <ContactGuardNote id={`exp-desc-g-${kind}`} hits={descHits} removed={descStrip.removed} />
             </fieldset>
 
             <fieldset className="exp__sec" data-done={secDone.files || undefined}>
-              <SecHead n={4} done={secDone.files} title={t("secFiles")} hint={t("secFilesHint")} optional />
+              <SecHead icon={IconPaperclip} done={secDone.files} title={t("secFiles")} hint={t("secFilesHint")} optional />
               <div className="exp__why">
                 <div>
                   <IconShieldCheck aria-hidden="true" />
@@ -596,13 +628,15 @@ export default function ExperiencePanel(): ReactElement {
                     <small>{t("why.private")}</small>
                   </span>
                 </div>
-                <div>
-                  <IconTrendingUp aria-hidden="true" />
-                  <span>
-                    <b>{t("why.gainTitle")}</b>
-                    <small>{t("why.gain")}</small>
-                  </span>
-                </div>
+                {pre ? null : (
+                  <div>
+                    <IconTrendingUp aria-hidden="true" />
+                    <span>
+                      <b>{t("why.gainTitle")}</b>
+                      <small>{t("why.gain")}</small>
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="exp__drop" data-busy={uploading || undefined}>
                 <label>

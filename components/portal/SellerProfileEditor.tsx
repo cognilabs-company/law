@@ -29,9 +29,7 @@ import ChipMulti from "@/components/register/ChipMulti";
 import WorkHistoryEditor from "@/components/register/WorkHistoryEditor";
 import Select, { type Option } from "@/components/Select";
 import TimePicker from "@/components/TimePicker";
-import DatePicker from "@/components/DatePicker";
 import { dateOnly } from "@/lib/date";
-import { yearsSince } from "@/lib/tenure";
 import { ApiError, contactBlockedOf } from "@/lib/http";
 import { getMyAvailability, putMyAvailability, enabledDays, weeklyFrom, DEFAULT_DEADLINES, type ResponseDeadlines } from "@/lib/services/availability";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
@@ -47,6 +45,8 @@ import { Notice } from "@/components/admin/AdminBits";
 import { IconEye, IconInfo, IconUser, IconShieldCheck, IconBriefcase, IconClock, IconSun, IconCard, IconEdit, IconAward, IconScale, IconMapPin, IconPhone, IconMail, IconCheck, IconBell } from "@/components/icons";
 import ExperiencePanel from "./ExperiencePanel";
 import AchievementsPanel from "./AchievementsPanel";
+import AdvocatePracticePanel from "./AdvocatePracticePanel";
+import { verificationStatusOf as practiceStatus } from "@/lib/services/advocatePractice";
 import ProfileServices from "./ProfileServices";
 
 const ZERO_STATS: AdvocateStats = { totalCases: 0, fullyWonCases: 0, partiallyWonCases: 0, successRate: 0 };
@@ -136,8 +136,8 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
   const tv = useTranslations("register.advocate.review");
   const tcm = useTranslations("portal.common");
   const tc = useTranslations("common");
+  const tpr = useTranslations("portal.practice");
   const locale = useLocale() as CatalogLocale;
-  const [today] = useState(() => new Date().toISOString().slice(0, 10));
   const { session, update } = useAuth();
   const fid = useId();
   const [tab, pick] = useUrlTab(SELLER_TABS, "personal");
@@ -330,7 +330,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
 
   const missing = [
     !d.photo && tp("f.photo"), !d.email && tp("f.email"), !d.region && tp("f.region"), !d.languages.length && tp("f.languages"),
-    isAdvocate && !d.licenseNumber && tr("advocate.license"), !d.practiceAreas.length && t("directionsTitle"), !d.bio && tr("fields.bio"), !d.hourlyPrice && tp("f.price"),
+    isAdvocate && d.advocateStatusVerification !== "approved" && d.advocateStatusVerification !== "verified" && tpr("title"), !d.practiceAreas.length && t("directionsTitle"), !d.bio && tr("fields.bio"), !d.hourlyPrice && tp("f.price"),
   ].filter(Boolean) as string[];
 
   const pPersonal = panel("personal", ico(IconUser), tp("personal"),
@@ -369,8 +369,9 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
         [tr("advocate.specialization"), d.specialization ? (tr.has(`advocate.specOptions.${d.specialization}`) ? tr(`advocate.specOptions.${d.specialization}`) : d.specialization) : ""],
         [tr("advocate.structure"), d.advocateStructure ? (tr.has(`advocate.structureOptions.${d.advocateStructure}`) ? tr(`advocate.structureOptions.${d.advocateStructure}`) : d.advocateStructure) : ""],
         [tr("advocate.orgName"), d.orgName],
-        [tr("advocate.licenseIssued"), d.licenseIssuedAt ? dateOnly(d.licenseIssuedAt, locale) : ""],
-        [tr("advocate.advExp"), years(d.advocateYears)],
+        // Read-only: the backend's count from the verified certificate.
+        [tr("advocate.advExp"), d.advocateActiveYears !== null && d.advocateActiveYears !== undefined ? tpr("yearsN", { n: d.advocateActiveYears }) : tpr(`status.${practiceStatus(d.advocateStatusVerification)}`)],
+        [tpr("startedAt"), d.advocateStatusStartedAt ? dateOnly(d.advocateStatusStartedAt, locale) : ""],
       ] as [string, ReactNode][]) : []),
       [isAdvocate ? tr("advocate.lawExp") : tr("lawyer.expLabel"), years(d.lawyerYears ?? d.experienceYears)],
       [tr("fields.education"), d.education, true], [tr("fields.bio"), d.bio, true],
@@ -379,43 +380,16 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       {isAdvocate ? (
         <>
           <div className="cform__row2">
-            <div><label>{tr("advocate.license")}<PrivateTag /></label><input value={d.licenseNumber ?? ""} onChange={(e) => set({ licenseNumber: e.target.value })} placeholder={tr("advocate.licensePh")} /></div>
             <div><label>{tr("advocate.specialization")}</label><Select value={d.specialization ?? ""} onChange={(v) => set({ specialization: v })} options={specOpts} ariaLabel={tr("advocate.specialization")} placeholder={tr("advocate.specPlaceholder")} /></div>
+            <div><label>{tr("advocate.lawExp")}</label><input type="number" min={0} value={d.lawyerYears ?? ""} onChange={(e) => set({ lawyerYears: parseInt(e.target.value || "0", 10) || 0 })} /></div>
           </div>
           <div className="cform__row2">
             <div><label>{tr("advocate.structure")}</label><Select value={d.advocateStructure ?? ""} onChange={(v) => set({ advocateStructure: v })} options={structureOpts} ariaLabel={tr("advocate.structure")} placeholder={tr("advocate.structurePlaceholder")} /></div>
             <div><label>{tr("advocate.orgName")}</label><input value={d.orgName ?? ""} onChange={(e) => set({ orgName: e.target.value })} placeholder={tr("advocate.orgNamePh")} /></div>
           </div>
-          <div className="rf__wh">
-            <label>{tr("advocate.tenureTitle")}</label>
-            <p className="rf__hint">{tr("advocate.tenureHint")}</p>
-            <div className="cform__row2">
-              <div>
-                <label>{tr("advocate.licenseIssued")}</label>
-                <DatePicker value={d.licenseIssuedAt ?? ""} max={today} onChange={(v) => set(v ? { licenseIssuedAt: v, advocateYears: yearsSince(v, today) ?? 0 } : { licenseIssuedAt: "" })} placeholder={tr("advocate.licenseIssuedPh")} ariaLabel={tr("advocate.licenseIssued")} />
-              </div>
-              <div>
-                <label>{tr("advocate.advExp")}</label>
-                <input type="number" min={0} value={d.advocateYears ?? ""} readOnly={!!d.licenseIssuedAt} onChange={(e) => set({ advocateYears: parseInt(e.target.value || "0", 10) || 0 })} />
-                {d.licenseIssuedAt ? <small className="rf__hint">{tr("advocate.autoYears")}</small> : null}
-              </div>
-            </div>
-          </div>
-          <div className="rf__wh">
-            <label>{tr("advocate.priorTitle")}</label>
-            <p className="rf__hint">{tr("advocate.priorHint")}</p>
-            <div className="cform__row2">
-              <div>
-                <label>{tr("advocate.lawExp")}</label>
-                <input type="number" min={0} value={d.lawyerYears ?? ""} onChange={(e) => set({ lawyerYears: parseInt(e.target.value || "0", 10) || 0 })} />
-              </div>
-              <div />
-            </div>
-          </div>
-          <div>
-            <label>{tr("advocate.licenseDoc")}</label>
-            <PhotoUpload value={d.licenseDoc?.startsWith("data:") ? d.licenseDoc : undefined} name="" capture="environment" onChange={(u) => set({ licenseDoc: u })} label={tr("advocate.upload")} hint={d.licenseDoc ? tr("advocate.uploaded") : tr("advocate.licenseHint")} />
-          </div>
+          {/* Advocate years, status date and certificate are verified in
+              "Advokatlik amaliyoti" and never typed here (2026-10-29 §4). */}
+          <p className="rf__benefit spe__ro"><IconShieldCheck /><span><b>{tr("advocate.advExp")}: {d.advocateActiveYears !== null && d.advocateActiveYears !== undefined ? tpr("yearsN", { n: d.advocateActiveYears }) : tpr(`status.${practiceStatus(d.advocateStatusVerification)}`)}</b>{tpr("readOnlyNote")}</span></p>
         </>
       ) : (
         <div className="cform__row2">
@@ -545,8 +519,10 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       <div className="cprofile__stack">
         {pProfessional}
         {pAreas}
+        {isAdvocate ? <AdvocatePracticePanel /> : null}
         <ExperiencePanel />
-        <AchievementsPanel />
+        {isAdvocate ? <ExperiencePanel kind="pre_advocate_employment" /> : null}
+        {isAdvocate ? <AchievementsPanel /> : null}
         {pHistory}
         <ProfileServices role={isAdvocate ? "advocate" : "lawyer"} />
       </div>
@@ -663,7 +639,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
               specializations: d.practiceAreas,
               languages: d.languages,
               bio: (d.bio ?? "").trim(),
-              experienceYears: d.advocateYears || d.experienceYears || d.lawyerYears || 0,
+              experienceYears: isAdvocate ? (d.advocateActiveYears ?? 0) : d.experienceYears || d.lawyerYears || 0,
               totalCases: d.stats?.totalCases ?? 0,
               winsCount: d.stats?.fullyWonCases ?? 0,
               partialWins: d.stats?.partiallyWonCases ?? 0,

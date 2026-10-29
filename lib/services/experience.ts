@@ -17,6 +17,12 @@ export const EVIDENCE_TYPES = ["application/pdf", "image/jpeg", "image/png", "im
 export const EVIDENCE_MAX_BYTES = 20 * 1024 * 1024;
 
 export type ExperienceStatus = "pending_review" | "approved" | "rejected" | "cancelled" | "superseded" | "other";
+// Contract 2026-10-29 §5: employment before advocate status (public bodies
+// or private organizations) is its own kind — no category, never priced,
+// never part of advocate tenure. Records without a kind are category ones.
+export const EXPERIENCE_KINDS = ["category_experience", "pre_advocate_employment"] as const;
+export type ExperienceKind = (typeof EXPERIENCE_KINDS)[number];
+export const experienceKindOf = (v: unknown): ExperienceKind => (asStr(v) === "pre_advocate_employment" ? "pre_advocate_employment" : "category_experience");
 export type ExperienceEvidence = { id: string; fileName: string; mimeType: string; size: number | null; downloadUrl: string };
 export type ExperienceItem = {
   id: string;
@@ -24,6 +30,7 @@ export type ExperienceItem = {
   sourceId: string;
   version: number | null;
   status: ExperienceStatus;
+  kind: ExperienceKind;
   categoryId: string;
   subcategoryId: string;
   workplace: string;
@@ -89,6 +96,7 @@ export function experienceItemOf(v: unknown): ExperienceItem | null {
     sourceId: asStr(d.source_id),
     version: num(d.version),
     status: statusOf(d.status),
+    kind: experienceKindOf(d.experience_kind),
     categoryId: asStr(d.category_id),
     subcategoryId: asStr(d.subcategory_id),
     workplace: asStr(d.workplace),
@@ -175,6 +183,7 @@ export async function listMyExperience(signal?: AbortSignal): Promise<Experience
 export type PositionInput = { title: string; startedOn: string; endedOn: string; isCurrent: boolean; description: string };
 export type ExperienceInput = {
   sourceId?: string;
+  kind?: ExperienceKind;
   categoryId: string;
   subcategoryId?: string;
   workplace: string;
@@ -185,7 +194,7 @@ export type ExperienceInput = {
 
 const isoDay = (day: string) => (day ? `${day}T00:00:00Z` : null);
 
-export async function submitExperience(input: ExperienceInput): Promise<ExperienceItem | null> {
+export function experienceBody(input: ExperienceInput): Dict {
   const positions = input.positions.map((p) => ({
     title: p.title.trim(),
     started_at: isoDay(p.startedOn),
@@ -193,6 +202,10 @@ export async function submitExperience(input: ExperienceInput): Promise<Experien
     is_current: p.isCurrent,
     description: p.description.trim(),
   }));
+  // Pre-advocate employment carries its kind and never a category.
+  if (input.kind === "pre_advocate_employment") {
+    return { source_id: input.sourceId || null, experience_kind: input.kind, workplace: input.workplace.trim(), positions, description: input.description.trim(), evidence_ids: input.evidenceIds };
+  }
   const body: Dict = {
     source_id: input.sourceId || null,
     category_id: input.categoryId,
@@ -203,7 +216,10 @@ export async function submitExperience(input: ExperienceInput): Promise<Experien
   };
   // Optional: a real child id from /service-categories/tree, else left out.
   if (input.subcategoryId) body.subcategory_id = input.subcategoryId;
-  return experienceItemOf(await http("/marketplace/me/experience", { method: "POST", body: JSON.stringify(body) }));
+  return body;
+}
+export async function submitExperience(input: ExperienceInput): Promise<ExperienceItem | null> {
+  return experienceItemOf(await http("/marketplace/me/experience", { method: "POST", body: JSON.stringify(experienceBody(input)) }));
 }
 
 export async function uploadExperienceEvidence(file: File): Promise<ExperienceEvidence> {
@@ -387,7 +403,21 @@ export function reviewSellerOf(v: unknown): ReviewSeller | null {
   const s = { id: asStr(d.id), name: asStr(d.name ?? d.full_name).trim(), lexgoId: asStr(d.lexgo_id).trim(), phone: asStr(d.phone).trim(), role: asStr(d.role).toLowerCase(), status: asStr(d.account_status).toLowerCase() };
   return s.name || s.phone || s.lexgoId ? s : null;
 }
-export type ExperienceReviewDetail = { record: ExperienceQueueItem | null; previous: ExperienceItem | null; reviews: ExperienceReviewEntry[]; checklistKeys: string[]; checks: CheckItem[]; diff: DiffRow[]; room: ReviewRoom | null; seller: ReviewSeller | null };
+// One revision in the record's history, for the operator's timeline.
+export type HistoryRow = { id: string; version: number | null; status: ExperienceStatus; submittedAt: string; reviewedAt: string };
+export type ExperienceReviewDetail = {
+  record: ExperienceQueueItem | null;
+  previous: ExperienceItem | null;
+  reviews: ExperienceReviewEntry[];
+  checklistKeys: string[];
+  checks: CheckItem[];
+  diff: DiffRow[];
+  room: ReviewRoom | null;
+  seller: ReviewSeller | null;
+  // The backend's changed_fields, and the record's revisions oldest first.
+  changedFields: string[];
+  history: HistoryRow[];
+};
 
 export async function getExperienceForReview(experienceId: string, signal?: AbortSignal): Promise<ExperienceReviewDetail> {
   const d = asDict(await http(`/call-center/marketplace/experience/${encodeURIComponent(experienceId)}`, { signal }));
@@ -405,6 +435,10 @@ export async function getExperienceForReview(experienceId: string, signal?: Abor
     diff: given.length ? given : localDiff(record, previous),
     room: reviewRoomOf(d.communication ?? d.review_room ?? {}),
     seller: reviewSellerOf(d.seller),
+    changedFields: strs(d.changed_fields),
+    history: items(Array.isArray(d.history) ? d.history : asDict(d.history).items)
+      .sort(byVersion)
+      .map((x) => ({ id: x.id, version: x.version, status: x.status, submittedAt: x.submittedAt, reviewedAt: x.reviewedAt })),
   };
 }
 

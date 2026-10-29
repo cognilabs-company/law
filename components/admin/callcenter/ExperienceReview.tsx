@@ -1,35 +1,40 @@
 "use client";
 
 import "./experienceReview.css";
-import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { IconAward } from "@/components/icons";
 import QueueHead from "./QueueHead";
 import PersonName from "@/components/ui/PersonName";
+import ListPager from "@/components/ui/ListPager";
+import Segmented from "@/components/ui/Segmented";
 import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState";
 import { categoryName } from "@/lib/categoryNames";
 import { dateOnly } from "@/lib/date";
-import { isAborted, isForbidden, logApiError } from "@/lib/http";
 import { getServiceCategories, type BackendCategory } from "@/lib/services/backend";
-import { subscribeUserEvents } from "@/lib/userSocket";
 import {
+  EXPERIENCE_KINDS,
   closeExperienceRoom,
   downloadExperienceEvidence,
   getExperienceForReview,
   listExperienceQueue,
   openExperienceRoom,
   reviewExperience,
+  type ExperienceKind,
   type ExperienceQueueItem,
 } from "@/lib/services/experience";
+import { useReviewQueue } from "./useReviewQueue";
 import VerifyReview, { type VerifySource } from "./VerifyReview";
 
 // Experience verification for the call center (TSK-659111, TSK-100467,
 // TSK-874927, TSK-365169): the queue, oldest first; each record opens the
 // shared verification screen (VerifyReview).
 
-const isExperienceEvent = (e: { event?: unknown }) => String(e.event ?? "").startsWith("marketplace.experience_");
+const EVENTS = /^marketplace\.experience_(submitted|queue_updated)$/;
+const STATUSES = ["pending_review", "approved", "rejected", ""] as const;
 
-function useCategories() {
+// A category's name by id (the list is read once per screen).
+export function useCategories() {
   const locale = useLocale();
   const [cats, setCats] = useState<BackendCategory[]>([]);
   useEffect(() => {
@@ -50,85 +55,80 @@ function useCategories() {
 
 export function ExperienceQueue({ onCount }: { onCount?: (n: number) => void }): ReactElement | null {
   const t = useTranslations("callCenter.experience");
+  const tp = useTranslations("portal.experience");
   const locale = useLocale();
   const catName = useCategories();
-  const [items, setItems] = useState<ExperienceQueueItem[] | null>(null);
-  const [failed, setFailed] = useState(false);
   // The queue is for call_center/admin/manager or approvals.manage;
   // callcenter.access alone answers 403, and the tab then stays away.
-  const [denied, setDenied] = useState(false);
+  const q = useReviewQueue<ExperienceQueueItem>((o, signal) => listExperienceQueue(o, signal), { scope: "experience", events: EVENTS, onCount });
+  // Category experience and pre-advocate employment, apart (2026-10-29 §5);
+  // the backend has no kind filter, so this narrows the loaded rows.
+  const [kind, setKind] = useState<ExperienceKind | "">("");
   const [open, setOpen] = useState("");
-  const onCountRef = useRef(onCount);
-  useEffect(() => {
-    onCountRef.current = onCount;
-  });
 
-  const load = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const r = await listExperienceQueue({}, signal);
-      setItems(r.items);
-      setFailed(false);
-      onCountRef.current?.(r.total);
-    } catch (e) {
-      if (isAborted(e)) return;
-      if (isForbidden(e)) return setDenied(true);
-      logApiError("experience.queue", e);
-      setFailed(true);
-    }
-  }, []);
-  useEffect(() => {
-    const ctl = new AbortController();
-    void Promise.resolve().then(() => load(ctl.signal));
-    const off = subscribeUserEvents((e) => {
-      if (isExperienceEvent(e)) void load();
-    });
-    return () => {
-      ctl.abort();
-      off();
-    };
-  }, [load]);
-
-  if (denied) return null;
+  if (q.denied) return null;
+  const items = q.items?.filter((it) => !kind || it.kind === kind) ?? null;
   return (
     <section className="ppanel xpr esc" data-ai-target="callcenter:experience">
       <QueueHead
         icon={IconAward}
         title={t("queue")}
         lead={t("queueLead")}
-        count={items && !failed ? items.length : null}
+        count={q.items && !q.failed ? q.total : null}
         refreshLabel={t("refresh")}
-        onRefresh={() => void load()}
+        onRefresh={() => void q.reload()}
+        refreshing={q.loading}
         aiBase="call_center.experience"
+        statuses={STATUSES.map((s) => ({ value: s, label: s ? t(`st.${s}`) : t("all") }))}
+        status={q.status}
+        onStatus={q.setStatus}
+        statusLabel={t("filter")}
       />
-      {failed ? (
-        <ErrorState title={t("loadFailed")} onRetry={() => void load()} compact />
+      <div className="qhead__seg">
+        <Segmented
+          size="sm"
+          value={kind}
+          onChange={(v) => setKind(v as ExperienceKind | "")}
+          label={t("kindFilter")}
+          aiId="call_center.experience.kind"
+          options={[
+            { value: "", label: t("kindAll") },
+            ...EXPERIENCE_KINDS.map((k) => ({ value: k, label: tp(`kind.${k}`) })),
+          ]}
+        />
+      </div>
+      {q.failed ? (
+        <ErrorState title={t("loadFailed")} onRetry={() => void q.reload()} compact />
       ) : !items ? (
         <Skeleton rows={3} />
       ) : !items.length ? (
         <EmptyState size="sm" icon={<IconAward />} title={t("queueEmpty")} />
       ) : null}
       {items?.length ? (
-        <ul className="xpr__queue">
-          {items.map((it) => (
-            <li key={it.id} data-open={open === it.id || undefined}>
-              <button type="button" className="xpr__qrow" onClick={() => setOpen(open === it.id ? "" : it.id)} aria-expanded={open === it.id}>
-                <b>{it.sellerName || it.sellerUserId ? <PersonName id={it.sellerUserId} name={it.sellerName} /> : t("seller")}</b>
-                <span>{[it.workplace, catName(it.categoryId)].filter(Boolean).join(" · ")}</span>
-                <span>{it.sourceId ? t("revision", { n: it.version ?? 2 }) : t("newRecord")}</span>
-                <time>{it.submittedAt ? dateOnly(it.submittedAt, locale) : ""}</time>
-              </button>
-              {open === it.id ? (
-                <ExperienceReview
-                  experienceId={it.id}
-                  onDone={() => {
-                    setOpen("");
-                    void load();
-                  }}
-                />
-              ) : null}
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="xpr__queue">
+            {items.map((it) => (
+              <li key={it.id} data-open={open === it.id || undefined} data-kind={it.kind}>
+                <button type="button" className="xpr__qrow" onClick={() => setOpen(open === it.id ? "" : it.id)} aria-expanded={open === it.id}>
+                  <b>{it.sellerName || it.sellerUserId ? <PersonName id={it.sellerUserId} name={it.sellerName} /> : t("seller")}</b>
+                  <span>{[it.workplace, it.kind === "pre_advocate_employment" ? tp(`kind.${it.kind}`) : catName(it.categoryId)].filter(Boolean).join(" · ")}</span>
+                  <span>{it.sourceId ? t("revision", { n: it.version ?? 2 }) : t("newRecord")}</span>
+                  <time>{it.submittedAt ? dateOnly(it.submittedAt, locale) : ""}</time>
+                </button>
+                {open === it.id ? (
+                  <ExperienceReview
+                    experienceId={it.id}
+                    onDone={() => {
+                      setOpen("");
+                      void q.reload();
+                    }}
+                  />
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          <ListPager count={q.items?.length ?? 0} total={q.total} step={50} onMore={() => void q.more()} loading={q.loading} />
+        </>
       ) : null}
     </section>
   );
@@ -154,13 +154,16 @@ export default function ExperienceReview({ experienceId, onDone }: { experienceI
         isRevision: !!d.previous,
         record: it,
         evidence: it?.evidence ?? [],
-        diff: d.diff,
+        // The backend's changed_fields mark rows its diff left out.
+        diff: d.diff.length ? d.diff : d.changedFields.map((field) => ({ field, label: "", before: "", after: tp("changed"), kind: "changed" as const })),
         checks: d.checks,
         reviews: d.reviews,
         room: d.room,
         seller: d.seller,
+        history: d.history,
       };
     },
+    historyLabel: (h) => (tp.has(`status.${h.status}`) ? tp(`status.${h.status}`) : tp("status.other")),
     review: (input) => reviewExperience(experienceId, input),
     openRoom: () => openExperienceRoom(experienceId),
     closeRoom: (room) => closeExperienceRoom(experienceId, room),
@@ -168,11 +171,13 @@ export default function ExperienceReview({ experienceId, onDone }: { experienceI
     facts: (raw) => {
       const it = raw as ExperienceQueueItem | null;
       if (!it) return [];
+      const pre = it.kind === "pre_advocate_employment";
       return [
-        { label: tp("category"), value: catName(it.categoryId) },
+        { label: tp("kindLabel"), value: tp(`kind.${it.kind}`) },
+        { label: tp("category"), value: pre ? "" : catName(it.categoryId) },
         { label: tp("workplace"), value: it.workplace },
         ...it.positions.map((p, i) => ({ label: tp("positionN", { n: i + 1 }), value: [p.title, period(p)].filter(Boolean).join(" · ") })),
-        { label: t("years"), value: it.years === null ? "" : String(it.years) },
+        { label: t("years"), value: it.years === null || pre ? "" : String(it.years) },
         { label: tp("description"), value: it.description },
       ];
     },

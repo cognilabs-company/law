@@ -13,6 +13,7 @@ import { ExperienceQueue } from "@/components/admin/callcenter/ExperienceReview"
 import PayoutQueue from "@/components/admin/callcenter/PayoutQueue";
 import CockpitView from "@/components/admin/callcenter/Cockpit";
 import { AchievementQueue } from "@/components/admin/callcenter/AchievementReview";
+import { AdvocateLicenseQueue } from "@/components/admin/callcenter/AdvocateLicenseReview";
 import CallCenterBoard from "@/components/admin/CallCenterBoard";
 import CcClientSearch from "@/components/admin/CcClientSearch";
 import CcCallLog from "@/components/admin/CcCallLog";
@@ -77,6 +78,10 @@ function AdminCallCenterConsole() {
           until an automatic payout provider exists. */}
       <CcTabPanel con={con} tab="achievements">
         {cc ? <AchievementQueue onCount={con.count.achievements} /> : null}
+      </CcTabPanel>
+      {/* 2026-10-29 §4.3: advocate-status certificates and suspensions. */}
+      <CcTabPanel con={con} tab="licenses">
+        {cc ? <AdvocateLicenseQueue onCount={con.count.licenses} /> : null}
       </CcTabPanel>
       <CcTabPanel con={con} tab="payouts">
         {cc ? <PayoutQueue onCount={con.count.payouts} /> : null}

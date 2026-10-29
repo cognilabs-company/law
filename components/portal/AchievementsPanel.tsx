@@ -1,137 +1,333 @@
 "use client";
 
 import "./experience.css";
-import "./achievementForm.css";
-import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType, type ReactElement, type SVGProps } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
 import Modal from "@/components/admin/Modal";
-import { IconAlert, IconAward, IconCalendar, IconClose, IconEdit, IconFileText, IconPaperclip, IconPlus, IconStar, IconUpload } from "@/components/icons";
-import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardNote";
-import AchievementLevelMark from "./AchievementLevelMark";
-import { dateOnly } from "@/lib/date";
-import { errDetail, isAborted, logApiError } from "@/lib/http";
-import { findContacts } from "@/lib/contactGuard";
-import { subscribeUserEvents } from "@/lib/userSocket";
-import { EVIDENCE_MAX_BYTES, EVIDENCE_TYPES, experienceErrorOf, type ExperienceEvidence } from "@/lib/services/experience";
+import DatePicker from "@/components/DatePicker";
+import Select from "@/components/Select";
+import ListPager from "@/components/ui/ListPager";
+import Segmented from "@/components/ui/Segmented";
+import FieldError from "@/components/ui/FieldError";
 import {
-  ACHIEVEMENT_LEVELS,
+  IconAlert,
+  IconCalendar,
+  IconCheck,
+  IconCircleCheck,
+  IconClipboardList,
+  IconClose,
+  IconDocSearch,
+  IconEdit,
+  IconFileText,
+  IconGavel,
+  IconInfo,
+  IconLayers,
+  IconLock,
+  IconPaperclip,
+  IconPlus,
+  IconRefresh,
+  IconScale,
+  IconSearch,
+  IconSparkle,
+  IconStar,
+  IconTag,
+  IconTrendingUp,
+  IconUpload,
+} from "@/components/icons";
+import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardNote";
+import { categoryName } from "@/lib/categoryNames";
+import { findContacts } from "@/lib/contactGuard";
+import { dateOnly, fmtNum } from "@/lib/date";
+import { errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
+import { toast } from "@/lib/toast";
+import { uzLabel } from "@/lib/uzScript";
+import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
+import { getServiceCategories, type BackendCategory } from "@/lib/services/backend";
+import type { ExperienceEvidence } from "@/lib/services/experience";
+import {
+  ACHIEVEMENT_STATUSES,
+  acceptOf,
+  achievementErrorOf,
   downloadAchievementEvidence,
-  levelInput,
+  fileIssue,
+  getAchievementConfig,
+  groupAchievements,
+  isPendingStatus,
   listMyAchievements,
   submitAchievement,
   uploadAchievementEvidence,
   type Achievement,
-  type AchievementGroup,
-  type AchievementLevel,
+  type AchievementConfig,
+  type AchievementErrorField,
 } from "@/lib/services/achievements";
+import { useAchievementLabels } from "./achievementLabels";
 
-type Draft = { sourceId: string; level: AchievementLevel | null; description: string; evidence: ExperienceEvidence[] };
-const empty = (): Draft => ({ sourceId: "", level: null, description: "", evidence: [] });
-const DESC_MIN = 20;
-const EXAMPLES = ["ex1", "ex2", "ex3", "ex4", "ex5"] as const;
-const draftOf = (a: Achievement, sourceId: string): Draft => ({ sourceId, level: a.level, description: a.description, evidence: a.evidence });
+// An advocate's professional achievements (contract 2026-10-29 §2): one
+// stage of the case, a full or partial positive result, the category, the
+// date and what exactly was reached, with the documents that prove it.
+// Everything the form offers comes from the backend's config. Software
+// checks the files first (advice only), then a LexGo operator decides; an
+// approved achievement counts for the rating. Evidence never goes public.
 
-export function achievementIssue(d: Draft | null): string {
+// The backend's own field limits (AchievementSubmission), for when the
+// config does not repeat them.
+const DESC_MIN = 5;
+const DESC_MAX = 5000;
+const PAGE = 50;
+const EVENTS = /^marketplace\.achievement_(ai_analysis_completed|reviewed|review_chat_opened)$/;
+const STAGE_ICON: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = {
+  pre_investigation: IconDocSearch,
+  inquiry: IconSearch,
+  preliminary_investigation: IconClipboardList,
+  court: IconGavel,
+};
+const RESULT_ICON: Record<string, ComponentType<SVGProps<SVGSVGElement>>> = { full: IconCircleCheck, partial: IconTrendingUp };
+
+type FileRow = { key: number; file: File | null; name: string; state: "uploading" | "done" | "error"; progress: number; error: string; evidence: ExperienceEvidence | null };
+type Draft = { sourceId: string; stage: string; result: string; categoryId: string; achievedOn: string; description: string; files: FileRow[] };
+let keySeq = 0;
+const empty = (): Draft => ({ sourceId: "", stage: "", result: "", categoryId: "", achievedOn: "", description: "", files: [] });
+const doneRow = (e: ExperienceEvidence): FileRow => ({ key: ++keySeq, file: null, name: e.fileName, state: "done", progress: 1, error: "", evidence: e });
+const draftOf = (a: Achievement): Draft => ({ sourceId: a.id, stage: a.stage, result: a.result, categoryId: a.categoryId, achievedOn: a.achievedAt, description: a.description, files: a.evidence.map(doneRow) });
+
+// The first thing still missing ("" = ready to send), by the config's rules.
+export function achievementIssue(d: Pick<Draft, "stage" | "result" | "categoryId" | "achievedOn" | "description" | "files"> | null, cfg: AchievementConfig | null, today: string): string {
   if (!d) return "";
-  if (!d.level) return "level";
-  if (d.description.trim().length < DESC_MIN) return "description";
+  if (!d.stage) return "stage";
+  if (!d.result) return "result";
+  if (!d.categoryId) return "category";
+  if (!d.achievedOn || d.achievedOn > today) return "date";
+  const n = d.description.trim().length;
+  if (n < (cfg?.descMin ?? DESC_MIN) || n > (cfg?.descMax ?? DESC_MAX)) return "description";
   if (findContacts(d.description).length) return "contacts";
-  if (!d.evidence.length) return "evidence";
+  if (d.files.some((f) => f.state === "uploading")) return "uploading";
+  if (d.files.some((f) => f.state === "error")) return "fileErrors";
+  const done = d.files.filter((f) => f.state === "done").length;
+  const min = cfg?.minFiles ?? (cfg?.evidenceRequired === false ? 0 : 1);
+  if (done < min) return "files";
+  if (cfg?.maxFiles !== null && cfg?.maxFiles !== undefined && done > cfg.maxFiles) return "tooMany";
   return "";
 }
+// The issue → the field it belongs to.
+const ISSUE_FIELD: Record<string, AchievementErrorField> = { stage: "process_stage", result: "result_scope", category: "category_id", date: "achieved_at", description: "description", contacts: "description", files: "evidence", tooMany: "evidence", fileErrors: "evidence", uploading: "evidence" };
 
-export default function AchievementsPanel(): ReactElement {
+function Step({ icon: Icon, done, title, hint }: { icon: ComponentType<SVGProps<SVGSVGElement>>; done: boolean; title: string; hint: string }): ReactElement {
+  return (
+    <legend className="exp__legend">
+      <span className="exp__n" data-done={done || undefined} aria-hidden="true">
+        {done ? <IconCheck /> : <Icon />}
+      </span>
+      <span className="exp__lt">
+        <b>{title}</b>
+        <small>{hint}</small>
+      </span>
+    </legend>
+  );
+}
+
+export default function AchievementsPanel(): ReactElement | null {
   const t = useTranslations("portal.achievements");
   const te = useTranslations("portal.experience");
   const locale = useLocale();
-  const [groups, setGroups] = useState<AchievementGroup[] | null>(null);
+  const [cfg, setCfg] = useState<AchievementConfig | null>(null);
+  const [denied, setDenied] = useState(false);
+  const L = useAchievementLabels(cfg);
+  const [cats, setCats] = useState<BackendCategory[]>([]);
+  const [items, setItems] = useState<Achievement[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const sending = useRef(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [formNote, setFormNote] = useState("");
+  const [fieldErr, setFieldErr] = useState<{ field: AchievementErrorField; msg: string } | null>(null);
   const [tried, setTried] = useState(false);
   const descStrip = useContactStrip((description) => setDraft((d) => (d ? { ...d, description } : d)));
+  const shown = useRef(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(
+    async (signal?: AbortSignal) => {
+      setLoading(true);
+      try {
+        const r = await listMyAchievements({ status, limit: Math.max(PAGE, shown.current), offset: 0 }, signal);
+        shown.current = r.items.length;
+        setItems(r.items);
+        setTotal(r.total);
+        setFailed(false);
+      } catch (e) {
+        if (isAborted(e)) return;
+        if (isForbidden(e)) return setDenied(true);
+        logApiError("achievements.list", e);
+        setFailed(true);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [status],
+  );
+  async function more() {
+    if (!items || loading) return;
+    setLoading(true);
     try {
-      setGroups(await listMyAchievements());
-      setFailed(false);
+      const r = await listMyAchievements({ status, limit: PAGE, offset: items.length });
+      const seen = new Set(items.map((x) => x.id));
+      const next = [...items, ...r.items.filter((x) => !seen.has(x.id))];
+      shown.current = next.length;
+      setItems(next);
+      setTotal(r.total);
     } catch (e) {
-      if (isAborted(e)) return;
-      logApiError("achievements.list", e);
-      setFailed(true);
-    }
-  }, []);
-  useEffect(() => {
-    void Promise.resolve().then(load);
-    const off = subscribeUserEvents((e) => {
-      if (String(e.event ?? "").startsWith("marketplace.achievement_")) void load();
-    });
-    return off;
-  }, [load]);
-
-  const issue = achievementIssue(draft);
-  const desc = draft?.description.trim() ?? "";
-  const descHits = draft ? findContacts(draft.description) : [];
-  const open = (d: Draft) => {
-    descStrip.reset();
-    setTried(false);
-    setNote(null);
-    setDraft(d);
-  };
-  const pickLevel = (level: AchievementLevel) => {
-    setTried(false);
-    setDraft((d) => (d ? { ...d, level } : d));
-  };
-
-  async function addFiles(files: FileList | null) {
-    if (!draft || !files?.length || uploading) return;
-    const list = Array.from(files);
-    const wrongType = list.find((f) => !(EVIDENCE_TYPES as readonly string[]).includes(f.type));
-    if (wrongType) return setNote({ ok: false, msg: te("fileType", { name: wrongType.name }) });
-    const tooBig = list.find((f) => f.size > EVIDENCE_MAX_BYTES);
-    if (tooBig) return setNote({ ok: false, msg: te("fileBig", { name: tooBig.name }) });
-    setUploading(true);
-    setNote(null);
-    try {
-      const up: ExperienceEvidence[] = [];
-      for (const f of list) up.push(await uploadAchievementEvidence(f));
-      setDraft((d) => (d ? { ...d, evidence: [...d.evidence, ...up.filter((x) => x.id)] } : d));
-    } catch (e) {
-      logApiError("achievements.evidence", e);
-      const fe = experienceErrorOf(e);
-      setNote({ ok: false, msg: fe && te.has(`err.${fe.code}`) ? te(`err.${fe.code}`) : te("fileFailed") });
+      if (!isAborted(e)) logApiError("achievements.more", e);
     } finally {
-      setUploading(false);
+      setLoading(false);
     }
   }
 
+  useEffect(() => {
+    const ctl = new AbortController();
+    getAchievementConfig(ctl.signal).then(setCfg, (e) => {
+      if (isAborted(e)) return;
+      if (isForbidden(e)) return setDenied(true);
+      logApiError("achievements.config", e);
+    });
+    getServiceCategories().then(
+      (c) => !ctl.signal.aborted && setCats(c),
+      () => undefined,
+    );
+    return () => ctl.abort();
+  }, []);
+  useEffect(() => {
+    const ctl = new AbortController();
+    void Promise.resolve().then(() => load(ctl.signal));
+    let timer = 0;
+    const soon = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => void load(), 500);
+    };
+    // The software check finished, an operator decided or opened a chat.
+    const offEv = subscribeUserEvents((e) => {
+      const ev = String(e.event ?? "");
+      if (!EVENTS.test(ev)) return;
+      soon();
+      const kind = ev.slice("marketplace.achievement_".length);
+      toast(t(`live.${kind}`), { tone: kind === "reviewed" ? "ok" : "info" });
+    });
+    const offSync = onUserSocketResync(soon);
+    return () => {
+      ctl.abort();
+      window.clearTimeout(timer);
+      offEv();
+      offSync();
+    };
+  }, [load, t]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const issue = achievementIssue(draft, cfg, today);
+  const desc = draft?.description.trim() ?? "";
+  const descMin = cfg?.descMin ?? DESC_MIN;
+  const descMax = cfg?.descMax ?? DESC_MAX;
+  const descHits = draft ? findContacts(draft.description) : [];
+  const catName = (id: string, title = "") => {
+    const c = cats.find((x) => x.id === id);
+    return c ? uzLabel(categoryName({ slug: c.slug, title: c.name }, locale), locale) : title;
+  };
+  const warning = cfg ? cfg.warningI18n[locale === "uz" ? "uz_latn" : locale] || cfg.warningI18n[locale] || cfg.warning : "";
+  const open = (d: Draft) => {
+    descStrip.reset();
+    setTried(false);
+    setFieldErr(null);
+    setFormNote("");
+    setNote(null);
+    setDraft(d);
+  };
+  const setRow = (key: number, patch: Partial<FileRow>) => setDraft((d) => (d ? { ...d, files: d.files.map((f) => (f.key === key ? { ...f, ...patch } : f)) } : d));
+
+  async function upload(row: FileRow) {
+    if (!row.file) return;
+    setRow(row.key, { state: "uploading", progress: 0, error: "" });
+    try {
+      const ev = await uploadAchievementEvidence(row.file, (p) => setRow(row.key, { progress: p }));
+      setRow(row.key, { state: "done", progress: 1, evidence: ev, name: ev.fileName || row.name });
+    } catch (e) {
+      logApiError("achievements.evidence", e);
+      const fe = achievementErrorOf(e);
+      setRow(row.key, { state: "error", error: fe && t.has(`err.${fe.code}`) ? t(`err.${fe.code}`) : t("fileFailed") });
+    }
+  }
+  function addFiles(files: FileList | null) {
+    if (!draft || !files?.length || !cfg) return;
+    const room = cfg.maxFiles === null ? Infinity : cfg.maxFiles - draft.files.length;
+    const picked = Array.from(files);
+    if (picked.length > room) setFormNote(t("tooManyFiles", { n: cfg.maxFiles ?? 0 }));
+    else setFormNote("");
+    const rows: FileRow[] = picked.slice(0, Math.max(0, room)).map((f) => {
+      const bad = fileIssue(f, cfg);
+      return { key: ++keySeq, file: f, name: f.name, state: bad ? "error" : "uploading", progress: 0, error: bad === "type" ? t("fileType") : bad === "size" ? t("fileBig", { mb: fmtNum((cfg.maxBytes ?? 0) / (1024 * 1024), locale, 1) }) : "", evidence: null };
+    });
+    setDraft((d) => (d ? { ...d, files: [...d.files, ...rows] } : d));
+    // One file per request, one after another.
+    void rows.filter((r) => r.state === "uploading").reduce((p, r) => p.then(() => upload(r)), Promise.resolve());
+  }
+
   async function save() {
-    if (!draft || !draft.level || issue || busy || uploading || sending.current) return;
+    if (!draft || issue || busy || sending.current) return;
     sending.current = true;
     setBusy(true);
     setNote(null);
+    setFormNote("");
+    setFieldErr(null);
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      await submitAchievement(levelInput(draft.level, draft.description, draft.evidence.map((x) => x.id), today, draft.sourceId || undefined));
+      await submitAchievement({
+        sourceId: draft.sourceId || undefined,
+        stage: draft.stage,
+        result: draft.result,
+        categoryId: draft.categoryId,
+        achievedOn: draft.achievedOn,
+        description: draft.description,
+        evidenceIds: draft.files.flatMap((f) => (f.state === "done" && f.evidence ? [f.evidence.id] : [])),
+      });
       setDraft(null);
       setNote({ ok: true, msg: t("sent") });
       await load();
     } catch (e) {
       logApiError("achievements.submit", e);
-      const fe = experienceErrorOf(e);
-      setNote({ ok: false, msg: fe && t.has(`err.${fe.code}`) ? t(`err.${fe.code}`) : errDetail(e) || t("failed") });
+      const fe = achievementErrorOf(e);
+      const msg = fe && t.has(`err.${fe.code}`) ? t(`err.${fe.code}`) : errDetail(e) || t("failed");
+      if (fe?.field === "missing") {
+        // Gone meanwhile: read the list again and say so.
+        setDraft(null);
+        setNote({ ok: false, msg });
+        await load();
+      } else if (fe && fe.field !== "form" && fe.field !== "file") setFieldErr({ field: fe.field, msg });
+      else setFormNote(msg);
     } finally {
       sending.current = false;
       setBusy(false);
     }
   }
 
-  const approved = (groups ?? []).filter((g) => g.current).length;
-  const pending = (groups ?? []).filter((g) => g.pending).length;
+  if (denied) return null;
+  const groups = groupAchievements(items ?? []);
+  const approved = (items ?? []).filter((x) => x.status === "approved").length;
+  const pending = (items ?? []).filter((x) => isPendingStatus(x.status)).length;
+  // A server refusal is written under its field; a local gap only marks the
+  // field (its sentence is in the footer, once).
+  const errAt = (f: AchievementErrorField) => (fieldErr?.field === f ? fieldErr.msg : "");
+  const badAt = (f: AchievementErrorField) => (fieldErr?.field === f || (tried && ISSUE_FIELD[issue] === f) ? true : undefined);
+  const filesDone = draft?.files.filter((f) => f.state === "done").length ?? 0;
+  const hint = cfg
+    ? [
+        cfg.extensions.length ? cfg.extensions.map((x) => x.toUpperCase()).join(", ") : "",
+        cfg.maxBytes !== null ? t("upToMb", { mb: fmtNum(cfg.maxBytes / (1024 * 1024), locale, 1) }) : "",
+        cfg.maxFiles !== null ? t("filesRange", { min: cfg.minFiles ?? 1, max: cfg.maxFiles }) : "",
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : "";
+
   return (
     <section className="ppanel exp ach" aria-labelledby="ach-title" data-ai-target="profile:achievements">
       <div className="ppanel__h exp__h">
@@ -141,26 +337,17 @@ export default function AchievementsPanel(): ReactElement {
           </span>
           {t("title")}
         </b>
-        <button type="button" className="btn btn--pri btn--sm" onClick={() => open(empty())} disabled={!!draft}>
+        <button type="button" className="btn btn--pri btn--sm" onClick={() => open(empty())} disabled={!!draft || !cfg}>
           <IconPlus aria-hidden="true" />
           {t("add")}
         </button>
       </div>
       <p className="exp__lead">{t("lead")}</p>
-      <details className="achf__about">
-        <summary>{t("aboutTitle")}</summary>
-        <p>{t("aboutText")}</p>
-        <ul>
-          {EXAMPLES.map((k) => (
-            <li key={k}>{t(`aboutEx.${k}`)}</li>
-          ))}
-        </ul>
-        <p className="achf__must">
-          <b>{t("mustLabel")}</b> {t("aboutMust")}
-        </p>
-        <p>{t("aboutAfter")}</p>
-      </details>
-      {groups?.length ? (
+      <p className="ach__ai">
+        <IconSparkle aria-hidden="true" />
+        {t("aiAdvisory")}
+      </p>
+      {items?.length || status ? (
         <div className="exp__sum" role="status">
           <div>
             <b className="sx-num">{approved}</b>
@@ -170,74 +357,102 @@ export default function AchievementsPanel(): ReactElement {
             <b className="sx-num">{pending}</b>
             <small>{t("sumPending")}</small>
           </div>
+          <div>
+            <b className="sx-num">{total}</b>
+            <small>{t("sumTotal")}</small>
+          </div>
+        </div>
+      ) : null}
+      {items?.length || status ? (
+        <div className="ach__filter">
+          <Segmented
+            size="sm"
+            value={status}
+            onChange={(v) => {
+              shown.current = 0;
+              setItems(null);
+              setStatus(v);
+            }}
+            label={t("filter")}
+            aiId="profile.achievements.filter"
+            options={[{ value: "", label: t("all") }, ...ACHIEVEMENT_STATUSES.map((s) => ({ value: s, label: L.status(s) }))]}
+          />
         </div>
       ) : null}
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {failed ? <Notice ok={false} msg={t("loadFailed")} /> : null}
-      {!groups && !failed ? (
+      {!items && !failed ? (
         <div className="exp__grid" aria-hidden="true">
           <div className="exp__card exp__card--ghost" />
         </div>
       ) : null}
-      {groups && !groups.length ? (
+      {items && !items.length ? (
         <div className="exp__empty">
           <span className="exp__empty-ic" aria-hidden="true">
-            <IconAward />
+            <IconScale />
           </span>
-          <b>{t("emptyTitle")}</b>
-          <p>{t("emptyText")}</p>
-          <button type="button" className="btn btn--line btn--sm" onClick={() => open(empty())}>
-            <IconPlus aria-hidden="true" />
-            {t("add")}
-          </button>
+          <b>{status ? t("emptyFiltered") : t("emptyTitle")}</b>
+          {status ? null : <p>{t("emptyText")}</p>}
+          {status || !cfg ? null : (
+            <button type="button" className="btn btn--line btn--sm" onClick={() => open(empty())}>
+              <IconPlus aria-hidden="true" />
+              {t("add")}
+            </button>
+          )}
         </div>
       ) : null}
-      {groups?.length ? (
+      {groups.length ? (
         <ul className="exp__grid">
           {groups.map((g) => {
-            const shown = g.current ?? g.pending ?? g.latest;
-            if (!shown) return null;
-            const turned = g.latest && (g.latest.status === "rejected" || g.latest.status === "changes_requested") ? g.latest : null;
-            const state = g.current ? "approved" : g.pending ? "pending" : turned ? "rejected" : "draft";
-            const name = shown.level ? t(`level.${shown.level}`) : shown.title;
+            const a = g.pending ?? g.latest ?? g.current;
+            if (!a) return null;
+            const state = a.status === "approved" ? "approved" : isPendingStatus(a.status) ? "pending" : a.status === "rejected" || a.status === "changes_requested" ? "rejected" : "draft";
+            const SIcon = STAGE_ICON[a.stage] ?? IconScale;
+            const turned = a.status === "rejected" || a.status === "changes_requested";
             return (
-              <li key={g.rootId} className="exp__card" data-s={state}>
+              <li key={g.rootId} className="exp__card ach__card" data-s={state}>
                 <div className="exp__card-h">
+                  <span className="ach__stage-ic" aria-hidden="true">
+                    <SIcon />
+                  </span>
                   <div className="exp__card-t">
-                    {shown.level ? (
-                      <b className="achf__name" data-level={shown.level}>
-                        <AchievementLevelMark level={shown.level} />
-                        {name}
-                      </b>
-                    ) : (
-                      <>
-                        <b>{name}</b>
-                        <small>{t(`type.${shown.type}`)}</small>
-                      </>
-                    )}
+                    <b>{L.stage(a.stage)}</b>
+                    <small>{L.result(a.result)}</small>
                   </div>
-                  {!g.pending ? (
-                    <button type="button" className="exp__edit" onClick={() => open(draftOf(g.latest ?? shown, g.current?.id ?? ""))} aria-label={t("editNamed", { name })} disabled={!!draft}>
+                  {a.status !== "superseded" ? (
+                    <button
+                      type="button"
+                      className="exp__edit"
+                      onClick={() => open(draftOf(g.latest ?? a))}
+                      aria-label={t("revise")}
+                      title={g.pending ? t("revisePending") : t("revise")}
+                      disabled={!!draft || !!g.pending || !cfg}
+                    >
                       <IconEdit aria-hidden="true" />
                     </button>
                   ) : null}
                 </div>
                 <div className="exp__chips">
-                  {g.current ? <span className="exp__chip" data-s="approved">{t("status.approved")}</span> : null}
-                  {g.pending ? <span className="exp__chip" data-s="pending">{t("status.pending")}</span> : null}
-                  {turned ? <span className="exp__chip" data-s="rejected">{t(`status.${turned.status}`)}</span> : null}
-                  {g.current ? null : <span className="exp__chip">{t("notPublic")}</span>}
+                  <span className="exp__chip" data-s={state === "draft" ? undefined : state}>
+                    {L.status(a.status)}
+                  </span>
+                  {a.version ? <span className="exp__chip">{t("versionN", { n: a.version })}</span> : null}
+                  {a.status === "approved" ? null : <span className="exp__chip">{t("notPublic")}</span>}
                 </div>
-                {!shown.level && shown.achievedAt ? (
-                  <p className="exp__date">
-                    <IconCalendar aria-hidden="true" />
-                    {dateOnly(shown.achievedAt, locale)}
-                  </p>
-                ) : null}
-                {shown.description ? <p className="exp__desc">{shown.description}</p> : null}
-                {shown.evidence.length ? (
+                <p className="exp__date">
+                  <IconTag aria-hidden="true" />
+                  {catName(a.categoryId, a.categoryTitle) || t("noCategory")}
+                  {a.achievedAt ? (
+                    <>
+                      <IconCalendar aria-hidden="true" />
+                      {dateOnly(a.achievedAt, locale)}
+                    </>
+                  ) : null}
+                </p>
+                {a.description ? <p className="exp__desc">{a.description}</p> : null}
+                {a.evidence.length ? (
                   <span className="exp__files">
-                    {shown.evidence.map((f) => (
+                    {a.evidence.map((f) => (
                       <button key={f.id} type="button" className="exp__fileb" onClick={() => void downloadAchievementEvidence(f).catch((e) => logApiError("achievements.download", e))}>
                         <IconPaperclip aria-hidden="true" />
                         {f.fileName || te("file")}
@@ -245,13 +460,20 @@ export default function AchievementsPanel(): ReactElement {
                     ))}
                   </span>
                 ) : null}
+                {a.ai ? (
+                  <p className="ach__aistate" data-ai={a.ai}>
+                    <IconInfo aria-hidden="true" />
+                    {L.ai(a.ai)}
+                  </p>
+                ) : null}
                 {g.pending && g.current ? <p className="exp__note" data-tone="warn">{t("pendingKeeps")}</p> : null}
-                {turned?.reason ? <p className="exp__note" data-tone="bad">{te("reason", { text: turned.reason })}</p> : null}
+                {turned && a.reason ? <p className="exp__note" data-tone="bad">{t("operatorReason", { text: a.reason })}</p> : null}
               </li>
             );
           })}
         </ul>
       ) : null}
+      {items ? <ListPager count={items.length} total={total} step={PAGE} onMore={() => void more()} loading={loading} /> : null}
 
       <Modal
         open={!!draft}
@@ -259,54 +481,35 @@ export default function AchievementsPanel(): ReactElement {
         title={draft?.sourceId ? t("editTitle") : t("addTitle")}
         description={t("verifyNote")}
         icon={<IconStar />}
-        size="md"
+        size="lg"
         busy={busy}
-        dirty={!!draft && (!!draft.description || draft.evidence.length > 0)}
+        dirty={!!draft && (!!draft.description || draft.files.length > 0)}
         footer={
-          draft?.level ? (
-            <>
-              {tried && issue ? (
-                <small className="exp__issue" role="alert">
-                  {t(`issue.${issue}`, { n: DESC_MIN })}
-                </small>
-              ) : null}
-              <button type="button" className="btn btn--line" onClick={() => setDraft(null)} disabled={busy}>
-                {te("cancel")}
-              </button>
-              <button type="submit" form="ach-form" className="btn btn--pri" disabled={busy || uploading}>
-                {busy ? te("sending") : te("submit")}
-              </button>
-            </>
-          ) : (
-            <button type="button" className="btn btn--line" onClick={() => setDraft(null)}>
+          <>
+            {warning ? (
+              <p className="ach__warn" role="note">
+                <IconAlert aria-hidden="true" />
+                {warning}
+              </p>
+            ) : null}
+            {tried && issue ? (
+              <small className="exp__issue" role="alert">
+                {t(`issue.${issue}`, { min: descMin, max: descMax, n: cfg?.minFiles ?? 1, max_files: cfg?.maxFiles ?? 0 })}
+              </small>
+            ) : null}
+            <button type="button" className="btn btn--line" onClick={() => setDraft(null)} disabled={busy}>
               {te("cancel")}
             </button>
-          )
+            <button type="submit" form="ach-form" className="btn btn--pri" disabled={busy}>
+              {busy ? te("sending") : te("submit")}
+            </button>
+          </>
         }
       >
-        {draft && !draft.level ? (
-          <div className="exp__form achf">
-            <div className="achf__q">
-              <b>{t("levelTitle")}</b>
-              <small>{t("levelHint")}</small>
-            </div>
-            <div className="achf__levels" role="radiogroup" aria-label={t("levelTitle")}>
-              {ACHIEVEMENT_LEVELS.map((k) => (
-                <button key={k} type="button" role="radio" aria-checked={false} className="achf__level" data-level={k} onClick={() => pickLevel(k)}>
-                  <AchievementLevelMark level={k} />
-                  <span className="achf__lt">
-                    <b>{t(`level.${k}`)}</b>
-                    <small>{t(`levelText.${k}`)}</small>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {draft?.level ? (
+        {draft && cfg ? (
           <form
             id="ach-form"
-            className="exp__form achf"
+            className="exp__form"
             onSubmit={(e) => {
               e.preventDefault();
               setTried(true);
@@ -314,66 +517,142 @@ export default function AchievementsPanel(): ReactElement {
             }}
             noValidate
           >
-            <div className="achf__chosen" data-level={draft.level}>
-              <AchievementLevelMark level={draft.level} />
-              <span className="achf__lt">
-                <small>{t("levelLabel")}</small>
-                <b>{t(`level.${draft.level}`)}</b>
-              </span>
-              <button type="button" className="achf__change" onClick={() => setDraft({ ...draft, level: null })} disabled={busy}>
-                {t("change")}
-              </button>
-            </div>
-            <label className="exp__f">
-              <span>{t("noteLabel")}</span>
-              <small className="achf__hint">{t("noteHint")}</small>
-              <textarea rows={5} maxLength={2000} value={draft.description} onChange={(e) => descStrip.change(e.target.value, e)} onBlur={() => descStrip.blur(draft.description)} placeholder={t("notePh")} aria-invalid={descHits.length > 0 || (tried && issue === "description") || undefined} />
-              <span className="exp__meter" data-ok={desc.length >= DESC_MIN || undefined}>
-                <i aria-hidden="true">
-                  <b style={{ width: `${Math.min(100, (desc.length / DESC_MIN) * 100)}%` }} />
-                </i>
-                <small className="exp__count" data-short={desc.length < DESC_MIN || undefined}>
-                  {desc.length < DESC_MIN ? te("descLeft", { n: DESC_MIN - desc.length }) : te("descCount", { n: desc.length })}
-                </small>
-              </span>
-            </label>
-            <ContactGuardNote hits={descHits} removed={descStrip.removed} />
-            <div className="exp__f" data-bad={tried && issue === "evidence" ? true : undefined}>
-              <span>{t("docLabel")}</span>
-              <small className="achf__hint">{t("docHint")}</small>
-              <div className="exp__drop" data-busy={uploading || undefined}>
-                <label>
-                  <span className="exp__drop-ic" aria-hidden="true">
-                    <IconUpload />
-                  </span>
-                  <b>{uploading ? te("uploading") : te("addFile")}</b>
-                  <small>{te("evidenceHint")}</small>
-                  <input type="file" multiple accept={EVIDENCE_TYPES.join(",")} disabled={uploading} onChange={(e) => void addFiles(e.target.files).finally(() => (e.target.value = ""))} />
-                </label>
-                {draft.evidence.length ? (
-                  <ul>
-                    {draft.evidence.map((f) => (
-                      <li key={f.id}>
+            {formNote ? <Notice ok={false} msg={formNote} /> : null}
+            <fieldset className="exp__sec" data-done={(!!draft.stage && !!draft.result) || undefined}>
+              <Step icon={IconLayers} done={!!draft.stage && !!draft.result} title={t("secStage")} hint={t("secStageHint")} />
+              <div className="ach__types" role="radiogroup" aria-label={t("stageLabel")} data-bad={badAt("process_stage")}>
+                {cfg.stages.map((s) => {
+                  const Icon = STAGE_ICON[s.value] ?? IconScale;
+                  return (
+                    <button key={s.value} type="button" role="radio" aria-checked={draft.stage === s.value} className="ach__type ach__type--ic" onClick={() => setDraft({ ...draft, stage: s.value })}>
+                      <i aria-hidden="true">
+                        <Icon />
+                      </i>
+                      <b>{L.stage(s.value)}</b>
+                      {s.hint ? <small>{s.hint}</small> : null}
+                    </button>
+                  );
+                })}
+              </div>
+              <FieldError id="ach-err-process_stage" msg={errAt("process_stage")} />
+              <div className="exp__f">
+                <span id="ach-res-l">{t("resultLabel")}</span>
+                <div className="ach__results" role="radiogroup" aria-labelledby="ach-res-l" data-bad={badAt("result_scope")}>
+                  {cfg.results.map((r) => {
+                    const Icon = RESULT_ICON[r.value] ?? IconCheck;
+                    return (
+                      <button key={r.value} type="button" role="radio" aria-checked={draft.result === r.value} className="ach__res" data-r={r.value} onClick={() => setDraft({ ...draft, result: r.value })}>
+                        <Icon aria-hidden="true" />
+                        {L.result(r.value)}
+                      </button>
+                    );
+                  })}
+                </div>
+                <FieldError id="ach-err-result_scope" msg={errAt("result_scope")} />
+              </div>
+            </fieldset>
+
+            <fieldset className="exp__sec" data-done={(!!draft.categoryId && !!draft.achievedOn && desc.length >= descMin && !descHits.length) || undefined}>
+              <Step icon={IconFileText} done={!!draft.categoryId && !!draft.achievedOn && desc.length >= descMin && !descHits.length} title={t("secWhat")} hint={t("secWhatHint")} />
+              <div className="exp__two">
+                <div className="exp__f" data-bad={badAt("category_id")}>
+                  <span id="ach-cat-l">{t("category")}</span>
+                  <Select
+                    value={draft.categoryId}
+                    onChange={(v) => setDraft({ ...draft, categoryId: v })}
+                    options={cats.map((c) => ({ value: c.id, label: uzLabel(categoryName({ slug: c.slug, title: c.name }, locale), locale) }))}
+                    placeholder={t("pickCategory")}
+                    labelId="ach-cat-l"
+                    search
+                    invalid={!!badAt("category_id")}
+                  />
+                  <FieldError id="ach-err-category_id" msg={errAt("category_id")} />
+                </div>
+                <div className="exp__f" data-bad={badAt("achieved_at")}>
+                  <span>{t("date")}</span>
+                  <DatePicker value={draft.achievedOn} max={today} onChange={(v) => setDraft({ ...draft, achievedOn: v })} placeholder={te("pickDate")} ariaLabel={t("date")} />
+                  <FieldError id="ach-err-achieved_at" msg={errAt("achieved_at")} />
+                </div>
+              </div>
+              <label className="exp__f">
+                <span>{t("description")}</span>
+                <textarea
+                  rows={5}
+                  maxLength={descMax}
+                  value={draft.description}
+                  onChange={(e) => descStrip.change(e.target.value, e)}
+                  onBlur={() => descStrip.blur(draft.description)}
+                  placeholder={t("descriptionPh")}
+                  aria-invalid={descHits.length > 0 || badAt("description")}
+                />
+                <span className="exp__meter" data-ok={desc.length >= descMin || undefined}>
+                  <i aria-hidden="true">
+                    <b style={{ width: `${Math.min(100, (desc.length / descMax) * 100)}%` }} />
+                  </i>
+                  <small className="exp__count" data-short={desc.length < descMin || undefined}>
+                    {desc.length < descMin ? te("descLeft", { n: descMin - desc.length }) : t("descOf", { n: fmtNum(desc.length, locale), max: fmtNum(descMax, locale) })}
+                  </small>
+                </span>
+              </label>
+              <FieldError id="ach-err-description" msg={errAt("description")} />
+              <ContactGuardNote hits={descHits} removed={descStrip.removed} verifiedLine={false} />
+            </fieldset>
+
+            <fieldset className="exp__sec" data-done={(filesDone >= (cfg.minFiles ?? 1) && !draft.files.some((f) => f.state !== "done")) || undefined}>
+              <Step icon={IconPaperclip} done={filesDone >= (cfg.minFiles ?? 1) && !draft.files.some((f) => f.state !== "done")} title={t("secProof")} hint={t("secProofHint")} />
+              <p className="ach__private">
+                <IconLock aria-hidden="true" />
+                {t("privateNote")}
+              </p>
+              <div className="exp__drop" data-bad={badAt("evidence")}>
+                {cfg.maxFiles === null || draft.files.length < cfg.maxFiles ? (
+                  <label>
+                    <span className="exp__drop-ic" aria-hidden="true">
+                      <IconUpload />
+                    </span>
+                    <b>{te("addFile")}</b>
+                    {hint ? <small>{hint}</small> : null}
+                    <input type="file" multiple accept={acceptOf(cfg) || undefined} onChange={(e) => (addFiles(e.target.files), (e.target.value = ""))} aria-label={te("addFile")} />
+                  </label>
+                ) : null}
+                {draft.files.length ? (
+                  <ul className="ach__files">
+                    {draft.files.map((f) => (
+                      <li key={f.key} data-state={f.state}>
                         <span className="exp__file-ic" aria-hidden="true">
-                          <IconFileText />
+                          {f.state === "error" ? <IconAlert /> : f.state === "done" ? <IconCheck /> : <IconFileText />}
                         </span>
-                        <span>{f.fileName || te("file")}</span>
-                        <button type="button" aria-label={te("removeFile", { name: f.fileName || te("file") })} onClick={() => setDraft({ ...draft, evidence: draft.evidence.filter((x) => x.id !== f.id) })}>
-                          <IconClose />
-                        </button>
+                        <span className="ach__fm">
+                          <b>{f.name || te("file")}</b>
+                          {f.state === "uploading" ? (
+                            <i className="ach__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(f.progress * 100)} aria-label={t("uploadingNamed", { name: f.name })}>
+                              <b style={{ width: `${Math.round(f.progress * 100)}%` }} />
+                            </i>
+                          ) : f.state === "error" ? (
+                            <small>{f.error}</small>
+                          ) : null}
+                        </span>
+                        <span className="ach__facts">
+                          {f.state === "error" && f.file && !fileIssue(f.file, cfg) ? (
+                            <button type="button" aria-label={t("retryNamed", { name: f.name })} onClick={() => void upload(f)}>
+                              <IconRefresh />
+                            </button>
+                          ) : null}
+                          {f.state !== "uploading" ? (
+                            <button type="button" aria-label={te("removeFile", { name: f.name || te("file") })} onClick={() => setDraft({ ...draft, files: draft.files.filter((x) => x.key !== f.key) })}>
+                              <IconClose />
+                            </button>
+                          ) : (
+                            <em>{`${Math.round(f.progress * 100)}%`}</em>
+                          )}
+                        </span>
                       </li>
                     ))}
                   </ul>
                 ) : null}
               </div>
-            </div>
-            <div className="achf__warn" role="note">
-              <IconAlert aria-hidden="true" />
-              <span>
-                <b>{t("warnTitle")}</b>
-                <span>{t("warnText")}</span>
-              </span>
-            </div>
+              <FieldError id="ach-err-evidence" msg={errAt("evidence")} />
+            </fieldset>
           </form>
         ) : null}
       </Modal>

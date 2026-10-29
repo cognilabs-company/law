@@ -6,6 +6,7 @@
 // backend ignores region/date_from/date_to today, so the pages also apply the
 // filter client-side — and (c) read the real retention shape (`reasons[]`,
 // `last_paid_at`). backend.ts stays untouched.
+import { verifiedAdvocateYears } from "./tenure";
 import { http, asDict, asStr, asNum, asArr, type Dict } from "@/lib/http";
 import { uzs, uzsOpt, fmtUzs } from "@/lib/money";
 import { cleanDocTitle, cleanDocText } from "@/lib/docTitle";
@@ -297,7 +298,7 @@ function normLawyer(v: unknown): OwnLawyer {
     district: asStr(d.district) || undefined,
     specializations: asArr(d.specializations).map((s) => asStr(s)),
     languages: asArr(d.languages).map((l) => asStr(l)),
-    experienceYears: asNum(d.experience_years),
+    experienceYears: verifiedAdvocateYears(d) ?? asNum(d.experience_years),
     rating: asNum(d.rating),
     reviews: asNum(d.reviews_count ?? d.reviews),
     ...trustFields(d),

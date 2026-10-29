@@ -60,7 +60,8 @@ test("experience description", async ({ page }) => {
   await mockBackend(page, routes);
   await page.goto("/uz/portal/advocate/profile");
   await page.getByRole("tab").nth(1).click();
-  await page.locator(".exp").getByRole("button").first().click();
-  const r = await probe(page, page.locator(".exp form textarea"), "experience");
+  const cat = page.locator(".exp:not(.ach):not(.exp--pre):not(.prc)");
+  await cat.getByRole("button").first().click();
+  const r = await probe(page, page.locator("#exp-form-category_experience textarea[aria-describedby]"), "experience");
   expect(r).toEqual({ focused: true, value: "Salom akmal_law ok yozing davomi", label: "experience" });
 });

@@ -1,0 +1,33 @@
+/* Advocate certificate review: tenure as the backend counts it and the
+   suspension periods (contract 2026-10-29 §4.3–4.5). */
+.alr__susp { display: grid; gap: 12px; padding: 14px; border-radius: 14px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); min-width: 0; }
+.alr__susp-h { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; }
+.alr__susp-h > span:nth-child(2) { display: grid; gap: 2px; flex: 1 1 220px; min-width: 0; }
+.alr__susp-h b { font-size: .9rem; }
+.alr__susp-h small { color: var(--gray); font-size: .76rem; line-height: 1.4; }
+.alr__susp-ic { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 11px; background: color-mix(in srgb, var(--vrf-warn) 14%, transparent); color: var(--vrf-warn); }
+.alr__susp-ic svg { width: 16px; height: 16px; }
+.alr__tenure { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.alr__tenure div { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--dk-surface-2, #f6f8fc); min-width: 0; }
+.alr__tenure dt { color: var(--gray); font-size: .72rem; font-weight: 700; }
+.alr__tenure dd { margin: 0; font: 800 1.15rem/1.2 var(--fd, inherit); font-variant-numeric: tabular-nums; }
+.alr__slist { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.alr__slist li { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 12px; background: var(--dk-surface-2, #f6f8fc); box-shadow: inset 3px 0 0 var(--vrf-warn); min-width: 0; }
+.alr__slist li[data-open] { box-shadow: inset 3px 0 0 var(--vrf-bad); }
+.alr__slist li > svg { flex: none; width: 15px; height: 15px; color: var(--gray); }
+.alr__slist li > span { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.alr__slist b { font-size: .82rem; }
+.alr__slist small { color: var(--gray); font-size: .76rem; overflow-wrap: anywhere; }
+.alr__sedit { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border: 0; border-radius: 9px; background: var(--dk-surface, #fff); color: var(--gray); cursor: pointer; }
+.alr__sedit:hover { color: var(--vrf-acc); }
+.alr__sedit svg { width: 14px; height: 14px; }
+.alr__sform { display: grid; gap: 10px; padding: 12px; border-radius: 12px; background: var(--dk-surface-2, #f6f8fc); }
+.alr__two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.alr__f { display: grid; gap: 6px; min-width: 0; font-size: .8rem; font-weight: 700; }
+.alr__ro { display: flex; align-items: center; min-height: 40px; padding: 0 12px; border-radius: 10px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); font-weight: 700; }
+.alr__sacts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+@media (max-width: 640px) {
+  .alr__tenure { grid-template-columns: minmax(0, 1fr); }
+  .alr__two { grid-template-columns: minmax(0, 1fr); }
+  .alr__sacts > * { flex: 1; }
+}

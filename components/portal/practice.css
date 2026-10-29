@@ -1,0 +1,57 @@
+/* "Advokatlik amaliyoti" — verified advocate status and tenure, as the
+   backend counts them (contract 2026-10-29 §4). */
+.prc { --pa: var(--dk-acc, var(--b600, #1668f0)); }
+.prc .exp__h { flex-wrap: wrap; gap: 8px 12px; }
+.prc__st { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 999px; background: var(--dk-surface-2, #eef2f8); color: var(--gray); font-size: .76rem; font-weight: 800; }
+.prc__st svg { width: 14px; height: 14px; }
+.prc__st[data-s="approved"] { background: color-mix(in srgb, #16a34a 14%, transparent); color: var(--dk-txt-ok, #15803d); }
+.prc__st[data-s="pending_review"] { background: color-mix(in srgb, #f59e0b 16%, transparent); color: var(--dk-txt-warn, #8a5a00); }
+.prc__st[data-s="rejected"], .prc__st[data-s="changes_requested"] { background: color-mix(in srgb, #ef4444 13%, transparent); color: var(--dk-txt-err, #b91c1c); }
+.prc__tenure { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.prc__tenure > div { display: grid; align-content: center; gap: 4px; min-width: 0; padding: 14px 16px; border-radius: 16px; background: var(--dk-surface-2, #f5f8fd); box-shadow: inset 0 0 0 1px var(--line); }
+.prc__tenure small { color: var(--gray); font-size: .7rem; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+.prc__tenure b { font: 800 1.45rem/1.1 var(--fd, inherit); color: var(--ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.prc__tenure > .prc__big { background: linear-gradient(135deg, color-mix(in srgb, var(--pa) 14%, var(--dk-surface, #fff)), color-mix(in srgb, #06b6d4 10%, var(--dk-surface, #fff))); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pa) 30%, var(--line)); }
+.prc__tenure > .prc__big b { font-size: 2rem; color: color-mix(in srgb, var(--pa) 80%, var(--ink)); }
+.prc__tenure > div[data-tone="warn"] b { color: #d97706; }
+.prc__facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 8px; margin: 0; }
+.prc__facts > div { display: grid; gap: 3px; min-width: 0; padding: 10px 12px; border-radius: 12px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); }
+.prc__facts dt { display: inline-flex; align-items: center; gap: 6px; color: var(--gray); font-size: .74rem; font-weight: 700; }
+.prc__facts dt svg { width: 13px; height: 13px; }
+.prc__facts dd { margin: 0; font-size: .88rem; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+.prc__susp { display: grid; gap: 8px; }
+.prc__susp > b { display: inline-flex; align-items: center; gap: 6px; font-size: .84rem; }
+.prc__susp > b svg { width: 14px; height: 14px; color: #d97706; }
+.prc__susp ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.prc__susp li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 9px 12px; border-radius: 12px; background: color-mix(in srgb, #f59e0b 7%, var(--dk-surface-2, #f6f8fc)); box-shadow: inset 3px 0 0 #f59e0b; font-size: .82rem; }
+.prc__susp li[data-open] { box-shadow: inset 3px 0 0 #ef4444; }
+.prc__susp li span { font-weight: 700; }
+.prc__susp li em { padding: 1px 8px; border-radius: 999px; background: var(--dk-surface, #fff); color: var(--gray); font-size: .72rem; font-style: normal; font-weight: 700; }
+.prc__susp li small { flex: 1 1 100%; color: var(--gray); overflow-wrap: anywhere; }
+.prc__basis { display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 11px 13px; border-radius: 12px; background: var(--dk-surface-2, #f6f8fc); font-size: .8rem; line-height: 1.5; color: var(--ink); }
+.prc__basis > svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--pa); }
+.prc__basis b { display: block; margin-bottom: 2px; font-size: .76rem; color: var(--gray); }
+.prc__acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.prc__acts > small { flex: 1 1 240px; color: var(--gray); font-size: .76rem; line-height: 1.45; }
+.prc__wait { display: inline-flex; align-items: center; gap: 8px; margin: 0; padding: 8px 12px; border-radius: 12px; background: color-mix(in srgb, #f59e0b 12%, transparent); color: var(--dk-txt-warn, #8a5a00); font-size: .82rem; font-weight: 700; }
+.prc__wait svg { width: 15px; height: 15px; }
+.prc__fail { display: grid; gap: 8px; justify-items: start; }
+.prc__file { display: grid; grid-template-columns: 32px minmax(0, 1fr); align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; border-radius: 12px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); text-align: left; cursor: pointer; font: inherit; }
+.prc__file > span:last-child { display: grid; gap: 2px; min-width: 0; }
+.prc__file b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .84rem; }
+.prc__file small { color: var(--gray); font-size: .74rem; }
+.prc__file[data-s="processing"] small { color: #d97706; }
+.prc__file[data-s="analyzed"] small { color: var(--dk-txt-ok, #15803d); }
+.prc__ai { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, #8b5cf6 14%, transparent); color: color-mix(in srgb, #8b5cf6 75%, var(--ink)); font-size: .7rem; font-style: normal; font-weight: 800; vertical-align: middle; }
+.prc__ai svg { width: 11px; height: 11px; }
+.prc .exp__sec:disabled { opacity: .65; }
+@media (max-width: 640px) {
+  .prc__tenure { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .prc__tenure > .prc__big { grid-column: 1 / -1; }
+  .prc__tenure b { font-size: 1.2rem; }
+  .prc__tenure > .prc__big b { font-size: 1.7rem; }
+}
+/* The general profile: advocate tenure is read-only there. */
+.spe__ro { display: flex; align-items: flex-start; gap: 10px; }
+.spe__ro > svg { flex: none; width: 18px; height: 18px; margin-top: 2px; color: var(--dk-acc, var(--b600, #1668f0)); }
+.spe__ro > span { display: grid; gap: 3px; min-width: 0; font-size: .82rem; line-height: 1.45; }

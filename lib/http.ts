@@ -427,6 +427,53 @@ async function authedFetch(path: string, init: RequestInit | undefined, accept: 
   return res;
 }
 
+// A multipart upload whose progress can be shown (fetch reports none):
+// XMLHttpRequest with the same bearer token, the same single refresh on a
+// 401 and the same ApiError on failure. `onProgress` gets 0…1.
+export async function httpUpload<T = unknown>(path: string, form: FormData, opts: { onProgress?: (fraction: number) => void; signal?: AbortSignal } = {}): Promise<T> {
+  type Answer = { status: number; text: string; retryAfter: string | null };
+  const send = (token: string | null) =>
+    new Promise<Answer>((resolve, reject) => {
+      if (opts.signal?.aborted) return reject(new ApiError(0, "aborted"));
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${API_BASE}${path}`);
+      xhr.setRequestHeader("Accept", "application/json");
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && e.total > 0) opts.onProgress?.(Math.min(1, e.loaded / e.total));
+      };
+      const stop = () => xhr.abort();
+      opts.signal?.addEventListener("abort", stop, { once: true });
+      const done = () => opts.signal?.removeEventListener("abort", stop);
+      xhr.onload = () => {
+        done();
+        resolve({ status: xhr.status, text: xhr.responseText, retryAfter: xhr.getResponseHeader("retry-after") });
+      };
+      xhr.onerror = () => {
+        done();
+        reject(new ApiError(0, "network_error"));
+      };
+      xhr.onabort = () => {
+        done();
+        reject(new ApiError(0, "aborted"));
+      };
+      xhr.send(form);
+    });
+  const token = getToken();
+  const owner = token ? currentTokenOwner() : "";
+  let res = await send(token);
+  if (res.status === 401 && token) {
+    const fresh = await refreshAccessToken(token, owner);
+    if (fresh && fresh !== token) res = await send(fresh);
+  }
+  if (res.status < 200 || res.status >= 300) {
+    const headers: Record<string, string> = res.retryAfter ? { "retry-after": res.retryAfter } : {};
+    throw await toApiError(new Response(res.text || null, { status: res.status >= 200 && res.status <= 599 ? res.status : 500, headers }));
+  }
+  opts.onProgress?.(1);
+  return (res.text ? JSON.parse(res.text) : null) as T;
+}
+
 export function absUrl(path: string): string {
   if (!path) return "";
   if (/^https?:\/\//i.test(path)) return path;

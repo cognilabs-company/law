@@ -63,7 +63,14 @@ export type ProfessionalProfile = {
   email?: string;
   advocateStructure?: string; // byuro | firma | hayat
   orgName?: string; // structure / firm name (or address)
-  advocateYears?: number; // years practised as an advocate
+  advocateYears?: number; // years practised as an advocate (registration only)
+  // Read-only, from the verified certificate (contract 2026-10-29 §4.4): the
+  // backend counts the tenure; the general profile never sends it back.
+  advocateStatusStartedAt?: string;
+  advocateStatusVerification?: string;
+  advocateStatusVerifiedAt?: string;
+  advocateActiveDays?: number | null;
+  advocateActiveYears?: number | null;
   lawyerYears?: number; // years practised as a lawyer (yurist)
   licenseNumber?: string;
   licenseIssuedAt?: string;

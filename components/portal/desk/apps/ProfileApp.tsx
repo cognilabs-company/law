@@ -14,6 +14,7 @@ import { disable2fa, enableTotp, getClientProfile, getSellerCabinet, getMyLawyer
 import { enabledDays, getMyAvailability, putMyAvailability, weeklyFrom, DEFAULT_DEADLINES, type ResponseDeadlines } from "@/lib/services/availability";
 import { readVacation, writeVacation } from "@/components/portal/SellerMetrics";
 import type { ProfessionalProfile } from "@/lib/types";
+import { verificationStatusOf } from "@/lib/services/advocatePractice";
 import { IconAward, IconBell, IconBriefcase, IconClock, IconCopy, IconExternal, IconHistory, IconLock, IconSend, IconShieldCheck, IconSun, IconUser } from "@/components/icons";
 import { App, Avatar, Btn, Check, Empty, Field, Group, Input, Loading, Progress, Select, SettingRow, Sidebar, Tag, TextArea, Toggle, Toolbar, useOs, useToast, type NavSection } from "../kit/kit";
 import { TimeField } from "../kit/pickers";
@@ -264,6 +265,7 @@ function Pro({ draft, set, isAdvocate, bioRefused }: { draft: Draft; set: (p: Pa
   const ta = useTranslations("register.advocate");
   // License number and education never reach the public profile.
   const tpv = useTranslations("common.privateField");
+  const tpr = useTranslations("portal.practice");
   const te = useTranslations("enums");
   const st = draft.stats ?? { totalCases: 0, fullyWonCases: 0, partiallyWonCases: 0, successRate: 0 };
   const num = (v: string) => Math.max(0, Number(v.replace(/\D/g, "")) || 0);
@@ -277,14 +279,15 @@ function Pro({ draft, set, isAdvocate, bioRefused }: { draft: Draft; set: (p: Pa
               <Field label={ta("specialization")}>
                 <Select ariaLabel={ta("specialization")} value={draft.specialization ?? ""} onChange={(v) => set({ specialization: v })} options={[{ value: "", label: ta("specPlaceholder") }, ...SPECS.map((s) => ({ value: s, label: ta(`specOptions.${s}`) }))]} />
               </Field>
-              <Field label={ta("license")} hint={tpv("hint")}>
-                <Input value={draft.licenseNumber ?? ""} onChange={(v) => set({ licenseNumber: v })} placeholder={ta("licensePh")} />
-              </Field>
               <Field label={ta("bar")}>
                 <Input value={draft.barAssociation ?? ""} onChange={(v) => set({ barAssociation: v })} placeholder={ta("barPh")} />
               </Field>
-              <Field label={ta("advExp")}>
-                <Input value={String(draft.advocateYears ?? "")} onChange={(v) => set({ advocateYears: num(v) })} />
+              {/* Read-only: counted by the backend from the verified
+                  certificate (2026-10-29 §4); set in "Advokatlik amaliyoti". */}
+              <Field label={ta("advExp")} hint={tpr("readOnlyNote")}>
+                <Tag tone={draft.advocateStatusVerification === "approved" || draft.advocateStatusVerification === "verified" ? "ok" : "neutral"}>
+                  {draft.advocateActiveYears !== null && draft.advocateActiveYears !== undefined ? tpr("yearsN", { n: draft.advocateActiveYears }) : tpr(`status.${verificationStatusOf(draft.advocateStatusVerification)}`)}
+                </Tag>
               </Field>
             </>
           ) : null}

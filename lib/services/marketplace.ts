@@ -1,4 +1,5 @@
 import { http, asDict, asStr, asNum, asArr, ApiError, isAborted, parseServerTime, type Dict } from "@/lib/http";
+import { verifiedAdvocateYears } from "./tenure";
 import { uzs } from "@/lib/money";
 import { cleanDocTitle } from "@/lib/docTitle";
 import { sellerTrustOf, shownRating, type RatingStatus } from "./trust";
@@ -196,7 +197,7 @@ export function normPromotionSurface(v: unknown): MarketPromotionSurface {
           type: asStr(profile.seller_type ?? profile.role ?? seller.role),
           specialization: asStr(profile.specialization ?? asArr(profile.specializations)[0]),
           region: asStr(profile.region),
-          experience: asNum(profile.experience_years) || asNum(profile.lawyer_experience_years),
+          experience: verifiedAdvocateYears(profile) ?? (asNum(profile.experience_years) || asNum(profile.lawyer_experience_years)),
           headline: asStr(profile.headline),
         }
       : null,
@@ -210,7 +211,7 @@ export function normMarketSeller(v: unknown): MarketSeller {
   const prices = services.map((s) => s.price).filter((p) => p > 0);
   const priceFrom = uzs(d, "price_from") || (prices.length ? Math.min(...prices) : 0);
   const priceTo = uzs(d, "price_to") || (prices.length ? Math.max(...prices) : 0);
-  const exp = asNum(d.experience_years) || asNum(d.lawyer_experience_years);
+  const exp = verifiedAdvocateYears(d) ?? (asNum(d.experience_years) || asNum(d.lawyer_experience_years));
   const trust = sellerTrustOf(d, asNum(d.rating), asNum(d.reviews_count));
   return {
     id: asStr(d.id),

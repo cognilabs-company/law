@@ -66,6 +66,40 @@ html[data-theme="dark"] .vrf { --vrf-ok: #4ade80; --vrf-bad: #f87171; --vrf-warn
 .vrf__dec button[aria-checked="true"][data-d="rejected"] { box-shadow: inset 0 0 0 2px var(--vrf-bad); }
 .vrf__reason { display: grid; gap: 6px; font-size: .82rem; font-weight: 700; }
 .vrf__acts { display: flex; justify-content: flex-end; }
+.vrf__check[data-bad] { box-shadow: inset 0 0 0 1.5px var(--vrf-bad); }
+.vrf__public > small { font-weight: 500; }
+.vrf__blocked { display: flex; align-items: center; gap: 10px; margin: 0; padding: 11px 14px; border-radius: 12px; background: color-mix(in srgb, var(--vrf-warn) 12%, var(--dk-surface, #fff)); color: color-mix(in srgb, var(--vrf-warn) 60%, var(--ink)); font-size: .82rem; font-weight: 700; }
+.vrf__blocked svg { flex: none; width: 16px; height: 16px; }
+.vrf__hist { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.vrf__hist li { display: inline-flex; align-items: center; gap: 8px; padding: 6px 11px; border-radius: 999px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); font-size: .76rem; }
+.vrf__hist li[data-s="approved"] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vrf-ok) 45%, var(--line)); }
+.vrf__hist li[data-s="pending_review"] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vrf-warn) 50%, var(--line)); }
+.vrf__hist time { color: var(--gray); }
+/* The software's risk indicators: advice for the operator, never a verdict. */
+.vrf__ai { display: grid; gap: 12px; padding: 14px; border-radius: 14px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--vrf-acc) 30%, var(--line)); }
+.vrf__ai-h { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.vrf__ai-h > span:first-child { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 11px; background: color-mix(in srgb, var(--vrf-acc) 14%, transparent); color: var(--vrf-acc); }
+.vrf__ai-h svg { width: 17px; height: 17px; }
+.vrf__ai-h b { display: block; font-size: .9rem; }
+.vrf__ai-h small { display: block; color: var(--gray); font-size: .76rem; line-height: 1.4; }
+.vrf__ai-h > div { flex: 1 1 220px; min-width: 0; }
+.vrf__lvl { padding: 4px 11px; border-radius: 999px; font-size: .74rem; font-weight: 800; background: var(--dk-surface-2, #eef2f8); }
+.vrf__lvl[data-l="low"] { background: color-mix(in srgb, var(--vrf-ok) 14%, transparent); color: color-mix(in srgb, var(--vrf-ok) 70%, var(--ink)); }
+.vrf__lvl[data-l="medium"] { background: color-mix(in srgb, var(--vrf-warn) 16%, transparent); color: color-mix(in srgb, var(--vrf-warn) 70%, var(--ink)); }
+.vrf__lvl[data-l="high"] { background: color-mix(in srgb, var(--vrf-bad) 14%, transparent); color: color-mix(in srgb, var(--vrf-bad) 70%, var(--ink)); }
+.vrf__sig { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.vrf__sig li { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 9px 11px; border-radius: 11px; background: var(--dk-surface-2, #f6f8fc); font-size: .8rem; }
+.vrf__sig li > i { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; background: var(--dk-surface, #fff); color: var(--gray); }
+.vrf__sig li > i svg { width: 13px; height: 13px; }
+.vrf__sig li[data-tone="ok"] > i { color: var(--vrf-ok); background: color-mix(in srgb, var(--vrf-ok) 14%, transparent); }
+.vrf__sig li[data-tone="bad"] > i { color: var(--vrf-bad); background: color-mix(in srgb, var(--vrf-bad) 14%, transparent); }
+.vrf__sig li[data-tone="warn"] > i { color: var(--vrf-warn); background: color-mix(in srgb, var(--vrf-warn) 16%, transparent); }
+.vrf__sig li > span { display: grid; min-width: 0; }
+.vrf__sig li small { color: var(--gray); font-size: .72rem; }
+.vrf__sig li b { font-size: .8rem; overflow-wrap: anywhere; }
+.vrf__codes { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.vrf__codes li { padding: 4px 10px; border-radius: 999px; background: color-mix(in srgb, var(--vrf-warn) 12%, transparent); font-size: .74rem; font-weight: 700; }
+.vrf__notes { display: grid; gap: 4px; margin: 0; padding-left: 18px; font-size: .8rem; color: var(--ink); }
 .vrf__sk { height: 220px; border-radius: 16px; background: linear-gradient(90deg, var(--dk-surface-2, #f1f5fb), var(--dk-surface, #fff), var(--dk-surface-2, #f1f5fb)); background-size: 200% 100%; animation: vrf-sk 1.2s linear infinite; }
 .vrf__fail { display: grid; gap: 8px; justify-items: start; }
 @keyframes vrf-sk { to { background-position: -200% 0; } }

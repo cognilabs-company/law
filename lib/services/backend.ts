@@ -1,5 +1,6 @@
 // Typed client for the LexGo backend contract (FRONTEND_API.md / MOBILE_API.md).
 import { personName } from "@/lib/labels";
+import { verifiedAdvocateYears } from "./tenure";
 // Every function talks to the same-origin proxy with the bearer token attached.
 // UI callers wrap reads in `withFallback(...)` so the app keeps working on local
 // mock data until the backend is reachable.
@@ -454,7 +455,7 @@ function normLawyer(v: unknown): BackendLawyer {
     district: asStr(d.district) || undefined,
     specializations: asArr(d.specializations).map((s) => asStr(s)),
     languages: asArr(d.languages).map((l) => asStr(l)),
-    experienceYears: asNum(d.experience_years),
+    experienceYears: verifiedAdvocateYears(d) ?? asNum(d.experience_years),
     rating: asNum(d.rating),
     reviews: asNum(d.reviews_count ?? d.reviews),
     ...trustFields(d),
@@ -546,17 +547,21 @@ export async function upsertMyLawyer(
   p: ProfessionalProfile,
   sellerType?: "yurist" | "advokat" | "advokat_tashkiloti",
 ): Promise<unknown> {
+  // An advocate's status, certificate and tenure come from the verified
+  // certificate (contract 2026-10-29 §4): the general profile never sends
+  // the advocate years or the licence number.
+  const advocate = sellerType === "advokat" || sellerType === "advokat_tashkiloti";
   return http("/lawyers/me", {
     method: "PUT",
     body: JSON.stringify({
       seller_type: sellerType,
       region: p.region ?? "",
       district: p.district ?? "",
-      license_number: p.licenseNumber ?? "",
+      ...(advocate ? {} : { license_number: p.licenseNumber ?? "" }),
       bar_association: p.barAssociation ?? "",
       advocate_structure: p.advocateStructure ?? "",
       organization_name: p.orgName ?? "",
-      experience_years: p.advocateYears ?? p.experienceYears ?? 0,
+      ...(advocate ? {} : { experience_years: p.experienceYears ?? p.lawyerYears ?? 0 }),
       // For a yurist there is no separate advocate/lawyer split — mirror their
       // years here too so ranking/matching (which reads lawyer experience) uses it.
       lawyer_experience_years: p.lawyerYears ?? p.experienceYears ?? 0,
@@ -575,6 +580,8 @@ export async function upsertMyLawyer(
     }),
   });
 }
+
+const numOrNull = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 
 // Load the signed-in seller's own lawyer profile (GET /lawyers/me) and map it
 // back onto our onboarding shape so the profile editor can prefill + merge
@@ -599,6 +606,11 @@ export async function getMyLawyer(): Promise<ProfessionalProfile> {
     advocateYears: asNum(d.experience_years),
     lawyerYears: asNum(d.lawyer_experience_years),
     experienceYears: asNum(d.experience_years) || asNum(d.lawyer_experience_years),
+    advocateStatusStartedAt: asStr(d.advocate_status_started_at).slice(0, 10) || undefined,
+    advocateStatusVerification: asStr(d.advocate_status_verification_status) || undefined,
+    advocateStatusVerifiedAt: asStr(d.advocate_status_verified_at) || undefined,
+    advocateActiveDays: numOrNull(d.advocate_active_experience_days),
+    advocateActiveYears: numOrNull(d.advocate_active_experience_years),
     stats: {
       totalCases: asNum(d.total_cases),
       fullyWonCases: asNum(d.wins_count),

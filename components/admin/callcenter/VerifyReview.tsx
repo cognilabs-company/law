@@ -1,15 +1,16 @@
 "use client";
 
 import "./verifyReview.css";
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
 import { SxButton, SxLinkButton } from "@/components/admin/studio/sx/Button";
 import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
-import { IconChat, IconCheck, IconCircleX, IconFileText, IconLock, IconMinus, IconPaperclip, IconPhone, IconRefresh, IconUser } from "@/components/icons";
+import { useGuardedField } from "@/components/ui/ContactGuardNote";
+import { IconChat, IconCheck, IconCircleX, IconClock, IconFileText, IconLock, IconMinus, IconPaperclip, IconPhone, IconRefresh, IconUser } from "@/components/icons";
 import { dateOnly } from "@/lib/date";
-import { errDetail, isAborted, logApiError } from "@/lib/http";
-import { canApprove, checkKeyParts, type CheckItem, type CheckRows, type CheckVerdict, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type ReviewDecision, type ReviewRoom, type ReviewSeller } from "@/lib/services/experience";
+import { ApiError, asDict, asStr, errDetail, isAborted, logApiError } from "@/lib/http";
+import { canApprove, checkKeyParts, type CheckItem, type CheckRows, type CheckVerdict, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type HistoryRow, type ReviewDecision, type ReviewRoom, type ReviewSeller } from "@/lib/services/experience";
 import { staffChatHref } from "./cancellations/model";
 
 // One verification screen for a seller's experience or achievement
@@ -32,19 +33,43 @@ export type VerifyDetail = {
   room: ReviewRoom | null;
   // Who submitted it (point 6: the operator sees the advocate in full).
   seller: ReviewSeller | null;
+  // Why no decision can be taken yet (software still checking the files).
+  blocked?: string;
+  // The record's revisions, oldest first (experience).
+  history?: HistoryRow[];
 };
+export type ReviewInput = { decision: ReviewDecision; reason: string; keys: readonly string[]; rows: CheckRows; publicDescription?: string };
 export type VerifySource = {
-  kind: "experience" | "achievement";
+  kind: "experience" | "achievement" | "license";
   load: (signal: AbortSignal) => Promise<VerifyDetail>;
-  review: (input: { decision: ReviewDecision; reason: string; keys: readonly string[]; rows: CheckRows }) => Promise<void>;
-  openRoom: () => Promise<ReviewRoom>;
-  closeRoom: (room: ReviewRoom) => Promise<ReviewRoom>;
+  review: (input: ReviewInput) => Promise<void>;
+  // No room for a record type without review chat (certificates).
+  openRoom?: () => Promise<ReviewRoom>;
+  closeRoom?: (room: ReviewRoom) => Promise<ReviewRoom>;
   download: (ev: ExperienceEvidence) => Promise<void>;
   fieldLabel: (field: string) => string;
   // Built on every render, so names that load later (categories) show.
   facts: (record: unknown) => VerifyFact[];
   title: string;
+  // Extra panels under the facts (the software's risk indicators, …).
+  aside?: (detail: VerifyDetail) => ReactNode;
+  // Approval needs the text the public profile will show (achievements).
+  publicText?: { label: string; hint: string };
+  // Status label for one history row.
+  historyLabel?: (row: HistoryRow) => string;
 };
+
+// Where a refusal belongs: the checklist, the reason, the public text, the
+// whole screen (software still checking), or a record someone else decided.
+type ErrSpot = "checklist" | "reason" | "public" | "blocked" | "reviewed" | "";
+export function reviewErrorSpot(code: string): ErrSpot {
+  if (/checklist_incomplete$/.test(code)) return "checklist";
+  if (/reason_required$/.test(code)) return "reason";
+  if (/public_description_(required|contains_pii)$/.test(code)) return "public";
+  if (/ai_analysis_pending$/.test(code)) return "blocked";
+  if (/already_reviewed$/.test(code)) return "reviewed";
+  return "";
+}
 
 const VERDICTS: readonly Exclude<CheckVerdict, "">[] = ["approved", "not_applicable", "rejected"];
 const VERDICT_ICON = { approved: IconCheck, not_applicable: IconMinus, rejected: IconCircleX } as const;
@@ -65,6 +90,9 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
   const [room, setRoom] = useState<ReviewRoom | null>(null);
   const [roomBusy, setRoomBusy] = useState(false);
   const [tick, setTick] = useState(0);
+  const [spot, setSpot] = useState<ErrSpot>("");
+  const [pub, setPub] = useState("");
+  const pubGuard = useGuardedField(pub, setPub, "any");
 
   useEffect(() => {
     const ctl = new AbortController();
@@ -87,7 +115,10 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
 
   const keys = detail?.checks.map((c) => c.key) ?? [];
   const set = (k: string, patch: Partial<{ verdict: CheckVerdict; note: string }>) => setRows((r) => ({ ...r, [k]: { verdict: r[k]?.verdict ?? "", note: r[k]?.note ?? "", ...patch } }));
+  const needsPublic = !!source.publicText;
+  const pubMissing = needsPublic && !pub.trim();
   const approvable = canApprove(keys, rows);
+  const blocked = detail?.blocked ?? "";
   const answered = keys.filter((k) => rows[k]?.verdict).length;
   const needsReason = decision === "rejected" || decision === "changes_requested";
   const reasonShort = needsReason && reason.trim().length < REASON_MIN;
@@ -101,32 +132,37 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
   };
 
   async function submit() {
-    if (busy || sending.current || !detail || !decision) return;
-    if (decision === "approved" && !approvable) return;
+    if (busy || sending.current || !detail || !decision || blocked) return;
+    if (decision === "approved" && (!approvable || pubMissing || pubGuard.blocked)) return;
     if (reasonShort) return;
     sending.current = true;
     setBusy(true);
     setErr("");
+    setSpot("");
     try {
-      await source.review({ decision, reason, keys, rows });
+      await source.review({ decision, reason, keys, rows, publicDescription: needsPublic ? pub : undefined });
       setDone(decision);
       onDone?.();
     } catch (e) {
       sending.current = false;
       logApiError(`${source.kind}.review`, e);
-      const code = (e as { code?: string }).code ?? "";
+      const code = (e instanceof ApiError ? asStr(asDict(e.data.detail).code) || e.code : "") ?? "";
+      const at = reviewErrorSpot(code);
+      setSpot(at);
       setErr(code && t.has(`err.${code}`) ? t(`err.${code}`) : errDetail(e) || t("failed"));
+      // Decided elsewhere or still being checked: show the fresh state.
+      if (at === "reviewed" || at === "blocked") setTick((n) => n + 1);
     } finally {
       setBusy(false);
     }
   }
 
   async function roomAction(close: boolean) {
-    if (roomBusy) return;
+    if (roomBusy || !source.openRoom) return;
     setRoomBusy(true);
     setErr("");
     try {
-      setRoom(close && room ? await source.closeRoom(room) : await source.openRoom());
+      setRoom(close && room && source.closeRoom ? await source.closeRoom(room) : await source.openRoom());
     } catch (e) {
       logApiError(`${source.kind}.room`, e);
       setErr(errDetail(e) || t("roomFailed"));
@@ -202,6 +238,21 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
         </section>
       </div>
 
+      {source.aside?.(detail)}
+
+      {detail.history && detail.history.length > 1 ? (
+        <ol className="vrf__hist" aria-label={t("history")}>
+          {detail.history.map((h) => (
+            <li key={h.id} data-s={h.status}>
+              <b>{t("version", { n: h.version ?? 1 })}</b>
+              <span>{source.historyLabel?.(h) ?? ""}</span>
+              {h.submittedAt ? <time>{dateOnly(h.submittedAt, locale)}</time> : null}
+            </li>
+          ))}
+        </ol>
+      ) : null}
+
+      {source.openRoom ? (
       <section className="vrf__room" data-open={room && !room.readOnly ? "" : undefined}>
         <span className="vrf__roomic" aria-hidden="true">
           {room?.readOnly ? <IconLock /> : <IconChat />}
@@ -227,10 +278,17 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
           ) : null}
         </span>
       </section>
+      ) : null}
 
       {!pending ? <Notice ok={false} msg={t("notPending")} /> : null}
+      {pending && blocked ? (
+        <p className="vrf__blocked" role="status">
+          <IconClock aria-hidden="true" />
+          {blocked}
+        </p>
+      ) : null}
 
-      <section className="vrf__check" aria-labelledby={`vrf-${source.kind}-ch`}>
+      <section className="vrf__check" aria-labelledby={`vrf-${source.kind}-ch`} data-bad={spot === "checklist" || undefined}>
         <h4 id={`vrf-${source.kind}-ch`}>
           {t("checklist")}
           <em>{t("answered", { done: answered, total: keys.length })}</em>
@@ -282,7 +340,7 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
       <section className="vrf__decide" aria-label={t("decision.title")}>
         <div className="vrf__dec" role="radiogroup" aria-label={t("decision.title")}>
           {(["approved", "changes_requested", "rejected"] as const).map((d) => (
-            <button key={d} type="button" role="radio" aria-checked={decision === d} data-d={d} disabled={!pending || (d === "approved" && !approvable)} onClick={() => setDecision(d)}>
+            <button key={d} type="button" role="radio" aria-checked={decision === d} data-d={d} disabled={!pending || !!blocked || (d === "approved" && !approvable)} onClick={() => setDecision(d)}>
               <b>{t(`decision.${d}`)}</b>
               <small>{d === "approved" && !approvable ? t("approveNeeds") : t(`decisionHint.${d}`)}</small>
             </button>
@@ -291,13 +349,35 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
         {needsReason ? (
           <label className="vrf__reason">
             <span>{decision === "rejected" ? t("reasonReject") : t("reasonChanges")}</span>
-            <TextArea value={reason} onChange={setReason} minRows={3} maxLength={2000} counter invalid={reasonShort && reason.length > 0} placeholder={t("reasonPh")} />
+            <TextArea value={reason} onChange={setReason} minRows={3} maxLength={2000} counter invalid={(reasonShort && reason.length > 0) || spot === "reason"} placeholder={t("reasonPh")} />
             {reasonShort ? <small className="vrf__muted">{t("reasonMin", { n: REASON_MIN })}</small> : null}
+          </label>
+        ) : null}
+        {decision === "approved" && source.publicText ? (
+          <label className="vrf__reason vrf__public">
+            <span>{source.publicText.label}</span>
+            <small className="vrf__muted">{source.publicText.hint}</small>
+            <TextArea
+              value={pub}
+              onChange={(v) => pubGuard.change(v)}
+              onBlur={pubGuard.blur}
+              minRows={3}
+              maxLength={1500}
+              counter
+              invalid={spot === "public" || pubGuard.blocked}
+              placeholder={t("publicPh")}
+            />
+            {pubGuard.note}
           </label>
         ) : null}
         {err ? <Notice ok={false} msg={err} /> : null}
         <div className="vrf__acts">
-          <SxButton variant={decision === "rejected" ? "danger" : "primary"} busy={busy} disabled={!pending || !decision || (decision === "approved" && !approvable) || reasonShort} onClick={() => void submit()}>
+          <SxButton
+            variant={decision === "rejected" ? "danger" : "primary"}
+            busy={busy}
+            disabled={!pending || !!blocked || !decision || (decision === "approved" && (!approvable || pubMissing || pubGuard.blocked)) || reasonShort}
+            onClick={() => void submit()}
+          >
             <IconFileText aria-hidden="true" />
             {decision ? t(`confirm.${decision}`) : t("confirm.none")}
           </SxButton>
