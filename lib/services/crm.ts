@@ -873,6 +873,108 @@ export async function approveSms(smsId: string, body?: string): Promise<CrmSms> 
   return crmSmsOf(await http(`/crm/sms/${enc(smsId)}/approve`, { method: "POST", body: JSON.stringify({ body: body === undefined ? null : body.trim() }) }));
 }
 
+// ── Automation robots (§16, crm.automation.manage) ──
+export const AUTOMATION_TRIGGERS = ["lead_created", "status_changed", "lead_reopened", "call_no_answer", "call_completed", "next_action_due", "payment_confirmed"] as const;
+export const AUTOMATION_ACTIONS = ["send_sms", "send_notification", "create_task", "change_status", "assign_owner", "add_tags", "escalate"] as const;
+export const CONDITION_OPS = ["eq", "ne", "in", "not_in", "contains", "exists"] as const;
+export const CONDITION_FIELDS = ["lead.status", "lead.source", "lead.urgency", "lead.score", "lead.region", "lead.assigned_operator_user_id", "lead.cycle_number", "customer.lifecycle", "customer.language", "customer.region"] as const;
+export const RULE_STATUSES = ["draft", "active", "paused"] as const;
+export type RuleCondition = { field: string; operator: string; value: unknown };
+// An action is its type and that type's own settings.
+export type RuleAction = { type: string; params: Dict };
+export type AutomationRule = { id: string; name: string; trigger: string; delaySec: number; priority: number; conditions: RuleCondition[]; actions: RuleAction[]; status: string; createdAt: string; updatedAt: string };
+const actionOf = (v: unknown): RuleAction | null => {
+  const d = asDict(v);
+  const type = asStr(d.type ?? d.action ?? d.action_type);
+  if (!type) return null;
+  const params = Object.keys(asDict(d.params)).length ? asDict(d.params) : Object.fromEntries(Object.entries(d).filter(([k]) => !["type", "action", "action_type"].includes(k)));
+  return { type, params };
+};
+export function automationRuleOf(v: unknown): AutomationRule {
+  const d = asDict(v);
+  return {
+    id: asStr(d.id),
+    name: asStr(d.name),
+    trigger: asStr(d.trigger_type ?? d.trigger),
+    delaySec: int(d.delay_seconds),
+    priority: int(d.priority, 100),
+    conditions: asArr(d.conditions).map((c) => {
+      const x = asDict(c);
+      return { field: asStr(x.field), operator: asStr(x.operator) || "eq", value: x.value };
+    }),
+    actions: asArr(d.actions)
+      .map(actionOf)
+      .filter((a): a is RuleAction => !!a),
+    status: asStr(d.status) || "draft",
+    createdAt: asStr(d.created_at),
+    updatedAt: asStr(d.updated_at),
+  };
+}
+export type RuleInput = { name: string; trigger: string; delaySec: number; priority: number; conditions: RuleCondition[]; actions: RuleAction[] };
+// Conditions travel as {field, operator, value}; an action as its type
+// with its settings beside it.
+export const ruleBody = (r: RuleInput): Dict => ({
+  name: r.name.trim(),
+  trigger_type: r.trigger,
+  delay_seconds: Math.max(0, Math.round(r.delaySec)),
+  priority: Math.round(r.priority),
+  conditions: r.conditions.map((c) => (c.operator === "eq" ? { field: c.field, operator: "eq", value: c.value } : { field: c.field, operator: c.operator, value: c.value })),
+  actions: r.actions.map((a) => ({ type: a.type, ...a.params })),
+});
+export async function listAutomationRules(status = "", signal?: AbortSignal): Promise<{ items: AutomationRule[]; actions: string[] }> {
+  const d = asDict(await http(`/crm/automation/rules${qs({ status })}`, { signal }));
+  return { items: asArr(d.items).map(automationRuleOf).filter((r) => r.id), actions: asArr(d.available_actions).map((x) => asStr(x)).filter(Boolean) };
+}
+export async function createAutomationRule(r: RuleInput): Promise<AutomationRule> {
+  return automationRuleOf(await http("/crm/automation/rules", { method: "POST", body: JSON.stringify({ ...ruleBody(r), status: "draft" }) }));
+}
+export async function updateAutomationRule(id: string, patch: Partial<RuleInput> & { status?: string }): Promise<AutomationRule> {
+  const full = patch.name !== undefined ? ruleBody(patch as RuleInput) : {};
+  return automationRuleOf(await http(`/crm/automation/rules/${enc(id)}`, { method: "PATCH", body: JSON.stringify({ ...full, ...(patch.status ? { status: patch.status } : {}) }) }));
+}
+// A dry run never writes (writes_performed=false): whether the rule would
+// match this lead, the context it saw and the actions it would take.
+export type DryRun = { matched: boolean; context: Dict; actions: RuleAction[]; writesPerformed: boolean; reason: string };
+export function dryRunOf(v: unknown): DryRun {
+  const d = asDict(v);
+  return {
+    matched: d.matched === true || (d.matched === undefined && asArr(d.proposed_actions).length > 0),
+    context: asDict(d.matched_context ?? d.context),
+    actions: asArr(d.proposed_actions ?? d.actions)
+      .map(actionOf)
+      .filter((a): a is RuleAction => !!a),
+    writesPerformed: d.writes_performed === true,
+    reason: asStr(d.reason ?? d.message),
+  };
+}
+export async function dryRunRule(id: string, leadId: string, triggerContext: Dict = {}): Promise<DryRun> {
+  return dryRunOf(await http(`/crm/automation/rules/${enc(id)}/dry-run`, { method: "POST", body: JSON.stringify({ lead_id: leadId, trigger_context: triggerContext }) }));
+}
+export type AutomationRun = { id: string; ruleId: string; ruleName: string; leadId: string; leadWorkId: string; status: string; attempts: number; scheduledAt: string; startedAt: string; completedAt: string; context: Dict; result: Dict; error: string };
+export function automationRunOf(v: unknown): AutomationRun {
+  const d = asDict(v);
+  return {
+    id: asStr(d.id),
+    ruleId: asStr(d.rule_id),
+    ruleName: asStr(d.rule_name ?? asDict(d.rule).name),
+    leadId: asStr(d.lead_id),
+    leadWorkId: asStr(d.lead_work_id ?? asDict(d.lead).work_id),
+    status: asStr(d.status),
+    attempts: int(d.attempts ?? d.attempt_count),
+    scheduledAt: asStr(d.scheduled_at),
+    startedAt: asStr(d.started_at),
+    completedAt: asStr(d.completed_at ?? d.finished_at),
+    context: asDict(d.context),
+    result: asDict(d.result),
+    error: asStr(d.error ?? d.last_error),
+  };
+}
+export async function listAutomationRuns(q: { status?: string; ruleId?: string; leadId?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal): Promise<{ items: AutomationRun[]; total: number }> {
+  const d = asDict(await http(`/crm/automation/runs${qs({ status: q.status, rule_id: q.ruleId, lead_id: q.leadId, limit: q.limit ?? 50, offset: q.offset ?? 0 })}`, { signal }));
+  const items = asArr(d.items).map(automationRunOf).filter((r) => r.id);
+  return { items, total: int(d.total, items.length) };
+}
+
 // ── Metrics and analytics ──────────────────────────────────────────────
 
 // Historical cycle metrics (§18): every cycle counts, so a won lead that was

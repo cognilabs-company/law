@@ -125,6 +125,8 @@ function crmServer(perms: string[], revenue = false) {
     callWrites: [] as { path: string; body: Record<string, unknown> }[],
     sms: [] as Record<string, unknown>[],
     smsApprovals: [] as Record<string, unknown>[],
+    rules: [] as Record<string, unknown>[],
+    ruleWrites: [] as { path: string; body: Record<string, unknown> }[],
   };
   const page = (all: Record<string, unknown>[], url: URL) => {
     const want = url.searchParams.get("status");
@@ -255,6 +257,23 @@ function crmServer(perms: string[], revenue = false) {
       return st.calls[0];
     },
     "/crm/leads/m1/sms": () => ({ items: st.sms, count: st.sms.length }),
+    "/crm/automation/rules": () => ({ items: st.rules, count: st.rules.length, available_actions: ["add_tags", "assign_owner", "change_status", "create_task", "escalate", "send_notification", "send_sms"] }),
+    "POST /crm/automation/rules": (b: Record<string, unknown>) => {
+      st.ruleWrites.push({ path: "create", body: b });
+      const r = { id: "r1", ...b, created_at: "2026-10-29T10:00:00Z", updated_at: "2026-10-29T10:00:00Z" };
+      st.rules = [r, ...st.rules];
+      return { status: 201, json: r };
+    },
+    "PATCH /crm/automation/rules/r1": (b: Record<string, unknown>) => {
+      st.ruleWrites.push({ path: "patch", body: b });
+      st.rules = st.rules.map((r) => (r.id === "r1" ? { ...r, ...b } : r));
+      return st.rules[0];
+    },
+    "POST /crm/automation/rules/r1/dry-run": (b: Record<string, unknown>) => {
+      st.ruleWrites.push({ path: "dry", body: b });
+      return { rule_id: "r1", matched: true, matched_context: { lead: { status: "qualified", source: "phone" } }, proposed_actions: [{ type: "send_notification", message: "Qayta qo'ng'iroq qiling", recipient: "assigned_operator" }], writes_performed: false };
+    },
+    "/crm/automation/runs": { items: [{ id: "run9", rule_id: "r1", rule_name: "Javobsiz qo'ng'iroq", lead_id: "m1", lead_work_id: "LEAD-M1", status: "completed", attempts: 1, scheduled_at: "2026-10-29T10:00:00Z", started_at: "2026-10-29T10:00:01Z", completed_at: "2026-10-29T10:00:02Z", context: {}, result: { notified: true }, error: "" }], total: 1, limit: 30, offset: 0 },
     "POST /crm/leads/m1/sms": (b: Record<string, unknown>) => {
       const x = { id: `s${st.sms.length + 1}`, lead_id: "m1", body: b.body, language: b.language, contact_id: b.contact_id, status: "draft", created_at: new Date().toISOString() };
       st.sms = [x, ...st.sms];
@@ -695,6 +714,47 @@ test("SMS: a draft is approved with edits; a missing provider shows as not confi
   await expect(row).not.toContainText(/Yuborildi|Yetkazildi/);
   await expect(row.getByRole("button", { name: "Qayta yuborish" })).toBeVisible();
   await shot(page, "sms");
+  expect(missing).toEqual([]);
+});
+
+test("robots: built with pickers, a draft until a dry run on a real lead; Turn on only after it", async ({ page }) => {
+  const missing = watchIntl(page);
+  const { st, routes } = crmServer([...(OPERATOR.permissions ?? []), "crm.automation.manage"]);
+  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await page.goto("/uz/admin/crm/automation");
+  await page.getByRole("button", { name: "Yangi robot" }).first().click();
+  const ed = page.getByRole("dialog", { name: "Yangi robot" });
+  await expect(ed.locator("textarea[name], select, input[type=checkbox]")).toHaveCount(0);
+  await ed.getByRole("textbox", { name: "Nomi" }).fill("Javobsiz qo'ng'iroq");
+  await ed.getByRole("button", { name: /Qachon ishlaydi/ }).click();
+  await page.getByRole("listbox").getByRole("option", { name: "Qo'ng'iroqqa javob bo'lmaganda" }).click();
+  await ed.getByRole("button", { name: "Shart qo'shish" }).click();
+  await ed.getByRole("button", { name: /^Shart/ }).first().click();
+  await page.getByRole("listbox").getByRole("option", { name: "quyidagilardan biri" }).click();
+  await ed.locator(".crm-cond .crm-chips").getByRole("button", { name: "Yangi" }).click();
+  await ed.locator(".crm-cond .crm-chips").getByRole("button", { name: "Saralangan" }).click();
+  await ed.getByRole("button", { name: /^Amal/ }).first().click();
+  await page.getByRole("listbox").getByRole("option", { name: "Bildirishnoma yuborish" }).click();
+  await ed.getByRole("textbox", { name: "Xabar matni" }).fill("Qayta qo'ng'iroq qiling");
+  await ed.getByRole("button", { name: "Qoralama sifatida saqlash" }).click();
+  await expect.poll(() => st.ruleWrites[0]?.body).toMatchObject({ name: "Javobsiz qo'ng'iroq", trigger_type: "call_no_answer", status: "draft", conditions: [{ field: "lead.status", operator: "in", value: ["new", "qualified"] }], actions: [{ type: "send_notification", message: "Qayta qo'ng'iroq qiling" }] });
+  const card = page.locator(".crm-rule").first();
+  await expect(card).toContainText("Agar: Lid holati quyidagilardan biri Yangi, Saralangan");
+  // Turn on stays shut until a dry run on a real lead.
+  await expect(card.getByRole("button", { name: "Yoqish" })).toBeDisabled();
+  await card.getByRole("button", { name: "Sinab ko'rish" }).click();
+  const dry = page.getByRole("dialog", { name: /sinash/ });
+  await dry.getByRole("option", { name: /Ijara shartnomasi/ }).first().click();
+  await dry.getByRole("button", { name: "Sinovni boshlash" }).click();
+  await expect(dry.locator(".crm-dry")).toContainText("Shartlar mos keldi");
+  await expect(dry.locator(".crm-dry")).toContainText("Bildirishnoma yuborish: «Qayta qo'ng'iroq qiling»");
+  await expect(dry.locator(".crm-dry")).toContainText("Sinov hech narsani o'zgartirmadi");
+  await shot(page, "robot-dry");
+  await dry.getByRole("button", { name: "Tayyor" }).click();
+  await card.getByRole("button", { name: "Yoqish" }).click();
+  await expect.poll(() => st.ruleWrites.find((w) => w.path === "patch")?.body).toEqual({ status: "active" });
+  await page.getByRole("tab", { name: "Ishga tushishlar" }).click();
+  await expect(page.locator(".crm-runlog")).toContainText("1 urinish");
   expect(missing).toEqual([]);
 });
 
