@@ -748,29 +748,129 @@ export function aiCardsOf(output: Dict): AiCard[] {
 
 // ── Calls ──────────────────────────────────────────────────────────────
 
-export type CrmCall = { id: string; status: string; direction: string; purpose: string; summary: string; startedAt: string; endedAt: string; durationSec: number | null; recordingUrl: string; transcript: unknown[]; createdAt: string };
+// Calls (contract 13cb257 §14): the backend needs a phone contact and
+// answers with the provider/call state; the Uzbek recording-consent text
+// comes in its metadata. A live transcript grows segment by segment.
+export const CALL_END_STATUSES = ["completed", "no_answer", "failed", "cancelled"] as const;
+export type CallSegment = { speaker: string; text: string; startMs: number | null; endMs: number | null };
+export type CrmCall = {
+  id: string;
+  status: string;
+  direction: string;
+  purpose: string;
+  summary: string;
+  contactId: string;
+  provider: string;
+  consentText: string;
+  startedAt: string;
+  endedAt: string;
+  durationSec: number | null;
+  recordingUrl: string;
+  transcript: CallSegment[];
+  aiRunId: string;
+  createdAt: string;
+};
+export const callEnded = (c: Pick<CrmCall, "status">): boolean => (CALL_END_STATUSES as readonly string[]).includes(c.status);
+const segmentOf = (v: unknown): CallSegment | null => {
+  const d = asDict(v);
+  const text = asStr(d.text).trim();
+  return text ? { speaker: asStr(d.speaker) || "customer", text, startMs: num(d.started_at_ms), endMs: num(d.ended_at_ms) } : null;
+};
+// The consent text, wherever the metadata keeps it (Uzbek first).
+function consentOf(meta: Dict): string {
+  const c = asDict(meta.recording_consent ?? meta.consent);
+  return asStr(meta.recording_consent_text ?? meta.consent_text ?? c.text_uz ?? c.uz ?? c.text ?? (typeof meta.recording_consent === "string" ? meta.recording_consent : "")).trim();
+}
 export function crmCallOf(v: unknown, recordingAccess: boolean): CrmCall {
   const d = asDict(v);
+  const meta = asDict(d.metadata);
   return {
     id: asStr(d.id),
     status: asStr(d.status),
     direction: asStr(d.direction),
     purpose: asStr(d.purpose),
     summary: asStr(d.summary),
+    contactId: asStr(d.contact_id),
+    provider: asStr(d.provider ?? meta.provider),
+    consentText: consentOf(meta),
     startedAt: asStr(d.started_at),
     endedAt: asStr(d.ended_at ?? d.completed_at),
     durationSec: num(d.duration_seconds ?? d.duration_sec),
-    // Never shown, never kept, without recording_access (§7).
+    // Never shown, never kept, without the recordings permission (§20).
     recordingUrl: recordingAccess ? asStr(d.recording_url) : "",
-    transcript: recordingAccess ? asArr(d.transcript) : [],
+    transcript: asArr(d.transcript ?? d.segments)
+      .map(segmentOf)
+      .filter((x): x is CallSegment => !!x),
+    aiRunId: asStr(d.ai_run_id),
     createdAt: asStr(d.created_at),
   };
 }
 export async function listLeadCalls(id: string, recordingAccess: boolean, signal?: AbortSignal): Promise<CrmCall[]> {
   return listOf(await http(`/crm/leads/${enc(id)}/calls`, { signal })).map((x) => crmCallOf(x, recordingAccess));
 }
-export async function startLeadCall(id: string, input: { contactId?: string; purpose: string }, recordingAccess: boolean): Promise<CrmCall> {
-  return crmCallOf(await http(`/crm/leads/${enc(id)}/calls`, { method: "POST", body: JSON.stringify({ contact_id: input.contactId || null, direction: "outbound", purpose: input.purpose.trim() }) }), recordingAccess);
+export async function startLeadCall(id: string, input: { contactId: string; purpose: string; direction?: "outbound" | "inbound" }, recordingAccess: boolean): Promise<CrmCall> {
+  return crmCallOf(await http(`/crm/leads/${enc(id)}/calls`, { method: "POST", body: JSON.stringify({ contact_id: input.contactId || null, direction: input.direction ?? "outbound", purpose: input.purpose.trim() }) }), recordingAccess);
+}
+export const callCompleteBody = (status: string, summary: string, transcript: CallSegment[]): Dict => ({
+  status,
+  summary: summary.trim(),
+  transcript: transcript.map((s) => ({ speaker: s.speaker, text: s.text, started_at_ms: s.startMs, ended_at_ms: s.endMs })),
+  recording_url: "",
+  metadata: {},
+});
+export async function completeCall(callId: string, status: string, summary: string, transcript: CallSegment[], recordingAccess: boolean): Promise<CrmCall> {
+  return crmCallOf(await http(`/crm/calls/${enc(callId)}/complete`, { method: "POST", body: JSON.stringify(callCompleteBody(status, summary, transcript)) }), recordingAccess);
+}
+// A live-transcript append; `aiRunId` is set when it started a live-assist
+// run (the backend never runs two at once).
+export async function appendTranscript(callId: string, segments: CallSegment[], requestAssist: boolean): Promise<{ aiRunId: string; call: CrmCall | null }> {
+  const d = asDict(
+    await http(`/crm/calls/${enc(callId)}/transcript`, {
+      method: "POST",
+      body: JSON.stringify({ segments: segments.map((s) => ({ speaker: s.speaker, text: s.text, started_at_ms: s.startMs, ended_at_ms: s.endMs })), language: "auto", request_ai_assist: requestAssist }),
+    }),
+  );
+  const call = asStr(asDict(d.call).id) ? crmCallOf(d.call, false) : null;
+  return { aiRunId: asStr(d.ai_run_id ?? asDict(d.ai_run).id), call };
+}
+
+// ── SMS (§15) ──
+// Drafts need an operator's approval; the provider is not configured yet,
+// so an approved SMS becomes provider_configuration_required — never shown
+// as sent or delivered.
+export const SMS_STATUSES = ["draft", "scheduled", "approved", "sent", "delivered", "cancelled", "failed", "provider_configuration_required"] as const;
+export type CrmSms = { id: string; leadId: string; body: string; language: string; status: string; contactId: string; to: string; scheduledAt: string; sentAt: string; deliveredAt: string; error: string; origin: string; createdAt: string; updatedAt: string };
+export function crmSmsOf(v: unknown): CrmSms {
+  const d = asDict(v);
+  return {
+    id: asStr(d.id),
+    leadId: asStr(d.lead_id),
+    body: asStr(d.body),
+    language: asStr(d.language),
+    status: asStr(d.status) || "draft",
+    contactId: asStr(d.contact_id),
+    to: asStr(d.phone ?? d.to ?? d.recipient ?? asDict(d.contact).value),
+    scheduledAt: asStr(d.scheduled_at),
+    sentAt: asStr(d.sent_at),
+    deliveredAt: asStr(d.delivered_at),
+    error: asStr(d.error ?? d.provider_error),
+    // Where it came from: the automatic no-answer SMS, AI or the operator.
+    origin: asStr(d.source ?? d.origin ?? asDict(d.metadata).source ?? asDict(d.metadata).trigger),
+    createdAt: asStr(d.created_at),
+    updatedAt: asStr(d.updated_at),
+  };
+}
+export const smsEditable = (s: Pick<CrmSms, "status">): boolean => s.status === "draft" || s.status === "scheduled";
+export async function listLeadSms(leadId: string, signal?: AbortSignal): Promise<CrmSms[]> {
+  return listOf(await http(`/crm/leads/${enc(leadId)}/sms`, { signal })).map(crmSmsOf).filter((x) => x.id);
+}
+export const smsBody = (s: { body: string; language: string; contactId: string; scheduledAt?: string }): Dict => ({ body: s.body.trim(), language: s.language || "uz_latn", contact_id: s.contactId || null, scheduled_at: s.scheduledAt || null });
+export async function createLeadSms(leadId: string, s: { body: string; language: string; contactId: string; scheduledAt?: string }): Promise<CrmSms> {
+  return crmSmsOf(await http(`/crm/leads/${enc(leadId)}/sms`, { method: "POST", body: JSON.stringify(smsBody(s)) }));
+}
+// Approve as it is, or with the operator's final text.
+export async function approveSms(smsId: string, body?: string): Promise<CrmSms> {
+  return crmSmsOf(await http(`/crm/sms/${enc(smsId)}/approve`, { method: "POST", body: JSON.stringify({ body: body === undefined ? null : body.trim() }) }));
 }
 
 // ── Metrics and analytics ──────────────────────────────────────────────

@@ -121,6 +121,10 @@ function crmServer(perms: string[], revenue = false) {
     moves: [] as Record<string, unknown>[],
     moveConflictOnce: false,
     colWrites: [] as { method: string; body: unknown; url: string }[],
+    calls: [] as Record<string, unknown>[],
+    callWrites: [] as { path: string; body: Record<string, unknown> }[],
+    sms: [] as Record<string, unknown>[],
+    smsApprovals: [] as Record<string, unknown>[],
   };
   const page = (all: Record<string, unknown>[], url: URL) => {
     const want = url.searchParams.get("status");
@@ -232,6 +236,36 @@ function crmServer(perms: string[], revenue = false) {
       return l;
     },
     "/crm/leads/w1": () => allLeads().find((x) => x.id === "w1"),
+    "/crm/leads/m1/calls": () => st.calls,
+    "POST /crm/leads/m1/calls": (b: Record<string, unknown>) => {
+      st.callWrites.push({ path: "start", body: b });
+      if (!b.contact_id) return { status: 422, json: { detail: { code: "crm_phone_contact_required", field: "contact_id" } } };
+      const c = { id: "call-1", lead_id: "m1", contact_id: b.contact_id, direction: b.direction, purpose: b.purpose, status: "initiated", provider: "disabled", metadata: { recording_consent_text: "Assalomu alaykum! Suhbat sifat uchun yozib olinmoqda." }, transcript: [], created_at: new Date().toISOString() };
+      st.calls = [c, ...st.calls];
+      return { status: 201, json: c };
+    },
+    "POST /crm/calls/call-1/transcript": (b: Record<string, unknown>) => {
+      st.callWrites.push({ path: "transcript", body: b });
+      return { call_id: "call-1", ai_run_id: b.request_ai_assist ? "run-live" : null };
+    },
+    "/crm/ai/runs/run-live": { id: "run-live", lead_id: "m1", run_type: "live_call_assist", status: "completed", output: { reply_drafts: ["Hujjat nusxasini Telegram orqali yuborishingiz mumkin."] }, created_at: new Date().toISOString() },
+    "POST /crm/calls/call-1/complete": (b: Record<string, unknown>) => {
+      st.callWrites.push({ path: "complete", body: b });
+      st.calls = st.calls.map((c) => (c.id === "call-1" ? { ...c, status: b.status, summary: b.summary } : c));
+      return st.calls[0];
+    },
+    "/crm/leads/m1/sms": () => ({ items: st.sms, count: st.sms.length }),
+    "POST /crm/leads/m1/sms": (b: Record<string, unknown>) => {
+      const x = { id: `s${st.sms.length + 1}`, lead_id: "m1", body: b.body, language: b.language, contact_id: b.contact_id, status: "draft", created_at: new Date().toISOString() };
+      st.sms = [x, ...st.sms];
+      return { status: 201, json: x };
+    },
+    "POST /crm/sms/[^/]+/approve": (b: Record<string, unknown>, url: URL) => {
+      const id = url.pathname.split("/").at(-2) ?? "";
+      st.smsApprovals.push({ id, ...b });
+      st.sms = st.sms.map((x) => (x.id === id ? { ...x, body: b.body ?? x.body, status: "provider_configuration_required" } : x));
+      return st.sms.find((x) => x.id === id);
+    },
     "/crm/leads/w1/timeline": [],
     "/crm/leads/m1/timeline": () => st.activities,
     "PATCH /crm/leads/m1": (b: Record<string, unknown>) => {
@@ -613,6 +647,55 @@ test("realtime: another user's move slides the card over; an actionable event po
   await expect(card).toBeVisible();
   await card.getByRole("link", { name: "Ochish" }).click();
   await expect(page).toHaveURL(/\/admin\/crm\/leads\/m1$/);
+});
+
+test("calls: a phone contact, the consent text, a live transcript with AI assist, and a no-answer completion", async ({ page }) => {
+  const missing = watchIntl(page);
+  const { st, routes } = crmServer([...(OPERATOR.permissions ?? []), "crm.calls.start"]);
+  st.mine[0].allowed_actions = [...(st.mine[0].allowed_actions as string[]), "start_call"];
+  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await page.goto("/uz/admin/crm/leads/m1?pane=calls");
+  await wsTab(page, /Tarix/);
+  const pane = page.locator(".crm-callpane");
+  await expect(pane).toContainText("IP-telefoniya hali ulanmagan");
+  await pane.getByRole("button", { name: "Qo'ng'iroqni boshlash" }).click();
+  await expect.poll(() => st.callWrites[0]?.body).toMatchObject({ contact_id: "k1", direction: "outbound" });
+  const live = pane.locator(".crm-livecall");
+  await expect(live.locator(".crm-consent")).toContainText("Suhbat sifat uchun yozib olinmoqda");
+  await live.getByRole("textbox", { name: "Matn qatori" }).fill("Shartnoma nusxasini qanday yuboraman?");
+  await live.getByRole("textbox", { name: "Matn qatori" }).press("Enter");
+  await expect.poll(() => st.callWrites.find((w) => w.path === "transcript")?.body).toMatchObject({ request_ai_assist: true, segments: [{ speaker: "customer", text: "Shartnoma nusxasini qanday yuboraman?" }] });
+  await expect(live.locator(".crm-tscript")).toContainText("Shartnoma nusxasini qanday yuboraman?");
+  await shot(page, "live-call");
+  await live.getByRole("button", { name: "Javob yo'q" }).click();
+  await expect(live).toContainText("180 soniyadan keyin standart SMS");
+  await live.getByRole("button", { name: "Qo'ng'iroqni yakunlash" }).click();
+  await expect.poll(() => st.callWrites.find((w) => w.path === "complete")?.body).toMatchObject({ status: "no_answer" });
+  await expect(pane.locator(".crm-calllog")).toContainText("Javob yo'q");
+  expect(missing).toEqual([]);
+});
+
+test("SMS: a draft is approved with edits; a missing provider shows as not configured with a retry, never as sent", async ({ page }) => {
+  const missing = watchIntl(page);
+  const { st, routes } = crmServer([...(OPERATOR.permissions ?? []), "crm.sms.manage"]);
+  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await page.goto("/uz/admin/crm/leads/m1?pane=sms");
+  await wsTab(page, /Tarix/);
+  const pane = page.locator(".crm-smspane");
+  await expect(pane).toContainText("180 soniyadan keyin standart SMS");
+  await pane.getByRole("textbox").first().fill("Assalomu alaykum! Shartnoma nusxasini yuboring.");
+  await pane.getByRole("button", { name: "Qoralamani saqlash" }).click();
+  const row = pane.locator(".crm-sms").first();
+  await expect(row).toContainText("Qoralama");
+  await row.getByRole("button", { name: "Tahrirlash" }).click();
+  await row.getByRole("textbox").fill("Assalomu alaykum! Iltimos, shartnoma nusxasini yuboring.");
+  await row.getByRole("button", { name: "Tahrir bilan tasdiqlash" }).click();
+  await expect.poll(() => st.smsApprovals[0]).toMatchObject({ id: "s1", body: "Assalomu alaykum! Iltimos, shartnoma nusxasini yuboring." });
+  await expect(row).toContainText("SMS provayderi sozlanmagan");
+  await expect(row).not.toContainText(/Yuborildi|Yetkazildi/);
+  await expect(row.getByRole("button", { name: "Qayta yuborish" })).toBeVisible();
+  await shot(page, "sms");
+  expect(missing).toEqual([]);
 });
 
 test("a finished lead reopens as a new cycle; the old cycle keeps its final status", async ({ page }) => {

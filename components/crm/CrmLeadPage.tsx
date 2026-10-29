@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { useSearchParams } from "next/navigation";
 import Modal from "@/components/admin/Modal";
-import { IconAlert, IconArrowRight, IconClock, IconFlame, IconHistory, IconLayers, IconMapPin, IconRefresh } from "@/components/icons";
+import { IconAlert, IconArrowRight, IconChat, IconClock, IconFlame, IconHistory, IconLayers, IconMapPin, IconPhone, IconRefresh } from "@/components/icons";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
@@ -17,6 +18,12 @@ import { LeadTimeline } from "./LeadTimeline";
 import { CopilotPanel } from "./CopilotPanel";
 import { ReopenSheet, StatusSheet } from "./LeadSheets";
 import { LeadHistory } from "./LeadHistory";
+import { LeadCalls } from "./LeadCalls";
+import { LeadSms } from "./LeadSms";
+
+type Pane = "timeline" | "history" | "calls" | "sms";
+const PANES: Pane[] = ["timeline", "history", "calls", "sms"];
+const PANE_ICON = { timeline: IconLayers, history: IconHistory, calls: IconPhone, sms: IconChat } as const;
 
 export type LeadWrite = (run: (lead: CrmLead) => Promise<CrmLead | null | void>, okText?: string) => Promise<boolean>;
 
@@ -36,7 +43,11 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
   const [loadErr, setLoadErr] = useState<unknown>(null);
   // A stale write (§3, §22): both copies, so the operator sees what changed.
   const [conflict, setConflict] = useState<{ mine: CrmLead; fresh: CrmLead | null } | null>(null);
-  const [pane, setPane] = useState<"timeline" | "history">("timeline");
+  // §9: timeline, cycles, calls and SMS; ?pane= opens one directly.
+  const params = useSearchParams();
+  const [pane, setPane] = useState<Pane>(() => (PANES.includes(params.get("pane") as Pane) ? (params.get("pane") as Pane) : "timeline"));
+  // A draft the AI Copilot handed to the SMS pane.
+  const [smsPreset, setSmsPreset] = useState("");
   const [timelineKey, setTimelineKey] = useState(0);
   const [aiKey, setAiKey] = useState(0);
   const [tab, setTab] = useState<"info" | "timeline" | "ai">("timeline");
@@ -157,16 +168,25 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
         </div>
         <div className="crm-ws__col crm-ws__main">
           <div className="crm-panes" role="tablist" aria-label={t("panes")}>
-            <button type="button" role="tab" aria-selected={pane === "timeline"} onClick={() => setPane("timeline")}>
-              <IconLayers aria-hidden="true" />
-              {t("pane.timeline")}
-            </button>
-            <button type="button" role="tab" aria-selected={pane === "history"} onClick={() => setPane("history")}>
-              <IconHistory aria-hidden="true" />
-              {t("pane.history", { n: lead.cycleNumber })}
-            </button>
+            {PANES.map((k) => {
+              const Icon = PANE_ICON[k];
+              return (
+                <button key={k} type="button" role="tab" aria-selected={pane === k} onClick={() => setPane(k)}>
+                  <Icon aria-hidden="true" />
+                  {t(`pane.${k}`, { n: lead.cycleNumber })}
+                </button>
+              );
+            })}
           </div>
-          {pane === "timeline" ? <LeadTimeline lead={lead} write={write} refreshKey={timelineKey} onAdded={() => setTimelineKey((k) => k + 1)} /> : <LeadHistory lead={lead} />}
+          {pane === "timeline" ? (
+            <LeadTimeline lead={lead} write={write} refreshKey={timelineKey} onAdded={() => setTimelineKey((k) => k + 1)} />
+          ) : pane === "history" ? (
+            <LeadHistory lead={lead} />
+          ) : pane === "calls" ? (
+            <LeadCalls meta={meta} lead={lead} />
+          ) : (
+            <LeadSms meta={meta} lead={lead} preset={smsPreset} onPresetUsed={() => setSmsPreset("")} />
+          )}
         </div>
         <div className="crm-ws__col crm-ws__ai">{leadCan(lead, "run_ai") ? <CopilotPanel meta={meta} lead={lead} write={write} refreshKey={aiKey} /> : null}</div>
       </div>

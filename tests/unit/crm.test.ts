@@ -13,6 +13,11 @@ import {
   crmActivityOf,
   crmAnalyticsOf,
   crmCallOf,
+  callCompleteBody,
+  callEnded,
+  crmSmsOf,
+  smsBody,
+  smsEditable,
   crmCan,
   crmEventOf,
   crmGlobalAnalytics,
@@ -364,5 +369,22 @@ describe("cycles", () => {
     expect(isVersionConflict(new ApiError(409, "x", undefined, { code: "crm_lead_version_conflict" }))).toBe(true);
     expect(isVersionConflict(new ApiError(409, "x", undefined, { code: "crm_lead_stale_version" }))).toBe(true);
     expect(isVersionConflict(new ApiError(409, "x", undefined, { code: "crm_ai_run_active" }))).toBe(false);
+  });
+});
+
+// §14/§15: calls with the consent text and live transcript; SMS states.
+describe("calls and SMS", () => {
+  it("reads the consent text from the call's metadata and its transcript", () => {
+    const c = crmCallOf({ id: "c1", status: "initiated", contact_id: "k1", metadata: { recording_consent_text: "Suhbat yozib olinmoqda" }, transcript: [{ speaker: "customer", text: "Salom", started_at_ms: 0, ended_at_ms: 900 }, { speaker: "operator", text: " " }] }, false);
+    expect([c.consentText, c.contactId, c.transcript.length, callEnded(c)]).toEqual(["Suhbat yozib olinmoqda", "k1", 1, false]);
+    expect(callEnded(crmCallOf({ id: "c2", status: "no_answer" }, false))).toBe(true);
+  });
+  it("a completion carries the status, summary and transcript", () => {
+    expect(callCompleteBody("no_answer", " ", [{ speaker: "customer", text: "Alo", startMs: 0, endMs: 1 }])).toEqual({ status: "no_answer", summary: "", transcript: [{ speaker: "customer", text: "Alo", started_at_ms: 0, ended_at_ms: 1 }], recording_url: "", metadata: {} });
+  });
+  it("an SMS draft and its states; only drafts and scheduled ones are editable", () => {
+    expect(smsBody({ body: " Salom ", language: "uz_latn", contactId: "k1" })).toEqual({ body: "Salom", language: "uz_latn", contact_id: "k1", scheduled_at: null });
+    const s = crmSmsOf({ id: "s1", status: "provider_configuration_required", body: "x" });
+    expect([s.status, smsEditable(s), smsEditable(crmSmsOf({ id: "s2", status: "draft" }))]).toEqual(["provider_configuration_required", false, true]);
   });
 });
