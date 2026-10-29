@@ -674,7 +674,8 @@ export async function prepareConversion(id: string, c: ConversionInput): Promise
 
 // ── AI Copilot ─────────────────────────────────────────────────────────
 
-export const AI_RUN_TYPES = ["full_analysis", "summary", "qualification", "service_match", "draft_reply", "call_script", "follow_up", "offer"] as const;
+// §13: all eleven run types.
+export const AI_RUN_TYPES = ["full_analysis", "summary", "qualification", "service_match", "draft_reply", "call_script", "follow_up", "offer", "live_call_assist", "post_call_summary", "sms_draft"] as const;
 export const AI_LANGUAGES = ["auto", "uz_latn", "uz_cyrl", "ru"] as const;
 export type CrmAiRun = { id: string; leadId: string; operatorId: string; runType: string; language: string; instruction: string; status: string; model: string; output: Dict; error: string; createdAt: string; completedAt: string };
 export function crmAiRunOf(v: unknown): CrmAiRun {
@@ -729,15 +730,23 @@ export function aiCardsOf(output: Dict): AiCard[] {
   push("category", "text", output.category);
   push("subcategory", "text", output.subcategory);
   push("urgency", "text", output.urgency);
+  push("detected_language", "text", output.detected_language);
+  push("customer_mood", "text", output.customer_mood);
+  push("suggested_status", "text", output.suggested_status);
+  push("agreements", "list", output.agreements);
+  push("objections", "list", output.objections);
+  push("risks", "list", output.risks);
   push("risk_flags", "chips", output.risk_flags);
   push("missing_information", "list", output.missing_information);
   push("questions", "list", output.questions);
+  push("duplicates", "candidates", output.duplicates);
   push("service_candidates", "candidates", output.service_candidates);
   push("specialist_candidates", "candidates", output.specialist_candidates);
   push("reply_drafts", "draft", output.reply_drafts);
   push("call_script", "draft", output.call_script);
   push("follow_up", "draft", output.follow_up);
-  push("offer_draft", "draft", output.offer_draft);
+  push("offer_draft", "draft", output.offer_draft ?? output.offer);
+  push("sms_draft", "draft", output.sms_draft);
   const next = asDict(output.next_action);
   if (Object.keys(next).length) {
     if (next.at) out.push({ path: "next_action.at", kind: "next", value: next.at, applicable: true });

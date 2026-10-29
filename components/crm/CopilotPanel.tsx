@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactElement } from "rea
 import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import CheckBox from "@/components/CheckBox";
-import { IconAlert, IconArrowRight, IconCopy, IconShieldCheck, IconSparkle } from "@/components/icons";
+import { IconAlert, IconArrowRight, IconCopy, IconSend, IconShieldCheck, IconSparkle } from "@/components/icons";
 import { shortDateTime, timeOnly } from "@/lib/date";
 import { asArr, asDict, asStr, isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
@@ -35,7 +35,9 @@ const URGENCIES = ["low", "normal", "high", "urgent"];
 
 // Advisory only: a run reads, suggests and waits. Nothing is sent, changed
 // or created until the operator ticks cards and applies them (§5).
-export function CopilotPanel({ meta, lead, write, refreshKey }: { meta: CrmMeta; lead: CrmLead; write: LeadWrite; refreshKey: number }): ReactElement {
+// `onSmsDraft`: an sms_draft suggestion opens in the lead's SMS pane as a
+// draft the operator still edits and approves.
+export function CopilotPanel({ meta, lead, write, refreshKey, onSmsDraft }: { meta: CrmMeta; lead: CrmLead; write: LeadWrite; refreshKey: number; onSmsDraft?: (text: string) => void }): ReactElement {
   const t = useTranslations("crm.ai");
   const tu = useTranslations("crm.newLead");
   const locale = useLocale();
@@ -112,8 +114,19 @@ export function CopilotPanel({ meta, lead, write, refreshKey }: { meta: CrmMeta;
       setEdits({});
     } catch (e) {
       if (crmCode(e) === "crm_ai_run_active") {
+        // §13: one run at a time — open the one already going.
         toast(t("active"), { tone: "info" });
-        void loadRuns();
+        const activeId = asStr(asDict((e as { data?: Record<string, unknown> }).data?.detail).run_id);
+        if (activeId) {
+          try {
+            const r = await getAiRun(activeId);
+            setCurrent(r);
+            setRuns((cur) => [r, ...(cur ?? []).filter((x) => x.id !== r.id)]);
+          } catch (err) {
+            logApiError("crm.ai.active", err);
+            void loadRuns();
+          }
+        } else void loadRuns();
       } else toast(crmErr(e), { tone: "err" });
     } finally {
       setStarting(false);
@@ -250,7 +263,7 @@ export function CopilotPanel({ meta, lead, write, refreshKey }: { meta: CrmMeta;
                   <div key={c.path} className="crm-sugg" data-on={on || undefined}>
                     <div className="crm-sugg__h">
                       <CheckBox id={id} checked={on} onChange={() => toggle(c.path)} disabled={!c.applicable}>
-                        {t.has(pathKey(c.path)) ? t(pathKey(c.path)) : c.path}
+                        {t.has(pathKey(c.path)) ? t(pathKey(c.path)) : t("path.other")}
                       </CheckBox>
                       {!c.applicable ? <small>{t("copyOnly")}</small> : null}
                     </div>
@@ -292,10 +305,18 @@ export function CopilotPanel({ meta, lead, write, refreshKey }: { meta: CrmMeta;
                       <>
                         <textarea className="crm-textarea" value={valueOf(c)} onChange={(e) => setEdits((cur) => ({ ...cur, [c.path]: e.target.value }))} aria-label={t.has(pathKey(c.path)) ? t(pathKey(c.path)) : c.path} style={{ minHeight: c.kind === "draft" ? 110 : 60 }} />
                         {c.kind === "draft" ? (
-                          <button type="button" className="crm-btn crm-btn--sm" style={{ justifySelf: "start" }} onClick={() => copyText(valueOf(c), t("copied"))}>
-                            <IconCopy aria-hidden="true" />
-                            {t("copy")}
-                          </button>
+                          <span style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            <button type="button" className="crm-btn crm-btn--sm" onClick={() => copyText(valueOf(c), t("copied"))}>
+                              <IconCopy aria-hidden="true" />
+                              {t("copy")}
+                            </button>
+                            {c.path === "sms_draft" && onSmsDraft ? (
+                              <button type="button" className="crm-btn crm-btn--sm" onClick={() => onSmsDraft(valueOf(c))}>
+                                <IconSend aria-hidden="true" />
+                                {t("toSms")}
+                              </button>
+                            ) : null}
+                          </span>
                         ) : null}
                       </>
                     )}
@@ -339,7 +360,7 @@ export function CopilotPanel({ meta, lead, write, refreshKey }: { meta: CrmMeta;
                   }}
                 >
                   <i aria-hidden="true" />
-                  {t.has(`type.${r.runType}`) ? t(`type.${r.runType}`) : r.runType}
+                  {t.has(`type.${r.runType}`) ? t(`type.${r.runType}`) : t("type.other")}
                   <time>{r.createdAt ? timeOnly(r.createdAt, locale) : ""}</time>
                 </button>
               </li>

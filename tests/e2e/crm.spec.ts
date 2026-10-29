@@ -497,6 +497,29 @@ test("AI copilot: 202 → poll → cards; only the ticked paths, with edits and 
   expect(missing).toEqual([]);
 });
 
+test("AI copilot: all eleven run types; a run already going opens instead of a second; an SMS draft goes to the SMS pane", async ({ page }) => {
+  const missing = watchIntl(page);
+  const { routes } = crmServer([...(OPERATOR.permissions ?? []), "crm.sms.manage"]);
+  const r = routes as Record<string, unknown>;
+  r["POST /crm/leads/m1/ai/runs"] = () => ({ status: 409, json: { detail: { code: "crm_ai_run_active", run_id: "run-9" } } });
+  r["/crm/ai/runs/run-9"] = { id: "run-9", lead_id: "m1", run_type: "sms_draft", language: "uz_latn", status: "completed", output: { sms_draft: "Assalomu alaykum! Shartnoma nusxasini yuboring.", operator_confirmation_required: true, auto_executed: false }, created_at: new Date().toISOString() };
+  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await page.goto("/uz/admin/crm/leads/m1");
+  await wsTab(page, /Kopilot/);
+  const ai = page.locator(".crm-ai");
+  await expect(ai.locator(".crm-ai__types .crm-chip")).toHaveCount(11);
+  await ai.locator(".crm-ai__types").getByRole("button", { name: "SMS qoralamasi" }).click();
+  await ai.getByRole("button", { name: "Kopilotdan so'rash" }).click();
+  // The run already going is opened, not a second one.
+  await expect(ai.getByRole("textbox", { name: "SMS qoralamasi" })).toHaveValue("Assalomu alaykum! Shartnoma nusxasini yuboring.");
+  await expect(ai.getByRole("button", { name: /Hammasini|apply all/i })).toHaveCount(0);
+  await ai.getByRole("button", { name: "SMS qoralamasiga o'tkazish" }).click();
+  await wsTab(page, /Tarix/);
+  const sms = page.locator(".crm-smspane");
+  await expect(sms.getByRole("textbox").first()).toHaveValue("Assalomu alaykum! Shartnoma nusxasini yuboring.");
+  expect(missing).toEqual([]);
+});
+
 test("customer profile: current and past leads, contacts, and merge only with its permission", async ({ page }) => {
   const missing = watchIntl(page);
   const { routes } = crmServer(OPERATOR.permissions ?? []);

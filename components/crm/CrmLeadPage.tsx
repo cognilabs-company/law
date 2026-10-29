@@ -188,7 +188,17 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
             <LeadSms meta={meta} lead={lead} preset={smsPreset} onPresetUsed={() => setSmsPreset("")} />
           )}
         </div>
-        <div className="crm-ws__col crm-ws__ai">{leadCan(lead, "run_ai") ? <CopilotPanel meta={meta} lead={lead} write={write} refreshKey={aiKey} /> : null}</div>
+        <div className="crm-ws__col crm-ws__ai">{leadCan(lead, "run_ai") ? <CopilotPanel
+              meta={meta}
+              lead={lead}
+              write={write}
+              refreshKey={aiKey}
+              onSmsDraft={(text) => {
+                setSmsPreset(text);
+                setPane("sms");
+                setTab("timeline");
+              }}
+            /> : null}</div>
       </div>
     </>
   );
