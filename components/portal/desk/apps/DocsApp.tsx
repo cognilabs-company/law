@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { answerText } from "@/lib/answerText";
 import { claimDocumentRequest, fulfillLawyerDocumentRequestFile, getDocumentRequestPool, getServiceTemplateSourceFile, listMyLawyerDocumentRequests, type DocumentRequestPoolItem, type LawyerDocumentRequest } from "@/lib/services/backend";
 import { isConflict } from "@/lib/http";
 import { fetchAndDeliver } from "@/lib/download";
@@ -186,6 +187,7 @@ function Detail({ r, onClaimed, onTaken, onEditor, onSent }: { r: Row; onClaimed
   const t = useTranslations("portal.advocate.documentRequests");
   const tf = useTranslations("portal.workFilters");
   const d = useTranslations("portal.desk.docs");
+  const tyn = useTranslations("portal.desk.files");
   const locale = useLocale();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -284,7 +286,7 @@ function Detail({ r, onClaimed, onTaken, onEditor, onSent }: { r: Row; onClaimed
             {answers.map(([k, v]) => (
               <div key={k}>
                 <dt>{humanizeSlug(k)}</dt>
-                <dd>{typeof v === "object" ? JSON.stringify(v) : String(v)}</dd>
+                <dd>{answerText(v, { yes: tyn("yes"), no: tyn("no") })}</dd>
               </div>
             ))}
           </dl>

@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { answerText } from "@/lib/answerText";
 import {
   EDITOR_MOUNT,
   type EditorFile,
@@ -435,6 +436,7 @@ function Stage({ v }: { v: EditorView }) {
 function RequestPane({ v }: { v: EditorView }) {
   const t = useTranslations(v.ns);
   const tf = useTranslations("portal.client.documents.fields");
+  const tyn = useTranslations("portal.desk.files");
   const locale = useLocale();
   const req = v.req;
   return (
@@ -482,9 +484,7 @@ function RequestPane({ v }: { v: EditorView }) {
                         : humanizeSlug(k)}
                     </dt>
                     <dd>
-                      {typeof val === "object"
-                        ? JSON.stringify(val)
-                        : String(val)}
+                      {answerText(val, { yes: tyn("yes"), no: tyn("no") }, (f) => (tf.has(f.toLowerCase()) ? tf(f.toLowerCase()) : humanizeSlug(f)))}
                     </dd>
                   </div>
                 ))}
