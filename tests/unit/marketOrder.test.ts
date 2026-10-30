@@ -79,11 +79,12 @@ describe("price snapshot", () => {
       min: 70000,
       max: 100000,
       capped: false,
-      advance: { percent: 10, amount: 11000 },
-      rest: { percent: 90, amount: 99000 },
       commission: { percent: 18, platform: 19800, net: 90200 },
       options: [{ label: "Shoshilinch", percent: 10, amount: 10000 }],
     });
+    // The 10% advance split is gone (TSK-900422 replaced TSK-783253).
+    expect(p).not.toHaveProperty("advance");
+    expect(p).not.toHaveProperty("rest");
   });
 
   it("is absent when the order has no snapshot", () => {
@@ -163,7 +164,8 @@ describe("waiting for the seller to accept (live shape, 24 Oct 2026)", () => {
   });
   it("reads the purchase answer the same way", () => {
     const p = purchaseOf({ work_id: "ADV-5IIPV", order: { ...live, payment: undefined }, payment: live.payment });
-    expect(p).toMatchObject({ accepting: true, deadlineAt: "2026-10-24T11:36:08Z", advanceAmount: 87974, amount: 879749 });
+    expect(p).toMatchObject({ accepting: true, deadlineAt: "2026-10-24T11:36:08Z", amount: 879749 });
+    expect(p).not.toHaveProperty("advanceAmount");
   });
 });
 

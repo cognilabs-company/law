@@ -38,3 +38,34 @@ test("tariff form v3: audiences, prices unless free, numbered benefits, nothing 
   await expect(page.getByText("Клиент не видит. При публикации", { exact: false })).toBeVisible();
   expect(mock.refused).toEqual([]);
 });
+
+// TSK-692647: in Studio K17, where tariffs are managed, the tariff shows the
+// developer task its published version created and the superadmin approval.
+test("a tariff in Studio shows its developer task and the approval, by code and names", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await mockBackend(
+    page,
+    await signIn(page, ADMIN, {
+      "/studio/constructors": fx.constructors,
+      "/studio/constructors/K17": fx.k17,
+      "/studio/constructors/K17/form-context": fx.formContext,
+      "/studio/constructors/K17/records": fx.records,
+      "/studio/objects": { items: [] },
+      "/studio/objects/obj-k17": { id: "obj-k17", constructor_code: "K17", title: "LexGo.AI Pro", status: "published", runtime_target_id: "plan-1", payload: { plan_id: "plan-1", title: "LexGo.AI Pro", audiences: ["client"], is_active: true, is_free: false, monthly_price: 99000, benefits: [{ value: "100 ta AI so'rov" }] } },
+      "/admin/subscription-plans/plan-1/versions": {
+        plan_id: "plan-1",
+        items: [
+          { id: "v1", version: 1, status: "published", developer_task: null, approval: null },
+          { id: "v2", version: 2, status: "pending_approval", developer_task: { task_code: "TSK-555555", title: "Eksport limitini ulash", status: "in_progress", deadline_at: "2026-11-10T09:00:00Z", assignees: [{ name: "Akhmad" }, { name: "9d042a95-ce4a-4e37-ac56-786b2c404372" }] }, superadmin_approval: { status: "waiting" } },
+        ],
+      },
+    } as never),
+  );
+  await page.goto("/ru/admin/studio/o/obj-k17");
+  const box = page.locator(".trf-devbox");
+  await expect(box).toContainText("версия 2", { timeout: 20000 });
+  await expect(box).toContainText("TSK-555555");
+  await expect(box).toContainText("Eksport limitini ulash");
+  await expect(box).toContainText("Akhmad");
+  expect(await box.innerText()).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-|in_progress|pending_approval/);
+});

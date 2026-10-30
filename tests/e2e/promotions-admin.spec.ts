@@ -93,6 +93,36 @@ test("promotions have their own page with state, prices and a way into Studio", 
   expect(mock.refused).toEqual([]);
 });
 
+// TSK-537634: a promotion the backend reports as expired reads "ended" by
+// name, sorts after the live ones and offers no pause.
+test("an expired promotion reads as ended, after the running one, with no pause", async ({ page }) => {
+  const routes = await signIn(page, ADMIN, {
+    "/studio/constructors/MP09/records": {
+      items: [
+        rec("o3", "Yozgi aksiya", "published", { runtime_status: "expired", used_count: 12, usage_limit: null }),
+        rec("o1", "Kuzgi reklama", "published", { runtime_status: "active", used_count: 37, usage_limit: 100, remaining: 63 }),
+      ],
+      total: 2,
+    },
+    "POST /studio/constructors/MP09/preview": preview,
+    "/studio/objects/(o\\d)": (_b: unknown, url: URL) => {
+      const id = url.pathname.split("/").at(-1) as string;
+      return { id, constructor_code: "MP09", title: objects[id].title, status: "published", payload: objects[id] };
+    },
+    "/studio/reference/promotion-targets": studio.targets,
+    "/studio/constructors": studio.constructors,
+  });
+  await mockBackend(page, routes);
+  await page.goto("/uz/admin/promotions");
+  const cards = page.locator(".prm-card");
+  await expect(cards).toHaveCount(2);
+  await expect(cards.nth(0)).toContainText("Kuzgi reklama");
+  await expect(cards.nth(1)).toContainText("Yozgi aksiya");
+  await expect(cards.nth(1)).toContainText("Muddati tugagan");
+  await expect(cards.nth(1).getByRole("button", { name: /To'xtatish/ })).toHaveCount(0);
+  expect(await cards.nth(1).innerText()).not.toMatch(/expired/);
+});
+
 test("the admin menu and the ads page lead to promotions", async ({ page }) => {
   const routes = await signIn(page, ADMIN, { "/ads/products": { items: [] } });
   await mockBackend(page, routes);

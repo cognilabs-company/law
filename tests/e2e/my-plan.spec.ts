@@ -20,8 +20,11 @@ test("my plan shows backend limits and asks consent for changed terms once", asy
       subscription_id: "sub-1",
       status: "active",
       snapshot: { title: "LexGo.AI Pro", meta: { name: { uz: "LexGo.AI Pro", ru: "LexGo.AI Про" } }, prices: { monthly: 99000 } },
-      entitlements: [],
-      current_plan_version: { version: 2 },
+      entitlements: [
+        { feature_key: "ai_requests", mode: "limited", limit: 100, reset_period: "month" },
+        { feature_key: "export", mode: "unlimited" },
+      ],
+      current_plan_version: { version: 2, payload: { entitlements: [{ feature_key: "ai_requests", mode: "limited", limit: 50, reset_period: "month" }, { feature_key: "export", mode: "unlimited" }, { feature_key: "doc_analysis", mode: "limited", limit: 3, reset_period: "month" }] } },
       renewal_terms_changed: true,
       renewal_consent: null,
     },
@@ -37,6 +40,14 @@ test("my plan shows backend limits and asks consent for changed terms once", asy
   await expect(card.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "37");
   // The page never counts usage itself: nothing but the backend's numbers.
   expect(mock.calls.some((c) => /\/consume$/.test(c.path))).toBe(false);
+
+  // TSK-206603: the new version's terms, before the consent — only what changes.
+  const next = card.locator(".myplan__next li");
+  await expect(next).toHaveCount(2);
+  await expect(next.filter({ hasText: "Запросы к ИИ" })).toContainText("100 в месяц");
+  await expect(next.filter({ hasText: "Запросы к ИИ" }).locator("ins")).toHaveText("50 в месяц");
+  await expect(next.filter({ hasText: "Анализ документов" }).locator("ins")).toHaveText("3 в месяц");
+  expect(await card.innerText()).not.toMatch(/ai_requests|doc_analysis|reset_period/);
 
   const accept = card.getByRole("button", { name: "Согласен с новыми условиями" });
   await accept.evaluate((b: HTMLButtonElement) => {

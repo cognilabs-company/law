@@ -73,3 +73,7 @@
 .trf-dev__m small { overflow: hidden; color: var(--gray); font-size: .76rem; text-overflow: ellipsis; white-space: nowrap; }
 .trf-chip[data-status="rejected"] { background: color-mix(in srgb, #dc2626 15%, transparent); }
 .trf-dev__title { overflow: hidden; font-size: .8rem; text-overflow: ellipsis; white-space: nowrap; }
+
+/* The developer task inside Studio K17 (TSK-692647). */
+.trf-devbox { display: grid; gap: 8px; margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); }
+.trf-devbox__h { font-size: .84rem; color: var(--ink); }

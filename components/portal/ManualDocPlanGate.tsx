@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { getSubscriptionPlans, requestPlanTelegramPurchase, refusedBillingPeriods, type BackendPlan, type ManualDocBillingPeriod } from "@/lib/services/backend";
+import { getSubscriptionPlans, requestPlanTelegramPurchase, refusedBillingPeriods, type BackendPlan, type ManualDocBillingPeriod, isGiftOnlyPlan } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { Link } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
@@ -69,7 +69,7 @@ export default function ManualDocPlanGate({
   // with manual_document_fill, which is why this modal offered a gift SKU as
   // the thing to buy. Filtered out here; if that leaves nothing, the modal
   // says so and sends the client to the subscriptions page instead.
-  const qualifying = plans.data.filter((p) => p.isActive && !p.isGiftable && p.billingType !== "gift" && p.entitlements?.manual_document_fill === true);
+  const qualifying = plans.data.filter((p) => p.isActive && !isGiftOnlyPlan(p) && p.entitlements?.manual_document_fill === true);
   const selected = qualifying.find((p) => p.id === planId);
   const periods = only ?? periodsFor(selected);
 

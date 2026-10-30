@@ -1113,6 +1113,13 @@ export function planAudience(plan: Pick<BackendPlan, "audience" | "slug">): Plan
 // (client/yurist/advokat only, no "business") wins when the plan carries it —
 // it's the precise, admin-set list; the audience string is the older, fuzzier
 // signal kept for plans created before targetRoles existed.
+// Gift on every tariff (TSK-342697, 2026-10-27): any active paid plan can be
+// bought as a gift, so is_giftable no longer marks a gift-only plan. Only the
+// older billing_type "gift" is a gift and nothing else.
+export const isGiftOnlyPlan = (p: Pick<BackendPlan, "billingType">): boolean => p.billingType === "gift";
+export const canGiftPlan = (p: Pick<BackendPlan, "isActive" | "billingType" | "monthlyPrice" | "sixMonthPrice" | "yearlyPrice">): boolean =>
+  p.isActive !== false && (isGiftOnlyPlan(p) || p.monthlyPrice > 0 || p.sixMonthPrice > 0 || p.yearlyPrice > 0);
+
 export function planForRole(plan: Pick<BackendPlan, "audience" | "slug" | "targetRoles">, role: string): boolean {
   const r = role === "lawyer" ? "yurist" : role === "advocate" ? "advokat" : role;
   if (plan.targetRoles?.length) return plan.targetRoles.includes(r);
@@ -1391,35 +1398,6 @@ export async function getPricingQuote(params: {
   };
 }
 
-// ── Payment policy (GET /orders/{id}/payment-policy) ──────────────
-// The 10% advance that unlocks private contact/chat. Partial payments are
-// cumulative; contact opens once the paid share crosses the threshold.
-export type PaymentPolicy = {
-  totalAmount: number;
-  advancePercent: number;
-  advanceAmount: number;
-  paidAmount: number;
-  remainingToUnlock: number;
-  contactUnlocked: boolean;
-  currency: string;
-};
-export async function getPaymentPolicy(orderId: string): Promise<PaymentPolicy> {
-  const d = asDict(await http(`/orders/${orderId}/payment-policy`));
-  const advanceAmount = uzs(d, "advance_amount", "upfront_amount");
-  const paidAmount = uzs(d, "paid_amount", "paid");
-  // Backend doesn't return remaining_to_unlock — derive it from the advance.
-  const remaining = uzsOpt(d, "remaining_to_unlock", "remaining") ?? Math.max(0, advanceAmount - paidAmount);
-  return {
-    totalAmount: uzs(d, "total_amount", "total", "price"),
-    advancePercent: asNum(d.advance_percent ?? d.upfront_percent, 10),
-    advanceAmount,
-    paidAmount,
-    remainingToUnlock: remaining,
-    contactUnlocked: Boolean(d.contact_unlocked),
-    currency: asStr(d.currency, "UZS"),
-  };
-}
-
 export async function listCases(): Promise<BackendCase[]> {
   return listFrom(await http("/cases"), "cases", "items", "data").map(normCase);
 }
@@ -1478,11 +1456,6 @@ export async function demoPurchase(input: {
 }): Promise<PurchaseResult> {
   return normPurchase(
     await http("/orders/demo-purchase", { method: "POST", body: JSON.stringify({ provider: "demo_payme", ...input }) }),
-  );
-}
-export async function demoPayOrder(orderId: string, provider = "demo_payme"): Promise<PurchaseResult> {
-  return normPurchase(
-    await http(`/orders/${orderId}/demo-pay?provider=${encodeURIComponent(provider)}`, { method: "POST" }),
   );
 }
 // One-time private chat fee in whole so'm (legacy UZS), not tiyin (T0-16).

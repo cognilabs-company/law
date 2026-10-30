@@ -399,7 +399,6 @@ export type MarketPurchase = {
   accepting: boolean;
   deadlineAt: string;
   message: string;
-  advanceAmount: number;
   payment: PurchasePayment | null;
 };
 // The one full payment the request created: never "paid" until its own
@@ -523,7 +522,6 @@ export function purchaseOf(raw: unknown): MarketPurchase {
     accepting,
     deadlineAt: a.assignment?.deadlineAt || asStr(d.acceptance_deadline_at),
     message: a.clientMessage || asStr(d.client_status_message ?? d.message),
-    advanceAmount: a.advance?.amount || (asStr(payment.status) === "awaiting_seller_acceptance" ? uzs(payment, "amount") : 0),
     // The order's price (the full payment is the same amount).
     amount: uzs(order, "price") || uzs(payment, "amount"),
     payment: asStr(payment.id)
@@ -684,8 +682,6 @@ export type OrderPricing = {
   max: number;
   base: number;
   capped: boolean;
-  advance: { percent: number | null; amount: number } | null;
-  rest: { percent: number | null; amount: number } | null;
   // The platform's share and the seller's net: for the seller and staff
   // only — the client view never shows it, whatever the API sends.
   commission: { percent: number | null; platform: number; net: number } | null;
@@ -728,10 +724,7 @@ function orderPricingOf(d: Dict, details: Dict): OrderPricing | null {
   const p = asDict(details.pricing_snapshot ?? d.pricing_snapshot);
   const f = asDict(details.financial_snapshot ?? d.financial_snapshot);
   if (!Object.keys(p).length && !Object.keys(f).length) return null;
-  const pay = asDict(f.payment);
   const com = asDict(f.commission);
-  const advance = uzs(pay, "advance_amount");
-  const rest = uzs(pay, "final_amount");
   const platform = uzs(com, "platform_amount");
   const quote = asDict(details.option_quote ?? d.option_quote);
   const options = asArr(quote.breakdown)
@@ -748,8 +741,6 @@ function orderPricingOf(d: Dict, details: Dict): OrderPricing | null {
     max: uzs(p, "max_allowed"),
     base: uzs(p, "base_price", "base"),
     capped: p.price_capped === true,
-    advance: advance > 0 ? { percent: pctOf(pay.advance_percent), amount: advance } : null,
-    rest: rest > 0 ? { percent: pctOf(pay.final_percent), amount: rest } : null,
     commission: platform > 0 || present(com.effective_percent) ? { percent: pctOf(com.effective_percent), platform, net: uzs(com, "seller_net_amount") } : null,
     options,
     components: asArr(p.components).map((x) => {
@@ -839,7 +830,9 @@ export async function fileOrderComplaint(order: Pick<MarketOrder, "id" | "compla
 // a replacement seller or a full refund; the call center decides. Offered
 // while the backend gives `warranty_url`.
 export type WarrantyResolution = "replacement" | "full_refund";
-export type OrderWarranty = { url: string; status: string; resolution: string; reason: string; decision: string };
+// `kinds`: the guarantee cases this order may claim, when the backend names
+// them (eligible_kinds); empty = every case of MarketplaceWarrantyCreate.kind.
+export type OrderWarranty = { url: string; status: string; resolution: string; reason: string; decision: string; kinds: string[] };
 
 export function warrantyOf(d: Dict, details: Dict = asDict(d.details)): OrderWarranty {
   const w = asDict(d.warranty ?? d.warranty_claim ?? details.warranty_claim);
@@ -849,6 +842,9 @@ export function warrantyOf(d: Dict, details: Dict = asDict(d.details)): OrderWar
     resolution: asStr(w.resolution ?? w.requested_resolution).toLowerCase(),
     reason: asStr(w.reason),
     decision: asStr(w.decision ?? w.resolution_note ?? w.call_center_note),
+    kinds: asArr(d.warranty_eligible_kinds ?? asDict(d.warranty_capabilities).eligible_kinds ?? details.warranty_eligible_kinds)
+      .map((x) => asStr(x))
+      .filter(Boolean),
   };
 }
 
@@ -883,7 +879,7 @@ export async function requestOrderWarranty(order: Pick<MarketOrder, "id" | "warr
   // picks a replacement or a full refund (backend answers 24 Oct 2026 §3).
   const d = asDict(await http(path, { method: "POST", body: JSON.stringify({ kind: input.reasonCode, reason: input.reason.trim(), allow_material_transfer: input.allowMaterialTransfer === true }) }));
   const w = asDict(d.warranty ?? d.claim ?? d);
-  return { url: order.warranty.url, status: asStr(w.status).toLowerCase() || "pending", resolution: asStr(w.resolution).toLowerCase(), reason: asStr(w.reason) || input.reason, decision: "" };
+  return { url: order.warranty.url, status: asStr(w.status).toLowerCase() || "pending", resolution: asStr(w.resolution).toLowerCase(), reason: asStr(w.reason) || input.reason, decision: "", kinds: order.warranty.kinds };
 }
 
 export type ReassignPerson = { id: string; name: string };

@@ -14,8 +14,8 @@ test.describe("order price breakdown", () => {
     const routes = await signIn(page, CLIENT, {
       [`/marketplace/me/orders/${ORDER_ID}`]: order(),
       [`/marketplace/me/orders/${ORDER_ID}/financials`]: financials([
-        { stage: "advance", status: "paid", amount: 11000 },
-        { stage: "final", status: "pending", amount: 99000 },
+        // One full payment (TSK-900422): no 10% advance and remainder.
+        { stage: "marketplace_order", status: "paid", amount: 110000 },
       ]),
     });
     const mock = await mockBackend(page, routes);
@@ -25,7 +25,7 @@ test.describe("order price breakdown", () => {
     await expect(p).toContainText("Shoshilinch");
     await expect(p).toContainText("110 000");
     await expect(p.getByText("Оплачено")).toBeVisible();
-    await expect(p.getByText("Ожидается")).toBeVisible();
+    await expect(p).not.toContainText(/Предоплата|Остаток|10%/);
     // The coefficients and the seller's allowed range are internal.
     await expect(p).not.toContainText("Самарканд");
     await expect(p).not.toContainText("70 000");
@@ -61,8 +61,7 @@ test.describe("order price breakdown", () => {
     const routes = await signIn(page, CLIENT, {
       [`/marketplace/me/orders/${ORDER_ID}`]: order({ status: "accepted", payment_status: "pending", contact_unlocked: false }),
       [`/marketplace/me/orders/${ORDER_ID}/financials`]: financials([
-        { stage: "advance", status: "pending", amount: 11000 },
-        { stage: "final", status: "pending", amount: 99000 },
+        { stage: "marketplace_order", status: "pending", amount: 110000 },
       ]),
     });
     await mockBackend(page, routes);

@@ -10,6 +10,7 @@ import {
   type BackendPlan,
   type BackendService,
   type GiftResult,
+  canGiftPlan
 } from "@/lib/services/backend";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { useResource } from "@/lib/useResource";
@@ -57,7 +58,8 @@ export default function ClientGifts() {
   // CATALOG_OPTIMIZATION_FRONTEND.md) — this dropdown needs every giftable
   // service, not just the first page.
   const services = useResource<BackendService>(() => getAllServices(undefined, locale), [locale]);
-  const giftable = plans.data.filter((p) => p.isGiftable);
+  // Every active paid tariff can be a gift (TSK-342697).
+  const giftable = plans.data.filter(canGiftPlan);
 
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<"plan" | "service">("plan");

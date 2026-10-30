@@ -50,7 +50,22 @@ export default function MyPlanCard(): ReactElement | null {
   if (state.status !== "ready") return null;
   const { features, contract } = state;
   const name = contract ? contract.names[locale] || contract.names.uz || contract.title : "";
-  const featureName = (key: string) => (ts.has(`sx.feature.${key}`) ? ts(`sx.feature.${key}`) : key.replace(/[_.]+/g, " "));
+  const featureName = (key: string) => (ts.has(`sx.feature.${key}`) ? ts(`sx.feature.${key}`) : t("featureOther"));
+  // The new version's terms (TSK-206603), shown before the renewal asks for
+  // consent: every feature whose access changes, before → after.
+  const term = (e: { mode: string; limit: number | null; resetPeriod: string } | undefined) =>
+    !e || e.mode === "unavailable"
+      ? t("term.unavailable")
+      : e.mode === "unlimited"
+        ? t("term.unlimited")
+        : e.limit !== null
+          ? t("term.limited", { n: e.limit, period: t.has(`per.${e.resetPeriod}`) ? t(`per.${e.resetPeriod}`) : t("per.other") })
+          : t("term.limitedNoNumber");
+  const changes = contract?.next
+    ? Array.from(new Set([...contract.entitlements.map((e) => e.key), ...contract.next.entitlements.map((e) => e.key)]))
+        .map((key) => ({ key, before: contract.entitlements.find((e) => e.key === key), after: contract.next!.entitlements.find((e) => e.key === key) }))
+        .filter((c) => term(c.before) !== term(c.after))
+    : [];
   const needsConsent = !!contract?.termsChanged && !(contract.consent?.accepted === true) && !consented && !stopped;
 
   async function stop() {
@@ -110,6 +125,17 @@ export default function MyPlanCard(): ReactElement | null {
         <div className="myplan__consent" role="alert">
           <b>{t("changedTitle")}</b>
           <span>{t("changedText")}</span>
+          {changes.length ? (
+            <ul className="myplan__next" aria-label={contract?.next?.version ? t("nextVersion", { n: contract.next.version }) : t("nextTerms")}>
+              {changes.map((c) => (
+                <li key={c.key}>
+                  <b>{featureName(c.key)}</b>
+                  <del>{term(c.before)}</del>
+                  <ins>{term(c.after)}</ins>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <span className="myplan__acts">
             <button type="button" className="btn btn--line btn--sm" onClick={() => void stop()} disabled={busy}>
               {t("stop")}

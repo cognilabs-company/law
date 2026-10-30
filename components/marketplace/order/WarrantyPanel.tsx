@@ -61,7 +61,7 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
       <SxPanel id={SECTION_ID.warranty} className="mcr mcr-review" title={t("title")} lead={pending ? t("pending") : t("decided")} aiId={ai}>
         {w.resolution && !pending ? (
           <p className="mcr-meta">
-            {t("decision")}: <b>{t.has(`resolution.${w.resolution}`) ? t(`resolution.${w.resolution}`) : w.resolution}</b>
+            {t("decision")}: <b>{t.has(`resolution.${w.resolution}`) ? t(`resolution.${w.resolution}`) : t("resolutionOther")}</b>
           </p>
         ) : null}
         {w.decision ? <blockquote className="mcr-quote">{w.decision}</blockquote> : null}
@@ -71,7 +71,8 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
 
   const reasonErr = tried && reason.trim().length < REASON_MIN ? t("reasonShort", { n: REASON_MIN }) : "";
   const pickErr = tried && !reasonCode ? t("pickReason") : "";
-  const reasonCards: ChoiceCard[] = REASONS.map((r) => ({ value: r, title: t(`why.${r}`) }));
+  // The backend's cases for this order when it names them, else all of them.
+  const reasonCards: ChoiceCard[] = REASONS.filter((r) => !w.kinds.length || w.kinds.includes(r)).map((r) => ({ value: r, title: t(`why.${r}`) }));
 
   async function submit() {
     if (busy || !once()) return;

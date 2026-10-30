@@ -46,6 +46,29 @@ test("advertising: activation waits for readiness and goes through a reasoned co
   await expect(panel.getByRole("button", { name: "Sotuvni to'xtatish" })).toBeVisible();
 });
 
+// TSK-202681: selling can be paused again, with a reason, and the page says so.
+test("advertising: an active sale is paused with a reason and the page shows it paused", async ({ page }) => {
+  let state: Record<string, unknown> = readiness("active", true);
+  let pausedWith: unknown = null;
+  const routes = await signIn(page, ADMIN, {
+    "/ads/products": { items: [] },
+    "/admin/marketplace/advertising-readiness": () => state,
+    "POST /admin/marketplace/advertising-pause": (b: unknown) => ((pausedWith = b), (state = { ...readiness("paused", true), paused_at: "2026-10-30T09:00:00Z" }), state),
+  });
+  await mockBackend(page, routes);
+  await page.goto("/uz/admin/ads");
+  const panel = page.locator(".adsr");
+  await expect(panel).toContainText("Sotuv ochiq");
+  await panel.getByRole("button", { name: "Sotuvni to'xtatish" }).click();
+  const dialog = page.getByRole("dialog", { name: "Reklama sotuvini to'xtatasizmi?" });
+  const go = dialog.getByRole("button", { name: "Sotuvni to'xtatish" });
+  await expect(go).toBeDisabled();
+  await dialog.getByRole("textbox").fill("Shikoyatlar tekshirilmoqda");
+  await go.click();
+  await expect.poll(() => pausedWith).toEqual({ reason: "Shikoyatlar tekshirilmoqda" });
+  await expect(panel).toContainText("Sotuv to'xtatilgan");
+});
+
 test("plans: a running promotion shows on the card from the backend's quote", async ({ page }) => {
   const quotes: string[] = [];
   const routes = await signIn(page, CLIENT, {

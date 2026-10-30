@@ -90,13 +90,15 @@ test("a draft's entitlements come from the registry and follow its rules", async
   const dialog = page.getByRole("dialog", { name: /Версии/ });
   await dialog.getByRole("button", { name: "Изменить" }).click();
   await dialog.getByRole("button", { name: "Добавить возможность" }).click();
-  const features = dialog.getByRole("combobox", { name: "Возможность" });
-  // The registry's features, by their LexGo names.
-  await expect(features.last().locator("option", { hasText: "Запросы к ИИ" }).or(features.last().locator("option[value='ai_requests']"))).toHaveCount(1);
-  await features.last().selectOption("ai_requests");
+  // The handmade Select: the registry's features, by their LexGo names.
+  const features = dialog.getByRole("button", { name: /Возможность/ });
+  await features.last().click();
+  await page.getByRole("listbox").getByRole("option", { name: "Запросы к ИИ" }).click();
   await expect(dialog.getByText("Эта возможность уже есть")).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Сохранить черновик" })).toBeDisabled();
-  await features.last().selectOption("export");
+  await features.last().click();
+  await page.getByRole("listbox").getByRole("option", { name: "Экспорт", exact: true }).click();
+  await expect(dialog.locator("select")).toHaveCount(0);
   await expect(dialog.getByText("Укажите положительный лимит")).toBeVisible();
   await dialog.getByRole("textbox", { name: "Лимит" }).last().fill("5");
   await dialog.getByRole("button", { name: "Сохранить черновик" }).click();
@@ -111,10 +113,13 @@ test("the feature registry refuses a taken key", async ({ page }) => {
   await open(page, { "POST /admin/subscription-features": { status: 409, json: { detail: { code: "feature_key_exists" } } } });
   await page.getByRole("button", { name: "Возможности тарифов" }).click();
   const dialog = page.getByRole("dialog", { name: "Возможности тарифов" });
-  await expect(dialog.getByText("ai_requests")).toBeVisible();
+  // Features by name; the key is never shown.
+  await expect(dialog.getByText("Запросы к ИИ")).toBeVisible();
+  await expect(dialog.locator("code")).toHaveCount(0);
   await dialog.getByRole("textbox", { name: "Ключ" }).fill("ai_requests");
   await dialog.getByRole("textbox", { name: "Название" }).fill("AI");
-  await dialog.getByRole("checkbox", { name: "Каждый месяц" }).check();
+  await dialog.getByText("Каждый месяц", { exact: true }).click();
+  await expect(dialog.getByRole("checkbox", { name: "Каждый месяц" })).toBeChecked();
   await dialog.getByRole("button", { name: "Добавить возможность" }).click();
   await expect(dialog.getByText("Такой ключ уже есть — выберите другой.")).toBeVisible();
 });

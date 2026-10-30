@@ -2,7 +2,7 @@ import { http, asDict, asStr, asNum, asArr, ApiError, isRouteMissing, type Dict 
 import { uzs } from "@/lib/money";
 import { cleanDocTitle } from "@/lib/docTitle";
 import { matchesSearch } from "@/lib/searchText";
-import { getSubscriptionPlan, getSubscriptionPlans, getUrgentCatalog, planForRole, type BackendPlan, type UrgentService } from "@/lib/services/backend";
+import { getSubscriptionPlan, getSubscriptionPlans, getUrgentCatalog, planForRole, type BackendPlan, type UrgentService, isGiftOnlyPlan } from "@/lib/services/backend";
 import { listMarketplace, normMarketSeller, type MarketSeller } from "@/lib/services/marketplace";
 
 export const ASSIST_BILLING_PERIODS = ["monthly", "six_month", "yearly", "prepaid_yearly"] as const;
@@ -957,7 +957,7 @@ export async function loadAssistUrgentCatalog(): Promise<AssistUrgentCatalog> {
   }
 }
 
-const isGiftPlan = (p: BackendPlan) => p.isGiftable || p.billingType === "gift";
+const isGiftPlan = isGiftOnlyPlan;
 const forClient = (p: BackendPlan) => (p.targetRoles.length ? p.targetRoles.includes("client") : planForRole(p, "client"));
 
 export function assistPlanPeriods(plan: BackendPlan): AssistBillingPeriod[] {

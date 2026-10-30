@@ -7,7 +7,7 @@ import { fmtUzs } from "@/lib/money";
 import { dateOnly } from "@/lib/date";
 import { humanizeSlug } from "@/lib/lawyers";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
-import { addPaymentMethod, BILLING_PERIODS, demoPlanPurchase, getSellerCabinet, getSubscriptionPlans, isAtmosCheckout, isProviderUnsupported, listPaymentMethods, listPayments, planForRole, purchasePlan, refusedBillingPeriods, requestPlanTelegramPurchase, type BackendPlan, type ManualDocBillingPeriod } from "@/lib/services/backend";
+import { addPaymentMethod, BILLING_PERIODS, demoPlanPurchase, getSellerCabinet, getSubscriptionPlans, isAtmosCheckout, isProviderUnsupported, listPaymentMethods, listPayments, planForRole, purchasePlan, refusedBillingPeriods, requestPlanTelegramPurchase, type BackendPlan, type ManualDocBillingPeriod, isGiftOnlyPlan } from "@/lib/services/backend";
 import { loadAutopay, readAutopay, saveAutopay, type AutopayState } from "@/lib/services/plans";
 import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
 import { IconCard, IconCheck, IconCrown, IconGift, IconHistory, IconRefresh, IconSparkle } from "@/components/icons";
@@ -88,7 +88,8 @@ export default function SubscriptionApp(_props: NativeProps) {
   const seller = verified ? SELLER_OFF : 0;
   const roleKey = role === "lawyer" ? "yurist" : role === "advocate" ? "advokat" : role;
   const all = useMemo(() => (plans ?? []).filter((p) => p.isActive !== false), [plans]);
-  const isGift = (p: BackendPlan) => p.isGiftable || p.billingType === "gift";
+  // Only a gift-only plan stays off the self-purchase list (TSK-342697).
+  const isGift = isGiftOnlyPlan;
   const mine = (p: BackendPlan) => ((p.targetRoles?.length ? p.targetRoles.includes(roleKey) : planForRole(p, role)) ? 0 : 1);
   const sellable = all.filter((p) => !isGift(p)).sort((a, b) => mine(a) - mine(b) || a.sortOrder - b.sortOrder || a.monthlyPrice - b.monthlyPrice);
   const ai = sellable.filter((p) => AI_SLUG.test(p.slug));

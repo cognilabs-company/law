@@ -12,7 +12,7 @@ import type { OrderView } from "./types";
 
 // How the order's price was set, as the backend fixed it when the order was
 // placed: the factors that set the seller's allowed ceiling, the range, the
-// price the seller chose, the final amount and its advance/final split. The
+// price the seller chose, the final amount and the payments made. The
 // seller also sees LexGo's commission and their own net; the client never
 // does. Every number is printed as sent — nothing is added up or derived.
 
@@ -20,8 +20,6 @@ const PAID = new Set(["paid", "succeeded", "success", "completed", "captured", "
 const WAITING = new Set(["pending", "created", "processing", "requires_action", "awaiting", "waiting"]);
 const STATUS_KEYS = new Set(["failed", "cancelled", "refunded", "reversed", "expired"]);
 const SETTLEMENT_KEYS = new Set(["pending", "held", "complaint_hold", "rework_hold", "refund_required", "ready_for_release", "released", "settled", "refunded"]);
-const ADVANCE = /advance|initial|prepay/;
-const FINAL = /final|remaining|balance/;
 
 // Each stage's status as the provider reported it, refetched whenever the
 // order's status or payment status moves (realtime refetches the order).
@@ -65,7 +63,6 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
     if (WAITING.has(st)) return { key: "pending", tone: "wait" };
     return STATUS_KEYS.has(st) ? { key: st, tone: "bad" } : null;
   };
-  const stageRow = (re: RegExp) => fin?.payments.find((p) => re.test(p.stage)) ?? null;
   const chip = (st: string) => {
     const s = statusOf(st);
     return s ? (
@@ -74,13 +71,9 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
       </em>
     ) : null;
   };
-  // Rows the planned split does not cover (a one-step legacy payment).
-  const others = (fin?.payments ?? []).filter((p) => !ADVANCE.test(p.stage) && !FINAL.test(p.stage));
-  const advanceRow = stageRow(ADVANCE);
-  // The 10% / 90% split shows once the backend runs payments that way (it
-  // has advance/final rows), or when the rows could not be read; an order
-  // paid in one step shows that one payment instead.
-  const split = got === "failed" || !!advanceRow || !!stageRow(FINAL);
+  // The order is paid in full first (TSK-900422, 100%; the 10% advance of
+  // TSK-783253 is gone): every payment row the backend has, as it is.
+  const payments = fin?.payments ?? [];
   // TSK-787056: the client sees what they pay and, when this specialist's
   // price differs from the base, the backend's diplomatic reasons — never
   // the factors, the seller's allowed range, caps or commission.
@@ -229,28 +222,10 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
           <b className="sx-num">{money(pricing.final)}</b>
         </div>
       ) : null}
-      {(split && (pricing.advance || pricing.rest)) || others.length ? (
+      {payments.length ? (
         <div className="mod-price__group">
           <p className="mod-price__sub">{t("payments")}</p>
-          {split && pricing.advance ? (
-            <div className="mod-price__row">
-              <span>
-                {`${t("advance")}${pct(pricing.advance.percent)}`}
-                {chip(advanceRow?.status ?? "")}
-              </span>
-              <b className="sx-num">{money(pricing.advance.amount)}</b>
-            </div>
-          ) : null}
-          {split && pricing.rest ? (
-            <div className="mod-price__row">
-              <span>
-                {`${t("rest")}${pct(pricing.rest.percent)}`}
-                {chip(stageRow(FINAL)?.status ?? "")}
-              </span>
-              <b className="sx-num">{money(pricing.rest.amount)}</b>
-            </div>
-          ) : null}
-          {others.map((p) => (
+          {payments.map((p) => (
             <div key={p.id || p.stage} className="mod-price__row">
               <span>
                 {t("payment")}
@@ -259,7 +234,6 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
               <b className="sx-num">{money(p.amount)}</b>
             </div>
           ))}
-          {advanceRow && WAITING.has(advanceRow.status) ? <p className="mod-price__note">{t("advanceWaitSeller")}</p> : null}
           {settlement ? (
             <div className="mod-price__row">
               <span>{t("settlement")}</span>

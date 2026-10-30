@@ -1,5 +1,6 @@
 "use client";
 
+import TariffDevTask from "./TariffDevTask";
 import "../sx-core.css";
 import "../sx-layout.css";
 import "./sx-editor.css";
@@ -280,6 +281,7 @@ function EditorScreen({ init }: { init: EditorInit }): ReactElement {
           {st.categoryKind ? <CategoryKindBar kind={st.categoryKind} base={newCategoryBase(init.ctx ?? "")} /> : null}
           {st.mode === "create" && init.code.toUpperCase() === "K31" ? <RuleKindBar base={newRuleBase(init.ctx ?? "")} fromId={typeof st.payload.existing_rule_id === "string" && st.payload.creation_mode === "new_version" ? st.payload.existing_rule_id : ""} /> : null}
           <EditorBelow st={st} narrow={narrow} onAlertAction={onAlertAction} />
+          {st.code.toUpperCase() === "K17" && (st.recordId || typeof st.payload.plan_id === "string") && (st.recordId || st.payload.plan_id) ? <TariffDevTask planId={st.recordId || String(st.payload.plan_id)} /> : null}
         </>
       }
     >

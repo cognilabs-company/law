@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { createGift, getAllServices, getSubscriptionPlans, listGifts, type BackendPlan, type BackendService, type GiftResult } from "@/lib/services/backend";
+import { createGift, getAllServices, getSubscriptionPlans, listGifts, type BackendPlan, type BackendService, type GiftResult, canGiftPlan } from "@/lib/services/backend";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { dateOnly } from "@/lib/date";
@@ -194,7 +194,8 @@ function Give({ onClose, onMade }: { onClose: () => void; onMade: () => void }) 
       alive = false;
     };
   }, [locale]);
-  const giftable = (plans ?? []).filter((p) => p.isGiftable);
+  // Every active paid tariff can be a gift (TSK-342697).
+  const giftable = (plans ?? []).filter(canGiftPlan);
   const plan = giftable.find((p) => p.id === planId) || giftable[0] || null;
   const service = serviceId || services[0]?.id || "";
   const terms = plan?.allowedGiftDurations.length ? plan.allowedGiftDurations : TERMS;

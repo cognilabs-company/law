@@ -1,9 +1,10 @@
 "use client";
 
 import "./tariffs.css";
-import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
+import Select from "@/components/Select";
 import { Skeleton } from "@/components/portal/DataState";
 import { Link } from "@/i18n/navigation";
 import { IconClipboardList } from "@/components/icons";
@@ -49,7 +50,7 @@ function useVersionLabels() {
 // TSK-692647: a version's changes become a task for the developers, then
 // wait for the superadmin's decision (gaps closed 2026-10-28 §10).
 const APPROVAL_TONE: Record<string, string> = { approve: "published", approved: "published", published: "published", reject: "rejected", changes_requested: "draft", pending: "draft", submitted: "draft", draft: "draft" };
-function DevTask({ task, approval }: { task: PlanVersion["devTask"]; approval: PlanVersion["approval"] }): ReactElement {
+export function DevTask({ task, approval }: { task: PlanVersion["devTask"]; approval: PlanVersion["approval"] }): ReactElement {
   const t = useTranslations("admin.tariffs.dev");
   const tt = useTranslations("teamTasks.status");
   const locale = useLocale();
@@ -95,8 +96,9 @@ function DevTask({ task, approval }: { task: PlanVersion["devTask"]; approval: P
 function DraftEditor({ version, registry, onSaved, onCancel }: { version: PlanVersion; registry: FeatureRegistry | null; onSaved: (v: PlanVersion) => void; onCancel: () => void }): ReactElement {
   const t = useTranslations("admin.tariffs");
   const ts = useTranslations("studio");
-  const featureName = (key: string, title: string) => (ts.has(`sx.feature.${key}`) ? ts(`sx.feature.${key}`) : title || key);
+  const featureName = (key: string, title: string) => (ts.has(`sx.feature.${key}`) ? ts(`sx.feature.${key}`) : title || t("featureUnnamed"));
   const lab = useVersionLabels();
+  const uid = useId();
   const base = version.payload;
   const prices0 = (base.prices && typeof base.prices === "object" ? base.prices : {}) as Dict;
   const [prices, setPrices] = useState<Record<string, string>>(() => Object.fromEntries(PRICE_KEYS.map((k) => [k, prices0[k] === null || prices0[k] === undefined ? "" : String(prices0[k])])));
@@ -145,60 +147,24 @@ function DraftEditor({ version, registry, onSaved, onCancel }: { version: PlanVe
           </label>
         ))}
       </fieldset>
-      <label className="trf-field">
-        <span>{t("sales")}</span>
-        <select value={sales} onChange={(e) => setSales(e.target.value)}>
-          <option value="">—</option>
-          {SALES.map((s) => (
-            <option key={s} value={s}>
-              {t(`salesStatus.${s}`)}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="trf-field">
+        <span id={`${uid}-sales`}>{t("sales")}</span>
+        <Select value={sales} onChange={setSales} labelId={`${uid}-sales`} placeholder={t("pickSales")} options={SALES.map((s) => ({ value: s, label: t(`salesStatus.${s}`) }))} />
+      </div>
       <fieldset className="trf-ent">
         <legend>{t("entitlements")}</legend>
         {rows.length ? null : <p className="trf-muted">{t("noEntitlements")}</p>}
         {rows.map((r, i) => (
           <div key={i} className="trf-ent__row" data-bad={issues[i] ? "" : undefined}>
-            <label>
-              <span className="sr-only">{t("feature")}</span>
-              <select aria-label={t("feature")} value={r.featureKey} onChange={(e) => setRow(i, { featureKey: e.target.value, resetPeriod: "" })}>
-                <option value="">{t("pickFeature")}</option>
-                {(registry?.items ?? []).map((f) => (
-                  <option key={f.key} value={f.key}>
-                    {featureName(f.key, f.title)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              <span className="sr-only">{t("modeLabel")}</span>
-              <select aria-label={t("modeLabel")} value={r.mode} onChange={(e) => setRow(i, { mode: e.target.value, limit: e.target.value === "limited" ? r.limit : null })}>
-                {(registry?.modes.length ? registry.modes : ["unavailable", "limited", "unlimited"]).map((m) => (
-                  <option key={m} value={m}>
-                    {lab.mode(m)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Select ariaLabel={t("feature")} value={r.featureKey} onChange={(v) => setRow(i, { featureKey: v, resetPeriod: "" })} placeholder={t("pickFeature")} search options={(registry?.items ?? []).map((f) => ({ value: f.key, label: featureName(f.key, f.title) }))} />
+            <Select ariaLabel={t("modeLabel")} value={r.mode} onChange={(v) => setRow(i, { mode: v, limit: v === "limited" ? r.limit : null })} options={(registry?.modes.length ? registry.modes : ["unavailable", "limited", "unlimited"]).map((m) => ({ value: m, label: lab.mode(m) }))} />
             {r.mode === "limited" ? (
               <>
                 <label>
                   <span className="sr-only">{t("limit")}</span>
                   <input aria-label={t("limit")} inputMode="numeric" placeholder={t("limit")} value={r.limit ?? ""} onChange={(e) => setRow(i, { limit: e.target.value === "" ? null : Number(e.target.value.replace(/[^\d]/g, "")) })} />
                 </label>
-                <label>
-                  <span className="sr-only">{t("resetLabel")}</span>
-                  <select aria-label={t("resetLabel")} value={r.resetPeriod} onChange={(e) => setRow(i, { resetPeriod: e.target.value })}>
-                    <option value="">{t("pickReset")}</option>
-                    {resetsFor(r.featureKey).map((p) => (
-                      <option key={p} value={p}>
-                        {lab.reset(p)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <Select ariaLabel={t("resetLabel")} value={r.resetPeriod} onChange={(v) => setRow(i, { resetPeriod: v })} placeholder={t("pickReset")} options={resetsFor(r.featureKey).map((p) => ({ value: p, label: lab.reset(p) }))} />
               </>
             ) : null}
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => setRows((list) => list.filter((_, k) => k !== i))} aria-label={t("removeRow")}>
