@@ -76,3 +76,44 @@ test("a tariff in Studio shows its developer task and the approval, by code and 
   await expect(box.locator(".trf-devbox__rev")).toContainText("Kamron");
   expect(await box.innerText()).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-|in_progress|pending_approval/);
 });
+
+// TSK-490457 AC4: before a tariff goes for approval, the backend checks it
+// (its remark lands on the field, in words) and then previews where the
+// change shows — nothing is worked out in the browser.
+test("a tariff is checked by the backend before approval, then previewed", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const payload = { plan_id: "plan-1", title: "LexGo.AI Pro", audiences: ["client"], is_active: true, is_free: false, monthly_price: 99000, six_month_price: 540000, yearly_price: 990000, benefits: [{ value: "100 ta AI so'rov" }] };
+  let checks = 0;
+  const previews: unknown[] = [];
+  await mockBackend(
+    page,
+    await signIn(page, ADMIN, {
+      "/studio/constructors": fx.constructors,
+      "/studio/constructors/K17": fx.k17,
+      "/studio/constructors/K17/form-context": fx.formContext,
+      "/studio/constructors/K17/records": fx.records,
+      "/studio/objects": { items: [] },
+      "/studio/objects/obj-k17d": { id: "obj-k17d", constructor_code: "K17", title: "LexGo.AI Pro", status: "draft", lock_version: 1, payload, current_version: { payload } },
+      "/admin/subscription-plans/plan-1/versions": { plan_id: "plan-1", items: [] },
+      "POST /studio/constructors/K17/validate": () => (++checks === 1 ? { ok: false, errors: [{ field: "monthly_price", message: "Narx oldingi versiyadan past bo'lmasin" }] } : { ok: true, errors: [] }),
+      "POST /studio/constructors/K17/preview": (b: unknown) => (previews.push(b), { changed_fields: ["monthly_price"], where_used: [{ title: "Tariflar sahifasi" }], risk: "low", warnings: [] }),
+    } as never),
+  );
+  await page.goto("/ru/admin/studio/o/obj-k17d");
+  const send = page.getByRole("button", { name: "Отправить на согласование" }).first();
+  await send.click();
+  // The remark lands on the field it names, in the reader's language.
+  await expect(page.getByRole("button", { name: "Цена за 1 месяц Значение не принято" })).toBeVisible({ timeout: 20000 });
+  await expect(page.getByRole("textbox", { name: "Цена за 1 месяц" })).toHaveAttribute("aria-invalid", "true");
+  expect(previews).toHaveLength(0);
+  await send.click();
+  await expect.poll(() => checks).toBe(2);
+  const pv = page.getByRole("region", { name: "Проверка перед отправкой" }).or(page.locator(".sx-dlg__pv")).first();
+  // What the backend sees changing, named as the form names it.
+  await expect(pv).toContainText("Изменения, которые видит сервер:");
+  await expect(pv).toContainText("Цена за 1 месяц");
+  expect(await pv.innerText()).not.toMatch(/monthly_price/);
+  // (React's dev mode may ask twice; the first answer is dropped.)
+  expect(previews.length).toBeGreaterThan(0);
+  expect(previews.at(-1)).toMatchObject({ monthly_price: 99000 });
+});
