@@ -187,26 +187,7 @@ export function BackButton({ back }: { back: CrmBack }): ReactElement {
   );
 }
 
-export function CrmRail({ meta }: { meta: CrmMeta | null }): ReactElement {
-  const t = useTranslations("crm");
-  const path = usePathname();
-  const current = visibleSections(meta)
-    .slice()
-    .sort((a, b) => b.href.length - a.href.length)
-    .find((s) => path === s.href || path.startsWith(`${s.href}/`));
-  return (
-    <nav className="crm-rail" aria-label={t("navLabel")}>
-      {visibleSections(meta).map((s) => (
-        <Link key={s.key} href={s.href} aria-current={current?.key === s.key ? "page" : undefined}>
-          <s.Icon aria-hidden="true" />
-          {t(`nav.${s.key}`)}
-        </Link>
-      ))}
-    </nav>
-  );
-}
-
-export function CrmTop({ meta, title, onPalette, tools, back, rail }: { meta: CrmMeta | null; title: string; onPalette: () => void; tools?: ReactNode; back?: CrmBack; rail?: boolean }): ReactElement {
+export function CrmTop({ meta, title, onPalette, tools, back }: { meta: CrmMeta | null; title: string; onPalette: () => void; tools?: ReactNode; back?: CrmBack }): ReactElement {
   const t = useTranslations("crm");
   const path = usePathname();
   const current = visibleSections(meta)
@@ -232,16 +213,14 @@ export function CrmTop({ meta, title, onPalette, tools, back, rail }: { meta: Cr
         </i>
         {title}
       </h1>
-      {rail ? null : (
-        <nav className="crm-nav" aria-label={t("navLabel")}>
-          {visibleSections(meta).map((s) => (
-            <Link key={s.key} href={s.href} aria-current={current?.key === s.key ? "page" : undefined}>
-              <s.Icon aria-hidden="true" />
-              {t(`nav.${s.key}`)}
-            </Link>
-          ))}
-        </nav>
-      )}
+      <nav className="crm-nav" aria-label={t("navLabel")}>
+        {visibleSections(meta).map((s) => (
+          <Link key={s.key} href={s.href} aria-current={current?.key === s.key ? "page" : undefined}>
+            <s.Icon aria-hidden="true" />
+            {t(`nav.${s.key}`)}
+          </Link>
+        ))}
+      </nav>
       <div className="crm-top__tools">
         <LiveDot />
         <button type="button" className="crm-kbd" onClick={onPalette} aria-label={t("palette.open")}>

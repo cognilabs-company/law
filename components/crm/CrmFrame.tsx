@@ -23,8 +23,7 @@ import {
   type CustomerOption,
 } from "@/lib/services/crm";
 import { dismissCrmExport, loadCrmMeta, refreshCrmExport, useCrmEvents, useCrmExports, useCrmMeta } from "@/lib/crm/useCrm";
-import { isCallCenterUser, sessionRoles, useAuth } from "@/lib/auth";
-import { CrmRail, CrmTop, Empty, SkeletonRows, statusColorVars, useCrmError, type CrmBack } from "./bits";
+import { CrmTop, Empty, SkeletonRows, statusColorVars, useCrmError, type CrmBack } from "./bits";
 import { CustomerPicker, NewCustomerModal, optionOfCustomer } from "./CustomerPicker";
 import { CrmDateTime, CrmSelect } from "./fields";
 import { sectionOk, type CrmSectionKey } from "./sections";
@@ -39,9 +38,6 @@ export type CrmApi = { meta: CrmMeta; open: (s: Exclude<Sheet, "">, preset?: { c
 // only a "no access" state (contract 13cb257 §20).
 export default function CrmFrame({ title, tools, back, section, noTray, children }: { title?: string; tools?: (api: CrmApi) => ReactNode; back?: CrmBack; section?: CrmSectionKey; noTray?: boolean; children: (api: CrmApi) => ReactNode }): ReactElement {
   const t = useTranslations("crm");
-  const { session } = useAuth();
-  const roles = sessionRoles(session);
-  const rail = isCallCenterUser(session) && !roles.includes("admin") && !roles.includes("superadmin");
   const { meta, error } = useCrmMeta();
   const [palette, setPalette] = useState(false);
   const [sheet, setSheet] = useState<Sheet>("");
@@ -92,7 +88,7 @@ export default function CrmFrame({ title, tools, back, section, noTray, children
     );
   }
   const allowed = !section || sectionOk(section, api.meta);
-  const head = <CrmTop meta={api.meta} title={title ?? t("title")} onPalette={openPalette} tools={allowed ? tools?.(api) : null} back={back} rail={rail} />;
+  const head = <CrmTop meta={api.meta} title={title ?? t("title")} onPalette={openPalette} tools={allowed ? tools?.(api) : null} back={back} />;
   const body = allowed ? (
     children(api)
   ) : (
@@ -109,19 +105,6 @@ export default function CrmFrame({ title, tools, back, section, noTray, children
       {sheet === "export" ? <ExportSheet meta={api.meta} onClose={() => setSheet("")} /> : null}
     </>
   );
-  if (rail)
-    return (
-      <div className="crm crm--rail" style={statusColorVars(api.meta)}>
-        <MetaSync />
-        <CrmNotifier />
-        <CrmRail meta={api.meta} />
-        <div className="crm-main">
-          {head}
-          {body}
-        </div>
-        {extras}
-      </div>
-    );
   return (
     <div className="crm" style={statusColorVars(api.meta)}>
       <MetaSync />
