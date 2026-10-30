@@ -46,3 +46,31 @@ test("admin sees how the rating is worked out and whether every rating is curren
   await expect(card.getByRole("link", { name: "Изменить в Studio" })).toHaveAttribute("href", /\/admin\/studio\/c\/K37$/);
   expect(await card.innerText()).not.toMatch(/_weight|cold_start|client_reviews/);
 });
+
+// TSK-332221: from a review, the admin sees how that seller's rating is
+// made up, factor by factor — and a status or seller kind the screen does
+// not know reads in words, never its code.
+test("a review's detail shows the seller's rating breakdown, never raw codes", async ({ page }) => {
+  const REVIEW = { id: "rv1", status: "escalated_x", lawyer_name: "Aziz Karimov", lawyer_user_id: "u-s1", seller_type: "notarius_x", rating: 2, comment: "Kech javob berdi", created_at: "2026-10-29T10:00:00Z" };
+  const mock = await mockBackend(
+    page,
+    await signIn(page, ADMIN, {
+      "/admin/reviews": [REVIEW],
+      "/admin/reviews/rv1": { review: REVIEW, seller: { id: "u-s1", name: "Aziz Karimov", phone: "" } },
+      "/marketplace/lawyers/u-s1/rating": { rating_status: "rated", public_rating: 4.3, reviews_count: 14, components: { client_reviews: 82, completion_rate: 95, verified_achievements: 60, brand_new_factor: 40 } },
+    }),
+  );
+  await page.goto("/ru/admin/reviews");
+  await expect(page.locator(".rvw__st").first()).toHaveText("Другой статус");
+  expect(await page.locator("main").innerText()).not.toMatch(/escalated_x|notarius_x/);
+  await page.getByRole("button", { name: "Детали отзыва" }).first().click();
+  const dlg = page.getByRole("dialog", { name: "Детали отзыва" });
+  await expect(dlg).toContainText("Из чего складывается рейтинг");
+  await expect(dlg).toContainText("Оценки клиентов");
+  await expect(dlg).toContainText("Подтверждённые достижения");
+  await expect(dlg).toContainText("Другой фактор");
+  await expect(dlg).toContainText("Другой статус");
+  await expect(dlg).toContainText("Другой вид специалиста");
+  expect(await dlg.innerText()).not.toMatch(/escalated_x|notarius_x|brand_new_factor|verified_achievements/);
+  expect(mock.refused).toEqual([]);
+});

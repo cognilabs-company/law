@@ -100,7 +100,7 @@ type Load = { status: "loading" } | { status: "forbidden" } | { status: "error" 
 
 function useStatusLabel() {
   const t = useTranslations("admin.monitoring");
-  return (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : humanizeSlug(s));
+  return (s: string) => (!s ? "" : t.has(`status.${s}`) ? t(`status.${s}`) : t("statusOther"));
 }
 
 function Meter({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: Tone }): ReactElement {
@@ -225,6 +225,10 @@ function IntegrationDetail({ itg, onClose, history, edges }: { itg: MonIntegrati
   const d = live ?? itg;
   const name = t.has(`keys.${d.key}`) ? t(`keys.${d.key}`) : d.label || humanizeSlug(d.key);
   const nameOf = (k: string) => (t.has(`keys.${k}`) ? t(`keys.${k}`) : humanizeSlug(k));
+  // The board asks for the error code; the UI law forbids raw codes. An HTTP
+  // status reads as "HTTP 502", a known code in words, anything else is left
+  // to the error text beside it.
+  const errCode = (c: string) => (!c ? "" : /^\d{3}$/.test(c) ? t("httpCode", { code: c }) : t.has(`errCode.${c}`) ? t(`errCode.${c}`) : "");
   // This integration in the loaded snapshots, newest first.
   const past = (history?.items ?? []).flatMap((h) => {
     const row = h.integrations.find((i) => i.key === d.key);
@@ -290,7 +294,7 @@ function IntegrationDetail({ itg, onClose, history, edges }: { itg: MonIntegrati
           <div>
             <dt>{t("col.lastError")}</dt>
             <dd>
-              {[d.lastErrorAt ? shortDateTime(d.lastErrorAt, locale) : "", d.errorCode ? `(${d.errorCode})` : ""].filter(Boolean).join(" ")}
+              {[d.lastErrorAt ? shortDateTime(d.lastErrorAt, locale) : "", errCode(d.errorCode)].filter(Boolean).join(" · ")}
               {d.lastError ? <small className="mon-detail__err">{d.lastError}</small> : null}
             </dd>
           </div>

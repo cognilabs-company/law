@@ -1,5 +1,6 @@
 "use client";
 
+import RatingBreakdown from "@/components/marketplace/RatingBreakdown";
 import RatingPolicyCard from "@/components/admin/RatingPolicyCard";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
@@ -55,7 +56,7 @@ function ReviewDetail({ id, onClose }: { id: string | null; onClose: () => void 
           <div className="dkv__sect">
             <b>{t("detail.review")}</b>
             <div className="dkv__row"><span>{t("detail.rating")}</span><Stars n={d.review.rating} /></div>
-            {row(t("detail.status"), t.has(`status.${d.review.status}`) ? t(`status.${d.review.status}`) : d.review.status)}
+            {row(t("detail.status"), !d.review.status ? "" : t.has(`status.${d.review.status}`) ? t(`status.${d.review.status}`) : t("statusOther"))}
             {row(t("detail.comment"), d.review.comment)}
             {row(t("detail.note"), d.review.note)}
           </div>
@@ -64,8 +65,15 @@ function ReviewDetail({ id, onClose }: { id: string | null; onClose: () => void 
               <b>{t("detail.seller")}</b>
               {row(t("detail.name"), d.seller.name)}
               {row(t("detail.phone"), d.seller.phone)}
-              {row(t("detail.sellerType"), t.has(`sellerKind.${d.review.sellerType}`) ? t(`sellerKind.${d.review.sellerType}`) : d.review.sellerType)}
+              {row(t("detail.sellerType"), !d.review.sellerType ? "" : t.has(`sellerKind.${d.review.sellerType}`) ? t(`sellerKind.${d.review.sellerType}`) : t("sellerKindOther"))}
               {d.sellerProfile ? row(t("detail.region"), d.sellerProfile.region) : null}
+              {/* TSK-332221: how this seller's rating is made up, factor by factor. */}
+              {d.seller.id ? (
+                <div className="dkv__rating">
+                  <span>{t("detail.ratingBreakdown")}</span>
+                  <RatingBreakdown sellerId={d.seller.id} compact />
+                </div>
+              ) : null}
             </div>
           ) : null}
           {d.client ? (
@@ -193,9 +201,9 @@ export default function AdminReviews() {
                 </button>
                 {/* sellerType.* is the tab wording ("Advokatlar"); a row tag wants
                     the singular. */}
-                {r.sellerType ? <span className="atag atag--muted">{t.has(`sellerKind.${r.sellerType}`) ? t(`sellerKind.${r.sellerType}`) : r.sellerType}</span> : null}
+                {r.sellerType ? <span className="atag atag--muted">{t.has(`sellerKind.${r.sellerType}`) ? t(`sellerKind.${r.sellerType}`) : t("sellerKindOther")}</span> : null}
                 <Stars n={r.rating} />
-                <span className={`creq__badge rvw__st rvw__st--${r.status}`}>{t.has(`status.${r.status}`) ? t(`status.${r.status}`) : r.status}</span>
+                <span className={`creq__badge rvw__st rvw__st--${r.status}`}>{t.has(`status.${r.status}`) ? t(`status.${r.status}`) : t("statusOther")}</span>
                 <button className="aitem__act" type="button" aria-label={t("detailTitle")} title={t("detailTitle")} onClick={() => setDetail(r.id)}><IconEye /></button>
               </div>
               {r.comment ? <p className="rvw__c">{r.comment}</p> : null}

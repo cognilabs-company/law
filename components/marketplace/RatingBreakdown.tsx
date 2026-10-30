@@ -40,7 +40,7 @@ export default function RatingBreakdown({ sellerId, mine = false, compact = fals
   if (!key || state.failed || (state.key === key && !state.data)) return null;
   if (state.key !== key) return <section className="rbd rbd--ghost" aria-hidden="true" />;
   const r = state.data as SellerRating;
-  const label = (k: string) => (t.has(`factor.${k}`) ? t(`factor.${k}`) : k);
+  const label = (k: string) => (t.has(`factor.${k}`) ? t(`factor.${k}`) : t("factor.other"));
   const hint = (k: string) => (t.has(`hint.${k}`) ? t(`hint.${k}`) : "");
 
   return (

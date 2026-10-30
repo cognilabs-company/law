@@ -51,3 +51,44 @@ test("the CEO page shows renewal, churn and refunds, filters a period and export
   expect(exported).toContain("date_to=2026-10-20");
   await expect(page.locator("main select, main input[type=date]")).toHaveCount(0);
 });
+
+// Every KPI the backend sends, as sent; what it can't measure yet says so;
+// service quality (rating, answer on time, complaints) from the quality
+// overview, marked as all time because it has no period filter.
+test("the CEO page shows every KPI and the service quality", async ({ page }) => {
+  const routes = await signIn(page, ADMIN, {
+    "/analytics/ceo": ceo(),
+    "/quality/overview": { avg_rating: 4.6, response_sla_pct: 92.5, complaint_rate: 3.1, resolved_pct: 80, flagged: [] },
+  } as never);
+  await mockBackend(page, routes);
+  await page.goto("/ru/admin/ceo");
+  const sheet = page.locator(".ceo-sheet");
+  await expect(sheet).toContainText("GMV (объём)", { timeout: 20000 });
+  const n = (v: string) => new RegExp(v.replace(/ /g, "[\\s\\u00a0\\u202f]"));
+  for (const [label, value] of [
+    ["GMV (объём)", "6 788 189"],
+    ["MRR (месячная выручка)", "1 600 500"],
+    ["ARR (годовая выручка)", "19 206 000"],
+    ["LTV (жизненная ценность)", "8 145 826"],
+  ] as const) {
+    await expect(sheet).toContainText(label);
+    await expect(sheet).toContainText(n(value));
+  }
+  await expect(sheet).toContainText("Доля комиссии");
+  await expect(sheet).toContainText("Расходы на маркетинг не внесены, поэтому посчитать нельзя.");
+  await expect(sheet).toContainText("ARPU (на активного подписчика)");
+  await expect(sheet).toContainText("CAC (стоимость привлечения)");
+  await expect(sheet).toContainText("Срок окупаемости");
+  await expect(sheet).toContainText("MAU");
+  await expect(sheet).toContainText("DAU");
+  await expect(sheet).toContainText("NPS");
+  // Service quality, all time.
+  await expect(sheet).toContainText("Средняя оценка");
+  await expect(sheet).toContainText("4,6");
+  await expect(sheet).toContainText("Ответ вовремя");
+  await expect(sheet).toContainText("92,5");
+  await expect(sheet).toContainText("Доля жалоб");
+  await expect(sheet).toContainText("Решено 80");
+  await expect(sheet).toContainText("За всё время");
+  expect(await sheet.innerText()).not.toMatch(/not_available|null|undefined|NaN/);
+});

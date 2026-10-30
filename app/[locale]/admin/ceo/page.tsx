@@ -6,6 +6,7 @@ import { EMPTY_FILTER, downloadCeoExport, getCeoDashboardFull, isCeoEmpty, ceoTe
 import DatePicker from "@/components/DatePicker";
 import { demoCeo, useDemoForced } from "@/lib/demoStats";
 import { useResourceOne } from "@/lib/useResource";
+import { getQualityOverview } from "@/lib/services/backend";
 import { fmtUzsShort } from "@/lib/money";
 import { fmtDate, fmtNum, fmtPct, monthNames, shortDate } from "@/lib/date";
 import { ApiError, isAborted } from "@/lib/http";
@@ -379,6 +380,10 @@ export default function AdminCeo() {
   const ranged = !!from && !!to;
   const filter = ranged ? { ...EMPTY_FILTER, from, to } : undefined;
   const res = useResourceOne(() => getCeoDashboardFull(filter).then((data): Got => ({ ok: true, data }), (error: unknown): Got => ({ ok: false, error, at: todayIso() })), [tick, ranged ? from : "", ranged ? to : ""]);
+  // Service quality (TSK-328538): rating, answer-on-time and complaints from
+  // the backend's quality overview. It has no period filter, so these always
+  // read as all time; a failure only hides them.
+  const quality = useResourceOne(() => getQualityOverview().catch(() => null), [tick]);
   const got = res.data;
   const [seen, setSeen] = useState<Seen | null>(null);
   if (got && got !== seen?.got) setSeen({ got, kept: got.ok ? got.data : seen?.kept ?? null });
@@ -472,6 +477,7 @@ export default function AdminCeo() {
   const ltvCacText = d.ltvCac ? `${fmtNum(ltvCac, locale, 1)}×` : NA;
   const payback = Math.round(d.paybackMonths * 10) / 10;
 
+  const q = demo ? null : (quality.data ?? null);
   const ledger = [
     { key: "gmv", label: t("kpi.gmv"), value: gmv ? money(gmv) : NA, note: gmv && gmvSame ? tr("notes.gmvEq") : tr("notes.gmv"), tag: gmvTag },
     { key: "mrr", label: t("mrr"), value: mrr ? money(mrr) : NA, note: mrrNote, tag: tagged(mrr) },
@@ -485,6 +491,13 @@ export default function AdminCeo() {
     ...(d.renewalRatePct !== undefined && d.renewalRatePct !== null ? [{ key: "renewal", label: tr("renewal"), value: pct(d.renewalRatePct), note: tr("renewalNote", { n: num(d.renewedSubscriptions ?? 0) }) }] : []),
     ...(d.churnRatePct !== undefined && d.churnRatePct !== null ? [{ key: "churn", label: tr("churn"), value: pct(d.churnRatePct), note: tr("churnNote", { n: num(d.cancelledSubscriptions ?? 0) }) }] : []),
     ...(d.refundRatePct !== undefined && d.refundRatePct !== null ? [{ key: "refunds", label: tr("refunds"), value: pct(d.refundRatePct), note: tr("refundsNote", { amount: money(d.refundedAmount ?? 0) }) }] : []),
+    ...(q
+      ? [
+          { key: "avgRating", label: tr("quality.rating"), value: q.avgRating ? fmtNum(q.avgRating, locale, 1) : NA, note: tr("quality.allTime") },
+          { key: "responseSla", label: tr("quality.sla"), value: pct(q.responseSlaPct), note: tr("quality.allTime") },
+          { key: "complaintRate", label: tr("quality.complaints"), value: pct(q.complaintRate), note: tr("quality.resolved", { pct: pct(q.resolvedPct, 0) }) },
+        ]
+      : []),
     { key: "arpu", label: t("kpi.arpu"), value: d.arpu ? money(d.arpu) : NA, note: tr("notes.arpu"), tag: tagged(d.arpu) },
     { key: "take", label: t("kpi.takeRate"), value: d.takeRate ? pct(d.takeRate) : NA, note: tr("notes.take"), tag: tagged(d.takeRate) },
     { key: "cac", label: t("kpi.cac"), value: d.cac ? money(d.cac) : NA, note: d.cac ? t("kpi.cacSplit", { client: money(d.cacClient), advocate: money(d.cacAdvocate) }) : tr("notes.cacNa") },

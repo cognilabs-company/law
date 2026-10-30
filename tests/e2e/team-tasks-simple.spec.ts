@@ -65,3 +65,24 @@ test("other users keep the full flow", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Удалить" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Отметить как принятую и архивировать" })).toHaveCount(0);
 });
+
+// A new task: Ulugbek has no "start" button either (the start is someone
+// else's step), while another user still has it.
+test("a new task shows Ulugbek no start button; others keep it", async ({ page }) => {
+  const fresh = task("3", "new", ["in_progress"]);
+  const extra = { "/task-management": { items: [fresh], total: 1, counts: {} }, "/task-management/3": fresh, "/task-management/3/history": { items: [] } };
+  const mock = await mockBackend(page, await signIn(page, ULUGBEK, routes(extra)));
+  await page.goto("/ru/admin/team-tasks");
+  await expect(page.getByText("Vazifa 3")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Начать", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Открыть задачу TSK-3 — Vazifa 3" }).click();
+  await expect(page.getByRole("button", { name: "Начать", exact: true })).toHaveCount(0);
+  expect(mock.calls.some((c) => c.method === "POST" && c.path.endsWith("/status"))).toBe(false);
+});
+
+test("another user still starts a new task", async ({ page }) => {
+  const fresh = task("3", "new", ["in_progress"]);
+  await mockBackend(page, await signIn(page, ADMIN, routes({ "/task-management": { items: [fresh], total: 1, counts: {} }, "/task-management/3": fresh, "/task-management/3/history": { items: [] } })));
+  await page.goto("/ru/admin/team-tasks");
+  await expect(page.getByRole("button", { name: "Начать", exact: true }).first()).toBeVisible();
+});

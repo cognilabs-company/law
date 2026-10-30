@@ -87,8 +87,11 @@ test("extra figures show when sent; thresholds and the service filter work", asy
     requests: { activity_events: 900, errors: 2, error_rate_percent: 0.2, rps: 12.5, latency_ms: { p50: 40, p95: 180, p99: 420 }, status_4xx: 7, status_5xx: 2 },
     users: { active: 30, total: 283, today: 120, by_role: { client: 90, advokat: 20, yurist: 10 } },
     workers: { pending: 4, failed: 1 },
+    system: { ...overview("down", 70).system, network: { rx_bytes_per_sec: 2048, tx_bytes_per_sec: 1024 } },
+    database: { pool_in_use: 3, pool_size: 20, slow_queries: 2 },
+    redis: { status: "healthy", used_memory_bytes: 1048576 },
   };
-  const routes = await signIn(page, ADMIN, { "/admin/monitoring/overview": () => rich, "/admin/monitoring/history": { items: [] } });
+  const routes = await signIn(page, ADMIN, { "/admin/monitoring/overview": () => rich, "/admin/monitoring/history": { items: [], retention: { snapshots_days: 30, incidents_years: 3 } } });
   await mockBackend(page, routes);
   await page.goto("/ru/admin/monitoring");
   await expect(page.getByText("Задержка p95")).toBeVisible();
@@ -96,6 +99,16 @@ test("extra figures show when sent; thresholds and the service filter work", asy
   await expect(page.getByText("4xx: 7 · 5xx: 2")).toBeVisible();
   await expect(page.getByText("Сегодня: 120 · Всего: 283")).toBeVisible();
   await expect(page.getByText("С ошибкой: 1")).toBeVisible();
+  // Network, the DB pool, Redis and the live sockets, as sent.
+  await expect(page.getByText("Сеть (вход)")).toBeVisible();
+  await expect(page.getByText(/Выход: /)).toBeVisible();
+  await expect(page.getByText("3 / 20")).toBeVisible();
+  await expect(page.getByText("Медленных запросов: 2")).toBeVisible();
+  await expect(page.locator(".mon-cards")).toContainText("Redis");
+  await expect(page.getByText("WebSocket-соединения")).toBeVisible();
+  await expect(page.getByText("Онлайн: 4 · каналы: 5")).toBeVisible();
+  // How long history is kept.
+  await expect(page.getByText("Снимки хранятся 30 дней, инциденты — 3 года.")).toBeVisible();
   // Roles by name, never the backend's keys.
   await expect(page.locator(".mon-roles")).toContainText("Клиенты 90 · Адвокаты 20");
   await expect(page.locator(".mon-roles")).not.toContainText("advokat");
@@ -170,7 +183,9 @@ test("an integration's detail shows its own history and dependencies", async ({ 
   await page.getByRole("button", { name: "База данных", exact: true }).click();
   const detail = page.locator(".mon-detail");
   await expect(detail).toContainText("75% (по последним 4 снимкам)");
-  await expect(detail).toContainText("(DB_TIMEOUT)");
+  // The backend's own code is not shown raw; the error text beside it is.
+  await expect(detail).not.toContainText("DB_TIMEOUT");
+  await expect(detail).toContainText("timeout");
   await expect(detail).toContainText("LexGo API");
   await expect(detail.locator(".mon-detail__hist li")).toHaveCount(4);
 });

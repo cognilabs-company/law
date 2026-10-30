@@ -26,7 +26,7 @@ export type SellerRating = {
   penalties: { complaints: number; complaintPoints: number; refunds: number; refundPoints: number } | null;
 };
 
-const COMPONENT_ORDER = ["client_reviews", "completion_rate", "acceptance_rate", "response_score", "verified_experience"];
+const COMPONENT_ORDER = ["client_reviews", "completion_rate", "acceptance_rate", "response_score", "verified_experience", "verified_achievements"];
 const num = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 
 function weightsOf(v: unknown): Record<string, number> | null {
