@@ -123,3 +123,23 @@ test("the feature registry refuses a taken key", async ({ page }) => {
   await dialog.getByRole("button", { name: "Добавить возможность" }).click();
   await expect(dialog.getByText("Такой ключ уже есть — выберите другой.")).toBeVisible();
 });
+
+// TSK-342697: every paid tariff is a gift option, so the plan form has no
+// "giftable" switch and always sends is_giftable; the billing type is the
+// handmade Select in words, never a typed-in code.
+test("the plan form has no gift switch and names the billing type", async ({ page }) => {
+  const patches: Record<string, unknown>[] = [];
+  const mock = await open(page, {
+    "PATCH /admin/subscription-plans/plan-1": (body: unknown) => (patches.push(body as Record<string, unknown>), { ...PLAN }),
+  });
+  await page.getByRole("button", { name: "Редактировать" }).first().click();
+  const form = page.getByRole("dialog");
+  await expect(form.getByText("Можно дарить")).toHaveCount(0);
+  await expect(form.getByRole("button", { name: "Тип оплаты" })).toContainText("Подписка");
+  await expect(form.locator("input[placeholder='subscription']")).toHaveCount(0);
+  await form.getByRole("button", { name: "Сохранить" }).click();
+  await expect.poll(() => patches.length).toBe(1);
+  expect(patches[0]).toMatchObject({ is_giftable: true, billing_type: "subscription" });
+  await expect(page.locator(".aitem").first()).not.toContainText("Можно дарить");
+  expect(mock.refused).toEqual([]);
+});

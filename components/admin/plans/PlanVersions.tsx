@@ -41,9 +41,9 @@ type Busy = "" | "load" | "draft" | "save" | "validate" | "publish" | "archive";
 function useVersionLabels() {
   const t = useTranslations("admin.tariffs");
   return {
-    status: (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : s || "—"),
-    mode: (m: string) => (t.has(`mode.${m}`) ? t(`mode.${m}`) : m),
-    reset: (r: string) => (t.has(`reset.${r}`) ? t(`reset.${r}`) : r),
+    status: (s: string) => (!s ? "—" : t.has(`status.${s}`) ? t(`status.${s}`) : t("other")),
+    mode: (m: string) => (!m ? "" : t.has(`mode.${m}`) ? t(`mode.${m}`) : t("other")),
+    reset: (r: string) => (!r ? "" : t.has(`reset.${r}`) ? t(`reset.${r}`) : t("other")),
   };
 }
 

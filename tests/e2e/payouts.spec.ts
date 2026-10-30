@@ -114,3 +114,22 @@ test("the seller sees their three payout stages; the client sees none of it", as
     await page.close();
   }
 });
+
+// TSK-344069: an open complaint holds the seller's final payout, and the
+// seller is told why.
+test("an open complaint holds the seller's final payout and says so", async ({ page }) => {
+  const f = { ...financials(true), settlement: { status: "complaint_hold", held_amount: 24200, hold_reason: "complaint_open" } };
+  await mockBackend(
+    page,
+    await signIn(page, ADVOCATE, {
+      [`/marketplace/me/orders/${ORDER_ID}`]: order({ status: "completed", payment_status: "paid", price: 110000 }),
+      [`/marketplace/me/orders/${ORDER_ID}/financials`]: f,
+      [`/marketplace/me/orders/${ORDER_ID}/timeline`]: { items: [] },
+      "/marketplace/me/orders": { items: [], total: 0 },
+    }),
+  );
+  await page.goto(`/uz/portal/advocate/marketplace-orders/${ORDER_ID}`);
+  const card = page.locator(".pst");
+  await expect(card).toContainText("Mijoz shikoyati ko'rib chiqilmoqda — yakuniy to'lov hal bo'lguncha ushlab turiladi.", { timeout: 20000 });
+  await expect(card).not.toContainText("yakuniy to'lov shu oyna yopilgach chiqariladi");
+});

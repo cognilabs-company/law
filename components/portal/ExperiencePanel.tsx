@@ -633,6 +633,10 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
                 </span>
               </label>
               <ContactGuardNote id={`exp-desc-g-${kind}`} hits={descHits} removed={descStrip.removed} />
+              <p className="exp__verify">
+                <IconShieldCheck aria-hidden="true" />
+                {tk("verifyNote")}
+              </p>
             </fieldset>
 
             <fieldset className="exp__sec" data-done={secDone.files || undefined}>

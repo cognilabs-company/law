@@ -36,7 +36,7 @@ export type SubscriptionContract = {
   entitlements: ContractEntitlement[];
   termsChanged: boolean;
   consent: { accepted: boolean | null; at: string } | null;
-  next: { version: number | null; entitlements: ContractEntitlement[] } | null;
+  next: { version: number | null; entitlements: ContractEntitlement[]; prices: Record<string, number> } | null;
 };
 
 const entitlementsOf = (v: unknown): ContractEntitlement[] =>
@@ -47,6 +47,12 @@ const entitlementsOf = (v: unknown): ContractEntitlement[] =>
     })
     .filter((e) => e.key);
 
+const pricesOf = (v: unknown): Record<string, number> => {
+  const out: Record<string, number> = {};
+  for (const [k, x] of Object.entries(asDict(v))) if (num(x) !== null) out[k] = num(x) as number;
+  return out;
+};
+
 export async function getSubscriptionContract(subscriptionId: string, signal?: AbortSignal): Promise<SubscriptionContract> {
   const d = asDict(await http(`/subscriptions/${encodeURIComponent(subscriptionId)}/contract`, { signal }));
   const snap = asDict(d.snapshot);
@@ -54,8 +60,7 @@ export async function getSubscriptionContract(subscriptionId: string, signal?: A
   const names: Record<string, string> = {};
   const n = asDict(meta.name);
   for (const k of Object.keys(n)) if (typeof n[k] === "string") names[k] = n[k] as string;
-  const prices: Record<string, number> = {};
-  for (const [k, v] of Object.entries(asDict(snap.prices))) if (num(v) !== null) prices[k] = num(v) as number;
+  const prices = pricesOf(snap.prices);
   const consent = d.renewal_consent ? asDict(d.renewal_consent) : null;
   const next = d.current_plan_version ? asDict(d.current_plan_version) : null;
   return {
@@ -68,7 +73,7 @@ export async function getSubscriptionContract(subscriptionId: string, signal?: A
     entitlements: entitlementsOf(d.entitlements ?? snap.entitlements),
     termsChanged: d.renewal_terms_changed === true,
     consent: consent ? { accepted: typeof consent.accepted === "boolean" ? consent.accepted : null, at: asStr(consent.accepted_at ?? consent.created_at) } : null,
-    next: next ? { version: num(next.version), entitlements: entitlementsOf(asDict(next.payload ?? next).entitlements) } : null,
+    next: next ? { version: num(next.version), entitlements: entitlementsOf(asDict(next.payload ?? next).entitlements), prices: pricesOf(asDict(next.payload ?? next).prices) } : null,
   };
 }
 

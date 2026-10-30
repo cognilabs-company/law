@@ -149,7 +149,7 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
         <div className="mod-price__group">
           <p className="mod-price__sub">{t("parts")}</p>
           {pricing.components.map((c, i) => {
-            const label = c.label[locale] || c.label.uz || (t.has(`part.${c.code}`) ? t(`part.${c.code}`) : c.code);
+            const label = c.label[locale] || c.label.uz || (t.has(`part.${c.code}`) ? t(`part.${c.code}`) : t("part.other"));
             const signed = i > 0 || c.amount < 0;
             return (
               <div key={`${c.code}-${i}`} className="mod-price__row">

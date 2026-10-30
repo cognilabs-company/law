@@ -11,7 +11,7 @@ import TimePicker from "@/components/TimePicker";
 import { IconCrown, IconHistory, IconLock } from "@/components/icons";
 import { shortDateTime } from "@/lib/date";
 import { errDetail, isAborted, logApiError } from "@/lib/http";
-import { getSuperHistory, isPrimaryOnly, setSuperadvokat, superActiveAt, type SuperEntry } from "@/lib/services/superadvokat";
+import { getSuperHistory, isPrimaryOnly, setSuperadvokat, superActiveAt, type SuperEntry, type SuperState } from "@/lib/services/superadvokat";
 
 // TSK-460646 — the manual Superadvokat override for one seller: the state
 // now, the change (on/off, a required reason, from, optional until) and the
@@ -26,6 +26,11 @@ const isoOf = (day: string, time: string) => (day ? new Date(`${day}T${time || "
 export default function SuperadvokatDialog({ sellerUserId, sellerName, canEdit, onClose }: { sellerUserId: string; sellerName: string; canEdit: boolean; onClose: () => void }): ReactElement {
   const t = useTranslations("admin.superadvokat");
   const locale = useLocale();
+  // A before/after snapshot in words: on or off, and its period.
+  const stateText = (st: SuperState | null) =>
+    !st
+      ? t("stateNone")
+      : [st.active ? t("stateOn") : t("stateOff"), st.startsAt ? t("histFrom", { date: shortDateTime(st.startsAt, locale) }) : "", st.endsAt ? t("histTo", { date: shortDateTime(st.endsAt, locale) }) : st.active ? t("noEnd").toLowerCase() : ""].filter(Boolean).join(", ");
   const [history, setHistory] = useState<SuperEntry[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [active, setActive] = useState(true);
@@ -201,6 +206,12 @@ export default function SuperadvokatDialog({ sellerUserId, sellerName, canEdit, 
                           </>
                         ) : null}
                       </small>
+                      {h.before || h.after ? (
+                        <span className="sav__diff">
+                          <del>{t("histWas", { state: stateText(h.before) })}</del>
+                          <ins>{t("histNow", { state: stateText(h.after) })}</ins>
+                        </span>
+                      ) : null}
                       {h.reason ? <q>{h.reason}</q> : null}
                     </span>
                   </li>

@@ -60,3 +60,24 @@ test("the call center moves files to a replacement only with the client's consen
   await expect(sw).toHaveAttribute("aria-checked", "true");
   await expect(dialog.getByText("Mijoz rozilik bergan", { exact: false })).toBeVisible();
 });
+
+// TSK-714974: when the backend names which guarantee cases apply to this
+// order, the client is offered only those.
+test("the client is offered only the guarantee cases the backend names", async ({ page }) => {
+  const o = order({ status: "in_progress", started_at: new Date().toISOString(), warranty_url: `/marketplace/me/orders/${ORDER_ID}/warranty`, warranty_eligible_kinds: ["sla_breach", "abandoned"] });
+  await mockBackend(
+    page,
+    await signIn(page, CLIENT, {
+      [`/marketplace/me/orders/${ORDER_ID}`]: o,
+      [`/marketplace/me/orders/${ORDER_ID}/financials`]: financials([{ stage: "marketplace_order", status: "paid", amount: 110000 }]),
+      "/marketplace/runtime-capabilities": { warranty: { replacement: true, full_refund: true, call_center_review: true } },
+    }),
+  );
+  await page.goto(`/ru/portal/client/marketplace-orders/${ORDER_ID}`);
+  await page.getByRole("button", { name: "Воспользоваться гарантией" }).click();
+  const dialog = page.getByRole("dialog", { name: "Запрос по гарантии" });
+  await expect(dialog.getByText("Нарушен срок работы")).toBeVisible();
+  await expect(dialog.getByText("Работа брошена без причины")).toBeVisible();
+  await expect(dialog.getByText("Исполнитель не ответил вовремя")).toHaveCount(0);
+  await expect(dialog.getByText("Работа исполнителя ограничена")).toHaveCount(0);
+});

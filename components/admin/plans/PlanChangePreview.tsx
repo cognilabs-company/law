@@ -48,7 +48,7 @@ export default function PlanChangePreview({ versionId }: { versionId: string }):
   const field = (key: string) => (tp.has(`field.${key}`) ? tp(`field.${key}`) : t("fieldOther"));
   const money = (n: number | null) => (n === null ? none : `${fmtUzs(n)} ${tp("som")}`);
   const ent = (f: PlanFeatureChange) =>
-    [t.has(`mode.${f.mode}`) ? t(`mode.${f.mode}`) : f.mode, f.mode === "limited" && f.limit !== null ? String(f.limit) : "", f.resetPeriod && f.mode === "limited" ? (t.has(`reset.${f.resetPeriod}`) ? t(`reset.${f.resetPeriod}`) : f.resetPeriod) : ""].filter(Boolean).join(" · ");
+    [!f.mode ? "" : t.has(`mode.${f.mode}`) ? t(`mode.${f.mode}`) : t("other"), f.mode === "limited" && f.limit !== null ? String(f.limit) : "", f.resetPeriod && f.mode === "limited" ? (t.has(`reset.${f.resetPeriod}`) ? t(`reset.${f.resetPeriod}`) : t("other")) : ""].filter(Boolean).join(" · ");
   const nothing = !p.fields.length && !p.prices.length && !p.added.length && !p.removed.length && !p.changed.length;
 
   return (
@@ -95,7 +95,7 @@ export default function PlanChangePreview({ versionId }: { versionId: string }):
           <tbody>
             {p.prices.map((r) => (
               <tr key={r.period}>
-                <td>{t.has(`price.${r.period}`) ? t(`price.${r.period}`) : r.period}</td>
+                <td>{t.has(`price.${r.period}`) ? t(`price.${r.period}`) : t("other")}</td>
                 <td className="sx-num">{money(r.before)}</td>
                 <td className="sx-num">{money(r.after)}</td>
                 <td className="sx-num" data-dir={r.difference === null ? undefined : r.difference > 0 ? "up" : r.difference < 0 ? "down" : "same"}>

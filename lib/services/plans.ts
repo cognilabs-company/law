@@ -96,7 +96,7 @@ function failed(e: unknown): WriteResult {
 export async function createPlanAdmin(input: PlanInput): Promise<unknown> {
   return http("/admin/subscription-plans", {
     method: "POST",
-    body: JSON.stringify({ description: "", benefits: [], is_giftable: false, is_active: true, ...input }),
+    body: JSON.stringify({ description: "", benefits: [], is_giftable: true, is_active: true, ...input }),
   });
 }
 

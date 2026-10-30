@@ -19,7 +19,15 @@ export type SuperEntry = {
   byName: string;
   // What it was before this change: null when there was nothing.
   wasActive: boolean | null;
+  // The before/after snapshots, shown side by side in the history.
+  before: SuperState | null;
+  after: SuperState | null;
   at: string;
+};
+export type SuperState = { active: boolean; startsAt: string; endsAt: string };
+const stateOf = (v: unknown): SuperState | null => {
+  const d = asDict(v);
+  return typeof d.active === "boolean" ? { active: d.active, startsAt: asStr(d.starts_at), endsAt: asStr(d.ends_at) } : null;
 };
 
 export function superEntryOf(v: unknown): SuperEntry {
@@ -34,6 +42,8 @@ export function superEntryOf(v: unknown): SuperEntry {
     byId: asStr(asDict(d.changed_by).id ?? d.changed_by_user_id),
     byName: asStr(asDict(d.changed_by).name),
     wasActive: typeof asDict(d.before).active === "boolean" ? (asDict(d.before).active as boolean) : null,
+    before: stateOf(d.before),
+    after: stateOf(d.after),
     at: asStr(d.changed_at ?? d.created_at),
   };
 }

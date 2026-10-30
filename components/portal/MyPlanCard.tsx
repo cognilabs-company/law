@@ -66,6 +66,12 @@ export default function MyPlanCard(): ReactElement | null {
         .map((key) => ({ key, before: contract.entitlements.find((e) => e.key === key), after: contract.next!.entitlements.find((e) => e.key === key) }))
         .filter((c) => term(c.before) !== term(c.after))
     : [];
+  // A price that changes in the new version, period by period.
+  const priceChanges = contract?.next
+    ? Object.keys(contract.next.prices)
+        .filter((k) => contract.prices[k] !== undefined && contract.prices[k] !== contract.next!.prices[k])
+        .map((k) => ({ period: k, before: contract.prices[k], after: contract.next!.prices[k] }))
+    : [];
   const needsConsent = !!contract?.termsChanged && !(contract.consent?.accepted === true) && !consented && !stopped;
 
   async function stop() {
@@ -125,8 +131,15 @@ export default function MyPlanCard(): ReactElement | null {
         <div className="myplan__consent" role="alert">
           <b>{t("changedTitle")}</b>
           <span>{t("changedText")}</span>
-          {changes.length ? (
+          {changes.length || priceChanges.length ? (
             <ul className="myplan__next" aria-label={contract?.next?.version ? t("nextVersion", { n: contract.next.version }) : t("nextTerms")}>
+              {priceChanges.map((c) => (
+                <li key={`price-${c.period}`} className="myplan__price">
+                  <b>{t.has(`period.${c.period}`) ? t("priceOf", { period: t(`period.${c.period}`) }) : t("price")}</b>
+                  <del>{fmtUzs(c.before)}</del>
+                  <ins>{fmtUzs(c.after)}</ins>
+                </li>
+              ))}
               {changes.map((c) => (
                 <li key={c.key}>
                   <b>{featureName(c.key)}</b>
@@ -169,7 +182,7 @@ export default function MyPlanCard(): ReactElement | null {
       {contract && Object.keys(contract.prices).length ? (
         <p className="myplan__prices">
           {Object.entries(contract.prices)
-            .map(([k, v]) => `${t.has(`period.${k}`) ? t(`period.${k}`) : k}: ${fmtUzs(v)}`)
+            .map(([k, v]) => `${t.has(`period.${k}`) ? t(`period.${k}`) : t("price")}: ${fmtUzs(v)}`)
             .join(" · ")}
         </p>
       ) : null}

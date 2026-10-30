@@ -24,7 +24,7 @@ test("my plan shows backend limits and asks consent for changed terms once", asy
         { feature_key: "ai_requests", mode: "limited", limit: 100, reset_period: "month" },
         { feature_key: "export", mode: "unlimited" },
       ],
-      current_plan_version: { version: 2, payload: { entitlements: [{ feature_key: "ai_requests", mode: "limited", limit: 50, reset_period: "month" }, { feature_key: "export", mode: "unlimited" }, { feature_key: "doc_analysis", mode: "limited", limit: 3, reset_period: "month" }] } },
+      current_plan_version: { version: 2, payload: { prices: { monthly: 129000 }, entitlements: [{ feature_key: "ai_requests", mode: "limited", limit: 50, reset_period: "month" }, { feature_key: "export", mode: "unlimited" }, { feature_key: "doc_analysis", mode: "limited", limit: 3, reset_period: "month" }] } },
       renewal_terms_changed: true,
       renewal_consent: null,
     },
@@ -43,7 +43,11 @@ test("my plan shows backend limits and asks consent for changed terms once", asy
 
   // TSK-206603: the new version's terms, before the consent — only what changes.
   const next = card.locator(".myplan__next li");
-  await expect(next).toHaveCount(2);
+  await expect(next).toHaveCount(3);
+  // The new price too, before the consent.
+  const price = next.filter({ hasText: "Цена · Месяц" });
+  await expect(price.locator("del")).toContainText(/99[\s\u00a0\u202f]000/);
+  await expect(price.locator("ins")).toContainText(/129[\s\u00a0\u202f]000/);
   await expect(next.filter({ hasText: "Запросы к ИИ" })).toContainText("100 в месяц");
   await expect(next.filter({ hasText: "Запросы к ИИ" }).locator("ins")).toHaveText("50 в месяц");
   await expect(next.filter({ hasText: "Анализ документов" }).locator("ins")).toHaveText("3 в месяц");
@@ -71,4 +75,25 @@ test("the subscriber can decline new terms by not renewing", async ({ page }) =>
   await page.locator(".myplan").getByRole("button", { name: "Не продлевать" }).click();
   await expect(page.getByText(/Автопродление выключено/)).toBeVisible();
   expect(patches).toEqual([{ auto_renew: false }]);
+});
+
+// TSK-342697: auto-renew is the subscriber's switch, saved on the
+// subscription itself; each change is sent once.
+test("the autopay switch turns auto-renew off and on for the subscription", async ({ page }) => {
+  const patches: unknown[] = [];
+  const routes = await signIn(page, CLIENT, {
+    "/clients/me": { id: "u-client", name: "Test Mijoz", subscription: { id: "sub-1", plan_id: "plan-1", plan_name: "LexGo.AI Pro", status: "active", auto_renew: true } },
+    "/subscriptions/me/features": { subscription_id: "sub-1", plan_id: "plan-1", plan_version: 1, items: [] },
+    "PATCH /subscriptions/sub-1/auto-renew": (b: unknown) => (patches.push(b), { auto_renew: (b as { auto_renew: boolean }).auto_renew }),
+  });
+  await mockBackend(page, routes);
+  await page.goto("/ru/portal/client/subscription");
+  const sw = page.getByRole("switch", { name: /Автоплатёж/ });
+  await expect(sw).toHaveAttribute("aria-checked", "true");
+  await sw.click();
+  await expect(sw).toHaveAttribute("aria-checked", "false");
+  await expect(sw).toContainText("Выключен");
+  await sw.click();
+  await expect(sw).toHaveAttribute("aria-checked", "true");
+  expect(patches).toEqual([{ auto_renew: false }, { auto_renew: true }]);
 });

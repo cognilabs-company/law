@@ -24,7 +24,8 @@ import Modal from "@/components/admin/Modal";
 import PersonName from "@/components/ui/PersonName";
 import BusinessCalendarCard from "@/components/admin/BusinessCalendarCard";
 import MarketplacePricingCard from "@/components/admin/policies/MarketplacePricingCard";
-import { IconShieldCheck, IconCheck, IconAlert, IconClock, IconEdit } from "@/components/icons";
+import { IconShieldCheck, IconCheck, IconAlert, IconClock, IconEdit, IconPlus, IconTrash } from "@/components/icons";
+import CheckBox from "@/components/CheckBox";
 import { dateTimeFull } from "@/lib/date";
 import { humanize } from "@/lib/labels";
 import "./policies.css";
@@ -173,46 +174,64 @@ export default function AdminPolicies() {
   );
 }
 
-// Every top-level key gets a control by type: number, boolean, string, string
-// list (comma-separated) or JSON (nested objects / object lists).
+// Every setting gets its own control by type, at any depth: a number, a
+// yes/no (handmade CheckBox), text, a comma-separated list, a group of
+// settings under its heading, or a list of rows that can be added and
+// removed — never a raw JSON box.
+type Path = (string | number)[];
+const pathKey = (p: Path) => p.join(".");
+function setIn(v: unknown, path: Path, next: unknown): unknown {
+  if (!path.length) return next;
+  const [h, ...rest] = path;
+  if (Array.isArray(v)) {
+    const copy = [...v];
+    copy[h as number] = setIn(copy[h as number], rest, next);
+    return copy;
+  }
+  const o = { ...((isPlain(v) ? v : {}) as Record<string, unknown>) };
+  o[h as string] = setIn(o[h as string], rest, next);
+  return o;
+}
+// A new row shaped like the first one, with every value emptied.
+function blankLike(v: unknown): unknown {
+  if (typeof v === "number") return 0;
+  if (typeof v === "boolean") return false;
+  if (typeof v === "string") return "";
+  if (Array.isArray(v)) return [];
+  if (isPlain(v)) return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, blankLike(x)]));
+  return null;
+}
+const isScalarList = (v: unknown) => Array.isArray(v) && v.every((x) => x === null || typeof x !== "object");
+
 function EditModal({ section, data, onClose, onSaved }: { section: PolicySection | null; data: Record<string, unknown>; onClose: () => void; onSaved: () => void }) {
   const t = useTranslations("admin.policies");
-  const uid = useId();
-  const [form, setForm] = useState<{ sec: string; values: Record<string, string> }>({ sec: "", values: {} });
-  const [badJson, setBadJson] = useState<string[]>([]);
-  const toText = (v: unknown) => (isPlain(v) || (Array.isArray(v) && !isStrList(v)) ? JSON.stringify(v, null, 2) : isStrList(v) ? (v as string[]).join(", ") : String(v ?? ""));
+  const [form, setForm] = useState<{ sec: string; value: Record<string, unknown> }>({ sec: "", value: {} });
+  const [bad, setBad] = useState<Set<string>>(new Set());
   if (section && form.sec !== section) {
-    setForm({ sec: section, values: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, toText(v)])) });
-    setBadJson([]);
+    setForm({ sec: section, value: data });
+    setBad(new Set());
   }
   const [busy, setBusy] = useState(false);
-  const fid = (k: string) => `${uid}-${k.replace(/[^\w-]/g, "_")}`;
+  const change = (path: Path, next: unknown) => setForm((f) => ({ ...f, value: setIn(f.value, path, next) as Record<string, unknown> }));
+  const validity = (path: Path, ok: boolean) =>
+    setBad((b) => {
+      const k = pathKey(path);
+      if (ok === !b.has(k)) return b;
+      const n = new Set(b);
+      if (ok) n.delete(k);
+      else n.add(k);
+      return n;
+    });
 
   async function save() {
     if (!section || busy) return;
-    const out: Record<string, unknown> = {};
-    const broken: string[] = [];
-    for (const [k, v] of Object.entries(data)) {
-      const raw = form.values[k] ?? "";
-      if (typeof v === "number") out[k] = Number(raw.replace(/\s/g, "")) || 0;
-      else if (typeof v === "boolean") out[k] = raw === "true";
-      else if (isStrList(v)) out[k] = raw.split(",").map((x) => x.trim()).filter(Boolean);
-      else if (isPlain(v) || Array.isArray(v)) {
-        try {
-          out[k] = JSON.parse(raw);
-        } catch {
-          broken.push(k);
-        }
-      } else out[k] = raw;
-    }
-    setBadJson(broken);
-    if (broken.length) {
-      document.getElementById(fid(broken[0]))?.focus();
+    if (bad.size) {
+      document.querySelector<HTMLElement>(".polform [aria-invalid='true']")?.focus();
       return;
     }
     setBusy(true);
     try {
-      await putAdminPolicy(section, out);
+      await putAdminPolicy(section, form.value);
       notify.success(t("saved"), { id: "policy-save", body: t(`sections.${section}`) });
       onSaved();
     } catch (e) {
@@ -221,41 +240,126 @@ function EditModal({ section, data, onClose, onSaved }: { section: PolicySection
       setBusy(false);
     }
   }
-  const set = (k: string, v: string) => {
-    setForm((f) => ({ ...f, values: { ...f.values, [k]: v } }));
-    setBadJson((b) => (b.includes(k) ? b.filter((x) => x !== k) : b));
-  };
 
   return (
     <Modal open={!!section} onClose={onClose} title={section ? t("editTitle", { section: t(`sections.${section}`) }) : ""}>
-      <div className="cform" style={{ maxWidth: "none" }}>
+      <div className="cform polform" style={{ maxWidth: "none" }}>
         <p className="advmuted">{t("editLead")}</p>
-        {Object.entries(data).map(([k, v]) => {
-          const label = t.has(`keys.${k}`) ? t(`keys.${k}`) : humanize(k);
-          const val = form.values[k] ?? "";
-          if (typeof v === "boolean") return (
-            <label className={`vac${val === "true" ? " on" : ""}`} key={k} style={{ justifySelf: "start" }}>
-              <input type="checkbox" checked={val === "true"} onChange={(e) => set(k, e.target.checked ? "true" : "false")} />{label}
-            </label>
-          );
-          if (typeof v === "number") return <div key={k}><label>{label}</label><input inputMode="decimal" value={val} onChange={(e) => set(k, e.target.value)} /></div>;
-          if (isPlain(v) || (Array.isArray(v) && !isStrList(v))) {
-            const bad = badJson.includes(k);
-            return (
-              <div key={k}>
-                <label htmlFor={fid(k)}>{label} <span className="rf__opt">JSON</span></label>
-                <textarea id={fid(k)} rows={Math.min(14, val.split("\n").length + 1)} value={val} onChange={(e) => set(k, e.target.value)} style={{ fontFamily: "monospace", fontSize: ".8rem" }} aria-invalid={bad || undefined} aria-describedby={bad ? `${fid(k)}-err` : undefined} />
-                <FieldError id={`${fid(k)}-err`} msg={bad ? t("badJson") : null} />
-              </div>
-            );
-          }
-          if (isStrList(v)) return <div key={k}><label>{label} <span className="rf__opt">{t("listHint")}</span></label><input value={val} onChange={(e) => set(k, e.target.value)} /></div>;
-          return <div key={k}><label>{label}</label><input value={val} onChange={(e) => set(k, e.target.value)} /></div>;
-        })}
+        {Object.entries(form.value).map(([k, v]) => (
+          <PolicyField key={k} path={[k]} name={k} value={v} onChange={change} onValidity={validity} />
+        ))}
         <button type="button" className="btn btn--pri btn--full" onClick={save} disabled={busy}>{busy ? t("saving") : t("save")}</button>
         <p className="rf__hint">{t("saveHint")}</p>
       </div>
     </Modal>
+  );
+}
+
+function PolicyField({ path, name, value, onChange, onValidity }: { path: Path; name: string; value: unknown; onChange: (path: Path, next: unknown) => void; onValidity: (path: Path, ok: boolean) => void }) {
+  const t = useTranslations("admin.policies");
+  const uid = useId();
+  const label = typeof path[path.length - 1] === "number" ? t("row", { n: (path[path.length - 1] as number) + 1 }) : t.has(`keys.${name}`) ? t(`keys.${name}`) : humanize(name);
+  if (typeof value === "boolean") {
+    return <CheckBox checked={value} onChange={(on) => onChange(path, on)}>{label}</CheckBox>;
+  }
+  if (typeof value === "number") return <NumberField id={uid} label={label} value={value} onChange={(n) => onChange(path, n)} onValidity={(ok) => onValidity(path, ok)} />;
+  if (isPlain(value)) {
+    const rows = Object.entries(value as Record<string, unknown>);
+    return (
+      <fieldset className="polform__grp">
+        <legend>{label}</legend>
+        {rows.length ? rows.map(([k, v]) => <PolicyField key={k} path={[...path, k]} name={k} value={v} onChange={onChange} onValidity={onValidity} />) : <span className="advmuted">{t("emptySection")}</span>}
+      </fieldset>
+    );
+  }
+  if (Array.isArray(value) && !isScalarList(value)) {
+    const template = value.find((x) => x !== null && typeof x === "object");
+    return (
+      <fieldset className="polform__grp">
+        <legend>{label}</legend>
+        {value.map((row, i) => (
+          <div key={i} className="polform__row">
+            <PolicyField path={[...path, i]} name={name} value={row} onChange={onChange} onValidity={onValidity} />
+            <button type="button" className="btn btn--soft btn--sm polform__del" onClick={() => onChange(path, value.filter((_, j) => j !== i))} aria-label={t("removeRow", { n: i + 1 })}>
+              <IconTrash aria-hidden="true" />
+            </button>
+          </div>
+        ))}
+        {template !== undefined ? (
+          <button type="button" className="btn btn--soft btn--sm polform__add" onClick={() => onChange(path, [...value, blankLike(template)])}>
+            <IconPlus aria-hidden="true" />
+            {t("addRow")}
+          </button>
+        ) : null}
+      </fieldset>
+    );
+  }
+  if (Array.isArray(value)) return <ListField id={uid} label={label} value={value} onChange={(next) => onChange(path, next)} onValidity={(ok) => onValidity(path, ok)} />;
+  return (
+    <div>
+      <label htmlFor={uid}>{label}</label>
+      <input id={uid} value={value == null ? "" : String(value)} onChange={(e) => onChange(path, e.target.value)} />
+    </div>
+  );
+}
+
+// Typed as text so a half-typed number ("1.") stays on screen; the value
+// changes only when the text is a number.
+function NumberField({ id, label, value, onChange, onValidity }: { id: string; label: string; value: number; onChange: (n: number) => void; onValidity: (ok: boolean) => void }) {
+  const t = useTranslations("admin.policies");
+  const [text, setText] = useState(String(value));
+  const ok = text.trim() !== "" && Number.isFinite(Number(text.replace(/\s/g, "").replace(",", ".")));
+  return (
+    <div>
+      <label htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        inputMode="decimal"
+        value={text}
+        aria-invalid={!ok || undefined}
+        aria-describedby={ok ? undefined : `${id}-err`}
+        onChange={(e) => {
+          const v = e.target.value;
+          setText(v);
+          const n = Number(v.replace(/\s/g, "").replace(",", "."));
+          const good = v.trim() !== "" && Number.isFinite(n);
+          onValidity(good);
+          if (good) onChange(n);
+        }}
+      />
+      <FieldError id={`${id}-err`} msg={ok ? null : t("badNumber")} />
+    </div>
+  );
+}
+
+// A list of plain values, comma-separated; a list of numbers stays numbers.
+function ListField({ id, label, value, onChange, onValidity }: { id: string; label: string; value: unknown[]; onChange: (next: unknown[]) => void; onValidity: (ok: boolean) => void }) {
+  const t = useTranslations("admin.policies");
+  const numeric = value.length > 0 && value.every((x) => typeof x === "number");
+  const [text, setText] = useState(value.map((x) => (x == null ? "" : String(x))).join(", "));
+  const parts = (v: string) => v.split(",").map((x) => x.trim()).filter(Boolean);
+  const ok = !numeric || parts(text).every((x) => Number.isFinite(Number(x)));
+  return (
+    <div>
+      <label htmlFor={id}>
+        {label} <span className="rf__opt">{t("listHint")}</span>
+      </label>
+      <input
+        id={id}
+        value={text}
+        aria-invalid={!ok || undefined}
+        aria-describedby={ok ? undefined : `${id}-err`}
+        onChange={(e) => {
+          const v = e.target.value;
+          setText(v);
+          const items = parts(v);
+          const good = !numeric || items.every((x) => Number.isFinite(Number(x)));
+          onValidity(good);
+          if (good) onChange(numeric ? items.map(Number) : items);
+        }}
+      />
+      <FieldError id={`${id}-err`} msg={ok ? null : t("badNumber")} />
+    </div>
   );
 }
 

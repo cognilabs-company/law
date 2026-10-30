@@ -106,7 +106,8 @@ function ResolveDialog({ c, onClose, onDone, onStale }: { c: MpComplaint; onClos
     }
   }
 
-  const options = c.actions.map((a) => ({ value: a, title: t(`action.${a}`), description: t(`actionHint.${a}`) }));
+  // Only rulings the screen can name; an unknown one is left out.
+  const options = c.actions.filter((a) => t.has(`action.${a}`) && t.has(`confirm.${a}`)).map((a) => ({ value: a, title: t(`action.${a}`), description: t.has(`actionHint.${a}`) ? t(`actionHint.${a}`) : "" }));
   const danger = action === "full_refund" || action === "partial_refund" || action === "valid_refund";
   return (
     <SxDialog

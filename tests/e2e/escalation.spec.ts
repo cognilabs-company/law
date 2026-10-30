@@ -148,3 +148,42 @@ test("people are shown by name, never by id, and a missing value reads as none",
   await expect(row).not.toContainText(CLIENT_ID);
   await expect(row).not.toContainText("—");
 });
+
+// TSK-635882: a missed contact deadline reaches the operator live (no
+// polling); the operator writes to the previous seller from the escalation;
+// a reason, status or event the screen has no name for reads in words.
+test("a contact-deadline escalation arrives live; the operator messages the seller; unknown codes read in words", async ({ page }) => {
+  const sla = escalation({ id: "esc-2", reason: "contact_sla_breached", status: "brand_new_state", history: [{ id: "h9", type: "mystery_event_x", message: "", created_at: "2026-10-24T08:00:00Z" }] });
+  let items: unknown[] = [];
+  let body: Record<string, unknown> | null = null;
+  const mock = await mockBackend(
+    page,
+    await signIn(page, CALL_CENTER, {
+      "/call-center/marketplace/assignment-escalations": () => ({ items, total: items.length }),
+      "POST /call-center/marketplace/assignment-escalations/esc-2/resolve": (b: unknown) => ((body = b as Record<string, unknown>), { action: "message" }),
+    }),
+  );
+  await page.goto("/ru/admin/call-center?tab=escalations");
+  await expect(page.getByText("Ajrashish bo'yicha maslahat")).toHaveCount(0);
+  const reads = mock.count("GET", /assignment-escalations$/);
+  await expect.poll(() => mock.sockets.some((s) => s.url.includes("/ws/users/me"))).toBe(true);
+  items = [sla];
+  await mock.push({ event: "marketplace.contact_sla_breached", order_id: ORDER_ID });
+  await expect.poll(() => mock.count("GET", /assignment-escalations$/)).toBeGreaterThan(reads);
+  const row = page.getByRole("button", { name: /Ajrashish bo'yicha maslahat/ });
+  await row.click();
+  const item = page.locator(".esc__item").first();
+  await expect(item).toContainText("С клиентом не связались в выбранный срок");
+  await expect(item).toContainText("Другой статус");
+  expect(await item.innerText()).not.toMatch(/brand_new_state|mystery_event_x|contact_sla_breached/);
+
+  await page.getByRole("button", { name: "Отправить сообщение" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByText("Прежнему исполнителю").click();
+  await dialog.getByRole("textbox").first().fill("Mijoz bilan bugun bog'laning, iltimos");
+  const reason = dialog.getByRole("textbox").nth(1);
+  if (await reason.count()) await reason.fill("Aloqa muddati o'tgan");
+  await dialog.getByRole("button", { name: "Отправить", exact: true }).click();
+  await expect(page.getByText("Сообщение отправлено.")).toBeVisible();
+  expect(body).toMatchObject({ action: "message", target: "seller", message: "Mijoz bilan bugun bog'laning, iltimos" });
+});

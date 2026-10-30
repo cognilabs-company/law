@@ -77,3 +77,7 @@
 /* The developer task inside Studio K17 (TSK-692647). */
 .trf-devbox { display: grid; gap: 8px; margin-top: 12px; padding: 12px 14px; border-radius: 14px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); }
 .trf-devbox__h { font-size: .84rem; color: var(--ink); }
+.trf-devbox__past { border-top: 1px solid var(--line); padding-top: 8px; }
+.trf-devbox__past > summary { cursor: pointer; font-size: .82rem; font-weight: 600; color: var(--b600); }
+.trf-devbox__past > summary:focus-visible { outline: 2px solid var(--b400); outline-offset: 2px; border-radius: 6px; }
+.trf-devbox__rev { display: grid; gap: 6px; margin-top: 10px; padding-left: 10px; border-left: 2px solid var(--line); }

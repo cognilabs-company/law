@@ -77,7 +77,7 @@ function ResolveDialog({ claim, onClose, onDone }: { claim: WarrantyClaim; onClo
       open
       onClose={onClose}
       title={t("resolveTitle")}
-      description={[claim.order.workId, t.has(`kind.${claim.kind}`) ? t(`kind.${claim.kind}`) : claim.kind].filter(Boolean).join(" · ") || undefined}
+      description={[claim.order.workId, claim.kind ? (t.has(`kind.${claim.kind}`) ? t(`kind.${claim.kind}`) : t("kind.other")) : ""].filter(Boolean).join(" · ") || undefined}
       busy={busy}
       dirty={!!resolution || !!note.trim()}
       aiId="call_center.warranty.resolve"

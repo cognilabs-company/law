@@ -47,3 +47,7 @@
   .sav__two, .sav__seg { grid-template-columns: minmax(0, 1fr); }
 }
 .sav__st { margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: var(--dk-surface-2, #f1f5f9); color: var(--gray, #64748b); font-size: .7rem; font-style: normal; font-weight: 700; }
+/* Before → after of one change (TSK-460646). */
+.sav__diff { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; font-size: .78rem; }
+.sav__diff del { color: var(--gray); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--gray) 60%, transparent); }
+.sav__diff ins { color: var(--ink); text-decoration: none; font-weight: 600; }

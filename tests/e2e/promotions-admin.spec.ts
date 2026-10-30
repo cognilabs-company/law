@@ -36,6 +36,8 @@ const objects: Record<string, Record<string, unknown>> = {
 test("promotions have their own page with state, prices and a way into Studio", async ({ page }) => {
   let paused = false;
   let pausedWith: unknown = null;
+  let resumed = 0;
+  let resumedWith: unknown = null;
   const routes = await signIn(page, ADMIN, {
     "/studio/constructors/MP09/records": () => ({
       items: [
@@ -48,6 +50,7 @@ test("promotions have their own page with state, prices and a way into Studio", 
     }),
     "POST /studio/constructors/MP09/preview": preview,
     "POST /admin/promotion-campaigns/c-o1/pause": (b: unknown) => ((paused = true), (pausedWith = b), { status: "paused" }),
+    "POST /admin/promotion-campaigns/c-o1/resume": (b: unknown) => ((paused = false), (resumed += 1), (resumedWith = b), { status: "active" }),
     "/studio/objects/(o\\d)": (_b: unknown, url: URL) => {
       const id = url.pathname.split("/").at(-1) as string;
       return { id, constructor_code: "MP09", title: objects[id].title, status: id === "o4" ? "draft" : "published", payload: objects[id] };
@@ -81,7 +84,14 @@ test("promotions have their own page with state, prices and a way into Studio", 
   await go.click();
   await expect.poll(() => pausedWith).toEqual({ reason: "Vaqtincha to'xtatildi" });
   await expect(page.locator(".prm-card", { hasText: "Kuzgi reklama" })).toContainText("To'xtatilgan");
-  await expect(page.locator(".prm-card", { hasText: "Kuzgi reklama" }).getByRole("button", { name: "Davom ettirish" })).toBeVisible();
+  // Resume: the sale runs again.
+  await page.locator(".prm-card", { hasText: "Kuzgi reklama" }).getByRole("button", { name: "Davom ettirish" }).click();
+  const confirm = page.getByRole("dialog", { name: /Kuzgi reklama/ });
+  await confirm.getByRole("textbox").fill("Byudjet tasdiqlandi");
+  await confirm.getByRole("button", { name: "Davom ettirish" }).click();
+  await expect.poll(() => resumed).toBe(1);
+  expect(resumedWith).toEqual({ reason: "Byudjet tasdiqlandi" });
+  await expect(page.locator(".prm-card", { hasText: "Kuzgi reklama" })).toContainText("Hozir amalda");
   await page.getByRole("tab", { name: "Tariflar" }).click();
   await expect(cards).toHaveCount(2);
   await expect(page.getByRole("link", { name: "Yangi aksiya" })).toHaveAttribute("href", /\/admin\/studio\/o\/new\?new=MP09$/);

@@ -332,3 +332,6 @@
 .exh__list p { margin: 4px 0 0; font-size: .82rem; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
 .exh__none { margin: 0; color: var(--gray); font-size: .82rem; }
 .exh__fail { display: grid; gap: 10px; justify-items: start; }
+/* "LexGo checks this" under the description (TSK-189146). */
+.exp__verify { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: .78rem; font-weight: 600; color: var(--b600, #2563eb); }
+.exp__verify svg { width: 14px; height: 14px; flex: none; }

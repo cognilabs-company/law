@@ -13,7 +13,8 @@ const SELLER_TWIN: Record<"lawyer" | "advocate", Record<string, string>> = {
 const ADMIN_ALIAS: Record<string, string> = {
   dashboard: "/admin/dashboard",
   marketplace: "/admin/marketplace",
-  subscriptions: "/admin/plans",
+  // Tariffs live in Studio K17 (the old /admin/plans screen is hidden).
+  subscriptions: "/admin/studio/c/K17",
   support: "/admin/call-center/support",
 };
 

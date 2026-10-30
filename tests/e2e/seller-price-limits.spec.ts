@@ -48,9 +48,42 @@ test("the service's top price comes from potential_max_price; an unknown criteri
   await expect(caps).toBeVisible();
   // 188 760 from pricing_limits.potential_max_price — not the seller's 100 000.
   await expect(caps).toContainText(/188[\s  ]?760/);
+  // The lowest price, the growth and each criterion's progress, as sent.
+  await expect(caps).toContainText(/70[\s\u00a0\u202f]?000/);
+  await expect(caps).toContainText("89%");
+  await expect(caps).toContainText("27%");
   await expect(caps).toContainText("Юридический стаж");
   await expect(caps).toContainText("Другой критерий");
   await expect(caps).toContainText("Другой показатель");
   await expect(caps).not.toContainText(/court|streak/i);
   expect(mock.refused).toEqual([]);
+});
+
+// TSK-189146: the service's experience note refuses contact details as they
+// are typed, says LexGo checks it, gives a real example, and the save
+// carries no contacts.
+test("the service note blocks contacts, says LexGo checks it, and saves none", async ({ page }) => {
+  const saved: Record<string, unknown>[] = [];
+  const routes = await signIn(page, ADVOCATE, {
+    "/lawyers/me": { lawyer_name: "Test Advokat", region: "tashkent" },
+    "/lawyers/me/services/manage": { items: [SERVICE], profile: { region: "tashkent", verification_status: "approved" } },
+    "/marketplace/me/services/s1/configuration": CONFIG,
+    "PATCH /lawyers/me/services/s1": (body: unknown) => (saved.push(body as Record<string, unknown>), { ...SERVICE, ...(body as object) }),
+    "PATCH /marketplace/me/services/s1/configuration": (body: unknown) => (saved.push(body as Record<string, unknown>), CONFIG),
+  });
+  await mockBackend(page, routes);
+  await page.goto("/ru/portal/advocate/services");
+  await page.getByRole("article", { name: SERVICE.title }).getByRole("button", { name: "Изменить" }).click();
+  const note = page.getByRole("textbox", { name: "Описание опыта" });
+  await expect(note).toHaveAttribute("placeholder", /^Например: /);
+  await expect(page.getByText("Этот опыт проверит LexGo.")).toBeVisible();
+  await note.click();
+  await page.keyboard.type("Oilaviy ishlar 7 yil. Tel 909338678 @akhmad_law", { delay: 10 });
+  await expect(note).not.toHaveValue(/909338678|@akhmad_law/);
+  await expect(page.getByText("Контактные данные указывать нельзя").first()).toBeVisible();
+  // The first save asks for the price-policy agreement.
+  await page.locator(".svform__policy").click();
+  await page.getByRole("button", { name: "Сохранить" }).click();
+  await expect.poll(() => saved.length).toBeGreaterThan(0);
+  expect(JSON.stringify(saved)).not.toMatch(/909338678|akhmad_law/);
 });

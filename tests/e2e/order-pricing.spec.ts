@@ -57,6 +57,27 @@ test.describe("order price breakdown", () => {
     await expect(p.getByText("Предоплата · 10%")).toHaveCount(0);
   });
 
+  // TSK-728950: a price part the screen has no name for reads "another
+  // part", never its code.
+  test("an unknown price part reads in words, never as its code", async ({ page }) => {
+    const o = order();
+    const snap = (o.details as Record<string, Record<string, unknown>>).pricing_snapshot;
+    snap.components = [
+      { code: "base_price", amount: 100000 },
+      { code: "loyalty_boost_v2", amount: 5000, percent: 5 },
+    ];
+    const routes = await signIn(page, ADVOCATE, {
+      [`/marketplace/me/orders/${ORDER_ID}`]: o,
+      [`/marketplace/me/orders/${ORDER_ID}/financials`]: financials([{ stage: "marketplace_order", status: "paid", amount: 110000 }]),
+    });
+    await mockBackend(page, routes);
+    await page.goto(`/ru/portal/advocate/marketplace-orders/${ORDER_ID}`);
+    const p = panel(page);
+    await expect(p).toContainText("Базовая стоимость услуги");
+    await expect(p).toContainText("Другая часть · 5%");
+    await expect(p).not.toContainText(/loyalty|boost|_v2/);
+  });
+
   test("an unconfirmed payment keeps the chat shut", async ({ page }) => {
     const routes = await signIn(page, CLIENT, {
       [`/marketplace/me/orders/${ORDER_ID}`]: order({ status: "accepted", payment_status: "pending", contact_unlocked: false }),

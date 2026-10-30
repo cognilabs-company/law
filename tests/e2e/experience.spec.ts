@@ -336,6 +336,46 @@ test("experience evidence: several files, the 20 MB limit and the backend's file
   expect(await form.innerText()).not.toMatch(/evidence_file_type_not_allowed/);
 });
 
+// TSK-712239 / 920636 / 365169: evidence downloads only through the
+// signed-in request (never a public link); what verified experience gives
+// is said; a review reaches the lawyer live, once.
+test("evidence downloads signed in; a review reaches the lawyer live", async ({ page }) => {
+  let lists = 0;
+  const v1 = rec({ id: "e1", root_id: "r1", status: "pending_review", version: 1, evidence: [{ id: "ev0", file_name: "buyruq.pdf" }] });
+  const mock = await mockBackend(
+    page,
+    await signIn(page, ADVOCATE, {
+      "/lawyers/me": ME,
+      "/service-categories": CATS,
+      "/marketplace/me/achievements": { items: [] },
+      "/marketplace/me/experience": () => (lists++, { items: [], groups: [{ root_id: "r1", current: null, pending_revision: null, latest: v1, revision_count: 1 }] }),
+      "/marketplace/experience/evidence/ev0": { ok: true },
+    }),
+  );
+  await page.goto("/ru/portal/advocate/profile");
+  await page.getByRole("tab").nth(1).click();
+  const panel = page.locator(".exp:not(.ach):not(.exp--pre):not(.prc)");
+  const card = panel.locator(".exp__card").first();
+  await expect(card).toContainText("buyruq.pdf");
+  await expect(panel.locator('a[href*="/evidence/"]')).toHaveCount(0);
+  await card.getByRole("button", { name: /buyruq\.pdf/ }).click();
+  await expect.poll(() => mock.calls.filter((c) => c.path === "/marketplace/experience/evidence/ev0").length).toBe(1);
+  const dl = mock.calls.find((c) => c.path === "/marketplace/experience/evidence/ev0");
+  expect(dl?.headers.authorization).toBe("Bearer test-token");
+
+  await panel.getByRole("button", { name: "Добавить опыт" }).first().click();
+  const form = page.getByRole("dialog", { name: "Новый опыт" });
+  await expect(form).toContainText("Подтверждённый опыт повышает доверие к профилю, подбор клиентов, ваш ценовой потолок и рейтинг.");
+  await expect(form).toContainText("Ваш опыт будет проверен LexGo.");
+  await expect(form.getByLabel("Описание опыта")).toHaveAttribute("placeholder", /^Например: /);
+  await form.getByRole("button", { name: /Закрыть|Отмена/ }).first().click();
+
+  const before = lists;
+  await mock.push({ event: "marketplace.experience_reviewed", experience_kind: "experience" });
+  await expect(page.getByText("По вашему опыту принято решение.").first()).toBeVisible();
+  await expect.poll(() => lists).toBeGreaterThan(before);
+});
+
 // Final contract 2026-10-29 §2: the config with the backend's labels.
 const L = (uz: string, ru: string, en: string) => ({ label: uz, title: uz, label_i18n: { uz_latn: uz, ru, en } });
 const ACH_CONFIG = {
@@ -429,6 +469,37 @@ test("an advocate adds an achievement from the backend's config", async ({ page 
   await page.locator(".amodal__f").getByRole("button", { name: "Отправить на проверку" }).click();
   await expect.poll(() => sent).not.toBeNull();
   expect(sent).toEqual({ source_id: null, process_stage: "court", result_scope: "partial", category_id: "c2", achieved_at: "2026-03-15", description: "Apellyatsiyada jazo yengillashtirildi", evidence_ids: ["av1"] });
+});
+
+// TSK-493303: a new version of an approved achievement names its source;
+// a decision on it reaches the advocate live.
+test("an approved achievement is revised as a new version; a decision arrives live", async ({ page }) => {
+  let sent: Record<string, unknown> | null = null;
+  const a1 = ach({ id: "a1", root_id: "a1", status: "approved", evidence: [{ id: "av0", file_name: "hukm.pdf", mime_type: "application/pdf", size: 8 }] });
+  const mock = await mockBackend(
+    page,
+    await signIn(page, ADVOCATE, {
+      "/lawyers/me": ME,
+      "/service-categories": CATS,
+      "/marketplace/me/experience": { items: [], groups: [] },
+      "/marketplace/me/achievements/config": ACH_CONFIG,
+      "/marketplace/me/achievements": { items: [], groups: [group(a1)], total: 1, total_records: 1, count: 1, limit: 50, offset: 0, has_more: false },
+      "POST /marketplace/me/achievements": (b: unknown) => ((sent = b as Record<string, unknown>), { status: 201, json: { id: "a4", status: "ai_analysis_pending" } }),
+    }),
+  );
+  await page.goto("/ru/portal/advocate/profile");
+  await page.getByRole("tab").nth(1).click();
+  const panel = page.locator(".ach");
+  await panel.locator(".ach__card").first().getByRole("button", { name: "Создать новую версию" }).click();
+  const form = page.getByRole("dialog", { name: "Новая версия достижения" });
+  await expect(form).toBeVisible();
+  await form.getByLabel(/Опишите, в чём именно, в каком вопросе и при каких обстоятельствах/).fill("Sud bosqichida to'liq oqlov hukmi, apellyatsiyada kuchda qoldi");
+  await page.locator(".amodal__f").getByRole("button", { name: "Отправить на проверку" }).click();
+  await expect.poll(() => sent).not.toBeNull();
+  expect(sent).toMatchObject({ source_id: "a1", process_stage: "court", result_scope: "full", evidence_ids: ["av0"] });
+
+  await mock.push({ event: "marketplace.achievement_reviewed", achievement_id: "a4" });
+  await expect(page.getByText("По вашему достижению принято решение.").first()).toBeVisible();
 });
 
 const CHECKS = [

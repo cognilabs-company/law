@@ -27,7 +27,7 @@ import {
 import { configSupport, lastSellerConfig, priceVerdict, saveSellerService, type ConfigError } from "@/lib/services/sellerConfig";
 import { readPriceModifiers } from "@/lib/services/marketplacePricing";
 import { useRulesGateState } from "@/lib/services/rulesGate";
-import { IconAlert, IconCheck, IconCoins, IconEdit, IconEye, IconInfo, IconLayers, IconLock, IconPause, IconPlay, IconPower, IconScale } from "@/components/icons";
+import { IconAlert, IconCheck, IconCoins, IconEdit, IconEye, IconInfo, IconLayers, IconLock, IconPause, IconPlay, IconPower, IconScale, IconShieldCheck } from "@/components/icons";
 import { InBody, som } from "./bits";
 import CatalogPicker from "./CatalogPicker";
 import { type PriceWhyFacts } from "./PriceWhy";
@@ -590,6 +590,10 @@ export default function ServiceFormModal({
             />
             <p id={`${ids}-note-h`} className="svform__hint">
               {t("form.noteHint")}
+            </p>
+            <p className="svform__verify">
+              <IconShieldCheck aria-hidden="true" />
+              {t("form.verifyNote")}
             </p>
             <ContactGuardNote id={`${ids}-note-g`} hits={noteHits} removed={noteStrip.removed} server={noteRefused} />
           </section>

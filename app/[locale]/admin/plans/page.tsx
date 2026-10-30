@@ -101,7 +101,6 @@ type FormVals = {
   price: string;
   description: string;
   benefits: string;
-  is_giftable: boolean;
   is_active: boolean;
 };
 
@@ -110,7 +109,7 @@ function seedVals(p?: BackendPlan): FormVals {
     return {
       title: "", slug: "", audience: "client", targetRoles: ["client"], autoChargeProvider: "atmos",
       billingType: "subscription", sortOrder: "", giftDurations: "",
-      period: "monthly", price: "", description: "", benefits: "", is_giftable: false, is_active: true,
+      period: "monthly", price: "", description: "", benefits: "", is_active: true,
     };
   }
   const period = primaryPeriod(p);
@@ -129,7 +128,6 @@ function seedVals(p?: BackendPlan): FormVals {
     price: price ? String(Math.round(price)) : "",
     description: p.description,
     benefits: (p.benefits.length ? p.benefits : p.features).join("\n"),
-    is_giftable: p.isGiftable,
     is_active: p.isActive,
   };
 }
@@ -158,6 +156,8 @@ function PlanForm({
 
   const audienceOpts = FORM_AUDIENCES.map((a) => ({ value: a, label: a === "seller" ? t("plans.audienceSeller") : t(`plans.audiences.${a}`) }));
   const periodOpts = BILLING_PERIODS.map((p) => ({ value: p, label: t(`plans.periods.${p}`) }));
+  // "gift" is the old gift-only type; any other type the backend has reads "other".
+  const billingOpts = [...new Set(["subscription", "gift", v.billingType])].map((b) => ({ value: b, label: t.has(`plans.billingTypes.${b}`) ? t(`plans.billingTypes.${b}`) : t("plans.billingTypes.other") }));
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -181,7 +181,8 @@ function PlanForm({
       allowed_gift_durations: toList(v.giftDurations).map((s) => parseInt(s, 10)).filter((n) => Number.isFinite(n)),
       ...pricesFor(v.period, num(v.price), plan),
       benefits: toList(v.benefits),
-      is_giftable: v.is_giftable,
+      // Every paid tariff can be given as a gift (TSK-342697).
+      is_giftable: true,
       is_active: v.is_active,
     };
     try {
@@ -258,7 +259,7 @@ function PlanForm({
       <div className="cform__row2">
         <div>
           <label>{t("plans.billingType")}</label>
-          <input value={v.billingType} onChange={(e) => set("billingType", e.target.value)} placeholder="subscription" />
+          <Select value={v.billingType} onChange={(x) => set("billingType", x)} options={billingOpts} ariaLabel={t("plans.billingType")} />
         </div>
         <div>
           <label>{t("plans.sortOrder")}</label>
@@ -277,11 +278,6 @@ function PlanForm({
       <div>
         <label>{t("plans.benefits")}</label>
         <textarea rows={4} value={v.benefits} onChange={(e) => set("benefits", e.target.value)} placeholder={t("plans.benefitsPh")} />
-      </div>
-      <div className="afield--check">
-        <CheckBox checked={v.is_giftable} onChange={(on) => set("is_giftable", on)}>
-          {t("plans.giftable")}
-        </CheckBox>
       </div>
       <div className="afield--check">
         <CheckBox checked={v.is_active} onChange={(on) => set("is_active", on)}>
@@ -481,7 +477,6 @@ export default function AdminPlans() {
                   {planAudience(p).map((a) => (
                     <em key={a} className="atag">{t(`plans.audiences.${a}`)}</em>
                   ))}
-                  {p.isGiftable ? <em className="atag">{t("plans.giftable")}</em> : null}
                   <em className={`atag atag--${p.isActive ? "ok" : "muted"}`}>{p.isActive ? t("form.active") : t("form.inactive")}</em>
                   {p.overridden ? <em className="atag atag--warn" title={t("plans.overriddenHint")}>{t("plans.overridden")}</em> : null}
                   {p.hidden ? <em className="atag atag--muted">{t("plans.hiddenTag")}</em> : null}

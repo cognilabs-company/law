@@ -485,7 +485,7 @@ function ServiceDialog({ item, data, uid, scope, onClose, onSaved, onRules }: { 
             </span>
             <Toggle checked={neg} onChange={setNeg} label={d("negotiation")} onText={d("on")} offText={d("off")} />
           </label>
-          <Field label={tf("note")} hint={tf("noteHint")} error={noteHits.length || noteRefused ? tcg("field") : undefined}>
+          <Field label={tf("note")} hint={`${tf("noteHint")} ${tf("verifyNote")}`} error={noteHits.length || noteRefused ? tcg("field") : undefined}>
             <TextArea
               value={note}
               onChange={(v, e) => {

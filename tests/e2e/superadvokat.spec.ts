@@ -40,6 +40,11 @@ test("the primary superadmin grants the status with a reason and a period; the h
   await expect(dlg).toContainText("Shikoyat tasdiqlandi");
   await expect(dlg.locator(".sav__hist")).toContainText("Bosh admin");
   await expect(dlg.locator(".sav__hist")).not.toContainText("u-boss");
+  // TSK-460646: each change shows what it was and what it became.
+  const diff = dlg.locator(".sav__hist li").first().locator(".sav__diff");
+  await expect(diff.locator("del")).toContainText("Avval: Superadvokat");
+  await expect(diff.locator("del")).toContainText("muddatsiz");
+  await expect(diff.locator("ins")).toContainText("Endi: Superadvokat emas");
   // A reason is required.
   await dlg.getByRole("button", { name: "Maqom berish" }).last().click();
   await expect(dlg.getByRole("alert")).toContainText("Sababni kamida 10 belgida yozing");
