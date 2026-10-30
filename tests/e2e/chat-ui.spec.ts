@@ -25,3 +25,19 @@ test("a server error in the chat list says so, not 'check your internet'", async
   await page.goto("/ru/portal/client/messages");
   await expect(page.getByText("Сервер сейчас не ответил. Попробуйте ещё раз чуть позже.")).toBeVisible();
 });
+
+// TSK-637367: the AI chat's own states — its history failing to load says
+// so with a retry, and an empty history says there are no chats yet.
+test("the AI chat history: an error with a retry, then the empty state", async ({ page }) => {
+  // Failing until the retry (React's dev mode may load twice on mount).
+  let down = true;
+  const routes = await signIn(page, CLIENT, {
+    "/clients/[^/]+/chats": () => (down ? { status: 500, json: { detail: "boom" } } : []),
+  });
+  await mockBackend(page, routes);
+  await page.goto("/ru/chat");
+  await expect(page.getByText("Не удалось загрузить историю чатов.")).toBeVisible({ timeout: 20000 });
+  down = false;
+  await page.getByRole("button", { name: "Повторить" }).first().click();
+  await expect(page.getByText("Пока нет чатов")).toBeVisible();
+});
