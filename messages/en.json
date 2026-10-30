@@ -4725,7 +4725,7 @@
       "priceOut": "The price must be between {min} and {max} UZS.",
       "note": "Experience note",
       "notePh": "For example: 7 years in family disputes — represented clients in court in 120+ divorce, alimony and property-division cases, 85% decided in the client's favour.",
-      "noteHint": "Clients see this on the service card.", "verifyNote": "LexGo checks this experience.",
+      "noteHint": "Clients see this on the service card.",
       "status": "Status",
       "policy": "I agree to the pricing policy: the price stays within 70–100% of the recommendation, and changes apply to new orders only.",
       "policyRequired": "Accept the pricing policy to save.",

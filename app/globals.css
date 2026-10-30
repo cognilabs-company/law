@@ -13691,8 +13691,6 @@ body[data-guide-dock="top"] .gcap{top:max(80px,env(safe-area-inset-top));bottom:
 .svform__ta{width:100%;min-height:104px;padding:12px 14px;border:0;border-radius:14px;background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1.5px var(--line);color:var(--ink);font:inherit;font-size:.9rem;line-height:1.5;resize:vertical}
 .svform__ta:focus{outline:0;box-shadow:inset 0 0 0 2px var(--b600)}
 .svform__hint{margin:0;font-size:.76rem;color:var(--gray)}
-.svform__verify{display:flex;align-items:center;gap:6px;margin:0;font-size:.76rem;font-weight:600;color:var(--b600)}
-.svform__verify svg{width:14px;height:14px;flex:none}
 .svform__st{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .svform__sto{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px;border:0;border-radius:14px;background:var(--dk-surface,#fff);box-shadow:inset 0 0 0 1.5px var(--line);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:box-shadow .18s,background .18s}
 .svform__sto b{font-size:.86rem}

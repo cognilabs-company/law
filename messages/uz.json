@@ -4725,7 +4725,7 @@
       "priceOut": "Narx {min} – {max} so'm oralig'ida bo'lishi kerak.",
       "note": "Tajriba izohi",
       "notePh": "Masalan: 7 yildan beri oilaviy nizolar bo'yicha ishlayman — 120 dan ortiq ajrashish, aliment va mol-mulk taqsimoti ishida sudda vakillik qilganman, ularning 85 foizi mijoz foydasiga hal bo'lgan.",
-      "noteHint": "Mijozlar xizmat kartasida ko'radi.", "verifyNote": "Bu tajribangiz LexGo tomonidan tekshiriladi.",
+      "noteHint": "Mijozlar xizmat kartasida ko'radi.",
       "status": "Holat",
       "policy": "Narx siyosatiga roziman: narx tavsiya narxning 70–100% oralig'ida bo'ladi, o'zgarish faqat yangi buyurtmalarga ta'sir qiladi.",
       "policyRequired": "Saqlash uchun narx siyosatiga rozilik bering.",
