@@ -71,6 +71,11 @@
       "file": "../../md/BACKEND_ACHIEVEMENTS_TENURE_2026_10_28.md",
       "title": "Yutuqlar, advokatlik staji va enterprise kamchiliklari — backend'dan kerakli ishlar (28.10)",
       "description": "Frontend vaqtinchalik yechim bilan qurdi. Yuqori: yutuqda result_level (full/partial), daraja bilan title/sana/tur ixtiyoriy, dalil majburiy; litsenziya berilgan sana (license_issued_at) va undan staj; ro'yxatdan o'tishda staj, litsenziya va ish tarixi backend'ga bormayapti. O'rta: oldingi ish joylari, litsenziyadan stajni avtomatik aniqlash, rating_status hamma kartalarda, mijoz kafolat ro'yxati. Past: hodisalar payload'i, server_time, tajriba jami."
+    },
+    {
+      "file": "../../md/BACKEND_CALLCENTER_OPERATOR_2026_10_30.md",
+      "title": "Call-center operator interfeysi — backend'dan kerakli ishlar (30.10)",
+      "description": "Frontend call-center rolini to'liq qayta qurdi (o'z skini, sidebar, header, navbatlar 5 oilaga, bosh ekran 'bitta hozirgi ish'). Yuqori: operator holati (bo'sh/band/tanaffus/yakunlash) uchun GET+PUT /call-center/me/status va realtime; smena boshlanishi va bugungi hisob; cockpit elementida due_at/SLA. O'rta: GET /call-center/next-task; wrap-up kodlari; cockpit call-center yuristga 403 o'rniga qisqartirilgan javob (hozir u bosh ekranda bo'sh ekran ko'radi). Past: navbat elementida til, bog'lanish usuli, phone_visible."
     }
   ]
 }
