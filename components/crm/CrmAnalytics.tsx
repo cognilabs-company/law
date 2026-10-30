@@ -76,22 +76,22 @@ function Board({ meta }: { meta: CrmMeta }): ReactElement {
         <span className="crm-sk crm-sk--block" style={{ height: 260 }} />
       ) : (
         <>
-          <div className="crm-counters" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
+          <div className="crm-counters crm-counters--fit">
             {data.revenueVisible && data.paidRevenue !== null ? (
-              <div className="crm-revenue">
+              <div className="crm-counter crm-counter--money">
                 <small>{t("revenue")}</small>
                 <b>
-                  {fmtUzs(data.paidRevenue)} <small>{data.currency === "UZS" ? t("som") : data.currency}</small>
+                  {fmtUzs(data.paidRevenue)} <em>{data.currency === "UZS" ? t("som") : data.currency}</em>
                 </b>
               </div>
             ) : null}
-            <div className="crm-card">
-              <small className="crm-muted">{t("total")}</small>
-              <b style={{ font: "800 2rem/1 var(--fd)" }}>{fmtNum(data.totalLeads, locale)}</b>
+            <div className="crm-counter">
+              <small>{t("total")}</small>
+              <b>{fmtNum(data.totalLeads, locale)}</b>
             </div>
-            <div className="crm-card">
-              <small className="crm-muted">{t("won")}</small>
-              <b style={{ font: "800 2rem/1 var(--fd)" }}>{fmtNum(data.statusCounts.won ?? 0, locale)}</b>
+            <div className="crm-counter" data-tone="ok">
+              <small>{t("won")}</small>
+              <b>{fmtNum(data.statusCounts.won ?? 0, locale)}</b>
             </div>
           </div>
           <section className="crm-card" aria-labelledby="crm-cy-t">

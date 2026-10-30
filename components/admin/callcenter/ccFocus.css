@@ -7,9 +7,9 @@
 
 .ccf__focus,
 .ccf__next {
-  border: 1px solid var(--cc-line, #e4ebf5);
-  border-radius: var(--cc-r-lg, 14px);
+  border-radius: var(--cc-r-lg, 20px);
   background: var(--cc-panel, #fff);
+  box-shadow: inset 0 0 0 1.5px var(--cc-line, #e4ebf5);
 }
 
 .ccf__focus {
@@ -271,11 +271,12 @@
   height: 15px;
 }
 
-.ccb {
+.ccf__btn {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 9px 16px;
+  min-height: 40px;
+  padding: 0 17px;
   border: 1px solid var(--cc-line);
   border-radius: var(--cc-pill, 999px);
   background: var(--cc-panel-2, #fff);
@@ -285,21 +286,21 @@
   transition: background var(--cc-fast) var(--cc-ease), border-color var(--cc-fast) var(--cc-ease), transform var(--cc-fast) var(--cc-ease);
 }
 
-.ccb:hover {
+.ccf__btn:hover {
   background: var(--cc-raise);
 }
 
-.ccb:active {
+.ccf__btn:active {
   transform: translateY(1px);
 }
 
-.ccb--pri {
+.ccf__btn--pri {
   border-color: transparent;
   background: var(--cc-accent-solid, #2563eb);
   color: #fff;
 }
 
-.ccb--pri:hover {
+.ccf__btn--pri:hover {
   background: var(--cc-accent, #3b82f6);
 }
 
@@ -433,3 +434,15 @@
     justify-self: start;
   }
 }
+
+/* Past a day: the loudest mark, a solid blue fill (operator palette). */
+.ccf__tag[data-tone="hot"],
+.ccf__row > em[data-tone="hot"] {
+  padding: 1px 8px;
+  border-radius: var(--cc-pill, 999px);
+  background: var(--cc-hot);
+  color: #fff;
+}
+.ccf__ring[data-tone="hot"] .ccf__arc { stroke: var(--cc-hot); stroke-width: 7; }
+.ccf__btn svg { width: 16px; height: 16px; flex: none; }
+.ccf__btn:focus-visible { outline: 2px solid var(--cc-accent); outline-offset: 2px; }

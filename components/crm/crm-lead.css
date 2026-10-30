@@ -1,0 +1,346 @@
+/* CRM lead workspace: the glance, timeline, composer, Copilot, compare, cycles. */
+
+/* ---- lead workspace ---- */
+.crm-ws { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 340px); gap: 16px; align-items: start; }
+.crm-ws__col { display: grid; gap: 16px; min-width: 0; }
+.crm-ws__tabs { display: none; }
+/* The customer page's head: a surface panel in the admin's look — name,
+   code and lifecycle, the contact chips, then the moves. */
+.crm-lhead { position: relative; display: grid; gap: 14px; padding: 18px 20px; border-radius: var(--crm-rl); background: var(--crm-card); color: var(--crm-ink); box-shadow: inset 0 0 0 1.5px var(--crm-line); }
+.crm-lhead::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; border-radius: var(--crm-rl) var(--crm-rl) 0 0; background: linear-gradient(90deg, var(--crm-acc), var(--crm-cyan)); }
+.crm-lhead__top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.crm-lhead__top a { color: var(--crm-acc); font: 700 .8rem/1 var(--fb); text-decoration: none; }
+.crm-lhead h1 { margin: 0; font: 800 1.45rem/1.2 var(--fd); letter-spacing: -.02em; color: var(--crm-ink); overflow-wrap: anywhere; }
+.crm-lhead .crm-code { color: var(--crm-muted); }
+.crm-lhead__meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.crm-lhead__meta span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; background: var(--crm-soft); color: var(--crm-ink); font: 600 .78rem/1 var(--fb); box-shadow: inset 0 0 0 1px var(--crm-line); }
+.crm-lhead__meta svg { width: 13px; height: 13px; color: var(--crm-muted); }
+.crm-lhead__meta [data-tone="bad"] { background: var(--crm-bad-soft); color: var(--crm-bad); box-shadow: none; }
+
+.crm-moves { display: flex; flex-wrap: wrap; gap: 8px; }
+.crm-move { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--crm-card); color: var(--crm-ink); font: 600 .82rem/1 var(--fb); cursor: pointer; box-shadow: inset 0 0 0 1.5px var(--crm-line); transition: box-shadow .15s, color .15s, transform .12s; }
+.crm-move:hover { box-shadow: inset 0 0 0 1.5px var(--b400, #4d8dff); color: var(--crm-acc-strong); }
+.crm-move:active { transform: translateY(1px); }
+.crm-move i { width: 8px; height: 8px; border-radius: 50%; background: var(--sc); }
+.crm-move svg { width: 14px; height: 14px; }
+
+.crm-cust { display: grid; gap: 12px; }
+.crm-cust__head { display: flex; align-items: center; gap: 12px; }
+.crm-cust__head b { display: block; font: 800 1rem/1.25 var(--fd); }
+.crm-cust__head a { color: inherit; text-decoration: none; }
+.crm-cust__head a:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.crm-badge { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 8px; border-radius: 999px; background: color-mix(in srgb, var(--crm-ok) 13%, transparent); color: var(--crm-ok); font: 800 .68rem/1 var(--fb); }
+.crm-badge svg { width: 12px; height: 12px; }
+.crm-badge--muted { background: var(--crm-soft); color: var(--crm-muted); }
+.crm-contacts { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.crm-contacts li { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 7px 8px 7px 10px; border-radius: 11px; background: var(--crm-soft); font-size: .84rem; }
+.crm-contacts li > svg { flex: none; width: 15px; height: 15px; color: var(--crm-muted); }
+.crm-contacts li > span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.crm-contacts li[data-archived] { opacity: .55; }
+.crm-star { color: #f59e0b; }
+.crm-icobtn { display: inline-grid; flex: none; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: var(--crm-muted); cursor: pointer; text-decoration: none; }
+.crm-icobtn:hover { background: var(--crm-card); color: var(--crm-acc); }
+.crm-icobtn svg { width: 14px; height: 14px; }
+.crm-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.crm-facts > div { padding: 8px 10px; border-radius: 11px; background: var(--crm-soft); min-width: 0; }
+.crm-facts dt { font: 800 .64rem/1.2 var(--fb); letter-spacing: .05em; text-transform: uppercase; color: var(--crm-muted); }
+.crm-facts dd { margin: 3px 0 0; overflow: hidden; font-size: .84rem; font-weight: 650; text-overflow: ellipsis; overflow-wrap: anywhere; }
+
+/* ---- timeline ---- */
+.crm-tl { display: grid; margin: 0; padding: 0; list-style: none; }
+.crm-tl__day { position: sticky; top: 0; z-index: 1; display: flex; justify-content: center; padding: 8px 0; }
+.crm-tl__day span { padding: 4px 12px; border-radius: 999px; background: var(--crm-card); box-shadow: var(--crm-shadow), inset 0 0 0 1px var(--crm-line); color: var(--crm-muted); font: 800 .7rem/1 var(--fb); }
+.crm-tl__ev { position: relative; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; padding-bottom: 14px; }
+.crm-tl__ev::before { content: ""; position: absolute; left: 16px; top: 34px; bottom: 0; width: 2px; background: var(--crm-line); }
+.crm-tl__ev:last-child::before { display: none; }
+.crm-tl__ico { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: color-mix(in srgb, var(--tc, var(--crm-acc)) 13%, var(--crm-card)); color: var(--tc, var(--crm-acc)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc, var(--crm-acc)) 25%, transparent); }
+.crm-tl__ico svg { width: 16px; height: 16px; }
+.crm-tl__body { display: grid; gap: 4px; min-width: 0; padding: 10px 12px; border-radius: 14px; background: var(--crm-soft); }
+.crm-tl__body header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.crm-tl__body header b { font-size: .86rem; }
+.crm-tl__body header small { color: var(--crm-muted); font-size: .72rem; }
+.crm-tl__body header time { margin-left: auto; color: var(--crm-muted); font: 600 .72rem/1 var(--fb); font-variant-numeric: tabular-nums; }
+.crm-tl__body p { margin: 0; font-size: .84rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.crm-tl__body details summary { color: var(--crm-acc); font: 700 .74rem/1.4 var(--fb); cursor: pointer; }
+.crm-tl__body pre { margin: 6px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--crm-card); max-height: 220px; overflow: auto; font: .72rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.crm-tl__ev[data-t="note"] { --tc: #2563eb; }
+.crm-tl__ev[data-t="call_note"] { --tc: #0891b2; }
+.crm-tl__ev[data-t="message"] { --tc: #7c3aed; }
+.crm-tl__ev[data-t="meeting"] { --tc: #4f46e5; }
+.crm-tl__ev[data-t="follow_up"] { --tc: #d97706; }
+.crm-tl__ev[data-t="document"] { --tc: #0f766e; }
+.crm-tl__ev[data-t="system"] { --tc: #64748b; }
+.crm-composer { position: relative; display: grid; gap: 8px; padding: 12px; border-radius: 16px; background: var(--crm-soft); box-shadow: inset 0 0 0 1px var(--crm-line); }
+.crm-composer__types { display: flex; flex-wrap: wrap; gap: 4px; }
+.crm-composer__types button { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 9px; border: 0; border-radius: 999px; background: transparent; color: var(--crm-muted); font: 700 .72rem/1 var(--fb); cursor: pointer; }
+.crm-composer__types button[aria-pressed="true"] { background: color-mix(in srgb, var(--crm-acc) 13%, transparent); color: var(--crm-acc); }
+.crm-composer__types svg { width: 13px; height: 13px; }
+.crm-composer__foot { display: flex; align-items: center; gap: 8px; }
+.crm-composer__foot .crm-hint { margin-right: auto; }
+.crm-slash { display: grid; gap: 2px; max-height: 220px; overflow: auto; padding: 6px; border-radius: 12px; background: var(--crm-card); box-shadow: var(--crm-shadow), inset 0 0 0 1px var(--crm-line); }
+.crm-slash button { display: grid; gap: 2px; padding: 8px 10px; border: 0; border-radius: 9px; background: transparent; color: var(--crm-ink); text-align: left; cursor: pointer; }
+.crm-slash button[aria-selected="true"], .crm-slash button:hover { background: color-mix(in srgb, var(--crm-acc) 10%, transparent); }
+.crm-slash b { font-size: .82rem; }
+.crm-slash small { overflow: hidden; color: var(--crm-muted); font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- AI copilot ---- */
+.crm-ai { position: sticky; top: 12px; display: grid; gap: 12px; max-height: calc(100dvh - 24px); overflow: auto; padding: 0 0 4px; border-radius: 20px; background: var(--crm-card); box-shadow: var(--crm-shadow), inset 0 0 0 1px var(--crm-line); }
+.crm-ai__head { position: sticky; top: 0; z-index: 2; display: grid; gap: 10px; padding: 14px 14px 12px; border-radius: 20px 20px 0 0; background: linear-gradient(160deg, color-mix(in srgb, var(--crm-acc) 14%, var(--crm-card)), var(--crm-card)); border-bottom: 1px solid var(--crm-line); }
+.crm-ai__title { display: flex; align-items: center; gap: 10px; margin: 0; font: 800 1rem/1.2 var(--fd); }
+.crm-ai__title i { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 11px; background: var(--crm-acc-soft); color: var(--crm-acc); font-style: normal; }
+.crm-ai__title svg { width: 16px; height: 16px; }
+.crm-ai__types { display: flex; flex-wrap: wrap; gap: 5px; }
+.crm-ai__body { display: grid; gap: 10px; padding: 0 14px; }
+.crm-trust { display: flex; gap: 8px; align-items: flex-start; margin: 0 14px; padding: 9px 11px; border-radius: 12px; background: color-mix(in srgb, var(--crm-ok) 9%, transparent); color: var(--crm-ink); font-size: .76rem; line-height: 1.45; }
+.crm-trust svg { flex: none; width: 15px; height: 15px; color: var(--crm-ok); }
+.crm-think { display: grid; gap: 10px; }
+.crm-think__line { display: flex; align-items: center; gap: 8px; color: var(--crm-acc); font: 700 .8rem/1.3 var(--fb); }
+.crm-think__line i { display: inline-flex; gap: 3px; }
+.crm-think__line i b { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: crm-think 1.2s ease-in-out infinite; }
+.crm-think__line i b:nth-child(2) { animation-delay: .2s; }
+.crm-think__line i b:nth-child(3) { animation-delay: .4s; }
+.crm-sugg { position: relative; display: grid; gap: 8px; padding: 12px; border-radius: 14px; background: var(--crm-soft); box-shadow: inset 0 0 0 1px transparent; transition: box-shadow .15s, background .15s; animation: crm-pop .35s cubic-bezier(.2, .7, .2, 1) both; }
+.crm-sugg[data-on] { background: color-mix(in srgb, var(--crm-acc) 8%, var(--crm-card)); box-shadow: inset 0 0 0 1.5px var(--crm-acc); }
+.crm-sugg > input[type="checkbox"] { position: absolute; left: 14px; top: 14px; width: 17px; height: 17px; accent-color: var(--crm-acc); cursor: pointer; }
+.crm-sugg > input[disabled] { opacity: .35; cursor: default; }
+.crm-sugg__h { display: flex; align-items: center; gap: 8px; margin: 0; font: 800 .8rem/1.2 var(--fb); color: var(--crm-ink); }
+.crm-sugg__h small { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 700; }
+.crm-sugg p { margin: 0; font-size: .86rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.crm-sugg ul { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.crm-sugg li { display: flex; gap: 8px; font-size: .84rem; line-height: 1.4; }
+.crm-sugg li::before { content: ""; flex: none; width: 14px; height: 14px; margin-top: 2px; border-radius: 4px; box-shadow: inset 0 0 0 1.5px var(--crm-line); }
+.crm-flag { display: inline-flex; align-items: center; height: 24px; margin: 0 4px 4px 0; padding: 0 9px; border-radius: 999px; background: color-mix(in srgb, #f59e0b 16%, transparent); color: var(--crm-warn); font: 800 .72rem/1 var(--fb); }
+.crm-meter { display: flex; align-items: center; gap: 8px; font: 700 .76rem/1 var(--fb); color: var(--crm-muted); }
+.crm-meter span { position: relative; flex: 1; height: 7px; border-radius: 999px; background: var(--crm-card); overflow: hidden; }
+.crm-meter span i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--crm-grad); transition: width .8s cubic-bezier(.2, .7, .2, 1); }
+.crm-cands { display: grid; gap: 6px; }
+.crm-cand { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 11px; background: var(--crm-card); font-size: .82rem; box-shadow: inset 0 0 0 1px var(--crm-line); }
+.crm-cand b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crm-cand small { color: var(--crm-muted); }
+.crm-warnbox { display: grid; gap: 6px; padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--crm-bad) 9%, transparent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--crm-bad) 40%, transparent); font-size: .84rem; }
+.crm-warnbox b { display: flex; align-items: center; gap: 7px; color: var(--crm-bad); }
+.crm-warnbox svg { width: 16px; height: 16px; }
+.crm-applybar { position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; gap: 8px; margin: 0 8px; padding: 10px; border-radius: 14px; background: color-mix(in srgb, var(--crm-card) 90%, transparent); backdrop-filter: blur(10px); box-shadow: 0 -10px 24px -18px rgb(15 23 42 / 40%), inset 0 0 0 1px var(--crm-line); }
+.crm-applybar .crm-btn--pri { margin-left: auto; }
+.crm-runs { display: grid; gap: 4px; margin: 0; padding: 0 14px; list-style: none; }
+.crm-runs button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 7px 9px; border: 0; border-radius: 9px; background: transparent; color: var(--crm-ink); font: 600 .78rem/1.3 var(--fb); text-align: left; cursor: pointer; }
+.crm-runs button:hover, .crm-runs button[aria-current="true"] { background: var(--crm-soft); }
+.crm-runs i { width: 8px; height: 8px; border-radius: 50%; background: var(--crm-muted); }
+.crm-runs [data-s="completed"] i { background: var(--crm-ok); }
+.crm-runs [data-s="failed"] i { background: var(--crm-bad); }
+.crm-runs [data-s="running"] i, .crm-runs [data-s="queued"] i { background: var(--crm-acc); animation: crm-think 1s infinite; }
+.crm-runs time { margin-left: auto; color: var(--crm-muted); font-variant-numeric: tabular-nums; }
+.crm-diff { display: grid; gap: 8px; }
+.crm-diff__row { display: grid; gap: 6px; padding: 10px; border-radius: 12px; background: var(--crm-soft); }
+.crm-diff__row b { font: 800 .7rem/1.2 var(--fb); text-transform: uppercase; letter-spacing: .05em; color: var(--crm-muted); }
+.crm-diff__pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: start; font-size: .84rem; }
+.crm-diff__pair > span:first-child { padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--crm-bad) 9%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--crm-bad) 60%, transparent); color: var(--crm-muted); overflow-wrap: anywhere; }
+.crm-diff__pair > span:last-child { padding: 6px 8px; border-radius: 8px; background: color-mix(in srgb, var(--crm-ok) 11%, transparent); overflow-wrap: anywhere; }
+.crm-diff__pair svg { width: 15px; height: 15px; margin-top: 6px; color: var(--crm-muted); }
+
+/* ---- compare (duplicates / merge) ---- */
+.crm-compare { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.crm-compare > svg { align-self: center; width: 22px; height: 22px; color: var(--crm-muted); }
+.crm-compare__side { display: grid; align-content: start; gap: 6px; padding: 12px; border-radius: 14px; background: var(--crm-soft); box-shadow: inset 0 0 0 1px var(--crm-line); min-width: 0; }
+.crm-compare__side[data-keep] { box-shadow: inset 0 0 0 2px var(--crm-ok); }
+.crm-compare__side[data-drop] { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--crm-bad) 60%, transparent); }
+.crm-compare__side > b { font: 800 .9rem/1.3 var(--fd); }
+.crm-compare dl { display: grid; gap: 4px; margin: 0; font-size: .8rem; }
+.crm-compare dl div { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 6px; padding: 3px 6px; border-radius: 6px; }
+.crm-compare dl div[data-diff] { background: color-mix(in srgb, #f59e0b 18%, transparent); }
+.crm-compare dt { color: var(--crm-muted); }
+.crm-compare dd { margin: 0; overflow-wrap: anywhere; }
+.crm-confirm { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--crm-bad) 8%, transparent); font-size: .84rem; }
+.crm-confirm input { margin-top: 2px; accent-color: var(--crm-bad); }
+
+/* ---- conversion review ---- */
+.crm-draft { position: relative; overflow: hidden; display: grid; gap: 10px; padding: 16px; border-radius: 16px; background: var(--crm-soft); }
+.crm-draft::after { content: attr(data-mark); position: absolute; right: -40px; top: 18px; padding: 4px 48px; background: color-mix(in srgb, var(--crm-warn) 85%, transparent); color: #fff; font: 800 .66rem/1.4 var(--fb); letter-spacing: .06em; text-transform: uppercase; transform: rotate(35deg); }
+.crm-draft dl { display: grid; gap: 6px; margin: 0; }
+.crm-draft dl div { display: flex; justify-content: space-between; gap: 10px; font-size: .86rem; }
+.crm-draft dt { color: var(--crm-muted); }
+.crm-draft dd { margin: 0; font-weight: 700; text-align: right; }
+.crm-draft__price { font: 800 1.5rem/1.1 var(--fd); font-variant-numeric: tabular-nums; }
+
+/* Focus or scroll to a suggestion clears the sticky Copilot header. */
+.crm-ai .cbx__in, .crm-ai .crm-textarea, .crm-ai .crm-input { scroll-margin-top: 96px; }
+
+/* ---- detail_sections (§10): labelled values, never raw JSON ---- */
+.crm-dsec { display: grid; gap: 10px; }
+.crm-dsec__card { padding: 12px; border-radius: 13px; background: var(--crm-soft, #f4f7fd); }
+.crm-dsec[data-compact] .crm-dsec__card { padding: 0; background: transparent; }
+.crm-dsec[data-compact] .crm-dsec__card h4 { display: none; }
+.crm-dsec__card h4 { margin: 0 0 8px; color: var(--crm-muted, #64748b); font: 800 .72rem/1.2 var(--fb); letter-spacing: .05em; text-transform: uppercase; }
+.crm-dl { display: grid; gap: 6px; margin: 0; }
+.crm-dl > div { display: grid; grid-template-columns: minmax(90px, 38%) minmax(0, 1fr); gap: 10px; font-size: .82rem; }
+.crm-dl > div[data-group] { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+.crm-dl > div[data-group] > dd { padding: 8px 10px; border-radius: 10px; background: var(--crm-card, #fff); box-shadow: inset 0 0 0 1px var(--crm-line, #e3e8f2); }
+.crm-dl dt { color: var(--crm-muted, #64748b); }
+.crm-dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.crm-dl__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.crm-dl__chips > i { padding: 2px 8px; border-radius: 999px; background: var(--crm-card, #fff); box-shadow: inset 0 0 0 1px var(--crm-line, #e3e8f2); font-style: normal; font-size: .76rem; }
+.crm-dl__nested { display: block; width: 100%; padding: 6px 8px; border-radius: 9px; background: var(--crm-card, #fff); }
+.crm-yn { padding: 1px 8px; border-radius: 999px; background: var(--crm-soft, #eef2f8); font-size: .74rem; font-weight: 800; }
+.crm-yn[data-yes] { background: color-mix(in srgb, #16a34a 14%, transparent); color: #15803d; }
+.crm-tl__body details .crm-dl { margin-top: 6px; }
+
+/* ---- "Eslatma" reminder in the composer: becomes the lead's next action ---- */
+.crm-remind { display: grid; gap: 8px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--crm-warn) 9%, var(--crm-soft)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--crm-warn) 22%, transparent); animation: crm-picker-in .16s ease both; }
+.crm-remind__h { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--crm-ink); font: 800 .8rem/1.3 var(--fb); }
+.crm-remind__h svg { width: 15px; height: 15px; color: var(--crm-warn); }
+.crm-remind__h small { flex-basis: 100%; color: var(--crm-muted); font-weight: 600; font-size: .74rem; }
+.crm-remind__chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.crm-remind__chips .crm-chip[aria-pressed="true"] { background: var(--crm-warn); color: #fff; box-shadow: none; }
+
+/* Lead cycles and history, the conflict dialog (contract 13cb257 §2, §3). */
+
+.crm-panes { display: flex; gap: 6px; padding: 4px; border-radius: 12px; background: var(--crm-soft); overflow-x: auto; scrollbar-width: none; }
+.crm-panes::-webkit-scrollbar { display: none; }
+.crm-panes button { display: inline-flex; align-items: center; gap: 6px; flex: none; height: 34px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--crm-muted); font: 700 .8rem/1 var(--fb); cursor: pointer; }
+.crm-panes button svg { width: 14px; height: 14px; }
+.crm-panes button[aria-selected="true"] { background: var(--crm-card); color: var(--crm-ink); box-shadow: var(--crm-shadow); }
+.crm-hist { display: grid; gap: 12px; min-width: 0; }
+.crm-cycles, .crm-shist { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.crm-cycles li { --sc: var(--crm-acc); display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 12px; border-radius: 14px; background: var(--crm-card); box-shadow: inset 0 0 0 1px var(--crm-line); }
+.crm-cycles li[data-current] { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--crm-acc) 55%, var(--crm-line)); }
+.crm-cycles li > i { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: color-mix(in srgb, var(--sc) 14%, transparent); color: var(--sc); }
+.crm-cycles li > i svg { width: 16px; height: 16px; }
+.crm-cycles li > span { display: grid; gap: 3px; min-width: 0; }
+.crm-cycles b { display: flex; align-items: center; gap: 8px; font-size: .86rem; }
+.crm-cycles small { color: var(--crm-muted); font-size: .74rem; }
+.crm-cycles p { margin: 2px 0 0; font-size: .82rem; line-height: 1.45; overflow-wrap: anywhere; white-space: pre-wrap; }
+.crm-cycles__now { padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--crm-acc) 14%, transparent); color: var(--crm-acc); font: 700 .66rem/1.6 var(--fb); font-style: normal; }
+.crm-shist li { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 12px; background: var(--crm-soft); }
+.crm-shist li > span { display: grid; gap: 2px; min-width: 0; }
+.crm-shist b { font-size: .82rem; }
+.crm-shist small { font-size: .74rem; overflow-wrap: anywhere; }
+.crm-conflict { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.crm-conflict li { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 4px 8px; padding: 10px; border-radius: 12px; background: var(--crm-soft); }
+.crm-conflict small { grid-column: 1 / -1; color: var(--crm-muted); font: 700 .7rem/1.4 var(--fb); text-transform: uppercase; letter-spacing: .04em; }
+.crm-conflict del { color: var(--crm-bad); overflow-wrap: anywhere; }
+.crm-conflict ins { color: var(--crm-ok); text-decoration: none; font-weight: 700; overflow-wrap: anywhere; }
+.crm-conflict svg { width: 14px; height: 14px; color: var(--crm-muted); }
+@media (max-width: 560px) { .crm-cycles li { grid-template-columns: 34px minmax(0, 1fr); } .crm-cycles li > .crm-pill { grid-column: 2; justify-self: start; } }
+/* The lead at one glance (operators): who, what they need, what to do now,
+   where it is — big and first; the rest quieter or one click away. */
+.crm-glance { --sc: var(--crm-acc); position: relative; display: grid; gap: 14px; padding: 16px 18px; border-radius: 22px; background: var(--crm-card); box-shadow: var(--crm-shadow), inset 0 0 0 1px var(--crm-line); min-width: 0; }
+.crm-glance::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; border-radius: 22px 22px 0 0; background: linear-gradient(90deg, var(--sc), color-mix(in srgb, var(--sc) 40%, var(--crm-cyan))); }
+.crm-glance__bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+.crm-glance__bar .crm-code { color: var(--crm-muted); font-size: .72rem; }
+.crm-glance__tag { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 9px; border-radius: 999px; background: var(--crm-soft); color: var(--crm-muted); font: 700 .72rem/1 var(--fb); }
+.crm-glance__tag svg { width: 12px; height: 12px; }
+.crm-glance__tag[data-score="hot"], .crm-glance__tag[data-urgent] { background: color-mix(in srgb, var(--crm-bad) 12%, transparent); color: var(--crm-bad); }
+.crm-glance__tag[data-score="warm"] { background: color-mix(in srgb, var(--crm-warn) 14%, transparent); color: var(--crm-warn); }
+.crm-glance__more { display: inline-flex; align-items: center; gap: 4px; height: 28px; margin-left: auto; padding: 0 10px; border: 0; border-radius: 999px; background: transparent; color: var(--crm-muted); font: 700 .76rem/1 var(--fb); cursor: pointer; }
+.crm-glance__more:hover { background: var(--crm-soft); color: var(--crm-ink); }
+.crm-glance__more svg { width: 14px; height: 14px; transition: transform .15s; }
+.crm-glance__more[aria-expanded="true"] svg { transform: rotate(180deg); }
+.crm-glance__grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.25fr) minmax(0, .9fr); gap: 12px; align-items: stretch; }
+.crm-glance__who, .crm-glance__need, .crm-glance__now { display: grid; align-content: start; gap: 6px; min-width: 0; padding: 14px; border-radius: 16px; background: var(--crm-soft); }
+.crm-glance small { display: inline-flex; align-items: center; gap: 5px; color: var(--crm-muted); font: 800 .68rem/1.3 var(--fb); text-transform: uppercase; letter-spacing: .06em; }
+.crm-glance small svg { width: 12px; height: 12px; }
+.crm-glance__who { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 12px; }
+.crm-glance__id { display: grid; gap: 2px; min-width: 0; }
+.crm-glance h1 { margin: 0; font: 800 1.4rem/1.2 var(--fd); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.crm-glance__phone { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.crm-glance__phone a { color: var(--crm-ink); font: 800 1.12rem/1.3 var(--fb); font-variant-numeric: tabular-nums; text-decoration: none; white-space: nowrap; }
+.crm-glance__phone a:hover { color: var(--crm-acc); }
+.crm-glance__call { grid-column: 1 / -1; height: 48px; margin-top: 4px; border-radius: 14px; background: var(--crm-ok); color: #fff; font-size: .95rem; box-shadow: 0 12px 24px -14px color-mix(in srgb, var(--crm-ok) 85%, transparent); }
+.crm-glance__call:hover { filter: brightness(1.06); }
+.crm-glance__call svg { width: 18px; height: 18px; }
+.crm-glance__need p { margin: 0; color: var(--crm-ink); font: 600 1.08rem/1.5 var(--fb); white-space: pre-wrap; overflow-wrap: anywhere; }
+.crm-glance__need em { color: var(--crm-muted); font-size: .8rem; font-style: normal; }
+.crm-glance__now { box-shadow: inset 0 0 0 1px var(--crm-line); }
+.crm-glance__now[data-tone="bad"] { background: color-mix(in srgb, var(--crm-bad) 11%, var(--crm-card)); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--crm-bad) 55%, transparent); }
+.crm-glance__now[data-tone="soon"] { background: color-mix(in srgb, var(--crm-warn) 12%, var(--crm-card)); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--crm-warn) 45%, transparent); }
+.crm-glance__when { font: 800 1.3rem/1.2 var(--fd); color: var(--crm-ink); }
+.crm-glance__now[data-tone="bad"] .crm-glance__when { color: var(--crm-bad); }
+.crm-glance__now[data-tone="soon"] .crm-glance__when { color: var(--crm-warn); }
+.crm-glance__now[data-tone="none"] .crm-glance__when { font-size: 1rem; color: var(--crm-muted); }
+.crm-glance__task { font: 600 .9rem/1.4 var(--fb); overflow-wrap: anywhere; }
+.crm-glance__at { color: var(--crm-muted); font-size: .78rem; }
+.crm-glance__now .crm-btn { justify-self: start; margin-top: 2px; }
+.crm-glance__track { display: flex; align-items: center; margin: 0; padding: 2px 0; list-style: none; overflow-x: auto; scrollbar-width: none; }
+.crm-glance__track::-webkit-scrollbar { display: none; }
+.crm-glance__track li { display: flex; align-items: center; flex: 1 0 auto; color: var(--crm-muted); font: 700 .74rem/1.2 var(--fb); }
+.crm-glance__track li::after { content: ""; flex: 1 1 18px; min-width: 12px; height: 2px; margin: 0 6px; border-radius: 2px; background: var(--crm-line); }
+.crm-glance__track li:last-child::after { display: none; }
+.crm-glance__track i { display: grid; place-items: center; flex: none; width: 28px; height: 28px; margin-right: 6px; border-radius: 50%; background: var(--crm-soft); color: var(--crm-muted); box-shadow: inset 0 0 0 1px var(--crm-line); font-style: normal; }
+.crm-glance__track i svg { width: 14px; height: 14px; }
+.crm-glance__track li[data-state="done"] { color: var(--crm-ink); }
+.crm-glance__track li[data-state="done"] i { background: color-mix(in srgb, var(--sc) 16%, var(--crm-card)); color: var(--sc); box-shadow: none; }
+.crm-glance__track li[data-state="done"]::after { background: var(--sc); }
+.crm-glance__track li[data-state="now"], .crm-glance__track li[data-state="end"] { color: var(--crm-ink); font-weight: 800; }
+.crm-glance__track li[data-state="now"] i, .crm-glance__track li[data-state="end"] i { width: 32px; height: 32px; background: var(--sc); color: #fff; box-shadow: 0 0 0 4px color-mix(in srgb, var(--sc) 22%, transparent); }
+.crm-glance__acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.crm-glance__primary { height: 46px; padding: 0 20px; border-radius: 14px; font-size: .92rem; }
+.crm-glance__primary svg { width: 17px; height: 17px; }
+.crm-glance__acts > .crm-btn, .crm-glance__menu > .crm-btn { height: 46px; border-radius: 14px; }
+.crm-glance__acts svg { width: 15px; height: 15px; }
+.crm-glance__ai { margin-left: auto; }
+.crm-glance__ai svg { color: var(--crm-acc); }
+.crm-glance__menu { position: relative; }
+/* The page's rise animation makes the glance and the workspace below it
+   separate layers; while the menu is open the glance must sit on top. */
+.crm-glance[data-menu] { z-index: 8; }
+.crm-glance__menu ul { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; display: grid; gap: 2px; min-width: 220px; margin: 0; padding: 6px; border-radius: 14px; background: var(--crm-card); box-shadow: 0 18px 40px -16px rgb(15 23 42 / 45%), inset 0 0 0 1px var(--crm-line); list-style: none; animation: crm-pop .16s ease-out both; }
+.crm-glance__menu ul button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 10px; border: 0; border-radius: 10px; background: transparent; color: var(--crm-ink); font: 700 .84rem/1.2 var(--fb); text-align: left; cursor: pointer; }
+.crm-glance__menu ul button:hover, .crm-glance__menu ul button:focus-visible { background: var(--crm-soft); outline: none; }
+.crm-glance__menu ul i { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; background: color-mix(in srgb, var(--sc) 16%, transparent); color: var(--sc); font-style: normal; }
+.crm-glance__menu ul i svg { width: 13px; height: 13px; }
+.crm-glance__facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: 8px; margin: 0; padding-top: 12px; border-top: 1px solid var(--crm-line); }
+.crm-glance__facts div { display: grid; gap: 2px; min-width: 0; }
+.crm-glance__facts dt { color: var(--crm-muted); font: 700 .7rem/1.3 var(--fb); text-transform: uppercase; letter-spacing: .04em; }
+.crm-glance__facts dd { margin: 0; font: 600 .84rem/1.4 var(--fb); overflow-wrap: anywhere; }
+/* The Copilot in its drawer: the drawer scrolls, the panel lies flat. */
+.crm-aidrawer .crm-ai { position: static; max-height: none; overflow: visible; box-shadow: none; background: transparent; }
+.crm-aidrawer .crm-ai__head { position: static; }
+/* A lighter composer: the type tabs recede, the title waits behind "+". */
+.crm-composer__types button { height: 26px; font-weight: 600; }
+.crm-composer__addtitle { justify-self: start; padding: 2px 4px; border: 0; background: transparent; color: var(--crm-muted); font: 700 .74rem/1.4 var(--fb); cursor: pointer; }
+.crm-composer__addtitle:hover { color: var(--crm-acc); }
+@media (max-width: 1100px) {
+  .crm-glance__grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .crm-glance__need { grid-column: 1 / -1; grid-row: 2; }
+}
+@media (max-width: 640px) {
+  .crm-glance { gap: 10px; padding: 12px; border-radius: 18px; }
+  .crm-glance__grid { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .crm-glance__need { grid-row: auto; }
+  .crm-glance__who, .crm-glance__need, .crm-glance__now { gap: 4px; padding: 10px 12px; }
+  /* Who: name and phone, the call button beside them (no avatar). */
+  .crm-glance__who { grid-template-columns: minmax(0, 1fr) auto; }
+  .crm-glance__who > .crm-avatar { display: none; }
+  .crm-glance h1 { font-size: 1.15rem; }
+  .crm-glance__phone a { font-size: 1.05rem; }
+  .crm-glance__call { grid-column: auto; width: 52px; height: 52px; margin: 0; padding: 0; border-radius: 16px; }
+  .crm-glance__call span { display: none; }
+  .crm-glance__call svg { width: 22px; height: 22px; }
+  .crm-glance__need p { display: -webkit-box; font-size: .98rem; line-height: 1.45; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+  .crm-glance__need em { display: none; }
+  .crm-glance__now { grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; }
+  .crm-glance__now > small, .crm-glance__now > .crm-glance__task { grid-column: 1 / -1; }
+  .crm-glance__when { font-size: 1.12rem; }
+  .crm-glance__now .crm-btn { grid-column: 2; grid-row: 2; align-self: center; margin: 0; }
+  .crm-glance__now[data-tone="none"] .crm-btn { grid-row: 2; }
+  .crm-glance__bar { gap: 4px 6px; }
+  .crm-glance__tag { height: 22px; padding: 0 7px; font-size: .68rem; }
+  .crm-glance__track span { display: none; }
+  .crm-glance__track li[data-state="now"] span, .crm-glance__track li[data-state="end"] span { display: inline; }
+  .crm-glance__acts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .crm-glance__primary { grid-column: 1 / -1; width: 100%; }
+  .crm-glance__menu > .crm-btn { width: 100%; }
+  .crm-glance__ai { margin-left: 0; }
+  .crm-glance__menu ul { left: 0; right: auto; min-width: min(240px, calc(100vw - 48px)); }
+  /* The CRM header: one quiet scrolling row, so the lead starts high. */
+  .crm-top { gap: 8px; }
+  .crm-top__title { font-size: 1.1rem; }
+  .crm-top__title i { width: 28px; height: 28px; }
+  .crm-nav { order: 3; width: 100%; }
+  .crm-nav a { height: 30px; padding: 0 10px; }
+  .crm-top__tools { width: auto; margin-left: auto; }
+  .crm-kbd { min-width: 0; flex: none; width: 36px; padding: 0; justify-content: center; font-size: 0; }
+  .crm-kbd > :not(svg) { display: none; }
+  .crm-live { width: 30px; padding: 0; justify-content: center; font-size: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .crm-glance__menu ul { animation: none; } }

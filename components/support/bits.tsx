@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { humanize } from "@/lib/labels";
 import { useRouter } from "@/i18n/navigation";
 import { openCallRoom } from "@/lib/callEvents";
 import { useAuth } from "@/lib/auth";
@@ -189,7 +190,7 @@ export function SupportStatus({ status }: { status: string }) {
   return (
     <span className={`spill spill--${status}`}>
       <i aria-hidden="true" />
-      {t.has(`status.${status}`) ? t(`status.${status}`) : status}
+      {t.has(`status.${status}`) ? t(`status.${status}`) : humanize(status)}
     </span>
   );
 }
@@ -226,7 +227,7 @@ export function TicketCard({
   const last = lastPreview(ticket, title);
   const wait = view === "operator" && waiting ? waitText(t, ticket.createdAt, now) : "";
   const fresh = unread && unread > 0 ? unread : 0;
-  const statusText = ticket.status ? (t.has(`status.${ticket.status}`) ? t(`status.${ticket.status}`) : ticket.status) : "";
+  const statusText = ticket.status ? (t.has(`status.${ticket.status}`) ? t(`status.${ticket.status}`) : humanize(ticket.status)) : "";
   const aiLabel = [ticket.workId, cat, statusText].filter(Boolean).join(" · ") || t("untitled");
   return (
     <div

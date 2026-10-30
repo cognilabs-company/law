@@ -1,6 +1,5 @@
 "use client";
 
-import "./crm.css";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
@@ -36,7 +35,7 @@ export type CrmApi = { meta: CrmMeta; open: (s: Exclude<Sheet, "">, preset?: { c
 // sheets and the export tray. `children` gets the meta and the openers.
 // `section`: the page's CRM section; without its permission the page shows
 // only a "no access" state (contract 13cb257 §20).
-export default function CrmFrame({ title, tools, back, section, noTray, children }: { title?: string; tools?: (api: CrmApi) => ReactNode; back?: CrmBack; section?: CrmSectionKey; noTray?: boolean; children: (api: CrmApi) => ReactNode }): ReactElement {
+export default function CrmFrame({ title, sub, tools, back, section, noTray, children }: { title?: string; sub?: string; tools?: (api: CrmApi) => ReactNode; back?: CrmBack; section?: CrmSectionKey; noTray?: boolean; children: (api: CrmApi) => ReactNode }): ReactElement {
   const t = useTranslations("crm");
   const { meta, error } = useCrmMeta();
   const [palette, setPalette] = useState(false);
@@ -88,7 +87,7 @@ export default function CrmFrame({ title, tools, back, section, noTray, children
     );
   }
   const allowed = !section || sectionOk(section, api.meta);
-  const head = <CrmTop meta={api.meta} title={title ?? t("title")} onPalette={openPalette} tools={allowed ? tools?.(api) : null} back={back} />;
+  const head = <CrmTop meta={api.meta} title={title ?? t("title")} sub={sub} onPalette={openPalette} tools={allowed ? tools?.(api) : null} back={back} />;
   const body = allowed ? (
     children(api)
   ) : (
@@ -110,7 +109,7 @@ export default function CrmFrame({ title, tools, back, section, noTray, children
       <MetaSync />
       <CrmNotifier />
       {head}
-      {body}
+      <div className="crm-body">{body}</div>
       {extras}
     </div>
   );

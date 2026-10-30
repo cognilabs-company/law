@@ -1,5 +1,6 @@
 "use client";
 
+import "./ccStatus.css";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { CC_STATUSES, setCcStatus, shiftClock, useCcNow, useCcShift, type CcStatus } from "@/lib/callcenter/ccOperator";

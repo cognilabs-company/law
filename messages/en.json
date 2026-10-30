@@ -6208,7 +6208,7 @@
       "claimed": "Operator joined",
       "transferred": "Transferred",
       "reopened": "Reopened",
-      "closed": "Closed"
+      "closed": "Closed", "in_progress": "In progress", "open": "Open", "new": "New"
     },
     "categories": {
       "document": "Document",
@@ -10107,7 +10107,7 @@
           "video_consultation": "Video consultation with an advocate",
           "chat_consultation": "Consultation over chat",
           "second_opinion_single": "Second opinion — one advocate",
-          "second_opinion_group": "Second opinion — panel of advocates"
+          "second_opinion_group": "Second opinion — panel of advocates", "urgent_consultation": "Urgent consultation"
         },
         "from": "from {price} UZS",
         "fromPerLawyer": "from {price} UZS per advocate",

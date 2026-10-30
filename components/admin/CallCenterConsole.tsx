@@ -296,6 +296,8 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
 
   return (
     <div className="ccon" ref={attach}>
+      {/* One control panel: what is waiting and the client search on top,
+          then every queue, grouped by kind of work, each with its count. */}
       <div className="ccon__bar">
         <div className="ccon__top">
           <p className="ccon__sum" data-calm={waiting ? undefined : ""} role="status">
@@ -304,19 +306,17 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
           </p>
           <SearchBox q={q} setQ={setQ} find={find} select={select} />
         </div>
-      </div>
-      <div className="ccon__body">
-        <div className="ccq scue-x" role="tablist" aria-label={t("tabsAria")} aria-orientation="vertical" ref={listRef}>
+        <div className="ccnav scue-x" role="tablist" aria-label={t("tabsAria")} aria-orientation="horizontal" ref={listRef}>
           {FAMILIES.map((fam) => {
             const items = tabs.filter((k) => FAMILY[k] === fam);
             if (!items.length) return null;
             const sum = items.reduce((n, k) => n + (counts[k as Counted] ?? 0), 0);
             return (
-              <div className="ccq__fam" key={fam}>
-                <p className="ccq__famh">
-                  <span>{t(`fam.${fam}`)}</span>
-                  {sum ? <b className="cc-num">{sum}</b> : null}
-                </p>
+              <div className="ccnav__fam" key={fam} role="presentation" data-fam={fam}>
+                <span className="ccnav__famh" aria-hidden="true">
+                  {t(`fam.${fam}`)}
+                  {sum ? <b className="cc-num">{sum > 99 ? "99+" : sum}</b> : null}
+                </span>
                 {items.map((k) => {
                   const Icon = ICON[k];
                   const on = active === k;
@@ -330,7 +330,7 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
                       aria-controls={`ccon-panel-${k}`}
                       aria-selected={on}
                       tabIndex={on ? 0 : -1}
-                      className="ccq__tab"
+                      className="ccnav__tab"
                       data-tone={n ? TONE[k] : undefined}
                       onClick={() => select(k)}
                       onKeyDown={(e) => onKey(e, k)}
@@ -340,7 +340,7 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
                     >
                       <Icon aria-hidden="true" />
                       <span>{t(`tabs.${k}`)}</span>
-                      {n ? <b className="ccq__n cc-num">{n > 99 ? "99+" : n}</b> : null}
+                      {n ? <b className="ccnav__n cc-num">{n > 99 ? "99+" : n}</b> : null}
                     </button>
                   );
                 })}
@@ -348,8 +348,8 @@ export default function CallCenterConsole({ con, children }: { con: CcConsole; c
             );
           })}
         </div>
-        <div className="ccon__panels">{children}</div>
       </div>
+      <div className="ccon__panels">{children}</div>
     </div>
   );
 }

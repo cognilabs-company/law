@@ -48,14 +48,9 @@ import {
   NavChevron,
 } from "./navIcons";
 import { IconLogo, IconGrid, IconLogout, IconMenu, IconClose, IconSearch } from "../icons";
-import "./callcenter/cc-skin.css";
-import CcBackground from "./callcenter/CcBackground";
-import CcSidebar from "./callcenter/CcSidebar";
-import CcTopbar from "./callcenter/CcTopbar";
+import CcStatusMenu from "./callcenter/CcStatusMenu";
 import { startCcShift } from "@/lib/callcenter/ccOperator";
 import { useCcOpen } from "@/lib/callcenter/useCcOpen";
-import { useCcTheme } from "@/lib/callcenter/ccTheme";
-import CcThemeToggle from "./callcenter/CcThemeToggle";
 
 const AiSystemAssistant = dynamic(() => import("../portal/AiSystemAssistant"), { ssr: false });
 
@@ -64,7 +59,7 @@ type SvgC = ComponentType<{ className?: string }>;
 // perm: one code, or a list where any one code is enough. Codes outside
 // ADMIN_PERMISSIONS (b2b.manage, meetings.manage) only gate the item; they
 // don't grant admin access on their own.
-type NavPerm = AdminPermission | "b2b.manage" | "meetings.manage" | "orders.manage" | "tasks.view" | "remote_assist.supervise" | "remote_assist.view_audit" | "crm.customers.view";
+type NavPerm = AdminPermission | "b2b.manage" | "meetings.manage" | "orders.manage" | "tasks.view" | "remote_assist.supervise" | "remote_assist.view_audit" | "crm.customers.view" | "marketplace.experience.review";
 type NavItem = { href: string; key: string; Icon: SvgC; perm?: NavPerm | NavPerm[]; hidden?: boolean };
 // CRM modules grouped per the platform plan. `perm` = the backend permission a
 // page needs; items without a perm (overview, ceo, bootstrap…) are full-admin
@@ -91,6 +86,10 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       // /admin/pipeline redirects there.
       // { href: "/admin/pipeline", key: "pipeline", Icon: NavPipeline, perm: "leads.manage" },
       { href: "/admin/call-center", key: "callCenter", Icon: NavCallCenter, perm: ["leads.manage", "callcenter.access"] },
+      // The experience record opened from its notification
+      // (/admin/call-center/experience/{id}); the console item above
+      // matches only itself, so this one lets reviewers in by URL.
+      { href: "/admin/call-center/experience", key: "callCenter", Icon: NavCallCenter, perm: ["marketplace.experience.review"], hidden: true },
       // Platform-wide meeting history (GET /admin/calls — who created it,
       // participants, duration) is a tab inside this same page now, not a
       // separate nav entry — MeetingLauncher shows it to superadmin/
@@ -227,7 +226,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const navRaw = useSyncExternalStore(subscribeNav, readNav, () => "");
   const navState = useMemo(() => parseNav(navRaw), [navRaw]);
   const mobile = useSyncExternalStore(subscribeMobile, () => window.matchMedia(MOBILE).matches, () => false);
-  const ccTheme = useCcTheme();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -266,28 +264,13 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const studioPending = Boolean(session) && !studioUser && studioReg.avail === "checking";
   const adminAccess = hasAdminAccess(session);
   const allowed = adminAccess || isBootstrap || studioUser || (isStudioPath && studioPending);
-  const ccSkin = !isFullAdmin && isCallCenterUser(session);
-  const ccOpen = useCcOpen(ccSkin);
+  // Operators work in the same shell as everyone else: their status and
+  // shift clock sit in the header, open work counts on their nav item.
+  const ccOperator = !isFullAdmin && isCallCenterUser(session);
+  const ccOpen = useCcOpen(ccOperator);
   useEffect(() => {
-    if (ccSkin) startCcShift();
-  }, [ccSkin]);
-  useEffect(() => {
-    const root = document.documentElement;
-    if (!ccSkin) {
-      root.removeAttribute("data-cc");
-      root.removeAttribute("data-cc-theme");
-      root.removeAttribute("data-cc-bg");
-      return;
-    }
-    root.setAttribute("data-cc", "1");
-    root.setAttribute("data-cc-theme", ccTheme);
-    root.setAttribute("data-cc-bg", "aurora");
-    return () => {
-      root.removeAttribute("data-cc");
-      root.removeAttribute("data-cc-theme");
-      root.removeAttribute("data-cc-bg");
-    };
-  }, [ccSkin, ccTheme]);
+    if (ccOperator) startCcShift();
+  }, [ccOperator]);
   // Test OTP is a staging tool: hidden where the backend's demo routes are off (T0-01).
   const demoTools = useDemoTools(isFullAdmin);
   // Meetings: anyone who may start calls (meetings.manage, or a call-center
@@ -358,41 +341,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const roleBadge = badgeKey && t.has(`roleBadges.${badgeKey}`) ? t(`roleBadges.${badgeKey}`) : t("badge");
   const profileHref = staffSession ? "/admin/profile" : `/portal/${role}/profile`;
 
-  const ccTools = (
-    <>
-      <FeedbackButton />
-      <CcThemeToggle />
-      <LanguageSwitcher />
-    </>
-  );
-
   return (
-    <div
-      className="portal portal--admin"
-      data-cc={ccSkin ? "1" : undefined}
-      data-cc-theme={ccSkin ? ccTheme : undefined}
-      data-cc-bg={ccSkin ? "aurora" : undefined}
-    >
-      {ccSkin ? <CcBackground /> : null}
+    <div className="portal portal--admin">
       <div className={`psb__scrim${open ? " on" : ""}`} onClick={() => setOpenPath(null)} />
-      {ccSkin ? (
-        <CcSidebar
-          items={visibleNav
-            .filter((n) => !n.hidden)
-            .map(({ href, key, Icon }) => ({ href, key, Icon, count: key === "callCenter" ? ccOpen : null }))}
-          activeHref={active?.href ?? ""}
-          labelOf={(key) => t(`nav.${key}`)}
-          badge={roleBadge}
-          open={open}
-          mobile={mobile}
-          portalHref={staffSession ? null : session ? `/portal/${session.role}` : "/portal/client"}
-          logoutLabel={t("logout")}
-          portalLabel={t("backToPortal")}
-          menuLabel={t("menu")}
-          onNavigate={() => setOpenPath(null)}
-          onLogout={logout}
-        />
-      ) : (
       <aside className={`psb psb--admin${open ? " on" : ""}`} inert={mobile && !open}>
         <div className="psb__brand">
           <div className="psb__logo">
@@ -456,11 +407,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
                   <div className="psb__gwrap">
                     <div className="psb__glist">
                       {items.map(({ href, key, Icon }, i) => {
-                        const on = active?.href === href;
+                        const on = active?.href === href || (active?.hidden === true && active.key === key);
                         return (
                           <Link key={href} href={href} style={{ "--i": i } as CSSProperties} className={`psb__link${on ? " on" : ""}${firstMatch?.href === href ? " is-first" : ""}`} aria-current={on ? "page" : undefined} data-ai-target={`nav:${key}`} onClick={() => setQuery("")}>
                             <span className="psb__ic"><Icon /></span>
                             <span className="psb__lt" title={t(`nav.${key}`)}>{t(`nav.${key}`)}</span>
+                            {key === "callCenter" && ccOpen ? <b className="psb__count" aria-label={`${t("cc.openWork")}: ${ccOpen}`}>{ccOpen > 99 ? "99+" : ccOpen}</b> : null}
                           </Link>
                         );
                       })}
@@ -485,26 +437,14 @@ export default function AdminShell({ children }: { children: ReactNode }) {
           </button>
         </div>
       </aside>
-      )}
 
       <div className="pmain">
-        {ccSkin ? (
-          <CcTopbar
-            title={title}
-            open={open}
-            menuLabel={t("menu")}
-            openCount={ccOpen}
-            profileHref={profileHref}
-            userName={session?.name || t("badge")}
-            onBurger={() => setOpenPath(open ? null : pathname)}
-            tools={ccTools}
-          />
-        ) : (
         <header className="ptop">
           <button className="ptop__burger" type="button" aria-label={t("menu")} onClick={() => setOpenPath(open ? null : pathname)}>
             {open ? <IconClose /> : <IconMenu />}
           </button>
           <h1 data-ai-target="ai-help:current-page">{title}</h1>
+          {ccOperator ? <CcStatusMenu open={ccOpen} /> : null}
           <div className="ptop__sp">
             {/* HRM is a workspace of its own, so its door sits up here
                 rather than among the admin pages in the sidebar. */}
@@ -523,7 +463,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
-        )}
         <div className="pbody" ref={setBodyEl} tabIndex={-1}>
           <div className="pbody__in">{children}</div>
         </div>

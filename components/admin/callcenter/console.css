@@ -1,13 +1,70 @@
-/* Call-centre console (CallCenterConsole): a line with what is waiting
-   and the client search, then every queue as a pill that wraps instead of
-   scrolling out of sight. Queue panels share one look (QueueHead). */
+/* Call-centre console (CallCenterConsole) in the admin's own look: one
+   control panel with what is waiting, the client search and every queue
+   grouped by kind of work; the open queue's panel below it.
 
-.ccon .ccon__bar {
+   --cc-* are the console's tokens, aliases of the admin's global ones so
+   light and dark follow by themselves. Urgency uses the operator palette
+   the owner approved (a02d78d1): two hues only, blue and teal, read by
+   intensity — fresh work a teal tint, ageing work a blue tint, anything
+   past a day a solid blue fill, the loudest mark on the screen. */
+
+.ccon {
+  --cc-ink: var(--ink, #0a1526);
+  --cc-ink-2: var(--gray, #5c6e85);
+  --cc-muted: var(--gray2, #8a99ac);
+  --cc-line: var(--line, #e4ebf5);
+  --cc-line-soft: color-mix(in srgb, var(--line, #e4ebf5) 60%, transparent);
+  --cc-panel: var(--dk-surface, #fff);
+  --cc-panel-2: var(--dk-surface-2, #f5f8fc);
+  --cc-raise: 0 12px 30px -18px rgb(15 23 42 / 28%);
+  --cc-r: 12px;
+  --cc-r-lg: var(--rl, 20px);
+  --cc-pill: 999px;
+  --cc-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --cc-fast: 0.15s;
+  --cc-slow: 0.45s;
+  --cc-accent: var(--dk-acc, var(--b600, #1668f0));
+  --cc-accent-solid: var(--b600, #1668f0);
+  --cc-accent-text: var(--dk-acc-strong, var(--b700, #0b57c9));
+  --cc-accent-soft: var(--dk-tint-blue, rgb(22 104 240 / 9%));
+  --cc-hot: #17539f;
+  --cc-hot-text: #17539f;
+  --cc-hot-soft: rgb(23 83 159 / 14%);
+  --cc-warn: #0f6f82;
+  --cc-warn-text: #0b5c6c;
+  --cc-warn-soft: rgb(15 111 130 / 10%);
+  --cc-ok: #0f6f82;
+  --cc-ok-text: #0b5c6c;
+  --cc-ok-soft: rgb(15 111 130 / 10%);
+  display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 12px;
-  padding: 4px 0 14px;
-  border-bottom: 1px solid var(--line);
+  gap: 18px;
+  min-width: 0;
+}
+html[data-theme="dark"] .ccon {
+  --cc-raise: 0 18px 40px -22px rgb(0 0 0 / 70%);
+  --cc-hot: #2060b8;
+  --cc-hot-text: #8cc0f7;
+  --cc-hot-soft: rgb(32 96 184 / 30%);
+  --cc-warn: #1d8fa5;
+  --cc-warn-text: #5ed4e6;
+  --cc-warn-soft: rgb(29 143 165 / 20%);
+  --cc-ok: #1d8fa5;
+  --cc-ok-text: #5ed4e6;
+  --cc-ok-soft: rgb(29 143 165 / 20%);
+}
+.ccon .cc-num { font-variant-numeric: tabular-nums; }
+
+/* ---- the control panel ---- */
+.ccon .ccon__bar {
+  position: static;
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px 14px;
+  border: 0;
+  border-radius: var(--cc-r-lg);
+  background: var(--cc-panel);
+  box-shadow: inset 0 0 0 1.5px var(--cc-line);
 }
 .ccon .ccon__top {
   display: flex;
@@ -15,57 +72,124 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px 16px;
+  min-width: 0;
 }
 .ccon .ccon__sum {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   margin: 0;
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--ink);
+  min-width: 0;
+  font: 700 1rem/1.3 var(--fd);
+  letter-spacing: -0.01em;
+  color: var(--cc-ink);
 }
 .ccon .ccon__sum > i {
+  flex: none;
   width: 9px;
   height: 9px;
   border-radius: 999px;
-  background: #f59e0b;
-  box-shadow: 0 0 0 4px color-mix(in srgb, #f59e0b 22%, transparent);
+  background: var(--cc-hot);
+  box-shadow: 0 0 0 4px var(--cc-hot-soft);
   animation: cconBlink 1.6s ease-in-out infinite;
 }
-.ccon .ccon__sum[data-calm] { color: var(--gray); font-weight: 600; }
-.ccon .ccon__sum[data-calm] > i { background: #16a34a; box-shadow: 0 0 0 4px color-mix(in srgb, #16a34a 20%, transparent); animation: none; }
-.ccon .ccon__search {
-  flex: 0 1 340px;
-  margin: 0;
-  height: 42px;
-}
+.ccon .ccon__sum[data-calm] { color: var(--cc-ink-2); font-weight: 600; }
+.ccon .ccon__sum[data-calm] > i { background: var(--cc-ok); box-shadow: 0 0 0 4px var(--cc-ok-soft); animation: none; }
+.ccon .ccon__search { flex: 0 1 360px; min-width: 220px; height: 42px; margin: 0; background: var(--cc-panel-2); }
 
-.ccon .ccon__tabs {
+/* ---- the queues: family label, then its tabs; wraps on a desk, scrolls
+   sideways on a phone ---- */
+.ccnav {
+  display: flex;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--cc-line);
+}
+.ccnav__fam {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
-  overflow: visible;
-  -webkit-mask-image: none;
-  mask-image: none;
+  min-width: 0;
 }
-.ccon .ccon__tab {
-  min-height: 38px;
-  padding: 0 12px;
+.ccnav__famh {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 2px;
+  color: var(--cc-muted);
+  font: 700 0.68rem/1 var(--fb);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ccnav__famh b {
+  padding: 2px 6px;
+  border-radius: var(--cc-pill);
+  background: var(--cc-panel-2);
+  color: var(--cc-ink-2);
+  font-size: 0.66rem;
+  letter-spacing: 0;
+}
+.ccnav__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 11px;
   border: 0;
-  border-radius: 12px;
-  background: var(--dk-surface, #fff);
-  box-shadow: inset 0 0 0 1px var(--line);
-  font-size: 0.88rem;
-  transition: background-color 0.15s, box-shadow 0.15s, color 0.15s;
+  border-radius: 11px;
+  background: var(--cc-panel-2);
+  color: var(--cc-ink-2);
+  font: 600 0.85rem/1.2 var(--fb);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--cc-fast), color var(--cc-fast), box-shadow var(--cc-fast);
 }
-.ccon .ccon__tab > svg { display: block; opacity: 0.8; }
-.ccon .ccon__tab:hover { background: var(--dk-surface-2, #f5f8fd); color: var(--ink); }
-.ccon .ccon__tab[aria-selected="true"] {
-  background: color-mix(in srgb, var(--dk-acc, var(--b600)) 14%, var(--dk-surface, #fff));
-  box-shadow: inset 0 0 0 1.5px var(--dk-acc, var(--b600));
-  color: var(--dk-acc-strong, var(--b700));
+.ccnav__tab > svg { width: 16px; height: 16px; flex: none; opacity: 0.75; }
+.ccnav__tab:hover { color: var(--cc-ink); box-shadow: inset 0 0 0 1px var(--cc-line); }
+.ccnav__tab[aria-selected="true"] {
+  background: var(--cc-accent-soft);
+  color: var(--cc-accent-text);
+  box-shadow: inset 0 0 0 1.5px var(--cc-accent);
 }
-.ccon .ccon__tab[aria-selected="true"] > svg { opacity: 1; }
+.ccnav__tab[aria-selected="true"] > svg { opacity: 1; }
+.ccnav__tab:focus-visible { outline: 2px solid var(--cc-accent); outline-offset: 2px; }
+.ccnav__n {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--cc-pill);
+  background: var(--cc-panel);
+  color: var(--cc-ink-2);
+  font: 800 0.7rem/1 var(--fb);
+  box-shadow: inset 0 0 0 1px var(--cc-line);
+}
+.ccnav__tab[data-tone="warn"] .ccnav__n { background: var(--cc-warn-soft); color: var(--cc-warn-text); box-shadow: none; }
+.ccnav__tab[data-tone="hot"] .ccnav__n { background: var(--cc-hot); color: #fff; box-shadow: none; }
+
+
+/* Urgency inside the console in the operator palette: a breach or an
+   error is the solid blue mark, waiting is teal, done is quiet. */
+.ccon .bdg--err { --bdg-bg: var(--cc-hot); --bdg-fg: #fff; }
+.ccon .bdg--warn { --bdg-bg: var(--cc-warn-soft); --bdg-fg: var(--cc-warn-text); }
+.ccon .bdg--ok { --bdg-bg: var(--cc-ok-soft); --bdg-fg: var(--cc-ok-text); }
+.ccon .tprio--high { background: var(--cc-hot-soft); color: var(--cc-hot-text); }
+.ccon .ccq--breach { box-shadow: inset 3px 0 0 var(--cc-hot); border-color: color-mix(in srgb, var(--cc-hot) 35%, var(--cc-line)); }
+.ccon .ccq__sla.on { color: var(--cc-hot-text); }
+.ccon .qcrow__st--new { background: var(--cc-hot); }
+.ccon .qcrow__st--under_review { background: var(--cc-warn); }
+.ccon .qcrow__st--rework_required { background: var(--cc-accent); }
+.ccon .qcrow__st--resolved { background: var(--cc-muted); }
+.ccon .ccx-card[data-open] .ccx-head .ccx-pill { --t-fg: var(--cc-warn-text); --t-bg: var(--cc-warn-soft); --t-line: transparent; }
+.ccon .ccx .ccx-card { border-radius: 14px; }
+.ccon .qcrow__rate, .ccon .qcrow__rate svg { color: var(--cc-hot-text) !important; }
 
 /* Shared queue look: status pills under the lead, rows as cards with a
    coloured edge and a chevron that turns when open. */
@@ -86,9 +210,9 @@
   inset: 10px auto 10px 0;
   width: 4px;
   border-radius: 0 4px 4px 0;
-  background: #f59e0b;
+  background: var(--cc-warn, #0f6f82);
 }
-.esc .esc__item:has(.esc__chip[data-s="resolved"])::before { background: #16a34a; }
+.esc .esc__item:has(.esc__chip[data-s="resolved"])::before { background: var(--cc-muted, #8a99ac); }
 .esc .esc__item:has(.esc__chip[data-s="waiting_client_choice"])::before { background: var(--dk-acc, var(--b600)); }
 .esc .esc__item[data-open] { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--dk-acc, var(--b600)) 55%, transparent); }
 .esc .esc__row {
@@ -113,10 +237,10 @@
 .esc .esc__item[data-open] .esc__row::after { transform: rotate(-135deg) translateY(-2px); }
 .esc .esc__chip {
   padding: 2px 10px;
-  color: var(--dk-txt-warn, #8a5a00) !important;
-  background: color-mix(in srgb, #f59e0b 16%, transparent);
+  color: var(--cc-warn-text, #0b5c6c) !important;
+  background: var(--cc-warn-soft, rgb(15 111 130 / 10%));
 }
-.esc .esc__chip[data-s="resolved"] { color: var(--dk-txt-ok, #15803d) !important; background: color-mix(in srgb, #16a34a 16%, transparent); }
+.esc .esc__chip[data-s="resolved"] { color: var(--cc-ink-2, #5c6e85) !important; background: var(--cc-panel-2, #f5f8fc); }
 .esc .esc__chip[data-s="waiting_client_choice"] { color: var(--dk-acc-strong, var(--b700)) !important; background: color-mix(in srgb, var(--dk-acc, var(--b600)) 14%, transparent); }
 .esc .esc__acts.sx, .esc .esc__pager.sx, .esc .esc__up.sx { background: none; color: inherit; font: inherit; }
 /* Experience queue rows read as the other queues' rows. */
@@ -139,16 +263,6 @@
 }
 .esc .esc__pager { padding-top: 4px; }
 
-@keyframes cconBlink { 50% { opacity: 0.35; } }
-@media (max-width: 720px) {
-  .ccon .ccon__tabs { flex-wrap: nowrap; overflow-x: auto; }
-  .ccon .ccon__search { flex: 1 1 100%; }
-  .esc .esc__row { grid-template-columns: auto minmax(0, 1fr) 16px; }
-  .esc .esc__row > span:not(.esc__chip), .esc .esc__row > time { grid-column: 1 / 3; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .ccon .ccon__sum > i { animation: none; }
-}
 .ccon .pgrid2:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
 .ccq__rec { display: inline-flex; align-items: center; gap: 5px; }
 .ccq__rec svg { width: 13px; height: 13px; }
@@ -156,3 +270,30 @@
 .creq__who svg { width: 13px; height: 13px; color: var(--gray); }
 .ccon .cch { flex-wrap: wrap; row-gap: 8px; }
 .ccon .cch__tt { white-space: nowrap; }
+
+@keyframes cconBlink { 50% { opacity: 0.35; } }
+@media (max-width: 720px) {
+  .ccon .ccon__bar { padding: 12px; gap: 12px; }
+  .ccon .ccon__search { order: -1; flex: 1 1 100%; min-width: 0; }
+  .ccnav { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; gap: 14px; margin: 0 -12px; padding: 12px 12px 2px; }
+  .ccnav::-webkit-scrollbar { display: none; }
+  .ccnav__fam { flex: none; flex-wrap: nowrap; }
+  .ccnav__tab, .ccnav__famh { flex: none; }
+  .esc .esc__row { grid-template-columns: auto minmax(0, 1fr) 16px; }
+  .esc .esc__row > span:not(.esc__chip), .esc .esc__row > time { grid-column: 1 / 3; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ccon .ccon__sum > i { animation: none; }
+}
+
+/* The lead board inside the console: its six stages run blue to teal in
+   journey order, closed ones neutral (operator palette, a02d78d1). The
+   backend's column colours arrive inline, hence the !important. */
+.ccon .crm {
+  --s-new: #2060b8 !important;
+  --s-qualified: #2f7fd8 !important;
+  --s-proposal: #3d93cf !important;
+  --s-decision_pending: #2a9fb5 !important;
+  --s-won: #1d8fa5 !important;
+  --s-rejected: #55708c !important;
+}

@@ -241,13 +241,13 @@ export default function CcFocus({ onGo, onCount, tabs }: { onGo: (tab: CcTab) =>
                   {tc("noAccess")}
                 </p>
               ) : (
-                <button type="button" className="ccb ccb--pri" onClick={() => onGo(tabOf(focus))} data-ai-id="call_center.focus.open">
+                <button type="button" className="ccf__btn ccf__btn--pri" onClick={() => onGo(tabOf(focus))} data-ai-id="call_center.focus.open">
                   <IconArrowRight aria-hidden="true" />
                   {t("go")}
                 </button>
               )}
               {at0 < queue.length - 1 ? (
-                <button type="button" className="ccb" onClick={() => setCursor(at0 + 1)} data-ai-id="call_center.focus.skip">
+                <button type="button" className="ccf__btn" onClick={() => setCursor(at0 + 1)} data-ai-id="call_center.focus.skip">
                   {t("skip")}
                 </button>
               ) : null}
@@ -256,7 +256,7 @@ export default function CcFocus({ onGo, onCount, tabs }: { onGo: (tab: CcTab) =>
         ) : failed ? (
           <p className="ccf__empty" role="alert">
             {tc("loadFailed")}
-            <button type="button" className="ccb" onClick={() => void load()}>
+            <button type="button" className="ccf__btn" onClick={() => void load()}>
               {tc("retry")}
             </button>
           </p>

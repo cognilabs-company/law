@@ -1,0 +1,44 @@
+/* Operator palette (a02d78d1): two hues, blue and teal, by intensity.
+   The operator's status, shift clock and open work in the admin header
+   (.ptop), in the admin's own tokens; and the open-work count on the
+   call-center item of the admin sidebar. */
+.ccst { position: relative; display: flex; align-items: center; gap: 14px; min-width: 0; }
+.ccst__btn { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 15px 0 12px; border: 0; border-radius: var(--pill, 999px); background: var(--dk-surface, #fff); color: var(--ink); font: 600 .86rem/1 var(--fb); box-shadow: inset 0 0 0 1.5px var(--line); cursor: pointer; transition: box-shadow .15s; white-space: nowrap; }
+.ccst__btn:hover { box-shadow: inset 0 0 0 1.5px var(--b300, #93bbff); }
+.ccst__btn:focus-visible { outline: 2px solid var(--b400, #4d8dff); outline-offset: 2px; }
+.ccst__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--gray2); flex: none; }
+.ccst__btn[data-tone="ok"] .ccst__dot { background: #1d8fa5; box-shadow: 0 0 0 3px rgb(29 143 165 / 20%); }
+.ccst__btn[data-tone="hot"] .ccst__dot { background: #17539f; box-shadow: 0 0 0 3px rgb(23 83 159 / 18%); }
+.ccst__btn[data-tone="warn"] .ccst__dot { background: #5d9fe6; box-shadow: 0 0 0 3px rgb(93 159 230 / 18%); }
+.ccst__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ccst__meta { display: grid; gap: 2px; line-height: 1; }
+.ccst__meta b { font: 700 .95rem/1 var(--fd); font-variant-numeric: tabular-nums; color: var(--ink); }
+.ccst__meta[data-tone="hot"] b { color: #17539f; }
+html[data-theme="dark"] .ccst__meta[data-tone="hot"] b { color: #8cc0f7; }
+.ccst__meta small { color: var(--gray); font: 600 .66rem/1 var(--fb); text-transform: uppercase; letter-spacing: .05em; }
+.ccst__menu { position: absolute; top: calc(100% + 8px); left: 0; z-index: 60; display: grid; gap: 2px; min-width: 220px; padding: 6px; border-radius: 14px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line), 0 18px 40px -16px rgb(15 23 42 / 30%); animation: ccst-in .16s ease both; }
+@keyframes ccst-in { from { opacity: 0; transform: translateY(-4px); } }
+.ccst__opt { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); font: 600 .86rem/1 var(--fb); text-align: left; cursor: pointer; }
+.ccst__opt i { width: 9px; height: 9px; border-radius: 50%; background: var(--gray2); flex: none; }
+.ccst__opt[data-tone="ok"] i { background: #1d8fa5; }
+.ccst__opt[data-tone="hot"] i { background: #17539f; }
+.ccst__opt[data-tone="warn"] i { background: #5d9fe6; }
+.ccst__opt span { flex: 1; }
+.ccst__opt kbd { padding: 3px 6px; border-radius: 6px; background: var(--dk-surface-2, #eef2f7); color: var(--gray); font: 600 .66rem/1 var(--fb); }
+.ccst__opt:hover { background: var(--b50); }
+.ccst__opt.on { background: var(--b100); color: var(--dk-acc-strong, var(--b700)); }
+html[data-theme="dark"] .ccst__opt:hover { background: var(--dk-surface-2); }
+html[data-theme="dark"] .ccst__opt.on { background: var(--dk-tint-blue); }
+@media (max-width: 760px) {
+  .ccst { gap: 10px; }
+  .ccst__meta { display: none; }
+  .ccst__now { max-width: 92px; overflow: hidden; text-overflow: ellipsis; }
+}
+@media (max-width: 520px) {
+  /* A phone keeps the coloured dot; the status name stays for readers. */
+  .ccst__btn { gap: 0; padding: 0; width: 40px; justify-content: center; }
+  .ccst__now { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+.psb__count { margin-left: auto; min-width: 22px; height: 22px; padding: 0 7px; display: inline-grid; place-items: center; border-radius: 999px; background: #17539f; color: #fff; font: 800 .7rem/1 var(--fb); font-variant-numeric: tabular-nums; }
+.psb__link.on .psb__count { background: #fff; color: #17539f; }

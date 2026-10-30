@@ -6208,7 +6208,7 @@
       "claimed": "Оператор подключён",
       "transferred": "Передано",
       "reopened": "Открыто заново",
-      "closed": "Завершён"
+      "closed": "Завершён", "in_progress": "В работе", "open": "Открыт", "new": "Новый"
     },
     "categories": {
       "document": "Документ",
@@ -10107,7 +10107,7 @@
           "video_consultation": "Видеоконсультация с адвокатом",
           "chat_consultation": "Консультация в чате",
           "second_opinion_single": "Второе мнение — один адвокат",
-          "second_opinion_group": "Второе мнение — группа адвокатов"
+          "second_opinion_group": "Второе мнение — группа адвокатов", "urgent_consultation": "Срочная консультация"
         },
         "from": "от {price} сум",
         "fromPerLawyer": "от {price} сум за адвоката",

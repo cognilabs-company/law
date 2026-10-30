@@ -6208,7 +6208,7 @@
       "claimed": "Operator ulandi",
       "transferred": "O'tkazilgan",
       "reopened": "Qayta ochilgan",
-      "closed": "Yakunlangan"
+      "closed": "Yakunlangan", "in_progress": "Jarayonda", "open": "Ochiq", "new": "Yangi"
     },
     "categories": {
       "document": "Hujjat",
@@ -10113,7 +10113,7 @@
           "video_consultation": "Advokat bilan videokonsultatsiya",
           "chat_consultation": "Chat orqali konsultatsiya",
           "second_opinion_single": "Ikkinchi fikr — yakka advokat",
-          "second_opinion_group": "Ikkinchi fikr — advokatlar guruhi"
+          "second_opinion_group": "Ikkinchi fikr — advokatlar guruhi", "urgent_consultation": "Shoshilinch konsultatsiya"
         },
         "from": "{price} so'mdan",
         "fromPerLawyer": "har bir advokat uchun {price} so'mdan",

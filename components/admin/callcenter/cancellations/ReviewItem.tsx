@@ -322,38 +322,45 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
       </div>
 
       <div className="ccx-side">
+        {/* Only what is known: an empty fact reads as "no" rather than
+            "not sent", so a missing one is left out. */}
+        {ctx.price > 0 || ctx.status || ctx.deadlinePaused || ctx.expectedCompletedAt || ctx.startedAt ? (
         <dl className="ccx-facts">
-          <div>
-            <dt>{t("item.price")}</dt>
-            <dd className="sx-num">{ctx.price > 0 ? money(ctx.price) : none}</dd>
-          </div>
-          <div>
-            <dt>{t("item.orderStatus")}</dt>
-            <dd>
-              <span className="ccx-pill" data-tone={orderPhaseTone(phase)}>
-                {phaseLabel}
-              </span>
-            </dd>
-          </div>
-          <div>
-            <dt>{t("item.deadline")}</dt>
-            <dd>
-              {ctx.deadlinePaused ? (
-                <>
-                  <span className="ccx-paused">
-                    {glyph(CirclePauseIcon, { size: 16 })}
-                    <span>{t("item.deadlinePaused")}</span>
-                  </span>
-                  {ctx.expectedCompletedAt ? <span className="ccx-sub">{t("item.deadlineWas", { date: shortDateTime(ctx.expectedCompletedAt, locale) })}</span> : null}
-                  {ctx.remainingSeconds !== null && ctx.remainingSeconds > 0 ? <span className="ccx-sub">{t("item.remaining", { time: remaining(ctx.remainingSeconds) })}</span> : null}
-                </>
-              ) : ctx.expectedCompletedAt ? (
-                shortDateTime(ctx.expectedCompletedAt, locale)
-              ) : (
-                none
-              )}
-            </dd>
-          </div>
+          {ctx.price > 0 ? (
+            <div>
+              <dt>{t("item.price")}</dt>
+              <dd className="sx-num">{money(ctx.price)}</dd>
+            </div>
+          ) : null}
+          {ctx.status ? (
+            <div>
+              <dt>{t("item.orderStatus")}</dt>
+              <dd>
+                <span className="ccx-pill" data-tone={orderPhaseTone(phase)}>
+                  {phaseLabel}
+                </span>
+              </dd>
+            </div>
+          ) : null}
+          {ctx.deadlinePaused || ctx.expectedCompletedAt ? (
+            <div>
+              <dt>{t("item.deadline")}</dt>
+              <dd>
+                {ctx.deadlinePaused ? (
+                  <>
+                    <span className="ccx-paused">
+                      {glyph(CirclePauseIcon, { size: 16 })}
+                      <span>{t("item.deadlinePaused")}</span>
+                    </span>
+                    {ctx.expectedCompletedAt ? <span className="ccx-sub">{t("item.deadlineWas", { date: shortDateTime(ctx.expectedCompletedAt, locale) })}</span> : null}
+                    {ctx.remainingSeconds !== null && ctx.remainingSeconds > 0 ? <span className="ccx-sub">{t("item.remaining", { time: remaining(ctx.remainingSeconds) })}</span> : null}
+                  </>
+                ) : (
+                  shortDateTime(ctx.expectedCompletedAt, locale)
+                )}
+              </dd>
+            </div>
+          ) : null}
           {ctx.startedAt ? (
             <div>
               <dt>{t("item.started")}</dt>
@@ -361,6 +368,7 @@ export function ReviewItem({ review: row, onResolve, onFresh }: ReviewItemProps)
             </div>
           ) : null}
         </dl>
+        ) : null}
         <div className="ccx-acts">
           {open ? (
             <SxButton variant="primary" icon={ArrowRightIcon} aria-label={t("item.resolveAria", { work })} aiId={`${ai}.resolve`} aiLabel={t("item.resolve")} onClick={() => {

@@ -1,8 +1,15 @@
 "use client";
 
+// Area styles first, the shared base last: its phone rules win.
+import "./crm-overview.css";
+import "./crm-leads.css";
+import "./crm-lead.css";
+import "./crm-customers.css";
+import "./crm-tools.css";
 import "./crm.css";
-import { useCallback, useEffect, type ReactElement, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import { useScrollEdges } from "@/lib/useScrollEdges";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { IconAward, IconChevronLeft, IconCircleX, IconClipboardCheck, IconFileText, IconFlame, IconHourglass, IconInbox, IconLayers, IconSearch, IconSparkle } from "@/components/icons";
 import { errDetail } from "@/lib/http";
@@ -187,13 +194,44 @@ export function BackButton({ back }: { back: CrmBack }): ReactElement {
   );
 }
 
-export function CrmTop({ meta, title, onPalette, tools, back }: { meta: CrmMeta | null; title: string; onPalette: () => void; tools?: ReactNode; back?: CrmBack }): ReactElement {
+// The section tabs under the page header: the admin's underline tabs, so
+// the CRM reads as one admin section, not a second app inside the shell.
+export function CrmNav({ meta }: { meta: CrmMeta | null }): ReactElement {
   const t = useTranslations("crm");
   const path = usePathname();
-  const current = visibleSections(meta)
+  const sections = visibleSections(meta);
+  const current = sections
     .slice()
     .sort((a, b) => b.href.length - a.href.length)
-    .find((s) => path === s.href || path.startsWith(`${s.href}/`));
+    // The overview owns only its own path, so a section this account can't
+    // see (its "no access" state) leaves every tab unmarked.
+    .find((s) => path === s.href || (s.key !== "overview" && path.startsWith(`${s.href}/`)));
+  const ref = useRef<HTMLElement>(null);
+  // Fades the edge a hidden tab sits behind, as the admin's tab strips do.
+  useScrollEdges(ref, { silent: true });
+  // Keep the current tab in view on a phone, where the strip scrolls.
+  useEffect(() => {
+    const el = ref.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    const box = ref.current;
+    if (!el || !box || box.scrollWidth <= box.clientWidth) return;
+    box.scrollLeft = el.offsetLeft - (box.clientWidth - el.offsetWidth) / 2;
+  }, [current?.key]);
+  return (
+    <nav className="crm-nav scue-x" aria-label={t("navLabel")} ref={ref}>
+      {sections.map((s) => (
+        <Link key={s.key} href={s.href} aria-current={current?.key === s.key ? "page" : undefined}>
+          <s.Icon aria-hidden="true" />
+          {t(`nav.${s.key}`)}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+// The page header: back, the page's name and one line about it, the live
+// dot, ⌘K and the page's own actions; then the section tabs.
+export function CrmTop({ meta, title, sub, onPalette, tools, back }: { meta: CrmMeta | null; title: string; sub?: string; onPalette: () => void; tools?: ReactNode; back?: CrmBack }): ReactElement {
+  const t = useTranslations("crm");
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -206,30 +244,25 @@ export function CrmTop({ meta, title, onPalette, tools, back }: { meta: CrmMeta 
   }, [onPalette]);
   return (
     <header className="crm-top">
-      {back ? <BackButton back={back} /> : null}
-      <h1 className="crm-top__title">
-        <i aria-hidden="true">
-          <IconLayers />
-        </i>
-        {title}
-      </h1>
-      <nav className="crm-nav" aria-label={t("navLabel")}>
-        {visibleSections(meta).map((s) => (
-          <Link key={s.key} href={s.href} aria-current={current?.key === s.key ? "page" : undefined}>
-            <s.Icon aria-hidden="true" />
-            {t(`nav.${s.key}`)}
-          </Link>
-        ))}
-      </nav>
-      <div className="crm-top__tools">
-        <LiveDot />
-        <button type="button" className="crm-kbd" onClick={onPalette} aria-label={t("palette.open")}>
-          <IconSearch aria-hidden="true" />
-          {t("palette.placeholder")}
-          <kbd>⌘K</kbd>
-        </button>
-        {tools}
+      <div className="crm-top__row">
+        <div className="crm-top__head">
+          {back ? <BackButton back={back} /> : null}
+          <div className="crm-top__titles">
+            <h2 className="crm-top__title">{title}</h2>
+            {sub ? <p className="crm-top__sub">{sub}</p> : null}
+          </div>
+        </div>
+        <div className="crm-top__tools">
+          <LiveDot />
+          <button type="button" className="crm-kbd" onClick={onPalette} aria-label={t("palette.open")}>
+            <IconSearch aria-hidden="true" />
+            {t("palette.placeholder")}
+            <kbd>⌘K</kbd>
+          </button>
+          {tools}
+        </div>
       </div>
+      <CrmNav meta={meta} />
     </header>
   );
 }
