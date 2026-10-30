@@ -30,6 +30,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "public/mediapipe/**",
+    // Test and perf run output (git-ignored), e.g. test-results/perf/*.cjs.
+    "test-results/**",
   ]),
 ]);
 

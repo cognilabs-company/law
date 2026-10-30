@@ -470,6 +470,7 @@ function ItemImage({ f }: { f: MarketFileRef }) {
     <li className="mck-thumb">
       {f.url ? (
         <button type="button" className="mck-thumb__btn" onClick={() => void get()} aria-label={t("imageDownload", { name })}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- an authenticated blob, not a static asset */}
           {src ? <img src={src} alt="" /> : glyph(ImageIcon, { size: 20 })}
         </button>
       ) : (
@@ -865,6 +866,7 @@ function EvidenceSet({
           ))}
           {adds.map((a) => (
             <li key={a.key} data-state={a.state}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- a local preview of the picked file */}
               {image && a.preview ? <img className="mck-flist__pv" src={a.preview} alt="" /> : glyph(icon, { size: 16 })}
               <span>{a.file.name}</span>
               <em>{tc(`state.${a.state}`)}</em>
