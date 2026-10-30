@@ -16964,7 +16964,23 @@
         "subs": "Faol obunalar",
         "subsNote": "Davrda +{added} yangi · −{cancelled} bekor qilingan",
         "orders": "To'langan buyurtmalar",
-        "ordersNote": "Davrda yaratilgan: {created}"
+        "ordersNote": "Davrda yaratilgan: {created}",
+        "renewal": "Obunani yangilash",
+        "renewalNote": "{n} ta obuna yangilandi",
+        "churn": "Ketish (churn)",
+        "churnNote": "{n} ta obuna bekor qilindi",
+        "refunds": "Qaytarishlar",
+        "refundsNote": "Qaytarilgan: {amount}",
+        "periodScope": "{from} — {to}",
+        "period": "Davr",
+        "periodFrom": "Boshlanish sanasi",
+        "periodTo": "Tugash sanasi",
+        "periodAll": "Butun davr",
+        "export": "Excel yuklab olish",
+        "exporting": "Tayyorlanmoqda…",
+        "exportDemo": "Namuna ma'lumotlar yuklab olinmaydi",
+        "exported": "Excel fayl yuklab olindi.",
+        "exportFailed": "Excel faylni yuklab bo'lmadi."
       },
       "title": "CEO paneli",
       "revenue": "Daromad",
@@ -18679,6 +18695,37 @@
       },
       "lockedTitle": "Faqat bosh superadmin o'zgartiradi",
       "lockedText": "Superadvokat maqomini va uning tarixini faqat bosh superadmin boshqaradi."
+    },
+    "ratingPolicy": {
+      "title": "Reyting qanday hisoblanadi",
+      "version": "Siyosat: {n}-versiya",
+      "lead": "Har bir omilning ulushi va qoidalarni backend belgilaydi. Bu yerda ular faqat ko'rsatiladi.",
+      "weights": "Omillar ulushi",
+      "factor": {
+        "client_reviews": "Mijoz baholari",
+        "completion_rate": "Buyurtmalarni yakunlash",
+        "response_score": "Javob tezligi",
+        "acceptance_rate": "Buyurtmani qabul qilish",
+        "verified_experience": "Tasdiqlangan tajriba",
+        "verified_achievements": "Tasdiqlangan yutuqlar",
+        "other": "Boshqa omil"
+      },
+      "rule": {
+        "cold_start_score": "Yangi mutaxassis {n} balldan boshlaydi.",
+        "review_confidence_count": "Mijoz baholari {n} taga yetgunicha ulushi asta oshadi.",
+        "response_target_seconds": "{n} soniyada javob — to'liq ball.",
+        "response_zero_score_seconds": "{n} soniyadan kech javob — nol ball.",
+        "experience_full_score_years": "{n} yillik tasdiqlangan tajriba — to'liq ball.",
+        "achievements_full_score_count": "{n} ta tasdiqlangan yutuq — to'liq ball."
+      },
+      "penalty": {
+        "complaint_penalty_points": "Har bir asosli shikoyat −{n} ball (jami ko'pi bilan −{cap}).",
+        "refund_penalty_points": "Har bir qaytarish −{n} ball (jami ko'pi bilan −{cap})."
+      },
+      "statusOk": "Barcha reytinglar shu versiyada: {n} / {total}.",
+      "statusStale": "{n} ta reyting hali yangilanmagan (jami {total}). Qayta hisoblang.",
+      "reconcile": "Backend har {h} soatda o'zi ham tekshirib turadi.",
+      "edit": "Studioda o'zgartirish"
     }
   },
   "secureChat": {"voiceSpeed":"Tinglash tezligi","voiceReview":"Yuborishdan oldin tinglab ko‘ring","voicePaused":"Pauzada","voiceResume":"Davom ettirish","voicePauseRec":"Pauza","voiceStop":"To‘xtatib tinglash","attachMedia":"Rasm yoki video","attachDoc":"Hujjat yoki fayl","attachCamera":"Kamera","trayTitle":"{n} ta fayl tayyor","trayHint":"Izoh yozib, birga yuboring","trayClear":"Tozalash","trayRemove":"{name} — olib tashlash","emoji":"Emoji","captionPh":"Izoh qo‘shing (ixtiyoriy)…","roleSeller":"Mutaxassis","back":"Barcha chatlar","react":"Munosabat bildirish","reactions":"Munosabatlar","copy":"Nusxa olish","copied":"Matndan nusxa olindi","retrySend":"Qayta yuborish","discard":"Olib tashlash","sendFailed":"Yuborilmadi","newMessages":"{n} ta yangi xabar","toBottom":"Oxirgi xabarlarga","dropHere":"Faylni shu yerga tashlang","dropHint":"Har biri 25 MB gacha — bir nechta faylni birdan yuborish mumkin","hiddenContent":"Xabar matni yashirin","reactFailed":"Munosabatni yuborib bo‘lmadi. Qayta urining.","you":"Siz","emptyTitle":"Suhbatni boshlang","replyingTo":"{name} ga javob","askCopilot":"AI kopilotdan shu chat haqida so‘rash",

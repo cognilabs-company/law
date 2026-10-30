@@ -16958,7 +16958,23 @@
         "subs": "Active subscriptions",
         "subsNote": "In the period +{added} new · −{cancelled} cancelled",
         "orders": "Paid orders",
-        "ordersNote": "Created in the period: {created}"
+        "ordersNote": "Created in the period: {created}",
+        "renewal": "Subscription renewal",
+        "renewalNote": "{n} subscriptions renewed",
+        "churn": "Churn",
+        "churnNote": "{n} subscriptions cancelled",
+        "refunds": "Refunds",
+        "refundsNote": "Refunded: {amount}",
+        "periodScope": "{from} — {to}",
+        "period": "Period",
+        "periodFrom": "Start date",
+        "periodTo": "End date",
+        "periodAll": "All time",
+        "export": "Download Excel",
+        "exporting": "Preparing…",
+        "exportDemo": "Sample data isn't exported",
+        "exported": "Excel file downloaded.",
+        "exportFailed": "Couldn't download the Excel file."
       },
       "title": "CEO dashboard",
       "revenue": "Revenue",
@@ -18673,6 +18689,37 @@
       },
       "lockedTitle": "Only the primary superadmin can change this",
       "lockedText": "The Superadvokat status and its history are managed by the primary superadmin only."
+    },
+    "ratingPolicy": {
+      "title": "How the rating is worked out",
+      "version": "Policy version {n}",
+      "lead": "The backend sets each factor's share and the rules. They are only shown here.",
+      "weights": "Factor shares",
+      "factor": {
+        "client_reviews": "Client reviews",
+        "completion_rate": "Completing orders",
+        "response_score": "Response speed",
+        "acceptance_rate": "Accepting orders",
+        "verified_experience": "Verified experience",
+        "verified_achievements": "Verified achievements",
+        "other": "Another factor"
+      },
+      "rule": {
+        "cold_start_score": "A new specialist starts at {n} points.",
+        "review_confidence_count": "Client reviews weigh more until there are {n} of them.",
+        "response_target_seconds": "A reply within {n} s scores in full.",
+        "response_zero_score_seconds": "A reply after {n} s scores zero.",
+        "experience_full_score_years": "{n} years of verified experience score in full.",
+        "achievements_full_score_count": "{n} verified achievements score in full."
+      },
+      "penalty": {
+        "complaint_penalty_points": "Each valid complaint −{n} points (at most −{cap} in all).",
+        "refund_penalty_points": "Each refund −{n} points (at most −{cap} in all)."
+      },
+      "statusOk": "Every rating follows this version: {n} / {total}.",
+      "statusStale": "{n} ratings are not updated yet (of {total}). Recalculate.",
+      "reconcile": "The backend also checks them every {h} h.",
+      "edit": "Change in Studio"
     }
   },
   "secureChat": {"voiceSpeed":"Playback speed","voiceReview":"Listen back before sending","voicePaused":"Paused","voiceResume":"Resume","voicePauseRec":"Pause","voiceStop":"Stop and listen","attachMedia":"Photo or video","attachDoc":"Document or file","attachCamera":"Camera","trayTitle":"{n} files ready","trayHint":"Add a caption and send them together","trayClear":"Clear","trayRemove":"Remove {name}","emoji":"Emoji","captionPh":"Add a caption (optional)…","roleSeller":"Specialist","back":"All chats","react":"React","reactions":"Reactions","copy":"Copy","copied":"Text copied","retrySend":"Send again","discard":"Remove","sendFailed":"Not sent","newMessages":"{n} new messages","toBottom":"Jump to latest","dropHere":"Drop files here","dropHint":"Up to 25 MB each — several at once is fine","hiddenContent":"Message text is hidden","reactFailed":"Couldn't send the reaction. Try again.","you":"You","emptyTitle":"Start the conversation","replyingTo":"Replying to {name}","askCopilot":"Ask the AI copilot about this chat",

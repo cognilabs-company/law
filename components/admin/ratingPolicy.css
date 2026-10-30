@@ -1,0 +1,21 @@
+/* The rating formula card (TSK-332221). */
+.rpol { display: grid; gap: 12px; }
+.rpol__v { padding: 3px 10px; border-radius: 999px; background: var(--dk-surface-2, #eef2f8); color: var(--gray); font-size: .76rem; font-weight: 700; }
+.rpol__lead { margin: 0; color: var(--gray); font-size: .84rem; line-height: 1.5; }
+.rpol__weights { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.rpol__weights li { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) 48px; align-items: center; gap: 12px; font-size: .86rem; }
+.rpol__name { color: var(--ink); font-weight: 600; }
+.rpol__bar { position: relative; height: 8px; border-radius: 999px; background: var(--dk-surface-2, #eef2f8); overflow: hidden; }
+.rpol__bar i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: linear-gradient(90deg, var(--b600, #1668f0), #22c55e); }
+.rpol__pct { text-align: right; font-variant-numeric: tabular-nums; }
+.rpol__rules { display: grid; gap: 6px; margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--dk-surface-2, #f5f8fd); font-size: .82rem; line-height: 1.45; list-style: disc inside; }
+.rpol__rules li[data-tone="bad"] { color: var(--dk-txt-err, #b91c1c); }
+.rpol__status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, #f59e0b 12%, transparent); color: var(--ink); font-size: .84rem; font-weight: 600; }
+.rpol__status[data-ok] { background: color-mix(in srgb, #16a34a 12%, transparent); }
+.rpol__status svg { width: 16px; height: 16px; flex: none; }
+.rpol__status small { flex-basis: 100%; color: var(--gray); font-weight: 500; }
+.rpol__edit { justify-self: start; }
+@media (max-width: 560px) {
+  .rpol__weights li { grid-template-columns: minmax(0, 1fr) 44px; }
+  .rpol__bar { grid-column: 1 / -1; grid-row: 2; }
+}

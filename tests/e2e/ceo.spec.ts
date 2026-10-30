@@ -1,0 +1,53 @@
+import { expect, test } from "@playwright/test";
+import { ADMIN, mockBackend, signIn } from "./mock";
+
+// TSK-328538: the CEO page — the backend's KPIs (MAU, DAU, GMV, MRR, ARR,
+// ARPU, take rate, churn, renewal, refunds) for all time or a chosen period
+// picked with the handmade DatePicker, and the same period as Excel.
+const ceo = (from = "", to = "") => ({
+  period: from ? { date_from: from, date_to: to, timezone: "Asia/Tashkent" } : { date_from: "2026-01-01", date_to: "2026-10-30", timezone: "Asia/Tashkent" },
+  revenue: 6788189, period_revenue: 6788189, all_time_revenue: 26986633, revenue_delta_pct: 0, users: 283, active_users: 19, orders_created: 33, orders_paid: 15, conversion_pct: 45.5,
+  funnel: [{ stage: "leads", value: 26 }, { stage: "orders", value: 33 }, { stage: "paid", value: 15 }],
+  channels: [{ source: "client", leads: 0, payments: 13, revenue: 3525691, conversion_pct: 0 }],
+  revenue_trend: [{ date: "2026-10-29", revenue: 120000, payments: 1 }],
+  mau: 19, dau: 3, gmv: 6788189, mrr: 1600500, arr: 19206000, active_subscriptions: 13, new_subscriptions: 4, cancelled_subscriptions: 2, renewed_subscriptions: 5,
+  renewal_rate_percent: 71.4, churn_rate_percent: 13.3, refunded_amount: 120000, refund_rate_percent: 1.8, arpu: 678818.9, take_rate: 18.0,
+  cac: { status: "not_available", total: null, client: null, advocate: null }, ltv: 8145826, ltv_cac: null, payback_months: null,
+  nps_client: { status: "not_available", value: null }, nps_advocate: { status: "not_available", value: null },
+  new_clients: 2, new_advocates: 1, new_lawyers: 0, paid_payments: 23,
+  gift_kpis: { gift_purchases: 0, gift_activation_rate: 0, recipient_conversion: 0, gift_to_paid_conversion: 0, average_gift_value: 0, referral_rate: 0, gift_cac: 0, gift_ltv: 0 },
+});
+
+test("the CEO page shows renewal, churn and refunds, filters a period and exports it", async ({ page }) => {
+  const asked: string[] = [];
+  const routes = await signIn(page, ADMIN, {
+    "/analytics/ceo": (_b: unknown, url: URL) => (asked.push(url.search), ceo(url.searchParams.get("date_from") ?? "", url.searchParams.get("date_to") ?? "")),
+  } as never);
+  await mockBackend(page, routes);
+  let exported = "";
+  await page.route(/\/analytics\/ceo\/export\.xlsx/, (route) => {
+    exported = new URL(route.request().url()).search;
+    return route.fulfill({ status: 200, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", body: "PK" });
+  });
+  await page.goto("/ru/admin/ceo");
+  const sheet = page.locator(".ceo-sheet");
+  await expect(sheet).toContainText("Продление подписок", { timeout: 20000 });
+  await expect(sheet).toContainText("71,4");
+  await expect(sheet).toContainText("Отток (churn)");
+  await expect(sheet).toContainText("13,3");
+  await expect(sheet).toContainText("Возвраты");
+  await expect(sheet).toContainText("1 600 500");
+  // A period with the handmade DatePicker reaches the backend.
+  await page.getByRole("combobox", { name: "Дата начала" }).fill("01.10.2026");
+  await page.getByRole("combobox", { name: "Дата начала" }).press("Tab");
+  await page.getByRole("combobox", { name: "Дата окончания" }).fill("20.10.2026");
+  await page.getByRole("combobox", { name: "Дата окончания" }).press("Tab");
+  await expect.poll(() => asked.some((q) => q.includes("date_from=2026-10-01") && q.includes("date_to=2026-10-20"))).toBe(true);
+  await expect(sheet.locator(".ceo-head__meta")).toContainText("2026");
+  // The same period as Excel, from the actions menu.
+  await page.locator(".ceo-act").getByRole("button").first().click();
+  await page.getByRole("menuitem", { name: "Скачать Excel" }).click();
+  await expect.poll(() => exported).toContain("date_from=2026-10-01");
+  expect(exported).toContain("date_to=2026-10-20");
+  await expect(page.locator("main select, main input[type=date]")).toHaveCount(0);
+});

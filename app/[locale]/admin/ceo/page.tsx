@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { getCeoDashboardFull, isCeoEmpty, ceoTestSplit, isTestChannel, todayIso, type CeoDashboardFull } from "@/lib/services/dash";
+import { EMPTY_FILTER, downloadCeoExport, getCeoDashboardFull, isCeoEmpty, ceoTestSplit, isTestChannel, todayIso, type CeoDashboardFull } from "@/lib/services/dash";
+import DatePicker from "@/components/DatePicker";
 import { demoCeo, useDemoForced } from "@/lib/demoStats";
 import { useResourceOne } from "@/lib/useResource";
 import { fmtUzsShort } from "@/lib/money";
@@ -18,7 +19,7 @@ import { ErrorState } from "@/components/portal/DataState";
 import Segmented from "@/components/ui/Segmented";
 import Menu, { menuSeparator, type MenuEntry } from "@/components/ui/Menu";
 import { Badge } from "@/components/ui/Badge";
-import { IconAlert, IconArrowRight, IconBolt, IconInfo, IconList, IconRefresh } from "@/components/icons";
+import { IconAlert, IconArrowRight, IconBolt, IconDownload, IconInfo, IconList, IconRefresh } from "@/components/icons";
 
 const GIFT0 = { giftPurchases: 0, giftActivationRate: 0, recipientConversion: 0, giftToPaidConversion: 0, averageGiftValue: 0, referralRate: 0, giftCac: 0, giftLtv: 0 };
 const EMPTY: CeoDashboardFull = {
@@ -371,7 +372,13 @@ export default function AdminCeo() {
   const testNoteId = useId();
   const [demoForced, setDemoForced] = useDemoForced();
   const [tick, setTick] = useState(0);
-  const res = useResourceOne(() => getCeoDashboardFull().then((data): Got => ({ ok: true, data }), (error: unknown): Got => ({ ok: false, error, at: todayIso() })), [tick]);
+  // TSK-328538: the KPIs for a chosen period (both ends picked), else all time.
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const ranged = !!from && !!to;
+  const filter = ranged ? { ...EMPTY_FILTER, from, to } : undefined;
+  const res = useResourceOne(() => getCeoDashboardFull(filter).then((data): Got => ({ ok: true, data }), (error: unknown): Got => ({ ok: false, error, at: todayIso() })), [tick, ranged ? from : "", ranged ? to : ""]);
   const got = res.data;
   const [seen, setSeen] = useState<Seen | null>(null);
   if (got && got !== seen?.got) setSeen({ got, kept: got.ok ? got.data : seen?.kept ?? null });
@@ -475,6 +482,9 @@ export default function AdminCeo() {
           { key: "orders", label: tr("orders"), value: num(d.ordersPaid ?? 0), note: tr("ordersNote", { created: num(d.ordersCreated ?? 0) }) },
         ]
       : []),
+    ...(d.renewalRatePct !== undefined && d.renewalRatePct !== null ? [{ key: "renewal", label: tr("renewal"), value: pct(d.renewalRatePct), note: tr("renewalNote", { n: num(d.renewedSubscriptions ?? 0) }) }] : []),
+    ...(d.churnRatePct !== undefined && d.churnRatePct !== null ? [{ key: "churn", label: tr("churn"), value: pct(d.churnRatePct), note: tr("churnNote", { n: num(d.cancelledSubscriptions ?? 0) }) }] : []),
+    ...(d.refundRatePct !== undefined && d.refundRatePct !== null ? [{ key: "refunds", label: tr("refunds"), value: pct(d.refundRatePct), note: tr("refundsNote", { amount: money(d.refundedAmount ?? 0) }) }] : []),
     { key: "arpu", label: t("kpi.arpu"), value: d.arpu ? money(d.arpu) : NA, note: tr("notes.arpu"), tag: tagged(d.arpu) },
     { key: "take", label: t("kpi.takeRate"), value: d.takeRate ? pct(d.takeRate) : NA, note: tr("notes.take"), tag: tagged(d.takeRate) },
     { key: "cac", label: t("kpi.cac"), value: d.cac ? money(d.cac) : NA, note: d.cac ? t("kpi.cacSplit", { client: money(d.cacClient), advocate: money(d.cacAdvocate) }) : tr("notes.cacNa") },
@@ -638,7 +648,7 @@ export default function AdminCeo() {
     ) : null;
 
   const asOfDay = d.fetchedAt ? fmtDate(d.fetchedAt, locale) : "";
-  const scopeAll = asOfDay ? tr("allTimeAsOf", { date: asOfDay }) : tr("allTime");
+  const scopeAll = ranged ? tr("periodScope", { from: fmtDate(from, locale), to: fmtDate(to, locale) }) : asOfDay ? tr("allTimeAsOf", { date: asOfDay }) : tr("allTime");
   const B = (chunks: ReactNode) => <b>{chunks}</b>;
   const demoTag = demo ? tr("demoPill") : undefined;
   const revenueCaption = cut ? tr("fig.revenueClean") : withTest ?? tr("fig.revenue");
@@ -671,6 +681,21 @@ export default function AdminCeo() {
     },
     menuSeparator("sep"),
     { key: "refresh", label: tr("refresh"), icon: <IconRefresh />, onSelect: retry, aiId: "admin.ceo.actions.refresh" },
+    {
+      key: "export",
+      label: exporting ? tr("exporting") : tr("export"),
+      icon: <IconDownload />,
+      disabled: exporting || demo ? (demo ? tr("exportDemo") : tr("exporting")) : false,
+      onSelect: () => {
+        if (exporting) return;
+        setExporting(true);
+        downloadCeoExport(filter)
+          .then(() => notify.success(tr("exported"), { id: "ceo-export" }))
+          .catch((e) => notify.error(tr("exportFailed"), { id: "ceo-export", error: e }))
+          .finally(() => setExporting(false));
+      },
+      aiId: "admin.ceo.actions.export",
+    },
   ];
 
   return (
@@ -723,6 +748,15 @@ export default function AdminCeo() {
                   </div>
                 ))}
               </dl>
+              <div className="ceo-range" role="group" aria-label={tr("period")}>
+                <DatePicker value={from} onChange={setFrom} max={to || undefined} placeholder={tr("periodFrom")} ariaLabel={tr("periodFrom")} />
+                <DatePicker value={to} onChange={setTo} min={from || undefined} placeholder={tr("periodTo")} ariaLabel={tr("periodTo")} />
+                {from || to ? (
+                  <button type="button" className="btn btn--line btn--sm" onClick={() => (setFrom(""), setTo(""))}>
+                    {tr("periodAll")}
+                  </button>
+                ) : null}
+              </div>
               <p className="ceo-head__meta">
                 <span>{scopeAll}</span>
                 {testLine ? (

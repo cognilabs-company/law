@@ -15935,6 +15935,9 @@ html[data-theme="dark"] .psb--admin .psb__link:hover .psb__ic{background:var(--d
 .ceo-head__lead{max-width:64ch;margin:0;font-family:var(--fd);font-size:1.4rem;font-weight:500;line-height:1.5;letter-spacing:-.015em;color:var(--ink);text-wrap:pretty}
 .ceo-head__lead b{font-weight:800;color:var(--dk-acc-strong, var(--b700));font-variant-numeric:tabular-nums}
 .ceo-head__meta{margin:14px 0 0;white-space:pre-wrap;font-size:.8rem;font-weight:600;color:var(--gray)}
+.ceo-range{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:4px 0 2px}
+.ceo-range>.dpk,.ceo-range>div{min-width:170px}
+@media (max-width:520px){.ceo-range>.dpk,.ceo-range>div{flex:1 1 140px;min-width:0}}
 
 .ceo-sec{display:grid;grid-template-columns:200px minmax(0,1fr);gap:12px 36px;padding:28px 0}
 .ceo-sec+.ceo-sec{border-top:1px solid var(--line)}

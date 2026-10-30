@@ -1,5 +1,6 @@
 "use client";
 
+import RatingPolicyCard from "@/components/admin/RatingPolicyCard";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { listAdminReviews, moderateReview, getAdminReviewDetail, recalculateMarketplaceRatings, type AdminReviewDetail } from "@/lib/services/backend";
@@ -133,6 +134,8 @@ export default function AdminReviews() {
   }
 
   return (
+    <>
+    <RatingPolicyCard refreshKey={key} />
     <div className="ppanel">
       <div className="ppanel__h">
         <b>{t("title")}</b>
@@ -208,5 +211,6 @@ export default function AdminReviews() {
       )}
       <ReviewDetail id={detail} onClose={() => setDetail(null)} />
     </div>
+    </>
   );
 }

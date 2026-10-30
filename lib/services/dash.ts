@@ -7,7 +7,8 @@
 // filter client-side — and (c) read the real retention shape (`reasons[]`,
 // `last_paid_at`). backend.ts stays untouched.
 import { verifiedAdvocateYears } from "./tenure";
-import { http, asDict, asStr, asNum, asArr, type Dict } from "@/lib/http";
+import { http, httpBlob, asDict, asStr, asNum, asArr, type Dict } from "@/lib/http";
+import { saveBlob } from "@/lib/download";
 import { uzs, uzsOpt, fmtUzs } from "@/lib/money";
 import { cleanDocTitle, cleanDocText } from "@/lib/docTitle";
 import type {
@@ -159,6 +160,15 @@ function normGiftKpis(v: unknown): GiftKpis {
   };
 }
 // Mirrors backend.ts getCeoDashboard (kept in sync by hand) plus the filter query.
+// The CEO KPIs for the same period as an Excel file (TSK-328538).
+export async function downloadCeoExport(f?: DashFilter): Promise<void> {
+  const qs = new URLSearchParams();
+  if (f?.from) qs.set("date_from", f.from);
+  if (f?.to) qs.set("date_to", f.to);
+  const q = qs.toString();
+  saveBlob(await httpBlob(`/analytics/ceo/export.xlsx${q ? `?${q}` : ""}`), `lexgo-ceo${f?.from ? `-${f.from}` : ""}${f?.to ? `-${f.to}` : ""}.xlsx`);
+}
+
 export async function getCeoDashboardFull(f?: DashFilter): Promise<CeoDashboardFull> {
   const d = asDict(await http(`/analytics/ceo${dashQuery(f)}`));
   const pair = (x: unknown) => { const r = asDict(x); return { label: asStr(r.stage ?? r.label ?? r.name ?? r.date), value: asNum(r.value ?? r.count) }; };
@@ -185,6 +195,8 @@ export async function getCeoDashboardFull(f?: DashFilter): Promise<CeoDashboardF
     ...ceoPeriodOf(d),
   };
 }
+// A percent the backend may leave out: null when absent, never a guessed 0.
+const rate = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 function ceoPeriodOf(d: Record<string, unknown>) {
   const p = asDict(d.period);
   return {
@@ -196,6 +208,11 @@ function ceoPeriodOf(d: Record<string, unknown>) {
     ordersCreated: asNum(d.orders_created),
     ordersPaid: asNum(d.orders_paid),
     activeUsersPeriod: asNum(d.active_users_period),
+    renewedSubscriptions: asNum(d.renewed_subscriptions),
+    renewalRatePct: rate(d.renewal_rate_percent),
+    churnRatePct: rate(d.churn_rate_percent),
+    refundedAmount: uzs(d, "refunded_amount"),
+    refundRatePct: rate(d.refund_rate_percent),
   };
 }
 export function isCeoEmpty(d: CeoDashboard): boolean {

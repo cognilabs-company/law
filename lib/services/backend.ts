@@ -5371,6 +5371,8 @@ export type CeoDashboard = {
   allTimeRevenue?: number;
   activeSubscriptions?: number; newSubscriptions?: number; cancelledSubscriptions?: number;
   ordersCreated?: number; ordersPaid?: number; activeUsersPeriod?: number;
+  // TSK-328538: renewal, churn and refunds over the period, as sent.
+  renewedSubscriptions?: number; renewalRatePct?: number | null; churnRatePct?: number | null; refundedAmount?: number; refundRatePct?: number | null;
 };
 function normGiftKpis(v: unknown): GiftKpis {
   const g = asDict(v);
@@ -5817,6 +5819,37 @@ export async function listAdminReviews(f?: AdminReviewFilter): Promise<AdminRevi
 }
 export async function moderateReview(id: string, status: string, note?: string): Promise<void> {
   await http(`/admin/reviews/${id}/moderate`, { method: "PATCH", body: JSON.stringify({ status, note: note ?? "" }) });
+}
+
+// The rating formula as the backend applies it (TSK-332221): every
+// *_weight is a factor's share in percent; the other numbers are the rules
+// around it. Read, never computed here.
+export type RatingPolicy = {
+  version: number | null;
+  source: string;
+  weights: { key: string; percent: number }[];
+  rules: Record<string, number>;
+  studioUrl: string;
+};
+export async function getRatingPolicy(signal?: AbortSignal): Promise<RatingPolicy> {
+  const d = asDict(await http("/admin/marketplace/ratings/policy", { signal }));
+  const p = asDict(d.policy ?? d);
+  const weights: { key: string; percent: number }[] = [];
+  const rules: Record<string, number> = {};
+  for (const [k, v] of Object.entries(p)) {
+    const n = typeof v === "number" ? v : Number.NaN;
+    if (!Number.isFinite(n)) continue;
+    if (k.endsWith("_weight")) weights.push({ key: k.slice(0, -"_weight".length), percent: n });
+    else if (k !== "policy_version") rules[k] = n;
+  }
+  const url = asStr(d.studio_url);
+  return { version: Number.isFinite(Number(p.policy_version)) ? Number(p.policy_version) : null, source: asStr(p.source), weights: weights.sort((a, b) => b.percent - a.percent), rules, studioUrl: url.startsWith("/") && !url.includes("..") ? url : "" };
+}
+export type RatingRecalcStatus = { profiles: number; current: number; stale: number; missing: number; pending: number; ready: boolean; reconcileHours: number | null };
+export async function getRatingStatus(signal?: AbortSignal): Promise<RatingRecalcStatus> {
+  const d = asDict(await http("/admin/marketplace/ratings/status", { signal }));
+  const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  return { profiles: n(d.profiles), current: n(d.current), stale: n(d.stale), missing: n(d.missing), pending: n(d.revision_pending), ready: d.ready === true, reconcileHours: Number.isFinite(Number(d.reconciliation_hours)) ? Number(d.reconciliation_hours) : null };
 }
 
 // Recompute every seller's marketplace rating from the backend's policy

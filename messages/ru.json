@@ -16958,7 +16958,23 @@
         "subs": "Активные подписки",
         "subsNote": "За период +{added} новых · −{cancelled} отменено",
         "orders": "Оплаченные заказы",
-        "ordersNote": "Создано за период: {created}"
+        "ordersNote": "Создано за период: {created}",
+        "renewal": "Продление подписок",
+        "renewalNote": "Продлено подписок: {n}",
+        "churn": "Отток (churn)",
+        "churnNote": "Отменено подписок: {n}",
+        "refunds": "Возвраты",
+        "refundsNote": "Возвращено: {amount}",
+        "periodScope": "{from} — {to}",
+        "period": "Период",
+        "periodFrom": "Дата начала",
+        "periodTo": "Дата окончания",
+        "periodAll": "За всё время",
+        "export": "Скачать Excel",
+        "exporting": "Готовим…",
+        "exportDemo": "Демо-данные не выгружаются",
+        "exported": "Файл Excel скачан.",
+        "exportFailed": "Не удалось скачать Excel."
       },
       "title": "CEO-панель",
       "revenue": "Выручка",
@@ -18673,6 +18689,37 @@
       },
       "lockedTitle": "Меняет только главный суперадмин",
       "lockedText": "Статусом Суперадвоката и его историей управляет только главный суперадмин."
+    },
+    "ratingPolicy": {
+      "title": "Как считается рейтинг",
+      "version": "Политика: версия {n}",
+      "lead": "Долю каждого фактора и правила задаёт бэкенд. Здесь они только показаны.",
+      "weights": "Доли факторов",
+      "factor": {
+        "client_reviews": "Оценки клиентов",
+        "completion_rate": "Завершение заказов",
+        "response_score": "Скорость ответа",
+        "acceptance_rate": "Принятие заказов",
+        "verified_experience": "Подтверждённый опыт",
+        "verified_achievements": "Подтверждённые достижения",
+        "other": "Другой фактор"
+      },
+      "rule": {
+        "cold_start_score": "Новый специалист начинает с {n} баллов.",
+        "review_confidence_count": "Вес оценок клиентов растёт, пока их не станет {n}.",
+        "response_target_seconds": "Ответ за {n} с — полный балл.",
+        "response_zero_score_seconds": "Ответ позже {n} с — ноль баллов.",
+        "experience_full_score_years": "{n} лет подтверждённого опыта — полный балл.",
+        "achievements_full_score_count": "{n} подтверждённых достижений — полный балл."
+      },
+      "penalty": {
+        "complaint_penalty_points": "Каждая обоснованная жалоба −{n} баллов (всего не больше −{cap}).",
+        "refund_penalty_points": "Каждый возврат −{n} баллов (всего не больше −{cap})."
+      },
+      "statusOk": "Все рейтинги посчитаны по этой версии: {n} / {total}.",
+      "statusStale": "{n} рейтингов ещё не обновлены (всего {total}). Пересчитайте.",
+      "reconcile": "Бэкенд и сам сверяет их каждые {h} ч.",
+      "edit": "Изменить в Studio"
     }
   },
   "secureChat": {"voiceSpeed":"Скорость воспроизведения","voiceReview":"Прослушайте перед отправкой","voicePaused":"На паузе","voiceResume":"Продолжить","voicePauseRec":"Пауза","voiceStop":"Остановить и прослушать","attachMedia":"Фото или видео","attachDoc":"Документ или файл","attachCamera":"Камера","trayTitle":"Готово файлов: {n}","trayHint":"Добавьте подпись и отправьте вместе","trayClear":"Очистить","trayRemove":"{name} — убрать","emoji":"Эмодзи","captionPh":"Добавьте подпись (необязательно)…","roleSeller":"Специалист","back":"Все чаты","react":"Отреагировать","reactions":"Реакции","copy":"Копировать","copied":"Текст скопирован","retrySend":"Отправить снова","discard":"Убрать","sendFailed":"Не отправлено","newMessages":"Новых сообщений: {n}","toBottom":"К последним сообщениям","dropHere":"Перетащите файл сюда","dropHint":"До 25 МБ каждый — можно сразу несколько","hiddenContent":"Текст сообщения скрыт","reactFailed":"Не удалось отправить реакцию. Попробуйте ещё раз.","you":"Вы","emptyTitle":"Начните разговор","replyingTo":"Ответ: {name}","askCopilot":"Спросить AI-копилота об этом чате",
