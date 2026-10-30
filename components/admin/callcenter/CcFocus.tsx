@@ -47,7 +47,7 @@ function ageOf(it: CockpitItem, now: number): number {
 }
 
 function toneOfAge(ms: number): string {
-  if (ms >= 4 * 60 * 60 * 1000) return "hot";
+  if (ms >= 24 * 60 * 60 * 1000) return "hot";
   if (ms >= 60 * 60 * 1000) return "warn";
   return "ok";
 }

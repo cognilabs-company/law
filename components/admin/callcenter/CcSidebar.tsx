@@ -64,7 +64,7 @@ export default function CcSidebar({
               </span>
               <span className="ccsb__lt">{labelOf(key)}</span>
               {typeof count === "number" && count > 0 ? (
-                <span className="ccsb__count cc-num" data-tone={count > 9 ? "hot" : "calm"}>
+                <span className="ccsb__count cc-num" data-tone="calm">
                   {count > 99 ? "99+" : count}
                 </span>
               ) : null}
