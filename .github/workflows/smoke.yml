@@ -1,0 +1,26 @@
+# The read-only post-release check of a deployed site (tests/smoke), run by
+# hand after a deployment: Actions → Smoke → Run workflow, with the URL.
+# Every write is refused in the browser, so nothing reaches production data.
+name: Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Deployed site to check, e.g. https://law-two-tau.vercel.app
+        required: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run smoke -- --workers=1
+        env:
+          SMOKE_URL: ${{ inputs.url }}
