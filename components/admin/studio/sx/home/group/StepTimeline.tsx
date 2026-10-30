@@ -154,7 +154,7 @@ function StepItem({ row, after, index, group, labels, records, stats, canEdit }:
             jt ? (
               <StartJourneyButton type={jt} variant="ghost" size="sm" label={jt === "package" ? t("sx.journeyRun.newPackage") : t("sx.journeyRun.newService")} aiId={aiId(base, "new")} />
             ) : (
-              <SxLinkButton variant="ghost" size="sm" icon={PlusIcon} href={createHrefFor(row.code, row.ctor)} aiId={aiId(base, "new")} aiLabel={`${t("sx.gp.new")}: ${name}`}>
+              <SxLinkButton variant="add" size="sm" icon={PlusIcon} href={createHrefFor(row.code, row.ctor)} aiId={aiId(base, "new")} aiLabel={`${t("sx.gp.new")}: ${name}`}>
                 {t("sx.gp.new")}
               </SxLinkButton>
             )

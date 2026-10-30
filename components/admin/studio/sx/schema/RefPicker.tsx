@@ -133,7 +133,7 @@ export function SourceEmptyLine({ state, id, aiId }: { state: SourceEmptyState; 
     <p className="sx-sf__srcempty" id={id}>
       <span>{state.text}</span>
       {state.kind === "create" ? (
-        <SxLinkButton variant="ghost" size="sm" icon={PlusIcon} href={state.href} aiId={aiId}>
+        <SxLinkButton variant="add" size="sm" icon={PlusIcon} href={state.href} aiId={aiId}>
           {state.link}
         </SxLinkButton>
       ) : null}
@@ -152,7 +152,7 @@ export function EligibilityHint({ id, aiId }: { id?: string; aiId?: string }): R
       <p className="sx-sf-elig" id={id}>
         {glyph(InfoIcon, { size: 14 })}
         <span>{t("sx.elig.from", { name })}</span>
-        <SxLinkButton variant="ghost" size="sm" icon={PlusIcon} href={producer.href} aiId={aiId ? `${aiId}.create` : undefined}>
+        <SxLinkButton variant="add" size="sm" icon={PlusIcon} href={producer.href} aiId={aiId ? `${aiId}.create` : undefined}>
           {t("sx.elig.create")}
         </SxLinkButton>
       </p>

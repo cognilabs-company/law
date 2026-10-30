@@ -74,7 +74,7 @@ export function ResumePanel(): ReactElement {
         </p>
         {acc.canEdit ? (
           <div className="sx-hempty-act">
-            <SxLinkButton variant="ghost" size="sm" icon={PlusIcon} href={CREATE_HOME_HREF} aiId={aiId(BASE, "create")}>
+            <SxLinkButton variant="add" size="sm" icon={PlusIcon} href={CREATE_HOME_HREF} aiId={aiId(BASE, "create")}>
               {t("sx.journeyRun.title")}
             </SxLinkButton>
           </div>

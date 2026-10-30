@@ -12,11 +12,9 @@ const SRC = {
   permissions: `${REF}permissions`,
 } as const;
 
-const PLAN_PATHS: ReadonlySet<string> = new Set(["K26:plan_requirements.plan_ids", "MP07:eligibility.plan_ids", "MP09:eligibility.plan_ids"]);
+const PLAN_PATHS: ReadonlySet<string> = new Set(["K26:plan_requirements.plan_ids", "MP09:eligibility.plan_ids"]);
 
 const POLY: Readonly<Record<string, string>> = {
-  "K20:steps.*.assignee_id": "assignee_type",
-  "K10:escalation_rules.*.target_id": "target_type",
   "K23:escalation_rules.*.target_id": "target_type",
   "K23:routing_rules.*.target_id": "target_type",
 };
@@ -30,7 +28,6 @@ const POLY_SOURCE: Readonly<Record<string, string>> = {
 
 const REMOTE_FALLBACK: Readonly<Record<string, string>> = {
   "MP09:package_ids": `${REF}promotion-packages`,
-  "K10:holiday_id": `${REF}business-holidays`,
 };
 
 const LOCAL_FALLBACK: Readonly<Record<string, string>> = {

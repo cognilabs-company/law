@@ -70,6 +70,9 @@ export type SxLayoutField = {
   clears?: readonly string[];
   flatten?: boolean;
   addKey?: string;
+  // A list whose rows have a kind (an intake question's answer type): the
+  // add button opens a menu of that child field's options (TSK-938937).
+  addBy?: readonly string[];
   summary?: (item: SxValues, index: number, labels: StudioLabels) => string;
   meta?: (item: SxValues, index: number, labels: StudioLabels) => string;
   aiSuggest?: boolean | "service";

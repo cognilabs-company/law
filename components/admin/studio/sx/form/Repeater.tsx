@@ -18,7 +18,9 @@ import IconButton from "@/components/ui/IconButton";
 import { aiId as makeAiId } from "@/lib/ai/ids";
 import { notify } from "@/lib/toast";
 import { SxButton } from "../Button";
-import { ChevronRightIcon, GripVerticalIcon, PlusIcon, Trash2Icon, CircleAlertIcon, glyph } from "../icons";
+import { ChevronDownIcon, ChevronRightIcon, GripVerticalIcon, PlusIcon, Trash2Icon, CircleAlertIcon, glyph } from "../icons";
+import type { SxIcon } from "../types";
+import { usePopover } from "@/lib/usePopover";
 import { carryRowKey, dropTarget, insertAt, moveItem, removeAt, rowKeys } from "./logic";
 
 export type RepeaterProps<T> = {
@@ -36,6 +38,9 @@ export type RepeaterProps<T> = {
   minItems?: number;
   maxItems?: number;
   addLabel?: string;
+  // Kinds to add (TSK-938937): the add button opens a menu and the picked
+  // kind makes the new row (a question by its answer type, …).
+  addMenu?: readonly RepeaterAddChoice<T>[];
   emptyText?: string;
   readOnly?: boolean;
   defaultExpanded?: "none" | "new" | "all";
@@ -43,6 +48,7 @@ export type RepeaterProps<T> = {
   aiId?: string;
 };
 
+export type RepeaterAddChoice<T> = { key: string; label: string; icon?: SxIcon; make: () => T };
 type Expand = { open: ReadonlySet<string>; closed: ReadonlySet<string> };
 type Pending = { key: string; part: "handle" | "first" | "remove" } | { key: ""; part: "add" };
 type Drag = { from: number; pointer: number; startY: number; row: HTMLElement; handle: HTMLElement; started: boolean; to: number };
@@ -71,6 +77,7 @@ export function Repeater<T>({
   rowErrors,
   maxItems,
   addLabel,
+  addMenu,
   emptyText,
   readOnly = false,
   defaultExpanded = "new",
@@ -155,8 +162,12 @@ export function Repeater<T>({
     setAnnounce(t("sx.rep.moved", { name, pos: to + 1 }));
   };
 
-  const add = () => {
-    const item = newItem();
+  const [menu, setMenu] = useState(false);
+  const menuBtn = useRef<HTMLButtonElement | null>(null);
+  const menuPane = useRef<HTMLUListElement | null>(null);
+  const pop = usePopover({ open: menu, onClose: () => setMenu(false), trigger: menuBtn, popup: menuPane, sheet: false, minWidth: 220 });
+  const add = (made?: T) => {
+    const item = made ?? newItem();
     const [key] = rowKeys([...items, item]).slice(-1);
     setExpand((e) => ({ ...e, open: withKey(e.open, key, true), closed: withKey(e.closed, key, false) }));
     pending.current = { key, part: "first" };
@@ -386,9 +397,36 @@ export function Repeater<T>({
       </span>
       {canAdd ? (
         <div className="sx-rep__foot" ref={addRef}>
-          <SxButton variant="add" size="sm" icon={PlusIcon} onClick={add} aiId={aiId ? makeAiId(aiId, "add") : undefined}>
-            {addText}
-          </SxButton>
+          {addMenu?.length ? (
+            <>
+              <SxButton ref={menuBtn} variant="add" size="sm" icon={PlusIcon} iconEnd={ChevronDownIcon} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((v) => !v)} aiId={aiId ? makeAiId(aiId, "add") : undefined}>
+                {addText}
+              </SxButton>
+              {menu ? (
+                <ul ref={menuPane} className="sx-rep__menu" role="menu" aria-label={addText} style={pop.style} data-placement={pop.placement}>
+                  {addMenu.map((c) => (
+                    <li key={c.key} role="none">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          pop.close("select");
+                          add(c.make());
+                        }}
+                      >
+                        {c.icon ? glyph(c.icon, { size: 16 }) : null}
+                        <span>{c.label}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </>
+          ) : (
+            <SxButton variant="add" size="sm" icon={PlusIcon} onClick={() => add()} aiId={aiId ? makeAiId(aiId, "add") : undefined}>
+              {addText}
+            </SxButton>
+          )}
         </div>
       ) : null}
     </div>

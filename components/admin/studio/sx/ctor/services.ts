@@ -204,6 +204,7 @@ const INTAKE_FIELDS: readonly SxLayoutField[] = [
     label: "sx.k02.field.intake_questions",
     help: "sx.k02.help.intake_questions",
     addKey: "sx.k02.iq.add",
+    addBy: INTAKE_TYPE_KEYS,
     emptyKey: "sx.k02.iq.empty",
     summary: (item) => intakeQuestionOf(item),
     meta: intakeMeta,

@@ -370,6 +370,17 @@ function RowsField({ node, path, ai, id, label, ro, f }: { node: SchemaFieldMode
     lf?.summary && isDict(item) ? lf.summary(item, i, labels) || t("sx.rep.item", { n: i + 1 }) : rowSummaryText(item, i, { field: f, code: model.code, labels, t, refName, scopeSource, pattern: node.pattern });
   const meta = lf?.meta ? (item: unknown, i: number) => (isDict(item) ? lf.meta?.(item, i, labels) : "") : undefined;
   const itemType = f.item?.type ?? "text";
+  // Rows with a kind are added by picking it (TSK-938937).
+  const addKind = lf?.addBy && !inline ? props.find((p) => lf.addBy?.includes(p.key) && p.options?.length) : undefined;
+  const kindLf = addKind ? layoutFieldFor(model, `${node.pattern}.*.${addKind.key}`) : null;
+  const addMenu = addKind
+    ? addKind.options.map((v) => ({
+        key: v,
+        label: kindLf?.optionLabel?.(v, labels) || labels.option(v, { field: addKind.key }),
+        icon: kindLf?.optionIcon?.(v),
+        make: (): unknown => ({ ...(isDict(emptyItem(f.item)) ? (emptyItem(f.item) as SxValues) : {}), [addKind.key]: v }),
+      }))
+    : undefined;
   const renderInline = (item: unknown, i: number): ReactNode => {
     const p = `${path}.${i}`;
     const rowLabel = t("sx.rep.item", { n: i + 1 });
@@ -429,6 +440,7 @@ function RowsField({ node, path, ai, id, label, ro, f }: { node: SchemaFieldMode
       rowErrors={(i) => policy.visibleCount(`${path}.${i}`, errors)}
       minItems={f.minItems || undefined}
       addLabel={t(lf?.addKey ?? "sx.rep.add")}
+      addMenu={addMenu}
       emptyText={lf?.emptyKey && t.has(lf.emptyKey) ? t(lf.emptyKey) : undefined}
       readOnly={ro}
       onTouched={() => policy.touch(path)}

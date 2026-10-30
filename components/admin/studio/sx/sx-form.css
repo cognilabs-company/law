@@ -2104,3 +2104,9 @@ html[data-theme="dark"] .sx-picker__scrim {
     transition: none;
   }
 }
+
+/* The add menu of a list whose rows have a kind (TSK-938937). */
+.sx-rep__menu { display: grid; gap: 2px; margin: 0; padding: 6px; border-radius: 14px; background: var(--sx-surface, var(--dk-surface, #fff)); box-shadow: 0 18px 40px -16px rgb(15 23 42 / 45%), inset 0 0 0 1px var(--sx-line, var(--line)); list-style: none; overflow: auto; }
+.sx-rep__menu button { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 40px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: var(--sx-ink, var(--ink)); font: inherit; font-size: .86rem; font-weight: 600; text-align: left; cursor: pointer; }
+.sx-rep__menu button:hover, .sx-rep__menu button:focus-visible { background: var(--sx-soft, var(--dk-surface-2, #f5f8fd)); outline: none; }
+.sx-rep__menu svg { flex: none; color: var(--sx-acc, var(--b600, #1668f0)); }

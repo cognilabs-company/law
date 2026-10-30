@@ -24,7 +24,7 @@ import { schemaFieldAt } from "../../schema/model";
 import { REVIEW_STATUSES, sentAtOf, type ApprRow, type ApprViewer } from "../model";
 import { stageAfter, toastKeyOf, type ReviewKind } from "./actions";
 import { ActionDialog } from "./ActionDialog";
-import { ChangeList, WarningNote } from "./ChangeList";
+import { ChangeList, WarningNote, useRefNamer } from "./ChangeList";
 import { Comments } from "./Comments";
 import { changedNames, payloadDiff } from "./diff";
 import { MissingFields } from "./MissingFields";
@@ -135,7 +135,9 @@ function ReviewPanel({ target, viewer, onClose, onChanged }: { target: ReviewTar
     [model],
   );
   const entries = useMemo(() => (detail ? payloadDiff(st.before, st.after, skip) : []), [detail, st.before, st.after, skip]);
-  const changed = useMemo(() => changedNames(entries, { model, code, labels, t, root: st.after, refName: (_s, v) => labels.unknownRef(v) }), [entries, model, code, labels, t, st.after]);
+  // A picked factor or rule by its real name (TSK-269743), as in the change list.
+  const { refName } = useRefNamer(entries, model, code, st.after);
+  const changed = useMemo(() => changedNames(entries, { model, code, labels, t, root: st.after, refName }), [entries, model, code, labels, t, st.after, refName]);
 
   const title = row?.title || detail?.title || t("sx.ui.untitled");
   const version = detail?.currentVersion || row?.version || "";

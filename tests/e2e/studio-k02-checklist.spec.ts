@@ -20,6 +20,9 @@ test("service checklist: a 30% list and a final 40% list; an item can switch bet
   );
   await page.goto("/uz/admin/studio/o/new?new=K02");
   const first = page.locator('.sx-k2stage[data-stage="first_checklist"]');
+  // TSK-881437: the owner's exact name; the backend's "Bajarish ro'yxati" never shows.
+  await expect(page.getByText("Ushbu xizmat doirasida bajariladigan ishlarning cheklisti").first()).toBeVisible({ timeout: 20000 });
+  await expect(page.getByText(/Bajarish ro.yxati/)).toHaveCount(0);
   const final = page.locator('.sx-k2stage[data-stage="final_completion"]');
   await first.scrollIntoViewIfNeeded({ timeout: 30000 });
   await expect(first).toContainText("30% cheklisti — ikkinchi to'lov");
@@ -36,4 +39,34 @@ test("service checklist: a 30% list and a final 40% list; an item can switch bet
   await first.getByRole("radio", { name: /Yakuniy 40%/ }).first().click();
   await expect(first.locator(".sx-k2stage__h em")).toHaveText("0");
   await expect(final.locator(".sx-k2stage__h em")).toHaveText("2");
+});
+
+// TSK-938937: adding a question is a real dropdown — a contrasting control
+// with a chevron that opens the answer types; the picked type makes the row.
+test("adding a question opens a menu of answer types and the row takes the picked one", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await mockBackend(
+    page,
+    await signIn(page, ADMIN, {
+      "/studio/constructors": fx.constructors,
+      "/studio/constructors/K02": fx.k02,
+      "/studio/constructors/K02/form-context": fx.formContext,
+      "/studio/constructors/K02/records": fx.records,
+      "/studio/reference/service-categories": fx.categories,
+      "/studio/objects": { items: [] },
+    } as never),
+  );
+  await page.goto("/uz/admin/studio/o/new?new=K02");
+  const add = page.getByRole("button", { name: "Savol qo'shish" }).first();
+  await expect(add).toBeVisible({ timeout: 20000 });
+  await expect(add).toHaveAttribute("aria-haspopup", "menu");
+  await expect(add).toHaveClass(/sx-btn--add/);
+  await add.click();
+  const menu = page.getByRole("menu", { name: "Savol qo'shish" });
+  await expect(menu.getByRole("menuitem", { name: "Qisqa matn" })).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: "Sana" })).toBeVisible();
+  await menu.getByRole("menuitem", { name: "Sana" }).click();
+  await expect(menu).toHaveCount(0);
+  // The new row says its answer type.
+  await expect(page.locator(".sx-rep__row").filter({ hasText: "Sana" }).first()).toBeVisible();
 });

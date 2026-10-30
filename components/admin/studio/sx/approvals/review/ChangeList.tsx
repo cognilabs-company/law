@@ -2,7 +2,7 @@
 
 import "../../sx-core.css";
 import "./sx-review.css";
-import { useEffect, useId, useMemo, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useId, useMemo, useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { aiId } from "@/lib/ai/ids";
 import { SxButton } from "../../Button";
@@ -54,15 +54,14 @@ function Value({ line, side, open }: { line: DiffLine; side: "before" | "after";
   );
 }
 
-export function ChangeList({ base, entries, model, code, root, pending }: ChangeListProps): ReactElement {
-  const t = useTranslations("studio");
+// The names of the records a change picks (factors, rules, …), loaded once
+// per set of sources; a record still awaiting approval is named from its
+// draft. Shared by the change list and the drawer's "what changed" line, so
+// neither falls back to "selected record" while a real name exists.
+export function useRefNamer(entries: readonly DiffEntry[], model: SchemaModel | null, code: string, root: SxValues): { refName: (source: string, value: string) => string; drafts: unknown } {
   const labels = useStudioLabels();
-  const uid = useId();
   const [refs, setRefs] = useState<{ key: string; map: RefMap } | null>(null);
-  const [all, setAll] = useState(false);
-  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
   const srcKey = diffSources(entries, { model, code, root }).join("\n");
-
   useEffect(() => {
     if (!srcKey) return;
     let alive = true;
@@ -89,10 +88,28 @@ export function ChangeList({ base, entries, model, code, root, pending }: Change
       alive = false;
     };
   }, [srcKey, labels]);
-
   const map = refs?.key === srcKey ? refs.map : null;
-  // A picked record still awaiting approval is named from its draft.
   const drafts = usePendingReferences();
+  const refName = useCallback(
+    (source: string, value: string): string => {
+      const known = map?.get(source)?.get(value);
+      if (known) return known;
+      const draft = map ? pendingReferenceNow(value) : null;
+      return draft ? labels.refOption(source, draft).label : labels.unknownRef(value);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- drafts only re-runs the names
+    [map, labels, drafts],
+  );
+  return { refName, drafts };
+}
+
+export function ChangeList({ base, entries, model, code, root, pending }: ChangeListProps): ReactElement {
+  const t = useTranslations("studio");
+  const labels = useStudioLabels();
+  const uid = useId();
+  const [all, setAll] = useState(false);
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  const { refName, drafts } = useRefNamer(entries, model, code, root);
   const { lines, other } = useMemo(
     () =>
       diffLines(entries, {
@@ -101,15 +118,10 @@ export function ChangeList({ base, entries, model, code, root, pending }: Change
         labels,
         t,
         root,
-        refName: (source, value) => {
-          const known = map?.get(source)?.get(value);
-          if (known) return known;
-          const draft = map ? pendingReferenceNow(value) : null;
-          return draft ? labels.refOption(source, draft).label : labels.unknownRef(value);
-        },
+        refName,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- drafts only re-runs the names
-    [entries, model, code, labels, t, root, map, drafts],
+    [entries, model, code, labels, t, root, refName, drafts],
   );
 
   const shown = all ? lines : lines.slice(0, DIFF_FIRST);
