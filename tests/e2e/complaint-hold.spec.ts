@@ -14,7 +14,7 @@ const COMPLAINT = {
   evidence: [],
   settlement: { status: "complaint_hold", gross_amount: 500000, held_amount: 500000, refunded_amount: 0, pending_refund_amount: 0, currency: "UZS" },
   // The live key (26 Oct 2026); `available_actions` is still read.
-  allowed_actions: ["valid_rework", "partial_refund", "full_refund", "invalid", "resolved"],
+  allowed_actions: ["valid_rework", "partial_refund", "full_refund", "valid_refund", "invalid", "resolved"],
   created_at: "2026-10-24T08:00:00Z",
 };
 
@@ -32,6 +32,9 @@ test("a partial refund is sent with its amount, note and uploaded evidence", asy
   await expect(page.getByText("Удерживается из-за жалобы")).toBeVisible();
   await page.getByRole("button", { name: "Принять решение" }).click();
   const dialog = page.getByRole("dialog");
+  // Every ruling of MarketplaceComplaintAction is offered, valid_refund too.
+  await expect(dialog.getByText("Обоснована — возврат денег")).toBeVisible();
+  await expect(dialog.locator("select")).toHaveCount(0);
   await dialog.getByText("Обоснована — частичный возврат").click();
   await dialog.getByRole("textbox", { name: "Сумма возврата" }).fill("150000");
   await dialog.getByRole("textbox", { name: "Заключение" }).fill("Ishning bir qismi bajarilmagan");

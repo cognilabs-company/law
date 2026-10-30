@@ -15,7 +15,6 @@ import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { shortDateTime } from "@/lib/date";
 import { ApiError, errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
-import { humanize } from "@/lib/labels";
 import PersonName from "@/components/ui/PersonName";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
@@ -154,12 +153,13 @@ function Row({ claim, onResolve }: { claim: WarrantyClaim; onResolve: () => void
   const tp = useTranslations("marketplace.orderDetail.pricing");
   const locale = useLocale();
   const [open, setOpen] = useState(false);
-  const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : humanize(v) || none);
+  // An unknown code reads as "another status", never as the code itself.
+  const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : v ? t("other") : none);
   const settled = !!claim.resolution;
   return (
     <li className="esc__item" data-open={open || undefined}>
       <button type="button" className="esc__row" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <b>{claim.order.workId || claim.id}</b>
+        <b>{claim.order.workId || t("untitled")}</b>
         <span className="esc__chip" data-s={settled ? "resolved" : "open"}>
           {label("status", claim.status)}
         </span>
@@ -191,7 +191,7 @@ function Row({ claim, onResolve }: { claim: WarrantyClaim; onResolve: () => void
             </div>
             <div>
               <dt>{t("f.settlement")}</dt>
-              <dd>{claim.settlement ? (tp.has(`settle.${claim.settlement.status}`) ? tp(`settle.${claim.settlement.status}`) : humanize(claim.settlement.status)) : none}</dd>
+              <dd>{claim.settlement ? (tp.has(`settle.${claim.settlement.status}`) ? tp(`settle.${claim.settlement.status}`) : t("other")) : none}</dd>
             </div>
             {settled ? (
               <div>

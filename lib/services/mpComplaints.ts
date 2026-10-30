@@ -9,7 +9,8 @@ import { saveBlob } from "@/lib/download";
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 
-export const MP_COMPLAINT_ACTIONS = ["valid_rework", "partial_refund", "full_refund", "invalid", "resolved"] as const;
+// The backend enum MarketplaceComplaintAction, in the order an operator weighs them.
+export const MP_COMPLAINT_ACTIONS = ["valid_rework", "partial_refund", "full_refund", "valid_refund", "invalid", "resolved"] as const;
 export type MpComplaintAction = (typeof MP_COMPLAINT_ACTIONS)[number];
 
 export type MpParty = { id: string; lexgoId: string; name: string; phone: string };

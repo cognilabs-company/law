@@ -96,14 +96,18 @@ test("extra figures show when sent; thresholds and the service filter work", asy
   await expect(page.getByText("4xx: 7 · 5xx: 2")).toBeVisible();
   await expect(page.getByText("Сегодня: 120 · Всего: 283")).toBeVisible();
   await expect(page.getByText("С ошибкой: 1")).toBeVisible();
-  await expect(page.getByText(/client 90 · advokat 20/)).toBeVisible();
+  // Roles by name, never the backend's keys.
+  await expect(page.locator(".mon-roles")).toContainText("Клиенты 90 · Адвокаты 20");
+  await expect(page.locator(".mon-roles")).not.toContainText("advokat");
   await expect(page.getByText("Превышен порог")).toHaveCount(0);
   // Lower the CPU threshold below 70%: the alert appears.
   await page.getByRole("button", { name: "Пороги" }).click();
   await page.getByRole("spinbutton", { name: "Процессор" }).fill("60");
   await expect(page.getByRole("alert").filter({ hasText: "Превышен порог" })).toContainText("Процессор");
   // Only services with problems.
-  await page.getByRole("combobox", { name: "Состояние сервиса" }).selectOption("problems");
+  // The handmade Select, never the browser's.
+  await page.getByRole("button", { name: /Состояние сервиса/ }).click();
+  await page.getByRole("listbox").getByRole("option", { name: "С проблемами" }).click();
   await expect(page.getByRole("button", { name: "База данных", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Acme SMS", exact: true })).toHaveCount(0);
 });
@@ -135,15 +139,23 @@ test("history: server type filter, paging, custom dates and an Excel export job"
   await expect(page.getByText("1–20 из 45")).toBeVisible();
   await page.getByRole("button", { name: "Далее" }).click();
   await expect(page.getByText("21–40 из 45")).toBeVisible();
-  await page.getByRole("combobox", { name: "Тип записей" }).selectOption("incident");
+  await page.getByRole("button", { name: /Тип записей/ }).click();
+  await page.getByRole("listbox").getByRole("option", { name: "Инциденты" }).click();
   await expect(page.locator(".mon-hist li")).toHaveCount(3);
   expect(mock.calls.some((c) => c.path === "/admin/monitoring/history" && c.method === "GET")).toBe(true);
   await page.getByRole("button", { name: "Экспорт в Excel" }).click();
   await expect(page.getByRole("button", { name: "Скачать Excel (45 строк)" })).toBeVisible({ timeout: 15_000 });
   expect(mock.calls.find((c) => c.method === "POST" && c.path === "/admin/monitoring/history/exports")?.body).toMatchObject({ type: "incident" });
-  await page.getByRole("combobox", { name: "Период" }).selectOption("custom");
-  await page.locator('input[aria-label="Дата начала"]').fill("2026-10-01");
-  await page.locator('input[aria-label="Дата окончания"]').fill("2026-10-20");
+  await page.getByRole("button", { name: /Период/ }).click();
+  await page.getByRole("listbox").getByRole("option", { name: "Свой период" }).click();
+  // The handmade DatePicker: the custom window reaches the history request.
+  const asked = page.waitForRequest((r) => r.url().includes("/admin/monitoring/history") && /2026-(09-30|10-01)/.test(decodeURIComponent(r.url())) && /2026-10-20/.test(decodeURIComponent(r.url())));
+  await page.getByRole("combobox", { name: "Дата начала" }).fill("01.10.2026");
+  await page.getByRole("combobox", { name: "Дата начала" }).press("Tab");
+  await page.getByRole("combobox", { name: "Дата окончания" }).fill("20.10.2026");
+  await page.getByRole("combobox", { name: "Дата окончания" }).press("Tab");
+  await asked;
+  await expect(page.locator("main select, main input[type=date]")).toHaveCount(0);
 });
 
 test("an integration's detail shows its own history and dependencies", async ({ page }) => {

@@ -63,6 +63,7 @@ function useRemaining(): (seconds: number) => string {
 }
 
 function CheckRow({ item }: { item: ChecklistItem }): ReactElement {
+  const tcm = useTranslations("common");
   const tc = useTranslations("marketplace.orderDetail.checklist");
   const icon = item.status === "done" ? CircleCheckIcon : item.status === "skipped_with_reason" ? ArrowRightIcon : CircleDashedIcon;
   return (
@@ -80,7 +81,7 @@ function CheckRow({ item }: { item: ChecklistItem }): ReactElement {
             {item.files.map((f, i) => (
               <li key={f.id || f.url || i}>
                 {glyph(FileTextIcon, { size: 14 })}
-                <span>{f.name || f.id}</span>
+                <span>{f.name || tcm("file")}</span>
               </li>
             ))}
           </ul>

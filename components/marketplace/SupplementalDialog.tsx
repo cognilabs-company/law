@@ -20,6 +20,7 @@ type Form = { key: string; status: "loading" | "ready" | "error"; sections: Pric
 type Quote = { key: string; quote: PriceQuote | null; error: unknown };
 
 export default function SupplementalDialog({ order, onClose, onSent }: { order: MarketOrder | null; onClose: () => void; onSent: (s: SupplementalPayment | null) => void }) {
+  const tcm = useTranslations("common");
   const t = useTranslations("marketplace.supplemental");
   const tp = useTranslations("marketplace.priceOptions");
   const marketErr = useMarketError();
@@ -167,7 +168,7 @@ export default function SupplementalDialog({ order, onClose, onSent }: { order: 
                   .filter((l) => picked.includes(l.id))
                   .map((l, i) => (
                     <div key={`${l.id}-${i}`} className="pxo__row is-add">
-                      <span>{l.label || l.id}</span>
+                      <span>{l.label || tcm("option")}</span>
                       <b>{tp("fixed", { price: fmtUzs(l.amount) })}</b>
                     </div>
                   ))}

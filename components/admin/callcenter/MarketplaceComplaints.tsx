@@ -17,7 +17,8 @@ import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { shortDateTime } from "@/lib/date";
 import { ApiError, errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
-import { humanize } from "@/lib/labels";
+import CheckBox from "@/components/CheckBox";
+import Select from "@/components/Select";
 import PersonName from "@/components/ui/PersonName";
 import { subscribeUserEvents } from "@/lib/userSocket";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
@@ -106,7 +107,7 @@ function ResolveDialog({ c, onClose, onDone, onStale }: { c: MpComplaint; onClos
   }
 
   const options = c.actions.map((a) => ({ value: a, title: t(`action.${a}`), description: t(`actionHint.${a}`) }));
-  const danger = action === "full_refund" || action === "partial_refund";
+  const danger = action === "full_refund" || action === "partial_refund" || action === "valid_refund";
   return (
     <SxDialog
       open
@@ -144,10 +145,9 @@ function ResolveDialog({ c, onClose, onDone, onStale }: { c: MpComplaint; onClos
           <ul className="esc__files">
             {evidence.map((f) => (
               <li key={f.id}>
-                <label>
-                  <input type="checkbox" checked={picked.includes(f.id)} onChange={(e) => setPicked((x) => (e.target.checked ? [...x, f.id] : x.filter((y) => y !== f.id)))} />
+                <CheckBox checked={picked.includes(f.id)} onChange={(on) => setPicked((x) => (on ? [...x, f.id] : x.filter((y) => y !== f.id)))}>
                   {f.fileName || t("file")}
-                </label>
+                </CheckBox>
                 {f.visibility ? <span className="esc__muted">{t(`vis.${f.visibility === "parties" ? "parties" : "staff"}`)}</span> : null}
               </li>
             ))}
@@ -156,10 +156,17 @@ function ResolveDialog({ c, onClose, onDone, onStale }: { c: MpComplaint; onClos
           <p className="esc__muted">{t("noEvidence")}</p>
         )}
         <span className="esc__up sx">
-          <select value={visibility} onChange={(e) => setVisibility(e.target.value === "parties" ? "parties" : "staff")} aria-label={t("visibility")}>
-            <option value="staff">{t("vis.staff")}</option>
-            <option value="parties">{t("vis.parties")}</option>
-          </select>
+          <span className="esc__vis">
+            <Select
+              value={visibility}
+              onChange={(v) => setVisibility(v === "parties" ? "parties" : "staff")}
+              ariaLabel={t("visibility")}
+              options={[
+                { value: "staff", label: t("vis.staff") },
+                { value: "parties", label: t("vis.parties") },
+              ]}
+            />
+          </span>
           <label className="btn btn--line btn--sm">
             {uploading ? t("uploading") : t("addFile")}
             <input type="file" hidden multiple accept={MP_EVIDENCE_TYPES.join(",")} disabled={uploading} onChange={(e) => void addFiles(e.target.files).finally(() => (e.target.value = ""))} />
@@ -189,11 +196,12 @@ function Row({ c, onResolve }: { c: MpComplaint; onResolve: () => void }): React
   const [open, setOpen] = useState(false);
   const money = (n: number | null) => (n === null ? none : `${fmtUzs(n)} ${t("som")}`);
   const st = c.settlement;
-  const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : humanize(v) || none);
+  // An unknown code reads as "another status", never as the code itself.
+  const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : v ? t("other") : none);
   return (
     <li className="esc__item" data-open={open || undefined}>
       <button type="button" className="esc__row" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <b>{c.order.workId || c.title || c.id}</b>
+        <b>{c.order.workId || c.title || t("untitled")}</b>
         <span className="esc__chip" data-s={c.status === "new" ? "open" : "resolved"}>
           {label("status", c.status)}
         </span>
@@ -225,7 +233,7 @@ function Row({ c, onResolve }: { c: MpComplaint; onResolve: () => void }): React
             </div>
             <div>
               <dt>{t("f.settlement")}</dt>
-              <dd>{st ? (tp.has(`settle.${st.status}`) ? tp(`settle.${st.status}`) : humanize(st.status)) : none}</dd>
+              <dd>{st ? (tp.has(`settle.${st.status}`) ? tp(`settle.${st.status}`) : t("other")) : none}</dd>
             </div>
             {st ? (
               <div>

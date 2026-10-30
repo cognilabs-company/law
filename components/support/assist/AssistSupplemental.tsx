@@ -21,6 +21,7 @@ const ACTIONS: Action[] = ["replace_options", "full_refund", "partial_refund"];
 const REASON_MAX = 500;
 
 export default function AssistSupplemental({ ticketId, ctx, onDone, onBlock }: AssistSectionProps) {
+  const tcm = useTranslations("common");
   const t = useTranslations("support.assist.sup");
   const ta = useTranslations("support.assist");
   const tc = useTranslations("common");
@@ -173,7 +174,7 @@ export default function AssistSupplemental({ ticketId, ctx, onDone, onBlock }: A
                   data-ai-id={ai("request", s.id)}
                 >
                   <span>
-                    <b>{[s.workId, s.serviceTitle].filter(Boolean).join(" · ") || s.id}</b>
+                    <b>{[s.workId, s.serviceTitle].filter(Boolean).join(" · ") || tcm("untitled")}</b>
                     <small>
                       {[s.options.map((o) => o.label || o.id).join(", "), s.lawyerName, s.expiresAt ? t("expires", { at: s.expiresAt.slice(0, 16).replace("T", " ") }) : ""].filter(Boolean).join(" · ")}
                     </small>

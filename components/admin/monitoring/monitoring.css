@@ -12,7 +12,6 @@
 .mon-live i { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
 .mon-live[data-on] { color: #16a34a; }
 .mon-live[data-on] i { background: #16a34a; box-shadow: 0 0 0 3px color-mix(in srgb, #16a34a 25%, transparent); }
-.mon-range select { height: 32px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; font-size: .82rem; }
 .mon-at, .mon-note { margin: 0; font-size: .78rem; color: var(--gray); }
 .mon-note[data-tone="bad"] { color: #dc2626; }
 .mon-incident { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; border: 1px solid color-mix(in srgb, #dc2626 45%, transparent); background: color-mix(in srgb, #dc2626 10%, transparent); color: var(--ink); }
@@ -69,11 +68,10 @@
 .mon-incident[data-tone="warn"] > svg { color: #d97706; }
 .mon-roles { margin: 0; font-size: .82rem; color: var(--ink); }
 .mon-filter { display: flex; gap: 8px; }
-.mon-filter input, .mon-filter select { height: 32px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; font-size: .82rem; }
+.mon-filter input { height: 32px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; font-size: .82rem; }
 .mon-filter input { flex: 1; min-width: 0; }
 .mon-hist__h { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .mon-hist__h b { margin-right: auto; }
-.mon-hist__h select, .mon-dates input { height: 32px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--dk-surface, #fff); color: var(--ink); font: inherit; font-size: .82rem; }
 .mon-dates { display: inline-flex; gap: 6px; }
 .mon-trend { display: block; width: 100%; height: 80px; border-radius: 10px; background: var(--dk-surface-2, #F5F8FD); }
 .mon-trend polyline { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; }
@@ -87,20 +85,11 @@
 .mon-export { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .mon-export__err { font-size: .76rem; color: #dc2626; }
 
-/* Selects in the app's look rather than the browser's. */
-.mon-range select, .mon-filter select, .mon-hist__h select {
-  -webkit-appearance: none;
-  appearance: none;
-  height: 36px;
-  padding: 0 32px 0 12px;
-  border: 0;
-  border-radius: 10px;
-  box-shadow: inset 0 0 0 1px var(--line);
-  background: var(--dk-surface, #fff) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;
-  cursor: pointer;
-}
-.mon-filter input, .mon-dates input { height: 36px; border: 0; box-shadow: inset 0 0 0 1px var(--line); }
-.mon-range select:focus-visible, .mon-filter select:focus-visible, .mon-hist__h select:focus-visible, .mon-filter input:focus-visible, .mon-dates input:focus-visible {
+/* The handmade Select and DatePicker in the toolbar rows. */
+.mon-range, .mon-sel { min-width: 170px; }
+.mon-dates > * { min-width: 160px; }
+.mon-filter input { height: 36px; border: 0; box-shadow: inset 0 0 0 1px var(--line); }
+.mon-filter input:focus-visible {
   outline: none;
   box-shadow: inset 0 0 0 1.5px var(--dk-acc, var(--b600)), 0 0 0 3px color-mix(in srgb, var(--dk-acc, var(--b600)) 18%, transparent);
 }

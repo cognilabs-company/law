@@ -150,6 +150,7 @@ function useKeptOne<T>(fetcher: () => Promise<T>, deps: unknown[], scope?: unkno
 // order pipeline, quality, channels and the latest activity. Every panel
 // opens the drill-down behind its numbers; demo data stays labelled.
 export default function AdminOverview() {
+  const tcm = useTranslations("common");
   const t = useTranslations("admin.overview");
   const tb = useTranslations("admin.overview.board");
   const tc = useTranslations("admin.overview.crm");
@@ -653,7 +654,7 @@ export default function AdminOverview() {
                   const late = tab === "tasks" && overdue.includes(x);
                   return (
                     <li key={x.id} className={late ? "is-late" : undefined}>
-                      <span className="aov-feed__t">{x.title || x.meta || x.id}</span>
+                      <span className="aov-feed__t">{x.title || x.meta || tcm("untitled")}</span>
                       <span className="aov-feed__s">
                         {late ? <em>{tb("late")}</em> : x.status ? <em>{label("status", x.status)}</em> : null}
                         {tab === "reviews" && x.meta ? <span className="aov-feed__rate"><IconStar aria-hidden="true" />{x.meta}</span> : x.amount ? <span>{moneyShort(x.amount)}</span> : null}

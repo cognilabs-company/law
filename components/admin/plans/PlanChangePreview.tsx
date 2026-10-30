@@ -43,8 +43,9 @@ export default function PlanChangePreview({ versionId }: { versionId: string }):
   if (state.id !== versionId) return <Skeleton rows={2} />;
   if (state.error || !state.data) return <Notice ok={false} msg={state.error || tp("failed")} />;
   const p = state.data;
-  const feature = (key: string) => (ts.has(`sx.feature.${key}`) ? ts(`sx.feature.${key}`) : key);
-  const field = (key: string) => (tp.has(`field.${key}`) ? tp(`field.${key}`) : key);
+  // A feature or field without a translation never shows its key.
+  const feature = (key: string) => (ts.has(`sx.feature.${key}`) ? ts(`sx.feature.${key}`) : t("featureOther"));
+  const field = (key: string) => (tp.has(`field.${key}`) ? tp(`field.${key}`) : t("fieldOther"));
   const money = (n: number | null) => (n === null ? none : `${fmtUzs(n)} ${tp("som")}`);
   const ent = (f: PlanFeatureChange) =>
     [t.has(`mode.${f.mode}`) ? t(`mode.${f.mode}`) : f.mode, f.mode === "limited" && f.limit !== null ? String(f.limit) : "", f.resetPeriod && f.mode === "limited" ? (t.has(`reset.${f.resetPeriod}`) ? t(`reset.${f.resetPeriod}`) : f.resetPeriod) : ""].filter(Boolean).join(" · ");

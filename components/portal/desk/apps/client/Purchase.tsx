@@ -363,6 +363,7 @@ function Sheet({ sellerUserId, sellerName, service, pkg, openLink, onClose, onSt
 // The service's extra options, ticked like a Mac checklist / Windows
 // checkboxes, with the running total under them.
 function Options({ m }: { m: ReturnType<typeof usePriceOptions> }) {
+  const tcm = useTranslations("common");
   const t = useTranslations("marketplace.priceOptions");
   const marketErr = useMarketError();
   const q = m.quote;
@@ -403,7 +404,7 @@ function Options({ m }: { m: ReturnType<typeof usePriceOptions> }) {
           </div>
           {q.breakdown.map((l, i) => (
             <div key={`${l.id}-${i}`}>
-              <dt>{l.label || l.id}</dt>
+              <dt>{l.label || tcm("option")}</dt>
               <dd>{t("fixed", { price: fmtUzs(l.amount) })}</dd>
             </div>
           ))}

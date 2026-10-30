@@ -8,6 +8,8 @@ import { IconAlert, IconBolt, IconCheck, IconClose, IconLock, IconRefresh } from
 import { ApiError, errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { shortDateTime, timeOnly } from "@/lib/date";
 import { humanizeSlug } from "@/lib/lawyers";
+import Select from "@/components/Select";
+import DatePicker from "@/components/DatePicker";
 import { onUserSocketResync, subscribeUserEvents, subscribeUserSocketState, userSocketState } from "@/lib/userSocket";
 import { MONITORING_EVENTS, applyMonitoringEvent, captureMonitoringSnapshot, getMonitoringHistory, getMonitoringIntegration, getMonitoringOverview, type MonHistory, type MonIncident, type MonIntegration, type MonNode, type MonOverview, downloadMonitoringExport, getMonitoringExport, startMonitoringExport, type MonExport } from "@/lib/services/monitoring";
 
@@ -539,20 +541,13 @@ export default function MonitoringPage(): ReactElement {
             <i aria-hidden="true" />
             {live ? t("live") : socket === "connecting" ? t("reconnecting") : t("offline")}
           </span>
-          <label className="mon-range">
-            <span className="sr-only">{t("range")}</span>
-            <select value={range} onChange={(e) => setRange(e.target.value as Range)} aria-label={t("range")}>
-              {RANGES.map((r) => (
-                <option key={r} value={r}>
-                  {t(`ranges.${r}`)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <span className="mon-range">
+            <Select value={range} onChange={(v) => setRange(v as Range)} ariaLabel={t("range")} options={RANGES.map((r) => ({ value: r, label: t(`ranges.${r}`) }))} />
+          </span>
           {range === "custom" ? (
             <span className="mon-dates">
-              <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} aria-label={t("dateFrom")} max={customTo || undefined} />
-              <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} aria-label={t("dateTo")} min={customFrom || undefined} />
+              <DatePicker value={customFrom} onChange={setCustomFrom} ariaLabel={t("dateFrom")} placeholder={t("dateFrom")} max={customTo || undefined} />
+              <DatePicker value={customTo} onChange={setCustomTo} ariaLabel={t("dateTo")} placeholder={t("dateTo")} min={customFrom || undefined} />
             </span>
           ) : null}
           <button type="button" className="btn btn--line btn--sm" onClick={() => void reload(true)} disabled={refreshing}>
@@ -634,7 +629,7 @@ export default function MonitoringPage(): ReactElement {
 
       {x.byRole.length ? (
         <p className="mon-roles">
-          <b>{t("byRole")}:</b> {x.byRole.map((r) => `${r.role} ${r.count}`).join(" · ")}
+          <b>{t("byRole")}:</b> {x.byRole.map((r) => `${t.has(`roles.${r.role}`) ? t(`roles.${r.role}`) : t("roles.other")} ${r.count}`).join(" · ")}
         </p>
       ) : null}
       <div className="mon-split">
@@ -642,10 +637,17 @@ export default function MonitoringPage(): ReactElement {
         <div className="mon-itg">
           <div className="mon-filter">
             <input type="search" value={svcQuery} onChange={(e) => setSvcQuery(e.target.value)} placeholder={t("serviceSearch")} aria-label={t("serviceSearch")} />
-            <select value={svcFilter} onChange={(e) => setSvcFilter(e.target.value as "all" | "problems")} aria-label={t("serviceFilter")}>
-              <option value="all">{t("filterAll")}</option>
-              <option value="problems">{t("filterProblems")}</option>
-            </select>
+            <span className="mon-sel">
+              <Select
+                value={svcFilter}
+                onChange={(v) => setSvcFilter(v === "problems" ? "problems" : "all")}
+                ariaLabel={t("serviceFilter")}
+                options={[
+                  { value: "all", label: t("filterAll") },
+                  { value: "problems", label: t("filterProblems") },
+                ]}
+              />
+            </span>
           </div>
           <table>
             <caption className="sr-only">{t("integrations")}</caption>
@@ -681,18 +683,21 @@ export default function MonitoringPage(): ReactElement {
       <section className="mon-hist" aria-label={t("history")}>
         <div className="mon-hist__h">
           <b>{t("history")}</b>
-          <select
-            value={histType}
-            onChange={(e) => {
-              setHistType(e.target.value as typeof histType);
-              setHistOffset(0);
-            }}
-            aria-label={t("historyType")}
-          >
-            <option value="all">{t("historyAll")}</option>
-            <option value="snapshot">{t("historySnapshots")}</option>
-            <option value="incident">{t("historyIncidents")}</option>
-          </select>
+          <span className="mon-sel">
+            <Select
+              value={histType}
+              onChange={(v) => {
+                setHistType(v as typeof histType);
+                setHistOffset(0);
+              }}
+              ariaLabel={t("historyType")}
+              options={[
+                { value: "all", label: t("historyAll") },
+                { value: "snapshot", label: t("historySnapshots") },
+                { value: "incident", label: t("historyIncidents") },
+              ]}
+            />
+          </span>
           <HistoryExport job={exportJob} error={exportErr} onStart={() => void startExport()} onDownload={() => void download()} />
         </div>
         {history ? <Trend items={history.items} label={t("trend")} /> : null}

@@ -4,6 +4,7 @@ import "./tariffs.css";
 import { useEffect, useId, useRef, useState, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { Notice } from "@/components/admin/AdminBits";
+import CheckBox from "@/components/CheckBox";
 import { Skeleton } from "@/components/portal/DataState";
 import { errDetail, logApiError } from "@/lib/http";
 import { conflictCode, createSubscriptionFeature, listSubscriptionFeatures, type FeatureRegistry as Registry } from "@/lib/services/tariffs";
@@ -17,7 +18,7 @@ export default function FeatureRegistry(): ReactElement {
   const t = useTranslations("admin.tariffs");
   const ts = useTranslations("studio");
   // The backend names features in Uzbek; known ones read in the viewer's language.
-  const featureName = (key: string, title: string) => (ts.has(`sx.feature.${key}`) ? ts(`sx.feature.${key}`) : title || key);
+  const featureName = (key: string, title: string) => (ts.has(`sx.feature.${key}`) ? ts(`sx.feature.${key}`) : title || t("featureUnnamed"));
   const ids = useId();
   const [reg, setReg] = useState<Registry | null>(null);
   const [failed, setFailed] = useState(false);
@@ -81,7 +82,6 @@ export default function FeatureRegistry(): ReactElement {
         <thead>
           <tr>
             <th scope="col">{t("featureTitle")}</th>
-            <th scope="col">{t("featureKey")}</th>
             <th scope="col">{t("unit")}</th>
             <th scope="col">{t("resets")}</th>
           </tr>
@@ -90,9 +90,6 @@ export default function FeatureRegistry(): ReactElement {
           {reg.items.map((f) => (
             <tr key={f.key}>
               <th scope="row">{featureName(f.key, f.title)}</th>
-              <td>
-                <code>{f.key}</code>
-              </td>
               <td>{f.unit || "—"}</td>
               <td>{f.resetPeriods.map(reset).join(", ") || "—"}</td>
             </tr>
@@ -140,14 +137,9 @@ export default function FeatureRegistry(): ReactElement {
         <fieldset>
           <legend>{t("resets")}</legend>
           {reg.resetPeriods.map((p) => (
-            <label key={p} className="trf-check">
-              <input
-                type="checkbox"
-                checked={form.resetPeriods.includes(p)}
-                onChange={(e) => setForm({ ...form, resetPeriods: e.target.checked ? [...form.resetPeriods, p] : form.resetPeriods.filter((x) => x !== p) })}
-              />
+            <CheckBox key={p} className="trf-check" checked={form.resetPeriods.includes(p)} onChange={(on) => setForm({ ...form, resetPeriods: on ? [...form.resetPeriods, p] : form.resetPeriods.filter((x) => x !== p) })}>
               {reset(p)}
-            </label>
+            </CheckBox>
           ))}
         </fieldset>
         {note ? <Notice ok={note.ok} msg={note.msg} /> : null}

@@ -47,6 +47,7 @@ function useLeftLabel() {
 }
 
 export function OptionLines({ options, title }: { options: OrderOption[]; title: string }) {
+  const tcm = useTranslations("common");
   if (!options.length) return null;
   return (
     <div className="mko__opts">
@@ -55,7 +56,7 @@ export function OptionLines({ options, title }: { options: OrderOption[]; title:
         {options.map((o, i) => (
           <li key={`${o.id}-${i}`}>
             <IconCheck aria-hidden="true" />
-            <span>{o.label || o.id}</span>
+            <span>{o.label || tcm("option")}</span>
             {o.amount ? <b>+{fmtUzs(o.amount)}</b> : null}
           </li>
         ))}

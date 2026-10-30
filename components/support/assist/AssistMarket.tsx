@@ -44,6 +44,7 @@ const NOTE_MAX = 1000;
 const TIME_MAX = 120;
 
 export default function AssistMarket({ ticketId, client, clientName, ctx, onDone, onBlock }: AssistSectionProps) {
+  const tcm = useTranslations("common");
   const t = useTranslations("support.assist");
   const tc = useTranslations("common");
   const ts = useTranslations("support");
@@ -313,7 +314,7 @@ export default function AssistMarket({ ticketId, client, clientName, ctx, onDone
   }
 
   const optionRows: InfoRow[] = price.quote?.breakdown.length
-    ? [{ key: "options", label: t("market.options"), value: price.quote.breakdown.map((l) => `${l.label || l.id} (+${sumText(t, l.amount)})`).join(", ") }]
+    ? [{ key: "options", label: t("market.options"), value: price.quote.breakdown.map((l) => `${l.label || tcm("option")} (+${sumText(t, l.amount)})`).join(", ") }]
     : [];
   const confirmRows: InfoRow[] =
     mode === "package" && pkg && pkgSeller

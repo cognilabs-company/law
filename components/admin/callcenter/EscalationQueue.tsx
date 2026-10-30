@@ -16,7 +16,6 @@ import { SxNote } from "@/components/admin/studio/sx/layout/Note";
 import { shortDateTime } from "@/lib/date";
 import { ApiError, errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
-import { humanize } from "@/lib/labels";
 import PersonName from "@/components/ui/PersonName";
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
@@ -185,7 +184,8 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
   const refund = esc.resolution?.refund ?? null;
   const flow = offerFlow(esc, t);
   const when = (iso: string) => (iso ? shortDateTime(iso, locale) : "");
-  const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : humanize(v) || none);
+  // An unknown code reads as "another status", never as the code itself.
+  const label = (group: string, v: string) => (v && t.has(`${group}.${v}`) ? t(`${group}.${v}`) : v ? t("other") : none);
   // The order names its seller; a previous seller who is that seller takes
   // the order's name instead of being looked up.
   const prevName = esc.previousSellerName || (esc.previousSellerUserId && esc.previousSellerUserId === o.lawyerUserId ? o.lawyerName : "");

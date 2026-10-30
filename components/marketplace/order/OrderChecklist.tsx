@@ -803,6 +803,7 @@ function EvidenceSet({
   onRemoveSaved: (i: number) => void;
   onRemoveAdd: (key: string) => void;
 }) {
+  const tcm = useTranslations("common");
   const tc = useTranslations("marketplace.complete");
   const input = useRef<HTMLInputElement>(null);
   const image = kind === "image";
@@ -858,8 +859,8 @@ function EvidenceSet({
           {saved.map((f, i) => (
             <li key={`k-${f.id}-${i}`} data-state="done">
               {glyph(icon, { size: 16 })}
-              <span>{f.name || f.id}</span>
-              {busy ? null : <SxButton size="sm" variant="ghost" icon={XIcon} aria-label={`${tc("remove")}: ${f.name || f.id}`} onClick={() => onRemoveSaved(i)} />}
+              <span>{f.name || tcm("file")}</span>
+              {busy ? null : <SxButton size="sm" variant="ghost" icon={XIcon} aria-label={`${tc("remove")}: ${f.name || tcm("file")}`} onClick={() => onRemoveSaved(i)} />}
             </li>
           ))}
           {adds.map((a) => (

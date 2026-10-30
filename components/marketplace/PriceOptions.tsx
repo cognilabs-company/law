@@ -175,6 +175,7 @@ export function usePriceOptions({
 }
 
 export default function PriceOptions(props: { target: PriceTarget; targetId: string; lawyerUserId?: string; reload?: number; onChange: (s: PriceState) => void }) {
+  const tcm = useTranslations("common");
   const t = useTranslations("marketplace.priceOptions");
   const marketErr = useMarketError();
   const { target } = props;
@@ -223,7 +224,7 @@ export default function PriceOptions(props: { target: PriceTarget; targetId: str
           </div>
           {q.breakdown.map((l, i) => (
             <div key={`${l.id}-${i}`} className="pxo__row is-add">
-              <span>{l.label || l.id}</span>
+              <span>{l.label || tcm("option")}</span>
               <b>{t("fixed", { price: fmtUzs(l.amount) })}</b>
             </div>
           ))}

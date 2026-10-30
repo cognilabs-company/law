@@ -54,7 +54,7 @@ export default function RuleChoice({
                 </span>
                 <span className="svrc__m">
                   <b>
-                    {r.title || r.id}
+                    {r.title || t("untitled")}
                     {r.version ? <small>{t("version", { v: r.version })}</small> : null}
                   </b>
                   {preview ? <small>{preview}</small> : null}
