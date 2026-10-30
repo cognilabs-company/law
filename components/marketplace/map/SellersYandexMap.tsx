@@ -4,7 +4,8 @@ import { useEffect, useEffectEvent, useId, useMemo, useRef, useState, useSyncExt
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { IconBuilding, IconClose, IconMapPin, IconMinus, IconPlus, IconRefresh, IconStarRate, IconTarget, IconUsers } from "@/components/icons";
+import { IconBriefcase, IconBuilding, IconClose, IconMapPin, IconMinus, IconPlus, IconRefresh, IconStarRate, IconTarget, IconUsers } from "@/components/icons";
+import { Navigation } from "lucide-react";
 import { aiId } from "@/lib/ai/ids";
 import { regionLabel } from "@/lib/labels";
 import { humanizeSlug, initials } from "@/lib/lawyers";
@@ -12,10 +13,12 @@ import { fmtRating } from "@/lib/date";
 import { fmtUzs } from "@/lib/money";
 import type { MarketSeller } from "@/lib/services/marketplace";
 import { precisionMeters, type Spot } from "@/lib/services/marketDiscovery";
+import { mapErrorKey, type MapErrorKey } from "@/lib/services/mapLocation";
 import {
   bboxOfBounds,
   bboxParam,
   clampZoom,
+  filtersKey,
   getSellersMap,
   isEmptyMap,
   layoutOf,
@@ -33,15 +36,18 @@ import {
   type MapBbox,
   type MapCluster,
   type MapConfig,
+  type MapFilters,
   type MapSeller,
   type SellersMapResult,
 } from "@/lib/services/sellersMap";
+import type { RouteTarget } from "./NavigateDialog";
+import type { MapLive } from "./useMapRealtime";
 import { Monogram, sellerTypeLabel } from "../bits";
 import { loadYmaps3, useHtmlTheme, useReducedMotion, type YEntity, type YMapInstance, type Ymaps3 } from "./ymaps";
 import "./sellersMap.css";
 
-type Viewport = { bbox: MapBbox; zoom: number };
-type ResState = { key: string; result: SellersMapResult | null; fail: boolean };
+export type Viewport = { bbox: MapBbox; zoom: number };
+type ResState = { key: string; result: SellersMapResult | null; fail: MapErrorKey | null };
 type Live = { y: Ymaps3; map: YMapInstance; scheme: YEntity };
 
 const LIST_MAX = 12;
@@ -64,27 +70,49 @@ export function MapPlaceholder({ label }: { label: string }) {
 export default function SellersYandexMap({
   config,
   spot,
-  serviceId,
+  center,
+  filters,
+  refresh,
+  live,
+  picking,
+  pickPoint,
+  onPick,
   base,
   known,
   locating,
   onLocate,
   onFail,
   onShowAll,
+  onViewport,
+  onNavigate,
+  hideList,
 }: {
   config: MapConfig;
   spot: Spot | null;
-  serviceId: string;
+  // Move the map here (the client's point, a place they searched for).
+  center: Spot | null;
+  filters: MapFilters;
+  // Bumped by realtime updates and reconnects: refetch the viewport.
+  refresh: number;
+  live: MapLive;
+  // Manual point selection (browser location denied): a tap marks the point.
+  picking: boolean;
+  pickPoint: Spot | null;
+  onPick: (p: Spot) => void;
   base: string;
   known: (userId: string) => MarketSeller | null;
   locating: boolean;
   onLocate: () => void;
   onFail: () => void;
   onShowAll: () => void;
+  onViewport?: (v: Viewport) => void;
+  onNavigate?: (target: RouteTarget) => void;
+  hideList?: boolean;
 }) {
   const t = useTranslations("marketplace.ymap");
   const tn = useTranslations("marketplace.nearby");
   const tm = useTranslations("marketplace");
+  const tx = useTranslations("marketMap");
   const te = useTranslations("enums");
   const locale = useLocale();
   const uid = useId();
@@ -106,15 +134,22 @@ export default function SellersYandexMap({
   const info = useSyncExternalStore(subscribeMapSellerInfo, mapSellerInfoSnapshot, mapSellerInfoServerSnapshot);
   const viewOf = (s: MapSeller) => mapSellerView(s, s.sellerUserId ? known(s.sellerUserId) : null, s.sellerUserId ? info.get(s.sellerUserId) : null);
   const nameOf = (s: MapSeller) => viewOf(s).name || tn("map.unnamed");
-  const srcText = (src: LocationSource) => (src ? t(`src.${src}`) : "");
+  const srcText = (src: LocationSource) => (src ? tx(`src.${src}`) : "");
 
   const fail = useEffectEvent(() => onFail());
+  const mapClick = useEffectEvent((ev: unknown) => {
+    if (!picking) return;
+    const ll = lngLatOf((ev as { coordinates?: unknown } | null)?.coordinates);
+    if (ll) onPick({ longitude: ll[0], latitude: ll[1] });
+  });
+  const seen = useEffectEvent((v: Viewport) => onViewport?.(v));
   const startup = useEffectEvent(() => ({ theme, center: config.center, zoom: config.zoom, debounce: config.debounceMs, lang: yandexLang(locale) }));
   const motion = useEffectEvent((ms: number) => (still ? 0 : ms));
-  const pinTitle = useEffectEvent((s: MapSeller) => (s.source ? t(`pin.${s.source}`, { name: nameOf(s) }) : t("approx", { name: nameOf(s) })));
+  const pinTitle = useEffectEvent((s: MapSeller) => (s.source ? tx(`pin.${s.source}`, { name: nameOf(s) }) : t("approx", { name: nameOf(s) })));
   const pinText = useEffectEvent((s: MapSeller) => initials(nameOf(s)) || "LG");
   const groupTitle = useEffectEvent((n: number) => t("cluster", { n }));
   const meTitle = useEffectEvent(() => tn("map.you"));
+  const pickTitle = useEffectEvent(() => tx("manual.pinned"));
 
   useEffect(() => {
     const box = boxRef.current;
@@ -149,7 +184,7 @@ export default function SellersYandexMap({
           const scheme = new y.YMapDefaultSchemeLayer({ theme: init.theme });
           map.addChild(scheme);
           map.addChild(new y.YMapDefaultFeaturesLayer({}));
-          map.addChild(new y.YMapListener({ layer: "any", onUpdate: schedule }));
+          map.addChild(new y.YMapListener({ layer: "any", onUpdate: schedule, onClick: (_o: unknown, ev: unknown) => mapClick(ev) }));
           liveRef.current = { y, map, scheme };
         } catch {
           fail();
@@ -183,30 +218,38 @@ export default function SellersYandexMap({
 
   useEffect(() => {
     const live = liveRef.current;
-    if (!ready || !live || !spot) return;
+    if (!ready || !live || !center) return;
     const zoom = Math.max(clampZoom(Number(live.map.zoom ?? 0)), SPOT_ZOOM);
-    live.map.update({ location: { center: [spot.longitude, spot.latitude], zoom, duration: motion(500) } });
-  }, [ready, spot]);
+    live.map.update({ location: { center: [center.longitude, center.latitude], zoom, duration: motion(500) } });
+  }, [ready, center]);
 
-  const key = viewport ? `${bboxParam(viewport.bbox)}|${viewport.zoom}|${serviceId}|${tick}` : "";
+  const fKey = filtersKey(filters);
+  const key = viewport ? `${bboxParam(viewport.bbox)}|${viewport.zoom}|${fKey}|${tick}|${refresh}` : "";
+
+  useEffect(() => {
+    if (viewport) seen(viewport);
+  }, [viewport]);
 
   useEffect(() => {
     if (!viewport) return;
     const c = new AbortController();
-    getSellersMap({ url: config.sellerMapUrl, bbox: viewport.bbox, zoom: viewport.zoom, serviceId, order: config.coordinateOrder }, c.signal).then(
+    getSellersMap({ url: config.sellerMapUrl, bbox: viewport.bbox, zoom: viewport.zoom, filters, order: config.coordinateOrder }, c.signal).then(
       (result) => {
-        if (!c.signal.aborted) setRes({ key, result, fail: false });
+        if (!c.signal.aborted) setRes({ key, result, fail: null });
       },
       (e) => {
         if (c.signal.aborted) return;
         const f = sellersMapFailureOf(e);
         if (f === "missing") fail();
-        else if (f === "load") setRes({ key, result: null, fail: true });
+        else if (f === "load") setRes({ key, result: null, fail: mapErrorKey(e) });
       },
     );
     return () => c.abort();
-  }, [key, viewport, serviceId, config.sellerMapUrl, config.coordinateOrder]);
+    // fKey stands for filters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, config.sellerMapUrl, config.coordinateOrder]);
 
+  // Keep the last answer on screen while the next viewport loads.
   const shown = res?.result ?? null;
   const loading = !!viewport && res?.key !== key;
   const failed = !loading && !!res?.fail;
@@ -237,7 +280,16 @@ export default function SellersYandexMap({
       el.appendChild(inner);
       if (s.sellerUserId) {
         el.dataset.seller = s.sellerUserId;
+        el.tabIndex = 0;
+        el.setAttribute("role", "button");
+        el.setAttribute("aria-label", pinTitle(s));
         el.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          pick(s.sellerUserId);
+        });
+        el.addEventListener("keydown", (ev) => {
+          if (ev.key !== "Enter" && ev.key !== " ") return;
+          ev.preventDefault();
           ev.stopPropagation();
           pick(s.sellerUserId);
         });
@@ -252,8 +304,18 @@ export default function SellersYandexMap({
       el.className = "ymk-group";
       el.dataset.size = c.count < 10 ? "s" : c.count < 100 ? "m" : "l";
       el.title = groupTitle(c.count);
+      el.tabIndex = 0;
+      el.setAttribute("role", "button");
+      el.setAttribute("aria-label", groupTitle(c.count));
+      el.dataset.cluster = c.id;
       el.textContent = c.count > 999 ? "999+" : String(c.count);
       el.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        openGroup(c);
+      });
+      el.addEventListener("keydown", (ev) => {
+        if (ev.key !== "Enter" && ev.key !== " ") return;
+        ev.preventDefault();
         ev.stopPropagation();
         openGroup(c);
       });
@@ -279,6 +341,7 @@ export default function SellersYandexMap({
       const el = s.sellerUserId ? pinsRef.current.get(s.sellerUserId) : undefined;
       if (!el) continue;
       el.title = pinTitle(s);
+      el.setAttribute("aria-label", pinTitle(s));
       const inner = el.firstElementChild;
       if (inner) inner.textContent = pinText(s);
     }
@@ -302,6 +365,21 @@ export default function SellersYandexMap({
       } catch {}
     };
   }, [ready, spot]);
+
+  useEffect(() => {
+    const live = liveRef.current;
+    if (!ready || !live || !pickPoint) return;
+    const el = document.createElement("span");
+    el.className = "ymk-pick";
+    el.title = pickTitle();
+    const m = new live.y.YMapMarker({ coordinates: [pickPoint.longitude, pickPoint.latitude], zIndex: 40 }, el);
+    live.map.addChild(m);
+    return () => {
+      try {
+        live.map.removeChild(m);
+      } catch {}
+    };
+  }, [ready, pickPoint]);
 
   const sel = selected && shown ? (shown.sellers.find((s) => s.sellerUserId === selected) ?? null) : null;
 
@@ -327,7 +405,7 @@ export default function SellersYandexMap({
   };
 
   const listed = shown ? shown.sellers.filter((s) => s.sellerUserId) : [];
-  const precM = precisionMeters(shown?.precision || "approximate_500m");
+  const precM = precisionMeters(/\d/.test(shown?.precision ?? "") ? (shown?.precision as string) : config.markerPrecision);
   const sources = new Set(listed.map((s) => s.source).filter(Boolean));
   const wantKey = [...listed.slice(0, LIST_MAX), ...(sel ? [sel] : [])]
     .filter((s) => !s.name && !known(s.sellerUserId)?.name)
@@ -392,9 +470,28 @@ export default function SellersYandexMap({
             </span>
           ) : null}
           {price ? <b className="ymk-card__price">{tm("card.priceFrom", { price: fmtUzs(price) })}</b> : null}
-          <Link href={href} className="btn btn--grad btn--sm ymk-card__go" data-ai-id="marketplace.map.card.profile">
-            {t("profile")}
-          </Link>
+          <span className="ymk-card__acts">
+            <Link href={href} className="btn btn--grad btn--sm ymk-card__go" data-ai-id="marketplace.map.card.profile">
+              {t("profile")}
+            </Link>
+            {s.service ? (
+              <Link href={`${href}#seller-services`} className="btn btn--line btn--sm ymk-card__go" data-ai-id="marketplace.map.card.service">
+                <IconBriefcase aria-hidden="true" />
+                {s.service.title ? tx("card.service", { title: s.service.title }) : tx("card.services")}
+              </Link>
+            ) : null}
+            {s.nav.available && onNavigate ? (
+              <button
+                type="button"
+                className="btn btn--line btn--sm ymk-card__go"
+                onClick={() => onNavigate({ sellerUserId: id, name, endpoint: s.nav.endpoint, modes: s.nav.modes })}
+                data-ai-id="marketplace.map.card.route"
+              >
+                <Navigation aria-hidden="true" />
+                {tx("route.open")}
+              </button>
+            ) : null}
+          </span>
         </div>
         <button type="button" className="ymk-card__x" onClick={closeCard} aria-label={t("close")} data-ai-id="marketplace.map.card.close">
           <IconClose aria-hidden="true" />
@@ -410,7 +507,7 @@ export default function SellersYandexMap({
         <span className="ymk-status__prec">{t("precision", { m: precM })}</span>
         {sources.size && !failed ? (
           <span className="ymk-legend" data-ai-id="marketplace.map.legend">
-            {(["live", "office"] as const)
+            {(["live", "office", "profile_region"] as const)
               .filter((src) => sources.has(src))
               .map((src) => (
                 <span key={src} className="ymk-legend__i">
@@ -421,12 +518,24 @@ export default function SellersYandexMap({
           </span>
         ) : null}
         {shown?.truncated && !failed ? <span className="ymk-status__more">{t("truncated")}</span> : null}
+        {live !== "off" ? (
+          <span className={`ymk-live ymk-live--${live}`} data-ai-id="marketplace.map.live">
+            <i aria-hidden="true" />
+            {tx(`live.${live}`)}
+          </span>
+        ) : null}
       </div>
       <p className="sr-only" role="status">
         {!ready ? t("loadingMap") : loading ? t("loading") : ""}
       </p>
-      <div className={`ymk-stage${ready ? "" : " ymk-stage--wait"}`}>
+      <div className={`ymk-stage${ready ? "" : " ymk-stage--wait"}${picking ? " ymk-stage--pick" : ""}`}>
         <div ref={boxRef} className="ymk-canvas" role="region" tabIndex={-1} aria-label={t("region")} aria-describedby={`${uid}-n`} />
+        {picking && ready ? (
+          <p className="ymk-pickhint" role="status" data-ai-id="marketplace.map.pick-hint">
+            <IconTarget aria-hidden="true" />
+            {pickPoint ? tx("manual.moved") : tx("manual.tap")}
+          </p>
+        ) : null}
         <p id={`${uid}-n`} className="sr-only">
           {t("regionHint")}
         </p>
@@ -469,9 +578,9 @@ export default function SellersYandexMap({
             </button>
           </div>
         ) : null}
-        {failed ? (
+        {failed && res?.fail ? (
           <div className="ymk-err" role="alert">
-            <span>{t("loadError")}</span>
+            <span>{res.fail === "generic" || res.fail === "offline" || res.fail === "not_found" ? t("loadError") : tx(`errors.${res.fail}`)}</span>
             <button type="button" className="btn btn--line btn--sm" onClick={() => setTick((n) => n + 1)} data-ai-id="marketplace.map.retry">
               <IconRefresh aria-hidden="true" />
               {t("retry")}
@@ -480,7 +589,7 @@ export default function SellersYandexMap({
         ) : null}
         {sel ? renderCard(sel) : null}
       </div>
-      {listed.length ? (
+      {listed.length && !hideList ? (
         <div className="ymk-list">
           <h3 id={`${uid}-l`}>{t("listTitle")}</h3>
           <ul ref={listRef} aria-labelledby={`${uid}-l`} data-ai-id="marketplace.map.list" data-ai-type="list">

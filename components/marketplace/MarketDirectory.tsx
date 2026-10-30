@@ -293,7 +293,7 @@ export default function MarketDirectory({
     const src = meta?.services.length ? meta.services : items.flatMap((s) => s.services.map((x) => ({ id: x.id, title: x.title, categoryId: x.categoryId })));
     const m = new Map<string, NearbyServiceOption>();
     const pro = treeRows ? treeById : null;
-    for (const x of src) if (x.id && x.title && !m.has(x.id) && (!pro || pro.has(x.categoryId))) m.set(x.id, { value: x.id, label: x.title });
+    for (const x of src) if (x.id && x.title && !m.has(x.id) && (!pro || pro.has(x.categoryId))) m.set(x.id, { value: x.id, label: x.title, categoryId: x.categoryId });
     return [...m.values()];
   }, [meta, items, treeRows, treeById]);
 
@@ -776,6 +776,7 @@ export default function MarketDirectory({
         <NearbySellers
           base={base}
           services={nearbyServices}
+          categoryTree={treeRows}
           initialRadius={nearbyPick.radius}
           initialServiceId={nearbyPick.serviceId}
           known={known}

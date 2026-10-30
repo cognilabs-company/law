@@ -48,6 +48,7 @@ import AchievementsPanel from "./AchievementsPanel";
 import AdvocatePracticePanel from "./AdvocatePracticePanel";
 import { verificationStatusOf as practiceStatus } from "@/lib/services/advocatePractice";
 import ProfileServices from "./ProfileServices";
+import OfficeLocationCard from "./OfficeLocationCard";
 
 const ZERO_STATS: AdvocateStats = { totalCases: 0, fullyWonCases: 0, partiallyWonCases: 0, successRate: 0 };
 const LANG_KEYS = ["uz", "ru", "en", "kaa", "tr", "ar"] as const;
@@ -533,6 +534,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
       <div className="cprofile__stack">
         {pPrice}
         {pHours}
+        <OfficeLocationCard />
       </div>
     ),
     security: (

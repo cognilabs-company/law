@@ -138,6 +138,13 @@ export function onUserSocketResync(h: () => void): () => void {
   return () => { syncHandlers.delete(h); };
 }
 
+// Send one event on the open socket (e.g. marketplace.map.subscribe); false
+// when it is not open — the caller sends again once the state turns online.
+export function sendUserEvent(e: UserEvent): boolean {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  try { ws.send(JSON.stringify(e)); return true; } catch { return false; }
+}
+
 export const userSocketConnection = () => connection;
 export const userSocketSeen = (name: string) => seenOn.get(name) ?? 0;
 

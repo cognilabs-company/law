@@ -1,5 +1,5 @@
-import { getNearbySellers, marketErrorInfo, NEARBY_RADII, type NearbyRadius, type NearbyResult, type NearbySeller } from "@/lib/services/marketRuntime";
-import { geoErrorKind, readPosition } from "@/lib/services/locationShare";
+import { NEARBY_RADII, type NearbyRadius } from "@/lib/services/marketRuntime";
+import { geoErrorKind } from "@/lib/services/locationShare";
 
 // How the client browses sellers: by specialist, by service, or nearby.
 export type NearbyMode = "all" | "services" | "nearby";
@@ -65,31 +65,6 @@ export function geoFailureOf(e: unknown): GeoFailure {
   return (GEO_FAILURES as readonly string[]).includes(kind) ? (kind as GeoFailure) : "unavailable";
 }
 
-export async function locateClient(): Promise<Spot> {
-  try {
-    const fix = await readPosition({ maximumAgeMs: 60_000, timeoutMs: 15_000 });
-    return { latitude: roundCoord(fix.latitude), longitude: roundCoord(fix.longitude) };
-  } catch (e) {
-    throw { kind: geoFailureOf(e) };
-  }
-}
-
-export function findNearby(spot: Spot, radius: NearbyRadius, serviceId: string, signal?: AbortSignal): Promise<NearbyResult> {
-  return getNearbySellers({ latitude: roundCoord(spot.latitude), longitude: roundCoord(spot.longitude), radiusKm: radius, serviceId: serviceId.trim() || undefined }, signal);
-}
-
-export type NearbyFailure = { kind: "radius" | "load"; allowed: NearbyRadius[]; status: number };
-
-export function nearbyFailureOf(e: unknown): NearbyFailure {
-  const info = marketErrorInfo(e);
-  if (!info) return { kind: "load", allowed: [], status: 0 };
-  if (info.code === "radius_invalid") {
-    const allowed = info.allowed.filter(isNearbyRadius);
-    return { kind: "radius", allowed: allowed.length ? allowed : [...NEARBY_RADII], status: info.status };
-  }
-  return { kind: "load", allowed: [], status: info.status };
-}
-
 export type ApproxDistance = { unit: "m" | "km"; value: number };
 
 export function approxDistance(km: number | null): ApproxDistance | null {
@@ -104,24 +79,4 @@ export function precisionMeters(precision: string): number {
   const hit = /(\d+)\s*m/.exec(precision || "");
   const n = hit ? Number(hit[1]) : 0;
   return n > 0 ? n : 50;
-}
-
-export function sortNearby(items: readonly NearbySeller[]): NearbySeller[] {
-  return items
-    .map((s, i) => ({ s, i }))
-    .sort((a, b) => {
-      const da = a.s.distanceKm;
-      const db = b.s.distanceKm;
-      const na = da === null || !Number.isFinite(da);
-      const nb = db === null || !Number.isFinite(db);
-      if (na !== nb) return na ? 1 : -1;
-      if (!na && !nb && da !== db) return (da as number) - (db as number);
-      return a.i - b.i;
-    })
-    .map((x) => x.s);
-}
-
-export function nearbyKey(spot: Spot | null, radius: NearbyRadius, serviceId: string): string {
-  if (!spot) return "";
-  return `${spot.latitude},${spot.longitude}|${radius}|${serviceId}`;
 }

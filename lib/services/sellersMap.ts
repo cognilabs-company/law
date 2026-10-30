@@ -3,7 +3,15 @@ import { normNearby, type NearbySeller } from "@/lib/services/marketRuntime";
 import { getMarketplaceSeller, type MarketSeller } from "@/lib/services/marketplace";
 
 export type LngLat = [number, number];
-export type LocationSource = "live" | "office" | "";
+// Where a public marker comes from. Every one is approximate: "live" is the
+// seller's shared position, "office" their office, "profile_region" only the
+// centre of the region in their profile.
+export type LocationSource = "live" | "office" | "profile_region" | "";
+export type NavMode = "driving" | "walking" | "transit" | "bicycle";
+export const NAV_MODES: readonly NavMode[] = ["driving", "walking", "transit", "bicycle"];
+export type SellerNav = { available: boolean; modes: NavMode[]; endpoint: string };
+export type ServiceAction = { serviceId: string; title: string; price: number };
+export type MapRealtime = { subscribe: string; unsubscribe: string; subscribed: string; update: string };
 export type MapBbox = { minLon: number; minLat: number; maxLon: number; maxLat: number };
 export type CoordOrder = "longitude_latitude" | "latitude_longitude";
 
@@ -18,10 +26,24 @@ export type MapConfig = {
   sellerMapUrl: string;
   coordinateOrder: CoordOrder;
   debounceMs: number;
+  nearbySearchUrl: string;
+  consentUrl: string;
+  officeUrl: string;
+  navigationTemplate: string;
+  geocoderSearchUrl: string;
+  geocoderReverseUrl: string;
+  geocoderOn: boolean;
+  accuracyWarnM: number;
+  consentHours: number;
+  consentDurations: number[];
+  countryBbox: MapBbox | null;
+  markerPrecision: string;
+  nearbyPrecision: string;
+  realtime: MapRealtime;
   raw: Dict;
 };
 
-export type MapSeller = NearbySeller & { coords: LngLat; source: LocationSource };
+export type MapSeller = NearbySeller & { coords: LngLat; source: LocationSource; nav: SellerNav; service: ServiceAction | null };
 export type MapCluster = { id: string; coords: LngLat; count: number; bbox: MapBbox | null };
 export type SellersMapResult = { sellers: MapSeller[]; clusters: MapCluster[]; count: number; total: number; truncated: boolean; precision: string; raw: Dict };
 export type MapLayout = { singles: MapSeller[]; groups: MapCluster[] };
@@ -30,6 +52,22 @@ export const DEFAULT_MAP_CENTER: LngLat = [69.2401, 41.2995];
 export const DEFAULT_MAP_ZOOM = 11;
 export const SPOT_ZOOM = 13;
 export const DEFAULT_SELLER_MAP_URL = "/marketplace/sellers/map";
+export const DEFAULT_NEARBY_SEARCH_URL = "/marketplace/nearby-sellers/search";
+export const DEFAULT_CONSENT_URL = "/marketplace/me/location-consent";
+export const DEFAULT_OFFICE_URL = "/marketplace/me/office-location";
+export const DEFAULT_NAV_TEMPLATE = "/marketplace/sellers/{seller_user_id}/navigation";
+export const DEFAULT_GEOCODER_SEARCH_URL = "/marketplace/geocoder/search";
+export const DEFAULT_GEOCODER_REVERSE_URL = "/marketplace/geocoder/reverse";
+export const DEFAULT_REALTIME: MapRealtime = {
+  subscribe: "marketplace.map.subscribe",
+  unsubscribe: "marketplace.map.unsubscribe",
+  subscribed: "marketplace.map.subscribed",
+  update: "marketplace.seller_location_updated",
+};
+// The whole country, for a list without a map (the config's country_bbox).
+export const UZ_BBOX: MapBbox = { minLon: 55.9, minLat: 37.1, maxLon: 73.2, maxLat: 45.7 };
+// From this zoom on the map endpoint answers single markers, not clusters.
+export const MARKER_ZOOM = 13;
 const DEFAULT_DEBOUNCE_MS = 400;
 const CLUSTER_CELL_PX = 48;
 
@@ -76,9 +114,45 @@ export function lngLatOf(v: unknown, order: CoordOrder = "longitude_latitude"): 
   return lat !== null && lon !== null && validLngLat(lon, lat) ? [lon, lat] : null;
 }
 
-function relPath(v: unknown, fallback: string): string {
+export function relPath(v: unknown, fallback: string): string {
   const s = trimmed(v);
   return /^\/(?!\/)[A-Za-z0-9/_-]+$/.test(s) ? s : fallback;
+}
+
+function navTemplateOf(v: unknown): string {
+  const s = trimmed(v);
+  return /^\/(?!\/)[A-Za-z0-9/_-]*\{seller_user_id\}[A-Za-z0-9/_-]*$/.test(s) ? s : DEFAULT_NAV_TEMPLATE;
+}
+
+const eventName = (v: unknown, fallback: string): string => {
+  const s = trimmed(v);
+  return /^[a-z][a-z0-9_.]{2,80}$/.test(s) ? s : fallback;
+};
+
+export function navModesOf(v: unknown): NavMode[] {
+  const list = Array.isArray(v) ? v.map((x) => trimmed(x).toLowerCase()) : [];
+  const modes = NAV_MODES.filter((m) => list.includes(m));
+  return modes.length ? modes : [...NAV_MODES];
+}
+
+// navigation.available is the source of truth: the backend sets it only when
+// the seller opened public office navigation (or an active paid order of
+// this client unlocks the live location).
+export function sellerNavOf(v: unknown): SellerNav {
+  const d = dictOf(v);
+  const nav = dictOf(d.navigation);
+  const available = (nav.available ?? d.navigation_available) === true;
+  return { available, modes: navModesOf(nav.modes), endpoint: relPath(nav.endpoint, "") };
+}
+
+export function serviceActionOf(v: unknown): ServiceAction | null {
+  const a = dictOf(dictOf(v).service_action);
+  const svc = dictOf(a.service);
+  const serviceId = trimmed(a.service_id ?? svc.id ?? a.id);
+  const title = trimmed(a.title ?? a.service_title ?? svc.title ?? a.label);
+  if (!serviceId && !title) return null;
+  const price = numOrNull(a.effective_price ?? a.selected_price ?? a.price ?? a.base_price ?? svc.base_price);
+  return { serviceId, title, price: price !== null && price > 0 ? price : 0 };
 }
 
 export function normMapConfig(v: unknown): MapConfig {
@@ -92,19 +166,55 @@ export function normMapConfig(v: unknown): MapConfig {
   const apiKey = trimmed(d.maps_api_key ?? d.api_key ?? d.apikey);
   const configured = d.configured !== false && apiKey !== "";
   const debounce = numOrNull(d.viewport_debounce_ms);
+  const policy = dictOf(d.consent_policy);
+  const durations = (Array.isArray(policy.allowed_duration_hours) ? policy.allowed_duration_hours : [1, 24, 168, 720])
+    .map(numOrNull)
+    .filter((n): n is number => n !== null && n > 0)
+    .map(Math.round);
+  const allowed = durations.length ? durations : [1, 24, 168, 720];
+  const wantHours = numOrNull(policy.default_duration_hours) ?? 24;
+  const rt = dictOf(d.realtime);
+  const warn = numOrNull(d.accuracy_warning_threshold_meters);
   return {
     provider,
     apiVersion,
     apiKey,
     configured,
-    usable: configured && provider === "yandex" && (apiVersion === "" || apiVersion === "v3") && /^[A-Za-z0-9-]{8,80}$/.test(apiKey),
+    // The page always loads the Yandex Maps v3 script with this key (the
+    // contract's api_version); a key that v3 refuses only fails the script
+    // load, and the page falls back to the list.
+    usable: configured && (provider === "" || provider === "yandex") && /^[A-Za-z0-9-]{8,80}$/.test(apiKey),
     center,
     zoom: zoomN === null ? DEFAULT_MAP_ZOOM : clampZoom(zoomN),
     sellerMapUrl: relPath(d.seller_map_url, DEFAULT_SELLER_MAP_URL),
     coordinateOrder: order,
     debounceMs: debounce !== null && debounce >= 100 && debounce <= 3000 ? Math.round(debounce) : DEFAULT_DEBOUNCE_MS,
+    nearbySearchUrl: relPath(d.nearby_search_url, DEFAULT_NEARBY_SEARCH_URL),
+    consentUrl: relPath(d.location_consent_url, DEFAULT_CONSENT_URL),
+    officeUrl: relPath(d.seller_office_location_url, DEFAULT_OFFICE_URL),
+    navigationTemplate: navTemplateOf(d.navigation_url_template),
+    geocoderSearchUrl: relPath(d.geocoder_search_url, DEFAULT_GEOCODER_SEARCH_URL),
+    geocoderReverseUrl: relPath(d.geocoder_reverse_url, DEFAULT_GEOCODER_REVERSE_URL),
+    geocoderOn: d.geocoder_configured !== false,
+    accuracyWarnM: warn !== null && warn > 0 ? Math.round(warn) : 500,
+    consentHours: allowed.includes(wantHours) ? wantHours : allowed.includes(24) ? 24 : allowed[0],
+    consentDurations: allowed,
+    countryBbox: bboxOf(loc.country_bbox ?? d.country_bbox, "longitude_latitude"),
+    markerPrecision: trimmed(dictOf(d.privacy).public_marker_precision).toLowerCase() || "approximate_500m",
+    nearbyPrecision: trimmed(dictOf(d.privacy).nearby_precision).toLowerCase() || "approximate_50m",
+    realtime: {
+      subscribe: eventName(rt.subscribe_event, DEFAULT_REALTIME.subscribe),
+      unsubscribe: eventName(rt.unsubscribe_event, DEFAULT_REALTIME.unsubscribe),
+      subscribed: eventName(rt.subscribed_event, DEFAULT_REALTIME.subscribed),
+      update: eventName(rt.update_event, DEFAULT_REALTIME.update),
+    },
     raw: d,
   };
+}
+
+// The config when the backend could not be asked: no map, the list only.
+export function offlineMapConfig(): MapConfig {
+  return { ...normMapConfig({ configured: false }), usable: false };
 }
 
 let configPromise: Promise<MapConfig> | null = null;
@@ -197,19 +307,19 @@ function isClusterFeature(f: Dict): boolean {
 export function locationSourceOf(v: unknown): LocationSource {
   const d = dictOf(v);
   const s = trimmed(d.location_source ?? dictOf(d.location).source).toLowerCase();
-  return s === "live" || s === "office" ? s : "";
+  return s === "live" || s === "office" || s === "profile_region" ? s : "";
 }
 
 function sellerOf(v: unknown, order: CoordOrder, precision: string): MapSeller | null {
   const f = flatFeature(v);
   const seller = dictOf(f.seller ?? f.lawyer);
   const sellerId = trimmed(f.seller_user_id ?? f.lawyer_user_id ?? f.user_id ?? f.seller_id ?? seller.user_id ?? seller.id) || trimmed(f.id);
-  const base = normNearby({ items: [{ ...f, seller_user_id: sellerId, location_precision: f.location_precision ?? f.precision ?? precision }] }).items[0];
+  const base = normNearby({ items: [{ ...f, name: f.display_name ?? f.name, seller_user_id: sellerId, location_precision: f.location_precision ?? f.precision ?? precision }] }).items[0];
   if (!base) return null;
   const own = lngLatOf(f.coordinates, order);
   const coords = own ?? (base.longitude !== null && base.latitude !== null && validLngLat(base.longitude, base.latitude) ? ([base.longitude, base.latitude] as LngLat) : null);
   if (!coords) return null;
-  return { ...base, longitude: coords[0], latitude: coords[1], coords, exact: false, source: locationSourceOf(f) };
+  return { ...base, longitude: coords[0], latitude: coords[1], coords, exact: false, source: locationSourceOf(f), nav: sellerNavOf(f), service: serviceActionOf(f) };
 }
 
 function clusterOf(v: unknown, order: CoordOrder, i: number): MapCluster | null {
@@ -271,21 +381,45 @@ export function emptySellersMap(): SellersMapResult {
   return { sellers: [], clusters: [], count: 0, total: 0, truncated: false, precision: "", raw: {} };
 }
 
-export type SellersMapQuery = { url?: string; bbox: MapBbox; zoom: number; serviceId?: string; sellerType?: string; limit?: number; order?: CoordOrder };
+export type SellerTypeFilter = "" | "advokat" | "yurist" | "advokat_tashkiloti";
+export const SELLER_TYPE_FILTERS: readonly Exclude<SellerTypeFilter, "">[] = ["advokat", "yurist", "advokat_tashkiloti"];
+export const MIN_RATING_STEPS: readonly number[] = [0, 3, 4, 4.5];
+// The map and nearby filters. verified_only is on by default (the backend's
+// own default): unverified specialists show only when the client asks.
+export type MapFilters = { serviceId: string; categoryId: string; subcategoryId: string; sellerType: SellerTypeFilter; minRating: number; verifiedOnly: boolean };
+export const DEFAULT_MAP_FILTERS: MapFilters = { serviceId: "", categoryId: "", subcategoryId: "", sellerType: "", minRating: 0, verifiedOnly: true };
+
+export function sellerTypeFilterOf(v: unknown): SellerTypeFilter {
+  const s = trimmed(v).toLowerCase();
+  return (SELLER_TYPE_FILTERS as readonly string[]).includes(s) ? (s as SellerTypeFilter) : "";
+}
+
+export function filtersKey(f: MapFilters): string {
+  return [f.serviceId, f.categoryId, f.subcategoryId, f.sellerType, f.minRating, f.verifiedOnly ? 1 : 0].join("|");
+}
+
+export function filterParams(f: MapFilters, qs: URLSearchParams): URLSearchParams {
+  const put = (k: string, v: string) => {
+    const s = v.trim();
+    if (s) qs.set(k, s);
+  };
+  put("service_id", f.serviceId);
+  put("category_id", f.categoryId);
+  put("subcategory_id", f.subcategoryId);
+  put("seller_type", f.sellerType);
+  if (f.minRating > 0) qs.set("minimum_rating", String(clamp(f.minRating, 0, 5)));
+  qs.set("verified_only", f.verifiedOnly ? "true" : "false");
+  return qs;
+}
+
+export type SellersMapQuery = { url?: string; bbox: MapBbox; zoom: number; filters?: MapFilters; serviceId?: string; sellerType?: string; limit?: number; order?: CoordOrder };
 
 export async function getSellersMap(q: SellersMapQuery, signal?: AbortSignal): Promise<SellersMapResult> {
   const qs = new URLSearchParams({ bbox: bboxParam(q.bbox), zoom: String(clampZoom(q.zoom)) });
-  const sid = (q.serviceId ?? "").trim();
-  if (sid) qs.set("service_id", sid);
-  const type = (q.sellerType ?? "").trim();
-  if (type) qs.set("seller_type", type);
+  const f: MapFilters = q.filters ?? { ...DEFAULT_MAP_FILTERS, serviceId: q.serviceId ?? "", sellerType: sellerTypeFilterOf(q.sellerType) };
+  filterParams(f, qs);
   if (q.limit && Number.isFinite(q.limit)) qs.set("limit", String(clamp(Math.round(q.limit), 1, 500)));
-  try {
-    return normSellersMap(await http(`${relPath(q.url, DEFAULT_SELLER_MAP_URL)}?${qs}`, { signal }), q.order);
-  } catch (e) {
-    if (e instanceof ApiError && e.code === "service_not_found") return emptySellersMap();
-    throw e;
-  }
+  return normSellersMap(await http(`${relPath(q.url, DEFAULT_SELLER_MAP_URL)}?${qs}`, { signal }), q.order);
 }
 
 export type SellersMapFailure = "aborted" | "missing" | "load";
