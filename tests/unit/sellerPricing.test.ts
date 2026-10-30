@@ -26,6 +26,8 @@ describe("seller service configuration", () => {
   it("reads the backend's growth percent and criteria from pricing_limits", () => {
     const c = normSellerConfig(live, "s1");
     expect(c.maxIncreasePercent).toBe(89);
+    // TSK-640502: the service's overall maximum is pricing_limits.potential_max_price.
+    expect(c.serviceMaximumPrice).toBe(188760);
     expect(c.maximumPrice).toBe(100000);
     expect(c.minimumListingPrice).toBe(70000);
     expect(c.requirements.map((r) => [r.key, r.met, r.progress])).toEqual([

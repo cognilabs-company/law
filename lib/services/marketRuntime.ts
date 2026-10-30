@@ -753,7 +753,9 @@ export function normSellerConfig(v: unknown, serviceId = ""): SellerServiceConfi
     selectableRules,
     selectedRuleIds,
     requiredRules,
-    serviceMaximumPrice: uzs(src, "service_maximum_price", "overall_maximum_price", "absolute_maximum_price", "price_ceiling", "max_price_cap") || uzs(lim, "service_maximum_price", "overall_maximum_price", "price_ceiling", "max_price_cap"),
+    // The live key is pricing_limits.potential_max_price: the most this
+    // service can reach once every criterion is met (TSK-640502).
+    serviceMaximumPrice: uzs(lim, "potential_max_price") || uzs(src, "potential_max_price", "service_maximum_price", "overall_maximum_price", "absolute_maximum_price", "price_ceiling", "max_price_cap") || uzs(lim, "service_maximum_price", "overall_maximum_price", "price_ceiling", "max_price_cap"),
     maxIncreasePercent: increase !== null && increase >= 0 ? increase : null,
     requirements: requirementsOf(src.requirements, src.price_requirements, src.unmet_requirements, dictOf(src.eligibility).requirements, d.requirements, d.price_requirements, lim.requirements),
     raw: d,

@@ -72,7 +72,7 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
   const known = crit.some((r) => r.met !== null);
   const reasons = explanation;
   const num = (v: number) => new Intl.NumberFormat(locale === "en" ? "en-US" : locale === "ru" ? "ru-RU" : "uz-UZ", { maximumFractionDigits: 1 }).format(v);
-  const fieldLabel = (k: string) => (t.has(`f.${k}`) ? t(`f.${k}`) : k.replace(/[_-]+/g, " ").replace(/^\S/, (c) => c.toUpperCase()));
+  const fieldLabel = (k: string) => (t.has(`f.${k}`) ? t(`f.${k}`) : t("f.other"));
   const scalar = (v: unknown, unit: string): string => {
     if (v === null || v === undefined || v === "") return "";
     if (typeof v === "boolean") return v ? t("yes") : t("no");
@@ -98,7 +98,9 @@ export default function PriceLimits({ minimum, recommended, sellerMax, serviceMa
     const s = scalar(v, unit);
     return s ? <b className="svcap__val">{s}</b> : null;
   };
-  const reqLabel = (r: PriceRequirement) => r.label || (t.has(`req.${r.key}`) ? t(`req.${r.key}`) : r.key);
+  // A criterion the backend sent no label for, and the frontend doesn't
+  // know, reads as "another criterion" — never its key.
+  const reqLabel = (r: PriceRequirement) => r.label || (t.has(`req.${r.key}`) ? t(`req.${r.key}`) : t("req.other"));
   // The limits in words, each sentence carrying only numbers the backend sent.
   const unmet = crit.filter((r) => r.met === false);
   const facts: string[] = [];
