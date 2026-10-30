@@ -13920,7 +13920,7 @@
       }
     },
     "myPlan": {"title": "My plan", "unnamed": "Plan", "version": "Version {n}", "fixed": "Your terms are fixed for this period: even if the tariff changes later, they stay the same until renewal.", "changedTitle": "The plan's terms have changed", "changedText": "New terms apply from your next payment. Please confirm you accept them to continue.", "consent": "I accept the new terms", "consenting": "Sending…", "consentDone": "Thank you! The new terms start next period.", "consentFailed": "Couldn't send your consent. Please try again.", "unavailable": "Unavailable", "unlimited": "Unlimited", "limited": "Limited", "used": "{used} of {limit} used", "remaining": "{n} left", "resets": "Resets {date}", "period": {"monthly": "Monthly", "six_month": "6 months", "yearly": "Yearly", "prepaid_yearly": "Yearly (prepaid)"}, "stop": "Don't renew", "stopDone": "Auto-renewal is off: your plan keeps its current terms until the end of this period.", "stopFailed": "Couldn't change that. Please try again."},
-    "experience": {"title": "Experience by category", "lead": "Add each workplace separately — one workplace can hold several positions. Parallel jobs are fine. Every change takes effect after the call center checks it; only verified experience affects your price and rating.", "add": "Add experience", "empty": "No experience added yet.", "edit": "Edit", "status": {"approved": "Verified", "pending": "Under review", "rejected": "Rejected", "approvedYears": "Verified · {n, plural, one {# year} other {# years}}", "pending_review": "In review", "cancelled": "Cancelled", "superseded": "Replaced", "other": "Other status"}, "pendingKeeps": "The new edit is under review; the verified details stay in force until then.", "reason": "Rejected because: {text}", "editNote": "The edit goes to a new review.", "category": "Category", "pickCategory": "Choose a category", "description": "Describe your experience", "descriptionPh": "In which field, with what kind of matters you worked, and what your experience gives a client", "issue": {"category": "Choose a category", "description": "At least {n} characters", "contacts": "Remove contact details from the description", "workplace": "Enter the workplace", "position": "Enter the position", "started": "Enter the start date (not in the future)", "ended": "The end date must be after the start and not after today"}, "verifyNote": "Your experience will be verified by LexGo.", "cancel": "Cancel", "submit": "Send for review", "sending": "Sending…", "sent": "Sent for review.", "failed": "Couldn't send.", "loadFailed": "Couldn't load your experience.", "now": "present", "cancelPending": "Cancel review", "cancelled": "The edit under review was cancelled.", "workplace": "Workplace", "position": "Position", "startedAt": "Started", "endedAt": "Ended", "isCurrent": "I still work here", "stages": "Stages", "results": "Results", "evidence": "Supporting files", "evidenceHint": "PDF, JPG, PNG, WEBP, DOC, DOCX · up to 20 MB", "addFile": "Add file", "uploading": "Uploading…", "file": "File", "removeFile": "Remove {name}", "fileBad": "“{name}” has the wrong type or size", "fileFailed": "Couldn't upload the file.", "err": {"experience_dates_invalid": "The dates are invalid", "experience_future_date": "The date can't be in the future", "experience_dates_overlap": "This period overlaps other experience", "experience_category_invalid": "Invalid category", "experience_subcategory_invalid": "Invalid subcategory", "experience_stage_invalid": "Invalid stage", "experience_result_invalid": "Invalid result", "experience_fields_required": "Fill in the required fields", "experience_revision_already_pending": "An edit of this experience is already under review", "evidence_file_too_large": "The file is larger than 20 MB.", "evidence_file_type_not_allowed": "This file type isn't accepted.", "evidence_not_found": "File not found — please upload it again.", "experience_position_required": "Enter at least one position.", "experience_position_dates_invalid": "The position's dates are invalid."}, "stage": {"pre_investigation": "Pre-investigation", "investigation": "Investigation", "first_instance": "First instance", "appeal": "Appeal", "cassation": "Cassation", "supervision": "Supervisory review", "enforcement": "Enforcement", "advisory": "Advisory", "transactional": "Transactional"}, "result": {"full_success": "Full success", "partial_success": "Partial success", "settlement": "Settlement", "dismissed": "Case dismissed", "acquittal": "Acquittal", "sentence_reduced": "Sentence reduced", "claim_granted": "Claim granted", "claim_partially_granted": "Claim partly granted", "defense_success": "Successful defence", "other": "Other"}, "subcategory": "Subcategory (optional)", "anySubcategory": "Whole category", "sumApproved": "Approved areas", "sumYears": "Approved years", "sumPending": "Under review", "emptyTitle": "No experience added yet", "emptyText": "Add your work experience for each area — approved experience raises your price and rating.", "editNamed": "Edit the “{name}” experience", "period": "Period", "addTitle": "New experience", "editTitle": "Edit experience", "secArea": "Area", "secWork": "Workplace and positions", "secCases": "Cases and results", "secProof": "What the experience was", "workplacePh": "E.g. “Adolat” law office", "positionPh": "E.g. Advocate", "descLeft": "At least {n} more characters", "descCount": "{n} / 2000", "pickDate": "Pick a date", "progress": "{done} of {total} sections ready", "secAreaHint": "Which area of law the experience belongs to.", "secWorkHint": "The organisation and each of your positions there with its own dates.", "secCasesHint": "The stages of the cases you handled and the results you achieved.", "secProofHint": "What this experience consisted of — for the client and the reviewer.", "subsN": "{n, plural, one {# area} other {# areas}}", "categoryLocked": "The category can't be changed when editing.", "periodNow": "I work here now", "periodEnded": "Finished", "stillHere": "Ongoing to this day", "spanTotal": "Total experience: {span}", "durY": "{n, plural, one {# year} other {# years}}", "durM": "{n, plural, one {# month} other {# months}}", "durLess": "less than a month", "picked": "{n} selected", "secDone": "Ready", "optional": "Optional", "required": "Required", "noCategory": "Category", "revisions": "{n} revisions", "positionN": "Position {n}", "removePosition": "Remove position {n}", "positionDuties": "Duties", "positionDutiesPh": "What you did in this position", "addPosition": "Add another position", "parallelNote": "If you worked somewhere else at the same time, add it as a separate workplace — overlapping periods are never counted twice.", "secFiles": "Supporting documents", "secFilesHint": "Work record book, an order, a reference or another document.", "why": {"checkTitle": "LexGo checks it", "check": "The call center matches the document with the workplace and dates.", "privateTitle": "Stays private", "private": "Only you and the reviewer see the files — they never show on your profile.", "gainTitle": "What it gives you", "gain": "Verified experience raises your profile's trust, client matching, your price ceiling and your rating."}, "fileType": "“{name}” — this file type isn't accepted. Upload PDF, DOC, DOCX, JPG, PNG or WEBP.", "fileBig": "“{name}” is larger than 20 MB.", "kind": {"category_experience": "Category experience", "pre_advocate_employment": "Pre-advocate employment"}, "kindLabel": "Type", "live": {"reviewed": "A decision was made on your experience.", "chat": "The reviewer opened a chat about your experience."}, "pre": {"title": "Employment before advocate status (public bodies / private organizations)", "lead": "Where you worked before becoming an advocate: one record per organization, with several positions. It doesn't count toward advocate tenure and is kept apart from category experience.", "add": "Add organization", "emptyTitle": "No workplaces yet", "emptyText": "Add your positions at a public body or a private organization — LexGo verifies them.", "addTitle": "Workplace before advocate status", "editTitle": "Edit workplace", "verifyNote": "LexGo verifies the record; documents are never published.", "secWork": "Organization and positions", "secWorkHint": "If you held several positions there, add them all.", "secProofHint": "A short note about your work at this organization.", "workplace": "Organization name", "workplacePh": "E.g. Tashkent City Prosecutor's Office", "parallelNote": "Add a separate record for another organization. Overlapping periods are merged automatically.", "org": "Organization", "sumApproved": "Approved workplaces"}},
+    "experience": {"title": "Experience by category", "lead": "Add each workplace separately — one workplace can hold several positions. Parallel jobs are fine. Every change takes effect after the call center checks it; only verified experience affects your price and rating.", "add": "Add experience", "empty": "No experience added yet.", "edit": "Edit", "status": {"approved": "Verified", "pending": "Under review", "rejected": "Rejected", "approvedYears": "Verified · {n, plural, one {# year} other {# years}}", "pending_review": "In review", "cancelled": "Cancelled", "superseded": "Replaced", "other": "Other status"}, "pendingKeeps": "The new edit is under review; the verified details stay in force until then.", "reason": "Rejected because: {text}", "editNote": "The edit goes to a new review.", "category": "Category", "pickCategory": "Choose a category", "description": "Describe your experience", "descriptionPh": "In which field, with what kind of matters you worked, and what your experience gives a client", "issue": {"category": "Choose a category", "description": "At least {n} characters", "contacts": "Remove contact details from the description", "workplace": "Enter the workplace", "position": "Enter the position", "started": "Enter the start date (not in the future)", "ended": "The end date must be after the start and not after today"}, "verifyNote": "Your experience will be verified by LexGo.", "cancel": "Cancel", "submit": "Send for review", "sending": "Sending…", "sent": "Sent for review.", "failed": "Couldn't send.", "loadFailed": "Couldn't load your experience.", "now": "present", "cancelPending": "Cancel review", "cancelled": "The edit under review was cancelled.", "workplace": "Workplace", "position": "Position", "startedAt": "Started", "endedAt": "Ended", "isCurrent": "I still work here", "stages": "Stages", "results": "Results", "evidence": "Supporting files", "evidenceHint": "PDF, JPG, PNG, WEBP, DOC, DOCX · up to 20 MB", "addFile": "Add file", "uploading": "Uploading…", "file": "File", "removeFile": "Remove {name}", "fileBad": "“{name}” has the wrong type or size", "fileFailed": "Couldn't upload the file.", "err": {"experience_dates_invalid": "The dates are invalid", "experience_future_date": "The date can't be in the future", "experience_dates_overlap": "This period overlaps other experience", "experience_category_invalid": "Invalid category", "experience_subcategory_invalid": "Invalid subcategory", "experience_stage_invalid": "Invalid stage", "experience_result_invalid": "Invalid result", "experience_fields_required": "Fill in the required fields", "experience_revision_already_pending": "An edit of this experience is already under review", "evidence_file_too_large": "The file is larger than 20 MB.", "evidence_file_type_not_allowed": "This file type isn't accepted.", "evidence_not_found": "File not found — please upload it again.", "experience_position_required": "Enter at least one position.", "experience_position_dates_invalid": "The position's dates are invalid."}, "stage": {"pre_investigation": "Pre-investigation", "investigation": "Investigation", "first_instance": "First instance", "appeal": "Appeal", "cassation": "Cassation", "supervision": "Supervisory review", "enforcement": "Enforcement", "advisory": "Advisory", "transactional": "Transactional"}, "result": {"full_success": "Full success", "partial_success": "Partial success", "settlement": "Settlement", "dismissed": "Case dismissed", "acquittal": "Acquittal", "sentence_reduced": "Sentence reduced", "claim_granted": "Claim granted", "claim_partially_granted": "Claim partly granted", "defense_success": "Successful defence", "other": "Other"}, "subcategory": "Subcategory (optional)", "anySubcategory": "Whole category", "sumApproved": "Approved areas", "sumYears": "Approved years", "sumPending": "Under review", "emptyTitle": "No experience added yet", "emptyText": "Add your work experience for each area — approved experience raises your price and rating.", "editNamed": "Edit the “{name}” experience", "period": "Period", "addTitle": "New experience", "editTitle": "Edit experience", "secArea": "Area", "secWork": "Workplace and positions", "secCases": "Cases and results", "secProof": "What the experience was", "workplacePh": "E.g. “Adolat” law office", "positionPh": "E.g. Advocate", "descLeft": "At least {n} more characters", "descCount": "{n} / 2000", "pickDate": "Pick a date", "progress": "{done} of {total} sections ready", "secAreaHint": "Which area of law the experience belongs to.", "secWorkHint": "The organisation and each of your positions there with its own dates.", "secCasesHint": "The stages of the cases you handled and the results you achieved.", "secProofHint": "What this experience consisted of — for the client and the reviewer.", "subsN": "{n, plural, one {# area} other {# areas}}", "categoryLocked": "The category can't be changed when editing.", "periodNow": "I work here now", "periodEnded": "Finished", "stillHere": "Ongoing to this day", "spanTotal": "Total experience: {span}", "durY": "{n, plural, one {# year} other {# years}}", "durM": "{n, plural, one {# month} other {# months}}", "durLess": "less than a month", "picked": "{n} selected", "secDone": "Ready", "optional": "Optional", "required": "Required", "noCategory": "Category", "revisions": "{n} revisions", "positionN": "Position {n}", "removePosition": "Remove position {n}", "positionDuties": "Duties", "positionDutiesPh": "What you did in this position", "addPosition": "Add another position", "parallelNote": "If you worked somewhere else at the same time, add it as a separate workplace — overlapping periods are never counted twice.", "secFiles": "Supporting documents", "secFilesHint": "Work record book, an order, a reference or another document.", "why": {"checkTitle": "LexGo checks it", "check": "The call center matches the document with the workplace and dates.", "privateTitle": "Stays private", "private": "Only you and the reviewer see the files — they never show on your profile.", "gainTitle": "What it gives you", "gain": "Verified experience raises your profile's trust, client matching, your price ceiling and your rating."}, "fileType": "“{name}” — this file type isn't accepted. Upload PDF, DOC, DOCX, JPG, PNG or WEBP.", "fileBig": "“{name}” is larger than 20 MB.", "kind": {"category_experience": "Category experience", "pre_advocate_employment": "Pre-advocate employment"}, "kindLabel": "Type", "live": {"reviewed": "A decision was made on your experience.", "chat": "The reviewer opened a chat about your experience."}, "pre": {"title": "Work before advocate status — public bodies or private companies", "lead": "Where you worked before becoming an advocate: one record per organization, with several positions. It doesn't count toward advocate tenure and is kept apart from category experience.", "add": "Add organization", "emptyTitle": "No workplaces yet", "emptyText": "Add your positions at a public body or a private company — both count, LexGo verifies them.", "addTitle": "Workplace before advocate status", "editTitle": "Edit workplace", "verifyNote": "LexGo verifies the record; documents are never published.", "secWork": "Organization and positions", "secWorkHint": "If you held several positions there, add them all.", "secProofHint": "A short note about your work at this organization.", "workplace": "Organization name", "workplacePh": "E.g. Tashkent City Prosecutor's Office or Artel LLC", "parallelNote": "Add a separate record for another organization. Overlapping periods are merged automatically.", "org": "Organization", "sumApproved": "Approved workplaces"}},
     "payReturn": {
       "som": "UZS",
       "history": "Open payment history",
@@ -13945,7 +13945,7 @@
     },
     "achievements": {
       "title": "Professional achievements",
-      "lead": "Show with a document at which stage of a case you reached a positive result, and how. Approved achievements count toward your rating.",
+      "lead": "Add a positive result you reached at a stage of a case, with the document behind it.",
       "add": "Add achievement",
       "sumApproved": "Approved",
       "sumPending": "In review",
@@ -13961,21 +13961,20 @@
         "superseded": "Replaced by a newer version",
         "other": "Unknown status"
       },
-      "notPublic": "Not shown on profile",
       "pendingKeeps": "Until the new version is reviewed, the previous approved one stays on the profile.",
       "addTitle": "New achievement",
       "editTitle": "New version of the achievement",
       "verifyNote": "Software checks the documents first, then a LexGo operator decides. Evidence is never published.",
       "sent": "Achievement sent for review.",
       "failed": "Couldn't send the achievement.",
-      "secWhat": "What and when",
-      "secWhatHint": "Category, date and exactly what was achieved.",
+      "secWhat": "Explanation",
+      "secWhatHint": "Briefly, in your own words.",
       "date": "Result date",
-      "description": "Result description",
-      "descriptionPh": "In what respect and what positive result was reached. Don't include the client's name, phone, address or case number.",
-      "secProof": "Supporting documents",
-      "secProofHint": "A decision, ruling, record or other supporting document.",
-      "privateNote": "Documents are private: only you and the LexGo reviewer see them. The profile shows only the stage, result, category, year and a safe description.",
+      "description": "Write exactly in what respect, on what and in what situation you reached the result",
+      "descriptionPh": "For example: on appeal the charge was changed to a lighter article and the sentence was made conditional.",
+      "secProof": "Basis document",
+      "secProofHint": "A decision, verdict or ruling — signed or sealed.",
+      "privateNote": "Documents are private: only you and the LexGo reviewer see them.",
       "issue": {
         "level": "Choose the outcome level.",
         "evidence": "Upload the supporting document.",
@@ -14019,7 +14018,7 @@
       "upToMb": "up to {mb} MB each",
       "filesRange": "{min}–{max} files",
       "secStage": "Stage and result",
-      "secStageHint": "Pick one stage and how complete the result was.",
+      "secStageHint": "At which stage, what result, in which field and when.",
       "stageLabel": "Case stage",
       "resultLabel": "Result",
       "category": "Service category",
@@ -14050,7 +14049,14 @@
         "ai_advisory_analysis": "Software check",
         "operator_review": "Operator",
         "public_profile": "On profile"
-      }
+      },
+      "introTitle": "What counts as an achievement?",
+      "introText": "A full or partial positive result at a pre-investigation review, an inquiry, a preliminary investigation or in court: a claim granted, a charge or sentence reduced, an acquittal, and so on.",
+      "introPromise": "Once LexGo approves it, it shows on your profile without any personal data and improves your rating.",
+      "introCheck": "Software checks the documents first (advice only), then a LexGo operator decides.",
+      "noPii": "Don't include the client's name, phone, address or case number.",
+      "proofRule": "The result must be reflected in a state body's decision or a court document — otherwise the achievement is not counted.",
+      "ownerWarning": "Uploading fake or artificially made documents can have negative consequences. LexGo checks thoroughly, with strong software, that documents are authentic and were not made with artificial intelligence tools."
     },
     "practice": {
       "title": "Advocate practice",
@@ -14139,7 +14145,15 @@
       "advocateOnly": "This section is for advocate accounts only.",
       "fileType": "This file type isn't accepted.",
       "fileBig": "File too large — up to {mb} MB.",
-      "upToMb": "up to {mb} MB"
+      "upToMb": "up to {mb} MB",
+      "nudge": {
+        "title": "Confirm your advocate tenure",
+        "text": "Upload your advocate certificate — the system reads the start date from it, and once LexGo verifies it your tenure shows on your profile.",
+        "cta": "Upload license",
+        "againTitle": "Upload your certificate again",
+        "againText": "LexGo left a comment on your certificate. Read it and send it again.",
+        "againCta": "View"
+      }
     }
   },
   "notFound": {
@@ -14332,7 +14346,7 @@
       "selectAll": "Select all"
     },
     "advocate": {
-      "tenureTitle": "Years as an advocate",
+      "tenureTitle": "Advocate tenure — from your certificate",
       "priorTitle": "Work experience before advocacy",
       "priorHint": "Experience you gained in state bodies or private companies before becoming an advocate. It is counted separately from your advocate tenure.",
       "steps": {
@@ -14350,10 +14364,6 @@
       "professionalSubtitle": "Your credentials build client trust and unlock verification.",
       "license": "License number",
       "licensePh": "e.g. ADV-2015-4821",
-      "licenseDoc": "License document",
-      "licenseHint": "Upload your license (PDF or image)",
-      "upload": "Upload document",
-      "uploaded": "Document uploaded",
       "bar": "Bar association",
       "barPh": "e.g. Chamber of Advocates of Uzbekistan",
       "specialization": "Specialization",
@@ -14380,7 +14390,6 @@
       "experience": "Years of experience",
       "work": {
         "priorTitle": "Workplaces before advocacy",
-        "priorSubtitle": "Add your workplaces in state bodies or private companies.",
         "title": "Work experience",
         "subtitle": "Add your previous and current workplaces.",
         "org": "Organization",
@@ -14397,7 +14406,8 @@
         "add": "Add experience",
         "empty": "No experience added yet.",
         "pickPh": "Select month",
-        "clear": "Clear"
+        "clear": "Clear",
+        "priorLater": "You add your workplaces (public bodies or private companies) after signing up, in Profile → Professional → “Work before advocate status” — LexGo verifies them."
       },
       "expertiseTitle": "Professional expertise",
       "expertiseSubtitle": "Pick the areas you practise in — this step is optional.",
@@ -14450,7 +14460,9 @@
         "price": "Hourly price (UZS)",
         "hint": "Digits only. You can change it in your profile at any time."
       },
-      "tenureVerified": "LexGo counts your advocate tenure itself once your certificate is verified — it isn't entered here. After signing up, upload the certificate in Profile → Professional → “Advocate practice”."
+      "tenureVerified": "You don't type your tenure here. After signing up, upload your advocate certificate (license) in Profile → Professional → “Advocate practice”: the system reads the start date from it, you check it, and LexGo verifies it.",
+      "nextTitle": "Next step: upload your license",
+      "nextText": "Once inside, upload your advocate certificate in Profile → Professional → “Advocate practice”. The system reads your advocate tenure from it."
     },
     "languages": {
       "uz": "Uzbek",

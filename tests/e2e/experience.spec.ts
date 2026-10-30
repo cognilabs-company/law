@@ -227,7 +227,8 @@ test("an advocate adds an achievement from the backend's config", async ({ page 
   await expect(panel).toContainText("Полный положительный результат");
   await expect(panel).toContainText("Нужна доработка");
   await expect(panel).toContainText("Комментарий оператора: Qaror nusxasi o'qilmaydi");
-  await expect(panel).toContainText("Анализ ИИ — только рекомендация");
+  // Calm cards: one status badge, no version or "not public" chips.
+  await expect(panel.locator(".ach__card").first().locator(".exp__chip")).toHaveCount(1);
   // The workflow track, every step with its icon; the approved one is done.
   await expect(panel.locator(".ach__track").first().locator("li")).toHaveCount(5);
   await expect(panel.locator(".ach__track").first().locator("li i svg")).toHaveCount(5);
@@ -235,6 +236,18 @@ test("an advocate adds an achievement from the backend's config", async ({ page 
   expect(await panel.innerText()).not.toMatch(/цена|цены|ценообраз|стоимост|court|changes_requested|ai_analysis|operator_review/i);
   await panel.getByRole("button", { name: "Добавить достижение" }).first().click();
   const form = page.getByRole("dialog", { name: "Новое достижение" });
+  // One short intro: what counts (the four stages, examples), the promise
+  // (rating, no personal data — never the price) and the advisory check.
+  const intro = form.locator(".ach__intro");
+  await expect(intro).toContainText("доследственной проверке, дознании, предварительном следствии или в суде");
+  await expect(intro).toContainText("оправдательный приговор");
+  await expect(intro).toContainText("без персональных данных и положительно повлияет на ваш рейтинг");
+  await expect(intro).toContainText("только рекомендация");
+  // Three numbered steps: stage and result, explanation, basis document.
+  await expect(form.locator(".ach__stepn")).toHaveText(["1", "2", "3"]);
+  await expect(form.locator(".exp__legend b")).toHaveText(["1Стадия и результат", "2Пояснение", "3Документ-основание"]);
+  await expect(form).toContainText("Результат должен быть отражён в решении государственного органа или в судебном документе — иначе достижение не засчитывается.");
+  expect(await form.innerText()).not.toMatch(/цена|цены|стоимост/i);
   await expect(form.locator("select, input[type=date], input[type=checkbox]")).toHaveCount(0);
   // Exactly the config's four stages and two results; no court-instance field.
   await expect(form.locator(".ach__type")).toHaveCount(4);
@@ -246,15 +259,16 @@ test("an advocate adds an achievement from the backend's config", async ({ page 
   await page.getByRole("listbox").getByRole("option").nth(1).click();
   await form.getByRole("combobox", { name: "Дата результата" }).fill("15.03.2026");
   await form.getByRole("combobox", { name: "Дата результата" }).press("Tab");
-  await form.getByLabel("Описание результата").fill("Apellyatsiyada jazo yengillashtirildi");
+  await form.getByLabel(/Опишите, в чём именно, в каком вопросе и при каких обстоятельствах/).fill("Apellyatsiyada jazo yengillashtirildi");
   // A file the config refuses never leaves the page; a good one uploads.
   await form.locator('input[type="file"]').setInputFiles({ name: "video.mp4", mimeType: "video/mp4", buffer: Buffer.from("x") });
   await expect(form.locator(".ach__files li[data-state=error]")).toContainText("Такой тип файла не принимается");
   await form.locator(".ach__files li[data-state=error]").getByRole("button").click();
   await form.locator('input[type="file"]').setInputFiles({ name: "qaror.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") });
   await expect(form.locator(".ach__files li[data-state=done]")).toContainText("qaror.pdf");
-  // The backend's warning, in the page's language, right above the send button.
-  await expect(page.locator(".amodal__f .ach__warn")).toHaveText(ACH_CONFIG.warning_i18n.ru);
+  // Right above the send button: this backend text names neither fake
+  // documents nor the AI check, so the owner's warning is shown instead.
+  await expect(page.locator(".amodal__f .ach__warn")).toHaveText(/поддельных или искусственно созданных документов.*искусственного интеллекта/);
   await shot(page, "achievement-form");
   await page.locator(".amodal__f").getByRole("button", { name: "Отправить на проверку" }).click();
   await expect.poll(() => sent).not.toBeNull();

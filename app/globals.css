@@ -3334,6 +3334,18 @@ body:has(.auth) .fab{display:none}
 .rf__benefit{background:var(--b50);border:1px solid #bcd4ff;border-radius:12px;padding:13px 15px;margin-top:2px}
 .rf__benefit b{display:block;font-size:.9rem;color:var(--dk-acc, var(--b600));margin-bottom:4px}
 .rf__benefit p{margin:0;font-size:.84rem;color:var(--gray2);line-height:1.5}
+.rf__benefit b:has(svg){display:flex;align-items:center;gap:7px}
+.rf__benefit b svg{flex:none;width:16px;height:16px}
+.rf__next{width:100%;margin-top:16px;text-align:left}
+.rf__later{display:flex;align-items:flex-start;gap:8px;padding:11px 13px;border-radius:12px;background:var(--dk-surface-2,#f5f8fd);font-size:.8rem;line-height:1.5}
+.rf__later svg{flex:none;width:15px;height:15px;margin-top:2px;color:var(--dk-acc,var(--b600))}
+.lnudge{display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:1px solid color-mix(in srgb,var(--b500,#3b82f6) 30%,var(--line));background:linear-gradient(135deg,color-mix(in srgb,var(--b500,#3b82f6) 9%,var(--dk-surface,#fff)),var(--dk-surface,#fff))}
+.lnudge__ic{display:grid;place-items:center;flex:none;width:44px;height:44px;border-radius:14px;background:var(--b600,#1668f0);color:#fff}
+.lnudge__ic svg{width:22px;height:22px}
+.lnudge__m{display:grid;gap:3px;flex:1 1 220px;min-width:0}
+.lnudge__m b{font-size:.98rem;color:var(--ink)}
+.lnudge__m span{font-size:.84rem;line-height:1.45;color:var(--gray2)}
+@media (max-width:520px){.lnudge .btn{width:100%;justify-content:center}}
 /* Admin CRM sidebar groups */
 .psb__group{display:flex;flex-direction:column;gap:2px}
 .psb__group + .psb__group{margin-top:14px}

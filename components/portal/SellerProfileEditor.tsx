@@ -487,7 +487,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
     </div>,
   );
 
-  const pHistory = panel("history", ico(IconBriefcase), isAdvocate ? tr("advocate.work.priorTitle") : tr("advocate.work.title"),
+  const pHistory = panel("history", ico(IconBriefcase), tr("advocate.work.title"),
     d.workHistory.length ? (
       <div className="alist">
         {d.workHistory.map((w) => (
@@ -523,7 +523,9 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
         <ExperiencePanel />
         {isAdvocate ? <ExperiencePanel kind="pre_advocate_employment" /> : null}
         {isAdvocate ? <AchievementsPanel /> : null}
-        {pHistory}
+        {/* An advocate's earlier workplaces are the verified records in the
+            pre-advocate section above; this local list is for lawyers. */}
+        {isAdvocate ? null : pHistory}
         <ProfileServices role={isAdvocate ? "advocate" : "lawyer"} />
       </div>
     ),

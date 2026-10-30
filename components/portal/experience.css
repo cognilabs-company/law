@@ -283,3 +283,31 @@
 .ach__denied { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--dk-surface-2, #f6f8fc); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink); font-size: .84rem; line-height: 1.45; }
 .ach__denied svg { flex: none; width: 16px; height: 16px; margin-top: 1px; color: var(--gray); }
 @media (max-width: 420px) { .ach__track li { font-size: .6rem; } }
+
+/* Achievement form (owner's rules 2026-10-30): one calm intro card, three
+   numbered steps, big tiles that stand out from their step's background. */
+.ach__intro { display: grid; gap: 8px; padding: 14px 16px; border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--b500, #3b82f6) 9%, var(--dk-surface, #fff)), var(--dk-surface, #fff)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--b500, #3b82f6) 22%, var(--line)); }
+.ach__intro > b { font-size: .92rem; color: var(--ink); }
+.ach__intro > p { margin: 0; font-size: .84rem; line-height: 1.5; color: var(--ink); }
+.ach__intro ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.ach__intro li { display: flex; align-items: flex-start; gap: 8px; font-size: .8rem; line-height: 1.45; color: var(--gray); }
+.ach__intro li svg { flex: none; width: 15px; height: 15px; margin-top: 2px; color: var(--b600, #1668f0); }
+.ach__intro li:first-child svg { color: #16a34a; }
+.ach__stepn { display: inline-grid; place-items: center; min-width: 20px; height: 20px; margin-right: 7px; padding: 0 5px; border-radius: 999px; background: color-mix(in srgb, var(--ea, #1668f0) 14%, transparent); color: var(--ea, #1668f0); font-size: .72rem; font-style: normal; font-weight: 800; vertical-align: 1px; }
+.exp__sec .ach__type, .exp__sec .ach__res { min-height: 56px; background: var(--dk-surface, #fff); box-shadow: inset 0 0 0 1px var(--line); }
+.exp__sec .ach__type--ic > i { background: color-mix(in srgb, var(--b500, #3b82f6) 10%, var(--dk-surface, #fff)); }
+.exp__sec .ach__types { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ach__rule { display: flex; align-items: flex-start; gap: 9px; margin: 0; padding: 11px 13px; border-radius: 12px; background: color-mix(in srgb, var(--b500, #3b82f6) 10%, var(--dk-surface, #fff)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--b500, #3b82f6) 30%, transparent); color: var(--ink); font-size: .84rem; font-weight: 700; line-height: 1.45; }
+.ach__rule svg { flex: none; width: 17px; height: 17px; margin-top: 1px; color: var(--b600, #1668f0); }
+.ach__nopii { display: flex; align-items: center; gap: 6px; color: var(--gray); font-size: .76rem; }
+.ach__nopii svg { flex: none; width: 13px; height: 13px; }
+@media (max-width: 420px) {
+  .exp__sec .ach__types { grid-template-columns: minmax(0, 1fr); }
+  .exp__sec .ach__type, .exp__sec .ach__res { min-height: 52px; }
+}
+@media (max-width: 480px) {
+  .ach__warn { padding: 8px 10px; font-size: .72rem; line-height: 1.4; }
+  .ach__warn svg { width: 14px; height: 14px; }
+  .ach__intro { padding: 12px; }
+  .ach__intro > p { font-size: .8rem; }
+}

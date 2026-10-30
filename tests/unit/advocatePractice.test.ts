@@ -16,7 +16,7 @@ import {
 import { analyzedEvidenceId, licenseBody, licenseRecordOf, licenseErrorOf, licenseEvidenceOf, licenseIssue, practiceOf, suspensionBody } from "@/lib/services/advocatePractice";
 import { checkItemsOf, experienceBody, experienceItemOf, historyOf, reviewOf, reviewRoomOf } from "@/lib/services/experience";
 import { verifiedAdvocateYears } from "@/lib/services/tenure";
-import { achievementIssue } from "@/components/portal/AchievementsPanel";
+import { achievementIssue, strongWarning } from "@/components/portal/AchievementsPanel";
 import { reviewErrorSpot } from "@/components/admin/callcenter/VerifyReview";
 import { AI, CHECK, CONFIG, GROUPS, LICENSE_EVIDENCE, PRACTICE, ROOM, item } from "./fixtures/achievementsContract";
 
@@ -58,6 +58,8 @@ describe("achievement config (§2)", () => {
     expect(achievementIssue({ ...d, achievedOn: "2026-11-01" }, c, "2026-10-29")).toBe("date");
     expect(achievementIssue({ ...d, description: "abc" }, c, "2026-10-29")).toBe("description");
     expect(achievementIssue({ ...d, files: [] }, c, "2026-10-29")).toBe("files");
+    // Full or partial stays required.
+    expect(achievementIssue({ ...d, result: "" }, c, "2026-10-29")).toBe("result");
   });
 });
 
@@ -228,5 +230,17 @@ describe("final contract 2026-10-29 (backend 0829278)", () => {
     const a = achievementOf(item({ process_stage_label: "Sud jarayoni", process_stage_label_i18n: { uz_latn: "Sud jarayoni", ru: "Судебный процесс" }, result_scope_label: "To‘liq ijobiy natija", result_scope_label_i18n: { ru: "Полный положительный результат" } }))!;
     expect([labelIn(a.stageLabel, "ru"), labelIn(a.resultLabel, "ru"), labelIn(a.stageLabel, "uz")]).toEqual(["Судебный процесс", "Полный положительный результат", "Sud jarayoni"]);
     expect(publicAchievementOf({ id: "p", process_stage: "court", process_stage_label: "Sud jarayoni" })!.stageLabel?.label).toBe("Sud jarayoni");
+  });
+});
+
+describe("the warning above the send button (owner's rules 2026-10-30)", () => {
+  it("keeps the backend's text only when it names fake documents and the AI check", () => {
+    expect(strongWarning("Faqat haqiqiy va o'zingizga tegishli hujjatlarni yuklang.")).toBe(false);
+    expect(strongWarning("Soxta hujjatlar salbiy oqibatlarga olib keladi; sun'iy intellekt bilan yaratilganini tekshiramiz.")).toBe(true);
+    expect(strongWarning("Сохта ҳужжатлар… сунъий интеллект воситалари")).toBe(true);
+    expect(strongWarning("Поддельные документы… созданы ли они с помощью ИИ")).toBe(true);
+    expect(strongWarning("Fake documents have consequences; we check whether AI made them.")).toBe(true);
+    // "AI" inside another word is not the AI check.
+    expect(strongWarning("Fake documents are refused by our MAIN team.")).toBe(false);
   });
 });

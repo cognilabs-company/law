@@ -144,7 +144,8 @@ test("pre-advocate employment is its own section: no category, never mixed in", 
   await page.getByRole("tab").nth(1).click();
   const catPanel = page.locator(".exp:not(.ach):not(.exp--pre):not(.prc)");
   const prePanel = page.locator(".exp--pre");
-  await expect(prePanel).toContainText("Работа до получения статуса адвоката");
+  // Both kinds of earlier work are named: public bodies and private companies.
+  await expect(prePanel.locator("h2, .ppanel__t").first()).toContainText("Работа до статуса адвоката — госорганы или частные компании");
   await expect(prePanel).toContainText("Ichki ishlar vazirligi");
   await expect(catPanel).toContainText("Oila byurosi");
   // Never in each other's lists, never years or price in the pre-advocate one.
@@ -316,4 +317,35 @@ test("without marketplace.experience.review the three review tabs are not offere
   await page.goto("/ru/admin/call-center");
   await expect(page.getByRole("tab", { name: /Лиды/ })).toBeVisible();
   for (const name of [/Проверка опыта/, /Проверка достижений/, /Удостоверения адвокатов/]) await expect(page.getByRole("tab", { name })).toHaveCount(0);
+});
+
+// Owner's rules 2026-10-30: sign-up (/auth/register) takes no certificate
+// file or status date, so registration says where the tenure comes from
+// instead of collecting a file it would drop, and the dashboard asks for the
+// certificate until one is submitted.
+test("registration points to the certificate; the dashboard asks for it until one is sent", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("lexgo_reg_draft", JSON.stringify({ at: Date.now(), idx: 3, draft: { accountType: "advocate", phone: "+998901112233", phoneVerified: false, profile: { name: "Test Advokat" } }, agreed: {} })));
+  await mockBackend(page, {});
+  await page.goto("/uz/register");
+  const tenure = page.locator(".rf__tenure");
+  await expect(tenure).toContainText("Advokatlik staji — litsenziyadan");
+  await expect(tenure).toContainText("tizim undan boshlanish sanasini o'qiydi");
+  await expect(page.locator(".rf__later")).toContainText("davlat idoralari yoki xususiy kompaniyalar");
+  // Nothing on this step is collected only to be dropped: no file input.
+  await expect(page.locator('.rf input[type="file"]')).toHaveCount(0);
+  await shot(page, "register");
+
+  let practice: Record<string, unknown> = { ...PRACTICE, verification_status: "not_submitted", latest_verification: null };
+  await mockBackend(page, await signIn(page, ADVOCATE, { "/lawyers/me": ME, "/marketplace/me/advocate-practice": () => practice }));
+  await page.goto("/uz/portal/advocate");
+  const nudge = page.locator(".lnudge");
+  await expect(nudge).toContainText("Advokatlik stajingizni tasdiqlang");
+  await expect(nudge.getByRole("link", { name: /Litsenziyani yuklash/ })).toHaveAttribute("href", /\/portal\/advocate\/profile\?tab=professional$/);
+  await shot(page, "nudge");
+  // Verified: no nudge.
+  practice = { ...PRACTICE, verification_status: "approved" };
+  await page.reload();
+  await expect(page.locator(".dhero")).toBeVisible();
+  await page.waitForTimeout(800);
+  await expect(page.locator(".lnudge")).toHaveCount(0);
 });

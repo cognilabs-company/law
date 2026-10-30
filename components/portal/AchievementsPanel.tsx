@@ -68,12 +68,14 @@ import {
 import { labelIn } from "@/lib/backendLabel";
 import { useAchievementLabels } from "./achievementLabels";
 
-// An advocate's professional achievements (contract 2026-10-29 §2): one
-// stage of the case, a full or partial positive result, the category, the
-// date and what exactly was reached, with the documents that prove it.
+// An advocate's professional achievements (contract 2026-10-29 §2, and the
+// owner's rules of 2026-10-30): one stage of the case, a full or partial
+// positive result, then the explanation, then the "asos" — the signed state
+// or court document the result is reflected in. Three steps, each said once.
 // Everything the form offers comes from the backend's config. Software
 // checks the files first (advice only), then a LexGo operator decides; an
-// approved achievement counts for the rating. Evidence never goes public.
+// approved achievement counts for the rating (not the price: the contract
+// says rating only). Evidence never goes public.
 
 const PAGE = 50;
 const EVENTS = /^marketplace\.achievement_(ai_analysis_completed|reviewed|review_chat_opened)$/;
@@ -113,14 +115,24 @@ export function achievementIssue(d: Pick<Draft, "stage" | "result" | "categoryId
 // The issue → the field it belongs to.
 const ISSUE_FIELD: Record<string, AchievementErrorField> = { stage: "process_stage", result: "result_scope", category: "category_id", date: "achieved_at", description: "description", contacts: "description", files: "evidence", tooMany: "evidence", fileErrors: "evidence", uploading: "evidence" };
 
-function Step({ icon: Icon, done, title, hint }: { icon: ComponentType<SVGProps<SVGSVGElement>>; done: boolean; title: string; hint: string }): ReactElement {
+// The backend's warning when it says what the owner's text says (fake or
+// artificially made documents, and the check for AI-made ones); otherwise
+// the owner's own text.
+const FAKE_RE = /soxta|сохта|поддел|фальш|fake|forged|counterfeit/i;
+const AI_RE = /sun['ʼ’‘`]?iy intellekt|сунъий интеллект|искусственн|artificial intelligence|(?<!\p{L})(?:ИИ|AI)(?!\p{L})/iu;
+export const strongWarning = (text: string) => FAKE_RE.test(text) && AI_RE.test(text);
+
+function Step({ n, icon: Icon, done, title, hint }: { n: number; icon: ComponentType<SVGProps<SVGSVGElement>>; done: boolean; title: string; hint: string }): ReactElement {
   return (
     <legend className="exp__legend">
       <span className="exp__n" data-done={done || undefined} aria-hidden="true">
         {done ? <IconCheck /> : <Icon />}
       </span>
       <span className="exp__lt">
-        <b>{title}</b>
+        <b>
+          <em className="ach__stepn">{n}</em>
+          {title}
+        </b>
         <small>{hint}</small>
       </span>
     </legend>
@@ -271,7 +283,8 @@ export default function AchievementsPanel(): ReactElement | null {
     const c = cats.find((x) => x.id === id);
     return c ? uzLabel(categoryName({ slug: c.slug, title: c.name }, locale), locale) : title;
   };
-  const warning = labelIn(cfg?.warning, locale);
+  const backendWarning = labelIn(cfg?.warning, locale);
+  const warning = strongWarning(backendWarning) ? backendWarning : t("ownerWarning");
   const open = (d: Draft) => {
     descStrip.reset();
     setTried(false);
@@ -379,10 +392,6 @@ export default function AchievementsPanel(): ReactElement | null {
         </button>
       </div>
       <p className="exp__lead">{t("lead")}</p>
-      <p className="ach__ai">
-        <IconSparkle aria-hidden="true" />
-        {t("aiAdvisory")}
-      </p>
       {denied ? (
         <p className="ach__denied" role="note">
           <IconLock aria-hidden="true" />
@@ -475,11 +484,9 @@ export default function AchievementsPanel(): ReactElement | null {
                   ) : null}
                 </div>
                 <div className="exp__chips">
-                  <span className="exp__chip" data-s={state === "draft" ? undefined : state}>
+                  <span className="exp__chip" data-s={state === "draft" ? undefined : state} title={a.version ? t("versionN", { n: a.version }) : undefined}>
                     {L.status(a.status)}
                   </span>
-                  {a.version ? <span className="exp__chip">{t("versionN", { n: a.version })}</span> : null}
-                  {a.status === "approved" ? null : <span className="exp__chip">{t("notPublic")}</span>}
                 </div>
                 <p className="exp__date">
                   <IconTag aria-hidden="true" />
@@ -503,7 +510,9 @@ export default function AchievementsPanel(): ReactElement | null {
                     ))}
                   </span>
                 ) : null}
-                {a.ai ? (
+                {/* The track already shows the software step; only a skipped
+                    check needs its own sentence. */}
+                {a.ai === "manual" ? (
                   <p className="ach__aistate" data-ai={a.ai}>
                     <IconInfo aria-hidden="true" />
                     {L.ai(a.ai)}
@@ -522,7 +531,6 @@ export default function AchievementsPanel(): ReactElement | null {
         open={!!draft}
         onClose={() => (busy ? undefined : setDraft(null))}
         title={draft?.sourceId ? t("editTitle") : t("addTitle")}
-        description={t("verifyNote")}
         icon={<IconStar />}
         size="lg"
         busy={busy}
@@ -561,8 +569,22 @@ export default function AchievementsPanel(): ReactElement | null {
             noValidate
           >
             {formNote ? <Notice ok={false} msg={formNote} /> : null}
-            <fieldset className="exp__sec" data-done={(!!draft.stage && !!draft.result) || undefined}>
-              <Step icon={IconLayers} done={!!draft.stage && !!draft.result} title={t("secStage")} hint={t("secStageHint")} />
+            <div className="ach__intro" role="note">
+              <b>{t("introTitle")}</b>
+              <p>{t("introText")}</p>
+              <ul>
+                <li>
+                  <IconShieldCheck aria-hidden="true" />
+                  {t("introPromise")}
+                </li>
+                <li>
+                  <IconSparkle aria-hidden="true" />
+                  {t("introCheck")}
+                </li>
+              </ul>
+            </div>
+            <fieldset className="exp__sec" data-done={(!!draft.stage && !!draft.result && !!draft.categoryId && !!draft.achievedOn) || undefined}>
+              <Step n={1} icon={IconLayers} done={!!draft.stage && !!draft.result && !!draft.categoryId && !!draft.achievedOn} title={t("secStage")} hint={t("secStageHint")} />
               <div className="ach__types" role="radiogroup" aria-label={t("stageLabel")} data-bad={badAt("process_stage")}>
                 {cfg.stages.map((s) => {
                   const Icon = STAGE_ICON[s.value] ?? IconScale;
@@ -592,10 +614,6 @@ export default function AchievementsPanel(): ReactElement | null {
                 </div>
                 <FieldError id="ach-err-result_scope" msg={errAt("result_scope")} />
               </div>
-            </fieldset>
-
-            <fieldset className="exp__sec" data-done={(!!draft.categoryId && !!draft.achievedOn && desc.length >= descMin && !descHits.length) || undefined}>
-              <Step icon={IconFileText} done={!!draft.categoryId && !!draft.achievedOn && desc.length >= descMin && !descHits.length} title={t("secWhat")} hint={t("secWhatHint")} />
               <div className="exp__two">
                 <div className="exp__f" data-bad={badAt("category_id")}>
                   <span id="ach-cat-l">{t("category")}</span>
@@ -616,6 +634,10 @@ export default function AchievementsPanel(): ReactElement | null {
                   <FieldError id="ach-err-achieved_at" msg={errAt("achieved_at")} />
                 </div>
               </div>
+            </fieldset>
+
+            <fieldset className="exp__sec" data-done={(desc.length >= descMin && !descHits.length) || undefined}>
+              <Step n={2} icon={IconFileText} done={desc.length >= descMin && !descHits.length} title={t("secWhat")} hint={t("secWhatHint")} />
               <label className="exp__f">
                 <span>{t("description")}</span>
                 <textarea
@@ -627,6 +649,10 @@ export default function AchievementsPanel(): ReactElement | null {
                   placeholder={t("descriptionPh")}
                   aria-invalid={descHits.length > 0 || badAt("description")}
                 />
+                <small className="ach__nopii">
+                  <IconLock aria-hidden="true" />
+                  {t("noPii")}
+                </small>
                 <span className="exp__meter" data-ok={desc.length >= descMin || undefined}>
                   <i aria-hidden="true">
                     <b style={{ width: `${Math.min(100, (desc.length / descMax) * 100)}%` }} />
@@ -641,7 +667,11 @@ export default function AchievementsPanel(): ReactElement | null {
             </fieldset>
 
             <fieldset className="exp__sec" data-done={(filesDone >= Math.max(cfg.evidence.minFiles, 1) && !draft.files.some((f) => f.state !== "done")) || undefined}>
-              <Step icon={IconPaperclip} done={filesDone >= Math.max(cfg.evidence.minFiles, 1) && !draft.files.some((f) => f.state !== "done")} title={t("secProof")} hint={t("secProofHint")} />
+              <Step n={3} icon={IconPaperclip} done={filesDone >= Math.max(cfg.evidence.minFiles, 1) && !draft.files.some((f) => f.state !== "done")} title={t("secProof")} hint={t("secProofHint")} />
+              <p className="ach__rule">
+                <IconGavel aria-hidden="true" />
+                {t("proofRule")}
+              </p>
               <p className="ach__private">
                 <IconLock aria-hidden="true" />
                 {t("privateNote")}

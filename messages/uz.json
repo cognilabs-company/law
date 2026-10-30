@@ -13926,7 +13926,7 @@
       }
     },
     "myPlan": {"title": "Mening tarifim", "unnamed": "Tarif", "version": "{n}-versiya", "fixed": "Shartlar joriy davr uchun qayd etilgan: tarif keyin o'zgarsa ham, ular yangilanishgacha o'zgarmaydi.", "changedTitle": "Tarif shartlari o'zgardi", "changedText": "Keyingi to'lovdan boshlab yangi shartlar amal qiladi. Davom etish uchun ularga roziligingizni bering.", "consent": "Yangi shartlarga roziman", "consenting": "Yuborilmoqda…", "consentDone": "Rahmat! Yangi shartlar keyingi davrdan qo'llanadi.", "consentFailed": "Rozilikni yuborib bo'lmadi. Qayta urinib ko'ring.", "unavailable": "Mavjud emas", "unlimited": "Cheksiz", "limited": "Cheklangan", "used": "{used} / {limit} ishlatildi", "remaining": "{n} ta qoldi", "resets": "Yangilanadi: {date}", "period": {"monthly": "Oylik", "six_month": "6 oy", "yearly": "Yillik", "prepaid_yearly": "Yillik (oldindan)"}, "stop": "Yangilamaslik", "stopDone": "Avtomatik yangilanish o'chirildi: obuna joriy davr oxirigacha eski shartlarda ishlaydi.", "stopFailed": "O'zgartirib bo'lmadi. Qayta urinib ko'ring."},
-    "experience": {"title": "Kategoriya bo'yicha tajriba", "lead": "Har bir ish joyini alohida qo'shing — bir ish joyida bir nechta lavozim bo'lishi mumkin. Parallel ishlar qabul qilinadi. Har bir o'zgarish call-markaz tekshiruvidan keyin kuchga kiradi; faqat tasdiqlangan tajriba narx va reytingga ta'sir qiladi.", "add": "Tajriba qo'shish", "empty": "Hali tajriba qo'shilmagan.", "edit": "O'zgartirish", "status": {"approved": "Tasdiqlangan", "pending": "Tekshiruvda", "rejected": "Rad etilgan", "approvedYears": "Tasdiqlangan · {n} yil", "pending_review": "Tekshiruvda", "cancelled": "Bekor qilingan", "superseded": "Almashtirilgan", "other": "Boshqa holat"}, "pendingKeeps": "Yangi tahrir tekshiruvda; tasdiqlanguncha avvalgi tasdiqlangan ma'lumot amal qiladi.", "reason": "Rad etish sababi: {text}", "editNote": "Tahrir yangi tekshiruvga yuboriladi.", "category": "Kategoriya", "pickCategory": "Kategoriyani tanlang", "description": "Tajriba tavsifi", "descriptionPh": "Qaysi yo'nalishda, qanday masalalar bilan ishlagansiz va tajribangiz mijozga nima beradi", "issue": {"category": "Kategoriyani tanlang", "description": "Tavsif kamida {n} ta belgi bo'lsin", "contacts": "Tavsifda aloqa ma'lumotlari bo'lmasin", "workplace": "Ish joyini kiriting", "position": "Lavozimni kiriting", "started": "Boshlangan sanani kiriting (kelajakdagi sana bo'lmasin)", "ended": "Tugagan sana boshlanishdan keyin va bugundan oldin bo'lsin"}, "verifyNote": "Tajribangiz LexGo tomonidan tekshiriladi.", "cancel": "Bekor qilish", "submit": "Tekshiruvga yuborish", "sending": "Yuborilmoqda…", "sent": "Tekshiruvga yuborildi.", "failed": "Yuborib bo'lmadi.", "loadFailed": "Tajribani yuklab bo'lmadi.", "now": "hozirgacha", "cancelPending": "Tekshiruvni bekor qilish", "cancelled": "Tekshiruvdagi tahrir bekor qilindi.", "workplace": "Ish joyi", "position": "Lavozim", "startedAt": "Boshlangan sana", "endedAt": "Tugagan sana", "isCurrent": "Hozir ham shu yerda ishlayman", "stages": "Bosqichlar", "results": "Natijalar", "evidence": "Tasdiqlovchi fayllar", "evidenceHint": "PDF, JPG, PNG, WEBP, DOC, DOCX · 20 MB gacha", "addFile": "Fayl qo'shish", "uploading": "Yuklanmoqda…", "file": "Fayl", "removeFile": "{name} faylini olib tashlash", "fileBad": "«{name}» turi yoki hajmi mos emas", "fileFailed": "Faylni yuklab bo'lmadi.", "err": {"experience_dates_invalid": "Sanalar noto'g'ri", "experience_future_date": "Sana kelajakda bo'lmasin", "experience_dates_overlap": "Bu davr boshqa tajriba bilan ustma-ust tushadi", "experience_category_invalid": "Kategoriya noto'g'ri", "experience_subcategory_invalid": "Yo'nalish noto'g'ri", "experience_stage_invalid": "Bosqich noto'g'ri", "experience_result_invalid": "Natija noto'g'ri", "experience_fields_required": "Majburiy maydonlarni to'ldiring", "experience_revision_already_pending": "Bu tajribaning tahriri allaqachon tekshiruvda", "evidence_file_too_large": "Fayl 20 MB dan katta.", "evidence_file_type_not_allowed": "Bu turdagi fayl qabul qilinmaydi.", "evidence_not_found": "Fayl topilmadi — qayta yuklang.", "experience_position_required": "Kamida bitta lavozim kiriting.", "experience_position_dates_invalid": "Lavozim sanalari noto'g'ri."}, "stage": {"pre_investigation": "Tergovgacha", "investigation": "Tergov", "first_instance": "Birinchi instansiya", "appeal": "Apellyatsiya", "cassation": "Kassatsiya", "supervision": "Nazorat tartibi", "enforcement": "Ijro", "advisory": "Maslahat", "transactional": "Bitimlar"}, "result": {"full_success": "To'liq yutuq", "partial_success": "Qisman yutuq", "settlement": "Kelishuv", "dismissed": "Ish tugatilgan", "acquittal": "Oqlov", "sentence_reduced": "Jazo yengillashgan", "claim_granted": "Da'vo qanoatlantirilgan", "claim_partially_granted": "Da'vo qisman qanoatlantirilgan", "defense_success": "Himoya muvaffaqiyatli", "other": "Boshqa"}, "subcategory": "Yo'nalish (ixtiyoriy)", "anySubcategory": "Butun kategoriya", "sumApproved": "Tasdiqlangan yo'nalish", "sumYears": "Tasdiqlangan yil", "sumPending": "Tekshiruvda", "emptyTitle": "Tajriba hali qo'shilmagan", "emptyText": "Har bir yo'nalish bo'yicha ish tajribangizni qo'shing — tasdiqlangan tajriba narx va reytingingizni oshiradi.", "editNamed": "«{name}» tajribasini o'zgartirish", "period": "Davr", "addTitle": "Yangi tajriba", "editTitle": "Tajribani o'zgartirish", "secArea": "Yo'nalish", "secWork": "Ish joyi va lavozimlar", "secCases": "Qaysi ishlar va natijalar", "secProof": "Tajriba mazmuni", "workplacePh": "Masalan: «Adolat» advokatlik byurosi", "positionPh": "Masalan: Advokat", "descLeft": "Yana kamida {n} ta belgi", "descCount": "{n} / 2000", "pickDate": "Sanani tanlang", "progress": "{done} / {total} bo'lim tayyor", "secAreaHint": "Tajriba qaysi huquq sohasiga tegishli.", "secWorkHint": "Tashkilot va undagi har bir lavozimingiz o'z sanalari bilan.", "secCasesHint": "Yuritgan ishlaringiz bosqichi va erishgan natijalaringiz.", "secProofHint": "Bu tajriba nimadan iborat bo'lgani — mijoz va tekshiruvchi uchun.", "subsN": "{n} yo'nalish", "categoryLocked": "Tahrirda kategoriyani o'zgartirib bo'lmaydi.", "periodNow": "Hozir ishlayman", "periodEnded": "Ish tugagan", "stillHere": "Hozirgacha davom etmoqda", "spanTotal": "Jami tajriba: {span}", "durY": "{n} yil", "durM": "{n} oy", "durLess": "1 oydan kam", "picked": "{n} ta tanlandi", "secDone": "Tayyor", "optional": "Ixtiyoriy", "required": "Majburiy", "noCategory": "Kategoriya", "revisions": "{n} ta tahrir", "positionN": "{n}-lavozim", "removePosition": "{n}-lavozimni olib tashlash", "positionDuties": "Vazifalar", "positionDutiesPh": "Bu lavozimda nimalar bilan shug'ullangansiz", "addPosition": "Yana lavozim qo'shish", "parallelNote": "Boshqa joyda parallel ishlagan bo'lsangiz, uni alohida ish joyi sifatida qo'shing — ustma-ust davrlar ikki marta hisoblanmaydi.", "secFiles": "Tasdiqlovchi hujjatlar", "secFilesHint": "Mehnat daftarchasi, buyruq, ma'lumotnoma yoki boshqa hujjat.", "why": {"checkTitle": "LexGo tekshiradi", "check": "Call-markaz hujjatni ish joyi va sanalar bilan solishtiradi.", "privateTitle": "Maxfiy qoladi", "private": "Fayllarni faqat siz va tekshiruvchi ko'radi — profilda chiqmaydi.", "gainTitle": "Nima beradi", "gain": "Tasdiqlangan tajriba profil ishonchini, mijozga moslikni, narx chegarangizni va reytingni oshiradi."}, "fileType": "«{name}» — bu turdagi fayl qabul qilinmaydi. PDF, DOC, DOCX, JPG, PNG yoki WEBP yuklang.", "fileBig": "«{name}» 20 MB dan katta.", "kind": {"category_experience": "Kategoriya tajribasi", "pre_advocate_employment": "Advokatlikdan oldingi faoliyat"}, "kindLabel": "Turi", "live": {"reviewed": "Tajribangiz bo'yicha qaror chiqdi.", "chat": "Tekshiruvchi tajriba bo'yicha chat ochdi."}, "pre": {"title": "Advokatlikdan oldingi faoliyat (davlat organlari / xususiy tashkilotlar)", "lead": "Advokat maqomini olishdan oldingi ish joylaringiz: har bir tashkilot alohida yozuv, unda bir nechta lavozim. Bu advokatlik stajiga qo'shilmaydi va kategoriya tajribasidan alohida.", "add": "Tashkilot qo'shish", "emptyTitle": "Hali ish joyi qo'shilmagan", "emptyText": "Davlat organi yoki xususiy tashkilotdagi lavozimlaringizni qo'shing — LexGo tekshiradi.", "addTitle": "Advokatlikdan oldingi ish joyi", "editTitle": "Ish joyini tahrirlash", "verifyNote": "Yozuv LexGo tomonidan tekshiriladi; hujjatlar ommaga chiqmaydi.", "secWork": "Tashkilot va lavozimlar", "secWorkHint": "Bir tashkilotda bir nechta lavozim bo'lsa, hammasini qo'shing.", "secProofHint": "Bu tashkilotdagi faoliyatingiz haqida qisqacha.", "workplace": "Tashkilot nomi", "workplacePh": "Masalan: Toshkent shahar prokuraturasi", "parallelNote": "Boshqa tashkilot uchun alohida yozuv qo'shing. Ustma-ust davrlarni tizim o'zi birlashtiradi.", "org": "Tashkilot", "sumApproved": "Tasdiqlangan ish joyi"}},
+    "experience": {"title": "Kategoriya bo'yicha tajriba", "lead": "Har bir ish joyini alohida qo'shing — bir ish joyida bir nechta lavozim bo'lishi mumkin. Parallel ishlar qabul qilinadi. Har bir o'zgarish call-markaz tekshiruvidan keyin kuchga kiradi; faqat tasdiqlangan tajriba narx va reytingga ta'sir qiladi.", "add": "Tajriba qo'shish", "empty": "Hali tajriba qo'shilmagan.", "edit": "O'zgartirish", "status": {"approved": "Tasdiqlangan", "pending": "Tekshiruvda", "rejected": "Rad etilgan", "approvedYears": "Tasdiqlangan · {n} yil", "pending_review": "Tekshiruvda", "cancelled": "Bekor qilingan", "superseded": "Almashtirilgan", "other": "Boshqa holat"}, "pendingKeeps": "Yangi tahrir tekshiruvda; tasdiqlanguncha avvalgi tasdiqlangan ma'lumot amal qiladi.", "reason": "Rad etish sababi: {text}", "editNote": "Tahrir yangi tekshiruvga yuboriladi.", "category": "Kategoriya", "pickCategory": "Kategoriyani tanlang", "description": "Tajriba tavsifi", "descriptionPh": "Qaysi yo'nalishda, qanday masalalar bilan ishlagansiz va tajribangiz mijozga nima beradi", "issue": {"category": "Kategoriyani tanlang", "description": "Tavsif kamida {n} ta belgi bo'lsin", "contacts": "Tavsifda aloqa ma'lumotlari bo'lmasin", "workplace": "Ish joyini kiriting", "position": "Lavozimni kiriting", "started": "Boshlangan sanani kiriting (kelajakdagi sana bo'lmasin)", "ended": "Tugagan sana boshlanishdan keyin va bugundan oldin bo'lsin"}, "verifyNote": "Tajribangiz LexGo tomonidan tekshiriladi.", "cancel": "Bekor qilish", "submit": "Tekshiruvga yuborish", "sending": "Yuborilmoqda…", "sent": "Tekshiruvga yuborildi.", "failed": "Yuborib bo'lmadi.", "loadFailed": "Tajribani yuklab bo'lmadi.", "now": "hozirgacha", "cancelPending": "Tekshiruvni bekor qilish", "cancelled": "Tekshiruvdagi tahrir bekor qilindi.", "workplace": "Ish joyi", "position": "Lavozim", "startedAt": "Boshlangan sana", "endedAt": "Tugagan sana", "isCurrent": "Hozir ham shu yerda ishlayman", "stages": "Bosqichlar", "results": "Natijalar", "evidence": "Tasdiqlovchi fayllar", "evidenceHint": "PDF, JPG, PNG, WEBP, DOC, DOCX · 20 MB gacha", "addFile": "Fayl qo'shish", "uploading": "Yuklanmoqda…", "file": "Fayl", "removeFile": "{name} faylini olib tashlash", "fileBad": "«{name}» turi yoki hajmi mos emas", "fileFailed": "Faylni yuklab bo'lmadi.", "err": {"experience_dates_invalid": "Sanalar noto'g'ri", "experience_future_date": "Sana kelajakda bo'lmasin", "experience_dates_overlap": "Bu davr boshqa tajriba bilan ustma-ust tushadi", "experience_category_invalid": "Kategoriya noto'g'ri", "experience_subcategory_invalid": "Yo'nalish noto'g'ri", "experience_stage_invalid": "Bosqich noto'g'ri", "experience_result_invalid": "Natija noto'g'ri", "experience_fields_required": "Majburiy maydonlarni to'ldiring", "experience_revision_already_pending": "Bu tajribaning tahriri allaqachon tekshiruvda", "evidence_file_too_large": "Fayl 20 MB dan katta.", "evidence_file_type_not_allowed": "Bu turdagi fayl qabul qilinmaydi.", "evidence_not_found": "Fayl topilmadi — qayta yuklang.", "experience_position_required": "Kamida bitta lavozim kiriting.", "experience_position_dates_invalid": "Lavozim sanalari noto'g'ri."}, "stage": {"pre_investigation": "Tergovgacha", "investigation": "Tergov", "first_instance": "Birinchi instansiya", "appeal": "Apellyatsiya", "cassation": "Kassatsiya", "supervision": "Nazorat tartibi", "enforcement": "Ijro", "advisory": "Maslahat", "transactional": "Bitimlar"}, "result": {"full_success": "To'liq yutuq", "partial_success": "Qisman yutuq", "settlement": "Kelishuv", "dismissed": "Ish tugatilgan", "acquittal": "Oqlov", "sentence_reduced": "Jazo yengillashgan", "claim_granted": "Da'vo qanoatlantirilgan", "claim_partially_granted": "Da'vo qisman qanoatlantirilgan", "defense_success": "Himoya muvaffaqiyatli", "other": "Boshqa"}, "subcategory": "Yo'nalish (ixtiyoriy)", "anySubcategory": "Butun kategoriya", "sumApproved": "Tasdiqlangan yo'nalish", "sumYears": "Tasdiqlangan yil", "sumPending": "Tekshiruvda", "emptyTitle": "Tajriba hali qo'shilmagan", "emptyText": "Har bir yo'nalish bo'yicha ish tajribangizni qo'shing — tasdiqlangan tajriba narx va reytingingizni oshiradi.", "editNamed": "«{name}» tajribasini o'zgartirish", "period": "Davr", "addTitle": "Yangi tajriba", "editTitle": "Tajribani o'zgartirish", "secArea": "Yo'nalish", "secWork": "Ish joyi va lavozimlar", "secCases": "Qaysi ishlar va natijalar", "secProof": "Tajriba mazmuni", "workplacePh": "Masalan: «Adolat» advokatlik byurosi", "positionPh": "Masalan: Advokat", "descLeft": "Yana kamida {n} ta belgi", "descCount": "{n} / 2000", "pickDate": "Sanani tanlang", "progress": "{done} / {total} bo'lim tayyor", "secAreaHint": "Tajriba qaysi huquq sohasiga tegishli.", "secWorkHint": "Tashkilot va undagi har bir lavozimingiz o'z sanalari bilan.", "secCasesHint": "Yuritgan ishlaringiz bosqichi va erishgan natijalaringiz.", "secProofHint": "Bu tajriba nimadan iborat bo'lgani — mijoz va tekshiruvchi uchun.", "subsN": "{n} yo'nalish", "categoryLocked": "Tahrirda kategoriyani o'zgartirib bo'lmaydi.", "periodNow": "Hozir ishlayman", "periodEnded": "Ish tugagan", "stillHere": "Hozirgacha davom etmoqda", "spanTotal": "Jami tajriba: {span}", "durY": "{n} yil", "durM": "{n} oy", "durLess": "1 oydan kam", "picked": "{n} ta tanlandi", "secDone": "Tayyor", "optional": "Ixtiyoriy", "required": "Majburiy", "noCategory": "Kategoriya", "revisions": "{n} ta tahrir", "positionN": "{n}-lavozim", "removePosition": "{n}-lavozimni olib tashlash", "positionDuties": "Vazifalar", "positionDutiesPh": "Bu lavozimda nimalar bilan shug'ullangansiz", "addPosition": "Yana lavozim qo'shish", "parallelNote": "Boshqa joyda parallel ishlagan bo'lsangiz, uni alohida ish joyi sifatida qo'shing — ustma-ust davrlar ikki marta hisoblanmaydi.", "secFiles": "Tasdiqlovchi hujjatlar", "secFilesHint": "Mehnat daftarchasi, buyruq, ma'lumotnoma yoki boshqa hujjat.", "why": {"checkTitle": "LexGo tekshiradi", "check": "Call-markaz hujjatni ish joyi va sanalar bilan solishtiradi.", "privateTitle": "Maxfiy qoladi", "private": "Fayllarni faqat siz va tekshiruvchi ko'radi — profilda chiqmaydi.", "gainTitle": "Nima beradi", "gain": "Tasdiqlangan tajriba profil ishonchini, mijozga moslikni, narx chegarangizni va reytingni oshiradi."}, "fileType": "«{name}» — bu turdagi fayl qabul qilinmaydi. PDF, DOC, DOCX, JPG, PNG yoki WEBP yuklang.", "fileBig": "«{name}» 20 MB dan katta.", "kind": {"category_experience": "Kategoriya tajribasi", "pre_advocate_employment": "Advokatlikdan oldingi faoliyat"}, "kindLabel": "Turi", "live": {"reviewed": "Tajribangiz bo'yicha qaror chiqdi.", "chat": "Tekshiruvchi tajriba bo'yicha chat ochdi."}, "pre": {"title": "Advokat bo'lishdan oldingi faoliyat — davlat idoralari yoki xususiy kompaniyalar", "lead": "Advokat maqomini olishdan oldingi ish joylaringiz: har bir tashkilot alohida yozuv, unda bir nechta lavozim. Bu advokatlik stajiga qo'shilmaydi va kategoriya tajribasidan alohida.", "add": "Tashkilot qo'shish", "emptyTitle": "Hali ish joyi qo'shilmagan", "emptyText": "Davlat idorasi yoki xususiy kompaniyadagi lavozimlaringizni qo'shing — ikkalasi ham qabul qilinadi, LexGo tekshiradi.", "addTitle": "Advokatlikdan oldingi ish joyi", "editTitle": "Ish joyini tahrirlash", "verifyNote": "Yozuv LexGo tomonidan tekshiriladi; hujjatlar ommaga chiqmaydi.", "secWork": "Tashkilot va lavozimlar", "secWorkHint": "Bir tashkilotda bir nechta lavozim bo'lsa, hammasini qo'shing.", "secProofHint": "Bu tashkilotdagi faoliyatingiz haqida qisqacha.", "workplace": "Tashkilot nomi", "workplacePh": "Masalan: Toshkent shahar prokuraturasi yoki «Artel» MChJ", "parallelNote": "Boshqa tashkilot uchun alohida yozuv qo'shing. Ustma-ust davrlarni tizim o'zi birlashtiradi.", "org": "Tashkilot", "sumApproved": "Tasdiqlangan ish joyi"}},
     "payReturn": {
       "som": "so'm",
       "history": "To'lovlar tarixini ochish",
@@ -13951,7 +13951,7 @@
     },
     "achievements": {
       "title": "Kasbiy yutuqlar",
-      "lead": "Ishning qaysi bosqichida va qanday ijobiy natijaga erishganingizni hujjat bilan ko'rsating. Tasdiqlangan yutuqlar reytingingizga ta'sir qiladi.",
+      "lead": "Ish bosqichida erishgan ijobiy natijangizni asos hujjat bilan qo'shing.",
       "add": "Yutuq qo'shish",
       "sumApproved": "Tasdiqlangan",
       "sumPending": "Tekshiruvda",
@@ -13967,21 +13967,20 @@
         "superseded": "Yangi versiya bilan almashtirilgan",
         "other": "Holati noma'lum"
       },
-      "notPublic": "Profilda ko'rinmaydi",
       "pendingKeeps": "Yangi versiya tekshirilguncha oldingi tasdiqlangani ko'rinib turadi.",
       "addTitle": "Yangi yutuq",
       "editTitle": "Yutuqning yangi versiyasi",
       "verifyNote": "Hujjatlar avval dasturiy tekshiriladi, keyin LexGo operatori qaror qiladi. Dalillar ommaga chiqmaydi.",
       "sent": "Yutuq tekshiruvga yuborildi.",
       "failed": "Yutuqni yuborib bo'lmadi.",
-      "secWhat": "Nima va qachon",
-      "secWhatHint": "Kategoriya, sana va aynan qanday natijaga erishilgani.",
+      "secWhat": "Izoh",
+      "secWhatHint": "Natijani o'z so'zingiz bilan qisqa yozing.",
       "date": "Natija sanasi",
-      "description": "Natija tavsifi",
-      "descriptionPh": "Aynan qaysi jihatda va qanday ijobiy natijaga erishilgani. Mijoz ismi, telefon, manzil va ish raqamini yozmang.",
-      "secProof": "Dalil hujjatlar",
-      "secProofHint": "Qaror, ajrim, bayonnoma yoki boshqa tasdiqlovchi hujjat.",
-      "privateNote": "Hujjatlar maxfiy: ularni faqat siz va LexGo tekshiruvchisi ko'radi. Profilda faqat bosqich, natija, kategoriya, yil va xavfsiz tavsif chiqadi.",
+      "description": "Aynan qaysi jihatda, nimada va qanday holatda yutuqqa erishganingizni yozing",
+      "descriptionPh": "Masalan: apellyatsiyada ayblov yengilroq moddaga o'zgartirildi, jazo shartli qilib belgilandi.",
+      "secProof": "Asos hujjat",
+      "secProofHint": "Qaror, hukm yoki ajrim — imzolangan yoki muhrlangan.",
+      "privateNote": "Hujjatlar maxfiy: ularni faqat siz va LexGo tekshiruvchisi ko'radi.",
       "issue": {
         "level": "Yutuq darajasini tanlang.",
         "evidence": "Tasdiqlovchi hujjatni yuklang.",
@@ -14025,7 +14024,7 @@
       "upToMb": "har biri {mb} MB gacha",
       "filesRange": "{min}–{max} ta fayl",
       "secStage": "Bosqich va natija",
-      "secStageHint": "Bitta bosqichni va natija darajasini tanlang.",
+      "secStageHint": "Qaysi bosqichda, qanday natija, qaysi sohada va qachon.",
       "stageLabel": "Ish bosqichi",
       "resultLabel": "Natija",
       "category": "Xizmat kategoriyasi",
@@ -14056,7 +14055,14 @@
         "ai_advisory_analysis": "Dasturiy tahlil",
         "operator_review": "Operator",
         "public_profile": "Profilda"
-      }
+      },
+      "introTitle": "Qanday yutuq qo'shiladi?",
+      "introText": "Tergovga qadar tekshiruv, surishtiruv, dastlabki tergov yoki sudda to'liq yoki qisman erishilgan ijobiy natija: da'vo qanoatlantirilgan, ayblov yoki jazo yengillashtirilgan, oqlov hukmiga erishilgan va h.k.",
+      "introPromise": "LexGo tasdiqlasa, profilingizda shaxsga oid ma'lumotlarsiz ko'rinadi va reytingingizga ijobiy ta'sir qiladi.",
+      "introCheck": "Hujjatlarni avval dastur tekshiradi (faqat maslahat), so'ng LexGo operatori qaror qiladi.",
+      "noPii": "Mijoz ismi, telefoni, manzili va ish raqamini yozmang.",
+      "proofRule": "Natija davlat organining qarori yoki sud hujjatida aks etgan bo'lishi shart — aks holda yutuq inobatga olinmaydi.",
+      "ownerWarning": "Soxta yoki sun'iy yaratilgan hujjatlarni yuklash salbiy oqibatlarga olib kelishi mumkin. LexGo hujjatlarning haqiqiyligini va sun'iy intellekt vositalarida yaratilmaganini kuchli dasturiy vositalar bilan chuqur tekshiradi."
     },
     "practice": {
       "title": "Advokatlik amaliyoti",
@@ -14145,7 +14151,15 @@
       "advocateOnly": "Bu bo'lim faqat advokat hisobi uchun.",
       "fileType": "Bu turdagi fayl qabul qilinmaydi.",
       "fileBig": "Fayl juda katta — {mb} MB gacha bo'lishi kerak.",
-      "upToMb": "{mb} MB gacha"
+      "upToMb": "{mb} MB gacha",
+      "nudge": {
+        "title": "Advokatlik stajingizni tasdiqlang",
+        "text": "Advokat guvohnomasini yuklang — tizim undan boshlanish sanasini o'qiydi, LexGo tasdiqlagach staj profilingizda chiqadi.",
+        "cta": "Litsenziyani yuklash",
+        "againTitle": "Guvohnomani qayta yuklang",
+        "againText": "LexGo guvohnomangiz bo'yicha izoh qoldirdi. Uni ko'rib, qayta yuboring.",
+        "againCta": "Ko'rish"
+      }
     }
   },
   "notFound": {
@@ -14338,7 +14352,7 @@
       "selectAll": "Hammasini tanlash"
     },
     "advocate": {
-      "tenureTitle": "Advokatlik staji",
+      "tenureTitle": "Advokatlik staji — litsenziyadan",
       "priorTitle": "Advokatlikdan oldingi ish tajribasi",
       "priorHint": "Advokat bo'lishdan avval davlat idoralari yoki xususiy kompaniyalarda orttirgan tajribangiz. U advokatlik stajidan alohida hisoblanadi.",
       "steps": {
@@ -14356,10 +14370,6 @@
       "professionalSubtitle": "Litsenziyangiz mijoz ishonchini oshiradi va tasdiqlashni ochadi.",
       "license": "Litsenziya raqami",
       "licensePh": "masalan, ADV-2015-4821",
-      "licenseDoc": "Litsenziya hujjati",
-      "licenseHint": "Litsenziyangizni yuklang (PDF yoki rasm)",
-      "upload": "Hujjat yuklash",
-      "uploaded": "Hujjat yuklandi",
       "bar": "Advokatlar palatasi",
       "barPh": "masalan, O'zbekiston Advokatlar palatasi",
       "specialization": "Mutaxassislik",
@@ -14386,7 +14396,6 @@
       "experience": "Tajriba (yil)",
       "work": {
         "priorTitle": "Advokatlikdan oldingi ish joylari",
-        "priorSubtitle": "Davlat idoralari yoki xususiy kompaniyalardagi ish joylaringizni qo'shing.",
         "title": "Ish tajribasi",
         "subtitle": "Oldingi va joriy ish joylaringizni qo'shing.",
         "org": "Tashkilot",
@@ -14403,7 +14412,8 @@
         "add": "Tajriba qo'shish",
         "empty": "Hali tajriba qo'shilmagan.",
         "pickPh": "Oyni tanlang",
-        "clear": "Tozalash"
+        "clear": "Tozalash",
+        "priorLater": "Ish joylarini (davlat idoralari yoki xususiy kompaniyalar) ro'yxatdan o'tgach Profil → Professional → «Advokat bo'lishdan oldingi faoliyat» bo'limida qo'shasiz — LexGo tekshiradi."
       },
       "expertiseTitle": "Kasbiy yo'nalishlar",
       "expertiseSubtitle": "Amaliyot olib boradigan yo'nalishlarni tanlang — bu qadam ixtiyoriy.",
@@ -14456,7 +14466,9 @@
         "price": "Soatlik narx (so'm)",
         "hint": "Faqat raqam. Profilda istalgan vaqt o'zgartirish mumkin."
       },
-      "tenureVerified": "Advokatlik stajingizni LexGo advokat guvohnomangiz tasdiqlangach o'zi hisoblaydi — bu yerda kiritilmaydi. Ro'yxatdan o'tgach Profil → Professional → «Advokatlik amaliyoti» bo'limida guvohnomani yuklang."
+      "tenureVerified": "Stajni bu yerda yozmaysiz. Ro'yxatdan o'tgach Profil → Professional → «Advokatlik amaliyoti» bo'limida advokat guvohnomasini (litsenziyani) yuklang: tizim undan boshlanish sanasini o'qiydi, siz tekshirasiz, LexGo tasdiqlaydi.",
+      "nextTitle": "Keyingi qadam: litsenziyani yuklang",
+      "nextText": "Kabinetga kirgach Profil → Professional → «Advokatlik amaliyoti» bo'limida advokat guvohnomasini yuklang. Tizim undan advokatlik stajingizni o'qib oladi."
     },
     "languages": {
       "uz": "O'zbekcha",

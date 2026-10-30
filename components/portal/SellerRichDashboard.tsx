@@ -16,6 +16,7 @@ import { useSellerCabinet } from "./SellerCabinet";
 import MiniCalendar, { type MiniCalEvent } from "./MiniCalendar";
 import TwoFactorCard from "./TwoFactorCard";
 import TelegramLinkCard from "./TelegramLinkCard";
+import LicenseNudge from "./LicenseNudge";
 import NotificationPrefsCard from "./NotificationPrefsCard";
 import {
   IconBolt,
@@ -142,6 +143,8 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
           <p>{t("greetSub", { meetings: num(workload, "courts_today"), tasks: taskGroups.today.length })}</p>
         </div>
       </div>
+
+      {role === "advocate" ? <LicenseNudge /> : null}
 
       {cabinet.status === "loading" ? null : (
         <div className="amet" data-ai-target="seller-dashboard:stats" data-ai-id="advocate.dashboard.stats">

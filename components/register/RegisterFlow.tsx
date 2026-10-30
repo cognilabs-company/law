@@ -24,11 +24,10 @@ import {
 import { REGION_KEYS } from "@/lib/mock/catalog";
 import Select, { type Option } from "@/components/Select";
 import TimePicker from "@/components/TimePicker";
-import { IconLogo, IconChevronLeft, IconArrowRight, IconCheck } from "../icons";
+import { IconLogo, IconChevronLeft, IconArrowRight, IconCheck, IconShieldCheck, IconBriefcase } from "../icons";
 import PhoneStep from "./PhoneStep";
 import AccountTypeCards from "./AccountTypeCards";
 import PhotoUpload from "./PhotoUpload";
-import WorkHistoryEditor from "./WorkHistoryEditor";
 import ProfilePreview from "./ProfilePreview";
 import ChipMulti from "./ChipMulti";
 import PasswordInput from "../PasswordInput";
@@ -432,6 +431,19 @@ export default function RegisterFlow() {
 
   // Account created and signed in → last onboarding screen (Telegram bot),
   // then the portal. Skippable.
+  // An advocate's first job inside: the certificate, which the system reads
+  // for the tenure (the sign-up itself cannot take the file).
+  const advNext =
+    draft.accountType === "advocate" ? (
+      <div className="rf__benefit rf__tenure rf__next" role="note">
+        <b>
+          <IconShieldCheck aria-hidden="true" />
+          {t("advocate.nextTitle")}
+        </b>
+        <p>{t("advocate.nextText")}</p>
+      </div>
+    ) : null;
+
   if (tgOfferRole) {
     return (
       <div className="rf">
@@ -444,6 +456,7 @@ export default function RegisterFlow() {
             <h1 className="rf__title">{t("done.title")}</h1>
             <p className="rf__sub">{t("done.telegramLead")}</p>
           </div>
+          {advNext}
           <div style={{ marginTop: 8 }}>
             <TelegramLinkCard />
           </div>
@@ -474,6 +487,7 @@ export default function RegisterFlow() {
             <h1 className="rf__title">{t("pending.title")}</h1>
             <p className="rf__sub">{locale === "uz" && pendingMsg ? pendingMsg : t("pending.hint")}</p>
             <p className="rf__sub">{t("pending.hint")}</p>
+            {advNext}
             <button
               className="btn btn--grad btn--full btn--lg"
               type="button"
@@ -761,15 +775,17 @@ export default function RegisterFlow() {
                     <input value={p.orgName ?? ""} onChange={(e) => setProfile({ orgName: e.target.value })} placeholder={t("advocate.orgNamePh")} />
                   </div>
                 </div>
-                <div>
-                  <label>{t("advocate.licenseDoc")}</label>
-                  <PhotoUpload value={p.licenseDoc?.startsWith("data:") ? p.licenseDoc : undefined} name="" capture="environment" onChange={(u) => setProfile({ licenseDoc: u })} label={t("advocate.upload")} hint={p.licenseDoc ? t("advocate.uploaded") : t("advocate.licenseHint")} />
-                </div>
                 {/* Advocate tenure is counted by LexGo from the verified
                     certificate (contract 2026-10-29 §14): never typed or
-                    worked out here. */}
+                    worked out here. Registration (/auth/register) takes no
+                    certificate file or status date, so the certificate is
+                    the first thing to upload once inside — said here, not
+                    collected and dropped. */}
                 <div className="rf__benefit rf__tenure">
-                  <b>{t("advocate.tenureTitle")}</b>
+                  <b>
+                    <IconShieldCheck aria-hidden="true" />
+                    {t("advocate.tenureTitle")}
+                  </b>
                   <p>{t("advocate.tenureVerified")}</p>
                 </div>
                 <div className="rf__wh">
@@ -782,9 +798,13 @@ export default function RegisterFlow() {
                     </div>
                     <div />
                   </div>
-                  <label>{t("advocate.work.priorTitle")}</label>
-                  <p className="rf__hint">{t("advocate.work.priorSubtitle")}</p>
-                  <WorkHistoryEditor value={p.workHistory} onChange={(v) => setProfile({ workHistory: v })} />
+                  {/* Workplaces before advocate status are verified records
+                      (experience_kind=pre_advocate_employment), added once
+                      the account exists. */}
+                  <p className="rf__hint rf__later">
+                    <IconBriefcase aria-hidden="true" />
+                    {t("advocate.work.priorLater")}
+                  </p>
                 </div>
                 <div className="rf__benefit">
                   <b>{t("advocate.expBenefitTitle")}</b>
