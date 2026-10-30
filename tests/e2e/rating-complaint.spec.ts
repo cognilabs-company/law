@@ -76,8 +76,8 @@ test.describe("rating and complaint", () => {
       [`POST /marketplace/me/orders/${ORDER_ID}/complaint`]: (b: unknown) => (complaints.push(b), {}),
     });
     await page.getByRole("radio", { name: "2 звезды" }).click();
-    // A low rating needs its reason.
-    await expect(page.getByRole("button", { name: "Отправить оценку" })).toBeDisabled();
+    // The comment is optional (e9b8097): a low rating can go without one.
+    await expect(page.getByRole("button", { name: "Отправить оценку" })).toBeEnabled();
     await page.getByRole("textbox").first().fill("Javob kechikdi, natija to'liq emas");
     await page.getByRole("button", { name: "Отправить оценку" }).click();
     await expect(page.getByText("Низкая оценка отправлена в отдел качества").first()).toBeVisible();

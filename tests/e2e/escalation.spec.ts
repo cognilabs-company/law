@@ -73,7 +73,9 @@ test("the client picks another specialist from the offer", async ({ page }) => {
   });
   const mock = await mockBackend(page, routes);
   await page.goto(`/ru/portal/client/marketplace-orders/${ORDER_ID}`);
-  await expect(page.getByText("Исполнитель не смог принять заказ")).toBeVisible();
+  // The neutral continuity message (fa4ced6): the order goes on, the payment is kept.
+  await expect(page.getByRole("heading", { name: "Продолжаем работу по заказу" })).toBeVisible();
+  await expect(page.getByText("Выбранный специалист сейчас не может принять заказ. Ваша оплата сохраняется.")).toBeVisible();
   await expect(page.getByText(/Осталось на выбор: 2\d:\d\d/)).toBeVisible();
   await expect(page.getByText("Вам предложен выбор")).toBeVisible();
   await page.getByRole("button", { name: "Другой специалист" }).click();

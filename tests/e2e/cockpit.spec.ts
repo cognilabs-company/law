@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { CALL_CENTER, mockBackend, signIn } from "./mock";
 
-// TSK-635882 — the operator's marketplace cockpit. The live titles carry
-// raw ids ("…eskalatsiyasi: 9d042a95-…"); the cockpit never shows them.
+// TSK-635882 — the operator's marketplace cockpit (the focus home screen,
+// fb64ec3). The live titles carry raw ids ("…eskalatsiyasi: 9d042a95-…");
+// the cockpit never shows them.
 // Screenshots: CKP_SHOTS=<dir>, CKP_NARROW=1.
 test.use({ viewport: process.env.CKP_NARROW ? { width: 375, height: 812 } : { width: 1440, height: 960 } });
 const UUID = "9d042a95-ce4a-4e37-ac56-786b2c404372";
@@ -26,7 +27,9 @@ const cockpit = {
   events: ["marketplace.assignment_escalated", "marketplace.contact_sla_breached"],
 };
 
-test("the cockpit lists every queue in human words and opens the right one", async ({ page }) => {
+// The home screen since fb64ec3: one job in focus (the longest waiting) and
+// the next jobs as rows, all in human words.
+test("the cockpit puts the longest wait in focus, in human words, and opens the right queue", async ({ page }) => {
   await mockBackend(
     page,
     await signIn(page, CALL_CENTER, {
@@ -37,24 +40,27 @@ test("the cockpit lists every queue in human words and opens the right one", asy
     } as never),
   );
   await page.goto("/uz/admin/call-center?tab=cockpit");
-  const ckp = page.locator(".ckp");
-  await expect(ckp.locator(".ckp__total b")).toHaveText("14", { timeout: 20000 });
-  const lanes = ckp.locator(".ckp__lane");
-  await expect(lanes).toHaveCount(7);
-  const assign = lanes.filter({ hasText: "Ijrochi muammosi" });
-  await expect(assign).toContainText("Mijoz bilan tanlangan muddatda bog'lanilmadi");
-  await expect(assign).toContainText("30 daqiqada javob bo'lmadi");
-  await expect(assign).toContainText("Malika Yusupova");
-  // The backend's own title leads (gaps closed §15); an older title with an id never shows.
-  await expect(lanes.filter({ hasText: "Shikoyatlar" }).locator(".ckp__it b").first()).toHaveText("Marketplace shikoyati · CMP-TPGNT · Shartnoma tahlili");
-  await expect(lanes.filter({ hasText: "Shikoyatlar" })).toContainText("Dilnoza Karimova · ★");
-  await expect(lanes.filter({ hasText: "Pul qaytarish" })).toContainText("8 000 so'm");
-  await expect(lanes.filter({ hasText: "Tajriba tekshiruvi" })).toContainText("Hammasi joyida");
-  await expect(ckp.locator(".ckp__first")).toContainText("Ijrochi muammosi — 9");
-  const text = await ckp.innerText();
-  expect(text).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-|seller_acceptance_timeout|contact_sla_breached/);
+  const ccf = page.locator(".ccf");
+  // The backend's own title leads (gaps closed §15): the complaint by its work id.
+  await expect(ccf.locator(".ccf__id b")).toHaveText("CMP-TPGNT", { timeout: 20000 });
+  await expect(ccf.locator(".ccf__facts")).toContainText("Dilnoza Karimova");
+  await expect(ccf.locator(".ccf__facts")).toContainText("★");
+  await expect(ccf.locator(".ccf__count")).toHaveText("4 ta navbatda");
+  const next = ccf.locator(".ccf__list");
+  await expect(next).toContainText("Mijoz bilan tanlangan muddatda bog'lanilmadi");
+  await expect(next).toContainText("30 daqiqada javob bo'lmadi");
+  await expect(next).toContainText("Malika Yusupova");
+  await expect(next).toContainText("Bobur Aliyev");
+  await expect(next).toContainText("Aziz Rahimov");
+  const text = await ccf.innerText();
+  expect(text).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-|seller_acceptance_timeout|contact_sla_breached|low_rating/);
   if (process.env.CKP_SHOTS) await page.screenshot({ path: `${process.env.CKP_SHOTS}/cockpit${process.env.CKP_NARROW ? "-phone" : ""}.png` });
-  await assign.getByRole("button", { name: /Navbatga o'tish/ }).click();
+  // A refund goes to the refund money in the focus, then to its queue.
+  await next.getByRole("button", { name: /Aziz Rahimov/ }).click();
+  await expect(ccf.locator(".ccf__facts")).toContainText("8 000 so'm");
+  await next.getByRole("button", { name: /Malika Yusupova/ }).click();
+  await expect(ccf.locator(".ccf__facts")).toContainText("Malika Yusupova");
+  await ccf.getByRole("button", { name: "Navbatga o'tish" }).click();
   await expect(page).toHaveURL(/tab=escalations/);
 });
 
@@ -78,10 +84,14 @@ test("a queue the operator's role cannot open says so instead of a dead button",
     } as never),
   );
   await page.goto("/uz/admin/call-center?tab=cockpit");
-  const lane = page.locator(".ckp__lane", { hasText: "Yutuq" });
-  await expect(lane.locator(".ckp__locked")).toHaveText("Bu navbat sizning rolingizga ochiq emas", { timeout: 20000 });
-  await expect(lane.getByRole("button", { name: /Navbatga o'tish/ })).toHaveCount(0);
-  // Queues the role can open still go there.
-  await page.locator(".ckp__lane", { hasText: "Ijrochi muammosi" }).getByRole("button", { name: /Navbatga o'tish/ }).click();
+  const ccf = page.locator(".ccf");
+  const next = ccf.locator(".ccf__list");
+  await next.getByRole("button", { name: /MKT-A4OKA/ }).click({ timeout: 20000 });
+  await expect(ccf.locator(".ccf__id b")).toHaveText("MKT-A4OKA");
+  await expect(ccf.locator(".ccf__locked")).toHaveText("Bu navbat sizning rolingizga ochiq emas");
+  await expect(ccf.getByRole("button", { name: "Navbatga o'tish" })).toHaveCount(0);
+  // Jobs from queues the role can open still go there.
+  await next.getByRole("button", { name: /Malika Yusupova/ }).click();
+  await ccf.getByRole("button", { name: "Navbatga o'tish" }).click();
   await expect(page).toHaveURL(/tab=escalations/);
 });

@@ -822,32 +822,6 @@
   }
 }
 
-[data-cc] .ckp__hero {
-  border: 1px solid var(--cc-line);
-  background:
-    radial-gradient(120% 140% at 100% 0%, rgba(59, 130, 246, 0.2) 0%, transparent 58%),
-    linear-gradient(135deg, var(--cc-panel) 0%, var(--cc-panel-2) 100%);
-  color: var(--cc-ink);
-  box-shadow: var(--cc-shadow);
-}
-
-[data-cc] .ckp__hero p {
-  color: var(--cc-ink-2);
-}
-
-[data-cc] .ckp__hero::after {
-  background: rgba(59, 130, 246, 0.07);
-}
-
-[data-cc] .ckp__total button {
-  background: var(--cc-accent-soft);
-  color: var(--cc-accent-text);
-}
-
-[data-cc] .ckp__total button:hover {
-  background: rgba(59, 130, 246, 0.24);
-}
-
 [data-cc]:not([data-cc-theme="light"]) :is(.sx, .sx-pop, .amodal__c:has(.sx-dw)) {
   --sx-bg: var(--cc-bg);
   --sx-surface: var(--cc-panel);
@@ -955,7 +929,6 @@
   }
 }
 
-[data-cc] .ckp__lane,
 [data-cc] .esc,
 [data-cc] .crm-kcard {
   animation: ccRise var(--cc-mid) var(--cc-ease) both;
@@ -989,7 +962,6 @@
 @media (prefers-reduced-motion: reduce) {
   [data-cc] .ccq__n,
   [data-cc] .ccsb__count,
-  [data-cc] .ckp__lane,
   [data-cc] .esc,
   [data-cc] .crm-kcard {
     animation: none;

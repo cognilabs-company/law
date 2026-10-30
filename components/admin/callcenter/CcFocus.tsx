@@ -4,7 +4,7 @@ import "./ccFocus.css";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import PersonName from "@/components/ui/PersonName";
-import { IconArrowRight, IconCheck, IconChevronLeft, IconChevronRight, IconRefresh } from "@/components/icons";
+import { IconArrowRight, IconCheck, IconChevronLeft, IconChevronRight, IconLock, IconRefresh } from "@/components/icons";
 import { fmtAge } from "@/lib/date";
 import { isAborted, isForbidden, logApiError, parseServerTime } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
@@ -21,6 +21,10 @@ const TAB: Record<CockpitQueue, CcTab> = {
   experience: "experience",
   achievements: "achievements",
 };
+
+// A complaint about a document request or an urgent call is a quality
+// complaint: it lives in the "complaints" tab, not the marketplace one.
+const tabOf = (it: CockpitItem): CcTab => (it.queue === "complaints" && it.quality ? "complaints" : TAB[it.queue]);
 
 const TONE: Record<CockpitQueue, string> = {
   assignments: "hot",
@@ -57,6 +61,9 @@ function clock(ms: number, t: Say): string {
   return t("ageM", { n: m });
 }
 
+// `tabs`: the console's tabs this operator can open. A queue the backend
+// refuses (403) hides its tab, so a job from it says so instead of a dead
+// "open the queue" button.
 export default function CcFocus({ onGo, onCount, tabs }: { onGo: (tab: CcTab) => void; onCount?: (n: number) => void; tabs?: readonly CcTab[] }): ReactElement | null {
   const t = useTranslations("callCenter.focus");
   const tc = useTranslations("callCenter.cockpit");
@@ -228,10 +235,17 @@ export default function CcFocus({ onGo, onCount, tabs }: { onGo: (tab: CcTab) =>
             {focus.note ? <p className="ccf__note">{focus.note}</p> : null}
 
             <div className="ccf__acts">
-              <button type="button" className="ccb ccb--pri" onClick={() => onGo(TAB[focus.queue])} data-ai-id="call_center.focus.open">
-                <IconArrowRight aria-hidden="true" />
-                {t("go")}
-              </button>
+              {tabs && !tabs.includes(tabOf(focus)) ? (
+                <p className="ccf__locked" role="note">
+                  <IconLock aria-hidden="true" />
+                  {tc("noAccess")}
+                </p>
+              ) : (
+                <button type="button" className="ccb ccb--pri" onClick={() => onGo(tabOf(focus))} data-ai-id="call_center.focus.open">
+                  <IconArrowRight aria-hidden="true" />
+                  {t("go")}
+                </button>
+              )}
               {at0 < queue.length - 1 ? (
                 <button type="button" className="ccb" onClick={() => setCursor(at0 + 1)} data-ai-id="call_center.focus.skip">
                   {t("skip")}
@@ -288,7 +302,6 @@ export default function CcFocus({ onGo, onCount, tabs }: { onGo: (tab: CcTab) =>
           })}
           {!rest.length && data ? <li className="ccf__none">{t("noMore")}</li> : null}
         </ol>
-        {tabs && queue.length ? null : null}
       </div>
     </section>
   );
