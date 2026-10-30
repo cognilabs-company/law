@@ -822,7 +822,8 @@ test("a hidden section is out of the menu and its URL says no access", async ({ 
   await mockBackend(page, await signIn(page, OPERATOR, routes as never));
   await page.goto("/uz/admin/crm/live");
   await expect(page.locator("[data-denied]")).toContainText("Bu bo'lim sizning ruxsatlaringizga kirmaydi");
-  const nav = page.locator(".crm-nav");
+  // An operator's CRM menu is the rail beside the content (06c03d4).
+  const nav = page.locator(".crm-rail");
   await expect(nav.getByRole("link", { name: "Jonli ofis" })).toHaveCount(0);
   await expect(nav.getByRole("link", { name: "Robotlar" })).toHaveCount(0);
   await expect(nav.getByRole("link", { name: "Umumiy tahlil" })).toHaveCount(0);

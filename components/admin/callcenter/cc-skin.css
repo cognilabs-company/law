@@ -1306,8 +1306,19 @@
     overflow: visible;
   }
 
+  /* With the detail open beside it, the list is half as wide: each row
+     takes two lines (title and status, then the reason and the time) so
+     the reason never collapses to nothing. */
   [data-cc] .esc__list:has(.esc__item[data-open]) .esc__item .esc__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 4px;
     background: var(--cc-panel);
+  }
+
+  [data-cc] .esc__list:has(.esc__item[data-open]) .esc__row > span:not(.esc__chip) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   [data-cc] .esc .esc__item {
