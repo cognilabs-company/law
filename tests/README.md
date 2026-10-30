@@ -1,9 +1,10 @@
 # Frontend tests
 
-Three kinds, all run locally (there is no CI job yet).
+Three kinds. Lint, typecheck, unit and browser tests also run in CI on every push and pull request to `main` (`.github/workflows/ci.yml`).
 
 | Command | What | Needs |
 |---|---|---|
+| `npm run lint`, `npm run typecheck` | ESLint and TypeScript over the whole app and the tests. | nothing |
 | `npm test` | Unit tests (`tests/unit`, Vitest): the rules the frontend applies to backend data — contact detection, upload limits, order phases, price snapshots, tariff and promotion rules, monitoring events. | nothing |
 | `npm run e2e` | Browser tests (`tests/e2e`, Playwright + system Chrome) of the real pages against a **mocked backend**. | a free port 3120 (it starts `next dev`) |
 | `SMOKE_URL=https://… npm run smoke` | Read-only checks of a **deployed** site after a release (`tests/smoke`). | the deployed URL |
@@ -33,7 +34,7 @@ Studio schemas in `tests/e2e/fixtures/*.json` were recorded from the live API (r
 
 ## After a deployment
 
-1. `SMOKE_URL=<deployed url> npm run smoke` — pages load without errors and the API answers through the site.
+1. `SMOKE_URL=<deployed url> npm run smoke` — pages load without errors, the API answers through the site, the backend's `/health` says ok, `/api/version` names the deployed commit, a signed-out visitor is sent to sign in, and the read-only guard blocks writes.
 2. Check the admin **Monitoring** page: integrations healthy, no open incidents, error rate normal.
 
 ## Not covered here (backend)
