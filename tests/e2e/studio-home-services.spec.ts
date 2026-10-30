@@ -33,6 +33,10 @@ test("the service cards open all services and only the unfinished ones", async (
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("Mehnat nizosi").first()).toBeVisible();
   await expect(dialog.getByText("Meros chala").first()).toBeVisible();
+  // A published service is opened to look at; a draft is carried on.
+  const view = dialog.getByRole("link", { name: /Открыть.*Mehnat nizosi/ });
+  await expect(view).toHaveAttribute("href", /\/admin\/studio\/o\/obj-p1/);
+  await expect(dialog.getByRole("link", { name: /Meros chala/ }).first()).toHaveAttribute("href", /\/admin\/studio\/o\/obj-d1/);
   await page.keyboard.press("Escape");
 
   await unfinished.click();

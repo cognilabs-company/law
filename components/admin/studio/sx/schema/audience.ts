@@ -293,6 +293,7 @@ const K02_FIELDS: Readonly<Record<string, Entry>> = {
   K02__document_template_id: ["performer", "tplField"],
   K02__price_factor_ids: ["client", "factor"],
   K02__price_factor_overrides: ["client", "factor"],
+  K02__pricing_coefficient_ids: ["performer", "factor"],
   K02__seller_rules_allowed: ["performer", "staffText"],
   K02__checklist_template_id: ["staff", "staffText"],
   K02__completion_checklist: ["both", "checkClient"],

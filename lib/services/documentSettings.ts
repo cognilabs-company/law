@@ -22,7 +22,9 @@ export type DocSettings = {
   downloadPolicy: Dict;
   currency: string;
 };
-export type DocSettingsVersion = { id: string; version: number | null; status: string; createdAt: string; publishedAt: string; createdBy: string; settings: DocSettings };
+// publishedBy: who made the version live (a publish or a rollback), when the
+// backend names them (TSK-136097 audit).
+export type DocSettingsVersion = { id: string; version: number | null; status: string; createdAt: string; publishedAt: string; createdBy: string; publishedBy: string; settings: DocSettings };
 
 export function settingsOf(v: unknown): DocSettings {
   const d = asDict(v);
@@ -70,6 +72,7 @@ function versionOf(v: unknown): DocSettingsVersion {
     createdAt: asStr(d.created_at),
     publishedAt: asStr(d.published_at),
     createdBy: asStr(by.name ?? d.created_by_name),
+    publishedBy: asStr(asDict(d.published_by).name ?? d.published_by_name ?? asDict(d.activated_by).name),
     settings: settingsOf(d.settings ?? d.payload ?? d.data ?? d),
   };
 }

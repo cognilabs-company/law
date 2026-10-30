@@ -265,7 +265,7 @@ export const K02_LAYOUT: SxCtorLayout = {
   code: "K02",
   sections: [
     { id: "asosiy", titleKey: "sx.section.asosiy", fields: ["title", "category_id", "description", "client_value", "executor_types"] },
-    { id: "K02__price", titleKey: "sx.section.K02__price", fields: ["base_price", "max_price", "price_factor_ids", "price_factor_overrides", "negotiation_allowed"] },
+    { id: "K02__price", titleKey: "sx.section.K02__price", fields: ["base_price", "max_price", "price_factor_ids", "price_factor_overrides", "pricing_coefficient_ids", "negotiation_allowed"] },
     { id: "K02__requirements", titleKey: "sx.section.K02__requirements", fields: ["seller_requirements"] },
     { id: "K02__intake", titleKey: "sx.section.K02__intake", fields: [INTAKE] },
     { id: "K02__delivery", titleKey: "sx.section.K02__delivery", fields: ["duration_value", "duration_unit", "duration_calendar"] },
@@ -285,6 +285,8 @@ export const K02_LAYOUT: SxCtorLayout = {
     { path: "executor_type", hidden: true },
     { path: "executor_types", control: "choicesMulti", columns: 2, choices: EXECUTOR_CHOICES, help: "sx.help.K02__executor_types" },
     { path: "price_factor_ids", help: "sx.help.price_factor_ids", inlineAddKey: "sx.k02.fo.addShared" },
+    // TSK-331025: the K36 coefficients this service uses, picked with the price.
+    { path: "pricing_coefficient_ids", label: "sx.k02.field.pricing_coefficient_ids", help: "sx.k02.help.pricing_coefficient_ids" },
     { path: "price_factor_overrides", control: "factorOverrides", label: "sx.k02.field.price_factor_overrides", help: "sx.k02.help.price_factor_overrides", visible: hasFactors },
     { path: "negotiation_allowed", help: "sx.help.K02__negotiation_allowed" },
     { path: "seller_requirements", flatten: true },

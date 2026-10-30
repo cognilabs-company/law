@@ -23,6 +23,28 @@ test("service checklist: a 30% list and a final 40% list; an item can switch bet
   // TSK-881437: the owner's exact name; the backend's "Bajarish ro'yxati" never shows.
   await expect(page.getByText("Ushbu xizmat doirasida bajariladigan ishlarning cheklisti").first()).toBeVisible({ timeout: 20000 });
   await expect(page.getByText(/Bajarish ro.yxati/)).toHaveCount(0);
+  // TSK-331025: the K36 coefficients are picked with the price, not left in "Asosiy".
+  await expect(page.locator('[data-section="K02__price"]')).toContainText("Advokat narx koeffitsiyentlari");
+  await expect(page.locator('[data-section="asosiy"]')).not.toContainText("Advokat narx koeffitsiyentlari");
+  // TSK-856179: the duration unit reads Kun / Soat / Daqiqa, capitalised.
+  const delivery = page.locator('[data-section="K02__delivery"]');
+  await delivery.scrollIntoViewIfNeeded();
+  const unitText = await delivery.innerText();
+  expect(unitText).toMatch(/Kun|Soat|Daqiqa/);
+  expect(unitText).not.toMatch(/(^|\s)(kun|soat|daqiqa)(\s|$)/m);
+  // TSK-942891: a Studio select shows hover (border and background) and a focus ring.
+  const box = page.locator('[data-section="K02__delivery"] .sx-picker__box').first();
+  await expect(box).toBeVisible();
+  await box.scrollIntoViewIfNeeded();
+  await page.mouse.move(0, 0);
+  const rest = await box.evaluate((el) => { const c = getComputedStyle(el); return `${c.borderColor}|${c.backgroundColor}`; });
+  await box.hover();
+  await expect.poll(() => box.evaluate((el) => { const c = getComputedStyle(el); return `${c.borderColor}|${c.backgroundColor}`; })).not.toBe(rest);
+  await page.mouse.move(0, 0);
+  await box.locator(".sx-picker__trigger").focus();
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Tab");
+  await expect.poll(() => box.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
   const final = page.locator('.sx-k2stage[data-stage="final_completion"]');
   await first.scrollIntoViewIfNeeded({ timeout: 30000 });
   await expect(first).toContainText("30% cheklisti — ikkinchi to'lov");

@@ -34,6 +34,31 @@ test("document settings: rules in effect, history, and a draft published after c
   expect(mock.count("POST", /\/admin\/document-service-settings\/v2\/publish$/)).toBe(1);
 });
 
+// TSK-136097: an earlier version comes back with a rollback after a
+// confirmation; the history says who made each version live.
+test("document settings: an earlier version comes back after confirming, and the history names who", async ({ page }) => {
+  let rolled = false;
+  const routes = await signIn(page, ADMIN, {
+    "/document-service-settings/runtime": () => ({ settings, version: rolled ? 1 : 2, settings_id: rolled ? "v1" : "v2" }),
+    "/admin/document-service-settings": () => ({
+      active: { id: rolled ? "v1" : "v2", version: rolled ? 1 : 2, status: "published", settings, published_at: "2026-10-25T10:00:00Z" },
+      versions: [
+        { id: "v1", version: 1, status: rolled ? "published" : "superseded", settings, published_at: "2026-10-24T10:00:00Z", published_by: { name: "Dilnoza Admin" } },
+        { id: "v2", version: 2, status: rolled ? "superseded" : "published", settings: { ...settings, extra_page_price: 18000 }, published_at: "2026-10-25T10:00:00Z", published_by: { name: "Akmal Admin" } },
+      ],
+    }),
+    "POST /admin/document-service-settings/v1/rollback": () => ((rolled = true), { id: "v1", version: 1, status: "published", settings }),
+  });
+  const mock = await mockBackend(page, routes);
+  await page.goto("/uz/admin/document-settings");
+  await expect(page.getByText("Faollashtirgan: Dilnoza Admin").first()).toBeVisible({ timeout: 20000 });
+  await page.getByRole("button", { name: "Shu versiyaga qaytish" }).click();
+  const dialog = page.getByRole("dialog", { name: "Versiya 1 ga qaytasizmi?" });
+  await dialog.getByRole("button", { name: "Shu versiyaga qaytish" }).click();
+  await expect(page.getByText("Versiya 1 qayta faollashtirildi.")).toBeVisible();
+  expect(mock.count("POST", /\/admin\/document-service-settings\/v1\/rollback$/)).toBe(1);
+});
+
 test("document settings: a draft is checked before it is sent", async ({ page }) => {
   const routes = await signIn(page, ADMIN, {
     "/document-service-settings/runtime": { settings, version: 1, settings_id: null },

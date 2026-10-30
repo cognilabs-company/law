@@ -623,7 +623,7 @@ export default function DocumentSettingsPage(): ReactElement {
                             {isActive ? t("status.active") : status(v.status)}
                           </span>
                           <small>
-                            {[v.publishedAt ? t("publishedAt", { date: shortDateTime(v.publishedAt, locale) }) : v.createdAt ? t("createdAt", { date: shortDateTime(v.createdAt, locale) }) : "", v.createdBy].filter(Boolean).join(" · ")}
+                            {[v.publishedAt ? t("publishedAt", { date: shortDateTime(v.publishedAt, locale) }) : v.createdAt ? t("createdAt", { date: shortDateTime(v.createdAt, locale) }) : "", v.createdBy, v.publishedBy ? t("publishedBy", { name: v.publishedBy }) : ""].filter(Boolean).join(" · ")}
                           </small>
                         </div>
                         <details>
