@@ -4,7 +4,7 @@ export type SxIcon = LucideIcon;
 export type SxLocale = "uz" | "ru" | "en";
 export type SxTone = "draft" | "submitted" | "review" | "approved" | "published" | "returned" | "archived";
 export type SxStage = "draft" | "submitted" | "in_review" | "approved" | "published";
-export type SxStatusKey = SxStage | "returned" | "rejected" | "archived" | "active" | "inactive" | "deleted" | "scheduled" | "paused" | "expired" | "failed" | "unknown";
+export type SxStatusKey = SxStage | "returned" | "rejected" | "archived" | "superseded" | "active" | "inactive" | "deleted" | "scheduled" | "paused" | "expired" | "failed" | "unknown";
 export type SxRecordSource = "studio" | "runtime";
 
 export type SxStatusInfo = {

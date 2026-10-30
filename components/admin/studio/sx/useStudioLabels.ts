@@ -247,7 +247,8 @@ export function buildStudioLabels(t: SxTranslate, rawLocale: string): StudioLabe
   const status = (raw: string, source?: SxRecordSource): string => {
     const key = statusKeyOf(raw, source);
     const n = normStatus(raw);
-    return pick([key !== "unknown" && `sx.status.${key}.label`, n && `flow.rstatus.${n}`, n && `status.${n}`, n && `option.${n}`]) || str(raw) || pick(["sx.ui.notSet"]);
+    // A status the screen has no word for reads "another status", never its code.
+    return pick([key !== "unknown" && `sx.status.${key}.label`, n && `flow.rstatus.${n}`, n && `status.${n}`, n && `option.${n}`]) || (str(raw) ? pick(["sx.ui.otherStatus"]) : pick(["sx.ui.notSet"]));
   };
   const statusPill = (raw: string, source?: SxRecordSource): string =>
     (statusKeyOf(raw, source) === "published" && pick(["sx.status.published.live"])) || status(raw, source);

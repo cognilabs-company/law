@@ -101,6 +101,8 @@ const MAP: Readonly<Record<string, Entry>> = {
   "K17__title": ["both", "planTitle"],
   "K17__description": ["both", "planDesc"],
   "K17__audience": ["system", "sysValue"],
+  "K17__benefits__value": ["both", "planBenefit"],
+  "K17__developer_note": ["staff", "staffText"],
   "K18__policy_key": ["system", "sysKey"],
   "K18__providers__provider": ["system", "sysValue"],
   "K18__primary_provider": ["system", "sysValue"],
@@ -272,6 +274,9 @@ const MAP: Readonly<Record<string, Entry>> = {
   "SEARCH01__index_key": ["system", "sysKey"],
   "SEARCH01__sorts__field": ["system", "sysKey"],
   "SEARCH01__synonyms": ["system", "aiTerms"],
+  "K36__title": ["performer", "coefTitle"],
+  "K36__description": ["staff", "staffText"],
+  "K36__allowed_values__value": ["system", "sysValue"],
 };
 
 // The service form's non-text fields, so a section can be grouped and the

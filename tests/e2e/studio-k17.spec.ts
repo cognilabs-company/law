@@ -34,7 +34,9 @@ test("tariff form v3: audiences, prices unless free, numbered benefits, nothing 
   // The client's lines, added in order.
   await expect(page.getByText(/клиент увидит их по порядку 1, 2, 3/)).toBeVisible();
   await page.getByRole("button", { name: "Добавить пункт" }).click();
-  await expect(page.getByText("Комментарий для разработчиков")).toBeVisible();
+  await expect(page.locator("label", { hasText: "Комментарий для разработчиков" })).toBeVisible();
+  // TSK-639097: it says only LexGo staff read it.
+  await expect(page.locator("[data-path=\"developer_note\"] .sx-aud").first()).toContainText("Только сотрудники LexGo");
   await expect(page.getByText("Клиент не видит. При публикации", { exact: false })).toBeVisible();
   expect(mock.refused).toEqual([]);
 });
@@ -55,7 +57,7 @@ test("a tariff in Studio shows its developer task and the approval, by code and 
       "/admin/subscription-plans/plan-1/versions": {
         plan_id: "plan-1",
         items: [
-          { id: "v1", version: 1, status: "published", developer_task: null, approval: null },
+          { id: "v1", version: 1, status: "published", developer_task: { task_code: "TSK-444444", title: "Tarifni ulash", status: "done", deadline_at: "2026-10-01T09:00:00Z", assignees: [{ name: "Kamron" }] }, superadmin_approval: { status: "approved", approved_by: { name: "Bosh Superadmin" }, approved_at: "2026-10-02T09:00:00Z" } },
           { id: "v2", version: 2, status: "pending_approval", developer_task: { task_code: "TSK-555555", title: "Eksport limitini ulash", status: "in_progress", deadline_at: "2026-11-10T09:00:00Z", assignees: [{ name: "Akhmad" }, { name: "9d042a95-ce4a-4e37-ac56-786b2c404372" }] }, superadmin_approval: { status: "waiting" } },
         ],
       },
@@ -67,5 +69,10 @@ test("a tariff in Studio shows its developer task and the approval, by code and 
   await expect(box).toContainText("TSK-555555");
   await expect(box).toContainText("Eksport limitini ulash");
   await expect(box).toContainText("Akhmad");
+  // Earlier revisions keep their own task and approval, folded below.
+  await box.getByText("Предыдущие версии (1)").click();
+  await expect(box.locator(".trf-devbox__rev")).toContainText("Версия 1");
+  await expect(box.locator(".trf-devbox__rev")).toContainText("TSK-444444");
+  await expect(box.locator(".trf-devbox__rev")).toContainText("Kamron");
   expect(await box.innerText()).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-|in_progress|pending_approval/);
 });

@@ -61,6 +61,26 @@ test.describe("Studio service rule versions (K31)", () => {
     expect(mock.calls.some((c) => /\/clone$/.test(c.path))).toBe(false);
   });
 
+  // TSK-602765: names are unique after normalising case, spaces and
+  // punctuation. A taken name offers the existing rule; the backend's 409
+  // reads in words and points at that rule, never at a code.
+  test("a taken rule name offers the existing rule; the backend's 409 reads in words", async ({ page }) => {
+    const { mock } = await open(page, "/ru/admin/studio/o/new?new=K31&rule=new");
+    await page.route(/\/studio\/objects$/, (route) =>
+      route.request().method() === "POST"
+        ? route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ detail: { code: "rule_title_duplicate", existing_rule_id: "rule-1", existing_title: "Maxfiylik siyosati" } }) })
+        : route.fallback(),
+    );
+    await page.getByRole("textbox", { name: /Название правила/ }).fill("  MAXFIYLIK   siyosati! ");
+    const twin = page.getByText("Правило с таким названием уже есть").first();
+    await expect(twin).toBeVisible();
+    await expect(page.getByText("Maxfiylik siyosati", { exact: true }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+    await expect(twin).toBeVisible();
+    expect(await page.locator("main").innerText()).not.toMatch(/rule_title_duplicate|rule-1/);
+    expect(mock.refused).toEqual([]);
+  });
+
   test("a brand-new rule says so and continues nothing", async ({ page }) => {
     const { created } = await open(page, "/ru/admin/studio/o/new?new=K31&rule=new");
     await expect(page.getByText("Совершенно новое правило").first()).toBeVisible();

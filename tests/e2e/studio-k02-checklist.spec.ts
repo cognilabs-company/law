@@ -45,11 +45,40 @@ test("service checklist: a 30% list and a final 40% list; an item can switch bet
   await page.keyboard.press("Shift+Tab");
   await page.keyboard.press("Tab");
   await expect.poll(() => box.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
+  // …and the same design system's error and disabled looks: a red border
+  // when invalid, a dashed one when off.
+  await page.mouse.move(0, 0);
+  await box.locator(".sx-picker__trigger").blur();
+  const states = await box.evaluate((el) => {
+    const root = el.closest(".sx-picker") as HTMLElement;
+    (el as HTMLElement).style.transition = "none";
+    const read = () => { const c = getComputedStyle(el); return { line: c.borderColor, style: c.borderTopStyle }; };
+    const rest = read();
+    root.setAttribute("data-invalid", "");
+    const bad = read();
+    root.removeAttribute("data-invalid");
+    root.setAttribute("data-disabled", "");
+    const off = read();
+    root.removeAttribute("data-disabled");
+    return { rest, bad, off };
+  });
+  expect(states.bad.line).not.toBe(states.rest.line);
+  expect(states.off.style).toBe("dashed");
   const final = page.locator('.sx-k2stage[data-stage="final_completion"]');
   await first.scrollIntoViewIfNeeded({ timeout: 30000 });
   await expect(first).toContainText("30% cheklisti — ikkinchi to'lov");
   await expect(final).toContainText("Yakuniy 40% cheklisti");
-  await first.getByRole("button", { name: "30% bandini qo'shish" }).click();
+  // TSK-938937: the add control is a contrasting button with its own hover
+  // and focus looks, not a faint text link.
+  const add = first.getByRole("button", { name: "30% bandini qo'shish" });
+  await page.mouse.move(0, 0);
+  const addRest = await add.evaluate((el) => getComputedStyle(el).backgroundColor);
+  expect(addRest).not.toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
+  await add.hover();
+  await expect.poll(() => add.evaluate((el) => getComputedStyle(el).backgroundColor)).not.toBe(addRest);
+  await add.focus();
+  await expect.poll(() => add.evaluate((el) => { const c = getComputedStyle(el); return c.outlineStyle !== "none" || c.boxShadow !== "none"; })).toBe(true);
+  await add.click();
   await expect(first.locator(".sx-k2stage__h em")).toHaveText("1");
   await final.getByRole("button", { name: "Yakuniy band qo'shish" }).click();
   await expect(final.locator(".sx-k2stage__h em")).toHaveText("1");
@@ -91,4 +120,136 @@ test("adding a question opens a menu of answer types and the row takes the picke
   await expect(menu).toHaveCount(0);
   // The new row says its answer type.
   await expect(page.locator(".sx-rep__row").filter({ hasText: "Sana" }).first()).toBeVisible();
+});
+
+// TSK-206001: a service's rules are added per side — the performer's and
+// the client's in their own panels, each row kept with its audience.
+test("performer and client rules are added in their own panels", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await mockBackend(
+    page,
+    await signIn(page, ADMIN, {
+      "/studio/constructors": fx.constructors,
+      "/studio/constructors/K02": fx.k02,
+      "/studio/constructors/K02/form-context": fx.formContext,
+      "/studio/constructors/K02/records": fx.records,
+      "/studio/reference/service-categories": fx.categories,
+      "/studio/objects": { items: [] },
+    } as never),
+  );
+  await page.goto("/uz/admin/studio/o/new?new=K02");
+  const performer = page.locator(".sx-ra__panel").filter({ hasText: "Ijrochi qoidalari" });
+  const client = page.locator(".sx-ra__panel").filter({ hasText: "Mijoz qoidalari" });
+  await performer.scrollIntoViewIfNeeded({ timeout: 30000 });
+  await expect(performer).toContainText("Shu xizmatga xos ijrochi qoidasi yo‘q.");
+  await performer.getByRole("button", { name: "Ijrochi qoidasini qo‘shish" }).click();
+  await performer.getByPlaceholder("Masalan: Maxfiylik").fill("Mijoz ma'lumotlari sir");
+  await client.getByRole("button", { name: "Mijoz qoidasini qo‘shish" }).click();
+  await client.getByPlaceholder("Masalan: Maxfiylik").fill("Hujjatlarni 2 kunda yuboring");
+  // Each rule stays on its own side.
+  await expect(performer.locator("input").first()).toHaveValue("Mijoz ma'lumotlari sir");
+  await expect(client.locator("input").first()).toHaveValue("Hujjatlarni 2 kunda yuboring");
+  await expect(performer).not.toContainText("Hujjatlarni 2 kunda yuboring");
+  await expect(performer.locator(".sx-ra__count")).toHaveAttribute("aria-label", "1 ta qoida");
+  await expect(client.locator(".sx-ra__count")).toHaveAttribute("aria-label", "1 ta qoida");
+});
+
+// TSK-732568 / TSK-617437: a checklist item has a performer's name and a
+// client's name, and a "client sees it" switch per proof method; the form
+// groups fields by who reads them, and the preview shows each side apart.
+test("a checklist item names both sides and says what the client sees; the preview splits the readers", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await mockBackend(
+    page,
+    await signIn(page, ADMIN, {
+      "/studio/constructors": fx.constructors,
+      "/studio/constructors/K02": fx.k02,
+      "/studio/constructors/K02/form-context": fx.formContext,
+      "/studio/constructors/K02/records": fx.records,
+      "/studio/reference/service-categories": fx.categories,
+      "/studio/objects": { items: [] },
+    } as never),
+  );
+  await page.goto("/uz/admin/studio/o/new?new=K02");
+  // Fields are grouped by reader.
+  await expect(page.locator(".sx-agrp").first()).toBeVisible({ timeout: 20000 });
+  expect(await page.locator(".sx-agrp").count()).toBeGreaterThan(1);
+  await expect(page.locator('.sx-agrp[data-who="client"]').first()).toContainText("Mijoz ko'radi");
+
+  const first = page.locator('.sx-k2stage[data-stage="first_checklist"]');
+  await first.scrollIntoViewIfNeeded({ timeout: 30000 });
+  await first.getByRole("button", { name: "30% bandini qo'shish" }).click();
+  await expect(first).toContainText("Band nomi (mijoz)");
+  await expect(first.getByPlaceholder("Masalan: Pasport tekshirildi")).toBeVisible();
+  // Turn the image proof on, then let the client see it.
+  const image = first.locator(".sx-k2m").filter({ hasText: "Rasm" }).first();
+  await image.getByRole("checkbox").click();
+  const show = image.getByRole("switch", { name: "Rasm mijozga ko'rinsin" });
+  await expect(show).toBeEnabled();
+  await expect(show).toHaveAttribute("aria-checked", "false");
+  await show.click();
+  await expect(show).toHaveAttribute("aria-checked", "true");
+
+  // The preview: the client and the performer, each with their own fields.
+  const preview = page.locator(".sx-apv");
+  await preview.scrollIntoViewIfNeeded();
+  await preview.getByRole("radio", { name: /Ijrochi/ }).click();
+  await expect(preview).toHaveAttribute("data-view", "performer");
+  await preview.getByRole("radio", { name: /Mijoz/ }).click();
+  await expect(preview).toHaveAttribute("data-view", "client");
+});
+
+// TSK-656862: who may do a service is a list. An old draft's single
+// executor_type becomes executor_types, and every save sends the list
+// (never the old single field).
+test("executor types are a list: an old single value becomes a list, and the save sends the list", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const saves: Record<string, unknown>[] = [];
+  const obj = (payload: Record<string, unknown>) => ({ id: "obj-k02", constructor_code: "K02", title: "Ajrashish", status: "draft", lock_version: 1, payload, current_version: { payload } });
+  let current = obj({ title: "Ajrashish", executor_type: "advokat", price_factor_ids: ["pf-urgent", "pf-night"] });
+  await mockBackend(
+    page,
+    await signIn(page, ADMIN, {
+      "/studio/constructors": fx.constructors,
+      "/studio/constructors/K02": fx.k02,
+      "/studio/constructors/K02/form-context": fx.formContext,
+      "/studio/constructors/K02/records": fx.records,
+      "/studio/reference/service-categories": fx.categories,
+      "/studio/objects": { items: [] },
+      "/studio/objects/obj-k02": () => current,
+      "POST /studio/objects/obj-k02/save": (b: unknown) => {
+        const body = b as { payload: Record<string, unknown> };
+        saves.push(body.payload);
+        current = obj(body.payload);
+        return current;
+      },
+      "POST /studio/constructors/K02/preview": { ok: true },
+      "/studio/reference/price-factors": { key: "price-factors", items: [
+        { id: "pf-urgent", value: "pf-urgent", label: "Shoshilinchlik", adjustment_type: "percent", adjustment_value: 10 },
+        { id: "pf-night", value: "pf-night", label: "Tungi ish", adjustment_type: "fixed", adjustment_value: 50000 },
+      ], total: 2, count: 2, limit: 50, offset: 0, has_more: false },
+      "POST /studio/constructors/K02/validate": { ok: true, errors: [] },
+    } as never),
+  );
+  await page.goto("/uz/admin/studio/o/obj-k02");
+  const field = page.locator('[data-path="executor_types"]').first();
+  await field.scrollIntoViewIfNeeded({ timeout: 30000 });
+  await expect(field.getByRole("checkbox", { name: /Advokat/ }).first()).toBeChecked();
+  await field.getByRole("checkbox", { name: /^Yurist/ }).first().check({ force: true });
+  await page.getByRole("button", { name: "Saqlash", exact: true }).first().click();
+  await expect.poll(() => saves.length).toBeGreaterThan(0);
+  const sent = saves.at(-1) as Record<string, unknown>;
+  expect(sent.executor_types).toEqual(expect.arrayContaining(["advokat", "yurist"]));
+  expect(sent).not.toHaveProperty("executor_type");
+
+  // TSK-269743: each picked price factor shows its own name, kind and value,
+  // one per row — never "selected factor".
+  const names = page.locator(".sx-k2fo__name");
+  await names.first().scrollIntoViewIfNeeded();
+  await expect(names).toHaveCount(2);
+  await expect(names.nth(0)).toContainText("Shoshilinchlik");
+  await expect(names.nth(1)).toContainText("Tungi ish");
+  await expect(page.locator(".sx-k2fo__shared").nth(0)).toContainText("10");
+  await expect(page.locator(".sx-k2fo__shared").nth(1)).toContainText(/50[\s\u00a0\u202f]?000/);
+  await expect(page.getByText(/Tanlangan omil|Tanlangan yozuv/)).toHaveCount(0);
 });

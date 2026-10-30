@@ -250,7 +250,7 @@ function CheckRow({ row, base, idBase, ai, readOnly, errors, policy, set, errorT
                     onChange={(v) => set(withCheckText(row, "client_title", v))}
                     onBlur={() => policy.touch(clientTitlePath)}
                     readOnly={readOnly}
-                    placeholder={executorTitleOf(row) || t("sx.k02.cl.clientTitlePh")}
+                    placeholder={t("sx.k02.cl.clientTitlePh")}
                     aiId={makeAiId(ai, "client_title")}
                     aiLabel={t("sx.k02.cl.clientTitle")}
                   />

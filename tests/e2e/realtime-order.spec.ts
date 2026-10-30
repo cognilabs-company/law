@@ -100,6 +100,8 @@ test("a checklist event marks the item done live, without a refetch", async ({ p
   await page.goto(`/ru/portal/client/marketplace-orders/${ORDER_ID}`);
   const item = page.locator("#mck-i1");
   await expect(item).toHaveAttribute("data-status", "pending", { timeout: 20_000 });
+  // TSK-881437: the owner's exact name on the order page too.
+  await expect(page.getByText("Чек-лист работ, выполняемых в рамках этой услуги").first()).toBeVisible();
   await expect.poll(() => mock.sockets.some((s) => s.url.includes("/ws/users/me"))).toBe(true);
   const before = mock.count("GET", CHECKLIST);
   await mock.push({ event: "marketplace.checklist_updated", order_id: ORDER_ID, checklist: { order_id: ORDER_ID, items: [{ id: "i1", client_title: "Hujjatlaringiz tekshirildi", status: "done", payout_stage: "first_checklist" }] } });

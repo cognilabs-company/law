@@ -405,6 +405,7 @@ export const STATUS_ICON: Readonly<Record<SxStatusKey, SxIcon>> = {
   returned: Undo2Icon,
   rejected: BanIcon,
   archived: ArchiveIcon,
+  superseded: HistoryIcon,
   inactive: CirclePauseIcon,
   paused: CirclePauseIcon,
   deleted: Trash2Icon,
