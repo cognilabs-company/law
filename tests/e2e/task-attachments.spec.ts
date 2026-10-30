@@ -58,7 +58,8 @@ test("images show as thumbnails, open in the viewer, a failed one retries; files
   await expect(att.locator(".ttk-att__n")).toHaveText("3");
   const first = att.locator(".ttk-att__th").filter({ hasText: "ekran-1.png" });
   await expect(first.locator("img")).toBeVisible();
-  expect(await first.locator("img").evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(2);
+  // Visible means it has a box; the blob may still be decoding.
+  await expect.poll(() => first.locator("img").evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(2);
   // Fetched with the signed-in token, shown from a blob — never a public link.
   expect(auth[0]).toBe("Bearer test-token");
   expect(await first.locator("img").getAttribute("src")).toMatch(/^blob:/);

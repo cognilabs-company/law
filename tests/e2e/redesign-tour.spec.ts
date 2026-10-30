@@ -90,6 +90,26 @@ for (const scheme of SCHEMES)
         await expect(page.locator(".pbody [aria-busy=true]")).toHaveCount(0, { timeout: 15_000 }).catch(() => undefined);
         await check(page, name, width, scheme);
       }
+      // The overlays: the ⌘K palette, the new-lead sheet, the export tray.
+      if (want("crm-palette")) {
+        await page.goto("/ru/admin/crm");
+        await page.locator(".crm-kbd").click();
+        await expect(page.locator(".crm-palette")).toBeVisible({ timeout: 15_000 });
+        await check(page, "crm-palette", width, scheme);
+        await page.keyboard.press("Escape");
+      }
+      if (want("crm-sheet")) {
+        await page.goto("/ru/admin/crm/leads?tab=all");
+        await page.locator(".crm-top__tools").getByRole("button", { name: /Новый лид/ }).click();
+        await expect(page.getByRole("dialog")).toBeVisible({ timeout: 15_000 });
+        await check(page, "crm-sheet", width, scheme);
+      }
+      if (want("crm-tray")) {
+        await page.goto("/ru/admin/crm/exports");
+        await page.locator(".crm-btn--pri").first().click();
+        await expect(page.locator(".crm-job").first()).toBeVisible({ timeout: 15_000 });
+        await check(page, "crm-tray", width, scheme);
+      }
       expect(missing).toEqual([]);
       await ctx.close();
     }
@@ -175,6 +195,13 @@ for (const scheme of SCHEMES)
         await search.press("Enter");
         await page.locator("#ccon-panel-clients").getByRole("button", { name: /Dilnoza Karimova/ }).first().click();
         await check(page, "cc-client360", width, scheme);
+      }
+      // The call form, from the call log.
+      if (want("cc-callform")) {
+        await page.goto("/ru/admin/call-center?tab=clients");
+        await page.locator("#ccon-panel-clients").locator('[data-ai-target="button:log-call"]').click();
+        await expect(page.getByRole("dialog")).toBeVisible({ timeout: 15_000 });
+        await check(page, "cc-callform", width, scheme);
       }
       for (const [name, url] of [["cc-support", "/ru/admin/call-center/support"], ["cc-support-ticket", "/ru/admin/call-center/support/t1"], ["cc-experience-page", "/ru/admin/call-center/experience/e9"]]) {
         if (!want(name)) continue;

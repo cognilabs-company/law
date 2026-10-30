@@ -133,8 +133,10 @@ async function shotPage(browser: Browser, width: number, height: number, scheme:
   return { ctx, page: await ctx.newPage() };
 }
 
+// Defined only with ADDON_SHOTS=<dir>, so a normal run neither skips nor
+// takes it (like the layout tour's TOUR_SHOTS).
+if (SHOTS)
 test("screenshots: before and after the 30% stage is done", async ({ browser }) => {
-  test.skip(!SHOTS, "screenshots only with ADDON_SHOTS");
   test.setTimeout(300_000);
   for (const [w, h] of [[1440, 900], [390, 844]] as const) {
     for (const scheme of ["light", "dark"] as const) {
