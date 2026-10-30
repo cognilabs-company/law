@@ -13,7 +13,6 @@ import type { SxFormPolicy } from "../../form/formPolicy";
 import { Repeater } from "../../form/Repeater";
 import { Switch } from "../../form/Switch";
 import { SxSegmented } from "../../shared/Segmented";
-import { TextArea } from "../../form/TextArea";
 import { TextInput } from "../../form/TextInput";
 import { BriefcaseBusinessIcon, CheckIcon, CircleAlertIcon, CoinsIcon, FlagIcon, ImageIcon, ListChecksIcon, LockIcon, MessageSquareTextIcon, PaperclipIcon, glyph } from "../../icons";
 import { UserRound as UserRoundIcon } from "lucide-react";
@@ -172,15 +171,16 @@ function CheckRow({ row, base, idBase, ai, readOnly, errors, policy, set, errorT
     const tok = policy.visible(p, errors);
     return tok ? errorText(tok, p, type) : "";
   };
+  // An item is named, nothing more (owner, 2026-10-30): the performer's
+  // name and the client's. An older item's description / client_description
+  // stays in the row untouched and is saved back as it was.
   const titlePath = `${base}.executor_title`;
-  const descPath = `${base}.description`;
   const clientTitlePath = `${base}.client_title`;
-  const clientDescPath = `${base}.client_description`;
   const reqPath = `${base}.required`;
   const methodsPath = `${base}.verification_methods`;
   const methodKeys = new Set([methodsPath, `${base}.checkbox`, ...EVIDENCE_METHODS.flatMap((m) => [`${base}.${REQUIRED_KEY[m]}`, `${base}.${SHOW_KEY[m]}`])]);
   const methodErrs = errorsUnder(errors, base).filter(([k]) => methodKeys.has(k) || k.startsWith(`${methodsPath}.`)).filter(([k]) => !!policy.visible(k, errors));
-  const handled = new Set([titlePath, `${base}.title`, descPath, clientTitlePath, clientDescPath, reqPath, ...methodKeys]);
+  const handled = new Set([titlePath, `${base}.title`, clientTitlePath, reqPath, ...methodKeys]);
   const restErrs = errorsUnder(errors, base).filter(([k]) => !handled.has(k) && !k.startsWith(`${methodsPath}.`) && !!policy.visible(k, errors));
   const helpId = `${idBase}-methods-help`;
   const errId = `${idBase}-methods-err`;
@@ -211,22 +211,6 @@ function CheckRow({ row, base, idBase, ai, readOnly, errors, policy, set, errorT
                 )}
               </Field>
             </div>
-            <div className="sx-sf__f" data-path={descPath} data-span={2}>
-              <Field id={`${idBase}-desc`} label={t("sx.k02.cl.execDesc")} error={shownAt(descPath, "textarea")} note={<AudienceNote aud={{ who: "performer", use: "checkExecDesc" }} />}>
-                {(a) => (
-                  <TextArea
-                    {...a}
-                    value={str(row.description)}
-                    onChange={(v) => set(withCheckText(row, "description", v))}
-                    onBlur={() => policy.touch(descPath)}
-                    readOnly={readOnly}
-                    placeholder={t("sx.k02.cl.execDescPh")}
-                    aiId={makeAiId(ai, "description")}
-                    aiLabel={t("sx.k02.cl.execDesc")}
-                  />
-                )}
-              </Field>
-            </div>
           </FormGrid>
         </section>
         <section className="sx-k2cl__voice" data-who="client" aria-labelledby={`${idBase}-v-client`}>
@@ -253,22 +237,6 @@ function CheckRow({ row, base, idBase, ai, readOnly, errors, policy, set, errorT
                     placeholder={t("sx.k02.cl.clientTitlePh")}
                     aiId={makeAiId(ai, "client_title")}
                     aiLabel={t("sx.k02.cl.clientTitle")}
-                  />
-                )}
-              </Field>
-            </div>
-            <div className="sx-sf__f" data-path={clientDescPath} data-span={2}>
-              <Field id={`${idBase}-cdesc`} label={t("sx.k02.cl.clientDesc")} error={shownAt(clientDescPath, "textarea")} note={<AudienceNote aud={{ who: "client", use: "checkClientDesc" }} />}>
-                {(a) => (
-                  <TextArea
-                    {...a}
-                    value={str(row.client_description)}
-                    onChange={(v) => set(withCheckText(row, "client_description", v))}
-                    onBlur={() => policy.touch(clientDescPath)}
-                    readOnly={readOnly}
-                    placeholder={t("sx.k02.cl.clientDescPh")}
-                    aiId={makeAiId(ai, "client_description")}
-                    aiLabel={t("sx.k02.cl.clientDesc")}
                   />
                 )}
               </Field>

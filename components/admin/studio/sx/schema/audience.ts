@@ -43,8 +43,6 @@ const MAP: Readonly<Record<string, Entry>> = {
   "K02__completion_checklist__id": ["system", "sysKey"],
   "K02__completion_checklist__executor_title": ["performer", "checkExec"],
   "K02__completion_checklist__client_title": ["client", "checkClient"],
-  "K02__completion_checklist__description": ["performer", "checkExecDesc"],
-  "K02__completion_checklist__client_description": ["client", "checkClientDesc"],
   "K02__inline_rules__id": ["system", "sysKey"],
   "K02__inline_rules__title": ["dyn:rule", "ruleTitle"],
   "K02__inline_rules__body": ["dyn:rule", "ruleBody"],

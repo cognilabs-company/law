@@ -62,6 +62,21 @@ Please never send test accounts without 2FA or TOTP secrets. We don't need them.
 
 **1.9 15-minute window and rating (TSK-661119).** Server rules only: the window is enforced by the server, and the rating counts in the marketplace rating. Nothing to add on our side; please confirm both are live.
 
+**1.10 The seller's checklist in 30% and 40% stages (owner request 2026-10-30).**
+- Missing:
+  - Checklist items carry `payout_stage` (`first_checklist` | `final_completion`) but no amount.
+  - It isn't documented whether `GET /marketplace/me/orders/{id}/financials` returns the `first_checklist` and `completion` payout rows (with `payable_amount`) before those stages are reached, or only once they trigger.
+  - The rule that triggers the `first_checklist` payout isn't written down.
+- Needed:
+  - The planned amount of each stage from the start of the work. For example, the `first_checklist` and `completion` rows from acceptance with a waiting status, or `payout_plan[] { stage, gross_percent, payable_amount }` on financials.
+  - Confirm the trigger. Is it every required `first_checklist` item, or every item? Does a `skipped_with_reason` item count as done?
+  - Optionally, `stages[] { payout_stage, completed, completed_at }` on the checklist response, so the frontend does not decide when a stage is complete.
+  - The realtime event name sent when that payout is created and when it is paid. The frontend listens for `marketplace.payout_*`.
+- Meanwhile:
+  - Before a stage's payout row exists, the seller sees its percent only (30% / 40%), never a computed amount.
+  - The 30% stage counts as complete when every required 30% item is done or skipped. If the stage has no required items, every item must be.
+  - The seller sees "credited" only when the row is `paid`, "being sent" for `operator_required` / `provider_pending`, and "delayed" for `provider_failed`.
+
 ---
 
 ## 2. Tariffs, ads and promotions
@@ -203,3 +218,21 @@ Please never send test accounts without 2FA or TOTP secrets. We don't need them.
 - **TSK-490457 vs TSK-342697**: the newer task wins (§2.1). Please confirm the old per-feature limits screen (`/admin/plans`) can be removed (asked in Q-10-28 §4.1).
 - **TSK-493303**: achievement types, see §3.6.
 - **TSK-670563**: the board asks to show the error code; the UI rule forbids raw codes. The frontend shows HTTP codes and known codes in words, and never an unknown raw code.
+
+---
+
+## 7. Yandex marketplace map (LEXGO_YANDEX_MARKETPLACE_MAP_FRONTEND_2026_10_30, backend b448ab3)
+
+**7.1 Maps API version.** The contract says Yandex Maps v3, but the deployed `GET /marketplace/map/config` returns `api_version: "2.1"` and a `maps_loader_url` for the 2.1 loader. The frontend follows the contract and loads `https://api-maps.yandex.ru/v3/?apikey=<maps_api_key>&lang=…` (it never uses `maps_loader_url`). Please confirm the key is enabled for JS API v3 and for our web origins, and change `api_version` to `"v3"` (or tell us to switch to 2.1). If v3 refuses the key, the page shows the list with the same filters instead of a map.
+
+**7.2 Geocoder items.** `GET /marketplace/geocoder/search` and `/reverse` return untyped `items: object[]`. The frontend reads `name`/`title`, `formatted_address`/`address`, and `coordinates` (`[longitude, latitude]`) or `latitude`/`longitude`. Please document the item fields.
+
+**7.3 `service_action` on map and nearby items.** It is `null` in every live response and has no schema. The frontend reads `service_id`, `title`, and `effective_price`/`price`, and links to the seller profile's services section. Please document the shape and the action the client should take.
+
+**7.4 Seller photo.** Map markers and nearby results have no avatar or photo URL, so the cards show initials. If photos should appear, please add a public `avatar_url` to both.
+
+**7.5 Office object.** `GET`/`PUT /marketplace/me/office-location` return `office: object | null` with no schema. The frontend reads `latitude`, `longitude`, `formatted_address`, `public_navigation_enabled` and `updated_at`. Please document it. `DELETE /marketplace/me/office-location` exists but isn't in the contract: should settings offer a "remove office" action?
+
+**7.6 Error envelope.** The frontend reads map error codes from `detail.code` (e.g. `{"detail": {"code": "navigation_destination_unavailable", "message": "…"}}`). Please confirm that every listed 403/404/409/422 code uses this shape.
+
+**7.7 Realtime payload.** On `marketplace.seller_location_updated` the frontend only refetches the viewport (debounced) and never reads the event's `marker`. Please confirm the event never carries exact coordinates to public subscribers.

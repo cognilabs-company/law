@@ -253,3 +253,84 @@ test("executor types are a list: an old single value becomes a list, and the sav
   await expect(page.locator(".sx-k2fo__shared").nth(1)).toContainText(/50[\s\u00a0\u202f]?000/);
   await expect(page.getByText(/Tanlangan omil|Tanlangan yozuv/)).toHaveCount(0);
 });
+
+// Owner, 2026-10-30: a checklist item is named, nothing more — no
+// description / comment box for the performer or the client. An older item
+// that has descriptions keeps them: they are saved back unchanged. The
+// payout stage switch, the required switch and the proof methods stay.
+test("a checklist item has names only — no description fields — and an older item's descriptions survive a save", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const saves: Record<string, unknown>[] = [];
+  const old = { id: "chk-1", executor_title: "Pasportni tekshirish", client_title: "Pasport tekshirildi", description: "Muddati va F.I.Sh.ni solishtiring", client_description: "Advokat hujjatingizni tekshiradi", payout_stage: "first_checklist", required: true, verification_methods: ["checkbox"] };
+  const obj = (payload: Record<string, unknown>) => ({ id: "obj-k02", constructor_code: "K02", title: "Ajrashish", status: "draft", lock_version: 1, payload, current_version: { payload } });
+  let current = obj({ title: "Ajrashish", executor_types: ["advokat"], completion_checklist: [old] });
+  await mockBackend(
+    page,
+    await signIn(page, ADMIN, {
+      "/studio/constructors": fx.constructors,
+      "/studio/constructors/K02": fx.k02,
+      "/studio/constructors/K02/form-context": fx.formContext,
+      "/studio/constructors/K02/records": fx.records,
+      "/studio/reference/service-categories": fx.categories,
+      "/studio/objects": { items: [] },
+      "/studio/objects/obj-k02": () => current,
+      "POST /studio/objects/obj-k02/save": (b: unknown) => {
+        const body = b as { payload: Record<string, unknown> };
+        saves.push(body.payload);
+        current = obj(body.payload);
+        return current;
+      },
+      "POST /studio/constructors/K02/preview": { ok: true },
+      "POST /studio/constructors/K02/validate": { ok: true, errors: [] },
+    } as never),
+  );
+  await page.goto("/uz/admin/studio/o/obj-k02");
+  const first = page.locator('.sx-k2stage[data-stage="first_checklist"]');
+  await first.scrollIntoViewIfNeeded({ timeout: 30000 });
+  await expect(first.locator(".sx-rep__sum").first()).toHaveText("Pasportni tekshirish");
+  await first.getByRole("button", { name: "Ochish: Pasportni tekshirish" }).click();
+  const row = first.locator(".sx-rep__row").first();
+  await expect(row).toHaveAttribute("data-open", "");
+  // Names, stage, required, proof methods — and no description of any kind.
+  await expect(row.getByPlaceholder("Masalan: Mijozning pasportini tekshiring")).toHaveValue("Pasportni tekshirish");
+  await expect(row.getByPlaceholder("Masalan: Pasport tekshirildi")).toHaveValue("Pasport tekshirildi");
+  await expect(row.getByRole("radio", { name: /30% bosqichi/ })).toBeVisible();
+  await expect(row.getByRole("switch", { name: /Majburiy band/ })).toBeVisible();
+  await expect(row.locator(".sx-k2m")).toHaveCount(4);
+  await expect(row.locator("textarea")).toHaveCount(0);
+  await expect(row.locator('[data-path$=".description"], [data-path$=".client_description"]')).toHaveCount(0);
+  await expect(row).not.toContainText(/Ko'rsatma \(ijrochi\)|Izoh \(mijoz\)/);
+  // A new item: names only too.
+  await first.getByRole("button", { name: "30% bandini qo'shish" }).click();
+  const added = first.locator(".sx-rep__row").nth(1);
+  await expect(added.locator("textarea")).toHaveCount(0);
+  await added.getByPlaceholder("Masalan: Mijozning pasportini tekshiring").fill("Shartnomani o'qish");
+  // Rename the old item and save: its descriptions go back as they were.
+  await row.getByPlaceholder("Masalan: Mijozning pasportini tekshiring").fill("Pasport va ID kartani tekshirish");
+  if (process.env.ADDON_SHOTS) {
+    for (const scheme of ["light", "dark"] as const) {
+      for (const [w, h] of [[1440, 900], [390, 844]] as const) {
+        await page.emulateMedia({ colorScheme: scheme });
+        await page.evaluate((s) => document.documentElement.setAttribute("data-theme", s), scheme);
+        await page.setViewportSize({ width: w, height: h });
+        await row.locator(".sx-k2cl__voices").evaluate((el) => el.scrollIntoView({ block: "center", behavior: "instant" }));
+        await page.waitForTimeout(700);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+        await page.screenshot({ path: `${process.env.ADDON_SHOTS}/task-b-editor-${w}-${scheme}.png` });
+      }
+    }
+    await page.setViewportSize({ width: 1440, height: 1000 });
+  }
+  await page.getByRole("button", { name: "Saqlash", exact: true }).first().click();
+  await expect.poll(() => saves.length).toBeGreaterThan(0);
+  const list = (saves.at(-1) as { completion_checklist: Record<string, unknown>[] }).completion_checklist;
+  const kept = list.find((x) => x.id === "chk-1") as Record<string, unknown>;
+  expect(kept.executor_title).toBe("Pasport va ID kartani tekshirish");
+  expect(kept.description).toBe("Muddati va F.I.Sh.ni solishtiring");
+  expect(kept.client_description).toBe("Advokat hujjatingizni tekshiradi");
+  expect(kept.payout_stage).toBe("first_checklist");
+  const fresh = list.find((x) => x.executor_title === "Shartnomani o'qish") as Record<string, unknown>;
+  expect(fresh.payout_stage).toBe("first_checklist");
+  expect(fresh.description ?? "").toBe("");
+  expect(fresh.client_description ?? "").toBe("");
+});

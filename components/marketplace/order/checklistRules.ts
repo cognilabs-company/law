@@ -66,6 +66,12 @@ function mergedItem(old: ChecklistItem, next: ChecklistItem): ChecklistItem {
     files: has(raw, "files", "attachments") ? next.files : old.files,
     images: has(raw, "images", "image_files", "photos") ? next.images : old.images,
     sortOrder: has(raw, "sort_order", "position") ? next.sortOrder : old.sortOrder,
+    // A saved item's answer rarely repeats its wording or stage; they stay.
+    executorTitle: has(raw, "executor_title") ? next.executorTitle : old.executorTitle,
+    clientTitle: has(raw, "client_title") ? next.clientTitle : old.clientTitle,
+    clientDescription: has(raw, "client_description") ? next.clientDescription : old.clientDescription,
+    showToClient: next.showToClient ?? old.showToClient,
+    payoutStage: has(raw, "payout_stage") ? next.payoutStage : old.payoutStage,
     updatedAt: next.updatedAt || old.updatedAt,
   };
 }

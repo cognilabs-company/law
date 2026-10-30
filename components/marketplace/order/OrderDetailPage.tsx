@@ -36,6 +36,9 @@ import StayInLexGo from "./StayInLexGo";
 import { ArrowLeftIcon, RefreshCwIcon, ClipboardListIcon, SearchIcon, SxIconScope, CircleAlertIcon } from "./icons";
 import { SECTION_ID, orderAiBase, type OrderSectionProps, type OrderView } from "./types";
 import { useOrderDetail, type OrderDetail } from "./useOrderDetail";
+import { useOrderPayouts } from "./useOrderPayouts";
+import { firstStageMark, stageGroups } from "./payStages";
+import type { Payout } from "@/lib/services/payouts";
 
 function focusSection(id: string): boolean {
   if (typeof document === "undefined") return false;
@@ -78,12 +81,12 @@ function Skeleton({ label }: { label: string }): ReactElement {
   );
 }
 
-function Sections({ d, o, phase, view, aiBase, listHref, preview }: { d: OrderDetail; o: MarketOrder; phase: MarketPhase; view: OrderView; aiBase: string; listHref: string; preview: boolean }): ReactElement {
+function Sections({ d, o, phase, view, aiBase, listHref, preview, payouts }: { d: OrderDetail; o: MarketOrder; phase: MarketPhase; view: OrderView; aiBase: string; listHref: string; preview: boolean; payouts: readonly Payout[] | null }): ReactElement {
   const to = useTranslations("marketplace.orders");
   const t = useTranslations("marketplace.orderDetail");
   const client = view === "client";
   const section: OrderSectionProps = { o, phase, view, aiBase, runtime: d.runtime, onChanged: (patch) => d.patchOrder(patch ?? {}) };
-  const checklist = <OrderChecklist key="checklist" o={o} phase={phase} view={view} aiBase={aiBase} checklist={d.checklist} state={d.checklistState} onChange={d.setChecklist} onRetry={() => d.refresh("checklist")} />;
+  const checklist = <OrderChecklist key="checklist" o={o} phase={phase} view={view} aiBase={aiBase} checklist={d.checklist} state={d.checklistState} onChange={d.setChecklist} onRetry={() => d.refresh("checklist")} payouts={client ? null : payouts} />;
   const documents = <OrderDocuments key="documents" o={o} phase={phase} view={view} aiBase={aiBase} runtime={d.runtime} listHref={listHref} />;
   // A preview has no real order to fetch an offer or log a view against.
   const opinion = client && !preview ? <SecondOpinion key="opinion" o={o} phase={phase} aiBase={aiBase} opinion={d.opinion} state={d.opinionState} onRetry={() => d.refresh("opinion")} onOrderStale={() => d.refresh("order")} /> : null;
@@ -231,6 +234,11 @@ export function OrderDetailView({
   );
 
   const ready = d.status === "ready" && !!o && !!phase;
+  // The seller's payout rows, read once for the payout card and the
+  // checklist's stage groups; re-read as the checklist moves.
+  const settled = d.checklist ? d.checklist.items.filter((i) => i.status !== "pending").length : 0;
+  const firstDone = !!firstStageMark(d.checklist ? stageGroups(d.checklist.items, null) : [])?.complete;
+  const payouts = useOrderPayouts(orderId, `${o?.status}:${o?.paymentStatus}:${d.changed}:${settled}`, view === "seller" && !preview && ready, firstDone && (phase === "in_progress" || phase === "review"));
   const work = phase === "in_progress" || phase === "review" || phase === "completed" || phase === "rated";
   const sectionsSettled = d.checklistState !== "loading" && d.opinionState !== "loading" && !(work && d.checklistState === "idle") && !(work && view === "client" && d.opinionState === "idle");
 
@@ -313,7 +321,7 @@ export function OrderDetailView({
       <>
         <OrderHeader o={o} phase={phase} view={view} aiBase={aiBase} listHref={listHref} runtime={d.runtime} refreshing={d.refreshing} onRefresh={() => d.refresh("all")} />
         <div className="mod__grid">
-          <Sections d={d} o={o} phase={phase} view={view} aiBase={aiBase} listHref={listHref} preview={preview} />
+          <Sections d={d} o={o} phase={phase} view={view} aiBase={aiBase} listHref={listHref} preview={preview} payouts={payouts.ready ? payouts.rows : null} />
           <aside className="mod__aside">
             <div className="mod__actions">
               <OrderActions o={o} phase={phase} view={view} aiBase={aiBase} listHref={listHref} checklist={d.checklist} onChanged={(patch) => d.patchOrder(patch ?? {})} onShowChecklist={() => {
@@ -325,7 +333,7 @@ export function OrderDetailView({
             <div className="mod__facts">
               <OrderFacts o={o} view={view} aiBase={aiBase} runtime={d.runtime} />
               {o.pricing ? <OrderPricing pricing={o.pricing} view={view} currency={o.currency} aiBase={aiBase} orderId={o.id} refreshKey={`${o.status}:${o.paymentStatus}:${d.changed}`} /> : null}
-              {view === "seller" ? <PayoutStages orderId={o.id} aiBase={aiBase} refreshKey={`${o.status}:${o.paymentStatus}:${d.changed}`} /> : null}
+              {view === "seller" ? <PayoutStages data={payouts} aiBase={aiBase} /> : null}
               <OrderRules view={view} runtime={d.runtime} aiBase={aiBase} />
             </div>
           </aside>

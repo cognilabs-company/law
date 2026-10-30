@@ -17,8 +17,11 @@ import { saveBlob } from "@/lib/download";
 import { getSecureMessageFileAt } from "@/lib/services/backend";
 import type { MarketOrder, MarketPhase } from "@/lib/services/marketplace";
 import { checklistItemRef, checklistStatusOf, clientChecklistItem, marketErrorInfo, updateChecklistItem, uploadChecklistEvidence, type ChecklistItem, type ChecklistStatus, type MarketFileRef, type OrderChecklist as OrderChecklistData } from "@/lib/services/marketRuntime";
+import type { Payout } from "@/lib/services/payouts";
 import { useMarketError } from "../useMarketError";
 import { canEditChecklist, draftOf, evidenceOf, itemProblems, mergeChecklistItem, sortedItems, type ItemDraft } from "./checklistRules";
+import ChecklistStageGroup, { useFirstStageCheer } from "./ChecklistStageGroup";
+import { stageGroups } from "./payStages";
 import { ForwardIcon, CheckIcon, EyeIcon, EyeOffIcon, CircleCheckIcon, CircleDashedIcon, DownloadIcon, FileTextIcon, ImageIcon, ImagePlusIcon, MessageSquareTextIcon, PaperclipIcon, PencilIcon, CircleAlertIcon, XIcon, glyph } from "./icons";
 import { SECTION_ID, type LoadState, type OrderView } from "./types";
 import { ORDER_FILE_MB, ORDER_FILES_MAX, uploadOrderFile, type UploadedFile } from "./upload";
@@ -128,6 +131,7 @@ export default function OrderChecklist({
   state,
   onChange,
   onRetry,
+  payouts = null,
 }: {
   o: MarketOrder;
   phase: MarketPhase;
@@ -137,6 +141,9 @@ export default function OrderChecklist({
   state: LoadState;
   onChange: (next: OrderChecklistData) => void;
   onRetry: () => void;
+  // The seller's payout rows (useOrderPayouts): the stage groups' amounts
+  // and payout states. Never passed for the client.
+  payouts?: readonly Payout[] | null;
 }): ReactElement | null {
   const t = useTranslations("marketplace.orderDetail");
   const tc = useTranslations("copilot");
@@ -165,6 +172,11 @@ export default function OrderChecklist({
     return () => window.clearTimeout(tm);
   }, [fresh]);
 
+  // The seller works the list in its two payout stages; the client keeps
+  // one plain list with no money in it.
+  const groups = view === "seller" && seen ? stageGroups(seen, payouts, phase === "completed" || phase === "rated") : [];
+  const celebrate = useFirstStageCheer(groups);
+
   if (state === "none" || state === "idle") return null;
   const items = seen ? sortedItems(seen) : [];
   const loading = state === "loading" && !checklist;
@@ -185,6 +197,27 @@ export default function OrderChecklist({
     setOpenId("");
     focusById(editBtnId(item));
   }
+
+  const list = (rows: readonly ChecklistItem[]) => (
+    <ol className="mck-list">
+      {rows.map((item, i) => (
+        <ChecklistRow
+          key={item.id || `${item.title}-${i}`}
+          o={o}
+          item={item}
+          itemAi={aiId(`${aiBase}.checklist.item`, item.id || String(i + 1))}
+          editable={editable && !!item.id}
+          open={openId === item.id && !!item.id}
+          onToggle={() => setOpenId((cur) => (cur === item.id ? "" : item.id))}
+          checklist={checklist}
+          onSaved={(next) => saved(next, item)}
+          onCancel={() => cancel(item)}
+          seller={view === "seller"}
+          fresh={fresh.includes(item.id)}
+        />
+      ))}
+    </ol>
+  );
 
   let body: ReactElement;
   if (loading) {
@@ -238,24 +271,15 @@ export default function OrderChecklist({
             {t("checklist.locked")}
           </SxNote>
         ) : null}
-        <ol className="mck-list">
-          {items.map((item, i) => (
-            <ChecklistRow
-              key={item.id || `${item.title}-${i}`}
-              o={o}
-              item={item}
-              itemAi={aiId(`${aiBase}.checklist.item`, item.id || String(i + 1))}
-              editable={editable && !!item.id}
-              open={openId === item.id && !!item.id}
-              onToggle={() => setOpenId((cur) => (cur === item.id ? "" : item.id))}
-              checklist={checklist}
-              onSaved={(next) => saved(next, item)}
-              onCancel={() => cancel(item)}
-              seller={view === "seller"}
-              fresh={fresh.includes(item.id)}
-            />
-          ))}
-        </ol>
+        {groups.length ? (
+          groups.map((g) => (
+            <ChecklistStageGroup key={g.stage} group={g} idBase={`mck-stage-${g.stage}`} celebrate={celebrate && g.stage === "first_checklist"} ai={`${aiBase}.checklist.${g.stage}`}>
+              {list(g.items)}
+            </ChecklistStageGroup>
+          ))
+        ) : (
+          list(items)
+        )}
       </>
     );
   }

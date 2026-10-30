@@ -321,8 +321,16 @@ export type ChecklistItem = {
   // Which evidence the client may see; null when the item does not say
   // (a client's item, already filtered by the backend).
   showToClient: { comment: boolean; images: boolean; files: boolean } | null;
+  // Which payout the item belongs to (the service's item field payout_stage):
+  // the items behind the second 30%, or the final ones behind the 40%. An
+  // item that does not say counts as a final one, as in the Studio editor.
+  payoutStage: ChecklistPayoutStage;
   raw: Dict;
 };
+
+export const CHECKLIST_PAYOUT_STAGES = ["first_checklist", "final_completion"] as const;
+export type ChecklistPayoutStage = (typeof CHECKLIST_PAYOUT_STAGES)[number];
+export const checklistPayoutStageOf = (v: unknown): ChecklistPayoutStage => (trimmed(v).toLowerCase() === "first_checklist" ? "first_checklist" : "final_completion");
 
 export const VERIFICATION_METHODS = ["checkbox", "comment", "image", "file"] as const;
 export type VerificationMethod = (typeof VERIFICATION_METHODS)[number];
@@ -366,6 +374,7 @@ export function normChecklistItem(v: unknown): ChecklistItem {
     clientTitle,
     clientDescription: trimmed(d.client_description),
     showToClient: flags ? { comment: d.show_comment_to_client === true, images: d.show_images_to_client === true, files: d.show_files_to_client === true } : null,
+    payoutStage: checklistPayoutStageOf(d.payout_stage),
     raw: d,
   };
 }

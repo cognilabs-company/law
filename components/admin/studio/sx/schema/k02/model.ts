@@ -184,7 +184,7 @@ export function executorTitleOf(row: unknown): string {
 
 // Sets one of the item's texts; the old "title" key gives way to
 // executor_title the first time the item is edited.
-export function withCheckText(row: Dict, key: "executor_title" | "description" | "client_title" | "client_description", v: string): Dict {
+export function withCheckText(row: Dict, key: "executor_title" | "client_title", v: string): Dict {
   const out: Dict = { ...row, executor_title: executorTitleOf(row), [key]: v };
   delete out.title;
   return out;

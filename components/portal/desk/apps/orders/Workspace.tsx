@@ -8,6 +8,7 @@ import { saveBlob } from "@/lib/download";
 import { shortDateTime } from "@/lib/date";
 import { getSecureMessageFileAt, startCall } from "@/lib/services/backend";
 import { marketChatHref, marketStageOf, type MarketOrder, type MarketPhase } from "@/lib/services/marketplace";
+import type { Payout } from "@/lib/services/payouts";
 import { normOrderChecklist, priceCapOf, requestCancellationReview, respondNegotiation, startMarketOrder, updateChecklistItem, type ChecklistItem, type ChecklistStatus, type MarketFileRef, type OrderChecklist } from "@/lib/services/marketRuntime";
 import { useOrderDetail } from "@/components/marketplace/order/useOrderDetail";
 import { useDurationText } from "@/components/marketplace/order/OrderFacts";
@@ -16,6 +17,9 @@ import { negotiationActions, negotiationStateOf } from "@/components/marketplace
 import { DOC_ACTION_KEY, docKindOf, docLeadKey, docRouteOf, needsRecordId, roomDocumentRecordId, templateOfRuntime } from "@/components/marketplace/order/docs";
 import { ORDER_FILE_MB, uploadOrderFile, type UploadedFile } from "@/components/marketplace/order/upload";
 import { useMarketError } from "@/components/marketplace/useMarketError";
+import ChecklistStageGroup, { useFirstStageCheer } from "@/components/marketplace/order/ChecklistStageGroup";
+import { firstStageMark, stageAmount, stageGroups, type StageGroup } from "@/components/marketplace/order/payStages";
+import { useOrderPayouts } from "@/components/marketplace/order/useOrderPayouts";
 import { IconAlert, IconChat, IconCheck, IconClipboardCheck, IconClock, IconClose, IconCoins, IconDownload, IconFileText, IconPaperclip, IconPause, IconPhone, IconRefresh, IconRocket, IconUser, IconVideo } from "@/components/icons";
 import { Banner, Btn, Dialog, Empty, Field, Input, Loading, Progress, Seg, Tag, TextArea, useToast } from "../../kit/kit";
 import type { NativeProps } from "../../native";
@@ -43,6 +47,11 @@ export default function Workspace({ orderId, openApp, base, onChanged }: NativeP
   const [toast, say] = useToast();
   const o = det.order;
   const phase = det.phase;
+  // The payout rows behind the checklist's 30% and 40% stages; re-read as
+  // the checklist moves.
+  const settled = det.checklist ? det.checklist.items.filter((i) => i.status !== "pending").length : 0;
+  const firstDone = !!firstStageMark(det.checklist ? stageGroups(det.checklist.items, null) : [])?.complete;
+  const pay = useOrderPayouts(orderId, `${o?.status}:${o?.paymentStatus}:${det.changed}:${settled}`, det.status === "ready" && !!o, firstDone && (phase === "in_progress" || phase === "review"));
 
   if (det.status === "loading" || (det.status === "ready" && !o)) return <div className="dxm-ws"><Loading label={t("loading")} /></div>;
   if (det.status === "missing") return <div className="dxm-ws"><Empty icon={<IconAlert />} title={t("missingTitle")} text={t("missingSeller")} /></div>;
@@ -146,7 +155,7 @@ export default function Workspace({ orderId, openApp, base, onChanged }: NativeP
             det.refresh("all");
             onChanged();
           }} onRefresh={() => det.refresh("order")} /> : null}
-          {phase === "in_progress" || phase === "review" ? <Checklist o={o} list={det.checklist} state={det.checklistState} onChange={det.setChecklist} onRetry={() => det.refresh("checklist")} /> : null}
+          {phase === "in_progress" || phase === "review" ? <Checklist o={o} list={det.checklist} state={det.checklistState} payouts={pay.ready ? pay.rows : null} onChange={det.setChecklist} onRetry={() => det.refresh("checklist")} onStageDone={say} /> : null}
           {o.supplemental ? <SupplementalStatus o={o} cur={cur} /> : null}
           {phase === "completed" || phase === "rated" ? <Result o={o} /> : null}
           <Documents o={o} phase={phase} runtime={det.runtime} base={base} onOpen={(href) => openApp(href.includes("/chat/") ? "messages" : "documentRequests", href)} />
@@ -398,48 +407,71 @@ function Negotiation({ o, phase, cap, cur, onChanged }: { o: MarketOrder; phase:
 }
 
 // ── checklist ─────────────────────────────────────────────────────────────
-function Checklist({ o, list, state, onChange, onRetry }: { o: MarketOrder; list: OrderChecklist | null; state: string; onChange: (c: OrderChecklist) => void; onRetry: () => void }) {
+// The seller's list in its two payout stages: the 30% items first (paid the
+// moment they are done), then the final 40% ones.
+function Checklist({ o, list, state, payouts, onChange, onRetry, onStageDone }: { o: MarketOrder; list: OrderChecklist | null; state: string; payouts: readonly Payout[] | null; onChange: (c: OrderChecklist) => void; onRetry: () => void; onStageDone: (text: string) => void }) {
   const t = useTranslations("marketplace.orderDetail.checklist");
+  const ts = useTranslations("marketplace.orderDetail.payStage");
   const d = useTranslations("portal.desk.orders");
   const [open, setOpen] = useState("");
+  const groups = list ? stageGroups(list.items, payouts) : [];
+  const celebrate = useFirstStageCheer(groups);
+  const first = groups.find((g) => g.stage === "first_checklist");
+  // Said once, as a toast too, when the last 30% item is done here.
+  const cheerKey = celebrate && first ? `${first.state}:${first.payout?.amount ?? ""}` : "";
+  const said = useRef("");
+  useEffect(() => {
+    if (!cheerKey || said.current === cheerKey || !first || first.state === "open") return;
+    said.current = cheerKey;
+    const amount = stageAmount(first);
+    const share = amount !== null ? ts("shareWith", { percent: first.percent, amount: `${fmtUzs(amount)} ${ts("som")}` }) : ts("share", { percent: first.percent });
+    onStageDone(ts(`cheer.first_checklist.${first.state}.title`, { share, percent: first.percent }));
+  }, [cheerKey, first, onStageDone, ts]);
   if (state === "loading" && !list) return <Box title={t("title")} icon={<IconClipboardCheck />}><Loading label={t("loading")} /></Box>;
   if (state === "error") return <Box title={t("title")} icon={<IconClipboardCheck />}><Banner tone="err" title={t("error")} action={<Btn small onClick={onRetry}>{d("retry")}</Btn>} /></Box>;
   if (!list || !list.items.length) return state === "none" ? <Box title={t("title")} icon={<IconClipboardCheck />} lead={t("empty")} /> : null;
   const p = list.progress;
+  const rows = (g: StageGroup) => (
+    <ul className="dxm-cl">
+      {g.items.map((it) => (
+        <li key={it.id} className={`is-${it.status}`}>
+          <div className="dxm-cl__row">
+            <i aria-hidden>{it.status === "done" ? <IconCheck /> : it.status === "skipped_with_reason" ? <IconClose /> : null}</i>
+            <span className="dxm-cl__t">
+              <b>{it.title}</b>
+              {it.description ? <small>{it.description}</small> : null}
+              <span className="dxm-cl__marks">
+                {it.required ? <Tag tone="warn">{t("mark.required")}</Tag> : null}
+                {it.commentRequired ? <Tag>{t("mark.comment")}</Tag> : null}
+                {it.fileRequired ? <Tag>{t("mark.file")}</Tag> : null}
+                <Tag tone={it.status === "done" ? "ok" : it.status === "skipped_with_reason" ? "neutral" : "info"}>{t(`status.${it.status}`)}</Tag>
+              </span>
+              {it.comment ? <q>{it.comment}</q> : null}
+              {it.files.length ? (
+                <span className="dxm-files">
+                  {it.files.map((f) => (
+                    <ItemFile key={f.id || f.url} f={f} />
+                  ))}
+                </span>
+              ) : null}
+            </span>
+            <Btn small onClick={() => setOpen(open === it.id ? "" : it.id)}>
+              {t("edit")}
+            </Btn>
+          </div>
+          {open === it.id ? <ItemEditor o={o} item={it} list={list} onSaved={(next) => (onChange(next), setOpen(""))} onCancel={() => setOpen("")} /> : null}
+        </li>
+      ))}
+    </ul>
+  );
   return (
     <Box title={t("title")} lead={t("leadSeller")} icon={<IconClipboardCheck />} end={<Tag tone={p.done === p.total ? "ok" : "accent"}>{t("progress", { done: p.done, total: p.total })}</Tag>}>
       <Progress value={p.percent || (p.total ? (p.done / p.total) * 100 : 0)} label={t("progressLabel")} />
-      <ul className="dxm-cl">
-        {list.items.map((it) => (
-          <li key={it.id} className={`is-${it.status}`}>
-            <div className="dxm-cl__row">
-              <i aria-hidden>{it.status === "done" ? <IconCheck /> : it.status === "skipped_with_reason" ? <IconClose /> : null}</i>
-              <span className="dxm-cl__t">
-                <b>{it.title}</b>
-                {it.description ? <small>{it.description}</small> : null}
-                <span className="dxm-cl__marks">
-                  {it.required ? <Tag tone="warn">{t("mark.required")}</Tag> : null}
-                  {it.commentRequired ? <Tag>{t("mark.comment")}</Tag> : null}
-                  {it.fileRequired ? <Tag>{t("mark.file")}</Tag> : null}
-                  <Tag tone={it.status === "done" ? "ok" : it.status === "skipped_with_reason" ? "neutral" : "info"}>{t(`status.${it.status}`)}</Tag>
-                </span>
-                {it.comment ? <q>{it.comment}</q> : null}
-                {it.files.length ? (
-                  <span className="dxm-files">
-                    {it.files.map((f) => (
-                      <ItemFile key={f.id || f.url} f={f} />
-                    ))}
-                  </span>
-                ) : null}
-              </span>
-              <Btn small onClick={() => setOpen(open === it.id ? "" : it.id)}>
-                {t("edit")}
-              </Btn>
-            </div>
-            {open === it.id ? <ItemEditor o={o} item={it} list={list} onSaved={(next) => (onChange(next), setOpen(""))} onCancel={() => setOpen("")} /> : null}
-          </li>
-        ))}
-      </ul>
+      {groups.map((g) => (
+        <ChecklistStageGroup key={g.stage} group={g} idBase={`dxm-stage-${o.id}-${g.stage}`} celebrate={celebrate && g.stage === "first_checklist"} ai={`desk.orders.checklist.${g.stage}`}>
+          {rows(g)}
+        </ChecklistStageGroup>
+      ))}
     </Box>
   );
 }

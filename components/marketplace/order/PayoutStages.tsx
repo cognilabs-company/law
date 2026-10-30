@@ -1,52 +1,27 @@
 "use client";
 
 import "./payout-stages.css";
-import { useEffect, useState, type ReactElement } from "react";
+import type { ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { IconCheck, IconClock, IconLock } from "@/components/icons";
 import { shortDateTime } from "@/lib/date";
-import { isAborted, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
-import { subscribeUserEvents } from "@/lib/userSocket";
-import { getOrderPayouts, type Payout, type Settlement } from "@/lib/services/payouts";
+import type { OrderPayouts } from "./useOrderPayouts";
 
 // TSK-906326 — the seller's own payout stages for this order (contract
 // 2026-10-27 §9): on acceptance, after the first checklist stage, and after
 // completion once the 15-minute window closes. Seller and staff only — the
 // client view never mounts this. Amounts and the hold are the backend's;
 // when it sends no stages, nothing is shown.
-export default function PayoutStages({ orderId, refreshKey, aiBase }: { orderId: string; refreshKey: string; aiBase: string }): ReactElement | null {
+// The rows are read once for the page (useOrderPayouts) and shared with the
+// checklist's stage groups.
+export default function PayoutStages({ data, aiBase }: { data: OrderPayouts; aiBase: string }): ReactElement | null {
   const t = useTranslations("marketplace.orderDetail.payouts");
   const locale = useLocale();
-  const [rows, setRows] = useState<Payout[] | null>(null);
-  const [hold, setHold] = useState<Settlement | null>(null);
-  const [tick, setTick] = useState(0);
+  const rows = data.rows;
+  const hold = data.settlement?.held ? data.settlement : null;
 
-  useEffect(() => {
-    const ctl = new AbortController();
-    getOrderPayouts(orderId, ctl.signal)
-      .then((r) => {
-        setRows(r.rows);
-        setHold(r.settlement.held ? r.settlement : null);
-      })
-      .catch((e) => {
-        if (isAborted(e)) return;
-        logApiError("order.payouts", e);
-        setRows([]);
-      });
-    return () => ctl.abort();
-  }, [orderId, refreshKey, tick]);
-  // A new stage, a payout made, or the checklist moving: refetch.
-  useEffect(
-    () =>
-      subscribeUserEvents((e) => {
-        const ev = String(e.event ?? "");
-        if (/^marketplace\.(payout_|checklist_updated|order_completed|complaint_)/.test(ev)) setTick((n) => n + 1);
-      }),
-    [],
-  );
-
-  if (!rows?.length) return null;
+  if (!rows.length) return null;
   return (
     <section className="pst" aria-labelledby="pst-h" data-ai-id={`${aiBase}.payouts`} data-ai-type="section" data-ai-private>
       <h3 id="pst-h" className="pst__h">
