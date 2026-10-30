@@ -23,7 +23,8 @@ import {
   type CustomerOption,
 } from "@/lib/services/crm";
 import { dismissCrmExport, loadCrmMeta, refreshCrmExport, useCrmEvents, useCrmExports, useCrmMeta } from "@/lib/crm/useCrm";
-import { CrmTop, Empty, SkeletonRows, statusColorVars, useCrmError, type CrmBack } from "./bits";
+import { isCallCenterUser, sessionRoles, useAuth } from "@/lib/auth";
+import { CrmRail, CrmTop, Empty, SkeletonRows, statusColorVars, useCrmError, type CrmBack } from "./bits";
 import { CustomerPicker, NewCustomerModal, optionOfCustomer } from "./CustomerPicker";
 import { CrmDateTime, CrmSelect } from "./fields";
 import { sectionOk, type CrmSectionKey } from "./sections";
@@ -38,6 +39,9 @@ export type CrmApi = { meta: CrmMeta; open: (s: Exclude<Sheet, "">, preset?: { c
 // only a "no access" state (contract 13cb257 §20).
 export default function CrmFrame({ title, tools, back, section, noTray, children }: { title?: string; tools?: (api: CrmApi) => ReactNode; back?: CrmBack; section?: CrmSectionKey; noTray?: boolean; children: (api: CrmApi) => ReactNode }): ReactElement {
   const t = useTranslations("crm");
+  const { session } = useAuth();
+  const roles = sessionRoles(session);
+  const rail = isCallCenterUser(session) && !roles.includes("admin") && !roles.includes("superadmin");
   const { meta, error } = useCrmMeta();
   const [palette, setPalette] = useState(false);
   const [sheet, setSheet] = useState<Sheet>("");
@@ -88,23 +92,43 @@ export default function CrmFrame({ title, tools, back, section, noTray, children
     );
   }
   const allowed = !section || sectionOk(section, api.meta);
-  return (
-    <div className="crm" style={statusColorVars(api.meta)}>
-      <MetaSync />
-      <CrmNotifier />
-      <CrmTop meta={api.meta} title={title ?? t("title")} onPalette={openPalette} tools={allowed ? tools?.(api) : null} back={back} />
-      {allowed ? (
-        children(api)
-      ) : (
-        <div className="crm-card" data-denied="">
-          <Empty icon={<IconLock />} title={t("denied")} text={t("sectionDenied")} />
-        </div>
-      )}
+  const head = <CrmTop meta={api.meta} title={title ?? t("title")} onPalette={openPalette} tools={allowed ? tools?.(api) : null} back={back} rail={rail} />;
+  const body = allowed ? (
+    children(api)
+  ) : (
+    <div className="crm-card" data-denied="">
+      <Empty icon={<IconLock />} title={t("denied")} text={t("sectionDenied")} />
+    </div>
+  );
+  const extras = (
+    <>
       {noTray ? null : <ExportTray />}
       {palette ? <Palette api={api} onClose={() => setPalette(false)} /> : null}
       {sheet === "lead" ? <LeadSheet meta={api.meta} preset={preset} onClose={() => setSheet("")} /> : null}
       {sheet === "customer" ? <CustomerSheet meta={api.meta} onClose={() => setSheet("")} /> : null}
       {sheet === "export" ? <ExportSheet meta={api.meta} onClose={() => setSheet("")} /> : null}
+    </>
+  );
+  if (rail)
+    return (
+      <div className="crm crm--rail" style={statusColorVars(api.meta)}>
+        <MetaSync />
+        <CrmNotifier />
+        <CrmRail meta={api.meta} />
+        <div className="crm-main">
+          {head}
+          {body}
+        </div>
+        {extras}
+      </div>
+    );
+  return (
+    <div className="crm" style={statusColorVars(api.meta)}>
+      <MetaSync />
+      <CrmNotifier />
+      {head}
+      {body}
+      {extras}
     </div>
   );
 }
