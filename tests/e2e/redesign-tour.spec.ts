@@ -101,7 +101,7 @@ for (const scheme of SCHEMES)
       if (want("crm-sheet")) {
         await page.goto("/ru/admin/crm/leads?tab=all");
         await page.locator(".crm-top__tools").getByRole("button", { name: /Новый лид/ }).click();
-        await expect(page.getByRole("dialog")).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByRole("dialog", { name: "Новый лид" })).toBeVisible({ timeout: 15_000 });
         await check(page, "crm-sheet", width, scheme);
       }
       if (want("crm-tray")) {
@@ -200,7 +200,7 @@ for (const scheme of SCHEMES)
       if (want("cc-callform")) {
         await page.goto("/ru/admin/call-center?tab=clients");
         await page.locator("#ccon-panel-clients").locator('[data-ai-target="button:log-call"]').click();
-        await expect(page.getByRole("dialog")).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByRole("dialog", { name: "Записать звонок" })).toBeVisible({ timeout: 15_000 });
         await check(page, "cc-callform", width, scheme);
       }
       for (const [name, url] of [["cc-support", "/ru/admin/call-center/support"], ["cc-support-ticket", "/ru/admin/call-center/support/t1"], ["cc-experience-page", "/ru/admin/call-center/experience/e9"]]) {

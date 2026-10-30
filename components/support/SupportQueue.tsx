@@ -119,8 +119,11 @@ export default function SupportQueue({ ticketId }: { ticketId?: string }) {
             : listSupportQueue({ status, offset: o, limit: l }, s).catch(() => EMPTY_PAGE),
         ),
       );
+      // A ticket that moves between two waiting statuses while these load
+      // comes back in both answers: list it once.
+      const seen = new Set<string>();
       return shape(tab, {
-        items: pages.flatMap((p) => p.items),
+        items: pages.flatMap((p) => p.items).filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true))),
         total: pages.reduce((n, p) => n + p.total, 0),
         hasMore: pages.some((p) => p.hasMore),
       });
