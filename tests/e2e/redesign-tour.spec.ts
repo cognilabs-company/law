@@ -37,9 +37,12 @@ async function check(page: Page, name: string, width: number, scheme: string) {
       })
       .slice(0, 3)
       .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 60)}`);
-    return { wide, page: document.documentElement.scrollWidth > vw + 1 };
+    // The shell scrolls inside .pbody; the document itself never does.
+    const tall = document.documentElement.scrollHeight > window.innerHeight + 1;
+    return { wide, page: document.documentElement.scrollWidth > vw + 1, tall };
   });
   expect.soft(over.page, `${name} @${width}: the page scrolls sideways`).toBe(false);
+  expect.soft(over.tall, `${name} @${width}: the document scrolls under the shell`).toBe(false);
   expect.soft(over.wide, `${name} @${width}: sticks out`).toEqual([]);
   const text = await page.locator(".pbody").innerText();
   expect.soft(text, `${name}: shows a raw id`).not.toMatch(UUID);

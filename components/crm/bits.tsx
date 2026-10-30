@@ -166,7 +166,7 @@ export function LiveDot(): ReactElement {
   return (
     <span className="crm-live" data-s={s} role="status" aria-live="polite" title={t(s)}>
       <i aria-hidden="true" />
-      {t(s)}
+      <span className="crm-live__t">{t(s)}</span>
     </span>
   );
 }

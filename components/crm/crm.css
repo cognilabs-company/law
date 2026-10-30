@@ -324,6 +324,7 @@ html[data-theme="dark"] .crm-pop { --crm-acc: var(--dk-acc, #6ea8ff); --crm-cyan
   .crm-top__tools { flex-wrap: wrap; width: 100%; margin-left: 0; }
   .crm-kbd { flex: 1 1 auto; min-width: 0; }
   .crm-kbd kbd { display: none; }
+  .crm-kbd { white-space: nowrap; overflow: hidden; }
   .crm-tabs .crm-seg { margin-left: 0 !important; }
   .crm-filters .crm-sel { flex: 1 1 calc(50% - 4px); min-width: 0; }
   .crm-range { display: flex; flex: 1 1 100%; }
@@ -333,6 +334,11 @@ html[data-theme="dark"] .crm-pop { --crm-acc: var(--dk-acc, #6ea8ff); --crm-cyan
 }
 .crm > * { min-width: 0; }
 @media (max-width: 640px) {
+  /* The tools row starts at the left edge and wraps; the live state keeps
+     its dot, its word stays for screen readers. */
+  .crm-top__tools { justify-content: flex-start; }
+  .crm-live { position: relative; width: 40px; padding: 0; justify-content: center; }
+  .crm-live__t { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .crm-top { width: 100%; }
   .crm-nav { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
   .crm-nav::-webkit-scrollbar { display: none; }
