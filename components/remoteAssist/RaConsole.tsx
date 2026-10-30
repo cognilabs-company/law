@@ -1,7 +1,7 @@
 "use client";
 
 import "./remoteAssist.css";
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ComponentType } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { toast } from "@/lib/toast";
@@ -9,6 +9,8 @@ import { errorText } from "@/lib/errorText";
 import { timeOnly } from "@/lib/date";
 import { asDict, asNum, asStr, parseServerTime, ApiError, type Dict } from "@/lib/http";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import Select from "@/components/Select";
+import { humanize } from "@/lib/labels";
 import {
   RA_EMPTY_META,
   RA_PERSONAL_SCOPE,
@@ -132,6 +134,7 @@ function mirrorOf(s: RaSession | null): Mirror | null {
 export default function RaConsole({ state }: { state: RaConsoleState }) {
   const t = useTranslations("remoteAssist");
   const tc = useTranslations("common");
+  const durId = useId();
   const locale = useLocale();
   const [meta, setMeta] = useState<RaMeta>(RA_EMPTY_META);
   const [session, setSession] = useState<RaSession | null>(null);
@@ -277,9 +280,9 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
     return () => c.abort();
   }, [tab, sid, commands.length, session?.status]);
 
-  const modeLabel = (m: string) => (t.has(`modes.${m}.title`) ? t(`modes.${m}.title`) : m);
+  const modeLabel = (m: string) => (t.has(`modes.${m}.title`) ? t(`modes.${m}.title`) : humanize(m));
   const scopeLabel = (s: string) => (t.has(`scopes.${s}`) ? t(`scopes.${s}`) : s.replace(/_/g, " "));
-  const actionLabel = (a: string) => (t.has(`actions.${raKey(a)}`) ? t(`actions.${raKey(a)}`) : a);
+  const actionLabel = (a: string) => (t.has(`actions.${raKey(a)}`) ? t(`actions.${raKey(a)}`) : humanize(a.replace(/[.:/]+/g, " ")));
   const statusLabel = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : s.replace(/_/g, " "));
   const cmdLabel = (s: string) => (t.has(`cmd.${s}`) ? t(`cmd.${s}`) : s.replace(/_/g, " "));
   const failLabel = (s: string) => (t.has(`fail.${s}`) ? t(`fail.${s}`) : s.replace(/^remote_assist_/, "").replace(/_/g, " "));
@@ -569,18 +572,15 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
                     <span>{t("op.reason")}</span>
                     <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} maxLength={500} placeholder={t("op.reasonDefault")} />
                   </label>
-                  <label className="ra-field ra-field--row">
-                    <span>{t("op.duration")}</span>
-                    <select value={minutes} onChange={(e) => setMinutes(Number(e.target.value))}>
-                      {[5, 10, 15, 20, 30]
-                        .filter((m) => m <= meta.maxMinutes)
-                        .map((m) => (
-                          <option key={m} value={m}>
-                            {t("op.minutes", { n: m })}
-                          </option>
-                        ))}
-                    </select>
-                  </label>
+                  <div className="ra-field ra-field--row">
+                    <span id={durId}>{t("op.duration")}</span>
+                    <Select
+                      value={String(minutes)}
+                      onChange={(v) => setMinutes(Number(v))}
+                      options={[5, 10, 15, 20, 30].filter((m) => m <= meta.maxMinutes).map((m) => ({ value: String(m), label: t("op.minutes", { n: m }) }))}
+                      labelId={durId}
+                    />
+                  </div>
                 </div>
               ) : null}
               {cooling ? (
@@ -905,11 +905,15 @@ export default function RaConsole({ state }: { state: RaConsoleState }) {
   );
 }
 
+const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
 // The audit trail as the backend wrote it: chronological, untouched — the
 // hashes are shown, never recomputed.
 export function RaAuditList({ audit }: { audit: RaAudit[] | null }) {
   const t = useTranslations("remoteAssist");
+  const tr = useTranslations("studio.roles");
   const locale = useLocale();
+  const roleName = (r: string) => (tr.has(r) ? tr(r) : humanize(r));
   if (audit === null)
     return (
       <div className="ra-con__center">
@@ -920,8 +924,10 @@ export function RaAuditList({ audit }: { audit: RaAudit[] | null }) {
   return (
     <ol className="ra-audit">
       {audit.map((a, i) => {
+        // Ids (a session, a user, a command) say nothing to a reader: they
+        // stay in the record, only the readable details are listed.
         const meta = Object.entries(a.metadata)
-          .filter(([, v]) => v !== null && v !== "" && typeof v !== "object")
+          .filter(([k, v]) => v !== null && v !== "" && typeof v !== "object" && !/(^|_)id$/i.test(k) && !UUID_RE.test(String(v)))
           .slice(0, 6);
         return (
           <li key={a.id || i}>
@@ -931,14 +937,14 @@ export function RaAuditList({ audit }: { audit: RaAudit[] | null }) {
               {a.actor.name || a.actor.role ? (
                 <small>
                   {a.actor.name}
-                  {a.actor.role ? ` · ${a.actor.role}` : ""}
+                  {a.actor.role ? ` · ${roleName(a.actor.role)}` : ""}
                 </small>
               ) : null}
               {meta.length ? (
                 <span className="ra-audit__meta">
                   {meta.map(([k, v]) => (
                     <span key={k}>
-                      {k.replace(/_/g, " ")}: <code>{String(v).slice(0, 60)}</code>
+                      {humanize(k)}: <code>{typeof v === "boolean" ? (v ? "✓" : "—") : String(v).slice(0, 60)}</code>
                     </span>
                   ))}
                 </span>

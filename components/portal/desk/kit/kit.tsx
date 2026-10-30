@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ChangeEvent, type CSSProperties, type FormEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { IconCheck, IconChevronDown, IconChevronLeft, IconChevronRight, IconClose, IconSearch } from "@/components/icons";
 import type { MenuItem } from "../ContextMenu";
+import HandSelect from "@/components/Select";
 import "./kit.css";
 
 // The desktop's own app kit: the controls a program on that computer is
@@ -225,18 +226,13 @@ export function TextArea(p: { value: string; onChange: (v: string, e: ChangeEven
   return <textarea className="dx-in dx-in--area" value={p.value} onChange={(e) => p.onChange(e.target.value, e)} onBlur={p.onBlur} placeholder={p.placeholder} rows={p.rows ?? 3} maxLength={p.maxLength} aria-label={p.ariaLabel} />;
 }
 
-// A pop-up button (Mac) / combo box (Windows), on the browser's own list.
+// A pop-up button (Mac) / combo box (Windows). The list is the site's own
+// handmade one (components/Select), never the browser's: only the closed
+// control is drawn here, in the computer's style (kit.css, .dx-sel).
 export function Select<T extends string>({ value, onChange, options, ariaLabel }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; ariaLabel: string }) {
   return (
     <span className="dx-sel">
-      <select value={value} onChange={(e) => onChange(e.target.value as T)} aria-label={ariaLabel}>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <IconChevronDown aria-hidden />
+      <HandSelect value={value} onChange={(v) => onChange(v as T)} options={options} ariaLabel={ariaLabel} />
     </span>
   );
 }

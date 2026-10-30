@@ -27,6 +27,8 @@ import {
   type HrmType,
 } from "@/lib/services/hrm";
 import DatePicker from "@/components/DatePicker";
+import { humanize } from "@/lib/labels";
+import "../handmade.css";
 import Select from "@/components/Select";
 import SearchSelect from "@/components/SearchSelect";
 import InternalField from "@/components/internal/InternalField";
@@ -54,6 +56,15 @@ const TONES = ["#1668F0", "#19C3B1", "#F5A623", "#8B5CF6", "#E5484D", "#0EA5E9",
 const SPANS: [string, string][] = [["start_date", "end_date"], ["starts_at", "ends_at"], ["period_start", "period_end"], ["work_date", ""], ["scheduled_at", ""], ["occurred_at", ""], ["deadline_at", ""], ["due_at", ""], ["effective_date", ""], ["review_date", ""]];
 const text = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "");
 const isDict = (v: unknown): v is Dict => !!v && typeof v === "object" && !Array.isArray(v);
+// Any stored value in words for a reader: nested keys named, lists joined,
+// yes/no for booleans — never the JSON the backend keeps.
+function plainOf(v: unknown, yes: string, no: string): string {
+  if (v === undefined || v === null) return "";
+  if (typeof v === "boolean") return v ? yes : no;
+  if (Array.isArray(v)) return v.map((x) => plainOf(x, yes, no)).filter(Boolean).join(", ");
+  if (isDict(v)) return Object.entries(v).map(([k, x]) => [humanize(k), plainOf(x, yes, no)]).filter(([, x]) => x).map(([k, x]) => `${k}: ${x}`).join(" · ");
+  return String(v);
+}
 const empty = (v: unknown) => v === undefined || v === null || (typeof v === "string" && !v.trim()) || (Array.isArray(v) && !v.length) || (isDict(v) && !Object.keys(v).length);
 const day = (iso: string) => iso.slice(0, 10);
 // Modules whose daily work has its own screen (2026-10-14 contract): shown
@@ -129,12 +140,12 @@ function useFormatValue() {
         case "list":
           return (Array.isArray(v) ? v : []).map((x) => (isDict(x) ? text(x.title ?? x.name ?? x.label ?? x.key ?? x.code) || Object.values(x).filter((y) => typeof y === "string").join(" ") : text(x))).filter(Boolean).join(" · ");
         case "object":
-          return isDict(v) ? Object.entries(v).map(([k, x]) => `${k}: ${typeof x === "object" ? JSON.stringify(x) : String(x)}`).join(" · ") : "";
+          return isDict(v) ? plainOf(v, t("form.yes"), t("form.no")) : "";
         case "file":
         case "files":
           return (Array.isArray(v) ? v : [v]).map((x) => (isDict(x) ? text(x.name ?? x.file_id) : text(x))).join(", ");
         default:
-          return typeof v === "object" ? JSON.stringify(v) : String(v);
+          return plainOf(v, t("form.yes"), t("form.no"));
       }
     },
     [f, option, t],
@@ -840,10 +851,11 @@ function RecordDrawer({
             <ul className="hrm-checks">
               {checklist.map((c, i) => (
                 <li key={i}>
-                  <label className={c.done === true ? "is-done" : ""}>
-                    <input type="checkbox" checked={c.done === true} readOnly disabled />
+                  <div className={`hrm-checks__row${c.done === true ? " is-done" : ""}`}>
+                    <span className={`hrm-checks__mark${c.done === true ? " on" : ""}`} aria-hidden="true"><IconCheck /></span>
                     <span>{text(c.title)}</span>
-                  </label>
+                    {c.done === true ? <span className="sr-only">{t("form.done")}</span> : null}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -856,7 +868,7 @@ function RecordDrawer({
       )}
       {extra.length ? (
         <HrmSection label={t("extraFields")}>
-          <HrmKv rows={extra.map((k) => ({ label: k, value: typeof r.payload[k] === "object" ? JSON.stringify(r.payload[k]) : String(r.payload[k]) }))} />
+          <HrmKv rows={extra.map((k) => ({ label: humanize(k), value: plainOf(r.payload[k], t("form.yes"), t("form.no")) || "—" }))} />
         </HrmSection>
       ) : null}
       {data && data.children.length ? (

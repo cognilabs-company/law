@@ -17,6 +17,8 @@ import { notify } from "@/lib/toast";
 import { useScrollEdges } from "@/lib/useScrollEdges";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
+import CheckBox from "@/components/CheckBox";
+import PersonName from "@/components/ui/PersonName";
 import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
 import FilterBar from "@/components/filters/FilterBar";
 import ScrollCue from "@/components/ui/ScrollCue";
@@ -204,10 +206,11 @@ function EditModal({ doc, onClose, onSaved }: { doc: Partial<ConsentDoc> | null;
             <p className="rf__hint">{form.major ? t("levelMajorHint") : t("levelMinorHint")}</p>
           </div>
           <div>
-            <label className="vac" style={{ marginTop: 26 }}>
-              <input type="checkbox" checked={form.active} onChange={(e) => set({ active: e.target.checked })} />
-              {t("activeNow")}
-            </label>
+            <div style={{ marginTop: 26 }}>
+              <CheckBox checked={form.active} onChange={(on) => set({ active: on })}>
+                {t("activeNow")}
+              </CheckBox>
+            </div>
           </div>
         </div>
         <button type="submit" className="btn btn--pri btn--full" disabled={busy || !form.slug || !form.version || !form.title || !form.body.trim()}>
@@ -304,7 +307,7 @@ function Journal() {
               {list.map((r) => (
                 <tr key={r.id}>
                   <td>{fmt(r.acceptedAt, locale)}</td>
-                  <td><code>{r.userId.slice(0, 8)}…</code></td>
+                  <td><PersonName id={r.userId} withPhone /></td>
                   <td>{t.has(`slugs.${r.slug}`) ? t(`slugs.${r.slug}`) : r.slug || "—"}</td>
                   <td>v{r.version}</td>
                   <td>{r.ip || "—"}</td>

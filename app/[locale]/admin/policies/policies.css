@@ -1,0 +1,12 @@
+/* Readable policy / readiness payloads (ReadableData in page.tsx). Builds on
+   .polcard__kv from globals.css: nested sections drop under their heading
+   with an indent rule instead of squeezing into the right-hand column. */
+.poltree{min-width:0}
+.poltree dd{min-width:0;overflow-wrap:anywhere;white-space:normal}
+.poltree__nest{flex-direction:column;align-items:stretch;gap:4px}
+.poltree__nest > dt{font-weight:700;color:var(--ink)}
+.poltree__nest > dd{max-width:none;text-align:left}
+.poltree--in{padding-left:12px;border-left:2px solid var(--line)}
+.poltree__list{margin:0;padding-left:18px;display:grid;gap:8px}
+.poltree__list > li{min-width:0}
+.poltree__box{padding:10px 4px 4px;max-height:320px;overflow:auto;overscroll-behavior:contain}

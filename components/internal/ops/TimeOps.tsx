@@ -23,6 +23,7 @@ import {
 } from "@/lib/services/hrmOps";
 import DatePicker from "@/components/DatePicker";
 import MonthPicker from "@/components/MonthPicker";
+import TimePicker from "@/components/TimePicker";
 import Select from "@/components/Select";
 import InternalField from "@/components/internal/InternalField";
 import HrmCalendar, { monthOf, monthRange, type CalDay } from "@/components/internal/HrmCalendar";
@@ -153,7 +154,7 @@ export function ManualEventDrawer({ employee, onClose, onDone }: { employee: str
           </div>
           <div>
             <InternalField label={t("time")}>
-              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} aria-label={t("time")} />
+              <TimePicker value={time} onChange={setTime} placeholder={t("time")} ariaLabel={t("time")} />
             </InternalField>
             <FieldErr text={tried && missing.when ? t("required") : undefined} />
           </div>

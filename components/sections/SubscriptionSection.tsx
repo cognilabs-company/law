@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { getSubscriptionPlans, type BackendPlan } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { IconInfo } from "../icons";
+import CheckBox from "../CheckBox";
 
 // Personal-lawyer subscription tariffs (TZ: "Шахсий адвокат ёллаш обуна модули").
 // Prices come from the backend (admin-managed, TZ-aligned); these are only the
@@ -91,10 +92,11 @@ export default function SubscriptionSection() {
           <button type="button" aria-pressed={term === 12} onClick={() => setTerm(12)}>{t("term12")}</button>
         </div>
         {term === 12 ? (
-          <label className="chkline">
-            <input type="checkbox" checked={upfront} onChange={(e) => setUpfront(e.target.checked)} />
-            {t("upfront")}
-          </label>
+          <div className="chkline" style={{ ["--cbx-bg" as string]: "var(--b50)" }}>
+            <CheckBox checked={upfront} onChange={setUpfront}>
+              {t("upfront")}
+            </CheckBox>
+          </div>
         ) : null}
 
         {/* rvseq: the three plans reveal in child order, and the gift card gets

@@ -6,6 +6,7 @@ import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardN
 import { useTranslations } from "next-intl";
 import type { WorkEntry } from "@/lib/types";
 import MonthPicker from "../MonthPicker";
+import CheckBox from "../CheckBox";
 import { IconPlus, IconBriefcase, IconClose } from "../icons";
 
 function uid(): string {
@@ -120,14 +121,9 @@ export default function WorkHistoryEditor({
               />
             </div>
           </div>
-          <label className="wh__check">
-            <input
-              type="checkbox"
-              checked={form.current}
-              onChange={(e) => setForm({ ...form, current: e.target.checked })}
-            />
+          <CheckBox checked={form.current} onChange={(on) => setForm({ ...form, current: on })}>
             {t("currentLabel")}
-          </label>
+          </CheckBox>
           <div>
             <label>{t("achievements")}</label>
             <textarea

@@ -18,6 +18,7 @@ import { fmtUzs } from "@/lib/money";
 import { acceptFor, docModeAccess, docRuntimeSettings, type DocAccess } from "@/lib/services/documentSettings";
 import { ApiError, errDetail, logApiError } from "@/lib/http";
 import { IconFileText, IconAlert, IconCheck, IconSparkle, IconShieldCheck, IconArrowRight } from "@/components/icons";
+import CheckBox from "@/components/CheckBox";
 
 const MAX_PAGES = 500;
 // The backend counts one page per 2 500 characters of text.
@@ -204,10 +205,10 @@ export default function ClientDocAnalysis() {
               aria-invalid={!pagesOk}
             />
           </label>
-          <label className="docq__opt"><input type="checkbox" checked={ocr} onChange={(e) => setOcr(e.target.checked)} />{t("ocr")}</label>
-          <label className="docq__opt"><input type="checkbox" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} />{t("urgent")}</label>
-          <label className="docq__opt"><input type="checkbox" checked={lawyerReview} onChange={(e) => setLawyerReview(e.target.checked)} />{t("lawyerReview")}</label>
-          <label className="docq__opt"><input type="checkbox" checked={writtenOpinion} onChange={(e) => setWrittenOpinion(e.target.checked)} />{t("writtenOpinion")}</label>
+          <CheckBox className="docq__opt" checked={ocr} onChange={setOcr}>{t("ocr")}</CheckBox>
+          <CheckBox className="docq__opt" checked={urgent} onChange={setUrgent}>{t("urgent")}</CheckBox>
+          <CheckBox className="docq__opt" checked={lawyerReview} onChange={setLawyerReview}>{t("lawyerReview")}</CheckBox>
+          <CheckBox className="docq__opt" checked={writtenOpinion} onChange={setWrittenOpinion}>{t("writtenOpinion")}</CheckBox>
         </div>
         {!pagesOk ? <p className="docq__err">{t("pagesRange", { max: MAX_PAGES })}</p> : null}
         {/* Said before the quote is fetched, not after: the page count is the

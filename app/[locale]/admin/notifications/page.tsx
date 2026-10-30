@@ -39,6 +39,7 @@ export default function AdminNotifications() {
   const tn = useTranslations("admin.notifications");
   const tp = useTranslations("portal.notifications");
   const tc = useTranslations("common");
+  const tcp = useTranslations("common.person");
   const uid = useId();
 
   const [mode, setMode] = useState<SendMode>("individual");
@@ -95,7 +96,8 @@ export default function AdminNotifications() {
     });
   }
   const roleLabel = (r: string) => (tn.has(`roles.${r}`) ? tn(`roles.${r}`) : t.has(`roleBadges.${r}`) ? t(`roleBadges.${r}`) : humanizeSlug(r));
-  const userTitle = (u: AdminUser) => u.name || u.phone || u.lexgoId || u.id;
+  // A person by name, phone or LexGo ID — never the bare user id.
+  const userTitle = (u: AdminUser) => u.name || u.phone || (u.lexgoId ? `LexGo ID ${u.lexgoId}` : "") || tcp("unknown");
 
   async function send(e: FormEvent) {
     e.preventDefault();

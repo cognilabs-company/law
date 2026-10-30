@@ -21,11 +21,13 @@ import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState"
 import { useReload } from "@/components/admin/AdminBits";
 import FieldError from "@/components/ui/FieldError";
 import Modal from "@/components/admin/Modal";
+import PersonName from "@/components/ui/PersonName";
 import BusinessCalendarCard from "@/components/admin/BusinessCalendarCard";
 import MarketplacePricingCard from "@/components/admin/policies/MarketplacePricingCard";
 import { IconShieldCheck, IconCheck, IconAlert, IconClock, IconEdit } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
 import { humanize } from "@/lib/labels";
+import "./policies.css";
 
 type Val = unknown;
 const isPlain = (v: Val) => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -82,13 +84,13 @@ export default function AdminPolicies() {
       <div className="ppanel" data-ai-target="policies:readiness">
         <div className="ppanel__h">
           <b>{t("readyTitle")}</b>
-          {ready.data?.status ? <em className={`atag${ready.data.status === "production_ready" ? " atag--ok" : ""}`}>{t.has(`readyStatus.${ready.data.status}`) ? t(`readyStatus.${ready.data.status}`) : ready.data.status}</em> : null}
+          {ready.data?.status ? <em className={`atag${ready.data.status === "production_ready" ? " atag--ok" : ""}`}>{t.has(`readyStatus.${ready.data.status}`) ? t(`readyStatus.${ready.data.status}`) : humanize(ready.data.status)}</em> : null}
         </div>
         <p className="ppanel__note">{t("readyLead")}</p>
         {ready.status === "loading" ? <Skeleton rows={3} /> : ready.status === "error" || !ready.data ? (
           <ErrorState compact title={t("loadError")} onRetry={reloadReady} />
         ) : !ready.data.items.length ? (
-          <pre className="legaldoc__body">{JSON.stringify(ready.data.raw, null, 2)}</pre>
+          <ReadableData data={ready.data.raw} />
         ) : (
           <div className="alist">
             {ready.data.items.map((it) => {
@@ -101,7 +103,7 @@ export default function AdminPolicies() {
                     <b>{it.title || humanize(it.key)}</b>
                     {it.note ? <span className="aitem__meta">{it.note}</span> : null}
                   </div>
-                  <div className="aitem__r"><em className={`atag${ok ? " atag--ok" : " atag--muted"}`}>{t.has(`readyStatus.${it.status}`) ? t(`readyStatus.${it.status}`) : it.status || "—"}</em></div>
+                  <div className="aitem__r"><em className={`atag${ok ? " atag--ok" : " atag--muted"}`}>{t.has(`readyStatus.${it.status}`) ? t(`readyStatus.${it.status}`) : it.status ? humanize(it.status) : "—"}</em></div>
                 </div>
               );
             })}
@@ -268,12 +270,54 @@ function HistoryModal({ section, onClose }: { section: PolicySection | null; onC
         <div className="alist">
           {res.data.map((h, i) => (
             <details className="consent__body" key={`${h.version}-${i}`}>
-              <summary>{[h.version ? `v${h.version}` : "", fmt(h.at, locale), h.changedBy ? `${h.changedBy.slice(0, 8)}…` : ""].filter(Boolean).join(" · ")}</summary>
-              <pre className="legaldoc__body" style={{ maxHeight: 260 }}>{JSON.stringify(h.data, null, 2)}</pre>
+              <summary>
+                {[h.version ? `v${h.version}` : "", h.at ? fmt(h.at, locale) : ""].filter(Boolean).join(" · ")}
+                {h.changedBy ? <> · <PersonName id={h.changedBy} /></> : null}
+              </summary>
+              <div className="poltree__box"><ReadableData data={h.data} /></div>
             </details>
           ))}
         </div>
       )}
     </Modal>
   );
+}
+
+// A policy or readiness payload as people read it: labelled rows (the known
+// key's name, else the key in words), nested sections indented under their
+// heading, lists as lists, yes/no for booleans — never the raw JSON.
+function ReadableData({ data, depth = 0 }: { data: unknown; depth?: number }) {
+  const t = useTranslations("admin.policies");
+  const label = (k: string) => (t.has(`keys.${k}`) ? t(`keys.${k}`) : humanize(k));
+  if (isPlain(data)) {
+    const rows = Object.entries(data as Record<string, unknown>);
+    if (!rows.length) return <span className="advmuted">{t("emptySection")}</span>;
+    return (
+      <dl className={`polcard__kv poltree${depth ? " poltree--in" : ""}`}>
+        {rows.map(([k, v]) => {
+          const nest = isPlain(v) || (Array.isArray(v) && !isStrList(v) && v.some((x) => x !== null && typeof x === "object"));
+          return (
+            <div key={k} className={nest ? "poltree__nest" : undefined}>
+              <dt>{label(k)}</dt>
+              <dd><ReadableData data={v} depth={depth + 1} /></dd>
+            </div>
+          );
+        })}
+      </dl>
+    );
+  }
+  if (Array.isArray(data)) {
+    if (!data.length) return <>—</>;
+    if (data.every((x) => x === null || typeof x !== "object")) return <>{data.map((x) => (typeof x === "boolean" ? t(x ? "boolYes" : "boolNo") : String(x ?? "—"))).join(", ")}</>;
+    return (
+      <ol className="poltree__list">
+        {data.map((x, i) => (
+          <li key={i}><ReadableData data={x} depth={depth + 1} /></li>
+        ))}
+      </ol>
+    );
+  }
+  if (typeof data === "boolean") return <>{t(data ? "boolYes" : "boolNo")}</>;
+  if (data === null || data === undefined || data === "") return <>—</>;
+  return <>{String(data)}</>;
 }

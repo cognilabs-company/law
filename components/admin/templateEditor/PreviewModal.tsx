@@ -4,6 +4,8 @@ import { useId, useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
+import CheckBox from "@/components/CheckBox";
+import DatePicker from "@/components/DatePicker";
 import { notify } from "@/lib/toast";
 import { previewEditor, type EditorField, type EditorPreview, type EditorSection, type PreviewAnswer } from "@/lib/services/templateEditor";
 import { fieldsOf, orphanFields } from "./model";
@@ -45,6 +47,7 @@ export default function PreviewModal({
   ensureSaved: () => Promise<boolean>;
 }) {
   const t = useTranslations("admin.templateEditor");
+  const tc = useTranslations("common");
   const id = useId();
   const [values, setValues] = useState<Answers>({});
   const [busy, setBusy] = useState(false);
@@ -52,7 +55,7 @@ export default function PreviewModal({
   const [view, setView] = useState<"preview" | "final">("preview");
   const usable = fields.filter((f) => f.key);
   const groups = [
-    ...sections.map((s) => ({ id: s.id, title: s.title || s.id, list: fieldsOf(usable, s.id) })),
+    ...sections.map((s) => ({ id: s.id, title: s.title || t("nav.unnamedSection"), list: fieldsOf(usable, s.id) })),
     { id: "", title: t("nav.orphans"), list: orphanFields(usable, sections) },
   ].filter((g) => g.list.length);
 
@@ -82,13 +85,10 @@ export default function PreviewModal({
     const str = typeof v === "string" ? v : "";
     if (f.type === "checkbox") {
       return (
-        <label className="tpe-check" key={f.uid}>
-          <input type="checkbox" checked={v === true} onChange={(e) => set(f.key, e.target.checked)} />
-          <span>
-            {f.label || f.key}
-            {f.required ? " *" : ""}
-          </span>
-        </label>
+        <CheckBox key={f.uid} checked={v === true} onChange={(on) => set(f.key, on)}>
+          {f.label || f.key}
+          {f.required ? " *" : ""}
+        </CheckBox>
       );
     }
     return (
@@ -101,10 +101,12 @@ export default function PreviewModal({
           <textarea id={fid} rows={3} value={str} onChange={(e) => set(f.key, e.target.value)} />
         ) : f.type === "select" ? (
           <Select value={str} onChange={(x) => set(f.key, x)} options={[{ value: "", label: t("preview.none") }, ...f.options.filter((o) => o.value).map((o) => ({ value: o.value, label: o.label || o.value }))]} labelId={`${fid}l`} />
+        ) : f.type === "date" ? (
+          <DatePicker value={str} onChange={(x) => set(f.key, x)} placeholder={tc("pickDate")} ariaLabel={f.label || f.key} />
         ) : (
           <input
             id={fid}
-            type={f.type === "date" ? "date" : f.type === "email" ? "email" : f.type === "phone" ? "tel" : "text"}
+            type={f.type === "email" ? "email" : f.type === "phone" ? "tel" : "text"}
             inputMode={f.type === "number" ? "decimal" : undefined}
             value={str}
             onChange={(e) => set(f.key, e.target.value)}

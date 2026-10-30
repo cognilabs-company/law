@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import DatePicker from "@/components/DatePicker";
 import TimePicker from "@/components/TimePicker";
 import Select from "@/components/Select";
+import CheckBox from "@/components/CheckBox";
 import type { SearchOption } from "@/components/SearchSelect";
 import InternalField from "@/components/internal/InternalField";
 import {
@@ -666,10 +667,9 @@ function RegistryDrawer({ opts, onClose, onSaved }: { opts: Opts; onClose: () =>
             <EntitySelect value={form.unit} onChange={set("unit")} options={opts.unitOptions} placeholder={t("registry.anyUnit")} ariaLabel={t("rooms.unit")} />
           </InternalField>
         </div>
-        <label className="stu-check lv-check">
-          <input type="checkbox" checked={form.active} onChange={(e) => setForm((c) => ({ ...c, active: e.target.checked }))} />
-          <span>{t("registry.active")}</span>
-        </label>
+        <CheckBox className="lv-check" checked={form.active} onChange={(on) => setForm((c) => ({ ...c, active: on }))}>
+          {t("registry.active")}
+        </CheckBox>
         <div className="hrm-form__foot">
           <button className="btn btn--pri btn--sm" type="submit" disabled={busy || !ok}>
             <IconCheck />

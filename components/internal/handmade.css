@@ -1,0 +1,41 @@
+/* Handmade controls (components/Select, DatePicker, TimePicker, CheckBox)
+   sized for the internal HRM screens, where the browser's own <select>,
+   <input type=time> and checkbox used to sit in compact rows. */
+
+/* Page size in the employee list pager: a small boxed pick, not a 48px field. */
+.hrm-pager .dsel{width:auto;min-width:78px}
+.hrm-pager .dsel__btn{min-height:32px;padding:4px 5px 4px 11px;border-radius:10px;font-size:.8rem;font-weight:600}
+.hrm-pager .dsel__cv{width:20px;height:20px}
+
+/* A checklist row's "done" mark (HrmFieldInput ListInput): a small tick
+   beside the item, not a full-size consent sentence. */
+.hrmf-done{--cbx-h:18px;flex:none}
+.hrmf-done .cbx__row{align-items:center;gap:6px}
+.hrmf-done .cbx__box{margin-top:0}
+.hrmf-done .cbx__tx{font-size:.78rem;line-height:1.3;color:var(--gray)}
+
+/* A weekday's on/off tick in the schedule drawer (InternalSchedulesPage).
+   The tick's crossing mask follows the card's fill, which changes with it. */
+.hrm-day .hrm-day__t{--cbx-h:18px;--cbx-bg:var(--dk-surface-2,#F7FAFE)}
+.hrm-day.on .hrm-day__t{--cbx-bg:var(--dk-surface,#fff)}
+.hrm-day__t .cbx__row{align-items:center;gap:8px}
+.hrm-day__t .cbx__box{margin-top:0}
+.hrm-day__t .cbx__tx{font-size:.84rem;font-weight:800;line-height:1.3}
+
+/* "Attach the current page" in the feedback dialog sits on the context card's
+   fill (FeedbackDialog .fb-ctx): the tick's mask takes that colour. */
+.fb-ctx{--cbx-bg:var(--dk-surface-2,#F7FAFE)}
+
+/* A record's checklist, read-only (HrmModuleScreen RecordDrawer): a drawn
+   mark per item instead of a disabled browser checkbox. */
+.hrm-checks__row{display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border-radius:12px;background:var(--dk-surface-2,#F7FAFE);font-size:.86rem;color:var(--ink)}
+.hrm-checks__row.is-done > span:not(.hrm-checks__mark){color:var(--gray);text-decoration:line-through}
+.hrm-checks__mark{flex:none;box-sizing:border-box;width:18px;height:18px;margin-top:1px;display:grid;place-items:center;border-radius:5px;box-shadow:inset 0 0 0 1.5px var(--line);color:transparent}
+.hrm-checks__mark svg{width:12px;height:12px;stroke-width:3}
+.hrm-checks__mark.on{background:var(--ok);box-shadow:none;color:#fff}
+
+/* "Show people" pill in the org board's filter bar (InternalOrgBoard). */
+.org__toggle.cbx{--cbx-h:17px;--cbx-bg:var(--dk-surface-2,#F7FAFE)}
+.org__toggle .cbx__row{align-items:center;gap:8px}
+.org__toggle .cbx__box{margin-top:0}
+.org__toggle .cbx__tx{font-size:.82rem;font-weight:700;line-height:1.2;color:var(--gray)}

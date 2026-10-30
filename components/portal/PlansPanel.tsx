@@ -20,6 +20,7 @@ import {
   BILLING_PERIODS,
   type BackendPlan,
   type ManualDocBillingPeriod,
+  isGiftOnlyPlan
 } from "@/lib/services/backend";
 import { SELLER_DISCOUNT, loadAutopay, readAutopay, saveAutopay, type AutopayState } from "@/lib/services/plans";
 import { useAuth } from "@/lib/auth";
@@ -35,6 +36,8 @@ import { fmtUzs } from "@/lib/money";
 import { Skeleton, EmptyState } from "./DataState";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
+import CheckBox from "@/components/CheckBox";
+import { humanize } from "@/lib/labels";
 import { notify } from "@/lib/toast";
 import InlineAlert from "@/components/ui/InlineAlert";
 import FieldError from "@/components/ui/FieldError";
@@ -258,7 +261,9 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   // backend marks those with is_giftable; billing_type "gift" is the older
   // signal and today no plan carries it, which is why "shaxsiy-advokat-gift"
   // used to render here as an ordinary buyable tariff.
-  const isGift = (p: BackendPlan) => p.isGiftable || p.billingType === "gift";
+  // Gift on every tariff (TSK-342697): is_giftable plans are ordinary
+  // tariffs that can also be gifted; only a gift-only plan stays off here.
+  const isGift = isGiftOnlyPlan;
   const byOrder = (a: BackendPlan, b: BackendPlan) => mine(a) - mine(b) || a.sortOrder - b.sortOrder || a.monthlyPrice - b.monthlyPrice;
   const sellable = active.filter((p) => !isGift(p)).sort(byOrder);
   // Everything else is shown. The old rule kept a plan out of the page unless
@@ -400,10 +405,11 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
         </div>
       </div>
       {aiTerm > 1 ? (
-        <label className="chkline" data-ai-id="pricing.billing.prepaid-yearly" data-ai-type="input">
-          <input type="checkbox" checked={aiUpfront} onChange={(e) => setAiUpfront(e.target.checked)} />
-          {t("ai.upfront", { pct: UPFRONT_DISCOUNT, max: MAX_DISCOUNT })}
-        </label>
+        <div className="chkline" data-ai-id="pricing.billing.prepaid-yearly" data-ai-type="input">
+          <CheckBox checked={aiUpfront} onChange={setAiUpfront}>
+            {t("ai.upfront", { pct: UPFRONT_DISCOUNT, max: MAX_DISCOUNT })}
+          </CheckBox>
+        </div>
       ) : null}
       {loading ? (
         <Skeleton rows={3} />
@@ -565,10 +571,11 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
             </div>
           </div>
           {term === 12 ? (
-            <label className="chkline" data-ai-id="pricing.other-billing.prepaid-yearly" data-ai-type="input">
-              <input type="checkbox" checked={upfront} onChange={(e) => setUpfront(e.target.checked)} />
-              {t("upfront")}
-            </label>
+            <div className="chkline" data-ai-id="pricing.other-billing.prepaid-yearly" data-ai-type="input">
+              <CheckBox checked={upfront} onChange={setUpfront}>
+                {t("upfront")}
+              </CheckBox>
+            </div>
           ) : null}
           {loading ? (
             <Skeleton rows={3} />
@@ -1037,7 +1044,7 @@ function TelegramPlanRequest({
               <ScrollCue arrows className="chiprow" style={{ margin: "4px 0 0" }} data-ai-id="pricing.telegram-request-modal.period" data-ai-type="select">
                 {periods.map((p) => (
                   <button key={p} type="button" className="fchip" aria-pressed={eff === p} onClick={() => setPeriod(p)} data-ai-id={aiId("pricing.telegram-request-modal.period", PERIOD_SEG[p])}>
-                    {tdoc.has(`period_${p}`) ? tdoc(`period_${p}`) : p}
+                    {tdoc.has(`period_${p}`) ? tdoc(`period_${p}`) : humanize(String(p))}
                   </button>
                 ))}
               </ScrollCue>

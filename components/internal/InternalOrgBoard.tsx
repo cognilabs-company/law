@@ -8,6 +8,8 @@ import { IconBuilding, IconEdit, IconPlus, IconSearch, IconUser, IconUsers } fro
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
 import { HrmAvatar, HrmEmpty, HrmError, HrmKv, HrmLoading, HrmPerson, HrmSection, HrmStatus, useHrmFormat } from "@/components/internal/HrmUi";
 import Select from "@/components/Select";
+import CheckBox from "@/components/CheckBox";
+import "./handmade.css";
 import OrgWhiteboard from "./OrgWhiteboard";
 import OrgStats from "./OrgStats";
 import { buildTree, byPosition, filterTree, flatten, positionIdOf, subtreeOf, type Tree } from "./orgTree";
@@ -88,10 +90,9 @@ export default function InternalOrgBoard({
         <div className="org__filter">
           <Select value={positionF} onChange={setPositionF} options={positionOpts} ariaLabel={tb("filterPosition")} />
         </div>
-        <label className="org__toggle">
-          <input type="checkbox" checked={showPeople} onChange={(e) => setShowPeople(e.target.checked)} />
-          <span>{tb("showPeople")}</span>
-        </label>
+        <CheckBox className="org__toggle" checked={showPeople} onChange={setShowPeople}>
+          {tb("showPeople")}
+        </CheckBox>
       </div>
       <div className="org__work">
         <div className="org__main">

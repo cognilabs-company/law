@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { ApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import Select from "@/components/Select";
+import CheckBox from "@/components/CheckBox";
 import SearchSelect, { type SearchOption } from "@/components/SearchSelect";
 import FieldError from "@/components/ui/FieldError";
 import { listLawyers } from "@/lib/services/backend";
@@ -255,14 +256,9 @@ export function AdminForm({
         if (f.type === "checkbox")
           return (
             <div key={f.name} className="afield--check" data-field={f.name}>
-              <label className="wh__check">
-                <input
-                  type="checkbox"
-                  checked={vals[f.name] as boolean}
-                  onChange={(e) => set(f.name, e.target.checked)}
-                />
+              <CheckBox checked={vals[f.name] as boolean} onChange={(on) => set(f.name, on)}>
                 {f.label}
-              </label>
+              </CheckBox>
             </div>
           );
         return (

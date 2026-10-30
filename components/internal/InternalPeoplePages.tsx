@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
@@ -9,6 +9,9 @@ import { ApiError } from "@/lib/http";
 import { getEmployees, normEmployee, type HrmEmployee } from "@/lib/services/internalHrm";
 import { IconBriefcase, IconBuilding, IconCheck, IconChevronLeft, IconChevronRight, IconPlus, IconRefresh, IconUsers } from "@/components/icons";
 import FilterBar from "@/components/filters/FilterBar";
+import Select from "@/components/Select";
+import Modal from "@/components/admin/Modal";
+import "./handmade.css";
 import InternalOrgPage from "@/components/internal/InternalOrgPage";
 import { EmployeeCreate, EMPLOYMENT_STATUSES } from "@/components/internal/EmployeeDrawers";
 import { refreshHrmDirectory, useHrmDirectory } from "@/components/internal/useHrmDirectory";
@@ -51,6 +54,10 @@ function Employees() {
   const t = useTranslations("internal.people");
   const tc = useTranslations("internal.card");
   const tu = useTranslations("internal.ui");
+  const tcc = useTranslations("common.confirm");
+  const [naming, setNaming] = useState<string | null>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const nameFormId = useId();
   const label = useStatusLabel();
   const f = useHrmFormat();
   const dir = useHrmDirectory();
@@ -156,9 +163,11 @@ function Employees() {
     </th>
   );
   const open = (id: string) => router.push(`/internal/employees/${encodeURIComponent(id)}`);
-  const saveView = () => {
-    const name = window.prompt(tc("saveViewName"), [q, status && label(status), unitId && dir.unitName(unitId)].filter(Boolean).join(" · ") || tc("myView"));
-    if (!name?.trim()) return;
+  // The view's name is asked in the site's own dialog, never window.prompt.
+  const saveView = () => setNaming([q, status && label(status), unitId && dir.unitName(unitId)].filter(Boolean).join(" · ") || tc("myView"));
+  const commitView = (name: string) => {
+    setNaming(null);
+    if (!name.trim()) return;
     const next = [{ name: name.trim().slice(0, 40), q, status, unit: unitId }, ...saved.filter((x) => x.name !== name.trim())].slice(0, 12);
     setSaved(next);
     try { localStorage.setItem(SAVED_KEY, JSON.stringify(next)); } catch { /* this tab only */ }
@@ -248,9 +257,7 @@ function Employees() {
             <span>{tc("range", { from: (cur - 1) * size + 1, to: Math.min(cur * size, total), total })}</span>
             <label>
               {tc("perPage")}
-              <select value={size} onChange={(ev) => set({ size: Number(ev.target.value) === 25 ? null : ev.target.value })}>
-                {SIZES.map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
+              <Select value={String(size)} onChange={(v) => set({ size: Number(v) === 25 ? null : v })} options={SIZES.map((n) => ({ value: String(n), label: String(n) }))} ariaLabel={tc("perPage")} />
             </label>
             <button className="btn btn--line btn--sm" type="button" onClick={() => set({ page: cur - 1 > 1 ? cur - 1 : null }, true)} disabled={cur <= 1}><IconChevronLeft />{tc("prev")}</button>
             <span>{tc("pageOf", { n: cur, of: pages })}</span>
@@ -258,6 +265,27 @@ function Employees() {
           </div>
         ) : null}
       </HrmPanel>
+
+      <Modal
+        open={naming !== null}
+        onClose={() => setNaming(null)}
+        title={tc("saveView")}
+        size="sm"
+        initialFocus={nameRef}
+        footer={
+          <div className="cdlg__acts">
+            <button type="button" className="btn btn--line" onClick={() => setNaming(null)}>{tcc("cancel")}</button>
+            <button type="submit" form={nameFormId} className="btn btn--pri" disabled={!naming?.trim()}>{tc("saveView")}</button>
+          </div>
+        }
+      >
+        <form id={nameFormId} className="cform" style={{ maxWidth: "none" }} onSubmit={(ev) => { ev.preventDefault(); commitView(naming ?? ""); }}>
+          <div>
+            <label htmlFor={`${nameFormId}-in`}>{tc("saveViewName")}</label>
+            <input ref={nameRef} id={`${nameFormId}-in`} value={naming ?? ""} onChange={(ev) => setNaming(ev.target.value)} maxLength={40} autoComplete="off" />
+          </div>
+        </form>
+      </Modal>
 
       <EmployeeCreate open={creating} onClose={() => setCreating(false)} onCreated={(id) => { setCreating(false); reload(); open(id); }} />
     </section>

@@ -9,6 +9,8 @@ import { IconBuilding, IconCalendar, IconPlus, IconRefresh, IconUser, IconUsers 
 import FilterBar from "@/components/filters/FilterBar";
 import Select from "@/components/Select";
 import TimePicker from "@/components/TimePicker";
+import CheckBox from "@/components/CheckBox";
+import "./handmade.css";
 import InternalPagination from "@/components/internal/InternalPagination";
 import InternalField from "@/components/internal/InternalField";
 import { useHrmDirectory } from "@/components/internal/useHrmDirectory";
@@ -170,7 +172,7 @@ function ScheduleCreate({ open, onClose, onCreated }: { open: boolean; onClose: 
         <div className="hrm-days hrm-days--drawer">
           {form.weekly.map((d, i) => (
             <div className={`hrm-day${d.enabled ? " on" : ""}`} key={d.day}>
-              <label className="hrm-day__t"><input type="checkbox" checked={d.enabled} onChange={(e) => setDay(i, { enabled: e.target.checked })} />{f.weekday(d.day)}</label>
+              <CheckBox className="hrm-day__t" checked={d.enabled} onChange={(on) => setDay(i, { enabled: on })}>{f.weekday(d.day)}</CheckBox>
               <div className="hrm-day__r">
                 <TimePicker value={d.start} onChange={(v) => setDay(i, { start: v })} placeholder={t("start")} ariaLabel={`${f.weekday(d.day)} ${t("start")}`} disabled={!d.enabled} />
                 <TimePicker value={d.end} onChange={(v) => setDay(i, { end: v })} placeholder={t("end")} ariaLabel={`${f.weekday(d.day)} ${t("end")}`} disabled={!d.enabled} />

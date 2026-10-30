@@ -7,6 +7,9 @@ import { cachedHrmOption, cachedHrmOptions, preloadHrmReference, rememberHrmOpti
 import SearchSelect from "@/components/SearchSelect";
 import Select from "@/components/Select";
 import DatePicker from "@/components/DatePicker";
+import TimePicker from "@/components/TimePicker";
+import CheckBox from "@/components/CheckBox";
+import "../handmade.css";
 import { zonedIso } from "@/components/internal/live/bits";
 import { useHrmDirectory, type HrmDirectory } from "@/components/internal/useHrmDirectory";
 import { IconClose, IconPaperclip, IconPlus } from "@/components/icons";
@@ -47,7 +50,8 @@ export function useHrmRefs(sources: string[]) {
     return (source: string, id: string): string => {
       if (!id) return "";
       const fromDir = directoryOptions(dir, source)?.find((o) => o.value === id);
-      return fromDir?.label || cachedHrmOption(source, id)?.label || id.slice(0, 8);
+      // Never the id itself: an ellipsis until the name has been read.
+      return fromDir?.label || cachedHrmOption(source, id)?.label || "…";
     };
   }, [dir, tick]);
 }
@@ -71,7 +75,7 @@ function RefPick({ source, value, multiple, onChange, label, invalid }: { source
   }, [source, fromDir]);
   const options = fromDir ?? loaded;
   // Chosen ids the list does not hold yet still show a name.
-  const withChosen = [...options, ...value.filter((v) => !options.some((o) => o.value === v)).map((v) => cachedHrmOption(source, v) ?? { value: v, label: v.slice(0, 8) })];
+  const withChosen = [...options, ...value.filter((v) => !options.some((o) => o.value === v)).map((v) => cachedHrmOption(source, v) ?? { value: v, label: "…" })];
   return (
     <SearchSelect
       single={!multiple}
@@ -138,12 +142,12 @@ export default function HrmFieldInput({ field, value, onChange, invalid }: { fie
       return (
         <span className="stu-sf__dt">
           <DatePicker value={date} onChange={(x) => onChange(x ? zonedIso(x, time || "09:00") : undefined)} placeholder={label} ariaLabel={label} clearLabel={t("form.clear")} />
-          <input type="time" value={time} disabled={!date} onChange={(e) => date && onChange(zonedIso(date, e.target.value || "00:00"))} aria-label={t("form.time")} />
+          <TimePicker value={time} disabled={!date} onChange={(x) => date && onChange(zonedIso(date, x || "00:00"))} placeholder={t("form.time")} ariaLabel={t("form.time")} />
         </span>
       );
     }
     case "time":
-      return <input type="time" value={text(value)} onChange={(e) => onChange(e.target.value || undefined)} aria-invalid={invalid || undefined} aria-label={label} />;
+      return <TimePicker value={text(value)} onChange={(x) => onChange(x || undefined)} placeholder={label} ariaLabel={label} clearLabel={t("form.clear")} />;
     case "number":
     case "money":
       return (
@@ -223,10 +227,9 @@ function ListInput({ value, onChange, label }: { value: unknown; onChange: (v: u
                 <>
                   <input value={text(it.title ?? it.name ?? it.label)} onChange={(e) => set(items.map((x, j) => (j === i ? { ...(isDict(x) ? x : {}), title: e.target.value } : x)))} aria-label={t("form.item", { n: i + 1 })} />
                   {"done" in it ? (
-                    <label className="hrmf-done">
-                      <input type="checkbox" checked={it.done === true} onChange={(e) => set(items.map((x, j) => (j === i ? { ...(isDict(x) ? x : {}), done: e.target.checked } : x)))} />
+                    <CheckBox className="hrmf-done" checked={it.done === true} onChange={(on) => set(items.map((x, j) => (j === i ? { ...(isDict(x) ? x : {}), done: on } : x)))}>
                       {t("form.done")}
-                    </label>
+                    </CheckBox>
                   ) : null}
                 </>
               ) : (

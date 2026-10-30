@@ -60,16 +60,11 @@ function settle(key: number, ok: boolean): void {
 
 export function confirmDialog(opts: ConfirmOptions): Promise<boolean> {
   if (typeof window === "undefined") return Promise.resolve(false);
-  if (!listeners.size) {
-    const ok = window.confirm(opts.text ? `${opts.title}\n\n${opts.text}` : opts.title);
-    if (!ok || !opts.onConfirm) return Promise.resolve(ok);
-    return Promise.resolve()
-      .then(() => opts.onConfirm?.())
-      .then(
-        (r) => r !== false,
-        () => false,
-      );
-  }
+  // ConfirmHost is mounted once in the root layout (app/[locale]/layout.tsx),
+  // so the drawn dialog is always available. An ask made before the host has
+  // subscribed (only possible in the instant before hydration finishes) is
+  // simply held in `current`: useSyncExternalStore reads the snapshot when it
+  // subscribes and shows it then — never the browser's window.confirm.
   if (current && same(current.opts, opts)) return current.done;
   const prev = current;
   let resolve: (ok: boolean) => void = () => undefined;

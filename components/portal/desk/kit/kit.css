@@ -278,15 +278,24 @@ html[data-theme="dark"] .dx--win .dx-in:focus,html[data-theme="dark"] .dx--win .
 .dx-in[type=date],.dx-in[type=time],.dx-in[type=datetime-local]{color-scheme:light}
 html[data-theme="dark"] .dx-in[type=date],html[data-theme="dark"] .dx-in[type=time],html[data-theme="dark"] .dx-in[type=datetime-local]{color-scheme:dark}
 
+/* The closed handmade Select (components/Select, .dsel) redrawn as the
+   computer's own pop-up button / combo box; its list stays the site's. */
 .dx-sel{position:relative;display:inline-flex;align-items:center;min-width:0}
-.dx-sel select{width:100%;min-width:0;border:0;color:var(--x-ink);font:inherit;appearance:none;cursor:default;outline:none}
-.dx-sel svg{position:absolute;right:7px;width:12px;height:12px;pointer-events:none;color:var(--x-ink2)}
-.dx--mac .dx-sel select{height:22px;padding:0 24px 0 8px;border-radius:5px;background:var(--x-ctl);box-shadow:var(--x-ctl-shadow)}
-.dx--mac .dx-sel svg{right:4px;width:16px;height:16px;padding:2px;border-radius:4px;background:var(--x-acc);color:#fff}
-.dx--win .dx-sel select{height:32px;padding:0 30px 0 11px;border:1px solid var(--x-ctl-line);border-bottom-color:var(--x-ctl-bottom);border-radius:4px;background:var(--x-ctl)}
-.dx--win .dx-sel select:hover{background:var(--x-ctl-hover)}
-.dx--win .dx-sel svg{right:11px}
-.dx-sel option{background:var(--x-bg2);color:var(--x-ink)}
+.dx-sel .dsel{width:100%;min-width:0}
+.dx .dx-sel .dsel__btn{min-height:0;gap:6px;color:var(--x-ink);font:inherit;font-weight:400;line-height:1.2;cursor:default;transition:background .12s}
+.dx .dx-sel .dsel__val--ph{color:var(--x-ink2);font-weight:400}
+.dx .dx-sel .dsel__cv{width:12px;height:12px;border-radius:0;background:none;flex:none}
+.dx .dx-sel .dsel[data-open="true"] .dsel__cv{background:none}
+.dx .dx-sel .dsel__cv::after{width:5px;height:5px;border-color:var(--x-ink2);border-width:0 1.5px 1.5px 0}
+.dx--mac .dx-sel .dsel__btn{height:22px;padding:0 4px 0 8px;border-radius:5px;background:var(--x-ctl);box-shadow:var(--x-ctl-shadow)}
+.dx--mac .dx-sel .dsel__btn:hover,.dx--mac .dx-sel .dsel[data-open="true"] .dsel__btn{background:var(--x-ctl);box-shadow:var(--x-ctl-shadow)}
+.dx--mac .dx-sel .dsel__btn:focus-visible{box-shadow:var(--x-ctl-shadow),0 0 0 3.5px color-mix(in srgb,var(--x-acc) 35%,transparent)}
+.dx--mac .dx-sel .dsel__cv{width:16px;height:16px;border-radius:4px;background:var(--x-acc)}
+.dx--mac .dx-sel .dsel[data-open="true"] .dsel__cv{background:var(--x-acc)}
+.dx--mac .dx-sel .dsel__cv::after{border-color:#fff}
+.dx--win .dx-sel .dsel__btn{height:32px;padding:0 11px;border:1px solid var(--x-ctl-line);border-bottom-color:var(--x-ctl-bottom);border-radius:4px;background:var(--x-ctl);box-shadow:none}
+.dx--win .dx-sel .dsel__btn:hover{background:var(--x-ctl-hover);box-shadow:none}
+.dx--win .dx-sel .dsel[data-open="true"] .dsel__btn,.dx--win .dx-sel .dsel__btn:focus-visible{background:var(--x-ctl);box-shadow:inset 0 -2px 0 var(--x-acc)}
 
 /* toggle */
 .dx-toggle{display:inline-flex;align-items:center;gap:10px;padding:0;border:0;background:none;cursor:default}

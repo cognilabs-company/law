@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent 
 import { useLocale, useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
+import CheckBox from "@/components/CheckBox";
 import { Skeleton } from "@/components/portal/DataState";
 import { getServicePassport, type BackendCategory, type ServicePassport } from "@/lib/services/backend";
 import { updateService, uploadServiceDocumentTemplate, type AdminService, type ServiceMetadataInput, type ServiceUpdateInput } from "@/lib/services/admin";
@@ -329,10 +330,9 @@ function EditForm({
         </div>
         {number("delivery_minutes", tf("deliveryMinutes"), "60")}
       </div>
-      <label className="wh__check">
-        <input type="checkbox" checked={v.is_active} onChange={(e) => set("is_active", e.target.checked)} />
+      <CheckBox checked={v.is_active} onChange={(on) => set("is_active", on)}>
         {tf("active")}
-      </label>
+      </CheckBox>
 
       <div className="svced__sec">{t("edit.meta")}</div>
       {!service.hasMetadata ? <p className="svced__hint svced__hint--warn">{t("edit.noMeta")}</p> : null}
@@ -350,10 +350,9 @@ function EditForm({
           {text("refund_code", t("edit.refundCode"))}
           {text("ai_category", t("edit.aiCategory"))}
         </div>
-        <label className="wh__check">
-          <input type="checkbox" checked={v.advokat_required} onChange={(e) => set("advokat_required", e.target.checked)} />
+        <CheckBox checked={v.advokat_required} onChange={(on) => set("advokat_required", on)} disabled={!service.hasMetadata}>
           {t("edit.advokatRequired")}
-        </label>
+        </CheckBox>
       </fieldset>
 
       {professional ? null : <DocTemplateSection service={service} />}

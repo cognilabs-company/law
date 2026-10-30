@@ -513,3 +513,6 @@ html[data-theme="dark"] {
   .ra-ring, .ra-bar__dot::after, .ra-wait::after, .ra-spin, .ra-mk__halo, .ra-scr__live i, .ra-bar__share--ask { animation: none; }
   .ra-consent, .ra-consent__card, .ra-bar, .ra-ask, .ra-pill, .ra-con, .ra-ended { animation: none; }
 }
+
+/* Session length: the handmade Select (components/Select) in the row. */
+.ra-field--row .dsel { width: auto; min-width: 140px; }

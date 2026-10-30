@@ -4,6 +4,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { legalLabelKey, legalPathFromSlug } from "@/lib/legal";
 import { IconExternal } from "../icons";
+import CheckBox from "../CheckBox";
+import { humanize } from "@/lib/labels";
 
 export type ConsentItem = { slug: string; title: string; version: string; body: string };
 
@@ -31,17 +33,12 @@ export default function ConsentChecklist({
       {locale !== "uz" ? <p className="consent__note">{t("uzOnlyNote")}</p> : null}
       {items.map((it) => {
         const key = legalLabelKey(it.slug);
-        const name = t.has(key) ? t(key) : it.title || it.slug;
+        const name = t.has(key) ? t(key) : it.title || humanize(it.slug);
         return (
           <div className="consent__i" key={it.slug}>
-            <label className="consent__row">
-              <input
-                type="checkbox"
-                checked={!!checked[it.slug]}
-                onChange={(e) => onToggle(it.slug, e.target.checked)}
-              />
-              <span>{t("consent.accept", { doc: name })}</span>
-            </label>
+            <CheckBox className="consent__row" checked={!!checked[it.slug]} onChange={(on) => onToggle(it.slug, on)}>
+              {t("consent.accept", { doc: name })}
+            </CheckBox>
             <div className="consent__meta">
               {it.version ? <span>{t("version", { version: it.version })}</span> : null}
               <Link href={`/legal/${legalPathFromSlug(it.slug)}`} target="_blank" rel="noopener noreferrer">

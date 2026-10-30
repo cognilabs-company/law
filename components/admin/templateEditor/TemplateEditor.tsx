@@ -5,6 +5,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
+import CheckBox from "@/components/CheckBox";
+import { humanize } from "@/lib/labels";
 import { confirmDialog } from "@/components/ui/ConfirmDialog";
 import ScrollCue from "@/components/ui/ScrollCue";
 import { ErrorState, Skeleton } from "@/components/portal/DataState";
@@ -368,8 +370,14 @@ function Workspace({
               ? t("publish.skipped")
               : "";
 
+  // An issue names its section by title, never by the section's id.
+  const sectionName = (sid?: string | null) => {
+    if (!sid) return "—";
+    const sec = model.sections.find((s) => s.id === sid);
+    return sec ? sec.title || t("nav.unnamedSection") : t("nav.unnamedSection");
+  };
   const issueText = (x: EditorIssue) => {
-    const base = x.code && t.has(`issues.${x.code}`) ? t(`issues.${x.code}`, { key: x.key || "—", section: x.sectionId || "—" }) : x.message || x.code || t("issues.unknown");
+    const base = x.code && t.has(`issues.${x.code}`) ? t(`issues.${x.code}`, { key: x.key || "—", section: sectionName(x.sectionId) }) : x.message || t("issues.unknown");
     return x.message && x.code && t.has(`issues.${x.code}`) && x.message !== base ? `${base} — ${x.message}` : base;
   };
 
@@ -618,7 +626,7 @@ function Workspace({
           : { tone: "ok", label: savedLabel ? t("chip.savedAt", { time: savedLabel }) : t("chip.saved") };
   const tplStatus = session.template.status;
   const delSec = delSection ? model.sections.find((s) => s.id === delSection) : null;
-  const delTargets = model.sections.filter((s) => s.id !== delSection).map((s) => ({ value: s.id, label: s.title || s.id }));
+  const delTargets = model.sections.filter((s) => s.id !== delSection).map((s) => ({ value: s.id, label: s.title || t("nav.unnamedSection") }));
   const v = validation?.result;
 
   return (
@@ -631,7 +639,7 @@ function Workspace({
         <div className="tpe-bar__t">
           <h2 title={model.meta.title}>{model.meta.title || t("untitled")}</h2>
           <div className="tpe-chips" aria-live="polite">
-            <span className={`tpe-chip tpe-chip--${tplStatus === "active" ? "ok" : "muted"}`}>{t.has(`status.${tplStatus}`) ? t(`status.${tplStatus}`) : tplStatus}</span>
+            <span className={`tpe-chip tpe-chip--${tplStatus === "active" ? "ok" : "muted"}`}>{t.has(`status.${tplStatus}`) ? t(`status.${tplStatus}`) : humanize(tplStatus)}</span>
             <span className="tpe-chip tpe-chip--muted">{t("chip.revision", { n: revision })}</span>
             <span className={`tpe-chip tpe-chip--${draftChip.tone}`}>
               {draftChip.tone === "busy" ? <span className="tpe-spin" aria-hidden="true" /> : draftChip.tone === "ok" ? <IconCheck /> : draftChip.tone === "err" ? <IconAlert /> : null}
@@ -932,10 +940,9 @@ function Workspace({
         }
       >
         <div className="tpe-form">
-          <label className="tpe-check">
-            <input type="checkbox" checked={activate} onChange={(e) => setActivate(e.target.checked)} disabled={publishing} />
-            <span>{t("publish.activate")}</span>
-          </label>
+          <CheckBox checked={activate} onChange={setActivate} disabled={publishing}>
+            {t("publish.activate")}
+          </CheckBox>
           <p className="tpe-hint">{activate ? t("publish.activateHint") : t("publish.keepInactiveHint")}</p>
         </div>
       </Modal>

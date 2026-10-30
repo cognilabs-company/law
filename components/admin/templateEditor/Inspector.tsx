@@ -3,6 +3,8 @@
 import { useId } from "react";
 import { useTranslations } from "next-intl";
 import Select, { type Option } from "@/components/Select";
+import CheckBox from "@/components/CheckBox";
+import DatePicker from "@/components/DatePicker";
 import FieldError from "@/components/ui/FieldError";
 import {
   KEY_RE,
@@ -15,6 +17,7 @@ import {
   type EditorOption,
   type EditorSection,
 } from "@/lib/services/templateEditor";
+import { humanize } from "@/lib/labels";
 import { cleanKeyInput, cleanSlugInput, fieldsOf, toKey } from "./model";
 import { IconCheck, IconFileText, IconPlus, IconTrash } from "@/components/icons";
 
@@ -177,9 +180,10 @@ export function FieldInspector({
   onInsert: () => void;
 }) {
   const t = useTranslations("admin.templateEditor");
+  const tc = useTranslations("common");
   const id = useId();
-  const typeOpts: Option[] = withCurrent(fieldTypes, field.type).map((x) => ({ value: x, label: t.has(`types.${x}`) ? t(`types.${x}`) : x }));
-  const secOpts: Option[] = sections.map((s) => ({ value: s.id, label: s.title || s.id }));
+  const typeOpts: Option[] = withCurrent(fieldTypes, field.type).map((x) => ({ value: x, label: t.has(`types.${x}`) ? t(`types.${x}`) : humanize(x) }));
+  const secOpts: Option[] = sections.map((s) => ({ value: s.id, label: s.title || t("nav.unnamedSection") }));
   const dup = Boolean(field.key) && fields.some((f) => f.uid !== field.uid && f.key === field.key);
   const keyErr = !field.key ? t("field.keyRequired") : !KEY_RE.test(field.key) ? t("field.keyInvalid") : dup ? t("field.keyDuplicate") : "";
   const labelErr = field.label.trim() ? "" : t("field.labelRequired");
@@ -236,10 +240,9 @@ export function FieldInspector({
           <Select value={sections.some((s) => s.id === field.sectionId) ? field.sectionId : ""} onChange={onMoveTo} options={secOpts} labelId={`${id}sl`} placeholder={t("field.pickSection")} />
         </div>
       </div>
-      <label className="tpe-check">
-        <input type="checkbox" checked={field.required} onChange={(e) => onChange({ required: e.target.checked })} />
-        <span>{t("field.required")}</span>
-      </label>
+      <CheckBox checked={field.required} onChange={(on) => onChange({ required: on })}>
+        {t("field.required")}
+      </CheckBox>
       <div className="tpe-fld">
         <label htmlFor={`${id}h`}>{t("field.help")}</label>
         <textarea id={`${id}h`} rows={2} value={field.helpText} onChange={(e) => onChange({ helpText: e.target.value })} />
@@ -268,10 +271,9 @@ export function FieldInspector({
       <div className="tpe-fld">
         <span className="tpe-lbl" id={`${id}dl`}>{t("field.default")}</span>
         {field.type === "checkbox" ? (
-          <label className="tpe-check">
-            <input type="checkbox" checked={dv === true || dv === "true"} onChange={(e) => onChange({ defaultValue: e.target.checked ? true : null })} aria-labelledby={`${id}dl`} />
-            <span>{t("field.defaultChecked")}</span>
-          </label>
+          <CheckBox checked={dv === true || dv === "true"} onChange={(on) => onChange({ defaultValue: on ? true : null })}>
+            {t("field.defaultChecked")}
+          </CheckBox>
         ) : field.type === "select" ? (
           <Select
             value={dv == null ? "" : String(dv)}
@@ -279,9 +281,16 @@ export function FieldInspector({
             options={[{ value: "", label: t("field.noDefault") }, ...opts.filter((o) => o.value.trim()).map((o) => ({ value: o.value, label: o.label || o.value }))]}
             labelId={`${id}dl`}
           />
+        ) : field.type === "date" ? (
+          <DatePicker
+            value={dv == null || typeof dv === "boolean" ? "" : String(dv)}
+            onChange={(x) => onChange({ defaultValue: x === "" ? null : x })}
+            placeholder={tc("pickDate")}
+            ariaLabel={t("field.default")}
+          />
         ) : (
           <input
-            type={field.type === "date" ? "date" : "text"}
+            type="text"
             inputMode={field.type === "number" ? "decimal" : undefined}
             value={dv == null || typeof dv === "boolean" ? "" : String(dv)}
             onChange={(e) => onChange({ defaultValue: e.target.value === "" ? null : e.target.value })}

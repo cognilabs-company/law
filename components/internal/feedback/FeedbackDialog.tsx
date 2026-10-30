@@ -4,6 +4,9 @@ import { useState, type FormEvent } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
 import Select from "@/components/Select";
+import CheckBox from "@/components/CheckBox";
+import { humanize } from "@/lib/labels";
+import "../handmade.css";
 import { uploadWorkspaceFile } from "@/lib/services/backend";
 import { FEEDBACK_SEVERITIES, FEEDBACK_TYPES, createFeedback } from "@/lib/services/internalLive";
 import { areaOf, contextOf } from "@/lib/liveOfficeContext";
@@ -20,6 +23,14 @@ export default function FeedbackDialog({ open, onClose, context, onSent }: { ope
   const t = useTranslations("internal.feedback");
   const area = areaOf(context.path);
   const ctx = contextOf(context.path, context.search, area);
+  const tm = useTranslations("internal.live.modules");
+  // Shown to the sender in words: the page by its title, the module and the
+  // object's kind by name. The ids and the raw address still go to the
+  // backend (page_url / entity_id) — they are just not printed here.
+  const areaName = tm.has(area) ? tm(area) : humanize(area);
+  const kind = ctx.entity_type ? ctx.entity_type.replace(new RegExp(`^${area}_`), "") : "";
+  const kindName = kind ? (t.has(`kinds.${kind}`) ? t(`kinds.${kind}`) : humanize(kind)) : "";
+  const [pageTitle] = useState(() => (typeof document !== "undefined" ? document.title.trim() : ""));
   const [type, setType] = useState("bug");
   const [severity, setSeverity] = useState("normal");
   const [title, setTitle] = useState("");
@@ -174,30 +185,23 @@ export default function FeedbackDialog({ open, onClose, context, onSent }: { ope
             </>
           ) : null}
           <div className="fb-ctx">
-            <label className="stu-check">
-              <input type="checkbox" checked={keepContext} onChange={(e) => setKeepContext(e.target.checked)} />
-              <span>{t("attachContext")}</span>
-            </label>
+            <CheckBox checked={keepContext} onChange={setKeepContext}>
+              {t("attachContext")}
+            </CheckBox>
             {keepContext ? (
               <dl>
                 <div>
                   <dt>{t("page")}</dt>
-                  <dd>
-                    <code>{ctx.detail_url}</code>
-                  </dd>
+                  <dd>{pageTitle || areaName}</dd>
                 </div>
                 <div>
                   <dt>{t("module")}</dt>
-                  <dd>{area}</dd>
+                  <dd>{areaName}</dd>
                 </div>
-                {ctx.entity_id ? (
+                {ctx.entity_id && kindName ? (
                   <div>
                     <dt>{t("object")}</dt>
-                    <dd>
-                      <code>
-                        {ctx.entity_type} · {ctx.entity_id.slice(0, 8)}
-                      </code>
-                    </dd>
+                    <dd>{kindName}</dd>
                   </div>
                 ) : null}
               </dl>
