@@ -184,12 +184,13 @@
 
 .ccbg__sheen {
   position: absolute;
-  inset: -20%;
-  opacity: 0.55;
+  inset: -18%;
+  opacity: 1;
   background:
-    radial-gradient(42% 38% at 18% 12%, rgba(59, 130, 246, 0.16), transparent 70%),
-    radial-gradient(38% 34% at 86% 8%, rgba(16, 185, 129, 0.1), transparent 72%),
-    radial-gradient(46% 44% at 72% 94%, rgba(99, 102, 241, 0.12), transparent 70%);
+    radial-gradient(56% 46% at 16% 6%, #13274a 0%, rgba(19, 39, 74, 0) 70%),
+    radial-gradient(50% 44% at 89% 88%, #0d3237 0%, rgba(13, 50, 55, 0) 72%),
+    radial-gradient(44% 40% at 92% 44%, #0e262f 0%, rgba(14, 38, 47, 0) 74%),
+    radial-gradient(74% 64% at 48% 46%, #0f1d2c 0%, rgba(15, 29, 44, 0) 80%);
   animation: ccDrift 42s var(--cc-ease) infinite alternate;
 }
 
@@ -1292,4 +1293,63 @@
 
 [data-cc] .ccon__search input::placeholder {
   color: var(--cc-muted);
+}
+
+@media (min-width: 1100px) {
+  [data-cc] .esc__list:has(.esc__item[data-open]) {
+    position: relative;
+    min-width: 0;
+    padding-right: calc(50% + 18px);
+    border-right: 0;
+    border-radius: var(--cc-r-lg);
+    background: none;
+    overflow: visible;
+  }
+
+  [data-cc] .esc__list:has(.esc__item[data-open]) .esc__item .esc__row {
+    background: var(--cc-panel);
+  }
+
+  [data-cc] .esc .esc__item {
+    position: static;
+  }
+
+  [data-cc] .esc__list:has(.esc__item[data-open]) .esc__body {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 50%;
+    max-height: calc(100vh - 170px);
+    overflow: auto;
+    scrollbar-width: thin;
+    margin: 0;
+    padding: 16px 18px;
+    border: 1px solid var(--cc-line);
+    border-top: 1px solid var(--cc-line);
+    border-radius: var(--cc-r-lg);
+    background: var(--cc-panel);
+    box-shadow: var(--cc-shadow);
+    animation: ccPane var(--cc-mid) var(--cc-ease);
+  }
+
+  [data-cc] .esc .esc__item[data-open] .esc__row::after {
+    transform: rotate(45deg) translateY(-2px);
+  }
+}
+
+@keyframes ccPane {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-cc] .esc__body {
+    animation: none;
+  }
 }
