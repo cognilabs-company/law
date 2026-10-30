@@ -128,8 +128,8 @@ function Office(): ReactElement {
           <Empty icon={<IconPhone />} title={t("none")} text={t("noneText")} />
         </div>
       ) : (
-        <div className="crm-live">
-          <ul className="crm-live__list" aria-label={t("list")}>
+        <div className="crm-lo">
+          <ul className="crm-lo__list" aria-label={t("list")}>
             {items.map((c) => (
               <li key={c.id}>
                 <button type="button" aria-pressed={open === c.id} onClick={() => setOpen(c.id)}>
@@ -138,7 +138,7 @@ function Office(): ReactElement {
                     <b>{c.operator?.name || t("operator")}</b>
                     <small>{[c.customerName || c.lead?.customer?.name, c.lead?.workId].filter(Boolean).join(" · ")}</small>
                   </span>
-                  <em className="crm-live__time">
+                  <em className="crm-lo__time">
                     <span className="crm-livedot" aria-hidden="true" />
                     {since(c.startedAt)}
                   </em>
@@ -146,7 +146,7 @@ function Office(): ReactElement {
               </li>
             ))}
           </ul>
-          <section className="crm-card crm-live__detail" aria-live="polite" aria-label={t("detail")}>
+          <section className="crm-card crm-lo__detail" aria-live="polite" aria-label={t("detail")}>
             {!open ? (
               <Empty icon={<IconEye />} title={t("pick")} text={t("pickText")} />
             ) : callErr && !call ? (
@@ -170,8 +170,8 @@ function LiveDetail({ call }: { call: LiveCall }): ReactElement {
   const cards = aiCardsOf(call.suggestions);
   const l = call.lead;
   return (
-    <div className="crm-live__grid">
-      <div className="crm-live__main">
+    <div className="crm-lo__grid">
+      <div className="crm-lo__main">
         <h3 className="crm-card__h">
           <span className="crm-livedot" aria-hidden="true" />
           {t("transcript")}
@@ -179,12 +179,12 @@ function LiveDetail({ call }: { call: LiveCall }): ReactElement {
         </h3>
         {call.transcript.length ? <Transcript segments={call.transcript} /> : <p className="crm-sub">{t("noTranscript")}</p>}
       </div>
-      <aside className="crm-live__side">
+      <aside className="crm-lo__side">
         {l ? (
-          <div className="crm-live__ctx">
+          <div className="crm-lo__ctx">
             <small>{t("lead")}</small>
             <b>{l.title || l.workId}</b>
-            <span className="crm-live__row">
+            <span className="crm-lo__row">
               <span className="crm-code">{l.workId}</span>
               <StatusPill status={l.status} />
             </span>
@@ -194,7 +194,7 @@ function LiveDetail({ call }: { call: LiveCall }): ReactElement {
             </Link>
           </div>
         ) : null}
-        <div className="crm-live__ai">
+        <div className="crm-lo__ai">
           <b>
             <IconSparkle aria-hidden="true" />
             {t("ai")}

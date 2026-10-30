@@ -14,7 +14,8 @@ import { fromLocalInput, inHours } from "./LeadSheets";
 import { PayloadDetails, hasReadable } from "./DetailSections";
 
 const TYPE_ICON: Record<string, typeof IconChat> = { note: IconFileText, call_note: IconPhone, message: IconChat, meeting: IconUsers, follow_up: IconClock, document: IconFileText, system: IconLayers };
-const WRITABLE = ["note", "call_note", "message", "meeting", "follow_up", "document"] as const;
+// The call result first: it is what an operator writes most.
+const WRITABLE = ["call_note", "note", "message", "meeting", "follow_up", "document"] as const;
 
 // The audit rail: oldest first, never edited, never deleted (§4.8).
 export function Timeline({ items, empty }: { items: CrmActivity[]; empty?: string }): ReactElement {
@@ -65,7 +66,9 @@ export function Timeline({ items, empty }: { items: CrmActivity[]; empty?: strin
   );
 }
 
-export function LeadTimeline({ lead, write, refreshKey, onAdded }: { lead: CrmLead; write: LeadWrite; refreshKey: number; onAdded: () => void }): ReactElement {
+// `callFocus`: bumped by "Write the call result" — the composer switches to
+// that type and takes the focus.
+export function LeadTimeline({ lead, write, refreshKey, onAdded, callFocus = 0 }: { lead: CrmLead; write: LeadWrite; refreshKey: number; onAdded: () => void; callFocus?: number }): ReactElement {
   const t = useTranslations("crm.tl");
   const crmErr = useCrmError();
   const [items, setItems] = useState<CrmActivity[] | null>(null);
@@ -108,7 +111,7 @@ export function LeadTimeline({ lead, write, refreshKey, onAdded }: { lead: CrmLe
           <Timeline items={items} />
         </>
       )}
-      {leadCan(lead, "add_activity") ? <Composer lead={lead} write={write} onAdded={onAdded} /> : null}
+      {leadCan(lead, "add_activity") ? <Composer lead={lead} write={write} onAdded={onAdded} callFocus={callFocus} /> : null}
     </section>
   );
 }
@@ -117,11 +120,13 @@ export function LeadTimeline({ lead, write, refreshKey, onAdded }: { lead: CrmLe
 // editor, it never sends (§6). An "Eslatma" (follow-up) can also carry a
 // time: it becomes the lead's next action, so it shows on the card, in
 // "Keyingi amallar" and turns red when overdue.
-function Composer({ lead, write, onAdded }: { lead: CrmLead; write: LeadWrite; onAdded: () => void }): ReactElement {
+function Composer({ lead, write, onAdded, callFocus }: { lead: CrmLead; write: LeadWrite; onAdded: () => void; callFocus: number }): ReactElement {
   const t = useTranslations("crm.tl");
   const crmErr = useCrmError();
-  const [type, setType] = useState<(typeof WRITABLE)[number]>("note");
+  const [type, setType] = useState<(typeof WRITABLE)[number]>("call_note");
   const [title, setTitle] = useState("");
+  // The optional title stays behind "+ title" until wanted.
+  const [withTitle, setWithTitle] = useState(false);
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
   const [slash, setSlash] = useState<string | null>(null);
@@ -131,6 +136,16 @@ function Composer({ lead, write, onAdded }: { lead: CrmLead; write: LeadWrite; o
   const [chip, setChip] = useState<number | null>(null);
   const canRemind = type === "follow_up" && leadCan(lead, "set_next_action");
   const ref = useRef<HTMLTextAreaElement | null>(null);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!callFocus) return;
+    const id = window.setTimeout(() => {
+      setType("call_note");
+      boxRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+      ref.current?.focus({ preventScroll: true });
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [callFocus]);
   useEffect(() => {
     if (slash === null || templates) return;
     const ctl = new AbortController();
@@ -167,6 +182,7 @@ function Composer({ lead, write, onAdded }: { lead: CrmLead; write: LeadWrite; o
       await addLeadActivity(lead.id, { type, title, body, payload: at ? { remind_at: at } : undefined });
       setBody("");
       setTitle("");
+      setWithTitle(false);
       setRemindAt("");
       setChip(null);
       toast(at ? t("addedReminder") : t("added"), { tone: "ok" });
@@ -178,7 +194,7 @@ function Composer({ lead, write, onAdded }: { lead: CrmLead; write: LeadWrite; o
     }
   };
   return (
-    <div className="crm-composer">
+    <div className="crm-composer" ref={boxRef}>
       <div className="crm-composer__types" role="group" aria-label={t("typeLabel")}>
         {WRITABLE.map((k) => {
           const Icon = TYPE_ICON[k];
@@ -190,7 +206,13 @@ function Composer({ lead, write, onAdded }: { lead: CrmLead; write: LeadWrite; o
           );
         })}
       </div>
-      <input className="crm-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} aria-label={t("titlePh")} />
+      {withTitle || title ? (
+        <input className="crm-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} aria-label={t("titlePh")} autoFocus={!title} />
+      ) : (
+        <button type="button" className="crm-composer__addtitle" onClick={() => setWithTitle(true)}>
+          {t("addTitle")}
+        </button>
+      )}
       {canRemind ? (
         <div className="crm-remind" role="group" aria-label={t("remindLabel")}>
           <span className="crm-remind__h">

@@ -640,6 +640,9 @@
     display: grid;
   }
 
+  /* [data-cc] .ccsb sets position: relative; this must win on phones,
+     or the hidden drawer keeps its height above every page. */
+  [data-cc] .ccsb,
   .ccsb {
     position: fixed;
     top: 0;

@@ -24,11 +24,16 @@ const shot = async (page: Page, name: string) => {
   const suffix = `${process.env.CRM_DARK ? "dark" : "light"}${process.env.CRM_NARROW ? "-phone" : ""}`;
   await page.screenshot({ path: `${process.env.CRM_SHOTS}/crm-${name}-${suffix}.png`, fullPage: false });
 };
-// On a phone the workspace is three tabs; on desktop all columns show.
+// On a phone the workspace is two tabs (history, details); on desktop both
+// columns show. The AI Copilot opens from the glance's "AI yordam" drawer.
 const wsTab = async (page: Page, name: RegExp) => {
   if (process.env.CRM_NARROW) await page.locator(".crm-ws__tabs").getByRole("tab", { name }).click();
 };
 // next-intl reports a missing key as a console error; none may appear.
+const openAi = async (page: Page) => {
+  await page.locator(".crm-glance").getByRole("button", { name: "AI yordam" }).click();
+  return page.getByRole("dialog", { name: "AI yordam" }).locator(".crm-ai");
+};
 const watchIntl = (page: Page) => {
   const missing: string[] = [];
   page.on("console", (m) => {
@@ -421,10 +426,23 @@ test("lead workspace: status moves follow meta, carry the lock, recover from a v
   const { st, routes } = crmServer([...(OPERATOR.permissions ?? []), "crm.leads.assign"]);
   await mockBackend(page, await signIn(page, OPERATOR, routes as never));
   await page.goto("/uz/admin/crm/leads/m1");
-  const head = page.locator(".crm-lhead");
+  const head = page.locator(".crm-glance");
   await expect(head).toContainText("Ijara shartnomasi tekshiruvi");
-  // qualified → proposal, decision pending, won, rejected only (the meta map).
-  await expect(head.locator(".crm-move")).toHaveCount(4);
+  // At a glance: who (with a one-tap call), the request, the next step.
+  await expect(head.getByRole("heading", { level: 1 })).toContainText("Dilnoza Karimova");
+  await expect(head.locator(".crm-glance__call")).toHaveAttribute("href", /^tel:\+998/);
+  await expect(head.locator(".crm-glance__track li")).not.toHaveCount(0);
+  await expect(head.locator(".crm-glance__track li i svg")).toHaveCount(await head.locator(".crm-glance__track li").count());
+  // One primary action: it opens the composer on the call result, focused.
+  await head.getByRole("button", { name: "Qo'ng'iroq natijasini yozish" }).click();
+  await expect(page.locator(".crm-composer").getByRole("button", { name: "Qo'ng'iroq natijasi" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".crm-composer textarea")).toBeFocused();
+  // qualified → proposal, decision pending, won, rejected only (the meta map),
+  // all behind "Boshqa holat".
+  await head.getByRole("button", { name: "Boshqa holat" }).click();
+  await expect(head.getByRole("menuitem")).toHaveCount(4);
+  await page.keyboard.press("Escape");
+  await expect(head.getByRole("menu")).toHaveCount(0);
   await wsTab(page, /Ma'lumot/);
   await expect(page.getByText("Ehtimoliy dublikat").first()).toBeVisible();
   await wsTab(page, /Tarix/);
@@ -434,7 +452,8 @@ test("lead workspace: status moves follow meta, carry the lock, recover from a v
   await expect(page.locator(".crm-tl").getByRole("button", { name: /tahrir|o'chir/i })).toHaveCount(0);
   await shot(page, "lead");
 
-  await head.getByRole("button", { name: /Taklif/ }).click();
+  await head.getByRole("button", { name: "Boshqa holat" }).click();
+  await head.getByRole("menuitem", { name: /Taklif/ }).click();
   const sheet = page.getByRole("dialog", { name: /Taklif/ });
   await sheet.getByRole("textbox", { name: /Sabab/ }).fill("Mijoz bilan gaplashildi");
   await sheet.getByRole("button", { name: "O'tkazish" }).click();
@@ -469,8 +488,7 @@ test("AI copilot: 202 → poll → cards; only the ticked paths, with edits and 
   const { st, routes } = crmServer(OPERATOR.permissions ?? []);
   await mockBackend(page, await signIn(page, OPERATOR, routes as never));
   await page.goto("/uz/admin/crm/leads/m1");
-  await wsTab(page, /Kopilot/);
-  const ai = page.locator(".crm-ai");
+  const ai = await openAi(page);
   await expect(ai).toContainText("AI faqat taklif qiladi");
   await ai.getByRole("button", { name: "Kopilotdan so'rash" }).click();
   await expect(ai.locator(".crm-think")).toBeVisible();
@@ -505,8 +523,7 @@ test("AI copilot: all eleven run types; a run already going opens instead of a s
   r["/crm/ai/runs/run-9"] = { id: "run-9", lead_id: "m1", run_type: "sms_draft", language: "uz_latn", status: "completed", output: { sms_draft: "Assalomu alaykum! Shartnoma nusxasini yuboring.", operator_confirmation_required: true, auto_executed: false }, created_at: new Date().toISOString() };
   await mockBackend(page, await signIn(page, OPERATOR, routes as never));
   await page.goto("/uz/admin/crm/leads/m1");
-  await wsTab(page, /Kopilot/);
-  const ai = page.locator(".crm-ai");
+  const ai = await openAi(page);
   await expect(ai.locator(".crm-ai__types .crm-chip")).toHaveCount(11);
   await ai.locator(".crm-ai__types").getByRole("button", { name: "SMS qoralamasi" }).click();
   await ai.getByRole("button", { name: "Kopilotdan so'rash" }).click();
@@ -790,10 +807,10 @@ test("live office: read-only, audited, transcript with lead context and live AI 
   await page.goto("/uz/admin/crm/live");
   await expect(page.getByRole("note")).toContainText("Har bir ko'rish jurnalga yoziladi");
   await page.getByRole("button", { name: /Akmal Operator/ }).click();
-  const d = page.locator(".crm-live__detail");
+  const d = page.locator(".crm-lo__detail");
   await expect(d.locator(".crm-tscript")).toContainText("Shartnomada kafil bandi bor.");
   await expect(d).toContainText("LEAD-M1");
-  await expect(d.locator(".crm-live__ai")).toContainText("Kafil bandi bo'yicha yuristimiz izoh beradi.");
+  await expect(d.locator(".crm-lo__ai")).toContainText("Kafil bandi bo'yicha yuristimiz izoh beradi.");
   // Nothing to change from here.
   await expect(d.getByRole("button")).toHaveCount(0);
   await shot(page, "live-office");
@@ -818,8 +835,8 @@ test("a finished lead reopens as a new cycle; the old cycle keeps its final stat
   st.mine = [...st.mine, lead("w1", { status: "won", title: "Nikoh shartnomasi", cycle_number: 1, lock_version: 7, assigned_operator_user_id: ME.id, assigned_operator: ME, allowed_actions: ["view_timeline", "edit", "reopen"], closed_at: "2026-09-20T08:00:00Z" })];
   await mockBackend(page, await signIn(page, OPERATOR, routes as never));
   await page.goto("/uz/admin/crm/leads/w1");
-  const head = page.locator(".crm-lhead");
-  await expect(head).toContainText("1-sikl");
+  const head = page.locator(".crm-glance");
+  await expect(head).not.toContainText("2-sikl");
   await head.getByRole("button", { name: "Qayta ochish" }).click();
   const sheet = page.getByRole("dialog", { name: /qayta ochish/ });
   await sheet.getByRole("button", { name: "Qayta ochish" }).click();

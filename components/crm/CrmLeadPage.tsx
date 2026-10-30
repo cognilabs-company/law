@@ -5,18 +5,18 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import Modal from "@/components/admin/Modal";
-import { IconAlert, IconArrowRight, IconChat, IconClock, IconFlame, IconHistory, IconLayers, IconMapPin, IconPhone, IconRefresh } from "@/components/icons";
+import { IconAlert, IconArrowRight, IconChat, IconHistory, IconLayers, IconPhone, IconRefresh } from "@/components/icons";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { crmNextStatuses, isFinalStatus, journeyOf, getCrmLead, isClaimRace, isCrmDenied, isVersionConflict, leadCan, type CrmLead, type CrmMeta } from "@/lib/services/crm";
-import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
+import { getCrmLead, isClaimRace, isCrmDenied, isVersionConflict, leadCan, type CrmLead, type CrmMeta } from "@/lib/services/crm";
+import { useCrmEvents } from "@/lib/crm/useCrm";
 import CrmFrame from "./CrmFrame";
-import { Empty, StatusIcon, StatusPill, WhenChip, statusVar, useCrmError, useStatusLabel } from "./bits";
+import { Empty, useCrmError, useStatusLabel } from "./bits";
 import { LeadSide } from "./LeadSide";
 import { LeadTimeline } from "./LeadTimeline";
 import { CopilotPanel } from "./CopilotPanel";
-import { ReopenSheet, StatusSheet } from "./LeadSheets";
+import { LeadGlance } from "./LeadGlance";
 import { LeadHistory } from "./LeadHistory";
 import { LeadCalls } from "./LeadCalls";
 import { LeadSms } from "./LeadSms";
@@ -50,7 +50,12 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
   const [smsPreset, setSmsPreset] = useState("");
   const [timelineKey, setTimelineKey] = useState(0);
   const [aiKey, setAiKey] = useState(0);
-  const [tab, setTab] = useState<"info" | "timeline" | "ai">("timeline");
+  // On a phone: the work (timeline and panes) or the details.
+  const [tab, setTab] = useState<"info" | "timeline">("timeline");
+  // "Write the call result": the composer opens on that type, focused.
+  const [callFocus, setCallFocus] = useState(0);
+  // The AI Copilot lives behind one button, in a drawer.
+  const [aiOpen, setAiOpen] = useState(false);
   const leadRef = useRef<CrmLead | null>(null);
   useEffect(() => {
     leadRef.current = lead;
@@ -153,19 +158,44 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
   }
   return (
     <>
-      <LeadHead meta={meta} lead={lead} write={write} />
+      <LeadGlance
+        meta={meta}
+        lead={lead}
+        write={write}
+        onCallResult={() => {
+          setTab("timeline");
+          setPane("timeline");
+          setCallFocus((n) => n + 1);
+        }}
+        onAi={leadCan(lead, "run_ai") ? () => setAiOpen(true) : undefined}
+      />
+      {aiOpen ? (
+        <Modal open onClose={() => setAiOpen(false)} variant="drawer" title={t("aiTitle")} size="lg">
+          <div className="crm-pop crm-aidrawer">
+            <CopilotPanel
+              meta={meta}
+              lead={lead}
+              write={write}
+              refreshKey={aiKey}
+              onSmsDraft={(text) => {
+                setSmsPreset(text);
+                setPane("sms");
+                setTab("timeline");
+                setAiOpen(false);
+              }}
+            />
+          </div>
+        </Modal>
+      ) : null}
       {conflict ? <ConflictDialog mine={conflict.mine} fresh={conflict.fresh} onClose={() => setConflict(null)} /> : null}
       <div className="crm-ws__tabs crm-tabs" role="tablist" aria-label={t("sections")}>
-        {(["info", "timeline", "ai"] as const).map((k) => (
+        {(["timeline", "info"] as const).map((k) => (
           <button key={k} type="button" role="tab" className="crm-tab" aria-selected={tab === k} onClick={() => setTab(k)}>
             {t(`tab.${k}`)}
           </button>
         ))}
       </div>
       <div className="crm-ws" data-tab={tab}>
-        <div className="crm-ws__col crm-ws__side">
-          <LeadSide meta={meta} lead={lead} write={write} />
-        </div>
         <div className="crm-ws__col crm-ws__main">
           <div className="crm-panes" role="tablist" aria-label={t("panes")}>
             {PANES.map((k) => {
@@ -179,7 +209,7 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
             })}
           </div>
           {pane === "timeline" ? (
-            <LeadTimeline lead={lead} write={write} refreshKey={timelineKey} onAdded={() => setTimelineKey((k) => k + 1)} />
+            <LeadTimeline lead={lead} write={write} refreshKey={timelineKey} onAdded={() => setTimelineKey((k) => k + 1)} callFocus={callFocus} />
           ) : pane === "history" ? (
             <LeadHistory lead={lead} />
           ) : pane === "calls" ? (
@@ -188,112 +218,11 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
             <LeadSms meta={meta} lead={lead} preset={smsPreset} onPresetUsed={() => setSmsPreset("")} />
           )}
         </div>
-        <div className="crm-ws__col crm-ws__ai">{leadCan(lead, "run_ai") ? <CopilotPanel
-              meta={meta}
-              lead={lead}
-              write={write}
-              refreshKey={aiKey}
-              onSmsDraft={(text) => {
-                setSmsPreset(text);
-                setPane("sms");
-                setTab("timeline");
-              }}
-            /> : null}</div>
+        <div className="crm-ws__col crm-ws__side">
+          <LeadSide meta={meta} lead={lead} write={write} />
+        </div>
       </div>
     </>
-  );
-}
-
-// The banner: who, what, the journey, and only the moves the backend allows.
-function LeadHead({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; write: LeadWrite }): ReactElement {
-  const t = useTranslations("crm.lead");
-  const ts = useStatusLabel();
-  const tsc = useTranslations("crm.score");
-  const tsrc = useTranslations("crm.source");
-  const locale = useLocale();
-  const now = useNow();
-  const [to, setTo] = useState("");
-  const [reopening, setReopening] = useState(false);
-  // The open columns in the backend's order, then where the lead ended
-  // (or the first final column, as the goal).
-  const journey = journeyOf(meta, lead.status);
-  const at = journey.indexOf(lead.status);
-  const ended = isFinalStatus(meta, lead.status);
-  const moves = leadCan(lead, "change_status") ? crmNextStatuses(meta, lead.status) : [];
-  return (
-    <section className="crm-lhead" aria-labelledby="crm-lead-title">
-      <div className="crm-lhead__top">
-        <span className="crm-code">{lead.workId}</span>
-        <StatusPill status={lead.status} />
-        <span className="crm-cyclebadge">{t("cycleN", { n: lead.cycleNumber })}</span>
-      </div>
-      <h1 id="crm-lead-title">{lead.title || lead.workId}</h1>
-      <div className="crm-lhead__meta">
-        {lead.score ? (
-          <span>
-            <IconFlame aria-hidden="true" />
-            {tsc.has(lead.score) ? tsc(lead.score) : lead.score}
-          </span>
-        ) : null}
-        {lead.source ? <span>{tsrc.has(lead.source) ? tsrc(lead.source) : tsrc("other")}</span> : null}
-        {lead.region ? (
-          <span>
-            <IconMapPin aria-hidden="true" />
-            {lead.region}
-          </span>
-        ) : null}
-        {lead.urgency ? (
-          <span>
-            <IconAlert aria-hidden="true" />
-            {t.has(`urg.${lead.urgency}`) ? t(`urg.${lead.urgency}`) : lead.urgency}
-          </span>
-        ) : null}
-        <span data-tone={lead.nextActionAt && now && Date.parse(lead.nextActionAt) < now ? "bad" : undefined}>
-          <IconClock aria-hidden="true" />
-          {lead.nextActionAt ? (
-            <>
-              {t("nextAt", { time: shortDateTime(lead.nextActionAt, locale) })} <WhenChip at={lead.nextActionAt} now={now} />
-            </>
-          ) : (
-            t("noNext")
-          )}
-        </span>
-      </div>
-      <ol className="crm-stepper" aria-label={t("journey")}>
-        {journey.map((s, i) => {
-          const state = i < at ? "done" : i === at ? (ended ? "end" : "now") : "todo";
-          return (
-            <li key={s} data-state={state} style={statusVar(s)} aria-current={i === at ? "step" : undefined}>
-              <i aria-hidden="true">
-                <StatusIcon status={s} />
-              </i>
-              {ts(s)}
-            </li>
-          );
-        })}
-      </ol>
-      {moves.length ? (
-        <div className="crm-moves" role="group" aria-label={t("nextMoves")}>
-          {moves.map((s) => (
-            <button key={s} type="button" className="crm-move" style={statusVar(s)} onClick={() => setTo(s)}>
-              <i aria-hidden="true" />
-              {ts(s)}
-              <IconArrowRight aria-hidden="true" />
-            </button>
-          ))}
-        </div>
-      ) : null}
-      {ended && (leadCan(lead, "reopen") || leadCan(lead, "edit")) ? (
-        <div className="crm-moves">
-          <button type="button" className="crm-move" onClick={() => setReopening(true)}>
-            <IconRefresh aria-hidden="true" />
-            {t("reopen")}
-          </button>
-        </div>
-      ) : null}
-      {to ? <StatusSheet lead={lead} to={to} write={write} onClose={() => setTo("")} /> : null}
-      {reopening ? <ReopenSheet meta={meta} lead={lead} write={write} onClose={() => setReopening(false)} /> : null}
-    </section>
   );
 }
 

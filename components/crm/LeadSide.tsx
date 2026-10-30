@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useState, type ReactElement } from "react";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { IconAlert, IconCheck, IconClock, IconCopy, IconEdit, IconMail, IconPhone, IconSend, IconShieldCheck, IconStar, IconUserPlus, IconUsers, IconClose, IconFileText, IconArrowRight } from "@/components/icons";
+import { IconAlert, IconCheck, IconCopy, IconEdit, IconMail, IconPhone, IconSend, IconShieldCheck, IconStar, IconUserPlus, IconUsers, IconClose, IconFileText, IconArrowRight } from "@/components/icons";
 import { useAuth } from "@/lib/auth";
-import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { claimCrmLead, getCrmCustomer, isClaimRace, leadCan, removeLeadWatcher, type CrmContact, type CrmLead, type CrmMeta } from "@/lib/services/crm";
-import { Avatar, useCrmError } from "./bits";
+import { getCrmCustomer, leadCan, removeLeadWatcher, type CrmContact, type CrmLead, type CrmMeta } from "@/lib/services/crm";
+import { Avatar } from "./bits";
 import type { LeadWrite } from "./CrmLeadPage";
 import { AssignSheet, ConversionSheet, DuplicateSheet, EditSheet, NextActionSheet, WatcherSheet } from "./LeadSheets";
 import { DetailSections } from "./DetailSections";
@@ -62,14 +61,10 @@ export function ContactRow({ c, onPrimary, onArchive, archiveBlocked, busy }: { 
 export function LeadSide({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; write: LeadWrite }): ReactElement {
   const t = useTranslations("crm.side");
   const tl = useTranslations("crm.lang");
-  const tsrc = useTranslations("crm.source");
   const tps = useTranslations("crm.customer.payStatus");
-  const locale = useLocale();
   const me = useAuth().session?.id ?? "";
-  const crmErr = useCrmError();
   const [sheet, setSheet] = useState<Sheet>("");
   const [contacts, setContacts] = useState<CrmContact[] | null>(null);
-  const [claiming, setClaiming] = useState(false);
   const c = lead.customer;
   useEffect(() => {
     if (!lead.customerId) return;
@@ -84,17 +79,6 @@ export function LeadSide({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; 
     return () => ctl.abort();
   }, [lead.customerId]);
 
-  const claim = async () => {
-    if (claiming) return;
-    setClaiming(true);
-    try {
-      await write(() => claimCrmLead(lead.id), t("claimed"));
-    } catch (e) {
-      toast(isClaimRace(e) ? t("claimLost") : crmErr(e), { tone: "err" });
-    } finally {
-      setClaiming(false);
-    }
-  };
   const fallbackContacts: CrmContact[] = c
     ? [
         c.phone ? { id: "p", type: "phone", value: c.phone, label: "", primary: true, verified: false, status: "active", source: "", createdAt: "" } : null,
@@ -170,24 +154,9 @@ export function LeadSide({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; 
             </button>
           ) : null}
         </h3>
-        {lead.problem ? <p style={{ margin: 0, fontSize: ".86rem", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{lead.problem}</p> : null}
+        {/* The request, source, dates and cycle are in the glance above. */}
+        {!lead.order && !lead.lostReason ? <p className="crm-sub">{t("factsInGlance")}</p> : null}
         <dl className="crm-facts">
-          <div>
-            <dt>{t("source")}</dt>
-            <dd>{lead.source ? (tsrc.has(lead.source) ? tsrc(lead.source) : tsrc("other")) : "—"}</dd>
-          </div>
-          <div>
-            <dt>{t("created")}</dt>
-            <dd>{lead.createdAt ? shortDateTime(lead.createdAt, locale) : "—"}</dd>
-          </div>
-          <div>
-            <dt>{t("claimedAt")}</dt>
-            <dd>{lead.claimedAt ? shortDateTime(lead.claimedAt, locale) : "—"}</dd>
-          </div>
-          <div>
-            <dt>{t("cycle")}</dt>
-            <dd>{t("cycleN", { n: lead.cycleNumber })}</dd>
-          </div>
           {lead.order ? (
             // §9/§12: the prepared order and its payment state, by its work ID.
             <div style={{ gridColumn: "1 / -1" }}>
@@ -206,17 +175,6 @@ export function LeadSide({ meta, lead, write }: { meta: CrmMeta; lead: CrmLead; 
           ) : null}
         </dl>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {leadCan(lead, "claim") && !lead.operatorId ? (
-            <button type="button" className="crm-btn crm-btn--pri crm-btn--sm" onClick={() => void claim()} aria-busy={claiming || undefined} disabled={claiming}>
-              {t("claim")}
-            </button>
-          ) : null}
-          {leadCan(lead, "set_next_action") ? (
-            <button type="button" className="crm-btn crm-btn--sm" onClick={() => setSheet("next")}>
-              <IconClock aria-hidden="true" />
-              {t("next")}
-            </button>
-          ) : null}
           {leadCan(lead, "prepare_conversion") ? (
             <button type="button" className="crm-btn crm-btn--sm" onClick={() => setSheet("conv")}>
               <IconFileText aria-hidden="true" />
