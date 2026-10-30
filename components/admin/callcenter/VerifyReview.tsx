@@ -7,11 +7,13 @@ import { Notice } from "@/components/admin/AdminBits";
 import { SxButton, SxLinkButton } from "@/components/admin/studio/sx/Button";
 import { TextArea } from "@/components/admin/studio/sx/form/TextArea";
 import { useGuardedField } from "@/components/ui/ContactGuardNote";
-import { IconChat, IconCheck, IconCircleX, IconClock, IconFileText, IconLock, IconMinus, IconPaperclip, IconPhone, IconRefresh, IconUser } from "@/components/icons";
+import { IconChat, IconCheck, IconCircleX, IconClock, IconFileText, IconLock, IconMinus, IconPaperclip, IconPhone, IconRefresh, IconUser, IconVideo } from "@/components/icons";
+import { useRouter } from "@/i18n/navigation";
+import { startCall } from "@/lib/services/backend";
 import { dateOnly } from "@/lib/date";
 import { labelIn } from "@/lib/backendLabel";
 import { ApiError, asDict, asStr, errDetail, isAborted, logApiError } from "@/lib/http";
-import { canApprove, type CheckItem, type CheckRows, type CheckVerdict, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type HistoryRow, type ReviewDecision, type ReviewRoom, type ReviewSeller } from "@/lib/services/experience";
+import { canApprove, type CheckItem, type CheckRows, type CheckVerdict, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type HistoryRow, type ReviewDecision, type ReviewCallKind, type ReviewRoom, type ReviewSeller } from "@/lib/services/experience";
 import { staffChatHref } from "./cancellations/model";
 
 // One verification screen for a seller's experience or achievement
@@ -93,6 +95,8 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
   const [err, setErr] = useState("");
   const [room, setRoom] = useState<ReviewRoom | null>(null);
   const [roomBusy, setRoomBusy] = useState(false);
+  const [calling, setCalling] = useState<ReviewCallKind | "">("");
+  const router = useRouter();
   const [tick, setTick] = useState(0);
   const [spot, setSpot] = useState<ErrSpot>("");
   const [pub, setPub] = useState("");
@@ -152,6 +156,24 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
       if (at === "reviewed" || at === "blocked") setTick((n) => n + 1);
     } finally {
       setBusy(false);
+    }
+  }
+
+  // An audio or video call inside LexGo, in the review room, with the
+  // advocate (TSK-365169): the call opens in the room's chat.
+  async function call(kind: ReviewCallKind) {
+    if (!room || room.readOnly || calling) return;
+    setCalling(kind);
+    setErr("");
+    try {
+      const sellerId = detail?.seller?.id ?? "";
+      const c = await startCall(room.roomId, kind, source.title || "LexGo", sellerId ? { participantUserIds: [sellerId] } : undefined);
+      const href = staffChatHref(room.roomId, "", source.title);
+      router.push(`${href}${href.includes("?") ? "&" : "?"}join=${encodeURIComponent(c.id)}`);
+    } catch (e) {
+      logApiError(`${source.kind}.call`, e);
+      setErr(errDetail(e) || t("room.callFailed"));
+      setCalling("");
     }
   }
 
@@ -265,6 +287,14 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
               {room.readOnly ? t("room.history") : t("room.go")}
             </SxLinkButton>
           ) : null}
+          {room && !room.readOnly
+            ? room.callTypes.map((k) => (
+                <SxButton key={k} size="sm" variant="secondary" busy={calling === k} disabled={!!calling} onClick={() => void call(k)}>
+                  {k === "video" ? <IconVideo aria-hidden="true" /> : <IconPhone aria-hidden="true" />}
+                  {t(`room.call.${k}`)}
+                </SxButton>
+              ))
+            : null}
           {!room ? (
             <SxButton size="sm" variant="primary" busy={roomBusy} onClick={() => void roomAction(false)} disabled={!pending}>
               {t("room.start")}
@@ -312,8 +342,10 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
                     );
                   })}
                 </div>
-                {row?.verdict === "rejected" || row?.note ? (
-                  <input className="vrf__note" value={row?.note ?? ""} onChange={(e) => set(c.key, { note: e.target.value })} placeholder={t("notePh")} aria-label={t("noteFor", { item: name })} disabled={!pending} maxLength={500} />
+                {/* A comment for every item (TSK-659111); required in spirit
+                    after "No", optional otherwise. */}
+                {pending || row?.note ? (
+                  <input className="vrf__note" value={row?.note ?? ""} onChange={(e) => set(c.key, { note: e.target.value })} placeholder={row?.verdict === "rejected" ? t("notePh") : t("notePhOptional")} aria-label={t("noteFor", { item: name })} disabled={!pending} maxLength={500} />
                 ) : null}
               </li>
             );
@@ -329,7 +361,29 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
                 {r.decision ? t(`decision.${r.decision}`) : t("decision.other")}
               </span>
               {r.reviewedAt ? <time>{dateOnly(r.reviewedAt, locale)}</time> : null}
+              {r.reviewer ? (
+                <span className="vrf__by">
+                  <IconUser aria-hidden="true" />
+                  {r.reviewer}
+                </span>
+              ) : null}
               {r.reason ? <span>{r.reason}</span> : null}
+              {r.checklist.some((c) => c.verdict) ? (
+                <ul className="vrf__pastitems" aria-label={t("pastItems")}>
+                  {r.checklist
+                    .filter((c) => c.verdict)
+                    .map((c) => {
+                      const i = detail.checks.findIndex((x) => x.key === c.key);
+                      return (
+                        <li key={c.key} data-v={c.verdict}>
+                          <b>{i >= 0 ? label(detail.checks[i], i) : t("checkUnknown")}</b>
+                          <em>{t.has(`verdict.${c.verdict}`) ? t(`verdict.${c.verdict}`) : t("verdictOther")}</em>
+                          {c.note ? <small>{c.note}</small> : null}
+                        </li>
+                      );
+                    })}
+                </ul>
+              ) : null}
             </li>
           ))}
         </ol>

@@ -155,6 +155,74 @@ test("the call center sees what changed, ticks every item, then approves", async
   expect(d.checklist.map((c) => c.verdict)).toEqual(["approved", "approved", "approved", "not_applicable"]);
 });
 
+// TSK-659111/100467/365169: a comment on every item; past reviews show who
+// decided and each item's verdict; a call starts inside the review room;
+// rejecting needs a reason and sends the action word.
+test("the operator comments any item, sees who decided before, calls the advocate and rejects with a reason", async ({ page }) => {
+  const decisions: unknown[] = [];
+  const rooms: string[] = [];
+  const routes = reviewRoutes(decisions, rooms) as Record<string, unknown>;
+  const detail = routes["/call-center/marketplace/experience/e9"] as Record<string, unknown>;
+  routes["/call-center/marketplace/experience/e9"] = {
+    ...detail,
+    reviews: [{ id: "rv1", decision: "changes_requested", reason: "Avvalgi nusxa o'qilmadi", reviewed_at: "2026-10-20T10:00:00Z", reviewer: { name: "Dilshod Operator" }, checklist: [{ key: "identity_license", verdict: "approved", note: "" }, { key: "file_authenticity", verdict: "rejected", note: "Muhr ko'rinmaydi" }] }],
+  };
+  let callBody: Record<string, unknown> | null = null;
+  routes["POST /secure-chats/room-rev-1/calls"] = (b: unknown) => ((callBody = b as Record<string, unknown>), { id: "call-7", room_id: "room-rev-1", call_type: "video", status: "ringing" });
+  await mockBackend(page, await signIn(page, CALL_CENTER, routes as never));
+  await page.goto("/ru/admin/call-center?tab=experience");
+  await page.getByRole("button", { name: /Test Advokat/ }).click();
+  const box = page.locator(".vrf");
+  // Every item takes a comment, not only after "No".
+  await expect(box.locator(".vrf__note")).toHaveCount(4);
+  const past = box.locator(".vrf__past");
+  await expect(past).toContainText("Dilshod Operator");
+  await expect(past).toContainText("Личность и лицензия");
+  await expect(past).toContainText("Файлы подлинные");
+  await expect(past).toContainText("Muhr ko'rinmaydi");
+  expect(await past.innerText()).not.toMatch(/identity_license|file_authenticity/);
+  await shot(page, "review-past");
+
+  // Reject: a reason is required; the item notes go with the decision.
+  await box.locator(".vrf__note").first().fill("Litsenziya amal qiladi");
+  await box.getByRole("radio", { name: /^Отклонить/ }).click();
+  const send = box.getByRole("button", { name: "Отклонить" });
+  await expect(send).toBeDisabled();
+  await box.getByRole("textbox").last().fill("Hujjatlar boshqa shaxsga tegishli");
+  await send.click();
+  await expect.poll(() => decisions.length).toBe(1);
+  const d = decisions[0] as { decision: string; reason: string; checklist: { key: string; note: string }[] };
+  expect(d.decision).toBe("reject");
+  expect(d.reason).toBe("Hujjatlar boshqa shaxsga tegishli");
+  expect(d.checklist.find((c) => c.key === "identity_license")?.note).toBe("Litsenziya amal qiladi");
+
+  // A call with the advocate, inside LexGo, from the review room.
+  await page.goto("/ru/admin/call-center?tab=experience");
+  await page.getByRole("button", { name: /Test Advokat/ }).click();
+  await box.getByRole("button", { name: "Открыть чат" }).click();
+  await expect(box.getByRole("button", { name: "Аудиозвонок" })).toBeVisible();
+  await box.getByRole("button", { name: "Видеозвонок" }).click();
+  await expect.poll(() => callBody).toMatchObject({ call_type: "video", participant_user_ids: ["u-adv"] });
+  await expect(page).toHaveURL(/\/portal\/chat\/room-rev-1\?.*join=call-7/);
+});
+
+// TSK-365169: once the operator closes the review chat, the advocate reads it
+// without a composer.
+test("the advocate reads a closed review chat without a composer", async ({ page }) => {
+  await mockBackend(
+    page,
+    await signIn(page, ADVOCATE, {
+      "/secure-chats": { items: [{ id: "room-rev-1", title: "Tajriba tekshiruvi", read_only: true, status: "read_only", participants: [{ user_id: ADVOCATE.id }, { user_id: CALL_CENTER.id, name: "Dilshod Operator" }] }] },
+      "/secure-chats/room-rev-1": { id: "room-rev-1", title: "Tajriba tekshiruvi", read_only: true, status: "read_only", participants: [{ user_id: ADVOCATE.id }, { user_id: CALL_CENTER.id, name: "Dilshod Operator" }] },
+      "/secure-chats/room-rev-1/messages": { messages: [{ id: "m1", sender_user_id: CALL_CENTER.id, message_type: "text", filtered_content: "Buyruq nusxasini yuklang", created_at: "2026-10-28T10:00:00Z" }] },
+    }),
+  );
+  await page.goto("/uz/portal/chat/room-rev-1");
+  await expect(page.getByText("Buyruq nusxasini yuklang")).toBeVisible();
+  await expect(page.getByText(/Bu chat yopilgan/)).toBeVisible();
+  await expect(page.locator("textarea, [contenteditable=true]").filter({ visible: true })).toHaveCount(0);
+});
+
 test("asking for changes needs a reason; the review chat opens and only the operator closes it", async ({ page }) => {
   const decisions: unknown[] = [];
   const rooms: string[] = [];
@@ -178,6 +246,94 @@ test("asking for changes needs a reason; the review chat opens and only the oper
   await send.click();
   await expect.poll(() => decisions.length).toBe(1);
   expect(decisions[0]).toMatchObject({ decision: "changes_requested", reason: "Iltimos, buyruq nusxasini yuklang" });
+});
+
+// TSK-712239/874927: a record sent back for changes shows its status and the
+// operator's comment; the fix is a new revision of the latest record; the
+// advocate reads the record's history (versions and decisions).
+test("a record sent back for changes shows the comment, is fixed as a new revision and has a history", async ({ page }) => {
+  let sent: Record<string, unknown> | null = null;
+  const v1 = rec({ id: "e1", root_id: "r1", status: "approved", version: 1, years: 6, evidence: [{ id: "ev0", file_name: "buyruq.pdf" }] });
+  const v2 = rec({ id: "e5", root_id: "r1", source_id: "e1", status: "changes_requested", version: 2, workplace: "Adliya boshqarmasi", rejection_reason: "Buyruq nusxasi o'qilmaydi", evidence: [{ id: "ev5", file_name: "buyruq-2.pdf" }] });
+  await mockBackend(
+    page,
+    await signIn(page, ADVOCATE, {
+      "/lawyers/me": ME,
+      "/service-categories": CATS,
+      "/marketplace/me/achievements": { items: [] },
+      "/marketplace/me/experience": { items: [], groups: [{ root_id: "r1", current: v1, pending_revision: null, latest: v2, revision_count: 2 }] },
+      "/marketplace/me/experience/e5/history": {
+        items: [v1, v2],
+        reviews: [
+          { id: "rv1", decision: "approved", reason: "", reviewed_at: "2026-10-10T09:00:00Z", reviewer: { name: "Dilshod Operator" }, checklist: [] },
+          { id: "rv2", decision: "changes_requested", reason: "Buyruq nusxasi o'qilmaydi", reviewed_at: "2026-10-28T09:00:00Z", reviewer: { name: "Dilshod Operator" }, checklist: [] },
+        ],
+      },
+      "POST /marketplace/me/experience": (b: unknown) => ((sent = b as Record<string, unknown>), { id: "e6", status: "pending_review" }),
+    }),
+  );
+  await page.goto("/ru/portal/advocate/profile");
+  await page.getByRole("tab").nth(1).click();
+  const card = page.locator(".exp:not(.ach):not(.exp--pre):not(.prc) .exp__card").first();
+  await expect(card.locator(".exp__chip").filter({ hasText: "Нужна доработка" })).toBeVisible();
+  await expect(card).toContainText("Комментарий оператора: Buyruq nusxasi o'qilmaydi");
+  // The approved revision keeps counting meanwhile.
+  await expect(card).toContainText("Подтверждён · 6 лет");
+  expect(await card.innerText()).not.toMatch(/Другой статус|changes_requested/);
+  await shot(page, "changes-requested");
+
+  await card.getByRole("button", { name: "История" }).click();
+  const hist = page.getByRole("dialog", { name: "История записи" });
+  await expect(hist).toContainText("Версия 1");
+  await expect(hist).toContainText("Версия 2");
+  await expect(hist.locator(".exh__list").last()).toContainText("Нужна доработка");
+  await expect(hist).toContainText("Buyruq nusxasi o'qilmaydi");
+  await expect(hist).toContainText("Dilshod Operator");
+  await hist.getByRole("button", { name: /Закрыть|Close|Yopish/ }).first().click();
+
+  await card.getByRole("button", { name: "Исправить и отправить снова" }).click();
+  const form = page.getByRole("dialog", { name: /Изменить опыт|опыт/ });
+  await form.getByLabel("Описание опыта").fill("Oilaviy nizolar bo'yicha 40 dan ortiq ish, buyruq nusxasi qayta yuklandi");
+  await form.getByRole("button", { name: "Отправить на проверку" }).click();
+  await expect.poll(() => sent).not.toBeNull();
+  // A revision names the latest record (contract 2026-10-29 §3).
+  expect(sent).toMatchObject({ source_id: "e5", workplace: "Adliya boshqarmasi", evidence_ids: ["ev5"] });
+});
+
+// TSK-920636: several files at once; a file over 20 MB never leaves the
+// page; the backend's file codes read in words.
+test("experience evidence: several files, the 20 MB limit and the backend's file codes", async ({ page }) => {
+  let uploads = 0;
+  await mockBackend(
+    page,
+    await signIn(page, ADVOCATE, {
+      "/lawyers/me": ME,
+      "/service-categories": CATS,
+      "/marketplace/me/achievements": { items: [] },
+      "/marketplace/me/experience": { items: [], groups: [] },
+      "POST /marketplace/me/experience/evidence": () => (++uploads === 3 ? { status: 415, json: { detail: { code: "evidence_file_type_not_allowed" } } } : { id: `ev${uploads}`, file_name: `fayl-${uploads}.pdf`, mime_type: "application/pdf", size: 10 }),
+    }),
+  );
+  await page.goto("/ru/portal/advocate/profile");
+  await page.getByRole("tab").nth(1).click();
+  const panel = page.locator(".exp:not(.ach):not(.exp--pre):not(.prc)");
+  await panel.getByRole("button", { name: "Добавить опыт" }).first().click();
+  const form = page.getByRole("dialog", { name: "Новый опыт" });
+  const input = form.locator('input[type="file"]');
+  await input.setInputFiles([
+    { name: "buyruq.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") },
+    { name: "mehnat.png", mimeType: "image/png", buffer: Buffer.from("png") },
+  ]);
+  await expect(form).toContainText("fayl-1.pdf");
+  await expect(form).toContainText("fayl-2.pdf");
+  // 21 MB: refused here, nothing is sent.
+  await input.setInputFiles({ name: "katta.pdf", mimeType: "application/pdf", buffer: Buffer.alloc(21 * 1024 * 1024) });
+  await expect(page.getByText("«katta.pdf» больше 20 МБ.")).toBeVisible();
+  expect(uploads).toBe(2);
+  // The backend refuses the type: its code reads in words.
+  await input.setInputFiles({ name: "skan.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") });
+  await expect(page.getByText("Такой тип файла не принимается.").first()).toBeVisible();
+  expect(await form.innerText()).not.toMatch(/evidence_file_type_not_allowed/);
 });
 
 // Final contract 2026-10-29 §2: the config with the backend's labels.

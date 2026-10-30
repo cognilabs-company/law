@@ -51,6 +51,15 @@ html[data-theme="dark"] .vrf { --vrf-ok: #4ade80; --vrf-bad: #f87171; --vrf-warn
 .vrf__past { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .vrf__past li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: .8rem; }
 .vrf__past time { color: var(--gray); font-size: .74rem; }
+.vrf__by { display: inline-flex; align-items: center; gap: 4px; color: var(--gray); font-size: .74rem; font-weight: 700; }
+.vrf__by svg { width: 13px; height: 13px; }
+.vrf__pastitems { display: grid; flex: 1 1 100%; gap: 4px; margin: 2px 0 0; padding: 8px 10px; border-radius: 10px; background: var(--dk-surface-2, #f5f8fd); list-style: none; }
+.vrf__pastitems li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: .76rem; }
+.vrf__pastitems b { font-weight: 600; }
+.vrf__pastitems em { font-style: normal; font-weight: 700; color: var(--dk-txt-ok, #15803d); }
+.vrf__pastitems li[data-v="rejected"] em { color: var(--dk-txt-err, #b91c1c); }
+.vrf__pastitems li[data-v="not_applicable"] em { color: var(--gray); }
+.vrf__pastitems small { flex: 1 1 100%; color: var(--gray); }
 .vrf__chip { padding: 2px 9px; border-radius: 999px; background: var(--dk-surface-2, #eef2f8); font-size: .72rem; font-weight: 800; }
 .vrf__chip[data-s="approved"] { background: color-mix(in srgb, var(--vrf-ok) 14%, transparent); color: color-mix(in srgb, var(--vrf-ok) 70%, var(--ink)); }
 .vrf__chip[data-s="rejected"] { background: color-mix(in srgb, var(--vrf-bad) 14%, transparent); color: color-mix(in srgb, var(--vrf-bad) 70%, var(--ink)); }

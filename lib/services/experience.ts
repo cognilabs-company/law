@@ -17,7 +17,7 @@ import { labelledOf, type Labelled } from "@/lib/backendLabel";
 export const EVIDENCE_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"] as const;
 export const EVIDENCE_MAX_BYTES = 20 * 1024 * 1024;
 
-export type ExperienceStatus = "pending_review" | "approved" | "rejected" | "cancelled" | "superseded" | "other";
+export type ExperienceStatus = "pending_review" | "approved" | "rejected" | "changes_requested" | "cancelled" | "superseded" | "other";
 // Contract 2026-10-29 §5: employment before advocate status (public bodies
 // or private organizations) is its own kind — no category, never priced,
 // never part of advocate tenure. Records without a kind are category ones.
@@ -73,7 +73,7 @@ const strs = (v: unknown): string[] => asArr(v).map((x) => asStr(x)).filter(Bool
 
 function statusOf(v: unknown): ExperienceStatus {
   const s = asStr(v);
-  return s === "pending_review" || s === "approved" || s === "rejected" || s === "cancelled" || s === "superseded" ? s : "other";
+  return s === "pending_review" || s === "approved" || s === "rejected" || s === "changes_requested" || s === "cancelled" || s === "superseded" ? s : "other";
 }
 
 function evidenceOf(v: unknown): ExperienceEvidence {
@@ -214,7 +214,7 @@ export async function cancelExperience(experienceId: string): Promise<void> {
   await http(`/marketplace/me/experience/${encodeURIComponent(experienceId)}/cancel`, { method: "POST" });
 }
 
-export type ExperienceReviewEntry = { id: string; decision: "approved" | "rejected" | "changes_requested" | ""; reason: string; checklist: { key: string; verdict: string; note: string }[]; reviewedAt: string };
+export type ExperienceReviewEntry = { id: string; decision: "approved" | "rejected" | "changes_requested" | ""; reason: string; checklist: { key: string; verdict: string; note: string }[]; reviewedAt: string; reviewer: string };
 // One past review (final contract 2026-10-29 §5): `decision` is the stored
 // status (approved | rejected | changes_requested); `decision_action`, the
 // word the operator sent, is not shown.
@@ -231,6 +231,8 @@ export const reviewOf = (v: unknown): ExperienceReviewEntry => {
       return { key: asStr(x.key), verdict: asStr(x.verdict), note: asStr(x.note) };
     }),
     reviewedAt: asStr(d.reviewed_at),
+    // Who decided, when the backend names them (reviews[] is untyped).
+    reviewer: asStr(asDict(d.reviewer).name ?? asDict(d.reviewed_by).name ?? d.reviewer_name ?? d.reviewed_by_name).trim(),
   };
 };
 
@@ -244,7 +246,9 @@ export function experienceErrorOf(e: unknown): { code: string; field: string } |
   if (!(e instanceof ApiError)) return null;
   const detail = asDict(e.data.detail);
   const code = e.code ?? "";
-  if (!code.startsWith("experience_") && code !== "verification_checklist_incomplete") return null;
+  // The record's own codes, and the evidence file's (evidence_file_too_large,
+  // evidence_file_type_not_allowed, evidence_not_found).
+  if (!code.startsWith("experience_") && !code.startsWith("evidence_") && code !== "verification_checklist_incomplete") return null;
   const fields = strs(detail.fields);
   return { code, field: asStr(detail.field) || fields[0] || "" };
 }
@@ -298,7 +302,8 @@ export function diffRowsOf(raw: unknown): DiffRow[] {
 }
 // The protected review room (TSK-365169): only the operator closes it; once
 // closed it stays readable but takes no new messages.
-export type ReviewRoom = { roomId: string; status: string; readOnly: boolean; closedAt: string };
+export type ReviewCallKind = "audio" | "video";
+export type ReviewRoom = { roomId: string; status: string; readOnly: boolean; closedAt: string; callTypes: ReviewCallKind[] };
 // Backend answers 2026-10-28 §6.2: create → { room_id, messages_url,
 // calls_url, close_by_operator_only }; close → { room_id, status: "read_only" }.
 export function reviewRoomOf(v: unknown): ReviewRoom | null {
@@ -306,7 +311,11 @@ export function reviewRoomOf(v: unknown): ReviewRoom | null {
   const roomId = asStr(d.room_id);
   if (!roomId) return null;
   const status = asStr(d.status).toLowerCase();
-  return { roomId, status, readOnly: status === "read_only" || status === "closed", closedAt: asStr(d.closed_at) };
+  // call_types: the calls the room allows (TSK-365169); a room with a
+  // calls_url and no list allows both.
+  const listed = asArr(d.call_types).map((x) => asStr(x)).filter((x): x is ReviewCallKind => x === "audio" || x === "video");
+  const callTypes: ReviewCallKind[] = listed.length ? listed : asStr(d.calls_url) ? ["audio", "video"] : [];
+  return { roomId, status, readOnly: status === "read_only" || status === "closed", closedAt: asStr(d.closed_at), callTypes };
 }
 
 // A queue row's advocate: seller { id, lexgo_id, name, phone, role,

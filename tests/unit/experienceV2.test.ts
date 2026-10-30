@@ -40,3 +40,26 @@ describe("review: checklist, diff", () => {
     expect(diffRowsOf([{ field: "description", label: "Tavsif", before: "", after: "Yangi" }])[0].kind).toBe("added");
   });
 });
+
+describe("experience errors (TSK-920636)", () => {
+  it("reads the evidence file codes as well as the record's", async () => {
+    const { ApiError } = await import("@/lib/http");
+    const { experienceErrorOf } = await import("@/lib/services/experience");
+    const err = (code: string) => new ApiError(415, code, undefined, { code, data: { detail: { code } } });
+    expect(experienceErrorOf(err("evidence_file_type_not_allowed"))?.code).toBe("evidence_file_type_not_allowed");
+    expect(experienceErrorOf(err("evidence_file_too_large"))?.code).toBe("evidence_file_too_large");
+    expect(experienceErrorOf(err("experience_dates_overlap"))?.code).toBe("experience_dates_overlap");
+    expect(experienceErrorOf(err("payment_failed"))).toBeNull();
+  });
+});
+
+describe("experience statuses and review rooms (TSK-712239, TSK-365169)", () => {
+  it("keeps changes_requested, reads the room's call types and the reviewer's name", async () => {
+    const { experienceItemOf, reviewRoomOf, reviewOf } = await import("@/lib/services/experience");
+    expect(experienceItemOf({ id: "e5", status: "changes_requested" })?.status).toBe("changes_requested");
+    expect(reviewRoomOf({ room_id: "r", call_types: ["video"] })?.callTypes).toEqual(["video"]);
+    expect(reviewRoomOf({ room_id: "r", calls_url: "/secure-chats/r/calls" })?.callTypes).toEqual(["audio", "video"]);
+    expect(reviewRoomOf({ room_id: "r", status: "read_only" })?.callTypes).toEqual([]);
+    expect(reviewOf({ decision: "rejected", reviewer: { name: "Dilshod" } }).reviewer).toBe("Dilshod");
+  });
+});

@@ -146,7 +146,7 @@ describe("review (§6–8)", () => {
     expect(licenseRecordOf({ id: "lv1", status: "pending_review", seller: { id: "u-adv", name: "Test Advokat" } })!.sellerUserId).toBe("u-adv");
   });
   it("the review room, history and past reviews", () => {
-    expect(reviewRoomOf(ROOM)).toEqual({ roomId: "room-1", status: "", readOnly: false, closedAt: "" });
+    expect(reviewRoomOf(ROOM)).toEqual({ roomId: "room-1", status: "", readOnly: false, closedAt: "", callTypes: ["audio", "video"] });
     expect(historyOf([{ id: "a2", version: 2, status: "pending_review" }, { id: "a1", version: 1, status: "approved" }]).map((h) => h.id)).toEqual(["a1", "a2"]);
     // Final contract §5: decision is the stored status, decision_action the sent word.
     expect(reviewOf({ id: "r", decision: "approved", decision_action: "approve" }).decision).toBe("approved");

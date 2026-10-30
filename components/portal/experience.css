@@ -311,3 +311,24 @@
   .ach__intro { padding: 12px; }
   .ach__intro > p { font-size: .8rem; }
 }
+
+/* Experience: sent back for changes, its fix button and the seller history. */
+.exp__fix { justify-self: start; }
+.exp__histb { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; padding: 2px 8px; border: 0; border-radius: 999px; background: transparent; color: var(--gray); font: 700 .74rem/1.6 var(--fb); cursor: pointer; }
+.exp__histb:hover, .exp__histb:focus-visible { background: var(--dk-surface-2, #eef2f8); color: var(--ink); outline: none; }
+.exp__histb svg { width: 13px; height: 13px; }
+.exh { display: grid; gap: 18px; }
+.exh h4 { margin: 0 0 8px; font-size: .86rem; color: var(--ink); }
+.exh__list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.exh__list li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 12px; border-radius: 12px; background: var(--dk-surface-2, #f5f8fd); }
+.exh__list i { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--dk-surface, #fff); color: var(--gray); }
+.exh__list i svg { width: 15px; height: 15px; }
+.exh__list li[data-s="approved"] i { color: #16a34a; }
+.exh__list li[data-s="rejected"] i { color: #ef4444; }
+.exh__list li[data-s="changes_requested"] i, .exh__list li[data-s="pending_review"] i { color: #d97706; }
+.exh__list span { display: grid; gap: 2px; min-width: 0; }
+.exh__list b { font-size: .86rem; color: var(--ink); }
+.exh__list small { color: var(--gray); font-size: .76rem; }
+.exh__list p { margin: 4px 0 0; font-size: .82rem; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+.exh__none { margin: 0; color: var(--gray); font-size: .82rem; }
+.exh__fail { display: grid; gap: 10px; justify-items: start; }

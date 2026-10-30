@@ -36,6 +36,7 @@ import {
   type CategoryNode,
 } from "@/lib/services/experience";
 import { getMySellerRating } from "@/lib/services/sellerRating";
+import ExperienceHistory from "./ExperienceHistory";
 
 // A lawyer's experience (TSK-415946, TSK-920636; contract 2026-10-27 §15,
 // §18): one record per workplace with its positions, each with its own
@@ -68,6 +69,7 @@ const asKind = (v: unknown): ExperienceKind | "" => (v === "pre_advocate_employm
 const MAX_POSITIONS = 10;
 const day = (iso: string) => iso.slice(0, 10);
 const posDraft = (p: ExperiencePosition): PositionDraft => ({ key: ++keySeq, title: p.title, startedOn: day(p.startedAt), endedOn: day(p.endedAt), isCurrent: p.isCurrent, description: p.description });
+// A revision names the latest record in source_id (contract 2026-10-29 §3).
 const draftOf = (it: ExperienceItem, sourceId: string): Draft => ({
   sourceId,
   categoryId: it.categoryId,
@@ -131,6 +133,8 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
   const pre = kind === "pre_advocate_employment";
   // This kind's own wording where it differs.
   const tk = (k: string) => (pre && t.has(`pre.${k}`) ? t(`pre.${k}`) : t(k));
+  // The record whose history (revisions and decisions) is open.
+  const [hist, setHist] = useState<{ id: string; title: string } | null>(null);
   const locale = useLocale();
   const [groups, setGroups] = useState<ExperienceGroup[] | null>(null);
   const [backendYears, setBackendYears] = useState<number | null>(null);
@@ -363,8 +367,10 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
           {mine.map((g) => {
             const shown = g.current ?? g.pending ?? g.latest;
             if (!shown) return null;
-            const rejected = g.latest?.status === "rejected" ? g.latest : null;
-            const state = g.current ? "approved" : g.pending ? "pending" : rejected ? "rejected" : "draft";
+            // Turned back by the operator: rejected, or sent back for changes
+            // with the operator's comment (contract 2026-10-29 §8).
+            const turned = !g.pending && (g.latest?.status === "rejected" || g.latest?.status === "changes_requested") ? g.latest : null;
+            const state = g.pending ? "pending" : turned ? "rejected" : g.current ? "approved" : "draft";
             const sub = pre ? "" : subName(shown.categoryId, shown.subcategoryId);
             const head = pre ? t("pre.org") : catName(shown.categoryId);
             return (
@@ -379,7 +385,7 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
                       {t("cancelPending")}
                     </button>
                   ) : (
-                    <button type="button" className="exp__edit" onClick={() => open(draftOf(g.latest ?? shown, g.current?.id ?? ""))} aria-label={t("editNamed", { name: shown.workplace || head })} disabled={!!draft}>
+                    <button type="button" className="exp__edit" onClick={() => open(draftOf(g.latest ?? shown, (g.latest ?? shown).id))} aria-label={t("editNamed", { name: shown.workplace || head })} disabled={!!draft}>
                       <IconEdit aria-hidden="true" />
                     </button>
                   )}
@@ -387,8 +393,16 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
                 <div className="exp__chips">
                   {g.current ? <span className="exp__chip" data-s="approved">{g.current.years !== null && !pre ? t("status.approvedYears", { n: g.current.years }) : t("status.approved")}</span> : null}
                   {g.pending ? <span className="exp__chip" data-s="pending">{t("status.pending")}</span> : null}
-                  {rejected ? <span className="exp__chip" data-s="rejected">{t("status.rejected")}</span> : null}
+                  {turned ? (
+                    <span className="exp__chip" data-s={turned.status === "changes_requested" ? "pending" : "rejected"}>
+                      {t(`status.${turned.status}`)}
+                    </span>
+                  ) : null}
                   {g.revisionCount > 1 ? <span className="exp__chip">{t("revisions", { n: g.revisionCount })}</span> : null}
+                  <button type="button" className="exp__histb" onClick={() => setHist({ id: (g.latest ?? shown).id, title: shown.workplace || head })}>
+                    <IconHistory aria-hidden="true" />
+                    {t("history.open")}
+                  </button>
                 </div>
                 {shown.positions.length ? (
                   <ol className="exp__roles">
@@ -418,7 +432,17 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
                   </span>
                 ) : null}
                 {g.pending && g.current ? <p className="exp__note" data-tone="warn">{t("pendingKeeps")}</p> : null}
-                {rejected?.rejectionReason ? <p className="exp__note" data-tone="bad">{t("reason", { text: rejected.rejectionReason })}</p> : null}
+                {turned?.rejectionReason ? (
+                  <p className="exp__note" data-tone={turned.status === "changes_requested" ? "warn" : "bad"}>
+                    {t(turned.status === "changes_requested" ? "changesReason" : "reason", { text: turned.rejectionReason })}
+                  </p>
+                ) : null}
+                {turned?.status === "changes_requested" ? (
+                  <button type="button" className="btn btn--pri btn--sm exp__fix" onClick={() => open(draftOf(turned, turned.id))} disabled={!!draft}>
+                    <IconEdit aria-hidden="true" />
+                    {t("fixAndResend")}
+                  </button>
+                ) : null}
               </li>
             );
           })}
@@ -667,6 +691,7 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
           </form>
         ) : null}
       </Modal>
+      {hist ? <ExperienceHistory experienceId={hist.id} title={hist.title} onClose={() => setHist(null)} /> : null}
     </section>
   );
 }
