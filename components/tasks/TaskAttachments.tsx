@@ -1,16 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Download, FileText, ImageOff, Images, LoaderCircle, Paperclip, RotateCcw } from "lucide-react";
+import { Download, Eye, FileText, ImageOff, Images, LoaderCircle, Paperclip, RotateCcw } from "lucide-react";
 import { saveBlob } from "@/lib/download";
-import { downloadTaskAttachment, type TaskAttachment } from "@/lib/services/taskManagement";
+import { downloadTaskAttachment, getTaskAttachmentBlob, type TaskAttachment } from "@/lib/services/taskManagement";
 import { sizeOf, useImage } from "./attachmentImages";
 import { STROKE, useTaskText } from "./parts";
 import TaskLightbox from "./TaskLightbox";
 
-// The files attached to a task, under its description: images as a grid of
-// thumbnails (tap one for the full-screen viewer), anything else as a row to
-// download.
+// The files attached to a task, under its description: previewable images
+// as a grid of thumbnails (tap one for the full-screen viewer), anything else
+// as a row to download — a previewable PDF also opens in the browser's viewer.
 
 function Thumb({ a, onOpen }: { a: TaskAttachment; onOpen: () => void }) {
   const { t } = useTaskText();
@@ -49,19 +49,39 @@ function Thumb({ a, onOpen }: { a: TaskAttachment; onOpen: () => void }) {
 
 function FileRow({ a }: { a: TaskAttachment }) {
   const { t } = useTaskText();
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [busy, setBusy] = useState<"" | "get" | "view">("");
+  const [failed, setFailed] = useState<"" | "get" | "view">("");
   async function get() {
     if (busy || !a.downloadUrl) return;
-    setBusy(true);
-    setFailed(false);
+    setBusy("get");
+    setFailed("");
     try {
       const r = await downloadTaskAttachment(a.downloadUrl);
       saveBlob(r.blob, r.name || a.fileName);
     } catch {
-      setFailed(true);
+      setFailed("get");
     } finally {
-      setBusy(false);
+      setBusy("");
+    }
+  }
+  // The inline file is fetched with the token, so the tab is opened first
+  // (inside the click, where browsers allow it) and pointed at the blob.
+  async function view() {
+    if (busy || !a.previewUrl) return;
+    const tab = window.open("", "_blank");
+    setBusy("view");
+    setFailed("");
+    try {
+      const blob = await getTaskAttachmentBlob(a.previewUrl);
+      const url = URL.createObjectURL(blob.type ? blob : new Blob([blob], { type: a.mimeType || "application/pdf" }));
+      if (tab) tab.location.href = url;
+      else window.location.assign(url);
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      tab?.close();
+      setFailed("view");
+    } finally {
+      setBusy("");
     }
   }
   return (
@@ -69,11 +89,17 @@ function FileRow({ a }: { a: TaskAttachment }) {
       <FileText aria-hidden strokeWidth={STROKE} />
       <span className="ttk-att__fname">
         <strong title={a.fileName}>{a.fileName}</strong>
-        <small>{failed ? t("attachments.downloadError") : [sizeOf(a.sizeBytes), a.note].filter(Boolean).join(" · ")}</small>
+        <small>{failed === "get" ? t("attachments.downloadError") : failed === "view" ? t("attachments.viewError") : [sizeOf(a.sizeBytes), a.note].filter(Boolean).join(" · ")}</small>
       </span>
-      <button type="button" className="ttk-btn ttk-btn--line ttk-btn--sm" onClick={() => void get()} disabled={busy || !a.downloadUrl} aria-label={t("attachments.downloadName", { name: a.fileName })}>
-        {busy ? <LoaderCircle aria-hidden strokeWidth={STROKE} className="ttk-spin" /> : <Download aria-hidden strokeWidth={STROKE} />}
-        {t("attachments.download")}
+      {a.isPdf ? (
+        <button type="button" className="ttk-btn ttk-btn--line ttk-btn--sm" onClick={() => void view()} disabled={!!busy} aria-label={t("attachments.viewName", { name: a.fileName })}>
+          {busy === "view" ? <LoaderCircle aria-hidden strokeWidth={STROKE} className="ttk-spin" /> : <Eye aria-hidden strokeWidth={STROKE} />}
+          <span className="ttk-att__bl">{t("attachments.view")}</span>
+        </button>
+      ) : null}
+      <button type="button" className="ttk-btn ttk-btn--line ttk-btn--sm" onClick={() => void get()} disabled={!!busy || !a.downloadUrl} aria-label={t("attachments.downloadName", { name: a.fileName })}>
+        {busy === "get" ? <LoaderCircle aria-hidden strokeWidth={STROKE} className="ttk-spin" /> : <Download aria-hidden strokeWidth={STROKE} />}
+        <span className="ttk-att__bl">{t("attachments.download")}</span>
       </button>
     </li>
   );

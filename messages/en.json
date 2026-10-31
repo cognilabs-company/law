@@ -23101,7 +23101,7 @@
       "addedBy": "Added by",
       "addedAt": "Added on",
       "size": "Size and type",
-      "keys": "← → between images · + − zoom · 0 fit · Esc close"
+      "keys": "← → between images · + − zoom · 0 fit · Esc close", "view": "Open", "viewName": "Open {name} to view", "viewError": "Couldn’t open the file, try again"
     },
     "history": {
       "created": "Created",

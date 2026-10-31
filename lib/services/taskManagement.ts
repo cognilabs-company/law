@@ -28,9 +28,13 @@ export type TaskHistoryItem = {
   actor: TaskPerson | null;
   createdAt: string;
 };
-// A file attached to a task (GET /task-management/{id} → attachments).
-// Its URLs are API paths that need the signed-in user's token, so they are
-// fetched as blobs, never used as a plain src.
+// A file attached to a task (GET /task-management/{id} → attachments;
+// backend answers 2026-10-31 §5.2: preview_supported, preview_url,
+// inline_url, download_url). Its URLs are API paths that need the signed-in
+// user's token, so they are fetched as blobs, never used as a plain src.
+// A file is previewed only when the backend says preview_supported, from
+// inline_url (the file served inline) or else preview_url; download_url is
+// only ever the download.
 export type TaskAttachment = {
   id: string;
   fileName: string;
@@ -38,7 +42,12 @@ export type TaskAttachment = {
   sizeBytes: number;
   kind: string;
   note: string;
+  previewSupported: boolean;
+  // A previewable image: a thumbnail and the full-screen viewer.
   isImage: boolean;
+  // A previewable PDF: opened in the browser's own viewer.
+  isPdf: boolean;
+  // Where the preview reads from; empty when there is no preview.
   previewUrl: string;
   downloadUrl: string;
   uploader: TaskPerson | null;
@@ -153,7 +162,8 @@ function attachmentOf(v: unknown): TaskAttachment {
   const d = asDict(v);
   const mimeType = asStr(d.mime_type).toLowerCase();
   const kind = asStr(d.kind).toLowerCase();
-  const previewUrl = apiPath(d.preview_url) || apiPath(d.inline_url);
+  const previewSupported = d.preview_supported === true;
+  const previewUrl = previewSupported ? apiPath(d.inline_url) || apiPath(d.preview_url) : "";
   return {
     id: asStr(d.id),
     fileName: asStr(d.file_name),
@@ -161,7 +171,9 @@ function attachmentOf(v: unknown): TaskAttachment {
     sizeBytes: asNum(d.size_bytes),
     kind,
     note: asStr(d.note),
-    isImage: (kind === "image" || mimeType.startsWith("image/")) && d.preview_supported !== false && !!previewUrl,
+    previewSupported,
+    isImage: !!previewUrl && (kind === "image" || mimeType.startsWith("image/")),
+    isPdf: !!previewUrl && (mimeType === "application/pdf" || /\.pdf$/i.test(asStr(d.file_name))),
     previewUrl,
     downloadUrl: apiPath(d.download_url),
     uploader: personOf(d.uploader),
@@ -311,7 +323,7 @@ export async function getTask(id: string, signal?: AbortSignal): Promise<Task> {
   return normTask(await http(`/task-management/${enc(id)}`, { signal }));
 }
 
-// An attachment's bytes, with the user's token (preview_url / download_url).
+// An attachment's bytes, with the user's token (inline_url / preview_url / download_url).
 export function getTaskAttachmentBlob(path: string, signal?: AbortSignal): Promise<Blob> {
   return httpBlob(path, { signal });
 }

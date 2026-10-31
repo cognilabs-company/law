@@ -1548,6 +1548,13 @@ html[data-theme="dark"] .ttk-face {
   font-size: 12px;
 }
 
+/* Two actions on a phone: icons only (each button keeps its aria-label). */
+@media (max-width: 480px) {
+  .ttk-att__file:has(.ttk-btn + .ttk-btn) .ttk-att__bl {
+    display: none;
+  }
+}
+
 .ttk-spin {
   animation: ttk-spin 0.9s linear infinite;
 }

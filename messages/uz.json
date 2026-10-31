@@ -23107,7 +23107,7 @@
       "addedBy": "Kim qo'shgan",
       "addedAt": "Qachon qo'shilgan",
       "size": "Hajmi va turi",
-      "keys": "← → rasmlar orasida · + − kattalashtirish · 0 moslash · Esc yopish"
+      "keys": "← → rasmlar orasida · + − kattalashtirish · 0 moslash · Esc yopish", "view": "Ko'rish", "viewName": "{name} — ko'rish uchun ochish", "viewError": "Faylni ochib bo'lmadi, qayta urinib ko'ring"
     },
     "history": {
       "created": "Yaratildi",
