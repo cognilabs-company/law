@@ -29,6 +29,15 @@ export function providerTone(status: string, configured: boolean): ProviderTone 
 }
 
 export type ProviderReadiness = { key: string; configured: boolean; status: string; detail: string; latencyMs: number | null; checkedAt: string; tone: ProviderTone };
+
+// The backend's "not ready" in any of its shapes (backend answers 2026-10-31
+// §1.8): provider_enabled=false, enabled=false, ready=false, or a readiness
+// that is false (a flag, or an object with ready=false). Such a provider is
+// never shown as working, whatever its status word says.
+export function notReady(r: Dict): boolean {
+  const rd = r.readiness;
+  return r.provider_enabled === false || r.enabled === false || r.ready === false || rd === false || (!!rd && typeof rd === "object" && (rd as Dict).ready === false);
+}
 export type Readiness = { providers: ProviderReadiness[]; allEnabled: boolean; flagged: boolean; requirements: string[] };
 
 export function readinessOf(raw: unknown): Readiness {
@@ -37,6 +46,7 @@ export function readinessOf(raw: unknown): Readiness {
     const r = asDict(x);
     const configured = r.configured === true;
     const status = asStr(r.status, configured ? "configured_not_verified" : "disabled");
+    const tone = providerTone(status, configured);
     return {
       key: asStr(r.key).toLowerCase(),
       configured,
@@ -44,14 +54,18 @@ export function readinessOf(raw: unknown): Readiness {
       detail: asStr(r.detail),
       latencyMs: r.latency_ms === undefined || r.latency_ms === null ? null : asNum(r.latency_ms),
       checkedAt: asStr(r.checked_at),
-      tone: providerTone(status, configured),
+      tone: tone === "ok" && notReady(r) ? "warn" : tone,
     };
   });
   providers.sort((a, b) => rank(a.key) - rank(b.key));
+  const allEnabled = d.all_enabled === true;
+  const flagged = /flag/i.test(asStr(d.mode));
   return {
-    providers,
-    allEnabled: d.all_enabled === true,
-    flagged: /flag/i.test(asStr(d.mode)),
+    // While the whole set is switched off until the contracts land, no
+    // provider reads as working (§1.8).
+    providers: flagged && !allEnabled ? providers.map((p) => (p.tone === "ok" ? { ...p, tone: "warn" as const } : p)) : providers,
+    allEnabled,
+    flagged,
     requirements: asArr(d.requirements).map((x) => asStr(x)).filter(Boolean),
   };
 }
@@ -132,7 +146,9 @@ export function checkoutProvidersOf(raw: unknown): CheckoutProviders {
   const items = asArr(d.items)
     .map((x) => {
       const r = asDict(x);
-      return { provider: asStr(r.provider), enabled: r.enabled === true, label: asStr(r.label), status: asStr(r.status) };
+      // Offered only when the backend enables it and nothing says it is not
+      // ready (§1.8).
+      return { provider: asStr(r.provider), enabled: r.enabled === true && !notReady(r), label: asStr(r.label), status: asStr(r.status) };
     })
     .filter((p) => p.provider);
   return { items, fallback: asStr(d.fallback_provider) || "telegram_manual" };

@@ -10,6 +10,9 @@ import { isAborted, logApiError } from "@/lib/http";
 import { getProviderReadiness, getReconciliationV2, type ProviderReadiness, type Readiness, type Reconciliation } from "@/lib/services/paymentProviders";
 import "./payments.css";
 
+// Status words that mean "clients can pay"; shown only on a ready provider.
+const WORKING = new Set(["enabled", "ready", "healthy", "configured"]);
+
 // Each production requirement as an icon and a short line of what it means.
 const REQ_ICON: Record<string, (p: { "aria-hidden"?: boolean }) => ReactElement> = {
   merchant_contract: IconFileText,
@@ -168,7 +171,8 @@ function ProviderCard({ p, name, now, i }: { p: ProviderReadiness; name: string;
         </span>
         <span className="pmx__pill" data-tone={p.tone}>
           <i aria-hidden="true" />
-          {t.has(`status.${p.status}`) ? t(`status.${p.status}`) : t(`tone.${p.tone}`)}
+          {/* A "working" status word never sits on a provider the backend says is not ready (§1.8). */}
+          {t.has(`status.${p.status}`) && (p.tone === "ok" || !WORKING.has(p.status)) ? t(`status.${p.status}`) : t(`tone.${p.tone}`)}
         </span>
       </div>
       <p className="pmx__cardtext">{t(`toneText.${p.tone}`)}</p>

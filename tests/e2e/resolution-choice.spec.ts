@@ -100,7 +100,7 @@ test("a refund is asked once — double click, lost answer and retry — then fo
   // Live: the provider takes it…
   st.refund = { ...st.refund, status: "processing", updated_at: "2026-10-26T08:12:00Z" };
   await mock.push({ event: "marketplace.refund_processing", order_id: ORDER_ID });
-  await expect(card.locator(".mrs-refund .mrs-chip")).toHaveText("To'lov tizimida");
+  await expect(card.locator(".mrs-refund .mrs-chip")).toHaveText("Ko'rib chiqilmoqda");
   await shot(page, "client-refund-processing", ".mrs");
   // …and returns it: the order is closed, chat and calls with it.
   st.refund = { ...st.refund, status: "succeeded", updated_at: "2026-10-26T08:20:00Z" };
@@ -190,7 +190,7 @@ test("the operator sees the offer's steps and who did what, live", async ({ page
   await mock.push({ event: "marketplace.resolution_selected", order_id: ORDER_ID });
   await expect(flow).toContainText("Mijoz tanladi: to'liq qaytarish");
   await expect(flow.locator('li[data-state="now"]')).toContainText("Qaytarish jarayonda");
-  await expect(row.locator(".esc__facts")).toContainText("To'lov tizimida · 110 000");
+  await expect(row.locator(".esc__facts")).toContainText("Ko'rib chiqilmoqda · 110 000");
   await expect(row.locator(".esc__log").last()).toContainText("Test Mijoz");
   await shot(page, "operator-history", ".esc__item");
   await expect(row).not.toContainText(OP);

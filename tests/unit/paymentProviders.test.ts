@@ -94,4 +94,28 @@ describe("checkout providers (gaps closed §1)", () => {
     expect(r.fallback).toBe("telegram_manual");
     expect(checkoutProvidersOf({}).fallback).toBe("telegram_manual");
   });
+  // Backend answers 2026-10-31 §1.8: provider_enabled=false or a false
+  // readiness never leaves a provider offered, whatever `enabled` says.
+  it("never offers a provider the backend says is not ready", () => {
+    const r = checkoutProvidersOf({
+      items: [
+        { provider: "payme", enabled: true, provider_enabled: false, label: "Payme", status: "ready" },
+        { provider: "click", enabled: true, readiness: false, label: "Click", status: "ready" },
+        { provider: "atmos", enabled: true, readiness: { ready: false }, label: "ATMOS", status: "ready" },
+        { provider: "telegram_manual", enabled: true, ready: true, label: "Telegram", status: "ready" },
+      ],
+    });
+    expect(r.items.filter((p) => p.enabled).map((p) => p.provider)).toEqual(["telegram_manual"]);
+  });
+});
+
+describe("readiness never shows a provider that isn't ready as working (§1.8)", () => {
+  it("a not-ready row and a flagged set are never green, nor labelled working", () => {
+    const one = readinessOf({ items: [{ key: "payme", configured: true, status: "configured", provider_enabled: false }], all_enabled: true, mode: "live" });
+    expect(one.providers[0].tone).toBe("warn");
+    const flagged = readinessOf({ items: [{ key: "click", configured: true, status: "configured" }], all_enabled: false, mode: "feature_flagged_until_contracts" });
+    expect(flagged.providers[0].tone).toBe("warn");
+    const live = readinessOf({ items: [{ key: "click", configured: true, status: "configured", ready: true }], all_enabled: true, mode: "live" });
+    expect(live.providers[0].tone).toBe("ok");
+  });
 });

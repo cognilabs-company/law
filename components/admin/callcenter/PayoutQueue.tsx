@@ -115,14 +115,17 @@ function StageChip({ p }: { p: Payout }): ReactElement {
   );
 }
 
-function Row({ kind, item, onClose }: { kind: View; item: Payout | Recovery; onClose: () => void }): ReactElement {
+// `settled`: closed from this screen a moment ago — shown as done at once,
+// so its button cannot send the same payout twice while the list reloads
+// (backend answers 2026-10-31 §1.7: no Idempotency-Key here yet).
+function Row({ kind, item, settled, onClose }: { kind: View; item: Payout | Recovery; settled: boolean; onClose: () => void }): ReactElement {
   const t = useTranslations("callCenter.payouts");
   const locale = useLocale();
   const payout = kind === "payouts" ? (item as Payout) : null;
   const rec = kind === "recoveries" ? (item as Recovery) : null;
-  const closed = item.status === "paid";
+  const closed = item.status === "paid" || settled;
   return (
-    <li className="pyq__row" data-status={item.status}>
+    <li className="pyq__row" data-status={settled ? "paid" : item.status}>
       <span className="pyq__who">
         <b>
           <PersonName id={item.seller?.id} name={item.seller?.name} fallback={t("noSeller")} />
@@ -163,6 +166,7 @@ export default function PayoutQueue({ onCount }: { onCount?: (n: number) => void
   const [failed, setFailed] = useState(false);
   const [denied, setDenied] = useState(false);
   const [acting, setActing] = useState<Payout | Recovery | null>(null);
+  const [settledIds, setSettledIds] = useState<ReadonlySet<string>>(() => new Set());
   const [done, setDone] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const onCountRef = useRef(onCount);
@@ -255,7 +259,7 @@ export default function PayoutQueue({ onCount }: { onCount?: (n: number) => void
       ) : (
         <ul className="pyq__list">
           {page.items.map((x) => (
-            <Row key={x.id} kind={view} item={x} onClose={() => setActing(x)} />
+            <Row key={x.id} kind={view} item={x} settled={settledIds.has(x.id)} onClose={() => setActing(x)} />
           ))}
         </ul>
       )}
@@ -277,6 +281,7 @@ export default function PayoutQueue({ onCount }: { onCount?: (n: number) => void
           onClose={() => setActing(null)}
           onDone={() => {
             setDone(view === "payouts" ? t("donePaid") : t("doneRecovered"));
+            setSettledIds((cur) => new Set(cur).add(acting.id));
             setActing(null);
             void load();
           }}

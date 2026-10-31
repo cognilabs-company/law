@@ -189,7 +189,10 @@ function Party({ p }: { p: MpParty | null }): ReactElement {
   return <>{[p.name, p.lexgoId, p.phone].filter(Boolean).join(" · ")}</>;
 }
 
-function Row({ c, onResolve }: { c: MpComplaint; onResolve: () => void }): ReactElement {
+// `settled`: ruled on from this screen a moment ago — its button is gone at
+// once, so the same ruling cannot go out twice while the list reloads
+// (backend answers 2026-10-31 §1.7).
+function Row({ c, settled, onResolve }: { c: MpComplaint; settled: boolean; onResolve: () => void }): ReactElement {
   const t = useTranslations("callCenter.mpComplaints");
   const none = useTranslations("common")("none");
   const tp = useTranslations("marketplace.orderDetail.pricing");
@@ -262,7 +265,7 @@ function Row({ c, onResolve }: { c: MpComplaint; onResolve: () => void }): React
               ))}
             </span>
           ) : null}
-          {c.actions.length ? (
+          {c.actions.length && !settled ? (
             <div className="esc__acts sx">
               <SxButton size="sm" variant="primary" onClick={onResolve} aiId="call_center.mp_complaints.open">
                 {t("resolve")}
@@ -283,6 +286,7 @@ export default function MarketplaceComplaints({ onCount }: { onCount?: (n: numbe
   const [failed, setFailed] = useState(false);
   const [denied, setDenied] = useState(false);
   const [acting, setActing] = useState<MpComplaint | null>(null);
+  const [settledIds, setSettledIds] = useState<ReadonlySet<string>>(() => new Set());
   const [done, setDone] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const onCountRef = useRef(onCount);
@@ -354,7 +358,7 @@ export default function MarketplaceComplaints({ onCount }: { onCount?: (n: numbe
       {page?.items.length ? (
         <ul className="esc__list">
           {page.items.map((c) => (
-            <Row key={c.id} c={c} onResolve={() => setActing(c)} />
+            <Row key={c.id} c={c} settled={settledIds.has(c.id)} onResolve={() => setActing(c)} />
           ))}
         </ul>
       ) : null}
@@ -375,6 +379,7 @@ export default function MarketplaceComplaints({ onCount }: { onCount?: (n: numbe
           onClose={() => setActing(null)}
           onDone={(a) => {
             setDone(t(`done.${a}`));
+            setSettledIds((cur) => new Set(cur).add(acting.id));
             setActing(null);
             void load();
           }}
