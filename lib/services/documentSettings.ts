@@ -23,8 +23,10 @@ export type DocSettings = {
   currency: string;
 };
 // publishedBy: who made the version live (a publish or a rollback), when the
-// backend names them (TSK-136097 audit).
-export type DocSettingsVersion = { id: string; version: number | null; status: string; createdAt: string; publishedAt: string; createdBy: string; publishedBy: string; settings: DocSettings };
+// backend names them (TSK-136097 audit). Backend answers 2026-10-31 §4.5 give
+// only published_by_user_id for now: publishedById is resolved to a name on
+// the screen (lib/useStaffName), never shown itself.
+export type DocSettingsVersion = { id: string; version: number | null; status: string; createdAt: string; publishedAt: string; createdBy: string; publishedBy: string; publishedById: string; settings: DocSettings };
 
 export function settingsOf(v: unknown): DocSettings {
   const d = asDict(v);
@@ -73,6 +75,7 @@ function versionOf(v: unknown): DocSettingsVersion {
     publishedAt: asStr(d.published_at),
     createdBy: asStr(by.name ?? d.created_by_name),
     publishedBy: asStr(asDict(d.published_by).name ?? d.published_by_name ?? asDict(d.activated_by).name),
+    publishedById: asStr(d.published_by_user_id ?? asDict(d.published_by).id ?? d.activated_by_user_id).trim(),
     settings: settingsOf(d.settings ?? d.payload ?? d.data ?? d),
   };
 }

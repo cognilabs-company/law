@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { ADMIN, ADVOCATE, mockBackend, signIn } from "./mock";
+import { shots } from "./experienceShots";
 
 // Backend contracts added on 24 Oct 2026: document services' global
 // settings, a tariff version's change preview and the seller rating
@@ -51,12 +52,40 @@ test("document settings: an earlier version comes back after confirming, and the
   });
   const mock = await mockBackend(page, routes);
   await page.goto("/uz/admin/document-settings");
-  await expect(page.getByText("Faollashtirgan: Dilnoza Admin").first()).toBeVisible({ timeout: 20000 });
+  await expect(page.locator(".dss-v__by").filter({ hasText: "Faollashtirgan:" }).filter({ hasText: "Dilnoza Admin" }).first()).toBeVisible({ timeout: 20000 });
   await page.getByRole("button", { name: "Shu versiyaga qaytish" }).click();
   const dialog = page.getByRole("dialog", { name: "Versiya 1 ga qaytasizmi?" });
   await dialog.getByRole("button", { name: "Shu versiyaga qaytish" }).click();
   await expect(page.getByText("Versiya 1 qayta faollashtirildi.")).toBeVisible();
   expect(mock.count("POST", /\/admin\/document-service-settings\/v1\/rollback$/)).toBe(1);
+});
+
+// Backend answers 2026-10-31 §4.5: a version names its publisher only by
+// published_by_user_id. The page shows that person's name from the staff
+// directory it may read (GET /admin/users), a neutral "Administrator" when
+// it can't, and never the id.
+test("document settings: the publisher id reads as a name, else a neutral word, never the id", async ({ page }) => {
+  const PUB = "6f1c2b9e-0000-4000-8000-00000000a001";
+  const GONE = "6f1c2b9e-0000-4000-8000-00000000a0ff";
+  const routes = await signIn(page, ADMIN, {
+    "/document-service-settings/runtime": { settings, version: 2, settings_id: "v2" },
+    "/admin/document-service-settings": {
+      active: { id: "v2", version: 2, status: "published", settings, published_at: "2026-10-25T10:00:00Z", published_by_user_id: PUB },
+      versions: [
+        { id: "v1", version: 1, status: "superseded", settings, published_at: "2026-10-24T10:00:00Z", published_by_user_id: GONE },
+        { id: "v2", version: 2, status: "published", settings: { ...settings, extra_page_price: 18000 }, published_at: "2026-10-25T10:00:00Z", published_by_user_id: PUB },
+      ],
+    },
+    "/admin/users": { items: [{ id: PUB, name: "Malika Rahimova", role: "admin", roles: [], phone: "+998901234567", account_status: "active" }] },
+  });
+  await mockBackend(page, routes);
+  await page.goto("/uz/admin/document-settings");
+  const by = page.locator(".dss-v__by");
+  await expect(by.filter({ hasText: "Malika Rahimova" })).toHaveCount(1, { timeout: 20000 });
+  await expect(by.filter({ hasText: "Malika Rahimova" }).locator(".staffp__av")).toHaveText("MR");
+  await expect(by.filter({ hasText: "Administrator" })).toHaveCount(1);
+  expect(await page.locator("main").innerText()).not.toMatch(/6f1c2b9e|published_by/);
+  await shots(page, "docsettings-publisher", by.first());
 });
 
 test("document settings: a draft is checked before it is sent", async ({ page }) => {

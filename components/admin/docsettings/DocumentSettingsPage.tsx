@@ -13,6 +13,7 @@ import { errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { Switch } from "@/components/admin/studio/sx/form/Switch";
 import { getSubscriptionPlans, type BackendPlan } from "@/lib/services/backend";
+import StaffPerson from "@/components/ui/StaffPerson";
 import {
   DOC_FORMATS,
   DOC_MODES,
@@ -622,8 +623,13 @@ export default function DocumentSettingsPage(): ReactElement {
                           <span className="dss-chip" data-status={isActive ? "active" : v.status}>
                             {isActive ? t("status.active") : status(v.status)}
                           </span>
-                          <small>
-                            {[v.publishedAt ? t("publishedAt", { date: shortDateTime(v.publishedAt, locale) }) : v.createdAt ? t("createdAt", { date: shortDateTime(v.createdAt, locale) }) : "", v.createdBy, v.publishedBy ? t("publishedBy", { name: v.publishedBy }) : ""].filter(Boolean).join(" · ")}
+                          <small className="dss-v__meta">
+                            {[v.publishedAt ? t("publishedAt", { date: shortDateTime(v.publishedAt, locale) }) : v.createdAt ? t("createdAt", { date: shortDateTime(v.createdAt, locale) }) : "", v.createdBy].filter(Boolean).join(" · ")}
+                            {v.publishedBy || v.publishedById ? (
+                              <span className="dss-v__by">
+                                {t("publishedByLabel")} <StaffPerson id={v.publishedById} name={v.publishedBy} fallback={t("publisherFallback")} />
+                              </span>
+                            ) : null}
                           </small>
                         </div>
                         <details>

@@ -1,0 +1,19 @@
+/* A staff member by name with an initials avatar (reviewer, publisher). */
+.staffp { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; vertical-align: middle; }
+.staffp__av {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--pri, #2563eb) 14%, transparent);
+  color: var(--pri, #2563eb);
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .02em;
+  line-height: 1;
+}
+.staffp__av svg { width: 12px; height: 12px; }
+.staffp__n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.staffp[data-anon] .staffp__av { background: color-mix(in srgb, currentColor 12%, transparent); color: inherit; }

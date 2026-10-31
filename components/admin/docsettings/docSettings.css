@@ -357,3 +357,6 @@
 .dss-mode .dss-sw small { font-size: .74rem; color: var(--gray); }
 .dss-mode__b { display: grid; gap: 10px; padding-left: 46px; }
 @media (max-width: 640px) { .dss-mode__b { padding-left: 0; } }
+/* Who made a version live: a name with an initials avatar (§4.5). */
+.dss-v__meta { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
+.dss-v__by { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
