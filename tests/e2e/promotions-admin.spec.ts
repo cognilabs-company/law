@@ -139,3 +139,41 @@ test("the admin menu and the ads page lead to promotions", async ({ page }) => {
   await page.goto("/uz/admin/ads");
   await expect(page.getByRole("link", { name: "Aksiyalar" }).first()).toHaveAttribute("href", /\/admin\/promotions$/);
 });
+
+// Answers 2026-10-31 §2.5 / §4.7: whether a published promotion has started,
+// ended or used up its limit is the backend's to say — dates that look past
+// don't make it "ended" here — and Studio links follow the catalog.
+test("a published promotion without a backend state reads only as published; no Studio link without MP09", async ({ page }) => {
+  const routes = await signIn(page, ADMIN, {
+    "/studio/constructors/MP09/records": { items: [rec("o3", "Yozgi aksiya", "published", { used_count: 50, usage_limit: 50 })], total: 1 },
+    "POST /studio/constructors/MP09/preview": preview,
+    "/studio/objects/(o\\d)": (_b: unknown, url: URL) => {
+      const id = url.pathname.split("/").at(-1) as string;
+      return { id, constructor_code: "MP09", title: objects[id].title, status: "published", payload: objects[id] };
+    },
+    "/studio/reference/promotion-targets": studio.targets,
+    // The catalog after the backend's sync dropped MP09.
+    "/studio/constructors": { items: [], groups: [], journeys: [], constructor_count: 0 },
+  });
+  await mockBackend(page, routes);
+  await page.goto("/uz/admin/promotions");
+  const card = page.locator(".prm-card");
+  await expect(card).toHaveCount(1);
+  await expect(card.locator(".prm-state")).toHaveText("E'lon qilingan");
+  await expect(card).not.toContainText("Muddati tugagan");
+  await expect(card).not.toContainText("Limit tugagan");
+  await expect(card).toContainText("50 / 50 ishlatildi");
+  await expect(page.locator('a[href*="/admin/studio/"]')).toHaveCount(0);
+  if (process.env.PROMO_SHOTS) {
+    const dir = process.env.PROMO_SHOTS;
+    for (const theme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme: theme });
+      await page.evaluate((th) => document.documentElement.setAttribute("data-theme", th), theme);
+      for (const w of [1440, 390]) {
+        await page.setViewportSize({ width: w, height: 900 });
+        await card.scrollIntoViewIfNeeded();
+        await page.screenshot({ path: `${dir}/promotions-published-${w}-${theme}.png` });
+      }
+    }
+  }
+});

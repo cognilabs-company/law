@@ -13,7 +13,7 @@ import { getToken } from "@/lib/client";
 import type { ProfessionalProfile } from "@/lib/types";
 import { uzs, uzsOpt, fmtUzs } from "@/lib/money";
 import { attributionDetails } from "@/lib/attribution";
-import { applyCategoryOverrides, applyPlanOverride, applyPlanOverrides, categoryOverridesFrom, planOverridesFrom, type OverlaidPlan } from "@/lib/catalogOverlay";
+import { applyCategoryOverrides, categoryOverridesFrom, sellablePlans } from "@/lib/catalogOverlay";
 import { stripContacts } from "@/lib/contactGuard";
 
 // ── Auth ──────────────────────────────────────────────────────────
@@ -1174,8 +1174,8 @@ function normPlan(v: unknown, locale: string): BackendPlan {
 }
 
 export async function getSubscriptionPlans(locale = "uz"): Promise<BackendPlan[]> {
-  const [data, ov] = await Promise.all([http("/subscription-plans"), getPlatformPolicies().then((p) => planOverridesFrom(p.raw)).catch(() => ({}))]);
-  return applyPlanOverrides(listFrom(data, "plans", "items", "data").map((v) => normPlan(v, locale)), ov);
+  const data = await http("/subscription-plans");
+  return sellablePlans(listFrom(data, "plans", "items", "data").map((v) => normPlan(v, locale)));
 }
 
 // GET /subscription-plans/{plan_id_or_slug} — both forms work.
@@ -1193,16 +1193,15 @@ export function isMissingRoute(e: unknown): boolean {
 // Admin list of tariffs. Backend HEAD f6c94f8 only has POST
 // /admin/subscription-plans (no GET), so this probes GET and falls back to the
 // public list, which carries active plans only — `activeOnly` tells the UI.
-export async function listSubscriptionPlansAdmin(locale = "uz"): Promise<{ plans: OverlaidPlan[]; activeOnly: boolean }> {
-  const ov = await getPlatformPolicies().then((p) => planOverridesFrom(p.raw)).catch(() => ({}));
+export async function listSubscriptionPlansAdmin(locale = "uz"): Promise<{ plans: BackendPlan[]; activeOnly: boolean }> {
   try {
     const data = await http("/admin/subscription-plans");
-    return { plans: listFrom(data, "plans", "items", "data").map((v) => applyPlanOverride(normPlan(v, locale), ov)), activeOnly: false };
+    return { plans: listFrom(data, "plans", "items", "data").map((v) => normPlan(v, locale)), activeOnly: false };
   } catch (e) {
     if (!isMissingRoute(e)) throw e;
   }
   const data = await http("/subscription-plans");
-  return { plans: listFrom(data, "plans", "items", "data").map((v) => applyPlanOverride(normPlan(v, locale), ov)), activeOnly: true };
+  return { plans: listFrom(data, "plans", "items", "data").map((v) => normPlan(v, locale)), activeOnly: true };
 }
 
 // ── Orders & cases ────────────────────────────────────────────────

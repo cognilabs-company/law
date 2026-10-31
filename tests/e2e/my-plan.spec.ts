@@ -97,3 +97,58 @@ test("the autopay switch turns auto-renew off and on for the subscription", asyn
   await expect(sw).toHaveAttribute("aria-checked", "true");
   expect(patches).toEqual([{ auto_renew: false }, { auto_renew: true }]);
 });
+
+// Answers 2026-10-31 §2.1/§2.2: a limited feature resets every 30 days (the
+// backend's next reset shown when sent), and a consent already given reads
+// from the contract's current state. There is no consent history to show.
+test("my plan says limits reset every 30 days and shows a consent already given", async ({ page }) => {
+  const routes = await signIn(page, CLIENT, {
+    "/subscriptions/me/features": {
+      subscription_id: "sub-1",
+      plan_id: "plan-1",
+      plan_version: 2,
+      items: [
+        { feature_key: "ai_requests", mode: "limited", allowed: true, limit: 100, used: 10, remaining: 90, resets_at: "2026-11-20T00:00:00Z" },
+        { feature_key: "doc_analysis", mode: "limited", allowed: true, limit: 5, used: 0, remaining: 5 },
+        { feature_key: "brand_new_feature", title: { uz: "Yangi imkoniyat", ru: "Новая возможность" }, mode: "unlimited", allowed: true },
+        { feature_key: "export", mode: "unavailable", allowed: false },
+      ],
+    },
+    "/subscriptions/sub-1/contract": {
+      subscription_id: "sub-1",
+      status: "active",
+      snapshot: { title: "LexGo.AI Pro", prices: { monthly: 99000 } },
+      entitlements: [{ feature_key: "ai_requests", mode: "limited", limit: 100, reset_period: "rolling_30_days" }],
+      current_plan_version: { version: 3, payload: { entitlements: [{ feature_key: "ai_requests", mode: "limited", limit: 200, reset_period: "rolling_30_days" }] } },
+      renewal_terms_changed: true,
+      renewal_consent: { accepted: true, accepted_at: "2026-10-30T09:00:00Z" },
+    },
+  });
+  const mock = await mockBackend(page, routes);
+  await page.goto("/ru/portal/client/subscription");
+  const card = page.locator(".myplan");
+  const rows = card.locator(".myplan__list li");
+  await expect(rows.filter({ hasText: "Запросы к ИИ" })).toContainText("Обновляется каждые 30 дней · следующее");
+  await expect(rows.filter({ hasText: "Анализ документов" })).toContainText("Обновляется каждые 30 дней");
+  // The backend's own name for a feature the page doesn't know.
+  await expect(rows.filter({ hasText: "Новая возможность" })).toContainText("Без лимита");
+  await expect(rows.filter({ hasText: "Экспорт" })).not.toContainText("30 дней");
+  // Consent already given: said so, and not asked again.
+  await expect(card.locator(".myplan__agreed")).toContainText("Вы согласились с новыми условиями");
+  await expect(card.getByRole("button", { name: "Согласен с новыми условиями" })).toHaveCount(0);
+  await expect(card.getByText(/истори/i)).toHaveCount(0);
+  expect(await card.innerText()).not.toMatch(/brand_new_feature|rolling_30_days|Обновляется 1-го/);
+  expect(mock.calls.some((c) => /subscriptions\/[^/]+\/consents/.test(c.path))).toBe(false);
+  if (process.env.MYPLAN_SHOTS) {
+    const dir = process.env.MYPLAN_SHOTS;
+    for (const theme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme: theme });
+      await page.evaluate((th) => document.documentElement.setAttribute("data-theme", th), theme);
+      for (const w of [1440, 390]) {
+        await page.setViewportSize({ width: w, height: 900 });
+        await card.scrollIntoViewIfNeeded();
+        await card.screenshot({ path: `${dir}/my-plan-features-${w}-${theme}.png` });
+      }
+    }
+  }
+});

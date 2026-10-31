@@ -58,7 +58,7 @@
 .prm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
 .prm-card { --s: #94a3b8; position: relative; display: grid; align-content: start; gap: 12px; padding: 16px; border-radius: 16px; background: var(--prm-card); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
 .prm-card::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background: var(--s); }
-.prm-card[data-state="running"], .prm-card[data-state="open"] { --s: #16a34a; }
+.prm-card[data-state="running"], .prm-card[data-state="open"], .prm-card[data-state="live"] { --s: #16a34a; }
 .prm-card[data-state="scheduled"] { --s: var(--prm-acc); }
 .prm-card[data-state="pending"], .prm-card[data-state="draft"] { --s: #f59e0b; }
 .prm-card__h { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 10px; }
@@ -70,7 +70,7 @@
 .prm-off { padding: 4px 10px; border-radius: 999px; background: var(--prm-hot-soft); color: var(--prm-hot); font-size: .9rem; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .prm-state { display: inline-flex; align-items: center; gap: 7px; justify-self: start; padding: 3px 10px; border-radius: 999px; font-size: .74rem; font-weight: 700; background: var(--prm-soft); color: var(--gray); }
 .prm-state i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-.prm-state[data-state="running"], .prm-state[data-state="open"] { background: var(--prm-ok-soft); color: var(--prm-ok); }
+.prm-state[data-state="running"], .prm-state[data-state="open"], .prm-state[data-state="live"] { background: var(--prm-ok-soft); color: var(--prm-ok); }
 .prm-state[data-state="scheduled"] { background: var(--prm-acc-soft); color: var(--prm-acc-ink); }
 .prm-state[data-state="pending"], .prm-state[data-state="draft"] { background: var(--prm-warn-soft); color: var(--prm-warn); }
 .prm-targets { display: grid; margin: 0; padding: 0; list-style: none; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }

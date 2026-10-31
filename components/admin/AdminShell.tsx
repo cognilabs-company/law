@@ -26,7 +26,7 @@ import {
   NavB2b,
   NavMarketplace,
   NavServices,
-  // NavPlans, — with the /admin/plans nav item below
+  NavPlans,
   NavTemplates,
   NavAds,
   NavStudio,
@@ -107,9 +107,10 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin/marketplace", key: "marketplace", Icon: NavMarketplace, perm: "orders.manage" },
       { href: "/admin/services", key: "services", Icon: NavServices, perm: "services.manage" },
-      // Hidden for now: plans are managed in Studio K17, which publishes into
-      // the same runtime model (backend 2026-10-28 §10). The page still exists.
-      // { href: "/admin/plans", key: "plans", Icon: NavPlans, perm: "subscriptions.manage" },
+      // Tariffs: the feature registry and versioned plans (answers
+      // 2026-10-31 §2.1); /admin/plans redirects here. K17 in Studio keeps
+      // the client-facing benefit lines.
+      { href: "/admin/tariffs", key: "plans", Icon: NavPlans, perm: "subscriptions.manage" },
       { href: "/admin/templates", key: "templates", Icon: NavTemplates, perm: "templates.manage" },
       { href: "/admin/document-settings", key: "documentSettings", Icon: NavTemplates, perm: "templates.manage" },
       { href: "/admin/document-templates", key: "templateEditor", Icon: NavTemplates, perm: "templates.manage", hidden: true },

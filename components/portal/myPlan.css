@@ -25,3 +25,4 @@
 .myplan__bar i { display: block; height: 100%; border-radius: inherit; background: var(--brand, #2563eb); }
 .myplan__prices { margin: 0; font-size: .78rem; color: var(--gray); }
 .myplan__acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.myplan__agreed { margin: 0; padding: 8px 12px; border-radius: 12px; font-size: .82rem; color: var(--dk-txt-ok, #15803d); background: color-mix(in srgb, #16a34a 10%, transparent); }

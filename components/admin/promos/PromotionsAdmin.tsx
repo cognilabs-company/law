@@ -16,7 +16,8 @@ import { previewStudioDraft } from "@/lib/services/studio";
 import { normCtorRecord, type CtorRecord } from "@/components/admin/studio/sx/ctorpage/recordsApi";
 import { loadRowPayload, type RowPayload } from "@/components/admin/studio/sx/ctorpage/rowPayloads";
 import { sxStatus } from "@/components/admin/studio/sx/status";
-import { promoPreviewOf, promoTermsOf, promoTiming, type PromoBackendPreview, type PromoTerms } from "@/components/admin/studio/sx/ctor/mp09";
+import { promoPreviewOf, promoTermsOf, type PromoBackendPreview, type PromoTerms } from "@/components/admin/studio/sx/ctor/mp09";
+import { useStudioCatalog } from "@/lib/studio/catalogLink";
 
 // Every promotion ("aksiya", TSK-537634) in one place: what it discounts,
 // the backend's price per target, the period, how much of its limit is
@@ -25,15 +26,14 @@ import { promoPreviewOf, promoTermsOf, promoTiming, type PromoBackendPreview, ty
 // and changing one happens in Studio (constructor MP09).
 
 const CODE = "MP09";
-const NEW_HREF = `/admin/studio/o/new?new=${CODE}`;
 const ACTION_PREFIX = "/admin/promotion-campaigns/";
 
-type State = "running" | "scheduled" | "ended" | "exhausted" | "open" | "paused" | "pending" | "draft";
+type State = "running" | "scheduled" | "ended" | "exhausted" | "open" | "live" | "paused" | "pending" | "draft";
 type Runtime = { status: string; used: number | null; limit: number | null; remaining: number | null; pausedAt: string; pauseReason: string; pause: string; resume: string };
 type Row = { rec: CtorRecord; runtime: Runtime; payload: RowPayload; terms: PromoTerms | null; state: State };
 type Filter = "all" | "advertising" | "subscription";
 
-const STATE_ORDER: Record<State, number> = { running: 0, open: 0, scheduled: 1, paused: 2, pending: 3, draft: 4, exhausted: 5, ended: 6 };
+const STATE_ORDER: Record<State, number> = { running: 0, open: 0, live: 0, scheduled: 1, paused: 2, pending: 3, draft: 4, exhausted: 5, ended: 6 };
 const RUNTIME_STATE: Record<string, State> = { active: "running", scheduled: "scheduled", paused: "paused", expired: "ended", exhausted: "exhausted" };
 
 const numOrNull = (v: unknown): number | null => (v === null || v === undefined || v === "" ? null : Number.isFinite(Number(v)) ? Number(v) : null);
@@ -57,15 +57,15 @@ function runtimeOf(raw: Dict): Runtime {
 }
 
 // The backend's runtime_status once the promotion is published; before
-// that, its Studio stage (draft, in approval).
-function stateOf(rec: CtorRecord, rt: Runtime, terms: PromoTerms | null, now: number): State {
+// that, its Studio stage (draft, in approval). Whether a published one has
+// started, ended or used up its limit is the backend's to say (answers
+// 2026-10-31 §2.5): without a runtime_status it reads only "published".
+function stateOf(rec: CtorRecord, rt: Runtime): State {
   const s = sxStatus(rec.status, rec.source);
   if (!s.live && rec.source !== "runtime" && !rt.status) return s.key === "archived" ? "paused" : s.stage >= 1 ? "pending" : "draft";
   if (rt.status && RUNTIME_STATE[rt.status]) return RUNTIME_STATE[rt.status];
   if (s.key === "archived" || s.key === "paused") return "paused";
-  if (!terms) return "open";
-  const timing = promoTiming(terms, now);
-  return timing === "ended" ? "ended" : timing === "scheduled" ? "scheduled" : timing === "running" ? "running" : "open";
+  return "live";
 }
 
 const editHref = (r: CtorRecord) => (r.source === "studio" && r.studioObjectId ? `/admin/studio/o/${encodeURIComponent(r.studioObjectId)}` : `/admin/studio/c/${CODE}`);
@@ -77,7 +77,8 @@ export default function PromotionsAdmin(): ReactElement {
   const [failure, setFailure] = useState<unknown>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [reload, setReload] = useState(0);
-  const [now] = useState(() => Date.now());
+  const studio = useStudioCatalog();
+  const newHref = studio.newHref(CODE);
   const [acting, setActing] = useState<{ row: Row; kind: "pause" | "resume" } | null>(null);
 
   useEffect(() => {
@@ -95,7 +96,7 @@ export default function PromotionsAdmin(): ReactElement {
               const p = payloads[i];
               const terms = p && (p.target_type || p.discount_type) ? promoTermsOf(p) : null;
               const runtime = runtimeOf(raws[i]);
-              return { rec, runtime, payload: p, terms, state: stateOf(rec, runtime, terms, now) };
+              return { rec, runtime, payload: p, terms, state: stateOf(rec, runtime) };
             })
             .filter((r) => r.rec.id),
         );
@@ -109,7 +110,7 @@ export default function PromotionsAdmin(): ReactElement {
       }
     })();
     return () => ctl.abort();
-  }, [reload, now]);
+  }, [reload]);
 
   const shown = useMemo(
     () => (rows ?? []).filter((r) => filter === "all" || r.terms?.targetType === filter).sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || b.rec.updatedAt.localeCompare(a.rec.updatedAt)),
@@ -129,15 +130,17 @@ export default function PromotionsAdmin(): ReactElement {
         </div>
         <div className="prm-hero__acts">
           <IconButton label={t("refresh")} icon={<IconRefresh />} tipAlign="end" onClick={() => setReload((n) => n + 1)} />
-          <Link href={NEW_HREF} className="btn btn--pri btn--sm" data-ai-target="button:new-promotion">
-            <IconPlus aria-hidden="true" />
-            {t("new")}
-          </Link>
+          {newHref ? (
+            <Link href={newHref} className="btn btn--pri btn--sm" data-ai-target="button:new-promotion">
+              <IconPlus aria-hidden="true" />
+              {t("new")}
+            </Link>
+          ) : null}
         </div>
         <dl className="prm-meta">
           <div data-tone="ok">
             <dt>{t("kpi.running")}</dt>
-            <dd>{rows ? count(["running", "open"]) : "—"}</dd>
+            <dd>{rows ? count(["running", "open", "live"]) : "—"}</dd>
           </div>
           <div data-tone="info">
             <dt>{t("kpi.scheduled")}</dt>
@@ -187,10 +190,12 @@ export default function PromotionsAdmin(): ReactElement {
             title={filter === "all" ? t("empty") : t("emptyFilter")}
             text={t("emptyText")}
             action={
-              <Link href={NEW_HREF} className="btn btn--pri btn--sm">
-                <IconPlus aria-hidden="true" />
-                {t("new")}
-              </Link>
+              newHref ? (
+                <Link href={newHref} className="btn btn--pri btn--sm">
+                  <IconPlus aria-hidden="true" />
+                  {t("new")}
+                </Link>
+              ) : undefined
             }
           />
         ) : (
@@ -281,8 +286,10 @@ function PromoCard({ row, onAct }: { row: Row; onAct: (kind: "pause" | "resume")
   const limit = rt.limit ?? terms?.usageLimit ?? null;
   const used = rt.used;
   const pct = limit && used !== null ? Math.min(100, Math.round((used / limit) * 100)) : null;
-  const canPause = !!rt.pause && (st === "running" || st === "scheduled" || st === "open");
+  const canPause = !!rt.pause && (st === "running" || st === "scheduled" || st === "open" || st === "live");
   const canResume = !!rt.resume && st === "paused";
+  // MP09 is opened in Studio only while the constructor catalog lists it (§4.7).
+  const canOpen = useStudioCatalog().has(CODE);
 
   return (
     <li className="prm-card" data-state={st}>
@@ -353,10 +360,12 @@ function PromoCard({ row, onAct }: { row: Row; onAct: (kind: "pause" | "resume")
         </div>
       </dl>
       <div className="prm-card__acts">
-        <Link href={editHref(rec)} className="prm-open">
-          {t("open")}
-          <IconArrowRight aria-hidden="true" />
-        </Link>
+        {canOpen ? (
+          <Link href={editHref(rec)} className="prm-open">
+            {t("open")}
+            <IconArrowRight aria-hidden="true" />
+          </Link>
+        ) : null}
         {canPause ? (
           <button type="button" className="btn btn--line btn--sm" onClick={() => onAct("pause")}>
             <IconPause aria-hidden="true" />

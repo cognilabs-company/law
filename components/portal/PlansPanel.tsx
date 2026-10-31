@@ -22,12 +22,11 @@ import {
   type ManualDocBillingPeriod,
   isGiftOnlyPlan
 } from "@/lib/services/backend";
-import { SELLER_DISCOUNT, loadAutopay, readAutopay, saveAutopay, type AutopayState } from "@/lib/services/plans";
+import { loadAutopay, planPrice, readAutopay, saveAutopay, type AutopayState } from "@/lib/services/plans";
 import { useAuth } from "@/lib/auth";
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField, useAiModal, useAiSelection } from "@/lib/ai/registry";
-import { useSellerCabinet } from "./SellerCabinet";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
 import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
 import { CheckoutIntent } from "./OrderMilestones";
@@ -68,7 +67,7 @@ import MyPlanCard from "./MyPlanCard";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import { goToPaymentPage } from "@/lib/services/paymentProviders";
 
-type Term = 1 | 3 | 6 | 12;
+type Term = 1 | 6 | 12;
 type Variant = "personal" | "all";
 
 // GM T1-03: the client's LexGo.AI plans are exactly Free / Lite / Pro; the
@@ -78,16 +77,12 @@ type Variant = "personal" | "all";
 // admin-created yurist/advokat tariff shows up without a slug rule.
 const AI_SLUG = /^lexgo-ai-(free|lite|pro)$/;
 const FEATURED_SLUG = "lexgo-ai-pro";
-// Fallback monthly AI limits when a plan carries no entitlements (T1-03).
-const AI_LIMIT_BY_SLUG: Record<string, number> = { "lexgo-ai-free": 5, "lexgo-ai-lite": 100, "lexgo-ai-pro": 1000 };
-// T1-03 §5: term discounts 3 → −5 %, 6 → −10 %, 12 → −15 %; paying up front
-// takes another −5 %, capped at 20 % overall.
-const TERM_DISCOUNT: Record<Term, number> = { 1: 0, 3: 5, 6: 10, 12: 15 };
-const UPFRONT_DISCOUNT = 5;
-const MAX_DISCOUNT = 20;
+// The terms the backend sells (billing_period monthly / six_month / yearly /
+// prepaid_yearly). Every amount on the cards is the backend's — its quote
+// for the period, or the plan's own price for it while the quote loads —
+// and nothing here works a discount out (answers 2026-10-31 §2.5).
 const AI_TERM_ID: Record<Term, string> = {
   1: "pricing.billing.monthly",
-  3: "pricing.billing.three-month",
   6: "pricing.billing.six-month",
   12: "pricing.billing.yearly",
 };
@@ -106,16 +101,13 @@ function fmtDate(s: string, locale: string) {
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? s : dateOnly(s, locale);
 }
-// Backend billing_period for the chosen term (the API knows monthly / six_month /
-// yearly / prepaid_yearly; a 3-month term is billed as monthly — reported).
+// Backend billing_period for the chosen term.
 function billingPeriod(term: Term, upfront: boolean): string {
   return term === 6 ? "six_month" : term === 12 ? (upfront ? "prepaid_yearly" : "yearly") : "monthly";
 }
 const AI_PERIODS: Record<string, { term: Term; upfront: boolean }> = {
   "1": { term: 1, upfront: false },
   monthly: { term: 1, upfront: false },
-  "3": { term: 3, upfront: false },
-  "three-month": { term: 3, upfront: false },
   "6": { term: 6, upfront: false },
   "six-month": { term: 6, upfront: false },
   "12": { term: 12, upfront: false },
@@ -150,12 +142,17 @@ const EMPTY_QUOTES: ReadonlyMap<string, PlanQuote> = new Map();
 function asBillingPeriod(v: string): ManualDocBillingPeriod {
   return BILLING_PERIODS.includes(v as ManualDocBillingPeriod) ? (v as ManualDocBillingPeriod) : "monthly";
 }
-// LexGo.AI pricing from the monthly price and the GM discount table.
-function aiPricing(plan: BackendPlan, term: Term, upfront: boolean, sellerPct: number) {
-  const monthly = Math.round(plan.monthlyPrice * (1 - sellerPct / 100));
-  const pct = Math.min(MAX_DISCOUNT, TERM_DISCOUNT[term] + (term > 1 && upfront ? UPFRONT_DISCOUNT : 0));
-  const total = Math.round(monthly * term * (1 - pct / 100));
-  return { perMonth: term ? Math.round(total / term) : monthly, total, savePct: pct, monthly };
+// LexGo.AI pricing: the backend's quote for the period (a running promotion
+// already in it), else the plan's own price for that period. The saving is
+// read off those two backend amounts, never a discount table of ours.
+function aiPricing(plan: BackendPlan, term: Term, upfront: boolean, quote: PlanQuote | undefined) {
+  const period = asBillingPeriod(billingPeriod(term, upfront));
+  const months = quote?.months || term;
+  const listed = planPrice(plan, period);
+  const total = quote ? quote.amount : listed;
+  const baseline = plan.monthlyPrice * months;
+  const before = quote ? quote.baseAmount : listed;
+  return { perMonth: months ? Math.round(total / months) : total, total, savePct: months > 1 && baseline && before && before < baseline ? Math.round(((baseline - before) / baseline) * 100) : 0 };
 }
 // "Shaxsiy advokatim" (module 6): the backend's own 6 / 12 / prepaid-12 totals.
 function personalPricing(plan: BackendPlan, term: Term, upfront: boolean) {
@@ -165,15 +162,6 @@ function personalPricing(plan: BackendPlan, term: Term, upfront: boolean) {
   const baseline = monthly * months;
   return { perMonth: Math.round(total / months), total, savePct: baseline && total ? Math.round(((baseline - total) / baseline) * 100) : 0, months };
 }
-// This month's AI usage as counted by the chat (the API exposes no counter — reported).
-function aiUsedThisMonth(uid: string): number {
-  try {
-    const d = new Date();
-    return parseInt(localStorage.getItem(`lexgo_ai_used_${uid || "anon"}_${d.getFullYear()}-${d.getMonth() + 1}`) || "0", 10) || 0;
-  } catch {
-    return 0;
-  }
-}
 
 export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const t = useTranslations("plans");
@@ -182,16 +170,6 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const locale = useLocale();
   const { session } = useAuth();
   const personal = variant === "personal";
-  const isSeller = session?.role === "lawyer" || session?.role === "advocate";
-  // T1-03 §6: only a truly VERIFIED seller gets the discount — session.accountStatus
-  // only says the registration was approved (still "active" while profile
-  // verification is pending or was rejected), so the seller cabinet's own
-  // verification.verified is what actually decides it (mirrors backend
-  // limited_access: account_status=="active" AND verification_status in
-  // {approved,verified} AND is_verified).
-  const cabinet = useSellerCabinet();
-  const verified = isSeller && cabinet.data?.verification.verified === true;
-  const sellerPct = verified ? SELLER_DISCOUNT : 0;
   const res = useResource<BackendPlan>(() => getSubscriptionPlans(locale), [locale]);
   const payments = useResource(listPayments, []);
   const [aiTerm, setAiTerm] = useState<Term>(1);
@@ -203,8 +181,6 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
   // Set when a purchase falls through to the Telegram approval flow.
   const [tgPlan, setTgPlan] = useState<{ plan: BackendPlan; period: ManualDocBillingPeriod } | null>(null);
-  const [aiUsed, setAiUsed] = useState(0);
-  useEffect(() => { const h = setTimeout(() => setAiUsed(aiUsedThisMonth(session?.id ?? "")), 0); return () => clearTimeout(h); }, [session?.id]);
 
   // Lifted out of AutopayCard so the plan grid can mark the user's own active
   // plan (not just the autopay summary row) — AutopayCard receives it as a prop.
@@ -280,7 +256,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const otherShown = personal || otherPlans.length > 0;
   useAiSelection("billing_period", billingPeriod(aiTerm, aiUpfront));
   useAiSelection("plan_term", aiTerm);
-  useAiSelection("plan_upfront", aiTerm > 1 && aiUpfront ? "true" : "false");
+  useAiSelection("plan_upfront", aiTerm === 12 && aiUpfront ? "true" : "false");
   useAiSelection("other_billing_period", otherShown ? billingPeriod(term, upfront) : "");
   useAiSelection("other_plan_term", otherShown ? term : "");
   useAiField("pricing.billing", {
@@ -396,18 +372,18 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       <div className="plans__head">
         <div>
           <h2 className="psec-h"><IconSparkle style={{ width: 20, height: 20, verticalAlign: "-3px", marginRight: 8 }} />{t("ai.title")}</h2>
-          <p className="plans__sub">{sellerPct ? t("ai.subtitleSeller", { pct: sellerPct }) : t("ai.subtitle")}</p>
+          <p className="plans__sub">{t("ai.subtitle")}</p>
         </div>
         <div className="switch switch--sm" role="group" aria-label={t("ai.term")} data-ai-target="plans:period" data-ai-id="pricing.billing" data-ai-type="select">
-          {([1, 3, 6, 12] as Term[]).map((m) => (
-            <button key={m} type="button" aria-pressed={aiTerm === m} onClick={() => setAiTerm(m)} data-ai-id={AI_TERM_ID[m]}>{t(`ai.term${m}`)}{TERM_DISCOUNT[m] ? <small> −{TERM_DISCOUNT[m]}%</small> : null}</button>
+          {([1, 6, 12] as Term[]).map((m) => (
+            <button key={m} type="button" aria-pressed={aiTerm === m} onClick={() => setAiTerm(m)} data-ai-id={AI_TERM_ID[m]}>{t(`ai.term${m}`)}</button>
           ))}
         </div>
       </div>
-      {aiTerm > 1 ? (
+      {aiTerm === 12 ? (
         <div className="chkline" data-ai-id="pricing.billing.prepaid-yearly" data-ai-type="input">
           <CheckBox checked={aiUpfront} onChange={setAiUpfront}>
-            {t("ai.upfront", { pct: UPFRONT_DISCOUNT, max: MAX_DISCOUNT })}
+            {t("ai.upfrontPlain")}
           </CheckBox>
         </div>
       ) : null}
@@ -420,13 +396,12 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       ) : (
         <div className="plans__grid" data-ai-id="pricing.ai-plans" data-ai-type="list">
           {aiPlans.map((plan, i) => {
-            const pr = aiPricing(plan, aiTerm, aiUpfront, sellerPct);
-            const limit = Number(plan.entitlements?.ai_requests ?? 0) || AI_LIMIT_BY_SLUG[plan.slug] || 0;
+            const quote = quotes.get(plan.id);
+            const pr = aiPricing(plan, aiTerm, aiUpfront, quote);
             const hasPro = aiPlans.some((p) => p.slug === FEATURED_SLUG);
             const featured = hasPro ? plan.slug === FEATURED_SLUG : aiPlans.length > 1 && i === aiPlans.length - 1;
             const isCurrent = !!currentPlanName && planName(plan) === currentPlanName;
             const free = plan.monthlyPrice === 0;
-            const quote = quotes.get(plan.id);
             const promo = quote && quote.discountAmount > 0 ? quote : null;
             // Everything below is this page's decision, worked out here and
             // handed over finished — PlanCard is told what to show, never how
@@ -443,13 +418,12 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                 ribbon={isCurrent ? t("current") : featured ? t("recommended") : undefined}
                 saves={[
                   ...(pr.savePct > 0 && !free ? [`−${pr.savePct}%`] : []),
-                  ...(sellerPct && !free ? [`−${sellerPct}%`] : []),
                   ...(promo ? [t("promo.chip", { amount: som(promo.discountAmount) })] : []),
                 ]}
                 price={
                   free
                     ? { amount: t("freeLabel") }
-                    : { amount: som(pr.perMonth), unit: t("perMonth"), was: sellerPct ? som(plan.monthlyPrice) : undefined }
+                    : { amount: som(pr.perMonth), unit: t("perMonth") }
                 }
                 totalNote={
                   promo
@@ -458,7 +432,6 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                       ? t("totalNote", { term: aiTerm, total: som(pr.total) })
                       : undefined
                 }
-                usage={free && limit ? t("ai.usage", { used: Math.min(aiUsed, limit), limit }) : undefined}
                 cta={
                   isCurrent
                     ? { label: t("current"), variant: "soft", icon: <IconCheck /> }
@@ -533,7 +506,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                   </tr>
                   <tr>
                     <td>{t("compare.rowRequests")}</td>
-                    {aiPlans.map((p) => <td key={p.id}>{Number(p.entitlements?.ai_requests ?? 0) || AI_LIMIT_BY_SLUG[p.slug] || "—"}</td>)}
+                    {aiPlans.map((p) => <td key={p.id}>{Number(p.entitlements?.ai_requests ?? 0) || "—"}</td>)}
                   </tr>
                   <tr>
                     <td>{t("compare.rowFeatures")}</td>

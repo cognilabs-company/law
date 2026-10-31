@@ -148,8 +148,8 @@ test("tariff draft shows what publishing would change", async ({ page }) => {
     },
   });
   await mockBackend(page, routes);
-  await page.goto("/uz/admin/plans");
-  await page.getByRole("button", { name: "Versiyalar" }).first().click();
+  // The tariffs page (answers 2026-10-31 §2.1) shows the first tariff's versions straight away.
+  await page.goto("/uz/admin/tariffs");
   await page.getByRole("button", { name: "O'zgarishlarni ko'rish" }).click();
   await expect(page.getByText("Amaldagi obunachilarga keyingi yangilanishda qo'llanadi.", { exact: false })).toBeVisible();
   await expect(page.getByText("+10 000")).toBeVisible();

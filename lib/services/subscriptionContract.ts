@@ -5,8 +5,20 @@
 
 import { asArr, asDict, asStr, http, type Dict } from "@/lib/http";
 
-export type FeatureAccess = { key: string; mode: string; allowed: boolean; limit: number | null; used: number | null; remaining: number | null; resetsAt: string };
+// A limited feature resets every 30 days from the subscription's start, also
+// on multi-month subscriptions (answers 2026-10-31 §2.1); resets_at is the
+// backend's next reset.
+export type FeatureAccess = { key: string; titles: Record<string, string>; mode: string; allowed: boolean; limit: number | null; used: number | null; remaining: number | null; resetsAt: string };
 export type MyFeatures = { subscriptionId: string; planId: string; planVersion: number | null; items: FeatureAccess[] };
+
+// The backend's own feature name when it sends one: a string (any locale)
+// or one per locale.
+const titlesOf = (v: unknown): Record<string, string> => {
+  if (typeof v === "string") return v ? { any: v } : {};
+  const out: Record<string, string> = {};
+  for (const [k, x] of Object.entries(asDict(v))) if (typeof x === "string" && x) out[k] = x;
+  return out;
+};
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 
@@ -19,7 +31,8 @@ export async function getMyFeatures(signal?: AbortSignal): Promise<MyFeatures> {
     items: asArr(d.items)
       .map((x) => {
         const f = asDict(x);
-        return { key: asStr(f.feature_key), mode: asStr(f.mode), allowed: f.allowed !== false, limit: num(f.limit), used: num(f.used), remaining: num(f.remaining), resetsAt: asStr(f.resets_at) };
+        const mode = asStr(f.mode);
+        return { key: asStr(f.feature_key), titles: titlesOf(f.title ?? f.name), mode, allowed: f.allowed !== false && mode !== "unavailable", limit: num(f.limit), used: num(f.used), remaining: num(f.remaining), resetsAt: asStr(f.resets_at ?? f.next_reset_at) };
       })
       .filter((f) => f.key),
   };

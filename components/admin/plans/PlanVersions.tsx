@@ -9,8 +9,9 @@ import { Skeleton } from "@/components/portal/DataState";
 import { Link } from "@/i18n/navigation";
 import { IconClipboardList } from "@/components/icons";
 import PlanChangePreview from "./PlanChangePreview";
+import { useStudioCatalog } from "@/lib/studio/catalogLink";
 import { shortDateTime } from "@/lib/date";
-import { errDetail, isAborted, logApiError, type Dict } from "@/lib/http";
+import { errDetail, isAborted, isCodeLike, logApiError, type Dict } from "@/lib/http";
 import {
   archivePlanVersion,
   conflictCode,
@@ -27,6 +28,7 @@ import {
   type FeatureRegistry,
   type PlanVersion,
   type PlanVersions as Versions,
+  type ValidationIssue,
 } from "@/lib/services/tariffs";
 
 // A tariff's versions (contract §5): published ones are read-only, a change
@@ -45,6 +47,53 @@ function useVersionLabels() {
     mode: (m: string) => (!m ? "" : t.has(`mode.${m}`) ? t(`mode.${m}`) : t("other")),
     reset: (r: string) => (!r ? "" : t.has(`reset.${r}`) ? t(`reset.${r}`) : t("other")),
   };
+}
+
+// A backend check issue in words: the part of the version it is about, then
+// the backend's own message. Never the raw field path or code.
+function useIssueText() {
+  const t = useTranslations("admin.tariffs");
+  const tp = useTranslations("admin.tariffs.preview");
+  return (e: ValidationIssue): string => {
+    const [head, idx] = e.field.split(".");
+    const n = Number(idx);
+    const where =
+      head === "entitlements"
+        ? idx !== undefined && Number.isInteger(n)
+          ? t("issueRow", { n: n + 1 })
+          : t("entitlements")
+        : head === "prices"
+          ? t("prices")
+          : head && tp.has(`field.${head}`)
+            ? tp(`field.${head}`)
+            : "";
+    const what = e.message && !isCodeLike(e.message) ? e.message : t("checkFailed");
+    return where ? `${where}: ${what}` : what;
+  };
+}
+
+// What a version grants, read only: each feature in words with its mode,
+// and for a limited one the number and how often it resets.
+function Grants({ payload, registry }: { payload: Dict; registry: FeatureRegistry | null }): ReactElement | null {
+  const t = useTranslations("admin.tariffs");
+  const ts = useTranslations("studio");
+  const lab = useVersionLabels();
+  const rows = entitlementsOf(payload);
+  if (!rows.length) return null;
+  const name = (key: string) => {
+    const f = registry?.items.find((x) => x.key === key);
+    return ts.has(`sx.feature.${key}`) ? ts(`sx.feature.${key}`) : f?.title || t("featureOther");
+  };
+  return (
+    <ul className="trf-grants" aria-label={t("entitlements")}>
+      {rows.map((r, i) => (
+        <li key={`${r.featureKey}-${i}`} data-mode={r.mode}>
+          <span>{name(r.featureKey)}</span>
+          <b>{r.mode === "limited" && r.limit !== null ? t("grantLimited", { n: r.limit, period: lab.reset(r.resetPeriod || "rolling_30_days") }) : lab.mode(r.mode)}</b>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 // TSK-692647: a version's changes become a task for the developers, then
@@ -77,6 +126,8 @@ export function DevTask({ task, approval }: { task: PlanVersion["devTask"]; appr
                 .filter(Boolean)
                 .join(" · ")}
             </small>
+            {/* §2.3 (answers 2026-10-31): publishing does not wait for the task. */}
+            {task.status !== "ready" ? <small className="trf-dev__note">{t("saleNote")}</small> : null}
           </span>
         </div>
       ) : null}
@@ -194,6 +245,8 @@ export default function PlanVersions({ planId }: { planId: string }): ReactEleme
   const t = useTranslations("admin.tariffs");
   const locale = useLocale();
   const lab = useVersionLabels();
+  const issueText = useIssueText();
+  const studio = useStudioCatalog();
   const [data, setData] = useState<Versions | null>(null);
   const [failed, setFailed] = useState(false);
   const [registry, setRegistry] = useState<FeatureRegistry | null>(null);
@@ -257,10 +310,12 @@ export default function PlanVersions({ planId }: { planId: string }): ReactEleme
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {!data.items.length ? (
         <div className="trf-empty">
-          <p>{t("noVersions")}</p>
-          <Link className="btn btn--line btn--sm" href="/admin/studio/c/K17">
-            {t("openStudio")}
-          </Link>
+          <p>{studio.has("K17") ? t("noVersions") : t("noVersionsNoStudio")}</p>
+          {studio.has("K17") ? (
+            <Link className="btn btn--line btn--sm" href={studio.listHref("K17")}>
+              {t("openStudio")}
+            </Link>
+          ) : null}
         </div>
       ) : (
         <ol className="trf-list">
@@ -280,15 +335,14 @@ export default function PlanVersions({ planId }: { planId: string }): ReactEleme
                   <small>{v.publishedAt ? t("publishedAt", { date: shortDateTime(v.publishedAt, locale) }) : v.createdAt ? t("createdAt", { date: shortDateTime(v.createdAt, locale) }) : ""}</small>
                 </div>
                 {v.devTask || v.approval ? <DevTask task={v.devTask} approval={v.approval} /> : null}
+                {editing === v.id ? null : <Grants payload={v.payload} registry={registry} />}
                 {draft ? (
                   <>
                     {check.ok === true ? <p className="trf-ok">{t("checkOk")}</p> : null}
                     {check.ok === false ? (
                       <ul className="trf-errs" role="alert">
                         {(check.errors.length ? check.errors : [{ field: "", code: "", message: t("checkFailed") }]).map((e, k) => (
-                          <li key={k}>
-                            {e.field ? <code>{e.field}</code> : null} {e.message || e.code}
-                          </li>
+                          <li key={k}>{issueText(e)}</li>
                         ))}
                       </ul>
                     ) : null}

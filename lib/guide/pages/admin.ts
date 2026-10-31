@@ -137,12 +137,11 @@ export const ADMIN_PAGES: GuidePage[] = [
   },
   {
     id: "admin_plans",
-    match: ["/admin/plans"],
+    match: ["/admin/tariffs"],
     roles: ["staff"],
     tour: [
       { target: "ai-help:current-page", text: "tours.admin_plans.title" },
       { target: "button:new-plan", text: "tours.admin_plans.add" },
-      { target: "plans:filters", text: "tours.admin_plans.filters" },
       { target: "plans:list", text: "tours.admin_plans.list" },
       { target: "plans:item-actions", text: "tours.admin_plans.actions" },
     ],

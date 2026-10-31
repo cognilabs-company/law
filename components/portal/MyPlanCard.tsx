@@ -12,8 +12,10 @@ import { updateSubscriptionAutoRenew } from "@/lib/services/backend";
 
 // The subscriber's own plan: the terms fixed for this period (a later
 // tariff edit does not touch them), each feature's limit as the backend
-// counts it, and — when the tariff changed — consent to the new terms at
-// renewal. Nothing is counted here.
+// counts it (a limited one resets every 30 days, answers 2026-10-31 §2.1),
+// and — when the tariff changed — consent to the new terms at renewal, or
+// that it was already given (§2.2). The backend keeps no consent history
+// the subscriber can read, so none is shown. Nothing is counted here.
 
 type State = { status: "loading" } | { status: "none" } | { status: "ready"; features: MyFeatures; contract: SubscriptionContract | null };
 
@@ -50,7 +52,7 @@ export default function MyPlanCard(): ReactElement | null {
   if (state.status !== "ready") return null;
   const { features, contract } = state;
   const name = contract ? contract.names[locale] || contract.names.uz || contract.title : "";
-  const featureName = (key: string) => (ts.has(`sx.feature.${key}`) ? ts(`sx.feature.${key}`) : t("featureOther"));
+  const featureName = (key: string, title = "") => (ts.has(`sx.feature.${key}`) ? ts(`sx.feature.${key}`) : title || t("featureOther"));
   // The new version's terms (TSK-206603), shown before the renewal asks for
   // consent: every feature whose access changes, before → after.
   const term = (e: { mode: string; limit: number | null; resetPeriod: string } | undefined) =>
@@ -73,6 +75,8 @@ export default function MyPlanCard(): ReactElement | null {
         .map((k) => ({ period: k, before: contract.prices[k], after: contract.next!.prices[k] }))
     : [];
   const needsConsent = !!contract?.termsChanged && !(contract.consent?.accepted === true) && !consented && !stopped;
+  // The current consent state from the contract: already agreed to the new terms.
+  const agreed = !!contract?.termsChanged && contract.consent?.accepted === true && !consented;
 
   async function stop() {
     if (!contract || busy || sending.current) return;
@@ -159,6 +163,11 @@ export default function MyPlanCard(): ReactElement | null {
           </span>
         </div>
       ) : null}
+      {agreed ? (
+        <p className="myplan__agreed" role="status">
+          {contract?.consent?.at ? t("consentGivenOn", { date: dateOnly(contract.consent.at, locale) }) : t("consentGiven")}
+        </p>
+      ) : null}
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {features.items.length ? (
         <ul className="myplan__list">
@@ -166,14 +175,14 @@ export default function MyPlanCard(): ReactElement | null {
             const pct = f.mode === "limited" && f.limit ? Math.max(0, Math.min(100, ((f.used ?? 0) / f.limit) * 100)) : null;
             return (
               <li key={f.key} data-mode={f.allowed ? f.mode : "unavailable"}>
-                <span className="myplan__f">{featureName(f.key)}</span>
+                <span className="myplan__f">{featureName(f.key, f.titles[locale] || f.titles.any || f.titles.uz)}</span>
                 <span className="myplan__u">{usage(f)}</span>
                 {pct !== null ? (
-                  <span className="myplan__bar" role="progressbar" aria-label={featureName(f.key)} aria-valuemin={0} aria-valuemax={f.limit ?? 0} aria-valuenow={f.used ?? 0}>
+                  <span className="myplan__bar" role="progressbar" aria-label={featureName(f.key, f.titles[locale] || f.titles.any || f.titles.uz)} aria-valuemin={0} aria-valuemax={f.limit ?? 0} aria-valuenow={f.used ?? 0}>
                     <i style={{ width: `${pct}%` }} />
                   </span>
                 ) : null}
-                {f.mode === "limited" && f.resetsAt ? <small>{t("resets", { date: dateOnly(f.resetsAt, locale) })}</small> : null}
+                {f.allowed && f.mode === "limited" ? <small>{f.resetsAt ? t("resetsNext", { date: dateOnly(f.resetsAt, locale) }) : t("resetsEvery30")}</small> : null}
               </li>
             );
           })}

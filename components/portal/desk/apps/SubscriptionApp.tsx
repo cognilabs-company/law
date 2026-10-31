@@ -7,8 +7,8 @@ import { fmtUzs } from "@/lib/money";
 import { dateOnly } from "@/lib/date";
 import { humanizeSlug } from "@/lib/lawyers";
 import { isDemoUnavailable, isProviderUnavailable } from "@/lib/http";
-import { addPaymentMethod, BILLING_PERIODS, demoPlanPurchase, getSellerCabinet, getSubscriptionPlans, isAtmosCheckout, isProviderUnsupported, listPaymentMethods, listPayments, planForRole, purchasePlan, refusedBillingPeriods, requestPlanTelegramPurchase, type BackendPlan, type ManualDocBillingPeriod, isGiftOnlyPlan } from "@/lib/services/backend";
-import { loadAutopay, readAutopay, saveAutopay, type AutopayState } from "@/lib/services/plans";
+import { addPaymentMethod, BILLING_PERIODS, demoPlanPurchase, getPlanQuote, getSubscriptionPlans, isAtmosCheckout, isProviderUnsupported, listPaymentMethods, listPayments, planForRole, purchasePlan, refusedBillingPeriods, requestPlanTelegramPurchase, type BackendPlan, type ManualDocBillingPeriod, type PlanQuote, isGiftOnlyPlan } from "@/lib/services/backend";
+import { loadAutopay, planPrice, readAutopay, saveAutopay, type AutopayState } from "@/lib/services/plans";
 import { createCheckout, isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
 import { IconCard, IconCheck, IconCrown, IconGift, IconHistory, IconRefresh, IconSparkle } from "@/components/icons";
 import { App, Banner, Btn, Check, Dialog, Empty, Field, Input, Loading, Seg, Sidebar, Tag, Toggle, Tool, Toolbar, useOs, useToast, type NavSection } from "../kit/kit";
@@ -20,16 +20,13 @@ import { useSameTickGuard } from "@/lib/useSameTickGuard";
 // top; the LexGo.AI plans with their terms; the other tariffs; the gift;
 // the bills. Choosing a plan follows the cabinet's payment route (ATMOS,
 // a checkout, or a request to the administrators in Telegram when no
-// payment provider is on), shown in this window's own sheets.
+// payment provider is on), shown in this window's own sheets. Every price
+// is the backend's: its quote for the period, else the plan's own price for
+// it — nothing here works a discount out (answers 2026-10-31 §2.5).
 
-type Term = 1 | 3 | 6 | 12;
+type Term = 1 | 6 | 12;
 type Section = "ai" | "other" | "billing";
 const AI_SLUG = /^lexgo-ai-(free|lite|pro)$/;
-const AI_LIMIT: Record<string, number> = { "lexgo-ai-free": 5, "lexgo-ai-lite": 100, "lexgo-ai-pro": 1000 };
-const TERM_OFF: Record<Term, number> = { 1: 0, 3: 5, 6: 10, 12: 15 };
-const UPFRONT = 5;
-const MAX_OFF = 20;
-const SELLER_OFF = 50;
 const som = (n: number) => fmtUzs(n);
 const periodOf = (term: Term, upfront: boolean) => (term === 6 ? "six_month" : term === 12 ? (upfront ? "prepaid_yearly" : "yearly") : "monthly");
 const asPeriod = (v: string): ManualDocBillingPeriod => (BILLING_PERIODS.includes(v as ManualDocBillingPeriod) ? (v as ManualDocBillingPeriod) : "monthly");
@@ -48,7 +45,7 @@ export default function SubscriptionApp(_props: NativeProps) {
   const [plans, setPlans] = useState<BackendPlan[] | null>(null);
   const [bills, setBills] = useState<Awaited<ReturnType<typeof listPayments>> | null>(null);
   const [cards, setCards] = useState<Awaited<ReturnType<typeof listPaymentMethods>>>([]);
-  const [verified, setVerified] = useState(false);
+  const [quotes, setQuotes] = useState<ReadonlyMap<string, PlanQuote>>(new Map());
   const [autopay, setAutopay] = useState<AutopayState | null>(null);
   const [section, setSection] = useState<Section>("ai");
   const [term, setTerm] = useState<Term>(1);
@@ -72,10 +69,6 @@ export default function SubscriptionApp(_props: NativeProps) {
     listPaymentMethods()
       .then((l) => alive && setCards(l))
       .catch(() => undefined);
-    if (role === "advocate" || role === "lawyer")
-      getSellerCabinet()
-        .then((c) => alive && setVerified(c.verification.verified))
-        .catch(() => undefined);
     if (uid)
       loadAutopay(uid)
         .then((s) => alive && setAutopay(s))
@@ -85,7 +78,6 @@ export default function SubscriptionApp(_props: NativeProps) {
     };
   }, [locale, uid, role, tick]);
 
-  const seller = verified ? SELLER_OFF : 0;
   const roleKey = role === "lawyer" ? "yurist" : role === "advocate" ? "advokat" : role;
   const all = useMemo(() => (plans ?? []).filter((p) => p.isActive !== false), [plans]);
   // Only a gift-only plan stays off the self-purchase list (TSK-342697).
@@ -98,6 +90,32 @@ export default function SubscriptionApp(_props: NativeProps) {
   const current = autopay?.subscription?.planName || "";
   const card = cards.find((c) => c.isDefault) ?? cards[0];
   const subBills = (bills ?? []).filter((p) => !p.kind || p.kind === "subscription" || p.kind === "subscription_plan");
+  // The backend's quote for each paid LexGo.AI plan in the chosen period.
+  const aiPeriod = asPeriod(periodOf(term, upfront));
+  const quoteIds = ai.filter((p) => p.monthlyPrice > 0).map((p) => p.id).join(",");
+  useEffect(() => {
+    if (!quoteIds) return;
+    let alive = true;
+    void Promise.all(quoteIds.split(",").map((id) => getPlanQuote(id, aiPeriod).then((q) => [`${id}|${aiPeriod}`, q] as const, () => null))).then((rows) => {
+      if (!alive) return;
+      setQuotes((cur) => {
+        const next = new Map(cur);
+        for (const r of rows) if (r) next.set(r[0], r[1]);
+        return next;
+      });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [quoteIds, aiPeriod]);
+  const aiPrice = (p: BackendPlan) => {
+    const q = quotes.get(`${p.id}|${aiPeriod}`);
+    const months = q?.months || term;
+    const total = q ? q.amount : planPrice(p, aiPeriod);
+    const before = q ? q.baseAmount : total;
+    const base = p.monthlyPrice * months;
+    return { per: months ? Math.round(total / months) : total, total, save: months > 1 && base && before && before < base ? Math.round(((base - before) / base) * 100) : 0, months, promo: q && q.discountAmount > 0 ? q.discountAmount : 0 };
+  };
 
   async function choose(plan: BackendPlan, total: number, period: string) {
     if (busy || !once()) return;
@@ -148,10 +166,10 @@ export default function SubscriptionApp(_props: NativeProps) {
       ],
     },
   ];
-  const planCard = (plan: BackendPlan, price: { per: number; total: number; save: number; months: number }, featured: boolean) => {
+  const planCard = (plan: BackendPlan, price: { per: number; total: number; save: number; months: number; promo?: number }, featured: boolean) => {
     const isCur = !!current && plan.name === current;
     const free = plan.monthlyPrice === 0;
-    const limit = Number(plan.entitlements?.ai_requests ?? 0) || AI_LIMIT[plan.slug] || 0;
+    const limit = Number(plan.entitlements?.ai_requests ?? 0) || 0;
     return (
       <article key={plan.id} className={`dxs2-plan${featured ? " is-feat" : ""}${isCur ? " is-cur" : ""}`}>
         {isCur ? <Tag tone="ok">{t("current")}</Tag> : featured ? <Tag tone="accent">{t("recommended")}</Tag> : <span />}
@@ -163,12 +181,12 @@ export default function SubscriptionApp(_props: NativeProps) {
             <>
               <b>{som(price.per)}</b>
               <span>{t("perMonth")}</span>
-              {seller && AI_SLUG.test(plan.slug) ? <s>{som(plan.monthlyPrice)}</s> : null}
             </>
           )}
         </div>
         {!free && price.months > 1 ? <small className="dxs2-total">{t("totalNote", { term: price.months, total: som(price.total) })}</small> : null}
         {price.save > 0 && !free ? <Tag tone="ok">−{price.save}%</Tag> : null}
+        {price.promo && !free ? <Tag tone="accent">{t("promo.chip", { amount: som(price.promo) })}</Tag> : null}
         {limit ? <small className="dxs2-total">{d("requests", { n: limit })}</small> : null}
         <ul>
           {(plan.features ?? []).map((f, k) => (
@@ -195,7 +213,7 @@ export default function SubscriptionApp(_props: NativeProps) {
 
   return (
     <App name="subs" sidebar={<Sidebar label={t("ai.title")} sections={sections} value={section} onChange={(s) => setSection(s as Section)} />}>
-      <Toolbar title={section === "ai" ? t("ai.title") : section === "other" ? t("otherTitle") : t("billing.title")} subtitle={section === "ai" ? (seller ? t("ai.subtitleSeller", { pct: seller }) : t("ai.subtitle")) : section === "other" ? t("otherSubtitle") : undefined}>
+      <Toolbar title={section === "ai" ? t("ai.title") : section === "other" ? t("otherTitle") : t("billing.title")} subtitle={section === "ai" ? t("ai.subtitle") : section === "other" ? t("otherSubtitle") : undefined}>
         <Tool icon={<IconRefresh />} label={d("refresh")} onClick={() => setTick((n) => n + 1)} />
       </Toolbar>
       <div className="dxs2 dx-scroll">
@@ -228,21 +246,18 @@ export default function SubscriptionApp(_props: NativeProps) {
         ) : section === "ai" ? (
           <>
             <div className="dxs2-terms">
-              <Seg label={d("term")} value={String(term) as "1"} onChange={(v) => setTerm(Number(v) as Term)} items={(["1", "3", "6", "12"] as const).map((m) => ({ id: m, label: d("months", { n: Number(m) }) }))} />
-              {term > 1 ? (
-                <Check checked={upfront} onChange={setUpfront} label={t("ai.upfront", { pct: UPFRONT, max: MAX_OFF })}>
-                  {t("ai.upfront", { pct: UPFRONT, max: MAX_OFF })}
+              <Seg label={d("term")} value={String(term) as "1"} onChange={(v) => setTerm(Number(v) as Term)} items={(["1", "6", "12"] as const).map((m) => ({ id: m, label: d("months", { n: Number(m) }) }))} />
+              {term === 12 ? (
+                <Check checked={upfront} onChange={setUpfront} label={t("ai.upfrontPlain")}>
+                  {t("ai.upfrontPlain")}
                 </Check>
               ) : null}
             </div>
             {ai.length ? (
               <div className="dxs2-plans">
                 {ai.map((p, i) => {
-                  const monthly = Math.round(p.monthlyPrice * (1 - seller / 100));
-                  const pct = Math.min(MAX_OFF, TERM_OFF[term] + (term > 1 && upfront ? UPFRONT : 0));
-                  const total = Math.round(monthly * term * (1 - pct / 100));
                   const feat = ai.some((x) => x.slug === "lexgo-ai-pro") ? p.slug === "lexgo-ai-pro" : i === ai.length - 1;
-                  return planCard(p, { per: term ? Math.round(total / term) : monthly, total, save: pct, months: term }, feat);
+                  return planCard(p, aiPrice(p), feat);
                 })}
               </div>
             ) : (
