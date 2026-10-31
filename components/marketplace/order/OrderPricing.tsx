@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { SxPanel } from "@/components/admin/studio/sx/layout/Panel";
 import { fmtUzs } from "@/lib/money";
-import { getOrderFinancials, type OrderFinancials, type OrderPricing as Pricing } from "@/lib/services/marketplace";
+import { clientReasonText, getOrderFinancials, type OrderFinancials, type OrderPricing as Pricing } from "@/lib/services/marketplace";
 import { isAborted, logApiError } from "@/lib/http";
 import { modifierEffect, modifierLabel, readPriceModifiers } from "@/lib/services/marketplacePricing";
 import type { OrderView } from "./types";
@@ -46,7 +46,6 @@ const WHY = new Set(["region", "experience", "sector_experience_premium", "clien
 
 export default function OrderPricing({ pricing, view, currency, aiBase, orderId, refreshKey }: { pricing: Pricing; view: OrderView; currency: string; aiBase: string; orderId: string; refreshKey: string }): ReactElement | null {
   const t = useTranslations("marketplace.orderDetail.pricing");
-  const tr = useTranslations("marketplace.orderDetail.pricing.reason");
   const tm = useTranslations("marketPricing");
   const te = useTranslations("enums");
   const locale = useLocale();
@@ -80,11 +79,11 @@ export default function OrderPricing({ pricing, view, currency, aiBase, orderId,
   if (view === "client") {
     if (!(pricing.final > 0)) return null;
     const changed = pricing.base > 0 && pricing.final !== pricing.base;
-    // The backend's own sentence (already in the client's language), else
-    // its translations, else the code worded here — never the code.
-    // Only the sentences: what each reason adds is not shown, so the price
-    // build-up stays private ("to'liq chiqarmaslik kerak"). Same sentence twice → once.
-    const reasons = [...new Set(pricing.clientReasons.map((r) => r.text || r.i18n[locale === "uz" ? "uz_latn" : locale] || r.i18n.uz_latn || (tr.has(r.code) ? tr(r.code) : tr("other"))))];
+    // Only the backend's client-safe sentences (§1.6, §3.9), in the client's
+    // language: never a coefficient, commission, the seller's net or a
+    // Superadvokat amount, and never a sentence made up here from a code.
+    // Same sentence twice → once.
+    const reasons = [...new Set(pricing.clientReasons.map((r) => clientReasonText(r, locale)).filter(Boolean))];
     return (
       <SxPanel title={t("title")} className="mod-price mod-price--client" as="section" aiId={`${aiBase}.pricing`}>
         {changed ? (

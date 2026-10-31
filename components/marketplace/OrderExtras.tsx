@@ -9,6 +9,7 @@ import { saveBlob } from "@/lib/download";
 import { getSecureMessageFileAt } from "@/lib/services/backend";
 import { fileOrderComplaint, marketErrorCode, rateMarketplaceOrder, type MarketOrder, type OrderOption, type ResultFile } from "@/lib/services/marketplace";
 import { useMarketError } from "./useMarketError";
+import { useCountdown } from "@/lib/useCountdown";
 import { useGuardedField } from "@/components/ui/ContactGuardNote";
 
 const RESULT_MAX = 4000;
@@ -165,11 +166,16 @@ const FILED = new Set(["open", "pending", "submitted", "in_review", "under_revie
 
 // A complaint about the delivered service: its own action beside the
 // rating, offered only while the backend says `complaint.available` (the
-// same 15-minute window). A 1–2 star rating already opens one, so it is not
-// offered again; once filed it waits for the call center.
-export function ComplaintPanel({ o, onFiled }: { o: MarketOrder; onFiled: () => void }) {
+// same 15-minute window, backend answers 2026-10-31 §1.9). The time left is
+// the backend's complaint deadline; when it passes the order is re-read
+// (onExpired) and the backend's answer decides — a late send comes back as
+// complaint_window_closed, told in words. A 1–2 star rating already opens
+// one, so it is not offered again; once filed it waits for the call center.
+export function ComplaintPanel({ o, onFiled, onExpired }: { o: MarketOrder; onFiled: () => void; onExpired?: () => void }) {
   const t = useTranslations("marketplace.orderExtras.complaint");
+  const tx = useTranslations("marketplace.orderExtras");
   const marketErr = useMarketError();
+  const leftLabel = useLeftLabel();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -182,6 +188,7 @@ export function ComplaintPanel({ o, onFiled }: { o: MarketOrder; onFiled: () => 
   // the old ruling stays in history and must not hide the new form.
   const fresh = o.complaint.available && o.complaint.submitted === false;
   const lowRated = !fresh && o.rating.value > 0 && o.rating.value <= 2;
+  const left = useCountdown(o.complaint.available && !filed && !closed ? o.complaint.deadlineAt : "", onExpired);
   if (filed || (!fresh && (FILED.has(o.complaint.status) || (lowRated && o.complaint.status !== "")))) {
     return (
       <p className="mko__cmp is-filed" role="status">
@@ -190,9 +197,16 @@ export function ComplaintPanel({ o, onFiled }: { o: MarketOrder; onFiled: () => 
       </p>
     );
   }
-  if (closed) return <Notice ok={false} msg={err || t("closed")} />;
+  if (closed || (left === 0 && o.complaint.available && !lowRated)) return <Notice ok={false} msg={t("closed")} />;
   if (!o.complaint.available || lowRated) return null;
   const short = reason.trim().length < COMPLAINT_MIN;
+  const clock =
+    left !== null && left > 0 ? (
+      <em className={`mko__left${left < 180 ? " is-warn" : ""}`} aria-label={tx("rating.timeLeft")}>
+        <IconHourglass aria-hidden="true" />
+        {leftLabel(left * 1000, true)}
+      </em>
+    ) : null;
 
   async function submit() {
     if (busy || sending.current || short) return;
@@ -206,8 +220,9 @@ export function ComplaintPanel({ o, onFiled }: { o: MarketOrder; onFiled: () => 
     } catch (e) {
       sending.current = false;
       const code = marketErrorCode(e);
-      setErr(marketErr(e, t("error")));
+      // The window closed on the backend: said in our words, never its text.
       if (code === "complaint_window_closed" || code === "rating_window_closed") setClosed(true);
+      else setErr(marketErr(e, t("error")));
     } finally {
       setBusy(false);
     }
@@ -217,6 +232,7 @@ export function ComplaintPanel({ o, onFiled }: { o: MarketOrder; onFiled: () => 
     return (
       <div className="mko__cmp">
         <span>{t("lead")}</span>
+        {clock}
         <button type="button" className="btn btn--line btn--sm" onClick={() => setOpen(true)} data-ai-id={`marketplace.orders.complaint.${o.id}.open`}>
           <IconAlert aria-hidden="true" />
           {t("open")}
@@ -228,6 +244,7 @@ export function ComplaintPanel({ o, onFiled }: { o: MarketOrder; onFiled: () => 
     <section className="mko__cmp is-open" data-ai-id={`marketplace.orders.complaint.${o.id}`} data-ai-type="section" data-ai-label={t("title")}>
       <label htmlFor={fieldId}>
         <b>{t("title")}</b>
+        {clock}
       </label>
       <textarea id={fieldId} rows={4} maxLength={COMPLAINT_MAX} value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t("placeholder")} aria-describedby={`${fieldId}-h`} />
       <small id={`${fieldId}-h`}>{t("hint", { n: COMPLAINT_MIN })}</small>
@@ -244,7 +261,7 @@ export function ComplaintPanel({ o, onFiled }: { o: MarketOrder; onFiled: () => 
   );
 }
 
-export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => void }) {
+export function RatingPanel({ o, onRated, onExpired }: { o: MarketOrder; onRated: () => void; onExpired?: () => void }) {
   const t = useTranslations("marketplace.orderExtras");
   const marketErr = useMarketError();
   const left = useLeftLabel();
@@ -267,6 +284,8 @@ export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => voi
   const open = o.rating.canRate && !o.rating.value && !closed && !sent;
   const timed = o.rating.expiresAt > 0 || !!o.rating.deadlineAt;
   const now = useTick(open && timed, 1000);
+  // At the backend's deadline the order is re-read: its can_rate decides.
+  useCountdown(open && o.rating.deadlineAt ? o.rating.deadlineAt : "", onExpired);
   const given = sent || o.rating.value;
 
   if (given) {
@@ -282,7 +301,7 @@ export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => voi
       </div>
     );
   }
-  if (closed) return <Notice ok={false} msg={err || t("rating.closed")} />;
+  if (closed) return <Notice ok={false} msg={t("rating.closed")} />;
   if (!o.rating.canRate) return null;
 
   const remain = ratingLeftMs(o.rating, now);
@@ -301,7 +320,6 @@ export function RatingPanel({ o, onRated }: { o: MarketOrder; onRated: () => voi
     } catch (e) {
       const msg = marketErr(e, t("rating.error"));
       if (marketErrorCode(e) === "rating_window_closed") {
-        setErr(msg);
         setClosed(true);
       } else {
         setErr(msg);

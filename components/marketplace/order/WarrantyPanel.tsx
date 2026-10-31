@@ -51,8 +51,10 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
 
   const w = sent ?? o.warranty;
   const filed = !!w.status;
+  // What the client can ask for: the backend's remedies, never a rejection.
+  const remedies = resolutions.filter((r) => r !== "rejected");
   if (view !== "client" || phase === "pending" || phase === "cancelled") return null;
-  if (!filed && (!o.warranty.url || !resolutions.length)) return null;
+  if (!filed && (!o.warranty.url || !remedies.length)) return null;
   const ai = `${aiBase}.warranty`;
 
   if (filed) {
@@ -71,8 +73,8 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
 
   const reasonErr = tried && reason.trim().length < REASON_MIN ? t("reasonShort", { n: REASON_MIN }) : "";
   const pickErr = tried && !reasonCode ? t("pickReason") : "";
-  // The backend's cases for this order when it names them, else all of them.
-  const reasonCards: ChoiceCard[] = REASONS.filter((r) => !w.kinds.length || w.kinds.includes(r)).map((r) => ({ value: r, title: t(`why.${r}`) }));
+  // The five cases of MarketplaceWarrantyCreate.kind (§1.5).
+  const reasonCards: ChoiceCard[] = REASONS.map((r) => ({ value: r, title: t(`why.${r}`) }));
 
   async function submit() {
     if (busy || !once()) return;
@@ -128,7 +130,14 @@ export default function WarrantyPanel({ o, view, phase, aiBase, onChanged }: Ord
           <Field id={`${uid}-why`} label={t("whyLabel")} as="fieldset" required error={pickErr}>
             {(a) => <ChoiceCards id={`${uid}-why`} value={reasonCode} onChange={setReasonCode} options={reasonCards} columns={1} required invalid={!!pickErr} aria-labelledby={a["aria-labelledby"]} aria-describedby={a["aria-describedby"]} aiId={`${ai}.why`} />}
           </Field>
-          <p className="mcr-meta">{t("outcomes", { a: t("resolution.replacement"), b: t("resolution.full_refund") })}</p>
+          <div className="wrt-outcomes">
+            <p className="mcr-meta">{t("outcomesLead")}</p>
+            <ul>
+              {remedies.map((r) => (
+                <li key={r}>{t(`resolution.${r}`)}</li>
+              ))}
+            </ul>
+          </div>
           <Field id={`${uid}-reason`} label={t("reasonLabel")} required error={reasonErr} help={t("reasonHelp")}>
             {(a) => <TextArea {...a} value={reason} onChange={setReason} minRows={4} maxLength={1000} placeholder={t("reasonPh")} />}
           </Field>

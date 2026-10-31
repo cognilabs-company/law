@@ -95,6 +95,34 @@ test.describe("rating and complaint", () => {
     await page.getByRole("button", { name: "Отправить жалобу" }).click();
     await expect(page.getByRole("button", { name: "Отправить жалобу" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Пожаловаться" })).toHaveCount(0);
+    // complaint_window_closed is told in our words, never the server's text
+    // or its code (backend answers 2026-10-31 §1.9).
+    await expect(page.getByText("Время на жалобу истекло.")).toBeVisible();
+    await expect(page.getByText("Shikoyat muddati tugagan")).toHaveCount(0);
+    await expect(page.getByText("complaint_window_closed")).toHaveCount(0);
+  });
+
+  // §1.9: the window is the backend's — its complaint deadline is counted
+  // down, and when it passes the order is re-read so the backend's
+  // capability decides; the form never stays open on a local guess alone.
+  test("the complaint deadline is the backend's: time left, then a re-read at zero", async ({ page }) => {
+    const soon = new Date(Date.now() + 5_000).toISOString();
+    const state = { order: completed({ rating: { available: true, deadline_at: inTen(), remaining_seconds: 600 }, complaint: { available: true, deadline_at: soon } }) };
+    const mock = await openCompleted(page, state);
+    const lead = page.locator(".mko__cmp");
+    await expect(lead.locator(".mko__left")).toHaveText(/00:0\d/);
+    const reads = mock.count("GET", new RegExp(`^/marketplace/me/orders/${ORDER_ID}$`));
+    state.order = completed({ rating: { available: true, deadline_at: inTen(), remaining_seconds: 600 }, complaint: { available: false, deadline_at: soon } });
+    await expect.poll(() => mock.count("GET", new RegExp(`^/marketplace/me/orders/${ORDER_ID}$`)), { timeout: 12_000 }).toBeGreaterThan(reads);
+    await expect(page.getByRole("button", { name: "Пожаловаться" })).toHaveCount(0);
+    await expect(page.getByText("Время на жалобу истекло.")).toHaveCount(0);
+  });
+
+  test("the order's own can_complain flag offers the complaint", async ({ page }) => {
+    const state = { order: completed({ complaint: undefined, can_complain: true, complaint_deadline_at: inTen() }) };
+    await openCompleted(page, state);
+    await expect(page.getByRole("button", { name: "Пожаловаться" })).toBeVisible();
+    await expect(page.locator(".mko__cmp .mko__left")).toHaveText(/\d+ мин|0?9:\d\d|10:00/);
   });
 
   test("nothing is offered once the backend closes both", async ({ page }) => {

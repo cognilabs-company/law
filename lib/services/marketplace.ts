@@ -601,6 +601,11 @@ export type MarketOrder = {
   preferredTime: string;
   contactSpeed: string;
   contactSpeedLabel: string;
+  // The contact SLA (backend answers 2026-10-31 §1.3): by when the seller
+  // must first contact the client, and when they did. The field is
+  // contact_started_at — there is no first_contact_at.
+  contactDeadlineAt: string;
+  contactStartedAt: string;
   clientName: string;
   clientPhone: string;
   clientPhoneVisible: boolean | null;
@@ -700,21 +705,28 @@ export type OrderPricing = {
   clientReasons: ClientReason[];
 };
 
-// "Narx tanlangan mutaxassisning tasdiqlangan tajribasi sabab…" or
-// {uz, ru, en} or {text|label|reason}: one localised line.
-// Gaps closed 2026-10-28 §11: details.pricing_snapshot.client_price_reasons,
-// [{ code, text, label, text_i18n, amount, percent }]. "text" is already in
-// the client's language; text_i18n (uz_latn, uz_cyrl, ru, en) is the
-// fallback; the code is never shown.
-export type ClientReason = { code: string; text: string; i18n: Record<string, string>; amount: number; percent: number | null };
+// One client-safe reason for the price (backend answers 2026-10-31 §1.6,
+// §3.9): details.pricing_snapshot.client_price_reasons[] — only `code`,
+// `text` and `text_i18n` (uz_latn, uz_cyrl, ru, en) are read. No amount or
+// percent: the client never sees how the price is built up, and the code is
+// never shown.
+export type ClientReason = { code: string; text: string; i18n: Record<string, string> };
 export function clientReasonsOf(v: unknown): ClientReason[] {
   return asArr(v)
     .map((x) => {
       const d = asDict(x);
       const i18n = Object.fromEntries(Object.entries(asDict(d.text_i18n)).filter(([, y]) => typeof y === "string" && y.trim()).map(([k, y]) => [k, String(y).trim()]));
-      return { code: asStr(d.code).trim().toLowerCase(), text: asStr(d.text ?? d.label).trim(), i18n, amount: uzs(d, "amount"), percent: pctOf(d.percent) };
+      return { code: asStr(d.code).trim().toLowerCase(), text: asStr(d.text).trim(), i18n };
     })
-    .filter((r) => r.code || r.text || Object.keys(r.i18n).length);
+    .filter((r) => r.text || Object.keys(r.i18n).length);
+}
+
+// The reason's words in the client's language: text_i18n for the locale
+// first, then `text` (the backend's own language for the request); '' when
+// it has neither — the reason is then not shown at all.
+export function clientReasonText(r: ClientReason, locale: string): string {
+  const key = locale === "uz" ? "uz_latn" : locale;
+  return r.i18n[key] || r.text || "";
 }
 
 const present = (v: unknown) => v !== null && v !== undefined && v !== "";
@@ -804,10 +816,12 @@ export function complaintOf(d: Dict, details: Dict = asDict(d.details)): OrderCo
   const raw = d.complaint ?? details.complaint;
   const c = asDict(raw);
   return {
-    available: c.available === true || c.can_complain === true,
+    // The backend's capability (§1.9): complaint.available / can_complain,
+    // or the order's own can_complain flag.
+    available: firstBool(c.available, c.can_complain, d.can_complain, d.complaint_available, details.can_complain) === true,
     status: asStr(c.status).toLowerCase() || (typeof raw === "string" ? raw.toLowerCase() : ""),
     reason: asStr(c.reason),
-    deadlineAt: asStr(c.deadline_at ?? d.complaint_deadline_at),
+    deadlineAt: asStr(c.deadline_at ?? d.complaint_deadline_at ?? details.complaint_deadline_at),
     url: asStr(c.url ?? d.complaint_url),
     submitted: typeof c.submitted === "boolean" ? c.submitted : null,
     // The call center's ruling (contract 2026-10-26 §1): valid_rework sends
@@ -828,11 +842,12 @@ export async function fileOrderComplaint(order: Pick<MarketOrder, "id" | "compla
 
 // The order's LexGo guarantee (enterprise contract §10): the client asks for
 // a replacement seller or a full refund; the call center decides. Offered
-// while the backend gives `warranty_url`.
-export type WarrantyResolution = "replacement" | "full_refund";
-// `kinds`: the guarantee cases this order may claim, when the backend names
-// them (eligible_kinds); empty = every case of MarketplaceWarrantyCreate.kind.
-export type OrderWarranty = { url: string; status: string; resolution: string; reason: string; decision: string; kinds: string[] };
+// while the backend gives `warranty_url`. The cases are the five of
+// MarketplaceWarrantyCreate.kind; the order names no eligible subset
+// (backend answers 2026-10-31 §1.5).
+export const WARRANTY_RESOLUTION_VALUES = ["replacement", "full_refund", "rejected"] as const;
+export type WarrantyResolution = (typeof WARRANTY_RESOLUTION_VALUES)[number];
+export type OrderWarranty = { url: string; status: string; resolution: string; reason: string; decision: string };
 
 export function warrantyOf(d: Dict, details: Dict = asDict(d.details)): OrderWarranty {
   const w = asDict(d.warranty ?? d.warranty_claim ?? details.warranty_claim);
@@ -842,28 +857,28 @@ export function warrantyOf(d: Dict, details: Dict = asDict(d.details)): OrderWar
     resolution: asStr(w.resolution ?? w.requested_resolution).toLowerCase(),
     reason: asStr(w.reason),
     decision: asStr(w.decision ?? w.resolution_note ?? w.call_center_note),
-    kinds: asArr(d.warranty_eligible_kinds ?? asDict(d.warranty_capabilities).eligible_kinds ?? details.warranty_eligible_kinds)
-      .map((x) => asStr(x))
-      .filter(Boolean),
   };
 }
 
-// What the guarantee offers right now (GET /marketplace/runtime-capabilities).
+// What the guarantee offers right now (GET /marketplace/runtime-capabilities):
+// its `available_resolutions` when it lists them, else its on/off flags —
+// only the backend's values, never a remedy it did not name (no rework).
+export function warrantyResolutionsOf(v: unknown): WarrantyResolution[] {
+  const w = asDict(asDict(v).warranty);
+  const known = (x: unknown): x is WarrantyResolution => (WARRANTY_RESOLUTION_VALUES as readonly string[]).includes(asStr(x));
+  if (Array.isArray(w.available_resolutions)) return [...new Set(w.available_resolutions.map((x) => asStr(x).toLowerCase()).filter(known))];
+  const out: WarrantyResolution[] = [];
+  if (w.replacement === true) out.push("replacement");
+  if (w.full_refund === true) out.push("full_refund");
+  return out;
+}
+
 let capsCache: Promise<WarrantyResolution[]> | null = null;
 export function warrantyResolutions(): Promise<WarrantyResolution[]> {
-  capsCache ??= http("/marketplace/runtime-capabilities").then(
-    (v) => {
-      const w = asDict(asDict(v).warranty);
-      const out: WarrantyResolution[] = [];
-      if (w.replacement === true) out.push("replacement");
-      if (w.full_refund === true) out.push("full_refund");
-      return out;
-    },
-    () => {
-      capsCache = null;
-      return [];
-    },
-  );
+  capsCache ??= http("/marketplace/runtime-capabilities").then(warrantyResolutionsOf, () => {
+    capsCache = null;
+    return [];
+  });
   return capsCache;
 }
 
@@ -879,7 +894,7 @@ export async function requestOrderWarranty(order: Pick<MarketOrder, "id" | "warr
   // picks a replacement or a full refund (backend answers 24 Oct 2026 §3).
   const d = asDict(await http(path, { method: "POST", body: JSON.stringify({ kind: input.reasonCode, reason: input.reason.trim(), allow_material_transfer: input.allowMaterialTransfer === true }) }));
   const w = asDict(d.warranty ?? d.claim ?? d);
-  return { url: order.warranty.url, status: asStr(w.status).toLowerCase() || "pending", resolution: asStr(w.resolution).toLowerCase(), reason: asStr(w.reason) || input.reason, decision: "", kinds: order.warranty.kinds };
+  return { url: order.warranty.url, status: asStr(w.status).toLowerCase() || "pending", resolution: asStr(w.resolution).toLowerCase(), reason: asStr(w.reason) || input.reason, decision: "" };
 }
 
 export type ReassignPerson = { id: string; name: string };
@@ -1133,6 +1148,8 @@ export function normMarketOrder(v: unknown): MarketOrder {
     preferredTime: asStr(details.preferred_time ?? d.preferred_time).trim(),
     contactSpeed: asStr(d.contact_speed || details.contact_speed).trim().toLowerCase(),
     contactSpeedLabel: asStr(d.contact_speed_label ?? details.contact_speed_label).trim(),
+    contactDeadlineAt: asStr(d.contact_deadline_at ?? details.contact_deadline_at).trim(),
+    contactStartedAt: asStr(d.contact_started_at ?? details.contact_started_at).trim(),
     clientName: asStr(client.name ?? d.client_name).trim(),
     clientPhone: gatedPhone(phoneGate, client.phone, d.client_phone, details.client_phone),
     clientPhoneVisible: phoneGate.visible,
@@ -1418,6 +1435,10 @@ function specialKind(name: string): Pick<MarketSignal, "kind" | "sub"> | null {
   if (/complaint_resolved$/.test(name)) return { kind: "complaint", sub: "resolved" };
   if (/complaint_created$/.test(name)) return { kind: "complaint", sub: "created" };
   if (/assignment_deadline_soon$/.test(name)) return { kind: "assigned", sub: "soon" };
+  // The contact SLA (§1.3): the seller first contacted the client, or the
+  // chosen contact time passed without it. Both re-read the order.
+  const contact = /contact_(started|sla_breached)$/.exec(name);
+  if (contact) return { kind: "other", sub: contact[0] };
   // Contract 2026-10-26 §8/§13: the call center handed the order to another
   // seller (started), and that seller took it (accepted).
   if (/reassignment_(started|accepted|declined|expired)$/.test(name)) return { kind: "reassigned", sub: /reassignment_(\w+)$/.exec(name)?.[1] ?? "" };

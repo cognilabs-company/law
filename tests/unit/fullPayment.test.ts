@@ -64,14 +64,23 @@ describe("full payment first", () => {
 });
 
 describe("client-safe price reasons (TSK-787056)", () => {
-  // Gaps closed 2026-10-28 §11: the backend's text (in the client's
-  // language) with text_i18n as the fallback; the code is never shown.
-  it("reads text, translations, amount and percent; empty when none", async () => {
+  // Backend answers 2026-10-31 §1.6, §3.9: only code, text and text_i18n are
+  // read — never an amount or percent; the code is never shown.
+  it("reads text and translations only; a reason with no words is dropped", async () => {
     const { clientReasonsOf } = await import("@/lib/services/marketplace");
     const [r] = clientReasonsOf([{ code: "lawyer_experience", text: "Tajriba inobatga olingan.", label: "x", text_i18n: { uz_latn: "Tajriba", ru: "Опыт", en: " " }, amount: 45000, percent: 10 }]);
-    expect(r).toEqual({ code: "lawyer_experience", text: "Tajriba inobatga olingan.", i18n: { uz_latn: "Tajriba", ru: "Опыт" }, amount: 45000, percent: 10 });
-    expect(clientReasonsOf([{ code: "region", amount: 0 }])[0].text).toBe("");
+    expect(r).toEqual({ code: "lawyer_experience", text: "Tajriba inobatga olingan.", i18n: { uz_latn: "Tajriba", ru: "Опыт" } });
+    expect(clientReasonsOf([{ code: "region", amount: 0 }])).toEqual([]);
+    expect(clientReasonsOf([{ code: "region", label: "Region" }])).toEqual([]);
     expect(clientReasonsOf(null)).toEqual([]);
     expect(clientReasonsOf([{ amount: 5 }])).toEqual([]);
+  });
+  it("picks the client's locale first, then the backend's text", async () => {
+    const { clientReasonText } = await import("@/lib/services/marketplace");
+    const r = { code: "x", text: "Matn", i18n: { uz_latn: "Lotin", ru: "Русский" } };
+    expect(clientReasonText(r, "ru")).toBe("Русский");
+    expect(clientReasonText(r, "uz")).toBe("Lotin");
+    expect(clientReasonText(r, "en")).toBe("Matn");
+    expect(clientReasonText({ code: "x", text: "", i18n: {} }, "en")).toBe("");
   });
 });

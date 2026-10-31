@@ -210,3 +210,8 @@
 .wrt-consent b { display: block; font-size: 14px; line-height: 20px; color: var(--sx-ink, var(--ink)); }
 .wrt-consent p { margin: 2px 0 0; font-size: 13px; line-height: 18px; color: var(--sx-ink-2, var(--gray)); }
 .wrt-consent[data-off] { opacity: .75; }
+/* The remedies the backend offers for this guarantee (§1.5), as chips. */
+.wrt-outcomes { display: grid; gap: 6px; }
+.wrt-outcomes .mcr-meta { margin: 0; }
+.wrt-outcomes ul { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.wrt-outcomes li { padding: 4px 10px; border-radius: 99px; background: color-mix(in srgb, var(--sx-accent, #2563eb) 10%, transparent); color: var(--sx-accent, #2563eb); font-size: 13px; font-weight: 700; line-height: 18px; }

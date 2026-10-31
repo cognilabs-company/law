@@ -26,8 +26,10 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/portal/DataState"
 
 // The LexGo guarantee queue (enterprise contract §10): a client's claim
 // that the seller did not answer, broke the deadline, dropped or did not
-// deliver the work. The operator picks a replacement seller (a new one,
-// never the current), a full refund, or rejects it, with a note.
+// deliver the work. The operator takes one of the decisions the claim's
+// available_resolutions lists (replacement with a new seller — never the
+// current — full refund, or rejection), with a note. Nothing else is
+// offered: no rework, which the backend does not have (§1.5).
 
 const NOTE_MIN = 5;
 
@@ -200,12 +202,15 @@ function Row({ claim, onResolve }: { claim: WarrantyClaim; onResolve: () => void
               </div>
             ) : null}
           </dl>
-          {!settled ? (
+          {!settled && claim.resolutions.length ? (
             <div className="esc__acts sx">
               <SxButton size="sm" variant="primary" onClick={onResolve} aiId="call_center.warranty.open">
                 {t("resolve")}
               </SxButton>
             </div>
+          ) : !settled ? (
+            // The backend offers no decision for this claim right now.
+            <p className="esc__muted">{t("noResolutions")}</p>
           ) : null}
         </div>
       ) : null}

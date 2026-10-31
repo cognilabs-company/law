@@ -62,11 +62,13 @@ test("a second, different decision refreshes instead of failing", async ({ page 
   await expect(page.getByText("По этой жалобе уже принято другое решение; список обновлён.")).toBeVisible();
 });
 
+// Rejection is offered because the claim lists it (backend answers
+// 2026-10-31 §1.5: only available_resolutions are shown).
 test("a warranty claim is rejected with a note", async ({ page }) => {
   let ruled: unknown = null;
   const routes = await signIn(page, CALL_CENTER, {
     "/call-center/marketplace/warranty": {
-      items: [{ id: "w-1", status: "new", kind: "no_response", reason: "Javob yo'q", order: { id: "o-2", work_id: "ADV-2", price: 300000, service_id: "svc-1" }, client: COMPLAINT.client, seller: COMPLAINT.seller, available_resolutions: ["replacement", "full_refund"], created_at: "2026-10-24T08:00:00Z" }],
+      items: [{ id: "w-1", status: "new", kind: "no_response", reason: "Javob yo'q", order: { id: "o-2", work_id: "ADV-2", price: 300000, service_id: "svc-1" }, client: COMPLAINT.client, seller: COMPLAINT.seller, available_resolutions: ["replacement", "full_refund", "rejected"], created_at: "2026-10-24T08:00:00Z" }],
       total: 1,
     },
     "POST /call-center/marketplace/warranty/w-1/resolve": (b: unknown) => ((ruled = b), { status: "rejected" }),

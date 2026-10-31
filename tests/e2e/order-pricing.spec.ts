@@ -112,10 +112,11 @@ test.describe("order price breakdown", () => {
           min_allowed: 70000,
           max_allowed: 150000,
           modifiers: [{ code: "experience", key: "verified_10y", multiplier: 1.2, amount: 20000 }],
-          // Gaps closed 2026-10-28 §11: the backend's sentence in the client's
-          // language; an older item without one is worded here from its code.
+          // Backend answers 2026-10-31 §1.6, §3.9: only text / text_i18n, in
+          // the client's locale; an item with neither is not worded here.
           client_price_reasons: [
-            { code: "lawyer_experience", text: "Подтверждённый опыт специалиста учтён в стоимости.", label: "x", text_i18n: { uz_latn: "Tajriba", ru: "Опыт" }, amount: 15000, percent: 15 },
+            { code: "lawyer_experience", text: "Mutaxassisning tasdiqlangan tajribasi narxda hisobga olingan.", label: "x", text_i18n: { uz_latn: "Tajriba", ru: "Подтверждённый опыт специалиста учтён в стоимости." }, amount: 15000, percent: 15 },
+            { code: "superadvokat_premium", text: "Специалист имеет статус Суперадвоката.", amount: 9000, percent: 9 },
             { code: "some_new_code", amount: 5000, percent: 5 },
           ],
         },
@@ -132,9 +133,15 @@ test.describe("order price breakdown", () => {
     // Only the sentences — not what each reason adds.
     await expect(why).not.toContainText("15 000");
     await expect(why).not.toContainText("15%");
-    // An unknown code is still words, never the code.
-    await expect(why).toContainText("Уровень специалиста и условия работы");
+    await expect(why).not.toContainText("Mutaxassisning tasdiqlangan");
+    // A reason with only `text` keeps it; one with neither is left out —
+    // never a sentence made up from its code, never a Superadvokat amount.
+    await expect(why).toContainText("Специалист имеет статус Суперадвоката.");
+    await expect(why.locator("li")).toHaveCount(2);
+    await expect(why).not.toContainText("9 000");
+    await expect(why).not.toContainText("Уровень специалиста и условия работы");
     await expect(p).not.toContainText("lawyer_experience");
+    await expect(p).not.toContainText("superadvokat_premium");
     await expect(p).not.toContainText("some_new_code");
     // Nothing internal: no multiplier, no range, no factor code.
     await expect(p).not.toContainText("×1.2");

@@ -171,8 +171,9 @@ export function warrantyClaimOf(v: unknown): WarrantyClaim | null {
     client: partyOf(d.client ?? root.client),
     seller: partyOf(d.seller ?? root.seller),
     settlement: settlementOf(d.settlement ?? root.settlement),
-    // Rejection is always open to the operator; the claim lists the others.
-    resolutions: [...new Set<WarrantyDecision>([...(avail.length ? avail : (["replacement", "full_refund"] as WarrantyDecision[])), "rejected"])],
+    // Only the decisions the backend lists for this claim (§1.5): nothing
+    // is added here — no rework, no rejection it did not offer.
+    resolutions: [...new Set(avail)],
     createdAt: asStr(d.created_at),
     filesConsent: consentOf(d),
   };
