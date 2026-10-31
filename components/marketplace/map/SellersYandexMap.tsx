@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useEffectEvent, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { IconBriefcase, IconBuilding, IconClose, IconMapPin, IconMinus, IconPlus, IconRefresh, IconStarRate, IconTarget, IconUsers } from "@/components/icons";
+import { IconBuilding, IconClose, IconMapPin, IconMinus, IconPlus, IconRefresh, IconStarRate, IconTarget, IconUsers } from "@/components/icons";
 import { Navigation } from "lucide-react";
 import { aiId } from "@/lib/ai/ids";
 import { regionLabel } from "@/lib/labels";
@@ -15,14 +15,11 @@ import type { MarketSeller } from "@/lib/services/marketplace";
 import { precisionMeters, type Spot } from "@/lib/services/marketDiscovery";
 import { mapErrorKey, type MapErrorKey } from "@/lib/services/mapLocation";
 import {
-  bboxOfBounds,
   bboxParam,
   clampZoom,
   filtersKey,
   getSellersMap,
   isEmptyMap,
-  layoutOf,
-  lngLatOf,
   loadMapSellerInfo,
   mapSellerInfoServerSnapshot,
   mapSellerInfoSnapshot,
@@ -30,7 +27,6 @@ import {
   sellersMapFailureOf,
   SPOT_ZOOM,
   subscribeMapSellerInfo,
-  yandexLang,
   zoomForCluster,
   type LocationSource,
   type MapBbox,
@@ -42,15 +38,17 @@ import {
 } from "@/lib/services/sellersMap";
 import type { RouteTarget } from "./NavigateDialog";
 import type { MapLive } from "./useMapRealtime";
+import { ServiceActionLink, useActionPrice } from "./SellerRow";
 import { Monogram, sellerTypeLabel } from "../bits";
-import { loadYmaps3, useHtmlTheme, useReducedMotion, type YEntity, type YMapInstance, type Ymaps3 } from "./ymaps";
+import { countText, openYandexMap, useHtmlTheme, useReducedMotion, type Mark, type MapHandle } from "./ymaps";
 import "./sellersMap.css";
 
 export type Viewport = { bbox: MapBbox; zoom: number };
 type ResState = { key: string; result: SellersMapResult | null; fail: MapErrorKey | null };
-type Live = { y: Ymaps3; map: YMapInstance; scheme: YEntity };
 
 const LIST_MAX = 12;
+// Pins closer than this on screen are grouped by the Clusterer.
+const GROUP_PX = 48;
 
 export function MapPlaceholder({ label }: { label: string }) {
   return (
@@ -118,12 +116,13 @@ export default function SellersYandexMap({
   const uid = useId();
   const theme = useHtmlTheme();
   const still = useReducedMotion();
+  const actionPrice = useActionPrice();
 
   const boxRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const liveRef = useRef<Live | null>(null);
-  const pinsRef = useRef(new Map<string, HTMLElement>());
+  const liveRef = useRef<MapHandle | null>(null);
+  const pinsRef = useRef(new Map<string, Mark>());
 
   const [ready, setReady] = useState(false);
   const [viewport, setViewport] = useState<Viewport | null>(null);
@@ -137,16 +136,17 @@ export default function SellersYandexMap({
   const srcText = (src: LocationSource) => (src ? tx(`src.${src}`) : "");
 
   const fail = useEffectEvent(() => onFail());
-  const mapClick = useEffectEvent((ev: unknown) => {
-    if (!picking) return;
-    const ll = lngLatOf((ev as { coordinates?: unknown } | null)?.coordinates);
-    if (ll) onPick({ longitude: ll[0], latitude: ll[1] });
+  const mapClick = useEffectEvent((ll: [number, number]) => {
+    if (picking) onPick({ longitude: ll[0], latitude: ll[1] });
   });
   const seen = useEffectEvent((v: Viewport) => onViewport?.(v));
-  const startup = useEffectEvent(() => ({ theme, center: config.center, zoom: config.zoom, debounce: config.debounceMs, lang: yandexLang(locale) }));
+  const startup = useEffectEvent(() => ({ theme, center: config.center, zoom: config.zoom, debounce: config.debounceMs }));
   const motion = useEffectEvent((ms: number) => (still ? 0 : ms));
   const pinTitle = useEffectEvent((s: MapSeller) => (s.source ? tx(`pin.${s.source}`, { name: nameOf(s) }) : t("approx", { name: nameOf(s) })));
+  // No avatar_url on map markers yet (§7.4, a backend gap): the pin is the
+  // generated initials avatar, like the cards.
   const pinText = useEffectEvent((s: MapSeller) => initials(nameOf(s)) || "LG");
+  const pinCls = useEffectEvent((s: MapSeller) => [s.source === "office" ? "ymk-pin--office" : "", s.sellerUserId && s.sellerUserId === selected ? "is-on" : ""].filter(Boolean).join(" "));
   const groupTitle = useEffectEvent((n: number) => t("cluster", { n }));
   const meTitle = useEffectEvent(() => tn("map.you"));
   const pickTitle = useEffectEvent(() => tx("manual.pinned"));
@@ -158,38 +158,41 @@ export default function SellersYandexMap({
     let dead = false;
     let timer = 0;
     let tries = 0;
-    let made: YMapInstance | null = null;
+    let made: MapHandle | null = null;
     const read = () => {
       const live = liveRef.current;
       if (!live) return;
-      const bbox = bboxOfBounds(live.map.bounds);
+      const bbox = live.bbox();
       if (!bbox) {
         if (tries++ < 20) timer = window.setTimeout(read, 150);
         return;
       }
       tries = 0;
-      const zoom = clampZoom(Number(live.map.zoom ?? init.zoom));
+      const zoom = live.zoom();
       setViewport((prev) => (prev && prev.zoom === zoom && bboxParam(prev.bbox) === bboxParam(bbox) ? prev : { bbox, zoom }));
     };
     const schedule = () => {
       window.clearTimeout(timer);
       timer = window.setTimeout(read, init.debounce);
     };
-    loadYmaps3(config.apiKey, init.lang).then(
-      (y) => {
-        if (dead) return;
+    openYandexMap(config, box, { center: init.center, zoom: init.zoom, theme: init.theme }).then(
+      (h) => {
+        if (dead) {
+          h.destroy();
+          return;
+        }
+        made = h;
         try {
-          const map = new y.YMap(box, { location: { center: init.center, zoom: init.zoom }, theme: init.theme, showScaleInCopyrights: true });
-          made = map;
-          const scheme = new y.YMapDefaultSchemeLayer({ theme: init.theme });
-          map.addChild(scheme);
-          map.addChild(new y.YMapDefaultFeaturesLayer({}));
-          map.addChild(new y.YMapListener({ layer: "any", onUpdate: schedule, onClick: (_o: unknown, ev: unknown) => mapClick(ev) }));
-          liveRef.current = { y, map, scheme };
+          h.setTheme(init.theme);
+          h.onView(schedule);
+          h.onClick((ll) => mapClick(ll));
         } catch {
+          h.destroy();
+          made = null;
           fail();
           return;
         }
+        liveRef.current = h;
         setReady(true);
         timer = window.setTimeout(read, 60);
       },
@@ -201,26 +204,21 @@ export default function SellersYandexMap({
       dead = true;
       window.clearTimeout(timer);
       liveRef.current = null;
-      try {
-        made?.destroy();
-      } catch {}
+      made?.destroy();
     };
-  }, [config.apiKey]);
+    // The map is built once per loader; the rest follows through effects.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.loaderUrl, config.engine]);
 
   useEffect(() => {
     const live = liveRef.current;
-    if (!ready || !live) return;
-    try {
-      live.map.update({ theme });
-      live.scheme.update?.({ theme });
-    } catch {}
+    if (ready && live) live.setTheme(theme);
   }, [ready, theme]);
 
   useEffect(() => {
     const live = liveRef.current;
     if (!ready || !live || !center) return;
-    const zoom = Math.max(clampZoom(Number(live.map.zoom ?? 0)), SPOT_ZOOM);
-    live.map.update({ location: { center: [center.longitude, center.latitude], zoom, duration: motion(500) } });
+    live.moveTo([center.longitude, center.latitude], Math.max(live.zoom(), SPOT_ZOOM), motion(500));
   }, [ready, center]);
 
   const fKey = filtersKey(filters);
@@ -254,131 +252,64 @@ export default function SellersYandexMap({
   const loading = !!viewport && res?.key !== key;
   const failed = !loading && !!res?.fail;
   const empty = !loading && !!shown && isEmptyMap(shown);
-  const zoomNow = viewport?.zoom ?? config.zoom;
-  const layout = useMemo(() => (shown ? layoutOf(shown, zoomNow) : null), [shown, zoomNow]);
 
   const pick = useEffectEvent((id: string) => setSelected(id));
   const openGroup = useEffectEvent((c: MapCluster) => {
     const live = liveRef.current;
-    if (!live) return;
-    live.map.update({ location: { center: c.coords, zoom: zoomForCluster(c, Number(live.map.zoom ?? zoomNow)), duration: motion(350) } });
+    if (live) live.moveTo(c.coords, zoomForCluster(c, live.zoom()), motion(350));
   });
 
+  // Below marker zoom the backend sends its own clusters; the pins it sends
+  // go to the Clusterer, which groups the ones that overlap on screen.
   useEffect(() => {
     const live = liveRef.current;
-    if (!ready || !live || !layout) return;
-    const made: YEntity[] = [];
-    const pins = new Map<string, HTMLElement>();
-    for (const s of layout.singles) {
-      const el = document.createElement("span");
-      el.className = `ymk-pin${s.sellerUserId ? "" : " ymk-pin--mute"}${s.source === "office" ? " ymk-pin--office" : ""}`;
-      if (s.source) el.dataset.src = s.source;
-      el.title = pinTitle(s);
-      const inner = document.createElement("span");
-      inner.className = "ymk-pin__in";
-      inner.textContent = pinText(s);
-      el.appendChild(inner);
-      if (s.sellerUserId) {
-        el.dataset.seller = s.sellerUserId;
-        el.tabIndex = 0;
-        el.setAttribute("role", "button");
-        el.setAttribute("aria-label", pinTitle(s));
-        el.addEventListener("click", (ev) => {
-          ev.stopPropagation();
-          pick(s.sellerUserId);
-        });
-        el.addEventListener("keydown", (ev) => {
-          if (ev.key !== "Enter" && ev.key !== " ") return;
-          ev.preventDefault();
-          ev.stopPropagation();
-          pick(s.sellerUserId);
-        });
-        pins.set(s.sellerUserId, el);
-      }
-      const m = new live.y.YMapMarker({ coordinates: s.coords, zIndex: 20 }, el);
-      live.map.addChild(m);
-      made.push(m);
-    }
-    for (const c of layout.groups) {
-      const el = document.createElement("span");
-      el.className = "ymk-group";
-      el.dataset.size = c.count < 10 ? "s" : c.count < 100 ? "m" : "l";
-      el.title = groupTitle(c.count);
-      el.tabIndex = 0;
-      el.setAttribute("role", "button");
-      el.setAttribute("aria-label", groupTitle(c.count));
-      el.dataset.cluster = c.id;
-      el.textContent = c.count > 999 ? "999+" : String(c.count);
-      el.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        openGroup(c);
-      });
-      el.addEventListener("keydown", (ev) => {
-        if (ev.key !== "Enter" && ev.key !== " ") return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        openGroup(c);
-      });
-      const m = new live.y.YMapMarker({ coordinates: c.coords, zIndex: 30 }, el);
-      live.map.addChild(m);
-      made.push(m);
-    }
+    if (!ready || !live || !shown) return;
+    const groups: Mark[] = shown.clusters.map((c) =>
+      live.mark({ kind: "group", coords: c.coords, title: groupTitle(c.count), text: countText(c.count), size: c.count < 10 ? "s" : c.count < 100 ? "m" : "l", cluster: c.id, z: 30, onActivate: () => openGroup(c) }),
+    );
+    const specs = shown.sellers.map((s) =>
+      s.sellerUserId
+        ? { kind: "pin" as const, coords: s.coords, title: pinTitle(s), text: pinText(s), cls: pinCls(s), seller: s.sellerUserId, src: s.source, z: 20, onActivate: () => pick(s.sellerUserId) }
+        : { kind: "pin-mute" as const, coords: s.coords, title: pinTitle(s), text: pinText(s), cls: pinCls(s), src: s.source, z: 20 },
+    );
+    const pinned = live.group(specs, { gridPx: GROUP_PX, title: groupTitle, moveMs: () => motion(350) });
+    const pins = new Map<string, Mark>();
+    shown.sellers.forEach((s, i) => {
+      if (s.sellerUserId) pins.set(s.sellerUserId, pinned.marks[i]);
+    });
     pinsRef.current = pins;
     return () => {
       pinsRef.current = new Map();
-      for (const m of made) {
-        try {
-          live.map.removeChild(m);
-        } catch {}
-      }
+      pinned.remove();
+      for (const g of groups) g.remove();
     };
-  }, [ready, layout]);
+  }, [ready, shown]);
 
+  // Names arrive later for pins the map endpoint sent without one.
   useEffect(() => {
-    if (!ready || !layout) return;
+    if (!ready || !shown) return;
     void info;
-    for (const s of layout.singles) {
-      const el = s.sellerUserId ? pinsRef.current.get(s.sellerUserId) : undefined;
-      if (!el) continue;
-      el.title = pinTitle(s);
-      el.setAttribute("aria-label", pinTitle(s));
-      const inner = el.firstElementChild;
-      if (inner) inner.textContent = pinText(s);
-    }
-  }, [ready, layout, info]);
+    for (const s of shown.sellers) pinsRef.current.get(s.sellerUserId)?.set({ title: pinTitle(s), text: pinText(s) });
+  }, [ready, shown, info]);
 
   useEffect(() => {
-    for (const [id, el] of pinsRef.current) el.classList.toggle("is-on", id === selected);
-  }, [selected, layout]);
+    if (!ready || !shown) return;
+    void selected;
+    for (const s of shown.sellers) pinsRef.current.get(s.sellerUserId)?.set({ cls: pinCls(s) });
+  }, [ready, shown, selected]);
 
   useEffect(() => {
     const live = liveRef.current;
     if (!ready || !live || !spot) return;
-    const el = document.createElement("span");
-    el.className = "ymk-me";
-    el.title = meTitle();
-    const m = new live.y.YMapMarker({ coordinates: [spot.longitude, spot.latitude], zIndex: 10 }, el);
-    live.map.addChild(m);
-    return () => {
-      try {
-        live.map.removeChild(m);
-      } catch {}
-    };
+    const m = live.mark({ kind: "me", coords: [spot.longitude, spot.latitude], title: meTitle(), z: 10 });
+    return () => m.remove();
   }, [ready, spot]);
 
   useEffect(() => {
     const live = liveRef.current;
     if (!ready || !live || !pickPoint) return;
-    const el = document.createElement("span");
-    el.className = "ymk-pick";
-    el.title = pickTitle();
-    const m = new live.y.YMapMarker({ coordinates: [pickPoint.longitude, pickPoint.latitude], zIndex: 40 }, el);
-    live.map.addChild(m);
-    return () => {
-      try {
-        live.map.removeChild(m);
-      } catch {}
-    };
+    const m = live.mark({ kind: "pick", coords: [pickPoint.longitude, pickPoint.latitude], title: pickTitle(), z: 40 });
+    return () => m.remove();
   }, [ready, pickPoint]);
 
   const sel = selected && shown ? (shown.sellers.find((s) => s.sellerUserId === selected) ?? null) : null;
@@ -389,10 +320,7 @@ export default function SellersYandexMap({
 
   const zoomBy = (d: number) => {
     const live = liveRef.current;
-    if (!live) return;
-    const zoom = clampZoom(Number(live.map.zoom ?? zoomNow) + d);
-    const center = lngLatOf(live.map.center) ?? config.center;
-    live.map.update({ location: { center, zoom, duration: still ? 0 : 250 } });
+    if (live) live.setZoom(clampZoom(live.zoom() + d), still ? 0 : 250);
   };
 
   const closeCard = () => {
@@ -423,7 +351,6 @@ export default function SellersYandexMap({
     const name = v.name || tn("map.unnamed");
     const type = v.sellerType;
     const region = v.region;
-    const price = v.priceFrom;
     const pending = !v.name && info.get(id) === undefined;
     const href = `${base}/${encodeURIComponent(id)}`;
     return (
@@ -469,17 +396,19 @@ export default function SellersYandexMap({
               {srcText(s.source)}
             </span>
           ) : null}
-          {price ? <b className="ymk-card__price">{tm("card.priceFrom", { price: fmtUzs(price) })}</b> : null}
+          <span className="ymk-card__approx" data-ai-id="marketplace.map.card.approx">
+            {s.source === "profile_region" ? tx("card.approxRegion") : tx("card.approx", { m: precM })}
+          </span>
+          {s.service?.price ? (
+            <b className="ymk-card__price">{actionPrice(s.service)}</b>
+          ) : v.priceFrom ? (
+            <b className="ymk-card__price">{tm("card.priceFrom", { price: fmtUzs(v.priceFrom) })}</b>
+          ) : null}
           <span className="ymk-card__acts">
             <Link href={href} className="btn btn--grad btn--sm ymk-card__go" data-ai-id="marketplace.map.card.profile">
               {t("profile")}
             </Link>
-            {s.service ? (
-              <Link href={`${href}#seller-services`} className="btn btn--line btn--sm ymk-card__go" data-ai-id="marketplace.map.card.service">
-                <IconBriefcase aria-hidden="true" />
-                {s.service.title ? tx("card.service", { title: s.service.title }) : tx("card.services")}
-              </Link>
-            ) : null}
+            {s.service ? <ServiceActionLink action={s.service} href={href} className="btn btn--line btn--sm ymk-card__go" ai="marketplace.map.card.service" /> : null}
             {s.nav.available && onNavigate ? (
               <button
                 type="button"

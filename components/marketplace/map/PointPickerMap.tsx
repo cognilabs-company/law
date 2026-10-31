@@ -1,21 +1,19 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { useLocale } from "next-intl";
 import { IconMinus, IconPlus } from "@/components/icons";
-import { clampZoom, lngLatOf, yandexLang, type MapConfig } from "@/lib/services/sellersMap";
+import type { LngLat, MapConfig } from "@/lib/services/sellersMap";
 import type { Point } from "@/lib/services/mapLocation";
-import { loadYmaps3, useHtmlTheme, useReducedMotion, type YEntity, type YMapInstance, type Ymaps3 } from "./ymaps";
+import { openYandexMap, useHtmlTheme, useReducedMotion, type MapHandle } from "./ymaps";
 import "./sellersMap.css";
-
-type Live = { y: Ymaps3; map: YMapInstance; scheme: YEntity };
 
 const PICK_ZOOM = 16;
 
 // A Yandex map for choosing one point (a seller's office): a tap or click
 // sets the point, the pin shows it. The address search beside it is the
-// keyboard way; this map is the pointer way. A script that fails to load
-// calls onFail and the caller keeps only the search.
+// keyboard way; this map is the pointer way, and it keeps working when the
+// address search is down. A script that fails to load calls onFail and the
+// caller keeps only the search.
 export default function PointPickerMap({
   config,
   point,
@@ -37,27 +35,23 @@ export default function PointPickerMap({
   zoomInLabel: string;
   zoomOutLabel: string;
 }) {
-  const locale = useLocale();
   const theme = useHtmlTheme();
   const still = useReducedMotion();
   const boxRef = useRef<HTMLDivElement>(null);
-  const liveRef = useRef<Live | null>(null);
+  const liveRef = useRef<MapHandle | null>(null);
   const [ready, setReady] = useState(false);
   // The point the map already shows (a tap is where the map already is).
   const shownRef = useRef("");
 
   const fail = useEffectEvent(() => onFail());
-  const click = useEffectEvent((ev: unknown) => {
-    const ll = lngLatOf((ev as { coordinates?: unknown } | null)?.coordinates);
-    if (!ll) return;
+  const click = useEffectEvent((ll: LngLat) => {
     shownRef.current = `${ll[0]},${ll[1]}`;
     onPick({ longitude: ll[0], latitude: ll[1] });
   });
   const startup = useEffectEvent(() => ({
     theme,
-    center: point ? ([point.longitude, point.latitude] as [number, number]) : config.center,
+    center: point ? ([point.longitude, point.latitude] as LngLat) : config.center,
     zoom: point ? PICK_ZOOM : config.zoom,
-    lang: yandexLang(locale),
   }));
 
   useEffect(() => {
@@ -65,22 +59,24 @@ export default function PointPickerMap({
     if (!box) return;
     const init = startup();
     let dead = false;
-    let made: YMapInstance | null = null;
-    loadYmaps3(config.apiKey, init.lang).then(
-      (y) => {
-        if (dead) return;
+    let made: MapHandle | null = null;
+    openYandexMap(config, box, init).then(
+      (h) => {
+        if (dead) {
+          h.destroy();
+          return;
+        }
+        made = h;
         try {
-          const map = new y.YMap(box, { location: { center: init.center, zoom: init.zoom }, theme: init.theme });
-          made = map;
-          const scheme = new y.YMapDefaultSchemeLayer({ theme: init.theme });
-          map.addChild(scheme);
-          map.addChild(new y.YMapDefaultFeaturesLayer({}));
-          map.addChild(new y.YMapListener({ layer: "any", onClick: (_o: unknown, ev: unknown) => click(ev) }));
-          liveRef.current = { y, map, scheme };
+          h.setTheme(init.theme);
+          h.onClick((ll) => click(ll));
         } catch {
+          h.destroy();
+          made = null;
           fail();
           return;
         }
+        liveRef.current = h;
         setReady(true);
       },
       () => {
@@ -90,35 +86,23 @@ export default function PointPickerMap({
     return () => {
       dead = true;
       liveRef.current = null;
-      try {
-        made?.destroy();
-      } catch {}
+      made?.destroy();
     };
-  }, [config.apiKey]);
+    // The map is built once per loader; the rest follows through effects.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.loaderUrl, config.engine]);
 
   useEffect(() => {
     const live = liveRef.current;
-    if (!ready || !live) return;
-    try {
-      live.map.update({ theme });
-      live.scheme.update?.({ theme });
-    } catch {}
+    if (ready && live) live.setTheme(theme);
   }, [ready, theme]);
 
   const pointKey = point ? `${point.longitude},${point.latitude}` : "";
   useEffect(() => {
     const live = liveRef.current;
     if (!ready || !live || !point) return;
-    const el = document.createElement("span");
-    el.className = "ymk-pick ymk-pick--office";
-    el.title = pinLabel;
-    const m = new live.y.YMapMarker({ coordinates: [point.longitude, point.latitude], zIndex: 40 }, el);
-    live.map.addChild(m);
-    return () => {
-      try {
-        live.map.removeChild(m);
-      } catch {}
-    };
+    const m = live.mark({ kind: "pick", coords: [point.longitude, point.latitude], title: pinLabel, cls: "ymk-pick--office", z: 40 });
+    return () => m.remove();
     // pointKey stands for the point.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, pointKey, pinLabel]);
@@ -128,16 +112,13 @@ export default function PointPickerMap({
     const live = liveRef.current;
     if (!ready || !live || !point || pointKey === shownRef.current) return;
     shownRef.current = pointKey;
-    const z = Math.max(clampZoom(Number(live.map.zoom ?? 0)), 14);
-    live.map.update({ location: { center: [point.longitude, point.latitude], zoom: z, duration: still ? 0 : 400 } });
+    live.moveTo([point.longitude, point.latitude], Math.max(live.zoom(), 14), still ? 0 : 400);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, pointKey]);
 
   const zoomBy = (d: number) => {
     const live = liveRef.current;
-    if (!live) return;
-    const center = lngLatOf(live.map.center) ?? config.center;
-    live.map.update({ location: { center, zoom: clampZoom(Number(live.map.zoom ?? config.zoom) + d), duration: still ? 0 : 250 } });
+    if (live) live.setZoom(live.zoom() + d, still ? 0 : 250);
   };
 
   return (

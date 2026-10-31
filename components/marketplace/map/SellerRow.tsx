@@ -1,7 +1,8 @@
 "use client";
 
+import { useCallback } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Navigation } from "lucide-react";
+import { Navigation, ShoppingBag } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { IconBriefcase, IconBuilding, IconMapPin, IconStarRate } from "@/components/icons";
@@ -18,6 +19,41 @@ import { Monogram, sellerTypeLabel } from "../bits";
 import type { RouteTarget } from "./NavigateDialog";
 
 export type RowSeller = NearbySeller & { source: LocationSource; nav: SellerNav; service: ServiceAction | null };
+
+// The service's own price from service_action (§7.3), in its currency.
+export function useActionPrice(): (a: ServiceAction) => string {
+  const tx = useTranslations("marketMap");
+  const locale = useLocale();
+  return useCallback(
+    (a: ServiceAction) => {
+      if (!a.price) return "";
+      if (a.currency === "UZS") return tx("card.price", { price: fmtUzs(a.price) });
+      try {
+        return new Intl.NumberFormat(locale, { style: "currency", currency: a.currency, maximumFractionDigits: 0 }).format(a.price);
+      } catch {
+        return tx("card.price", { price: fmtUzs(a.price) });
+      }
+    },
+    [tx, locale],
+  );
+}
+
+// The service action of a map/nearby seller: service_action.id is the
+// service. When the backend allows the purchase the link opens the profile's
+// purchase dialog for exactly that service (?buy=<id>); otherwise it shows the
+// profile's services.
+export function ServiceActionLink({ action, href, className, ai }: { action: ServiceAction; href: string; className: string; ai: string }) {
+  const tx = useTranslations("marketMap");
+  const buy = action.canPurchase;
+  const to = buy ? `${href}?buy=${encodeURIComponent(action.id)}` : `${href}#seller-services`;
+  const text = buy ? (action.title ? tx("card.buy", { title: action.title }) : tx("card.buyAny")) : action.title ? tx("card.service", { title: action.title }) : tx("card.services");
+  return (
+    <Link href={to} className={className} data-ai-id={ai} data-ai-entity-type="marketplace_service" data-ai-entity-id={action.id}>
+      {buy ? <ShoppingBag aria-hidden="true" /> : <IconBriefcase aria-hidden="true" />}
+      <span>{text}</span>
+    </Link>
+  );
+}
 
 // One specialist on the map page: avatar, name, verification, rating, the
 // approximate distance (never an address) and what can be done next —
@@ -51,7 +87,8 @@ export default function SellerRow({
   const d = withDistance ? approxDistance(s.distanceKm) : null;
   const dText = d ? (d.unit === "m" ? t("distanceM", { d: num.format(d.value) }) : t("distanceKm", { d: num.format(d.value) })) : t("distanceUnknown");
   const dAria = d ? t("distanceAria", { d: dText.replace(/^≈\s*/, ""), p: precText }) : t("distanceUnknown");
-  const price = s.service?.price || (known && known.priceFrom > 0 ? known.priceFrom : 0);
+  const actionPrice = useActionPrice();
+  const price = s.service?.price ? actionPrice(s.service) : known && known.priceFrom > 0 ? tm("card.priceFrom", { price: fmtUzs(known.priceFrom) }) : "";
   const rowAi = aiId(ai, id || name);
   const region = s.region || known?.region || "";
   const type = s.sellerType || known?.sellerType || "";
@@ -108,7 +145,7 @@ export default function SellerRow({
             <span>{s.service.title}</span>
           </span>
         ) : null}
-        {price ? <b className="mknb-row__price">{tm("card.priceFrom", { price: fmtUzs(price) })}</b> : null}
+        {price ? <b className="mknb-row__price">{price}</b> : null}
       </div>
       {withDistance ? (
         <span className={`mknb-dist${d ? "" : " mknb-dist--none"}`} title={d ? precText : undefined}>
@@ -125,12 +162,7 @@ export default function SellerRow({
             {t("profile")}
           </Link>
         ) : null}
-        {href && s.service ? (
-          <Link href={`${href}#seller-services`} className="btn btn--line btn--sm mknb-row__go" data-ai-id={`${rowAi}.service`}>
-            <IconBriefcase aria-hidden="true" />
-            {tx("card.services")}
-          </Link>
-        ) : null}
+        {href && s.service ? <ServiceActionLink action={s.service} href={href} className="btn btn--line btn--sm mknb-row__go" ai={`${rowAi}.service`} /> : null}
         {canRoute ? (
           <button
             type="button"

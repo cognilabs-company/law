@@ -10,15 +10,25 @@ export type LocationSource = "live" | "office" | "profile_region" | "";
 export type NavMode = "driving" | "walking" | "transit" | "bicycle";
 export const NAV_MODES: readonly NavMode[] = ["driving", "walking", "transit", "bicycle"];
 export type SellerNav = { available: boolean; modes: NavMode[]; endpoint: string };
-export type ServiceAction = { serviceId: string; title: string; price: number };
+// §7.3 service_action: `id` is the service id (there is no service_id).
+// purchase_url is the backend's purchase endpoint; the page buys through the
+// profile's own purchase dialog (?buy=<id>), which posts to it.
+export type ServiceAction = { id: string; title: string; price: number; currency: string; canPurchase: boolean; purchaseUrl: string };
 export type MapRealtime = { subscribe: string; unsubscribe: string; subscribed: string; update: string };
 export type MapBbox = { minLon: number; minLat: number; maxLon: number; maxLat: number };
 export type CoordOrder = "longitude_latitude" | "latitude_longitude";
 
+// The Yandex Maps JS API versions the page can draw (§7.1: the backend runs 2.1).
+export type MapEngine = "2.1";
+
 export type MapConfig = {
   provider: string;
   apiVersion: string;
-  apiKey: string;
+  // The renderer for api_version; "" when this page can't draw that version.
+  engine: MapEngine | "";
+  // maps_loader_url exactly as the backend gave it (it carries the key: never
+  // log it or put it in a message).
+  loaderUrl: string;
   configured: boolean;
   usable: boolean;
   center: LngLat;
@@ -40,13 +50,11 @@ export type MapConfig = {
   markerPrecision: string;
   nearbyPrecision: string;
   realtime: MapRealtime;
-  raw: Dict;
 };
 
 export type MapSeller = NearbySeller & { coords: LngLat; source: LocationSource; nav: SellerNav; service: ServiceAction | null };
 export type MapCluster = { id: string; coords: LngLat; count: number; bbox: MapBbox | null };
 export type SellersMapResult = { sellers: MapSeller[]; clusters: MapCluster[]; count: number; total: number; truncated: boolean; precision: string; raw: Dict };
-export type MapLayout = { singles: MapSeller[]; groups: MapCluster[] };
 
 export const DEFAULT_MAP_CENTER: LngLat = [69.2401, 41.2995];
 export const DEFAULT_MAP_ZOOM = 11;
@@ -69,7 +77,6 @@ export const UZ_BBOX: MapBbox = { minLon: 55.9, minLat: 37.1, maxLon: 73.2, maxL
 // From this zoom on the map endpoint answers single markers, not clusters.
 export const MARKER_ZOOM = 13;
 const DEFAULT_DEBOUNCE_MS = 400;
-const CLUSTER_CELL_PX = 48;
 
 const dictOf = (v: unknown): Dict => (v && typeof v === "object" && !Array.isArray(v) ? (v as Dict) : {});
 const trimmed = (v: unknown): string => asStr(v).trim();
@@ -147,12 +154,36 @@ export function sellerNavOf(v: unknown): SellerNav {
 
 export function serviceActionOf(v: unknown): ServiceAction | null {
   const a = dictOf(dictOf(v).service_action);
-  const svc = dictOf(a.service);
-  const serviceId = trimmed(a.service_id ?? svc.id ?? a.id);
-  const title = trimmed(a.title ?? a.service_title ?? svc.title ?? a.label);
-  if (!serviceId && !title) return null;
-  const price = numOrNull(a.effective_price ?? a.selected_price ?? a.price ?? a.base_price ?? svc.base_price);
-  return { serviceId, title, price: price !== null && price > 0 ? price : 0 };
+  const id = trimmed(a.id);
+  if (!id) return null;
+  const price = numOrNull(a.price);
+  const currency = trimmed(a.currency).toUpperCase();
+  return {
+    id,
+    title: trimmed(a.title),
+    price: price !== null && price > 0 ? price : 0,
+    currency: /^[A-Z]{3}$/.test(currency) ? currency : "UZS",
+    canPurchase: a.can_purchase === true,
+    purchaseUrl: relPath(a.purchase_url, ""),
+  };
+}
+
+export function engineOf(apiVersion: string): MapEngine | "" {
+  return /^v?2\.1(\.\d+)*$/.test(apiVersion) ? "2.1" : "";
+}
+
+// The script comes only from the config's maps_loader_url, and only from a
+// Yandex Maps host over https; anything else means no map (the list).
+export function loaderUrlOf(v: unknown): string {
+  const s = trimmed(v);
+  if (!s) return "";
+  try {
+    const u = new URL(s);
+    if (u.protocol !== "https:" || u.username || u.password || u.port) return "";
+    return /^(?:[a-z0-9-]+\.)*api-maps\.yandex\.(?:ru|com|uz|kz|by|com\.tr)$/.test(u.hostname) ? s : "";
+  } catch {
+    return "";
+  }
 }
 
 export function normMapConfig(v: unknown): MapConfig {
@@ -163,8 +194,9 @@ export function normMapConfig(v: unknown): MapConfig {
   const zoomN = numOrNull(loc.zoom ?? d.default_zoom);
   const provider = trimmed(d.provider).toLowerCase();
   const apiVersion = trimmed(d.api_version).toLowerCase();
-  const apiKey = trimmed(d.maps_api_key ?? d.api_key ?? d.apikey);
-  const configured = d.configured !== false && apiKey !== "";
+  const engine = engineOf(apiVersion);
+  const loaderUrl = loaderUrlOf(d.maps_loader_url);
+  const configured = d.configured !== false;
   const debounce = numOrNull(d.viewport_debounce_ms);
   const policy = dictOf(d.consent_policy);
   const durations = (Array.isArray(policy.allowed_duration_hours) ? policy.allowed_duration_hours : [1, 24, 168, 720])
@@ -178,12 +210,12 @@ export function normMapConfig(v: unknown): MapConfig {
   return {
     provider,
     apiVersion,
-    apiKey,
+    engine,
+    loaderUrl,
     configured,
-    // The page always loads the Yandex Maps v3 script with this key (the
-    // contract's api_version); a key that v3 refuses only fails the script
-    // load, and the page falls back to the list.
-    usable: configured && (provider === "" || provider === "yandex") && /^[A-Za-z0-9-]{8,80}$/.test(apiKey),
+    // A map needs the backend's loader for a version this page draws (§7.1:
+    // 2.1). An unknown version or no loader is the list, never a broken map.
+    usable: configured && (provider === "" || provider === "yandex") && engine !== "" && loaderUrl !== "",
     center,
     zoom: zoomN === null ? DEFAULT_MAP_ZOOM : clampZoom(zoomN),
     sellerMapUrl: relPath(d.seller_map_url, DEFAULT_SELLER_MAP_URL),
@@ -208,7 +240,6 @@ export function normMapConfig(v: unknown): MapConfig {
       subscribed: eventName(rt.subscribed_event, DEFAULT_REALTIME.subscribed),
       update: eventName(rt.update_event, DEFAULT_REALTIME.update),
     },
-    raw: d,
   };
 }
 
@@ -232,10 +263,6 @@ export function getMapConfig(): Promise<MapConfig> {
 
 export function resetMapConfig(): void {
   configPromise = null;
-}
-
-export function yandexLang(locale: string): string {
-  return locale.trim().toLowerCase().startsWith("en") ? "en_US" : "ru_RU";
 }
 
 export function bboxOfBounds(bounds: unknown): MapBbox | null {
@@ -433,46 +460,6 @@ export function sellersMapFailureOf(e: unknown): SellersMapFailure {
 
 export function isEmptyMap(r: SellersMapResult): boolean {
   return r.sellers.length === 0 && r.clusters.length === 0 && r.total === 0;
-}
-
-export function gridCluster(sellers: readonly MapSeller[], zoom: number, cellPx = CLUSTER_CELL_PX): MapLayout {
-  if (sellers.length < 2) return { singles: [...sellers], groups: [] };
-  const z = clampZoom(zoom);
-  const lonCell = (cellPx * 360) / (256 * 2 ** z);
-  const midLat = sellers.reduce((s, x) => s + x.coords[1], 0) / sellers.length;
-  const latCell = lonCell * Math.max(0.2, Math.cos((midLat * Math.PI) / 180));
-  const cells = new Map<string, MapSeller[]>();
-  for (const s of sellers) {
-    const key = `${Math.floor(s.coords[0] / lonCell)}:${Math.floor(s.coords[1] / latCell)}`;
-    const list = cells.get(key);
-    if (list) list.push(s);
-    else cells.set(key, [s]);
-  }
-  const singles: MapSeller[] = [];
-  const groups: MapCluster[] = [];
-  for (const [key, list] of cells) {
-    if (list.length === 1) {
-      singles.push(list[0]);
-      continue;
-    }
-    const lon = list.reduce((s, x) => s + x.coords[0], 0) / list.length;
-    const lat = list.reduce((s, x) => s + x.coords[1], 0) / list.length;
-    groups.push({
-      id: `g${key}`,
-      coords: [lon, lat],
-      count: list.length,
-      bbox: bboxOfBounds([
-        [Math.min(...list.map((x) => x.coords[0])), Math.min(...list.map((x) => x.coords[1]))],
-        [Math.max(...list.map((x) => x.coords[0])), Math.max(...list.map((x) => x.coords[1]))],
-      ]),
-    });
-  }
-  return { singles, groups };
-}
-
-export function layoutOf(r: SellersMapResult, zoom: number): MapLayout {
-  if (r.clusters.length) return { singles: r.sellers, groups: r.clusters };
-  return gridCluster(r.sellers, zoom);
 }
 
 export function zoomForCluster(c: MapCluster, zoom: number): number {
