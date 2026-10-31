@@ -172,6 +172,8 @@ test("a published promotion without a backend state reads only as published; no 
       for (const w of [1440, 390]) {
         await page.setViewportSize({ width: w, height: 900 });
         await card.scrollIntoViewIfNeeded();
+        // Let the phone drawer finish sliding away after the resize.
+        await page.waitForTimeout(600);
         await page.screenshot({ path: `${dir}/promotions-published-${w}-${theme}.png` });
       }
     }
