@@ -52,8 +52,13 @@ export type MonExtra = {
   redis: { status: string; memory: number | null } | null;
   queue: { pending: number | null; failed: number | null } | null;
 };
+// Alert thresholds are the backend's defaults (2026-10-31 §5.4): there is no
+// GET/PUT to manage them, so they are read here only when the overview
+// carries them, and never set or kept in the browser.
+export type MonThresholds = { cpu: number | null; memory: number | null; disk: number | null; errors: number | null };
 export type MonOverview = {
   extra: MonExtra;
+  thresholds: MonThresholds | null;
   from: string;
   to: string;
   system: MonSystem;
@@ -68,6 +73,23 @@ export type MonHistoryItem = { id: string; type: "snapshot" | "incident" | "othe
 export type MonHistory = { items: MonHistoryItem[]; total: number | null; hasMore: boolean; retention: { snapshotsDays: number | null; incidentsYears: number | null } };
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
+
+// The backend returns only safe health data, but a provider's error text can
+// still echo a key, a token or a connection string. Such a text is dropped
+// whole rather than shown — the status beside it still says what happened.
+const SECRET_RE = [
+  /\b(api[_-]?key|secret|token|password|passwd|pwd|authorization|bearer|dsn|private[_-]?key|client[_-]?secret)\b\s*[:=]/i,
+  /\bbearer\s+[a-z0-9._~+/-]{8,}/i,
+  /[a-z][a-z0-9+.-]*:\/\/[^\s/:@]+:[^\s/@]+@/i,
+  /\b(sk|pk|rk|xox[abp])-[a-z0-9_-]{8,}/i,
+  /\b[a-z0-9_-]{32,}\b/i,
+  /\b\d{8,10}:[a-z0-9_-]{30,}\b/i,
+];
+export const looksSecret = (text: string): boolean => SECRET_RE.some((re) => re.test(text));
+export const safeText = (v: unknown): string => {
+  const s = asStr(v);
+  return s && !looksSecret(s) ? s : "";
+};
 
 function systemOf(v: unknown): MonSystem {
   const s = asDict(v);
@@ -91,16 +113,16 @@ function integrationOf(v: unknown): MonIntegration {
   const d = asDict(v);
   return {
     key: asStr(d.key ?? d.id),
-    label: asStr(d.label ?? d.title),
+    label: safeText(d.label ?? d.title),
     status: asStr(d.status).toLowerCase() || "unknown",
     configured: d.configured === true,
-    detail: asStr(d.detail ?? d.message),
+    detail: safeText(d.detail ?? d.message),
     latencyMs: num(d.latency_ms),
     checkedAt: asStr(d.checked_at),
     uptimePercent: num(d.uptime_percent ?? d.uptime),
     lastSuccessAt: asStr(d.last_success_at ?? d.last_ok_at),
     lastErrorAt: asStr(d.last_error_at ?? d.last_failure_at),
-    lastError: asStr(d.last_error ?? d.last_error_message),
+    lastError: safeText(d.last_error ?? d.last_error_message),
     errorCode: asStr(d.error_code ?? d.last_error_code),
     backlog: num(d.backlog ?? d.queue ?? d.queue_size),
     dependencies: asArr(d.dependencies ?? d.depends_on).map((x) => asStr(typeof x === "object" && x ? asDict(x).key : x)).filter(Boolean),
@@ -133,6 +155,25 @@ function extraOf(d: Dict): MonExtra {
   };
 }
 
+function thresholdsOf(d: Dict): MonThresholds | null {
+  const t = asDict(d.thresholds ?? d.alert_thresholds ?? asDict(d.alerts).thresholds);
+  if (!Object.keys(t).length) return null;
+  // A limit is a number, or { critical | bad | value } when levels are sent.
+  const pick = (...keys: string[]) => {
+    for (const k of keys) {
+      const v = t[k];
+      if (v && typeof v === "object") {
+        const o = asDict(v);
+        const n = num(o.critical ?? o.bad ?? o.value ?? o.warning ?? o.warn);
+        if (n !== null) return n;
+      } else if (num(v) !== null) return num(v);
+    }
+    return null;
+  };
+  const out = { cpu: pick("cpu_percent", "cpu"), memory: pick("memory_percent", "memory"), disk: pick("disk_percent", "disk"), errors: pick("error_rate_percent", "error_rate", "errors") };
+  return Object.values(out).some((x) => x !== null) ? out : null;
+}
+
 export function overviewOf(v: unknown): MonOverview {
   const d = asDict(v);
   const req = asDict(d.requests);
@@ -141,6 +182,7 @@ export function overviewOf(v: unknown): MonOverview {
   const rt = asDict(d.realtime);
   return {
     extra: extraOf(d),
+    thresholds: thresholdsOf(d),
     from: asStr(d.from),
     to: asStr(d.to),
     system: systemOf(d.system),
@@ -150,7 +192,7 @@ export function overviewOf(v: unknown): MonOverview {
     nodes: asArr(graph.nodes)
       .map((x) => {
         const n = asDict(x);
-        return { id: asStr(n.id), label: asStr(n.label) || asStr(n.id), type: asStr(n.type), status: asStr(n.status).toLowerCase() || "unknown" };
+        return { id: asStr(n.id), label: safeText(n.label), type: asStr(n.type), status: asStr(n.status).toLowerCase() || "unknown" };
       })
       .filter((n) => n.id),
     edges: asArr(graph.edges)
@@ -177,10 +219,10 @@ export async function getMonitoringOverview(range: { from?: string; to?: string 
 
 // The default answer is briefly cached by the backend; `refresh` asks for
 // a live check and is only for an explicit "check now" (2026-10-24 §7).
-export async function getMonitoringIntegration(key: string, signal?: AbortSignal, refresh = false): Promise<MonIntegration & { raw: Dict }> {
+// Only the named fields are read; the rest of the answer never reaches the UI.
+export async function getMonitoringIntegration(key: string, signal?: AbortSignal, refresh = false): Promise<MonIntegration> {
   const d = asDict(await http(`/admin/monitoring/integrations/${encodeURIComponent(key)}${refresh ? "?refresh=true" : ""}`, { signal }));
-  const own = asDict(d.integration ?? d);
-  return { ...integrationOf(own), raw: d };
+  return integrationOf(d.integration ?? d);
 }
 
 function historyItemOf(v: unknown): MonHistoryItem {
@@ -190,7 +232,7 @@ function historyItemOf(v: unknown): MonHistoryItem {
   return {
     id: asStr(d.id),
     type: type === "snapshot" || type === "monitoring_snapshot" ? "snapshot" : type === "incident" || type === "monitoring_incident" ? "incident" : "other",
-    title: asStr(d.title),
+    title: safeText(d.title),
     status: asStr(d.status).toLowerCase(),
     at: asStr(d.captured_at ?? d.created_at ?? d.occurred_at),
     cpuPercent: sys.cpuPercent,
@@ -229,7 +271,7 @@ export async function getMonitoringHistory(
 export type MonExport = { id: string; status: "queued" | "running" | "completed" | "failed" | string; progress: number; rows: number; error: string; downloadUrl: string };
 const exportOf = (v: unknown): MonExport => {
   const d = asDict(v);
-  return { id: asStr(d.id), status: asStr(d.status), progress: num(d.progress_percent) ?? 0, rows: num(d.rows_count) ?? 0, error: asStr(d.error), downloadUrl: asStr(d.download_url) };
+  return { id: asStr(d.id), status: asStr(d.status), progress: num(d.progress_percent) ?? 0, rows: num(d.rows_count) ?? 0, error: safeText(d.error), downloadUrl: asStr(d.download_url) };
 };
 export async function startMonitoringExport(range: { from?: string; to?: string }, type: "snapshot" | "incident" | ""): Promise<MonExport> {
   const body: Dict = {};
@@ -302,7 +344,7 @@ export function applyMonitoringEvent(o: MonOverview, ev: Dict): { overview: MonO
     const i = asDict(data.incident ?? data);
     return {
       overview: o,
-      incident: { id: asStr(i.id) || String(Date.now()), title: asStr(i.title ?? i.message), status: asStr(i.status), severity: asStr(i.severity).toLowerCase(), integration: asStr(i.integration ?? i.integration_key), at: asStr(i.occurred_at ?? i.created_at) },
+      incident: { id: asStr(i.id) || String(Date.now()), title: safeText(i.title ?? i.message), status: asStr(i.status), severity: asStr(i.severity).toLowerCase(), integration: asStr(i.integration ?? i.integration_key), at: asStr(i.occurred_at ?? i.created_at) },
       healthy: false,
     };
   }

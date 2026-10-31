@@ -63,8 +63,8 @@ function HistoryExport({ job, error, onStart, onDownload }: { job: MonExport | n
           {t("exportDownload", { n: job.rows })}
         </button>
       ) : (
-        <button type="button" className="btn btn--line btn--sm" onClick={onStart} disabled={running}>
-          {running ? t("exportRunning", { pct: job?.progress ?? 0 }) : t("exportStart")}
+        <button type="button" className="btn btn--line btn--sm" onClick={onStart} disabled={running} aria-busy={running || undefined}>
+          {job?.status === "queued" ? t("exportQueued") : running ? t("exportRunning", { pct: job?.progress ?? 0 }) : t("exportStart")}
         </button>
       )}
       {error ? (
@@ -113,20 +113,12 @@ function Meter({ label, value, sub, tone }: { label: string; value: string; sub?
   );
 }
 
-// Alert thresholds, set per administrator (kept in this browser): a figure
-// past `warn` turns amber, past `bad` red and raises the banner.
-type Limits = { cpu: number; memory: number; disk: number; errors: number };
-const DEFAULT_LIMITS: Limits = { cpu: 85, memory: 85, disk: 90, errors: 5 };
-const LIMITS_KEY = "lexgo.monitoring.limits";
-function readLimits(): Limits {
-  try {
-    const v = JSON.parse(localStorage.getItem(LIMITS_KEY) ?? "null") as Partial<Limits> | null;
-    return { ...DEFAULT_LIMITS, ...(v ?? {}) };
-  } catch {
-    return DEFAULT_LIMITS;
-  }
-}
-const toneAt = (p: number | null, limit: number): Tone => (p === null ? "off" : p >= limit ? "bad" : p >= limit * 0.85 ? "warn" : "ok");
+// Alert thresholds are the backend's defaults (2026-10-31 §5.4), read-only:
+// a figure is coloured only against a threshold the backend sent. The old
+// per-browser thresholds are gone, and their stored copy is cleared once.
+const OLD_LIMITS_KEY = "lexgo.monitoring.limits";
+const toneAt = (p: number | null, limit: number | null | undefined): Tone | undefined => (p === null || limit === null || limit === undefined ? undefined : p >= limit ? "bad" : p >= limit * 0.85 ? "warn" : "ok");
+const THRESHOLD_KEYS = ["cpu", "memory", "disk", "errors"] as const;
 const ms = (n: number | null) => (n === null ? "" : `${Math.round(n)} ms`);
 const rate = (n: number | null) => (n === null ? "" : n >= 1024 ** 2 ? `${(n / 1024 ** 2).toFixed(1)} MB/s` : `${Math.round(n / 1024)} KB/s`);
 
@@ -163,7 +155,7 @@ function Graph({ nodes, edges, onPick }: { nodes: MonNode[]; edges: MonOverview[
           const p = at.get(n.id);
           if (!p) return null;
           const core = n.type === "core";
-          const name = t.has(`keys.${n.id}`) ? t(`keys.${n.id}`) : n.label;
+          const name = t.has(`keys.${n.id}`) ? t(`keys.${n.id}`) : n.label || humanizeSlug(n.id);
           return (
             <g
               key={n.id}
@@ -344,8 +336,7 @@ export default function MonitoringPage(): ReactElement {
   const [snap, setSnap] = useState<"" | "busy" | "captured" | "running" | "failed">("");
   const [socket, setSocket] = useState(userSocketState());
   const [refreshing, setRefreshing] = useState(false);
-  const [limits, setLimits] = useState<Limits>(DEFAULT_LIMITS);
-  const [editLimits, setEditLimits] = useState(false);
+  const [showLimits, setShowLimits] = useState(false);
   const [svcFilter, setSvcFilter] = useState<"all" | "problems">("all");
   const [svcQuery, setSvcQuery] = useState("");
   const [customFrom, setCustomFrom] = useState("");
@@ -356,20 +347,12 @@ export default function MonitoringPage(): ReactElement {
   const [exportErr, setExportErr] = useState("");
   const seq = useRef(0);
   useEffect(() => {
-    let alive = true;
-    void Promise.resolve().then(() => alive && setLimits(readLimits()));
-    return () => {
-      alive = false;
-    };
-  }, []);
-  const saveLimits = (next: Limits) => {
-    setLimits(next);
     try {
-      localStorage.setItem(LIMITS_KEY, JSON.stringify(next));
+      localStorage.removeItem(OLD_LIMITS_KEY);
     } catch {
-      // A private window: the thresholds still apply for this visit.
+      // Storage is off in this window: nothing was kept there either.
     }
-  };
+  }, []);
 
   const exportId = exportJob?.id ?? "";
   const exportRunning = exportJob?.status === "queued" || exportJob?.status === "running";
@@ -526,12 +509,9 @@ export default function MonitoringPage(): ReactElement {
   const x = o.extra;
   const itg = o.integrations.find((i) => i.key === picked) ?? null;
   const shownItg = o.integrations.filter((i) => (svcFilter === "all" || ["warn", "bad"].includes(toneOf(i.status))) && (!svcQuery || `${i.key} ${i.label} ${t.has(`keys.${i.key}`) ? t(`keys.${i.key}`) : ""}`.toLowerCase().includes(svcQuery.toLowerCase())));
-  const over = [
-    o.system.cpuPercent !== null && o.system.cpuPercent >= limits.cpu ? t("cpu") : "",
-    o.system.memoryPercent !== null && o.system.memoryPercent >= limits.memory ? t("memory") : "",
-    o.system.diskPercent !== null && o.system.diskPercent >= limits.disk ? t("disk") : "",
-    o.requests.errorRate !== null && o.requests.errorRate >= limits.errors ? t("requests") : "",
-  ].filter(Boolean);
+  const lim = o.thresholds;
+  const past = (v: number | null, limit: number | null | undefined) => v !== null && limit !== null && limit !== undefined && v >= limit;
+  const over = [past(o.system.cpuPercent, lim?.cpu) ? t("cpu") : "", past(o.system.memoryPercent, lim?.memory) ? t("memory") : "", past(o.system.diskPercent, lim?.disk) ? t("disk") : "", past(o.requests.errorRate, lim?.errors) ? t("requests") : ""].filter(Boolean);
   const live = socket === "online";
   return (
     <div className="ppanel mon" data-ai-target="monitoring:page">
@@ -558,7 +538,7 @@ export default function MonitoringPage(): ReactElement {
             <IconRefresh aria-hidden="true" />
             {refreshing ? t("refreshing") : t("refresh")}
           </button>
-          <button type="button" className="btn btn--line btn--sm" onClick={() => setEditLimits((v) => !v)} aria-expanded={editLimits}>
+          <button type="button" className="btn btn--line btn--sm" onClick={() => setShowLimits((v) => !v)} aria-expanded={showLimits} aria-controls="mon-limits">
             {t("thresholds")}
           </button>
           <button type="button" className="btn btn--pri btn--sm" onClick={() => void snapshot()} disabled={snap === "running"}>
@@ -569,29 +549,21 @@ export default function MonitoringPage(): ReactElement {
       <p className="mon-at">{t("updatedAt", { time: timeOnly(new Date(load.at).toISOString(), locale) })}</p>
       {snap === "busy" ? <p className="mon-note" role="status">{t("snapBusy")}</p> : snap === "captured" ? <p className="mon-note" role="status">{t("snapDone")}</p> : snap === "failed" ? <p className="mon-note" data-tone="bad" role="alert">{t("snapFailed")}</p> : null}
 
-      {editLimits ? (
-        <fieldset className="mon-limits">
-          <legend>{t("thresholdsLead")}</legend>
-          {(["cpu", "memory", "disk", "errors"] as const).map((k) => (
-            <label key={k}>
-              <span>{t(`limit.${k}`)}</span>
-              <input
-                type="number"
-                min={1}
-                max={100}
-                value={limits[k]}
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  if (Number.isFinite(n) && n > 0 && n <= 100) saveLimits({ ...limits, [k]: n });
-                }}
-              />
-              <small>%</small>
-            </label>
-          ))}
-          <button type="button" className="btn btn--ghost btn--sm" onClick={() => saveLimits(DEFAULT_LIMITS)}>
-            {t("thresholdsReset")}
-          </button>
-        </fieldset>
+      {showLimits ? (
+        <section className="mon-limits" id="mon-limits" aria-label={t("thresholdsLead")} data-ai-target="monitoring:thresholds">
+          <b>{t("thresholdsLead")}</b>
+          {lim ? (
+            <dl>
+              {THRESHOLD_KEYS.map((k) => (
+                <div key={k}>
+                  <dt>{t(`limit.${k}`)}</dt>
+                  <dd>{lim[k] === null ? none : pct(lim[k])}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+          <small>{lim ? t("thresholdsReadOnly") : t("thresholdsDefault")}</small>
+        </section>
       ) : null}
       {over.length ? (
         <div className="mon-incident" role="alert" data-tone="warn">
@@ -617,10 +589,10 @@ export default function MonitoringPage(): ReactElement {
       ))}
 
       <div className="mon-cards">
-        <Meter label={t("cpu")} value={(pct(o.system.cpuPercent) || none)} sub={o.system.cpuCount ? t("cores", { n: o.system.cpuCount }) : undefined} tone={toneAt(o.system.cpuPercent, limits.cpu)} />
-        <Meter label={t("memory")} value={(pct(o.system.memoryPercent) || none)} sub={o.system.memoryTotal ? `${bytes(o.system.memoryUsed)} / ${bytes(o.system.memoryTotal)}` : undefined} tone={toneAt(o.system.memoryPercent, limits.memory)} />
-        <Meter label={t("disk")} value={(pct(o.system.diskPercent) || none)} sub={o.system.diskTotal ? `${bytes(o.system.diskUsed)} / ${bytes(o.system.diskTotal)}` : undefined} tone={toneAt(o.system.diskPercent, limits.disk)} />
-        <Meter label={t("requests")} value={String(o.requests.events)} sub={t("errors", { n: o.requests.errors, rate: (pct(o.requests.errorRate) || none) })} tone={toneAt(o.requests.errorRate, limits.errors)} />
+        <Meter label={t("cpu")} value={(pct(o.system.cpuPercent) || none)} sub={o.system.cpuCount ? t("cores", { n: o.system.cpuCount }) : undefined} tone={toneAt(o.system.cpuPercent, lim?.cpu)} />
+        <Meter label={t("memory")} value={(pct(o.system.memoryPercent) || none)} sub={o.system.memoryTotal ? `${bytes(o.system.memoryUsed)} / ${bytes(o.system.memoryTotal)}` : undefined} tone={toneAt(o.system.memoryPercent, lim?.memory)} />
+        <Meter label={t("disk")} value={(pct(o.system.diskPercent) || none)} sub={o.system.diskTotal ? `${bytes(o.system.diskUsed)} / ${bytes(o.system.diskTotal)}` : undefined} tone={toneAt(o.system.diskPercent, lim?.disk)} />
+        <Meter label={t("requests")} value={String(o.requests.events)} sub={t("errors", { n: o.requests.errors, rate: (pct(o.requests.errorRate) || none) })} tone={toneAt(o.requests.errorRate, lim?.errors)} />
         <Meter label={t("users")} value={String(o.users.active)} sub={[x.usersToday !== null ? t("usersToday", { n: x.usersToday }) : "", t("usersTotal", { n: o.users.total })].filter(Boolean).join(" · ")} />
         <Meter label={t("realtime")} value={String(o.realtime.sockets)} sub={t("realtimeSub", { online: o.realtime.online, channels: o.realtime.channels })} />
         {x.rps !== null ? <Meter label={t("rps")} value={String(Math.round(x.rps * 10) / 10)} sub={x.status4xx !== null || x.status5xx !== null ? t("statusCodes", { c4: x.status4xx ?? 0, c5: x.status5xx ?? 0 }) : undefined} tone={x.status5xx ? "warn" : "ok"} /> : null}
@@ -717,12 +689,12 @@ export default function MonitoringPage(): ReactElement {
         ) : (
           <p className="mon-note">{t("noHistory")}</p>
         )}
-        {history && history.total !== null && history.total > HISTORY_PAGE ? (
+        {history && (histOffset > 0 || history.hasMore || (history.total !== null && history.total > HISTORY_PAGE)) ? (
           <div className="mon-pager">
             <button type="button" className="btn btn--soft btn--sm" onClick={() => setHistOffset((n) => Math.max(0, n - HISTORY_PAGE))} disabled={refreshing || histOffset === 0}>
               {t("prevPage")}
             </button>
-            <span>{t("pageOf", { from: histOffset + 1, to: histOffset + history.items.length, total: history.total })}</span>
+            <span>{history.total !== null ? t("pageOf", { from: histOffset + 1, to: histOffset + history.items.length, total: history.total }) : t("pageRange", { from: histOffset + 1, to: histOffset + history.items.length })}</span>
             <button type="button" className="btn btn--soft btn--sm" onClick={() => setHistOffset((n) => n + HISTORY_PAGE)} disabled={refreshing || !history.hasMore}>
               {t("nextPage")}
             </button>

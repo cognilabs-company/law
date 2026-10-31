@@ -1,5 +1,21 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { ADMIN, mockBackend, signIn } from "./mock";
+
+// Screenshot runs only: MON_SHOTS=<dir> saves 1440 and 390, light and dark.
+const SHOTS = process.env.MON_SHOTS;
+async function shots(page: Page, name: string) {
+  if (!SHOTS) return;
+  for (const scheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: width > 400 ? 1000 : 860 });
+      await page.waitForTimeout(250);
+      await page.screenshot({ path: `${SHOTS}/${name}-${width}-${scheme}.png` });
+    }
+  }
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.setViewportSize({ width: 1280, height: 900 });
+}
 
 // Monitoring (contract §8–§9): the map and list come from the backend,
 // realtime events patch the page without polling, an incident stays until
@@ -81,7 +97,7 @@ test("monitoring without permission says so", async ({ page }) => {
   await expect(page.getByText("Нет доступа")).toBeVisible();
 });
 
-test("extra figures show when sent; thresholds and the service filter work", async ({ page }) => {
+test("extra figures show when sent; thresholds are read-only and the service filter works", async ({ page }) => {
   const rich = {
     ...overview("down", 70),
     requests: { activity_events: 900, errors: 2, error_rate_percent: 0.2, rps: 12.5, latency_ms: { p50: 40, p95: 180, p99: 420 }, status_4xx: 7, status_5xx: 2 },
@@ -112,17 +128,77 @@ test("extra figures show when sent; thresholds and the service filter work", asy
   // Roles by name, never the backend's keys.
   await expect(page.locator(".mon-roles")).toContainText("Клиенты 90 · Адвокаты 20");
   await expect(page.locator(".mon-roles")).not.toContainText("advokat");
+  // No thresholds from the backend: nothing is coloured or raised against
+  // a guessed limit, and the panel says they are the server's defaults.
   await expect(page.getByText("Превышен порог")).toHaveCount(0);
-  // Lower the CPU threshold below 70%: the alert appears.
   await page.getByRole("button", { name: "Пороги" }).click();
-  await page.getByRole("spinbutton", { name: "Процессор" }).fill("60");
-  await expect(page.getByRole("alert").filter({ hasText: "Превышен порог" })).toContainText("Процессор");
+  const limits = page.locator(".mon-limits");
+  await expect(limits).toContainText("Предупреждения работают по порогам сервера по умолчанию");
+  await expect(limits.locator("input, [role=spinbutton]")).toHaveCount(0);
   // Only services with problems.
   // The handmade Select, never the browser's.
   await page.getByRole("button", { name: /Состояние сервиса/ }).click();
   await page.getByRole("listbox").getByRole("option", { name: "С проблемами" }).click();
   await expect(page.getByRole("button", { name: "База данных", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Acme SMS", exact: true })).toHaveCount(0);
+});
+
+// 2026-10-31 §5.4: thresholds are the backend's defaults — shown read-only
+// when the overview sends them, never edited or kept in the browser.
+test("backend thresholds are shown read-only and drive the alert; the old browser copy is cleared", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("lexgo.monitoring.limits", JSON.stringify({ cpu: 10 })));
+  const routes = await signIn(page, ADMIN, {
+    "/admin/monitoring/overview": () => ({ ...overview("healthy", 91), thresholds: { cpu_percent: 85, memory_percent: 90, disk_percent: 95, error_rate_percent: 5 } }),
+    "/admin/monitoring/history": { items: [], retention: {} },
+  });
+  await mockBackend(page, routes);
+  await page.goto("/ru/admin/monitoring");
+  await expect(page.getByRole("alert").filter({ hasText: "Превышен порог" })).toContainText("Процессор");
+  await expect(page.locator(".mon-card").filter({ hasText: "Процессор" })).toHaveAttribute("data-tone", "bad");
+  await page.getByRole("button", { name: "Пороги" }).click();
+  const limits = page.locator(".mon-limits");
+  await expect(limits).toContainText("85%");
+  await expect(limits).toContainText("95%");
+  await expect(limits).toContainText("только просмотр");
+  await expect(limits.locator("input, button, [role=spinbutton]")).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem("lexgo.monitoring.limits"))).toBeNull();
+  await shots(page, "monitoring-thresholds");
+  // Nothing scrolls sideways on a phone.
+  await page.setViewportSize({ width: 390, height: 860 });
+  expect(await page.locator(".mon").evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+});
+
+// Every integration the backend reports, by name, with its state in words;
+// a text that looks like a secret never reaches the screen.
+test("the integrations list names every service and never shows a secret", async ({ page }) => {
+  const keys = ["database", "redis", "openai", "livekit", "onlyoffice", "telegram", "push", "payme", "click", "atmos"];
+  const integrations = keys.map((key, i) => ({ key, configured: i % 3 !== 2, status: ["healthy", "degraded", "not_configured", "down"][i % 4], latency_ms: i % 3 === 2 ? null : 10 + i }));
+  const routes = await signIn(page, ADMIN, {
+    "/admin/monitoring/overview": () => ({ ...overview(), integrations }),
+    "/admin/monitoring/history": { items: [], retention: {} },
+    "/admin/monitoring/integrations/telegram": { key: "telegram", status: "down", configured: true, detail: "Bot 123456789:AAFh3kq0E0hQ0pQ0kE0hQ0pQ0kE0hQ0pQ0kE rejected", last_error: "token=abc123def456", last_error_at: "2026-10-31T05:00:00Z" },
+    "/admin/monitoring/integrations/payme": { key: "payme", status: "degraded", configured: true, detail: "connect https://merchant:Pa55w0rd@checkout.paycom.uz failed" },
+  });
+  await mockBackend(page, routes);
+  await page.goto("/ru/admin/monitoring");
+  const table = page.locator(".mon-itg table");
+  for (const name of ["База данных", "Redis", "OpenAI", "LiveKit (звонки)", "OnlyOffice (документы)", "Telegram", "Push-уведомления", "Payme", "Click", "Atmos"]) {
+    await expect(table.getByRole("button", { name, exact: true })).toBeVisible();
+  }
+  await expect(table.locator("tbody tr")).toHaveCount(10);
+  expect(await table.innerText()).not.toMatch(/not_configured|onlyoffice|livekit|_/);
+  await table.getByRole("button", { name: "Telegram", exact: true }).click();
+  const detail = page.locator(".mon-detail");
+  await expect(detail).toContainText("Последняя ошибка");
+  await expect(detail).not.toContainText("AAFh3kq0");
+  await expect(detail).not.toContainText("abc123def456");
+  await detail.getByRole("button", { name: "Закрыть" }).click();
+  await table.getByRole("button", { name: "Payme", exact: true }).click();
+  await expect(page.locator(".mon-detail")).toBeVisible();
+  await expect(page.locator(".mon-detail")).not.toContainText("Pa55w0rd");
+  expect(await page.locator("main").innerText()).not.toMatch(/Pa55w0rd|AAFh3kq0|abc123def456/);
+  await page.locator(".mon-itg").scrollIntoViewIfNeeded();
+  await shots(page, "monitoring-integrations");
 });
 
 test("history: server type filter, paging, custom dates and an Excel export job", async ({ page }) => {
@@ -145,7 +221,7 @@ test("history: server type filter, paging, custom dates and an Excel export job"
     "/admin/monitoring/overview": () => overview(),
     "/admin/monitoring/history": (_b: unknown, url: URL) => hist(url),
     "POST /admin/monitoring/history/exports": { status: 202, json: { id: "job-1", status: "queued", progress_percent: 0, rows_count: 0 } },
-    "/admin/monitoring/history/exports/job-1": () => (++polls > 1 ? { id: "job-1", status: "completed", progress_percent: 100, rows_count: 45, download_url: "/admin/monitoring/history/exports/job-1/download" } : { id: "job-1", status: "running", progress_percent: 40 }),
+    "/admin/monitoring/history/exports/job-1": () => (++polls > 2 ? { id: "job-1", status: "completed", progress_percent: 100, rows_count: 45, download_url: "/admin/monitoring/history/exports/job-1/download" } : { id: "job-1", status: "running", progress_percent: 40 }),
   });
   const mock = await mockBackend(page, routes);
   await page.goto("/ru/admin/monitoring");
@@ -157,6 +233,9 @@ test("history: server type filter, paging, custom dates and an Excel export job"
   await expect(page.locator(".mon-hist li")).toHaveCount(3);
   expect(mock.calls.some((c) => c.path === "/admin/monitoring/history" && c.method === "GET")).toBe(true);
   await page.getByRole("button", { name: "Экспорт в Excel" }).click();
+  // The job's own states, as the backend reports them.
+  await expect(page.getByRole("button", { name: "В очереди…" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Готовим… 40%" })).toBeDisabled({ timeout: 10_000 });
   await expect(page.getByRole("button", { name: "Скачать Excel (45 строк)" })).toBeVisible({ timeout: 15_000 });
   expect(mock.calls.find((c) => c.method === "POST" && c.path === "/admin/monitoring/history/exports")?.body).toMatchObject({ type: "incident" });
   await page.getByRole("button", { name: /Период/ }).click();
@@ -169,6 +248,33 @@ test("history: server type filter, paging, custom dates and an Excel export job"
   await page.getByRole("combobox", { name: "Дата окончания" }).press("Tab");
   await asked;
   await expect(page.locator("main select, main input[type=date]")).toHaveCount(0);
+  await page.locator(".mon-hist").scrollIntoViewIfNeeded();
+  await shots(page, "monitoring-history");
+});
+
+// Paging follows has_more when the backend leaves the total out.
+test("history pages by has_more without a total, and a failed export says so", async ({ page }) => {
+  const offsets: number[] = [];
+  const routes = await signIn(page, ADMIN, {
+    "/admin/monitoring/overview": () => overview(),
+    "/admin/monitoring/history": (_b: unknown, url: URL) => {
+      const offset = Number(url.searchParams.get("offset") ?? 0);
+      offsets.push(offset);
+      const items = Array.from({ length: offset ? 5 : 20 }, (_, k) => ({ id: `s${offset + k}`, type: "snapshot", system: { cpu: { load_percent: 20 }, memory: { used_percent: 40 } }, captured_at: "2026-10-31T05:00:00Z" }));
+      return { items, has_more: offset === 0, retention: {} };
+    },
+    "POST /admin/monitoring/history/exports": { status: 202, json: { id: "job-2", status: "failed", error: "Fayl yaratilmadi" } },
+  });
+  await mockBackend(page, routes);
+  await page.goto("/ru/admin/monitoring");
+  await expect(page.getByText("1–20", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Далее" }).click();
+  await expect(page.getByText("21–25", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Далее" })).toBeDisabled();
+  expect(offsets).toContain(20);
+  await page.getByRole("button", { name: "Экспорт в Excel" }).click();
+  await expect(page.locator(".mon-export__err")).toContainText("Fayl yaratilmadi");
+  await expect(page.getByRole("button", { name: "Экспорт в Excel" })).toBeEnabled();
 });
 
 test("an integration's detail shows its own history and dependencies", async ({ page }) => {

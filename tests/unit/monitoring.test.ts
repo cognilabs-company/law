@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyMonitoringEvent, overviewOf } from "@/lib/services/monitoring";
+import { applyMonitoringEvent, looksSecret, overviewOf } from "@/lib/services/monitoring";
 
 const base = overviewOf({
   system: { cpu: { load_percent: 10, cpu_count: 2 }, memory: { used_percent: 50 }, disk: { used_percent: 70 } },
@@ -40,5 +40,27 @@ describe("monitoring overview", () => {
     const r = applyMonitoringEvent(base, { event: "monitoring.incident", incident: { id: "i1", title: "DB down", integration: "database" } });
     expect(r.incident).toMatchObject({ id: "i1", title: "DB down", integration: "database" });
     expect(r.overview).toBe(base);
+  });
+
+  it("reads thresholds only when the backend sends them", () => {
+    expect(base.thresholds).toBeNull();
+    const o = overviewOf({ thresholds: { cpu_percent: 85, memory: { warning: 70, critical: 90 }, disk_percent: "92", error_rate_percent: 5 } });
+    expect(o.thresholds).toEqual({ cpu: 85, memory: 90, disk: 92, errors: 5 });
+  });
+
+  it("never passes a secret-looking text on", () => {
+    const o = overviewOf({
+      integrations: [
+        { key: "payme", status: "error", detail: "Auth failed: api_key=abc123", last_error: "connect postgres://lexgo:pa55@db:5432/lexgo" },
+        { key: "telegram", status: "error", detail: "Bot 123456789:AAFh3kq0E0hQ0pQ0kE0hQ0pQ0kE0hQ0pQ0kE rejected" },
+        { key: "openai", status: "degraded", detail: "Rate limited, retry in 20 s", last_error: "Bearer sk-live-0123456789abcdef" },
+      ],
+    });
+    expect(o.integrations.map((i) => [i.detail, i.lastError])).toEqual([
+      ["", ""],
+      ["", ""],
+      ["Rate limited, retry in 20 s", ""],
+    ]);
+    expect(looksSecret("Timed out after 5 s")).toBe(false);
   });
 });
