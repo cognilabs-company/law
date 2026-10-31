@@ -16823,10 +16823,6 @@
         "failedServer": "CEO ma'lumotlarini yuklab bo'lmadi — server javob bermadi ({status})",
         "failedOffline": "CEO ma'lumotlarini yuklab bo'lmadi — internet aloqasi yo'q",
         "actions": "Sahifa amallari",
-        "demoAuto": "Demo (avtomatik)",
-        "demoAutoWhy": "Haqiqiy ma'lumot hali yo'q, shuning uchun namunaviy raqamlar avtomatik ko'rsatilmoqda. Birinchi lid yoki to'lov paydo bo'lishi bilan haqiqiy raqamlar chiqadi.",
-        "demoHelp": "Haqiqiy ma'lumot bo'lsa ham namunaviy raqamlarni ko'rsatadi. Har bo'limda «Demo» belgisi chiqadi.",
-        "demoForcedNote": "Demo rejim yoqilgan: haqiqiy ma'lumot o'rniga namunaviy raqamlar ko'rsatilmoqda. O'chirish uchun yuqoridagi «⋯» menyusini oching.",
         "refresh": "Ma'lumotni yangilash",
         "jumpAria": "Hisobot bo'limlari",
         "fig": {
@@ -16878,7 +16874,6 @@
         "chConv": "konversiya {pct}",
         "allTime": "Barcha vaqt bo'yicha",
         "allTimeAsOf": "Barcha vaqt bo'yicha · {date} holatiga",
-        "realFailed": "Real ma'lumotlar yuklanmadi",
         "testExcluded": "Test/demo to'lovlar hisobga olinmagan: {amount}, {n} ta to'lov.",
         "testIncluded": "Shundan test/demo: {amount}, {n} ta to'lov.",
         "testNoteShown": "Test va demo kanallar ({n} ta, {amount}) kulrangda ko'rsatilgan va umumiy daromadga qo'shilgan.",
@@ -16888,7 +16883,6 @@
         "figTotalDays": "So'nggi {n} kun jami",
         "perMonth": "shu oy",
         "perToday": "bugun",
-        "demoPill": "Demo",
         "bySubs": "obunalar bo'yicha",
         "na": "hisoblanmaydi",
         "asOf": "{date} holatiga",
@@ -16963,9 +16957,8 @@
         "periodAll": "Butun davr",
         "export": "Excel yuklab olish",
         "exporting": "Tayyorlanmoqda…",
-        "exportDemo": "Namuna ma'lumotlar yuklab olinmaydi",
         "exported": "Excel fayl yuklab olindi.",
-        "exportFailed": "Excel faylni yuklab bo'lmadi.", "exportBusy": "Excel fayli tayyorlanmoqda… Server uni hozir yig'moqda, bu bir daqiqagacha cho'zilishi mumkin.", "timezone": "Vaqt mintaqasi {tz}"
+        "exportFailed": "Excel faylni yuklab bo'lmadi.", "exportBusy": "Excel fayli tayyorlanmoqda… Server uni hozir yig'moqda, bu bir daqiqagacha cho'zilishi mumkin.", "timezone": "Vaqt mintaqasi {tz}", "none": {"title": "Hozircha ma'lumot yo'q", "text": "LexGo birinchi murojaat yoki to'lovni qayd etishi bilan daromad, to'lovlar, foydalanuvchilar va voronka shu yerda ko'rinadi.", "titleRange": "{from} — {to} uchun ma'lumot yo'q", "textRange": "Bu sanalarda hech narsa qayd etilmagan. Uzunroq davrni tanlang yoki butun davrni ko'ring."}, "exportEmpty": "Bu davr uchun hozircha yuklab olinadigan ma'lumot yo'q"
       },
       "title": "CEO paneli",
       "revenue": "Daromad",

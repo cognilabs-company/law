@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { EMPTY_FILTER, downloadCeoExport, getCeoDashboardFull, isCeoEmpty, todayIso, viewerTimeZone, type CeoDashboardFull } from "@/lib/services/dash";
+import { EMPTY_FILTER, downloadCeoExport, getCeoDashboardFull, isCeoEmpty, viewerTimeZone, type CeoDashboardFull } from "@/lib/services/dash";
 import DatePicker from "@/components/DatePicker";
-import { demoCeo, useDemoForced } from "@/lib/demoStats";
 import { useResourceOne } from "@/lib/useResource";
 import { getQualityOverview } from "@/lib/services/backend";
 import { fmtUzsShort } from "@/lib/money";
@@ -16,11 +15,10 @@ import { useAiSelection } from "@/lib/ai/registry";
 import { useScrollEdges } from "@/lib/useScrollEdges";
 import { notify } from "@/lib/toast";
 import StatDrillModal, { type Drill, type DrillRow } from "@/components/admin/StatDrillModal";
-import { ErrorState } from "@/components/portal/DataState";
+import { EmptyState, ErrorState } from "@/components/portal/DataState";
 import Segmented from "@/components/ui/Segmented";
-import Menu, { menuSeparator, type MenuEntry } from "@/components/ui/Menu";
-import { Badge } from "@/components/ui/Badge";
-import { IconAlert, IconArrowRight, IconBolt, IconDownload, IconInfo, IconList, IconRefresh } from "@/components/icons";
+import Menu, { type MenuEntry } from "@/components/ui/Menu";
+import { IconAlert, IconArrowRight, IconChartBar, IconDownload, IconList, IconRefresh } from "@/components/icons";
 
 const GIFT0 = { giftPurchases: 0, giftActivationRate: 0, recipientConversion: 0, giftToPaidConversion: 0, averageGiftValue: 0, referralRate: 0, giftCac: 0, giftLtv: 0 };
 const EMPTY: CeoDashboardFull = {
@@ -39,7 +37,7 @@ const CARD_TOP = 5;
 type Health = "good" | "watch" | "bad" | "na" | "info";
 type SortKey = "revenue" | "leads" | "payments";
 type Channel = CeoDashboardFull["channels"][number];
-type Got = { ok: true; data: CeoDashboardFull } | { ok: false; error: unknown; at: string };
+type Got = { ok: true; data: CeoDashboardFull } | { ok: false; error: unknown };
 type Seen = { got: Got; kept: CeoDashboardFull | null };
 type Point = { label: string; value: number };
 type JumpId = "rev" | "unit" | "funnel" | "channels" | "aud" | "gifts";
@@ -71,18 +69,13 @@ function niceStep(raw: number): number {
   return (NICE.find((x) => f <= x + 1e-9) ?? 10) * p;
 }
 
-function Section({ id, ai, title, scope, tag, demo, action, children }: { id: JumpId; ai: string; title: string; scope?: string; tag?: string; demo?: string; action?: ReactNode; children: ReactNode }) {
+function Section({ id, ai, title, scope, tag, action, children }: { id: JumpId; ai: string; title: string; scope?: string; tag?: string; action?: ReactNode; children: ReactNode }) {
   return (
     <section id={`ceo-sec-${id}`} className="ceo-sec" aria-labelledby={`ceo-${id}`} data-ai-target={ai}>
       <header className="ceo-sec__h">
         <div className="ceo-sec__tt">
           <div className="ceo-sec__tl">
             <h2 id={`ceo-${id}`} tabIndex={-1}>{title}</h2>
-            {demo ? (
-              <Badge tone="warn" size="sm" className="ceo-sec__demo">
-                {demo}
-              </Badge>
-            ) : null}
           </div>
           {scope ? (
             <p className="ceo-sec__scope">
@@ -98,7 +91,7 @@ function Section({ id, ai, title, scope, tag, demo, action, children }: { id: Ju
   );
 }
 
-function JumpNav({ items, label, demo }: { items: { id: JumpId; label: string }[]; label: string; demo?: string }) {
+function JumpNav({ items, label }: { items: { id: JumpId; label: string }[]; label: string }) {
   const nav = useRef<HTMLElement>(null);
   const strip = useRef<HTMLDivElement>(null);
   const lock = useRef(0);
@@ -199,7 +192,6 @@ function JumpNav({ items, label, demo }: { items: { id: JumpId; label: string }[
           </a>
         ))}
       </div>
-      {demo ? <span className="ceo-jump__demo">{demo}</span> : null}
     </nav>
   );
 }
@@ -375,12 +367,10 @@ export default function AdminCeo() {
   const tr = useTranslations("admin.ceo.report");
   const locale = useLocale();
   const td = useTranslations("admin.dash");
-  const tf = useTranslations("admin.dash.filter");
   const tc = useTranslations("admin.overview.crm");
   const te = useTranslations("enums");
   const tnf = useTranslations("common.notify");
   const ta = useTranslations("common.a11y");
-  const [demoForced, setDemoForced] = useDemoForced();
   const [tick, setTick] = useState(0);
   // TSK-328538: the KPIs for a chosen period (both ends picked), else all time.
   const [from, setFrom] = useState("");
@@ -389,7 +379,7 @@ export default function AdminCeo() {
   const exportingRef = useRef(false);
   const ranged = !!from && !!to;
   const filter = ranged ? { ...EMPTY_FILTER, from, to } : undefined;
-  const res = useResourceOne(() => getCeoDashboardFull(filter).then((data): Got => ({ ok: true, data }), (error: unknown): Got => ({ ok: false, error, at: todayIso() })), [tick, ranged ? from : "", ranged ? to : ""]);
+  const res = useResourceOne(() => getCeoDashboardFull(filter).then((data): Got => ({ ok: true, data }), (error: unknown): Got => ({ ok: false, error })), [tick, ranged ? from : "", ranged ? to : ""]);
   // Service quality (TSK-328538): rating, answer-on-time and complaints from
   // the backend's quality overview. It has no period filter, so these always
   // read as all time; a failure only hides them.
@@ -406,13 +396,13 @@ export default function AdminCeo() {
   const last = got ?? seen?.got ?? null;
   const fail = last && !last.ok ? last : null;
   const report = got?.ok ? got.data : seen?.kept ?? null;
-  const demo = demoForced || (report !== null && isCeoEmpty(report));
-  const autoDemo = demo && !demoForced;
-  const today = report?.fetchedAt || fail?.at || "";
-  const d = useMemo(() => (demo ? demoCeo(today) : report ?? EMPTY), [demo, today, report]);
+  // Nothing recorded yet for this period: an honest empty state, never
+  // sample figures (owner decision 2026-10-31).
+  const empty = report !== null && isCeoEmpty(report);
+  const d = report ?? EMPTY;
   const first = !last;
-  const failed = !first && !report && !demo;
-  const stale = !demo && report !== null && fail !== null;
+  const failed = !first && !report;
+  const stale = report !== null && fail !== null;
   const raised = useRef<Got | null>(null);
   const retry = () => setTick((n) => n + 1);
   const failErr = fail?.error;
@@ -429,10 +419,11 @@ export default function AdminCeo() {
       notify.dismiss(STALE_ID);
       return;
     }
-    if (got === raised.current || (!report && !demoForced)) return;
+    // With nothing kept the error state says it on the page.
+    if (got === raised.current || !report) return;
     raised.current = got;
-    notify.error(report ? td("notUpdated") : tr("realFailed"), { id: STALE_ID, error: got.error, action: { label: tnf("retry"), onClick: () => setTick((n) => n + 1) } });
-  }, [got, report, demoForced, td, tr, tnf]);
+    notify.error(td("notUpdated"), { id: STALE_ID, error: got.error, action: { label: tnf("retry"), onClick: () => setTick((n) => n + 1) } });
+  }, [got, report, td, tnf]);
   useEffect(() => () => notify.dismiss(STALE_ID), []);
 
   const stage = (k: string) => (t.has(`stage.${k}`) ? t(`stage.${k}`) : humanizeSlug(k));
@@ -457,10 +448,6 @@ export default function AdminCeo() {
 
   useAiSelection("dashboard_period", tr("allTime"));
   useAiSelection("revenue_chart_period", tr("spanDays", { n: span }));
-  const toggleDemo = () => {
-    setDemoForced(!demoForced);
-    notify.info(td(demoForced ? "demo.disabled" : "demo.enabled"), { id: "ceo-demo" });
-  };
 
   // Revenue and payments as the backend counts them. Test data has no
   // canonical flag yet (2026-10-31 §2.4), so no channel is guessed to be a
@@ -481,7 +468,7 @@ export default function AdminCeo() {
   const ltvCacText = d.ltvCac ? `${fmtNum(ltvCac, locale, 1)}×` : NA;
   const payback = Math.round(d.paybackMonths * 10) / 10;
 
-  const q = demo ? null : (quality.data ?? null);
+  const q = quality.data ?? null;
   const ledger = [
     { key: "gmv", label: t("kpi.gmv"), value: gmv ? money(gmv) : NA, note: gmv && gmvSame ? tr("notes.gmvEq") : tr("notes.gmv") },
     { key: "mrr", label: t("mrr"), value: mrr ? money(mrr) : NA, note: mrrNote },
@@ -550,7 +537,7 @@ export default function AdminCeo() {
   const stepMax = Math.max(1, leads, orders);
 
   const channelSub = (c: Channel) => [tr("chLeads", { n: num(c.leads), count: c.leads }), tr("chPayments", { n: num(c.payments), count: c.payments })].join(" · ");
-  const open = (drl: Omit<Drill, "demo" | "variant" | "closeLabel">) => setDrill({ ...drl, demo, variant: "report", closeLabel: ta("close") });
+  const open = (drl: Omit<Drill, "demo" | "variant" | "closeLabel">) => setDrill({ ...drl, variant: "report", closeLabel: ta("close") });
   const kv = (title: string, rows: DrillRow[]): Drill["sections"][number] => ({ kind: "kv", title, rows });
   const channelBars = (): Drill["sections"][number] => {
     const list = d.channels.slice().sort((a, b) => b.revenue - a.revenue);
@@ -667,7 +654,6 @@ export default function AdminCeo() {
   const tzLabel = tzOffsetLabel(report?.period?.timezone || viewerTimeZone(), locale);
   const scopeAll = ranged ? tr("periodScope", { from: fmtDate(from, locale), to: fmtDate(to, locale) }) : asOfDay ? tr("allTimeAsOf", { date: asOfDay }) : tr("allTime");
   const B = (chunks: ReactNode) => <b>{chunks}</b>;
-  const demoTag = demo ? tr("demoPill") : undefined;
   const revenueCaption = tr("fig.revenue");
   const kpis = [
     { key: "revenue", label: t("revenue"), value: short(headRevenue), sub: revenueCaption },
@@ -685,24 +671,12 @@ export default function AdminCeo() {
     { id: "gifts", label: td("drill.gifts") },
   ];
   const actions: MenuEntry[] = [
-    {
-      key: "demo",
-      label: autoDemo ? tr("demoAuto") : tf("demo"),
-      icon: <IconBolt />,
-      toggle: true,
-      checked: demo,
-      description: autoDemo ? undefined : tr("demoHelp"),
-      disabled: autoDemo ? tr("demoAutoWhy") : false,
-      onSelect: toggleDemo,
-      aiId: "admin.ceo.actions.demo",
-    },
-    menuSeparator("sep"),
     { key: "refresh", label: tr("refresh"), icon: <IconRefresh />, onSelect: retry, aiId: "admin.ceo.actions.refresh" },
     {
       key: "export",
       label: exporting ? tr("exporting") : tr("export"),
       icon: <IconDownload />,
-      disabled: exporting || demo ? (demo ? tr("exportDemo") : tr("exporting")) : false,
+      disabled: exporting ? tr("exporting") : empty ? tr("exportEmpty") : false,
       onSelect: () => {
         // One file at a time: the backend builds it while the request is open.
         if (exportingRef.current) return;
@@ -757,19 +731,23 @@ export default function AdminCeo() {
           <ErrorState title={failTitle} error={failErr} onRetry={retry} />
         ) : (
           <>
-            <header className="ceo-head" data-ai-target="ceo:kpis">
-              <p className="ceo-head__lead">
-                {tr.rich("summary", { revenue: short(headRevenue), payments: num(headPayments), count: headPayments, conv: pct(d.conversionPct), users: num(d.users), b: B })}
-              </p>
-              <dl className="ceo-kpis">
-                {kpis.map((k) => (
-                  <div key={k.key}>
-                    <dt>{k.label}</dt>
-                    <dd className="ceo-kpis__v">{k.value}</dd>
-                    <dd className="ceo-kpis__s">{k.sub}</dd>
-                  </div>
-                ))}
-              </dl>
+            <header className={`ceo-head${empty ? " ceo-head--bare" : ""}`} data-ai-target="ceo:kpis">
+              {empty ? null : (
+                <>
+                  <p className="ceo-head__lead">
+                    {tr.rich("summary", { revenue: short(headRevenue), payments: num(headPayments), count: headPayments, conv: pct(d.conversionPct), users: num(d.users), b: B })}
+                  </p>
+                  <dl className="ceo-kpis">
+                    {kpis.map((k) => (
+                      <div key={k.key}>
+                        <dt>{k.label}</dt>
+                        <dd className="ceo-kpis__v">{k.value}</dd>
+                        <dd className="ceo-kpis__s">{k.sub}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </>
+              )}
               <div className="ceo-range" role="group" aria-label={tr("period")}>
                 <DatePicker value={from} onChange={setFrom} max={to || undefined} placeholder={tr("periodFrom")} ariaLabel={tr("periodFrom")} />
                 <DatePicker value={to} onChange={setTo} min={from || undefined} placeholder={tr("periodTo")} ariaLabel={tr("periodTo")} />
@@ -789,237 +767,258 @@ export default function AdminCeo() {
                   {tr("exportBusy")}
                 </p>
               ) : null}
-              {demo ? <p className="ceo-head__demo"><IconInfo aria-hidden="true" />{demoForced ? tr("demoForcedNote") : td("demo.banner")}</p> : null}
               {stale ? <p className="ceo-hint"><IconAlert aria-hidden="true" />{td("staleHint")}</p> : null}
             </header>
 
-            <JumpNav items={jumps} label={tr("jumpAria")} demo={demoTag} />
+            {empty ? (
+              <EmptyState
+                className="ceo-none"
+                icon={<IconChartBar />}
+                title={ranged ? tr("none.titleRange", { from: fmtDate(from, locale), to: fmtDate(to, locale) }) : tr("none.title")}
+                text={ranged ? tr("none.textRange") : tr("none.text")}
+                action={
+                  <>
+                    {ranged ? (
+                      <button type="button" className="btn btn--line btn--sm" onClick={() => (setFrom(""), setTo(""))} data-ai-id="admin.ceo.empty.all-time">
+                        {tr("periodAll")}
+                      </button>
+                    ) : null}
+                    <button type="button" className="btn btn--line btn--sm" onClick={retry} data-ai-id="admin.ceo.empty.refresh">
+                      <IconRefresh aria-hidden="true" />
+                      {tr("refresh")}
+                    </button>
+                  </>
+                }
+              />
+            ) : (
+              <>
+              <JumpNav items={jumps} label={tr("jumpAria")} />
 
-            <Section
-              id="rev"
-              ai="ceo:revenue-trend"
-              title={t("revenueTrend")}
-              scope={[tr("lastDays", { n: span }), tr("allRegions")].join(" · ")}
-              demo={demoTag}
-              action={<>{spanSwitch}{more(drillRevenue, t("revenueTrend"))}</>}
-            >
-              {!trend.length ? (
-                <p className="ceo-empty">{t("noData")}</p>
-              ) : tableView ? (
-                <DayTable points={trend} full={money} dayLong={dayLong} caption={tr("byDay")} colDay={tr("colDay")} colValue={t("channelTable.revenue")} />
-              ) : (
-                <RevenueChart points={trend} full={money} brief={brief} day={day} dayLong={dayLong} text={{ aria: tr("chartAria"), hint: tr("chartHint"), max: (value) => tr("chartMax", { value }) }} />
-              )}
-              <div className="ceo-revfoot">
-                <dl className="ceo-figs">
-                  <div><dt>{tr("figTotalDays", { n: days || span })}</dt><dd>{short(total)}</dd></div>
-                  <div><dt>{tr("figAvg")}</dt><dd className={na(dayAvg)}>{dayAvg}</dd></div>
-                  <div><dt>{tr("figBest")}</dt><dd className={na(dayBest)}>{dayBest}{best && best.value ? <small>{dayLong(best.label)}</small> : null}</dd></div>
-                  <div><dt>{tr("figActive")}</dt><dd>{tr("daysOf", { n: activeDays, total: days })}</dd></div>
-                </dl>
-                {trend.length ? (
-                  <button type="button" className="btn btn--line btn--sm ceo-tview" aria-pressed={tableView} onClick={() => setTableView((v) => !v)} data-ai-id="admin.ceo.revenue-table" data-ai-type="button">
-                    <IconList aria-hidden="true" />
-                    {tr("tableView")}
-                  </button>
-                ) : null}
-              </div>
-            </Section>
-
-            <Section id="unit" ai="ceo:kpi-system" title={tr("unit")} scope={scopeAll} demo={demoTag} action={more(drillUnit, tr("unit"))}>
-              <table className="ceo-ledger">
-                <thead>
-                  <tr>
-                    <th scope="col">{tr("colMetric")}</th>
-                    <th scope="col" className="is-num">{tr("colValue")}</th>
-                    <th scope="col">{tr("colNote")}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ledger.map((line) => {
-                    const h = health(line.key);
-                    return (
-                      <tr key={line.key} className={na(line.value)}>
-                        <th scope="row">{line.label}</th>
-                        <td className="is-num">{line.value}</td>
-                        <td>
-                          {h !== "info" && h !== "na" ? <span className={`ceo-chip ceo-chip--${h}`}>{tr(`health.${h}`)}</span> : null}
-                          <span className="ceo-ledger__note">{line.note}</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </Section>
-
-            <Section id="funnel" ai="ceo:funnel" title={t("funnel")} scope={scopeAll} demo={demoTag} action={more(drillFunnel, t("funnel"))}>
-              <ol className="ceo-steps">
-                {steps.map((s) => (
-                  <li key={s.key}>
-                    <span className="ceo-steps__l">{stage(s.key)}</span>
-                    <span className="ceo-steps__bar"><span style={{ width: `${Math.max(2, (s.value / stepMax) * 100)}%` }} /></span>
-                    <b>{num(s.value)}</b>
-                    <small>{s.sub}</small>
-                  </li>
-                ))}
-              </ol>
-              <p className="ceo-aside">
-                {tr.rich("paidNote", { n: num(paid), b: B })}
-              </p>
-            </Section>
-
-            <Section
-              id="channels"
-              ai="ceo:channels"
-              title={t("channelTable.title")}
-              scope={scopeAll}
-              demo={demoTag}
-            >
-              {sorted.length ? (
-                <>
-                  <div className="ceo-chdesk">
-                    <div className="ceo-tablewrap" data-ai-target="ceo:channel-table">
-                      <table className="ceo-table" id="ceo-ch-table">
-                        <thead>
-                          <tr>
-                            <th scope="col">{t("channelTable.source")}</th>
-                            {th("leads", t("channelTable.leads"))}
-                            {th("payments", t("channelTable.payments"))}
-                            {th("revenue", t("channelTable.revenue"))}
-                          </tr>
-                        </thead>
-                        {groups.map((grp) => (
-                          <tbody key={grp.key}>
-                            {grouped ? (
-                              <tr className="ceo-table__grp">
-                                <th scope="rowgroup" colSpan={4}>
-                                  {tr(grp.key === "payment" ? "groupPayments" : "groupChannels")}
-                                  {grp.key === "payment" ? <small>{tr("groupPaymentsNote")}</small> : null}
-                                </th>
-                              </tr>
-                            ) : null}
-                            {grp.rows.map((c, i) => {
-                              const src = leadSourceInfo(te, c.name);
-                              return (
-                                <tr key={`${c.name}-${i}`}>
-                                  <th scope="row" title={src.title || undefined}>{src.label || "—"}</th>
-                                  <td className="is-num">{num(c.leads)}</td>
-                                  <td className="is-num">{num(c.payments)}</td>
-                                  <td className="ceo-table__rv">
-                                    <span className="ceo-rev">
-                                      <span className="ceo-rev__t">
-                                        <b>{short(c.revenue)}</b>
-                                        <small>· {share(c)}</small>
-                                      </span>
-                                      <i className="ceo-rev__bar" aria-hidden="true"><span style={{ width: width(c) }} /></i>
-                                    </span>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        ))}
-                        {tableFold.folded.length ? (
-                          <tbody className="ceo-table__fold">
-                            <tr>
-                              <th scope="row">{tr("zeroRow", { n: tableFold.folded.length })}</th>
-                              <td className="is-num">{num(sumOf(tableFold.folded, "leads"))}</td>
-                              <td className="is-num">{num(sumOf(tableFold.folded, "payments"))}</td>
-                              <td className="ceo-table__rv">
-                                <span className="ceo-rev">
-                                  <span className="ceo-rev__t"><b>{short(0)}</b></span>
-                                  <i className="ceo-rev__bar" aria-hidden="true" />
-                                </span>
-                              </td>
-                            </tr>
-                          </tbody>
-                        ) : null}
-                      </table>
-                    </div>
-                    {allBtn("ceo-ch-table", TABLE_TOP)}
-                  </div>
-                  <div className="ceo-chmob">
-                    <ul className="ceo-chcards" id="ceo-ch-cards" data-ai-target="ceo:channel-table">
-                      {cardFold.rows.map((c, i) => {
-                        const src = leadSourceInfo(te, c.name);
-                        return (
-                          <li key={`${c.name}-${i}`} className="ceo-chcard">
-                            <span className="ceo-chcard__n" title={src.title || undefined}>
-                              {src.label || "—"}
-                            </span>
-                            <b className="ceo-chcard__v">{short(c.revenue)}</b>
-                            <i className="ceo-chcard__bar" aria-hidden="true"><span style={{ width: width(c) }} /></i>
-                            <small className="ceo-chcard__p">{share(c)}</small>
-                            <span className="ceo-chcard__s">{channelSub(c)}</span>
-                          </li>
-                        );
-                      })}
-                      {cardFold.folded.length ? (
-                        <li className="ceo-chcard ceo-chcard--fold">
-                          <span className="ceo-chcard__n">{tr("zeroRow", { n: cardFold.folded.length })}</span>
-                          <b className="ceo-chcard__v">{short(0)}</b>
-                          <span className="ceo-chcard__s">
-                            {[tr("chLeads", { n: num(sumOf(cardFold.folded, "leads")), count: sumOf(cardFold.folded, "leads") }), tr("chPayments", { n: num(sumOf(cardFold.folded, "payments")), count: sumOf(cardFold.folded, "payments") })].join(" · ")}
-                          </span>
-                        </li>
-                      ) : null}
-                    </ul>
-                    {allBtn("ceo-ch-cards", CARD_TOP)}
-                  </div>
-                </>
-              ) : (
-                <p className="ceo-empty">{t("noData")}</p>
-              )}
-            </Section>
-
-            <Section id="aud" ai="ceo:audience" title={tr("audience")} scope={scopeAll} demo={demoTag}>
-              <div className="ceo-cols">
-                <dl>
-                  <div><dt>{t("users")}</dt><dd>{num(d.users)}</dd></div>
-                  <div><dt>{aud.mau} <small className="ceo-def">{tr("aud.mauDef")}</small></dt><dd>{num(d.mau)}</dd></div>
-                  <div><dt>{aud.dau} <small className="ceo-def">{tr("aud.dauDef")}</small></dt><dd>{num(d.dau)}</dd></div>
-                  <div><dt>{tr("stickiness")} <small className="ceo-def">{tr("aud.stickDef")}</small></dt><dd className={na(stickiness)}>{stickiness}</dd></div>
-                </dl>
-                <dl>
-                  <div><dt>{aud.newClients}</dt><dd>{num(d.newClients)}</dd></div>
-                  <div><dt>{aud.newAdvocates}</dt><dd>{num(d.newAdvocates)}</dd></div>
-                  <div><dt>{aud.newLawyers}</dt><dd>{num(d.newLawyers)}</dd></div>
-                </dl>
-                <div className="ceo-cols__grp">
-                  <dl>
-                    <div><dt>{t("kpi.npsClient")}</dt><dd className={na(npsClient)}>{npsClient}</dd></div>
-                    <div><dt>{t("kpi.npsAdvocate")}</dt><dd className={na(npsAdvocate)}>{npsAdvocate}</dd></div>
+              <Section
+                id="rev"
+                ai="ceo:revenue-trend"
+                title={t("revenueTrend")}
+                scope={[tr("lastDays", { n: span }), tr("allRegions")].join(" · ")}
+                action={<>{spanSwitch}{more(drillRevenue, t("revenueTrend"))}</>}
+              >
+                {!trend.length ? (
+                  <p className="ceo-empty">{t("noData")}</p>
+                ) : tableView ? (
+                  <DayTable points={trend} full={money} dayLong={dayLong} caption={tr("byDay")} colDay={tr("colDay")} colValue={t("channelTable.revenue")} />
+                ) : (
+                  <RevenueChart points={trend} full={money} brief={brief} day={day} dayLong={dayLong} text={{ aria: tr("chartAria"), hint: tr("chartHint"), max: (value) => tr("chartMax", { value }) }} />
+                )}
+                <div className="ceo-revfoot">
+                  <dl className="ceo-figs">
+                    <div><dt>{tr("figTotalDays", { n: days || span })}</dt><dd>{short(total)}</dd></div>
+                    <div><dt>{tr("figAvg")}</dt><dd className={na(dayAvg)}>{dayAvg}</dd></div>
+                    <div><dt>{tr("figBest")}</dt><dd className={na(dayBest)}>{dayBest}{best && best.value ? <small>{dayLong(best.label)}</small> : null}</dd></div>
+                    <div><dt>{tr("figActive")}</dt><dd>{tr("daysOf", { n: activeDays, total: days })}</dd></div>
                   </dl>
-                  <p className="ceo-def">{tr("aud.npsDef")}</p>
+                  {trend.length ? (
+                    <button type="button" className="btn btn--line btn--sm ceo-tview" aria-pressed={tableView} onClick={() => setTableView((v) => !v)} data-ai-id="admin.ceo.revenue-table" data-ai-type="button">
+                      <IconList aria-hidden="true" />
+                      {tr("tableView")}
+                    </button>
+                  ) : null}
                 </div>
-              </div>
-            </Section>
+              </Section>
 
-            <Section id="gifts" ai="ceo:gift-kpis" title={td("drill.gifts")} scope={scopeAll} demo={demoTag}>
-              <ol className="ceo-gchain">
-                <li>
-                  <b className="ceo-gchain__n">{num(g.giftPurchases)}</b>
-                  <span className="ceo-gchain__t">{tr("gift.bought", { count: g.giftPurchases })}</span>
-                </li>
-                <li>
-                  <b className="ceo-gchain__n">{num(giftActivated)}<small> · {pct(g.giftActivationRate)}</small></b>
-                  <span className="ceo-gchain__t">{tr("gift.activated", { count: giftActivated })}</span>
-                  <span className="ceo-gchain__b">{tr("gift.ofBought")}</span>
-                </li>
-                <li>
-                  <b className="ceo-gchain__n">{num(giftPaid)}<small> · {pct(g.giftToPaidConversion)}</small></b>
-                  <span className="ceo-gchain__t">{tr("gift.paid", { count: giftPaid })}</span>
-                  <span className="ceo-gchain__b">{tr("gift.ofActivated")}</span>
-                </li>
-              </ol>
-              <dl className="ceo-minor">
-                <div><dt>{t("kpi.avgGift")}</dt><dd className={na(giftAvg)}>{giftAvg}</dd></div>
-                <div><dt>{t("kpi.giftLtv")}</dt><dd className={na(giftLtv)}>{giftLtv}</dd></div>
-                <div><dt>{t("kpi.giftReferralRate")}</dt><dd>{pct(g.referralRate)}</dd></div>
-                <div><dt>{t("kpi.giftCac")}</dt><dd className={na(giftCac)}>{giftCac}</dd></div>
-              </dl>
-            </Section>
+              <Section id="unit" ai="ceo:kpi-system" title={tr("unit")} scope={scopeAll} action={more(drillUnit, tr("unit"))}>
+                <table className="ceo-ledger">
+                  <thead>
+                    <tr>
+                      <th scope="col">{tr("colMetric")}</th>
+                      <th scope="col" className="is-num">{tr("colValue")}</th>
+                      <th scope="col">{tr("colNote")}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ledger.map((line) => {
+                      const h = health(line.key);
+                      return (
+                        <tr key={line.key} className={na(line.value)}>
+                          <th scope="row">{line.label}</th>
+                          <td className="is-num">{line.value}</td>
+                          <td>
+                            {h !== "info" && h !== "na" ? <span className={`ceo-chip ceo-chip--${h}`}>{tr(`health.${h}`)}</span> : null}
+                            <span className="ceo-ledger__note">{line.note}</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </Section>
+
+              <Section id="funnel" ai="ceo:funnel" title={t("funnel")} scope={scopeAll} action={more(drillFunnel, t("funnel"))}>
+                <ol className="ceo-steps">
+                  {steps.map((s) => (
+                    <li key={s.key}>
+                      <span className="ceo-steps__l">{stage(s.key)}</span>
+                      <span className="ceo-steps__bar"><span style={{ width: `${Math.max(2, (s.value / stepMax) * 100)}%` }} /></span>
+                      <b>{num(s.value)}</b>
+                      <small>{s.sub}</small>
+                    </li>
+                  ))}
+                </ol>
+                <p className="ceo-aside">
+                  {tr.rich("paidNote", { n: num(paid), b: B })}
+                </p>
+              </Section>
+
+              <Section
+                id="channels"
+                ai="ceo:channels"
+                title={t("channelTable.title")}
+                scope={scopeAll}
+              >
+                {sorted.length ? (
+                  <>
+                    <div className="ceo-chdesk">
+                      <div className="ceo-tablewrap" data-ai-target="ceo:channel-table">
+                        <table className="ceo-table" id="ceo-ch-table">
+                          <thead>
+                            <tr>
+                              <th scope="col">{t("channelTable.source")}</th>
+                              {th("leads", t("channelTable.leads"))}
+                              {th("payments", t("channelTable.payments"))}
+                              {th("revenue", t("channelTable.revenue"))}
+                            </tr>
+                          </thead>
+                          {groups.map((grp) => (
+                            <tbody key={grp.key}>
+                              {grouped ? (
+                                <tr className="ceo-table__grp">
+                                  <th scope="rowgroup" colSpan={4}>
+                                    {tr(grp.key === "payment" ? "groupPayments" : "groupChannels")}
+                                    {grp.key === "payment" ? <small>{tr("groupPaymentsNote")}</small> : null}
+                                  </th>
+                                </tr>
+                              ) : null}
+                              {grp.rows.map((c, i) => {
+                                const src = leadSourceInfo(te, c.name);
+                                return (
+                                  <tr key={`${c.name}-${i}`}>
+                                    <th scope="row" title={src.title || undefined}>{src.label || "—"}</th>
+                                    <td className="is-num">{num(c.leads)}</td>
+                                    <td className="is-num">{num(c.payments)}</td>
+                                    <td className="ceo-table__rv">
+                                      <span className="ceo-rev">
+                                        <span className="ceo-rev__t">
+                                          <b>{short(c.revenue)}</b>
+                                          <small>· {share(c)}</small>
+                                        </span>
+                                        <i className="ceo-rev__bar" aria-hidden="true"><span style={{ width: width(c) }} /></i>
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          ))}
+                          {tableFold.folded.length ? (
+                            <tbody className="ceo-table__fold">
+                              <tr>
+                                <th scope="row">{tr("zeroRow", { n: tableFold.folded.length })}</th>
+                                <td className="is-num">{num(sumOf(tableFold.folded, "leads"))}</td>
+                                <td className="is-num">{num(sumOf(tableFold.folded, "payments"))}</td>
+                                <td className="ceo-table__rv">
+                                  <span className="ceo-rev">
+                                    <span className="ceo-rev__t"><b>{short(0)}</b></span>
+                                    <i className="ceo-rev__bar" aria-hidden="true" />
+                                  </span>
+                                </td>
+                              </tr>
+                            </tbody>
+                          ) : null}
+                        </table>
+                      </div>
+                      {allBtn("ceo-ch-table", TABLE_TOP)}
+                    </div>
+                    <div className="ceo-chmob">
+                      <ul className="ceo-chcards" id="ceo-ch-cards" data-ai-target="ceo:channel-table">
+                        {cardFold.rows.map((c, i) => {
+                          const src = leadSourceInfo(te, c.name);
+                          return (
+                            <li key={`${c.name}-${i}`} className="ceo-chcard">
+                              <span className="ceo-chcard__n" title={src.title || undefined}>
+                                {src.label || "—"}
+                              </span>
+                              <b className="ceo-chcard__v">{short(c.revenue)}</b>
+                              <i className="ceo-chcard__bar" aria-hidden="true"><span style={{ width: width(c) }} /></i>
+                              <small className="ceo-chcard__p">{share(c)}</small>
+                              <span className="ceo-chcard__s">{channelSub(c)}</span>
+                            </li>
+                          );
+                        })}
+                        {cardFold.folded.length ? (
+                          <li className="ceo-chcard ceo-chcard--fold">
+                            <span className="ceo-chcard__n">{tr("zeroRow", { n: cardFold.folded.length })}</span>
+                            <b className="ceo-chcard__v">{short(0)}</b>
+                            <span className="ceo-chcard__s">
+                              {[tr("chLeads", { n: num(sumOf(cardFold.folded, "leads")), count: sumOf(cardFold.folded, "leads") }), tr("chPayments", { n: num(sumOf(cardFold.folded, "payments")), count: sumOf(cardFold.folded, "payments") })].join(" · ")}
+                            </span>
+                          </li>
+                        ) : null}
+                      </ul>
+                      {allBtn("ceo-ch-cards", CARD_TOP)}
+                    </div>
+                  </>
+                ) : (
+                  <p className="ceo-empty">{t("noData")}</p>
+                )}
+              </Section>
+
+              <Section id="aud" ai="ceo:audience" title={tr("audience")} scope={scopeAll}>
+                <div className="ceo-cols">
+                  <dl>
+                    <div><dt>{t("users")}</dt><dd>{num(d.users)}</dd></div>
+                    <div><dt>{aud.mau} <small className="ceo-def">{tr("aud.mauDef")}</small></dt><dd>{num(d.mau)}</dd></div>
+                    <div><dt>{aud.dau} <small className="ceo-def">{tr("aud.dauDef")}</small></dt><dd>{num(d.dau)}</dd></div>
+                    <div><dt>{tr("stickiness")} <small className="ceo-def">{tr("aud.stickDef")}</small></dt><dd className={na(stickiness)}>{stickiness}</dd></div>
+                  </dl>
+                  <dl>
+                    <div><dt>{aud.newClients}</dt><dd>{num(d.newClients)}</dd></div>
+                    <div><dt>{aud.newAdvocates}</dt><dd>{num(d.newAdvocates)}</dd></div>
+                    <div><dt>{aud.newLawyers}</dt><dd>{num(d.newLawyers)}</dd></div>
+                  </dl>
+                  <div className="ceo-cols__grp">
+                    <dl>
+                      <div><dt>{t("kpi.npsClient")}</dt><dd className={na(npsClient)}>{npsClient}</dd></div>
+                      <div><dt>{t("kpi.npsAdvocate")}</dt><dd className={na(npsAdvocate)}>{npsAdvocate}</dd></div>
+                    </dl>
+                    <p className="ceo-def">{tr("aud.npsDef")}</p>
+                  </div>
+                </div>
+              </Section>
+
+              <Section id="gifts" ai="ceo:gift-kpis" title={td("drill.gifts")} scope={scopeAll}>
+                <ol className="ceo-gchain">
+                  <li>
+                    <b className="ceo-gchain__n">{num(g.giftPurchases)}</b>
+                    <span className="ceo-gchain__t">{tr("gift.bought", { count: g.giftPurchases })}</span>
+                  </li>
+                  <li>
+                    <b className="ceo-gchain__n">{num(giftActivated)}<small> · {pct(g.giftActivationRate)}</small></b>
+                    <span className="ceo-gchain__t">{tr("gift.activated", { count: giftActivated })}</span>
+                    <span className="ceo-gchain__b">{tr("gift.ofBought")}</span>
+                  </li>
+                  <li>
+                    <b className="ceo-gchain__n">{num(giftPaid)}<small> · {pct(g.giftToPaidConversion)}</small></b>
+                    <span className="ceo-gchain__t">{tr("gift.paid", { count: giftPaid })}</span>
+                    <span className="ceo-gchain__b">{tr("gift.ofActivated")}</span>
+                  </li>
+                </ol>
+                <dl className="ceo-minor">
+                  <div><dt>{t("kpi.avgGift")}</dt><dd className={na(giftAvg)}>{giftAvg}</dd></div>
+                  <div><dt>{t("kpi.giftLtv")}</dt><dd className={na(giftLtv)}>{giftLtv}</dd></div>
+                  <div><dt>{t("kpi.giftReferralRate")}</dt><dd>{pct(g.referralRate)}</dd></div>
+                  <div><dt>{t("kpi.giftCac")}</dt><dd className={na(giftCac)}>{giftCac}</dd></div>
+                </dl>
+              </Section>
+              </>
+            )}
           </>
         )}
       </article>

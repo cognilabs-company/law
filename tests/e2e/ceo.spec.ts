@@ -164,3 +164,86 @@ test("CEO channels are shown as sent, with no guessed test data", async ({ page 
   await expect(sheet.locator(".ceo-kpis")).toContainText(/6[\s\u00a0\u202f,.]*8/);
   await shots(page, "ceo");
 });
+
+// Owner decision 2026-10-31: no demo mode on the CEO page. An empty report
+// is said in words, with no invented figures, no "Demo" switch and no demo
+// badges — even when another page left the shared demo switch on.
+const EMPTY_CEO = {
+  period: { date_from: "2026-01-01", date_to: "2026-10-30", timezone: "Asia/Tashkent" },
+  revenue: 0, users: 0, active_users: 0, conversion_pct: 0, revenue_delta_pct: 0,
+  funnel: [{ stage: "leads", value: 0 }, { stage: "orders", value: 0 }, { stage: "paid", value: 0 }],
+  channels: [], revenue_trend: [], mau: 0, dau: 0, gmv: 0, mrr: 0, arr: 0, paid_payments: 0,
+  gift_kpis: { gift_purchases: 0, gift_activation_rate: 0, recipient_conversion: 0, gift_to_paid_conversion: 0, average_gift_value: 0, referral_rate: 0, gift_cac: 0, gift_ltv: 0 },
+};
+
+test("an empty CEO report says there is no data yet, with no demo figures or demo switch", async ({ page }) => {
+  const asked: string[] = [];
+  const routes = await signIn(page, ADMIN, {
+    "/analytics/ceo": (_b: unknown, url: URL) => (asked.push(url.search), EMPTY_CEO),
+    "/quality/overview": { avg_rating: 4.6, response_sla_pct: 92.5, complaint_rate: 3.1, resolved_pct: 80, flagged: [] },
+  } as never);
+  await mockBackend(page, routes);
+  // The admin overview's demo switch, left on, must not reach this page.
+  await page.addInitScript(() => localStorage.setItem("lexgo_demo_stats", "1"));
+  await page.goto("/ru/admin/ceo");
+  const sheet = page.locator(".ceo-sheet");
+  const none = sheet.locator(".ceo-none");
+  await expect(none).toBeVisible({ timeout: 20000 });
+  await expect(none).toContainText("Данных пока нет");
+  await expect(none).toContainText("как только LexGo запишет первую заявку или оплату");
+  // No invented figures and no report sections, no demo marks anywhere.
+  await expect(sheet.locator(".ceo-kpis, .ceo-sec, .ceo-jump")).toHaveCount(0);
+  await expect(page.getByText(/демо/i)).toHaveCount(0);
+  expect(await sheet.innerText()).not.toMatch(/\d[\d\s  ]*\s?сум|млн|NaN|undefined/);
+  // The period pickers stay, so another period can be tried.
+  await expect(page.getByRole("combobox", { name: "Дата начала" })).toBeVisible();
+  // The actions menu has no demo switch, and nothing to export.
+  await page.locator(".ceo-act").getByRole("button").first().click();
+  await expect(page.getByRole("menuitem")).toHaveText([/Обновить данные/, /Скачать Excel/]);
+  await expect(page.getByRole("menuitem", { name: "Скачать Excel" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await shots(page, "ceo-empty");
+  // Refresh asks the backend again.
+  const before = asked.length;
+  await none.getByRole("button", { name: "Обновить данные" }).click();
+  await expect.poll(() => asked.length).toBeGreaterThan(before);
+});
+
+test("an empty period offers all time, and the report comes back with real figures", async ({ page }) => {
+  const routes = await signIn(page, ADMIN, {
+    "/analytics/ceo": (_b: unknown, url: URL) => (url.searchParams.get("date_from") ? EMPTY_CEO : ceo()),
+  } as never);
+  await mockBackend(page, routes);
+  await page.goto("/ru/admin/ceo");
+  const sheet = page.locator(".ceo-sheet");
+  await expect(sheet).toContainText("Продление подписок", { timeout: 20000 });
+  await page.getByRole("combobox", { name: "Дата начала" }).fill("01.02.2026");
+  await page.getByRole("combobox", { name: "Дата начала" }).press("Tab");
+  await page.getByRole("combobox", { name: "Дата окончания" }).fill("10.02.2026");
+  await page.getByRole("combobox", { name: "Дата окончания" }).press("Tab");
+  const none = sheet.locator(".ceo-none");
+  await expect(none).toContainText("Нет данных за 1 февраля 2026 — 10 февраля 2026", { timeout: 20000 });
+  await expect(none).toContainText("Выберите более длинный период");
+  await none.getByRole("button", { name: "За всё время" }).click();
+  await expect(none).toHaveCount(0);
+  await expect(sheet).toContainText("Продление подписок");
+  await expect(sheet.locator(".ceo-kpis")).toBeVisible();
+});
+
+test("the CEO page says when it can't load and loads again on retry", async ({ page }) => {
+  let fail = true;
+  const routes = await signIn(page, ADMIN, { "/analytics/ceo": ceo() } as never);
+  await mockBackend(page, routes);
+  await page.route(/\/analytics\/ceo(\?|$)/, (route) => (fail ? route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ detail: "Service Unavailable" }) }) : route.fallback()));
+  await page.goto("/ru/admin/ceo");
+  const sheet = page.locator(".ceo-sheet");
+  await expect(sheet.locator(".pempty--err")).toBeVisible({ timeout: 20000 });
+  await expect(sheet).toContainText("503");
+  await expect(sheet.locator(".ceo-none, .ceo-kpis")).toHaveCount(0);
+  await expect(page.getByText(/демо/i)).toHaveCount(0);
+  await shots(page, "ceo-error");
+  fail = false;
+  await sheet.getByRole("button", { name: /Повторить/ }).click();
+  await expect(sheet).toContainText("Продление подписок", { timeout: 20000 });
+});

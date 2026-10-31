@@ -16817,10 +16817,6 @@
         "failedServer": "Couldn't load the CEO figures — the server didn't respond ({status})",
         "failedOffline": "Couldn't load the CEO figures — no internet connection",
         "actions": "Page actions",
-        "demoAuto": "Demo (automatic)",
-        "demoAutoWhy": "There is no real data yet, so sample figures are shown automatically. Real figures appear with the first lead or payment.",
-        "demoHelp": "Shows sample figures even when real data exists. Every section is then marked “Demo”.",
-        "demoForcedNote": "Demo mode is on: sample figures are shown instead of real data. To turn it off, open the “⋯” menu above.",
         "refresh": "Refresh data",
         "jumpAria": "Report sections",
         "fig": {
@@ -16872,7 +16868,6 @@
         "chConv": "conversion {pct}",
         "allTime": "All time",
         "allTimeAsOf": "All time · as of {date}",
-        "realFailed": "Real data didn't load",
         "testExcluded": "Test and demo payments are left out: {amount}, {n, plural, one {# payment} other {# payments}}.",
         "testIncluded": "Of which test/demo: {amount}, {n, plural, one {# payment} other {# payments}}.",
         "testNoteShown": "Test and demo channels ({n}, {amount}) are shown in grey and included in total revenue.",
@@ -16882,7 +16877,6 @@
         "figTotalDays": "{n, plural, one {Last day total} other {Last # days total}}",
         "perMonth": "this month",
         "perToday": "today",
-        "demoPill": "Demo",
         "bySubs": "from subscriptions",
         "na": "not tracked",
         "asOf": "as of {date}",
@@ -16957,9 +16951,8 @@
         "periodAll": "All time",
         "export": "Download Excel",
         "exporting": "Preparing…",
-        "exportDemo": "Sample data isn't exported",
         "exported": "Excel file downloaded.",
-        "exportFailed": "Couldn't download the Excel file.", "exportBusy": "Preparing the Excel file… The server builds it now, this can take up to a minute.", "timezone": "Time zone {tz}"
+        "exportFailed": "Couldn't download the Excel file.", "exportBusy": "Preparing the Excel file… The server builds it now, this can take up to a minute.", "timezone": "Time zone {tz}", "none": {"title": "No data yet", "text": "Revenue, payments, users and the funnel appear here as soon as LexGo records the first lead or payment.", "titleRange": "No data for {from} — {to}", "textRange": "Nothing was recorded in these dates. Pick a wider period or look at all time."}, "exportEmpty": "There is nothing to export for this period yet"
       },
       "title": "CEO dashboard",
       "revenue": "Revenue",
