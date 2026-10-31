@@ -4,6 +4,7 @@ import { useState, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { BotIcon, CircleXIcon, Link2Icon, WifiIcon, WifiOffIcon } from "lucide-react";
 import { AGENT_STAGES, AGENT_TOOLS, safeUrl, shortfallOf, type AgentCheck, type AgentDraft, type AgentJob, type AgentSource } from "@/lib/services/studioAgent";
+import { isCodeLike } from "@/lib/http";
 import { SxButton, SxLinkButton } from "../Button";
 import {
   ActivityIcon,
@@ -331,11 +332,7 @@ export function AgentJobView({
           }
         >
           {t("sx.agent.partial.text")}
-          {job.error?.message || job.error?.code ? (
-            <span className="sx-ag-errline">
-              {job.error.code ? <span className="sx-code">{job.error.code}</span> : null} {job.error.message}
-            </span>
-          ) : null}
+          {job.error?.message && !isCodeLike(job.error.message) ? <span className="sx-ag-errline">{job.error.message}</span> : null}
         </SxNote>
       ) : null}
       {known === "failed" ? (
@@ -348,12 +345,8 @@ export function AgentJobView({
             </SxButton>
           }
         >
-          {job.error?.message || t("sx.agent.failed.text")}
-          <span className="sx-ag-errline">
-            {job.error?.code ? <span className="sx-code">{job.error.code}</span> : null}
-            {job.error?.reason ? <span className="sx-code">{job.error.reason}</span> : null}
-            <span>{t("sx.agent.failed.keep", { id: job.id })}</span>
-          </span>
+          {/* The words only: the job's code, reason and id are never shown (UI law). */}
+          {(job.error?.message && !isCodeLike(job.error.message) ? job.error.message : "") || t("sx.agent.failed.text")}
         </SxNote>
       ) : null}
       {known === "cancelled" ? <SxNote tone="info" title={t("sx.agent.cancelled.title")}>{t("sx.agent.cancelled.text")}</SxNote> : null}

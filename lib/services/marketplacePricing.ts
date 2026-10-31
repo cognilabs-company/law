@@ -1,4 +1,4 @@
-import { ApiError, asDict, asNum, asStr, errDetail, http, isOffline, parseServerTime, type Dict } from "@/lib/http";
+import { ApiError, asDict, asNum, asStr, errDetail, http, isCodeLike, isOffline, parseServerTime, type Dict } from "@/lib/http";
 import { getPlatformPolicies, getPolicyHistory, putAdminPolicy, PRICING_POLICY_SECTION } from "@/lib/services/backend";
 import { humanize, regionLabel } from "@/lib/labels";
 
@@ -382,8 +382,10 @@ export function pricingSaveFailure(e: unknown): PricingSaveFailure {
   if (isMissingStatus(e)) return { kind: "missing", detail: "" };
   if (e instanceof ApiError && e.status === 403) return { kind: "forbidden", detail: "" };
   if (e instanceof ApiError && (e.status === 400 || e.status === 422)) {
-    const fields = Object.entries(e.fieldErrors)
-      .map(([k, v]) => `${k}: ${v}`)
+    // The messages only: a field's wire name or a bare code is never shown.
+    const fields = Object.values(e.fieldErrors)
+      .map((v) => v.replace(/^value error,\s*/i, "").trim())
+      .filter((v) => v && !isCodeLike(v))
       .join("; ");
     return { kind: "invalid", detail: errDetail(e) || fields };
   }

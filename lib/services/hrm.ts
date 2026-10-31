@@ -4,7 +4,7 @@
 // type is written down here. Records, filters, dashboards, transitions and
 // the field-level errors of a refused payload.
 import { useSyncExternalStore } from "react";
-import { ApiError, asArr, asDict, asNum, http, type Dict } from "@/lib/http";
+import { ApiError, asArr, asDict, asNum, http, isCodeLike, type Dict } from "@/lib/http";
 
 const enc = encodeURIComponent;
 const str = (...vals: unknown[]): string => {
@@ -272,7 +272,8 @@ export function hrmErrorOf(e: unknown): { fields: Record<string, string>; messag
   if (!Object.keys(fields).length && Array.isArray(e.data.detail)) fields = errorMap(e.data.detail);
   const general = fields._ ?? "";
   delete fields._;
-  return { fields, message: general || str(detail.message, typeof e.data.detail === "string" ? e.data.detail : ""), code };
+  // A string detail that is only a code is the code, never the message.
+  return { fields, message: general || str(detail.message, typeof e.data.detail === "string" && !isCodeLike(e.data.detail) ? e.data.detail : ""), code };
 }
 
 // One module's own schema (GET /internal/hrm/{domain}/schema): the forms of

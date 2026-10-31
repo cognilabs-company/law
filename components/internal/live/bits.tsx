@@ -3,7 +3,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { ApiError } from "@/lib/http";
+import { ApiError, isCodeLike } from "@/lib/http";
 import { humanize } from "@/lib/labels";
 import { IconArrowRight, IconCheck } from "@/components/icons";
 import Modal from "@/components/admin/Modal";
@@ -82,7 +82,7 @@ export function ObjectLink({ href, children, className }: { href: string; childr
 export function apiMessage(e: unknown, fallback: string): string {
   if (e instanceof ApiError) {
     const d = (e.detail || "").trim();
-    if (d && d !== "aborted" && d !== "network_error" && !/^\d{3}$/.test(d) && d.length < 400) return d;
+    if (d && !isCodeLike(d) && !/^\d{3}$/.test(d) && d.length < 400) return d;
   }
   return fallback;
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { ApiError } from "@/lib/http";
+import { ApiError, errDetail, isCodeLike } from "@/lib/http";
 import { askCopilot, executeCopilotAction, isFallback, listArtifacts, newRequestId, type Artifact, type CopilotAction, type CopilotAnswer, type CopilotEntity, type CopilotMode } from "@/lib/services/aiCopilot";
 import { getWork, type WorkItem } from "@/lib/services/lawyerDesktop";
 import { IconArrowRight, IconBriefcase, IconChat, IconCheck, IconFileText, IconSend, IconSparkle } from "@/components/icons";
@@ -78,7 +78,8 @@ export default function CopilotApp({ mode, focus, onFocus, onOpenRoute }: { mode
   const reason = (e: unknown) => {
     if (e instanceof ApiError) {
       const d = e.data.detail && typeof e.data.detail === "object" ? (e.data.detail as Record<string, unknown>) : {};
-      return String(d.message ?? e.detail ?? "") || t("error");
+      const own = typeof d.message === "string" && !isCodeLike(d.message) ? d.message : "";
+      return own || errDetail(e) || t("error");
     }
     return t("error");
   };

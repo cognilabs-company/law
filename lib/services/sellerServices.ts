@@ -1,4 +1,4 @@
-import { http, asDict, asStr, asNum, asArr, ApiError, contactBlockedOf, isOffline } from "@/lib/http";
+import { http, asDict, asStr, asNum, asArr, ApiError, contactBlockedOf, errDetail, isOffline } from "@/lib/http";
 import { uzs, uzsOpt } from "@/lib/money";
 import { firstFieldError } from "@/lib/formErrors";
 import { normService, type BackendService } from "@/lib/services/backend";
@@ -553,7 +553,7 @@ export function serviceErrorOf(e: unknown, locale = "uz"): ServiceError {
   const out = (kind: ServiceErrorKind, extra?: Partial<ServiceError>): ServiceError => ({ kind, min: 0, max: 0, detail: "", limits: null, ...extra });
   if (!(e instanceof ApiError)) return out(isOffline(e) ? "offline" : "unknown");
   const detail = asDict(e.data.detail);
-  const text = e.detail ?? "";
+  const text = errDetail(e);
   const code = (e.code || asStr(detail.code) || asStr(e.data.code)).trim().toLowerCase();
   if (BELOW_MIN_CODE_RE.test(code)) {
     const ctx = { ...asDict(e.data.context), ...asDict(detail.context) };

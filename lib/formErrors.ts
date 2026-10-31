@@ -1,5 +1,5 @@
 // Helpers that turn a backend 422 (ApiError.fieldErrors) into form messages.
-import { ApiError } from "./http";
+import { ApiError, isCodeLike } from "./http";
 
 // PUT /lawyers/me/services rejects a price outside the allowed range with
 // detail {service_id, selected_price, min_allowed, max_allowed} (whole so'm).
@@ -12,9 +12,13 @@ export function priceRangeOf(e: unknown): PriceRangeError | null {
   return { serviceId: f.service_id ?? "", selectedPrice: n(f.selected_price), min: n(f.min_allowed), max: n(f.max_allowed) };
 }
 
-// First field message of a 422 as "field: message" ("" when there is none).
+// First field message of a 422 ("" when there is none). Only the words: the
+// field's wire name and a message that is only a code are never shown.
 export function firstFieldError(e: unknown): string {
   if (!(e instanceof ApiError) || e.status !== 422) return "";
-  const [k, v] = Object.entries(e.fieldErrors)[0] ?? [];
-  return k && v ? `${k}: ${v}` : "";
+  for (const v of Object.values(e.fieldErrors)) {
+    const m = v.replace(/^value error,\s*/i, "").trim();
+    if (m && !isCodeLike(m)) return m;
+  }
+  return "";
 }

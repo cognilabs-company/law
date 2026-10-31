@@ -4,7 +4,7 @@ import { verifiedAdvocateYears } from "./tenure";
 // Every function talks to the same-origin proxy with the bearer token attached.
 // UI callers wrap reads in `withFallback(...)` so the app keeps working on local
 // mock data until the backend is reachable.
-import { http, httpBlob, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl, backendOrigin, backendUrl, parseServerTime, toApiError, type Dict } from "@/lib/http";
+import { http, httpBlob, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl, errDetail, backendOrigin, backendUrl, parseServerTime, toApiError, type Dict } from "@/lib/http";
 import { cleanDocTitle, cleanDocText } from "@/lib/docTitle";
 import { mimeFromName } from "@/lib/download";
 import { sellerTrustOf, type RatingStatus } from "./trust";
@@ -263,7 +263,7 @@ export async function registerVerify(verificationId: string, code: string): Prom
       body: JSON.stringify({ verification_id: verificationId, code }),
     });
   } catch (e) {
-    if (e instanceof ApiError && e.status === 428) return { loginRequired: true, message: e.detail || "" };
+    if (e instanceof ApiError && e.status === 428) return { loginRequired: true, message: errDetail(e) };
     throw e;
   }
   const d = asDict(raw);
@@ -8447,7 +8447,7 @@ export type UrgentAssignRefusal =
 export function urgentAssignRefusal(e: unknown): UrgentAssignRefusal {
   if (!(e instanceof ApiError) || e.status !== 422) return null;
   const d = e.data.detail && typeof e.data.detail === "object" && !Array.isArray(e.data.detail) ? (e.data.detail as Dict) : {};
-  const message = asStr(d.message) || e.detail || "";
+  const message = asStr(d.message) || errDetail(e);
   if (e.code === "lawyer_count_below_minimum") {
     return { kind: "minimum", overridable: false, minimum: asNum(d.minimum_lawyer_count, 2), selected: asNum(d.selected_lawyer_count), message };
   }
@@ -8932,7 +8932,7 @@ export function editorClaimNeeded(e: unknown): EditorClaimNeeded {
   const d = e.data.detail && typeof e.data.detail === "object" && !Array.isArray(e.data.detail) ? (e.data.detail as Dict) : {};
   const claimUrl = asStr(d.claim_url);
   if (!claimUrl) return null;
-  return { message: asStr(d.message) || e.detail || "", claimUrl, status: asStr(d.status) };
+  return { message: asStr(d.message) || errDetail(e), claimUrl, status: asStr(d.status) };
 }
 // Only .docx is accepted as an editable source (§7). Checked in the browser
 // so the advocate is told before the upload rather than by a 4xx after it.

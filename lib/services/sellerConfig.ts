@@ -1,4 +1,4 @@
-import { ApiError } from "@/lib/http";
+import { ApiError, errDetail, isCodeLike } from "@/lib/http";
 import {
   addManagedService,
   serviceErrorOf,
@@ -78,7 +78,7 @@ export function configErrorOf(e: unknown): ConfigError {
     missingRuleIds: info?.missingRuleIds ?? [],
     maximum: positive(detail.maximum_price ?? detail.max_price ?? ctx.maximum_price ?? ctx.max_price),
     minimum: positive(detail.minimum_listing_price ?? ctx.minimum_listing_price ?? detail.minimum_price ?? detail.min_price ?? detail.minimum_allowed_price ?? ctx.minimum_price),
-    message: info?.message || (e instanceof ApiError ? (e.detail ?? "") : ""),
+    message: (info?.message && !isCodeLike(info.message) ? info.message : "") || errDetail(e),
     status: info?.status ?? 0,
     requested: positive(detail.requested_price ?? ctx.requested_price),
     invalidRuleIds: ids(detail.invalid_rule_ids ?? ctx.invalid_rule_ids ?? top.invalid_rule_ids),
