@@ -42,7 +42,8 @@ import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardN
 import { categoryName } from "@/lib/categoryNames";
 import { findContacts } from "@/lib/contactGuard";
 import { dateOnly, fmtNum } from "@/lib/date";
-import { errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
+import { isAborted, isForbidden, logApiError } from "@/lib/http";
+import { useErrorText } from "@/lib/errorText";
 import { toast } from "@/lib/toast";
 import { uzLabel } from "@/lib/uzScript";
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
@@ -108,7 +109,8 @@ export function achievementIssue(d: Pick<Draft, "stage" | "result" | "categoryId
   if (d.files.some((f) => f.state === "error")) return "fileErrors";
   const done = d.files.filter((f) => f.state === "done").length;
   const ev = cfg?.evidence;
-  if (ev && done < (ev.required ? Math.max(1, ev.minFiles) : ev.minFiles)) return "files";
+  // At least one file, always (backend answers 2026-10-31 §3.6).
+  if (done < Math.max(1, ev?.minFiles ?? 0)) return "files";
   if (ev && ev.maxFiles > 0 && done > ev.maxFiles) return "tooMany";
   return "";
 }
@@ -174,6 +176,7 @@ export function WorkTrack({ steps, status }: { steps: readonly string[]; status:
 export default function AchievementsPanel(): ReactElement | null {
   const t = useTranslations("portal.achievements");
   const te = useTranslations("portal.experience");
+  const errText = useErrorText();
   const locale = useLocale();
   const [cfg, setCfg] = useState<AchievementConfig | null>(null);
   const [denied, setDenied] = useState(false);
@@ -304,7 +307,7 @@ export default function AchievementsPanel(): ReactElement | null {
     } catch (e) {
       logApiError("achievements.evidence", e);
       const fe = achievementErrorOf(e);
-      setRow(row.key, { state: "error", error: fe && t.has(`err.${fe.code}`) ? t(`err.${fe.code}`) : t("fileFailed") });
+      setRow(row.key, { state: "error", error: fe && t.has(`err.${fe.code}`) ? t(`err.${fe.code}`) : errText(e) || t("fileFailed") });
     }
   }
   function addFiles(files: FileList | null) {
@@ -346,7 +349,7 @@ export default function AchievementsPanel(): ReactElement | null {
     } catch (e) {
       logApiError("achievements.submit", e);
       const fe = achievementErrorOf(e);
-      const msg = fe && t.has(`err.${fe.code}`) ? t(`err.${fe.code}`) : errDetail(e) || t("failed");
+      const msg = fe && t.has(`err.${fe.code}`) ? t(`err.${fe.code}`) : errText(e) || t("failed");
       if (fe?.field === "missing") {
         // Gone meanwhile: read the list again and say so.
         setDraft(null);

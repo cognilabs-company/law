@@ -10,7 +10,8 @@ import { IconAward, IconBriefcase, IconBuilding, IconCalendar, IconCheck, IconCl
 import Select from "@/components/Select";
 import ContactGuardNote, { useContactStrip } from "@/components/ui/ContactGuardNote";
 import { dateOnly } from "@/lib/date";
-import { errDetail, isAborted, logApiError } from "@/lib/http";
+import { isAborted, logApiError } from "@/lib/http";
+import { useErrorText } from "@/lib/errorText";
 import { toast } from "@/lib/toast";
 import { getServiceCategories, type BackendCategory } from "@/lib/services/backend";
 import { categoryName } from "@/lib/categoryNames";
@@ -18,11 +19,11 @@ import { uzLabel } from "@/lib/uzScript";
 import { findContacts } from "@/lib/contactGuard";
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import {
-  EVIDENCE_MAX_BYTES,
-  EVIDENCE_TYPES,
+  EVIDENCE_ACCEPT,
   approvedYears,
   cancelExperience,
   downloadExperienceEvidence,
+  evidenceFileIssue,
   experienceErrorOf,
   listMyExperience,
   submitExperience,
@@ -130,6 +131,7 @@ function SecHead({ icon: Icon, done, title, hint, optional }: { icon: ComponentT
 
 export default function ExperiencePanel({ kind = "category_experience" }: { kind?: ExperienceKind }): ReactElement {
   const t = useTranslations("portal.experience");
+  const errText = useErrorText();
   const pre = kind === "pre_advocate_employment";
   // This kind's own wording where it differs.
   const tk = (k: string) => (pre && t.has(`pre.${k}`) ? t(`pre.${k}`) : t(k));
@@ -213,6 +215,11 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
     setNote(null);
     setDraft(d);
   };
+  // A refusal belongs to the form: it goes with it.
+  const closeForm = () => {
+    setDraft(null);
+    setNote((n) => (n && !n.ok ? null : n));
+  };
   const setPos = (i: number, patch: Partial<PositionDraft>) => setDraft((d) => (d ? { ...d, positions: d.positions.map((p, k) => (k === i ? { ...p, ...patch } : p)) } : d));
   const today = new Date().toISOString().slice(0, 10);
   const issue = experienceIssue(draft, today, pre);
@@ -222,9 +229,10 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
   async function addFiles(files: FileList | null) {
     if (!draft || !files?.length || uploading) return;
     const list = Array.from(files);
-    const wrongType = list.find((f) => !(EVIDENCE_TYPES as readonly string[]).includes(f.type));
+    // Checked before anything goes up (backend answers 2026-10-31 §3.3).
+    const wrongType = list.find((f) => evidenceFileIssue(f) === "type");
     if (wrongType) return setNote({ ok: false, msg: t("fileType", { name: wrongType.name }) });
-    const tooBig = list.find((f) => f.size > EVIDENCE_MAX_BYTES);
+    const tooBig = list.find((f) => evidenceFileIssue(f) === "size");
     if (tooBig) return setNote({ ok: false, msg: t("fileBig", { name: tooBig.name }) });
     setUploading(true);
     setNote(null);
@@ -235,7 +243,7 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
     } catch (e) {
       logApiError("experience.evidence", e);
       const fe = experienceErrorOf(e);
-      setNote({ ok: false, msg: fe && t.has(`err.${fe.code}`) ? t(`err.${fe.code}`) : t("fileFailed") });
+      setNote({ ok: false, msg: fe && t.has(`err.${fe.key}`) ? t(`err.${fe.key}`) : errText(e) || t("fileFailed") });
     } finally {
       setUploading(false);
     }
@@ -265,7 +273,7 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
       logApiError("experience.submit", e);
       const fe = experienceErrorOf(e);
       if (fe) setFieldErr(fe);
-      setNote({ ok: false, msg: fe && t.has(`err.${fe.code}`) ? t(`err.${fe.code}`) : errDetail(e) || t("failed") });
+      setNote({ ok: false, msg: fe && t.has(`err.${fe.key}`) ? t(`err.${fe.key}`) : errText(e) || t("failed") });
     } finally {
       sending.current = false;
       setBusy(false);
@@ -283,7 +291,7 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
       await load();
     } catch (e) {
       logApiError("experience.cancel", e);
-      setNote({ ok: false, msg: errDetail(e) || t("failed") });
+      setNote({ ok: false, msg: errText(e) || t("failed") });
     } finally {
       sending.current = false;
       setBusy(false);
@@ -341,7 +349,8 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
         </div>
       ) : null}
 
-      {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+      {/* While the form is open its refusals show in the form (below). */}
+      {note && !(draft && !note.ok) ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {failed ? <Notice ok={false} msg={t("loadFailed")} /> : null}
       {!groups && !failed ? (
         <div className="exp__grid" aria-hidden="true">
@@ -451,7 +460,7 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
 
       <Modal
         open={!!draft}
-        onClose={() => (busy ? undefined : setDraft(null))}
+        onClose={() => (busy ? undefined : closeForm())}
         title={draft?.sourceId ? tk("editTitle") : tk("addTitle")}
         description={draft?.sourceId ? t("editNote") : tk("verifyNote")}
         icon={pre ? <IconHistory /> : <IconAward />}
@@ -460,13 +469,17 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
         dirty={!!draft && (!!draft.workplace || !!draft.description)}
         footer={
           <>
-            {tried && issue ? (
+            {note && !note.ok ? (
+              <small className="exp__issue" role="alert">
+                {note.msg}
+              </small>
+            ) : tried && issue ? (
               <small className="exp__issue" role="alert">
                 {issue.pos >= 0 && draft && draft.positions.length > 1 ? `${t("positionN", { n: issue.pos + 1 })}: ` : ""}
                 {t(`issue.${issue.key}`, { n: DESC_MIN })}
               </small>
             ) : null}
-            <button type="button" className="btn btn--line" onClick={() => setDraft(null)} disabled={busy}>
+            <button type="button" className="btn btn--line" onClick={closeForm} disabled={busy}>
               {t("cancel")}
             </button>
             <button type="submit" form={`exp-form-${kind}`} className="btn btn--pri" disabled={busy || uploading}>
@@ -669,7 +682,7 @@ export default function ExperiencePanel({ kind = "category_experience" }: { kind
                   </span>
                   <b>{uploading ? t("uploading") : t("addFile")}</b>
                   <small>{t("evidenceHint")}</small>
-                  <input type="file" multiple accept={EVIDENCE_TYPES.join(",")} disabled={uploading} onChange={(e) => void addFiles(e.target.files).finally(() => (e.target.value = ""))} />
+                  <input type="file" multiple accept={EVIDENCE_ACCEPT} disabled={uploading} onChange={(e) => void addFiles(e.target.files).finally(() => (e.target.value = ""))} />
                 </label>
                 {draft.evidence.length ? (
                   <ul>

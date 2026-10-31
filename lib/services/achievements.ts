@@ -7,7 +7,7 @@
 // operator. Approved achievements count for the rating, never the price, and
 // only their operator-approved public text reaches the profile. Every field
 // read here is the contract's canonical name — no aliases.
-import { ApiError, asArr, asDict, asStr, http, httpBlob, httpUpload, type Dict } from "@/lib/http";
+import { ApiError, asArr, asDict, asStr, errorCode, http, httpBlob, httpUpload, type Dict } from "@/lib/http";
 import { saveBlob } from "@/lib/download";
 import { labelledOf, type Labelled } from "@/lib/backendLabel";
 import { DECISION_WIRE, checkItemsOf, diffRowsOf, historyOf, reviewOf, reviewRoomOf, reviewSellerOf, type CheckItem, type CheckRows, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type HistoryRow, type ReviewDecision, type ReviewRoom, type ReviewSeller } from "./experience";
@@ -225,7 +225,7 @@ const ACH_FIELD: Record<string, AchievementErrorField> = {
 };
 export function achievementErrorOf(e: unknown): { code: string; field: AchievementErrorField } | null {
   if (!(e instanceof ApiError)) return null;
-  const code = e.code ?? "";
+  const code = errorCode(e);
   if (ACH_FIELD[code]) return { code, field: ACH_FIELD[code] };
   return code.startsWith("achievement_") ? { code, field: "form" } : null;
 }

@@ -15,6 +15,7 @@ import { labelIn } from "@/lib/backendLabel";
 import { ApiError, asDict, asStr, errDetail, isAborted, logApiError } from "@/lib/http";
 import { canApprove, type CheckItem, type CheckRows, type CheckVerdict, type DiffRow, type ExperienceEvidence, type ExperienceReviewEntry, type HistoryRow, type ReviewDecision, type ReviewCallKind, type ReviewRoom, type ReviewSeller } from "@/lib/services/experience";
 import { staffChatHref } from "./cancellations/model";
+import StaffPerson from "@/components/ui/StaffPerson";
 
 // One verification screen for a seller's experience or achievement
 // (TSK-100467, TSK-874927, TSK-365169): what changed since the approved
@@ -361,10 +362,9 @@ export default function VerifyReview({ source, onDone }: { source: VerifySource;
                 {r.decision ? t(`decision.${r.decision}`) : t("decision.other")}
               </span>
               {r.reviewedAt ? <time>{dateOnly(r.reviewedAt, locale)}</time> : null}
-              {r.reviewer ? (
+              {r.reviewer || r.reviewerId ? (
                 <span className="vrf__by">
-                  <IconUser aria-hidden="true" />
-                  {r.reviewer}
+                  <StaffPerson id={r.reviewerId} name={r.reviewer} fallback={t("reviewer")} />
                 </span>
               ) : null}
               {r.reason ? <span>{r.reason}</span> : null}

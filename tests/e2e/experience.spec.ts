@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ADVOCATE, CALL_CENTER, mockBackend, signIn } from "./mock";
+import { shots } from "./experienceShots";
 
 // Experience and achievements (TSK-415946, 920636, 874927, 100467, 365169,
 // 493303; contract 2026-10-27 §15–18): a workplace with several positions;
@@ -206,6 +207,49 @@ test("the operator comments any item, sees who decided before, calls the advocat
   await expect(page).toHaveURL(/\/portal\/chat\/room-rev-1\?.*join=call-7/);
 });
 
+// Backend answers 2026-10-31 §3.1 / §3.2: a past review names its reviewer
+// only by reviewed_by_user_id. The operator sees a name — their own from the
+// session, a colleague's from the call-centre user card — or a neutral
+// "Reviewer", never the id. Every returned checklist item gates approval,
+// even one marked optional.
+test("past reviews name the reviewer from the id, else say Reviewer; every checklist item is required", async ({ page }) => {
+  const decisions: unknown[] = [];
+  const routes = reviewRoutes(decisions, []) as Record<string, unknown>;
+  const detail = routes["/call-center/marketplace/experience/e9"] as Record<string, unknown>;
+  const COLLEAGUE = "9b1f0e2a-0000-4000-8000-0000000000c1";
+  const UNKNOWN = "9b1f0e2a-0000-4000-8000-0000000000ff";
+  routes["/call-center/marketplace/experience/e9"] = {
+    ...detail,
+    checklist: [...(detail.checklist as unknown[]).slice(0, 3), { key: "file_authenticity", label: "Fayllar haqiqiy", hint: "", required: false, label_i18n: { ru: "Файлы подлинные" } }],
+    reviews: [
+      { id: "rv1", decision: "changes_requested", reason: "", reviewed_at: "2026-10-18T10:00:00Z", reviewed_by_user_id: CALL_CENTER.id, checklist: [] },
+      { id: "rv2", decision: "changes_requested", reason: "", reviewed_at: "2026-10-19T10:00:00Z", reviewed_by_user_id: COLLEAGUE, checklist: [] },
+      { id: "rv3", decision: "rejected", reason: "", reviewed_at: "2026-10-20T10:00:00Z", reviewed_by_user_id: UNKNOWN, checklist: [] },
+    ],
+  };
+  routes[`/call-center/clients/${COLLEAGUE}`] = { client: { id: COLLEAGUE, full_name: "Dilshod Karimov", phone: "+998901110000", role: "call_center" } };
+  await mockBackend(page, await signIn(page, CALL_CENTER, routes as never));
+  await page.goto("/ru/admin/call-center?tab=experience");
+  await page.getByRole("button", { name: /Test Advokat/ }).click();
+  const box = page.locator(".vrf");
+  const past = box.locator(".vrf__past");
+  await expect(past.locator(".staffp")).toHaveCount(3);
+  await expect(past.locator(".staffp").nth(0)).toHaveText(/Test Operator/);
+  await expect(past.locator(".staffp").nth(1)).toHaveText(/Dilshod Karimov/);
+  await expect(past.locator(".staffp").nth(2)).toHaveText(/Проверяющий/);
+  expect(await past.innerText()).not.toMatch(/9b1f0e2a|u-cc/);
+  await shots(page, "review-reviewer-names", past);
+
+  // Three of four items ticked, the "optional" one left: approval stays shut.
+  const approve = box.getByRole("radio", { name: /^Подтвердить/ });
+  const groups = await box.locator(".vrf__v").all();
+  expect(groups).toHaveLength(4);
+  for (const g of groups.slice(0, 3)) await g.getByRole("radio", { name: "Да" }).click();
+  await expect(approve).toBeDisabled();
+  await groups[3].getByRole("radio", { name: "Да" }).click();
+  await expect(approve).toBeEnabled();
+});
+
 // TSK-365169: once the operator closes the review chat, the advocate reads it
 // without a composer.
 test("the advocate reads a closed review chat without a composer", async ({ page }) => {
@@ -301,7 +345,7 @@ test("a record sent back for changes shows the comment, is fixed as a new revisi
 });
 
 // TSK-920636: several files at once; a file over 20 MB never leaves the
-// page; the backend's file codes read in words.
+// page; the backend's file codes (answers 2026-10-31 §3.3) read in words.
 test("experience evidence: several files, the 20 MB limit and the backend's file codes", async ({ page }) => {
   let uploads = 0;
   await mockBackend(
@@ -311,7 +355,7 @@ test("experience evidence: several files, the 20 MB limit and the backend's file
       "/service-categories": CATS,
       "/marketplace/me/achievements": { items: [] },
       "/marketplace/me/experience": { items: [], groups: [] },
-      "POST /marketplace/me/experience/evidence": () => (++uploads === 3 ? { status: 415, json: { detail: { code: "evidence_file_type_not_allowed" } } } : { id: `ev${uploads}`, file_name: `fayl-${uploads}.pdf`, mime_type: "application/pdf", size: 10 }),
+      "POST /marketplace/me/experience/evidence": () => (++uploads === 3 ? { status: 415, json: { detail: { code: "experience_evidence_type_not_allowed" } } } : { id: `ev${uploads}`, file_name: `fayl-${uploads}.pdf`, mime_type: "application/pdf", size: 10 }),
     }),
   );
   await page.goto("/ru/portal/advocate/profile");
@@ -332,8 +376,98 @@ test("experience evidence: several files, the 20 MB limit and the backend's file
   expect(uploads).toBe(2);
   // The backend refuses the type: its code reads in words.
   await input.setInputFiles({ name: "skan.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") });
-  await expect(page.getByText("Такой тип файла не принимается.").first()).toBeVisible();
-  expect(await form.innerText()).not.toMatch(/evidence_file_type_not_allowed/);
+  await expect(page.getByText("Такой тип файла не принимается. Загрузите PDF, JPEG, PNG, WebP, DOC или DOCX.").first()).toBeVisible();
+  expect(await form.innerText()).not.toMatch(/experience_evidence_type_not_allowed/);
+});
+
+// Backend answers 2026-10-31 §3.3 / §6.3 on a real screen: the file rules
+// are checked before anything is sent (accept list, type, 20 MB), and every
+// shape of a refusal reads in words — an object detail, a plain string code,
+// a plain sentence, and an unknown code (the generic message, never the
+// code). There is no overlap check: two workplaces may run in parallel.
+test("experience evidence and save: client-side file rules and every shape of a backend refusal", async ({ page }) => {
+  const uploadAnswers: { status: number; json: unknown }[] = [
+    { status: 413, json: { detail: "experience_evidence_too_large" } },
+    { status: 415, json: { detail: { code: "experience_evidence_type_not_allowed", message: "Fayl turi ruxsat etilmagan" } } },
+    { status: 400, json: { detail: { code: "evidence_storage_quota_spent_x" } } },
+  ];
+  const saveAnswers: { status: number; json: unknown }[] = [
+    { status: 422, json: { detail: { code: "experience_future_date", field: "positions" } } },
+    { status: 422, json: { detail: { code: "subcategory_category_mismatch" } } },
+    { status: 422, json: { detail: [{ loc: ["body", "positions", 0, "ended_at"], msg: "Value error, experience_dates_invalid", type: "value_error" }] } },
+    { status: 409, json: { detail: "Bu tajriba allaqachon tekshiruvda" } },
+  ];
+  let uploads = 0;
+  let saves = 0;
+  await mockBackend(
+    page,
+    await signIn(page, ADVOCATE, {
+      "/lawyers/me": ME,
+      "/service-categories": CATS,
+      "/marketplace/me/achievements": { items: [] },
+      // A current job at another workplace over the same months: allowed.
+      "/marketplace/me/experience": { items: [], groups: [{ root_id: "r1", current: rec({ id: "e1", root_id: "r1", status: "approved", version: 1 }), pending_revision: null, latest: rec({ id: "e1", root_id: "r1", status: "approved", version: 1 }), revision_count: 1 }] },
+      "POST /marketplace/me/experience/evidence": () => (uploads++, uploadAnswers.shift() ?? { id: "ev9", file_name: "buyruq.pdf", mime_type: "application/pdf", size: 10 }),
+      "POST /marketplace/me/experience": () => (saves++, saveAnswers.shift() ?? { id: "e9", status: "pending_review" }),
+    }),
+  );
+  await page.goto("/ru/portal/advocate/profile");
+  await page.getByRole("tab").nth(1).click();
+  const panel = page.locator(".exp:not(.ach):not(.exp--pre):not(.prc)");
+  await panel.getByRole("button", { name: "Добавить опыт" }).first().click();
+  const form = page.getByRole("dialog", { name: "Новый опыт" });
+  const input = form.locator('input[type="file"]');
+  const accept = (await input.getAttribute("accept")) ?? "";
+  for (const x of ["application/pdf", "image/jpeg", "image/png", "image/webp", "application/msword", ".docx", ".doc"]) expect(accept).toContain(x);
+  await expect(form).toContainText("PDF, JPG, PNG, WEBP, DOC, DOCX · до 20 МБ");
+
+  // Client side: the wrong type and an oversized file never leave the page.
+  await input.setInputFiles({ name: "rasm.gif", mimeType: "image/gif", buffer: Buffer.from("GIF89a") });
+  await expect(form.getByText(/«rasm\.gif» — такой тип файла не принимается/)).toBeVisible();
+  await input.setInputFiles({ name: "katta.docx", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", buffer: Buffer.alloc(20 * 1024 * 1024 + 1) });
+  await expect(form.getByText("«katta.docx» больше 20 МБ.")).toBeVisible();
+  expect(uploads).toBe(0);
+  await shots(page, "experience-file-too-large", form.locator(".exp__drop"));
+
+  // Server side: 413 as a plain string code, 415 as an object, an unknown code.
+  const pdf = { name: "buyruq.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") };
+  await input.setInputFiles(pdf);
+  await expect(form.getByText("Файл больше 20 МБ. Выберите файл поменьше.")).toBeVisible();
+  await input.setInputFiles(pdf);
+  await expect(form.getByText("Такой тип файла не принимается. Загрузите PDF, JPEG, PNG, WebP, DOC или DOCX.")).toBeVisible();
+  await shots(page, "experience-server-415", form.locator(".exp__drop"));
+  await input.setInputFiles(pdf);
+  await expect(form.getByText("Произошла ошибка. Попробуйте ещё раз.")).toBeVisible();
+  await input.setInputFiles(pdf);
+  await expect(form).toContainText("buyruq.pdf");
+  expect(uploads).toBe(4);
+
+  // Fill the record: a period over the same months as the current job.
+  await form.getByRole("button", { name: /Категория/ }).click();
+  await page.getByRole("listbox").getByRole("option").first().click();
+  await form.getByLabel("Место работы").fill("Ikkinchi ish joyi");
+  await form.getByLabel("Должность", { exact: true }).first().fill("Yurist");
+  await form.getByRole("combobox", { name: "Должность 1: Дата начала" }).fill("01.05.2019");
+  await form.getByRole("combobox", { name: "Должность 1: Дата начала" }).press("Tab");
+  await form.getByLabel("Описание опыта").fill("Parallel ish: shartnoma nizolari bo'yicha maslahatlar va hujjatlar");
+  // No overlap check here: the record goes to the server.
+  // (the form only says parallel periods never count twice).
+  await expect(page.getByRole("alert").filter({ hasText: /пересека/i })).toHaveCount(0);
+  const send = form.getByRole("button", { name: "Отправить на проверку" });
+  await send.click();
+  await expect(form.getByText("Дата не может быть в будущем")).toBeVisible();
+  await send.click();
+  await expect(form.getByText("Эту подкатегорию нельзя выбрать. Выберите подкатегорию заново.")).toBeVisible();
+  await send.click();
+  // A FastAPI list detail carrying the code.
+  await expect(form.getByText("Неверные даты").first()).toBeVisible();
+  await send.click();
+  // A plain sentence is shown as the server wrote it.
+  await expect(form.getByText("Bu tajriba allaqachon tekshiruvda")).toBeVisible();
+  await shots(page, "experience-server-sentence", form.getByText("Bu tajriba allaqachon tekshiruvda"));
+  await send.click();
+  await expect.poll(() => saves).toBe(5);
+  expect(await page.locator("body").innerText()).not.toMatch(/experience_|subcategory_category|evidence_storage|Value error/);
 });
 
 // TSK-712239 / 920636 / 365169: evidence downloads only through the
@@ -469,6 +603,80 @@ test("an advocate adds an achievement from the backend's config", async ({ page 
   await page.locator(".amodal__f").getByRole("button", { name: "Отправить на проверку" }).click();
   await expect.poll(() => sent).not.toBeNull();
   expect(sent).toEqual({ source_id: null, process_stage: "court", result_scope: "partial", category_id: "c2", achieved_at: "2026-03-15", description: "Apellyatsiyada jazo yengillashtirildi", evidence_ids: ["av1"] });
+});
+
+// Backend answers 2026-10-31 §3.6 / §6.2: one stage, one result (full or
+// partial), a category, a date from the handmade picker, a description and
+// at least one file — even when the config asks for none. There is no
+// achievement-type selector, and the section is for advocates only.
+test("an achievement needs a stage, a result, a date and a file; no type selector; advocates only", async ({ page }) => {
+  let posts = 0;
+  const loose = { ...ACH_CONFIG, evidence: { ...ACH_CONFIG.evidence, required: false, min_files: 0 } };
+  await mockBackend(
+    page,
+    await signIn(page, ADVOCATE, {
+      "/lawyers/me": ME,
+      "/service-categories": CATS,
+      "/marketplace/me/experience": { items: [], groups: [] },
+      "/marketplace/me/achievements/config": loose,
+      "/marketplace/me/achievements": { items: [], groups: [], total: 0, total_records: 0, count: 0, limit: 50, offset: 0, has_more: false },
+      "POST /marketplace/me/achievements/evidence": { status: 201, json: { id: "av1", file_name: "hukm.pdf", mime_type: "application/pdf", size: 8, download_url: "/marketplace/achievements/evidence/av1" } },
+      "POST /marketplace/me/achievements": () => (posts++, { status: 201, json: { id: "a2", status: "ai_analysis_pending" } }),
+    }),
+  );
+  await page.goto("/ru/portal/advocate/profile");
+  await page.getByRole("tab").nth(1).click();
+  const panel = page.locator(".ach");
+  await panel.getByRole("button", { name: "Добавить достижение" }).first().click();
+  const form = page.getByRole("dialog", { name: "Новое достижение" });
+  // No type selector of any kind: the stage is the only choice of "what".
+  await expect(form.getByText(/Тип достижения|Вид достижения|награда|сертификат|научн|медиац/i)).toHaveCount(0);
+  await expect(form.locator("select, input[type=date]")).toHaveCount(0);
+  await expect(form.getByRole("radiogroup")).toHaveCount(2);
+  const send = page.locator(".amodal__f").getByRole("button", { name: "Отправить на проверку" });
+  const issue = page.locator(".amodal__f .exp__issue");
+  await send.click();
+  await expect(issue).toHaveText("Выберите стадию дела.");
+  await form.getByRole("radio", { name: /Дознание/ }).click();
+  await send.click();
+  await expect(issue).toHaveText("Выберите степень результата.");
+  await form.getByRole("radio", { name: "Полный положительный результат" }).click();
+  await send.click();
+  await expect(issue).toHaveText("Выберите категорию.");
+  await form.getByRole("button", { name: /Категория услуг/ }).click();
+  await page.getByRole("listbox").getByRole("option").first().click();
+  await send.click();
+  await expect(issue).toHaveText("Выберите дату (не в будущем).");
+  await form.getByRole("combobox", { name: "Дата результата" }).fill("02.02.2026");
+  await form.getByRole("combobox", { name: "Дата результата" }).press("Tab");
+  await form.getByLabel(/Опишите, в чём именно, в каком вопросе и при каких обстоятельствах/).fill("Dalil yetarli emasligi sababli ish tugatildi");
+  await send.click();
+  // The config allows none, but one file is always needed.
+  await expect(issue).toHaveText(/Загрузите хотя бы 1 файл/);
+  await shots(page, "achievement-file-required", issue);
+  expect(posts).toBe(0);
+  await form.locator('input[type="file"]').setInputFiles({ name: "hukm.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") });
+  await expect(form.locator(".ach__files li[data-state=done]")).toContainText("hukm.pdf");
+  await send.click();
+  await expect.poll(() => posts).toBe(1);
+});
+
+test("a lawyer (not an advocate) has no achievements section", async ({ page }) => {
+  const LAWYER = { id: "u-law", name: "Test Yurist", phone: "+998900000007", role: "lawyer" as const, backendRole: "yurist" };
+  await mockBackend(
+    page,
+    await signIn(page, LAWYER, {
+      "/lawyers/me": ME,
+      "/service-categories": CATS,
+      "/marketplace/me/experience": { items: [], groups: [] },
+      "/marketplace/me/achievements/config": ACH_CONFIG,
+      "/marketplace/me/achievements": { items: [], groups: [] },
+    }),
+  );
+  await page.goto("/ru/portal/lawyer/profile");
+  await page.getByRole("tab").nth(1).click();
+  await expect(page.locator(".exp").first()).toBeVisible();
+  await expect(page.locator(".ach")).toHaveCount(0);
 });
 
 // TSK-493303: a new version of an approved achievement names its source;

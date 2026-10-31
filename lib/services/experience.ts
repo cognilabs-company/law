@@ -5,7 +5,7 @@
 // and only approved experience counts for pricing and ranking. The backend
 // computes the years from the dates; nothing here counts them.
 
-import { ApiError, asArr, asDict, asStr, http, httpBlob, type Dict } from "@/lib/http";
+import { ApiError, asArr, asDict, asStr, errorCode, http, httpBlob, type Dict } from "@/lib/http";
 import { saveBlob } from "@/lib/download";
 import { labelledOf, type Labelled } from "@/lib/backendLabel";
 
@@ -14,8 +14,25 @@ import { labelledOf, type Labelled } from "@/lib/backendLabel";
 // separate records and overlapping periods are allowed (the backend merges
 // them, so the same months never count twice). The old "which cases" and
 // "results" fields are gone.
+//
+// Evidence files (backend answers 2026-10-31 §3.3; there is no config
+// endpoint): PDF, JPEG, PNG, WebP, DOC or DOCX, up to 20 MB. Checked here
+// before the upload; the server answers 413 / 415 the same way.
 export const EVIDENCE_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"] as const;
+export const EVIDENCE_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".webp", ".doc", ".docx"] as const;
+export const EVIDENCE_ACCEPT = [...EVIDENCE_TYPES, ...EVIDENCE_EXTENSIONS].join(",");
 export const EVIDENCE_MAX_BYTES = 20 * 1024 * 1024;
+
+// Why a picked file can't go up ('' when it can). A browser that gives no
+// type (or a generic one) for a document is judged by the file's extension.
+export function evidenceFileIssue(f: { name: string; type: string; size: number }): "" | "type" | "size" {
+  const type = (f.type || "").toLowerCase();
+  const ext = /\.[a-z0-9]+$/i.exec(f.name || "")?.[0].toLowerCase() ?? "";
+  const typeOk = (EVIDENCE_TYPES as readonly string[]).includes(type) || ((!type || type === "application/octet-stream") && (EVIDENCE_EXTENSIONS as readonly string[]).includes(ext));
+  if (!typeOk) return "type";
+  if (f.size > EVIDENCE_MAX_BYTES) return "size";
+  return "";
+}
 
 export type ExperienceStatus = "pending_review" | "approved" | "rejected" | "changes_requested" | "cancelled" | "superseded" | "other";
 // Contract 2026-10-29 §5: employment before advocate status (public bodies
@@ -214,7 +231,7 @@ export async function cancelExperience(experienceId: string): Promise<void> {
   await http(`/marketplace/me/experience/${encodeURIComponent(experienceId)}/cancel`, { method: "POST" });
 }
 
-export type ExperienceReviewEntry = { id: string; decision: "approved" | "rejected" | "changes_requested" | ""; reason: string; checklist: { key: string; verdict: string; note: string }[]; reviewedAt: string; reviewer: string };
+export type ExperienceReviewEntry = { id: string; decision: "approved" | "rejected" | "changes_requested" | ""; reason: string; checklist: { key: string; verdict: string; note: string }[]; reviewedAt: string; reviewer: string; reviewerId: string };
 // One past review (final contract 2026-10-29 §5): `decision` is the stored
 // status (approved | rejected | changes_requested); `decision_action`, the
 // word the operator sent, is not shown.
@@ -233,6 +250,9 @@ export const reviewOf = (v: unknown): ExperienceReviewEntry => {
     reviewedAt: asStr(d.reviewed_at),
     // Who decided, when the backend names them (reviews[] is untyped).
     reviewer: asStr(asDict(d.reviewer).name ?? asDict(d.reviewed_by).name ?? d.reviewer_name ?? d.reviewed_by_name).trim(),
+    // Backend answers 2026-10-31 §3.1: only reviewed_by_user_id for now. It is
+    // resolved to a name for the screen (lib/useStaffName), never shown.
+    reviewerId: asStr(d.reviewed_by_user_id ?? asDict(d.reviewer).id ?? asDict(d.reviewed_by).id).trim(),
   };
 };
 
@@ -241,16 +261,25 @@ export async function experienceHistory(experienceId: string): Promise<{ items: 
   return { items: items(d.items).sort(byVersion), reviews: asArr(d.reviews).map(reviewOf) };
 }
 
-// The field a structured error points at, for showing it in place.
-export function experienceErrorOf(e: unknown): { code: string; field: string } | null {
+// The record's and its evidence files' codes (backend answers 2026-10-31
+// §3.3): experience_evidence_too_large (413), experience_evidence_type_not_allowed
+// (415), experience_dates_invalid, experience_future_date, and the category /
+// subcategory checks, whose exact names aren't listed — any code about a
+// subcategory or a category reads as one. There is no overlap code: parallel
+// jobs are allowed (§3.5).
+const CATEGORY_FIELD: Record<string, string> = { subcategory: "subcategory_id", category: "category_id" };
+// `key` is the message to show (portal.experience.err.<key>); `field` the
+// input it points at, for showing it in place.
+export function experienceErrorOf(e: unknown): { code: string; field: string; key: string } | null {
   if (!(e instanceof ApiError)) return null;
   const detail = asDict(e.data.detail);
-  const code = e.code ?? "";
-  // The record's own codes, and the evidence file's (evidence_file_too_large,
-  // evidence_file_type_not_allowed, evidence_not_found).
-  if (!code.startsWith("experience_") && !code.startsWith("evidence_") && code !== "verification_checklist_incomplete") return null;
+  const code = errorCode(e);
   const fields = strs(detail.fields);
-  return { code, field: asStr(detail.field) || fields[0] || "" };
+  const field = asStr(detail.field) || fields[0] || "";
+  const about = /subcategory/.test(code) ? "subcategory" : /category/.test(code) ? "category" : "";
+  if (about) return { code, field: field || CATEGORY_FIELD[about], key: about };
+  if (!code.startsWith("experience_") && code !== "evidence_not_found" && code !== "verification_checklist_incomplete") return null;
+  return { code, field, key: code };
 }
 
 // ── Call-center review ─────────────────────────────────────────────────
