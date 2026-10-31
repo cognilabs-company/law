@@ -8,10 +8,12 @@ Production API: `https://lexgo.api.cognilabs.org`
 
 The backend is deployed and verified. This contract covers the web marketplace map, client location consent, nearby seller search, seller office location, Yandex navigation, privacy rules, filters, and realtime updates.
 
+**Updated 2026-10-31** with the backend answers (`LEXGO_BACKEND_ANSWERS_ALL_TASKS_2026_10_31.md` §7): the map is Yandex Maps JS API **2.1** (not v3), loaded only from the config's `maps_loader_url`; the geocoder item shape, `service_action`, the office-location fields and its delete flow, the error envelope and the realtime privacy rule are now documented below. The production Geocoder key is refused by Yandex (HTTP 403) until a valid key is installed, so address search shows a safe fallback and the point is picked on the map.
+
 ## Required user experience
 
 1. Load `GET /marketplace/map/config` before initializing the map.
-2. Initialize Yandex Maps v3 with `maps_api_key` from that response.
+2. Load the Yandex script only from `maps_loader_url` and pick the renderer by `api_version`. The backend runs `2.1`: `ymaps.ready`, `ymaps.Map`, `ymaps.Placemark`, `ymaps.Clusterer`. Never hard-code a loader URL, never log the key, never put it in an error message.
 3. Render public markers from `GET /marketplace/sellers/map`.
 4. Ask for browser geolocation only after an explicit user action such as “Show specialists near me”.
 5. Record the permission result through `POST /marketplace/me/location-consent`.
@@ -29,9 +31,12 @@ No authentication is required.
 Important response fields:
 
 - `provider`: `yandex`
-- `api_version`: `v3`
-- `maps_api_key`: browser map key
+- `api_version`: `2.1` (any `2.1.x` is the same renderer)
+- `maps_loader_url`: the 2.1 loader with the key and language, e.g. `https://api-maps.yandex.ru/2.1/?apikey=<key>&lang=uz_UZ`
+- `maps_api_key`: browser map key (the frontend doesn't read it; the key travels only inside `maps_loader_url`)
 - `configured`: Yandex key availability
+- `geocoder_configured`: whether address search is set up
+- `coordinate_order`: `longitude_latitude` for every coordinate array the backend sends
 - `default_location.center`: `[longitude, latitude]`
 - `default_location.zoom`
 - `seller_map_url`
@@ -45,7 +50,16 @@ Important response fields:
 - `realtime`: websocket events and resource URLs
 - `privacy`: backend-enforced location privacy contract
 
-If `configured` is false, show the seller list and filters without the map. Do not expose a broken map state.
+If `configured` is false, `maps_loader_url` is missing or not an https Yandex Maps host, `api_version` is a version the page can't draw, or the script fails to load (15 s timeout), show the seller list and filters without the map. Do not expose a broken map state.
+
+### Frontend implementation (2.1)
+
+- `components/marketplace/map/ymaps.ts` loads the script from `maps_loader_url` once per page, waits for `ymaps.ready`, and gives the two map components (`SellersYandexMap`, `PointPickerMap`) one small handle; the components never touch Yandex objects.
+- The deployed loader uses 2.1's default `[latitude, longitude]` order (`ymaps.meta.coordinatesOrder`); the handle converts to and from the backend's `[longitude, latitude]`.
+- Markers are `ymaps.Placemark`s drawn from `templateLayoutFactory` templates (values escaped) with a circular `iconShape` for taps. Seller pins go into a `ymaps.Clusterer` (48 px grid, never above zoom 17) whose counts zoom in on a tap or Enter; the backend's own clusters (zoom < 13) are separate placemarks that zoom in and refetch the viewport.
+- Every focusable marker has `tabindex="0"`; Enter or Space does what a tap does. Zoom buttons, the locate button, the seller list under the map and the card (Escape closes it) are ordinary buttons.
+- 2.1 has no dark scheme: in dark mode only the tile pane (`map.panes.get("ground")`) is inverted and re-tinted, so the pins keep their colours. `autoFitToViewport: "always"` keeps the map filling its box.
+- Browser tests serve a 2.1 stand-in (`tests/e2e/ymapsStub.ts`) from the config's loader URL; it implements the same calls with 2.1's semantics, including the events pane that lets a tap reach a marker only through its shape.
 
 ## Public viewport map
 
@@ -65,7 +79,28 @@ Query parameters:
 
 Response contains `markers`, `clusters`, `count`, `total_in_bbox`, `truncated`, `filters`, and the normalized `bbox`.
 
-Coordinates in marker arrays use `[longitude, latitude]`. Public markers are deliberately approximate. Never label them as an exact current address.
+Coordinates in marker arrays use `[longitude, latitude]`. Public markers are deliberately approximate (about 500 m, `privacy.public_marker_precision`). Never label them as an exact current address: the frontend labels every pin "… area (approximate)" (region centre for `profile_region`) and the seller card says "Approximate area, ≈500 m — not an exact address".
+
+### `service_action`
+
+Map markers and nearby results may carry a compact service action:
+
+```json
+{
+  "id": "service-id",
+  "title": "Service title",
+  "price": 100000,
+  "currency": "UZS",
+  "can_purchase": true,
+  "purchase_url": "/..."
+}
+```
+
+`id` is the service ID (there is no `service_id`). With `can_purchase: true` the card and the nearby row link to the seller's profile with `?buy=<id>`, which opens the profile's purchase dialog for that service; otherwise they link to the profile's services. The price is shown in its currency.
+
+### Seller avatar
+
+Markers and nearby results have no `avatar_url` (backend gap). Pins, cards and rows show a generated initials avatar; no photo is read or faked.
 
 When `zoom < 13`, render `clusters`. Clicking a cluster must zoom and refetch the viewport. When `zoom >= 13`, render individual markers.
 
@@ -199,6 +234,7 @@ Seller roles use:
 
 - `GET /marketplace/me/office-location`
 - `PUT /marketplace/me/office-location`
+- `DELETE /marketplace/me/office-location` — "Remove office"; the answer reports `configured: false`
 
 ```json
 {
@@ -210,6 +246,41 @@ Seller roles use:
 ```
 
 The settings page must clearly explain that enabling `public_navigation_enabled` lets clients receive a route to this office. Saving a private office with the switch off does not expose an exact navigation destination.
+
+`GET`/`PUT` answer `{configured, office}`; `office` contains `latitude`, `longitude`, `formatted_address`, `source`, `public_navigation_enabled`, `confirmed_at` / `geocoded_at` and `record_id`.
+
+The settings card shows the address, whether clients may get a route, how the point was set (`source` in words: marked on the map, found by address, from the device, set by the LexGo team; an unknown value is not shown) and when it was confirmed / its address checked (local date and time). `record_id` is never read or shown. "Remove office" asks in the app's own confirm dialog, sends `DELETE`, and then shows the "not on the map yet" state with "Add office".
+
+The office point can be picked on the map, by address search, or from the device. When the geocoder is down, the address search and the reverse lookup say so in words; the map point is still saved and the seller types the address.
+
+## Geocoder
+
+`GET /marketplace/geocoder/search?q=&lang=&limit=` and `GET /marketplace/geocoder/reverse?latitude=&longitude=&lang=` (signed in).
+
+Answer metadata: `count`, `found`, `provider`, `cached`, `rate_limit_remaining`, `coordinate_order` (`longitude_latitude`). Each item:
+
+```json
+{
+  "id": "string",
+  "name": "string",
+  "description": "string",
+  "formatted_address": "string",
+  "latitude": 41.0,
+  "longitude": 69.0,
+  "precision": "string",
+  "kind": "string",
+  "country_code": "string",
+  "components": {}
+}
+```
+
+The frontend reads `latitude`/`longitude` first (a `coordinates` array follows `coordinate_order`), shows `name` with `formatted_address` (or `description`) under it, and never shows coordinates, `kind` or `precision` codes.
+
+Errors `yandex_geocoder_key_invalid`, `yandex_geocoder_not_configured`, `yandex_geocoder_unavailable`, `seller_type_invalid` (and a provider 403/502/503/504 without a code) show "Address search is unavailable right now — pick the point on the map" (without a map: "… try again a little later"); `geocoder_rate_limit_exceeded` asks to wait a minute. With `geocoder_configured: false` nothing is asked and the same message shows. The production key returns 403 today, so this fallback is the usual path until a valid key is installed.
+
+## Error envelope
+
+Map and geocoder errors use `{"detail": {"code": "machine_readable_code"}}`; general authentication/framework errors may use a plain string `detail`. The frontend reads the code from both (the shared `errorCode()` in `lib/http`), shows each listed code in words, and words an unknown code by its HTTP status. A raw code is never shown.
 
 ## Realtime map updates
 
@@ -223,7 +294,7 @@ After connection send:
 
 Wait for `marketplace.map.subscribed`.
 
-Listen for `marketplace.seller_location_updated`. Debounce marker refreshes and refetch the current viewport from `/marketplace/sellers/map`. The event may contain a marker or `marker: null` when sharing is disabled.
+Listen for `marketplace.seller_location_updated`. Debounce marker refreshes and refetch the current viewport from `/marketplace/sellers/map`. The event may contain a marker or `marker: null` when sharing is disabled. Public updates carry only an approximate (≈500 m) marker; the frontend never reads coordinates from the event at all — it only refetches.
 
 When leaving the map page send:
 
@@ -245,12 +316,14 @@ When leaving the map page send:
 - Yandex app open attempt with web fallback
 - Realtime reconnect and viewport resync
 - Accessible keyboard controls and translated labels
+- Address search unavailable (geocoder down) with map point picking
+- Office configured / not configured, and the "Remove office" confirm
 
 ## Privacy requirements
 
 - Never save client coordinates in local persistent storage unless the user explicitly chooses an app-level saved location feature later.
 - Never show a public marker as an exact current seller location.
 - Never bypass the navigation endpoint using marker coordinates.
-- Never display the raw Yandex geocoder key in logs or error messages.
+- Never display the raw Yandex geocoder key in logs or error messages. The same holds for the maps key inside `maps_loader_url`.
 - Treat `location_precision`, `navigation.available`, and backend action/error fields as the source of truth.
 
