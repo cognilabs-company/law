@@ -31,6 +31,8 @@ test("admin sees how the rating is worked out and whether every rating is curren
       studio_url: "/admin/studio/c/K37",
     },
     "/admin/marketplace/ratings/status": { policy_version: 3, profiles: 79, current: 75, stale: 4, missing: 0, revision_pending: 0, ready: true, reconciliation_hours: 6 },
+    // K37 is in the Studio catalog, so its link shows (§4.7).
+    "/studio/constructors": { items: [{ code: "K37", title: "Reyting siyosati" }], groups: [], journeys: [] },
   });
   await mockBackend(page, routes);
   await page.goto("/ru/admin/reviews");
@@ -73,4 +75,43 @@ test("a review's detail shows the seller's rating breakdown, never raw codes", a
   await expect(dlg).toContainText("Другой вид специалиста");
   expect(await dlg.innerText()).not.toMatch(/escalated_x|notarius_x|brand_new_factor|verified_achievements/);
   expect(mock.refused).toEqual([]);
+});
+
+// Answers 2026-10-31 §5.3: the weights are the backend's own numbers (here
+// not the defaults), none are made up when it sends none, no rating is
+// worked out here, and without K37 in the catalog there is no Studio link.
+test("the policy shows only the backend's weights and links to Studio only when K37 is listed", async ({ page }) => {
+  let policy: Record<string, unknown> = { client_reviews_weight: 40, completion_rate_weight: 20, response_score_weight: 10, acceptance_rate_weight: 10, verified_experience_weight: 12, verified_achievements_weight: 8, policy_version: 4 };
+  const routes = await signIn(page, ADMIN, {
+    "/admin/reviews": [],
+    "/admin/marketplace/ratings/policy": () => ({ constructor_code: "K37", policy, studio_url: "/admin/studio/c/K37" }),
+    "/studio/constructors": { items: [{ code: "K02", title: "Xizmatlar" }], groups: [], journeys: [] },
+  });
+  await mockBackend(page, routes);
+  await page.goto("/ru/admin/reviews");
+  const card = page.locator(".rpol");
+  const weights = card.locator(".rpol__weights li");
+  await expect(weights).toHaveCount(6);
+  await expect(weights.first()).toContainText("Оценки клиентов");
+  await expect(weights.first()).toContainText("40%");
+  await expect(weights.filter({ hasText: "Подтверждённые достижения" })).toContainText("8%");
+  expect(await card.innerText()).not.toMatch(/45%/);
+  await expect(card.getByRole("link", { name: "Изменить в Studio" })).toHaveCount(0);
+  if (process.env.RATING_SHOTS) {
+    const dir = process.env.RATING_SHOTS;
+    for (const theme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme: theme });
+      await page.evaluate((th) => document.documentElement.setAttribute("data-theme", th), theme);
+      for (const w of [1440, 390]) {
+        await page.setViewportSize({ width: w, height: 900 });
+        await card.scrollIntoViewIfNeeded();
+        await card.screenshot({ path: `${dir}/rating-policy-${w}-${theme}.png` });
+      }
+    }
+  }
+  // A policy without weights shows none rather than a default table.
+  policy = { cold_start_score: 60, policy_version: 5 };
+  await page.reload();
+  await expect(card).toContainText("60");
+  await expect(card.locator(".rpol__weights")).toHaveCount(0);
 });

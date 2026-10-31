@@ -2,7 +2,7 @@
 // authenticated user with the right permissions; the bearer token is attached
 // automatically by the shared http() layer.
 import { http, asDict, asStr, asArr, asNum, type Dict } from "@/lib/http";
-import { normDeliveries, type NotificationDelivery, type BackendService, type TemplateField } from "@/lib/services/backend";
+import { executorTypesOf, normDeliveries, type NotificationDelivery, type BackendService, type TemplateField } from "@/lib/services/backend";
 import { cleanDocTitle } from "@/lib/docTitle";
 import { uzsOpt } from "@/lib/money";
 
@@ -143,6 +143,7 @@ export function normAdminService(v: unknown, locale = "uz"): AdminService {
     isActive: d.is_active !== false && d.is_active !== 0,
     catalogCode: catalogCode || undefined,
     executorType: asStr(d.executor_type) || undefined,
+    executorTypes: executorTypesOf(d),
     advokatRequired: Boolean(d.advokat_required),
     pricingTier: asStr(d.pricing_tier) || undefined,
     title: adminTitle(asStr(d.title)),

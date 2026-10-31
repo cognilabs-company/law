@@ -51,9 +51,11 @@ const NO_SUBCAT = "Boshqa";
 const SERVICES_PAGE = 500;
 const FAMILY_TONES = ["#2f7cf6", "#8e5cf7", "#e5484d", "#2e9d57", "#f08a24", "#0f9fb0"];
 
+// Runtime executor_types first, the singular executor_type only when the
+// list is missing (answers 2026-10-31 §4.2).
 function execOf(s: BackendService): Exclude<Exec, "all"> {
   if (s.advokatRequired) return "advokat";
-  const n = normalizeSearchText(s.executorType || "");
+  const n = normalizeSearchText((s.executorTypes?.length ? s.executorTypes.join(" ") : s.executorType) || "");
   if (/(?:^| )ai(?: |$)/.test(n)) return "ai";
   if (n.includes("advokat") && !n.includes("yurist")) return "advokat";
   if (n.includes("yurist") || n.includes("lawyer")) return "yurist";

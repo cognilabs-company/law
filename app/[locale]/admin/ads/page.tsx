@@ -11,6 +11,7 @@ import { fmtUzs } from "@/lib/money";
 import { fmtDate } from "@/lib/date";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import { IconBriefcase, IconEye, IconImage, IconInfo, IconLayers, IconMegaphone, IconRocket, IconSearch, IconTag, IconTrendingUp, IconUser } from "@/components/icons";
+import { useStudioCatalog } from "@/lib/studio/catalogLink";
 
 // Read-only overview of the advertising packages (K12-PROMO). Creating and
 // editing them lives in Studio; this page shows every package in full.
@@ -66,6 +67,8 @@ function packOf(a: ModuleRecord): Pack {
 
 export default function AdminAds() {
   const t = useTranslations("admin");
+  // Studio's K12-PROMO only while the constructor catalog lists it (§4.7).
+  const adsStudioHref = useStudioCatalog().listHref("K12-PROMO");
   const locale = useLocale();
   const ads = useResource(listAds, []);
   const [status, setStatus] = useState("");
@@ -111,10 +114,12 @@ export default function AdminAds() {
             <IconTag />
             {t("ads.promotions")}
           </Link>
-          <Link href="/admin/studio/c/K12-PROMO" className="btn btn--pri btn--sm" data-ai-target="button:new-ad">
-            <IconLayers />
-            {t("ads.openStudio")}
-          </Link>
+          {adsStudioHref ? (
+            <Link href={adsStudioHref} className="btn btn--pri btn--sm" data-ai-target="button:new-ad">
+              <IconLayers />
+              {t("ads.openStudio")}
+            </Link>
+          ) : null}
         </div>
         <dl className="ads-meta">
           <div>

@@ -19,6 +19,7 @@ const VALUE_KEYS: Record<string, string> = {
   yurist: "lawyer", lawyer: "lawyer", "юрист": "lawyer",
   advokat: "advocate", advocate: "advocate", "адвокат": "advocate",
   yurist_advokat: "any", lawyer_advocate: "any", any: "any", "юрист/адвокат": "any", "юрист ёки адвокат": "any", "юрист/advokat": "any",
+  call_center_lawyer: "callCenter", ai_lawyer: "ai", document_constructor: "constructor",
   online: "online", "онлайн": "online", offline: "offline", "офлайн": "offline", hybrid: "hybrid", "аралаш": "hybrid", "онлайн/офлайн": "hybrid",
   basic: "basic", "базавий": "basic", standard: "standard", "стандарт": "standard", premium: "premium", "премиум": "premium",
 };
@@ -66,7 +67,8 @@ export function usePassportBlocks(p: Passport): PassportBlock[] {
         [t("code"), p.catalogCode],
         [t("family"), group],
         [t("subcategory"), p.subcategory && p.subcategory !== p.family ? p.subcategory : ""],
-        [t("executor"), val("executorValues", p.executorType)],
+        // executor_types first; the singular field only when the list is missing.
+        [t("executor"), (p.executorTypes?.length ? p.executorTypes : [p.executorType]).map((x) => val("executorValues", x)).filter(Boolean).join(", ")],
         [t("advokat"), p.advokatRequired ? t("advokatYes") : ""],
         [t("format"), val("formatValues", p.format)],
       ],

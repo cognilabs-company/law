@@ -640,6 +640,10 @@ export type BackendService = {
   // LexGo catalog metadata
   catalogCode?: string;
   executorType?: string;
+  // Who may do the service. The runtime sends executor_types (a list) where
+  // it has it; older schemas only the singular executor_type, which then
+  // stands alone (answers 2026-10-31 §4.2). Prefer this over executorType.
+  executorTypes: string[];
   advokatRequired: boolean;
   pricingTier?: string;
   // GM Frontend Document Generation flow: when set, this service is wired to
@@ -681,6 +685,13 @@ function serviceTitle(d: Dict, locale: string): string {
   return cleanDocTitle(raw) || raw;
 }
 
+// executor_types when the backend sends the list, else the one executor_type.
+export function executorTypesOf(d: Dict): string[] {
+  const list = Array.isArray(d.executor_types) ? d.executor_types.map((x) => asStr(x).trim()).filter(Boolean) : [];
+  if (list.length) return [...new Set(list)];
+  const one = asStr(d.executor_type).trim();
+  return one ? [one] : [];
+}
 export function normService(v: unknown, locale = "uz"): BackendService {
   const d = asDict(v);
   return {
@@ -695,6 +706,7 @@ export function normService(v: unknown, locale = "uz"): BackendService {
     isActive: d.is_active !== false,
     catalogCode: asStr(d.catalog_code) || undefined,
     executorType: asStr(d.executor_type) || undefined,
+    executorTypes: executorTypesOf(d),
     advokatRequired: Boolean(d.advokat_required),
     pricingTier: asStr(d.pricing_tier) || undefined,
     documentTemplateId: asStr(d.document_template_id) || undefined,
@@ -895,6 +907,7 @@ export type ServicePassport = {
   group: string;
   subcategory: string;
   executorType: string;
+  executorTypes: string[];
   advokatRequired: boolean;
   format: string;
   // Durations in days as the catalog stores them: "10", or a range like "3-5".
@@ -918,6 +931,7 @@ function normPassport(v: unknown): ServicePassport {
     group: asStr(d.group),
     subcategory: asStr(d.subcategory),
     executorType: asStr(d.executor_type),
+    executorTypes: executorTypesOf(d),
     advokatRequired: Boolean(d.advokat_required),
     format: asStr(d.format),
     standardDuration: asStr(d.standard_duration).trim(),

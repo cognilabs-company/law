@@ -43,33 +43,49 @@ function safeDecode(raw: string): string {
   }
 }
 
-export function normEntityCard(raw: unknown): EntityCard | null {
+// The card list is still a flexible structure in OpenAPI (answers
+// 2026-10-31 §4.8): counts may sit on the card or under `counts`, as
+// `active_count` or plain `active`, and URLs under `urls`. Whatever is
+// missing stays null rather than being made up.
+export function normEntityCard(raw: unknown, keyHint = ""): EntityCard | null {
   const d = dictOf(raw);
+  const n = dictOf(d.counts);
+  const u = dictOf(d.urls ?? d.links);
+  const count = (...keys: string[]): number | null => {
+    for (const k of keys) {
+      const v = optNum(d[k] ?? n[k]);
+      if (v !== null) return v;
+    }
+    return null;
+  };
+  const url = (...keys: string[]): string => keys.map((k) => strOf(d[k]) || strOf(u[k])).find(Boolean) ?? "";
   const code = strOf(d.constructor_code ?? d.code);
-  const key = strOf(d.key) || code;
+  const key = strOf(d.key) || keyHint || code;
   if (!key || !code) return null;
   return {
     key,
     title: strOf(d.title),
     code,
-    total: optNum(d.total) ?? 0,
-    active: optNum(d.active_count),
-    inactive: optNum(d.inactive_count),
-    incomplete: optNum(d.incomplete_count),
-    incompleteDrafts: optNum(d.studio_object_incomplete_count),
-    incompleteJourneys: optNum(d.journey_incomplete_count),
-    studioObjects: optNum(d.studio_object_count),
-    listUrl: strOf(d.list_url),
-    incompleteUrl: strOf(d.incomplete_url),
-    createUrl: strOf(d.create_url),
+    total: count("total", "total_count") ?? 0,
+    active: count("active_count", "active"),
+    inactive: count("inactive_count", "inactive"),
+    incomplete: count("incomplete_count", "incomplete"),
+    incompleteDrafts: count("studio_object_incomplete_count"),
+    incompleteJourneys: count("journey_incomplete_count"),
+    studioObjects: count("studio_object_count"),
+    listUrl: url("list_url", "list"),
+    incompleteUrl: url("incomplete_url", "incomplete"),
+    createUrl: url("create_url", "create"),
   };
 }
 
 export function normEntityCards(raw: unknown): EntityCard[] | null {
-  if (!Array.isArray(raw)) return null;
+  // A list, or an object keyed by the card's key.
+  const rows: [string, unknown][] = Array.isArray(raw) ? raw.map((r) => ["", r]) : raw && typeof raw === "object" ? Object.entries(raw as Record<string, unknown>) : [];
+  if (!Array.isArray(raw) && !rows.length) return null;
   const out: EntityCard[] = [];
-  for (const r of raw) {
-    const c = normEntityCard(r);
+  for (const [hint, r] of rows) {
+    const c = normEntityCard(r, hint);
     if (c && !out.some((x) => x.key === c.key)) out.push(c);
   }
   return out;

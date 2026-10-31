@@ -28,6 +28,7 @@ import ServiceEditModal from "@/components/admin/ServiceEditModal";
 import { useAiSelection } from "@/lib/ai/registry";
 import { IconAlert, IconBriefcase, IconChevronRight, IconPlus, IconSearch, IconEdit, IconTrash, IconRefresh, IconInfo, IconEye, IconLayers, IconCircleCheck } from "@/components/icons";
 import "./categoryTree.css";
+import { useStudioCatalog } from "@/lib/studio/catalogLink";
 import { categoryTitleName } from "@/lib/categoryNames";
 
 function num(v: string | boolean): number {
@@ -48,7 +49,6 @@ const hayOf = (s: AdminService) =>
 
 const isMissingEndpoint = (e: unknown) => e instanceof ApiError && (e.status === 404 || e.status === 405 || e.status === 501);
 
-const STUDIO_CATEGORIES_HREF = "/admin/studio/c/K01";
 
 const loadCategoryRows = () =>
   getCategoryTree({ includeInactive: true })
@@ -94,6 +94,8 @@ function CategoryTreeRow({ row, rootIndex, active, onShow }: { row: CategoryRow;
 export default function AdminServices() {
   const t = useTranslations("admin");
   const ts = useTranslations("admin.services");
+  // Categories are edited in Studio K01 — linked only while the catalog lists it (§4.7).
+  const categoriesHref = useStudioCatalog().listHref("K01");
   const locale = useLocale();
   const { session } = useAuth();
   const roles = sessionRoles(session);
@@ -285,7 +287,7 @@ export default function AdminServices() {
         <p className="svcadm__hint svcadm-tree__note">
           <IconInfo />
           <span>
-            {ts("catTree.studioNote")} <Link href={STUDIO_CATEGORIES_HREF}>{ts("catTree.studioLink")}</Link>
+            {ts("catTree.studioNote")} {categoriesHref ? <Link href={categoriesHref}>{ts("catTree.studioLink")}</Link> : null}
           </span>
         </p>
         {cats.status === "loading" ? (

@@ -9,6 +9,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { aiId } from "@/lib/ai/ids";
 import { useStudioAccess, useStudioRegistry } from "@/lib/services/studio";
+import { inStudioCatalog } from "@/lib/studio/catalogLink";
 import { approvalsHref } from "../approvals/urlState";
 import { enterStyle } from "../hooks";
 import { ChevronRightIcon, RefreshCwIcon, ctorIcon, glyph } from "../icons";
@@ -39,12 +40,18 @@ const FALLBACK_CODE: Readonly<Record<"service" | "package", readonly string[]>> 
 const enc = encodeURIComponent;
 
 type EntityCounts = { total: number | null; active: number | null; incomplete: number | null; drafts: number | null; journeys: number | null; href: string };
-function entityOf(s: StudioSummary, type: "service" | "package"): EntityCounts {
+// A card links only to a constructor the current catalog lists (answers
+// 2026-10-31 §4.7); the counts still show.
+function entityOf(s: StudioSummary, type: "service" | "package", listed: (code: string) => boolean): EntityCounts {
   const card: EntityCard | undefined = s.entityCards?.find((c) => createTypeOf(c) === type);
-  if (card) return { total: card.total, active: card.active, incomplete: card.incomplete, drafts: card.incompleteDrafts, journeys: card.incompleteJourneys, href: recordsHrefOf(card.listUrl, card.code) };
+  if (card) {
+    const href = recordsHrefOf(card.listUrl, card.code);
+    const code = /^\/admin\/studio\/c\/([^/?#]+)/.exec(href)?.[1] ?? "";
+    return { total: card.total, active: card.active, incomplete: card.incomplete, drafts: card.incompleteDrafts, journeys: card.incompleteJourneys, href: code && listed(decodeURIComponent(code)) ? href : "" };
+  }
   const code = FALLBACK_CODE[type].find((c) => s.ctors[c]);
   const ctor = code ? s.ctors[code] : undefined;
-  return { total: ctor ? ctor.total : null, active: ctor ? ctor.active : null, incomplete: ctor ? (ctor.byStatus.draft ?? 0) : null, drafts: null, journeys: null, href: code ? `/admin/studio/c/${enc(code)}` : "" };
+  return { total: ctor ? ctor.total : null, active: ctor ? ctor.active : null, incomplete: ctor ? (ctor.byStatus.draft ?? 0) : null, drafts: null, journeys: null, href: code && listed(code) ? `/admin/studio/c/${enc(code)}` : "" };
 }
 
 export type OverviewProps = { done: number; total: number; groups: number; groupsDone: number; ready: boolean; summary: StudioSummaryState };
@@ -53,6 +60,8 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
   const t = useTranslations("studio");
   const labels = useStudioLabels();
   const acc = useStudioAccess();
+  const catalog = useStudioRegistry();
+  const listed = (code: string) => inStudioCatalog(code, catalog.items);
   const headingId = useId();
   const [usageOpen, setUsageOpen] = useState(false);
   const [usageNonce, setUsageNonce] = useState(0);
@@ -71,9 +80,9 @@ export function Overview({ done, total, groups, groupsDone, ready, summary }: Ov
   const kpis: Kpi[] = [];
   let svcCounts: EntityCounts | null = null;
   if (s) {
-    const svc = entityOf(s, "service");
+    const svc = entityOf(s, "service", listed);
     svcCounts = svc;
-    const pkg = entityOf(s, "package");
+    const pkg = entityOf(s, "package", listed);
     const review = statusCount(s, "submitted", "in_review");
     const publish = statusCount(s, "approved");
     const opens = today ? today.totalOpens : null;
