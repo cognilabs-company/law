@@ -10,6 +10,7 @@ import type { RuntimeConfig, RuntimeDuration } from "@/lib/services/marketRuntim
 import { OptionLines } from "../OrderExtras";
 import { durationParts } from "./deadline";
 import { useContactSpeedText } from "./contactSpeed";
+import ContactSla from "./ContactSla";
 import { clientPhoneShow, lawyerPhoneShow, telHref } from "./phone";
 import type { OrderView } from "./types";
 
@@ -36,7 +37,7 @@ function Row({ label, children }: { label: string; children: ReactNode }): React
   );
 }
 
-export default function OrderFacts({ o, view, aiBase, runtime }: { o: MarketOrder; view: OrderView; aiBase: string; runtime: RuntimeConfig | null }): ReactElement {
+export default function OrderFacts({ o, view, aiBase, runtime, onRefresh }: { o: MarketOrder; view: OrderView; aiBase: string; runtime: RuntimeConfig | null; onRefresh?: () => void }): ReactElement {
   const t = useTranslations("marketplace.orderDetail");
   const to = useTranslations("marketplace.orders");
   const tch = useTranslations("marketplace.purchase.channels");
@@ -82,7 +83,7 @@ export default function OrderFacts({ o, view, aiBase, runtime }: { o: MarketOrde
         </Row>
         {pkgLine ? <Row label={t("facts.package")}>{pkgLine}</Row> : null}
         {o.preferredChannel ? <Row label={to("channel")}>{tch.has(o.preferredChannel) ? tch(o.preferredChannel) : o.preferredChannel}</Row> : null}
-        {speed ? <Row label={to("contactSpeed")}>{speed}</Row> : null}
+        <ContactSla o={o} live={phase !== "completed" && phase !== "rated" && phase !== "cancelled"} Row={Row} onDeadline={onRefresh} />
         {o.preferredTime && !speed ? <Row label={to("time")}>{o.preferredTime}</Row> : null}
         {o.createdAt ? <Row label={t("facts.created")}>{when(o.createdAt)}</Row> : null}
         {o.startedAt ? <Row label={t("facts.started")}>{when(o.startedAt)}</Row> : null}

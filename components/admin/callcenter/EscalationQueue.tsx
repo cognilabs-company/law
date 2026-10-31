@@ -17,6 +17,7 @@ import { shortDateTime } from "@/lib/date";
 import { ApiError, errDetail, isAborted, isForbidden, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import PersonName from "@/components/ui/PersonName";
+import ContactSla, { type FactRow } from "@/components/marketplace/order/ContactSla";
 import { onUserSocketResync, subscribeUserEvents } from "@/lib/userSocket";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import { escalationClosed, idemKeyFor, idemLost, idemSettle, isResolutionEvent, listAssignmentEscalations, refundFinal, refundStepOf, resolveAssignmentEscalation, type AssignmentEscalation, type EscalationAction, type IdemSlot } from "@/lib/services/resolution";
@@ -174,6 +175,14 @@ function offerFlow(esc: AssignmentEscalation, t: ReturnType<typeof useTranslatio
   return steps;
 }
 
+// One fact of the escalation's order, in the queue's own look.
+const Fact: FactRow = ({ label, children }) => (
+  <div>
+    <dt>{label}</dt>
+    <dd>{children}</dd>
+  </div>
+);
+
 function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationAction) => void }): ReactElement {
   const t = useTranslations("callCenter.escalations");
   const none = useTranslations("common")("none");
@@ -218,6 +227,7 @@ function Row({ esc, onAct }: { esc: AssignmentEscalation; onAct: (a: EscalationA
               <dt>{t("f.client")}</dt>
               <dd>{o.clientName ? [o.clientName, o.clientPhone].filter(Boolean).join(" · ") : <PersonName id={o.clientUserId} withPhone />}</dd>
             </div>
+            <ContactSla o={o} live={esc.status !== "resolved"} Row={Fact} />
             <div>
               <dt>{t("f.previous")}</dt>
               <dd>
@@ -347,8 +357,9 @@ export default function EscalationQueue({ onCount }: { onCount?: (n: number) => 
     const ctl = new AbortController();
     void Promise.resolve().then(() => load(ctl.signal));
     const off = subscribeUserEvents((e) => {
-      // TSK-635882: a missed contact deadline lands here too.
-      if (isResolutionEvent(e.event) || /marketplace\.(order_declined|assignment_|contact_sla_)/.test(String(e.event ?? ""))) void load();
+      // TSK-635882: a missed contact deadline lands here too, and the first
+      // contact (§1.3) stops its clock.
+      if (isResolutionEvent(e.event) || /marketplace\.(order_declined|assignment_|contact_sla_|contact_started)/.test(String(e.event ?? ""))) void load();
     });
     return () => {
       ctl.abort();

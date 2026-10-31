@@ -116,7 +116,7 @@ export default function CcFocus({ onGo, onCount, tabs }: { onGo: (tab: CcTab) =>
       timer.current = window.setTimeout(() => void load(), REFRESH_DEBOUNCE);
     };
     const off = subscribeUserEvents((e) => {
-      if (/^marketplace\.(assignment_|contact_sla_|complaint_|experience_|achievement_|payout_|refund_)/.test(String(e.event ?? ""))) soon();
+      if (/^marketplace\.(assignment_|contact_sla_|contact_started|complaint_|experience_|achievement_|payout_|refund_)/.test(String(e.event ?? ""))) soon();
     });
     const offResync = onUserSocketResync(soon);
     return () => {

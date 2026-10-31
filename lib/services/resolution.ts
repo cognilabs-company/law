@@ -179,7 +179,9 @@ export function escalationOf(v: unknown): AssignmentEscalation | null {
     id,
     status: asStr(d.status),
     orderId: asStr(d.order_id ?? order.id),
-    order: normMarketOrder({ id: d.order_id, ...order }),
+    // The contact SLA may come on the escalation itself (§1.3); the
+    // order's own fields win.
+    order: normMarketOrder({ id: d.order_id, contact_speed: d.contact_speed, contact_speed_label: d.contact_speed_label, contact_deadline_at: d.contact_deadline_at, contact_started_at: d.contact_started_at, ...order }),
     reason: asStr(d.reason),
     previousSellerUserId: asStr(d.previous_seller_user_id ?? prev.id),
     previousSellerName: asStr(d.previous_seller_name ?? prev.name ?? prev.full_name),
