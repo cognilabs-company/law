@@ -95,7 +95,6 @@ const ORDER_GROUPS: { key: string; tone: Tone; statuses: string[] }[] = [
 ];
 const groupOf = (status: string) => ORDER_GROUPS.find((g) => g.statuses.includes(status))?.key ?? "work";
 const DONE_TASK = new Set(["done", "completed", "closed", "cancelled", "archived"]);
-const TEST_CHANNEL = /(^|[_-])(demo|test|auto_test|fixture|qa|sandbox)([_-]|$)/i;
 
 type PanelProps = { id: string; ai: string; Icon: typeof IconAlert; tone: Tone; title: string; action?: () => void; state: string; className?: string; text: { more: string; failed: string; retry: string }; onRetry: () => void; children: ReactNode };
 
@@ -274,7 +273,7 @@ export default function AdminOverview() {
         { label: td("drill.paidCount"), value: num(stat("paid_count") ?? 0) },
         { label: td("drill.pendingCount"), value: num(stat("pending_count") ?? 0) },
       ] },
-      { kind: "bars", title: td("drill.channels"), rows: channels.map((ch) => ({ label: TEST_CHANNEL.test(ch.name) ? `${leadSourceLabel(tsrc, ch.name)} · ${tb("testTag")}` : leadSourceLabel(tsrc, ch.name), title: leadSourceInfo(tsrc, ch.name).title || undefined, value: money(ch.revenue), short: `${short(ch.revenue)} ${som}`, n: ch.revenue, tone: TEST_CHANNEL.test(ch.name) ? "muted" : undefined })) },
+      { kind: "bars", title: td("drill.channels"), rows: channels.map((ch) => ({ label: leadSourceLabel(tsrc, ch.name), title: leadSourceInfo(tsrc, ch.name).title || undefined, value: money(ch.revenue), short: `${short(ch.revenue)} ${som}`, n: ch.revenue })) },
     ],
     link: adminLinkFor("ceo", "/admin/ceo", td("drill.goCeo"), session),
   });
@@ -389,10 +388,10 @@ export default function AdminOverview() {
     { key: "paid", label: td("drill.paid"), value: paidAmt, tone: "ok" },
     { key: "pending", label: td("drill.pending"), value: pendAmt, tone: "warn" },
   ];
-  const realChannels = channels.filter((ch) => !TEST_CHANNEL.test(ch.name) && ch.revenue > 0).sort((a, b) => b.revenue - a.revenue);
-  const testChannels = channels.filter((ch) => TEST_CHANNEL.test(ch.name));
+  // Channels as the backend counts them: test data has no canonical flag
+  // yet (2026-10-31 §2.4), so none is guessed from its name.
+  const realChannels = channels.filter((ch) => ch.revenue > 0).sort((a, b) => b.revenue - a.revenue);
   const realSum = realChannels.reduce((s, ch) => s + ch.revenue, 0) || 1;
-  const testSum = testChannels.reduce((s, ch) => s + ch.revenue, 0);
   const facts = [
     { key: "arr", label: td("drill.arr"), value: moneyShort(c?.arr), show: Boolean(c?.arr) },
     { key: "arpu", label: td("drill.arpu"), value: moneyShort(c?.arpu), show: Boolean(c?.arpu) },
@@ -492,7 +491,6 @@ export default function AdminOverview() {
               </span>
             ) : null}
           </div>
-          {testSum > 0 ? <p className="aov-note">{tb("inclTest", { amount: moneyShort(testSum) })}</p> : null}
           <div className="aov-rev__chart">
             {trend.length ? <LineChart points={trend} format={(v) => `${fmtUzs(v)} ${som}`} controls={false} /> : <p className="aov-empty">{t("empty")}</p>}
           </div>
@@ -623,12 +621,6 @@ export default function AdminOverview() {
           ) : (
             <p className="aov-empty">{tb("noChannels")}</p>
           )}
-          {testChannels.length ? (
-            <p className="aov-test">
-              <IconInfo aria-hidden="true" />
-              {tb("testChannels", { n: testChannels.length, amount: moneyShort(testSum) })}
-            </p>
-          ) : null}
         </Panel>
 
         <Panel text={panelText} onRetry={retry} id="activity" ai="activity" Icon={IconClipboardList} tone="violet" title={tb("activity")} action={activity[tab].drill} state={stateOf(dash)} className="aov-act">

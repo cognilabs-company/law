@@ -159,8 +159,20 @@ function normGiftKpis(v: unknown): GiftKpis {
     giftLtv: uzs(g, "gift_ltv"),
   };
 }
+// The day boundaries of the CEO period follow the viewer's time zone
+// (GET /analytics/ceo ?timezone=, backend default Asia/Tashkent).
+export const CEO_DEFAULT_TZ = "Asia/Tashkent";
+export function viewerTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || CEO_DEFAULT_TZ;
+  } catch {
+    return CEO_DEFAULT_TZ;
+  }
+}
 // Mirrors backend.ts getCeoDashboard (kept in sync by hand) plus the filter query.
-// The CEO KPIs for the same period as an Excel file (TSK-328538).
+// The CEO KPIs for the same period as an Excel file (TSK-328538). The backend
+// builds it in the request itself (no background job, 2026-10-31 §5.5), so
+// the caller shows a busy state until the file arrives.
 export async function downloadCeoExport(f?: DashFilter): Promise<void> {
   const qs = new URLSearchParams();
   if (f?.from) qs.set("date_from", f.from);
@@ -170,7 +182,9 @@ export async function downloadCeoExport(f?: DashFilter): Promise<void> {
 }
 
 export async function getCeoDashboardFull(f?: DashFilter): Promise<CeoDashboardFull> {
-  const d = asDict(await http(`/analytics/ceo${dashQuery(f)}`));
+  const qs = new URLSearchParams(dashQuery(f).slice(1));
+  qs.set("timezone", viewerTimeZone());
+  const d = asDict(await http(`/analytics/ceo?${qs}`));
   const pair = (x: unknown) => { const r = asDict(x); return { label: asStr(r.stage ?? r.label ?? r.name ?? r.date), value: asNum(r.value ?? r.count) }; };
   const moneyPair = (x: unknown) => { const r = asDict(x); return { label: asStr(r.date ?? r.label ?? r.name), value: uzs(r, "revenue", "value", "count") }; };
   const cacRaw = d.cac;
@@ -217,12 +231,6 @@ function ceoPeriodOf(d: Record<string, unknown>) {
 }
 export function isCeoEmpty(d: CeoDashboard): boolean {
   return !d.revenue && !d.users && !d.mau && d.funnel.every((x) => !x.value) && !d.channels.length && d.revenueTrend.every((p) => !p.value);
-}
-const TEST_CHANNEL = /(^|[_-])(demo|test|auto_test|fixture|qa|sandbox)([_-]|$)/i;
-export const isTestChannel = (name: string) => TEST_CHANNEL.test(name);
-export function ceoTestSplit(d: Pick<CeoDashboard, "channels">): { revenue: number; payments: number; count: number } {
-  const test = d.channels.filter((c) => isTestChannel(c.name));
-  return { revenue: test.reduce((s, c) => s + c.revenue, 0), payments: test.reduce((s, c) => s + c.payments, 0), count: test.length };
 }
 
 // ── Call analytics (GET /calls/analytics) ─────────────────────────

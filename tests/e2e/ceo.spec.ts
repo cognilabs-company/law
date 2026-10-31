@@ -1,5 +1,21 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { ADMIN, mockBackend, signIn } from "./mock";
+
+// Screenshot runs only: CEO_SHOTS=<dir> saves 1440 and 390, light and dark.
+const SHOTS = process.env.CEO_SHOTS;
+async function shots(page: Page, name: string) {
+  if (!SHOTS) return;
+  for (const scheme of ["light", "dark"] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: width > 400 ? 1000 : 860 });
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: `${SHOTS}/${name}-${width}-${scheme}.png` });
+    }
+  }
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.setViewportSize({ width: 1280, height: 900 });
+}
 
 // TSK-328538: the CEO page — the backend's KPIs (MAU, DAU, GMV, MRR, ARR,
 // ARPU, take rate, churn, renewal, refunds) for all time or a chosen period
@@ -43,6 +59,8 @@ test("the CEO page shows renewal, churn and refunds, filters a period and export
   await page.getByRole("combobox", { name: "Дата окончания" }).fill("20.10.2026");
   await page.getByRole("combobox", { name: "Дата окончания" }).press("Tab");
   await expect.poll(() => asked.some((q) => q.includes("date_from=2026-10-01") && q.includes("date_to=2026-10-20"))).toBe(true);
+  // Every request names the time zone the days are counted in (§5.5).
+  expect(asked.every((q) => new URLSearchParams(q).get("timezone"))).toBe(true);
   await expect(sheet.locator(".ceo-head__meta")).toContainText("2026");
   // The same period as Excel, from the actions menu.
   await page.locator(".ceo-act").getByRole("button").first().click();
@@ -91,4 +109,58 @@ test("the CEO page shows every KPI and the service quality", async ({ page }) =>
   await expect(sheet).toContainText("Решено 80");
   await expect(sheet).toContainText("За всё время");
   expect(await sheet.innerText()).not.toMatch(/not_available|null|undefined|NaN/);
+});
+
+// 2026-10-31 §5.5: the Excel is built inside the request (no background
+// job), so the page shows it is busy until the file arrives, sends it once,
+// and polls nothing.
+test("the CEO export shows a busy state until the synchronous file arrives", async ({ page }) => {
+  const routes = await signIn(page, ADMIN, { "/analytics/ceo": ceo() } as never);
+  const mock = await mockBackend(page, routes);
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((r) => (release = r));
+  let exports = 0;
+  await page.route(/\/analytics\/ceo\/export\.xlsx/, async (route) => {
+    exports += 1;
+    await gate;
+    return route.fulfill({ status: 200, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", body: "PK" });
+  });
+  await page.goto("/ru/admin/ceo");
+  const sheet = page.locator(".ceo-sheet");
+  await expect(sheet).toContainText("Продление подписок", { timeout: 20000 });
+  await expect(sheet.locator(".ceo-head__meta")).toContainText("Часовой пояс GMT");
+  await page.locator(".ceo-act").getByRole("button").first().click();
+  await page.getByRole("menuitem", { name: "Скачать Excel" }).click();
+  const busy = page.locator(".ceo-exporting");
+  await expect(busy).toBeVisible();
+  await expect(busy).toHaveAttribute("role", "status");
+  await expect(busy).toContainText("Готовим файл Excel");
+  // A second try while it builds is refused: the item is disabled.
+  await page.locator(".ceo-act").getByRole("button").first().click();
+  await expect(page.getByRole("menuitem", { name: "Готовим…" })).toBeDisabled();
+  await page.keyboard.press("Escape");
+  await busy.scrollIntoViewIfNeeded();
+  await shots(page, "ceo-export-busy");
+  release();
+  await expect(busy).toHaveCount(0);
+  await expect(page.locator(".ntf__t", { hasText: "Файл Excel скачан." })).toBeVisible();
+  expect(exports).toBe(1);
+  // No job polling: nothing but the dashboard and the one file.
+  expect(mock.calls.filter((c) => /export|jobs?\//.test(c.path) && !c.path.endsWith("export.xlsx"))).toEqual([]);
+});
+
+// §2.4: there is no canonical test-data flag yet, so a channel is never
+// guessed to be "test" from its name; figures are shown as the backend sends them.
+test("CEO channels are shown as sent, with no guessed test data", async ({ page }) => {
+  const data = { ...ceo(), channels: [{ source: "client", leads: 3, payments: 13, revenue: 3525691, conversion_pct: 0 }, { source: "demo_test", leads: 0, payments: 2, revenue: 50000, conversion_pct: 0 }] };
+  const routes = await signIn(page, ADMIN, { "/analytics/ceo": data } as never);
+  await mockBackend(page, routes);
+  await page.goto("/ru/admin/ceo");
+  const sheet = page.locator(".ceo-sheet");
+  await expect(sheet).toContainText("Продление подписок", { timeout: 20000 });
+  await expect(page.getByRole("switch", { name: "Показать тестовые каналы" })).toHaveCount(0);
+  await expect(sheet).not.toContainText("Тестовые и демо-платежи не учтены");
+  await expect(sheet).not.toContainText("с учётом тест/демо");
+  await expect(sheet.locator(".ceo-kpis")).toContainText(/6[\s\u00a0\u202f,.]*8/);
+  await shots(page, "ceo");
 });

@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { EMPTY_FILTER, downloadCeoExport, getCeoDashboardFull, isCeoEmpty, ceoTestSplit, isTestChannel, todayIso, type CeoDashboardFull } from "@/lib/services/dash";
+import { EMPTY_FILTER, downloadCeoExport, getCeoDashboardFull, isCeoEmpty, todayIso, viewerTimeZone, type CeoDashboardFull } from "@/lib/services/dash";
 import DatePicker from "@/components/DatePicker";
 import { demoCeo, useDemoForced } from "@/lib/demoStats";
 import { useResourceOne } from "@/lib/useResource";
@@ -360,6 +360,16 @@ function DayTable({ points, full, dayLong, caption, colDay, colValue }: { points
   );
 }
 
+// A time zone in words a reader knows ("GMT+5"), never its IANA name.
+function tzOffsetLabel(tz: string, locale: string): string {
+  try {
+    const part = new Intl.DateTimeFormat(locale === "uz" ? "uz-Latn" : locale, { timeZone: tz, timeZoneName: "shortOffset" }).formatToParts(new Date()).find((p) => p.type === "timeZoneName");
+    return part?.value || "";
+  } catch {
+    return "";
+  }
+}
+
 export default function AdminCeo() {
   const t = useTranslations("admin.ceo");
   const tr = useTranslations("admin.ceo.report");
@@ -370,13 +380,13 @@ export default function AdminCeo() {
   const te = useTranslations("enums");
   const tnf = useTranslations("common.notify");
   const ta = useTranslations("common.a11y");
-  const testNoteId = useId();
   const [demoForced, setDemoForced] = useDemoForced();
   const [tick, setTick] = useState(0);
   // TSK-328538: the KPIs for a chosen period (both ends picked), else all time.
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [exporting, setExporting] = useState(false);
+  const exportingRef = useRef(false);
   const ranged = !!from && !!to;
   const filter = ranged ? { ...EMPTY_FILTER, from, to } : undefined;
   const res = useResourceOne(() => getCeoDashboardFull(filter).then((data): Got => ({ ok: true, data }), (error: unknown): Got => ({ ok: false, error, at: todayIso() })), [tick, ranged ? from : "", ranged ? to : ""]);
@@ -389,7 +399,6 @@ export default function AdminCeo() {
   if (got && got !== seen?.got) setSeen({ got, kept: got.ok ? got.data : seen?.kept ?? null });
   const [drill, setDrill] = useState<Drill | null>(null);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "revenue", dir: -1 });
-  const [showTest, setShowTest] = useState(false);
   const [span, setSpan] = useState<Span>(14);
   const [tableView, setTableView] = useState(false);
   const [allCh, setAllCh] = useState(false);
@@ -453,17 +462,13 @@ export default function AdminCeo() {
     notify.info(td(demoForced ? "demo.disabled" : "demo.enabled"), { id: "ceo-demo" });
   };
 
-  const split = ceoTestSplit(d);
-  const hasTest = !demo && (split.revenue > 0 || split.payments > 0);
-  const cut = hasTest && !showTest;
-  const headRevenue = cut ? Math.max(0, d.revenue - split.revenue) : d.revenue;
-  const headPayments = cut ? Math.max(0, d.paidPayments - split.payments) : d.paidPayments;
-  const withTest = hasTest ? tr("withTest") : undefined;
-  const tagged = (n: number) => (n ? withTest : undefined);
-  const testLine = hasTest ? tr(cut ? "testExcluded" : "testIncluded", { amount: short(split.revenue), n: split.payments }) : "";
+  // Revenue and payments as the backend counts them. Test data has no
+  // canonical flag yet (2026-10-31 §2.4), so no channel is guessed to be a
+  // test one and nothing is subtracted here.
+  const headRevenue = d.revenue;
+  const headPayments = d.paidPayments;
   const gmvSame = d.gmv === d.revenue;
-  const gmv = gmvSame ? headRevenue : d.gmv;
-  const gmvTag = gmvSame && cut ? undefined : tagged(gmv);
+  const gmv = d.gmv;
   // MRR is the backend's normalised recurring subscription revenue; it is
   // shown as sent, never worked out here.
   const mrr = d.mrr;
@@ -472,16 +477,15 @@ export default function AdminCeo() {
   const paidRaw = d.funnel.find((x) => x.label === "paid")?.value ?? d.paidPayments;
   const paidSame = paidRaw === d.paidPayments;
   const paid = paidSame ? headPayments : paidRaw;
-  const paidTag = paidSame && cut ? undefined : tagged(paid);
   const ltvCac = Math.round(d.ltvCac * 10) / 10;
   const ltvCacText = d.ltvCac ? `${fmtNum(ltvCac, locale, 1)}×` : NA;
   const payback = Math.round(d.paybackMonths * 10) / 10;
 
   const q = demo ? null : (quality.data ?? null);
   const ledger = [
-    { key: "gmv", label: t("kpi.gmv"), value: gmv ? money(gmv) : NA, note: gmv && gmvSame ? tr("notes.gmvEq") : tr("notes.gmv"), tag: gmvTag },
-    { key: "mrr", label: t("mrr"), value: mrr ? money(mrr) : NA, note: mrrNote, tag: tagged(mrr) },
-    { key: "arr", label: t("kpi.arr"), value: d.arr ? money(d.arr) : NA, note: arrNote, tag: tagged(d.arr) },
+    { key: "gmv", label: t("kpi.gmv"), value: gmv ? money(gmv) : NA, note: gmv && gmvSame ? tr("notes.gmvEq") : tr("notes.gmv") },
+    { key: "mrr", label: t("mrr"), value: mrr ? money(mrr) : NA, note: mrrNote },
+    { key: "arr", label: t("kpi.arr"), value: d.arr ? money(d.arr) : NA, note: arrNote },
     ...(d.activeSubscriptions !== undefined
       ? [
           { key: "subs", label: tr("subs"), value: num(d.activeSubscriptions), note: tr("subsNote", { added: num(d.newSubscriptions ?? 0), cancelled: num(d.cancelledSubscriptions ?? 0) }) },
@@ -498,10 +502,10 @@ export default function AdminCeo() {
           { key: "complaintRate", label: tr("quality.complaints"), value: pct(q.complaintRate), note: tr("quality.resolved", { pct: pct(q.resolvedPct, 0) }) },
         ]
       : []),
-    { key: "arpu", label: t("kpi.arpu"), value: d.arpu ? money(d.arpu) : NA, note: tr("notes.arpu"), tag: tagged(d.arpu) },
-    { key: "take", label: t("kpi.takeRate"), value: d.takeRate ? pct(d.takeRate) : NA, note: tr("notes.take"), tag: tagged(d.takeRate) },
+    { key: "arpu", label: t("kpi.arpu"), value: d.arpu ? money(d.arpu) : NA, note: tr("notes.arpu") },
+    { key: "take", label: t("kpi.takeRate"), value: d.takeRate ? pct(d.takeRate) : NA, note: tr("notes.take") },
     { key: "cac", label: t("kpi.cac"), value: d.cac ? money(d.cac) : NA, note: d.cac ? t("kpi.cacSplit", { client: money(d.cacClient), advocate: money(d.cacAdvocate) }) : tr("notes.cacNa") },
-    { key: "ltv", label: t("kpi.ltv"), value: d.ltv ? money(d.ltv) : NA, note: tr("notes.ltv"), tag: tagged(d.ltv) },
+    { key: "ltv", label: t("kpi.ltv"), value: d.ltv ? money(d.ltv) : NA, note: tr("notes.ltv") },
     { key: "ltvCac", label: t("kpi.ltvCac"), value: ltvCacText, note: d.ltvCac ? tr("notes.ltvCac") : tr("notes.cacNa") },
     { key: "payback", label: tr("payback"), value: d.paybackMonths ? tr("months", { n: fmtNum(payback, locale, 1), count: payback }) : NA, note: d.paybackMonths ? tr("notes.payback") : tr("notes.cacNa") },
   ];
@@ -549,7 +553,7 @@ export default function AdminCeo() {
   const open = (drl: Omit<Drill, "demo" | "variant" | "closeLabel">) => setDrill({ ...drl, demo, variant: "report", closeLabel: ta("close") });
   const kv = (title: string, rows: DrillRow[]): Drill["sections"][number] => ({ kind: "kv", title, rows });
   const channelBars = (): Drill["sections"][number] => {
-    const list = d.channels.filter((c) => showTest || !isTestChannel(c.name)).slice().sort((a, b) => b.revenue - a.revenue);
+    const list = d.channels.slice().sort((a, b) => b.revenue - a.revenue);
     const mixed = GROUPS.every((key) => list.some((c) => sourceGroup(c.name) === key));
     const earning = list.filter((c) => c.revenue > 0).length;
     return {
@@ -559,19 +563,18 @@ export default function AdminCeo() {
       moreLabel: tr("all", { n: list.length }),
       lessLabel: tr("less"),
       rows: list.map((c): DrillRow => {
-        const test = isTestChannel(c.name);
-        const tag = test ? tr("testTag") : mixed && sourceGroup(c.name) === "payment" ? tr("paymentTag") : "";
+        const tag = mixed && sourceGroup(c.name) === "payment" ? tr("paymentTag") : "";
         const name = sourceName(c.name);
-        return { label: tag ? `${name} · ${tag}` : name, title: leadSourceInfo(te, c.name).title || undefined, value: money(c.revenue), short: short(c.revenue), n: c.revenue, sub: channelSub(c), tone: test ? "muted" : undefined };
+        return { label: tag ? `${name} · ${tag}` : name, title: leadSourceInfo(te, c.name).title || undefined, value: money(c.revenue), short: short(c.revenue), n: c.revenue, sub: channelSub(c) };
       }),
     };
   };
-  const unitEcon = () => kv(t("kpi.title"), ledger.filter((r) => r.key !== "payback" && !(d.ltvCac && r.key === "ltvCac")).map((r) => row(r.label, r.value, r.tag)));
+  const unitEcon = () => kv(t("kpi.title"), ledger.filter((r) => r.key !== "payback" && !(d.ltvCac && r.key === "ltvCac")).map((r) => row(r.label, r.value)));
   const drillRevenue = () =>
     open({
       title: t("revenueTrend"),
       value: money(total),
-      caption: [tr("figTotalDays", { n: days || span }), tr("allRegions"), withTest ?? ""].filter(Boolean).join(" · "),
+      caption: [tr("figTotalDays", { n: days || span }), tr("allRegions")].join(" · "),
       sections: [
         { kind: "series", title: tr("byDay"), points: trend, format: money, controls: false },
         {
@@ -597,7 +600,7 @@ export default function AdminCeo() {
       caption: `${tr("fig.conv")} · ${tr("allTime")}`,
       sections: [
         { kind: "steps", title: tr("steps"), rows: steps.map((s) => ({ label: stage(s.key), value: num(s.value), n: s.value, sub: s.sub })) },
-        { kind: "note", text: [tr("paidLine", { n: num(paid), count: paid }), paidTag ?? ""].filter(Boolean).join(" · ") },
+        { kind: "note", text: tr("paidLine", { n: num(paid), count: paid }) },
       ],
       link: { href: "/admin/crm/leads?tab=all&view=board", label: td("drill.goPipeline"), primary: true },
     });
@@ -626,7 +629,7 @@ export default function AdminCeo() {
     return "info";
   };
 
-  const chList = d.channels.filter((c) => showTest || !isTestChannel(c.name));
+  const chList = d.channels;
   const sorted = chList.slice().sort((a, b) => (a[sort.key] - b[sort.key]) * sort.dir || b.revenue - a.revenue);
   const earning = sorted.filter((c) => c.revenue > 0);
   const idle = sorted.filter((c) => c.revenue <= 0);
@@ -661,13 +664,14 @@ export default function AdminCeo() {
     ) : null;
 
   const asOfDay = d.fetchedAt ? fmtDate(d.fetchedAt, locale) : "";
+  const tzLabel = tzOffsetLabel(report?.period?.timezone || viewerTimeZone(), locale);
   const scopeAll = ranged ? tr("periodScope", { from: fmtDate(from, locale), to: fmtDate(to, locale) }) : asOfDay ? tr("allTimeAsOf", { date: asOfDay }) : tr("allTime");
   const B = (chunks: ReactNode) => <b>{chunks}</b>;
   const demoTag = demo ? tr("demoPill") : undefined;
-  const revenueCaption = cut ? tr("fig.revenueClean") : withTest ?? tr("fig.revenue");
+  const revenueCaption = tr("fig.revenue");
   const kpis = [
     { key: "revenue", label: t("revenue"), value: short(headRevenue), sub: revenueCaption },
-    { key: "payments", label: t("channelTable.payments"), value: num(headPayments), sub: hasTest && !cut ? `${tr("fig.payments")} · ${withTest}` : tr("fig.payments") },
+    { key: "payments", label: t("channelTable.payments"), value: num(headPayments), sub: tr("fig.payments") },
     { key: "conv", label: t("conversion"), value: pct(d.conversionPct), sub: tr("fig.conv") },
     { key: "users", label: t("users"), value: num(d.users), sub: tr("fig.users") },
     { key: "mau", label: aud.mau, value: num(d.mau), sub: tr("fig.mau") },
@@ -700,12 +704,17 @@ export default function AdminCeo() {
       icon: <IconDownload />,
       disabled: exporting || demo ? (demo ? tr("exportDemo") : tr("exporting")) : false,
       onSelect: () => {
-        if (exporting) return;
+        // One file at a time: the backend builds it while the request is open.
+        if (exportingRef.current) return;
+        exportingRef.current = true;
         setExporting(true);
         downloadCeoExport(filter)
           .then(() => notify.success(tr("exported"), { id: "ceo-export" }))
           .catch((e) => notify.error(tr("exportFailed"), { id: "ceo-export", error: e }))
-          .finally(() => setExporting(false));
+          .finally(() => {
+            exportingRef.current = false;
+            setExporting(false);
+          });
       },
       aiId: "admin.ceo.actions.export",
     },
@@ -772,13 +781,14 @@ export default function AdminCeo() {
               </div>
               <p className="ceo-head__meta">
                 <span>{scopeAll}</span>
-                {testLine ? (
-                  <span className="ceo-head__test">
-                    <IconInfo aria-hidden="true" />
-                    {testLine}
-                  </span>
-                ) : null}
+                {tzLabel ? <span>{tr("timezone", { tz: tzLabel })}</span> : null}
               </p>
+              {exporting ? (
+                <p className="ceo-exporting" role="status">
+                  <IconRefresh className="mk-spin" aria-hidden="true" />
+                  {tr("exportBusy")}
+                </p>
+              ) : null}
               {demo ? <p className="ceo-head__demo"><IconInfo aria-hidden="true" />{demoForced ? tr("demoForcedNote") : td("demo.banner")}</p> : null}
               {stale ? <p className="ceo-hint"><IconAlert aria-hidden="true" />{td("staleHint")}</p> : null}
             </header>
@@ -790,7 +800,6 @@ export default function AdminCeo() {
               ai="ceo:revenue-trend"
               title={t("revenueTrend")}
               scope={[tr("lastDays", { n: span }), tr("allRegions")].join(" · ")}
-              tag={withTest}
               demo={demoTag}
               action={<>{spanSwitch}{more(drillRevenue, t("revenueTrend"))}</>}
             >
@@ -835,7 +844,6 @@ export default function AdminCeo() {
                         <td className="is-num">{line.value}</td>
                         <td>
                           {h !== "info" && h !== "na" ? <span className={`ceo-chip ceo-chip--${h}`}>{tr(`health.${h}`)}</span> : null}
-                          {line.tag ? <span className="ceo-chip ceo-chip--na">{line.tag}</span> : null}
                           <span className="ceo-ledger__note">{line.note}</span>
                         </td>
                       </tr>
@@ -858,7 +866,6 @@ export default function AdminCeo() {
               </ol>
               <p className="ceo-aside">
                 {tr.rich("paidNote", { n: num(paid), b: B })}
-                {paidTag ? <>{" "}<span className="ceo-chip ceo-chip--na">{paidTag}</span></> : null}
               </p>
             </Section>
 
@@ -868,19 +875,6 @@ export default function AdminCeo() {
               title={t("channelTable.title")}
               scope={scopeAll}
               demo={demoTag}
-              action={
-                split.count ? (
-                  <div className="ceo-testsw">
-                    <button type="button" role="switch" aria-checked={showTest} aria-describedby={testNoteId} className="ceo-toggle" onClick={() => setShowTest((v) => !v)} data-ai-id="admin.ceo.channels.show-test" data-ai-type="button">
-                      <i aria-hidden="true" />
-                      {tr("showTest")}
-                    </button>
-                    <p id={testNoteId} className="ceo-testsw__note">
-                      {tr(showTest ? "testNoteShown" : "testNote", { n: split.count, amount: short(split.revenue) })}
-                    </p>
-                  </div>
-                ) : null
-              }
             >
               {sorted.length ? (
                 <>
@@ -907,10 +901,9 @@ export default function AdminCeo() {
                             ) : null}
                             {grp.rows.map((c, i) => {
                               const src = leadSourceInfo(te, c.name);
-                              const test = isTestChannel(c.name);
                               return (
-                                <tr key={`${c.name}-${i}`} className={test ? "is-test" : undefined}>
-                                  <th scope="row" title={src.title || undefined}>{src.label || "—"}{test ? <em>{tr("testTag")}</em> : null}</th>
+                                <tr key={`${c.name}-${i}`}>
+                                  <th scope="row" title={src.title || undefined}>{src.label || "—"}</th>
                                   <td className="is-num">{num(c.leads)}</td>
                                   <td className="is-num">{num(c.payments)}</td>
                                   <td className="ceo-table__rv">
@@ -950,12 +943,10 @@ export default function AdminCeo() {
                     <ul className="ceo-chcards" id="ceo-ch-cards" data-ai-target="ceo:channel-table">
                       {cardFold.rows.map((c, i) => {
                         const src = leadSourceInfo(te, c.name);
-                        const test = isTestChannel(c.name);
                         return (
-                          <li key={`${c.name}-${i}`} className={`ceo-chcard${test ? " is-test" : ""}`}>
+                          <li key={`${c.name}-${i}`} className="ceo-chcard">
                             <span className="ceo-chcard__n" title={src.title || undefined}>
                               {src.label || "—"}
-                              {test ? <em>{tr("testTag")}</em> : null}
                             </span>
                             <b className="ceo-chcard__v">{short(c.revenue)}</b>
                             <i className="ceo-chcard__bar" aria-hidden="true"><span style={{ width: width(c) }} /></i>
