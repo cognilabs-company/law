@@ -41,7 +41,7 @@ import type { SxErrors } from "../types";
 import { useSxFormPolicy, type SxFormPolicy } from "../form/formPolicy";
 import { dropReferenceCache, firstReferencePage } from "../form/useReferenceOptions";
 import { statusKeyOf } from "../status";
-import { RULE_TITLE_DUPLICATE, dropRuleTwins, duplicateFieldOf, duplicateNameOf, rememberDuplicate, ruleDuplicateErrors } from "../schema/ruleDuplicates";
+import { RULE_TITLE_EXISTS, dropRuleTwins, duplicateFieldOf, duplicateNameOf, rememberDuplicate, ruleDuplicateErrors } from "../schema/ruleDuplicates";
 import { ctorLayoutOf } from "../ctor/layouts";
 import { k01LayoutOf, type CategoryKind } from "../ctor/services";
 import { ctorWarnings } from "../ctor/warnings";
@@ -805,7 +805,7 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     if (dup && dupField) {
       rememberDuplicate(getAt(cur, dupField), dup);
       setActionError(null);
-      showServer({ [dupField]: RULE_TITLE_DUPLICATE });
+      showServer({ [dupField]: RULE_TITLE_EXISTS });
       return;
     }
     const se = studioErrorOf(e);

@@ -8,7 +8,7 @@ import { SxButton, SxLinkButton } from "../Button";
 import { pendingReferenceNow, usePendingReferences } from "../form/useReferenceOptions";
 import { CheckIcon } from "../icons";
 import { useStudioLabels } from "../useStudioLabels";
-import { reportedDuplicate, twinsOf, useRuleList, type RuleLineage, type RuleTwin } from "./ruleDuplicates";
+import { reportedDuplicate, reportedTwin, twinsOf, useRuleList, type RuleLineage, type RuleTwin } from "./ruleDuplicates";
 
 // Under a rule's name, when that name is already taken: the rule(s) it
 // clashes with and a way to use one instead of creating a copy. In the
@@ -28,13 +28,16 @@ export function RuleTwinNote({ title, self, lineage = null, action, aiId }: { ti
   usePendingReferences();
   const twins = twinsOf(rules, title, self, lineage);
   const rep = reportedDuplicate(title);
-  // The rule a 409 named: from the loaded list, its draft, or by id alone.
-  if (rep && !twins.some((x) => x.value === rep.id || x.objectId === rep.id)) {
-    const known = rules?.find((x) => x.value === rep.id || x.objectId === rep.id);
+  // The rule the server named (existing_rule_id / existing_rule_key): from
+  // the loaded list, its draft, or else by the name it clashed on — the same
+  // name, so it is that rule's title. Its id or key is never shown.
+  const known = rep ? reportedTwin(rules, rep) : null;
+  if (rep && !(known && twins.some((x) => x.value === known.value))) {
     if (known) twins.push(known);
-    else {
-      const draft = rep.title ? null : pendingReferenceNow(rep.id);
-      twins.push({ value: rep.id, objectId: draft ? rep.id : "", title: rep.title || draft?.label || t("sx.rtw.existing"), version: "", status: "", scope: "", published: false });
+    else if (!twins.length) {
+      const draft = rep.title || !rep.id ? null : pendingReferenceNow(rep.id);
+      const typed = typeof title === "string" ? title.trim() : "";
+      twins.push({ value: rep.id, objectId: draft ? rep.id : "", title: rep.title || draft?.label || typed || t("sx.rtw.existing"), version: "", status: "", scope: "", published: !draft, ruleKey: rep.key });
     }
   }
   if (!twins.length) return null;
@@ -54,7 +57,7 @@ export function RuleTwinNote({ title, self, lineage = null, action, aiId }: { ti
         {twins.map((x) => {
           const chips = [x.version ? t("sx.rtw.version", { v: x.version }) : "", x.status ? labels.status(x.status) : "", x.scope ? labels.option(x.scope, { ctor: "K31", field: "scope_type" }) : ""].filter(Boolean);
           return (
-            <li key={x.value} className="sx-rtw__row" data-published={x.published ? "" : undefined}>
+            <li key={x.value || x.ruleKey || x.title} className="sx-rtw__row" data-published={x.published ? "" : undefined}>
               <span className="sx-rtw__icon" aria-hidden="true">
                 <ScrollText size={16} strokeWidth={2} />
               </span>
@@ -71,16 +74,23 @@ export function RuleTwinNote({ title, self, lineage = null, action, aiId }: { ti
                 ) : null}
               </span>
               <span className="sx-rtw__acts">
-                {act ? (
+                {act && x.value ? (
                   <SxButton variant="primary" size="sm" icon={CheckIcon} onClick={() => act.run(x)} aiId={`${aiId}.use`} aiLabel={act.label}>
                     {act.label}
                   </SxButton>
                 ) : null}
-                {x.objectId ? (
-                  <SxLinkButton variant="ghost" size="sm" iconEnd={ExternalLink} href={`/admin/studio/o/${encodeURIComponent(x.objectId)}`} target="_blank" aiId={`${aiId}.open`}>
-                    {t("sx.rtw.open")}
-                  </SxLinkButton>
-                ) : null}
+                {/* Its Studio record, or — for a live rule with none — the rules
+                    list found by its name. */}
+                <SxLinkButton
+                  variant="ghost"
+                  size="sm"
+                  iconEnd={ExternalLink}
+                  href={x.objectId ? `/admin/studio/o/${encodeURIComponent(x.objectId)}` : `/admin/studio/c/K31?${new URLSearchParams({ q: x.title, source: "runtime" })}`}
+                  target="_blank"
+                  aiId={`${aiId}.open`}
+                >
+                  {t("sx.rtw.open")}
+                </SxLinkButton>
               </span>
             </li>
           );

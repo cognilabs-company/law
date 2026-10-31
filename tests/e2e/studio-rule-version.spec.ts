@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ADMIN, mockBackend, signIn, type Routes } from "./mock";
 import studio from "./fixtures/studio-k31.json";
+import { shots } from "./experienceShots";
 
 // A published rule as GET /studio/reference/service-rules lists it.
 const RULE = {
@@ -68,7 +69,7 @@ test.describe("Studio service rule versions (K31)", () => {
     const { mock } = await open(page, "/ru/admin/studio/o/new?new=K31&rule=new");
     await page.route(/\/studio\/objects$/, (route) =>
       route.request().method() === "POST"
-        ? route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ detail: { code: "rule_title_duplicate", existing_rule_id: "rule-1", existing_title: "Maxfiylik siyosati" } }) })
+        ? route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ detail: { code: "rule_title_exists", existing_rule_id: "rule-1", existing_rule_key: "maxfiylik-siyosati" } }) })
         : route.fallback(),
     );
     await page.getByRole("textbox", { name: /Название правила/ }).fill("  MAXFIYLIK   siyosati! ");
@@ -77,8 +78,48 @@ test.describe("Studio service rule versions (K31)", () => {
     await expect(page.getByText("Maxfiylik siyosati", { exact: true }).first()).toBeVisible();
     await page.getByRole("button", { name: "Сохранить", exact: true }).click();
     await expect(twin).toBeVisible();
-    expect(await page.locator("main").innerText()).not.toMatch(/rule_title_duplicate|rule-1/);
+    expect(await page.locator("main").innerText()).not.toMatch(/rule_title_exists|rule-1|maxfiylik-siyosati/);
     expect(mock.refused).toEqual([]);
+  });
+
+  // Backend answers 2026-10-31 §4.1: a rule the form hasn't loaded, named
+  // only by existing_rule_id / existing_rule_key. The note offers "Open the
+  // existing rule" under its title (the name it clashed on), never its id
+  // or key.
+  test("rule_title_exists for a rule not in the list offers to open it by its title", async ({ page }) => {
+    const { mock } = await open(page, "/ru/admin/studio/o/new?new=K31&rule=new");
+    await page.route(/\/studio\/objects$/, (route) =>
+      route.request().method() === "POST"
+        ? route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ detail: { code: "rule_title_exists", existing_rule_id: "rule-9", existing_rule_key: "qaytarish-key" } }) })
+        : route.fallback(),
+    );
+    await page.getByRole("textbox", { name: /Название правила/ }).fill("Qaytarish tartibi");
+    // Not a local twin: nothing is said before saving.
+    await expect(page.getByText("Правило с таким названием уже есть")).toHaveCount(0);
+    await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+    const note = page.locator(".sx-rtw");
+    await expect(note.getByText("Правило с таким названием уже есть")).toBeVisible();
+    await expect(note.getByText("Qaytarish tartibi", { exact: true })).toBeVisible();
+    const link = note.getByRole("link", { name: "Открыть существующее правило" });
+    await expect(link).toBeVisible();
+    expect(await link.getAttribute("href")).toMatch(/\/admin\/studio\/c\/K31\?q=Qaytarish\+tartibi&source=runtime$/);
+    // The name field says it in words too.
+    await expect(page.getByText("Правило с таким названием уже есть — выберите существующее.").first()).toBeAttached();
+    expect(await page.locator("main").innerText()).not.toMatch(/rule_title_exists|rule-9|qaytarish-key/);
+    expect(mock.refused).toEqual([]);
+    if (process.env.EXPERIENCE_SHOTS) await shots(page, "studio-k31-rule-title-exists", note);
+  });
+
+  // The same code as a plain string detail reads in words too.
+  test("a plain string rule_title_exists detail reads in words", async ({ page }) => {
+    await open(page, "/ru/admin/studio/o/new?new=K31&rule=new");
+    await page.route(/\/studio\/objects$/, (route) =>
+      route.request().method() === "POST" ? route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ detail: "rule_title_exists" }) }) : route.fallback(),
+    );
+    await page.getByRole("textbox", { name: /Название правила/ }).fill("Qaytarish tartibi");
+    await page.getByRole("button", { name: "Сохранить", exact: true }).click();
+    await expect(page.getByText(/Правило с таким названием уже есть/).first()).toBeVisible();
+    expect(await page.locator("main").innerText()).not.toMatch(/rule_title_exists/);
   });
 
   test("a brand-new rule says so and continues nothing", async ({ page }) => {

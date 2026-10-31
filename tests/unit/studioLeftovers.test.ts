@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/http";
 import { normChecklistItem, clientChecklistItem } from "@/lib/services/marketRuntime";
-import { duplicateNameOf, normRuleTitle, twinsOf, type RuleTwin } from "@/components/admin/studio/sx/schema/ruleDuplicates";
+import { duplicateNameOf, normRuleTitle, reportedTwin, twinsOf, type RuleTwin } from "@/components/admin/studio/sx/schema/ruleDuplicates";
 import { executorTypesOf, k01LayoutOf, k02Transform } from "@/components/admin/studio/sx/ctor/services";
 import { audienceOfField, bucketOf, seenBy } from "@/components/admin/studio/sx/schema/audience";
 import { leftoverFields } from "@/components/admin/studio/sx/journey/steps";
@@ -20,10 +20,19 @@ describe("unique service rule names (TSK-602765)", () => {
     expect(twinsOf(rules, "Maxfiylik qoidasi", ["r1"])).toEqual([]);
     expect(twinsOf(rules, "Maxfiylik qoidasi", [], { id: "r1", key: "k1" })).toEqual([]);
   });
-  it("reads the backend's 409 for a taken name and the existing rule", () => {
-    const e = new ApiError(409, "x", undefined, { code: "rule_title_duplicate", data: { detail: { code: "rule_title_duplicate", existing_rule_id: "r1", existing_title: "Maxfiylik qoidasi" } } });
-    expect(duplicateNameOf(e)).toMatchObject({ code: "rule_title_duplicate", existingId: "r1", existingTitle: "Maxfiylik qoidasi" });
+  it("reads the backend's rule_title_exists for a taken name and the existing rule (answers 2026-10-31 §4.1)", () => {
+    const e = new ApiError(409, "x", undefined, { code: "rule_title_exists", data: { detail: { code: "rule_title_exists", existing_rule_id: "r1", existing_rule_key: "k1", existing_title: "Maxfiylik qoidasi" } } });
+    expect(duplicateNameOf(e)).toMatchObject({ code: "rule_title_exists", existingId: "r1", existingKey: "k1", existingTitle: "Maxfiylik qoidasi" });
+    // As a validation error too.
+    expect(duplicateNameOf(new ApiError(422, "x", undefined, { code: "rule_title_exists", data: { detail: { code: "rule_title_exists", existing_rule_key: "k1" } } }))).toMatchObject({ existingId: "", existingKey: "k1" });
+    expect(duplicateNameOf(new ApiError(422, "x", undefined, { code: "duplicate_value", data: { detail: { code: "duplicate_value" } } }))).toBeNull();
     expect(duplicateNameOf(new ApiError(409, "x", undefined, { code: "studio_version_conflict", data: { detail: { code: "studio_version_conflict" } } }))).toBeNull();
+  });
+  it("finds the rule the server named by its id, else by its key", () => {
+    const rules = [rule("r1", "Maxfiylik qoidasi", { ruleKey: "k1" }), rule("r2", "Boshqa qoida", { ruleKey: "k2" })];
+    expect(reportedTwin(rules, { id: "r2", key: "", title: "" })?.title).toBe("Boshqa qoida");
+    expect(reportedTwin(rules, { id: "gone", key: "k1", title: "" })?.title).toBe("Maxfiylik qoidasi");
+    expect(reportedTwin(rules, { id: "gone", key: "", title: "" })).toBeNull();
   });
 });
 

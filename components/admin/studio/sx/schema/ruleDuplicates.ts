@@ -1,18 +1,19 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { ApiError, asDict } from "@/lib/http";
+import { ApiError, asDict, errorCode } from "@/lib/http";
 import { listStudioObjects, type StudioReferenceItem } from "@/lib/services/studio";
 import type { SxValues } from "../contract";
 import { firstReferencePage } from "../form/useReferenceOptions";
 
 // Service rule names are unique once normalised: two names that differ only
 // in letter case, spacing, apostrophe style or punctuation are the same
-// rule. The backend has the last word (HTTP 409); this module lets the form
-// see a twin before saving and point at the rule that already exists.
+// rule. The backend has the last word (code rule_title_exists, backend
+// answers 2026-10-31 §4.1); this module lets the form see a twin before
+// saving and point at the rule that already exists.
 
 export const RULE_SOURCE = "service-rules";
-export const RULE_TITLE_DUPLICATE = "@code:rule_title_duplicate";
+export const RULE_TITLE_EXISTS = "@code:rule_title_exists";
 
 const APOSTROPHES = /[ʻʼ‘’`´′]/g;
 const NOT_WORD = /[^\p{L}\p{N}']+/gu;
@@ -121,7 +122,7 @@ export function ruleDuplicateErrors(code: string, payload: SxValues, self: reado
   const out: Record<string, string> = {};
   const c = code.toUpperCase();
   if (c === "K31") {
-    if (twinsOf(rules, payload.title, self, lineageOf(payload)).length) out.title = RULE_TITLE_DUPLICATE;
+    if (twinsOf(rules, payload.title, self, lineageOf(payload)).length) out.title = RULE_TITLE_EXISTS;
     return out;
   }
   if (c !== "K02" || !Array.isArray(payload.inline_rules)) return out;
@@ -129,7 +130,7 @@ export function ruleDuplicateErrors(code: string, payload: SxValues, self: reado
   payload.inline_rules.forEach((row, i) => {
     const n = normRuleTitle(asDict(row).title);
     if (!n) return;
-    if (seen.has(n) || twinsOf(rules, n).length) out[`inline_rules.${i}.title`] = RULE_TITLE_DUPLICATE;
+    if (seen.has(n) || twinsOf(rules, n).length) out[`inline_rules.${i}.title`] = RULE_TITLE_EXISTS;
     seen.add(n);
   });
   return out;
@@ -138,20 +139,26 @@ export function ruleDuplicateErrors(code: string, payload: SxValues, self: reado
 const DUP_CODE = /duplicate|already_exists|_exists$|not_unique|unique|taken/i;
 const NOT_NAME = new Set(["rule_version_duplicate", "studio_edit_conflict", "studio_version_conflict"]);
 
-export type DuplicateHit = { code: string; field: string; existingId: string; existingTitle: string };
+export type DuplicateHit = { code: string; field: string; existingId: string; existingKey: string; existingTitle: string };
 
-// A 409 the backend sends for a name that is already in use, whatever its
-// exact code; with the existing rule when the response names it.
+// The backend's answer for a name that is already in use: rule_title_exists
+// with existing_rule_id / existing_rule_key (§4.1), as a 409 or a validation
+// error, in an object or a plain string detail; other "already exists"
+// codes read the same.
 export function duplicateNameOf(e: unknown): DuplicateHit | null {
-  if (!(e instanceof ApiError) || e.status !== 409) return null;
+  if (!(e instanceof ApiError) || (e.status !== 409 && e.status !== 422 && e.status !== 400)) return null;
   const d = asDict(e.data.detail);
-  const code = str(e.code) || str(d.code) || str(e.data.code);
+  const code = errorCode(e) || str(e.data.code);
   if (!code || NOT_NAME.has(code) || !DUP_CODE.test(code)) return null;
+  // As a validation error only the name code itself counts (a generic
+  // duplicate_value there is about some other field).
+  if (e.status !== 409 && code !== "rule_title_exists") return null;
   const ex = asDict(d.existing ?? d.existing_rule ?? d.conflict);
   return {
     code,
     field: (str(d.field) || str(d.path)).replace(/^(body|payload)\./, ""),
     existingId: str(d.existing_rule_id) || str(d.existing_id) || str(d.duplicate_of) || str(d.conflict_id) || str(ex.id) || str(ex.value),
+    existingKey: str(d.existing_rule_key) || str(ex.rule_key),
     existingTitle: str(d.existing_title) || str(ex.title) || str(ex.label),
   };
 }
@@ -169,15 +176,23 @@ export function duplicateFieldOf(code: string, payload: SxValues, hit: Duplicate
   return "";
 }
 
-// The existing rule a 409 named, kept by the name it clashed on so the note
-// under that field can offer it even when it is not in the loaded list.
-const reported = new Map<string, { id: string; title: string }>();
+// The existing rule the server named, kept by the name it clashed on so the
+// note under that field can offer it even when it is not in the loaded list.
+export type ReportedRule = { id: string; key: string; title: string };
+const reported = new Map<string, ReportedRule>();
 
 export function rememberDuplicate(title: unknown, hit: DuplicateHit): void {
   const n = normRuleTitle(title);
-  if (n && hit.existingId) reported.set(n, { id: hit.existingId, title: hit.existingTitle });
+  if (n && (hit.existingId || hit.existingKey)) reported.set(n, { id: hit.existingId, key: hit.existingKey, title: hit.existingTitle });
 }
 
-export function reportedDuplicate(title: unknown): { id: string; title: string } | null {
+export function reportedDuplicate(title: unknown): ReportedRule | null {
   return reported.get(normRuleTitle(title)) ?? null;
+}
+
+// That rule in the loaded list: by its id (published or Studio draft), else
+// by its lineage key.
+export function reportedTwin(rules: readonly RuleTwin[] | null, rep: ReportedRule): RuleTwin | null {
+  if (!rules) return null;
+  return rules.find((x) => !!rep.id && (x.value === rep.id || x.objectId === rep.id)) ?? rules.find((x) => !!rep.key && x.ruleKey === rep.key) ?? null;
 }
