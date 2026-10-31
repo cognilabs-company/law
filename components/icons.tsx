@@ -12,7 +12,14 @@ const base: P = {
   strokeLinejoin: "round",
 };
 
-export const IconLogo = () => <Image src="/logo.png" alt="" width={32} height={32} />;
+export const IconLogo = () => <Image src="/logo.png" alt="" width={36} height={32} priority />;
+
+export const IconLogoText = () => (
+  <span className="logo__w">
+    <Image src="/logo-text.png" alt="" width={124} height={32} className="logo__wimg" priority />
+    <span className="logo__wtxt">LexGo</span>
+  </span>
+);
 
 export const IconUser = (p: P) => (
   <svg {...base} {...p}>

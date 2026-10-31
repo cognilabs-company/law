@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import LanguageSwitcher from "./LanguageSwitcher";
 import ThemeToggle from "./ThemeToggle";
-import { IconLogo } from "./icons";
+import { IconLogo, IconLogoText } from "./icons";
 
 const MAIN = [
   { href: "/chat", key: "chat" },
@@ -61,7 +61,7 @@ export default function Navbar() {
               <span className="logo__m">
                 <IconLogo />
               </span>
-              LexGo
+              <IconLogoText />
             </Link>
             <nav className="nav">
               {MAIN.map((l) => (

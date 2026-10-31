@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { IconLogo } from "./icons";
+import { IconLogo, IconLogoText } from "./icons";
 
 export default function Footer() {
   const t = useTranslations("footer");
@@ -15,7 +15,7 @@ export default function Footer() {
               <span className="logo__m">
                 <IconLogo />
               </span>
-              LexGo
+              <IconLogoText />
             </Link>
             <p style={{ maxWidth: "32ch", margin: "16px 0 0" }}>{t("about")}</p>
             <a href="tel:+998787770000" className="ftr__p">

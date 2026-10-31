@@ -4,7 +4,7 @@ import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { preload } from "react-dom";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { IconLogo, IconCheck } from "../icons";
+import { IconLogo, IconLogoText, IconCheck } from "../icons";
 import ThemeToggle from "../ThemeToggle";
 
 const COUNT_MS = 1400;
@@ -101,7 +101,7 @@ export default function AuthSplit({ children }: { children: ReactNode }) {
             <span className="logo__m">
               <IconLogo />
             </span>
-            LexGo
+            <IconLogoText />
           </Link>
           <div className="auth__copy">
             <h2 className="auth__h">

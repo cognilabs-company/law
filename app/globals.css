@@ -128,8 +128,13 @@ h1,h2,h3,h4{font-family:var(--fd);margin:0;letter-spacing:-.03em;line-height:1.0
 .bar.on{background:var(--dk-glass, rgba(255,255,255,.86));backdrop-filter:blur(18px) saturate(1.6);box-shadow:0 1px 0 rgba(11,31,69,.08)}
 .bar__in{display:flex;align-items:center;gap:18px;height:70px}
 .logo{display:flex;align-items:center;gap:9px;font-family:var(--fd);font-weight:800;font-size:1.3rem;letter-spacing:-.04em;color:#fff;flex:none}
-.logo__m{width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex:none}
+.logo__m{width:32px;height:32px;display:flex;align-items:center;justify-content:center;flex:none;padding:4px;border-radius:9px;background:var(--grad);box-shadow:var(--sblue)}
 .logo__m img{width:100%;height:100%;object-fit:contain}
+.logo__w{position:relative;display:inline-flex;align-items:center}
+.logo__wimg{display:block;width:auto;height:1.05em}
+.logo__wtxt{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+html:not([data-theme="dark"]) .bar.on .logo__wimg{display:none}
+html:not([data-theme="dark"]) .bar.on .logo__wtxt{position:static;width:auto;height:auto;overflow:visible;clip-path:none}
 /* The LexGo.AI chat's own brand badge (a star mark, not the logo) — keeps
    the gradient chip look .logo__m used to have everywhere before it was
    stripped down to a bare mark. */
@@ -20498,6 +20503,7 @@ html[data-theme="dark"] .wd{--wd-glass:rgba(28,32,44,.78);--wd-glass2:rgba(36,41
 .wd-bar__mid>button:hover{background:var(--wd-hover)}
 .wd-bar__mid>button:active .wd-tile,.wd-bar__mid>button:active .wd-folder{transform:scale(.88)}
 .wd-bar__start svg{width:26px;height:26px;color:var(--wd-acc)}
+.wd-bar__start img{width:28px;height:28px;padding:4px;border-radius:8px;background:var(--grad);object-fit:contain}
 .wd-bar__start.is-on{background:var(--wd-hover)}
 .wd-bar__search{display:flex!important;align-items:center;gap:8px;width:200px;padding:0 14px;border-radius:999px!important;background:var(--wd-glass2)!important;box-shadow:inset 0 0 0 1px var(--wd-line);color:var(--wd-mute)!important;font-size:.8rem}
 .wd-bar__search svg{width:15px;height:15px}
@@ -20617,6 +20623,7 @@ html[data-theme="dark"] .wd--mac{--wd-acc:#0A84FF;--wd-glass:rgba(30,30,32,.6);-
 html[data-theme="dark"] .wd-mbar>button:hover,html[data-theme="dark"] .wd-mbar>button.is-on{background:rgba(255,255,255,.16)}
 .wd-mbar>button svg{width:14px;height:14px}
 .wd-mbar__logo svg{width:16px!important;height:16px!important}
+.wd-mbar__logo img{width:19px;height:19px;padding:2px;border-radius:5px;background:var(--grad);object-fit:contain}
 .wd-mbar__app{font-weight:700;padding:0 10px 0 6px}
 .wd-mbar__sp{flex:1}
 .wd-mbar__lang{font-weight:700;font-size:.72rem}
