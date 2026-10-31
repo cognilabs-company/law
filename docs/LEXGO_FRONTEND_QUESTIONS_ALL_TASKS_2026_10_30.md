@@ -2,7 +2,7 @@
 
 Date: 2026-10-30
 From: Frontend
-Status: open.
+Status: answered 2026-10-31 (`LEXGO_BACKEND_ANSWERS_ALL_TASKS_2026_10_31.md`). Still open: `LEXGO_FRONTEND_QUESTIONS_OPEN_2026_10_31.md`.
 Checked against: backend OpenAPI of 2026-10-30 and frontend `main`.
 
 The frontend side of every task below is built and tested. What is left needs the backend: a missing endpoint, field or enum, a server rule, or provider credentials. Each point says what the frontend does meanwhile. The UI never fakes the missing part and never promises it.
@@ -21,26 +21,31 @@ Please never send test accounts without 2FA or TOTP secrets. We don't need them.
 ## 1. Marketplace money flows
 
 **1.1 The operator picks the new lawyer (TSK-131840, TSK-635882).**
+- **Answered 2026-10-31: BACKEND GAP.** Frontend: No seller picker. "Reassign" says the system picks the best eligible seller; resolve sends `Idempotency-Key` (tested in `double-submit.spec`). Open: G1.
 - Missing: `AssignmentEscalationResolvePayload` has only `action, message, reason, target, deadline_minutes`.
 - Needed: `seller_user_id` (optional) on `POST /call-center/marketplace/assignment-escalations/{id}/resolve` with `action=reassign`. Plus a list of eligible sellers for that order, for example `GET /call-center/marketplace/assignment-escalations/{id}/candidates` → `[{ seller_user_id, name, rank, rating, region }]`.
 - Meanwhile: "Reassign" lets the backend pick the best eligible external specialist. The hint says so. The operator can also offer the client a choice, or write to the client or the previous seller.
 
 **1.2 Operator chat and call per escalation (TSK-635882).**
+- **Answered 2026-10-31: BACKEND GAP.** Frontend: No escalation screen creates or opens a room. Open: G2.
 - Missing: there is no chat or call endpoint for an assignment escalation, like `cancellation-reviews/{id}/chat` has. `POST /call-center/calls` only logs a call.
 - Needed: `POST /call-center/marketplace/assignment-escalations/{id}/chat` (a protected room with the seller or the client, `{ target }`) and a call-start in that room, as review rooms have (`call_types`).
 - Meanwhile: the operator sends a message to the client or the previous seller (`action=message`, `target`). That is kept in the audit.
 
 **1.3 Contact-SLA data (TSK-635882).**
+- **Answered 2026-10-31: READY (typing PARTIAL).** Frontend: `ContactSla` shows `contact_speed_label`, a countdown to `contact_deadline_at` and `contact_started_at` on seller, client and operator views; re-reads on `marketplace.contact_started` / `contact_sla_breached`; `seller_contact_sla_breach` reads in words. `first_contact_at` is not read (`contact-sla.spec`).
 - Missing: `contact_speed`, the contact deadline, the breach reason and the `marketplace.contact_sla_*` events are in no schema. The frontend sends `contact_speed` on purchase (Q-10-28 did not ask this).
 - Needed: on the order and the escalation, `contact_speed`, `contact_deadline_at`, `first_contact_at`; the escalation `reason=contact_sla_breached`; the realtime event name and payload.
 - Meanwhile: the queue and the focus screen re-read on any `marketplace.contact_sla_*` event, and the reason reads "The client wasn't contacted in the chosen time". Covered by `escalation.spec` (live event test).
 
 **1.4 Real provider refund (TSK-714433, TSK-783253).**
+- **Answered 2026-10-31: EXTERNAL BLOCKER.** Frontend: All refund wording says an operator processes it manually. Open: E2.
 - Missing: `provider_enabled` is false, so every refund is manual. Provider settlement and the feature flag of TSK-783253 are not done.
 - Needed: provider refund through Click/Payme with an idempotency key, and its `status` values on the order (`refund.status`).
 - Meanwhile: the client and the operator see "processed manually". Refund is asked once (idempotency key, tested).
 
 **1.5 Warranty: redo and eligible cases (TSK-714974).**
+- **Answered 2026-10-31: PARTIAL.** Frontend: Only `available_resolutions` are offered; no `rework`; `warranty_eligible_kinds` not read; the 5 kinds and 3 resolutions in words. Open: G3, Q2.
 - Missing:
   - `MarketplaceWarrantyResolution` = `replacement | full_refund | rejected` only. No "redo the work" remedy.
   - `warranty_eligible_kinds` is not in the order schema.
@@ -49,20 +54,27 @@ Please never send test accounts without 2FA or TOTP secrets. We don't need them.
 - Meanwhile: the form offers the cases the order names, or all five when it names none (tested in `warranty.spec`).
 
 **1.6 "Why this price": Superadvokat and commission lines (TSK-728950).**
+- **Answered 2026-10-31: PARTIAL.** Frontend: The client sees only `client_price_reasons[].text_i18n` (current locale) or `text`; no commission, coefficients, seller net or Superadvokat number. Commission only in seller/staff views. Open: Q3.
 - Missing: no `superadvokat` or `commission` factor code in the order pricing snapshot. The pricing response is untyped.
 - Needed: those two codes in `pricing_snapshot.components` (seller view only for commission), with `explanation` per language.
 - Meanwhile: an unknown part reads "Another part", never its code (tested in `order-pricing.spec`).
 
 **1.7 Payout and complaint idempotency (TSK-906326, TSK-344069).**
+- **Answered 2026-10-31: PARTIAL.** Frontend: Buttons disable on submit and the row's action goes away once done; one request per click (`double-submit.spec`). Open: G4.
 - Missing: `POST /call-center/marketplace/payouts/{id}/mark-paid`, `/payout-recoveries/{id}/resolve` and `/call-center/marketplace/complaints/{id}/resolve` take no `Idempotency-Key`. Settlement hold and release are not typed.
 - Needed: `Idempotency-Key` support on those three; a typed `settlement { status, held_amount, hold_reason, release_after }`.
 - Meanwhile: double clicks send one request (same-tick guard), but a lost answer can't be retried safely.
 
-**1.8 Click / Payme production (TSK-664399).** Already asked in Q-10-28 §1. Still missing: merchant contracts, credentials and the webhook paths (none in OpenAPI). The frontend is ready and tested with the provider list and single-payment polling.
+**1.8 Click / Payme production (TSK-664399).**
+- **Answered 2026-10-31: EXTERNAL BLOCKER.** Frontend: A provider is offered or shown ready only when `provider_enabled` and readiness are true. Open: E2.
+- Before the answer: Already asked in Q-10-28 §1. Still missing: merchant contracts, credentials and the webhook paths (none in OpenAPI). The frontend is ready and tested with the provider list and single-payment polling.
 
-**1.9 15-minute window and rating (TSK-661119).** Server rules only: the window is enforced by the server, and the rating counts in the marketplace rating. Nothing to add on our side; please confirm both are live.
+**1.9 15-minute window and rating (TSK-661119).**
+- **Answered 2026-10-31: READY.** Frontend: The complaint form uses the backend's `can_complain` and deadline; re-reads at the deadline; `complaint_window_closed` / `rating_window_closed` in words.
+- Before the answer: Server rules only: the window is enforced by the server, and the rating counts in the marketplace rating. Nothing to add on our side; please confirm both are live.
 
 **1.10 The seller's checklist in 30% and 40% stages (owner request 2026-10-30).**
+- **Answered 2026-10-31: READY.** Frontend: Planned 30/30/40 stages from the financials snapshot, shown apart from actual payout rows from `GET /marketplace/me/orders/{id}/financials`; first checklist = every item done or skipped with a reason (reason shown); "not triggered automatically" when it has no items; completion waits for the window and no hold; refreshes on `marketplace.payout_created` / `payout_paid` / `payout_required`. Open: Q1.
 - Missing:
   - Checklist items carry `payout_stage` (`first_checklist` | `final_completion`) but no amount.
   - It isn't documented whether `GET /marketplace/me/orders/{id}/financials` returns the `first_checklist` and `completion` payout rows (with `payable_amount`) before those stages are reached, or only once they trigger.
@@ -82,6 +94,7 @@ Please never send test accounts without 2FA or TOTP secrets. We don't need them.
 ## 2. Tariffs, ads and promotions
 
 **2.1 K17 has no per-feature limits (TSK-490457 vs TSK-342697).**
+- **Answered 2026-10-31: READY.** Frontend: New `/admin/tariffs`: feature registry (unavailable / limited / unlimited, 30-day reset) and plan versions (draft, check, publish, archive, preview). The old `/admin/plans` editor and its browser overlay are removed and redirect there. Subscribers see `/subscriptions/me/features` with "resets every 30 days". Open: feature edit/delete (Q9).
 - The two tasks disagree. TSK-490457 (23 Oct) wants features picked from a registry with unavailable / limited / unlimited, limit, reset period and sale state. TSK-342697 (27 Oct, newer) removes the per-feature toggles and keeps one list of client-facing benefit lines.
 - By the owner's rule the newer task wins. The frontend follows K17 v3 (no feature toggles, benefit lines 1-2-3, audiences instead of a type).
 - Missing for the part that still holds ("limits renew every 30 days"): K17 has no limit fields, so the 30-day reset can't be set or shown in Studio.
@@ -89,131 +102,166 @@ Please never send test accounts without 2FA or TOTP secrets. We don't need them.
 - Meanwhile: the old `/admin/plans` screen (hidden from the menu) still edits the registry with handmade controls.
 
 **2.2 Consent audit and rollback (TSK-206603).**
+- **Answered 2026-10-31: PARTIAL.** Frontend: The plan card shows the contract and the current consent. No history UI. Open: G5.
 - Missing: `/subscriptions/{id}/contract` and `/renewal-consent` are untyped. There is no audit endpoint for consents, and no promise that a tariff rollback leaves old snapshots alone.
 - Needed: typed responses; `GET /admin/subscriptions/{id}/consents` (who, when, which version, what changed).
 - Meanwhile: the subscriber sees the new version's features and price before agreeing (tested in `my-plan.spec`).
 
-**2.3 Developer task and approval (TSK-692647).** Field names asked in Q-10-28 §4.2. Still missing: the real task creation on publish, and "an unapproved tariff never goes on sale" as a server rule. Studio K17 shows every revision's task and approval (tested in `studio-k17.spec`).
+**2.3 Developer task and approval (TSK-692647).**
+- **Answered 2026-10-31: PARTIAL.** Frontend: Wording no longer promises "not on sale until approved". Open: G6.
+- Before the answer: Field names asked in Q-10-28 §4.2. Still missing: the real task creation on publish, and "an unapproved tariff never goes on sale" as a server rule. Studio K17 shows every revision's task and approval (tested in `studio-k17.spec`).
 
 **2.4 Ads readiness (TSK-202681).**
+- **Answered 2026-10-31: PARTIAL.** Frontend: Readiness uses backend flags only; the CEO page no longer guesses test channels by name. Open: G7.
 - Missing: no `is_test` flag on purchases or accounts; the readiness response is untyped.
 - Needed: `is_test` on ad purchases and accounts, excluded from analytics on the server; test or blocked accounts never shown in ads.
 - Meanwhile: readiness, activation with a reason and pause work and are tested.
 
-**2.5 Promotions (TSK-537634).** Server rules only: the use limit goes down atomically, and the final price is never negative. Please confirm.
+**2.5 Promotions (TSK-537634).**
+- **Answered 2026-10-31: READY.** Frontend: Only backend quotes and amounts are shown. Local term discounts, the local seller discount and promotion state from dates are removed.
+- Before the answer: Server rules only: the use limit goes down atomically, and the final price is never negative. Please confirm.
 
 ---
 
 ## 3. Experience, achievements, Superadvokat
 
 **3.1 Reviewer on past reviews (TSK-100467, TSK-874927).**
+- **Answered 2026-10-31: PARTIAL.** Frontend: `reviewed_by_user_id` is shown as the person's name (session, `/admin/users`, `/call-center/clients/{id}`), else "Reviewer"; never the id. Open: G8.
 - Missing: `ReviewDetailOut.reviews[]` and `/marketplace/me/experience/{id}/history` are untyped. The final contract lists only `decision` and `decision_action`.
 - Needed: `reviewer { id, name }`, `reviewed_at` and `checklist[] { key, verdict, note }` on each past review.
 - Meanwhile: the frontend reads `reviewer.name / reviewed_by.name / reviewer_name` when present (tested with them present).
 
 **3.2 Mandatory checklist items (TSK-100467, TSK-659111).**
+- **Answered 2026-10-31: READY.** Frontend: Every returned checklist item is treated as required (tested).
 - Missing: `checklist[]` has no `required` flag, so the frontend treats every item as mandatory.
 - Needed: `required: boolean` per checklist item.
 
 **3.3 Experience file rules and codes (TSK-920636).**
+- **Answered 2026-10-31: PARTIAL.** Frontend: 20 MB and PDF/JPEG/PNG/WebP/DOC/DOCX checked before upload; `experience_evidence_too_large`, `experience_evidence_type_not_allowed`, `experience_dates_invalid`, `experience_future_date` and the category codes in words; `evidence_file_*` removed. Open: Q4.
 - Missing: the upload body has only `file`, and the response is untyped. There is no experience config like `AchievementConfigOut.evidence`. The codes `evidence_file_too_large`, `evidence_file_type_not_allowed`, `experience_dates_overlap` appear nowhere.
 - Needed: `GET /marketplace/me/experience/config` → `{ evidence: { max_bytes, mime_types, extensions } }`, and these codes documented.
 - Meanwhile: the frontend allows PDF/DOC/DOCX/JPEG/PNG/WebP up to 20 MB and reads the three codes in words (tested).
 
 **3.4 Evidence access audit (TSK-712239, TSK-427872).**
+- **Answered 2026-10-31: PARTIAL / BACKEND GAP.** Frontend: Nothing fakes an audit. Open: G9.
 - Missing: no audit of who viewed or downloaded evidence, no incident log. `/admin/audit-trail` is untyped.
 - Needed: an audit entry per view / download / upload / delete of evidence and marketplace files; `GET /admin/audit-trail` typed, with a filter by object.
 
-**3.5 Date overlap (TSK-712239 AC2).** Please confirm the server checks overlapping positions inside one workplace (parallel workplaces are allowed by TSK-415946). The frontend blocks an end before a start and future dates.
+**3.5 Date overlap (TSK-712239 AC2).**
+- **Answered 2026-10-31: BACKEND GAP.** Frontend: No overlap check or overlap message (removed). Parallel workplaces allowed. Open: G10.
+- Before the answer: Please confirm the server checks overlapping positions inside one workplace (parallel workplaces are allowed by TSK-415946). The frontend blocks an end before a start and future dates.
 
 **3.6 Achievement types (TSK-493303).**
+- **Answered 2026-10-31: OWNER DECISION / READY.** Frontend: Stage + full/partial + category + date + description + at least one file; advocates only; no type selector (tested).
 - The board task asks for award, certificate, scientific work, mediation and social project types. The owner's rules of 2026-10-30 (F-ACH) narrow achievements to stage results. `AchievementSubmission` has `process_stage` and `result_scope`, no type.
 - The frontend follows the owner's newer rules.
 - Owner decision needed: keep stage results only, or add `achievement_type` (with `label_i18n`). Lawyer (yurist) access is F-ACH §7.
 
 **3.7 Superadvokat criteria (TSK-460646).**
+- **Answered 2026-10-31: PARTIAL.** Frontend: No change: the existing policy, coefficient and override endpoints are read; no local rules.
 - Missing: only a free-form `/admin/marketplace/policies/{section}` exists; there is no Superadvokat section or schema.
 - Needed: a typed Superadvokat policy (criteria, thresholds, version, who changed it) or a Studio constructor for it.
 - Meanwhile: the manual override (primary superadmin only, reason, period, history with before → after) is built and tested. The history shape was asked in Q-10-28 §8.2.
 
 **3.8 Public seller payloads (TSK-260704).**
+- **Answered 2026-10-31: READY.** Frontend: No change: private fields are never read or shown (tested).
 - Missing: `/marketplace/lawyers` and `/marketplace/lawyers/{id}` are untyped, so we can't confirm the serializer drops licence number, university and private fields.
 - Needed: typed public schemas without those fields.
 - Meanwhile: the public profile never shows them, even if sent (tested).
 
-**3.9 Client price reasons (TSK-787056).** Asked in Q-10-28 §5.1 and answered (`client_price_reasons`). Still untyped in OpenAPI; please type it. The public profile's "how the price is formed" now explains in words only (no coefficients or percentages).
+**3.9 Client price reasons (TSK-787056).**
+- **Answered 2026-10-31: READY (typing PARTIAL).** Frontend: See 1.6: `code`, `text`, `text_i18n` only.
+- Before the answer: Asked in Q-10-28 §5.1 and answered (`client_price_reasons`). Still untyped in OpenAPI; please type it. The public profile's "how the price is formed" now explains in words only (no coefficients or percentages).
 
 ---
 
 ## 4. Studio
 
 **4.1 409 for a duplicate rule name (TSK-602765).**
+- **Answered 2026-10-31: READY (contract corrected).** Frontend: `rule_title_exists` with `existing_rule_id` / `existing_rule_key`; "Open the existing rule" by its title, never the id or key. Open: Q5.
 - Missing: no operation declares a 409. `rule_title_duplicate`, `existing_rule_id` and `existing_title` are not documented.
 - Needed: document the 409 body on K31 save: `{ detail: { code: "rule_title_duplicate", existing_rule_id, existing_title } }`.
 - Meanwhile: the form reads exactly that and offers the existing rule (unit-tested).
 
 **4.2 Several executor types at runtime (TSK-656862).**
+- **Answered 2026-10-31: PARTIAL.** Frontend: `executor_types` preferred, singular `executor_type` as fallback.
 - Missing: `LegalServiceOut` / `LegalServiceCreate` have only `executor_type` (one string).
 - Needed: `executor_types: string[]` on the runtime service.
 - Meanwhile: Studio saves `executor_types` in the K02 payload.
 
 **4.3 Hidden checklist evidence for the client (TSK-732568).**
+- **Answered 2026-10-31: READY (typing PARTIAL).** Frontend: The client checklist renders only its own response and re-reads it on live events; seller objects never reach it.
 - Missing: `ChecklistResponse.items` is untyped. `client_title`, `executor_title`, `show_comment_to_client`, `show_images_to_client`, `show_files_to_client` aren't documented.
 - Needed: typed items, and the server must strip hidden comments, images and files from the client's checklist.
 - Meanwhile: the client's page hides them too (unit-tested), but only the server can make it safe.
 
 **4.4 Rules by audience (TSK-206001).**
+- **Answered 2026-10-31: PARTIAL / BACKEND GAP.** Frontend: No change: purchase and order screens already use runtime service rules. Open: G11.
 - Missing: `GET /marketplace/service-rules` has no `audience` filter and an untyped response.
 - Needed: `?audience=client|performer` and a typed `audience` field.
 - Meanwhile: the browser filters by the rule's own audience.
 
 **4.5 Document settings actor and snapshot (TSK-136097).**
+- **Answered 2026-10-31: PARTIAL.** Frontend: `published_by_user_id` shown as a name with an avatar, else "Administrator"; never the id. Open: G12.
 - Missing: `/admin/document-service-settings*` responses are untyped; `published_by`, `activated_by` aren't documented; no document-order schema carries the settings version.
 - Needed: those fields, and `settings_version` on the document order.
 
 **4.6 Coefficient preview (TSK-331025).**
+- **Answered 2026-10-31: BACKEND GAP.** Frontend: No change: K36 uses the generic `POST /studio/constructors/{code}/preview`; no typed fake. Open: G13.
 - Missing: no preview endpoint for K36 coefficients; `POST /studio/constructors/{code}/preview` is untyped.
 - Needed: a typed preview: given a service, a region and a seller, the coefficients that apply and the resulting price.
 
-**4.7 Removed constructors (TSK-615032).** The DB delete migration and the backup can't be checked from the frontend. Please confirm they ran.
+**4.7 Removed constructors (TSK-615032).**
+- **Answered 2026-10-31: READY.** Frontend: Studio links appear only for constructors in the current catalog (`lib/studio/catalogLink.ts`).
+- Before the answer: The DB delete migration and the backup can't be checked from the frontend. Please confirm they ran.
 
-**4.8 Studio dashboard counts (TSK-195678).** `StudioSummaryResponse.entity_cards` is untyped. Please document `active_count` / `incomplete_count`.
+**4.8 Studio dashboard counts (TSK-195678).**
+- **Answered 2026-10-31: READY (typing PARTIAL).** Frontend: Dashboard cards read total / active / inactive / incomplete and list URLs defensively.
+- Before the answer: `StudioSummaryResponse.entity_cards` is untyped. Please document `active_count` / `incomplete_count`.
 
 ---
 
 ## 5. Chat, tasks, rating, monitoring, CEO
 
 **5.1 Chat reactions (TSK-637367).**
+- **Answered 2026-10-31: BACKEND GAP.** Frontend: Reactions are removed; old reaction records are never drawn and don't move the chat list. Open: G14.
 - Missing: no reaction endpoint. A reaction is sent as a message with `message_type: "reaction"`, so the server may count it in `unread_count` and `last_message`.
 - Needed: `POST/DELETE /secure-chats/{room_id}/messages/{message_id}/reactions`, and reactions left out of `unread_count` / `last_message`.
 - Meanwhile: the list never shows a reaction as the last line (tested in `chat-list.spec`).
 
 **5.2 Task attachment previews (TSK-323073).**
+- **Answered 2026-10-31: READY.** Frontend: Preview only when `preview_supported`, from `inline_url` then `preview_url`; `download_url` to download.
 - Missing: `preview_url`, `download_url`, `preview_supported` aren't documented; `/task-management/{task_id}` is untyped.
 - Needed: document them on each attachment (we use them as signed-in API paths).
 
 **5.3 Rating factors (TSK-332221).**
+- **Answered 2026-10-31: PARTIAL.** Frontend: The policy card shows the backend's 6 factor weights only; no rating is computed. Open: G15.
 - Missing: no rating-policy keys for category experience, court and investigation results, SLA breaches, cancellations and no-answers. No decay, no fraud / self-review rules, no policy history. Weights and penalties come only from `/marketplace/me/rating`, not for an admin looking at a seller.
 - Needed: those factors in `GET /admin/marketplace/ratings/policy`; `GET /admin/marketplace/sellers/{id}/rating` with weights and penalties; a policy version history.
 - Meanwhile: the admin sees the policy, its status and each seller's public breakdown from a review (tested).
 
 **5.4 Monitoring (TSK-670563, TSK-762684).**
+- **Answered 2026-10-31: READY / PARTIAL.** Frontend: All integrations by name (Payme, Click, Atmos, LiveKit, OnlyOffice, Telegram, push…), history paged with a type filter, background Excel export; thresholds read-only from the server (browser editing removed). Open: G16.
 - Missing: `/admin/monitoring/overview` and `/integrations/{key}` are untyped. Not documented: `uptime_percent`, process / container state, `requests.rps`, `latency_ms`, `status_4xx`, `status_5xx`, `database`, `redis`, `workers`; SMS / push / email / storage / worker nodes; no promise that no secrets are returned; no endpoint for alert thresholds; no access grants for platform monitoring.
 - Needed: typed responses with those fields; `GET/PUT /admin/monitoring/thresholds`; a grant endpoint like live-office's.
 - Meanwhile: uptime is shown from `uptime_percent` when sent, otherwise from the loaded snapshots, and the screen says so. Thresholds are kept in the browser. Error codes show as "HTTP 502" or in words; an unknown code is left to the error text (UI rule).
 
 **5.5 CEO KPIs (TSK-328538).**
+- **Answered 2026-10-31: PARTIAL.** Frontend: `date_from` / `date_to` / timezone with the handmade DatePicker; synchronous export with a busy state. Open: G17.
 - Missing: `/analytics/ceo` is untyped. No completion rate or acceptance SLA. Rating, response-on-time and complaints exist only in `/quality/overview`, which has no date filter. Export is synchronous only.
 - Needed: those KPIs in `/analytics/ceo` for the chosen period; `date_from` / `date_to` on `/quality/overview`; `POST /analytics/ceo/exports` as a background job, like monitoring history exports.
 - Meanwhile: the CEO page shows quality as "all time" and says the period filter doesn't apply (tested).
 
 **5.6 Health and payment testing (TSK-961148).**
+- **Answered 2026-10-31: READY / BACKEND GAP.** Frontend: `/health` relied on as `{status:"ok"}`; nothing fakes a sandbox. Open: G18.
 - `/health` is typed as a map with no named keys. Please confirm `{ status: "ok" }` is stable; the post-release smoke check relies on it.
 - There is no payment sandbox or webhook simulation, so a production smoke test can't run a test transaction without real money. Click/Payme itself is Q-10-28 §1.
 
 ---
 
 ## 6. Owner decisions (not backend)
+
+**Answered 2026-10-31 (§6 of the answers):** the old `/admin/plans` editor is removed, now that `/admin/tariffs` covers the feature registry and plan versions. Achievements stay stage results. Known codes are shown in words and unknown ones as a generic message, never raw.
 
 - **TSK-490457 vs TSK-342697**: the newer task wins (§2.1). Please confirm the old per-feature limits screen (`/admin/plans`) can be removed (asked in Q-10-28 §4.1).
 - **TSK-493303**: achievement types, see §3.6.
@@ -223,16 +271,30 @@ Please never send test accounts without 2FA or TOTP secrets. We don't need them.
 
 ## 7. Yandex marketplace map (LEXGO_YANDEX_MARKETPLACE_MAP_FRONTEND_2026_10_30, backend b448ab3)
 
-**7.1 Maps API version.** The contract says Yandex Maps v3, but the deployed `GET /marketplace/map/config` returns `api_version: "2.1"` and a `maps_loader_url` for the 2.1 loader. The frontend follows the contract and loads `https://api-maps.yandex.ru/v3/?apikey=<maps_api_key>&lang=…` (it never uses `maps_loader_url`). Checked on 2026-10-31: the v3 loader refuses the deployed key (`GET https://api-maps.yandex.ru/v3/?apikey=<key>` answers `403 {"message":"Invalid api key"}`), while the 2.1 loader accepts it. So production shows no map today, only the list with the same filters (a fallback, not a broken map). Needed: a key enabled for JS API v3 and our web origins, with `api_version: "v3"` in the config. Or tell us to build a 2.1 renderer instead, which goes against the contract.
+**7.1 Maps API version.**
+- **Answered 2026-10-31: READY / EXTERNAL BLOCKER.** Frontend: The map loads only `maps_loader_url` and draws with Yandex Maps 2.1 (`api_version`); the v3 code is removed. Open: E1, Q8.
+- Before the answer: The contract says Yandex Maps v3, but the deployed `GET /marketplace/map/config` returns `api_version: "2.1"` and a `maps_loader_url` for the 2.1 loader. The frontend follows the contract and loads `https://api-maps.yandex.ru/v3/?apikey=<maps_api_key>&lang=…` (it never uses `maps_loader_url`). Checked on 2026-10-31: the v3 loader refuses the deployed key (`GET https://api-maps.yandex.ru/v3/?apikey=<key>` answers `403 {"message":"Invalid api key"}`), while the 2.1 loader accepts it. So production shows no map today, only the list with the same filters (a fallback, not a broken map). Needed: a key enabled for JS API v3 and our web origins, with `api_version: "v3"` in the config. Or tell us to build a 2.1 renderer instead, which goes against the contract.
 
-**7.2 Geocoder items.** `GET /marketplace/geocoder/search` and `/reverse` return untyped `items: object[]`. The frontend reads `name`/`title`, `formatted_address`/`address`, and `coordinates` (`[longitude, latitude]`) or `latitude`/`longitude`. Please document the item fields.
+**7.2 Geocoder items.**
+- **Answered 2026-10-31: READY (typing PARTIAL).** Frontend: Items read as documented (`latitude` / `longitude`, `coordinate_order=longitude_latitude`); the 5 geocoder codes and a provider 403 give the "pick the point on the map" fallback.
+- Before the answer: `GET /marketplace/geocoder/search` and `/reverse` return untyped `items: object[]`. The frontend reads `name`/`title`, `formatted_address`/`address`, and `coordinates` (`[longitude, latitude]`) or `latitude`/`longitude`. Please document the item fields.
 
-**7.3 `service_action` on map and nearby items.** It is `null` in every live response and has no schema. The frontend reads `service_id`, `title`, and `effective_price`/`price`, and links to the seller profile's services section. Please document the shape and the action the client should take.
+**7.3 `service_action` on map and nearby items.**
+- **Answered 2026-10-31: READY.** Frontend: `service_action.id` is the service id. Open: Q7.
+- Before the answer: It is `null` in every live response and has no schema. The frontend reads `service_id`, `title`, and `effective_price`/`price`, and links to the seller profile's services section. Please document the shape and the action the client should take.
 
-**7.4 Seller photo.** Map markers and nearby results have no avatar or photo URL, so the cards show initials. If photos should appear, please add a public `avatar_url` to both.
+**7.4 Seller photo.**
+- **Answered 2026-10-31: BACKEND GAP.** Frontend: Initials avatars on pins and cards. Open: G19.
+- Before the answer: Map markers and nearby results have no avatar or photo URL, so the cards show initials. If photos should appear, please add a public `avatar_url` to both.
 
-**7.5 Office object.** `GET`/`PUT /marketplace/me/office-location` return `office: object | null` with no schema. The frontend reads `latitude`, `longitude`, `formatted_address`, `public_navigation_enabled` and `updated_at`. Please document it. `DELETE /marketplace/me/office-location` exists but isn't in the contract: should settings offer a "remove office" action?
+**7.5 Office object.**
+- **Answered 2026-10-31: READY (typing PARTIAL).** Frontend: Address, source in words, public navigation, confirmed/geocoded time; "Remove office" with a confirm dialog and the not-configured state. Open: Q6.
+- Before the answer: `GET`/`PUT /marketplace/me/office-location` return `office: object | null` with no schema. The frontend reads `latitude`, `longitude`, `formatted_address`, `public_navigation_enabled` and `updated_at`. Please document it. `DELETE /marketplace/me/office-location` exists but isn't in the contract: should settings offer a "remove office" action?
 
-**7.6 Error envelope.** The frontend reads map error codes from `detail.code` (e.g. `{"detail": {"code": "navigation_destination_unavailable", "message": "…"}}`). Please confirm that every listed 403/404/409/422 code uses this shape.
+**7.6 Error envelope.**
+- **Answered 2026-10-31: READY.** Frontend: The shared parser reads object, string and list `detail`; known codes in words, unknown ones generic.
+- Before the answer: The frontend reads map error codes from `detail.code` (e.g. `{"detail": {"code": "navigation_destination_unavailable", "message": "…"}}`). Please confirm that every listed 403/404/409/422 code uses this shape.
 
-**7.7 Realtime payload.** On `marketplace.seller_location_updated` the frontend only refetches the viewport (debounced) and never reads the event's `marker`. Please confirm the event never carries exact coordinates to public subscribers.
+**7.7 Realtime payload.**
+- **Answered 2026-10-31: READY.** Frontend: Pins and cards say "approximate area, ≈500 m"; realtime only refetches.
+- Before the answer: On `marketplace.seller_location_updated` the frontend only refetches the viewport (debounced) and never reads the event's `marker`. Please confirm the event never carries exact coordinates to public subscribers.
