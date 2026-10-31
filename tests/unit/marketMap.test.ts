@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "@/lib/http";
-import { consentBody, filterOfError, mapErrorKey, navigationPath, nearbySearchBody, normConsent, normNavRoute, normNearbySearch, normOffice, normPlaces, safeRouteUrl } from "@/lib/services/mapLocation";
-import { DEFAULT_MAP_FILTERS, filterParams, normMapConfig, normSellersMap } from "@/lib/services/sellersMap";
+import { consentBody, filterOfError, geocoderFailOf, mapErrorKey, navigationPath, nearbySearchBody, normConsent, normNavRoute, normNearbySearch, normOffice, normPlaces, officeSourceOf, safeRouteUrl } from "@/lib/services/mapLocation";
+import { DEFAULT_MAP_FILTERS, filterParams, loaderUrlOf, normMapConfig, normSellersMap, serviceActionOf } from "@/lib/services/sellersMap";
 
 // LEXGO_YANDEX_MARKETPLACE_MAP_FRONTEND_2026_10_30: config, markers, consent,
 // nearby search, navigation and office location as the backend sends them.
@@ -10,6 +10,7 @@ const LIVE_CONFIG = {
   provider: "yandex",
   api_version: "2.1",
   maps_api_key: "0f0f0f0f-1111-2222-3333-444444444444",
+  maps_loader_url: "https://api-maps.yandex.ru/2.1/?apikey=0f0f0f0f-1111-2222-3333-444444444444&lang=uz_UZ",
   configured: true,
   default_location: { center: [69.2401, 41.2995], zoom: 11, country_bbox: [55.9, 37.1, 73.2, 45.7] },
   nearby_search_url: "/marketplace/nearby-sellers/search",
@@ -22,9 +23,13 @@ const LIVE_CONFIG = {
 };
 
 describe("map config", () => {
-  it("reads the contract fields and stays usable with the deployed api_version", () => {
+  it("reads the contract fields and draws the deployed 2.1 from the config's loader", () => {
     const c = normMapConfig(LIVE_CONFIG);
     expect(c.usable).toBe(true);
+    expect(c.engine).toBe("2.1");
+    expect(c.loaderUrl).toBe(LIVE_CONFIG.maps_loader_url);
+    // The key travels only inside the loader URL.
+    expect(Object.values(c)).not.toContain(LIVE_CONFIG.maps_api_key);
     expect(c.center).toEqual([69.2401, 41.2995]);
     expect(c.countryBbox).toEqual({ minLon: 55.9, minLat: 37.1, maxLon: 73.2, maxLat: 45.7 });
     expect(c.consentHours).toBe(24);
@@ -33,9 +38,21 @@ describe("map config", () => {
     expect(c.realtime.unsubscribe).toBe("marketplace.map.unsubscribe");
     expect(c.markerPrecision).toBe("approximate_500m");
   });
-  it("configured=false means no map", () => {
+  it("configured=false, no loader or an unknown api_version means no map (the list)", () => {
     expect(normMapConfig({ ...LIVE_CONFIG, configured: false }).usable).toBe(false);
-    expect(normMapConfig({ ...LIVE_CONFIG, maps_api_key: "" }).usable).toBe(false);
+    expect(normMapConfig({ ...LIVE_CONFIG, maps_loader_url: "" }).usable).toBe(false);
+    expect(normMapConfig({ ...LIVE_CONFIG, api_version: "v3" })).toMatchObject({ engine: "", usable: false });
+    expect(normMapConfig({ ...LIVE_CONFIG, api_version: "3.0" }).usable).toBe(false);
+    expect(normMapConfig({ ...LIVE_CONFIG, api_version: "2.1.79" })).toMatchObject({ engine: "2.1", usable: true });
+  });
+  it("takes the loader only from a Yandex Maps host over https", () => {
+    expect(loaderUrlOf("https://api-maps.yandex.ru/2.1/?apikey=k&lang=ru_RU")).toBe("https://api-maps.yandex.ru/2.1/?apikey=k&lang=ru_RU");
+    expect(loaderUrlOf("https://enterprise.api-maps.yandex.ru/2.1/?apikey=k")).toBe("https://enterprise.api-maps.yandex.ru/2.1/?apikey=k");
+    expect(loaderUrlOf("http://api-maps.yandex.ru/2.1/")).toBe("");
+    expect(loaderUrlOf("https://api-maps.yandex.ru.evil.example/2.1/")).toBe("");
+    expect(loaderUrlOf("https://evil.example/?api-maps.yandex.ru")).toBe("");
+    expect(loaderUrlOf("javascript:alert(1)")).toBe("");
+    expect(loaderUrlOf("/2.1/")).toBe("");
   });
   it("ignores unsafe URLs from the config", () => {
     const c = normMapConfig({ ...LIVE_CONFIG, nearby_search_url: "https://evil.example/x", navigation_url_template: "//evil/{seller_user_id}" });
@@ -47,14 +64,19 @@ describe("map config", () => {
 describe("map markers and filters", () => {
   it("reads display_name, the approximate source and navigation availability", () => {
     const r = normSellersMap({
-      items: [{ seller_user_id: "s1", display_name: "Dilnoza Karimova", coordinates: [69.24, 41.3], location_source: "profile_region", navigation: { available: false, modes: ["walking"] }, service_action: { service_id: "v1", title: "Aliment", price: 300000 } }],
+      items: [{ seller_user_id: "s1", display_name: "Dilnoza Karimova", coordinates: [69.24, 41.3], location_source: "profile_region", navigation: { available: false, modes: ["walking"] }, service_action: { id: "v1", title: "Aliment", price: 300000, currency: "UZS", can_purchase: true, purchase_url: "/marketplace/services/v1/purchase" } }],
       markers: [],
       clusters: [{ id: "cluster-6-98-58", count: 8, coordinates: [69.239, 41.298], bbox: { min_longitude: 69.2, min_latitude: 41.2, max_longitude: 69.3, max_latitude: 41.3 } }],
       total_in_bbox: 9,
     });
-    expect(r.sellers[0]).toMatchObject({ name: "Dilnoza Karimova", source: "profile_region", exact: false, nav: { available: false, modes: ["walking"] }, service: { serviceId: "v1", title: "Aliment", price: 300000 } });
+    expect(r.sellers[0]).toMatchObject({ name: "Dilnoza Karimova", source: "profile_region", exact: false, nav: { available: false, modes: ["walking"] }, service: { id: "v1", title: "Aliment", price: 300000, currency: "UZS", canPurchase: true, purchaseUrl: "/marketplace/services/v1/purchase" } });
     expect(r.clusters[0]).toMatchObject({ id: "cluster-6-98-58", count: 8 });
     expect(r.total).toBe(9);
+  });
+  it("reads service_action by its id (§7.3), never a service_id", () => {
+    expect(serviceActionOf({ service_action: { id: "s9", title: "Maslahat", price: "150000", currency: "uzs", can_purchase: false, purchase_url: "https://evil.example/x" } })).toEqual({ id: "s9", title: "Maslahat", price: 150000, currency: "UZS", canPurchase: false, purchaseUrl: "" });
+    expect(serviceActionOf({ service_action: { service_id: "old", title: "Old", effective_price: 1 } })).toBeNull();
+    expect(serviceActionOf({ service_action: null })).toBeNull();
   });
   it("sends every filter the contract lists", () => {
     const qs = filterParams({ serviceId: "v1", categoryId: "c1", subcategoryId: "c2", sellerType: "advokat_tashkiloti", minRating: 4.5, verifiedOnly: false }, new URLSearchParams());
@@ -101,14 +123,45 @@ describe("navigation", () => {
 });
 
 describe("office and geocoder", () => {
-  it("reads the office", () => {
+  it("reads the office (§7.5) without its record id", () => {
     expect(normOffice({ configured: false, office: null })).toMatchObject({ configured: false, point: null });
-    expect(normOffice({ configured: true, office: { latitude: 41.3, longitude: 69.24, formatted_address: "Toshkent", public_navigation_enabled: true } })).toMatchObject({ configured: true, point: { latitude: 41.3, longitude: 69.24 }, address: "Toshkent", publicNavigation: true });
+    const o = normOffice({
+      configured: true,
+      office: { latitude: 41.3, longitude: 69.24, formatted_address: "Toshkent", source: "manual", public_navigation_enabled: true, confirmed_at: "2026-10-31T09:30:00Z", geocoded_at: "2026-10-31T09:29:00Z", record_id: "7f1d2c3b-0000-4000-8000-000000000001" },
+    });
+    expect(o).toMatchObject({ configured: true, point: { latitude: 41.3, longitude: 69.24 }, address: "Toshkent", source: "map", publicNavigation: true, confirmedAt: Date.parse("2026-10-31T09:30:00Z"), geocodedAt: Date.parse("2026-10-31T09:29:00Z") });
+    expect(JSON.stringify(o)).not.toContain("7f1d2c3b");
   });
-  it("reads geocoder places", () => {
-    expect(normPlaces({ items: [{ name: "Amir Temur 1", formatted_address: "Toshkent, Amir Temur 1", coordinates: [69.279, 41.311] }, { name: "no point" }] })).toEqual([
+  it("keeps only office sources it can put in words", () => {
+    expect(officeSourceOf("yandex_geocoder")).toBe("address");
+    expect(officeSourceOf("browser_geolocation")).toBe("device");
+    expect(officeSourceOf("admin")).toBe("staff");
+    expect(officeSourceOf("seller_manual")).toBe("map");
+    expect(officeSourceOf("x9_unknown")).toBe("");
+  });
+  it("reads normalized geocoder items (§7.2)", () => {
+    expect(
+      normPlaces({
+        items: [
+          { id: "g1", name: "Amir Temur 1", description: "Toshkent, O‘zbekiston", formatted_address: "Toshkent, Amir Temur 1", latitude: 41.311, longitude: 69.279, precision: "exact", kind: "house", country_code: "UZ", components: {} },
+          { id: "g2", name: "Chorsu", description: "Toshkent", formatted_address: "Chorsu", latitude: 41.326, longitude: 69.235, precision: "other", kind: "metro" },
+          { name: "no point" },
+        ],
+        count: 3,
+        found: 3,
+        provider: "yandex",
+        cached: false,
+        rate_limit_remaining: 58,
+        coordinate_order: "longitude_latitude",
+      }),
+    ).toEqual([
       { key: "69.27900,41.31100|Amir Temur 1", title: "Amir Temur 1", detail: "Toshkent, Amir Temur 1", point: { latitude: 41.311, longitude: 69.279 } },
+      { key: "69.23500,41.32600|Chorsu", title: "Chorsu", detail: "Toshkent", point: { latitude: 41.326, longitude: 69.235 } },
     ]);
+  });
+  it("reads a coordinates array in the answer's coordinate_order", () => {
+    expect(normPlaces({ items: [{ name: "A", coordinates: [69.279, 41.311] }], coordinate_order: "longitude_latitude" })[0].point).toEqual({ latitude: 41.311, longitude: 69.279 });
+    expect(normPlaces({ items: [{ name: "A", coordinates: [41.311, 69.279] }], coordinate_order: "latitude_longitude" })[0].point).toEqual({ latitude: 41.311, longitude: 69.279 });
   });
 });
 
@@ -121,5 +174,29 @@ describe("errors", () => {
     expect(mapErrorKey(err(401))).toBe("login_required");
     expect(mapErrorKey(err(429))).toBe("rate_limited");
     expect(filterOfError("subcategory_category_mismatch")).toBe("subcategoryId");
+  });
+  it("reads a plain string detail as a code and words an unknown code by its status", () => {
+    expect(mapErrorKey(new ApiError(404, "seller_not_found", undefined, { data: { detail: "seller_not_found" } }))).toBe("seller_not_found");
+    expect(mapErrorKey(err(403, "some_new_backend_code"))).toBe("forbidden");
+    expect(mapErrorKey(err(422, "some_new_backend_code"))).toBe("generic");
+  });
+});
+
+describe("geocoder failures", () => {
+  const obj = (status: number, code: string) => new ApiError(status, undefined, undefined, { code, data: { detail: { code } } });
+  const str = (status: number, code: string) => new ApiError(status, code, undefined, { data: { detail: code } });
+  it("puts every geocoder outage code, object or string detail, in the safe fallback", () => {
+    for (const code of ["yandex_geocoder_key_invalid", "yandex_geocoder_not_configured", "yandex_geocoder_unavailable", "seller_type_invalid"]) {
+      expect(geocoderFailOf(obj(403, code))).toBe("unavailable");
+      expect(geocoderFailOf(str(503, code))).toBe("unavailable");
+    }
+    expect(geocoderFailOf(obj(429, "geocoder_rate_limit_exceeded"))).toBe("busy");
+    expect(geocoderFailOf(str(429, "geocoder_rate_limit_exceeded"))).toBe("busy");
+  });
+  it("treats a provider 403 without a code as the outage, an unknown code as generic", () => {
+    expect(geocoderFailOf(new ApiError(403, "Forbidden"))).toBe("unavailable");
+    expect(geocoderFailOf(obj(400, "brand_new_code"))).toBe("generic");
+    expect(geocoderFailOf(new ApiError(0, "network_error"))).toBe("offline");
+    expect(geocoderFailOf(new Error("x"))).toBe("generic");
   });
 });

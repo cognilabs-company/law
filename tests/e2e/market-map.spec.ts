@@ -1,4 +1,4 @@
-import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { ADVOCATE, CLIENT, mockBackend, signIn, type Mock, type Routes } from "./mock";
 import { installYmapsStub } from "./ymapsStub";
 
@@ -6,11 +6,14 @@ import { installYmapsStub } from "./ymapsStub";
 // the list stands in when the map is off or Yandex can't load, location is
 // asked only after a click and recorded as consent, the nearby search
 // explains a nearest-fallback, routes come only from the backend, and a
-// seller saves an office location. The real Yandex script never loads here.
-// Screenshots: MAP_SHOTS=<dir> (e.g. /tmp/lexgo-redesign/addon).
+// seller saves (and removes) an office location. Backend answers 2026-10-31
+// §7: the map is Yandex Maps JS API 2.1, loaded only from the config's
+// maps_loader_url; the geocoder's key is refused in production, so address
+// search falls back to picking the point on the map. The real Yandex script
+// never loads here: the loader URL serves a 2.1 stand-in (ymapsStub.ts).
+// Screenshots: MAP_SHOTS=<dir> (e.g. /tmp/lexgo-answers/map).
 
 // MAP_VIEW=390x844 and MAP_SCHEME=light|dark size and colour the run.
-// The map tests use a ymaps3 stand-in (ymapsStub.ts) for the Yandex script.
 const SHOTS = process.env.MAP_SHOTS ?? "";
 const VIEW = (process.env.MAP_VIEW ?? "").split("x").map(Number);
 const SCHEME = process.env.MAP_SCHEME === "light" || process.env.MAP_SCHEME === "dark" ? process.env.MAP_SCHEME : null;
@@ -49,15 +52,20 @@ const marker = (id: string, name: string, type: string, rating: number, source: 
 const S1 = "0b9c2c4e-1a2b-4c3d-8e9f-111111111111";
 const S2 = "0b9c2c4e-1a2b-4c3d-8e9f-222222222222";
 const MARKERS = [marker(S1, "Dilnoza Karimova", "advokat", 4.9, "office", true), marker(S2, "Akmal Yusupov", "yurist", 4.6, "profile_region")];
+// §7.3 service_action: its `id` is the service (there is no service_id).
+const ACTION = { id: "svc-77", title: "Aliment undirish", price: 300000, currency: "UZS", can_purchase: true, purchase_url: "/marketplace/services/svc-77/purchase" };
 const HITS = [
-  { ...marker(S1, "Dilnoza Karimova", "advokat", 4.9, "office", true), distance_km: 14.2 },
+  { ...marker(S1, "Dilnoza Karimova", "advokat", 4.9, "office", true), distance_km: 14.2, service_action: ACTION },
   { ...marker(S2, "Akmal Yusupov", "yurist", 4.6, "live"), distance_km: 31.6 },
 ];
 
-const config = (configured: boolean) => ({
+const MAPS_KEY = "0f0f0f0f-1111-2222-3333-444444444444";
+const LOADER = `https://api-maps.yandex.ru/2.1/?apikey=${MAPS_KEY}&lang=uz_UZ`;
+const config = (configured: boolean, apiVersion = "2.1") => ({
   provider: "yandex",
-  api_version: "v3",
-  maps_api_key: configured ? "0f0f0f0f-1111-2222-3333-444444444444" : "",
+  api_version: apiVersion,
+  maps_api_key: configured ? MAPS_KEY : "",
+  maps_loader_url: configured ? LOADER : "",
   configured,
   default_location: { center: [69.2401, 41.2995], zoom: 11, country_bbox: [55.9, 37.1, 73.2, 45.7] },
   seller_map_url: "/marketplace/sellers/map",
@@ -68,6 +76,7 @@ const config = (configured: boolean) => ({
   geocoder_search_url: "/marketplace/geocoder/search",
   geocoder_reverse_url: "/marketplace/geocoder/reverse",
   geocoder_configured: true,
+  coordinate_order: "longitude_latitude",
   viewport_debounce_ms: 400,
   consent_policy: { allowed_duration_hours: [1, 24, 168, 720], default_duration_hours: 24 },
   accuracy_warning_threshold_meters: 500,
@@ -81,7 +90,18 @@ const consent = (granted: boolean, source = "web") => ({
   expires_at: granted ? new Date(Date.now() + 24 * 3600_000).toISOString() : null,
   policy: {},
 });
-const PLACES = { items: [{ name: "Amir Temur ko'chasi, 1", formatted_address: "Toshkent, Yunusobod tumani, Amir Temur ko'chasi, 1", coordinates: [69.279, 41.311] }], count: 1 };
+// §7.2: normalized items with latitude/longitude; coordinate_order is longitude_latitude.
+const PLACES = {
+  items: [{ id: "geo-1", name: "Amir Temur ko'chasi, 1", description: "Toshkent, O‘zbekiston", formatted_address: "Toshkent, Yunusobod tumani, Amir Temur ko'chasi, 1", latitude: 41.311, longitude: 69.279, precision: "exact", kind: "house", country_code: "UZ", components: {} }],
+  count: 1,
+  found: 1,
+  provider: "yandex",
+  cached: false,
+  rate_limit_remaining: 59,
+  coordinate_order: "longitude_latitude",
+};
+// What the deployed geocoder answers today (§7.1): the provider refuses the key.
+const GEOCODER_DOWN = { status: 403, json: { detail: { code: "yandex_geocoder_key_invalid" } } };
 
 function mapRoutes(opts: { configured: boolean; search?: (b: unknown) => unknown; queries?: URLSearchParams[] }): Routes {
   return {
@@ -115,11 +135,16 @@ function mapRoutes(opts: { configured: boolean; search?: (b: unknown) => unknown
   };
 }
 
-async function noYandex(context: BrowserContext, mode: "abort" | "count"): Promise<{ hits: number }> {
-  const seen = { hits: 0 };
-  await context.route(/api-maps\.yandex\.ru/, (route) => {
+// Every request to the Yandex Maps host: "abort" fails the loader, "count"
+// answers 500, "stub" serves the 2.1 stand-in from the loader URL.
+async function noYandex(context: BrowserContext, mode: "abort" | "count" | "stub"): Promise<{ hits: number; urls: string[] }> {
+  const seen = { hits: 0, urls: [] as string[] };
+  await context.route(/api-maps\.yandex\./, (route) => {
     seen.hits += 1;
-    return mode === "abort" ? route.abort() : route.fulfill({ status: 500, body: "" });
+    seen.urls.push(route.request().url());
+    if (mode === "abort") return route.abort();
+    if (mode === "count") return route.fulfill({ status: 500, body: "" });
+    return route.fulfill({ status: 200, contentType: "application/javascript", body: `(${installYmapsStub.toString()})();` });
   });
   return seen;
 }
@@ -142,6 +167,13 @@ async function shot(page: Page, name: string, target = "") {
   }, target);
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${SHOTS}/task-c-${name}-${w}-${scheme}.png`, fullPage: false });
+}
+
+async function tapAt(page: Page, target: Locator) {
+  await target.scrollIntoViewIfNeeded();
+  const b = await target.boundingBox();
+  expect(b, "the marker is on screen").not.toBeNull();
+  await page.mouse.click((b?.x ?? 0) + (b?.width ?? 0) / 2, (b?.y ?? 0) + (b?.height ?? 0) / 2);
 }
 
 async function noOverflow(page: Page) {
@@ -204,7 +236,51 @@ test("map configured but Yandex fails to load: the list takes over without a bro
   await expect(page.getByText("Xarita yuklanmadi — mutaxassislar o‘sha filtrlar bilan ro‘yxat ko‘rinishida.")).toBeVisible();
   await expect(page.locator('[data-ai-id="marketplace.map.area.list"]').getByText("Akmal Yusupov")).toBeVisible();
   await expect(page.locator(".ymk-canvas")).toHaveCount(0);
-  expect(yandex.hits).toBeGreaterThan(0);
+  // Only the config's 2.1 loader was tried.
+  expect(yandex.urls).toEqual([LOADER]);
+  await shot(page, "list-fallback", ".mmf");
+  await noOverflow(page);
+});
+
+test("2.1 loader: the script is the config's maps_loader_url, never v3, and the key is never logged", async ({ page, context }) => {
+  const yandex = await noYandex(context, "stub");
+  const logs: string[] = [];
+  page.on("console", (m) => logs.push(m.text()));
+  page.on("pageerror", (e) => logs.push(String(e)));
+  await openMap(page, mapRoutes({ configured: true }));
+  await expect(page.locator(".ymk-pin, .ymk-group").first()).toBeVisible();
+  await expect(page.locator('script[data-lexgo-map="yandex"]')).toHaveAttribute("src", LOADER);
+  expect(yandex.urls).toEqual([LOADER]);
+  expect(yandex.urls.some((u) => /\/v3\//.test(u))).toBe(false);
+  // The 2.1 map is drawn: tiles in the ground pane, the backend's markers on top.
+  await expect(page.locator(".ymaps-stub-ground")).toHaveCount(1);
+  await expect(page.locator('[data-ai-id="marketplace.map"]')).toContainText("Joylar taxminiy, ≈500 m aniqlikda");
+  // Dark mode re-tints only the tiles; light mode leaves them alone.
+  const filter = await page.locator(".ymaps-stub-ground").evaluate((el) => (el as HTMLElement).style.filter);
+  const dark = (await page.evaluate(() => document.documentElement.getAttribute("data-theme"))) === "dark";
+  expect(filter.includes("invert")).toBe(dark);
+  // Two pins on one spot: the Clusterer shows one count, which opens from the keyboard.
+  const near = page.locator(".ymk-group--near");
+  await expect(near).toHaveText("2");
+  await expect(near).toHaveAttribute("aria-label", "2 ta mutaxassis — yaqinlashtirish uchun bosing");
+  await shot(page, "map-clusterer", '[data-ai-id="marketplace.map.ask"]');
+  await near.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator(".ymk-pin[data-seller]")).toHaveCount(2);
+  await expect(page.locator(".ymk-group--near")).toHaveCount(0);
+  expect(logs.join("\n")).not.toContain(MAPS_KEY);
+  await expect(page.locator("body")).not.toContainText(MAPS_KEY);
+});
+
+test("an api_version this page can't draw stays the list and loads no script", async ({ page, context }) => {
+  const yandex = await noYandex(context, "stub");
+  const routes = mapRoutes({ configured: true });
+  routes["/marketplace/map/config"] = config(true, "v3");
+  await openMap(page, routes);
+  await expect(page.getByText("Xarita hozir mavjud emas — mutaxassislar o‘sha filtrlar bilan ro‘yxat ko‘rinishida.")).toBeVisible();
+  await expect(page.locator('[data-ai-id="marketplace.map.area.list"]').getByText("Dilnoza Karimova")).toBeVisible();
+  await expect(page.locator(".ymk-canvas")).toHaveCount(0);
+  expect(yandex.hits).toBe(0);
 });
 
 test("near me: location only after the click, consent recorded, nearest fallback and low accuracy explained", async ({ page, context }) => {
@@ -370,8 +446,7 @@ test("seller settings: the office location is saved with the public route switch
 });
 
 test("map view: clusters zoom in, markers open a card with a route, and a point can be picked on the map", async ({ page, context }) => {
-  await noYandex(context, "abort");
-  await page.addInitScript(installYmapsStub);
+  await noYandex(context, "stub");
   await page.addInitScript(() => {
     const deny = (_ok: unknown, err?: (e: { code: number; message: string }) => void) => setTimeout(() => err?.({ code: 1, message: "denied" }), 10);
     Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition: deny, watchPosition: deny, clearWatch: () => undefined } });
@@ -383,7 +458,7 @@ test("map view: clusters zoom in, markers open a card with a route, and a point 
     zooms.push(z);
     if (z < 13) return { items: [], markers: [], clusters: [{ id: "cluster-11-1", count: 2, coordinates: [69.25, 41.3], bbox: { min_longitude: 69.245, min_latitude: 41.298, max_longitude: 69.256, max_latitude: 41.301 } }], count: 2, total_in_bbox: 2 };
     const near = [
-      { ...MARKERS[0], coordinates: [69.245, 41.301], longitude: 69.245, latitude: 41.301 },
+      { ...MARKERS[0], coordinates: [69.245, 41.301], longitude: 69.245, latitude: 41.301, service_action: ACTION },
       { ...MARKERS[1], coordinates: [69.256, 41.298], longitude: 69.256, latitude: 41.298 },
     ];
     return { items: near, markers: near, clusters: [], count: 2, total_in_bbox: 2, location_precision: "mixed" };
@@ -398,10 +473,23 @@ test("map view: clusters zoom in, markers open a card with a route, and a point 
   await page.keyboard.press("Enter");
   await expect(page.locator(".ymk-pin")).toHaveCount(2);
   expect(Math.max(...zooms)).toBeGreaterThanOrEqual(13);
-  await page.locator(`.ymk-pin[data-seller="${S1}"]`).click();
+  // Markers are approximate areas, never addresses (§7.7), and wear the
+  // initials avatar (§7.4: no avatar_url yet).
+  const pin = page.locator(`.ymk-pin[data-seller="${S1}"]`);
+  await expect(pin).toHaveAttribute("title", "Dilnoza Karimova · ofis hududi (taxminiy)");
+  await expect(pin).toHaveText("DK");
+  await expect(page.locator(`.ymk-pin[data-seller="${S2}"]`)).toHaveAttribute("title", "Akmal Yusupov · viloyat markazi (taxminiy)");
+  // As in 2.1, the events pane lies over the pins: a tap at the pin's place
+  // reaches it through its shape.
+  await tapAt(page, pin);
   const card = page.locator('[data-ai-id="marketplace.map.card"]');
   await expect(card).toContainText("Dilnoza Karimova");
   await expect(card).toContainText("Ofis hududi (taxminiy)");
+  await expect(card.locator('[data-ai-id="marketplace.map.card.approx"]')).toHaveText("Taxminiy hudud, ≈500 m — aniq manzil emas");
+  await expect(card.locator(".mk-mono")).toHaveText("DK");
+  // service_action.id is the service the purchase opens.
+  await expect(card.getByRole("link", { name: "Buyurtma: Aliment undirish" })).toHaveAttribute("href", `/uz/portal/client/lawyers/${S1}?buy=svc-77`);
+  await expect(card).toContainText("300 000 so‘m");
   await expect(card.getByRole("button", { name: "Yo‘nalish" })).toBeVisible();
   await expect(card).not.toContainText(UUID);
   await shot(page, "map-card", '[data-ai-id="marketplace.map"]');
@@ -420,6 +508,8 @@ test("map view: clusters zoom in, markers open a card with a route, and a point 
   await shot(page, "denied-manual-map", '[data-ai-id="marketplace.map.manual"]');
   await page.locator('[data-ai-id="marketplace.map.manual.confirm"]').click();
   await expect(page.locator('[data-ai-id="marketplace.nearby.results"]').getByText("Dilnoza Karimova")).toBeVisible();
+  const hit = page.locator('[data-ai-id="marketplace.nearby.results"] li').filter({ hasText: "Dilnoza Karimova" });
+  await expect(hit.getByRole("link", { name: "Buyurtma: Aliment undirish" })).toHaveAttribute("href", `/uz/portal/client/lawyers/${S1}?buy=svc-77`);
   const grants = mock.calls.filter((c) => c.method === "POST" && c.path === "/marketplace/me/location-consent").map((c) => c.body);
   expect(grants).toEqual([
     { granted: false, permission_state: "denied", source: "web" },
@@ -433,11 +523,14 @@ test("map view: clusters zoom in, markers open a card with a route, and a point 
 });
 
 test("list view of the map area", async ({ page, context }) => {
-  await noYandex(context, "abort");
-  await page.addInitScript(installYmapsStub);
+  await noYandex(context, "stub");
   const queries: URLSearchParams[] = [];
   await openMap(page, mapRoutes({ configured: true, queries }));
-  await expect(page.locator(".ymk-pin, .ymk-group").first()).toBeVisible();
+  // A tap on the Clusterer's count zooms in until the pins separate.
+  const near = page.locator(".ymk-group--near");
+  await expect(near).toHaveText("2");
+  await tapAt(page, near);
+  await expect(page.locator(".ymk-pin[data-seller]")).toHaveCount(2);
   await page.locator('[data-ai-id="marketplace.nearby.view.list"]').click();
   const list = page.locator('[data-ai-id="marketplace.map.area.list"]');
   await expect(list.getByText("Akmal Yusupov")).toBeVisible();
@@ -447,4 +540,138 @@ test("list view of the map area", async ({ page, context }) => {
   expect(queries.at(-1)?.get("bbox")).not.toBe("55.9,37.1,73.2,45.7");
   await shot(page, "list", '.mmarea');
   await noOverflow(page);
+});
+
+test("geocoder down (provider 403): address search says so in words and the point is picked on the map", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  await page.addInitScript(() => {
+    const deny = (_ok: unknown, err?: (e: { code: number; message: string }) => void) => setTimeout(() => err?.({ code: 1, message: "denied" }), 10);
+    Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition: deny, watchPosition: deny, clearWatch: () => undefined } });
+  });
+  const routes = mapRoutes({ configured: true });
+  routes["/marketplace/geocoder/search"] = GEOCODER_DOWN;
+  const mock = await openMap(page, routes);
+  await expect(page.locator(".ymk-pin, .ymk-group").first()).toBeVisible();
+  await page.locator('[data-ai-id="marketplace.nearby.locate"]').click();
+  await page.locator('[data-ai-id="marketplace.map.manual.start"]').click();
+  await page.getByRole("searchbox", { name: "Manzilni topish" }).fill("Amir Temur");
+  const down = page.locator('[data-ai-id="marketplace.map.manual.place.error"]');
+  await expect(down).toHaveText("Manzil qidiruvi hozir ishlamayapti — nuqtani xaritada tanlang.");
+  await expect(page.locator('[data-ai-id="marketplace.nearby"]')).not.toContainText("yandex_geocoder");
+  await expect.poll(() => mock.count("GET", /^\/marketplace\/geocoder\/search$/)).toBeGreaterThan(0);
+  await shot(page, "geocoder-unavailable", '[data-ai-id="marketplace.map.manual"]');
+  // The map still takes the point.
+  const canvas = page.locator(".ymk-canvas");
+  await canvas.scrollIntoViewIfNeeded();
+  const box = await canvas.boundingBox();
+  await page.mouse.click((box?.x ?? 0) + 70, (box?.y ?? 0) + (box?.height ?? 300) - 70);
+  await expect(page.locator(".ymk-pick")).toHaveCount(1);
+  await page.locator('[data-ai-id="marketplace.map.manual.confirm"]').click();
+  await expect(page.locator('[data-ai-id="marketplace.nearby.results"]').getByText("Dilnoza Karimova")).toBeVisible();
+  const search = mock.calls.find((c) => c.method === "POST" && c.path === "/marketplace/nearby-sellers/search");
+  expect(typeof (search?.body as { latitude?: unknown })?.latitude).toBe("number");
+  await noOverflow(page);
+});
+
+test("office: shown with its source and check time, picked on the map while the geocoder is down, removed behind a confirm", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  const RECORD = "7f1d2c3b-0000-4000-8000-000000000001";
+  let office: Record<string, unknown> | null = {
+    latitude: 41.311,
+    longitude: 69.279,
+    formatted_address: "Toshkent, Yunusobod tumani, Amir Temur ko'chasi, 1",
+    source: "manual",
+    public_navigation_enabled: true,
+    confirmed_at: "2026-10-30T09:30:00Z",
+    geocoded_at: null,
+    record_id: RECORD,
+  };
+  let put: Record<string, unknown> | null = null;
+  const routes = await signIn(page, ADVOCATE, {
+    "/lawyers/me": { lawyer_name: "Test Advokat", region: "tashkent" },
+    "/marketplace/map/config": config(true),
+    "/marketplace/me/office-location": () => ({ configured: !!office, office }),
+    "PUT /marketplace/me/office-location": (b: unknown) => {
+      put = b as Record<string, unknown>;
+      office = { ...(b as Record<string, unknown>), source: "manual", confirmed_at: new Date().toISOString(), record_id: RECORD };
+      return { configured: true, office };
+    },
+    "DELETE /marketplace/me/office-location": () => {
+      office = null;
+      return { configured: false, office: null };
+    },
+    "/marketplace/geocoder/search": GEOCODER_DOWN,
+    // A plain string detail is read as the code too (§7.6).
+    "/marketplace/geocoder/reverse": { status: 503, json: { detail: "yandex_geocoder_unavailable" } },
+  });
+  const mock = await mockBackend(page, routes);
+  await page.goto("/uz/portal/advocate/profile?tab=work");
+  const card = page.locator('[data-ai-id="profile.office"]');
+  const read = card.locator('[data-ai-id="profile.office.read"]');
+  await expect(read).toContainText("Toshkent, Yunusobod tumani, Amir Temur ko'chasi, 1");
+  await expect(read.locator('[data-ai-id="profile.office.source"]')).toContainText("Siz xaritada belgilagansiz");
+  await expect(read.locator('[data-ai-id="profile.office.state"]')).toHaveText("Mijozlar yo‘nalish olishi mumkin");
+  await expect(read.locator('[data-ai-id="profile.office.confirmed"]')).toContainText("Tasdiqlangan");
+  await expect(read.locator('[data-ai-id="profile.office.confirmed"] time')).toHaveAttribute("datetime", "2026-10-30T09:30:00.000Z");
+  await expect(card).not.toContainText(RECORD);
+  await expect(card).not.toContainText(UUID);
+  await expect(card).not.toContainText("manual");
+  await shot(page, "office-configured", '[data-ai-id="profile.office"]');
+
+  // Edit: the address search is down, the map still takes the point.
+  await card.getByRole("button", { name: "O‘zgartirish" }).click();
+  await card.getByRole("searchbox", { name: "Ofis manzilini topish" }).fill("Amir Temur");
+  await expect(card.locator('[data-ai-id="profile.office.place.error"]')).toHaveText("Manzil qidiruvi hozir ishlamayapti — nuqtani xaritada tanlang.");
+  const canvas = card.locator(".ymk-canvas");
+  await canvas.scrollIntoViewIfNeeded();
+  const box = await canvas.boundingBox();
+  await page.mouse.click((box?.x ?? 0) + (box?.width ?? 300) / 2 + 40, (box?.y ?? 0) + (box?.height ?? 300) / 2 + 30);
+  await expect(card.locator(".ymk-pick")).toHaveCount(1);
+  await expect(card.locator('[data-ai-id="profile.office.reverse-fail"]')).toContainText("Manzilni nuqta bo‘yicha avtomatik to‘ldirib bo‘lmadi");
+  await expect(card).not.toContainText("yandex_geocoder");
+  await shot(page, "point-picker", '[data-ai-id="profile.office"]');
+  await noOverflow(page);
+  await card.getByRole("button", { name: "Ofisni saqlash" }).click();
+  await expect(card.getByText("Ofis saqlandi. Endi mijozlar unga yo‘nalish olishi mumkin.")).toBeVisible();
+  const saved = put as Record<string, unknown> | null;
+  expect(typeof saved?.latitude).toBe("number");
+  expect(saved?.latitude).not.toBe(41.311);
+  expect(saved).toMatchObject({ formatted_address: "Toshkent, Yunusobod tumani, Amir Temur ko'chasi, 1", public_navigation_enabled: true });
+
+  // Remove office: the app's own confirm dialog, then DELETE, then "not configured".
+  await card.getByRole("button", { name: "Ofisni olib tashlash" }).click();
+  const dialog = page.getByRole("dialog", { name: "Ofis xaritadan olib tashlansinmi?" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText("Mijozlar ofisingizni xaritada topa olmaydi");
+  expect(mock.count("DELETE", /^\/marketplace\/me\/office-location$/)).toBe(0);
+  await shot(page, "remove-confirm");
+  await dialog.getByRole("button", { name: "Olib tashlash" }).click();
+  await expect(dialog).toBeHidden();
+  await expect.poll(() => mock.count("DELETE", /^\/marketplace\/me\/office-location$/)).toBe(1);
+  await expect(card.locator('[data-ai-id="profile.office.empty"]')).toContainText("Ofisingiz hali xaritada yo‘q");
+  await expect(card.getByText("Ofis olib tashlandi. Endi u xaritada ko‘rinmaydi.")).toBeVisible();
+  await expect(card.getByRole("button", { name: "Ofis qo‘shish" })).toBeVisible();
+  await expect(card.getByRole("button", { name: "Ofisni olib tashlash" })).toHaveCount(0);
+  await shot(page, "office-not-configured", '[data-ai-id="profile.office"]');
+  await noOverflow(page);
+});
+
+test("office remove: cancelling the confirm keeps the office and sends nothing", async ({ page, context }) => {
+  await noYandex(context, "abort");
+  const routes = await signIn(page, ADVOCATE, {
+    "/lawyers/me": { lawyer_name: "Test Advokat", region: "tashkent" },
+    "/marketplace/map/config": config(false),
+    "/marketplace/me/office-location": { configured: true, office: { latitude: 41.3, longitude: 69.24, formatted_address: "Toshkent", public_navigation_enabled: false, geocoded_at: "2026-10-29T12:00:00Z" } },
+  });
+  const mock = await mockBackend(page, routes);
+  await page.goto("/uz/portal/advocate/profile?tab=work");
+  const card = page.locator('[data-ai-id="profile.office"]');
+  await expect(card.locator('[data-ai-id="profile.office.geocoded"]')).toContainText("Manzil tekshirilgan");
+  await expect(card.locator('[data-ai-id="profile.office.state"]')).toHaveText("Yopiq — yo‘nalishsiz");
+  await card.getByRole("button", { name: "Ofisni olib tashlash" }).click();
+  const dialog = page.getByRole("dialog", { name: "Ofis xaritadan olib tashlansinmi?" });
+  await dialog.getByRole("button", { name: "Bekor qilish" }).click();
+  await expect(dialog).toBeHidden();
+  await expect(card.locator('[data-ai-id="profile.office.read"]')).toContainText("Toshkent");
+  expect(mock.count("DELETE", /^\/marketplace\/me\/office-location$/)).toBe(0);
 });
