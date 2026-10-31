@@ -124,11 +124,51 @@ export function guestLimitOf(e: unknown): GuestLimitExceeded | null {
   };
 }
 
-// The server's own error text ('' when there is none or the request never
-// reached the server). 429s carry the cooldown/lock wording, so callers show
-// `errDetail(e) || tc("rateLimited")`.
+// A machine token rather than words: "rule_title_exists", "seller.not_found",
+// "forbidden". Such a string is never shown to a user (UI law); it is looked
+// up as a code instead. Words with spaces ("Not Found", Uzbek sentences) are
+// human text.
+export function isCodeLike(s: string): boolean {
+  const t = s.trim();
+  if (!t || /\s/.test(t)) return false;
+  return /^[A-Za-z][A-Za-z0-9]*([_.:-][A-Za-z0-9]+)+$/.test(t) || /^[a-z0-9]+$/.test(t);
+}
+
+// Pydantic puts a validator's ValueError text after this prefix in a 422
+// `detail[].msg` ("Value error, experience_dates_invalid").
+const PYDANTIC_VALUE_ERROR = /^value error,\s*/i;
+function codeOfText(v: unknown): string {
+  if (typeof v !== "string") return "";
+  const t = v.replace(PYDANTIC_VALUE_ERROR, "").trim();
+  return isCodeLike(t) ? t : "";
+}
+
+// The machine code of a backend error in any of its shapes ('' when none):
+// `detail: {code}` (backend answers 2026-10-31 §6.3, §7.6), a plain string
+// `detail` that is itself a code, or a FastAPI 422 `detail[]` whose item
+// carries one (`ctx.code`, `code`, or a validator message that is a code).
+export function errorCode(e: unknown): string {
+  if (!(e instanceof ApiError)) return "";
+  if (e.code) return e.code;
+  const detail = e.data.detail;
+  if (typeof detail === "string") return codeOfText(detail);
+  if (Array.isArray(detail)) {
+    for (const item of detail) {
+      const it = asDict(item);
+      const code = codeOfText(asDict(it.ctx).code) || codeOfText(it.code) || codeOfText(it.msg);
+      if (code) return code;
+    }
+  }
+  return "";
+}
+
+// The server's own error text ('' when there is none, when it is only a
+// code, or when the request never reached the server). 429s carry the
+// cooldown/lock wording, so callers show `errDetail(e) || tc("rateLimited")`.
+// Codes go through errorCode() / lib/errorText's errorText instead.
 export function errDetail(e: unknown): string {
   if (!(e instanceof ApiError) || !e.detail || e.detail === "network_error" || e.detail === "aborted") return "";
+  if (isCodeLike(e.detail)) return "";
   // Uzbek-only server wording → the UI locale (lib/apiMessage).
   return localizeApiDetail(e.detail);
 }
@@ -290,7 +330,9 @@ export async function toApiError(res: Response): Promise<ApiError> {
   const err = text(j.error);
   const detail =
     text(j.detail) ?? text(dd.message) ?? text(j.message) ?? (err && err !== "backend_unreachable" ? err : undefined);
-  const code = text(dd.code);
+  // A plain string detail that is itself a code ("rule_title_exists") is
+  // the code too, so `e.code` reads the same for both shapes.
+  const code = text(dd.code) ?? (typeof j.detail === "string" ? codeOfText(j.detail) || undefined : undefined);
   return new ApiError(res.status, detail, retryHint(res.headers.get("retry-after"), [dd, j]), {
     data: j,
     code,
