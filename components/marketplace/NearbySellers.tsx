@@ -408,7 +408,7 @@ export default function NearbySellers({
       <div className="mml__txt">
         <b>{tx("manual.title")}</b>
         <p>{mapOn ? tx("manual.textMap") : tx("manual.textList")}</p>
-        <PlaceSearch url={cfg?.geocoderSearchUrl ?? ""} label={tx("manual.searchLabel")} placeholder={tx("manual.searchPlaceholder")} onSelect={choosePlace} aiId="marketplace.map.manual.place" autoFocus={!mapOn} />
+        <PlaceSearch url={cfg?.geocoderSearchUrl ?? ""} off={!cfg?.geocoderOn} mapOn={mapOn} label={tx("manual.searchLabel")} placeholder={tx("manual.searchPlaceholder")} onSelect={choosePlace} aiId="marketplace.map.manual.place" autoFocus={!mapOn} />
         {pickPoint ? (
           <p className="mml__picked" role="status">
             <IconMapPin aria-hidden="true" />
@@ -707,7 +707,7 @@ export default function NearbySellers({
           locating={geo.busy}
           geoFailed={!!geo.fail}
           template={cfg.navigationTemplate}
-          geocoderUrl={cfg.geocoderSearchUrl}
+          geocoderUrl={cfg.geocoderOn ? cfg.geocoderSearchUrl : ""}
           signedIn={signedIn}
           onLocate={locate}
           onManual={(p) => void confirmManual(p.point)}

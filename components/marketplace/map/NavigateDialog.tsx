@@ -43,6 +43,7 @@ export default function NavigateDialog({
   locating: boolean;
   geoFailed: boolean;
   template: string;
+  // "" when the config says the geocoder is off.
   geocoderUrl: string;
   signedIn: boolean;
   onLocate: () => void;
@@ -134,7 +135,7 @@ export default function NavigateDialog({
               {geoFailed ? (
                 <>
                   <p className="mmr__note">{t("manualHint")}</p>
-                  <PlaceSearch url={geocoderUrl} label={tx("manual.searchLabel")} placeholder={tx("manual.searchPlaceholder")} onSelect={onManual} aiId="marketplace.route.place" />
+                  <PlaceSearch url={geocoderUrl} off={!geocoderUrl} label={tx("manual.searchLabel")} placeholder={tx("manual.searchPlaceholder")} onSelect={onManual} aiId="marketplace.route.place" />
                 </>
               ) : null}
             </div>

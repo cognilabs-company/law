@@ -2,13 +2,26 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { IconMapPin, IconSearch } from "@/components/icons";
-import { geocodeSearch, isAborted, mapErrorKey, type MapErrorKey, type Place } from "@/lib/services/mapLocation";
+import { IconInfo, IconMapPin, IconSearch } from "@/components/icons";
+import { geocodeSearch, geocoderFailOf, isAborted, type GeocoderFail, type Place } from "@/lib/services/mapLocation";
 
 // Address search through the backend geocoder: the keyboard (and no-map)
 // way to choose a point — a client's manual starting point, a seller's
-// office. Results are places with names, never coordinates.
-type Found = { q: string; items: Place[]; fail: MapErrorKey | null };
+// office. Results are places with names, never coordinates. When the
+// geocoder is down (§7.1: its key is refused in production today) the
+// search says so in words and points to the map, which keeps working.
+type Found = { q: string; items: Place[]; fail: GeocoderFail | null };
+
+export function useGeocoderFailText(): (f: GeocoderFail, mapOn: boolean) => string {
+  const t = useTranslations("marketMap.place");
+  const tx = useTranslations("marketMap");
+  return (f, mapOn) => {
+    if (f === "unavailable") return mapOn ? t("unavailable") : t("unavailableNoMap");
+    if (f === "busy") return mapOn ? t("busy") : t("busyNoMap");
+    if (f === "offline") return tx("errors.offline");
+    return t("error");
+  };
+}
 
 export default function PlaceSearch({
   url,
@@ -17,6 +30,8 @@ export default function PlaceSearch({
   onSelect,
   aiId,
   autoFocus,
+  off,
+  mapOn = false,
 }: {
   url: string;
   label: string;
@@ -24,9 +39,13 @@ export default function PlaceSearch({
   onSelect: (p: Place) => void;
   aiId: string;
   autoFocus?: boolean;
+  // The config says the geocoder isn't set up: nothing is asked.
+  off?: boolean;
+  // A map beside the search lets the point be picked there instead.
+  mapOn?: boolean;
 }) {
   const t = useTranslations("marketMap.place");
-  const tx = useTranslations("marketMap");
+  const failText = useGeocoderFailText();
   const locale = useLocale();
   const uid = useId();
   const [q, setQ] = useState("");
@@ -40,7 +59,7 @@ export default function PlaceSearch({
   }, [autoFocus]);
 
   useEffect(() => {
-    if (term.length < 2 || term === picked) return;
+    if (off || term.length < 2 || term === picked) return;
     const c = new AbortController();
     const timer = window.setTimeout(() => {
       geocodeSearch(term, locale, url, c.signal).then(
@@ -48,7 +67,7 @@ export default function PlaceSearch({
           if (!c.signal.aborted) setFound({ q: term, items, fail: null });
         },
         (e) => {
-          if (!c.signal.aborted && !isAborted(e)) setFound({ q: term, items: [], fail: mapErrorKey(e) });
+          if (!c.signal.aborted && !isAborted(e)) setFound({ q: term, items: [], fail: geocoderFailOf(e) });
         },
       );
     }, 350);
@@ -56,10 +75,10 @@ export default function PlaceSearch({
       window.clearTimeout(timer);
       c.abort();
     };
-  }, [term, picked, locale, url]);
+  }, [term, picked, locale, url, off]);
 
-  const current = found && found.q === term && term !== picked ? found : null;
-  const busy = term.length >= 2 && term !== picked && !current;
+  const current = off ? null : found && found.q === term && term !== picked ? found : null;
+  const busy = !off && term.length >= 2 && term !== picked && !current;
   const listId = `${uid}-l`;
 
   return (
@@ -70,6 +89,7 @@ export default function PlaceSearch({
         <input
           ref={inputRef}
           type="search"
+          disabled={off}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={placeholder}
@@ -84,11 +104,24 @@ export default function PlaceSearch({
       <p className="sr-only" role="status">
         {busy ? t("searching") : current ? (current.fail ? "" : t("count", { n: current.items.length })) : ""}
       </p>
-      {term.length > 0 && term.length < 2 ? <p className="mmp__hint">{t("short")}</p> : null}
-      {current?.fail ? (
-        <p className="mmp__err" role="alert">
-          {current.fail === "generic" || current.fail === "not_found" ? t("error") : tx(`errors.${current.fail}`)}
+      {off ? (
+        <p className="mmp__down" role="status" data-ai-id={`${aiId}.unavailable`}>
+          <IconInfo aria-hidden="true" />
+          <span>{failText("unavailable", mapOn)}</span>
         </p>
+      ) : null}
+      {!off && term.length > 0 && term.length < 2 ? <p className="mmp__hint">{t("short")}</p> : null}
+      {current?.fail ? (
+        current.fail === "unavailable" || current.fail === "busy" ? (
+          <p className="mmp__down" role="alert" data-ai-id={`${aiId}.error`}>
+            <IconInfo aria-hidden="true" />
+            <span>{failText(current.fail, mapOn)}</span>
+          </p>
+        ) : (
+          <p className="mmp__err" role="alert" data-ai-id={`${aiId}.error`}>
+            {failText(current.fail, mapOn)}
+          </p>
+        )
       ) : null}
       {current && !current.fail && !current.items.length ? <p className="mmp__hint">{t("none")}</p> : null}
       {current?.items.length ? (

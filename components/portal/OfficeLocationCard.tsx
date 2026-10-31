@@ -4,12 +4,26 @@ import { useEffect, useId, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import CheckBox from "@/components/CheckBox";
 import { Notice } from "@/components/admin/AdminBits";
-import { IconBuilding, IconCheck, IconEdit, IconLock, IconMapPin, IconRefresh, IconTarget } from "@/components/icons";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
+import { IconBuilding, IconCheck, IconEdit, IconInfo, IconLock, IconMapPin, IconRefresh, IconTarget, IconTrash } from "@/components/icons";
 import { Navigation } from "lucide-react";
 import { fmtDateTime } from "@/lib/date";
 import { geoFailureOf, type GeoFailure } from "@/lib/services/marketDiscovery";
 import { readPosition } from "@/lib/services/locationShare";
-import { geocodeReverse, getOfficeLocation, mapErrorKey, saveOfficeLocation, type MapErrorKey, type OfficeLocation, type Place, type Point } from "@/lib/services/mapLocation";
+import {
+  geocodeReverse,
+  geocoderFailOf,
+  getOfficeLocation,
+  isAborted,
+  mapErrorKey,
+  removeOfficeLocation,
+  saveOfficeLocation,
+  type GeocoderFail,
+  type MapErrorKey,
+  type OfficeLocation,
+  type Place,
+  type Point,
+} from "@/lib/services/mapLocation";
 import { getMapConfig, offlineMapConfig, type MapConfig } from "@/lib/services/sellersMap";
 import PlaceSearch from "@/components/marketplace/map/PlaceSearch";
 import PointPickerMap from "@/components/marketplace/map/PointPickerMap";
@@ -18,10 +32,11 @@ import "@/components/marketplace/map/marketMap.css";
 type Draft = { point: Point | null; address: string; auto: boolean; publicNavigation: boolean };
 type Load = { office: OfficeLocation | null; fail: MapErrorKey | null };
 
-// Seller settings → "Office location" (GET/PUT /marketplace/me/office-location).
-// The seller marks the office on the map (or finds it by address) and
-// decides whether clients may get a Yandex route to it. With the switch off
-// the office stays private: no client gets its location for a route.
+// Seller settings → "Office location" (GET/PUT/DELETE
+// /marketplace/me/office-location, §7.5). The seller marks the office on the
+// map (or finds it by address) and decides whether clients may get a Yandex
+// route to it. With the switch off the office stays private: no client gets
+// its location for a route. "Remove office" takes it off the map entirely.
 export default function OfficeLocationCard() {
   const t = useTranslations("marketMap.office");
   const tx = useTranslations("marketMap");
@@ -36,6 +51,8 @@ export default function OfficeLocationCard() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ ok: boolean; msg: string } | null>(null);
   const [geo, setGeo] = useState<{ busy: boolean; fail: GeoFailure | null }>({ busy: false, fail: null });
+  // The address could not be filled in from the point (the geocoder is down).
+  const [reverseFail, setReverseFail] = useState<GeocoderFail | null>(null);
 
   useEffect(() => {
     let dead = false;
@@ -75,6 +92,7 @@ export default function OfficeLocationCard() {
     setDraft({ point: office?.point ?? null, address: office?.address ?? "", auto: false, publicNavigation: has ? !!office?.publicNavigation : true });
     setNote(null);
     setGeo({ busy: false, fail: null });
+    setReverseFail(null);
     setEdit(true);
   };
 
@@ -82,17 +100,26 @@ export default function OfficeLocationCard() {
   // seller typed their own), through the backend geocoder.
   const placePoint = (p: Point) => {
     setDraft((d) => ({ ...d, point: p }));
-    if (!cfg?.geocoderOn) return;
+    if (!cfg?.geocoderOn) {
+      setReverseFail("unavailable");
+      return;
+    }
     geocodeReverse(p, locale, cfg.geocoderReverseUrl).then(
       (place) => {
+        setReverseFail(null);
         if (!place) return;
         setDraft((d) => (d.point === p && (!d.address.trim() || d.auto) ? { ...d, address: place.detail || place.title, auto: true } : d));
       },
-      () => undefined,
+      (e) => {
+        if (!isAborted(e)) setReverseFail(geocoderFailOf(e));
+      },
     );
   };
 
-  const choosePlace = (p: Place) => setDraft((d) => ({ ...d, point: p.point, address: p.detail || p.title, auto: true }));
+  const choosePlace = (p: Place) => {
+    setReverseFail(null);
+    setDraft((d) => ({ ...d, point: p.point, address: p.detail || p.title, auto: true }));
+  };
 
   const useDevice = () => {
     if (geo.busy) return;
@@ -122,6 +149,43 @@ export default function OfficeLocationCard() {
       setBusy(false);
     }
   };
+
+  const remove = async () => {
+    if (!cfg || busy) return;
+    setNote(null);
+    let failed = "";
+    const ok = await confirmDialog({
+      tone: "danger",
+      title: t("removeTitle"),
+      text: t("removeText"),
+      confirmLabel: t("removeConfirm"),
+      cancelLabel: t("cancel"),
+      busyLabel: t("removing"),
+      onConfirm: async () => {
+        setBusy(true);
+        try {
+          const gone = await removeOfficeLocation(cfg.officeUrl);
+          setLoad({ office: gone, fail: null });
+        } catch (e) {
+          const k = mapErrorKey(e);
+          failed = k === "generic" ? t("removeError") : tx(`errors.${k}`);
+        } finally {
+          setBusy(false);
+        }
+        return true;
+      },
+    });
+    if (!ok) return;
+    setEdit(false);
+    setNote(failed ? { ok: false, msg: failed } : { ok: true, msg: t("removed") });
+  };
+
+  // When the backend checked the point: confirmed_at, geocoded_at, else the
+  // last update.
+  const times: { k: "confirmed" | "geocoded" | "updated"; at: number }[] = [];
+  if (office?.confirmedAt) times.push({ k: "confirmed", at: office.confirmedAt });
+  if (office?.geocodedAt) times.push({ k: "geocoded", at: office.geocodedAt });
+  if (office?.updatedAt && !times.length) times.push({ k: "updated", at: office.updatedAt });
 
   const head = (
     <div className="ppanel__h">
@@ -182,14 +246,28 @@ export default function OfficeLocationCard() {
               </span>
             </b>
           </div>
-          {office?.updatedAt ? (
-            <div className="pkv__i">
-              <label>{t("updated")}</label>
-              <b>{fmtDateTime(office.updatedAt, locale)}</b>
+          {office?.source ? (
+            <div className="pkv__i" data-ai-id="profile.office.source">
+              <label>{t("sourceLabel")}</label>
+              <b>{t(`source.${office.source}`)}</b>
             </div>
           ) : null}
+          {times.map(({ k, at }) => (
+            <div key={k} className="pkv__i" data-ai-id={`profile.office.${k}`}>
+              <label>{t(k)}</label>
+              <b>
+                <time dateTime={new Date(at).toISOString()}>{fmtDateTime(at, locale)}</time>
+              </b>
+            </div>
+          ))}
         </div>
         <p className="rf__hint">{office?.publicNavigation ? t("explainOn") : t("explainOff")}</p>
+        <div className="mmo__foot">
+          <button type="button" className="btn btn--line btn--sm mmo__remove" onClick={() => void remove()} disabled={busy} aria-busy={busy || undefined} data-ai-id="profile.office.remove">
+            <IconTrash aria-hidden="true" />
+            {busy ? t("removing") : t("remove")}
+          </button>
+        </div>
       </div>
     ) : (
       <div className="mmo__empty" data-ai-id="profile.office.empty">
@@ -208,7 +286,7 @@ export default function OfficeLocationCard() {
         <p className="mmo__lead">{t("lead")}</p>
         <div className="mmo__grid">
           <div className="mmo__pick">
-            <PlaceSearch url={cfg.geocoderSearchUrl} label={t("searchLabel")} placeholder={t("searchPlaceholder")} onSelect={choosePlace} aiId="profile.office.place" />
+            <PlaceSearch url={cfg.geocoderSearchUrl} off={!cfg.geocoderOn} mapOn={mapOn} label={t("searchLabel")} placeholder={t("searchPlaceholder")} onSelect={choosePlace} aiId="profile.office.place" />
             {mapOn ? (
               <PointPickerMap
                 config={cfg}
@@ -239,6 +317,12 @@ export default function OfficeLocationCard() {
             {geo.fail ? (
               <p className="mml__err" role="alert">
                 {tx(`geoFail.${geo.fail}`)}
+              </p>
+            ) : null}
+            {reverseFail && draft.point ? (
+              <p className="mmp__down" role="status" data-ai-id="profile.office.reverse-fail">
+                <IconInfo aria-hidden="true" />
+                <span>{reverseFail === "offline" ? tx("errors.offline") : t("reverseFail")}</span>
               </p>
             ) : null}
           </div>
@@ -276,7 +360,7 @@ export default function OfficeLocationCard() {
   return (
     <div className="ppanel mmo" data-ai-target="profile:office-location" data-ai-id="profile.office" data-ai-type="section">
       {head}
-      {note && note.ok && !edit ? <Notice ok msg={note.msg} /> : null}
+      {note && !edit ? <Notice ok={note.ok} msg={note.msg} /> : null}
       {content}
     </div>
   );

@@ -4,7 +4,7 @@
 // explicit action and an active consent; nothing here keeps them anywhere
 // (no localStorage, no sessionStorage). Map markers and config live in
 // sellersMap.ts.
-import { ApiError, asNum, asStr, http, type Dict } from "@/lib/http";
+import { ApiError, asNum, asStr, errorCode, http, type Dict } from "@/lib/http";
 import { marketErrorInfo, normNearby, NEARBY_RADII, type NearbyRadius, type NearbySeller } from "@/lib/services/marketRuntime";
 import {
   DEFAULT_CONSENT_URL,
@@ -13,6 +13,7 @@ import {
   DEFAULT_NAV_TEMPLATE,
   DEFAULT_NEARBY_SEARCH_URL,
   DEFAULT_OFFICE_URL,
+  coordOrderOf,
   lngLatOf,
   locationSourceOf,
   relPath,
@@ -219,7 +220,31 @@ export async function requestNavigation(q: { sellerUserId: string; endpoint?: st
 
 // ── Seller office ───────────────────────────────────────────────────────
 
-export type OfficeLocation = { configured: boolean; point: Point | null; address: string; publicNavigation: boolean; updatedAt: number | null };
+// §7.5: latitude, longitude, formatted_address, source,
+// public_navigation_enabled, confirmed_at / geocoded_at (record_id is never
+// read: no id reaches the screen). `source` is kept only as one of the kinds
+// below, shown in words; a value we don't know is not shown at all.
+export type OfficeSource = "map" | "address" | "device" | "staff" | "";
+export type OfficeLocation = {
+  configured: boolean;
+  point: Point | null;
+  address: string;
+  source: OfficeSource;
+  publicNavigation: boolean;
+  confirmedAt: number | null;
+  geocodedAt: number | null;
+  updatedAt: number | null;
+};
+
+export function officeSourceOf(v: unknown): OfficeSource {
+  const s = trimmed(v).toLowerCase();
+  if (!s) return "";
+  if (/geocod|address|search/.test(s)) return "address";
+  if (/device|gps|browser|geoloc|current/.test(s)) return "device";
+  if (/admin|staff|operator|moderat|support/.test(s)) return "staff";
+  if (/manual|map|pin|seller|settings|self|user|web/.test(s)) return "map";
+  return "";
+}
 
 export function normOffice(v: unknown): OfficeLocation {
   const d = dictOf(v);
@@ -230,7 +255,10 @@ export function normOffice(v: unknown): OfficeLocation {
     configured: d.configured === true || (d.configured === undefined && !!point),
     point,
     address: trimmed(o.formatted_address ?? o.address),
+    source: officeSourceOf(o.source),
     publicNavigation: o.public_navigation_enabled === true,
+    confirmedAt: timeOf(o.confirmed_at),
+    geocodedAt: timeOf(o.geocoded_at),
     updatedAt: timeOf(o.updated_at),
   };
 }
@@ -244,6 +272,12 @@ export async function saveOfficeLocation(input: { point: Point; address: string;
   return normOffice(await http(relPath(url, DEFAULT_OFFICE_URL), { method: "PUT", body: JSON.stringify(body) }));
 }
 
+// "Remove office": the answer reports the office as no longer configured.
+export async function removeOfficeLocation(url = DEFAULT_OFFICE_URL): Promise<OfficeLocation> {
+  const out = normOffice(await http(relPath(url, DEFAULT_OFFICE_URL), { method: "DELETE" }));
+  return { ...out, configured: false, point: null };
+}
+
 // ── Geocoder (backend proxy; signed-in) ─────────────────────────────────
 
 export type Place = { key: string; title: string; detail: string; point: Point };
@@ -253,17 +287,22 @@ export function geocoderLang(locale: string): "uz_UZ" | "ru_RU" | "en_RU" {
   return l.startsWith("ru") ? "ru_RU" : l.startsWith("en") ? "en_RU" : "uz_UZ";
 }
 
+// §7.2 items: id, name, description, formatted_address, latitude, longitude,
+// precision, kind, country_code, components. latitude/longitude come first;
+// a coordinates array follows the answer's coordinate_order
+// (longitude_latitude).
 export function normPlaces(v: unknown): Place[] {
   const d = dictOf(v);
+  const order = coordOrderOf(d.coordinate_order);
   const out: Place[] = [];
   const seen = new Set<string>();
   for (const raw of Array.isArray(d.items) ? d.items : []) {
     const x = dictOf(raw);
-    const ll = lngLatOf(x.coordinates ?? x.point ?? x.position) ?? lngLatOf(x);
-    const full = trimmed(x.formatted_address ?? x.address ?? x.text);
-    const title = trimmed(x.name ?? x.title) || full;
+    const ll = lngLatOf({ latitude: x.latitude, longitude: x.longitude }) ?? lngLatOf(x.coordinates, order);
+    const full = trimmed(x.formatted_address);
+    const title = trimmed(x.name) || full;
     if (!ll || !title) continue;
-    const detail = full && full !== title ? full : trimmed(x.description ?? x.subtitle);
+    const detail = full && full !== title ? full : trimmed(x.description);
     const key = `${ll[0].toFixed(5)},${ll[1].toFixed(5)}|${title}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -303,10 +342,12 @@ export const MAP_ERROR_CODES = [
 ] as const;
 export type MapErrorKey = (typeof MAP_ERROR_CODES)[number] | "login_required" | "forbidden" | "not_found" | "rate_limited" | "offline" | "generic";
 
+// The code comes from `detail: {code}` or from a plain string `detail`
+// (§6.3, §7.6) through the shared errorCode(); an unknown code gets the
+// words for its status, never the code itself.
 export function mapErrorKey(e: unknown): MapErrorKey {
   if (!(e instanceof ApiError)) return "generic";
-  const info = marketErrorInfo(e);
-  const code = (info?.code ?? "").toLowerCase();
+  const code = (errorCode(e) || marketErrorInfo(e)?.code || "").toLowerCase();
   if ((MAP_ERROR_CODES as readonly string[]).includes(code)) return code as MapErrorKey;
   if (e.status === 401) return "login_required";
   if (e.status === 403) return "forbidden";
@@ -317,6 +358,26 @@ export function mapErrorKey(e: unknown): MapErrorKey {
 }
 
 export const isAborted = (e: unknown): boolean => e instanceof ApiError && e.status === 0 && e.detail === "aborted";
+
+// The geocoder's failures (§7.1, §7.6). The Yandex Geocoder key is refused in
+// production today (provider 403), so "unavailable" is the usual answer: the
+// address search says so and the point is picked on the map instead.
+export const GEOCODER_DOWN_CODES = ["yandex_geocoder_key_invalid", "yandex_geocoder_not_configured", "yandex_geocoder_unavailable", "seller_type_invalid"] as const;
+export const GEOCODER_BUSY_CODE = "geocoder_rate_limit_exceeded";
+export type GeocoderFail = "unavailable" | "busy" | "offline" | "generic";
+
+export function geocoderFailOf(e: unknown): GeocoderFail {
+  if (!(e instanceof ApiError)) return "generic";
+  if (e.status === 0) return "offline";
+  const code = (errorCode(e) || marketErrorInfo(e)?.code || "").toLowerCase();
+  if (code === GEOCODER_BUSY_CODE) return "busy";
+  if ((GEOCODER_DOWN_CODES as readonly string[]).includes(code)) return "unavailable";
+  if (code) return "generic";
+  if (e.status === 429) return "busy";
+  // A refused or broken provider without a code is the same outage.
+  if (e.status === 403 || e.status === 502 || e.status === 503 || e.status === 504) return "unavailable";
+  return "generic";
+}
 
 // A filter the backend no longer knows (a removed service or category):
 // the UI offers to clear exactly that filter.
