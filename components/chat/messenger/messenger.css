@@ -322,7 +322,7 @@ html[data-theme="dark"] .mx-chip.on { background: var(--mx-acc); color: #071226 
 .mxr__ib svg { width: 19px; height: 19px }
 .mxr__ib:hover:not(:disabled) { background: var(--mx-hover); color: var(--mx-acc) }
 .mxr__ib:disabled { opacity: .45; cursor: default }
-.mxr__ib:focus-visible, .mxr__send:focus-visible, .mxm__acts button:focus-visible, .mxm__chip:focus-visible { outline: 2px solid var(--b400); outline-offset: 2px }
+.mxr__ib:focus-visible, .mxr__send:focus-visible, .mxm__acts button:focus-visible { outline: 2px solid var(--b400); outline-offset: 2px }
 .mxr__ib--danger { color: var(--mx-err) }
 .mxr__ib--danger:hover:not(:disabled) { background: var(--mx-err-bg); color: var(--mx-err) }
 .mxr__av { width: 42px; height: 42px; font-size: .84rem }
@@ -510,30 +510,6 @@ html[data-theme="dark"] .mxm__bub { box-shadow: none }
 .mxm__blocked { display: inline-flex; align-items: center; gap: 6px; padding: 0 6px; font-size: .74rem; color: var(--mx-err) }
 .mxm__blocked svg { width: 13px; height: 13px }
 
-/* reactions */
-.mxm__reacts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: -2px; padding: 0 4px; position: relative; z-index: 1 }
-.mxm__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 26px;
-  padding: 0 8px;
-  border-radius: 999px;
-  border: 0;
-  background: var(--mx-panel);
-  box-shadow: 0 1px 3px rgba(11, 31, 69, .12), inset 0 0 0 1px var(--mx-line);
-  font: 700 .74rem/1 var(--fb);
-  color: var(--mx-muted);
-  cursor: pointer;
-  font-variant-numeric: tabular-nums;
-  transition: transform .15s, box-shadow .15s, background .15s;
-  animation: mxPop .26s cubic-bezier(.2, .9, .3, 1.5) both;
-}
-.mxm__emo { font-size: .95rem; line-height: 1 }
-.mxm__chip:hover:not(:disabled) { transform: translateY(-1px) }
-.mxm__chip.on { background: var(--mx-on); color: var(--mx-acc); box-shadow: inset 0 0 0 1.5px var(--b400) }
-.mxm__chip:disabled { cursor: default }
-
 /* failed send */
 .mxm__fail { display: flex; align-items: center; gap: 6px; font-size: .76rem; color: var(--mx-err); font-weight: 600 }
 .mxm__fail > svg { width: 14px; height: 14px }
@@ -561,23 +537,6 @@ html[data-theme="dark"] .mxm__bub { box-shadow: none }
 .mxm__acts > button { width: 30px; height: 30px; border-radius: 9px; border: 0; background: transparent; color: var(--mx-muted); display: grid; place-items: center; cursor: pointer }
 .mxm__acts > button:hover { background: var(--mx-hover); color: var(--mx-acc) }
 .mxm__acts > button svg { width: 16px; height: 16px }
-.mxm__picker {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  display: flex;
-  gap: 2px;
-  padding: 5px;
-  border-radius: 999px;
-  background: var(--mx-panel);
-  box-shadow: var(--s3), 0 0 0 1px var(--mx-line);
-  z-index: 6;
-  animation: mxDrop .16s ease-out both;
-}
-.mxm--them .mxm__picker { left: 0 }
-.mxm--me .mxm__picker { right: 0 }
-.mxm__picker button { width: 36px; height: 36px; border-radius: 50%; border: 0; background: transparent; font-size: 1.25rem; line-height: 1; cursor: pointer; transition: transform .14s, background .14s }
-.mxm__picker button:hover { transform: scale(1.22) translateY(-2px); background: var(--mx-hover) }
-.mxm__picker button.on { background: var(--mx-on); box-shadow: inset 0 0 0 1.5px var(--b400) }
 @media (hover: none) {
   .mxm:hover:not(.is-act) .mxm__acts { opacity: 0; pointer-events: none }
 }
@@ -682,7 +641,7 @@ html[data-theme="dark"] .mxm__bub { box-shadow: none }
 .mxr--compact .mxr__hint { display: none }
 
 @media (prefers-reduced-motion: reduce) {
-  .mxm, .mx-badge, .mxm__chip, .mxr__fab, .mxr__drop, .mxm__picker, .mxr__reply { animation: none }
+  .mxm, .mx-badge, .mxr__fab, .mxr__drop, .mxr__reply { animation: none }
   .mx-sk, .mxr__sk { animation: none }
 }
 

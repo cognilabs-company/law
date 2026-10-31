@@ -18796,7 +18796,7 @@
       "emptyText": "Start one by ordering a service or choosing a specialist.",
       "room": "Chat",
       "secured": "Protected conversation",
-      "serverErrorText": "The server didn't answer right now. Please try again shortly."
+      "serverErrorText": "The server didn't answer right now. Please try again shortly.", "openToRead": "Open the chat to read"
     },
     "e2e": "Encrypted",
     "encrypted": "Messages are filtered and protected end-to-end.",

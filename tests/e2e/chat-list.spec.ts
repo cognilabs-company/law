@@ -3,8 +3,10 @@ import { CLIENT, mockBackend, signIn, type Mock } from "./mock";
 
 // TSK-637367: the chat list and the room as a whole — the last message and
 // the unread count per conversation, a new message moving its room to the
-// top live, a reaction that never becomes the "last message", a file sent
-// as a bubble, and the phone layout where the list and the room swap.
+// top live, no reactions (there is no reaction API yet, backend answers
+// 2026-10-31 §5.1: none is offered, none is sent as a message, and a legacy
+// "reaction" record is never a bubble or a last line), a file sent as a
+// bubble, and the phone layout where the list and the room swap.
 
 const ADV_A = { user_id: "u-a", name: "Aziza Advokat", role: "advokat" };
 const ADV_B = { user_id: "u-b", name: "Bobur Yurist", role: "yurist" };
@@ -59,11 +61,33 @@ test("the list shows each last message and unread count, and a new message moves
   await mock.push(b2);
   await expect(rows(page).nth(0).locator(".mx-badge")).toHaveText("1");
 
-  // A reaction reads as a reaction in words, never as the raw message type.
+  // A legacy "reaction" record heard live is not a message: Aziza's room
+  // keeps its last line and unread count and does not move up.
   await mock.push({ event: "secure_chat.message_created", room_id: "ra", message: { id: "a3", sender_user_id: "u-a", message_type: "reaction", filtered_content: "👍", created_at: new Date().toISOString() } });
+  // A real message after it proves the socket delivered the reaction first.
+  await mock.push({ event: "secure_chat.message_created", room_id: "rb", message: { id: "b3", sender_user_id: "u-b", message_type: "text", filtered_content: "Kelishdik", created_at: new Date().toISOString() } });
+  await expect(rows(page).nth(0)).toContainText("Kelishdik");
   const a = rows(page).filter({ hasText: "Aziza Advokat" });
-  await expect(a.locator(".mx-row__p")).toContainText("реакция 👍");
-  await expect(a.locator(".mx-row__p")).not.toContainText("reaction");
+  await expect(a.locator(".mx-row__p")).toContainText("Hujjatlarni yuboring");
+  await expect(a.locator(".mx-row__p")).not.toContainText("👍");
+  await expect(a.locator(".mx-row__p")).not.toContainText(/reaction|реакция/);
+  await expect(a.locator(".mx-badge")).toHaveText("2");
+  await expect(rows(page).nth(1)).toContainText("Aziza Advokat");
+});
+
+test("a room whose stored last message is a legacy reaction reads neutrally, and the room never draws it", async ({ page }) => {
+  const legacy = { id: "a3", sender_user_id: "u-a", message_type: "reaction", filtered_content: "👍", meta: { reaction_to_message_id: "a2", emoji: "👍" }, created_at: "2026-10-30T09:05:00Z" };
+  await open(page, {
+    "/secure-chats": { rooms: [{ ...ROOMS[0], last_message: legacy, last_message_at: legacy.created_at }, ROOMS[1]] },
+    "/secure-chats/ra": { ...ROOMS[0], last_message: legacy },
+    "/secure-chats/ra/messages": { messages: [...MSGS, legacy] },
+  });
+  const a = rows(page).filter({ hasText: "Aziza Advokat" });
+  await expect(a.locator(".mx-row__p")).toHaveText("Откройте чат, чтобы прочитать");
+  await a.click();
+  await expect(page.locator(".mxm").filter({ hasText: "Hujjatlarni yuboring" })).toBeVisible();
+  await expect(page.locator(".mxm")).toHaveCount(2);
+  await expect(page.locator(".mx__room")).not.toContainText("👍");
 });
 
 test("an empty list says so", async ({ page }) => {
@@ -72,7 +96,7 @@ test("an empty list says so", async ({ page }) => {
   await expect(page.locator(".mx__list")).toContainText(/нет|Нет|пока/);
 });
 
-test("in a room: a reaction is sent as a reaction, a file as a file bubble", async ({ page }) => {
+test("in a room: no reaction is offered or sent, a file goes as a file bubble", async ({ page }) => {
   const sent: Record<string, unknown>[] = [];
   let uploads = 0;
   const mock = await open(page, {
@@ -86,17 +110,36 @@ test("in a room: a reaction is sent as a reaction, a file as a file bubble", asy
   const msg = page.locator(".mxm").filter({ hasText: "Hujjatlarni yuboring" });
   await expect(msg).toBeVisible();
   await msg.hover();
-  await msg.getByRole("button", { name: "Отреагировать" }).click();
-  await msg.getByRole("menuitemcheckbox", { name: "👍" }).click();
-  // Over the room's live socket when it is open, else over HTTP.
-  await expect.poll(() => [...mock.sent, ...sent.map((x) => JSON.stringify(x))].some((x) => x.includes("reaction") && x.includes("👍"))).toBe(true);
-  await expect(page.locator(".mxm__reacts").first()).toContainText("👍");
+  // The message actions are reply and copy only: no reaction button or
+  // picker, and a double tap sends nothing.
+  await expect(msg.getByRole("button", { name: "Ответить" })).toBeVisible();
+  await expect(msg.getByRole("button", { name: "Отреагировать" })).toHaveCount(0);
+  await expect(page.getByRole("menuitemcheckbox")).toHaveCount(0);
+  await msg.locator(".mxm__bub").dblclick();
+  await expect(page.locator(".mxm__reacts, .mxm__picker")).toHaveCount(0);
 
   await page.locator('input[type="file"]').first().setInputFiles({ name: "shartnoma.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4 test") });
   // Picked files wait above the composer until sent.
   await page.getByRole("button", { name: "Отправить", exact: true }).click();
   await expect.poll(() => uploads).toBe(1);
   await expect(page.locator(".mxm").filter({ hasText: "shartnoma.pdf" }).first()).toBeVisible();
+  // Nothing ever went out as a reaction, over the socket or over HTTP.
+  expect([...mock.sent, ...sent.map((x) => JSON.stringify(x))].some((x) => x.includes("reaction"))).toBe(false);
+
+  if (process.env.CHAT_SHOTS) {
+    const dir = process.env.CHAT_SHOTS;
+    for (const theme of ["light", "dark"] as const) {
+      await page.emulateMedia({ colorScheme: theme });
+      await page.evaluate((th) => document.documentElement.setAttribute("data-theme", th), theme);
+      for (const w of [1440, 390]) {
+        await page.setViewportSize({ width: w, height: w > 400 ? 900 : 844 });
+        if (w < 400 && (await page.locator(".mx__room").isHidden())) await rows(page).filter({ hasText: "Aziza Advokat" }).click();
+        const bubble = page.locator(".mxm").filter({ hasText: "Hujjatlarni yuboring" });
+        await bubble.locator(".mxm__bub").click();
+        await page.screenshot({ path: `${dir}/chat-room-no-reactions-${w}-${theme}.png` });
+      }
+    }
+  }
 });
 
 test("on a phone the list and the room take the whole screen in turn", async ({ page }) => {

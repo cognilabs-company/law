@@ -3371,32 +3371,15 @@ export type SecureMessage = {
   // Always emitted by the backend, null when the message is not a reply.
   replyToId: string;
   replyTo: SecureReply | null;
-  // Set only on a `reaction` message (see SECURE_REACTION below).
-  reaction: SecureReaction | null;
 };
-// Reactions. The backend has no reaction endpoint, but a message's type is an
-// open string and its meta is free-form, so a reaction travels as a message of
-// its own: message_type "reaction", content the emoji (which is what an older
-// client that does not know the type shows — a lone 👍, not garbage), and meta
-// naming the message it is about. A person holds at most one reaction per
-// message: "add" replaces the one they had, "remove" takes it away. Clients
-// fold these into chips under the message and never draw them as bubbles.
-export const SECURE_REACTION = "reaction";
-export type SecureReaction = { targetId: string; emoji: string; op: "add" | "remove" };
-function normSecureReaction(type: string, content: string, meta: Dict): SecureReaction | null {
-  if (type !== SECURE_REACTION) return null;
-  const targetId = asStr(meta.reaction_to_message_id ?? meta.target_message_id);
-  if (!targetId) return null;
-  return { targetId, emoji: asStr(meta.emoji) || content.trim(), op: asStr(meta.op) === "remove" ? "remove" : "add" };
-}
-export function secureReactionFrame(r: SecureReaction): { message_type: string; content: string; meta: Record<string, unknown> } {
-  return { message_type: SECURE_REACTION, content: r.emoji, meta: { reaction_to_message_id: r.targetId, emoji: r.emoji, op: r.op } };
-}
-// The HTTP route stores the reaction but, like every POST here, does not
-// broadcast it; the chat sends over its socket and uses this as the fallback.
-export async function sendSecureReaction(roomId: string, r: SecureReaction): Promise<SecureMessage> {
-  return normSecureMsg(await http(`/secure-chats/${roomId}/messages`, { method: "POST", body: JSON.stringify(secureReactionFrame(r)) }));
-}
+// Reactions. There is no secure-chat reaction endpoint yet (backend answers
+// 2026-10-31 §5.1), so the chat offers none and never sends one as a normal
+// message. Older clients did store a reaction as a message of its own
+// (message_type "reaction", content the emoji); such a record is not a
+// message, so it is never drawn as a bubble, never moves a room up and never
+// reads as a room's last line.
+export const LEGACY_REACTION_TYPE = "reaction";
+export const isLegacyReaction = (messageType: string | undefined | null): boolean => messageType === LEGACY_REACTION_TYPE;
 function normSecureMsg(v: unknown): SecureMessage {
   const d = asDict(v);
   return { ...normSecureMsgCore(d), ...normSecureMsgFile(d) };
@@ -3423,7 +3406,6 @@ export function normSecureMsgCore(d: Dict): Omit<SecureMessage, "messageType" | 
     blockReason: asStr(d.block_reason) || undefined,
     createdAt: asStr(d.created_at ?? d.createdAt),
     sender: normSecureSender(d.sender),
-    reaction: normSecureReaction(asStr(d.message_type), asStr(d.content ?? d.filtered_content), meta),
     // The id is duplicated into meta by the backend; either spelling works.
     replyToId: asStr(d.reply_to_message_id ?? meta.reply_to_message_id),
     replyTo: r

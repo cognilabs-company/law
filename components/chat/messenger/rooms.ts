@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import {
+  isLegacyReaction,
   listSecureChats,
   listAssignedUrgentRequests,
   listMyUrgentRequests,
@@ -107,6 +108,9 @@ const dict = (v: unknown): Raw | null => (v && typeof v === "object" && !Array.i
 // not the one being read — counts it as unread.
 export function noteRoomMessage(roomId: string, message: Raw, room?: Raw | null) {
   if (!roomId || state.status === "idle") return;
+  // A legacy "reaction" record (no reaction API yet, §5.1) is not a message:
+  // it neither moves the room nor counts as unread.
+  if (!room && isLegacyReaction(String(message.message_type ?? ""))) return;
   const cur = state.rooms.find((r) => r.id === roomId);
   const patch = room
     ? { ...room, id: room.id ?? roomId }

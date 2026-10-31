@@ -18802,7 +18802,7 @@
       "emptyText": "Xizmat buyurtma qilib yoki mutaxassis tanlab boshlang.",
       "room": "Chat",
       "secured": "Himoyalangan suhbat",
-      "serverErrorText": "Server hozir javob bermadi. Birozdan keyin qayta urinib ko'ring."
+      "serverErrorText": "Server hozir javob bermadi. Birozdan keyin qayta urinib ko'ring.", "openToRead": "O'qish uchun suhbatni oching"
     },
     "e2e": "Shifrlangan",
     "encrypted": "Xabarlar filtrlanadi va uchdan-uchgacha himoyalangan.",

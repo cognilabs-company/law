@@ -7,7 +7,7 @@ import { backoffMs, isConflict, refreshAccessToken } from "@/lib/http";
 import { emitRoomCallEvent, isCallEvent, subscribeRoomCallEvents } from "@/lib/callEvents";
 import { playRingtone, primeCallAudio } from "@/lib/callSounds";
 import { VoiceRecorder } from "@/lib/voiceRecorder";
-import { completeUrgentChat, deleteSecureChat, getSecureMessages, listCalls, normSecureMsgCore, normSecureMsgFile, secureSocketUrl, sendSecureMessage, setChatAutoDelete, startCall, uploadSecureMessage, type CallSession, type LiveKitJoin, type SecureMessage } from "@/lib/services/backend";
+import { completeUrgentChat, deleteSecureChat, getSecureMessages, isLegacyReaction, listCalls, normSecureMsgCore, normSecureMsgFile, secureSocketUrl, sendSecureMessage, setChatAutoDelete, startCall, uploadSecureMessage, type CallSession, type LiveKitJoin, type SecureMessage } from "@/lib/services/backend";
 import { secureUploadRefusal, type SecureUploadProblem } from "@/lib/secureUpload";
 
 // One secure chat room for the desktop's Messages app: the history, the
@@ -57,9 +57,9 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
   });
 
   const push = useCallback((list: ChatMsg[]) => {
-    // Reactions are folded into chips by the full chat; here they are left
-    // out rather than drawn as a lone emoji bubble.
-    const add = list.filter((m) => !m.reaction && (!m.id || !seen.current.has(m.id)));
+    // A legacy "reaction" message (there is no reaction API, §5.1) is not
+    // a message: left out rather than drawn as a lone emoji bubble.
+    const add = list.filter((m) => !isLegacyReaction(m.messageType) && (!m.id || !seen.current.has(m.id)));
     if (!add.length) return;
     for (const m of add) if (m.id) seen.current.add(m.id);
     setMsgs((prev) => [...prev, ...add]);
@@ -151,7 +151,7 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
         }
         const raw = (o.message ?? o) as Record<string, unknown>;
         const m: ChatMsg = { ...normSecureMsgCore(raw), ...normSecureMsgFile(raw) };
-        if (!m.id || m.reaction) return;
+        if (!m.id || isLegacyReaction(m.messageType)) return;
         if (m.senderId === me) {
           setBusy(false);
           setMsgs((prev) => {
@@ -259,7 +259,7 @@ export function useChat(roomId: string, opts: { joinCallId?: string; onError: (e
   }, [rec.on]);
   useEffect(() => () => recorder.current?.cancel(), []);
 
-  const optimistic = (p: Partial<ChatMsg>): ChatMsg => ({ id: `tmp-${Date.now()}`, senderId: me, sender: null, replyToId: "", replyTo: null, reaction: null, filteredContent: "", isBlocked: false, createdAt: new Date().toISOString(), messageType: "text", file: null, pending: true, ...p });
+  const optimistic = (p: Partial<ChatMsg>): ChatMsg => ({ id: `tmp-${Date.now()}`, senderId: me, sender: null, replyToId: "", replyTo: null, filteredContent: "", isBlocked: false, createdAt: new Date().toISOString(), messageType: "text", file: null, pending: true, ...p });
   const quote = (m: ChatMsg | null) => (m ? { id: m.id, sender: m.sender, messageType: m.messageType, content: m.filteredContent, isBlocked: m.isBlocked } : null);
 
   async function send(text: string, reply: ChatMsg | null) {

@@ -29,9 +29,7 @@ import {
   completeUrgentChat,
   getUrgentRequest,
   rateUrgentRequest,
-  secureReactionFrame,
-  sendSecureReaction,
-  SECURE_REACTION,
+  isLegacyReaction,
   ratingOpen,
   isRatingClosed,
   type SecureMessage,
@@ -40,7 +38,7 @@ import {
   type CallSession,
   type UrgentRequest,
 } from "@/lib/services/backend";
-import { ArrowDown, ArrowLeft, Copy, EllipsisVertical, Lock as LockIcon, Reply, RotateCw, SmilePlus, Trash2, UploadCloud, Users as UsersIcon } from "lucide-react";
+import { ArrowDown, ArrowLeft, Copy, EllipsisVertical, Lock as LockIcon, Reply, RotateCw, Trash2, UploadCloud, Users as UsersIcon } from "lucide-react";
 import { dropRoom, noteRoomMessage, useRoom } from "./messenger/rooms";
 import { AttachMenu, AttachTray, EmojiPicker, VoiceBar, type PendingFile } from "./messenger/ComposerParts";
 import { dayLabel, hueOf, initialsOf, peerOf, roleLabel as peerRole } from "./messenger/format";
@@ -108,12 +106,9 @@ function dayKey(iso: string): string {
 // Optimistic ids. Two files dropped in the same millisecond must not share one.
 let tmpSeq = 0;
 const tmpId = () => `tmp-${Date.now()}-${++tmpSeq}`;
-// The quick reactions offered on every message.
-const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🙏", "✅"];
 // Two bubbles in a row from one person within this window read as one turn:
 // one name, one avatar, tighter spacing.
 const GROUP_MS = 5 * 60 * 1000;
-type ReactAgg = { emoji: string; users: { id: string; name: string }[]; mine: boolean };
 // Whether this browser can record is only known in the browser; the server
 // render says "no" so the first client render matches it (the mic used to
 // swap in for Send during hydration and fail the whole tree).
@@ -1294,15 +1289,16 @@ export default function SecureChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, reloadKey]);
 
-  // What the timeline draws: reactions are folded into chips (below), not
-  // bubbles. One that names no message is shown as what it says.
+  // What the timeline draws. There is no reaction endpoint yet (backend
+  // answers 2026-10-31 §5.1), so the chat offers none; a legacy "reaction"
+  // message an older client stored is not a message and is never a bubble.
   // In time order: the history can land after a message sent in the first
   // seconds, and a reconnect re-reads it, so arrival order is not reliable.
   const visible = useMemo(
     () =>
       msgs
         .map((m, i) => ({ m, i, at: Date.parse(m.createdAt) || 0 }))
-        .filter((x) => !x.m.reaction)
+        .filter((x) => !isLegacyReaction(x.m.messageType))
         .sort((a, b) => a.at - b.at || a.i - b.i)
         .map((x) => x.m),
     [msgs],
@@ -1385,83 +1381,7 @@ export default function SecureChat({
     });
   }
 
-  // Reactions, folded per message: who holds which emoji. Replayed in the
-  // order they were sent, so a later "add" replaces a person's earlier one
-  // and a "remove" takes it away (see SECURE_REACTION).
-  const reactions = useMemo(() => {
-    const per = new Map<string, Map<string, { emoji: string; name: string }>>();
-    for (const m of msgs) {
-      const r = m.reaction;
-      if (!r || m.failed) continue;
-      const uid = m.senderId || m.sender?.id || "";
-      if (!uid) continue;
-      let byUser = per.get(r.targetId);
-      if (!byUser) per.set(r.targetId, (byUser = new Map()));
-      if (r.op === "remove") {
-        if (!r.emoji || byUser.get(uid)?.emoji === r.emoji) byUser.delete(uid);
-      } else if (r.emoji) byUser.set(uid, { emoji: r.emoji, name: m.sender?.name || "" });
-    }
-    const out = new Map<string, ReactAgg[]>();
-    for (const [target, byUser] of per) {
-      const by = new Map<string, ReactAgg>();
-      for (const [uid, v] of byUser) {
-        const a = by.get(v.emoji) ?? { emoji: v.emoji, users: [], mine: false };
-        a.users.push({ id: uid, name: v.name });
-        if (uid === me) a.mine = true;
-        by.set(v.emoji, a);
-      }
-      if (by.size) out.set(target, [...by.values()]);
-    }
-    return out;
-  }, [msgs, me]);
-  const [picker, setPicker] = useState("");
   const [actFor, setActFor] = useState("");
-
-  function react(m: LocalMsg, emoji: string) {
-    setPicker("");
-    setActFor("");
-    if (!canReply(m) || !emoji) return;
-    const mineNow = (reactions.get(m.id) ?? []).find((a) => a.mine)?.emoji ?? "";
-    const r = { targetId: m.id, emoji, op: mineNow === emoji ? ("remove" as const) : ("add" as const) };
-    const tempId = tmpId();
-    setMsgs((prev) => [
-      ...prev,
-      {
-        id: tempId,
-        senderId: me,
-        sender: session ? { id: me, lexgoId: "", role: "", name: session.name } : null,
-        replyToId: "",
-        replyTo: null,
-        reaction: r,
-        filteredContent: emoji,
-        isBlocked: false,
-        createdAt: new Date().toISOString(),
-        messageType: SECURE_REACTION,
-        file: null,
-        pending: true,
-      },
-    ]);
-    // Over the socket, like a text message, so the others see it live.
-    const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      try {
-        ws.send(JSON.stringify(secureReactionFrame(r)));
-        return;
-      } catch {
-        /* fall through to HTTP */
-      }
-    }
-    sendSecureReaction(roomId, r)
-      .then((saved) => {
-        if (saved.id) seen.current.add(saved.id);
-        setMsgs((prev) => prev.map((x) => (x.id === tempId ? { ...saved, reaction: saved.reaction ?? r } : x)));
-      })
-      .catch((e) => {
-        setMsgs((prev) => prev.filter((x) => x.id !== tempId));
-        if (isConflict(e)) setFinished(true);
-        else notify.error(t("reactFailed"), { id: `schat-react-${roomId}`, error: e });
-      });
-  }
 
   // A failed message keeps what it needs to be sent again: its text and
   // quote are on the bubble, a file is held here until it goes or is dropped.
@@ -1508,7 +1428,6 @@ export default function SecureChat({
         createdAt: new Date().toISOString(),
         messageType,
         file: { fileName: name, mimeType: file.type, size: file.size, downloadUrl: "", inlineUrl: "", preview: null },
-        reaction: null,
         pending: true,
         localUrl,
       },
@@ -1659,7 +1578,6 @@ export default function SecureChat({
       createdAt: new Date().toISOString(),
       messageType: "text",
       file: null,
-      reaction: null,
       pending: true,
     };
     setMsgs((prev) => [...prev, optimistic]);
@@ -1718,18 +1636,17 @@ export default function SecureChat({
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }
-  // A tap elsewhere closes the open message actions and reaction picker.
+  // A tap elsewhere closes the open message actions.
   useEffect(() => {
-    if (!actFor && !picker) return;
+    if (!actFor) return;
     const off = (e: PointerEvent) => {
       const el = e.target as HTMLElement | null;
       if (el?.closest(".mxm__acts,.mxm__bub")) return;
       setActFor("");
-      setPicker("");
     };
     document.addEventListener("pointerdown", off);
     return () => document.removeEventListener("pointerdown", off);
-  }, [actFor, picker]);
+  }, [actFor]);
 
   useEffect(() => {
     again.current = {
@@ -2029,7 +1946,6 @@ export default function SecureChat({
                 const raw = bodyTextOf(m);
                 const body = media && raw === METADATA_ONLY ? "" : raw;
                 const imageOnly = media && !body && !quoted && isImageAttachment(m.file) && m.messageType !== "voice";
-                const chips = reactions.get(m.id) ?? [];
                 const who = m.sender ? senderName(m.sender) : "";
                 const hue = hueOf(m.senderId || who);
                 return (
@@ -2056,10 +1972,6 @@ export default function SecureChat({
                           onClick={(e) => {
                             if ((e.target as HTMLElement).closest("button,a,audio,input")) return;
                             setActFor((cur) => (cur === m.id ? "" : m.id));
-                          }}
-                          onDoubleClick={(e) => {
-                            if ((e.target as HTMLElement).closest("button,a,audio,input")) return;
-                            react(m, QUICK_REACTIONS[0]);
                           }}
                         >
                           {quoted ? (
@@ -2100,28 +2012,6 @@ export default function SecureChat({
                             {m.blockReason ? localizeApiDetail(m.blockReason) : t("blocked")}
                           </div>
                         ) : null}
-                        {chips.length ? (
-                          <div className="mxm__reacts" role="group" aria-label={t("reactions")}>
-                            {chips.map((c) => {
-                              const names = c.users.map((u) => (u.id === me ? t("you") : u.name || t("unknownSender"))).join(", ");
-                              return (
-                                <button
-                                  key={c.emoji}
-                                  type="button"
-                                  className={`mxm__chip${c.mine ? " on" : ""}`}
-                                  onClick={() => react(m, c.emoji)}
-                                  disabled={!canReply(m)}
-                                  title={names}
-                                  aria-label={`${c.emoji} ${c.users.length} — ${names}`}
-                                  aria-pressed={c.mine}
-                                >
-                                  <span className="mxm__emo">{c.emoji}</span>
-                                  {c.users.length > 1 ? <span>{c.users.length}</span> : null}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        ) : null}
                         {m.failed ? (
                           <div className="mxm__fail" role="status">
                             <IconAlert />
@@ -2138,9 +2028,6 @@ export default function SecureChat({
                       </div>
                       {canReply(m) ? (
                         <div className="mxm__acts">
-                          <button type="button" onClick={() => setPicker((cur) => (cur === m.id ? "" : m.id))} aria-label={t("react")} title={t("react")} aria-expanded={picker === m.id}>
-                            <SmilePlus aria-hidden />
-                          </button>
                           <button
                             type="button"
                             onClick={() => {
@@ -2157,18 +2044,6 @@ export default function SecureChat({
                             <button type="button" onClick={() => void copyText(m)} aria-label={t("copy")} title={t("copy")}>
                               <Copy aria-hidden />
                             </button>
-                          ) : null}
-                          {picker === m.id ? (
-                            <div className="mxm__picker" role="menu" aria-label={t("react")}>
-                              {QUICK_REACTIONS.map((e) => {
-                                const on = chips.some((c) => c.mine && c.emoji === e);
-                                return (
-                                  <button key={e} type="button" role="menuitemcheckbox" aria-checked={on} className={on ? "on" : undefined} onClick={() => react(m, e)}>
-                                    {e}
-                                  </button>
-                                );
-                              })}
-                            </div>
                           ) : null}
                         </div>
                       ) : null}

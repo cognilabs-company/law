@@ -13,7 +13,6 @@ import {
   RefreshCw,
   Search,
   ServerCrash,
-  SmilePlus,
   Users,
   Video,
   WifiOff,
@@ -27,7 +26,7 @@ import { CALL_LINK_RE, isMachineFileName, maskContacts } from "@/lib/chatFilter"
 import { statusLabel } from "@/lib/labels";
 import { aiId } from "@/lib/ai/ids";
 import { useAiField } from "@/lib/ai/registry";
-import { SECURE_REACTION, type SecureRoom, type UrgentRequest } from "@/lib/services/backend";
+import { isLegacyReaction, type SecureRoom, type UrgentRequest } from "@/lib/services/backend";
 import { hueOf, initialsOf, listTime, peerOf, roleLabel } from "./format";
 import { reloadRooms, useRooms } from "./rooms";
 
@@ -117,10 +116,9 @@ export function ChatList({
     if (!m) return { icon: null, text: t("noMessages") };
     const raw = (m.content || "").trim();
     const kind = m.messageType;
-    if (kind === SECURE_REACTION) {
-      const emoji = raw || "👍";
-      return { icon: <SmilePlus aria-hidden />, text: m.isMine ? t("youReacted", { emoji }) : t("reacted", { name: m.senderName || ts("unknownSender"), emoji }) };
-    }
+    // A legacy "reaction" record (no reaction API yet, §5.1) is not a
+    // message: the line never shows it, only that there is news to read.
+    if (isLegacyReaction(kind)) return { icon: null, text: t("openToRead") };
     let icon: ReactElement | null = null;
     let text = raw;
     if (raw === METADATA_ONLY) {
@@ -215,7 +213,7 @@ export function ChatList({
                   </span>
                   <span className="mx-row__bot">
                     <span className="mx-row__p">
-                      {r.lastMessage?.messageType === SECURE_REACTION ? null : r.lastMessage?.isMine ? (
+                      {isLegacyReaction(r.lastMessage?.messageType) ? null : r.lastMessage?.isMine ? (
                         <>
                           <CheckCheck className="mx-row__tick" aria-hidden />
                           <em>{t("you")}</em>

@@ -10,7 +10,7 @@ import { canRecordVoice } from "@/lib/voiceRecorder";
 import { roomOrderLock, subscribeOrderLock } from "@/components/marketplace/order/lock";
 import CallRoom from "@/components/chat/CallRoom";
 import DeskCall from "../call/DeskCall";
-import { getLawyerClients, getUrgentRequest, listAssignedUrgentRequests, listLawyers, listMyUrgentRequests, listSecureChats, mergeSecureRoom, normSecureRoom, type SecureRoom, type UrgentRequest } from "@/lib/services/backend";
+import { getLawyerClients, getUrgentRequest, isLegacyReaction, listAssignedUrgentRequests, listLawyers, listMyUrgentRequests, listSecureChats, mergeSecureRoom, normSecureRoom, type SecureRoom, type UrgentRequest } from "@/lib/services/backend";
 import { IconAlert, IconChat, IconCheck, IconClock, IconClose, IconCopy, IconLock, IconMic, IconMoreHorizontal, IconPaperclip, IconPhone, IconReply, IconSend, IconShieldCheck, IconSparkle, IconTag, IconTrash, IconUsers, IconVideo } from "@/components/icons";
 import { Avatar, Btn, Dialog, Empty, Loading, Search, Spinner, TextArea, useConfirm, useHost, useOs, useToast } from "../../kit/kit";
 import type { NativeProps } from "../../native";
@@ -131,6 +131,8 @@ export default function MessagesApp({ base, route, onRoute, openApp, tell, pip }
         if (e.event !== "secure_chat.message_created") return;
         const raw = x.room && typeof x.room === "object" ? (x.room as Record<string, unknown>) : null;
         const msg = x.message && typeof x.message === "object" ? (x.message as Record<string, unknown>) : null;
+        // A legacy "reaction" record (no reaction API yet, §5.1) is not a message.
+        if (!raw && msg && isLegacyReaction(String(msg.message_type ?? ""))) return;
         setRooms((cur) => {
           if (!cur) return cur;
           const was = cur.find((r) => r.id === id);
@@ -155,6 +157,7 @@ export default function MessagesApp({ base, route, onRoute, openApp, tell, pip }
     const m = r.lastMessage;
     if (!m) return "";
     const raw = m.content || "";
+    if (isLegacyReaction(m.messageType)) return ti("openToRead");
     const text =
       m.messageType === "voice"
         ? t("voiceNote")
