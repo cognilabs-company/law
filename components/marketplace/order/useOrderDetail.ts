@@ -315,7 +315,11 @@ export function useOrderDetail(orderId: string, view: OrderView): OrderDetail {
       const ours = sig.orderId ? sig.orderId === orderId : !!(cur && ((sig.workId && sig.workId === cur.workId) || (sig.roomId && sig.roomId === cur.roomId)));
       if (!ours) return;
       setLastSignal(sig);
-      if (sig.kind === "checklist") {
+      // A live event's checklist is adopted only by the seller: the client
+      // re-reads its own checklist, which the backend has already reduced to
+      // what the client may see (backend answers 2026-10-31 §4.3) — an
+      // event's items are never put on the client's screen.
+      if (sig.kind === "checklist" && view === "seller") {
         const live = checklistOfEvent(ev, orderId);
         if (live) {
           ctrls.current.checklist?.abort();

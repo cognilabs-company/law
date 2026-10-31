@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { CLIENT, mockBackend, signIn, type Mock } from "./mock";
+import { ADVOCATE, CLIENT, mockBackend, signIn, type Mock } from "./mock";
 import { ORDER_ID, financials, order } from "./fixtures";
 
 // Realtime events are refresh signals; REST is the truth (enterprise
@@ -85,16 +85,44 @@ test.describe("order page realtime", () => {
   });
 });
 
-// TSK-906326: the checklist moves live — a checklist_updated event carrying
-// the list replaces it at once, without asking the server again.
-test("a checklist event marks the item done live, without a refetch", async ({ page }) => {
+// TSK-906326: the checklist moves live — for the seller, a
+// checklist_updated event carrying the list replaces it at once, without
+// asking the server again.
+test("a checklist event marks the item done live for the seller, without a refetch", async ({ page }) => {
   const working = order({ status: "in_progress", started_at: "2026-10-20T10:00:00Z" });
   const CHECKLIST = new RegExp(`/marketplace/orders/${ORDER_ID}/checklist$`);
+  const routes = await signIn(page, ADVOCATE, {
+    [`/marketplace/me/orders/${ORDER_ID}`]: working,
+    [`/marketplace/me/orders/${ORDER_ID}/financials`]: financials([{ stage: "marketplace_order", status: "paid", amount: 110000 }]),
+    [`/marketplace/me/orders/${ORDER_ID}/timeline`]: { items: [] },
+    [`/marketplace/orders/${ORDER_ID}/checklist`]: { order_id: ORDER_ID, items: [{ id: "i1", executor_title: "Hujjatlarni tekshirish", client_title: "Hujjatlaringiz tekshirildi", status: "pending", payout_stage: "first_checklist" }] },
+    "/marketplace/me/orders": { items: [], total: 0 },
+  });
+  const mock = await mockBackend(page, routes);
+  await page.goto(`/ru/portal/advocate/marketplace-orders/${ORDER_ID}`);
+  const item = page.locator("#mck-i1");
+  await expect(item).toHaveAttribute("data-status", "pending", { timeout: 20_000 });
+  await expect.poll(() => mock.sockets.some((s) => s.url.includes("/ws/users/me"))).toBe(true);
+  const before = mock.count("GET", CHECKLIST);
+  await mock.push({ event: "marketplace.checklist_updated", order_id: ORDER_ID, checklist: { order_id: ORDER_ID, items: [{ id: "i1", executor_title: "Hujjatlarni tekshirish", client_title: "Hujjatlaringiz tekshirildi", status: "done", payout_stage: "first_checklist" }] } });
+  await expect(item).toHaveAttribute("data-status", "done");
+  await page.waitForTimeout(800);
+  expect(mock.count("GET", CHECKLIST)).toBe(before);
+});
+
+// Backend answers 2026-10-31 §4.3: the client's checklist shows only what
+// the client's own response returns. A live event (which may carry the
+// seller's full items) only makes the client re-read its checklist; the
+// event's hidden comment and seller wording never reach the screen.
+test("a checklist event makes the client re-read its own checklist; the event's items are never shown", async ({ page }) => {
+  const working = order({ status: "in_progress", started_at: "2026-10-20T10:00:00Z" });
+  const CHECKLIST = new RegExp(`/marketplace/orders/${ORDER_ID}/checklist$`);
+  let status = "pending";
   const routes = await signIn(page, CLIENT, {
     [`/marketplace/me/orders/${ORDER_ID}`]: working,
     [`/marketplace/me/orders/${ORDER_ID}/financials`]: financials([{ stage: "marketplace_order", status: "paid", amount: 110000 }]),
     [`/marketplace/me/orders/${ORDER_ID}/timeline`]: { items: [] },
-    [`/marketplace/orders/${ORDER_ID}/checklist`]: { order_id: ORDER_ID, items: [{ id: "i1", client_title: "Hujjatlaringiz tekshirildi", status: "pending", payout_stage: "first_checklist" }] },
+    [`/marketplace/orders/${ORDER_ID}/checklist`]: () => ({ order_id: ORDER_ID, items: [{ id: "i1", client_title: "Hujjatlaringiz tekshirildi", status }] }),
   });
   const mock = await mockBackend(page, routes);
   await page.goto(`/ru/portal/client/marketplace-orders/${ORDER_ID}`);
@@ -104,8 +132,13 @@ test("a checklist event marks the item done live, without a refetch", async ({ p
   await expect(page.getByText("Чек-лист работ, выполняемых в рамках этой услуги").first()).toBeVisible();
   await expect.poll(() => mock.sockets.some((s) => s.url.includes("/ws/users/me"))).toBe(true);
   const before = mock.count("GET", CHECKLIST);
-  await mock.push({ event: "marketplace.checklist_updated", order_id: ORDER_ID, checklist: { order_id: ORDER_ID, items: [{ id: "i1", client_title: "Hujjatlaringiz tekshirildi", status: "done", payout_stage: "first_checklist" }] } });
+  status = "done";
+  await mock.push({
+    event: "marketplace.checklist_updated",
+    order_id: ORDER_ID,
+    checklist: { order_id: ORDER_ID, items: [{ id: "i1", executor_title: "Ichki: hujjatlarni tekshirish", client_title: "Hujjatlaringiz tekshirildi", status: "done", comment: "Ichki izoh mijozga emas", show_comment_to_client: false, payout_stage: "first_checklist" }] },
+  });
+  await expect.poll(() => mock.count("GET", CHECKLIST)).toBeGreaterThan(before);
   await expect(item).toHaveAttribute("data-status", "done");
-  await page.waitForTimeout(800);
-  expect(mock.count("GET", CHECKLIST)).toBe(before);
+  await expect(page.locator("#mod-checklist")).not.toContainText("Ichki");
 });

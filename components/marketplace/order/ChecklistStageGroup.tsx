@@ -7,9 +7,10 @@ import { IconAlert, IconCheck, IconClock, IconCoins, IconFlag, IconLock, IconSpa
 import { fmtUzs } from "@/lib/money";
 import { firstStageMark, justCompleted, stageAmount, type StageGroup, type StageMark, type StageState } from "./payStages";
 
-// One payout stage of the seller's checklist: the 30% items (paid the
-// moment they are done) or the final 40% ones (paid once the order is
-// completed and the 15-minute window closes). Its own progress, the
+// One payout stage of the seller's checklist: the 30% items (paid once every
+// one is done or skipped with a reason — the reason stays on the item) or
+// the final 40% ones (paid once the order is completed, the 15-minute window
+// closes and no hold remains). Its own progress, the
 // backend's amount for the stage (the percent alone when there is none),
 // and where that money is — from the payout row, never assumed. Used by the
 // cabinet's order page and the desktop's order window; the client's
@@ -96,7 +97,10 @@ export default function ChecklistStageGroup({ group: g, idBase, celebrate, ai, c
         <span className="cps__track" role="progressbar" aria-valuemin={0} aria-valuemax={g.total} aria-valuenow={g.done} aria-label={t("progressAria", { stage: t(`title.${g.stage}`, { percent: g.percent }) })}>
           <i style={{ width: `${pct}%` }} />
         </span>
-        <span className="cps__count sx-num">{t("progress", { done: g.done, total: g.total })}</span>
+        <span className="cps__count sx-num">
+          {t("progress", { done: g.done, total: g.total })}
+          {g.skipped ? <small className="cps__skip">{t("skipped", { n: g.skipped })}</small> : null}
+        </span>
       </div>
       {first && !reached && g.left > 0 ? (
         <p className="cps__hint">

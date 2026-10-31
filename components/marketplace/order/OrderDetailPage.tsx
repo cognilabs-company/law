@@ -37,7 +37,6 @@ import { ArrowLeftIcon, RefreshCwIcon, ClipboardListIcon, SearchIcon, SxIconScop
 import { SECTION_ID, orderAiBase, type OrderSectionProps, type OrderView } from "./types";
 import { useOrderDetail, type OrderDetail } from "./useOrderDetail";
 import { useOrderPayouts } from "./useOrderPayouts";
-import { firstStageMark, stageGroups } from "./payStages";
 import type { Payout } from "@/lib/services/payouts";
 
 function focusSection(id: string): boolean {
@@ -172,8 +171,8 @@ function Sections({ d, o, phase, view, aiBase, listHref, preview, payouts }: { d
       </section>,
       client ? (
         <section key="rating" id={SECTION_ID.rating} tabIndex={-1} className="mod-sec mod-sec--legacy">
-          <RatingPanel o={o} onRated={() => d.refresh("order")} />
-          <ComplaintPanel o={o} onFiled={() => d.refresh("order")} />
+          <RatingPanel o={o} onRated={() => d.refresh("order")} onExpired={() => d.refresh("order")} />
+          <ComplaintPanel o={o} onFiled={() => d.refresh("order")} onExpired={() => d.refresh("order")} />
         </section>
       ) : null,
       warranty,
@@ -237,8 +236,7 @@ export function OrderDetailView({
   // The seller's payout rows, read once for the payout card and the
   // checklist's stage groups; re-read as the checklist moves.
   const settled = d.checklist ? d.checklist.items.filter((i) => i.status !== "pending").length : 0;
-  const firstDone = !!firstStageMark(d.checklist ? stageGroups(d.checklist.items, null) : [])?.complete;
-  const payouts = useOrderPayouts(orderId, `${o?.status}:${o?.paymentStatus}:${d.changed}:${settled}`, view === "seller" && !preview && ready, firstDone && (phase === "in_progress" || phase === "review"));
+  const payouts = useOrderPayouts(orderId, `${o?.status}:${o?.paymentStatus}:${d.changed}:${settled}`, view === "seller" && !preview && ready);
   const work = phase === "in_progress" || phase === "review" || phase === "completed" || phase === "rated";
   const sectionsSettled = d.checklistState !== "loading" && d.opinionState !== "loading" && !(work && d.checklistState === "idle") && !(work && view === "client" && d.opinionState === "idle");
 
@@ -331,9 +329,9 @@ export function OrderDetailView({
               />
             </div>
             <div className="mod__facts">
-              <OrderFacts o={o} view={view} aiBase={aiBase} runtime={d.runtime} />
+              <OrderFacts o={o} view={view} aiBase={aiBase} runtime={d.runtime} onRefresh={() => d.refresh("order")} />
               {o.pricing ? <OrderPricing pricing={o.pricing} view={view} currency={o.currency} aiBase={aiBase} orderId={o.id} refreshKey={`${o.status}:${o.paymentStatus}:${d.changed}`} /> : null}
-              {view === "seller" ? <PayoutStages data={payouts} aiBase={aiBase} /> : null}
+              {view === "seller" ? <PayoutStages data={payouts} items={d.checklistState === "ready" || d.checklistState === "none" ? (d.checklist?.items ?? []) : null} aiBase={aiBase} /> : null}
               <OrderRules view={view} runtime={d.runtime} aiBase={aiBase} />
             </div>
           </aside>

@@ -365,7 +365,9 @@ export function normChecklistItem(v: unknown): ChecklistItem {
     imageRequired: d.image_required === true,
     verificationMethods: methods,
     skipAllowed: typeof skip === "boolean" ? skip : methodShape || !required,
-    comment: asStr(d.comment ?? d.reason ?? d.note),
+    // A skipped item's reason may come as its own field; it stays on the
+    // item, auditable (backend answers 2026-10-31 §1.10).
+    comment: [d.comment, d.skip_reason, d.skipped_reason, d.reason, d.note].map((x) => asStr(x)).find((x) => x.trim()) ?? "",
     files: asArr(d.files ?? d.attachments).map(normFileRef).filter((f) => f.id || f.url),
     images: asArr(d.images ?? d.image_files ?? d.photos).map(normFileRef).filter((f) => f.id || f.url),
     sortOrder: asNum(d.sort_order ?? d.position),

@@ -1,8 +1,10 @@
-// TSK-906326 — marketplace 30-30-22 payouts (enterprise contract 2026-10-27
-// §9, §13; backend "gaps closed" 2026-10-28 §6–9). The backend owns the arithmetic:
-// seller acceptance 30% of the gross, the first required checklist stage
-// 30%, completion after the 15-minute rating/complaint window 40% less
-// LexGo's 18% (22% to the seller). Nothing here works an amount out.
+// TSK-906326 — marketplace 30/30/40 payouts (enterprise contract 2026-10-27
+// §9, §13; backend "gaps closed" 2026-10-28 §6–9; answers 2026-10-31 §1.10).
+// The backend owns the arithmetic: seller acceptance 30% of the gross, the
+// first checklist stage 30% (every first_checklist item done or skipped
+// with a reason), completion 40% once the 15-minute rating/complaint window
+// closes with no hold, LexGo's commission deducted there. Nothing here
+// works an amount out.
 import { http, asArr, asDict, asNum, asStr, type Dict } from "@/lib/http";
 import { uzs } from "@/lib/money";
 
@@ -151,9 +153,12 @@ export async function resolvePayoutRecovery(id: string, input: PaidInput): Promi
   return recoveryOf(await http(`/call-center/marketplace/payout-recoveries/${encodeURIComponent(id)}/resolve`, { method: "POST", body: JSON.stringify(paidBody(input)) }));
 }
 
-// The seller's own view (gaps closed §9): GET …/financials carries the
-// payout rows (empty for a client) and the settlement's own hold status —
-// never worked out here.
+// The seller's own view (gaps closed §9; backend answers 2026-10-31 §1.10):
+// GET …/financials carries the immutable snapshot with the planned stages,
+// the actual payout rows and payout-stage rows (empty for a client), and
+// the settlement's own hold status — never worked out here. A planned
+// stage and a created payout row are separate things: a stage is only
+// paid by a row the backend has created.
 export type Settlement = { status: string; held: boolean; heldAmount: number; holdReason: string; releaseAfter: string };
 const HELD = new Set(["held", "complaint_hold", "rework_hold"]);
 export function settlementOf(raw: unknown): Settlement {
@@ -161,16 +166,52 @@ export function settlementOf(raw: unknown): Settlement {
   const status = asStr(s.status).toLowerCase();
   return { status, held: HELD.has(status), heldAmount: uzs(s, "held_amount"), holdReason: asStr(s.hold_reason), releaseAfter: asStr(s.release_after) };
 }
-export function orderPayoutsOf(raw: unknown): Payout[] {
-  const settlement = settlementOf(raw);
-  const out = asArr(asDict(raw).payouts)
+const stageRank = (s: PayoutStage) => (s === "other" ? 9 : PAYOUT_STAGES.indexOf(s));
+function actualRowsOf(v: unknown, settlement: Settlement): Payout[] {
+  return asArr(v)
     .map(payoutOf)
     .filter((p) => p.stage !== "other" || p.amount > 0)
     .map((p) => (settlement.held && p.stage === "completion" && p.status !== "paid" ? { ...p, status: "held" as const } : p));
-  const order = (s: PayoutStage) => (s === "other" ? 9 : PAYOUT_STAGES.indexOf(s));
-  return out.sort((a, b) => order(a.stage) - order(b.stage));
 }
-export async function getOrderPayouts(orderId: string, signal?: AbortSignal): Promise<{ rows: Payout[]; settlement: Settlement }> {
-  const d = await http(`/marketplace/me/orders/${encodeURIComponent(orderId)}/financials`, { signal });
-  return { rows: orderPayoutsOf(d), settlement: settlementOf(d) };
+// The created payout rows, one per stage: the payout itself (`payouts`)
+// first, else the backend's payout-stage row (`payout_stages`).
+export function orderPayoutsOf(raw: unknown): Payout[] {
+  const d = asDict(raw);
+  const settlement = settlementOf(d);
+  const out = actualRowsOf(d.payouts, settlement);
+  for (const r of actualRowsOf(d.payout_stages, settlement)) if (r.stage === "other" || !out.some((p) => p.stage === r.stage)) out.push(r);
+  return out.sort((a, b) => stageRank(a.stage) - stageRank(b.stage));
+}
+
+// The planned stages the snapshot records (acceptance 30%, first checklist
+// 30%, completion 40%). Read from the snapshot when it lists them; the
+// backend's confirmed 30/30/40 plan otherwise — percents only, never an
+// amount, which only a created row has.
+export type PlannedStage = { stage: Exclude<PayoutStage, "other">; percent: number };
+export const PLANNED_STAGES: readonly PlannedStage[] = [
+  { stage: "accept", percent: 30 },
+  { stage: "checklist", percent: 30 },
+  { stage: "completion", percent: 40 },
+];
+export function payoutPlanOf(raw: unknown): PlannedStage[] {
+  const d = asDict(raw);
+  const snap = asDict(d.snapshot ?? d.financial_snapshot);
+  const list = [snap.payout_plan, snap.payout_stages, snap.planned_stages, snap.stages, d.payout_plan].find(Array.isArray) ?? [];
+  const out: PlannedStage[] = [];
+  for (const x of asArr(list)) {
+    const r = asDict(x);
+    const stage = payoutStageOf(asStr(r.stage ?? r.payout_stage ?? r.key));
+    const pct = Number(r.gross_percent ?? r.percent);
+    if (stage === "other" || !Number.isFinite(pct) || pct <= 0 || out.some((p) => p.stage === stage)) continue;
+    out.push({ stage, percent: pct });
+  }
+  return out.length ? out.sort((a, b) => stageRank(a.stage) - stageRank(b.stage)) : [...PLANNED_STAGES];
+}
+
+export type OrderPayoutData = { rows: Payout[]; plan: PlannedStage[]; settlement: Settlement };
+export function orderPayoutDataOf(raw: unknown): OrderPayoutData {
+  return { rows: orderPayoutsOf(raw), plan: payoutPlanOf(raw), settlement: settlementOf(raw) };
+}
+export async function getOrderPayouts(orderId: string, signal?: AbortSignal): Promise<OrderPayoutData> {
+  return orderPayoutDataOf(await http(`/marketplace/me/orders/${encodeURIComponent(orderId)}/financials`, { signal }));
 }

@@ -91,8 +91,11 @@ test("seller: the 30% and the 40% items are two stages with their own progress; 
   await expect(first.locator(".cps__hint")).toHaveCount(0);
   // The 40% stage is untouched.
   await expect(final.locator(".cps__badge")).toHaveText("Yakunlangach");
-  // The payout card beside the order moved with it.
-  await expect(page.locator(".pst__step")).toHaveCount(2);
+  // The payout card beside the order moved with it: the three planned
+  // stages, the first-checklist one now backed by its created row.
+  await expect(page.locator(".pst__step")).toHaveCount(3);
+  await expect(page.locator('.pst__step[data-stage="checklist"]')).not.toHaveAttribute("data-planned", "");
+  await expect(page.locator('.pst__step[data-stage="completion"]')).toHaveAttribute("data-planned", "");
 
   // The transfer lands: the backend says paid, and only then does it say so.
   state.payouts = [ACCEPT, { ...FIRST("paid"), paid_at: "2026-10-30T11:06:00Z" }];
@@ -110,6 +113,63 @@ test("seller: an already-done 30% stage whose transfer failed says so, without a
   await expect(first.locator(".cps__cheer")).toContainText("LexGo operatori uni hal qilmoqda");
   await expect(first.locator(".cps__cheer")).not.toHaveAttribute("data-celebrate", "");
   await expect(first).not.toContainText("o'tkazildi");
+});
+
+// Backend answers 2026-10-31 §1.10: planned stages and created payout rows
+// are separate; the 30% stage is reached when every first_checklist item is
+// done or skipped_with_reason (the reason stays shown); with no
+// first_checklist items that stage is not triggered automatically; the
+// payout events re-read GET …/financials.
+test("seller: planned stages beside the created rows; a skipped item counts and keeps its reason", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const items = ITEMS().map((i) => (i.id === "a2" ? { ...i, status: "skipped_with_reason", comment: "Mijoz loyihani o'zi tayyorlab keldi" } : i));
+  const state: State = { items, payouts: [ACCEPT] };
+  const mock = await openOrder(page, ADVOCATE, state);
+  const first = page.locator('.cps[data-stage="first_checklist"]');
+  await expect(first.locator(".cps__count")).toContainText("2 / 2 bajarildi", { timeout: 20_000 });
+  await expect(first.locator(".cps__skip")).toHaveText("1 tasi sabab bilan o'tkazib yuborildi");
+  await expect(first.locator("#mck-a2")).toContainText("Mijoz loyihani o'zi tayyorlab keldi");
+  await expect(first.locator(".cps__hint")).toHaveCount(0);
+  // The stage is reached, but no payout row exists yet: never "sent".
+  await expect(first.locator(".cps__badge")).toHaveText("Bosqich bajarildi");
+  const card = page.locator(".pst");
+  await expect(card.locator(".pst__step")).toHaveCount(3);
+  const step = (s: string) => card.locator(`.pst__step[data-stage="${s}"]`);
+  await expect(step("accept")).toContainText("To'landi");
+  await expect(step("accept")).toContainText(/33[\s  ]?000 so'm/);
+  await expect(step("checklist")).toHaveAttribute("data-planned", "");
+  await expect(step("checklist")).toContainText("30%");
+  await expect(step("checklist")).toContainText("Rejalashtirilgan");
+  await expect(step("checklist")).toContainText("Shart bajarilishini kutmoqda");
+  await expect(step("checklist")).not.toContainText("so'm");
+  await expect(step("completion")).toContainText("40%");
+  await expect(step("completion")).toContainText("ushlab turishsiz yopilgach");
+
+  // The backend creates the row and says so: the financials are re-read.
+  await expect.poll(() => mock.sockets.some((s) => s.url.includes("/ws/users/me"))).toBe(true);
+  const reads = mock.count("GET", /\/financials$/);
+  state.payouts = [ACCEPT, FIRST("operator_required")];
+  await mock.push({ event: "marketplace.payout_created", order_id: ORDER_ID });
+  await expect.poll(() => mock.count("GET", /\/financials$/)).toBeGreaterThan(reads);
+  await expect(step("checklist")).not.toHaveAttribute("data-planned", "");
+  await expect(step("checklist")).toContainText("To'lanadi");
+  await expect(first.locator(".cps__badge")).toHaveText("O'tkazilmoqda");
+  const again = mock.count("GET", /\/financials$/);
+  await mock.push({ event: "marketplace.payout_required", order_id: ORDER_ID });
+  await expect.poll(() => mock.count("GET", /\/financials$/)).toBeGreaterThan(again);
+});
+
+test("seller: with no first-checklist items the 30% stage says it is not triggered automatically", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const items = ITEMS().filter((i) => i.payout_stage !== "first_checklist");
+  await openOrder(page, ADVOCATE, { items, payouts: [ACCEPT] });
+  await expect(page.locator('.cps[data-stage="final_completion"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.cps[data-stage="first_checklist"]')).toHaveCount(0);
+  const card = page.locator(".pst");
+  const step = card.locator('.pst__step[data-stage="checklist"]');
+  await expect(step).toHaveAttribute("data-status", "manual");
+  await expect(step).toContainText("Avtomatik ishga tushmaydi");
+  await expect(card).toContainText("birinchi checklist bosqichi avtomatik ishga tushmaydi");
 });
 
 test("client: one plain checklist — no stages, no percent, no money", async ({ page }) => {

@@ -1,14 +1,15 @@
 import type { ChecklistItem, ChecklistPayoutStage } from "@/lib/services/marketRuntime";
 import { CHECKLIST_PAYOUT_STAGES } from "@/lib/services/marketRuntime";
-import type { Payout, PayoutStage } from "@/lib/services/payouts";
+import type { Payout, PayoutStage, PlannedStage, Settlement } from "@/lib/services/payouts";
 import { sortedItems } from "./checklistRules";
 
 // The seller's checklist in its two payout stages (payout model, contract
-// 2026-10-27 §9): the first_checklist items release the second 30% as soon
-// as they are done; the final_completion items lead to the last 40%, paid
-// once the order is completed and the 15-minute rating/complaint window
-// closes. Amounts and payout states are the backend's payout rows
-// (GET …/financials); nothing here works an amount out.
+// 2026-10-27 §9; backend answers 2026-10-31 §1.10): the first_checklist
+// items release the second 30% once every one of them is done or skipped
+// with a reason; the final_completion items lead to the last 40%, paid
+// once the order is completed, the 15-minute rating/complaint window
+// closes and no hold remains. Amounts and payout states are the backend's
+// payout rows (GET …/financials); nothing here works an amount out.
 
 // The payout row each checklist stage is paid by.
 const PAYOUT_ROW: Readonly<Record<ChecklistPayoutStage, PayoutStage>> = { first_checklist: "checklist", final_completion: "completion" };
@@ -29,9 +30,10 @@ export type StageGroup = {
   items: ChecklistItem[];
   done: number;
   total: number;
-  // Items still pending that the stage waits for: the required ones when
-  // the stage has any, every item otherwise.
+  // Items still pending: the stage waits for every one of them (§1.10).
   left: number;
+  // Items skipped with a reason: they count as done, the reason stays.
+  skipped: number;
   complete: boolean;
   payout: Payout | null;
   percent: number;
@@ -59,8 +61,9 @@ export function stageGroups(items: readonly ChecklistItem[], payouts: readonly P
   const sorted = sortedItems(items);
   return CHECKLIST_PAYOUT_STAGES.map((stage) => {
     const own = sorted.filter((i) => i.payoutStage === stage);
-    const needed = own.some((i) => i.required) ? own.filter((i) => i.required) : own;
-    const left = needed.filter((i) => i.status === "pending").length;
+    // Every item of the stage, required or not, done or skipped with a
+    // reason (§1.10) — the backend's own trigger for the 30% payout.
+    const left = own.filter((i) => i.status === "pending").length;
     const complete = own.length > 0 && left === 0;
     const payout = payouts?.find((p) => p.stage === PAYOUT_ROW[stage]) ?? null;
     return {
@@ -69,6 +72,7 @@ export function stageGroups(items: readonly ChecklistItem[], payouts: readonly P
       done: own.filter((i) => i.status !== "pending").length,
       total: own.length,
       left,
+      skipped: own.filter((i) => i.status === "skipped_with_reason").length,
       complete,
       payout,
       percent: payout?.percent ?? NAMED_PERCENT[stage],
@@ -92,4 +96,35 @@ export function firstStageMark(groups: readonly StageGroup[]): StageMark {
 }
 export function justCompleted(before: StageMark, now: StageMark): boolean {
   return !!before && !!now && before.total > 0 && !before.complete && now.complete;
+}
+
+// The order's planned payout stages beside its created payout rows (§1.10):
+// each planned stage with its percent, and where it really is — only a row
+// the backend created says due, on its way, paid or held. Without a row a
+// stage is waiting for its condition; the first checklist stage of an order
+// whose checklist has no first_checklist items is not triggered
+// automatically; the completion stage waits on a settlement hold.
+//   paid | sending | due | issue | held — from the created row
+//   waiting — no row yet; manual — first stage with no items to trigger it
+export type PlanState = "paid" | "sending" | "due" | "issue" | "held" | "waiting" | "manual";
+export type PlanStep = { stage: Exclude<PayoutStage, "other">; percent: number; payout: Payout | null; state: PlanState };
+
+function rowState(p: Payout): PlanState {
+  if (p.status === "paid") return "paid";
+  if (p.status === "held") return "held";
+  if (p.status === "processing") return "sending";
+  if (p.status === "due") return "due";
+  if (ISSUE.has(p.status)) return "issue";
+  return "waiting";
+}
+
+// `items`: the order's checklist items, null while they are not known.
+export function planSteps(plan: readonly PlannedStage[], rows: readonly Payout[], items: readonly ChecklistItem[] | null, settlement: Settlement | null): PlanStep[] {
+  return plan.map(({ stage, percent }) => {
+    const payout = rows.find((r) => r.stage === stage) ?? null;
+    if (payout) return { stage, percent: payout.percent ?? percent, payout, state: rowState(payout) };
+    if (stage === "checklist" && items && !items.some((i) => i.payoutStage === "first_checklist")) return { stage, percent, payout, state: "manual" };
+    if (stage === "completion" && settlement?.held) return { stage, percent, payout, state: "held" };
+    return { stage, percent, payout, state: "waiting" };
+  });
 }

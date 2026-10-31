@@ -20,3 +20,21 @@
 .pst__amt small[data-status="paid"] { color: var(--dk-txt-ok, #15803d); }
 .pst__amt small[data-status="held"] { color: var(--dk-txt-warn, #8a5a00); }
 .pst__note { margin: 0; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, #f59e0b 9%, transparent); color: var(--dk-txt-warn, #8a5a00); font-size: .76rem; line-height: 1.4; }
+/* §1.10: a planned stage with no payout row yet — its percent and what it waits for. */
+.pst__step[data-planned] .pst__dot { background: transparent; color: var(--gray); box-shadow: 0 0 0 3px var(--dk-surface, #fff), inset 0 0 0 1.5px var(--line); }
+.pst__step[data-planned][data-status="held"] .pst__dot { background: color-mix(in srgb, #f59e0b 18%, var(--dk-surface, #fff)); color: #b45309; box-shadow: 0 0 0 3px var(--dk-surface, #fff); }
+.pst__step[data-status="processing"] .pst__dot { background: color-mix(in srgb, var(--b500) 16%, var(--dk-surface, #fff)); color: var(--b600); }
+.pst__step[data-status="failed"] .pst__dot, .pst__step[data-status="recovery"] .pst__dot, .pst__step[data-status="review"] .pst__dot { background: color-mix(in srgb, #ef4444 14%, var(--dk-surface, #fff)); color: var(--dk-txt-err, #b42318); }
+.pst__amt .pst__pct { color: var(--gray); font-size: .78rem; font-weight: 700; }
+.pst__amt small[data-status="manual"], .pst__amt small[data-status="waiting"] { color: var(--gray); font-weight: 600; white-space: normal; }
+/* A planned step has no amount yet: its state sits under its words, as a chip. */
+.pst__step[data-planned] { grid-template-columns: auto minmax(0, 1fr); }
+.pst__step[data-planned] .pst__amt { grid-column: 2; display: flex; flex-wrap: wrap; align-items: center; justify-items: start; gap: 4px 8px; }
+.pst__step[data-planned] .pst__amt small { padding: 2px 8px; border-radius: 99px; background: var(--dk-surface-2, #f0f4fa); }
+.pst__step[data-planned][data-status="manual"] .pst__amt small { background: color-mix(in srgb, var(--b500, #3b82f6) 10%, transparent); color: var(--ink); }
+.pst__step[data-planned][data-status="held"] .pst__amt small { background: color-mix(in srgb, #f59e0b 14%, transparent); }
+.pst__note[data-tone="info"] { background: color-mix(in srgb, var(--b500, #3b82f6) 9%, transparent); color: var(--ink); }
+@media (max-width: 420px) {
+  .pst__step { grid-template-columns: auto minmax(0, 1fr); }
+  .pst__amt { grid-column: 2; justify-items: start; }
+}

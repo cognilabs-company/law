@@ -18,8 +18,9 @@ import { DOC_ACTION_KEY, docKindOf, docLeadKey, docRouteOf, needsRecordId, roomD
 import { ORDER_FILE_MB, uploadOrderFile, type UploadedFile } from "@/components/marketplace/order/upload";
 import { useMarketError } from "@/components/marketplace/useMarketError";
 import ChecklistStageGroup, { useFirstStageCheer } from "@/components/marketplace/order/ChecklistStageGroup";
-import { firstStageMark, stageAmount, stageGroups, type StageGroup } from "@/components/marketplace/order/payStages";
+import { stageAmount, stageGroups, type StageGroup } from "@/components/marketplace/order/payStages";
 import { useOrderPayouts } from "@/components/marketplace/order/useOrderPayouts";
+import ContactSla from "@/components/marketplace/order/ContactSla";
 import { IconAlert, IconChat, IconCheck, IconClipboardCheck, IconClock, IconClose, IconCoins, IconDownload, IconFileText, IconPaperclip, IconPause, IconPhone, IconRefresh, IconRocket, IconUser, IconVideo } from "@/components/icons";
 import { Banner, Btn, Dialog, Empty, Field, Input, Loading, Progress, Seg, Tag, TextArea, useToast } from "../../kit/kit";
 import type { NativeProps } from "../../native";
@@ -50,8 +51,7 @@ export default function Workspace({ orderId, openApp, base, onChanged }: NativeP
   // The payout rows behind the checklist's 30% and 40% stages; re-read as
   // the checklist moves.
   const settled = det.checklist ? det.checklist.items.filter((i) => i.status !== "pending").length : 0;
-  const firstDone = !!firstStageMark(det.checklist ? stageGroups(det.checklist.items, null) : [])?.complete;
-  const pay = useOrderPayouts(orderId, `${o?.status}:${o?.paymentStatus}:${det.changed}:${settled}`, det.status === "ready" && !!o, firstDone && (phase === "in_progress" || phase === "review"));
+  const pay = useOrderPayouts(orderId, `${o?.status}:${o?.paymentStatus}:${det.changed}:${settled}`, det.status === "ready" && !!o);
 
   if (det.status === "loading" || (det.status === "ready" && !o)) return <div className="dxm-ws"><Loading label={t("loading")} /></div>;
   if (det.status === "missing") return <div className="dxm-ws"><Empty icon={<IconAlert />} title={t("missingTitle")} text={t("missingSeller")} /></div>;
@@ -168,7 +168,8 @@ export default function Workspace({ orderId, openApp, base, onChanged }: NativeP
             <Fact label={to("phone")}>{o.paymentStatus === "paid" && o.clientPhone ? <a href={`tel:${o.clientPhone.replace(/[^\d+]/g, "")}`}>{o.clientPhone}</a> : <span className="dxm-muted">{to("phoneHidden")}</span>}</Fact>
             <Fact label={t("facts.price")}>{o.price ? cur(o.price) : "—"}</Fact>
             {o.preferredChannel ? <Fact label={to("channel")}>{o.preferredChannel}</Fact> : null}
-            {o.preferredTime ? <Fact label={to("time")}>{o.preferredTime}</Fact> : null}
+            <ContactSla o={o} live={!closed} Row={Fact} onDeadline={() => det.refresh("order")} />
+            {o.preferredTime && !o.contactSpeed && !o.contactSpeedLabel ? <Fact label={to("time")}>{o.preferredTime}</Fact> : null}
             {o.createdAt ? <Fact label={t("facts.created")}>{shortDateTime(o.createdAt, locale)}</Fact> : null}
             {o.startedAt ? <Fact label={t("facts.started")}>{shortDateTime(o.startedAt, locale)}</Fact> : null}
             {o.expectedCompletedAt ? <Fact label={t("facts.due")}><IconClock aria-hidden />{shortDateTime(o.expectedCompletedAt, locale)}</Fact> : null}
@@ -446,7 +447,12 @@ function Checklist({ o, list, state, payouts, onChange, onRetry, onStageDone }: 
                 {it.fileRequired ? <Tag>{t("mark.file")}</Tag> : null}
                 <Tag tone={it.status === "done" ? "ok" : it.status === "skipped_with_reason" ? "neutral" : "info"}>{t(`status.${it.status}`)}</Tag>
               </span>
-              {it.comment ? <q>{it.comment}</q> : null}
+              {it.comment ? (
+                <q>
+                  {it.status === "skipped_with_reason" ? <b>{`${t("reasonPrefix")}: `}</b> : null}
+                  {it.comment}
+                </q>
+              ) : null}
               {it.files.length ? (
                 <span className="dxm-files">
                   {it.files.map((f) => (

@@ -181,6 +181,15 @@ html[data-theme="dark"] .cps[data-stage="final_completion"] {
   font-weight: 700;
   white-space: nowrap;
 }
+/* Skipped items count as done; their number is told beside the count. */
+.cps__skip {
+  display: block;
+  color: var(--gray);
+  font-size: 11.5px;
+  line-height: 15px;
+  font-weight: 600;
+  text-align: right;
+}
 
 /* What finishing the stage brings. */
 .cps__hint {
