@@ -105,6 +105,7 @@ export default function Footer() {
             {/* The backend's refund rules (slug payment_refund_warranty) and Cookie policy. */}
             <Link href="/legal/payment-refund-warranty">{t("refund")}</Link>
             <Link href="/legal/cookie">{t("cookiePolicy")}</Link>
+            <Link href="/legal/licenses">{t("licenses")}</Link>
             <CookieSettingsButton className="ftr__lnkbtn" aiId="footer.cookie-settings">
               {t("cookieSettings")}
             </CookieSettingsButton>

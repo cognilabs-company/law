@@ -14,6 +14,8 @@ Please never send test accounts without 2FA or TOTP secrets.
 - **N1** Please confirm the order field that carries the first contact's channel (`chat` / `chat_file` / `audio` / `video`). The frontend reads `contact_started_channel` and shows nothing when it is absent.
 - **N4** Add `en` to the Studio K07 schema. **N5** Expose the `legal_*` codes the same way in validate, submit and publish.
 - **Q2** Type `warranty.available_resolutions` in runtime capabilities. **Q4** `GET /marketplace/me/experience/config` (evidence size and types). **Q8** Map loader locale. **Q10** Product-approved slug list or a retire workflow for the five legacy plans (they now show, as the backend returns them active).
+- **Launch compliance R1–R14** (company details, data export, account deletion request, marketing consent, unsubscribe, retention, no AI training statement, DPAs, sub-processors, takedown, parental consent, cookie consent log, English refund rules, uptime): see the section below.
+- **Mobile test monitoring M1–M3** (untyped response field names, "already sent" code, iOS): see the section below.
 - **G1–G19** as listed below (G1, G4, G15, G16, G17 partial; the rest not delivered). **E1** Yandex Geocoder key, **E2** Payme / Click production. **C1** reviewed English legal texts and the Russian remote-assistance consent. **T1** typing of the nested contracts.
 
 ## New questions (N1–N5), answered 2026-11-01
@@ -95,3 +97,37 @@ Content still to come from the backend/legal team (no frontend work needed; it a
 **Studio K07 (answered 2026-11-01 as N4 / N5, see above).**
 - K1 = N4: gap confirmed — the K07 schema still lists only `uz_latn`, `uz_cyrl`, `ru`. Still open for the backend: add `en` to the K07 `title_i18n` / `body_i18n` schema and publish it into the legal document.
 - K2 = N5: answered — validate is 200 `ok=false` with field errors, submit is 422 `studio_submit_invalid` with `detail.errors[]`, publish is 409 `studio_publish_failed`; the `legal_*` codes are not yet consistent across the three. Still open for the backend: expose `legal_uz_translation_required` / `legal_translation_pair_required` the same way in all three operations.
+
+## Launch compliance 2026-11-01
+
+Full audit: `LEXGO_LAUNCH_COMPLIANCE_AUDIT_2026_11_01.md`. Standalone handoff: `LEXGO_LAUNCH_COMPLIANCE_BACKEND_REQUESTS_2026_11_01.md` (R1–R14). Short version:
+
+| # | Need from the backend | Frontend already did |
+|---|---|---|
+| R1 | Real company details (legal name, address, email, phone, INN) via an endpoint or filled legal texts; confirm the hotline +998 78 777 00 00 | Shows nothing it can't prove; footer links every legal document |
+| R2 | `GET /users/me/export` — download my data | "Download my data" shown as not available yet, with a support link |
+| R3 | `POST /users/me/deletion-request` with status | "Delete my account" opens the real account-deletion page |
+| R4 | Optional `marketing_consent` at sign-up, stored with time, in `/auth/me`; documented `marketing` key in `/notifications/preferences` | No fake marketing checkbox; privacy/terms boxes separate and unticked |
+| R5 | One-click unsubscribe in marketing emails/SMS | Marketing switch in profile notifications |
+| R6 | Confirm retention jobs enforce Privacy §8 | Browser referral/UTM tags expire after 90 days |
+| R7 | "No AI training on user data" in the Privacy Policy + provider contracts | Every AI output labelled "AI-generated · not legal advice" |
+| R8 | Confirm DPAs with every processor | — |
+| R9 | Published sub-processors list | Footer will link it |
+| R10 | Copyright notice-and-takedown process + contact | — |
+| R11 | Parental consent rule for family members under 18 | 18+ confirmation required at sign-up |
+| R12 | Server log of cookie choices (`POST /legal/cookie-consents`); theme settings as strictly necessary | Banner stores a versioned, dated choice in the browser |
+| R13 | English text of the refund/warranty rules | Uzbek fallback with a note |
+| R14 | Uptime commitment only with a real SLA | No uptime claim in the UI |
+
+## Mobile test monitoring 2026-11-01 (contract `LEXGO_SUPERADMIN_MOBILE_TEST_MONITORING_FRONTEND_2026_11_01.md`)
+
+The section is built and tested with mocked responses only (no primary-superadmin login was available; no release was created or closed and no Telegram report was sent). Please confirm:
+
+- **M1** The detail, releases, reports and send responses are untyped in OpenAPI. The frontend reads: detail `date_from` / `date_to`; session `started_at`, `ended_at`, `last_heartbeat_at`, `foreground_seconds`; report `first_telegram_message_id`, `attempt_count`; send response `{report}`. Please type them or confirm the names.
+- **M2** The error code returned when a report was already sent and `force=false`. The frontend treats any 409 or `*already_sent*` code as "already sent".
+- **M3** Only Android is in the contract, so the release form offers only Android. Say if iOS is coming.
+
+## Smaller findings 2026-11-01
+
+- The client packages list still hides packages whose code or title contains "test" (a name guess, like G7). Please send a persisted `is_test` flag for packages so the guess can go.
+- Checkout uses the payment provider set at build time, not the backend's list of enabled providers. Please confirm `GET` of enabled providers is the source of truth for checkout so the frontend can switch to it.

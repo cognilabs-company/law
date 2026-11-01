@@ -213,7 +213,15 @@ test("my plan: cancelling is one obvious button with the app's own confirmation"
     await page.goto(`/${lang}/portal/client/subscription`);
     await expect(page.locator(".myplan__cancel")).toBeVisible({ timeout: 30000 });
     await shots(page, "account", `my-plan-cancel-${lang}`, ".myplan");
+    // The confirmation reads in the page's language too; "keep" changes nothing.
+    await page.locator(".myplan__cancel").click();
+    const dlg = page.locator(".amodal__c");
+    await expect(dlg).toContainText("2026");
+    await shots(page, "account", `my-plan-cancel-confirm-${lang}`);
+    await page.keyboard.press("Escape");
+    await expect(dlg).toHaveCount(0);
   }
+  expect(patches).toEqual([{ auto_renew: false }]);
 });
 
 test("AI answers are labelled AI-generated and not legal advice, in the page's language", async ({ page }) => {
