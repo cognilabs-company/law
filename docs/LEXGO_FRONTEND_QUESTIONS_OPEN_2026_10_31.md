@@ -60,13 +60,15 @@ Please never send test accounts without 2FA or TOTP secrets.
 
 Contact SLA fields (§1.3), settlement (§1.7), `client_price_reasons` (§3.9), client checklist items (§4.3), Studio dashboard cards (§4.8), task attachments (§5.2), monitoring nested objects (§5.4), geocoder items (§7.2) and the office object (§7.5). The frontend reads them defensively, using only the fields named in the answers.
 
-## Legal documents in uz / ru / en (LEXGO_PRIVACY_POLICY_I18N_FRONTEND_2026_11_01, backend e0e60ee)
+## Legal documents in uz / ru / en: resolved (backend eecebb9, `LEXGO_LEGAL_DOCUMENT_LANGUAGES_FRONTEND_FINAL_2026_11_01.md`)
 
-The frontend now sends `lang` on every legal request and shows `title` / `body` exactly as returned (then `title_i18n[lang]`, then Uzbek). Nothing is translated locally. Checked against production on 2026-11-01:
+The four findings from 2026-11-01 (backend e0e60ee) are answered by the final contract, and the frontend follows it:
 
-| # | Finding | Needed |
-|---|---|---|
-| L1 | The English Privacy Policy body is one line (47 characters: "Personal Data Processing and Protection Policy."). The Uzbek and Russian bodies are about 12,500 characters. | The full English text in `body_i18n.en`. |
-| L2 | With `lang=en`, 10 of the 11 documents return Uzbek text, but `language: "en"` and `title_i18n.en` / `body_i18n.en` hold that Uzbek copy. With `lang=ru`, `remote_assistance_consent` is Uzbek too. The pages show them as returned, so English pages list Uzbek titles. | Either the translations, or `language` and `available_languages` that say which language the text really is in. The page marks the text's language (`lang=`) from `language`, so today Uzbek text is marked as English. |
-| L3 | The admin endpoints (`GET/POST /admin/legal/consents`) aren't in the contract. The admin editor still writes one `title` / `body`. | Does the admin list take `lang`? Can a new version be saved with `title_i18n` / `body_i18n` (uz, ru, en)? Which language does a plain `title` / `body` write? |
-| L4 | Production has no `terms` or `legal_disclaimer` documents (the slugs are `user_offer`, `platform_rules`, `privacy`, …). The footer still links to `/legal/terms` and `/legal/disclaimer`, which now show "document not found". | Which documents should the footer's "Terms" and "Disclaimer" links open: `user_offer` and …? |
+| # | Finding | Status | What the frontend does now |
+|---|---|---|---|
+| L1 | The English Privacy Policy body was one line (47 characters) | Resolved: full English text (13,070 characters) | Shown as returned (`lang="en"`, no note) |
+| L2 | Missing translations came back as Uzbek copies labelled `language: "en"` | Resolved: honest fallback (`language: "uz"`, `requested_language`, `translation_fallback: true`, only real keys in the maps) | Text marked `lang` from `language`; a small localized note "shown in Uzbek because the English/Russian translation is not published yet"; "In Uzbek" tag in the list and the sign-up checklist |
+| L3 | The admin endpoints had no language support | Resolved: `GET /admin/legal/consents?lang=`, POST / PATCH with `title_i18n` / `body_i18n`, typed 422s | `/admin/legal`: Uzbek / Russian / English tabs, pair validation, one request, version list with languages, archived versions read-only, omission warning, both 422 codes on the right tab |
+| L4 | Footer Terms / Disclaimer opened "not found" | Resolved: `terms` → `user_offer`, `disclaimer` / `legal_disclaimer` → `platform_rules` (`aliases`, `/legal/consents/by-slug/{slug}`) | `/legal/terms` and `/legal/disclaimer` open the canonical documents (via the list's `aliases`, else by-slug) |
+
+Content still to come from the backend/legal team (no frontend work needed; it appears automatically when published): reviewed English translations of the 10 documents other than the Privacy Policy, and the Russian remote-assistance consent.
