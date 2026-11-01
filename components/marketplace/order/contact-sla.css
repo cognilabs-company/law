@@ -19,3 +19,5 @@
 .mcs__none > span { display: grid; gap: 2px; min-width: 0; }
 .mcs__none b { font-weight: 700; }
 .mcs__none > span > span { opacity: .78; }
+/* A narrow column (order side panel, phone) must not clip the badges: let them wrap. */
+.mcs__left[data-late], .mcs__via { white-space: normal; max-width: 100%; line-height: 1.3; }

@@ -170,6 +170,8 @@ html[data-theme="dark"] :is(.mtm, .mtm-form, .mtm-dlg) { --mtm-ok: #3ddc97; --mt
 .mtm-range__note { grid-column: 1 / -1; margin: 0; font-size: .78rem; color: var(--gray); }
 .mtm-range__note--bad { display: flex; align-items: center; gap: 6px; color: var(--mtm-bad); font-weight: 600; }
 @media (max-width: 640px) { .mtm-range { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .mtm-range__a { grid-column: 1 / -1; } }
+/* Two date fields side by side cut "dd.mm.yyyy" on a phone: stack them. */
+@media (max-width: 460px) { .mtm-range { grid-template-columns: minmax(0, 1fr); } }
 .mtm-info { align-content: start; }
 .mtm-info__h { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .mtm-info__h > div { flex: 1; min-width: 0; }
