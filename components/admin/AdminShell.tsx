@@ -40,6 +40,7 @@ import {
   NavInternal,
   NavIntegrations,
   NavTestOtps,
+  NavMobileTesting,
   NavRoles,
   NavAudit,
   NavLegal,
@@ -152,6 +153,8 @@ const NAV_GROUPS: { group: string; items: NavItem[] }[] = [
       { href: "/admin/integrations", key: "integrations", Icon: NavIntegrations },
       { href: "/admin/monitoring", key: "monitoring", Icon: NavCallAnalytics, perm: "users.manage" },
       { href: "/admin/test-otps", key: "testOtps", Icon: NavTestOtps },
+      // Primary superadmin only (/auth/me is_primary_superadmin); see canSee.
+      { href: "/admin/mobile-testing", key: "mobileTesting", Icon: NavMobileTesting },
       { href: "/admin/roles", key: "roles", Icon: NavRoles, perm: "roles.manage" },
       { href: "/admin/audit-trail", key: "audit", Icon: NavAudit, perm: "users.manage" },
       { href: "/admin/legal", key: "legal", Icon: NavLegal, perm: "users.manage" },
@@ -284,6 +287,8 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         ? isCallCenterUser(session)
       : n.key === "testOtps" && demoTools !== true
         ? false
+      : n.key === "mobileTesting"
+        ? session?.isPrimarySuperadmin === true
       : n.key === "studio"
         ? studioUser
         : n.key === "meetings" && canMakeCalls(session)

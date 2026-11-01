@@ -46,6 +46,8 @@ export type AuthUser = {
   twoFactorRequired: boolean;
   // Only the primary superadmin may change the Superadvokat status (gaps closed §16).
   canSetSuperadvokat: boolean;
+  // /auth/me is_primary_superadmin: gates the mobile test monitoring section.
+  isPrimarySuperadmin: boolean;
   telegramLinked?: boolean; // undefined = /auth/me doesn't expose it
   // Legal consents the server reports as accepted ([] today: /auth/me has no
   // such field yet). Seeds lib/consents.ts as already-synced records.
@@ -89,6 +91,7 @@ function normUser(v: unknown): AuthUser {
     primaryRole: rawRole,
     twoFactorRequired: Boolean(d.two_factor_required ?? d.two_factor_mandatory ?? tf.required ?? tf.mandatory),
     canSetSuperadvokat: d.can_set_superadvokat === true,
+    isPrimarySuperadmin: d.is_primary_superadmin === true,
     telegramLinked: telegramLinkedOf(d),
     acceptedConsents: acceptedConsentsOf(d),
   };

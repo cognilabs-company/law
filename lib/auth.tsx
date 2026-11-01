@@ -56,6 +56,8 @@ export type Session = {
   twoFactorRequired?: boolean;
   // /auth/me can_set_superadvokat: the primary superadmin only.
   canSetSuperadvokat?: boolean;
+  // /auth/me is_primary_superadmin: only then is mobile test monitoring shown.
+  isPrimarySuperadmin?: boolean;
   // undefined = unknown (/auth/me doesn't expose the link state).
   telegramLinked?: boolean;
   // Legal consents the server reports as accepted (lib/consents.ts seeds them
@@ -344,6 +346,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             twoFactorMethod: u.twoFactorMethod,
             twoFactorRequired: u.twoFactorRequired,
             canSetSuperadvokat: u.canSetSuperadvokat,
+            isPrimarySuperadmin: u.isPrimarySuperadmin,
             telegramLinked: u.telegramLinked ?? cur.telegramLinked,
             acceptedConsents: u.acceptedConsents?.length ? u.acceptedConsents : cur.acceptedConsents,
           });
@@ -376,6 +379,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         backendRole: user.primaryRole,
         twoFactorRequired: user.twoFactorRequired,
         canSetSuperadvokat: user.canSetSuperadvokat,
+        isPrimarySuperadmin: user.isPrimarySuperadmin,
         telegramLinked: user.telegramLinked,
         acceptedConsents: user.acceptedConsents,
       };
@@ -469,6 +473,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         twoFactorMethod: user.twoFactorMethod,
         twoFactorRequired: user.twoFactorRequired,
         canSetSuperadvokat: user.canSetSuperadvokat,
+        isPrimarySuperadmin: user.isPrimarySuperadmin,
         telegramLinked: user.telegramLinked,
         acceptedConsents: user.acceptedConsents,
       });

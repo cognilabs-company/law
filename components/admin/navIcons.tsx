@@ -210,6 +210,15 @@ export const NavTestOtps = (p: P) => (
   </svg>
 );
 
+// A test phone with a pulse line: mobile test monitoring.
+export const NavMobileTesting = (p: P) => (
+  <svg {...base} {...p}>
+    <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
+    <path d="M10.5 18.5h3" />
+    <path d="M8.5 11h1.8l1.2-2.5 1.6 5 1.2-2.5h1.2" />
+  </svg>
+);
+
 export const NavRoles = (p: P) => (
   <svg {...base} {...p}>
     <path d="M12 3l7.5 3v5.5c0 4.5-3.2 8-7.5 9.5-4.3-1.5-7.5-5-7.5-9.5V6L12 3z" />
