@@ -9,7 +9,7 @@ import { ApiError, errDetail, isOffline, isOtpExpired, isRateLimited, retryAfter
 import { consentsFor, currentConsents, listLegalConsents, type RegisterStartResult } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { clearPendingRegistration, savePendingRegistration } from "@/lib/consents";
-import { LEGAL_FALLBACK_ITEMS } from "@/lib/legal";
+import { LEGAL_FALLBACK_ITEMS, legalLang } from "@/lib/legal";
 import { normUzPhone } from "@/lib/phone";
 import { OTP_RESEND_SEC, fmtClock, useOtpTimer } from "@/lib/useOtpTimer";
 import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
@@ -127,7 +127,9 @@ export default function RegisterFlow() {
   // Explicit acceptance of each current legal document on the last profile
   // step. Placeholders (terms, privacy, disclaimer) while the list loads/fails.
   const tl = useTranslations("legal");
-  const legalDocs = useResource(() => listLegalConsents().then(currentConsents), []);
+  // In the page's language; a language change reloads them (ticks are kept by slug).
+  const lang = legalLang(locale);
+  const legalDocs = useResource(() => listLegalConsents(lang).then(currentConsents), [lang]);
   const [agreed, setAgreed] = useState<Record<string, boolean>>({});
   const roleDocs = consentsFor(legalDocs.data, draft.accountType ?? "client");
   const consentItems = legalDocs.status === "ready" && roleDocs.length ? roleDocs : LEGAL_FALLBACK_ITEMS;

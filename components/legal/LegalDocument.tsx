@@ -5,16 +5,19 @@ import { legalLabelKey, legalPathFromSlug } from "@/lib/legal";
 import type { ConsentDoc } from "@/lib/services/backend";
 
 // One legal document (server-rendered by /legal/[slug], client-rendered by
-// LegalDocsFallback). The API text is Uzbek-only and of unknown format, so it
-// is rendered as plain text — never as HTML.
+// LegalDocsFallback), in the page's language as the backend wrote it — never
+// translated here. The text is of unknown format, so it is rendered as plain
+// text, never as HTML.
 export default function LegalDocument({ doc, all }: { doc: ConsentDoc; all: ConsentDoc[] }) {
   const t = useTranslations("legal");
   const locale = useLocale();
+  // The label only for a document the backend sent no title for.
   const label = (d: ConsentDoc) => {
+    if (d.title) return d.title;
     const key = legalLabelKey(d.slug);
-    return t.has(key) ? t(key) : d.title;
+    return t.has(key) ? t(key) : t("indexTitle");
   };
-  const heading = locale === "uz" ? doc.title || label(doc) : label(doc);
+  const heading = label(doc);
   const paragraphs = doc.body
     .split(/\n\s*\n/)
     .map((s) => s.trim())
@@ -38,18 +41,12 @@ export default function LegalDocument({ doc, all }: { doc: ConsentDoc; all: Cons
           </nav>
         ) : null}
         <span className="kick">{t("indexTitle")}</span>
-        <h1 className="h2">{heading}</h1>
+        <h1 className="h2" lang={doc.language || undefined}>{heading}</h1>
         <p className="legal__meta">
           {doc.version ? <span>{t("version", { version: doc.version })}</span> : null}
           {doc.createdAt ? <span>{t("published", { date: fmtDate(doc.createdAt, locale) })}</span> : null}
         </p>
-        {locale !== "uz" ? (
-          <p className="legal__note">
-            {t("uzOnlyNote")}
-            {doc.title && doc.title !== heading ? ` ${t("originalTitle", { title: doc.title })}` : null}
-          </p>
-        ) : null}
-        <article className="legal__body" lang="uz">
+        <article className="legal__body" lang={doc.language || undefined}>
           {paragraphs.map((p, i) => (
             <p key={i}>{p}</p>
           ))}

@@ -18894,8 +18894,6 @@
     },
     "version": "Versiya {version}",
     "published": "E'lon qilingan: {date}",
-    "uzOnlyNote": "Hujjat faqat o'zbek tilida e'lon qilingan. Yuridik kuchga o'zbek tilidagi matn ega.",
-    "originalTitle": "Asl nomi: {title}",
     "read": "O'qish",
     "allDocs": "Barcha hujjatlar",
     "empty": "Hozircha e'lon qilingan hujjatlar yo'q.",

@@ -4,7 +4,8 @@ import { verifiedAdvocateYears } from "./tenure";
 // Every function talks to the same-origin proxy with the bearer token attached.
 // UI callers wrap reads in `withFallback(...)` so the app keeps working on local
 // mock data until the backend is reachable.
-import { http, httpBlob, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl, errDetail, backendOrigin, backendUrl, parseServerTime, toApiError, type Dict } from "@/lib/http";
+import { http, httpBlob, asDict, asStr, asNum, asArr, API_BASE, ApiError, absUrl, errDetail, errorCode, backendOrigin, backendUrl, parseServerTime, toApiError, type Dict } from "@/lib/http";
+import { LEGAL_LANG_REFUSED, type LegalLang } from "@/lib/legal";
 import { cleanDocTitle, cleanDocText } from "@/lib/docTitle";
 import { mimeFromName } from "@/lib/download";
 import { sellerTrustOf, type RatingStatus } from "./trust";
@@ -7580,34 +7581,77 @@ export async function getProofDocumentBlob(documentId: string): Promise<Blob> {
 }
 
 // ── Legal consents (versioned terms / privacy / disclaimer) ───────
-// GET /legal/consents is public and returns the active documents (title and
-// body are Uzbek-only; Accept-Language / ?lang are ignored). POST
-// /legal/consents/{id}/accept needs a token. There is no read-back of a user's
-// own acceptances — see lib/consents.ts.
+// GET /legal/consents is public and returns the active documents. Since
+// 2026-11-01 (backend e0e60ee) each document is written in uz, ru and en:
+// ?lang= picks the one in the plain `title` / `body`, and `title_i18n` /
+// `body_i18n` hold all three. POST /legal/consents/{id}/accept needs a token.
 export type ConsentDoc = {
   id: string;
   slug: string; // terms | privacy | legal_disclaimer | future slugs
   version: string;
   title: string;
   body: string;
+  // The language title and body are in ("uz" | "ru" | "en"); "" if unknown.
+  language: string;
+  // Every translation the backend sent, by language.
+  titleI18n: Record<string, string>;
+  bodyI18n: Record<string, string>;
   active: boolean;
   createdAt: string;
 };
-export function normConsentDoc(v: unknown): ConsentDoc {
+// { uz, ru, en } from the new *_i18n maps; the old *_json maps (uz_latn,
+// uz_cyrl keys) only fill a language the new map lacks.
+function legalTexts(primary: unknown, legacy: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const src of [asDict(primary), asDict(legacy)]) {
+    for (const [k, v] of Object.entries(src)) {
+      const lang = k.toLowerCase().startsWith("ru") ? "ru" : k.toLowerCase().startsWith("en") ? "en" : k.toLowerCase().startsWith("uz") ? "uz" : "";
+      const text = asStr(v).trim();
+      if (lang && text && !out[lang]) out[lang] = text;
+    }
+  }
+  return out;
+}
+// The text in `lang`, exactly as the backend wrote it: the plain field when
+// it is in that language, then that language's translation, then Uzbek, then
+// the legacy fields. Never translated here.
+export function normConsentDoc(v: unknown, lang: LegalLang = "uz"): ConsentDoc {
   const d = asDict(v);
+  const language = asStr(d.language).trim().toLowerCase();
+  const titleI18n = legalTexts(d.title_i18n, d.title_json);
+  const bodyI18n = legalTexts(d.body_i18n, d.body_json);
+  const plainFits = !language || language === lang;
+  const title = asStr(d.title).trim();
+  const body = asStr(d.body);
+  // Which language the title below is really in.
+  const shown = plainFits && title ? language || lang : titleI18n[lang] ? lang : language || "uz";
   return {
     id: asStr(d.id ?? d.consent_id ?? d.document_id),
     slug: asStr(d.slug ?? d.type ?? d.code).trim().toLowerCase(),
     version: asStr(d.version ?? d.version_label),
-    title: asStr(d.title ?? d.name),
-    body: asStr(d.body ?? d.content ?? d.text),
+    title: (plainFits && title) || titleI18n[lang] || title || titleI18n.uz || asStr(d.name),
+    body: (plainFits && body.trim() ? body : "") || bodyI18n[lang] || body || bodyI18n.uz || asStr(d.content ?? d.text),
+    language: shown,
+    titleI18n,
+    bodyI18n,
     active: !(d.is_active === false || d.is_active === "false" || d.is_active === 0 || d.active === false),
     createdAt: asStr(d.created_at ?? d.published_at ?? d.updated_at),
   };
 }
-export function normConsentDocs(data: unknown): ConsentDoc[] {
+// GET a public legal endpoint in `lang`. A 422 legal_language_not_supported
+// means our mapping is wrong: ask once more, quietly, for Uzbek.
+async function legalGet(path: string, lang: LegalLang, query: Record<string, string> = {}): Promise<unknown> {
+  const url = (l: string) => `${path}?${new URLSearchParams({ ...query, lang: l })}`;
+  try {
+    return await http(url(lang));
+  } catch (e) {
+    if (lang !== "uz" && e instanceof ApiError && e.status === 422 && errorCode(e) === LEGAL_LANG_REFUSED) return http(url("uz"));
+    throw e;
+  }
+}
+export function normConsentDocs(data: unknown, lang: LegalLang = "uz"): ConsentDoc[] {
   return listFrom(data, "items", "data", "consents", "documents", "results")
-    .map(normConsentDoc)
+    .map((x) => normConsentDoc(x, lang))
     .filter((d) => d.id && d.slug);
 }
 // "1.10" > "1.9": compare the numeric segments.
@@ -7672,18 +7716,20 @@ export type MyConsentRow = {
   // Where the full text lives — the list must not be expected to hold it.
   detailUrl: string;
 };
-export async function listMyConsentRows(): Promise<MyConsentRow[]> {
-  return asArr(await http("/legal/consents/me"))
+export async function listMyConsentRows(lang: LegalLang): Promise<MyConsentRow[]> {
+  return asArr(await legalGet("/legal/consents/me", lang))
     .map((x) => {
       const d = asDict(x);
       const c = asDict(d.consent);
       const pick = (k: string) => (d[k] === undefined ? c[k] : d[k]);
       const id = asStr(pick("consent_id") ?? pick("id"));
+      // Title in `lang`, read like any document's.
+      const doc = normConsentDoc({ ...c, ...d, id }, lang);
       return {
         id,
         slug: asStr(pick("slug")),
         version: asStr(pick("version")),
-        title: asStr(pick("title")),
+        title: doc.title,
         accepted: pick("accepted") !== false,
         requiresReaccept: Boolean(pick("requires_reaccept")),
         acceptedAt: asStr(pick("accepted_at")),
@@ -7692,21 +7738,21 @@ export async function listMyConsentRows(): Promise<MyConsentRow[]> {
     })
     .filter((r) => !!r.id);
 }
-export async function listMyConsents(): Promise<AcceptedConsentRef[]> {
+export async function listMyConsents(lang: LegalLang): Promise<AcceptedConsentRef[]> {
   // Accepted and not awaiting a re-accept: a new version of a document the
   // user signed once still has to be signed again.
-  return (await listMyConsentRows())
+  return (await listMyConsentRows(lang))
     .filter((r) => r.accepted && !r.requiresReaccept)
     .map(({ id, slug, version }) => ({ id, slug, version }));
 }
-export async function listLegalConsents(): Promise<ConsentDoc[]> {
-  return normConsentDocs(await http("/legal/consents"));
+export async function listLegalConsents(lang: LegalLang): Promise<ConsentDoc[]> {
+  return normConsentDocs(await legalGet("/legal/consents", lang), lang);
 }
 // 2026-09-22 backend: the list above dropped body/body_json/content (lighter
 // list/card payload) — this is the "open one document" endpoint that still
 // has them, for LegalDocsFallback's client-side render of a single /legal/[slug].
-export async function getLegalConsent(id: string): Promise<ConsentDoc> {
-  return normConsentDoc(await http(`/legal/consents/${encodeURIComponent(id)}`));
+export async function getLegalConsent(id: string, lang: LegalLang): Promise<ConsentDoc> {
+  return normConsentDoc(await legalGet(`/legal/consents/${encodeURIComponent(id)}`, lang), lang);
 }
 // T0-18 admin: every document version (active or not) — needs users.manage.
 export async function listAdminConsentDocs(): Promise<ConsentDoc[]> {

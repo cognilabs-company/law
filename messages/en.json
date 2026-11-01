@@ -18888,8 +18888,6 @@
     },
     "version": "Version {version}",
     "published": "Published: {date}",
-    "uzOnlyNote": "This document is published in Uzbek only. The Uzbek text is the legally binding version.",
-    "originalTitle": "Original title: {title}",
     "read": "Read",
     "allDocs": "All documents",
     "empty": "No documents have been published yet.",

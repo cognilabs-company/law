@@ -25,6 +25,7 @@ import ScrollCue from "@/components/ui/ScrollCue";
 import { Skeleton, EmptyState, ErrorState } from "@/components/portal/DataState";
 import { IconFileText, IconShieldCheck, IconPlus, IconEye, IconUser } from "@/components/icons";
 import { dateTimeFull } from "@/lib/date";
+import { legalLang } from "@/lib/legal";
 
 // T0-18: the 10 legal documents (S-53) with their versions and the consents
 // journal (who accepted what, when, from which IP). The seed only ships 3
@@ -52,6 +53,7 @@ function fmt(s: string, locale: string) {
 export default function AdminLegal() {
   const t = useTranslations("admin.legal");
   const locale = useLocale();
+  const lang = legalLang(locale);
   const [tab, setTab] = useState<"docs" | "journal">("docs");
   useAiReveal(/^(legal:docs-list|button:new-legal-doc)$/, () => setTab("docs"));
   useAiReveal("legal:journal", () => setTab("journal"));
@@ -130,11 +132,13 @@ export default function AdminLegal() {
         <Journal />
       )}
 
-      <Modal open={!!view} onClose={() => setView(null)} title={view ? `${view.title} · v${view.version}` : ""}>
+      {/* The preview reads the version in the admin's own language when the
+          backend has that translation (title_i18n / body_i18n), as users see it. */}
+      <Modal open={!!view} onClose={() => setView(null)} title={view ? `${view.titleI18n[lang] || view.title} · v${view.version}` : ""}>
         {view ? (
           <div className="legaldoc">
-            <p className="advmuted">{fmt(view.createdAt, locale)} · <code>{view.slug}</code> · {view.active ? t("active") : t("inactive")}</p>
-            <pre className="legaldoc__body">{view.body}</pre>
+            <p className="advmuted">{fmt(view.createdAt, locale)} · {nameOf(view.slug)} · {view.active ? t("active") : t("inactive")}</p>
+            <pre className="legaldoc__body" lang={view.bodyI18n[lang] ? lang : view.language || undefined}>{view.bodyI18n[lang] || view.body}</pre>
           </div>
         ) : null}
       </Modal>

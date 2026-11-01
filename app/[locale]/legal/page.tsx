@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { fetchCurrentConsents } from "@/lib/legalServer";
+import { legalLang } from "@/lib/legal";
 import LegalDocList from "@/components/legal/LegalDocList";
 import LegalDocsFallback from "@/components/legal/LegalDocsFallback";
 
@@ -18,6 +19,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function Page({ params }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
-  const docs = await fetchCurrentConsents();
+  const docs = await fetchCurrentConsents(legalLang(locale));
   return docs ? <LegalDocList docs={docs} /> : <LegalDocsFallback />;
 }

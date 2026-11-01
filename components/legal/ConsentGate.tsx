@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useAuth, hasAdminAccess } from "@/lib/auth";
 import { consentsFor, currentConsents, listLegalConsents, listMyConsents, type AcceptedConsentRef, type ConsentDoc } from "@/lib/services/backend";
@@ -14,6 +14,7 @@ import {
   shouldRecheck,
 } from "@/lib/consents";
 import ConsentChecklist from "./ConsentChecklist";
+import { legalLang } from "@/lib/legal";
 import { IconAlert, IconShieldCheck } from "../icons";
 
 // Routes that stay usable without (re-)accepting: the documents themselves,
@@ -49,6 +50,8 @@ export default function ConsentGate() {
   const serverAccepted = JSON.stringify(session?.acceptedConsents ?? []);
   // Staff (admin, sales, call-center…) sign in with the client primary role.
   const audience = session?.role === "lawyer" || session?.role === "advocate" ? session.role : hasAdminAccess(session) ? "staff" : "client";
+  // The documents in the page's language; a language change reloads them.
+  const lang = legalLang(useLocale());
   const [gate, setGate] = useState<{ key: string; docs: ConsentDoc[]; updated: boolean } | null>(null);
 
   useEffect(() => {
@@ -67,10 +70,10 @@ export default function ConsentGate() {
       if (!shouldRecheck(force)) return;
       try {
         // What this account already accepted on the server (any device).
-        const mine = await listMyConsents().catch(() => [] as AcceptedConsentRef[]);
+        const mine = await listMyConsents(lang).catch(() => [] as AcceptedConsentRef[]);
         if (!alive) return;
         if (mine.length) recordAccepted(id, phone, mine, { synced: true });
-        const docs = consentsFor(currentConsents(await listLegalConsents()), audience);
+        const docs = consentsFor(currentConsents(await listLegalConsents(lang)), audience);
         if (!alive) return;
         const s = consentStatus(docs, id, phone);
         setGate(s.missing.length ? { key: id || phone, docs: s.missing, updated: s.updated } : null);
@@ -107,7 +110,7 @@ export default function ConsentGate() {
       window.removeEventListener("online", onWake);
       window.removeEventListener("storage", onStorage);
     };
-  }, [ready, token, id, phone, serverAccepted, audience]);
+  }, [ready, token, id, phone, serverAccepted, audience, lang]);
 
   // Only observe the DOM while a gate is pending.
   const callUi = useSyncExternalStore(gate ? watchCallUi : watchNothing, gate ? hasCallUi : noCallUi, noCallUi);

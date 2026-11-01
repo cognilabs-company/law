@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { setRequestLocale, getTranslations } from "next-intl/server";
-import { LEGAL_PATHS, legalLabelKey, legalSlugFromPath } from "@/lib/legal";
+import { LEGAL_PATHS, legalLabelKey, legalLang, legalSlugFromPath } from "@/lib/legal";
 import { fetchCurrentConsents, fetchConsentDetail } from "@/lib/legalServer";
 import LegalDocument from "@/components/legal/LegalDocument";
 import LegalDocsFallback from "@/components/legal/LegalDocsFallback";
@@ -21,23 +21,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;
   const t = await getTranslations({ locale, namespace: "legal" });
   const apiSlug = legalSlugFromPath(slug);
+  // The document's own title in this language; the local label only when
+  // the API can't be reached.
+  const doc = (await fetchCurrentConsents(legalLang(locale)))?.find((d) => d.slug === apiSlug);
+  if (doc?.title) return { title: doc.title };
   const key = legalLabelKey(apiSlug);
-  if (t.has(key)) return { title: t(key) };
-  const doc = (await fetchCurrentConsents())?.find((d) => d.slug === apiSlug);
-  return { title: doc?.title || t("indexTitle") };
+  return { title: t.has(key) ? t(key) : t("indexTitle") };
 }
 
 export default async function Page({ params }: Props) {
   const { locale, slug } = await params;
   setRequestLocale(locale);
   const apiSlug = legalSlugFromPath(slug);
-  const docs = await fetchCurrentConsents();
+  const lang = legalLang(locale);
+  const docs = await fetchCurrentConsents(lang);
   const summary = docs?.find((d) => d.slug === apiSlug);
   if (summary && docs) {
     // The list above is body-less now (2026-09-22 backend) — fetch the one
     // document actually being read for its real text; fall back to the
     // (empty-body) summary rather than failing the page if that 404s/errors.
-    const doc = (await fetchConsentDetail(summary.id)) ?? summary;
+    const doc = (await fetchConsentDetail(summary.id, lang)) ?? summary;
     return <LegalDocument doc={doc} all={docs} />;
   }
   // The three always-published documents never 404 on a missing or partial

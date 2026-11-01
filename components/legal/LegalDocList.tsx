@@ -19,10 +19,12 @@ export default function LegalDocList({ docs }: { docs: ConsentDoc[] }) {
           <ul className="legal__list">
             {docs.map((d) => {
               const key = legalLabelKey(d.slug);
+              // The backend's title in this language; the label only if it sent none.
+              const title = d.title || (t.has(key) ? t(key) : "");
               return (
                 <li key={d.id}>
                   <Link href={`/legal/${legalPathFromSlug(d.slug)}`}>
-                    <b>{t.has(key) ? t(key) : d.title}</b>
+                    <b lang={d.language || undefined}>{title}</b>
                     {d.version ? <span>{t("version", { version: d.version })}</span> : null}
                     <span className="legal__read">
                       {t("read")}

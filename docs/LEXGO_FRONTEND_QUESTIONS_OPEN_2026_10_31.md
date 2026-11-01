@@ -59,3 +59,14 @@ Please never send test accounts without 2FA or TOTP secrets.
 ## OpenAPI typing still flexible (PARTIAL)
 
 Contact SLA fields (§1.3), settlement (§1.7), `client_price_reasons` (§3.9), client checklist items (§4.3), Studio dashboard cards (§4.8), task attachments (§5.2), monitoring nested objects (§5.4), geocoder items (§7.2) and the office object (§7.5). The frontend reads them defensively, using only the fields named in the answers.
+
+## Legal documents in uz / ru / en (LEXGO_PRIVACY_POLICY_I18N_FRONTEND_2026_11_01, backend e0e60ee)
+
+The frontend now sends `lang` on every legal request and shows `title` / `body` exactly as returned (then `title_i18n[lang]`, then Uzbek). Nothing is translated locally. Checked against production on 2026-11-01:
+
+| # | Finding | Needed |
+|---|---|---|
+| L1 | The English Privacy Policy body is one line (47 characters: "Personal Data Processing and Protection Policy."). The Uzbek and Russian bodies are about 12,500 characters. | The full English text in `body_i18n.en`. |
+| L2 | With `lang=en`, 10 of the 11 documents return Uzbek text, but `language: "en"` and `title_i18n.en` / `body_i18n.en` hold that Uzbek copy. With `lang=ru`, `remote_assistance_consent` is Uzbek too. The pages show them as returned, so English pages list Uzbek titles. | Either the translations, or `language` and `available_languages` that say which language the text really is in. The page marks the text's language (`lang=`) from `language`, so today Uzbek text is marked as English. |
+| L3 | The admin endpoints (`GET/POST /admin/legal/consents`) aren't in the contract. The admin editor still writes one `title` / `body`. | Does the admin list take `lang`? Can a new version be saved with `title_i18n` / `body_i18n` (uz, ru, en)? Which language does a plain `title` / `body` write? |
+| L4 | Production has no `terms` or `legal_disclaimer` documents (the slugs are `user_offer`, `platform_rules`, `privacy`, …). The footer still links to `/legal/terms` and `/legal/disclaimer`, which now show "document not found". | Which documents should the footer's "Terms" and "Disclaimer" links open: `user_offer` and …? |
