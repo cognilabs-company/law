@@ -15,7 +15,8 @@ import { enabledDays, getMyAvailability, putMyAvailability, weeklyFrom, DEFAULT_
 import { readVacation, writeVacation } from "@/components/portal/SellerMetrics";
 import type { ProfessionalProfile } from "@/lib/types";
 import { verificationStatusOf } from "@/lib/services/advocatePractice";
-import { IconAward, IconBell, IconBriefcase, IconClock, IconCopy, IconExternal, IconHistory, IconLock, IconSend, IconShieldCheck, IconSun, IconUser } from "@/components/icons";
+import { IconAward, IconBell, IconBriefcase, IconClock, IconCopy, IconDownload, IconExternal, IconHistory, IconLock, IconSend, IconShieldCheck, IconSun, IconTrash, IconUser } from "@/components/icons";
+import { Link } from "@/i18n/navigation";
 import { App, Avatar, Btn, Check, Empty, Field, Group, Input, Loading, Progress, Select, SettingRow, Sidebar, Tag, TextArea, Toggle, Toolbar, useOs, useToast, type NavSection } from "../kit/kit";
 import { TimeField } from "../kit/pickers";
 import type { NativeProps } from "../native";
@@ -393,9 +394,11 @@ export function Security({ say }: { say: (text: string, tone?: "ok" | "err") => 
   const tg = useTranslations("portal.common.telegram");
   const ta = useTranslations("portal.accountAudit");
   const d = useTranslations("portal.desk.profile");
+  const tdata = useTranslations("accountData");
   const locale = useLocale();
   const { session, update } = useAuth();
   const on = !!session?.twoFactorEnabled;
+  const supportHref = `/portal/${session?.role === "advocate" || session?.role === "lawyer" ? session.role : "client"}/support`;
   const [stage, setStage] = useState<"" | "sms" | "totp">("");
   const [vid, setVid] = useState("");
   const [totp, setTotp] = useState<TotpSetup | null>(null);
@@ -587,6 +590,22 @@ export function Security({ say }: { say: (text: string, tone?: "ok" | "err") => 
         ) : (
           events.map((e) => <SettingRow key={e.id} icon={<IconHistory />} title={e.titleUz || (ta.has(`types.${e.action}`) ? ta(`types.${e.action}`) : e.action)} desc={[e.descriptionUz || e.detail, e.ip, e.createdAt ? dateOnly(e.createdAt, locale) : ""].filter(Boolean).join(" · ")} />)
         )}
+      </Group>
+      {/* Your data: no self-service export or deletion endpoint yet, so the
+          copy is honestly "not available yet" with the way to ask support,
+          and deletion opens the published deletion page. */}
+      <Group title={tdata("title")}>
+        <SettingRow icon={<IconDownload />} title={tdata("download.title")} desc={tdata("download.text")}>
+          <Tag tone="warn">{tdata("soon")}</Tag>
+          <Link href={supportHref} className="dx-btn dx-btn--default dx-btn--sm">
+            <span>{tdata("download.ask")}</span>
+          </Link>
+        </SettingRow>
+        <SettingRow icon={<IconTrash />} title={tdata("delete.title")} desc={tdata("delete.text")}>
+          <Link href="/legal/account-deletion" target="_blank" rel="noopener noreferrer" className="dx-btn dx-btn--danger dx-btn--sm">
+            <span>{tdata("delete.button")}</span>
+          </Link>
+        </SettingRow>
       </Group>
       <p className="dxq-note">{d("securityNote")}</p>
     </>

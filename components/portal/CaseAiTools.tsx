@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import AiLabel from "@/components/ui/AiLabel";
 import { runCaseAiTool, type CaseAiTool } from "@/lib/services/backend";
 import { notify } from "@/lib/toast";
 import { IconSparkle, IconCheck } from "@/components/icons";
@@ -57,6 +58,7 @@ export default function CaseAiTools({ caseId }: { caseId: string }) {
         <div className="cform" style={{ maxWidth: "none" }}>
           <label>{t(`tools.${tool}`)}</label>
           <textarea rows={8} value={text} onChange={(e) => setText(e.target.value)} />
+          {text ? <AiLabel compact /> : null}
           <p className="rf__hint">{t("editHint")}</p>
           <button type="button" className="btn btn--soft btn--sm" onClick={approve} style={{ justifySelf: "start" }}><IconCheck />{t("approve")}</button>
         </div>

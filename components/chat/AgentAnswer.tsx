@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import AiLabel from "@/components/ui/AiLabel";
 import { Link } from "@/i18n/navigation";
 import type { Source } from "@/lib/api";
 import {
@@ -201,6 +202,9 @@ export default function AgentAnswer({
       {sources.length ? (
         <SourceList sources={sources} checkedOnly={checkedOnly} compact={compact} />
       ) : null}
+      {/* A real answer (not an error or "nothing found" notice) is marked as
+          the AI's, and as not legal advice. */}
+      {kind === "lex_unavailable" || kind === "error" || kind === "not_found" ? null : <AiLabel compact />}
 
       {interactive && onRetry && (kind === "lex_unavailable" || kind === "error") ? (
         <button type="button" className="ag-act" onClick={onRetry}>

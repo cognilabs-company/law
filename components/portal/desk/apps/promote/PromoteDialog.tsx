@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import { cheapestPerDay } from "@/lib/planCheckout";
 import { useAuth } from "@/lib/auth";
 import { fmtUzs } from "@/lib/money";
 import { pendingPromoKey, savePendingPromo, serviceErrorOf, type ManagedService, type PromotionRequest, type ServiceScope } from "@/lib/services/sellerServices";
@@ -57,13 +58,15 @@ export default function PromoteDialog({ open, start, services, onClose, onSent }
       .then((cat) => {
         if (c.signal.aborted) return;
         setPacks(cat.items);
-        setPicked(cat.items.length >= 3 ? cat.items[1].id : (cat.items.at(-1)?.id ?? ""));
+        // Picked first only when it is the lowest price per day.
+        setPicked(cheapestPerDay(cat.items));
       })
       .catch(() => !c.signal.aborted && setPacks([]));
     return () => c.abort();
   }, [open, place]);
 
   const chosen = (packs ?? []).find((p) => p.id === picked) ?? null;
+  const best = cheapestPerDay(packs ?? []);
   const accepts = !!chosen?.acceptsBanner || place === "banner";
   const needsBanner = !!chosen?.requiresBanner;
   const needsService = !!chosen?.requiresService || place === "service_boost";
@@ -190,7 +193,7 @@ export default function PromoteDialog({ open, start, services, onClose, onSent }
                     <em>
                       {fmtUzs(p.price)} {p.currency}
                     </em>
-                    {packs.length >= 3 && i === 1 ? <small>{t("popular")}</small> : null}
+                    {p.id === best ? <small>{t("popular")}</small> : null}
                     {picked === p.id ? <IconCheck className="dxp-pack__ok" aria-hidden /> : null}
                   </button>
                 );

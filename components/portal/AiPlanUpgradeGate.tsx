@@ -13,6 +13,7 @@ import { notify } from "@/lib/toast";
 import { fmtUzs } from "@/lib/money";
 import { IconCheck, IconCrown } from "@/components/icons";
 import PlanCard from "./PlanCard";
+import PlanPurchaseTerms from "./PlanPurchaseTerms";
 import { goToPaymentPage } from "@/lib/services/paymentProviders";
 
 // The services catalog's download button used to send a Free-tier client
@@ -78,6 +79,8 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
   const [period, setPeriod] = useState<Period>("monthly");
   const [busy, setBusy] = useState(false);
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
+  // Renewal is the subscriber's own choice on the terms below, unticked.
+  const [renew, setRenew] = useState(false);
 
   const [prevOpen, setPrevOpen] = useState(open);
   if (open !== prevOpen) {
@@ -86,8 +89,11 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
       setPlanId("");
       setPeriod("monthly");
       setIntent(null);
+      setRenew(false);
     }
   }
+
+  const picked = qualifying.find((p) => p.id === planId);
 
   async function buy() {
     const plan = qualifying.find((p) => p.id === planId);
@@ -97,7 +103,7 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
     let leaving = false;
     try {
       if (isAtmosCheckout()) {
-        const r = await purchasePlan(plan.id, { billing_period: period });
+        const r = await purchasePlan(plan.id, { billing_period: period, auto_renew: renew });
         if (r.paymentUrl) {
           leaving = true;
           notify.info(t("payRedirect"), { id: "ai-plan-gate" });
@@ -203,6 +209,10 @@ export default function AiPlanUpgradeGate({ open, onClose }: { open: boolean; on
                 })}
               </div>
             </div>
+
+            {picked ? (
+              <PlanPurchaseTerms purchase={{ planName: picked.name, period, total: priceFor(picked, period) }} autoRenew={renew} onAutoRenew={setRenew} />
+            ) : null}
 
             <button className="btn btn--grad btn--full btn--lg" type="button" onClick={buy} disabled={!planId || busy}>
               {busy ? td("processingShort") : t("choose")}

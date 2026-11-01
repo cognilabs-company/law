@@ -55,6 +55,7 @@ import TwoFactorCard from "@/components/portal/TwoFactorCard";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
 import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
 import AccountAudit from "@/components/portal/AccountAudit";
+import AccountDataCard from "@/components/portal/AccountDataCard";
 import ClientPayments from "@/components/portal/ClientPayments";
 import ClientComplaints from "@/components/complaints/ClientComplaints";
 import ClientWarranty from "@/components/portal/ClientWarranty";
@@ -75,7 +76,7 @@ const TAB_REVEAL: Record<ProfileTab, RegExp> = {
   personal: /^profile[.:](family|identity)/,
   payments: /^(payments|profile[.:](cards|subscription))/,
   complaints: /^(complaints|warranty|button:new-complaint)/,
-  security: /^profile[.:](two-factor|telegram|sessions|security-events|account-audit)/,
+  security: /^profile[.:](two-factor|telegram|sessions|security-events|account-audit|account-data)/,
   notifications: /^profile[.:]notification-prefs/,
 };
 
@@ -543,6 +544,7 @@ function SecurityTab() {
         )}
       </div>
       <AccountAudit withSessions={false} />
+      <AccountDataCard supportHref="/portal/client/support" />
     </div>
   );
 }

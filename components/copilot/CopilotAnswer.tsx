@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
+import AiLabel from "@/components/ui/AiLabel";
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowUpRightIcon,
@@ -452,6 +453,7 @@ export default function CopilotTurnView({ turn, index, role, busy, onRetry, onGo
               </p>
             ) : null}
             {reply.answer.trim() ? <CopilotText text={reply.answer} /> : <p className="cpl-text cpl-text--empty">{t("emptyAnswer")}</p>}
+            {reply.answer.trim() ? <AiLabel compact /> : null}
             {reply.partial ? (
               <p className="cpl-note cpl-note--warn">
                 <TriangleAlertIcon {...ICON} size={14} />

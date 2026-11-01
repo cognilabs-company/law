@@ -7,6 +7,9 @@ import { IconExternal } from "../icons";
 import CheckBox from "../CheckBox";
 import { humanize } from "@/lib/labels";
 
+// The backend's age-confirmation document (LexGo is for adults only).
+export const AGE_SLUG = "age_18";
+
 export type ConsentItem = { slug: string; title: string; version: string; body: string; language?: string; fallback?: boolean; requestedLanguage?: string };
 
 // One explicit checkbox per current legal document, with its version, a
@@ -35,10 +38,13 @@ export default function ConsentChecklist({
         // shown while the documents load.
         const key = legalLabelKey(it.slug);
         const name = it.title || (t.has(key) ? t(key) : humanize(it.slug));
+        // The 18+ document is a confirmation of age, so its box says that in
+        // the user's own words rather than "I accept <title>".
+        const label = it.slug === AGE_SLUG ? t("consent.age", { doc: name }) : t("consent.accept", { doc: name });
         return (
           <div className="consent__i" key={it.slug}>
             <CheckBox className="consent__row" checked={!!checked[it.slug]} onChange={(on) => onToggle(it.slug, on)}>
-              {t("consent.accept", { doc: name })}
+              {label}
             </CheckBox>
             <div className="consent__meta">
               {it.version ? <span>{t("version", { version: it.version })}</span> : null}

@@ -4,6 +4,7 @@ import PlanGateCard from "@/components/ui/PlanGateCard";
 import { planGateOf, type PlanGate } from "@/lib/planGate";
 import { useRef, useState, type DragEvent } from "react";
 import { useTranslations } from "next-intl";
+import AiLabel from "@/components/ui/AiLabel";
 import { analyzeDocument, analyzeDocumentFile, quoteDocumentAnalysis, requestExistingDocumentReviewGated, type DocAnalysis, type DocAnalysisQuote, type DocQuoteInput } from "@/lib/services/backend";
 import { fmtUzs } from "@/lib/money";
 import { ApiError, errDetail, logApiError } from "@/lib/http";
@@ -242,6 +243,7 @@ export default function DocAnalysisApp({ openLink }: NativeProps) {
                   {res.pageCount ? <Tag>{t("pagesN", { n: res.pageCount })}</Tag> : null}
                 </h2>
                 <p className="dxcs-bio">{res.summary || t("noSummary")}</p>
+                <AiLabel />
               </section>
               <section className="dxcs-box">
                 <h2>{t("risks")}</h2>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import AiLabel from "@/components/ui/AiLabel";
 import { Link, useRouter } from "@/i18n/navigation";
 import {
   assistInfoOf,
@@ -763,6 +764,7 @@ export default function SupportChat({
                   </span>
                 ) : null}
                 {m.content ? <p>{m.content}</p> : null}
+                {ai && m.content ? <AiLabel compact /> : null}
                 {m.attachments.length ? (
                   <ul className="supmsg__files">
                     {m.attachments.map((a, k) => (

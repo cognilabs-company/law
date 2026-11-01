@@ -4,6 +4,7 @@ import PlanGateCard from "@/components/ui/PlanGateCard";
 import { planGateOf, type PlanGate } from "@/lib/planGate";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import AiLabel from "@/components/ui/AiLabel";
 import {
   getPlatformPolicies,
   updateDocumentAnswers,
@@ -233,6 +234,7 @@ export default function DocumentRequestPanel({
   onRetry,
   lawyerHeldNote,
   onOpenConstructor,
+  aiGenerated,
 }: {
   initialReq: DocumentRequest;
   // The payment gate as the POST that opened it described it — passed in by
@@ -270,6 +272,9 @@ export default function DocumentRequestPanel({
   // finished document's "Advokat tekshiruviga yuborish" — then carry the
   // refusal instead, since the backend accepts duplicate rows happily.
   lawyerHeldNote?: string;
+  // The AI wrote this document (DocumentAiAssist): the finished screen says
+  // so, and that it is not legal advice.
+  aiGenerated?: boolean;
 }) {
   const t = useTranslations("portal.client.documents");
   const tcommon = useTranslations("common");
@@ -1051,6 +1056,7 @@ export default function DocumentRequestPanel({
           <span className="docdone__i"><IconCheck /></span>
           <b>{t("ready")}</b>
           <span className="docdone__f">{req.contractFile?.fileName || t("fileGeneric")}</span>
+          {aiGenerated ? <AiLabel /> : null}
           <div className="docdone__act">
             <button className="btn btn--pri" type="button" onClick={() => getFile(false)} disabled={pdfBusy} data-ai-id="documents.constructor.result.open">
               <IconExternal />

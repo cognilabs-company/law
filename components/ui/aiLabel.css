@@ -1,0 +1,48 @@
+/* "AI-generated · not legal advice" mark on every AI answer, draft and summary. */
+.ailbl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--b400, #5ca8ff) 35%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--b400, #5ca8ff) 10%, transparent), color-mix(in srgb, #8b5cf6 8%, transparent));
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+.ailbl__b {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px 2px 7px;
+  border-radius: 999px;
+  background: var(--grad, linear-gradient(135deg, #2563eb, #7c3aed));
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.ailbl__b svg { width: 12px; height: 12px; flex: none; }
+.ailbl__t { flex: 1 1 180px; min-width: 0; color: var(--gray); overflow-wrap: anywhere; }
+.ailbl--compact {
+  margin: 6px 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.72rem;
+  gap: 4px 8px;
+}
+.ailbl--compact .ailbl__b {
+  padding: 1px 7px 1px 5px;
+  font-size: 0.66rem;
+}
+[data-theme="dark"] .ailbl {
+  border-color: color-mix(in srgb, var(--b300, #8cc2ff) 30%, transparent);
+  background: linear-gradient(135deg, rgba(92, 168, 255, 0.12), rgba(139, 92, 246, 0.1));
+}
+[data-theme="dark"] .ailbl--compact { background: none; }
+[data-theme="dark"] .ailbl__t { color: #b7cdec; }

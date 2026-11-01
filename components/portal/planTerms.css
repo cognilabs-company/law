@@ -1,0 +1,21 @@
+/* What the subscriber agrees to before paying (PlanPurchaseTerms). */
+.pterms { display: grid; gap: 12px; min-width: 0; }
+.pterms__sum { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin: 0; }
+.pterms__sum > div { display: grid; gap: 2px; min-width: 0; padding: 10px 12px; border-radius: 12px; background: var(--dk-surface-2, #f5f8fd); }
+.pterms__sum dt { font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--gray); }
+.pterms__sum dd { margin: 0; font-size: .92rem; font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+.pterms__sum .pterms__now { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; background: color-mix(in srgb, var(--b400, #5ca8ff) 12%, transparent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--b400, #5ca8ff) 35%, transparent); }
+.pterms__now dd { font-family: var(--fd); font-size: 1.35rem; letter-spacing: -.02em; }
+.pterms__fees { display: flex; gap: 8px; align-items: flex-start; margin: 0; font-size: .8rem; color: var(--dk-txt-ok, #15803d); }
+.pterms__fees svg { flex: none; width: 16px; height: 16px; margin-top: 1px; }
+.pterms__promo { margin: 0; font-size: .8rem; color: var(--dk-txt-warn, #b45309); }
+.pterms__renew { display: grid; gap: 6px; padding: 12px 14px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--dk-surface, #fff); --cbx-bg: var(--dk-surface, #fff); }
+.pterms__renew p { margin: 0; font-size: .82rem; line-height: 1.5; color: var(--gray); }
+.pterms__renew p b { color: var(--ink); }
+.pterms__docs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 0; font-size: .8rem; color: var(--gray); }
+.pterms__docs a { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--dk-acc, var(--b600)); text-decoration: underline; text-underline-offset: 2px; }
+.pterms__docs a svg { width: 13px; height: 13px; }
+.pterms__acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+@media (max-width: 480px) {
+  .pterms__acts > * { flex: 1 1 100%; }
+}

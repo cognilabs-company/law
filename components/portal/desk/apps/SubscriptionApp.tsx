@@ -15,6 +15,7 @@ import { App, Banner, Btn, Check, Dialog, Empty, Field, Input, Loading, Seg, Sid
 import type { NativeProps } from "../native";
 import "./subscription.css";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
+import PlanPurchaseTerms from "../../PlanPurchaseTerms";
 
 // Subscription as a desktop program: the current tariff and auto-pay up
 // top; the LexGo.AI plans with their terms; the other tariffs; the gift;
@@ -37,6 +38,7 @@ export default function SubscriptionApp(_props: NativeProps) {
   const ts = useTranslations("subscription");
   const ta = useTranslations("plans.autopay");
   const d = useTranslations("portal.desk.subs");
+  const tc = useTranslations("checkoutTerms");
   const locale = useLocale();
   const os = useOs();
   const { session } = useAuth();
@@ -55,6 +57,10 @@ export default function SubscriptionApp(_props: NativeProps) {
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
   const [tg, setTg] = useState<{ plan: BackendPlan; period: ManualDocBillingPeriod } | null>(null);
   const [bind, setBind] = useState(false);
+  // "Choose" opens the terms first (amount now, renewal and its price, the
+  // refund rules); only "Pay" there starts the purchase.
+  const [review, setReview] = useState<{ plan: BackendPlan; total: number; listed: number; period: string } | null>(null);
+  const [renew, setRenew] = useState(false);
   const [tick, setTick] = useState(0);
   const [toast, say] = useToast();
 
@@ -114,15 +120,27 @@ export default function SubscriptionApp(_props: NativeProps) {
     const total = q ? q.amount : planPrice(p, aiPeriod);
     const before = q ? q.baseAmount : total;
     const base = p.monthlyPrice * months;
-    return { per: months ? Math.round(total / months) : total, total, save: months > 1 && base && before && before < base ? Math.round(((base - before) / base) * 100) : 0, months, promo: q && q.discountAmount > 0 ? q.discountAmount : 0 };
+    return { per: months ? Math.round(total / months) : total, total, save: months > 1 && base && before && before < base ? Math.round(((base - before) / base) * 100) : 0, months, promo: q && q.discountAmount > 0 ? q.discountAmount : 0, listed: before };
   };
 
-  async function choose(plan: BackendPlan, total: number, period: string) {
+  function openReview(plan: BackendPlan, total: number, period: string, listed = total) {
+    if (busy) return;
+    setRenew(autopay?.enabled ?? false);
+    setReview({ plan, total, listed, period });
+  }
+
+  async function choose(plan: BackendPlan, total: number, period: string, autoRenew: boolean) {
     if (busy || !once()) return;
     setBusy(plan.id);
     try {
+      // The renewal choice from the terms: sent with an ATMOS purchase,
+      // otherwise saved as the auto-pay switch saves it, when it changed.
+      if (!isAtmosCheckout() && uid && autoRenew !== (autopay?.enabled ?? false)) {
+        const source = await saveAutopay(uid, autoRenew, autopay?.subscription?.id);
+        setAutopay((s) => (s ? { ...s, enabled: autoRenew, source } : s));
+      }
       if (isAtmosCheckout()) {
-        const r = await purchasePlan(plan.id, { billing_period: period });
+        const r = await purchasePlan(plan.id, { billing_period: period, auto_renew: autoRenew });
         if (r.paymentUrl) window.open(r.paymentUrl, "_blank", "noopener");
         else say(t("activated", { plan: plan.name }));
         return;
@@ -140,6 +158,7 @@ export default function SubscriptionApp(_props: NativeProps) {
       else say(t("purchaseError"), "err");
     } finally {
       setBusy("");
+      setReview(null);
     }
   }
   async function toggleAutopay(on: boolean) {
@@ -166,7 +185,7 @@ export default function SubscriptionApp(_props: NativeProps) {
       ],
     },
   ];
-  const planCard = (plan: BackendPlan, price: { per: number; total: number; save: number; months: number; promo?: number }, featured: boolean) => {
+  const planCard = (plan: BackendPlan, price: { per: number; total: number; save: number; months: number; promo?: number; listed?: number }, featured: boolean) => {
     const isCur = !!current && plan.name === current;
     const free = plan.monthlyPrice === 0;
     const limit = Number(plan.entitlements?.ai_requests ?? 0) || 0;
@@ -203,7 +222,7 @@ export default function SubscriptionApp(_props: NativeProps) {
         ) : free ? (
           <Btn disabled>{t("ai.included")}</Btn>
         ) : (
-          <Btn kind={featured ? "primary" : "default"} icon={featured ? <IconCrown /> : undefined} busy={busy === plan.id} onClick={() => void choose(plan, price.total, AI_SLUG.test(plan.slug) ? periodOf(term, upfront) : periodOf(term === 12 ? 12 : 6, upfront))}>
+          <Btn kind={featured ? "primary" : "default"} icon={featured ? <IconCrown /> : undefined} busy={busy === plan.id} onClick={() => openReview(plan, price.total, AI_SLUG.test(plan.slug) ? periodOf(term, upfront) : periodOf(term === 12 ? 12 : 6, upfront), price.listed ?? price.total)}>
             {t("choose")}
           </Btn>
         )}
@@ -318,6 +337,36 @@ export default function SubscriptionApp(_props: NativeProps) {
           </div>
         )}
       </div>
+      <Dialog
+        open={!!review}
+        title={tc("title")}
+        width={520}
+        onClose={() => (busy ? undefined : setReview(null))}
+        onSubmit={() => review && void choose(review.plan, review.total, review.period, renew)}
+        actions={
+          <>
+            <Btn onClick={() => setReview(null)} disabled={!!busy}>
+              {tc("back")}
+            </Btn>
+            <Btn kind="primary" type="submit" busy={!!busy}>
+              {review ? tc("pay", { amount: som(review.total) }) : ""}
+            </Btn>
+          </>
+        }
+      >
+        {review ? (
+          <PlanPurchaseTerms
+            purchase={{ planName: review.plan.name, period: review.period, total: review.total, listed: review.listed }}
+            autoRenew={renew}
+            onAutoRenew={setRenew}
+            check={(checked, onChange, label) => (
+              <Check checked={checked} onChange={onChange} label={label}>
+                {label}
+              </Check>
+            )}
+          />
+        ) : null}
+      </Dialog>
       <PaySheet intent={intent} onClose={() => setIntent(null)} />
       {tg ? <TelegramRequest target={tg} onClose={() => setTg(null)} onSent={() => setTick((n) => n + 1)} /> : null}
       <BindCard open={bind} onClose={() => setBind(false)} onDone={() => (setBind(false), setTick((n) => n + 1))} />

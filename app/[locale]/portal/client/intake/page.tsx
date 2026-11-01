@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
+import AiLabel from "@/components/ui/AiLabel";
 import { useRouter } from "@/i18n/navigation";
 import {
   classifyProblem,
@@ -133,6 +134,7 @@ export default function ClientIntake() {
               <div className="intake__kv"><label>{t("executor")}</label><b>{label("executors", result.executorType)}</b></div>
             ) : null}
             {result.summary && !text.trim().startsWith(result.summary.trim().slice(0, 200)) ? <p className="intake__summary">{result.summary}</p> : null}
+            <AiLabel />
 
             {/* Level 2: matched services with their passports. */}
             {result.offers.length ? (

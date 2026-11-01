@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import AiLabel from "@/components/ui/AiLabel";
 import { askAiAssistant } from "@/lib/services/backend";
 import { IconCopy, IconSend, IconSparkle, IconTrash } from "@/components/icons";
 import { App, Btn, Empty, Sidebar, Spinner, Tool, Toolbar, useOs, useToast, type NavSection } from "../kit/kit";
@@ -15,7 +16,7 @@ import "./assistant.css";
 // sees the text.
 
 const TOOLS = ["summarize", "chronology", "compare", "contradictions", "missing", "deadlines", "questions", "draft"] as const;
-type Run = { id: number; tool: string; text: string; busy: boolean };
+type Run = { id: number; tool: string; text: string; busy: boolean; failed?: boolean };
 
 export default function AssistantApp(_props: NativeProps) {
   void _props;
@@ -36,9 +37,9 @@ export default function AssistantApp(_props: NativeProps) {
     const free = k === "free";
     try {
       const answer = await askAiAssistant(free ? ctx.trim() : t(`inst.${k}`), free ? undefined : ctx.trim());
-      setRuns((l) => l.map((r) => (r.id === id ? { ...r, text: answer || t("failed"), busy: false } : r)));
+      setRuns((l) => l.map((r) => (r.id === id ? { ...r, text: answer || t("failed"), busy: false, failed: !answer } : r)));
     } catch {
-      setRuns((l) => l.map((r) => (r.id === id ? { ...r, text: t("failed"), busy: false } : r)));
+      setRuns((l) => l.map((r) => (r.id === id ? { ...r, text: t("failed"), busy: false, failed: true } : r)));
     }
   }
   const sections: NavSection[] = [{ id: "t", title: os === "mac" ? d("tools") : undefined, items: TOOLS.map((k) => ({ id: k, label: t(`tools.${k}`), icon: <IconSparkle /> })) }];
@@ -75,6 +76,7 @@ export default function AssistantApp(_props: NativeProps) {
                   {r.busy ? <Spinner small label={t("thinking")} /> : <Btn kind="plain" small icon={<IconCopy />} title={d("copy")} onClick={() => void navigator.clipboard?.writeText(r.text).then(() => say(d("copied")))} />}
                 </header>
                 {r.busy ? <p className="dxa-wait">{t("thinking")}</p> : <p className="dxa-text">{r.text}</p>}
+                {r.busy || r.failed ? null : <AiLabel compact />}
               </article>
             ))
           )}

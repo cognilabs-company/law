@@ -71,13 +71,11 @@ function toLawyer(b: BackendLawyer): Lawyer {
 export default function LawyersSection({
   initialArea = "",
   showFlow = true,
-  standalone = false,
   compact = false,
   marketplace = false,
 }: {
   initialArea?: string;
   showFlow?: boolean;
-  standalone?: boolean;
   compact?: boolean;
   // Read the directory from /marketplace/lawyers instead of /lawyers, which
   // is the only list that carries the paid boost and the backend's own
@@ -274,7 +272,6 @@ export default function LawyersSection({
       options: [{ value: "", label: withN(t("filterAll"), areaN("")) }, ...AREA_KEYS.map((a) => ({ value: a, label: withN(te(`areas.${a}`), areaN(a)) }))],
     },
   ];
-  const stats = t.raw("stats") as { value: string; label: string }[];
 
   function card(l: Lawyer, isTop: boolean) {
     return (
@@ -412,17 +409,6 @@ export default function LawyersSection({
             ) : null}
           </div>
         )}
-
-        {standalone ? (
-          <div className="strip">
-            {stats.map((s, i) => (
-              <div className="strip__i" key={i}>
-                <b>{s.value}</b>
-                <span>{s.label}</span>
-              </div>
-            ))}
-          </div>
-        ) : null}
 
         <FilterBar className="lawfilters" fields={filterFields} count={ready ? list.length : undefined} />
 

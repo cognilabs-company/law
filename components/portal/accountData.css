@@ -1,0 +1,18 @@
+/* "Your data": a copy of it and deleting the account (AccountDataCard). */
+.accdata__lead { margin: -6px 0 14px; font-size: .86rem; color: var(--gray); }
+.accdata__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.accdata__i { display: grid; grid-template-columns: auto 1fr; align-items: start; gap: 4px 12px; min-width: 0; padding: 14px; border-radius: 14px; background: var(--dk-surface-2, #f5f8fd); }
+.accdata__ic { grid-row: span 3; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px; background: var(--dk-tint-blue, #eaf2ff); color: var(--dk-acc, var(--b600)); }
+.accdata__ic svg { width: 18px; height: 18px; }
+.accdata__i--del .accdata__ic { background: color-mix(in srgb, #dc2626 12%, transparent); color: var(--dk-txt-err, #b91c1c); }
+.accdata__i b { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: .95rem; color: var(--ink); }
+.accdata__i p { margin: 0; font-size: .82rem; line-height: 1.5; color: var(--gray); overflow-wrap: anywhere; }
+.accdata__soon { padding: 1px 8px; border-radius: 999px; font-size: .68rem; font-weight: 700; background: var(--dk-tint-warn, #fff4dc); color: var(--dk-txt-warn, #92400e); white-space: nowrap; }
+.accdata__acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.accdata__del { color: var(--dk-txt-err, #b91c1c); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, #dc2626 40%, transparent); }
+.accdata__del:hover { background: color-mix(in srgb, #dc2626 8%, transparent); }
+@media (max-width: 420px) {
+  .accdata__i { grid-template-columns: 1fr; }
+  .accdata__ic { grid-row: auto; }
+  .accdata__acts > * { flex: 1 1 100%; }
+}

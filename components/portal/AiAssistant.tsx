@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import AiLabel from "@/components/ui/AiLabel";
 import { askAiAssistant } from "@/lib/services/backend";
 import { IconSparkle, IconSend } from "@/components/icons";
 import ScrollCue from "@/components/ui/ScrollCue";
@@ -20,6 +21,7 @@ export default function AiAssistant() {
   const [busy, setBusy] = useState(false);
   const [answer, setAnswer] = useState("");
   const [active, setActive] = useState("");
+  const [failed, setFailed] = useState(false);
 
   const ready = ctx.trim().length >= 8;
 
@@ -28,12 +30,14 @@ export default function AiAssistant() {
     setBusy(true);
     setActive(tool);
     setAnswer("");
+    setFailed(false);
     const isFree = tool === "free";
     const prompt = isFree ? ctx.trim() : t(`inst.${tool}`);
     const context = isFree ? undefined : ctx.trim();
     try {
       setAnswer(await askAiAssistant(prompt, context));
     } catch {
+      setFailed(true);
       setAnswer(t("failed"));
     } finally {
       setBusy(false);
@@ -90,6 +94,7 @@ export default function AiAssistant() {
             <b>{active && active !== "free" ? t(`tools.${active}`) : t("answer")}</b>
           </div>
           <p className="asist__text">{answer}</p>
+          {failed ? null : <AiLabel />}
         </div>
       ) : null}
     </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import AiLabel from "@/components/ui/AiLabel";
 import { CheckIcon, ChevronDownIcon, CopyIcon, FileTextIcon, FilesIcon, RefreshCwIcon } from "lucide-react";
 import { fmtDateTime } from "@/lib/date";
 import { isAborted, parseServerTime } from "@/lib/http";
@@ -96,6 +97,7 @@ export default function CopilotDrafts({ entity, label, onReload }: { entity: Cop
                   </span>
                 </header>
                 {d.content ? <p className={`cpl-draft__body${isOpen ? " is-open" : ""}`}>{d.content}</p> : null}
+                {d.content ? <AiLabel compact /> : null}
                 <footer className="cpl-draft__f">
                   <button type="button" className="cpl-btn cpl-btn--ghost cpl-btn--sm" onClick={() => void copy(d)} disabled={!d.content} data-ai-id={`copilot.draft.${seg}.copy`}>
                     {copied === d.id && d.id ? <CheckIcon {...ICON} size={14} /> : <CopyIcon {...ICON} size={14} />}

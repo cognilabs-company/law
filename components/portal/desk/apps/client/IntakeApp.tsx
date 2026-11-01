@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import AiLabel from "@/components/ui/AiLabel";
 import { classifyProblem, getLegalCorpus, getMyMatches, sendAiFeedback, type AiClassification, type AiOffer, type LawyerMatch, type LegalSource } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
 import { humanizeSlug } from "@/lib/lawyers";
@@ -126,6 +127,7 @@ export default function IntakeApp({ openLink }: NativeProps) {
                   ) : null}
                 </dl>
                 {result.summary && !text.trim().startsWith(result.summary.trim().slice(0, 200)) ? <p className="dxcs-bio">{result.summary}</p> : null}
+                <AiLabel />
                 {!result.offers.length && result.recommendedService ? (
                   <Btn kind="primary" icon={<IconArrowRight />} onClick={() => go(`/portal/client/services?q=${encodeURIComponent(label("categories", result.recommendedService))}`)}>
                     {t("orderRecommended")}

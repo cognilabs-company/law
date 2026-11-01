@@ -4,6 +4,7 @@ import PlanGateCard from "@/components/ui/PlanGateCard";
 import { docAccessGate, planGateOf, type PlanGate } from "@/lib/planGate";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import AiLabel from "@/components/ui/AiLabel";
 import { useRouter } from "@/i18n/navigation";
 import {
   analyzeDocument,
@@ -256,6 +257,7 @@ export default function ClientDocAnalysis() {
               {res.pageCount ? <span className="creq__badge">{t("pagesN", { n: res.pageCount })}</span> : null}
             </div>
             <p className="doca__summary">{res.summary || t("noSummary")}</p>
+            <AiLabel />
           </div>
           {res.analysisText ? (
             <div className="ppanel">

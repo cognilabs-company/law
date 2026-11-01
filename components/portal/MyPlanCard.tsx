@@ -9,6 +9,7 @@ import { errDetail, isAborted, isRouteMissing, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
 import { getMyFeatures, getSubscriptionContract, giveRenewalConsent, type FeatureAccess, type MyFeatures, type SubscriptionContract } from "@/lib/services/subscriptionContract";
 import { updateSubscriptionAutoRenew } from "@/lib/services/backend";
+import { confirmDialog } from "@/components/ui/ConfirmDialog";
 
 // The subscriber's own plan: the terms fixed for this period (a later
 // tariff edit does not touch them), each feature's limit as the backend
@@ -19,7 +20,17 @@ import { updateSubscriptionAutoRenew } from "@/lib/services/backend";
 
 type State = { status: "loading" } | { status: "none" } | { status: "ready"; features: MyFeatures; contract: SubscriptionContract | null };
 
-export default function MyPlanCard(): ReactElement | null {
+// The renewal as the page knows it (/clients/me): autoRenew undefined = the
+// backend did not say. Cancelling is one button here, as easy as buying.
+export type PlanRenewal = { autoRenew?: boolean; renewsAt?: string };
+
+export default function MyPlanCard({
+  renewal = null,
+  onRenewalChange,
+}: {
+  renewal?: PlanRenewal | null;
+  onRenewalChange?: (on: boolean) => void;
+} = {}): ReactElement | null {
   const t = useTranslations("portal.myPlan");
   const ts = useTranslations("studio");
   const locale = useLocale();
@@ -74,6 +85,8 @@ export default function MyPlanCard(): ReactElement | null {
         .filter((k) => contract.prices[k] !== undefined && contract.prices[k] !== contract.next!.prices[k])
         .map((k) => ({ period: k, before: contract.prices[k], after: contract.next!.prices[k] }))
     : [];
+  // Renewal already off (the backend says so, or it was just turned off here).
+  const renewOff = renewal?.autoRenew === false || (stopped && renewal?.autoRenew !== true);
   const needsConsent = !!contract?.termsChanged && !(contract.consent?.accepted === true) && !consented && !stopped;
   // The current consent state from the contract: already agreed to the new terms.
   const agreed = !!contract?.termsChanged && contract.consent?.accepted === true && !consented;
@@ -86,12 +99,44 @@ export default function MyPlanCard(): ReactElement | null {
     try {
       await updateSubscriptionAutoRenew(contract.subscriptionId, { auto_renew: false });
       setStopped(true);
+      onRenewalChange?.(false);
       setNote({ ok: true, msg: t("stopDone") });
     } catch (e) {
       sending.current = false;
       logApiError("myPlan.stop", e);
       setNote({ ok: false, msg: errDetail(e) || t("stopFailed") });
     } finally {
+      setBusy(false);
+    }
+  }
+
+  // Cancel: renewal off after one confirmation in the app's dialog; the paid
+  // period stays. Uses the same PATCH as "Don't renew" and the auto-pay switch.
+  async function cancel() {
+    const subId = contract?.subscriptionId || features.subscriptionId;
+    if (!subId || busy || sending.current) return;
+    const until = renewal?.renewsAt ? dateOnly(renewal.renewsAt, locale) : "";
+    const ok = await confirmDialog({
+      title: t("cancel.title"),
+      text: until ? t("cancel.textUntil", { date: until }) : t("cancel.text"),
+      confirmLabel: t("cancel.confirm"),
+      cancelLabel: t("cancel.keep"),
+      tone: "danger",
+    });
+    if (!ok || sending.current) return;
+    sending.current = true;
+    setBusy(true);
+    setNote(null);
+    try {
+      await updateSubscriptionAutoRenew(subId, { auto_renew: false });
+      setStopped(true);
+      onRenewalChange?.(false);
+      setNote({ ok: true, msg: until ? t("cancel.doneUntil", { date: until }) : t("cancel.done") });
+    } catch (e) {
+      logApiError("myPlan.cancel", e);
+      setNote({ ok: false, msg: errDetail(e) || t("cancel.failed") });
+    } finally {
+      sending.current = false;
       setBusy(false);
     }
   }
@@ -169,6 +214,25 @@ export default function MyPlanCard(): ReactElement | null {
         </p>
       ) : null}
       {note ? <Notice ok={note.ok} msg={note.msg} /> : null}
+      <div className={`myplan__renew${renewOff ? " is-off" : ""}`} data-ai-id="subscription.my-plan.renewal" data-ai-type="section">
+        <span>
+          <b>{renewOff ? t("renew.off") : renewal?.autoRenew ? t("renew.on") : t("renew.title")}</b>
+          <small>
+            {renewOff
+              ? renewal?.renewsAt
+                ? t("renew.endsOn", { date: dateOnly(renewal.renewsAt, locale) })
+                : t("renew.ends")
+              : renewal?.renewsAt
+                ? t("renew.nextOn", { date: dateOnly(renewal.renewsAt, locale) })
+                : t("renew.next")}
+          </small>
+        </span>
+        {renewOff ? null : (
+          <button type="button" className="btn btn--line btn--sm myplan__cancel" onClick={() => void cancel()} disabled={busy} data-ai-id="subscription.my-plan.cancel">
+            {t("cancel.button")}
+          </button>
+        )}
+      </div>
       {features.items.length ? (
         <ul className="myplan__list">
           {features.items.map((f) => {

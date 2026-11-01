@@ -54,4 +54,6 @@ export const LEGAL_FALLBACK_ITEMS = [
   { slug: "terms", title: "", version: "", body: "" },
   { slug: "privacy", title: "", version: "", body: "" },
   { slug: "legal_disclaimer", title: "", version: "", body: "" },
+  // LexGo is for adults only: the age confirmation is never left out.
+  { slug: "age_18", title: "", version: "", body: "" },
 ];

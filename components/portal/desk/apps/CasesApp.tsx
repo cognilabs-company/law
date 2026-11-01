@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import AiLabel from "@/components/ui/AiLabel";
 import { getLawyerClients, getMyCases, getOrderStatusHistory, runCaseAiTool, updateCase, updateOrderStatus, type BackendCase, type CaseAiTool, type OrderStatusEntry } from "@/lib/services/backend";
 import { nextStatusesFor, useOrderStatusLabel } from "@/lib/orderStatus";
 import { dateOnly, dateTimeFull } from "@/lib/date";
@@ -328,6 +329,7 @@ function AiTools({ caseId }: { caseId: string }) {
       {text ? (
         <>
           <TextArea value={text} onChange={setText} rows={8} ariaLabel={t(`tools.${tool}`)} />
+          <AiLabel compact />
           <p className="dxs-muted">{t("editHint")}</p>
           <div>
             <Btn icon={<IconCheck />} onClick={approve}>

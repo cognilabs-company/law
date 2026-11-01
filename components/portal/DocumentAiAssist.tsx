@@ -104,6 +104,7 @@ export default function DocumentAiAssist({
         initialReq={result}
         fields={[]}
         sourceFile={sourceFile}
+        aiGenerated
         onStartNew={() => {
           setStep("need");
           setResult(null);

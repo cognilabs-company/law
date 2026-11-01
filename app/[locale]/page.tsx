@@ -1,14 +1,11 @@
 import { setRequestLocale } from "next-intl/server";
 import Hero from "@/components/sections/Hero";
-import Stats from "@/components/sections/Stats";
 import ProblemSection from "@/components/sections/ProblemSection";
 import AiSection from "@/components/sections/AiSection";
 import StagesSection from "@/components/sections/StagesSection";
 import ServicesSection from "@/components/sections/ServicesSection";
 import BenefitsSection from "@/components/sections/BenefitsSection";
 import LawyersSection from "@/components/sections/LawyersSection";
-import Ticker from "@/components/sections/Ticker";
-import SocialProofSection from "@/components/sections/SocialProofSection";
 import WarrantySection from "@/components/sections/WarrantySection";
 import SubscriptionSection from "@/components/sections/SubscriptionSection";
 import FaqSection from "@/components/sections/FaqSection";
@@ -26,7 +23,6 @@ export default async function HomePage({
     <>
       {/* Attention */}
       <Hero />
-      <Stats />
       {/* Problem / Need */}
       <ProblemSection />
       {/* Solution */}
@@ -36,9 +32,10 @@ export default async function HomePage({
       {/* Benefits */}
       <BenefitsSection />
       {/* Trust / Social proof */}
+      {/* Only real data here: the lawyers come from the backend. The counters,
+          the "live activity" ticker and the quotes that used to sit around
+          them were made up, so they are gone until real figures exist. */}
       <LawyersSection />
-      <Ticker />
-      <SocialProofSection />
       <WarrantySection />
       {/* Offer */}
       <SubscriptionSection />

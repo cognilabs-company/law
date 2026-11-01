@@ -37,6 +37,7 @@ import IdentityVerify from "@/components/portal/IdentityVerify";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
 import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
 import AccountAudit from "@/components/portal/AccountAudit";
+import AccountDataCard from "@/components/portal/AccountDataCard";
 import { readVacation, writeVacation } from "@/components/portal/SellerMetrics";
 import { EmptyState, Skeleton } from "@/components/portal/DataState";
 import Tabs, { type TabItem } from "@/components/ui/Tabs";
@@ -66,7 +67,7 @@ const TAB_REVEAL: Record<SellerTab, RegExp> = {
   personal: /^(seller:profile-edit|button:request-verification|profile[.:](identity|verification))/,
   professional: /^profile[.:](professional|practice-areas|work-history|services)/,
   work: /^profile[.:](pricing|work-hours)/,
-  security: /^profile[.:](two-factor|telegram|sessions|security-events|account-audit)/,
+  security: /^profile[.:](two-factor|telegram|sessions|security-events|account-audit|account-data)/,
   notifications: /^profile[.:]notification-prefs/,
 };
 
@@ -544,6 +545,7 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
           <TelegramLinkCard />
         </div>
         <AccountAudit />
+        <AccountDataCard supportHref={`/portal/${session?.role === "advocate" ? "advocate" : "lawyer"}/support`} />
       </div>
     ),
     notifications: <NotificationPrefsCard />,

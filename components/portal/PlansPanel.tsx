@@ -64,6 +64,7 @@ import { dateOnly } from "@/lib/date";
 // helpers stayed here because they are this PAGE's rules, not the card's.
 import PlanCard, { FEATURED_CTA } from "./PlanCard";
 import MyPlanCard from "./MyPlanCard";
+import { PlanCheckoutReview } from "./PlanPurchaseTerms";
 import { useSameTickGuard } from "@/lib/useSameTickGuard";
 import { goToPaymentPage } from "@/lib/services/paymentProviders";
 
@@ -181,6 +182,10 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   const [intent, setIntent] = useState<PaymentIntent | null>(null);
   // Set when a purchase falls through to the Telegram approval flow.
   const [tgPlan, setTgPlan] = useState<{ plan: BackendPlan; period: ManualDocBillingPeriod } | null>(null);
+  // "Choose" first opens the terms (amount now, renewal and its price, the
+  // refund rules); only "Pay" there starts the purchase.
+  const [review, setReview] = useState<{ plan: BackendPlan; total: number; listed: number; period: string } | null>(null);
+  const [renew, setRenew] = useState(false);
 
   // Lifted out of AutopayCard so the plan grid can mark the user's own active
   // plan (not just the autopay summary row) — AutopayCard receives it as a prop.
@@ -290,14 +295,28 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
     return () => window.removeEventListener("pageshow", onShow);
   }, []);
 
-  async function choose(plan: BackendPlan, total: number, period: string) {
+  // Renewal starts unticked unless the subscriber already turned auto-pay on.
+  function openReview(plan: BackendPlan, total: number, period: string, listed = total) {
+    if (busy) return;
+    setRenew(autopay?.enabled ?? false);
+    setReview({ plan, total, listed, period });
+  }
+
+  async function choose(plan: BackendPlan, total: number, period: string, autoRenew: boolean) {
     if (busy || !once()) return;
     setBusy(plan.id);
     setIntent(null);
     let leaving = false; // stay busy while the browser opens the checkout
     try {
+      // The renewal choice made on the terms: sent with an ATMOS purchase;
+      // otherwise saved the way the auto-pay switch saves it (on the current
+      // subscription, or kept until there is one), when it changed.
+      if (!isAtmosCheckout() && uid && autoRenew !== (autopay?.enabled ?? false)) {
+        const source = await saveAutopay(uid, autoRenew, autopay?.subscription?.id);
+        setAutopay((s) => (s ? { ...s, enabled: autoRenew, source } : s));
+      }
       if (isAtmosCheckout()) {
-        const r = await purchasePlan(plan.id, { billing_period: period });
+        const r = await purchasePlan(plan.id, { billing_period: period, auto_renew: autoRenew });
         if (r.paymentUrl) {
           leaving = true;
           notify.info(t("payRedirect"), { id: "plans-buy" });
@@ -337,6 +356,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
       notify.error(t("purchaseError"), { id: "plans-buy", error: e });
     } finally {
       if (!leaving) setBusy(null);
+      setReview(null);
     }
   }
 
@@ -346,7 +366,18 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
   return (
     <div className="subs">
       {intent ? <div className="ppanel" style={{ marginBottom: 16 }}><CheckoutIntent intent={intent} onCancel={() => setIntent(null)} /></div> : null}
-      <MyPlanCard />
+      <MyPlanCard
+        renewal={autopay?.subscription ? { autoRenew: autopay.source === "backend" ? autopay.enabled : autopay.subscription.autoRenew, renewsAt: autopay.subscription.renewsAt } : null}
+        onRenewalChange={(on) => setAutopay((s) => (s ? { ...s, enabled: on, source: "backend" } : s))}
+      />
+      <PlanCheckoutReview
+        purchase={review ? { planName: planName(review.plan), period: review.period, total: review.total, listed: review.listed } : null}
+        autoRenew={renew}
+        onAutoRenew={setRenew}
+        busy={!!busy}
+        onConfirm={() => review && void choose(review.plan, review.total, review.period, renew)}
+        onClose={() => setReview(null)}
+      />
 
       <TelegramPlanRequest
         target={tgPlan}
@@ -442,7 +473,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                           variant: featured ? "featured" : "line",
                           icon: featured ? <IconCrown aria-hidden /> : undefined,
                           disabled: busy === plan.id,
-                          onClick: () => choose(plan, pr.total, billingPeriod(aiTerm, aiUpfront)),
+                          onClick: () => openReview(plan, pr.total, billingPeriod(aiTerm, aiUpfront), quote ? quote.baseAmount : pr.total),
                         }
                 }
               />
@@ -602,7 +633,7 @@ export default function PlansPanel({ variant = "all" }: { variant?: Variant }) {
                       data-ai-entity-id={plan.id}
                       data-ai-entity-slug={plan.slug}
                       disabled={busy === plan.id}
-                      onClick={() => choose(plan, pr.total, billingPeriod(term, upfront))}
+                      onClick={() => openReview(plan, pr.total, billingPeriod(term, upfront))}
                     >
                       {featured ? <IconCrown aria-hidden /> : null}
                       {busy === plan.id ? t("processing") : t("choose")}

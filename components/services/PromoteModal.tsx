@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { cheapestPerDay } from "@/lib/planCheckout";
 import { errDetail } from "@/lib/http";
 import Modal from "@/components/admin/Modal";
 import SearchSelect from "@/components/SearchSelect";
@@ -205,7 +206,9 @@ export default function PromoteModal({
   };
 
   const items = packs.status === "ready" ? packs.items : [];
-  const feat = items.length >= 3 ? items[1].id : items.length ? items[items.length - 1].id : "";
+  // Marked (and picked first) only when the backend's own prices make it the
+  // lowest per day — never a middle card by position.
+  const feat = cheapestPerDay(items);
   const chosen = items.find((p) => p.id === picked) ?? items.find((p) => p.id === feat) ?? null;
 
   const errLine = (e: ServiceError) => {

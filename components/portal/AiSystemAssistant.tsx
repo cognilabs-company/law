@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ComponentType, type ReactNode, type SVGProps } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import AiLabel from "@/components/ui/AiLabel";
 import { Link, usePathname } from "@/i18n/navigation";
 import { aiAssistantAsk, aiFeedback, type AiAnswer } from "@/lib/services/backend";
 import { aiPageIdFor, aiRouteFor, type AiRole } from "@/lib/aiPages";
@@ -1057,6 +1058,7 @@ export default function AiSystemAssistant({
                   <div className={`ains__ai ains__ai--guide${intent ? ` ains__ai--${intent}` : ""}`} key={m.id} data-intent={intent || undefined}>
                     <AiWho label={tp("aiLabel")} />
                     <p className="ains__text">{m.text || t("done")}</p>
+                    {m.text ? <AiLabel compact /> : null}
                     {stepTexts.length ? (
                       <StepList
                         id={`ains-steps-${m.id}`}
@@ -1106,6 +1108,7 @@ export default function AiSystemAssistant({
                   <div className="ains__ai ains__ai--guide" key={m.id}>
                     <AiWho label={tp("aiLabel")} />
                     <p className="ains__text">{m.text || t("done")}</p>
+                    {m.text ? <AiLabel compact /> : null}
                     {checklist.length ? <StepList id={`ains-steps-${m.id}`} title={t("stepsTitle")} steps={checklist} /> : null}
                     {needs.length && !card ? <NeedList id={`ains-needs-${m.id}`} title={t("needsTitle")} items={needs} /> : null}
                     {tour || (m.support && !card) ? (
@@ -1134,6 +1137,7 @@ export default function AiSystemAssistant({
                   <AiWho label={tp("aiLabel")} />
                   {a.highlight ? <p className="ains__hl">{a.highlight}</p> : null}
                   <p className="ains__text">{a.answer}</p>
+                  {a.answer ? <AiLabel compact /> : null}
                   {m.tour ? (
                     <div className="ains__acts">
                       <button type="button" className="btn btn--pri btn--sm" onClick={() => m.tour && runTour({ ...m.tour, id: newTourId() })}>
