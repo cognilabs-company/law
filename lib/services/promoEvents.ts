@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { http } from "@/lib/http";
+import { hasConsent } from "@/lib/consent";
 
 export type PromoEventType = "impression" | "search_appearance" | "profile_click" | "contact_request";
 
@@ -26,8 +27,13 @@ function randomId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+// The session id and the click memory are ad measurement (Cookie policy 2.4):
+// written to the tab's storage only with marketing consent. Without it they
+// live in memory for this page alone, so counts still dedupe but nothing is
+// left on the device.
 export function promoSessionKey(): string {
   if (memorySession) return memorySession;
+  if (!hasConsent("marketing")) return (memorySession = randomId());
   try {
     const stored = window.sessionStorage.getItem(SESSION_KEY);
     if (stored) {
@@ -104,7 +110,10 @@ export function trackPromoEvent(promotionId: string, type: PromoEventType, sourc
 
 type Attribution = Record<string, { promotionId: string; source: string; at: number }>;
 
+let memoryAttribution: Attribution = {};
+
 function readAttribution(): Attribution {
+  if (!hasConsent("marketing")) return memoryAttribution;
   try {
     return JSON.parse(window.sessionStorage.getItem(ATTRIBUTION_KEY) || "{}") as Attribution;
   } catch {
@@ -117,7 +126,8 @@ export function rememberPromoClick(sellerUserId: string, promotionId: string, so
   try {
     const all = readAttribution();
     all[sellerUserId] = { promotionId, source, at: Date.now() };
-    window.sessionStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(all));
+    if (!hasConsent("marketing")) memoryAttribution = all;
+    else window.sessionStorage.setItem(ATTRIBUTION_KEY, JSON.stringify(all));
   } catch {
     return;
   }

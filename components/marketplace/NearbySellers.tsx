@@ -45,6 +45,7 @@ import NavigateDialog, { type RouteTarget } from "./map/NavigateDialog";
 import PlaceSearch from "./map/PlaceSearch";
 import SellerRow from "./map/SellerRow";
 import SellersYandexMap, { MapPlaceholder, type Viewport } from "./map/SellersYandexMap";
+import MapConsentGate from "./map/MapConsentGate";
 import { useMapRealtime } from "./map/useMapRealtime";
 import "./nearbySellers.css";
 import "./map/marketMap.css";
@@ -643,26 +644,28 @@ export default function NearbySellers({
   else if (shownView === "map") {
     body = (
       <>
-        <SellersYandexMap
-          config={cfg}
-          spot={here?.point ?? null}
-          center={center}
-          filters={filters}
-          refresh={refresh}
-          live={live}
-          picking={manual}
-          pickPoint={pickPoint}
-          onPick={setPickPoint}
-          base={base}
-          known={known}
-          locating={geo.busy}
-          onLocate={locate}
-          onFail={() => setBroken(true)}
-          onShowAll={onShowAll}
-          onViewport={setViewport}
-          onNavigate={openRoute}
-          hideList={!!results}
-        />
+        <MapConsentGate onList={() => setView("list")}>
+          <SellersYandexMap
+            config={cfg}
+            spot={here?.point ?? null}
+            center={center}
+            filters={filters}
+            refresh={refresh}
+            live={live}
+            picking={manual}
+            pickPoint={pickPoint}
+            onPick={setPickPoint}
+            base={base}
+            known={known}
+            locating={geo.busy}
+            onLocate={locate}
+            onFail={() => setBroken(true)}
+            onShowAll={onShowAll}
+            onViewport={setViewport}
+            onNavigate={openRoute}
+            hideList={!!results}
+          />
+        </MapConsentGate>
         {results}
       </>
     );

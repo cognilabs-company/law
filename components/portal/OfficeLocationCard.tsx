@@ -27,6 +27,7 @@ import {
 import { getMapConfig, offlineMapConfig, type MapConfig } from "@/lib/services/sellersMap";
 import PlaceSearch from "@/components/marketplace/map/PlaceSearch";
 import PointPickerMap from "@/components/marketplace/map/PointPickerMap";
+import MapConsentGate from "@/components/marketplace/map/MapConsentGate";
 import "@/components/marketplace/map/marketMap.css";
 
 type Draft = { point: Point | null; address: string; auto: boolean; publicNavigation: boolean };
@@ -288,17 +289,19 @@ export default function OfficeLocationCard() {
           <div className="mmo__pick">
             <PlaceSearch url={cfg.geocoderSearchUrl} off={!cfg.geocoderOn} mapOn={mapOn} label={t("searchLabel")} placeholder={t("searchPlaceholder")} onSelect={choosePlace} aiId="profile.office.place" />
             {mapOn ? (
-              <PointPickerMap
-                config={cfg}
-                point={draft.point}
-                onPick={placePoint}
-                onFail={() => setBroken(true)}
-                label={t("mapLabel")}
-                hint={draft.point ? t("mapMoved") : t("mapHint")}
-                pinLabel={t("pin")}
-                zoomInLabel={tx("zoomIn")}
-                zoomOutLabel={tx("zoomOut")}
-              />
+              <MapConsentGate compact>
+                <PointPickerMap
+                  config={cfg}
+                  point={draft.point}
+                  onPick={placePoint}
+                  onFail={() => setBroken(true)}
+                  label={t("mapLabel")}
+                  hint={draft.point ? t("mapMoved") : t("mapHint")}
+                  pinLabel={t("pin")}
+                  zoomInLabel={tx("zoomIn")}
+                  zoomOutLabel={tx("zoomOut")}
+                />
+              </MapConsentGate>
             ) : (
               <p className="mmoff" role="status">
                 {broken ? t("mapFailed") : t("mapOff")}

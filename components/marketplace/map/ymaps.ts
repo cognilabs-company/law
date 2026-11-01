@@ -2,12 +2,15 @@
 
 import { useSyncExternalStore } from "react";
 import { bboxOfBounds, clampZoom, lngLatOf, type LngLat, type MapBbox, type MapConfig } from "@/lib/services/sellersMap";
+import { hasConsent, subscribeConsent } from "@/lib/consent";
 
 // The Yandex map behind both map components (the seller map, the point
 // picker). The script comes only from the config's maps_loader_url and is
 // drawn by the renderer for its api_version (§7.1: JS API 2.1). The
 // components see only MapHandle, never the Yandex objects. The loader URL
 // carries the key: it is never logged and never part of an error.
+// Yandex sets its own cookies, so the script is loaded only with the
+// visitor's "functional" cookie consent (lib/consent.ts, MapConsentGate).
 
 // ── The parts of the JS API 2.1 used here ───────────────────────────────
 type YEvent = { get: (key: string) => unknown };
@@ -125,7 +128,26 @@ export function mapSupported(config: MapConfig): boolean {
   return config.usable && config.engine === "2.1";
 }
 
+// Consent turned off: the script and its global go, so nothing of Yandex
+// keeps running in the page (the gate has already taken the maps down).
+function unloadYmaps(): void {
+  document.querySelectorAll('script[data-lexgo-map="yandex"]').forEach((el) => el.remove());
+  try {
+    delete (window as unknown as { ymaps?: unknown }).ymaps;
+  } catch {
+    /* a non-configurable global: it stays unused */
+  }
+  pending = null;
+}
+
+if (typeof window !== "undefined") {
+  subscribeConsent(() => {
+    if (!hasConsent("functional") && (pending || globalYmaps())) unloadYmaps();
+  });
+}
+
 export function openYandexMap(config: MapConfig, box: HTMLElement, view: MapView): Promise<MapHandle> {
+  if (!hasConsent("functional")) return Promise.reject(new Error("ymaps_consent"));
   if (!mapSupported(config)) return Promise.reject(new Error("ymaps_unsupported"));
   return loadYmaps21(config.loaderUrl).then((y) => build21(y, box, view));
 }

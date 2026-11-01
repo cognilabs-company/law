@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { IconLogo, IconLogoText } from "./icons";
+import CookieSettingsButton from "./legal/CookieSettingsButton";
 
 export default function Footer() {
   const t = useTranslations("footer");
@@ -101,6 +102,12 @@ export default function Footer() {
             <Link href="/legal/privacy">{t("privacy")}</Link>
             <Link href="/legal/disclaimer">{t("disclaimer")}</Link>
             <Link href="/legal/account-deletion">{t("accountDeletion")}</Link>
+            {/* The backend's refund rules (slug payment_refund_warranty) and Cookie policy. */}
+            <Link href="/legal/payment-refund-warranty">{t("refund")}</Link>
+            <Link href="/legal/cookie">{t("cookiePolicy")}</Link>
+            <CookieSettingsButton className="ftr__lnkbtn" aiId="footer.cookie-settings">
+              {t("cookieSettings")}
+            </CookieSettingsButton>
           </nav>
         </div>
       </div>

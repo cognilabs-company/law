@@ -1,6 +1,9 @@
 // Visit attribution for CRM leads (T1A-05 / S-47): first-touch UTM tags,
 // landing page, referrer and device are remembered for 90 days and attached to
-// every lead the browser creates. Best effort — storage may be blocked.
+// every lead the browser creates. Best effort — storage may be blocked. Kept
+// only with marketing consent (Cookie policy 2.4, "UTM and source").
+import { hasConsent } from "./consent";
+
 const KEY = "lexgo_attr";
 const TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const UTM = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"] as const;
@@ -27,11 +30,20 @@ function read(): (Attribution & { at: number }) | null {
   }
 }
 
+// The page the visit started on, read when the page opens: consent may come
+// later, after the visitor has moved on.
+export type Landing = { pathname: string; search: string; referrer: string };
+
+export function currentLanding(): Landing {
+  return { pathname: window.location.pathname, search: window.location.search, referrer: document.referrer || "" };
+}
+
 // Remember the first visit's tags; a later visit with UTM tags replaces an
 // untagged record (a campaign click beats a stray direct visit).
-export function captureAttribution(): void {
-  if (typeof window === "undefined") return;
-  const q = new URLSearchParams(window.location.search);
+export function captureAttribution(landing?: Landing): void {
+  if (typeof window === "undefined" || !hasConsent("marketing")) return;
+  const at = landing ?? currentLanding();
+  const q = new URLSearchParams(at.search);
   const tags: Partial<Attribution> = {};
   for (const k of UTM) { const v = (q.get(k) || "").trim().slice(0, 100); if (v) tags[k] = v; }
   const cur = read();
@@ -39,8 +51,8 @@ export function captureAttribution(): void {
   if (fresh && (cur.utm_source || !Object.keys(tags).length)) return;
   const rec: Attribution & { at: number } = {
     ...tags,
-    landing_page: window.location.pathname + window.location.search,
-    referrer: (document.referrer || "").slice(0, 200),
+    landing_page: at.pathname + at.search,
+    referrer: at.referrer.slice(0, 200),
     device: /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent) ? "mobile" : "desktop",
     first_seen: new Date().toISOString(),
     at: Date.now(),

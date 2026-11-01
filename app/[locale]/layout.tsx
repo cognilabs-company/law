@@ -15,6 +15,7 @@ import IncomingCallWatcher from "@/components/portal/IncomingCallWatcher";
 import PaymentReturnWatcher from "@/components/portal/PaymentReturnWatcher";
 import RemoteAssistHost from "@/components/remoteAssist/RemoteAssistHost";
 import ConsentGate from "@/components/legal/ConsentGate";
+import CookieConsent from "@/components/legal/CookieConsent";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import MobileTabBar from "@/components/MobileTabBar";
@@ -102,6 +103,8 @@ export default async function LocaleLayout({ children, params }: Props) {
         <IntlProvider>
           <ThemeSync />
           <ChromeGate>
+            {/* First in the page, so the cookie choice is the first stop for the keyboard. */}
+            <CookieConsent />
             <VersionWatch labels={{ newVersion: tCommon("newVersion"), reload: tCommon("reload") }} />
             <ReferralCapture />
           </ChromeGate>

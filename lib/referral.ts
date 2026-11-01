@@ -1,5 +1,8 @@
+import { hasConsent } from "./consent";
+
 // Referral attribution (T1A-08): the first ?ref= code a visitor arrives with is
 // kept for 90 days (first touch) and sent as referral_code at registration.
+// Kept only with marketing consent (Cookie policy 2.4, "Referral").
 const KEY = "lexgo_ref";
 const TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const VALID = /^[A-Za-z0-9_-]{3,32}$/;
@@ -19,7 +22,7 @@ function read(): Stored | null {
 
 // Remember the code from the current URL unless an unexpired one exists.
 export function captureReferral(search: string): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !hasConsent("marketing")) return;
   const code = (new URLSearchParams(search).get("ref") || "").trim();
   if (!VALID.test(code)) return;
   const cur = read();

@@ -30,7 +30,19 @@ const BACKGROUND: Routes = {
   "POST /studio/activity/heartbeat": {},
 };
 
-export async function mockBackend(page: Page, routes: Routes): Promise<Mock> {
+// Every spec runs as a visitor who has already accepted all cookies, so the
+// cookie banner (components/legal/CookieConsent.tsx) stays out of the way and
+// the maps load as before. A spec about the banner itself passes
+// { cookieChoice: false } to start with no choice made. A choice the page
+// saves during the test is kept across its reloads.
+export async function mockBackend(page: Page, routes: Routes, opts: { cookieChoice?: boolean } = {}): Promise<Mock> {
+  if (opts.cookieChoice !== false) {
+    await page.addInitScript(() => {
+      if (!localStorage.getItem("lexgo_cookie_consent")) {
+        localStorage.setItem("lexgo_cookie_consent", JSON.stringify({ v: 1, at: Date.now(), choices: { functional: true, analytics: true, marketing: true } }));
+      }
+    });
+  }
   const mock: Mock = {
     calls: [],
     refused: [],
