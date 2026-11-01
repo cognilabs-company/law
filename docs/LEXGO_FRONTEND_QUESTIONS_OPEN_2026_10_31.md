@@ -72,3 +72,7 @@ The four findings from 2026-11-01 (backend e0e60ee) are answered by the final co
 | L4 | Footer Terms / Disclaimer opened "not found" | Resolved: `terms` → `user_offer`, `disclaimer` / `legal_disclaimer` → `platform_rules` (`aliases`, `/legal/consents/by-slug/{slug}`) | `/legal/terms` and `/legal/disclaimer` open the canonical documents (via the list's `aliases`, else by-slug) |
 
 Content still to come from the backend/legal team (no frontend work needed; it appears automatically when published): reviewed English translations of the 10 documents other than the Privacy Policy, and the Russian remote-assistance consent.
+
+**Still open for the backend (Studio K07, 2026-11-01).**
+- K1: The Studio K07 legal-document editor now has Uzbek / Russian / English tabs and sends `title_i18n.en` / `body_i18n.en` (with `uz_latn` or `uz_cyrl` and `ru`) in one submit. The K07 constructor schema we could see lists only `uz_latn`, `uz_cyrl` and `ru` under `title_i18n` / `body_i18n`. Please add `en` to the K07 schema and publish it into the legal document. Until then, Studio may drop the English text; `/admin/legal` saves it through `POST`/`PATCH /admin/legal/consents`.
+- K2: Please confirm that Studio validate, submit and publish return `legal_uz_translation_required` / `legal_translation_pair_required` in the contract's `detail` shape. The editor handles that shape and an `errors` list.

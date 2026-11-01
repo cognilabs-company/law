@@ -180,6 +180,8 @@ test("a new version of a document: languages left out will be removed, the backe
 });
 
 test("the three tabs fit a 360px phone in every language, names whole", async ({ page }) => {
+  // Three locales, each compiled on its first visit in dev.
+  test.setTimeout(240_000);
   await page.setViewportSize({ width: 360, height: 800 });
   await mockBackend(page, await signIn(page, ADMIN, routes() as never));
   for (const [locale, name] of [["ru", "Текст документа"], ["uz", "Hujjat matni"], ["en", "Document text"]] as const) {
