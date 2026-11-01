@@ -4,19 +4,20 @@ import "../../sx-core.css";
 import "../../sx-form.css";
 import "../sx-schema.css";
 import "./sx-legal.css";
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactElement } from "react";
 import { useTranslations } from "next-intl";
 import { aiId as makeAiId } from "@/lib/ai/ids";
 import { logApiError } from "@/lib/http";
 import { SxButton } from "../../Button";
 import { Field } from "../../form/Field";
 import { TextInput } from "../../form/TextInput";
-import { ChevronDownIcon, PlusIcon, RefreshCwIcon, glyph } from "../../icons";
+import { CheckIcon, ChevronDownIcon, PlusIcon, RefreshCwIcon, XIcon, glyph } from "../../icons";
+import { SxNote } from "../../layout/Note";
 import { SxSegmented } from "../../shared/Segmented";
 import type { SxValues } from "../../contract";
 import { RichText, RichTextView } from "../RichText";
 import { isTranslitOff, transliterate, transliterateAvail, type TranslitAvail } from "./api";
-import { EMPTY_SNAP, applyGenerated, blankHtml, directionOf, editedParts, otherScript, scriptOf, textEmpty, textOf, type GenSnap, type LegalLang, type LegalText, type UzScript } from "./model";
+import { EMPTY_SNAP, LANG_TABS, applyGenerated, directionOf, editedParts, langState, omissionOf, otherScript, scriptOf, stateOf, textEmpty, textOf, type GenSnap, type LangState, type LangTab, type LegalLang, type LegalText, type TrailLang, type UzScript } from "./model";
 import { AudienceNote } from "../AudienceNote";
 
 export type LegalBlockProps = {
@@ -71,7 +72,7 @@ function PartEditors({ id, ai, lang, text, readOnly, errorAt, emit, touch, requi
               invalid={!!titleErr}
               placeholder={t(`sx.k07.ph.title.${lang}`)}
               aiId={makeAiId(ai, lang, "title")}
-              aiLabel={`${t("sx.k07.part.title")} · ${t(`sx.k07.script.${lang === "ru" ? "ru" : lang}`)}`}
+              aiLabel={`${t("sx.k07.part.title")} · ${t(`sx.k07.script.${lang}`)}`}
             />
           )}
         </Field>
@@ -100,7 +101,11 @@ function PartEditors({ id, ai, lang, text, readOnly, errorAt, emit, touch, requi
   );
 }
 
-export function LegalUzBlock({ id, ai, label, help, required, readOnly, root, emit, errorAt, touch }: LegalBlockProps): ReactElement {
+type PanelProps = Pick<LegalBlockProps, "id" | "ai" | "readOnly" | "root" | "emit" | "errorAt" | "touch">;
+
+// The Uzbek tab: the script the author writes in, and the other script
+// prepared from it through the transliterate endpoint and kept editable.
+function UzPanel({ id, ai, readOnly, root, emit, errorAt, touch }: PanelProps): ReactElement {
   const t = useTranslations("studio");
   const source = scriptOf(root.source_script);
   const target = otherScript(source);
@@ -195,20 +200,8 @@ export function LegalUzBlock({ id, ai, label, help, required, readOnly, root, em
   ];
 
   return (
-    <fieldset className="sx-field sx-lg" data-as="fieldset" data-span={2} data-ro={readOnly ? "" : undefined} aria-describedby={help ? `${id}-help` : undefined} data-ai-id={ai} data-ai-type="section" data-ai-label={label}>
-      <legend className="sx-field__label sx-field__legend" id={`${id}-label`}>
-        {label}
-        {required && !readOnly ? (
-          <span className="sx-field__req" aria-hidden="true">
-            *
-          </span>
-        ) : null}
-      </legend>
-      {help ? (
-        <p className="sx-field__help sx-lg__lead" id={`${id}-help`}>
-          {off && !readOnly ? t("sx.k07.uz.helpOff") : help}
-        </p>
-      ) : null}
+    <>
+      {readOnly ? null : <p className="sx-field__help sx-lg__lead">{t(off ? "sx.k07.uz.helpOff" : "sx.k07.uz.help")}</p>}
       <div className="sx-lg__switch">
         <span className="sx-lg__switchlabel" id={`${id}-script`}>
           {t("sx.k07.script.label")}
@@ -264,34 +257,149 @@ export function LegalUzBlock({ id, ai, label, help, required, readOnly, root, em
         </div>
         {gen.note ? <span className="sx-vh" aria-live="polite">{gen.note}</span> : null}
       </section>
-    </fieldset>
+    </>
   );
 }
 
-export function LegalRuBlock({ id, ai, label, help, readOnly, root, emit, errorAt, touch }: LegalBlockProps): ReactElement {
+// The Russian or English tab: optional, but a title without its text (or
+// the other way round) is never sent. Left empty, the language is simply
+// not part of this version.
+function TrailPanel({ id, ai, lang, readOnly, root, emit, errorAt, touch }: PanelProps & { lang: TrailLang }): ReactElement {
   const t = useTranslations("studio");
-  const text = textOf(root, "ru");
+  const text = textOf(root, lang);
+  const state = stateOf(text);
   const [opened, setOpened] = useState(false);
-  const hasErr = !!errorAt("title_i18n.ru") || !!errorAt("body_i18n.ru");
-  const filled = !!text.title.trim() || !blankHtml(text.body);
-  const shown = readOnly || opened || filled || hasErr;
+  const hasErr = !!errorAt(`title_i18n.${lang}`) || !!errorAt(`body_i18n.${lang}`);
+  const shown = opened || state !== "empty" || hasErr;
+  const name = t(`sx.k07.lang.${lang}`);
+  if (readOnly) {
+    return state === "empty" ? <p className="sx-lg__none">{t("sx.k07.trailNone", { lang: name })}</p> : <PartEditors id={id} ai={ai} lang={lang} text={text} readOnly errorAt={errorAt} emit={emit} touch={touch} required={false} />;
+  }
+  const clear = () => {
+    if (text.title) emit(`title_i18n.${lang}`, "");
+    if (text.body) emit(`body_i18n.${lang}`, "");
+    setOpened(false);
+  };
   return (
-    <fieldset className="sx-field sx-lg" data-as="fieldset" data-span={2} aria-describedby={help ? `${id}-help` : undefined} data-ai-id={ai} data-ai-type="section" data-ai-label={label}>
+    <>
+      <p className="sx-field__help sx-lg__lead">{t(`sx.k07.${lang}.help`)}</p>
+      {shown ? (
+        <>
+          {state === "partial" ? (
+            <p className="sx-lg__pair" role="status">
+              <span className="sx-lg__dot" aria-hidden="true" />
+              <span>{t("sx.k07.pairHint", { lang: name })}</span>
+            </p>
+          ) : null}
+          <PartEditors id={id} ai={ai} lang={lang} text={text} readOnly={false} errorAt={errorAt} emit={emit} touch={touch} required={state !== "empty"} />
+          <SxButton variant="ghost" size="sm" icon={XIcon} className="sx-lg__add" onClick={clear} aiId={makeAiId(ai, lang, "remove")}>
+            {t("sx.k07.remove", { lang: name })}
+          </SxButton>
+        </>
+      ) : (
+        <SxButton variant="add" icon={PlusIcon} className="sx-lg__add" onClick={() => setOpened(true)} aiId={makeAiId(ai, lang, "add")}>
+          {t(`sx.k07.${lang}.add`)}
+        </SxButton>
+      )}
+    </>
+  );
+}
+
+type TabMark = LangState | "error";
+
+const MARK_ICON: Partial<Record<TabMark, typeof CheckIcon>> = { complete: CheckIcon };
+
+// Uzbek, Russian and English, each on its own tab with a mark saying how far
+// it is filled. A field error on a hidden tab opens it (focus.ts clicks the
+// tab that controls the hidden panel).
+export function LegalLangsBlock({ id, ai, label, help, required, readOnly, root, emit, errorAt, touch }: LegalBlockProps): ReactElement {
+  const t = useTranslations("studio");
+  const [tab, setTab] = useState<LangTab>("uz");
+  const list = useRef<HTMLDivElement>(null);
+  const source = scriptOf(root.source_script);
+  const langsOf = (l: LangTab): LegalLang[] => (l === "uz" ? [source, otherScript(source)] : [l]);
+  const markOf = (l: LangTab): TabMark => (langsOf(l).some((x) => !!errorAt(`title_i18n.${x}`) || !!errorAt(`body_i18n.${x}`)) ? "error" : langState(root, l));
+  const omission = readOnly ? null : omissionOf(root);
+  const tabId = (l: LangTab) => `${id}-tab-${l}`;
+  const panelId = (l: LangTab) => `${id}-panel-${l}`;
+  const move = (e: KeyboardEvent<HTMLButtonElement>, from: LangTab) => {
+    const keys = ["ArrowRight", "ArrowLeft", "Home", "End"];
+    if (!keys.includes(e.key)) return;
+    e.preventDefault();
+    const at = LANG_TABS.indexOf(from);
+    const next = e.key === "Home" ? 0 : e.key === "End" ? LANG_TABS.length - 1 : (at + (e.key === "ArrowRight" ? 1 : LANG_TABS.length - 1)) % LANG_TABS.length;
+    const to = LANG_TABS[next];
+    setTab(to);
+    requestAnimationFrame(() => list.current?.querySelector<HTMLButtonElement>(`[data-tab="${to}"]`)?.focus());
+  };
+  const panel: PanelProps = { id, ai, readOnly, root, emit, errorAt, touch };
+  return (
+    <fieldset className="sx-field sx-lg" data-as="fieldset" data-span={2} data-ro={readOnly ? "" : undefined} aria-describedby={help && !readOnly ? `${id}-help` : undefined} data-ai-id={ai} data-ai-type="section" data-ai-label={label}>
       <legend className="sx-field__label sx-field__legend" id={`${id}-label`}>
         {label}
+        {required && !readOnly ? (
+          <span className="sx-field__req" aria-hidden="true">
+            *
+          </span>
+        ) : null}
       </legend>
-      {help ? (
+      {help && !readOnly ? (
         <p className="sx-field__help sx-lg__lead" id={`${id}-help`}>
           {help}
         </p>
       ) : null}
-      {shown ? (
-        <PartEditors id={id} ai={ai} lang="ru" text={text} readOnly={readOnly} errorAt={errorAt} emit={emit} touch={touch} required={false} />
-      ) : (
-        <SxButton variant="add" icon={PlusIcon} className="sx-lg__add" onClick={() => setOpened(true)} aiId={makeAiId(ai, "add")}>
-          {t("sx.k07.ru.add")}
-        </SxButton>
-      )}
+      <div className="sx-lg__tabs" role="tablist" aria-labelledby={`${id}-label`} ref={list} data-ai-id={makeAiId(ai, "tabs")} data-ai-type="tabs" data-ai-label={label}>
+        {LANG_TABS.map((l) => {
+          const on = l === tab;
+          const mark = markOf(l);
+          const icon = MARK_ICON[mark];
+          const name = t(`sx.k07.lang.${l}`);
+          return (
+            <button
+              key={l}
+              type="button"
+              role="tab"
+              id={tabId(l)}
+              aria-selected={on}
+              aria-controls={panelId(l)}
+              tabIndex={on ? 0 : -1}
+              className="sx-lg__tab"
+              data-tab={l}
+              data-mark={mark}
+              onClick={() => setTab(l)}
+              onKeyDown={(e) => move(e, l)}
+              data-ai-id={makeAiId(ai, "tab", l)}
+              data-ai-type="tab"
+              data-ai-label={name}
+            >
+              <span className="sx-lg__tabname">{name}</span>
+              {l === "uz" && !readOnly ? (
+                <span className="sx-lg__tabreq" aria-hidden="true">
+                  *
+                </span>
+              ) : null}
+              <span className="sx-lg__mark" aria-hidden="true">
+                {icon ? glyph(icon, { size: 11, strokeWidth: 3 }) : null}
+              </span>
+              <span className="sx-vh">{t(`sx.k07.mark.${mark}`)}</span>
+            </button>
+          );
+        })}
+      </div>
+      {omission ? (
+        <SxNote tone={omission.kind === "removed" ? "warn" : "info"} role="status" className="sx-lg__omit" title={t(`sx.k07.omit.${omission.kind}Title`)}>
+          {omission.langs.map((l) => (
+            <p key={l} data-lang={l}>
+              {t(`sx.k07.omit.${omission.kind}`, { lang: t(`sx.k07.lang.${l}`) })}
+            </p>
+          ))}
+        </SxNote>
+      ) : null}
+      {LANG_TABS.map((l) => (
+        <div key={l} role="tabpanel" id={panelId(l)} aria-labelledby={tabId(l)} className="sx-lg__panel" data-lang={l} hidden={l !== tab}>
+          {l === "uz" ? <UzPanel {...panel} /> : <TrailPanel {...panel} lang={l} />}
+        </div>
+      ))}
     </fieldset>
   );
 }

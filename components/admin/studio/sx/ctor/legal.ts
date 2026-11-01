@@ -1,7 +1,7 @@
-import { ArrowRightLeftIcon, FileTextIcon, LanguagesIcon, ListChecksIcon, PencilLineIcon, ShieldCheckIcon, TrendingUpIcon, UploadIcon } from "lucide-react";
+import { FileTextIcon, LanguagesIcon, ListChecksIcon, PencilLineIcon, ShieldCheckIcon, TrendingUpIcon, UploadIcon } from "lucide-react";
 import type { StudioConstructor } from "@/lib/services/studio";
 import type { SxCtorLayout, SxLayoutCtx, SxLayoutField, SxLayoutSection } from "../contract";
-import { hasTopField, isK06Hidden, isNewDocument, isUploadMode, k06Transform, k06Validate, k07Keys, k07TitleFrom, k07Transform, k07Validate } from "../schema/legal/model";
+import { hasTopField, isK06Hidden, isNewDocument, isUploadMode, k06Transform, k06Validate, k07Keys, k07Outgoing, k07ServerErrors, k07TitleFrom, k07Transform, k07Validate } from "../schema/legal/model";
 import type { SxErrors } from "../types";
 import { DOC_CATEGORIES } from "./generic";
 
@@ -17,8 +17,7 @@ export const K07_LAYOUT: SxCtorLayout = {
 
 const K07_CACHE = new WeakMap<StudioConstructor, SxCtorLayout>();
 
-const UZ_OWNS = ["title_i18n.uz_latn", "title_i18n.uz_cyrl", "body_i18n.uz_latn", "body_i18n.uz_cyrl"];
-const RU_OWNS = ["title_i18n.ru", "body_i18n.ru"];
+const LANG_OWNS = ["title_i18n.uz_latn", "title_i18n.uz_cyrl", "title_i18n.ru", "title_i18n.en", "body_i18n.uz_latn", "body_i18n.uz_cyrl", "body_i18n.ru", "body_i18n.en"];
 
 const reacceptOnly = (payload: Parameters<typeof k07Validate>[0]): SxErrors => {
   const e = k07Validate(payload);
@@ -69,16 +68,16 @@ function buildK07(ctor: StudioConstructor): SxCtorLayout {
       { path: "title_i18n.uz_latn", label: "sx.k07.script.uz_latn" },
       { path: "title_i18n.uz_cyrl", label: "sx.k07.script.uz_cyrl" },
       { path: "title_i18n.ru", label: "sx.k07.trail.ru" },
+      { path: "title_i18n.en", label: "sx.k07.trail.en" },
       { path: "body_i18n.uz_latn", label: "sx.k07.script.uz_latn" },
       { path: "body_i18n.uz_cyrl", label: "sx.k07.script.uz_cyrl" },
       { path: "body_i18n.ru", label: "sx.k07.trail.ru" },
-      { path: "source_script", control: "legalUz", label: "sx.k07.uz.label", help: "sx.k07.uz.help", owns: UZ_OWNS, required: true },
-      { path: "ru_text", control: "legalRu", owns: RU_OWNS, virtual: { type: "text", labelKey: "sx.k07.ru.label", helpKey: "sx.k07.ru.help" } },
+      { path: "body_i18n.en", label: "sx.k07.trail.en" },
+      // One block for the three languages: Uzbek (with its two scripts),
+      // Russian and English, each on its own tab.
+      { path: "source_script", control: "legalLangs", label: "sx.k07.langs.label", help: "sx.k07.langs.help", owns: LANG_OWNS, required: true },
     );
-    sections.push(
-      { id: "K07__uz", titleKey: "sx.section.K07__uz", fields: ["source_script"], icon: LanguagesIcon },
-      { id: "K07__ru", titleKey: "sx.section.K07__ru", fields: ["ru_text"], icon: ArrowRightLeftIcon },
-    );
+    sections.push({ id: "K07__text", titleKey: "sx.section.K07__text", fields: ["source_script"], icon: LanguagesIcon });
   } else sections[0] = { ...sections[0], fields: [...sections[0].fields, "body"] };
   sections.push({ id: "K07__accept", titleKey: "sx.section.K07__accept", fields: ["acceptance_required", "requires_reaccept"], icon: ShieldCheckIcon });
   return {
@@ -89,6 +88,8 @@ function buildK07(ctor: StudioConstructor): SxCtorLayout {
     titleFrom: hasScript ? k07TitleFrom : undefined,
     transform: (next, prev) => transform(next, prev),
     validate: hasScript ? k07Validate : reacceptOnly,
+    outgoing: hasScript ? k07Outgoing : undefined,
+    serverErrors: hasScript ? k07ServerErrors : undefined,
   };
 }
 

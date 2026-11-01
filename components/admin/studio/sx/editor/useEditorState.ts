@@ -816,7 +816,8 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
     }
     const one = Object.keys(se.fieldErrors).length ? null : structuredFieldOf(e);
     const found: Record<string, string> = one ? { [one.field]: `@code:${one.code}` } : se.fieldErrors;
-    const raw = Object.keys(found).length ? withServerMessages(targetErrors(normErrorPaths(stripPayload(found)), latestRef.current?.draft.payload ?? payload), e, locale) : {};
+    const known = Object.keys(found).length ? withServerMessages(targetErrors(normErrorPaths(stripPayload(found)), cur), e, locale) : {};
+    const raw = layout.serverErrors ? layout.serverErrors(known, e, cur) : known;
     if (Object.keys(raw).length) {
       setActionError(null);
       showServer(raw);
@@ -858,7 +859,8 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
   };
 
   const bodyOf = (values: SxPayload, objTitle: string): SxPayload => {
-    const clean = full?.typed.length ? cleanPayload(full.typed, values) : values;
+    const typedClean = full?.typed.length ? cleanPayload(full.typed, values) : values;
+    const clean = layout.outgoing ? layout.outgoing(typedClean) : typedClean;
     const serverTitle = detailRef.current?.title ?? "";
     const inheritedSlug = inheritedSlugOf(id);
     const out = withGeneratedSlug(full, clean, objTitle, {
@@ -1006,8 +1008,10 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       const body = bodyOf(cur.payload, objTitle);
       slugSentRef.current = slugOf(body);
       const check = await validateStudioDraft(code, body, undefined, recordId);
-      if (!check.ok && Object.keys(check.errors).length) {
-        showServer(withServerMessages(targetErrors(normErrorPaths(check.errors), cur.payload), check.raw, locale));
+      const found = check.ok ? {} : withServerMessages(targetErrors(normErrorPaths(check.errors), cur.payload), check.raw, locale);
+      const shown = !check.ok && layout.serverErrors ? layout.serverErrors(found, check.raw, cur.payload) : found;
+      if (!check.ok && Object.keys(shown).length) {
+        showServer(shown);
         return false;
       }
       setServerErrors(EMPTY_ERRORS);

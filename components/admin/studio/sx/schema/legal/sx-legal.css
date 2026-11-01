@@ -146,6 +146,134 @@ html .sx .sx-lg__genname {
   justify-self: start;
 }
 
+/* Uzbek, Russian and English: three equal tabs that fit a 360px phone. */
+.sx-lg__tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--sx-line);
+  border-radius: 12px;
+  background: var(--sx-surface-2);
+}
+.sx-lg__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--sx-ink-2);
+  font: 500 13px/18px var(--sx-font);
+  cursor: pointer;
+  transition: background var(--sx-fast) var(--sx-ease), color var(--sx-fast) var(--sx-ease), box-shadow var(--sx-fast) var(--sx-ease);
+}
+.sx-lg__tab:hover {
+  background: color-mix(in srgb, var(--sx-accent) 8%, transparent);
+  color: var(--sx-ink);
+}
+.sx-lg__tab:focus-visible {
+  outline: none;
+  box-shadow: var(--sx-ring);
+}
+.sx-lg__tab[aria-selected="true"] {
+  background: var(--sx-surface);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .08), 0 0 0 1px var(--sx-line);
+  color: var(--sx-ink);
+  font-weight: 600;
+}
+html[data-theme="dark"] .sx-lg__tab[aria-selected="true"] {
+  background: var(--sx-line-strong);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--sx-accent) 35%, transparent), 0 4px 14px -6px color-mix(in srgb, var(--sx-accent) 60%, transparent);
+}
+.sx-lg__tabname {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sx-lg__tabreq {
+  margin-left: -4px;
+  color: var(--sx-danger);
+}
+.sx-lg__mark {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--sx-line-strong);
+  border-radius: 50%;
+  color: var(--sx-surface);
+  transition: background var(--sx-fast) var(--sx-ease), border-color var(--sx-fast) var(--sx-ease);
+}
+.sx-lg__tab[data-mark="complete"] .sx-lg__mark {
+  border-color: var(--sx-published-fg);
+  background: var(--sx-published-fg);
+}
+.sx-lg__tab[data-mark="partial"] .sx-lg__mark {
+  border-color: var(--sx-submitted-fg);
+  background: radial-gradient(circle, var(--sx-submitted-fg) 0 3px, transparent 3.5px);
+}
+.sx-lg__tab[data-mark="error"] .sx-lg__mark {
+  border-color: var(--sx-danger);
+  background: radial-gradient(circle, var(--sx-danger) 0 3px, transparent 3.5px);
+}
+.sx-lg__panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.sx-lg__panel[hidden] {
+  display: none;
+}
+.sx-lg__omit p {
+  margin: 0;
+}
+.sx-lg__omit p + p {
+  margin-top: 4px;
+}
+.sx-lg__pair {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--sx-ink-2);
+  font: 400 13px/18px var(--sx-font);
+}
+.sx-lg__pair .sx-lg__dot {
+  background: var(--sx-submitted-fg);
+}
+.sx-lg__none {
+  margin: 0;
+  color: var(--sx-muted);
+  font: 400 14px/20px var(--sx-font);
+}
+/* On a phone the mark sits under the name, so "Английский" keeps its width. */
+@media (max-width: 479px) {
+  .sx-lg__tab {
+    flex-direction: column;
+    gap: 3px;
+    min-height: 46px;
+    padding: 4px 4px;
+    font-size: 12.5px;
+    line-height: 16px;
+  }
+  .sx-lg__tabreq {
+    display: none;
+  }
+  .sx-lg__mark {
+    width: 13px;
+    height: 13px;
+  }
+}
+
 .sx-doc {
   display: grid;
   min-width: 0;

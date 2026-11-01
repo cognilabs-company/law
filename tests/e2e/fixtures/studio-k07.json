@@ -1,0 +1,1294 @@
+{
+ "k07": {
+  "id": "381d3c3b-29fc-43ca-a87e-501e1c0d15aa",
+  "code": "K07",
+  "title": "Oferta va huquqiy matn",
+  "category": "marketplace",
+  "description": "Oferta, siyosat va rozilik hujjatlarining o‘zgarmas versiyalarini boshqaradi.",
+  "runtime_target": "consent_documents",
+  "experience": {
+   "metadata_version": 1,
+   "purpose": "Oferta, siyosat va rozilik hujjatlarining o‘zgarmas versiyalarini boshqaradi.",
+   "plain_language": "Bu konstruktor oferta, siyosat va rozilik hujjatlarining o‘zgarmas versiyalarini boshqaradi.",
+   "when_to_use": "Rozilik oynasidagi foydalanuvchiga ko‘rsatiladigan huquqiy matn va versiyani kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+   "managed_by": [
+    "studio_editor",
+    "legal_manager"
+   ],
+   "where_used": [
+    {
+     "surface_key": "consent_documents",
+     "title": "Rozilik oynasi",
+     "route": "/uz/legal",
+     "placement": "Foydalanuvchiga ko‘rsatiladigan huquqiy matn va versiya"
+    }
+   ],
+   "result": "Publish qilingandan keyin yangi konfiguratsiya `consent_documents` runtime qatlamida ishlaydi va Rozilik oynasida aks etadi.",
+   "workflow": [
+    {
+     "step": 1,
+     "title": "Bog‘liq ma’lumotni tanlang",
+     "description": "Avval Mavjud hujjat qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+    },
+    {
+     "step": 2,
+     "title": "Asosiy maydonlarni to‘ldiring",
+     "description": "Majburiy maydonlar: Hujjat turi, Asosiy o‘zbek yozuvi, Hujjat nomlari, Hujjat matnlari."
+    },
+    {
+     "step": 3,
+     "title": "Natijani tekshiring",
+     "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+    },
+    {
+     "step": 4,
+     "title": "Saqlang va tasdiqlashga yuboring",
+     "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+    }
+   ],
+   "visual_preview": {
+    "type": "document",
+    "title": "Oferta va huquqiy matn natijasi",
+    "description": "Forma o‘zgarganda foydalanuvchiga ko‘rsatiladigan huquqiy matn va versiyaning taxminiy ko‘rinishini darhol yangilang.",
+    "data_source": "payload",
+    "refresh": "on_change",
+    "surface_keys": [
+     "consent_documents"
+    ]
+   },
+   "novice_notes": [
+    "Qizil yulduzchali maydonlar majburiy.",
+    "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+    "Preview real ma’lumotni o‘zgartirmaydi.",
+    "Publishdan oldin diff va warninglarni tekshiring."
+   ],
+   "publish_checklist": [
+    "Majburiy maydonlar to‘ldirilgan",
+    "Reference qiymatlar mavjud",
+    "Preview kutilgan natijani ko‘rsatmoqda",
+    "Validatsiya xatosiz",
+    "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+   ],
+   "risk_level": "medium",
+   "warnings": [
+    "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+   ]
+  },
+  "visual_preview": {
+   "type": "document",
+   "title": "Oferta va huquqiy matn natijasi",
+   "description": "Forma o‘zgarganda foydalanuvchiga ko‘rsatiladigan huquqiy matn va versiyaning taxminiy ko‘rinishini darhol yangilang.",
+   "data_source": "payload",
+   "refresh": "on_change",
+   "surface_keys": [
+    "consent_documents"
+   ]
+  },
+  "navigation": {
+   "group_key": "documents_texts",
+   "group_title": "Hujjatlar va matnlar",
+   "group_order": 2,
+   "step_number": 1,
+   "step_count": 4,
+   "required_before": [],
+   "recommended_before": [],
+   "next_steps": [
+    "K06"
+   ],
+   "sequence_reason": "Hujjatlar va matnlar bo‘limida bu qadam 1-navbatda bajariladi.",
+   "ui_visible": true,
+   "managed_by": "studio"
+  },
+  "operations": {
+   "supported": [
+    "create",
+    "view",
+    "edit",
+    "clone",
+    "archive"
+   ],
+   "default": "list",
+   "identity_source": "route_context",
+   "context_fields": [
+    "document_id"
+   ],
+   "list_endpoint": "/studio/constructors/K07/records",
+   "form_context_endpoint": "/studio/constructors/K07/form-context",
+   "clone_endpoint": "/studio/objects/{object_id}/clone",
+   "archive_endpoint": "/studio/objects/{object_id}/archive"
+  },
+  "capabilities": [
+   "draft",
+   "validate",
+   "preview",
+   "submit",
+   "approve",
+   "publish",
+   "rollback"
+  ],
+  "definition_version": 3,
+  "approval_required": true,
+  "is_active": true,
+  "updated_at": "2026-10-23T13:51:43.026877Z",
+  "schema": {
+   "version": 3,
+   "required": [
+    "document_type",
+    "source_script",
+    "title_i18n",
+    "body_i18n"
+   ],
+   "fields": [
+    {
+     "key": "document_id",
+     "name": "document_id",
+     "label": "Mavjud hujjat",
+     "type": "select",
+     "required": false,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "document_id",
+     "default": null,
+     "ui": {
+      "component": "search_select",
+      "order": 1
+     },
+     "source": "/studio/reference/consent-documents",
+     "context_managed": true
+    },
+    {
+     "key": "document_type",
+     "name": "document_type",
+     "label": "Hujjat turi",
+     "type": "select",
+     "required": true,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "document_type",
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 2
+     },
+     "options": [
+      "privacy",
+      "terms_of_service",
+      "public_offer",
+      "legal_disclaimer",
+      "marketing"
+     ],
+     "choices": [
+      {
+       "value": "privacy",
+       "label": "Maxfiylik siyosati"
+      },
+      {
+       "value": "terms_of_service",
+       "label": "Foydalanish shartlari"
+      },
+      {
+       "value": "public_offer",
+       "label": "Ommaviy oferta"
+      },
+      {
+       "value": "legal_disclaimer",
+       "label": "Huquqiy ogohlantirish"
+      },
+      {
+       "value": "marketing",
+       "label": "Marketing xabarlariga rozilik"
+      }
+     ]
+    },
+    {
+     "key": "source_script",
+     "name": "source_script",
+     "label": "Asosiy o'zbek yozuvi",
+     "type": "select",
+     "required": true,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "source_script",
+     "default": "uz_latn",
+     "ui": {
+      "component": "select",
+      "order": 3
+     },
+     "options": [
+      "uz_latn",
+      "uz_cyrl"
+     ]
+    },
+    {
+     "key": "title_i18n",
+     "name": "title_i18n",
+     "label": "Hujjat nomlari",
+     "type": "object",
+     "required": true,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "title_i18n",
+     "default": null,
+     "ui": {
+      "component": "object",
+      "order": 4
+     },
+     "properties": [
+      {
+       "key": "uz_latn",
+       "name": "uz_latn",
+       "label": "Lotin",
+       "type": "text"
+      },
+      {
+       "key": "uz_cyrl",
+       "name": "uz_cyrl",
+       "label": "Кирилл",
+       "type": "text"
+      },
+      {
+       "key": "ru",
+       "name": "ru",
+       "label": "Ruscha",
+       "type": "text"
+      }
+     ]
+    },
+    {
+     "key": "body_i18n",
+     "name": "body_i18n",
+     "label": "Hujjat matnlari",
+     "type": "object",
+     "required": true,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "body_i18n",
+     "default": null,
+     "ui": {
+      "component": "object",
+      "order": 5
+     },
+     "properties": [
+      {
+       "key": "uz_latn",
+       "name": "uz_latn",
+       "label": "Lotin",
+       "type": "richtext"
+      },
+      {
+       "key": "uz_cyrl",
+       "name": "uz_cyrl",
+       "label": "Кирилл",
+       "type": "richtext"
+      },
+      {
+       "key": "ru",
+       "name": "ru",
+       "label": "Ruscha",
+       "type": "richtext"
+      }
+     ]
+    },
+    {
+     "key": "title",
+     "name": "title",
+     "label": "Sarlavha",
+     "type": "text",
+     "required": false,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "title",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 6
+     }
+    },
+    {
+     "key": "body",
+     "name": "body",
+     "label": "Matn",
+     "type": "richtext",
+     "required": false,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "body",
+     "default": null,
+     "ui": {
+      "component": "richtext",
+      "order": 7
+     }
+    },
+    {
+     "key": "version",
+     "name": "version",
+     "label": "Versiya",
+     "type": "text",
+     "required": false,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "version",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 8
+     }
+    },
+    {
+     "key": "version_bump",
+     "name": "version_bump",
+     "label": "Versiya o'zgarishi",
+     "type": "select",
+     "required": false,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "version_bump",
+     "default": "minor",
+     "ui": {
+      "component": "select",
+      "order": 9
+     },
+     "options": [
+      "minor",
+      "major"
+     ]
+    },
+    {
+     "key": "acceptance_required",
+     "name": "acceptance_required",
+     "label": "Rozilik talab qilinadi",
+     "type": "boolean",
+     "required": false,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "acceptance_required",
+     "default": true,
+     "ui": {
+      "component": "boolean",
+      "order": 10
+     }
+    },
+    {
+     "key": "requires_reaccept",
+     "name": "requires_reaccept",
+     "label": "Qayta rozilik",
+     "type": "boolean",
+     "required": false,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "requires_reaccept",
+     "default": false,
+     "ui": {
+      "component": "boolean",
+      "order": 11
+     }
+    }
+   ]
+  },
+  "ui_schema": {
+   "sections": [
+    {
+     "key": "hujjat",
+     "title": "Hujjat",
+     "order": 1,
+     "fields": [
+      {
+       "key": "document_id",
+       "name": "document_id",
+       "label": "Mavjud hujjat",
+       "type": "select",
+       "required": false,
+       "section": "Hujjat",
+       "help_text": "",
+       "runtime_path": "document_id",
+       "default": null,
+       "ui": {
+        "component": "search_select",
+        "order": 1
+       },
+       "source": "/studio/reference/consent-documents",
+       "context_managed": true
+      },
+      {
+       "key": "document_type",
+       "name": "document_type",
+       "label": "Hujjat turi",
+       "type": "select",
+       "required": true,
+       "section": "Hujjat",
+       "help_text": "",
+       "runtime_path": "document_type",
+       "default": null,
+       "ui": {
+        "component": "select",
+        "order": 2
+       },
+       "options": [
+        "privacy",
+        "terms_of_service",
+        "public_offer",
+        "legal_disclaimer",
+        "marketing"
+       ],
+       "choices": [
+        {
+         "value": "privacy",
+         "label": "Maxfiylik siyosati"
+        },
+        {
+         "value": "terms_of_service",
+         "label": "Foydalanish shartlari"
+        },
+        {
+         "value": "public_offer",
+         "label": "Ommaviy oferta"
+        },
+        {
+         "value": "legal_disclaimer",
+         "label": "Huquqiy ogohlantirish"
+        },
+        {
+         "value": "marketing",
+         "label": "Marketing xabarlariga rozilik"
+        }
+       ]
+      },
+      {
+       "key": "source_script",
+       "name": "source_script",
+       "label": "Asosiy o'zbek yozuvi",
+       "type": "select",
+       "required": true,
+       "section": "Hujjat",
+       "help_text": "",
+       "runtime_path": "source_script",
+       "default": "uz_latn",
+       "ui": {
+        "component": "select",
+        "order": 3
+       },
+       "options": [
+        "uz_latn",
+        "uz_cyrl"
+       ]
+      },
+      {
+       "key": "title_i18n",
+       "name": "title_i18n",
+       "label": "Hujjat nomlari",
+       "type": "object",
+       "required": true,
+       "section": "Hujjat",
+       "help_text": "",
+       "runtime_path": "title_i18n",
+       "default": null,
+       "ui": {
+        "component": "object",
+        "order": 4
+       },
+       "properties": [
+        {
+         "key": "uz_latn",
+         "name": "uz_latn",
+         "label": "Lotin",
+         "type": "text"
+        },
+        {
+         "key": "uz_cyrl",
+         "name": "uz_cyrl",
+         "label": "Кирилл",
+         "type": "text"
+        },
+        {
+         "key": "ru",
+         "name": "ru",
+         "label": "Ruscha",
+         "type": "text"
+        }
+       ]
+      },
+      {
+       "key": "body_i18n",
+       "name": "body_i18n",
+       "label": "Hujjat matnlari",
+       "type": "object",
+       "required": true,
+       "section": "Hujjat",
+       "help_text": "",
+       "runtime_path": "body_i18n",
+       "default": null,
+       "ui": {
+        "component": "object",
+        "order": 5
+       },
+       "properties": [
+        {
+         "key": "uz_latn",
+         "name": "uz_latn",
+         "label": "Lotin",
+         "type": "richtext"
+        },
+        {
+         "key": "uz_cyrl",
+         "name": "uz_cyrl",
+         "label": "Кирилл",
+         "type": "richtext"
+        },
+        {
+         "key": "ru",
+         "name": "ru",
+         "label": "Ruscha",
+         "type": "richtext"
+        }
+       ]
+      },
+      {
+       "key": "title",
+       "name": "title",
+       "label": "Sarlavha",
+       "type": "text",
+       "required": false,
+       "section": "Hujjat",
+       "help_text": "",
+       "runtime_path": "title",
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 6
+       }
+      },
+      {
+       "key": "body",
+       "name": "body",
+       "label": "Matn",
+       "type": "richtext",
+       "required": false,
+       "section": "Hujjat",
+       "help_text": "",
+       "runtime_path": "body",
+       "default": null,
+       "ui": {
+        "component": "richtext",
+        "order": 7
+       }
+      },
+      {
+       "key": "version",
+       "name": "version",
+       "label": "Versiya",
+       "type": "text",
+       "required": false,
+       "section": "Hujjat",
+       "help_text": "",
+       "runtime_path": "version",
+       "default": null,
+       "ui": {
+        "component": "text",
+        "order": 8
+       }
+      },
+      {
+       "key": "version_bump",
+       "name": "version_bump",
+       "label": "Versiya o'zgarishi",
+       "type": "select",
+       "required": false,
+       "section": "Hujjat",
+       "help_text": "",
+       "runtime_path": "version_bump",
+       "default": "minor",
+       "ui": {
+        "component": "select",
+        "order": 9
+       },
+       "options": [
+        "minor",
+        "major"
+       ]
+      },
+      {
+       "key": "acceptance_required",
+       "name": "acceptance_required",
+       "label": "Rozilik talab qilinadi",
+       "type": "boolean",
+       "required": false,
+       "section": "Hujjat",
+       "help_text": "",
+       "runtime_path": "acceptance_required",
+       "default": true,
+       "ui": {
+        "component": "boolean",
+        "order": 10
+       }
+      },
+      {
+       "key": "requires_reaccept",
+       "name": "requires_reaccept",
+       "label": "Qayta rozilik",
+       "type": "boolean",
+       "required": false,
+       "section": "Hujjat",
+       "help_text": "",
+       "runtime_path": "requires_reaccept",
+       "default": false,
+       "ui": {
+        "component": "boolean",
+        "order": 11
+       }
+      }
+     ]
+    }
+   ]
+  },
+  "default_payload": {
+   "source_script": "uz_latn",
+   "version_bump": "minor",
+   "acceptance_required": true,
+   "requires_reaccept": false
+  },
+  "dependency_rules": [],
+  "references": {}
+ },
+ "formContext": {
+  "mode": "create",
+  "constructor_code": "K07",
+  "constructor_title": "Oferta va huquqiy matn",
+  "title": "",
+  "schema": {
+   "version": 3,
+   "required": [
+    "document_type",
+    "source_script",
+    "title_i18n",
+    "body_i18n"
+   ],
+   "fields": [
+    {
+     "key": "document_id",
+     "name": "document_id",
+     "label": "Mavjud hujjat",
+     "type": "select",
+     "required": false,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "document_id",
+     "default": null,
+     "ui": {
+      "component": "search_select",
+      "order": 1
+     },
+     "source": "/studio/reference/consent-documents",
+     "context_managed": true
+    },
+    {
+     "key": "document_type",
+     "name": "document_type",
+     "label": "Hujjat turi",
+     "type": "select",
+     "required": true,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "document_type",
+     "default": null,
+     "ui": {
+      "component": "select",
+      "order": 2
+     },
+     "options": [
+      "privacy",
+      "terms_of_service",
+      "public_offer",
+      "legal_disclaimer",
+      "marketing"
+     ],
+     "choices": [
+      {
+       "value": "privacy",
+       "label": "Maxfiylik siyosati"
+      },
+      {
+       "value": "terms_of_service",
+       "label": "Foydalanish shartlari"
+      },
+      {
+       "value": "public_offer",
+       "label": "Ommaviy oferta"
+      },
+      {
+       "value": "legal_disclaimer",
+       "label": "Huquqiy ogohlantirish"
+      },
+      {
+       "value": "marketing",
+       "label": "Marketing xabarlariga rozilik"
+      }
+     ]
+    },
+    {
+     "key": "source_script",
+     "name": "source_script",
+     "label": "Asosiy o'zbek yozuvi",
+     "type": "select",
+     "required": true,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "source_script",
+     "default": "uz_latn",
+     "ui": {
+      "component": "select",
+      "order": 3
+     },
+     "options": [
+      "uz_latn",
+      "uz_cyrl"
+     ]
+    },
+    {
+     "key": "title_i18n",
+     "name": "title_i18n",
+     "label": "Hujjat nomlari",
+     "type": "object",
+     "required": true,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "title_i18n",
+     "default": null,
+     "ui": {
+      "component": "object",
+      "order": 4
+     },
+     "properties": [
+      {
+       "key": "uz_latn",
+       "name": "uz_latn",
+       "label": "Lotin",
+       "type": "text"
+      },
+      {
+       "key": "uz_cyrl",
+       "name": "uz_cyrl",
+       "label": "Кирилл",
+       "type": "text"
+      },
+      {
+       "key": "ru",
+       "name": "ru",
+       "label": "Ruscha",
+       "type": "text"
+      }
+     ]
+    },
+    {
+     "key": "body_i18n",
+     "name": "body_i18n",
+     "label": "Hujjat matnlari",
+     "type": "object",
+     "required": true,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "body_i18n",
+     "default": null,
+     "ui": {
+      "component": "object",
+      "order": 5
+     },
+     "properties": [
+      {
+       "key": "uz_latn",
+       "name": "uz_latn",
+       "label": "Lotin",
+       "type": "richtext"
+      },
+      {
+       "key": "uz_cyrl",
+       "name": "uz_cyrl",
+       "label": "Кирилл",
+       "type": "richtext"
+      },
+      {
+       "key": "ru",
+       "name": "ru",
+       "label": "Ruscha",
+       "type": "richtext"
+      }
+     ]
+    },
+    {
+     "key": "title",
+     "name": "title",
+     "label": "Sarlavha",
+     "type": "text",
+     "required": false,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "title",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 6
+     }
+    },
+    {
+     "key": "body",
+     "name": "body",
+     "label": "Matn",
+     "type": "richtext",
+     "required": false,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "body",
+     "default": null,
+     "ui": {
+      "component": "richtext",
+      "order": 7
+     }
+    },
+    {
+     "key": "version",
+     "name": "version",
+     "label": "Versiya",
+     "type": "text",
+     "required": false,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "version",
+     "default": null,
+     "ui": {
+      "component": "text",
+      "order": 8
+     }
+    },
+    {
+     "key": "version_bump",
+     "name": "version_bump",
+     "label": "Versiya o'zgarishi",
+     "type": "select",
+     "required": false,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "version_bump",
+     "default": "minor",
+     "ui": {
+      "component": "select",
+      "order": 9
+     },
+     "options": [
+      "minor",
+      "major"
+     ]
+    },
+    {
+     "key": "acceptance_required",
+     "name": "acceptance_required",
+     "label": "Rozilik talab qilinadi",
+     "type": "boolean",
+     "required": false,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "acceptance_required",
+     "default": true,
+     "ui": {
+      "component": "boolean",
+      "order": 10
+     }
+    },
+    {
+     "key": "requires_reaccept",
+     "name": "requires_reaccept",
+     "label": "Qayta rozilik",
+     "type": "boolean",
+     "required": false,
+     "section": "Hujjat",
+     "help_text": "",
+     "runtime_path": "requires_reaccept",
+     "default": false,
+     "ui": {
+      "component": "boolean",
+      "order": 11
+     }
+    }
+   ]
+  },
+  "sections": [
+   {
+    "key": "hujjat",
+    "title": "Hujjat",
+    "order": 1,
+    "fields": [
+     {
+      "key": "document_id",
+      "name": "document_id",
+      "label": "Mavjud hujjat",
+      "type": "select",
+      "required": false,
+      "section": "Hujjat",
+      "help_text": "",
+      "runtime_path": "document_id",
+      "default": null,
+      "ui": {
+       "component": "search_select",
+       "order": 1
+      },
+      "source": "/studio/reference/consent-documents",
+      "context_managed": true
+     },
+     {
+      "key": "document_type",
+      "name": "document_type",
+      "label": "Hujjat turi",
+      "type": "select",
+      "required": true,
+      "section": "Hujjat",
+      "help_text": "",
+      "runtime_path": "document_type",
+      "default": null,
+      "ui": {
+       "component": "select",
+       "order": 2
+      },
+      "options": [
+       "privacy",
+       "terms_of_service",
+       "public_offer",
+       "legal_disclaimer",
+       "marketing"
+      ],
+      "choices": [
+       {
+        "value": "privacy",
+        "label": "Maxfiylik siyosati"
+       },
+       {
+        "value": "terms_of_service",
+        "label": "Foydalanish shartlari"
+       },
+       {
+        "value": "public_offer",
+        "label": "Ommaviy oferta"
+       },
+       {
+        "value": "legal_disclaimer",
+        "label": "Huquqiy ogohlantirish"
+       },
+       {
+        "value": "marketing",
+        "label": "Marketing xabarlariga rozilik"
+       }
+      ]
+     },
+     {
+      "key": "source_script",
+      "name": "source_script",
+      "label": "Asosiy o'zbek yozuvi",
+      "type": "select",
+      "required": true,
+      "section": "Hujjat",
+      "help_text": "",
+      "runtime_path": "source_script",
+      "default": "uz_latn",
+      "ui": {
+       "component": "select",
+       "order": 3
+      },
+      "options": [
+       "uz_latn",
+       "uz_cyrl"
+      ]
+     },
+     {
+      "key": "title_i18n",
+      "name": "title_i18n",
+      "label": "Hujjat nomlari",
+      "type": "object",
+      "required": true,
+      "section": "Hujjat",
+      "help_text": "",
+      "runtime_path": "title_i18n",
+      "default": null,
+      "ui": {
+       "component": "object",
+       "order": 4
+      },
+      "properties": [
+       {
+        "key": "uz_latn",
+        "name": "uz_latn",
+        "label": "Lotin",
+        "type": "text"
+       },
+       {
+        "key": "uz_cyrl",
+        "name": "uz_cyrl",
+        "label": "Кирилл",
+        "type": "text"
+       },
+       {
+        "key": "ru",
+        "name": "ru",
+        "label": "Ruscha",
+        "type": "text"
+       }
+      ]
+     },
+     {
+      "key": "body_i18n",
+      "name": "body_i18n",
+      "label": "Hujjat matnlari",
+      "type": "object",
+      "required": true,
+      "section": "Hujjat",
+      "help_text": "",
+      "runtime_path": "body_i18n",
+      "default": null,
+      "ui": {
+       "component": "object",
+       "order": 5
+      },
+      "properties": [
+       {
+        "key": "uz_latn",
+        "name": "uz_latn",
+        "label": "Lotin",
+        "type": "richtext"
+       },
+       {
+        "key": "uz_cyrl",
+        "name": "uz_cyrl",
+        "label": "Кирилл",
+        "type": "richtext"
+       },
+       {
+        "key": "ru",
+        "name": "ru",
+        "label": "Ruscha",
+        "type": "richtext"
+       }
+      ]
+     },
+     {
+      "key": "title",
+      "name": "title",
+      "label": "Sarlavha",
+      "type": "text",
+      "required": false,
+      "section": "Hujjat",
+      "help_text": "",
+      "runtime_path": "title",
+      "default": null,
+      "ui": {
+       "component": "text",
+       "order": 6
+      }
+     },
+     {
+      "key": "body",
+      "name": "body",
+      "label": "Matn",
+      "type": "richtext",
+      "required": false,
+      "section": "Hujjat",
+      "help_text": "",
+      "runtime_path": "body",
+      "default": null,
+      "ui": {
+       "component": "richtext",
+       "order": 7
+      }
+     },
+     {
+      "key": "version",
+      "name": "version",
+      "label": "Versiya",
+      "type": "text",
+      "required": false,
+      "section": "Hujjat",
+      "help_text": "",
+      "runtime_path": "version",
+      "default": null,
+      "ui": {
+       "component": "text",
+       "order": 8
+      }
+     },
+     {
+      "key": "version_bump",
+      "name": "version_bump",
+      "label": "Versiya o'zgarishi",
+      "type": "select",
+      "required": false,
+      "section": "Hujjat",
+      "help_text": "",
+      "runtime_path": "version_bump",
+      "default": "minor",
+      "ui": {
+       "component": "select",
+       "order": 9
+      },
+      "options": [
+       "minor",
+       "major"
+      ]
+     },
+     {
+      "key": "acceptance_required",
+      "name": "acceptance_required",
+      "label": "Rozilik talab qilinadi",
+      "type": "boolean",
+      "required": false,
+      "section": "Hujjat",
+      "help_text": "",
+      "runtime_path": "acceptance_required",
+      "default": true,
+      "ui": {
+       "component": "boolean",
+       "order": 10
+      }
+     },
+     {
+      "key": "requires_reaccept",
+      "name": "requires_reaccept",
+      "label": "Qayta rozilik",
+      "type": "boolean",
+      "required": false,
+      "section": "Hujjat",
+      "help_text": "",
+      "runtime_path": "requires_reaccept",
+      "default": false,
+      "ui": {
+       "component": "boolean",
+       "order": 11
+      }
+     }
+    ]
+   }
+  ],
+  "initial_payload": {
+   "source_script": "uz_latn",
+   "version_bump": "minor",
+   "acceptance_required": true,
+   "requires_reaccept": false
+  },
+  "context": {
+   "record_id": null,
+   "source": null,
+   "runtime_target_id": null,
+   "runtime_target_type": null,
+   "studio_object_id": null
+  },
+  "navigation": {
+   "group_key": "documents_texts",
+   "group_title": "Hujjatlar va matnlar",
+   "group_order": 2,
+   "step_number": 1,
+   "step_count": 4,
+   "required_before": [],
+   "recommended_before": [],
+   "next_steps": [
+    "K06"
+   ],
+   "sequence_reason": "Hujjatlar va matnlar bo‘limida bu qadam 1-navbatda bajariladi.",
+   "ui_visible": true,
+   "managed_by": "studio"
+  },
+  "operations": {
+   "supported": [
+    "create",
+    "view",
+    "edit",
+    "clone",
+    "archive"
+   ],
+   "default": "list",
+   "identity_source": "route_context",
+   "context_fields": [
+    "document_id"
+   ],
+   "list_endpoint": "/studio/constructors/K07/records",
+   "form_context_endpoint": "/studio/constructors/K07/form-context",
+   "clone_endpoint": "/studio/objects/{object_id}/clone",
+   "archive_endpoint": "/studio/objects/{object_id}/archive"
+  },
+  "experience": {
+   "metadata_version": 1,
+   "purpose": "Oferta, siyosat va rozilik hujjatlarining o‘zgarmas versiyalarini boshqaradi.",
+   "plain_language": "Bu konstruktor oferta, siyosat va rozilik hujjatlarining o‘zgarmas versiyalarini boshqaradi.",
+   "when_to_use": "Rozilik oynasidagi foydalanuvchiga ko‘rsatiladigan huquqiy matn va versiyani kod o‘zgartirmasdan sozlash kerak bo‘lganda ishlating.",
+   "managed_by": [
+    "studio_editor",
+    "legal_manager"
+   ],
+   "where_used": [
+    {
+     "surface_key": "consent_documents",
+     "title": "Rozilik oynasi",
+     "route": "/uz/legal",
+     "placement": "Foydalanuvchiga ko‘rsatiladigan huquqiy matn va versiya"
+    }
+   ],
+   "result": "Publish qilingandan keyin yangi konfiguratsiya `consent_documents` runtime qatlamida ishlaydi va Rozilik oynasida aks etadi.",
+   "workflow": [
+    {
+     "step": 1,
+     "title": "Bog‘liq ma’lumotni tanlang",
+     "description": "Avval Mavjud hujjat qiymatlarini tizimdagi mavjud yozuvlardan tanlang."
+    },
+    {
+     "step": 2,
+     "title": "Asosiy maydonlarni to‘ldiring",
+     "description": "Majburiy maydonlar: Hujjat turi, Asosiy o‘zbek yozuvi, Hujjat nomlari, Hujjat matnlari."
+    },
+    {
+     "step": 3,
+     "title": "Natijani tekshiring",
+     "description": "Live preview, validatsiya, ta’sir va o‘zgarishlar ro‘yxatini tekshiring."
+    },
+    {
+     "step": 4,
+     "title": "Saqlang va tasdiqlashga yuboring",
+     "description": "Draftni saqlang, xatolarni tuzating va tayyor bo‘lgach review oqimiga yuboring."
+    }
+   ],
+   "visual_preview": {
+    "type": "document",
+    "title": "Oferta va huquqiy matn natijasi",
+    "description": "Forma o‘zgarganda foydalanuvchiga ko‘rsatiladigan huquqiy matn va versiyaning taxminiy ko‘rinishini darhol yangilang.",
+    "data_source": "payload",
+    "refresh": "on_change",
+    "surface_keys": [
+     "consent_documents"
+    ]
+   },
+   "novice_notes": [
+    "Qizil yulduzchali maydonlar majburiy.",
+    "Select qiymatlarini qo‘lda ID sifatida yozmang; backend reference API’dan tanlang.",
+    "Preview real ma’lumotni o‘zgartirmaydi.",
+    "Publishdan oldin diff va warninglarni tekshiring."
+   ],
+   "publish_checklist": [
+    "Majburiy maydonlar to‘ldirilgan",
+    "Reference qiymatlar mavjud",
+    "Preview kutilgan natijani ko‘rsatmoqda",
+    "Validatsiya xatosiz",
+    "Ta’sir va ogohlantirishlar ko‘rib chiqilgan"
+   ],
+   "risk_level": "medium",
+   "warnings": [
+    "O‘zgarish publish bo‘lishidan oldin tasdiqlash oqimidan o‘tishi kerak."
+   ]
+  },
+  "submit": {}
+ },
+ "records": {
+  "constructor_code": "K07",
+  "title": "Oferta va huquqiy matn",
+  "items": [],
+  "total": 0,
+  "runtime_total": 0,
+  "studio_total": 0,
+  "limit": 5,
+  "offset": 0,
+  "has_more": false,
+  "source": "all",
+  "create_url": "/studio/constructors/K07/form-context?mode=create"
+ }
+}

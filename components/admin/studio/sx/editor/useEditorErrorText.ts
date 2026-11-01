@@ -27,6 +27,8 @@ const CODE_KEY: Readonly<Record<string, string>> = {
   category_cycle: "sx.editor.err.categoryCycle",
   rule_version_duplicate: "sx.editor.err.ruleVersionDuplicate",
   reference_not_found: "sx.editor.err.referenceNotFound",
+  legal_uz_translation_required: "sx.editor.err.legalUzRequired",
+  legal_translation_pair_required: "sx.editor.err.legalPairRequired",
 };
 
 const JARGON = /[`{}<>\[\]=]|_|\b(runtime|payload|schema|null|undefined|none|true|false|json|api|http|https|uuid|id|traceback|exception|error|object|constructor|studio_\w+)\b/i;

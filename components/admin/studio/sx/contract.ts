@@ -31,8 +31,7 @@ export type SxControlKind =
   | "display"
   | "factorOverrides"
   | "checklist"
-  | "legalUz"
-  | "legalRu"
+  | "legalLangs"
   | "docText"
   | "file";
 
@@ -103,6 +102,11 @@ export type SxCtorLayout = {
   recordTitlePlaceholderKey?: string;
   transform?: (next: SxPayload, prev: SxValues, ctx: SxTransformCtx) => SxPayload;
   validate?: (payload: SxValues) => SxErrors;
+  // What is sent, from what the form holds (after the schema's own clean-up).
+  outgoing?: (payload: SxPayload) => SxPayload;
+  // The constructor's own reading of a server error onto its fields: gets
+  // the field errors already found and the raw error, returns the ones shown.
+  serverErrors?: (errors: SxErrors, raw: unknown, payload: SxValues) => SxErrors;
   newVersion?: { focus: string };
   adapt?: (ctor: StudioConstructor) => SxCtorLayout;
   titleFrom?: (payload: SxValues) => SxDerivedTitle;

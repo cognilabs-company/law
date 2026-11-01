@@ -45,7 +45,7 @@ import { RefPicker } from "./RefPicker";
 import { NEON_WIDE_RO, fieldIcon, type SxLook } from "./neonLook";
 import { RichText, RichTextView } from "./RichText";
 import { DocEditor } from "./legal/DocEditor";
-import { LegalRuBlock, LegalUzBlock } from "./legal/LegalText";
+import { LegalLangsBlock } from "./legal/LegalText";
 import { docFieldsOf } from "./legal/model";
 import { TemplateFile } from "./legal/TemplateFile";
 import {
@@ -685,14 +685,13 @@ function SchemaFieldImpl({ node, path, scope, inBoard = false }: { node: SchemaF
     );
   }
 
-  if (control === "legalUz" || control === "legalRu") {
-    const Block = control === "legalUz" ? LegalUzBlock : LegalRuBlock;
+  if (control === "legalLangs") {
     const errorAt = (p: string): string => {
       const tok = policy.visible(p, errors);
       return tok ? labels.error(tok, { type: "text", key: lastKey(p), ctor: model.code, path: p }) : "";
     };
     return cell(
-      <Block
+      <LegalLangsBlock
         id={id}
         ai={ai}
         label={label}
