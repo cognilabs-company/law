@@ -150,15 +150,21 @@ export default function MonthPicker({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? popId : undefined}
-        aria-label={ariaLabel}
+        aria-labelledby={ariaLabel ? `${popId}-n ${popId}-v` : undefined}
         disabled={disabled}
         onClick={() => (open ? setOpen(false) : openPop())}
         onKeyDown={onTriggerKey}
       >
         <IconCalendar />
-        <span className="mpick__val">{label}</span>
+        <span id={`${popId}-v`} className="mpick__val">{label}</span>
         <span className="mpick__cv" />
       </button>
+      {/* Name plus the value on screen, so the spoken name holds what is seen. */}
+      {ariaLabel ? (
+        <span id={`${popId}-n`} className="sr-only">
+          {ariaLabel}
+        </span>
+      ) : null}
       {open ? createPortal(
         <>
           {pop.isSheet ? <div className="mpick__scrim" style={{ zIndex: pop.z - 1 }} aria-hidden="true" /> : null}

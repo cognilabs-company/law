@@ -10,6 +10,7 @@ import { renderDocTree } from "@/lib/docTreeRender";
 import type { DocTree } from "@/lib/docTemplate";
 import { VoiceNotePlayer } from "@/components/portal/AttachmentPreview";
 import { IconClose, IconDownload, IconFileText } from "@/components/icons";
+import { useDialogFocus } from "@/lib/useDialogFocus";
 
 const TEXT_LIMIT = 200_000;
 const BLOB_KINDS = new Set(["image", "pdf", "audio", "video"]);
@@ -41,6 +42,8 @@ export default function ChatFilePreview({
   const leaving = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const downOnScrim = useRef(false);
+  const panel = useRef<HTMLElement>(null);
+  useDialogFocus(true, panel);
 
   useEffect(() => {
     let second = 0;
@@ -177,6 +180,7 @@ export default function ChatFilePreview({
       }}
     >
       <aside
+        ref={panel}
         className="sprev__panel"
         role="dialog"
         aria-modal="true"

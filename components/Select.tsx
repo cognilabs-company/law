@@ -97,6 +97,7 @@ export default function Select({
   const typed = useRef({ text: "", at: 0 });
   const uid = useId();
   const valId = `${uid}v`;
+  const nameId = `${uid}n`;
   const listId = `${uid}l`;
 
   const pop = usePopover({
@@ -376,8 +377,7 @@ export default function Select({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
-        aria-label={labelId ? undefined : ariaLabel}
-        aria-labelledby={labelId ? `${labelId} ${valId}` : undefined}
+        aria-labelledby={labelId ? `${labelId} ${valId}` : ariaLabel ? `${nameId} ${valId}` : undefined}
         aria-describedby={describedBy}
         disabled={disabled}
         onClick={() => (open ? shut() : show())}
@@ -388,6 +388,13 @@ export default function Select({
         </span>
         <span className="dsel__cv" />
       </button>
+      {/* The field's name plus the value on screen ("Region, Tashkent"), so
+          the spoken name always contains what a voice-control user sees. */}
+      {!labelId && ariaLabel ? (
+        <span id={nameId} className="sr-only">
+          {ariaLabel}
+        </span>
+      ) : null}
       {popup ? createPortal(popup, document.body) : null}
     </div>
   );

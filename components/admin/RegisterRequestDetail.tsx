@@ -74,12 +74,13 @@ function ProofDocPreview({ doc }: { doc: ProofDocument }) {
     void load();
   }
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+  const name = doc.kind && t.has(`docKind.${doc.kind}`) ? t(`docKind.${doc.kind}`) : t("detail.document");
 
   return (
     <div className="dkv__doc">
       <button type="button" className="dkv__doc-h" onClick={toggle}>
         <IconFileText />
-        <span>{doc.kind ? (t.has(`docKind.${doc.kind}`) ? t(`docKind.${doc.kind}`) : doc.kind) : t("detail.document")}</span>
+        <span>{name}</span>
         {open ? <IconClose /> : <IconEye />}
       </button>
       {open ? (
@@ -89,9 +90,9 @@ function ProofDocPreview({ doc }: { doc: ProofDocument }) {
           <ErrorState compact title={t("detail.fileError")} error={err.error} onRetry={load} />
         ) : url ? (
           mime.startsWith("image/") ? (
-            <Image src={url} alt="" width={1200} height={900} unoptimized className="dkv__doc-img" />
+            <Image src={url} alt={name} width={1200} height={900} unoptimized className="dkv__doc-img" />
           ) : (
-            <iframe src={url} title={doc.kind || "proof"} className="dkv__doc-frame" />
+            <iframe src={url} title={name} className="dkv__doc-frame" />
           )
         ) : null
       ) : null}

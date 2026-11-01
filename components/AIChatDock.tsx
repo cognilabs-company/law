@@ -1,14 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import ChatWidget from "./chat/ChatWidget";
 import { IconChatDots } from "./icons";
 import { OPEN_CHAT } from "@/lib/chatBus";
+import { useDialogFocus } from "@/lib/useDialogFocus";
 
 export default function AIChatDock() {
   const t = useTranslations("chat");
   const [open, setOpen] = useState(false);
+  const dock = useRef<HTMLDivElement>(null);
+  // Not modal (the page stays usable beside it), so no Tab trap: the
+  // keyboard lands in the chat on open and goes back to the button on close.
+  useDialogFocus(open, dock, { trap: false });
 
   useEffect(() => {
     const onOpen = () => setOpen(true);
@@ -39,9 +44,10 @@ export default function AIChatDock() {
       <button
         className="fab"
         type="button"
-        aria-label={t("openLabel")}
         onClick={() => setOpen(true)}
       >
+        {/* Named by its content, so the visible "AI" is part of the name. */}
+        <span className="sr-only">{t("openLabel")}</span>
         <IconChatDots />
         <span className="fab__b">AI</span>
       </button>
@@ -50,6 +56,7 @@ export default function AIChatDock() {
         onClick={() => setOpen(false)}
       />
       <div
+        ref={dock}
         className={`dock${open ? " on" : ""}`}
         role="dialog"
         aria-modal="false"

@@ -737,7 +737,7 @@ export default function RegisterFlow() {
                   </div>
                   <div>
                     <label>{t("fields.phone")}</label>
-                    <input value={draft.phone} readOnly className="rf__ro" />
+                    <input value={draft.phone} readOnly className="rf__ro" aria-label={t("fields.phone")} />
                   </div>
                 </div>
                 <div className="cform__row2">

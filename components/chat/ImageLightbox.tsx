@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { IconClose, IconDownload } from "@/components/icons";
+import { useDialogFocus } from "@/lib/useDialogFocus";
 
 const CLOSE_MS = 200;
 
@@ -31,6 +32,8 @@ export default function ImageLightbox({
   const [on, setOn] = useState(false);
   const leaving = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const box = useRef<HTMLDivElement>(null);
+  useDialogFocus(true, box);
 
   useEffect(() => {
     let second = 0;
@@ -67,7 +70,7 @@ export default function ImageLightbox({
   if (typeof document === "undefined") return null;
 
   return createPortal(
-    <div className={`slight${on ? " slight--on" : ""}`} role="dialog" aria-modal="true" aria-label={name || closeLabel} onClick={close}>
+    <div ref={box} className={`slight${on ? " slight--on" : ""}`} role="dialog" aria-modal="true" aria-label={name || closeLabel} onClick={close}>
       <div className="slight__bar" onClick={(e) => e.stopPropagation()}>
         <b className="slight__name">{name}</b>
         {onDownload ? (

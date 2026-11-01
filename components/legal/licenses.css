@@ -1,0 +1,51 @@
+/* /legal/licenses — open-source notices. Light and dark through the shared
+   tokens; one column on phones, cards widen on desktop. */
+.lic .legal__in{max-width:980px}
+.lic-stats{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-wrap:wrap;gap:10px}
+.lic-stats li{display:flex;align-items:baseline;gap:8px;padding:12px 16px;border-radius:var(--r);background:var(--b50);box-shadow:inset 0 0 0 1px var(--dk-bd-blue, var(--b100));color:var(--gray);font-size:.88rem;font-weight:600}
+.lic-stats b{font-family:var(--fd);font-size:1.5rem;line-height:1;color:var(--dk-acc, var(--b600))}
+.lic-nav{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 8px}
+.lic-nav a{padding:7px 14px;border-radius:var(--pill);box-shadow:inset 0 0 0 1.5px var(--line);font-size:.86rem;font-weight:600;color:var(--gray)}
+.lic-nav a:hover{box-shadow:inset 0 0 0 1.5px var(--b400);color:var(--dk-acc, var(--b600))}
+.lic-h{margin:38px 0 6px;font-family:var(--fd);font-size:clamp(1.25rem,2.2vw,1.6rem);scroll-margin-top:96px}
+.lic-lead{margin:0 0 16px;color:var(--gray);font-size:.94rem;max-width:72ch}
+.lic-tag{display:inline-flex;align-items:center;padding:2px 9px;border-radius:var(--pill);background:var(--dk-tint-blue, var(--b100));color:var(--dk-acc, var(--b700));font-size:.74rem;font-weight:700;line-height:1.6;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+
+.lic-fonts{list-style:none;margin:0 0 12px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:12px}
+.lic-font{display:flex;gap:14px;padding:16px;border-radius:var(--rl);background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1.5px var(--line)}
+.lic-font__aa{flex:none;display:grid;place-items:center;width:58px;height:58px;border-radius:16px;background:var(--grad);color:#fff;font-size:1.55rem;font-weight:700}
+.lic-font__b{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0}
+.lic-font__b > b{font-size:1.02rem}
+.lic-font__b > span:not(.lic-tag){font-size:.84rem;color:var(--gray)}
+
+.lic-art{margin:0 0 8px;padding:0;list-style:none;display:grid;gap:8px}
+.lic-art li{position:relative;padding:12px 14px 12px 38px;border-radius:var(--r);background:var(--dk-surface-2, #F7FAFE);font-size:.92rem;line-height:1.55}
+.lic-art li::before{content:"";position:absolute;left:15px;top:19px;width:9px;height:9px;border-radius:50%;background:var(--grad)}
+
+.lic-groups{display:grid;gap:14px}
+.lic-group{padding:clamp(14px,2.4vw,22px);border-radius:var(--rl);background:var(--dk-surface, #fff);box-shadow:inset 0 0 0 1.5px var(--line),var(--s1)}
+.lic-group__h{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px;margin-bottom:10px}
+.lic-group__h h3{margin:0;font-family:var(--fd);font-size:1.1rem}
+.lic-group__h span{font-size:.84rem;font-weight:600;color:var(--gray)}
+.lic-pkgs{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,290px),1fr));gap:8px}
+.lic-pkg{display:flex;flex-direction:column;gap:3px;min-width:0;padding:10px 12px;border-radius:12px;background:var(--dk-surface-2, #F7FAFE)}
+.lic-pkg__head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-width:0}
+.lic-pkg__head b{font-size:.9rem;overflow-wrap:anywhere}
+.lic-pkg__v{font-size:.78rem;color:var(--gray);font-variant-numeric:tabular-nums}
+.lic-pkg__c,.lic-pkg__n{margin:0;font-size:.8rem;line-height:1.45;color:var(--gray);overflow-wrap:anywhere}
+.lic-pkg__n{color:var(--ink)}
+.lic-pkg__a{align-self:flex-start;font-size:.8rem;font-weight:700;color:var(--dk-acc, var(--b600));text-decoration:underline;text-underline-offset:2px}
+.lic-text{margin-top:12px;border-radius:12px;box-shadow:inset 0 0 0 1px var(--line)}
+.lic-text summary{cursor:pointer;padding:10px 14px;font-size:.86rem;font-weight:700;color:var(--dk-acc, var(--b600));border-radius:12px;list-style-position:inside}
+.lic-text summary:hover{background:var(--b50)}
+.lic-text pre{margin:0;padding:12px 14px 16px;max-height:420px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-family:var(--fb);font-size:.8rem;line-height:1.55;color:var(--gray);border-top:1px solid var(--line)}
+@media (max-width:480px){
+  .lic-stats li{flex:1 1 100%}
+  .lic-font{padding:13px}
+  .lic-font__aa{width:46px;height:46px;font-size:1.25rem;border-radius:13px}
+}
+
+/* The link to this page under the /legal index (LegalDocList). */
+.legal__lic{display:inline-flex;align-items:center;gap:6px;margin-top:18px;font-size:.9rem;font-weight:700;color:var(--dk-acc, var(--b600))}
+.legal__lic svg{width:15px;height:15px}
+.legal__lic:hover{text-decoration:underline;text-underline-offset:3px}

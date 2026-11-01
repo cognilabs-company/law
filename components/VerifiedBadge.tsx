@@ -52,7 +52,15 @@ export default function VerifiedBadge({ name, subtitle, label = true, text, size
       <span className="vbadge__img">
         <Image src={SRC} alt="" width={40} height={40} />
       </span>
-      {label ? <span className="vbadge__t">{shown}</span> : null}
+      {label ? (
+        <>
+          {/* The short word on screen is part of the fuller name a screen
+              reader hears, so the button carries no aria-label that would
+              replace what a voice-control user sees and says. */}
+          <span className="vbadge__t" aria-hidden="true">{shown}</span>
+          <span className="sr-only">{t("tip")}</span>
+        </>
+      ) : null}
     </>
   );
   const tipNode =
@@ -68,7 +76,7 @@ export default function VerifiedBadge({ name, subtitle, label = true, text, size
 
   if (!interactive) {
     return (
-      <span ref={(el) => { ref.current = el; }} className={cls} aria-label={t("tip")} onMouseEnter={showTip} onMouseLeave={hideTip}>
+      <span ref={(el) => { ref.current = el; }} className={cls} aria-label={label ? undefined : t("tip")} onMouseEnter={showTip} onMouseLeave={hideTip}>
         {body}
         {tipNode}
       </span>
@@ -88,7 +96,7 @@ export default function VerifiedBadge({ name, subtitle, label = true, text, size
         ref={(el) => { ref.current = el; }}
         type="button"
         className={cls}
-        aria-label={t("tip")}
+        aria-label={label ? undefined : t("tip")}
         aria-haspopup="dialog"
         onClick={onClick}
         onMouseEnter={showTip}

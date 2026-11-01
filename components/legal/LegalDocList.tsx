@@ -3,10 +3,12 @@ import { Link } from "@/i18n/navigation";
 import { legalLabelKey, legalPathFromSlug } from "@/lib/legal";
 import type { ConsentDoc } from "@/lib/services/backend";
 import { IconArrowRight } from "../icons";
+import "./licenses.css";
 
 // Index of the current legal documents (/legal and its client fallback).
 export default function LegalDocList({ docs }: { docs: ConsentDoc[] }) {
   const t = useTranslations("legal");
+  const tl = useTranslations("licenses");
   return (
     <section className="sec legal">
       <div className="wrap legal__in">
@@ -43,6 +45,11 @@ export default function LegalDocList({ docs }: { docs: ConsentDoc[] }) {
         ) : (
           <p className="legal__note">{t("empty")}</p>
         )}
+        {/* LexGo's own page, not a backend document: always listed. */}
+        <Link href="/legal/licenses" className="legal__lic">
+          {tl("indexLink")}
+          <IconArrowRight />
+        </Link>
       </div>
     </section>
   );
