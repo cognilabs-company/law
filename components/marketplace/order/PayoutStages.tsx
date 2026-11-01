@@ -26,8 +26,13 @@ export default function PayoutStages({ data, items, aiBase }: { data: OrderPayou
   const locale = useLocale();
   const hold = data.settlement?.held ? data.settlement : null;
 
-  if (!data.ready || data.failed || !data.plan.length) return null;
-  const steps = planSteps(data.plan, data.rows, items, data.settlement);
+  if (!data.ready || data.failed) return null;
+  // The plan is the snapshot's own (payment.payout_stages, backend answers
+  // 2026-11-01 Q1). An older snapshot without it shows only the payouts the
+  // backend created, and says the plan is not recorded.
+  const fromRows = data.plan.length ? [] : data.rows.flatMap((r) => (r.stage !== "other" && r.percent !== null ? [{ stage: r.stage, percent: r.percent }] : []));
+  if (!data.plan.length && !fromRows.length) return null;
+  const steps = planSteps(data.plan.length ? data.plan : fromRows, data.rows, items, data.settlement);
   const manual = steps.some((s) => s.state === "manual");
   return (
     <section className="pst" aria-labelledby="pst-h" data-ai-id={`${aiBase}.payouts`} data-ai-type="section" data-ai-private>
@@ -59,6 +64,11 @@ export default function PayoutStages({ data, items, aiBase }: { data: OrderPayou
         })}
       </ol>
       {manual ? <p className="pst__note" data-tone="info">{t("manualNote")}</p> : null}
+      {fromRows.length ? (
+        <p className="pst__note" data-tone="info" data-noplan="">
+          {t("noPlan")}
+        </p>
+      ) : null}
       {hold ? (
         <p className="pst__note">
           {t(hold.status === "rework_hold" ? "heldRework" : hold.status === "complaint_hold" || hold.holdReason === "complaint_open" ? "heldComplaint" : "heldWindow")}

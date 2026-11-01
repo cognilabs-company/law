@@ -6,7 +6,6 @@ import { useTranslations, useLocale } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import type { Role } from "@/lib/auth";
 import { getMySubscription, getPromotionStatus, getSubscriptionPlans } from "@/lib/services/backend";
-import { SELLER_DISCOUNT } from "@/lib/services/plans";
 import { useResourceOne, useResource } from "@/lib/useResource";
 import { hiddenRecently as lawyerPromoHidden } from "./LawyerPromo";
 import { IconArrowRight, IconClose } from "../icons";
@@ -140,7 +139,7 @@ export default function GiftNudge({
 
   if (!variant) return null;
   const { key, href } = variant;
-  const title = key === "profile" ? tg("title", { pct }) : t(`${key}Title`, { pct: SELLER_DISCOUNT });
+  const title = key === "profile" ? tg("title", { pct }) : t(`${key}Title`);
   const text = key === "profile" ? tg(`tier${tier(pct)}`) : t(`${key}Text`);
   const cta = key === "profile" ? tg("cta") : t(`${key}Cta`);
 

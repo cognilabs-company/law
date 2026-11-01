@@ -72,6 +72,7 @@ function mergedItem(old: ChecklistItem, next: ChecklistItem): ChecklistItem {
     clientDescription: has(raw, "client_description") ? next.clientDescription : old.clientDescription,
     showToClient: next.showToClient ?? old.showToClient,
     payoutStage: has(raw, "payout_stage") ? next.payoutStage : old.payoutStage,
+    payoutStageMissing: has(raw, "payout_stage") ? next.payoutStageMissing : old.payoutStageMissing,
     updatedAt: next.updatedAt || old.updatedAt,
   };
 }

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ADVOCATE, CALL_CENTER, CLIENT, mockBackend, signIn } from "./mock";
-import { ORDER_ID, order } from "./fixtures";
+import { ORDER_ID, PLAN_SNAPSHOT, order } from "./fixtures";
 
 // TSK-906326 — 30-30-22 payouts (shapes from the backend's "gaps closed"
 // 2026-10-28 §6–9): the call center pays each stage with a transfer reference and
@@ -82,7 +82,7 @@ const stages = [
   { id: "c", stage: "completion", gross_percent: 40, payable_amount: 24200, status: "operator_required" },
 ];
 // A client's financials carry empty payout arrays.
-const financials = (seller: boolean) => ({ order_id: ORDER_ID, work_id: "ADV-7Q2", snapshot: {}, payments: [{ id: "p", stage: "full_payment", status: "paid", amount: 110000 }], payouts: seller ? stages : [], payout_stages: seller ? stages : [], settlement: { status: "held", held_amount: 24200, hold_reason: "rating_and_complaint_window", release_after: "2026-10-28T10:15:00Z" } });
+const financials = (seller: boolean) => ({ order_id: ORDER_ID, work_id: "ADV-7Q2", snapshot: PLAN_SNAPSHOT, payments: [{ id: "p", stage: "full_payment", status: "paid", amount: 110000 }], payouts: seller ? stages : [], payout_stages: seller ? stages : [], settlement: { status: "held", held_amount: 24200, hold_reason: "rating_and_complaint_window", release_after: "2026-10-28T10:15:00Z" } });
 
 test("the seller sees their three payout stages; the client sees none of it", async ({ browser }) => {
   for (const [who, expectStages] of [[ADVOCATE, true], [CLIENT, false]] as const) {

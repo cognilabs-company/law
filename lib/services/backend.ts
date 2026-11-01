@@ -1505,9 +1505,6 @@ export async function demoPlanPurchase(
     }),
   );
 }
-export async function demoConfirmPayment(paymentId: string): Promise<PurchaseResult> {
-  return normPurchase(await http(`/payments/${paymentId}/demo-confirm`, { method: "POST" }));
-}
 // Real ATMOS purchase (2026-09-19 backend update): recurring/auto-renew
 // billing, distinct from the one-off demo/generic-invoice paths above.
 // normPurchase() already reads the nested `payment.{id,status,payment_url}`

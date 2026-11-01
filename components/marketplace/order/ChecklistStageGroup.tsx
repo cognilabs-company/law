@@ -3,7 +3,7 @@
 import "./checklist-stages.css";
 import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { IconAlert, IconCheck, IconClock, IconCoins, IconFlag, IconLock, IconSparkle } from "@/components/icons";
+import { IconAlert, IconCheck, IconClock, IconCoins, IconFlag, IconInfo, IconLock, IconSparkle } from "@/components/icons";
 import { fmtUzs } from "@/lib/money";
 import { firstStageMark, justCompleted, stageAmount, type StageGroup, type StageMark, type StageState } from "./payStages";
 
@@ -112,6 +112,12 @@ export default function ChecklistStageGroup({ group: g, idBase, celebrate, ai, c
         <p className="cps__hint" data-tone="calm">
           <IconFlag aria-hidden />
           <span>{t("finalWhen", { share })}</span>
+        </p>
+      ) : null}
+      {g.unstaged > 0 ? (
+        <p className="cps__hint" data-tone="calm" data-unstaged="">
+          <IconInfo aria-hidden />
+          <span>{t("unstaged", { n: g.unstaged })}</span>
         </p>
       ) : null}
       {children}

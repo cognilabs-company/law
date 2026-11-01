@@ -65,6 +65,35 @@ describe("experience errors (TSK-920636; backend answers 2026-10-31 §3.3)", () 
     expect(experienceErrorOf(err("experience_subcategory_invalid"))).toMatchObject({ key: "subcategory", field: "subcategory_id" });
     expect(experienceErrorOf(err("category_not_found"))).toMatchObject({ key: "category", field: "category_id" });
   });
+  // Backend answers 2026-11-01 Q4: the exact code list. Every one reads in
+  // words in uz, ru and en, and a 413 / 415 without a code is still the
+  // file's size / type.
+  it("every exact experience code has its own words in uz, ru and en", async () => {
+    const { ApiError } = await import("@/lib/http");
+    const { experienceErrorOf } = await import("@/lib/services/experience");
+    const fs = await import("node:fs");
+    const msgs = ["uz", "ru", "en"].map((l) => JSON.parse(fs.readFileSync(`messages/${l}.json`, "utf8")).portal.experience.err as Record<string, string>);
+    const codes: [string, number][] = [
+      ["experience_category_required", 422],
+      ["experience_category_invalid", 422],
+      ["experience_subcategory_invalid", 422],
+      ["experience_positions_required", 422],
+      ["experience_dates_invalid", 422],
+      ["experience_future_date", 422],
+      ["experience_kind_revision_mismatch", 422],
+      ["experience_revision_already_pending", 409],
+      ["experience_evidence_too_large", 413],
+      ["experience_evidence_type_not_allowed", 415],
+    ];
+    for (const [code, status] of codes) {
+      const got = experienceErrorOf(new ApiError(status, code, undefined, { code, data: { detail: { code } } }));
+      expect(got, code).not.toBeNull();
+      for (const m of msgs) expect(m[got!.key], `${code} → ${got!.key}`).toMatch(/\S/);
+    }
+    expect(experienceErrorOf(new ApiError(422, "experience_category_required", undefined, { code: "experience_category_required", data: { detail: { code: "experience_category_required" } } }))).toMatchObject({ key: "experience_category_required", field: "category_id" });
+    expect(experienceErrorOf(new ApiError(413, "", undefined, { data: {} }))?.key).toBe("experience_evidence_too_large");
+    expect(experienceErrorOf(new ApiError(415, "", undefined, { data: {} }))?.key).toBe("experience_evidence_type_not_allowed");
+  });
   it("reads a plain string detail code the same way", async () => {
     const { toApiError } = await import("@/lib/http");
     const { experienceErrorOf } = await import("@/lib/services/experience");

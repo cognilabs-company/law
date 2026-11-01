@@ -78,6 +78,27 @@ describe("the backend's legal errors land on their fields", () => {
     const listed = { ok: false, errors: [{ field: "title_i18n.uz", code: "legal_uz_translation_required" }] };
     expect(k07ServerErrors({ "title_i18n.uz": "@code:legal_uz_translation_required" }, listed, doc({}, {}))).toEqual({ "title_i18n.uz_latn": "@code:legal_uz_title_required" });
   });
+  // Backend answers 2026-11-01 N5: validate answers HTTP 200, ok=false, with
+  // field errors such as translation_required; submit nests them in a 422
+  // studio_submit_invalid's detail.errors[]. Each lands on its tab's field,
+  // in words that fit: Uzbek is required, a half translation wants its pair,
+  // a language left out that Studio's check asks for says so.
+  it("translation_required lands on the right language and part", () => {
+    const listed = { ok: false, errors: [{ field: "title_i18n.uz_latn", code: "translation_required" }] };
+    expect(k07ServerErrors({ "title_i18n.uz_latn": "@code:translation_required" }, listed, doc({}, {}))).toEqual({ "title_i18n.uz_latn": "@code:legal_uz_title_required" });
+    expect(k07ServerErrors({ "body_i18n.en": "@code:translation_required" }, listed, doc({ en: "Privacy Policy" }, {}))).toEqual({ "body_i18n.en": "@code:legal_en_body_required" });
+    expect(k07ServerErrors({ "title_i18n.ru": "@code:translation_required", "body_i18n.ru": "@code:translation_required" }, listed, doc({}, {}))).toEqual({ "title_i18n.ru": "@code:legal_ru_title_studio", "body_i18n.ru": "@code:legal_ru_body_studio" });
+    const submit = api({ detail: { code: "studio_submit_invalid", errors: [{ path: "body_i18n.en", code: "legal_translation_pair_required", languages: ["en"] }] } });
+    expect(k07ServerErrors({ "body_i18n.en": "@code:legal_translation_pair_required" }, submit, doc({ en: "Privacy Policy" }, {}))).toEqual({ "body_i18n.en": "@code:legal_en_body_required" });
+  });
+  it("every message the mapping can produce reads in uz, ru and en", async () => {
+    const fs = await import("node:fs");
+    for (const l of ["uz", "ru", "en"]) {
+      const c = JSON.parse(fs.readFileSync(`messages/${l}.json`, "utf8")).studio.fieldErr.c as Record<string, string>;
+      for (const lang of ["uz", "ru", "en"]) for (const part of ["title", "body"]) expect(c[`legal_${lang}_${part}_required`], `${l} ${lang} ${part}`).toMatch(/\S/);
+      for (const lang of ["ru", "en"]) for (const part of ["title", "body"]) expect(c[`legal_${lang}_${part}_studio`], `${l} ${lang} ${part} studio`).toMatch(/\S/);
+    }
+  });
   it("other errors are left as they came, and the result never holds a raw code as text", () => {
     const e = api({ detail: { code: "studio_payload_invalid" } });
     expect(k07ServerErrors({ version: "@code:required" }, e, doc({}, {}))).toEqual({ version: "@code:required" });

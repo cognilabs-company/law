@@ -1,6 +1,6 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { ADMIN, ADVOCATE, CALL_CENTER, CLIENT, mockBackend, signIn, type Who } from "./mock";
-import { ORDER_ID, financials, order } from "./fixtures";
+import { ORDER_ID, PLAN_SNAPSHOT, financials, order } from "./fixtures";
 
 // Screenshots of the order screens changed for the backend answers of
 // 2026-10-31 (§1.3 contact SLA, §1.5 warranty, §1.6/§3.9 client price,
@@ -22,7 +22,7 @@ async function sellerOrder(page: Page) {
     page,
     await signIn(page, ADVOCATE, {
       [`/marketplace/me/orders/${ORDER_ID}`]: order({ status: "in_progress", started_at: "2026-10-31T09:00:00Z", contact_speed: "within_1_hour", contact_deadline_at: inMin(42) }),
-      [`/marketplace/me/orders/${ORDER_ID}/financials`]: { order_id: ORDER_ID, snapshot: {}, payouts: [ACCEPT], payout_stages: [], settlement: null },
+      [`/marketplace/me/orders/${ORDER_ID}/financials`]: { order_id: ORDER_ID, snapshot: PLAN_SNAPSHOT, payouts: [ACCEPT], payout_stages: [], settlement: null },
       [`/marketplace/me/orders/${ORDER_ID}/timeline`]: { items: [] },
       [`/marketplace/orders/${ORDER_ID}/checklist`]: { order_id: ORDER_ID, items: ITEMS },
       "/marketplace/me/orders": { items: [], total: 0 },
@@ -58,7 +58,7 @@ async function clientOrder(page: Page) {
       [`/marketplace/me/orders/${ORDER_ID}/financials`]: financials([{ stage: "full_payment", status: "paid", amount: 120000 }]),
       [`/marketplace/me/orders/${ORDER_ID}/timeline`]: { items: [] },
       [`/marketplace/orders/${ORDER_ID}/checklist`]: { order_id: ORDER_ID, items: [] },
-      "/marketplace/runtime-capabilities": { warranty: { available_resolutions: ["replacement", "full_refund"] } },
+      "/marketplace/runtime-capabilities": { warranty: { replacement: true, full_refund: true } },
       "/marketplace/me/orders": { items: [], total: 0 },
     }),
   );

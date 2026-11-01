@@ -702,6 +702,7 @@ function SchemaFieldImpl({ node, path, scope, inBoard = false }: { node: SchemaF
         emit={(p, v) => emit(p, v)}
         errorAt={errorAt}
         touch={(p) => policy.touch(p)}
+        schemaLangs={model.ctor.typed.find((f) => f.key === "title_i18n")?.properties.map((p) => p.key)}
       />,
     );
   }

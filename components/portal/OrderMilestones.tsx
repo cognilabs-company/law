@@ -6,10 +6,9 @@ import {
   listOrderMilestones,
   payOrderMilestone,
   releaseOrderMilestone,
-  demoConfirmPayment,
   type OrderMilestone,
 } from "@/lib/services/backend";
-import { isDemoCheckout, type PaymentIntent } from "@/lib/services/checkout";
+import type { PaymentIntent } from "@/lib/services/checkout";
 import { rememberPendingPayment } from "@/lib/services/paymentProviders";
 import { isConflict, isForbidden, isProviderUnavailable } from "@/lib/http";
 import { humanizeSlug } from "@/lib/lawyers";
@@ -118,12 +117,10 @@ export default function OrderMilestones({ orderId }: { orderId: string }) {
     setIntent(null);
     try {
       const r = await payOrderMilestone(orderId, m.id);
-      if (isDemoCheckout() && r.paymentId) {
-        // Staging: the demo provider settles instantly.
-        await demoConfirmPayment(r.paymentId).catch(() => null);
-        reload();
-        notify.success(t("paidDemo"), { id: nid });
-      } else if (!r.paymentId) {
+      // The demo confirmation (/payments/{id}/demo-confirm) is retired for
+      // every frontend flow (backend answers 2026-11-01 Q12): a payment is
+      // paid only through its provider.
+      if (!r.paymentId) {
         // Already paid or released on the server.
         reload();
       } else {

@@ -8,7 +8,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactElement } fr
 import { useTranslations } from "next-intl";
 import { aiId as makeAiId } from "@/lib/ai/ids";
 import { logApiError } from "@/lib/http";
-import { SxButton } from "../../Button";
+import { SxButton, SxLinkButton } from "../../Button";
 import { Field } from "../../form/Field";
 import { TextInput } from "../../form/TextInput";
 import { CheckIcon, ChevronDownIcon, PlusIcon, RefreshCwIcon, XIcon, glyph } from "../../icons";
@@ -31,6 +31,10 @@ export type LegalBlockProps = {
   emit: (path: string, value: unknown) => void;
   errorAt: (path: string) => string;
   touch: (path: string) => void;
+  // The languages the constructor's own title_i18n schema lists. K07 does
+  // not list English yet (backend answers 2026-11-01 N4), so the English tab
+  // says Studio may not keep it, and where English is published instead.
+  schemaLangs?: readonly string[];
 };
 
 type Gen = { snap: GenSnap; stale: boolean; busy: boolean; failed: boolean; avail: TranslitAvail; note: string };
@@ -101,7 +105,7 @@ function PartEditors({ id, ai, lang, text, readOnly, errorAt, emit, touch, requi
   );
 }
 
-type PanelProps = Pick<LegalBlockProps, "id" | "ai" | "readOnly" | "root" | "emit" | "errorAt" | "touch">;
+type PanelProps = Pick<LegalBlockProps, "id" | "ai" | "readOnly" | "root" | "emit" | "errorAt" | "touch" | "schemaLangs">;
 
 // The Uzbek tab: the script the author writes in, and the other script
 // prepared from it through the transliterate endpoint and kept editable.
@@ -264,7 +268,7 @@ function UzPanel({ id, ai, readOnly, root, emit, errorAt, touch }: PanelProps): 
 // The Russian or English tab: optional, but a title without its text (or
 // the other way round) is never sent. Left empty, the language is simply
 // not part of this version.
-function TrailPanel({ id, ai, lang, readOnly, root, emit, errorAt, touch }: PanelProps & { lang: TrailLang }): ReactElement {
+function TrailPanel({ id, ai, lang, readOnly, root, emit, errorAt, touch, schemaLangs }: PanelProps & { lang: TrailLang }): ReactElement {
   const t = useTranslations("studio");
   const text = textOf(root, lang);
   const state = stateOf(text);
@@ -272,7 +276,13 @@ function TrailPanel({ id, ai, lang, readOnly, root, emit, errorAt, touch }: Pane
   const hasErr = !!errorAt(`title_i18n.${lang}`) || !!errorAt(`body_i18n.${lang}`);
   const shown = opened || state !== "empty" || hasErr;
   const name = t(`sx.k07.lang.${lang}`);
+  const gap = schemaLangs && schemaLangs.length > 0 && !schemaLangs.includes(lang) ? (
+    <SxNote tone="warn" role="note" className="sx-lg__gap" title={t("sx.k07.gap.title", { lang: name })} action={<SxLinkButton variant="secondary" size="sm" href="/admin/legal" aiId={makeAiId(ai, lang, "gap", "legal")}>{t("sx.k07.gap.open")}</SxLinkButton>}>
+      <p>{t("sx.k07.gap.text", { lang: name })}</p>
+    </SxNote>
+  ) : null;
   if (readOnly) {
+    if (gap) return gap;
     return state === "empty" ? <p className="sx-lg__none">{t("sx.k07.trailNone", { lang: name })}</p> : <PartEditors id={id} ai={ai} lang={lang} text={text} readOnly errorAt={errorAt} emit={emit} touch={touch} required={false} />;
   }
   const clear = () => {
@@ -282,6 +292,7 @@ function TrailPanel({ id, ai, lang, readOnly, root, emit, errorAt, touch }: Pane
   };
   return (
     <>
+      {gap}
       <p className="sx-field__help sx-lg__lead">{t(`sx.k07.${lang}.help`)}</p>
       {shown ? (
         <>
@@ -312,7 +323,7 @@ const MARK_ICON: Partial<Record<TabMark, typeof CheckIcon>> = { complete: CheckI
 // Uzbek, Russian and English, each on its own tab with a mark saying how far
 // it is filled. A field error on a hidden tab opens it (focus.ts clicks the
 // tab that controls the hidden panel).
-export function LegalLangsBlock({ id, ai, label, help, required, readOnly, root, emit, errorAt, touch }: LegalBlockProps): ReactElement {
+export function LegalLangsBlock({ id, ai, label, help, required, readOnly, root, emit, errorAt, touch, schemaLangs }: LegalBlockProps): ReactElement {
   const t = useTranslations("studio");
   const [tab, setTab] = useState<LangTab>("uz");
   const list = useRef<HTMLDivElement>(null);
@@ -332,7 +343,7 @@ export function LegalLangsBlock({ id, ai, label, help, required, readOnly, root,
     setTab(to);
     requestAnimationFrame(() => list.current?.querySelector<HTMLButtonElement>(`[data-tab="${to}"]`)?.focus());
   };
-  const panel: PanelProps = { id, ai, readOnly, root, emit, errorAt, touch };
+  const panel: PanelProps = { id, ai, readOnly, root, emit, errorAt, touch, schemaLangs };
   return (
     <fieldset className="sx-field sx-lg" data-as="fieldset" data-span={2} data-ro={readOnly ? "" : undefined} aria-describedby={help && !readOnly ? `${id}-help` : undefined} data-ai-id={ai} data-ai-type="section" data-ai-label={label}>
       <legend className="sx-field__label sx-field__legend" id={`${id}-label`}>

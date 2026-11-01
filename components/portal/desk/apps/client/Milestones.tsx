@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { demoConfirmPayment, listOrderMilestones, payOrderMilestone, releaseOrderMilestone, type OrderMilestone } from "@/lib/services/backend";
-import { isDemoCheckout } from "@/lib/services/checkout";
+import { listOrderMilestones, payOrderMilestone, releaseOrderMilestone, type OrderMilestone } from "@/lib/services/backend";
 import { isConflict, isForbidden } from "@/lib/http";
 import { humanizeSlug } from "@/lib/lawyers";
 import { fmtUzs } from "@/lib/money";
@@ -44,11 +43,9 @@ export default function Milestones({ orderId, onError, onDone }: { orderId: stri
     setPayUrl("");
     try {
       const r = await payOrderMilestone(orderId, m.id);
-      if (isDemoCheckout() && r.paymentId) {
-        await demoConfirmPayment(r.paymentId).catch(() => null);
-        setKey((k) => k + 1);
-        onDone(t("paidDemo"));
-      } else if (!r.paymentId) setKey((k) => k + 1);
+      // No demo confirmation: it is retired for every frontend flow (backend
+      // answers 2026-11-01 Q12); the provider's page takes the payment.
+      if (!r.paymentId) setKey((k) => k + 1);
       else setPayUrl(r.paymentUrl || "");
     } catch (e) {
       fail(e);

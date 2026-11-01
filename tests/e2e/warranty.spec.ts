@@ -64,15 +64,17 @@ test("the call center moves files to a replacement only with the client's consen
 // Backend answers 2026-10-31 §1.5: the order names no eligible cases
 // (warranty_eligible_kinds does not exist, so a stray one is ignored) — the
 // client always sees the five cases; the remedies are only the ones the
-// backend lists in available_resolutions, never a rework.
-test("the client sees the five guarantee cases and only the remedies the backend lists", async ({ page }) => {
+// backend turns on, never a rework. 2026-11-01 Q2: runtime-capabilities has
+// no available_resolutions (that list is a claim's own), so a stray one is
+// ignored and the replacement / full_refund flags decide.
+test("the client sees the five guarantee cases and only the remedies the backend turns on", async ({ page }) => {
   const o = order({ status: "in_progress", started_at: new Date().toISOString(), warranty_url: `/marketplace/me/orders/${ORDER_ID}/warranty`, warranty_eligible_kinds: ["sla_breach", "abandoned"] });
   await mockBackend(
     page,
     await signIn(page, CLIENT, {
       [`/marketplace/me/orders/${ORDER_ID}`]: o,
       [`/marketplace/me/orders/${ORDER_ID}/financials`]: financials([{ stage: "marketplace_order", status: "paid", amount: 110000 }]),
-      "/marketplace/runtime-capabilities": { warranty: { replacement: true, full_refund: true, available_resolutions: ["full_refund", "rework", "rejected"], call_center_review: true } },
+      "/marketplace/runtime-capabilities": { warranty: { replacement: false, full_refund: true, available_resolutions: ["replacement", "rework", "rejected"], call_center_review: true } },
     }),
   );
   await page.goto(`/ru/portal/client/marketplace-orders/${ORDER_ID}`);

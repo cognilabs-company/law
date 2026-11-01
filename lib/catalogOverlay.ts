@@ -7,14 +7,13 @@ import { asDict } from "@/lib/http";
 import type { BackendCategory, BackendPlan } from "@/lib/services/backend";
 
 // ── Plans ─────────────────────────────────────────────────────────
-// Plans the backend seeds but the product spec (GM v1.1) does not list. The
-// backend still returns them as active, so the public tariff page leaves
-// them out until the backend retires them (reported 2026-10-31).
-export const LEGACY_PLAN_SLUGS = new Set(["lexgo-ai-yurist-advokat-seller", "lexgo-ai-jismoniy-shaxs", "biznes-abonent-basic", "biznes-abonent-standard", "biznes-abonent-premium"]);
-
-// Public listing: inactive and legacy plans dropped.
+// Public listing: the plans the backend says are active, and only those.
+// The five seeded plans the product spec (GM v1.1) does not list are still
+// active, and there is no safe rule or retire endpoint for them yet
+// (backend answers 2026-11-01 Q10): the frontend no longer hides them by a
+// slug list of its own — they go once the backend makes them inactive.
 export function sellablePlans(plans: BackendPlan[]): BackendPlan[] {
-  return plans.filter((p) => p.isActive && !LEGACY_PLAN_SLUGS.has(p.slug));
+  return plans.filter((p) => p.isActive);
 }
 
 // ── Service categories ────────────────────────────────────────────

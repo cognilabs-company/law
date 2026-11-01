@@ -1,64 +1,83 @@
-# LexGo: backend work still open after the 2026-10-31 answers
+# LexGo: backend work still open after the 2026-10-31 and 2026-11-01 answers
 
-Date: 2026-10-31
+Date: 2026-10-31, updated 2026-11-01
 From: Frontend
-Answers to: `LEXGO_FRONTEND_QUESTIONS_ALL_TASKS_2026_10_30.md`, in `LEXGO_BACKEND_ANSWERS_ALL_TASKS_2026_10_31.md`.
+Answers to: `LEXGO_FRONTEND_QUESTIONS_ALL_TASKS_2026_10_30.md`, in `LEXGO_BACKEND_ANSWERS_ALL_TASKS_2026_10_31.md`, and to this file, in `LEXGO_BACKEND_ANSWERS_OPEN_2026_11_01.md`.
 
-Everything marked READY in the answers is now built into the frontend. The list below is what still needs the backend, a provider or a key. The frontend does not imitate any of it. Where a screen needs one of these, it shows an honest "not available yet" state, or leaves the action out.
+Everything marked READY in the answers is built into the frontend. The frontend does not imitate anything partial, missing or blocked. Where a screen needs one of these, it shows an honest "not available yet" state, or leaves the action out.
 
 Please never send test accounts without 2FA or TOTP secrets.
 
+## Still open (short list)
+
+- **N2** `today` contact speed means accepted + 12 hours, not end of day: product/backend should rename the label or change the rule. The UI shows the exact deadline in Tashkent time.
+- **N1** Please confirm the order field that carries the first contact's channel (`chat` / `chat_file` / `audio` / `video`). The frontend reads `contact_started_channel` and shows nothing when it is absent.
+- **N4** Add `en` to the Studio K07 schema. **N5** Expose the `legal_*` codes the same way in validate, submit and publish.
+- **Q2** Type `warranty.available_resolutions` in runtime capabilities. **Q4** `GET /marketplace/me/experience/config` (evidence size and types). **Q8** Map loader locale. **Q10** Product-approved slug list or a retire workflow for the five legacy plans (they now show, as the backend returns them active).
+- **G1–G19** as listed below (G1, G4, G15, G16, G17 partial; the rest not delivered). **E1** Yandex Geocoder key, **E2** Payme / Click production. **C1** reviewed English legal texts and the Russian remote-assistance consent. **T1** typing of the nested contracts.
+
+## New questions (N1–N5), answered 2026-11-01
+
+| # | Answer (one line) | What the frontend did |
+|---|---|---|
+| N1 | Contact = the seller's first chat text (`chat`), file (`chat_file`) or audio/video call in the paid room; phone, accept or start don't count. | `ContactSla` explains it when no contact is recorded ("Work has started, but no message or call to the client is recorded yet" when `started_at` is set) and shows the first contact's channel in words when the backend sends it. Nothing is inferred locally. |
+| N2 | UTC timestamps; `today` = accepted + 12 h (acknowledged as misleading). | Every SLA time is shown in Tashkent time with the zone named; the speed row points to the exact deadline. Nothing is recomputed. Label: still open. |
+| N3 | Legacy order snapshot items have no `payout_stage`; they fall back to the final 40% group. | Kept; the final stage now says how many items have no payout stage and that they count toward the final payout. |
+| N4 | K07 schema has no `en` yet — backend gap. | The English tab in Studio warns that Studio may not keep English while the schema lacks it, and links to Legal documents, where English is published. |
+| N5 | validate 200 `ok=false` + field errors; submit 422 `studio_submit_invalid` + `detail.errors[]`; publish 409 `studio_publish_failed`. | `translation_required` lands on the right tab and part in words; nested submit errors land on fields; a publish failure that names fields marks them and the dialog says so; a backend sentence with a code is never shown. |
+
+## Questions found while integrating, answered 2026-11-01
+
+| # | Answer (one line) | What the frontend did |
+|---|---|---|
+| Q1 | The plan is `snapshot.payment.payout_stages` only; top-level `payout_stages` are actual records. | Reads only that key; the made-up 30/30/40 default and the other key guesses are gone. A snapshot without a plan shows only the created payouts and says the plan is not recorded. |
+| Q2 | Capabilities expose only warranty booleans; `available_resolutions` is on claim payloads. | The client form uses the replacement / full-refund flags; the call center uses the claim's list. The capabilities list is no longer read. |
+| Q3 | `pricing.factors` stays in the public runtime configuration. | No change: the profile keeps listing them. |
+| Q4 | Exact codes listed; 413 / 415 for evidence; no config endpoint yet. | Every code has its own words in uz/ru/en; a 413 / 415 without a code reads as file too large / type not allowed. Limits stay as answered until a config endpoint exists. |
+| Q5 | `rule_title_exists` comes inside validate 200 `ok=false` and submit 422 `detail.errors[]`, never 409. | Read in both shapes (name field + "open the existing rule" note); the 409 reading is removed. |
+| Q6 | Updates accept `foreground` / `background` / `manual` / `office`; map display uses `live` / `office` / `profile_region`. | Typed accordingly; the browser sends `foreground`; display words only for the three display sources. |
+| Q7 | `purchase_url` is an API path (`POST …/purchase-request`). | No change: it is never used as a link; buying goes through the purchase dialog, which posts. |
+| Q8 | Map loader fixed to `lang=uz_UZ`. | No change; still open. |
+| Q9 | No PATCH/DELETE for subscription features; not planned. | No change: `/admin/tariffs` only lists and adds; no edit/delete buttons. |
+| Q10 | 11 active plans; no safe rule or retire endpoint for the five legacy ones. | The frontend's own slug list that hid them is removed; plans show exactly as the backend marks them active. Retiring: still open. |
+| Q11 | No verified-seller 50% discount in the quote. | The hard-coded 50% and every "50% off for lawyers" claim (AI nudge, AI page, chat answer) are removed. |
+| Q12 | Demo confirmation is retired for production frontend flows. | `/payments/{id}/demo-confirm` is no longer called anywhere; milestone payments go through the provider. |
+
 ## External blockers
 
-| # | What | Frontend meanwhile |
-|---|---|---|
-| E1 | **Yandex Geocoder key.** The provider answers 403 (§7.1). | Address search and reverse lookup show "Address search is unavailable right now — pick the point on the map". The map and point picking still work. |
-| E2 | **Payme / Click production.** Contracts, credentials, webhooks, reconciliation and refund testing (§1.4, §1.8). | A provider shows as enabled only when `provider_enabled` and readiness are both true. Refunds read as processed manually by an operator. |
+| # | What | Backend 2026-11-01 | Frontend meanwhile |
+|---|---|---|---|
+| E1 | **Yandex Geocoder key** (provider 403, §7.1). | Still blocked, no date. | Address search says it is unavailable; points are picked on the map. |
+| E2 | **Payme / Click production** (§1.4, §1.8). | Still blocked, no date. | A provider shows as enabled only when `provider_enabled` and readiness are both true. Refunds read as processed manually. |
+| C1 | Reviewed English legal texts (10 documents) and the Russian remote-assistance consent. | Content blocked. | Nothing to do; they appear when published (Uzbek fallback is labelled). |
 
 ## Backend gaps
 
-| # | § | Needed |
-|---|---|---|
-| G1 | 1.1 | A candidates endpoint with ranking, and an optional `seller_user_id` on `assignment-escalations/{id}/resolve`. Until then, "Reassign" lets the backend choose. |
-| G2 | 1.2 | An escalation-specific chat room (operator + client/seller) and a call in it. |
-| G3 | 1.5 | A `rework` warranty resolution, `warranty_eligible_kinds` on the order, and a warranty KPI endpoint. |
-| G4 | 1.7 | `Idempotency-Key` on payout mark-paid, payout-recovery resolve and complaint resolve; typed settlement. |
-| G5 | 2.2 | An admin consent-history endpoint for subscriptions. |
-| G6 | 2.3 | An activation gate, so a K17 plan version isn't sold before its developer task is accepted. |
-| G7 | 2.4 | A persisted `is_test` on advertisement accounts and purchases. |
-| G8 | 3.1 | A nested `reviewer: {id, name}` on experience review history. Only `reviewed_by_user_id` comes today, and the UI never shows an id. |
-| G9 | 3.4 | A typed evidence-access audit trail (view / download / upload / delete). |
-| G10 | 3.5 | `experience_dates_overlap` within one workplace, if that rule is wanted. The frontend does not check overlaps. |
-| G11 | 4.4 | An `audience` filter and field on `GET /marketplace/service-rules`. |
-| G12 | 4.5 | A nested `published_by: {id, name}` on document global settings. Only `published_by_user_id` comes today. |
-| G13 | 4.6 | A typed K36 coefficient preview. |
-| G14 | 5.1 | A secure-chat reaction model, API and event. |
-| G15 | 5.3 | `/admin/marketplace/sellers/{id}/rating` and a rating-policy version history. |
-| G16 | 5.4 | GET/PUT monitoring thresholds, and temporary monitoring-access grants. |
-| G17 | 5.5 | A background CEO export job; date filters on `/quality/overview`; complete acceptance / contact-SLA quality values. |
-| G18 | 5.6 | A payment-provider webhook sandbox. |
-| G19 | 7.4 | A public `avatar_url` on map markers and nearby results. Cards show initials until then. |
+| # | § | Needed | Backend 2026-11-01 | Frontend |
+|---|---|---|---|---|
+| G1 | 1.1 | Ranked candidates and an optional `seller_user_id` on escalation resolve. | Partial: `GET /matching/candidates` exists; resolve has no `seller_user_id`. | "Reassign" lets the backend choose; no seller pick on escalations. |
+| G2 | 1.2 | An escalation chat room and call. | Not delivered. | No escalation chat/call button. |
+| G3 | 1.5 | `rework`, `warranty_eligible_kinds`, warranty KPI. | Not delivered. | Only replacement / full refund / rejected; no KPI. |
+| G4 | 1.7 | `Idempotency-Key` on payout mark-paid, recovery, complaint resolve; typed settlement. | Partial. | Header sent where supported; the rest guarded against double clicks; settlement only read. |
+| G5 | 2.2 | Admin consent history. | Not delivered. | Only the latest consent is shown. |
+| G6 | 2.3 | K17 activation gate on the developer task. | Not delivered. | The task is shown; publishing does not pretend to wait. |
+| G7 | 2.4 | Persisted `is_test` on ad accounts and purchases. | Not delivered. | No test marks on ads; Studio test marks now come only from a backend `is_test` (the frontend's name guess is removed). |
+| G8 | 3.1 | Nested `reviewer: {id, name}`. | Not delivered. | Name when sent, else the word "reviewer"; never an id. |
+| G9 | 3.4 | Evidence-access audit trail. | Not delivered. | No audit UI. |
+| G10 | 3.5 | `experience_dates_overlap`. | Not delivered. | No local overlap check. |
+| G11 | 4.4 | `audience` filter and field on service rules. | Not delivered. | No audience filter is sent. |
+| G12 | 4.5 | Nested `published_by: {id, name}`. | Not delivered. | Name when sent; never an id. |
+| G13 | 4.6 | Typed K36 coefficient preview. | Not delivered. | Generic preview only; no local coefficient math. |
+| G14 | 5.1 | Secure-chat reactions. | Not delivered. | The chat offers none. |
+| G15 | 5.3 | Seller rating detail and policy history. | Partial. | Only recalculation, status and active policy are shown. |
+| G16 | 5.4 | Monitoring thresholds GET/PUT and grants. | Partial. | Read-only, fixed backend thresholds. |
+| G17 | 5.5 | Background CEO export; date filters and full values on `/quality/overview`. | Partial. | Export is synchronous with a busy state; the admin dashboard no longer sends period/region filters to `/quality/overview` and says the quality figures cover the whole platform. |
+| G18 | 5.6 | Payment webhook sandbox. | Not delivered. | Nothing built. |
+| G19 | 7.4 | `avatar_url` on map markers and nearby results. | Not delivered. | Initials. |
 
-## Questions found while integrating
+## OpenAPI typing still flexible (T1, PARTIAL)
 
-| # | § | Question |
-|---|---|---|
-| Q1 | 1.10 | Under which key does the financials snapshot carry the planned stages? The frontend reads `payout_plan`, `payout_stages`, `planned_stages` or `stages`. Please confirm and type it. |
-| Q2 | 1.5 | Do the client's runtime capabilities expose `warranty.available_resolutions`? The client form reads it when present; otherwise it uses the replacement/refund on-off flags. |
-| Q3 | 1.6 | The public profile's "how the price is formed" lists the service's runtime pricing factors (`config.pricing.factors`) with their percent or fixed amount. Are those factors client-public? If not, please leave them out of the public runtime response, and the frontend will stop listing them. |
-| Q4 | 3.3 | The exact names of the experience category/subcategory validation codes, and optionally `GET /marketplace/me/experience/config` (the 20 MB limit and file types are hard-coded from the answer). |
-| Q5 | 4.1 | Does `rule_title_exists` come with HTTP 409 or 422? Both are handled. |
-| Q6 | 7.5 | Which values can the office `source` take? The frontend puts the ones it recognizes into words and hides any it doesn't. |
-| Q7 | 7.3 | What is `service_action.purchase_url`: a page or an API path? The frontend keeps it but buys through the profile's own purchase dialog. |
-| Q9 | 2.1 | There is no PATCH/DELETE on `/admin/subscription-features`, so `/admin/tariffs` can only add features. Should editing and retiring a feature be possible? |
-| Q10 | 2.1 | The backend still returns 5 legacy seeded plans as active, and the frontend hides them by slug. Please retire them (inactive or hidden). |
-| Q11 | 2.5 | Does the plan quote include the verified-seller 50% discount? The frontend no longer applies it locally, but the gift banner still advertises it. |
-| Q12 | 5.6 | `/payments/{id}/demo-confirm` is gone from OpenAPI, but a build configured with a demo provider still calls it. Is it retired? |
-| Q8 | 7.1 | `maps_loader_url` is always `lang=uz_UZ`, so ru/en users see Uzbek map labels. Could the config take the locale (or return a loader per locale)? |
-
-## OpenAPI typing still flexible (PARTIAL)
-
-Contact SLA fields (§1.3), settlement (§1.7), `client_price_reasons` (§3.9), client checklist items (§4.3), Studio dashboard cards (§4.8), task attachments (§5.2), monitoring nested objects (§5.4), geocoder items (§7.2) and the office object (§7.5). The frontend reads them defensively, using only the fields named in the answers.
+Contact SLA fields (§1.3), settlement (§1.7), `client_price_reasons` (§3.9), client checklist items (§4.3), Studio dashboard cards (§4.8), task attachments (§5.2), monitoring nested objects (§5.4), geocoder items (§7.2) and the office object (§7.5). Backend 2026-11-01: still partial. The frontend reads them defensively, using only the fields named in the answers.
 
 ## Legal documents in uz / ru / en: resolved (backend eecebb9, `LEXGO_LEGAL_DOCUMENT_LANGUAGES_FRONTEND_FINAL_2026_11_01.md`)
 
@@ -73,6 +92,6 @@ The four findings from 2026-11-01 (backend e0e60ee) are answered by the final co
 
 Content still to come from the backend/legal team (no frontend work needed; it appears automatically when published): reviewed English translations of the 10 documents other than the Privacy Policy, and the Russian remote-assistance consent.
 
-**Still open for the backend (Studio K07, 2026-11-01).**
-- K1: The Studio K07 legal-document editor now has Uzbek / Russian / English tabs and sends `title_i18n.en` / `body_i18n.en` (with `uz_latn` or `uz_cyrl` and `ru`) in one submit. The K07 constructor schema we could see lists only `uz_latn`, `uz_cyrl` and `ru` under `title_i18n` / `body_i18n`. Please add `en` to the K07 schema and publish it into the legal document. Until then, Studio may drop the English text; `/admin/legal` saves it through `POST`/`PATCH /admin/legal/consents`.
-- K2: Please confirm that Studio validate, submit and publish return `legal_uz_translation_required` / `legal_translation_pair_required` in the contract's `detail` shape. The editor handles that shape and an `errors` list.
+**Studio K07 (answered 2026-11-01 as N4 / N5, see above).**
+- K1 = N4: gap confirmed — the K07 schema still lists only `uz_latn`, `uz_cyrl`, `ru`. Still open for the backend: add `en` to the K07 `title_i18n` / `body_i18n` schema and publish it into the legal document.
+- K2 = N5: answered — validate is 200 `ok=false` with field errors, submit is 422 `studio_submit_invalid` with `detail.errors[]`, publish is 409 `studio_publish_failed`; the `legal_*` codes are not yet consistent across the three. Still open for the backend: expose `legal_uz_translation_required` / `legal_translation_pair_required` the same way in all three operations.

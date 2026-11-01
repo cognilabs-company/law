@@ -1,6 +1,6 @@
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import { ADVOCATE, CLIENT, mockBackend, signIn, type Mock, type Who } from "./mock";
-import { ORDER_ID, order } from "./fixtures";
+import { ORDER_ID, PLAN_SNAPSHOT, order } from "./fixtures";
 
 // Owner, 2026-10-30: while the advocate works the checklist, the 30% items
 // and the 40% items are two separate stages; when the 30% items are done,
@@ -10,7 +10,7 @@ import { ORDER_ID, order } from "./fixtures";
 // Screenshots: ADDON_SHOTS=<dir> (1440x900 and 390x844, light and dark).
 
 type Row = { id: string; stage: string; status: string; gross_percent: number; payable_amount: number; paid_at?: string };
-type State = { items: Record<string, unknown>[]; payouts: Row[] };
+type State = { items: Record<string, unknown>[]; payouts: Row[]; snapshot?: Record<string, unknown> };
 
 const ITEMS = () => [
   { id: "a1", executor_title: "Hujjatlarni tekshirish", client_title: "Hujjatlaringiz tekshirildi", status: "done", required: true, payout_stage: "first_checklist", updated_at: "2026-10-30T10:58:00Z" },
@@ -26,7 +26,7 @@ async function openOrder(page: Page, who: Who, state: State): Promise<Mock> {
     page,
     await signIn(page, who, {
       [`/marketplace/me/orders/${ORDER_ID}`]: () => order({ status: "in_progress", payment_status: "paid", started_at: "2026-10-30T09:00:00Z" }),
-      [`/marketplace/me/orders/${ORDER_ID}/financials`]: () => ({ order_id: ORDER_ID, payouts: who.role === "client" ? [] : state.payouts, settlement: null }),
+      [`/marketplace/me/orders/${ORDER_ID}/financials`]: () => ({ order_id: ORDER_ID, snapshot: state.snapshot ?? PLAN_SNAPSHOT, payouts: who.role === "client" ? [] : state.payouts, settlement: null }),
       [`/marketplace/me/orders/${ORDER_ID}/timeline`]: { items: [] },
       [`/marketplace/orders/${ORDER_ID}/checklist`]: () => ({ order_id: ORDER_ID, items: state.items }),
       // Marking an item done: the backend records the 30% payout once the
@@ -170,6 +170,45 @@ test("seller: with no first-checklist items the 30% stage says it is not trigger
   await expect(step).toHaveAttribute("data-status", "manual");
   await expect(step).toContainText("Avtomatik ishga tushmaydi");
   await expect(card).toContainText("birinchi checklist bosqichi avtomatik ishga tushmaydi");
+});
+
+// Backend answers 2026-11-01 N3: a legacy order's snapshot items carry no
+// payout_stage. They stay in the final 40% group, which says so honestly.
+test("seller: legacy items without a payout stage stay in the final group, with a note saying why", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const items = ITEMS().map((i) => {
+    const { payout_stage: _drop, ...rest } = i;
+    void _drop;
+    return rest;
+  });
+  await openOrder(page, ADVOCATE, { items, payouts: [ACCEPT] });
+  const final = page.locator('.cps[data-stage="final_completion"]');
+  await expect(final).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('.cps[data-stage="first_checklist"]')).toHaveCount(0);
+  const note = final.locator("[data-unstaged]");
+  await expect(note).toContainText("Bu buyurtmada 4 ta bandga to‘lov bosqichi belgilanmagan");
+  expect(await final.innerText()).not.toMatch(/payout_stage|final_completion/);
+});
+
+test("seller: the stage note is absent when every item has its stage", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openOrder(page, ADVOCATE, { items: ITEMS(), payouts: [ACCEPT] });
+  await expect(page.locator('.cps[data-stage="final_completion"]')).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator("[data-unstaged]")).toHaveCount(0);
+});
+
+// Backend answers 2026-11-01 Q1: the plan is snapshot.payment.payout_stages
+// only. A snapshot without it shows the created payouts and says the plan
+// is not recorded — no 30/30/40 is made up.
+test("seller: a snapshot without a payout plan shows only the created payouts", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openOrder(page, ADVOCATE, { items: ITEMS(), payouts: [ACCEPT], snapshot: { payout_stages: [{ stage: "completion", gross_percent: 40 }] } });
+  const card = page.locator(".pst");
+  await expect(card).toBeVisible({ timeout: 20_000 });
+  await expect(card.locator(".pst__step")).toHaveCount(1);
+  await expect(card.locator('.pst__step[data-stage="accept"]')).toContainText("30%");
+  await expect(card.locator("[data-noplan]")).toContainText("to‘lov rejasi yozilmagan");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
 });
 
 test("client: one plain checklist — no stages, no percent, no money", async ({ page }) => {

@@ -183,29 +183,25 @@ export function orderPayoutsOf(raw: unknown): Payout[] {
   return out.sort((a, b) => stageRank(a.stage) - stageRank(b.stage));
 }
 
-// The planned stages the snapshot records (acceptance 30%, first checklist
-// 30%, completion 40%). Read from the snapshot when it lists them; the
-// backend's confirmed 30/30/40 plan otherwise — percents only, never an
-// amount, which only a created row has.
+// The planned stages the immutable financial snapshot records, and only
+// those: snapshot.payment.payout_stages (backend answers 2026-11-01 Q1),
+// each with its stage and gross_percent. The top-level payout_stages are the
+// actual payout records, not the plan. A snapshot without the list has no
+// plan to show, and none is made up — percents only, never an amount,
+// which only a created row has.
 export type PlannedStage = { stage: Exclude<PayoutStage, "other">; percent: number };
-export const PLANNED_STAGES: readonly PlannedStage[] = [
-  { stage: "accept", percent: 30 },
-  { stage: "checklist", percent: 30 },
-  { stage: "completion", percent: 40 },
-];
 export function payoutPlanOf(raw: unknown): PlannedStage[] {
   const d = asDict(raw);
-  const snap = asDict(d.snapshot ?? d.financial_snapshot);
-  const list = [snap.payout_plan, snap.payout_stages, snap.planned_stages, snap.stages, d.payout_plan].find(Array.isArray) ?? [];
+  const payment = asDict(asDict(d.snapshot ?? d.financial_snapshot).payment);
   const out: PlannedStage[] = [];
-  for (const x of asArr(list)) {
+  for (const x of asArr(payment.payout_stages)) {
     const r = asDict(x);
-    const stage = payoutStageOf(asStr(r.stage ?? r.payout_stage ?? r.key));
-    const pct = Number(r.gross_percent ?? r.percent);
+    const stage = payoutStageOf(asStr(r.stage));
+    const pct = Number(r.gross_percent);
     if (stage === "other" || !Number.isFinite(pct) || pct <= 0 || out.some((p) => p.stage === stage)) continue;
     out.push({ stage, percent: pct });
   }
-  return out.length ? out.sort((a, b) => stageRank(a.stage) - stageRank(b.stage)) : [...PLANNED_STAGES];
+  return out.sort((a, b) => stageRank(a.stage) - stageRank(b.stage));
 }
 
 export type OrderPayoutData = { rows: Payout[]; plan: PlannedStage[]; settlement: Settlement };

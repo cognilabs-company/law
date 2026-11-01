@@ -41,7 +41,7 @@ import type { SxErrors } from "../types";
 import { useSxFormPolicy, type SxFormPolicy } from "../form/formPolicy";
 import { dropReferenceCache, firstReferencePage } from "../form/useReferenceOptions";
 import { statusKeyOf } from "../status";
-import { RULE_TITLE_EXISTS, dropRuleTwins, duplicateFieldOf, duplicateNameOf, rememberDuplicate, ruleDuplicateErrors } from "../schema/ruleDuplicates";
+import { RULE_TITLE_EXISTS, dropRuleTwins, duplicateFieldOf, duplicateIn, duplicateNameOf, rememberDuplicate, ruleDuplicateErrors } from "../schema/ruleDuplicates";
 import { ctorLayoutOf } from "../ctor/layouts";
 import { k01LayoutOf, type CategoryKind } from "../ctor/services";
 import { ctorWarnings } from "../ctor/warnings";
@@ -1010,6 +1010,16 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       const check = await validateStudioDraft(code, body, undefined, recordId);
       const found = check.ok ? {} : withServerMessages(targetErrors(normErrorPaths(check.errors), cur.payload), check.raw, locale);
       const shown = !check.ok && layout.serverErrors ? layout.serverErrors(found, check.raw, cur.payload) : found;
+      // A taken rule name comes back here as ok=false with rule_title_exists
+      // among the errors (backend answers 2026-11-01 Q5): it lands on the
+      // name, and the rule it named is remembered for the note there.
+      const dup = !check.ok && (code.toUpperCase() === "K31" || code.toUpperCase() === "K02") ? duplicateIn(check.raw) : null;
+      const dupField = dup ? duplicateFieldOf(code, cur.payload, dup) : "";
+      if (dup && dupField) {
+        rememberDuplicate(getAt(cur.payload, dupField), dup);
+        showServer({ ...shown, [dupField]: RULE_TITLE_EXISTS });
+        return false;
+      }
       if (!check.ok && Object.keys(shown).length) {
         showServer(shown);
         return false;
@@ -1083,7 +1093,17 @@ export function useEditorState(init: EditorInit, opts: EditorOptions = {}): Edit
       logApiError("studio.sx.object.publish", e);
       const se = studioErrorOf(e);
       if (se.kind === "publish_failed") {
-        const text = se.message || t("sx.editor.alert.publishFailText");
+        // A runtime sync failure (HTTP 409 studio_publish_failed, backend
+        // answers 2026-11-01 N5) may name fields, e.g. a legal translation
+        // without its pair: they land on their fields, and the dialog says
+        // so. A backend sentence carrying a code is never shown as is.
+        const cur = latestRef.current?.draft.payload ?? payload;
+        const found = Object.keys(se.fieldErrors).length ? withServerMessages(targetErrors(normErrorPaths(stripPayload(se.fieldErrors)), cur), e, locale) : {};
+        const fields = layout.serverErrors ? layout.serverErrors(found, e, cur) : found;
+        const marked = Object.keys(fields).length > 0;
+        if (marked) showServer(fields);
+        const said = se.message && !/[a-z]+_[a-z_]+/.test(se.message) ? se.message : "";
+        const text = marked ? t("sx.editor.alert.publishFailFields") : said || t("sx.editor.alert.publishFailText");
         setDialogError({ title: t("sx.editor.alert.publishFailTitle"), text });
         setPublishFail(text);
       } else {

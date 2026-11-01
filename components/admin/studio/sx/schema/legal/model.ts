@@ -35,6 +35,11 @@ export const PAIR_ERROR: Readonly<Record<TrailLang, Record<LegalPart, string>>> 
 };
 export const UZ_REQUIRED_CODE = "legal_uz_translation_required";
 export const PAIR_REQUIRED_CODE = "legal_translation_pair_required";
+const TRANSLATION_REQUIRED = "@code:translation_required";
+const STUDIO_LANG_ERROR: Readonly<Record<TrailLang, Record<LegalPart, string>>> = {
+  ru: { title: "@code:legal_ru_title_studio", body: "@code:legal_ru_body_studio" },
+  en: { title: "@code:legal_en_title_studio", body: "@code:legal_en_body_studio" },
+};
 export const EMPTY_SNAP: GenSnap = { title: null, body: null };
 export const K06_HIDDEN_KEY = /^(audience|visibility|price|currency|price_[a-z_]+|[a-z_]*accounting[a-z_]*|vat_[a-z_]+|tax_[a-z_]+)$/;
 
@@ -281,8 +286,20 @@ export function k07ServerErrors(errors: SxErrors, raw: unknown, payload: SxValue
   const out: Record<string, string> = {};
   for (const [path, token] of Object.entries(errors ?? {})) {
     const uz = uzPathOf(path, source);
-    if (!uz) out[path] = token;
-    else out[uz.path] = token === `@code:${UZ_REQUIRED_CODE}` || token === "@required" || token === "@code:required" ? UZ_PART_ERROR[uz.part] : token;
+    const trail = /^(?:body\.|payload\.)?(title|body)_i18n\.(ru|en)$/.exec(path.trim());
+    // Studio validate answers a missing language with HTTP 200, ok=false and
+    // translation_required on its field (backend answers 2026-11-01 N5): the
+    // Uzbek one is required, a Russian or English one wants its pair.
+    if (uz) out[uz.path] = token === `@code:${UZ_REQUIRED_CODE}` || token === "@required" || token === "@code:required" || token === TRANSLATION_REQUIRED ? UZ_PART_ERROR[uz.part] : token;
+    else if (trail && (token === TRANSLATION_REQUIRED || token === `@code:${PAIR_REQUIRED_CODE}`)) {
+      const lang = trail[2] as TrailLang;
+      const text = textOf(v, lang);
+      // Half a translation wants its other half; a language left out
+      // entirely is one Studio's own check asks for.
+      const empty = !text.title.trim() && blankHtml(text.body);
+      out[path.trim().replace(/^(?:body|payload)\./, "")] = empty ? STUDIO_LANG_ERROR[lang][trail[1] as LegalPart] : PAIR_ERROR[lang][trail[1] as LegalPart];
+    }
+    else out[path] = token;
   }
   for (const p of problemsOf(raw)) {
     if (p.code === UZ_REQUIRED_CODE) {

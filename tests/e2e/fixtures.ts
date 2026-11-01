@@ -51,6 +51,18 @@ export function order(extra: Record<string, unknown> = {}) {
   };
 }
 
+// The financials' immutable snapshot with its planned payout stages, the
+// only source of the plan (backend answers 2026-11-01 Q1).
+export const PLAN_SNAPSHOT = {
+  payment: {
+    payout_stages: [
+      { stage: "acceptance", gross_percent: 30, gross_amount: 33000, commission_deducted: 5940 },
+      { stage: "first_checklist", gross_percent: 30, gross_amount: 33000, commission_deducted: 5940 },
+      { stage: "completion", gross_percent: 40, gross_amount: 44000, commission_deducted: 7920, seller_amount: 36080 },
+    ],
+  },
+};
+
 export function financials(payments: { stage: string; status: string; amount: number }[], settlement: string | null = null) {
   return {
     order_id: ORDER_ID,

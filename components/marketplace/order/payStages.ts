@@ -34,6 +34,9 @@ export type StageGroup = {
   left: number;
   // Items skipped with a reason: they count as done, the reason stays.
   skipped: number;
+  // Items the order's snapshot left without a payout_stage (N3); they are
+  // counted here, in the final stage, as the backend does.
+  unstaged: number;
   complete: boolean;
   payout: Payout | null;
   percent: number;
@@ -73,6 +76,7 @@ export function stageGroups(items: readonly ChecklistItem[], payouts: readonly P
       total: own.length,
       left,
       skipped: own.filter((i) => i.status === "skipped_with_reason").length,
+      unstaged: own.filter((i) => i.payoutStageMissing).length,
       complete,
       payout,
       percent: payout?.percent ?? NAMED_PERCENT[stage],

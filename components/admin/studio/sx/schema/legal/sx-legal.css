@@ -527,3 +527,7 @@ html[data-theme="dark"] .sx-lg__tab[aria-selected="true"] {
     transition: none;
   }
 }
+
+/* N4: a language the constructor's schema does not list yet. */
+.sx-lg__gap { margin: 0 0 12px; }
+.sx-lg__gap p { margin: 0; }

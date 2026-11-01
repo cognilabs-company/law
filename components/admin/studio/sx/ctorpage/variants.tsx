@@ -11,7 +11,7 @@ import { StatusPill } from "../StatusPill";
 import type { SxColumn, SxRowGroup } from "../layout/Table";
 import type { StudioLabels, SxTranslate } from "../useStudioLabels";
 import { promoJoinId, sortByPlacement, type PromoInfo } from "./promoRows";
-import { isTestTitle, quietLast } from "./quiet";
+import { quietLast } from "./quiet";
 import type { CtorRecord } from "./recordsApi";
 import { promoTermsOf, promoTiming } from "../ctor/mp09";
 
@@ -56,7 +56,7 @@ export function recTest(r: CtorRecord): boolean | null {
 }
 
 export function isTestRow(r: CtorRecord): boolean {
-  return recTest(r) ?? isTestTitle(r.title);
+  return recTest(r) === true;
 }
 
 export function TestBadge({ t }: { t: SxTranslate }): ReactElement {

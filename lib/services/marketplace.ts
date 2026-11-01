@@ -606,6 +606,10 @@ export type MarketOrder = {
   // contact_started_at — there is no first_contact_at.
   contactDeadlineAt: string;
   contactStartedAt: string;
+  // How that first contact happened (backend answers 2026-11-01 N1): chat,
+  // chat_file, audio or video in the paid order's room. Not the client's
+  // preferred channel (details.contact_channel), which is a wish.
+  contactStartedChannel: string;
   clientName: string;
   clientPhone: string;
   clientPhoneVisible: boolean | null;
@@ -861,12 +865,12 @@ export function warrantyOf(d: Dict, details: Dict = asDict(d.details)): OrderWar
 }
 
 // What the guarantee offers right now (GET /marketplace/runtime-capabilities):
-// its `available_resolutions` when it lists them, else its on/off flags —
-// only the backend's values, never a remedy it did not name (no rework).
+// its replacement / full_refund on/off flags, never a remedy it did not name
+// (no rework). The capabilities carry no available_resolutions (backend
+// answers 2026-11-01 Q2): that list comes only with a claim's own payload
+// (mpComplaints), so none is read here.
 export function warrantyResolutionsOf(v: unknown): WarrantyResolution[] {
   const w = asDict(asDict(v).warranty);
-  const known = (x: unknown): x is WarrantyResolution => (WARRANTY_RESOLUTION_VALUES as readonly string[]).includes(asStr(x));
-  if (Array.isArray(w.available_resolutions)) return [...new Set(w.available_resolutions.map((x) => asStr(x).toLowerCase()).filter(known))];
   const out: WarrantyResolution[] = [];
   if (w.replacement === true) out.push("replacement");
   if (w.full_refund === true) out.push("full_refund");
@@ -1150,6 +1154,7 @@ export function normMarketOrder(v: unknown): MarketOrder {
     contactSpeedLabel: asStr(d.contact_speed_label ?? details.contact_speed_label).trim(),
     contactDeadlineAt: asStr(d.contact_deadline_at ?? details.contact_deadline_at).trim(),
     contactStartedAt: asStr(d.contact_started_at ?? details.contact_started_at).trim(),
+    contactStartedChannel: asStr(d.contact_started_channel ?? details.contact_started_channel).trim().toLowerCase(),
     clientName: asStr(client.name ?? d.client_name).trim(),
     clientPhone: gatedPhone(phoneGate, client.phone, d.client_phone, details.client_phone),
     clientPhoneVisible: phoneGate.visible,

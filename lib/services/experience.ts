@@ -264,18 +264,26 @@ export async function experienceHistory(experienceId: string): Promise<{ items: 
 // The record's and its evidence files' codes (backend answers 2026-10-31
 // §3.3): experience_evidence_too_large (413), experience_evidence_type_not_allowed
 // (415), experience_dates_invalid, experience_future_date, and the category /
-// subcategory checks, whose exact names aren't listed — any code about a
-// subcategory or a category reads as one. There is no overlap code: parallel
-// jobs are allowed (§3.5).
+// subcategory checks. Their exact names (backend answers 2026-11-01 Q4):
+// experience_category_required, experience_category_invalid,
+// experience_subcategory_invalid, experience_positions_required,
+// experience_dates_invalid, experience_future_date,
+// experience_kind_revision_mismatch, experience_revision_already_pending,
+// experience_evidence_too_large (413) and experience_evidence_type_not_allowed
+// (415); each has its own words. A 413 or 415 that came without a code is
+// still the file's size or type. There is no overlap code: parallel jobs are
+// allowed (§3.5).
 const CATEGORY_FIELD: Record<string, string> = { subcategory: "subcategory_id", category: "category_id" };
+const BY_STATUS: Record<number, string> = { 413: "experience_evidence_too_large", 415: "experience_evidence_type_not_allowed" };
 // `key` is the message to show (portal.experience.err.<key>); `field` the
 // input it points at, for showing it in place.
 export function experienceErrorOf(e: unknown): { code: string; field: string; key: string } | null {
   if (!(e instanceof ApiError)) return null;
   const detail = asDict(e.data.detail);
-  const code = errorCode(e);
+  const code = errorCode(e) || BY_STATUS[e.status] || "";
   const fields = strs(detail.fields);
   const field = asStr(detail.field) || fields[0] || "";
+  if (code === "experience_category_required") return { code, field: field || CATEGORY_FIELD.category, key: code };
   const about = /subcategory/.test(code) ? "subcategory" : /category/.test(code) ? "category" : "";
   if (about) return { code, field: field || CATEGORY_FIELD[about], key: about };
   if (!code.startsWith("experience_") && code !== "evidence_not_found" && code !== "verification_checklist_incomplete") return null;

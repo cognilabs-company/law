@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { complaintOf, marketSignalOf, normMarketOrder, warrantyOf, warrantyResolutionsOf } from "@/lib/services/marketplace";
 import { warrantyClaimOf } from "@/lib/services/mpComplaints";
 import { escalationOf } from "@/lib/services/resolution";
-import { contactLeftParts, contactSlaState } from "@/components/marketplace/order/contactSla";
+import { contactChannelOf, contactLeftParts, contactSlaState, tashkentDateTime } from "@/components/marketplace/order/contactSla";
 import { PAYOUT_LIVE } from "@/components/marketplace/order/useOrderPayouts";
 
 // The marketplace order contract as the backend answered it on 2026-10-31
@@ -29,6 +29,29 @@ describe("contact SLA (§1.3)", () => {
     expect(contactSlaState({ contactStartedAt: "" }, null)).toBe("none");
   });
 
+  // Backend answers 2026-11-01 N2: UTC times, shown in Asia/Tashkent (UTC+5,
+  // no daylight saving) whatever the browser's zone. 30 Oct 15:57 Tashkent
+  // accepted + 12 h ("today") = 31 Oct 03:57 Tashkent.
+  it("SLA times read in Tashkent time, across midnight, in each language", () => {
+    expect(tashkentDateTime("2026-10-30T22:57:00Z", "en")).toBe("Oct 31, 03:57");
+    expect(tashkentDateTime("2026-10-30T22:57:00Z", "ru")).toBe("31 окт, 03:57");
+    expect(tashkentDateTime("2026-10-30T22:57:00Z", "uz")).toBe("31 Okt, 03:57");
+    expect(tashkentDateTime("2026-10-30T15:57:00+05:00", "en")).toBe("Oct 30, 15:57");
+    expect(tashkentDateTime("2026-12-31T19:30:00Z", "en")).toBe("Jan 1, 00:30");
+    expect(tashkentDateTime("", "en")).toBe("");
+    expect(tashkentDateTime("not a date", "en")).toBe("");
+  });
+
+  // N1: the first contact's channel — chat, chat_file, audio or video; the
+  // client's preferred channel (details.contact_channel) is not it.
+  it("reads the first contact's channel, and nothing else, as one of four", () => {
+    expect(normMarketOrder({ id: "o1", contact_started_at: "2026-10-31T09:05:00Z", contact_started_channel: "chat_file" }).contactStartedChannel).toBe("chat_file");
+    expect(normMarketOrder({ id: "o2", details: { contact_channel: "audio" } }).contactStartedChannel).toBe("");
+    expect(["chat", "chat_file", "audio", "video"].map(contactChannelOf)).toEqual(["chat", "chat_file", "audio", "video"]);
+    expect(contactChannelOf("phone_reveal")).toBe("");
+    expect(contactChannelOf("")).toBe("");
+  });
+
   it("long waits read in hours and minutes, short ones as a clock", () => {
     expect(contactLeftParts(3 * 3600 + 5 * 60 + 9)).toEqual({ h: 3, m: 5, clock: "05:09" });
     expect(contactLeftParts(59)).toEqual({ h: 0, m: 0, clock: "00:59" });
@@ -46,10 +69,12 @@ describe("warranty (§1.5)", () => {
     expect(warrantyOf({ warranty_url: "/w", warranty_eligible_kinds: ["sla_breach"] })).toEqual({ url: "/w", status: "", resolution: "", reason: "", decision: "" });
   });
 
-  it("the client's remedies: available_resolutions when listed, else the on/off flags; never rework", () => {
-    expect(warrantyResolutionsOf({ warranty: { available_resolutions: ["full_refund", "rework", "REPLACEMENT"], replacement: false } })).toEqual(["full_refund", "replacement"]);
+  // Backend answers 2026-11-01 Q2: runtime-capabilities carries only the
+  // on/off flags; available_resolutions belongs to a claim's payload.
+  it("the client's remedies: only the capabilities' on/off flags; never rework, never a capabilities list", () => {
+    expect(warrantyResolutionsOf({ warranty: { available_resolutions: ["full_refund", "rework", "REPLACEMENT"], replacement: false } })).toEqual([]);
     expect(warrantyResolutionsOf({ warranty: { replacement: true, full_refund: false } })).toEqual(["replacement"]);
-    expect(warrantyResolutionsOf({ warranty: { available_resolutions: [] , replacement: true } })).toEqual([]);
+    expect(warrantyResolutionsOf({ warranty: { available_resolutions: [], replacement: true, full_refund: true } })).toEqual(["replacement", "full_refund"]);
     expect(warrantyResolutionsOf({})).toEqual([]);
   });
 

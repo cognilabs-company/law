@@ -136,31 +136,47 @@ export function ruleDuplicateErrors(code: string, payload: SxValues, self: reado
   return out;
 }
 
-const DUP_CODE = /duplicate|already_exists|_exists$|not_unique|unique|taken/i;
-const NOT_NAME = new Set(["rule_version_duplicate", "studio_edit_conflict", "studio_version_conflict"]);
+const TITLE_EXISTS = "rule_title_exists";
 
 export type DuplicateHit = { code: string; field: string; existingId: string; existingKey: string; existingTitle: string };
 
-// The backend's answer for a name that is already in use: rule_title_exists
-// with existing_rule_id / existing_rule_key (§4.1), as a 409 or a validation
-// error, in an object or a plain string detail; other "already exists"
-// codes read the same.
-export function duplicateNameOf(e: unknown): DuplicateHit | null {
-  if (!(e instanceof ApiError) || (e.status !== 409 && e.status !== 422 && e.status !== 400)) return null;
-  const d = asDict(e.data.detail);
-  const code = errorCode(e) || str(e.data.code);
-  if (!code || NOT_NAME.has(code) || !DUP_CODE.test(code)) return null;
-  // As a validation error only the name code itself counts (a generic
-  // duplicate_value there is about some other field).
-  if (e.status !== 409 && code !== "rule_title_exists") return null;
+function hitOf(d: Record<string, unknown>): DuplicateHit {
   const ex = asDict(d.existing ?? d.existing_rule ?? d.conflict);
+  const loc = Array.isArray(d.loc) ? d.loc.map(str).filter((x) => x && x !== "body" && x !== "payload").join(".") : "";
   return {
-    code,
-    field: (str(d.field) || str(d.path)).replace(/^(body|payload)\./, ""),
+    code: TITLE_EXISTS,
+    field: (str(d.field) || str(d.path) || loc).replace(/^(body|payload)\./, ""),
     existingId: str(d.existing_rule_id) || str(d.existing_id) || str(d.duplicate_of) || str(d.conflict_id) || str(ex.id) || str(ex.value),
     existingKey: str(d.existing_rule_key) || str(ex.rule_key),
     existingTitle: str(d.existing_title) || str(ex.title) || str(ex.label),
   };
+}
+
+// rule_title_exists in a response body (backend answers 2026-11-01 Q5): on
+// its own, or as one of the errors of constructor validation (HTTP 200,
+// ok=false, errors[]) or of object submission (HTTP 422,
+// detail.code=studio_submit_invalid, detail.errors[]), with
+// existing_rule_id / existing_rule_key (§4.1). Never a 409.
+export function duplicateIn(data: unknown): DuplicateHit | null {
+  const top = asDict(data);
+  const d = asDict(top.detail);
+  const own = str(d.code) || (typeof top.detail === "string" ? top.detail.trim() : "") || str(top.code);
+  if (own === TITLE_EXISTS) return hitOf(d);
+  for (const list of [d.errors, top.errors, Array.isArray(top.detail) ? top.detail : null]) {
+    for (const it of Array.isArray(list) ? list : []) {
+      const x = asDict(it);
+      if (str(x.code) === TITLE_EXISTS || str(asDict(x.ctx).code) === TITLE_EXISTS) return hitOf(x);
+    }
+  }
+  return null;
+}
+
+// The same in a failed request: a validation error (422, or 400), with the
+// code on top or inside its errors list.
+export function duplicateNameOf(e: unknown): DuplicateHit | null {
+  if (!(e instanceof ApiError) || (e.status !== 422 && e.status !== 400)) return null;
+  if (errorCode(e) === TITLE_EXISTS) return hitOf(asDict(e.data.detail));
+  return duplicateIn(e.data);
 }
 
 // Where a server-reported duplicate lands in the form.

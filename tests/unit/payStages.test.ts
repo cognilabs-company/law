@@ -3,7 +3,15 @@ import { normChecklistItem, normOrderChecklist } from "@/lib/services/marketRunt
 import { payoutOf } from "@/lib/services/payouts";
 import { mergeChecklistItem } from "@/components/marketplace/order/checklistRules";
 import { firstStageMark, justCompleted, planSteps, stageAmount, stageGroups } from "@/components/marketplace/order/payStages";
-import { PLANNED_STAGES, settlementOf } from "@/lib/services/payouts";
+import { settlementOf, type PlannedStage } from "@/lib/services/payouts";
+
+// The plan as snapshot.payment.payout_stages carries it (backend answers
+// 2026-11-01 Q1).
+const PLANNED_STAGES: readonly PlannedStage[] = [
+  { stage: "accept", percent: 30 },
+  { stage: "checklist", percent: 30 },
+  { stage: "completion", percent: 40 },
+];
 
 // The seller's checklist in its 30% and 40% payout stages (owner,
 // 2026-10-30): the item's payout_stage decides the group; amounts and
@@ -34,6 +42,23 @@ describe("checklist payout stages", () => {
     expect(groups[1].items.map((i) => i.id)).toEqual(["f1", "f2"]);
     expect(groups[0].percent).toBe(30);
     expect(groups[1].percent).toBe(40);
+  });
+
+  // Backend answers 2026-11-01 N3: an item without payout_stage (a legacy
+  // snapshot) stays in the final group and is counted, so it can be told.
+  it("counts the items that came without a payout stage, in the final group", () => {
+    const groups = stageGroups([item("f1", "final_completion"), item("a1", "first_checklist"), item("x1", undefined), item("x2", "mystery")], null);
+    expect(groups.map((g) => [g.stage, g.unstaged])).toEqual([
+      ["first_checklist", 0],
+      ["final_completion", 2],
+    ]);
+    // A saved answer that does not repeat the stage keeps what was known.
+    const list = normOrderChecklist({ order_id: "o", items: [{ id: "x1", executor_title: "x1", status: "pending" }, { id: "f1", executor_title: "f1", status: "pending", payout_stage: "final_completion" }] });
+    const after = mergeChecklistItem(mergeChecklistItem(list, normChecklistItem({ id: "x1", status: "done" })), normChecklistItem({ id: "f1", status: "done" }));
+    expect(after.items.map((i) => [i.id, i.payoutStageMissing])).toEqual([
+      ["x1", true],
+      ["f1", false],
+    ]);
   });
 
   it("drops a stage with no items", () => {

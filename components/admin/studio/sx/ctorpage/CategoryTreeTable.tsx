@@ -27,7 +27,7 @@ import { Picker } from "../form/Picker";
 import type { SxOption } from "../types";
 import { useStudioLabels, type SxTranslate } from "../useStudioLabels";
 import type { CtorQuery } from "./CtorPage";
-import { isTestTitle, quietLastBy } from "./quiet";
+import { quietLastBy } from "./quiet";
 import { CtorEmpty } from "./CtorEmpty";
 import { LoadError, RecordTable, recordHref, toolsColumn, useRecordActions } from "./RecordTable";
 import { useCtorRecords } from "./useCtorRecords";
@@ -50,8 +50,7 @@ export function joinKeyOf(rec: Pick<StudioRecord, "runtimeTargetId" | "recordId"
 }
 
 function siblingBand(r: CategoryRow): number {
-  if (!r.node.isActive) return 2;
-  return isTestTitle(r.node.title) ? 1 : 0;
+  return r.node.isActive ? 0 : 2;
 }
 
 export function orderTree(rows: readonly CategoryRow[]): CategoryRow[] {
@@ -328,7 +327,7 @@ export function CategoryTreeTable({ ctor, canEdit, canArchive, initial, createCo
           rowKey={(tr) => tr.row.node.id}
           rowHref={(tr) => (tr.rec ? recordHref(CODE, tr.rec.actions.view) || undefined : undefined)}
           rowTitle={treeTitle}
-          rowTone={(tr) => (!tr.row.node.isActive || isTestTitle(tr.row.node.title) ? "muted" : undefined)}
+          rowTone={(tr) => (!tr.row.node.isActive ? "muted" : undefined)}
           loading={loading}
           busy={tree.phase === "loading" && !!tree.nodes.length}
           empty={empty}

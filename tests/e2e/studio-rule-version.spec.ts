@@ -63,13 +63,15 @@ test.describe("Studio service rule versions (K31)", () => {
   });
 
   // TSK-602765: names are unique after normalising case, spaces and
-  // punctuation. A taken name offers the existing rule; the backend's 409
-  // reads in words and points at that rule, never at a code.
-  test("a taken rule name offers the existing rule; the backend's 409 reads in words", async ({ page }) => {
+  // punctuation. A taken name offers the existing rule; the backend's answer
+  // reads in words and points at that rule, never at a code. Backend answers
+  // 2026-11-01 Q5: it is a 422 studio_submit_invalid with rule_title_exists
+  // inside detail.errors[], not a 409.
+  test("a taken rule name offers the existing rule; the backend's 422 reads in words", async ({ page }) => {
     const { mock } = await open(page, "/ru/admin/studio/o/new?new=K31&rule=new");
     await page.route(/\/studio\/objects$/, (route) =>
       route.request().method() === "POST"
-        ? route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ detail: { code: "rule_title_exists", existing_rule_id: "rule-1", existing_rule_key: "maxfiylik-siyosati" } }) })
+        ? route.fulfill({ status: 422, contentType: "application/json", body: JSON.stringify({ detail: { code: "studio_submit_invalid", errors: [{ path: "payload.title", code: "rule_title_exists", existing_rule_id: "rule-1", existing_rule_key: "maxfiylik-siyosati" }] } }) })
         : route.fallback(),
     );
     await page.getByRole("textbox", { name: /Название правила/ }).fill("  MAXFIYLIK   siyosati! ");
@@ -90,7 +92,7 @@ test.describe("Studio service rule versions (K31)", () => {
     const { mock } = await open(page, "/ru/admin/studio/o/new?new=K31&rule=new");
     await page.route(/\/studio\/objects$/, (route) =>
       route.request().method() === "POST"
-        ? route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ detail: { code: "rule_title_exists", existing_rule_id: "rule-9", existing_rule_key: "qaytarish-key" } }) })
+        ? route.fulfill({ status: 422, contentType: "application/json", body: JSON.stringify({ detail: { code: "studio_submit_invalid", errors: [{ field: "title", code: "rule_title_exists", existing_rule_id: "rule-9", existing_rule_key: "qaytarish-key" }] } }) })
         : route.fallback(),
     );
     await page.getByRole("textbox", { name: /Название правила/ }).fill("Qaytarish tartibi");
@@ -114,12 +116,37 @@ test.describe("Studio service rule versions (K31)", () => {
   test("a plain string rule_title_exists detail reads in words", async ({ page }) => {
     await open(page, "/ru/admin/studio/o/new?new=K31&rule=new");
     await page.route(/\/studio\/objects$/, (route) =>
-      route.request().method() === "POST" ? route.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ detail: "rule_title_exists" }) }) : route.fallback(),
+      route.request().method() === "POST" ? route.fulfill({ status: 422, contentType: "application/json", body: JSON.stringify({ detail: "rule_title_exists" }) }) : route.fallback(),
     );
     await page.getByRole("textbox", { name: /Название правила/ }).fill("Qaytarish tartibi");
     await page.getByRole("button", { name: "Сохранить", exact: true }).click();
     await expect(page.getByText(/Правило с таким названием уже есть/).first()).toBeVisible();
     expect(await page.locator("main").innerText()).not.toMatch(/rule_title_exists/);
+  });
+
+  // Q5: constructor validation answers HTTP 200, ok=false, with
+  // rule_title_exists among its errors — the name says so, and the rule it
+  // named can be opened.
+  test("validation's ok=false rule_title_exists lands on the name and offers the existing rule", async ({ page }) => {
+    // A complete draft, so only the backend's check can stop it.
+    const { mock } = await open(page, "about:blank");
+    const payload = { creation_mode: "new", title: "Qaytarish tartibi", body: "<p>Pul 3 kun ichida qaytariladi.</p>", audience: "client", scope_type: "global" };
+    await page.route(/\/studio\/objects\/obj-k31$/, (route) =>
+      route.request().method() === "GET"
+        ? route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ id: "obj-k31", constructor_code: "K31", title: "Qaytarish tartibi", status: "draft", lock_version: 1, payload, current_version: { payload } }) })
+        : route.fallback(),
+    );
+    await page.route(/\/studio\/constructors\/K31\/validate$/, (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: false, errors: [{ field: "title", code: "rule_title_exists", existing_rule_id: "rule-9", existing_rule_key: "qaytarish-key" }] }) }),
+    );
+    await page.goto("/ru/admin/studio/o/obj-k31");
+    await expect(page.getByRole("textbox", { name: /Название правила/ })).toHaveValue("Qaytarish tartibi", { timeout: 30_000 });
+    await page.getByRole("button", { name: /^(Сохранить и отправить|Отправить на согласование)$/ }).first().click();
+    const note = page.locator(".sx-rtw");
+    await expect(note.getByText("Правило с таким названием уже есть")).toBeVisible({ timeout: 20_000 });
+    await expect(note.getByRole("link", { name: "Открыть существующее правило" })).toBeVisible();
+    expect(mock.calls.some((c) => c.method === "POST" && /\/studio\/objects$/.test(c.path))).toBe(false);
+    expect(await page.locator("main").innerText()).not.toMatch(/rule_title_exists|rule-9|qaytarish-key/);
   });
 
   test("a brand-new rule says so and continues nothing", async ({ page }) => {

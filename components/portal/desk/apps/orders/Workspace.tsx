@@ -39,6 +39,7 @@ export default function Workspace({ orderId, openApp, base, onChanged }: NativeP
   const to = useTranslations("marketplace.orders");
   const te = useTranslations("enums");
   const d = useTranslations("portal.desk.orders");
+  const tch = useTranslations("marketplace.purchase.channels");
   const locale = useLocale();
   const det = useOrderDetail(orderId, "seller");
   const durationText = useDurationText();
@@ -167,7 +168,7 @@ export default function Workspace({ orderId, openApp, base, onChanged }: NativeP
             {o.clientName ? <Fact label={t("facts.client")}><IconUser aria-hidden />{o.clientName}</Fact> : null}
             <Fact label={to("phone")}>{o.paymentStatus === "paid" && o.clientPhone ? <a href={`tel:${o.clientPhone.replace(/[^\d+]/g, "")}`}>{o.clientPhone}</a> : <span className="dxm-muted">{to("phoneHidden")}</span>}</Fact>
             <Fact label={t("facts.price")}>{o.price ? cur(o.price) : "—"}</Fact>
-            {o.preferredChannel ? <Fact label={to("channel")}>{o.preferredChannel}</Fact> : null}
+            {o.preferredChannel && tch.has(o.preferredChannel) ? <Fact label={to("channel")}>{tch(o.preferredChannel)}</Fact> : null}
             <ContactSla o={o} live={!closed} Row={Fact} onDeadline={() => det.refresh("order")} />
             {o.preferredTime && !o.contactSpeed && !o.contactSpeedLabel ? <Fact label={to("time")}>{o.preferredTime}</Fact> : null}
             {o.createdAt ? <Fact label={t("facts.created")}>{shortDateTime(o.createdAt, locale)}</Fact> : null}

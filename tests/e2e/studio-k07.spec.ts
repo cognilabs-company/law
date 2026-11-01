@@ -198,3 +198,47 @@ test("the three tabs fit a 360px phone in every language, names whole", async ({
     if (locale === "ru") await shots(page, "k07-tabs-ru-phone", tabs, "center");
   }
 });
+
+// Backend answers 2026-11-01 N4 / N5. The K07 schema lists no `en` yet, so
+// the English tab says Studio may not keep it and links to Legal documents.
+// Validation answers HTTP 200, ok=false, translation_required on a field:
+// a language left out that Studio's check asks for says so on its tab.
+test("the English tab names the schema gap; validate's ok=false translation_required lands on its tab in words", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  // A document in Uzbek only.
+  const payload = { document_id: "c-privacy", document_type: "privacy", source_script: "uz_latn", version_bump: "minor", acceptance_required: true, requires_reaccept: false, title_i18n: { uz: "Maxfiylik siyosati" }, body_i18n: { uz: "<p>Matn</p>" } };
+  const mock = await mockBackend(
+    page,
+    await signIn(
+      page,
+      ADMIN,
+      routes({
+        "/studio/objects/obj-k07": { id: "obj-k07", constructor_code: "K07", title: "Maxfiylik siyosati", status: "draft", lock_version: 1, runtime_target_id: "c-privacy", payload, current_version: { payload } },
+        "POST /studio/constructors/K07/validate": { ok: false, errors: [{ field: "title_i18n.ru", code: "translation_required" }, { field: "body_i18n.ru", code: "translation_required" }] },
+        "POST /studio/constructors/K07/preview": { changed_fields: [], where_used: [], risk: "low", warnings: [] },
+      }) as never,
+    ),
+  );
+  await page.goto("/en/admin/studio/o/obj-k07");
+  const tabs = page.getByRole("tablist", { name: /Document text/ });
+  await expect(tabs).toBeVisible({ timeout: 30000 });
+  await tabs.getByRole("tab", { name: /^English/ }).click();
+  const en = page.locator('[role="tabpanel"][data-lang="en"]');
+  const gap = en.locator(".sx-lg__gap");
+  await expect(gap).toContainText("Studio doesn’t keep English yet");
+  await expect(gap).toContainText("This constructor’s schema has no English field yet");
+  expect(await gap.getByRole("link", { name: "Open Legal documents" }).getAttribute("href")).toMatch(/\/admin\/legal$/);
+  await shots(page, "k07-english-gap", en);
+  // The Russian tab has no gap note: the schema lists Russian.
+  await tabs.getByRole("tab", { name: /^Russian/ }).click();
+  await expect(page.locator('[role="tabpanel"][data-lang="ru"] .sx-lg__gap')).toHaveCount(0);
+
+  await page.getByRole("button", { name: SEND }).first().click();
+  const ru = page.locator('[role="tabpanel"][data-lang="ru"]');
+  await expect(ru).toBeVisible({ timeout: 20000 });
+  await expect(ru.getByText("Studio’s check asks for the Russian title — fill it in.")).toBeVisible();
+  await expect(tabs.getByRole("tab", { name: /^Russian/ })).toHaveAttribute("data-mark", "error");
+  await shots(page, "k07-validate-translation-required", ru);
+  expect(await page.locator("main").innerText()).not.toMatch(/translation_required|title_i18n/);
+  expect(mock.refused).toEqual([]);
+});

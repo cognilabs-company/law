@@ -1,17 +1,16 @@
-const TEST_TITLE = /(^|[^\p{L}])(test|тест|sinov)/iu;
+// A record counts as a test one only when the backend says so (is_test).
+// There is no persisted test flag behind most records yet (backend answers
+// 2026-11-01 G7), and a name is not one: "test" in a title proves nothing.
 const QUIET_STATUSES: ReadonlySet<string> = new Set(["archived", "deleted", "removed"]);
-
-export function isTestTitle(title: string): boolean {
-  return TEST_TITLE.test(String(title ?? "").trim());
-}
 
 export function isQuietStatus(status: string): boolean {
   return QUIET_STATUSES.has(String(status ?? "").trim().toLowerCase());
 }
 
 export function quietBand(title: string, status: string, isTest: boolean | null = null): 0 | 1 | 2 {
+  void title; // kept so call sites stay uniform; the name decides nothing
   if (isQuietStatus(status)) return 2;
-  if (isTest ?? isTestTitle(title)) return 1;
+  if (isTest === true) return 1;
   return 0;
 }
 

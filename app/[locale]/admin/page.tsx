@@ -164,7 +164,7 @@ export default function AdminOverview() {
   const [tick, setTick] = useState(0);
   const fkey = `${filter.region}|${filter.from}|${filter.to}|${tick}`;
   const ceo = useKeptOne(() => stamp(getCeoDashboardFull(filter), filter), [fkey]);
-  const qual = useKeptOne(() => stamp(getQualityFull(filter), filter), [fkey]);
+  const qual = useKeptOne(() => stamp(getQualityFull(), filter), [tick]);
   const dash = useKeptOne(() => stamp(getAdminDashboardFull(filter), filter), [fkey]);
   const seeRegs = can("registerRequests", session);
   const seePayouts = can("payouts", session);

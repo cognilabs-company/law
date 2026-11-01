@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { executorTypesOf, normService } from "@/lib/services/backend";
-import { LEGACY_PLAN_SLUGS, sellablePlans } from "@/lib/catalogOverlay";
+import { sellablePlans } from "@/lib/catalogOverlay";
 import { inStudioCatalog, studioCodeOf } from "@/lib/studio/catalogLink";
 import { normEntityCards } from "@/components/admin/studio/sx/home/entityModel";
 
@@ -51,9 +51,9 @@ describe("Studio dashboard cards (§4.8)", () => {
 });
 
 describe("plans without the admin overlay (§2.1)", () => {
-  it("lists active plans as the backend sends them, minus the GM-retired seeds", () => {
+  // Backend answers 2026-11-01 Q10: no frontend retire by slug.
+  it("lists exactly the active plans the backend sends; no slug list of its own", () => {
     const plan = (slug: string, isActive = true) => ({ slug, isActive }) as never;
-    const legacy = [...LEGACY_PLAN_SLUGS][0];
-    expect(sellablePlans([plan("lexgo-ai-pro"), plan("old", false), plan(legacy)]).map((p: { slug: string }) => p.slug)).toEqual(["lexgo-ai-pro"]);
+    expect(sellablePlans([plan("lexgo-ai-pro"), plan("old", false), plan("biznes-abonent-basic")]).map((p: { slug: string }) => p.slug)).toEqual(["lexgo-ai-pro", "biznes-abonent-basic"]);
   });
 });

@@ -1,6 +1,5 @@
 import { parseServerTime } from "@/lib/http";
 import { isApprovalFree, normStudioStep, studioCtorRank, type StudioAccess, type StudioConstructor, type StudioDetail, type StudioGroup, type StudioStatus, type StudioStep } from "@/lib/services/studio";
-import { isTestTitle } from "../ctorpage/quiet";
 import { normRole, stepPending } from "../editor/model";
 import { groupOfCode } from "../home/groupModel";
 
@@ -203,7 +202,8 @@ export function buildRow(d: StudioDetail, v: ApprViewer, reg: ApprRegistry, src:
     since: Number.isFinite(t) ? t : Number.MAX_SAFE_INTEGER,
     version: d.currentVersion,
     overdue: !!step && step.overdue && stepPending(step),
-    test: isTestTitle(d.title),
+    // Only a backend is_test marks a test record (G7); objects carry none.
+    test: d.raw.is_test === true,
     rank: studioCtorRank(d.code),
     comments: commentsOf(d),
     hasFile: d.hasFile,

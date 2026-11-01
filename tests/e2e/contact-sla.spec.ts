@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Browser, type Page } from "@playwright/test";
 import { ADVOCATE, CALL_CENTER, CLIENT, mockBackend, signIn, type Mock, type Who } from "./mock";
 import { ORDER_ID, financials, order } from "./fixtures";
 
@@ -15,7 +15,7 @@ const ORDER_PATH = new RegExp(`^/marketplace/me/orders/${ORDER_ID}$`);
 
 type State = { order: Record<string, unknown> };
 
-async function openOrder(page: Page, who: Who, state: State): Promise<Mock> {
+async function openOrder(page: Page, who: Who, state: State, locale = "ru"): Promise<Mock> {
   const mock = await mockBackend(
     page,
     await signIn(page, who, {
@@ -26,7 +26,7 @@ async function openOrder(page: Page, who: Who, state: State): Promise<Mock> {
       "/marketplace/me/orders": { items: [], total: 0 },
     }),
   );
-  await page.goto(`/ru/portal/${who.role === "client" ? "client" : "advocate"}/marketplace-orders/${ORDER_ID}`);
+  await page.goto(`/${locale}/portal/${who.role === "client" ? "client" : "advocate"}/marketplace-orders/${ORDER_ID}`);
   return mock;
 }
 
@@ -116,3 +116,91 @@ test("operator: the escalation names the contact breach and shows the order's co
   await expect(item).toContainText("Первая связь");
   await expect(item).not.toContainText("Срок связи истёк");
 });
+
+// Backend answers 2026-11-01 N1 / N2. Contact is only the seller's first
+// chat message, file, or audio/video call in the paid room — so an order can
+// be in progress with no contact, and the screen says so and what counts.
+// The times are UTC and read in Tashkent time, with the zone named; "today"
+// is accepted + 12 h, so the exact deadline is always shown, never
+// recomputed. A fixed far deadline: 2030-10-30T22:57:00Z = 31 Oct, 03:57 in
+// Tashkent.
+const FAR = "2030-10-30T22:57:00Z";
+const working = (extra: Record<string, unknown> = {}) => order({ status: "in_progress", started_at: "2030-10-30T11:00:00Z", contact_speed: "today", contact_deadline_at: FAR, contact_started_at: null, ...extra });
+
+test("seller: work has started but no message or call is recorded — said in words, with the exact Tashkent deadline", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openOrder(page, ADVOCATE, { order: working() });
+  const facts = page.locator(".mod-facts");
+  await expect(facts).toContainText("Связаться до", { timeout: 20_000 });
+  await expect(facts.locator(`time[datetime="${FAR}"]`)).toHaveText("31 окт, 03:57");
+  await expect(facts).toContainText("по Ташкенту");
+  await expect(facts).toContainText("Точный срок — в строке «Связаться до» ниже");
+  const note = facts.locator(".mcs__none");
+  await expect(note).toContainText("Работа начата, но сообщений и звонков клиенту пока нет.");
+  await expect(note).toContainText("Связь — это первое сообщение, файл или аудио/видеозвонок в чате этого заказа.");
+  expect(await facts.innerText()).not.toMatch(/today|in_progress|contact_/);
+});
+
+test("client: before the work starts the note says only that nothing is recorded; overdue keeps the note", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const state: State = { order: order({ status: "paid", contact_speed: "within_1_hour", contact_deadline_at: inMin(30) }) };
+  const mock = await openOrder(page, CLIENT, state, "en");
+  const facts = page.locator(".mod-facts");
+  const note = facts.locator(".mcs__none");
+  await expect(note).toContainText("No message or call to the client is recorded yet.", { timeout: 20_000 });
+  await expect(note).not.toContainText("Work has started");
+  await expect(facts).toContainText("Tashkent time");
+  await expect.poll(() => mock.sockets.some((s) => s.url.includes("/ws/users/me"))).toBe(true);
+  state.order = { ...state.order, contact_deadline_at: new Date(Date.now() - 60_000).toISOString() };
+  await mock.push({ event: "marketplace.contact_sla_breached", order_id: ORDER_ID });
+  await expect(facts).toContainText("The contact time has passed");
+  await expect(facts.locator('.mcs__none[data-state="late"]')).toContainText("No message or call to the client is recorded yet.");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+});
+
+test("the first contact shows its time in Tashkent and its channel in words; an unknown channel is left out", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const state: State = { order: working({ contact_started_at: "2030-10-30T11:20:00Z", contact_started_channel: "video" }) };
+  const mock = await openOrder(page, ADVOCATE, state, "uz");
+  const facts = page.locator(".mod-facts");
+  await expect(facts).toContainText("Birinchi bog'lanish", { timeout: 20_000 });
+  await expect(facts.locator('time[datetime="2030-10-30T11:20:00Z"]')).toHaveText("30 Okt, 16:20");
+  await expect(facts.locator('.mcs__via[data-channel="video"]')).toHaveText("video qo‘ng‘iroq");
+  await expect(facts.locator(".mcs__none")).toHaveCount(0);
+  await expect.poll(() => mock.sockets.some((s) => s.url.includes("/ws/users/me"))).toBe(true);
+  const reads = mock.count("GET", ORDER_PATH);
+  state.order = { ...state.order, contact_started_channel: "phone_reveal" };
+  await mock.push({ event: "marketplace.contact_started", order_id: ORDER_ID });
+  await expect.poll(() => mock.count("GET", ORDER_PATH)).toBeGreaterThan(reads);
+  await expect(facts.locator(".mcs__via")).toHaveCount(0);
+  expect(await facts.innerText()).not.toMatch(/phone_reveal|video\b(?! qo)/);
+});
+
+// CONTACT_SLA_SHOTS=<dir>: no contact yet / overdue / contacted with its
+// channel, uz/ru/en, 1440 and 390, light and dark. Defined only then, so a
+// normal run neither skips nor takes it.
+const SHOTS = process.env.CONTACT_SLA_SHOTS;
+if (SHOTS)
+  test("screenshots: the contact SLA states (N1 / N2)", async ({ browser }: { browser: Browser }) => {
+    test.setTimeout(900_000);
+    const states: Record<string, () => Record<string, unknown>> = {
+      "no-contact": () => working({ contact_deadline_at: inMin(9 * 60 + 15) }),
+      overdue: () => working({ contact_deadline_at: new Date(Date.now() - 20 * 60_000).toISOString() }),
+      contacted: () => working({ contact_started_at: "2030-10-30T11:20:00Z", contact_started_channel: "chat_file" }),
+    };
+    for (const [name, make] of Object.entries(states))
+      for (const locale of ["uz", "ru", "en"])
+        for (const [w, h] of [[1440, 900], [390, 844]] as const)
+          for (const scheme of ["light", "dark"] as const) {
+            const ctx = await browser.newContext({ viewport: { width: w, height: h }, colorScheme: scheme });
+            const page = await ctx.newPage();
+            await openOrder(page, ADVOCATE, { order: make() }, locale);
+            const facts = page.locator(".mod-facts");
+            await expect(facts.locator(".mcs").first()).toBeVisible({ timeout: 30_000 });
+            await facts.scrollIntoViewIfNeeded();
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1)).toBe(true);
+            await page.waitForTimeout(400);
+            await facts.screenshot({ path: `${SHOTS}/contact-sla-${name}-${locale}-${w}-${scheme}.png` });
+            await ctx.close();
+          }
+  });

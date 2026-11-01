@@ -250,9 +250,12 @@ export async function getCallAnalyticsFull(f?: DashFilter): Promise<CallAnalytic
 export const isCallsEmpty = (d: CallAnalytics) => !d.total && !d.answered && !d.missed && d.byDay.every((p) => !p.value) && !d.topAgents.length;
 
 // ── Quality (GET /quality/overview) ───────────────────────────────
+// The overview takes no date or region filter and returns simplified values
+// (backend answers 2026-11-01 G17), so none is sent: it is always the whole
+// platform, and the panel says the period does not apply to it.
 export type QualityFull = QualityOverview & { fetchedAt: string };
-export async function getQualityFull(f?: DashFilter): Promise<QualityFull> {
-  const d = asDict(await http(`/quality/overview${dashQuery(f)}`));
+export async function getQualityFull(): Promise<QualityFull> {
+  const d = asDict(await http("/quality/overview"));
   return {
     fetchedAt: todayIso(),
     avgRating: asNum(d.avg_rating, 0), responseSlaPct: asNum(d.response_sla_pct), complaintRate: asNum(d.complaint_rate), resolvedPct: asNum(d.resolved_pct),

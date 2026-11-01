@@ -325,6 +325,9 @@ export type ChecklistItem = {
   // the items behind the second 30%, or the final ones behind the 40%. An
   // item that does not say counts as a final one, as in the Studio editor.
   payoutStage: ChecklistPayoutStage;
+  // The item came without a payout_stage (a legacy order snapshot, backend
+  // answers 2026-11-01 N3): it counts as a final one, and the stage says so.
+  payoutStageMissing?: boolean;
   raw: Dict;
 };
 
@@ -377,6 +380,7 @@ export function normChecklistItem(v: unknown): ChecklistItem {
     clientDescription: trimmed(d.client_description),
     showToClient: flags ? { comment: d.show_comment_to_client === true, images: d.show_images_to_client === true, files: d.show_files_to_client === true } : null,
     payoutStage: checklistPayoutStageOf(d.payout_stage),
+    payoutStageMissing: !(CHECKLIST_PAYOUT_STAGES as readonly string[]).includes(trimmed(d.payout_stage).toLowerCase()),
     raw: d,
   };
 }
@@ -784,8 +788,13 @@ export async function updateSellerServiceConfig(serviceId: string, input: Seller
 
 export const LOCATION_DURATIONS = [1, 4, 8, 12] as const;
 export type LocationDuration = (typeof LOCATION_DURATIONS)[number] | null;
+// The values a seller location update accepts (backend answers 2026-11-01
+// Q6). The browser shares while the page is open, so it sends foreground.
+// live / office / profile_region are the public map's display sources
+// (sellersMap LocationSource), never sent here.
+export type LocationUpdateSource = "foreground" | "background" | "manual" | "office";
 export type LocationShareInput =
-  | { enabled: true; durationHours: LocationDuration; latitude: number; longitude: number; accuracyMeters?: number; source?: "foreground" | "background" }
+  | { enabled: true; durationHours: LocationDuration; latitude: number; longitude: number; accuracyMeters?: number; source?: LocationUpdateSource }
   | { enabled: false };
 export type LocationPolicy = { foregroundIntervalSec: number; backgroundIntervalSec: number; staleAfterSec: number; retentionDays: number };
 export type LocationShareState = { enabled: boolean; durationHours: number | null; expiresAt: string; updatedAt: string; freshUntil: string; accuracyMeters: number | null; policy: LocationPolicy; raw: Dict };

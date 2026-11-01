@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { orderPayoutDataOf, orderPayoutsOf, paidBody, payoutPlanOf, PLANNED_STAGES, payoutActionable, payoutOf, payoutStageOf, payoutStatusOf, recoveryOf, settlementOf } from "@/lib/services/payouts";
+import { orderPayoutDataOf, orderPayoutsOf, paidBody, payoutPlanOf, payoutActionable, payoutOf, payoutStageOf, payoutStatusOf, recoveryOf, settlementOf } from "@/lib/services/payouts";
 
 // TSK-906326 — 30-30-22 payouts, as the backend answered on 2026-10-28 §3:
 // every amount is the backend's.
@@ -41,15 +41,19 @@ describe("payout stages", () => {
     expect(orderPayoutsOf({ payouts: [], settlement: {} })).toEqual([]);
   });
   // Backend answers 2026-10-31 §1.10: the snapshot's planned stages, the
-  // created payout rows and the payout-stage rows are read apart.
-  it("planned stages come from the snapshot, else the confirmed 30/30/40 plan", () => {
-    expect(payoutPlanOf({ snapshot: { payout_plan: [{ stage: "completion", gross_percent: 40 }, { stage: "acceptance", gross_percent: 30 }, { stage: "first_checklist", gross_percent: 30 }] } }).map((p) => [p.stage, p.percent])).toEqual([
+  // created payout rows and the payout-stage rows are read apart. 2026-11-01
+  // Q1: the plan is snapshot.payment.payout_stages only.
+  it("planned stages come only from snapshot.payment.payout_stages; nothing is made up", () => {
+    const payment = { payout_stages: [{ stage: "completion", gross_percent: 40, gross_amount: 44000, commission_deducted: 7920, seller_amount: 36080 }, { stage: "acceptance", gross_percent: 30, gross_amount: 33000, commission_deducted: 5940 }, { stage: "first_checklist", gross_percent: 30, gross_amount: 33000, commission_deducted: 5940 }] };
+    expect(payoutPlanOf({ snapshot: { payment } }).map((p) => [p.stage, p.percent])).toEqual([
       ["accept", 30],
       ["checklist", 30],
       ["completion", 40],
     ]);
-    expect(payoutPlanOf({ snapshot: {} })).toEqual(PLANNED_STAGES);
-    expect(payoutPlanOf({ financial_snapshot: { payout_stages: [{ stage: "mystery", percent: 10 }] } })).toEqual(PLANNED_STAGES);
+    expect(payoutPlanOf({ snapshot: {} })).toEqual([]);
+    // Not the old guesses: other snapshot keys and the top-level actual rows.
+    expect(payoutPlanOf({ snapshot: { payout_plan: payment.payout_stages, payout_stages: payment.payout_stages }, payout_stages: payment.payout_stages })).toEqual([]);
+    expect(payoutPlanOf({ snapshot: { payment: { payout_stages: [{ stage: "mystery", gross_percent: 10 }, { stage: "acceptance", percent: 30 }] } } })).toEqual([]);
   });
   it("a payout-stage row stands in for a stage with no payout row; a payout row wins", () => {
     const d = orderPayoutDataOf({
@@ -61,7 +65,7 @@ describe("payout stages", () => {
       ["a", "paid"],
       ["sb", "processing"],
     ]);
-    expect(d.plan).toEqual(PLANNED_STAGES);
+    expect(d.plan).toEqual([]);
   });
   it("a recovery reads its normalized top-level fields, never the payload", () => {
     expect(recoveryOf({ id: "r1", order_id: "o2", work_id: "ADV-2", service_title: "Meros", amount: 60000, status: "under_review", seller_user_id: "s2", seller: { id: "s2", name: "Malika" }, reason: "Mijozga qaytarildi", payload: { reason: "eski" } })).toMatchObject({ amount: 60000, status: "review", workId: "ADV-2", reason: "Mijozga qaytarildi", seller: { id: "s2", name: "Malika" } });
