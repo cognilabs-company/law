@@ -7,7 +7,7 @@ import { IconExternal } from "../icons";
 import CheckBox from "../CheckBox";
 import { humanize } from "@/lib/labels";
 
-export type ConsentItem = { slug: string; title: string; version: string; body: string; language?: string };
+export type ConsentItem = { slug: string; title: string; version: string; body: string; language?: string; fallback?: boolean; requestedLanguage?: string };
 
 // One explicit checkbox per current legal document, with its version, a
 // new-tab link (keeps an in-progress form intact) and the exact text being
@@ -42,6 +42,11 @@ export default function ConsentChecklist({
             </CheckBox>
             <div className="consent__meta">
               {it.version ? <span>{t("version", { version: it.version })}</span> : null}
+              {it.fallback ? (
+                <span className="legal__uz" title={t("fallback.shortHint", { language: t(`fallback.lang.${it.requestedLanguage === "ru" ? "ru" : "en"}`) })}>
+                  {t("fallback.short")}
+                </span>
+              ) : null}
               <Link href={`/legal/${legalPathFromSlug(it.slug)}`} target="_blank" rel="noopener noreferrer">
                 {t("consent.openPage")}
                 <IconExternal />

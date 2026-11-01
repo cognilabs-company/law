@@ -52,3 +52,12 @@ export async function fetchConsentDetail(id: string, lang: LegalLang): Promise<C
   const data = await legalFetch(`/legal/consents/${encodeURIComponent(id)}`, lang, ["legal-consents", `legal-consent-${id}`]);
   return data === null ? null : normConsentDoc(data, lang);
 }
+
+// A document by canonical slug or footer alias (/legal/terms → user_offer,
+// /legal/disclaimer → platform_rules), with its full text. null on failure.
+export async function fetchConsentBySlug(slug: string, lang: LegalLang): Promise<ConsentDoc | null> {
+  const data = await legalFetch(`/legal/consents/by-slug/${encodeURIComponent(slug)}`, lang, ["legal-consents", `legal-consent-slug-${slug}`]);
+  if (data === null) return null;
+  const doc = normConsentDoc(data, lang);
+  return doc.id && doc.slug ? doc : null;
+}

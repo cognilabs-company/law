@@ -38,13 +38,16 @@ describe("a legal document reads in the asked language", () => {
     const d = normConsentDoc(doc("ru"), "ru");
     expect(d).toMatchObject({ title: "ПОЛИТИКА КОНФИДЕНЦИАЛЬНОСТИ", body: "Персональные данные.", language: "ru", version: "1.0", id: "c1" });
   });
-  it("uses the language's translation when the plain fields are in another language", () => {
-    const d = normConsentDoc(doc("uz"), "en");
-    expect(d).toMatchObject({ title: "Privacy Policy", body: "Personal data.", language: "en" });
+  it("shows the plain fields as returned and marks them with the language they are really in", () => {
+    // Final contract (eecebb9): an English request for a document with no
+    // English gets the Uzbek text, language "uz", translation_fallback true.
+    const d = normConsentDoc(doc("uz", { requested_language: "en", translation_fallback: true, available_languages: ["uz"], title_i18n: { uz: I18N.title_i18n.uz }, body_i18n: { uz: I18N.body_i18n.uz } }), "en");
+    expect(d).toMatchObject({ title: "Maxfiylik siyosati", body: "Shaxsga doir maʼlumotlar.", language: "uz", requestedLanguage: "en", fallback: true, availableLanguages: ["uz"] });
   });
-  it("falls back to Uzbek when the language has no translation, never to a local label", () => {
-    const d = normConsentDoc({ id: "c1", slug: "privacy", title: "", body: "", language: "en", title_i18n: { uz: "Maxfiylik siyosati" }, body_i18n: { uz: "Matn." } }, "en");
-    expect(d).toMatchObject({ title: "Maxfiylik siyosati", body: "Matn.", language: "en" });
+  it("an older response without plain fields reads the asked language from the maps, then Uzbek", () => {
+    expect(normConsentDoc({ id: "c1", slug: "privacy", title: "", body: "", title_i18n: I18N.title_i18n, body_i18n: I18N.body_i18n }, "en")).toMatchObject({ title: "Privacy Policy", body: "Personal data.", language: "en", fallback: false });
+    const d = normConsentDoc({ id: "c1", slug: "privacy", title: "", body: "", title_i18n: { uz: "Maxfiylik siyosati" }, body_i18n: { uz: "Matn." } }, "en");
+    expect(d).toMatchObject({ title: "Maxfiylik siyosati", body: "Matn.", language: "uz", fallback: true });
   });
   it("still reads an older response: title_json / body_json (uz_latn), then name / content", () => {
     expect(normConsentDoc({ id: "c1", slug: "terms", title_json: { uz_latn: "Shartlar", ru: "Условия" }, body_json: { uz_cyrl: "Матн" } }, "ru")).toMatchObject({ title: "Условия", body: "Матн" });

@@ -7587,56 +7587,90 @@ export async function getProofDocumentBlob(documentId: string): Promise<Blob> {
 // `body_i18n` hold all three. POST /legal/consents/{id}/accept needs a token.
 export type ConsentDoc = {
   id: string;
-  slug: string; // terms | privacy | legal_disclaimer | future slugs
+  slug: string; // the canonical slug: user_offer | privacy | platform_rules | …
+  // Other slugs the backend accepts for it ("terms" → user_offer).
+  aliases: string[];
   version: string;
   title: string;
   body: string;
-  // The language title and body are in ("uz" | "ru" | "en"); "" if unknown.
+  // The language title and body are really in ("uz" | "ru" | "en"). The
+  // page marks the text with it, never with the UI locale.
   language: string;
-  // Every translation the backend sent, by language.
+  // The language that was asked for.
+  requestedLanguage: string;
+  // The asked language isn't published, so this is the Uzbek text.
+  fallback: boolean;
+  // Languages with both a real title and a real body.
+  availableLanguages: string[];
+  // Only the translations that really exist, by language.
   titleI18n: Record<string, string>;
   bodyI18n: Record<string, string>;
   active: boolean;
   createdAt: string;
 };
-// { uz, ru, en } from the new *_i18n maps; the old *_json maps (uz_latn,
-// uz_cyrl keys) only fill a language the new map lacks.
+const legalCode = (k: string): string => {
+  const l = k.toLowerCase();
+  return l.startsWith("ru") ? "ru" : l.startsWith("en") ? "en" : l.startsWith("uz") ? "uz" : "";
+};
+// { uz, ru, en } from the *_i18n maps; the old *_json maps (uz_latn, uz_cyrl
+// keys) only fill a language the new map lacks. A missing key means the
+// translation isn't published — never an error.
 function legalTexts(primary: unknown, legacy: unknown): Record<string, string> {
   const out: Record<string, string> = {};
   for (const src of [asDict(primary), asDict(legacy)]) {
     for (const [k, v] of Object.entries(src)) {
-      const lang = k.toLowerCase().startsWith("ru") ? "ru" : k.toLowerCase().startsWith("en") ? "en" : k.toLowerCase().startsWith("uz") ? "uz" : "";
+      const lang = legalCode(k);
       const text = asStr(v).trim();
       if (lang && text && !out[lang]) out[lang] = text;
     }
   }
   return out;
 }
-// The text in `lang`, exactly as the backend wrote it: the plain field when
-// it is in that language, then that language's translation, then Uzbek, then
-// the legacy fields. Never translated here.
+// LEXGO_LEGAL_DOCUMENT_LANGUAGES_FRONTEND_FINAL_2026_11_01 (backend eecebb9):
+// the plain title and body exactly as returned, in `language`; with
+// translation_fallback they are the real Uzbek text. Only an older or
+// partial response falls back to the maps (asked language, then Uzbek) and
+// then to the legacy fields. Never translated here.
 export function normConsentDoc(v: unknown, lang: LegalLang = "uz"): ConsentDoc {
   const d = asDict(v);
-  const language = asStr(d.language).trim().toLowerCase();
   const titleI18n = legalTexts(d.title_i18n, d.title_json);
   const bodyI18n = legalTexts(d.body_i18n, d.body_json);
-  const plainFits = !language || language === lang;
-  const title = asStr(d.title).trim();
-  const body = asStr(d.body);
-  // Which language the title below is really in.
-  const shown = plainFits && title ? language || lang : titleI18n[lang] ? lang : language || "uz";
+  const plainTitle = asStr(d.title).trim();
+  const plainBody = asStr(d.body);
+  const sent = legalCode(asStr(d.language));
+  // Before the language field existed the plain text was always Uzbek.
+  let language = sent || "uz";
+  let title = plainTitle;
+  let body = plainBody;
+  if (!title) {
+    const from = titleI18n[lang] ? lang : titleI18n.uz ? "uz" : "";
+    title = from ? titleI18n[from] : asStr(d.name);
+    if (from) language = from;
+  }
+  if (!body.trim()) body = bodyI18n[language] || bodyI18n.uz || asStr(d.content ?? d.text);
+  const requestedLanguage = legalCode(asStr(d.requested_language)) || lang;
+  const available = asArr(d.available_languages).map((x) => legalCode(asStr(x))).filter(Boolean);
   return {
     id: asStr(d.id ?? d.consent_id ?? d.document_id),
     slug: asStr(d.slug ?? d.type ?? d.code).trim().toLowerCase(),
+    aliases: asArr(d.aliases).map((x) => asStr(x).trim().toLowerCase()).filter(Boolean),
     version: asStr(d.version ?? d.version_label),
-    title: (plainFits && title) || titleI18n[lang] || title || titleI18n.uz || asStr(d.name),
-    body: (plainFits && body.trim() ? body : "") || bodyI18n[lang] || body || bodyI18n.uz || asStr(d.content ?? d.text),
-    language: shown,
+    title,
+    body,
+    language,
+    requestedLanguage,
+    fallback: d.translation_fallback === true || language !== requestedLanguage,
+    availableLanguages: available.length ? [...new Set(available)] : (["uz", "ru", "en"] as const).filter((l) => titleI18n[l] && bodyI18n[l]),
     titleI18n,
     bodyI18n,
     active: !(d.is_active === false || d.is_active === "false" || d.is_active === 0 || d.active === false),
     createdAt: asStr(d.created_at ?? d.published_at ?? d.updated_at),
   };
+}
+// The document a public path names: its canonical slug or one of its aliases.
+export function findLegalDoc(docs: readonly ConsentDoc[], slug: string): ConsentDoc | undefined {
+  const s = slug.trim().toLowerCase();
+  return docs.find((d) => d.slug === s) ?? docs.find((d) => d.aliases.includes(s));
 }
 // GET a public legal endpoint in `lang`. A 422 legal_language_not_supported
 // means our mapping is wrong: ask once more, quietly, for Uzbek.
@@ -7665,7 +7699,9 @@ export function cmpVersion(a: string, b: string): number {
   }
   return 0;
 }
-const CONSENT_ORDER = ["terms", "privacy", "legal_disclaimer"];
+// Reading order: the offer (once "terms"), privacy, the platform rules (once
+// "legal_disclaimer"), then any other slug alphabetically.
+const CONSENT_ORDER = ["user_offer", "terms", "privacy", "platform_rules", "legal_disclaimer"];
 // The documents a user must accept now: active only, the newest version per
 // slug (tie → later created_at), in reading order (terms, privacy, disclaimer,
 // then any other slug alphabetically).
@@ -7754,9 +7790,15 @@ export async function listLegalConsents(lang: LegalLang): Promise<ConsentDoc[]> 
 export async function getLegalConsent(id: string, lang: LegalLang): Promise<ConsentDoc> {
   return normConsentDoc(await legalGet(`/legal/consents/${encodeURIComponent(id)}`, lang), lang);
 }
+// A document by canonical slug or footer alias (terms → user_offer,
+// disclaimer / legal_disclaimer → platform_rules); the response names the
+// canonical slug.
+export async function getLegalConsentBySlug(slug: string, lang: LegalLang): Promise<ConsentDoc> {
+  return normConsentDoc(await legalGet(`/legal/consents/by-slug/${encodeURIComponent(slug)}`, lang), lang);
+}
 // T0-18 admin: every document version (active or not) — needs users.manage.
-export async function listAdminConsentDocs(): Promise<ConsentDoc[]> {
-  return normConsentDocs(await http("/admin/legal/consents"));
+export async function listAdminConsentDocs(lang: LegalLang = "uz"): Promise<ConsentDoc[]> {
+  return normConsentDocs(await http(`/admin/legal/consents?lang=${lang}`), lang);
 }
 // Consents journal: who accepted which document/version, when, from which IP.
 export type UserConsentRow = { id: string; userId: string; consentId: string; slug: string; version: string; acceptedAt: string; ip: string };
@@ -7767,12 +7809,35 @@ export async function listUserConsents(userId?: string): Promise<UserConsentRow[
     return { id: asStr(d.id), userId: asStr(d.user_id), consentId: asStr(d.consent_id), slug: asStr(d.slug), version: asStr(d.version), acceptedAt: asStr(d.accepted_at), ip: asStr(d.ip_address ?? d.ip) };
   });
 }
-// Publish a new document version from the admin editor. The backend has no
-// write endpoint yet (reported); a 404/405 surfaces as "backend kerak".
-export type ConsentDocInput = { slug: string; version: string; title: string; body: string; active: boolean; major: boolean };
-export async function saveConsentDoc(input: ConsentDocInput): Promise<ConsentDoc> {
-  const body = JSON.stringify({ slug: input.slug, version: input.version, title: input.title, body: input.body, is_active: input.active, requires_reaccept: input.major });
+// Publish from the admin editor: every complete translation goes in one
+// request as title_i18n / body_i18n (never title_json / body_json). A new
+// document is POSTed; a new version of one is a PATCH with version_bump,
+// which creates an immutable version and archives the one before it.
+// `major` asks users to accept again.
+export type ConsentI18n = { title_i18n: Record<string, string>; body_i18n: Record<string, string> };
+export type ConsentDocInput = ConsentI18n & { slug: string; version: string; active: boolean; major: boolean };
+export async function createConsentDoc(input: ConsentDocInput): Promise<ConsentDoc> {
+  const body = JSON.stringify({
+    slug: input.slug,
+    version: input.version,
+    title_i18n: input.title_i18n,
+    body_i18n: input.body_i18n,
+    acceptance_required: true,
+    requires_reaccept: input.major,
+    is_active: input.active,
+  });
   return normConsentDoc(await http("/admin/legal/consents", { method: "POST", body }));
+}
+export type ConsentVersionInput = ConsentI18n & { major: boolean; active: boolean };
+export async function createConsentVersion(id: string, input: ConsentVersionInput): Promise<ConsentDoc> {
+  const body = JSON.stringify({
+    version_bump: input.major ? "major" : "minor",
+    title_i18n: input.title_i18n,
+    body_i18n: input.body_i18n,
+    requires_reaccept: input.major,
+    is_active: input.active,
+  });
+  return normConsentDoc(await http(`/admin/legal/consents/${encodeURIComponent(id)}`, { method: "PATCH", body }));
 }
 // synced = the server has it (2xx, 409 or "already accepted"); retry = try
 // again later (offline, token, rate limit, 5xx); failed = refused for good

@@ -3,6 +3,7 @@ import { Link } from "@/i18n/navigation";
 import { fmtDate } from "@/lib/date";
 import { legalLabelKey, legalPathFromSlug } from "@/lib/legal";
 import type { ConsentDoc } from "@/lib/services/backend";
+import { IconGlobe } from "../icons";
 
 // One legal document (server-rendered by /legal/[slug], client-rendered by
 // LegalDocsFallback), in the page's language as the backend wrote it — never
@@ -46,6 +47,13 @@ export default function LegalDocument({ doc, all }: { doc: ConsentDoc; all: Cons
           {doc.version ? <span>{t("version", { version: doc.version })}</span> : null}
           {doc.createdAt ? <span>{t("published", { date: fmtDate(doc.createdAt, locale) })}</span> : null}
         </p>
+        {doc.fallback ? (
+          // The asked language isn't published: this is the real Uzbek text.
+          <p className="legal__fallback" role="note">
+            <IconGlobe aria-hidden="true" />
+            <span>{t("fallback.note", { language: t(`fallback.lang.${doc.requestedLanguage === "ru" ? "ru" : "en"}`) })}</span>
+          </p>
+        ) : null}
         <article className="legal__body" lang={doc.language || undefined}>
           {paragraphs.map((p, i) => (
             <p key={i}>{p}</p>

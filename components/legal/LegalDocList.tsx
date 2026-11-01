@@ -26,6 +26,11 @@ export default function LegalDocList({ docs }: { docs: ConsentDoc[] }) {
                   <Link href={`/legal/${legalPathFromSlug(d.slug)}`}>
                     <b lang={d.language || undefined}>{title}</b>
                     {d.version ? <span>{t("version", { version: d.version })}</span> : null}
+                    {d.fallback ? (
+                      <span className="legal__uz" title={t("fallback.shortHint", { language: t(`fallback.lang.${d.requestedLanguage === "ru" ? "ru" : "en"}`) })}>
+                        {t("fallback.short")}
+                      </span>
+                    ) : null}
                     <span className="legal__read">
                       {t("read")}
                       <IconArrowRight />
