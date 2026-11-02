@@ -1,4 +1,5 @@
 import type { GuideRole } from "./types";
+import { isPathHidden } from "@/lib/roleNav";
 
 const SELLER_PAGES: Record<"lawyer" | "advocate", Set<string>> = {
   lawyer: new Set(["", "/ai", "/assistant", "/calendar", "/cases", "/chat", "/clients", "/document-requests", "/documents", "/files", "/marketplace", "/marketplace-orders", "/meetings", "/notifications", "/profile", "/promotion", "/referrals", "/services", "/subscription", "/support", "/tasks", "/urgent"]),
@@ -73,7 +74,15 @@ export function samePath(a: string, b: string): boolean {
   return normPath(a) === normPath(b);
 }
 
+// Every AI and guide navigation resolves its target here, so a page the
+// account's role profile lost (GET /me/navigation) is never a destination,
+// whatever the assistant answered.
 export function guideHref(raw: string, role: GuideRole): string {
+  const href = mappedHref(raw, role);
+  return href && isPathHidden(href) ? "" : href;
+}
+
+function mappedHref(raw: string, role: GuideRole): string {
   const href = (raw || "").trim();
   if (!href.startsWith("/") || href.startsWith("//")) return "";
   const qi = href.search(/[?#]/);

@@ -28,6 +28,7 @@ import ChromeGate from "@/components/ChromeGate";
 import LiveOfficeHeartbeat from "@/components/live/LiveOfficeHeartbeat";
 import ReferralCapture from "@/components/ReferralCapture";
 import Toaster from "@/components/Toaster";
+import RoleNavHost, { RoleRouteGuard } from "@/components/RoleNavHost";
 import ConfirmHost from "@/components/ui/ConfirmDialog";
 import GuideHost from "@/components/guide/GuideHost";
 import AiRuntimeHost from "@/components/guide/AiRuntimeHost";
@@ -109,6 +110,7 @@ export default async function LocaleLayout({ children, params }: Props) {
             <ReferralCapture />
           </ChromeGate>
           <AuthProvider>
+            <RoleNavHost />
             <ChromeGate>
               <SessionExpiryWatcher />
               <IncomingCallWatcher />
@@ -119,7 +121,9 @@ export default async function LocaleLayout({ children, params }: Props) {
               <ScrollProgress />
               <Navbar />
             </ChromeGate>
-            <main>{children}</main>
+            <main>
+              <RoleRouteGuard>{children}</RoleRouteGuard>
+            </main>
             <ChromeGate>
               <Footer />
               <MobileTabBar />

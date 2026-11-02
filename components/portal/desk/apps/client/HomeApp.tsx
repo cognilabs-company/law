@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/lib/auth";
+import { useRoleNav } from "@/components/RoleNavHost";
 import { getMyReferral, listCases, listClientDocumentFlowPage, listClientWorks, type BackendCase } from "@/lib/services/backend";
 import { listMarketplaceOrders, marketStageOf } from "@/lib/services/marketplace";
 import { statusLabel } from "@/lib/labels";
@@ -32,13 +33,17 @@ export default function HomeApp({ openLink }: NativeProps) {
   const [count, setCount] = useState<Count | null>(null);
   const [ref, setRef] = useState<{ joined: number; after: number; unlocked: boolean; pct: number } | null>(null);
   const go = (route: string) => openLink({ appId: "", route });
+  // "Mening ishlarim" may be closed for the role (GET /me/navigation): then
+  // neither its tile nor its count request.
+  const { hides } = useRoleNav();
+  const worksHidden = hides("/portal/client/works");
 
   useEffect(() => {
     let alive = true;
     listCases()
       .then((l) => alive && setCases(l.filter((c) => c.status !== "completed" && c.status !== "archived")))
       .catch(() => alive && setCases([]));
-    Promise.allSettled([listClientWorks({ limit: 1 }), listMarketplaceOrders("client"), listClientDocumentFlowPage({ status: "file_ready", limit: 1 })]).then(([w, o, r]) => {
+    Promise.allSettled([worksHidden ? Promise.resolve({ total: 0 }) : listClientWorks({ limit: 1 }), listMarketplaceOrders("client"), listClientDocumentFlowPage({ status: "file_ready", limit: 1 })]).then(([w, o, r]) => {
       if (!alive) return;
       setCount({
         works: w.status === "fulfilled" ? w.value.total : 0,
@@ -52,7 +57,7 @@ export default function HomeApp({ openLink }: NativeProps) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [worksHidden]);
 
   const send = () => {
     const q = ask.trim();
@@ -65,12 +70,12 @@ export default function HomeApp({ openLink }: NativeProps) {
     { k: "consultation", icon: <IconTrafficCase />, route: "/portal/client/urgent?service=traffic_accident_consultation", tone: "red" },
     { k: "documents", icon: <IconFileText />, route: "/portal/client/services", tone: "teal" },
     { k: "upload", icon: <IconDocSearch />, route: "/portal/client/doc-analysis", tone: "green" },
-  ];
+  ].filter((a) => !hides(a.route));
   const tiles: { k: string; icon: ReactNode; v: number | undefined; label: string; route: string }[] = [
     { k: "works", icon: <IconBriefcase />, v: count?.works, label: d("kpiWorks"), route: "/portal/client/works" },
     { k: "orders", icon: <IconTag />, v: count?.orders, label: t("activeOrders"), route: "/portal/client/marketplace-orders" },
     { k: "ready", icon: <IconFileText />, v: count?.ready, label: d("kpiReady"), route: "/portal/client/documents" },
-  ];
+  ].filter((x) => !hides(x.route));
 
   return (
     <App name="chome">

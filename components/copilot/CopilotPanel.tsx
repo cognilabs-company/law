@@ -42,6 +42,7 @@ import { copilotPrompts, PROMPT_ICONS } from "./prompts";
 import CopilotTurnView, { entityLabel } from "./CopilotAnswer";
 import CopilotDrafts from "./CopilotDrafts";
 import { flashTarget } from "./highlight";
+import { isPathHidden } from "@/lib/roleNav";
 import "./copilot.css";
 
 const ICON = { size: 18, strokeWidth: 1.75, "aria-hidden": true } as const;
@@ -162,6 +163,8 @@ export default function CopilotPanel({ state, mode, role }: Props) {
 
   function go(route: string, highlight: CopilotHighlight | null) {
     const path = route.split(/[?#]/)[0];
+    // A page the role profile lost is never opened, even if suggested.
+    if (isPathHidden(path)) return;
     if (samePath(path, pathRef.current)) {
       if (highlight) flash(highlight);
       else if (!readDock()) closeCopilot();

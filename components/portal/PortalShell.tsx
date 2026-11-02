@@ -32,6 +32,7 @@ const LexGoRobot = dynamic(() => import("@/components/lexgo/robot/LexGoRobot"), 
 const AiSystemAssistant = dynamic(() => import("./AiSystemAssistant"), { ssr: false });
 import { CabinetProvider, useCabinetLoader } from "./SellerCabinet";
 import { ADVOCATE_NAV, CLIENT_NAV, CLIENT_TITLE_ONLY, LAWYER_NAV } from "./portalNav";
+import { useRoleNav } from "../RoleNavHost";
 import type { SellerActions } from "@/lib/services/backend";
 import {
   IconLogo,
@@ -79,6 +80,10 @@ export default function PortalShell({
 }) {
   const t = useTranslations("portal");
   const { session, ready, logout } = useAuth();
+  // Pages the account's role profile lost (GET /me/navigation) have no row
+  // in the sidebar, the mobile drawer or the desktop; RoleRouteGuard blocks
+  // their URLs.
+  const { hides } = useRoleNav();
   const pathname = usePathname();
   const router = useRouter();
   // The mobile sidebar is open only on the path it was opened on, so navigating closes it.
@@ -187,11 +192,12 @@ export default function PortalShell({
   const gated = hideBody ? <div className="portal--gated" aria-busy="true"><span className="rf__spinner" /></div> : children;
 
   const baseNav = role === "advocate" ? ADVOCATE_NAV : role === "lawyer" ? LAWYER_NAV : CLIENT_NAV;
-  const nav = (session.permissions ?? []).includes("tasks.view") ? [...baseNav, { href: `/portal/${role}/team-tasks`, key: "teamTasks", Icon: IconClipboardCheck }] : baseNav;
+  const nav = ((session.permissions ?? []).includes("tasks.view") ? [...baseNav, { href: `/portal/${role}/team-tasks`, key: "teamTasks", Icon: IconClipboardCheck }] : baseNav).filter((n) => !hides(n.href));
+  const titleOnly = role === "client" ? CLIENT_TITLE_ONLY.filter((n) => !hides(n.href)) : [];
   // Title lookup spans the title-only routes too, so a page that is not in
   // the sidebar is still named correctly and does not light a wrong row.
   const active = nav
-    .concat(role === "client" ? CLIENT_TITLE_ONLY : [])
+    .concat(titleOnly)
     .sort((a, b) => b.href.length - a.href.length)
     .find((n) => pathname === n.href || pathname.startsWith(n.href + "/"));
   const title = active ? t(`sidebar.${role}.${active.key}`) : t("metaTitle");
@@ -231,7 +237,7 @@ export default function PortalShell({
           key={deskOs}
           os={deskOs}
           role={role}
-          apps={nav.concat(role === "client" ? CLIENT_TITLE_ONLY : []).map((n) => ({ ...n, label: t(`sidebar.${role}.${n.key}`), locked: isLocked(role, n.key, limited, actions) }))}
+          apps={nav.concat(titleOnly).map((n) => ({ ...n, label: t(`sidebar.${role}.${n.key}`), locked: isLocked(role, n.key, limited, actions) }))}
           name={session.name}
           isAdmin={hasAdminAccess(session)}
           onLogout={logout}

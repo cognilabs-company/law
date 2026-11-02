@@ -48,6 +48,7 @@ import {
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { fmtRating } from "@/lib/date";
 import { useAiField, useAiModal } from "@/lib/ai/registry";
+import { useRoleNav } from "@/components/RoleNavHost";
 
 const som = (n?: number) => (n ? fmtUzs(n) : "");
 
@@ -71,6 +72,8 @@ function pick<T extends string>(vals: readonly T[], v: string, dflt: T): T {
 
 export default function ClientServices() {
   const t = useTranslations("portal.client.services");
+  // "Muammo tahlili" may be closed for the role (GET /me/navigation).
+  const intakeHidden = useRoleNav().hides("/portal/client/intake");
   const te = useTranslations("enums");
   const locale = useLocale();
   const router = useRouter();
@@ -360,14 +363,14 @@ export default function ClientServices() {
     <div className="mkt">
       {/* Module 10 client entry points: AI intake + urgent advocate. */}
       <div className="mkt__actions">
-        <Link href="/portal/client/intake" className="mkt__act mkt__act--ai" data-ai-id="documents.actions.ai-help">
+        {intakeHidden ? null : <Link href="/portal/client/intake" className="mkt__act mkt__act--ai" data-ai-id="documents.actions.ai-help">
           <span className="mkt__act-i"><IconSparkle /></span>
           <span className="mkt__act-t">
             <b>{t("aiHelp")}</b>
             <span>{t("aiHelpSub")}</span>
           </span>
           <IconArrowRight />
-        </Link>
+        </Link>}
         <Link href="/portal/client/sos" className="mkt__act mkt__act--sos" data-ai-id="documents.actions.urgent">
           <span className="mkt__act-i"><IconAlert /></span>
           <span className="mkt__act-t">

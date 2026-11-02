@@ -34,6 +34,7 @@ import {
   IconLock,
   IconInfo,
 } from "@/components/icons";
+import { isPathHidden } from "@/lib/roleNav";
 
 type SvgC = (p: { className?: string }) => ReactNode;
 type Tile = { key: string; from: "workload" | "finance"; label: string; Icon: SvgC; money?: boolean };
@@ -132,7 +133,8 @@ export default function SellerDashboard({ role, compact = false }: { role: Role;
       sections.push({ kind: "list", title: td("drill.newOrders"), rows: c.newOrders.map((o) => ({ label: o.serviceName || o.title, value: o.budget || "", sub: o.region || "" })) });
       link = { href: role === "advocate" ? "/portal/advocate/opportunities" : "/portal/lawyer/marketplace", label: td("drill.goOrders") };
     }
-    setDrill({ title: t(m.label), value: fmtTile(m), demo, sections, link });
+    // No way into a page the role profile lost (GET /me/navigation).
+    setDrill({ title: t(m.label), value: fmtTile(m), demo, sections, link: link && isPathHidden(link.href) ? undefined : link });
   }
 
   // Region / date filter reaches the new-orders list (the counters are cabinet-wide).
@@ -245,6 +247,8 @@ function NewCase({ order: o, role, onDone }: { order: BackendOrder; role: Role; 
   const [open, setOpen] = useState(false);
   const isDemo = isDemoId(o.id);
   const listHref = role === "advocate" ? "/portal/advocate/opportunities" : "/portal/lawyer/marketplace";
+  // The list may be closed for the role (GET /me/navigation): no link then.
+  const listOpen = !isPathHidden(listHref);
   const meta = [o.region, o.budget].filter(Boolean).join(" · ");
   return (
     <div className="pcase">
@@ -261,7 +265,7 @@ function NewCase({ order: o, role, onDone }: { order: BackendOrder; role: Role; 
             <IconEye />
             {t("review")}
           </button>
-        ) : (
+        ) : !listOpen ? null : (
           <Link href={listHref} className="btn btn--soft btn--sm">
             <IconEye />
             {t("review")}

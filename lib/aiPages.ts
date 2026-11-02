@@ -1,3 +1,5 @@
+import { isPathHidden } from "./roleNav";
+
 export type AiRole = "client" | "lawyer" | "advocate";
 export type AiRouteRole = AiRole | "staff";
 
@@ -78,6 +80,11 @@ function allowedRoute(route: string): string {
 }
 
 export function aiRouteFor(pageId: string, rawRoute: string, role: AiRouteRole): string {
+  const to = aiRouteRaw(pageId, rawRoute, role);
+  return to && isPathHidden(to) ? "" : to;
+}
+
+function aiRouteRaw(pageId: string, rawRoute: string, role: AiRouteRole): string {
   const r = (rawRoute || "").trim();
   const direct = r ? allowedRoute(legacyAiRoute(r, role)) : "";
   if (direct) return direct;

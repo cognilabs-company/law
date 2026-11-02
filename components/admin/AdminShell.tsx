@@ -52,6 +52,7 @@ import { IconLogo, IconGrid, IconLogout, IconMenu, IconClose, IconSearch } from 
 import { startCcShift } from "@/lib/callcenter/ccOperator";
 import { useCcOpen } from "@/lib/callcenter/useCcOpen";
 import { CCX_NAV_HREF, CCX_PROFILE_HREF, ccxRouteFor } from "@/lib/ccx/routes";
+import { useRoleNav } from "@/components/RoleNavHost";
 
 const AiSystemAssistant = dynamic(() => import("../portal/AiSystemAssistant"), { ssr: false });
 const CcxShell = dynamic(() => import("../ccx/CcxShell"), { ssr: false, loading: () => <div className="portal portal--redirect" aria-busy="true"><span className="rf__spinner" /></div> });
@@ -221,6 +222,7 @@ const BADGE_ORDER = ["superadmin", "admin", "ceo_viewer", "manager", "finance", 
 export default function AdminShell({ children }: { children: ReactNode }) {
   const t = useTranslations("admin");
   const { session, ready, logout } = useAuth();
+  const roleNav = useRoleNav();
   const pathname = usePathname();
   const router = useRouter();
   // The mobile sidebar is open only on the path it was opened on, so navigating closes it.
@@ -310,7 +312,9 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         : n.perm
           ? isSuper || (Array.isArray(n.perm) ? n.perm : [n.perm]).some((p) => perms.includes(p))
           : isFullAdmin);
-  const visibleNav = NAV.filter(canSee);
+  // A page the role profile lost (GET /me/navigation) is neither in the menu
+  // nor in the Ctrl+K search, whatever the permissions say.
+  const visibleNav = NAV.filter((n) => canSee(n) && !roleNav.hides(n.href));
   const q = query.trim();
   const matches = (n: NavItem) => !q || fuzzyContains(q, t(`nav.${n.key}`));
   const firstMatch = q ? visibleNav.find((n) => !n.hidden && matches(n)) : undefined;

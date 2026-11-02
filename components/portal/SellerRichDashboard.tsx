@@ -16,6 +16,7 @@ import { useSellerCabinet } from "./SellerCabinet";
 import MiniCalendar, { type MiniCalEvent } from "./MiniCalendar";
 import TwoFactorCard from "./TwoFactorCard";
 import TelegramLinkCard from "./TelegramLinkCard";
+import { useRoleNav } from "../RoleNavHost";
 import LicenseNudge from "./LicenseNudge";
 import NotificationPrefsCard from "./NotificationPrefsCard";
 import {
@@ -74,12 +75,14 @@ export default function SellerRichDashboard({ role }: { role: "advocate" | "lawy
     },
   });
   const base = `/portal/${role}`;
+  // Shortcuts to pages the role profile lost (GET /me/navigation) are not drawn.
+  const { hides } = useRoleNav();
   const QUICK = [
     { key: "quickClient", ai: "clients", Icon: IconUserPlus, href: `${base}/clients` },
     { key: "quickCase", ai: "cases", Icon: IconFolderPlus, href: `${base}/cases` },
     { key: "quickDoc", ai: "files", Icon: IconUpload, href: `${base}/files` },
     { key: "quickMeeting", ai: "calendar", Icon: IconCalendar, href: `${base}/calendar` },
-  ];
+  ].filter((q) => !hides(q.href));
 
   const today = new Date().toISOString().slice(0, 10);
   const cases = useMemo(() => cabinet.data?.activeCases ?? [], [cabinet.data]);

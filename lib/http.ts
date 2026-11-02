@@ -1,5 +1,6 @@
 import { localizeApiDetail } from "./apiMessage";
 import { contactBlockOf } from "./contactWire";
+import { roleDeniedOf, type RoleDenied } from "./roleNav";
 // Shared HTTP core for the LexGo backend (see FRONTEND_API.md / MOBILE_API.md).
 // Same-origin proxy path (app/api/backend) avoids browser CORS; the deployment
 // sets BACKEND_ORIGIN. Every request carries the bearer token when present.
@@ -311,6 +312,13 @@ function fieldErrorsOf(j: Dict): Record<string, string> {
   return out;
 }
 
+type RoleDeniedHandler = (d: RoleDenied) => void;
+let roleDeniedHandler: RoleDeniedHandler | null = null;
+export function setRoleDeniedHandler(fn: RoleDeniedHandler | null): void {
+  roleDeniedHandler = fn;
+}
+export const isRoleDenied = (e: unknown): boolean => e instanceof ApiError && e.status === 403 && e.code === "role_page_access_denied";
+
 // Build an ApiError from a failed response. detail = a string `detail`, else
 // `detail.message`, else a top-level `message`/`error` (FastAPI 422 arrays give
 // fieldErrors instead; the proxy's own "backend_unreachable" is not a message).
@@ -333,6 +341,17 @@ export async function toApiError(res: Response): Promise<ApiError> {
   // A plain string detail that is itself a code ("rule_title_exists") is
   // the code too, so `e.code` reads the same for both shapes.
   const code = text(dd.code) ?? (typeof j.detail === "string" ? codeOfText(j.detail) || undefined : undefined);
+  // One place for every request: a dedicated API of a page the role lost
+  // (LEXGO_ROLE_NAVIGATION_FRONTEND_2026_11_02.md) hands over to the role
+  // navigation host, which refetches the policy and leaves the page.
+  const denied = roleDeniedOf(res.status, j);
+  if (denied && roleDeniedHandler) {
+    try {
+      roleDeniedHandler(denied);
+    } catch {
+      /* the caller still gets its ApiError */
+    }
+  }
   return new ApiError(res.status, detail, retryHint(res.headers.get("retry-after"), [dd, j]), {
     data: j,
     code,
