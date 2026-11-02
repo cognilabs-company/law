@@ -98,7 +98,7 @@ export async function mockBackend(page: Page, routes: Routes, opts: { cookieChoi
 }
 
 export type Role = "client" | "lawyer" | "advocate";
-export type Who = { id: string; name: string; phone: string; role: Role; backendRole: string; permissions?: string[]; primary?: boolean };
+export type Who = { id: string; name: string; phone: string; role: Role; backendRole: string; permissions?: string[]; primary?: boolean; roles?: string[] };
 
 export const CLIENT: Who = { id: "u-client", name: "Test Mijoz", phone: "+998900000005", role: "client", backendRole: "client" };
 export const ADVOCATE: Who = { id: "u-adv", name: "Test Advokat", phone: "+998900000006", role: "advocate", backendRole: "advokat" };
@@ -111,13 +111,13 @@ export async function signIn(page: Page, who: Who, routes: Routes): Promise<Rout
   const permissions = who.permissions ?? (who.backendRole === "superadmin" ? ["*"] : []);
   // The test superadmin is the primary one (gaps closed 2026-10-28 §16).
   const primary = who.primary ?? who.backendRole === "superadmin";
-  const session = { role: who.role, name: who.name, phone: who.phone, id: who.id, plan: "free", completeness: 100, token: "test-token", refreshToken: "test-refresh", backendRole: who.backendRole, roles: [who.backendRole], permissions, canSetSuperadvokat: primary };
+  const session = { role: who.role, name: who.name, phone: who.phone, id: who.id, plan: "free", completeness: 100, token: "test-token", refreshToken: "test-refresh", backendRole: who.backendRole, roles: who.roles ?? [who.backendRole], permissions, canSetSuperadvokat: primary };
   await page.addInitScript((s) => {
     localStorage.setItem("lexgo_session", JSON.stringify(s));
     localStorage.setItem("lexgo_token", "test-token");
   }, session);
   return {
-    "/auth/me": { id: who.id, name: who.name, phone: who.phone, role: who.backendRole, roles: [who.backendRole], permissions, is_primary_superadmin: primary, can_set_superadvokat: primary },
+    "/auth/me": { id: who.id, name: who.name, phone: who.phone, role: who.backendRole, roles: who.roles ?? [who.backendRole], permissions, is_primary_superadmin: primary, can_set_superadvokat: primary },
     ...routes,
   };
 }

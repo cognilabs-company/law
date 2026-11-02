@@ -207,7 +207,7 @@ function subscribeMobile(cb: () => void) {
 // sub-pages. A prefix match on /admin would let any page through by URL.
 const EXACT_NAV = new Set(["/admin/call-center"]);
 const ROLE_HIDES: readonly { role: string; unless: readonly string[]; hrefs: readonly string[] }[] = [
-  { role: "call_center_lawyer", unless: ["superadmin", "admin", "manager", "call_center"], hrefs: ["/admin/crm", "/admin/call-center", "/admin/call-center/support", "/admin/remote-assistance"] },
+  { role: "call_center_lawyer", unless: ["superadmin", "admin", "manager"], hrefs: ["/admin/crm", "/admin/call-center", "/admin/call-center/support", "/admin/remote-assistance"] },
   { role: "sales_operator", unless: ["superadmin", "admin", "manager", "sales_head"], hrefs: ["/admin/marketplace"] },
 ];
 const hiddenForRoles = (href: string, roles: readonly string[]) =>
