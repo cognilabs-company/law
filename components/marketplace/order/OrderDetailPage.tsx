@@ -26,6 +26,7 @@ import OrderActions from "./OrderActions";
 import OrderChecklist from "./OrderChecklist";
 import OrderDocuments from "./OrderDocuments";
 import OrderFacts from "./OrderFacts";
+import OrderRouteCard from "../map/OrderRouteCard";
 import OrderPricing from "./OrderPricing";
 import PayoutStages from "./PayoutStages";
 import OrderRules from "./OrderRules";
@@ -328,6 +329,7 @@ export function OrderDetailView({
                 }}
               />
             </div>
+            <OrderRouteCard o={o} view={view} aiBase={aiBase} />
             <div className="mod__facts">
               <OrderFacts o={o} view={view} aiBase={aiBase} runtime={d.runtime} onRefresh={() => d.refresh("order")} />
               {o.pricing ? <OrderPricing pricing={o.pricing} view={view} currency={o.currency} aiBase={aiBase} orderId={o.id} refreshKey={`${o.status}:${o.paymentStatus}:${d.changed}`} /> : null}

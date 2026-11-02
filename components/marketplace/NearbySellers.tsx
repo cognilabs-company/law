@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { IconBriefcase, IconClose, IconInfo, IconLock, IconMap, IconMapPin, IconRefresh, IconTarget, IconUsers } from "@/components/icons";
@@ -10,7 +10,7 @@ import { fmtDateTime } from "@/lib/date";
 import type { CategoryRow } from "@/lib/services/categoryTree";
 import { categoryTitleName } from "@/lib/categoryNames";
 import { NEARBY_RADII, type NearbyRadius } from "@/lib/services/marketRuntime";
-import type { MarketSeller } from "@/lib/services/marketplace";
+import { getMarketplaceSeller, type MarketSeller } from "@/lib/services/marketplace";
 import { geoFailureOf, precisionMeters, roundCoord, type GeoFailure, type NearbyMode, type Spot } from "@/lib/services/marketDiscovery";
 import { readPosition } from "@/lib/services/locationShare";
 import { useConsent } from "@/lib/useConsent";
@@ -28,19 +28,19 @@ import {
   type NearbySort,
   type Place,
 } from "@/lib/services/mapLocation";
-import { DEFAULT_MAP_FILTERS, filtersKey, getMapConfig, offlineMapConfig, SELLER_TYPE_FILTERS, type MapConfig, type MapFilters, type MapSeller, type SellerTypeFilter } from "@/lib/services/sellersMap";
+import { DEFAULT_MAP_FILTERS, filtersKey, getMapConfig, NAV_MODES, offlineMapConfig, SELLER_TYPE_FILTERS, type MapConfig, type MapFilters, type MapSeller, type SellerTypeFilter } from "@/lib/services/sellersMap";
 import { sellerTypeLabel } from "./bits";
 import AreaList, { useAreaSellers } from "./map/AreaList";
 import FilterSheet from "./map/FilterSheet";
 import FollowHud from "./map/FollowHud";
 import MapPanel, { RollText, Segmented, useNarrow, type Inset, type PanelVariant, type Snap } from "./map/MapPanel";
 import MapTopBar, { type PanelView } from "./map/MapTopBar";
-import NavigatorBlock, { type Guide } from "./map/NavigatorBlock";
+import NavigatorBlock, { requestGuide, type Guide } from "./map/NavigatorBlock";
 import PlaceSearch from "./map/PlaceSearch";
 import SellerDetail from "./map/SellerDetail";
 import SellerRow, { type RowSeller } from "./map/SellerRow";
 import SellersYandexMap, { MapPlaceholder, type Viewport } from "./map/SellersYandexMap";
-import { askCompass, useFollow } from "./map/useFollow";
+import { askCompass, distanceMeters, useFollow } from "./map/useFollow";
 import MapConsentGate from "./map/MapConsentGate";
 import { useMapRealtime } from "./map/useMapRealtime";
 import "./nearbySellers.css";
@@ -76,6 +76,48 @@ type Res = { key: string; result: NearbySearchResult | null; fail: MapErrorKey |
 type Geo = { busy: boolean; fail: GeoFailure | null };
 type Then = (p: Spot) => void;
 type Picked = { s: RowSeller; near: boolean };
+type OrderRoute = { sellerUserId: string; orderId: string };
+
+const SAFE_ID = /^[A-Za-z0-9_-]{1,80}$/;
+
+function orderRouteOf(search: string): OrderRoute | null {
+  const q = new URLSearchParams(search);
+  const id = (q.get("route") ?? "").trim();
+  const order = (q.get("order") ?? "").trim();
+  if (!SAFE_ID.test(id) || (order && !SAFE_ID.test(order))) return null;
+  return { sellerUserId: id, orderId: order };
+}
+
+function orderRow(id: string, name: string, verified: boolean): RowSeller {
+  return {
+    sellerUserId: id,
+    name,
+    sellerType: "",
+    serviceId: "",
+    distanceKm: null,
+    latitude: null,
+    longitude: null,
+    precision: "",
+    exact: false,
+    rating: 0,
+    reviewsCount: 0,
+    verified,
+    region: "",
+    raw: {},
+    source: "",
+    nav: { available: true, modes: [...NAV_MODES], endpoint: "" },
+    service: null,
+  };
+}
+
+function liveWanted(e: Record<string, unknown>, f: MapFilters): boolean {
+  if (f.verifiedOnly && e.is_verified === false) return false;
+  if (f.sellerType && typeof e.seller_type === "string" && e.seller_type && e.seller_type !== f.sellerType) return false;
+  const cat = f.subcategoryId || f.categoryId;
+  const cats = Array.isArray(e.category_ids) ? e.category_ids.map(String) : null;
+  if (cat && cats && cats.length && !cats.includes(cat)) return false;
+  return true;
+}
 
 const SHEET_FILTERS = ["categoryId", "subcategoryId", "sellerType", "minRating", "verifiedOnly"] as const;
 
@@ -145,7 +187,7 @@ export default function NearbySellers({
 
   useEffect(() => {
     let dead = false;
-    getMapConfig().then(
+    getMapConfig(locale).then(
       (c) => {
         if (!dead) setCfg(c);
       },
@@ -156,7 +198,7 @@ export default function NearbySellers({
     return () => {
       dead = true;
     };
-  }, []);
+  }, [locale]);
 
   const consentUrl = cfg?.consentUrl;
   useEffect(() => {
@@ -171,7 +213,7 @@ export default function NearbySellers({
     return () => c.abort();
   }, [signedIn, consentUrl]);
 
-  const live = useMapRealtime(cfg?.realtime ?? null, signedIn && !!cfg, cfg?.debounceMs ?? 400, () => setRefresh((n) => n + 1));
+  const live = useMapRealtime(cfg?.realtime ?? null, signedIn && !!cfg, cfg?.debounceMs ?? 400, () => setRefresh((n) => n + 1), (e) => liveWanted(e, filters));
 
   const mapConsent = useConsent("functional");
   const needConsent = !!cfg?.usable && !broken && mapConsent === false;
@@ -413,7 +455,56 @@ export default function NearbySellers({
 
   const followPoint = following ? fol.point : null;
   const followView = useMemo(() => (following && !paused && fol.point ? { point: fol.point, heading: fol.heading } : null), [following, paused, fol.point, fol.heading]);
-  const guideLine = useMemo(() => (guide?.dest ? { from: guide.from, to: guide.dest, name: guide.name } : null), [guide]);
+  const guideLine = useMemo(() => (guide?.dest ? { from: guide.from, to: guide.dest, name: guide.name, path: guide.path } : null), [guide]);
+
+  const recalcM = guide?.info?.recalcM ?? cfg?.routing.recalcM ?? 100;
+  const needReroute = following && !!guide?.info?.available && !!fol.point && distanceMeters(fol.point, guide.from) > recalcM;
+  const rerouting = useRef(false);
+  const reroute = useEffectEvent(() => {
+    const g = guide;
+    const p = fol.point;
+    if (!g || !p || !cfg || rerouting.current) return;
+    rerouting.current = true;
+    const from = { latitude: roundCoord(p.latitude), longitude: roundCoord(p.longitude) };
+    requestGuide({ target: g.target, template: cfg.navigationTemplate, point: from, mode: g.mode }).then(
+      (next) => {
+        rerouting.current = false;
+        setGuide((cur) => (cur && cur.sellerUserId === next.sellerUserId && cur.mode === next.mode ? { ...next, from: p } : cur));
+      },
+      () => {
+        rerouting.current = false;
+        setGuide((cur) => (cur && cur.sellerUserId === g.sellerUserId ? { ...cur, from: p } : cur));
+      },
+    );
+  });
+  useEffect(() => {
+    if (needReroute) reroute();
+  }, [needReroute]);
+
+  const [orderRoute] = useState<OrderRoute | null>(() => (typeof window === "undefined" ? null : orderRouteOf(window.location.search)));
+  const openedOrder = useRef(false);
+  const openOrder = useEffectEvent(() => {
+    const o = orderRoute;
+    if (!o || openedOrder.current) return;
+    openedOrder.current = true;
+    const k = known(o.sellerUserId);
+    const show = (name: string, verified: boolean) => {
+      setSelected(o.sellerUserId);
+      setPicked({ s: orderRow(o.sellerUserId, name, verified), near: false });
+      setSnap((v) => (v === "peek" ? "half" : v));
+    };
+    if (k) {
+      show(k.name, k.verified);
+      return;
+    }
+    getMarketplaceSeller(o.sellerUserId).then(
+      (m) => show(m.name, m.verified),
+      () => show("", false),
+    );
+  });
+  useEffect(() => {
+    if (cfg && signedIn && orderRoute) openOrder();
+  }, [cfg, signedIn, orderRoute]);
   const hudOn = following && !!guide && mapOn;
   const hudOver = hudOn && phone;
   const mapInset = useMemo(() => ({ left: inset.left, bottom: hudOn ? Math.max(hudH, inset.bottom) : inset.bottom }), [inset.left, inset.bottom, hudOn, hudH]);
@@ -597,6 +688,11 @@ export default function NearbySellers({
         <span className="mmintro__txt">
           <b>{tx("locate.title")}</b>
           <small>{tx("locate.fine", { h: consentHours })}</small>
+          {consent?.state === "expired" ? (
+            <small className="mmintro__warn" data-ai-id="marketplace.map.consent.expired">
+              {tx("consent.expired")}
+            </small>
+          ) : null}
           {consentErr ? (
             <small className="mmintro__err" role="alert">
               {tx(`errors.${consentErr}`)}
@@ -790,7 +886,7 @@ export default function NearbySellers({
         {sel.nav.available ? (
           <NavigatorBlock
             key={sel.sellerUserId}
-            target={{ sellerUserId: sel.sellerUserId, name: selName, endpoint: sel.nav.endpoint, modes: sel.nav.modes }}
+            target={{ sellerUserId: sel.sellerUserId, name: selName, endpoint: sel.nav.endpoint, modes: sel.nav.modes, paidOrderId: orderRoute?.sellerUserId === sel.sellerUserId ? orderRoute.orderId : undefined }}
             point={here?.point ?? null}
             signedIn={signedIn}
             locating={geo.busy}

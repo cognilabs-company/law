@@ -47,15 +47,20 @@ export type PermissionState = "granted" | "denied" | "prompt" | "unavailable";
 
 // ── Consent ─────────────────────────────────────────────────────────────
 
-export type LocationConsent = { granted: boolean; permissionState: PermissionState | ""; source: string; expiresAt: number | null; grantedAt: number | null };
+export type ConsentState = "granted" | "expired" | "revoked" | "prompt" | "";
+export type LocationConsent = { granted: boolean; state: ConsentState; permissionState: PermissionState | ""; source: string; expiresAt: number | null; grantedAt: number | null };
 
 export function normConsent(v: unknown): LocationConsent {
   const d = dictOf(v);
   const state = trimmed(d.permission_state).toLowerCase();
   const expiresAt = timeOf(d.expires_at);
+  const eff = trimmed(d.effective_state).toLowerCase();
+  const lapsed = d.expired === true || eff === "expired" || (expiresAt !== null && expiresAt <= Date.now());
+  const granted = d.granted === true && !lapsed && (eff === "" || eff === "granted");
   return {
     // An expired consent is no consent, whatever the flag still says.
-    granted: d.granted === true && (expiresAt === null || expiresAt > Date.now()),
+    granted,
+    state: granted ? "granted" : lapsed ? "expired" : eff === "revoked" || eff === "prompt" ? eff : "",
     permissionState: state === "granted" || state === "denied" || state === "prompt" || state === "unavailable" ? state : "",
     source: trimmed(d.source).toLowerCase(),
     expiresAt,
@@ -177,7 +182,47 @@ export async function searchNearbySellers(q: NearbySearchInput, url = DEFAULT_NE
 
 // ── Navigation ──────────────────────────────────────────────────────────
 
-export type NavRoute = { appUrl: string; webUrl: string; fallbackUrl: string; destinationSource: "public_office" | "paid_order_live_location" | ""; mode: NavMode | ""; name: string };
+export type RouteStep = { text: string; distanceM: number | null };
+export type RouteInfo = {
+  available: boolean;
+  distanceM: number | null;
+  durationS: number | null;
+  trafficS: number | null;
+  path: LngLat[];
+  steps: RouteStep[];
+  recalcM: number | null;
+  reason: string;
+};
+export type NavRoute = { appUrl: string; webUrl: string; fallbackUrl: string; destinationSource: "public_office" | "paid_order_live_location" | ""; mode: NavMode | ""; name: string; info: RouteInfo | null };
+
+const posOrNull = (v: unknown): number | null => {
+  const n = numOrNull(v);
+  return n !== null && n >= 0 ? n : null;
+};
+
+export function normRouteInfo(v: unknown): RouteInfo | null {
+  const r = dictOf(v);
+  if (!Object.keys(r).length) return null;
+  const order = coordOrderOf(r.coordinate_order);
+  const path = (Array.isArray(r.geometry) ? r.geometry : []).map((p) => lngLatOf(p, order)).filter((p): p is LngLat => !!p);
+  const steps = (Array.isArray(r.steps) ? r.steps : [])
+    .map((x) => {
+      const d = dictOf(x);
+      return { text: trimmed(d.instruction ?? d.text), distanceM: posOrNull(d.distance_m) };
+    })
+    .filter((x) => x.text);
+  const recalc = posOrNull(r.recalculate_after_meters);
+  return {
+    available: r.available === true && path.length >= 2,
+    distanceM: posOrNull(r.distance_m),
+    durationS: posOrNull(r.duration_s),
+    trafficS: posOrNull(r.duration_in_traffic_s),
+    path: path.length >= 2 ? path : [],
+    steps,
+    recalcM: recalc !== null && recalc >= 20 ? recalc : null,
+    reason: trimmed(r.reason).toLowerCase(),
+  };
+}
 
 // Only the backend builds route links. They are opened as given, after a
 // scheme check: an app scheme or https, never script or data URLs.
@@ -203,6 +248,7 @@ export function normNavRoute(v: unknown): NavRoute {
     destinationSource: src === "public_office" || src === "paid_order_live_location" ? src : "",
     mode: mode === "driving" || mode === "walking" || mode === "transit" || mode === "bicycle" ? mode : "",
     name: trimmed(d.display_name),
+    info: normRouteInfo(d.route),
   };
 }
 
@@ -330,6 +376,7 @@ export async function geocodeReverse(p: Point, locale: string, url = DEFAULT_GEO
 export const MAP_ERROR_CODES = [
   "client_location_consent_required",
   "navigation_destination_unavailable",
+  "public_office_navigation_unavailable",
   "seller_not_found",
   "paid_order_not_found",
   "active_paid_order_required",

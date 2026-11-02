@@ -10,11 +10,12 @@ import type { MapRealtime } from "@/lib/services/sellersMap";
 // unsubscribe on leave. Guests get no updates: the socket is never open.
 export type MapLive = "off" | "connecting" | "live" | "reconnecting";
 
-export function useMapRealtime(rt: MapRealtime | null, enabled: boolean, debounceMs: number, onRefresh: () => void): MapLive {
+export function useMapRealtime(rt: MapRealtime | null, enabled: boolean, debounceMs: number, onRefresh: () => void, accept?: (e: Record<string, unknown>) => boolean): MapLive {
   const [subscribed, setSubscribed] = useState(false);
   const [sock, setSock] = useState(userSocketState);
   const [dropped, setDropped] = useState(false);
   const refresh = useEffectEvent(() => onRefresh());
+  const wanted = useEffectEvent((e: Record<string, unknown>) => !accept || accept(e));
 
   useEffect(() => {
     if (!rt || !enabled) return;
@@ -35,6 +36,7 @@ export function useMapRealtime(rt: MapRealtime | null, enabled: boolean, debounc
         setSubscribed(true);
         setDropped(false);
       } else if (e.event === rt.update) {
+        if (!wanted(e as Record<string, unknown>)) return;
         window.clearTimeout(timer);
         timer = window.setTimeout(refresh, Math.max(150, debounceMs));
       }

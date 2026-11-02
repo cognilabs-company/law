@@ -50,6 +50,7 @@ type Ymaps21 = {
 
 const LOAD_TIMEOUT_MS = 15000;
 let pending: Promise<Ymaps21> | null = null;
+let loadedUrl = "";
 
 function globalYmaps(): Ymaps21 | null {
   const y = (window as unknown as { ymaps?: Partial<Record<keyof Ymaps21, unknown>> }).ymaps;
@@ -60,7 +61,9 @@ const complete = (y: Ymaps21) =>
   typeof y.Map === "function" && typeof y.Placemark === "function" && typeof y.Clusterer === "function" && typeof y.templateLayoutFactory?.createClass === "function";
 
 function loadYmaps21(loaderUrl: string, timeoutMs = LOAD_TIMEOUT_MS): Promise<Ymaps21> {
+  if (loadedUrl && loadedUrl !== loaderUrl && (pending || globalYmaps())) unloadYmaps();
   if (pending) return pending;
+  loadedUrl = loaderUrl;
   const p = new Promise<Ymaps21>((resolve, reject) => {
     let script: HTMLScriptElement | null = null;
     let settled = false;
@@ -138,8 +141,8 @@ export type PinSpec = MarkSpec & { id: string };
 export type PinSet = { sync: (specs: PinSpec[]) => void; get: (id: string) => Mark | undefined; remove: () => void };
 export type Pad = { top: number; right: number; bottom: number; left: number };
 export type FitOptions = { ms: number; maxZoom?: number; margin?: number };
-export type LineOptions = { color: string; halo: string; drawMs: number; delayMs?: number; pulse: boolean };
-export type GuideLine = { setPoints: (from: LngLat, to: LngLat, ms?: number) => void; remove: () => void };
+export type RouteOptions = { color: string; casing: string; glow: string; past: string; drawMs: number; delayMs?: number; flow: boolean; straight: boolean };
+export type GuideRoute = { set: (points: LngLat[], ms?: number) => void; progress: (at: LngLat | null) => void; remove: () => void };
 export type RadiusRing = { set: (center: LngLat, km: number, title?: string) => void; remove: () => void };
 export type MapHandle = {
   bbox: () => MapBbox | null;
@@ -163,7 +166,7 @@ export type MapHandle = {
   pins: (opts: GroupOptions) => PinSet;
   select: (seller: string | null) => void;
   spreadFrom: (origin: LngLat, ms: number) => void;
-  line: (from: LngLat, to: LngLat, opts: LineOptions) => GuideLine;
+  route: (points: LngLat[], opts: RouteOptions) => GuideRoute;
   ring: (center: LngLat, km: number, title: string) => RadiusRing;
   destroy: () => void;
 };
@@ -183,6 +186,7 @@ function unloadYmaps(): void {
     /* a non-configurable global: it stays unused */
   }
   pending = null;
+  loadedUrl = "";
 }
 
 if (typeof window !== "undefined") {
@@ -209,7 +213,7 @@ const TEMPLATES: Record<MarkKind | "cluster", string> = {
   "pin-mute": '<span class="ymk-pin ymk-pin--mute{{ properties.cls }}" data-ymk-key="{{ properties.key }}" data-src="{{ properties.src }}" title="{{ properties.title }}"><span class="ymk-pin__in">{{ properties.text }}</span></span>',
   group: '<span class="ymk-group{{ properties.cls }}" data-size="{{ properties.size }}" data-ymk-key="{{ properties.key }}" data-cluster="{{ properties.cluster }}" title="{{ properties.title }}" aria-label="{{ properties.title }}" role="button" tabindex="0">{{ properties.text }}</span>',
   cluster: '<span class="ymk-group ymk-group--near" data-size="{{ properties.size }}" data-ymk-key="{{ properties.key }}" data-sellers="{{ properties.sellers }}" title="{{ properties.title }}" aria-label="{{ properties.title }}" role="button" tabindex="0">{{ properties.text }}</span>',
-  me: '<span class="ymk-me{{ properties.cls }}" data-ymk-key="{{ properties.key }}" title="{{ properties.title }}"><span class="ymk-me__hd"></span><span class="ymk-me__dot"></span></span>',
+  me: '<span class="ymk-me{{ properties.cls }}" data-ymk-key="{{ properties.key }}" title="{{ properties.title }}"><span class="ymk-me__hd"></span><span class="ymk-me__dot"></span><span class="ymk-me__arw"></span></span>',
   pick: '<span class="ymk-pick{{ properties.cls }}" data-ymk-key="{{ properties.key }}" title="{{ properties.title }}"></span>',
   dest: '<span class="ymk-dest{{ properties.cls }}" data-ymk-key="{{ properties.key }}" title="{{ properties.title }}"><span class="ymk-dest__pin"></span></span>',
   pulse: '<span class="ymk-pulse" data-ymk-key="{{ properties.key }}"></span>',
@@ -233,7 +237,6 @@ const STAGGER_CAP = 13;
 const SPREAD_MS = 520;
 const SPREAD_WAIT_MS = 1600;
 const SPREAD_MAX_PX = 560;
-const PULSE_MS = 1900;
 const GLIDE_MS = 600;
 const RING_MAX_PX = 5200;
 const TILE_PX = 256;
@@ -244,6 +247,46 @@ const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const clampPx = (v: number) => Math.round(Math.max(-SPREAD_MAX_PX, Math.min(SPREAD_MAX_PX, v)));
 const same = (a: LngLat, b: LngLat) => a[0] === b[0] && a[1] === b[1];
+const flatM = (a: LngLat, b: LngLat) => {
+  const k = Math.cos((((a[1] + b[1]) / 2) * Math.PI) / 180);
+  return Math.hypot((b[0] - a[0]) * k, b[1] - a[1]) * 111320;
+};
+const lengthsOf = (path: LngLat[]) => {
+  const out = [0];
+  for (let i = 1; i < path.length; i++) out.push(out[i - 1] + flatM(path[i - 1], path[i]));
+  return out;
+};
+const along = (path: LngLat[], lens: number[], d: number): { at: LngLat; i: number } => {
+  if (path.length < 2) return { at: path[0], i: 0 };
+  const total = lens[lens.length - 1];
+  const want = Math.max(0, Math.min(total, d));
+  let i = 1;
+  while (i < lens.length - 1 && lens[i] < want) i++;
+  const seg = lens[i] - lens[i - 1];
+  return { at: seg > 0 ? lerp(path[i - 1], path[i], (want - lens[i - 1]) / seg) : path[i], i };
+};
+const prefixOf = (path: LngLat[], lens: number[], d: number): LngLat[] => {
+  if (path.length < 2) return path.slice();
+  const { at, i } = along(path, lens, d);
+  return [...path.slice(0, i), at];
+};
+const snapTo = (path: LngLat[], p: LngLat): { at: LngLat; i: number } => {
+  let best = { at: path[0], i: 1, d: Number.POSITIVE_INFINITY };
+  const k = Math.cos((p[1] * Math.PI) / 180);
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1];
+    const b = path[i];
+    const dx = (b[0] - a[0]) * k;
+    const dy = b[1] - a[1];
+    const len = dx * dx + dy * dy;
+    const t = len > 0 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * k * dx + (p[1] - a[1]) * dy) / len)) : 0;
+    const q: LngLat = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    const d = flatM(q, p);
+    if (d < best.d) best = { at: q, i, d };
+  }
+  return { at: best.at, i: best.i };
+};
+const TRAIL_MAX = 400;
 
 const mercator = {
   to: (ll: LngLat, z: number): [number, number] => {
@@ -780,17 +823,22 @@ function build21(y: Ymaps21, box: HTMLElement, view: MapView): MapHandle {
     spreadFrom: (origin, ms) => {
       spread = { keys: new Set(), any: true, origin, until: performance.now() + ms };
     },
-    line: (from, to, o) => {
+    route: (points, o) => {
       const P = y.Polyline;
-      if (typeof P !== "function") return { setPoints: () => undefined, remove: () => undefined };
-      let a = from;
-      let b = to;
-      let k = o.drawMs > 0 ? 0 : 1;
+      if (typeof P !== "function" || points.length < 2) return { set: () => undefined, progress: () => undefined, remove: () => undefined };
+      let path = points.slice();
+      let lens = lengthsOf(path);
+      let left = path;
+      let leftLens = lens;
+      let trail: LngLat[] = [];
+      let k = o.drawMs > 0 && !readMotion() ? 0 : 1;
+      let t0 = performance.now() + Math.max(0, o.delayMs ?? 0);
+      let drawMs = o.drawMs;
       let dead = false;
       let raf = 0;
       let pulse: Mark | null = null;
       let p0 = 0;
-      const t0 = performance.now() + Math.max(0, o.delayMs ?? 0);
+      const flow = o.flow && !readMotion();
       const opts = (color: string, width: number, opacity: number, style: string, z: number): YProps => ({
         strokeColor: color,
         strokeWidth: width,
@@ -802,16 +850,20 @@ function build21(y: Ymaps21, box: HTMLElement, view: MapView): MapHandle {
         openBalloonOnClick: false,
         interactivityModel: "default#transparent",
       });
-      const halo = new P([toY(a), toY(a)], {}, opts(o.halo, 10, 0.85, "solid", 1));
-      const main = new P([toY(a), toY(a)], {}, opts(o.color, 4, 0.95, "dash", 2));
-      quiet(() => map.geoObjects.add(halo));
-      quiet(() => map.geoObjects.add(main));
-      let shift: { from: LngLat; to: LngLat; t0: number; ms: number } | null = null;
+      const glow = new P([], {}, opts(o.glow, 24, 0.22, "solid", 1));
+      const casing = new P([], {}, opts(o.casing, 13, 1, "solid", 2));
+      const main = new P([], {}, opts(o.color, 7, 1, "solid", 3));
+      const past = new P([], {}, opts(o.past, 5, 0.95, "dot", 4));
+      for (const line of [glow, casing, past, main]) quiet(() => map.geoObjects.add(line));
+      const coords = (list: LngLat[]) => list.map(toY);
       const paint = () => {
-        const tip = lerp(a, b, easeInOut(k));
-        const coords = [toY(a), toY(tip)];
-        quiet(() => halo.geometry?.setCoordinates?.(coords));
-        quiet(() => main.geometry?.setCoordinates?.(coords));
+        const total = leftLens[leftLens.length - 1];
+        const shown = k >= 1 ? left : prefixOf(left, leftLens, total * easeInOut(k));
+        const c = coords(shown.length >= 2 ? shown : [left[0], left[0]]);
+        quiet(() => glow.geometry?.setCoordinates?.(c));
+        quiet(() => casing.geometry?.setCoordinates?.(c));
+        quiet(() => main.geometry?.setCoordinates?.(c));
+        quiet(() => past.geometry?.setCoordinates?.(coords(trail.length >= 2 ? trail : [])));
       };
       const stop = () => {
         dead = true;
@@ -820,29 +872,23 @@ function build21(y: Ymaps21, box: HTMLElement, view: MapView): MapHandle {
         pulse?.remove();
         pulse = null;
       };
-      const busy = () => k < 1 || o.pulse || !!shift;
+      const busy = () => k < 1 || flow;
       const loop = (now: number) => {
         raf = 0;
         if (dead) return;
-        let dirty = false;
-        if (shift) {
-          const p = Math.min(1, (now - shift.t0) / shift.ms);
-          a = p < 1 ? lerp(shift.from, shift.to, easeOut(p)) : shift.to;
-          if (p >= 1) shift = null;
-          dirty = true;
-        }
         if (k < 1) {
-          k = Math.max(0, Math.min(1, (now - t0) / o.drawMs));
-          dirty = true;
+          k = drawMs > 0 ? Math.max(0, Math.min(1, (now - t0) / drawMs)) : 1;
+          paint();
         }
-        if (dirty) paint();
-        if (k >= 1 && o.pulse) {
+        if (k >= 1 && flow) {
+          const total = leftLens[leftLens.length - 1];
           if (!pulse) {
-            pulse = mark({ kind: "pulse", coords: a, title: "", z: 36 });
+            pulse = mark({ kind: "pulse", coords: left[0], title: "", z: 36 });
             p0 = now;
           }
-          const ph = ((now - p0) % PULSE_MS) / PULSE_MS;
-          pulse.move(lerp(a, b, easeInOut(ph)), 0);
+          const period = Math.max(1400, Math.min(4200, total * 3));
+          const ph = ((now - p0) % period) / period;
+          pulse.move(along(left, leftLens, total * easeInOut(ph)).at, 0);
           pulse.vars({ "--o": Math.sin(Math.PI * ph).toFixed(3) });
         }
         if (busy()) raf = requestAnimationFrame(loop);
@@ -854,23 +900,43 @@ function build21(y: Ymaps21, box: HTMLElement, view: MapView): MapHandle {
       kick();
       stops.add(stop);
       return {
-        setPoints: (f, t, ms = 0) => {
-          if (dead) return;
-          b = t;
-          if (ms > 0 && !readMotion() && !same(a, f)) {
-            shift = { from: a, to: f, t0: performance.now(), ms };
+        set: (next, ms = 0) => {
+          if (dead || next.length < 2) return;
+          path = next.slice();
+          lens = lengthsOf(path);
+          left = path;
+          leftLens = lens;
+          if (ms > 0 && !readMotion()) {
+            k = 0;
+            drawMs = ms;
+            t0 = performance.now();
             kick();
+          } else k = 1;
+          paint();
+        },
+        progress: (at) => {
+          if (dead) return;
+          if (!at) {
+            trail = [];
+            left = path;
+            leftLens = lens;
+            paint();
             return;
           }
-          shift = null;
-          a = f;
+          const last = trail[trail.length - 1];
+          if (!last || flatM(last, at) > 3) trail = [...trail.slice(-(TRAIL_MAX - 1)), at];
+          if (o.straight) left = [at, path[path.length - 1]];
+          else {
+            const q = snapTo(path, at);
+            left = [q.at, ...path.slice(q.i)];
+          }
+          leftLens = lengthsOf(left);
           paint();
         },
         remove: () => {
           stop();
           stops.delete(stop);
-          quiet(() => map.geoObjects.remove(main));
-          quiet(() => map.geoObjects.remove(halo));
+          for (const line of [main, past, casing, glow]) quiet(() => map.geoObjects.remove(line));
         },
       };
     },

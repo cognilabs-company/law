@@ -7,17 +7,29 @@ import { Link } from "@/i18n/navigation";
 import { IconExternal, IconLock, IconRefresh } from "@/components/icons";
 import { http } from "@/lib/http";
 import type { Spot } from "@/lib/services/marketDiscovery";
-import { mapErrorKey, navigationPath, normNavRoute, safeRouteUrl, type MapErrorKey, type NavRoute, type Place } from "@/lib/services/mapLocation";
+import { mapErrorKey, navigationPath, normNavRoute, safeRouteUrl, type MapErrorKey, type NavRoute, type Place, type RouteInfo } from "@/lib/services/mapLocation";
 import { lngLatOf, NAV_MODES, type NavMode } from "@/lib/services/sellersMap";
 import { Segmented } from "./MapPanel";
 import PlaceSearch from "./PlaceSearch";
 import { isHandheld, openRoute, webRouteOf } from "./route";
 import { useDistanceText } from "./SellerRow";
 import { distanceMeters } from "./useFollow";
+import { etaSeconds, useDurationText } from "./navText";
 import "./sellerDetail.css";
 
-export type RouteTarget = { sellerUserId: string; name: string; endpoint: string; modes: NavMode[] };
-export type Guide = { sellerUserId: string; name: string; mode: NavMode; route: NavRoute; from: Spot; dest: Spot | null; navigatorUrl: string };
+export type RouteTarget = { sellerUserId: string; name: string; endpoint: string; modes: NavMode[]; paidOrderId?: string };
+export type Guide = {
+  sellerUserId: string;
+  name: string;
+  mode: NavMode;
+  route: NavRoute;
+  from: Spot;
+  dest: Spot | null;
+  navigatorUrl: string;
+  target: RouteTarget;
+  path: Spot[] | null;
+  info: RouteInfo | null;
+};
 
 const MODE_ICON: Record<NavMode, ReactNode> = {
   driving: <Car aria-hidden="true" strokeWidth={1.75} />,
@@ -29,19 +41,24 @@ const MODE_ICON: Record<NavMode, ReactNode> = {
 const dictOf = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
 export async function requestGuide(q: { target: RouteTarget; template: string; point: Spot; mode: NavMode }): Promise<Guide> {
-  const body = { latitude: q.point.latitude, longitude: q.point.longitude, mode: q.mode, paid_order_id: null };
+  const body = { latitude: q.point.latitude, longitude: q.point.longitude, mode: q.mode, paid_order_id: q.target.paidOrderId || null };
   const raw = await http(navigationPath(q.target.sellerUserId, q.target.endpoint, q.template), { method: "POST", body: JSON.stringify(body) });
   const d = dictOf(raw);
   const dst = dictOf(d.destination);
   const ll = lngLatOf({ latitude: dst.latitude, longitude: dst.longitude }) ?? lngLatOf(dst.coordinates);
+  const route = normNavRoute(raw);
+  const info = route.info;
   return {
     sellerUserId: q.target.sellerUserId,
     name: q.target.name,
     mode: q.mode,
-    route: normNavRoute(raw),
+    route,
     from: q.point,
     dest: ll ? { latitude: ll[1], longitude: ll[0] } : null,
     navigatorUrl: safeRouteUrl(dictOf(d.app_urls).yandex_navigator, true),
+    target: q.target,
+    path: info?.available ? info.path.map(([longitude, latitude]) => ({ latitude, longitude })) : null,
+    info,
   };
 }
 
@@ -91,6 +108,7 @@ export default function NavigatorBlock({
   const tx = useTranslations("marketMap");
   const uid = useId();
   const distText = useDistanceText();
+  const dur = useDurationText();
   const modes = target.modes.length ? target.modes : [...NAV_MODES];
   const [mode, setMode] = useState<NavMode>(guide && modes.includes(guide.mode) ? guide.mode : modes[0]);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
@@ -142,7 +160,13 @@ export default function NavigatorBlock({
     setPhase({ kind: "idle" });
   };
 
-  const straight = done?.dest ? distText(distanceMeters(done.from, done.dest) / 1000, "") : null;
+  const info = done?.info ?? null;
+  const routed = !!info?.available;
+  const routeLen = routed && info?.distanceM ? distText(info.distanceM / 1000, "") : null;
+  const straightM = done?.dest ? distanceMeters(done.from, done.dest) : null;
+  const straight = !routed && straightM !== null ? distText(straightM / 1000, "") : null;
+  const eta = done && routed && info?.durationS !== null && info?.durationS !== undefined ? dur(info.durationS) : done && straightM !== null ? dur(etaSeconds(straightM, done.mode, null).s) : "";
+  const traffic = routed && info?.trafficS ? dur(info.trafficS) : "";
   const web = done ? webRouteOf(done.route) : "";
   const phone = isHandheld();
   const appLink = done ? done.navigatorUrl || done.route.appUrl : "";
@@ -190,17 +214,29 @@ export default function NavigatorBlock({
 
       {!signedIn ? null : done ? (
         <div className="mnv__done" role="status" data-ai-id="marketplace.route.done">
-          {straight ? (
+          {routeLen ? (
+            <p className="mnv__dist mnv__dist--route" data-ai-id="marketplace.route.eta">
+              <RouteIcon aria-hidden="true" strokeWidth={1.75} />
+              <span>
+                <b>{eta}</b>
+                {t("routeLen", { d: routeLen.text })}
+              </span>
+            </p>
+          ) : straight ? (
             <p className="mnv__dist" data-ai-id="marketplace.route.straight">
               <RouteIcon aria-hidden="true" strokeWidth={1.75} />
-              <span>{t("straight", { d: straight.text })}</span>
+              <span>
+                {t("straight", { d: straight.text })}
+                {eta ? <em className="mnv__eta">{t("approxTime", { t: eta })}</em> : null}
+              </span>
             </p>
           ) : (
             <p className="mnv__note">{t("noDest")}</p>
           )}
           <p className="mnv__fine">
             {done.route.destinationSource === "paid_order_live_location" ? tr("destLive") : tr("destOffice")}
-            {straight ? ` · ${t("straightNote")}` : ""}
+            {routed ? ` · ${t("routeBy")}` : straight ? ` · ${t("straightNote")}` : ""}
+            {traffic ? ` · ${t("traffic", { t: traffic })}` : ""}
           </p>
           <div className="mnv__acts">
             {done.dest ? (

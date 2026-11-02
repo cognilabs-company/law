@@ -588,6 +588,14 @@ export function activePurchaseOf(e: unknown): ActivePurchase | null {
   return { orderId: asStr(detail.order_id), workId: asStr(detail.work_id), status: asStr(detail.status) };
 }
 
+export type OrderNavigation = { available: boolean; reason: string; paidOrderId: string; modes: string[] };
+
+export function orderNavigationOf(v: unknown): OrderNavigation {
+  const n = asDict(v);
+  const modes = asArr(n.modes).map((m) => asStr(m).trim().toLowerCase()).filter((m) => m === "driving" || m === "walking" || m === "transit" || m === "bicycle");
+  return { available: n.available === true, reason: asStr(n.reason).trim().toLowerCase(), paidOrderId: asStr(n.paid_order_id).trim(), modes };
+}
+
 export type MarketOrder = {
   id: string;
   workId: string;
@@ -622,6 +630,7 @@ export type MarketOrder = {
   lawyerPhoneVisible: boolean | null;
   lawyerPhoneHiddenReason: string;
   lawyerUserId: string;
+  navigation: OrderNavigation;
   roomId: string;
   canStartChat: boolean;
   canCreateCall: boolean;
@@ -1168,6 +1177,7 @@ export function normMarketOrder(v: unknown): MarketOrder {
     lawyerPhoneVisible: hideSeller ? false : lawyerGate.visible,
     lawyerPhoneHiddenReason: hideSeller ? "" : lawyerGate.reason,
     lawyerUserId: hideSeller ? "" : asStr(d.lawyer_user_id ?? lawyer.id),
+    navigation: hideSeller ? orderNavigationOf(null) : orderNavigationOf(d.navigation),
     roomId,
     // contact_unlocked=false: the advance payment is not confirmed by the
     // provider yet, so protected chat and calls stay shut whatever else says.

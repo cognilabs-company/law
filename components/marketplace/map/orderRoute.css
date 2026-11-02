@@ -1,0 +1,17 @@
+.mor{--mor-ease:cubic-bezier(.22,.8,.24,1);display:flex;align-items:center;gap:12px;margin:12px 0;padding:12px 14px;border-radius:16px;background:linear-gradient(135deg,color-mix(in srgb,var(--dk-acc, #1668F0) 10%,var(--dk-surface, #fff)),var(--dk-surface, #fff) 70%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dk-acc, #1668F0) 24%,transparent);color:var(--ink);text-decoration:none;transition:transform .2s var(--mor-ease),box-shadow .2s var(--mor-ease);animation:mor-in .45s var(--mor-ease) both}
+.mor:hover{text-decoration:none;transform:translateY(-1px);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--dk-acc, #1668F0) 40%,transparent),0 12px 24px -16px rgba(22,104,240,.6)}
+.mor:focus-visible{outline:2px solid var(--dk-acc, #1668F0);outline-offset:2px}
+.mor__ic{display:grid;place-items:center;flex:none;width:42px;height:42px;border-radius:13px;background:var(--grad, #1668F0);color:#fff;box-shadow:0 8px 18px -10px rgba(22,104,240,.9)}
+.mor__ic svg{width:20px;height:20px;transition:transform .3s var(--mor-ease)}
+.mor:hover .mor__ic svg{transform:rotate(12deg) scale(1.06)}
+.mor__txt{display:flex;flex:1;flex-direction:column;gap:2px;min-width:0}
+.mor__txt b{font-size:.92rem;font-weight:800}
+.mor__txt small{font-size:.78rem;line-height:1.4;color:var(--gray)}
+.mor__go{flex:none;width:18px;height:18px;color:var(--gray);transition:transform .2s var(--mor-ease)}
+.mor:hover .mor__go{transform:translateX(3px)}
+
+@keyframes mor-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+@media (prefers-reduced-motion:reduce){
+  .mor,.mor__ic svg,.mor__go{transition:none;animation:none}
+}

@@ -62,6 +62,9 @@
 .mnv__done{display:flex;flex-direction:column;gap:8px;animation:mnv-done .5s var(--mx-spring) both}
 .mnv__dist{display:flex;align-items:center;gap:8px;margin:0;font-size:.92rem;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums}
 .mnv__dist svg{flex:none;width:18px;height:18px;color:var(--dk-acc, var(--b600))}
+.mnv__dist>span{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;min-width:0}
+.mnv__dist--route b{font-family:var(--fd);font-size:1.18rem;letter-spacing:-.01em;color:var(--dk-acc, var(--b600))}
+.mnv__eta{font-style:normal;font-size:.8rem;font-weight:700;color:var(--gray)}
 .mnv__fine{margin:0;font-size:.74rem;line-height:1.45;color:var(--gray)}
 .mnv__acts{display:flex;flex-direction:column;gap:8px}
 .mnv__acts .btn{width:100%;justify-content:center}

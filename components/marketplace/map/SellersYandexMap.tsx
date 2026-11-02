@@ -28,11 +28,12 @@ import {
   type SellersMapResult,
 } from "@/lib/services/sellersMap";
 import type { MapLive } from "./useMapRealtime";
-import { countText, openYandexMap, useHtmlTheme, useReducedMotion, type GuideLine, type Mark, type MapHandle, type PinSet, type PinSpec, type RadiusRing } from "./ymaps";
+import { countText, openYandexMap, useHtmlTheme, useReducedMotion, type GuideRoute, type Mark, type MapHandle, type PinSet, type PinSpec, type RadiusRing } from "./ymaps";
 import "./sellersMap.css";
+import "./navigator.css";
 
 export type Viewport = { bbox: MapBbox; zoom: number };
-export type MapGuide = { from: Spot; to: Spot; name?: string };
+export type MapGuide = { from: Spot; to: Spot; name?: string; path?: Spot[] | null };
 export type MapFollow = { point: Spot; heading: number | null };
 export type MapInset = { left: number; bottom: number };
 type ResState = { key: string; result: SellersMapResult | null; fail: MapErrorKey | null };
@@ -49,7 +50,10 @@ const SIDE_PAD = 64;
 const FOLLOW_ZOOM = 16;
 const GUIDE_ZOOM = 16;
 const RING_ZOOM = 15;
-const LINE_COLORS = { light: { color: "#1668F0", halo: "#FFFFFF" }, dark: { color: "#6EA8FF", halo: "#0A1120" } } as const;
+const LINE_COLORS = {
+  light: { color: "#1668F0", casing: "#FFFFFF", glow: "#1668F0", past: "#8DB1F7" },
+  dark: { color: "#6EA8FF", casing: "#0A1120", glow: "#6EA8FF", past: "#3E5F98" },
+} as const;
 
 const llOf = (s: Spot): LngLat => [s.longitude, s.latitude];
 const keyOf = (s: Spot | null | undefined) => (s ? `${s.longitude},${s.latitude}` : "");
@@ -147,7 +151,7 @@ export default function SellersYandexMap({
   const pinsRef = useRef<PinSet | null>(null);
   const groupsRef = useRef(new Map<string, Mark>());
   const meRef = useRef<Mark | null>(null);
-  const lineRef = useRef<GuideLine | null>(null);
+  const lineRef = useRef<GuideRoute | null>(null);
   const ringRef = useRef<RadiusRing | null>(null);
   const turnRef = useRef<number | null>(null);
 
@@ -421,6 +425,13 @@ export default function SellersYandexMap({
     if (ready) moveMe();
   }, [ready, spotKey]);
 
+  const navOn = !!follow;
+  useEffect(() => {
+    const m = meRef.current;
+    if (!ready || !m) return;
+    m.set({ cls: navOn ? " is-nav" : "" });
+  }, [ready, hasSpot, navOn]);
+
   const heading = follow?.heading ?? null;
   useEffect(() => {
     const m = meRef.current;
@@ -476,18 +487,23 @@ export default function SellersYandexMap({
     if (ringOn) fitRing();
   }, [ringOn, radiusKm]);
 
-  const guideKey = guide ? `${keyOf(guide.from)}>${keyOf(guide.to)}` : "";
-  const guideNow = useEffectEvent(() => (guide ? { from: spot ?? guide.from, to: guide.to, title: guide.name ? tx("stage.dest", { name: guide.name }) : tx("stage.destPlain") } : null));
+  const routed = !!guide?.path && guide.path.length >= 2;
+  const guideKey = guide ? `${keyOf(guide.to)}|${routed ? "r" : "s"}` : "";
+  const pathKey = guide?.path && guide.path.length >= 2 ? `${guide.path.length}:${keyOf(guide.path[0])}:${keyOf(guide.path[guide.path.length - 1])}` : "";
+  const pointsOf = (g: MapGuide, from: Spot): LngLat[] => (g.path && g.path.length >= 2 ? g.path.map(llOf) : [llOf(from), llOf(g.to)]);
+  const guideNow = useEffectEvent(() =>
+    guide ? { points: pointsOf(guide, spot ?? guide.from), to: guide.to, straight: !routed, title: guide.name ? tx("stage.dest", { name: guide.name }) : tx("stage.destPlain") } : null,
+  );
 
   useEffect(() => {
     const live = liveRef.current;
     const g = guideNow();
     if (!ready || !live || !g) return;
     const ink = LINE_COLORS[theme];
-    const line = live.line(llOf(g.from), llOf(g.to), { color: ink.color, halo: ink.halo, drawMs: still ? 0 : 900, delayMs: still ? 0 : 240, pulse: !still });
+    const line = live.route(g.points, { color: ink.color, casing: ink.casing, glow: ink.glow, past: ink.past, drawMs: still ? 0 : 1100, delayMs: still ? 0 : 240, flow: !still, straight: g.straight });
     const dest = live.mark({ kind: "dest", coords: llOf(g.to), title: g.title, z: 34, fx: "drop" });
     lineRef.current = line;
-    live.fit([llOf(g.from), llOf(g.to)], { ms: still ? 0 : 800, maxZoom: GUIDE_ZOOM, margin: 56 });
+    live.fit(g.points, { ms: still ? 0 : 800, maxZoom: GUIDE_ZOOM, margin: 56 });
     return () => {
       lineRef.current = null;
       line.remove();
@@ -495,12 +511,28 @@ export default function SellersYandexMap({
     };
   }, [ready, guideKey, theme, still]);
 
+  const reroute = useEffectEvent(() => {
+    if (guide?.path && guide.path.length >= 2) lineRef.current?.set(guide.path.map(llOf), motion(600));
+  });
+  useEffect(() => {
+    if (ready && pathKey) reroute();
+  }, [ready, pathKey]);
+
+  const followAt = keyOf(follow?.point);
   const trail = useEffectEvent(() => {
-    if (guide && spot) lineRef.current?.setPoints(llOf(spot), llOf(guide.to), motion(GLIDE_MS));
+    const line = lineRef.current;
+    if (!line || !guide) return;
+    if (follow) line.progress(llOf(follow.point));
+    else if (!routed && spot) line.set([llOf(spot), llOf(guide.to)]);
   });
   useEffect(() => {
     if (ready && guideKey) trail();
-  }, [ready, guideKey, spotKey]);
+  }, [ready, guideKey, spotKey, followAt]);
+
+  const clearTrail = useEffectEvent(() => lineRef.current?.progress(null));
+  useEffect(() => {
+    if (ready && guideKey && !navOn) clearTrail();
+  }, [ready, guideKey, navOn]);
 
   const followKey = follow ? keyOf(follow.point) : "";
   const camera = useEffectEvent(() => {
@@ -534,8 +566,9 @@ export default function SellersYandexMap({
       <p className="sr-only" role="status">
         {!ready ? t("loadingMap") : loading ? t("loading") : guideSaid}
       </p>
-      <div className={`ymk-stage${ready ? " is-ready" : " ymk-stage--wait"}${picking ? " ymk-stage--pick" : ""}${selected ? " has-sel" : ""}${guide ? " has-guide" : ""}`} style={stageStyle}>
+      <div className={`ymk-stage${ready ? " is-ready" : " ymk-stage--wait"}${picking ? " ymk-stage--pick" : ""}${selected ? " has-sel" : ""}${guide ? " has-guide" : ""}${ready && navOn ? " is-tilt" : ""}`} style={stageStyle}>
         <div ref={boxRef} className="ymk-canvas" role="region" tabIndex={-1} aria-label={t("region")} aria-describedby={`${uid}-n`} />
+        <span className="ymk-fog" aria-hidden="true" />
         <p id={`${uid}-n`} className="sr-only">
           {tx("stage.hint")}
         </p>

@@ -50,7 +50,11 @@ export type MapConfig = {
   markerPrecision: string;
   nearbyPrecision: string;
   realtime: MapRealtime;
+  routing: MapRouting;
 };
+
+export type MapRouting = { serverRoute: boolean; recalcM: number };
+export type MapLocale = "uz" | "ru" | "en";
 
 export type MapSeller = NearbySeller & { coords: LngLat; source: LocationSource; nav: SellerNav; service: ServiceAction | null };
 export type MapCluster = { id: string; coords: LngLat; count: number; bbox: MapBbox | null };
@@ -58,6 +62,7 @@ export type SellersMapResult = { sellers: MapSeller[]; clusters: MapCluster[]; c
 
 export const DEFAULT_MAP_CENTER: LngLat = [69.2401, 41.2995];
 export const DEFAULT_MAP_ZOOM = 11;
+export const DEFAULT_RECALC_M = 100;
 export const SPOT_ZOOM = 13;
 export const DEFAULT_SELLER_MAP_URL = "/marketplace/sellers/map";
 export const DEFAULT_NEARBY_SEARCH_URL = "/marketplace/nearby-sellers/search";
@@ -207,6 +212,8 @@ export function normMapConfig(v: unknown): MapConfig {
   const wantHours = numOrNull(policy.default_duration_hours) ?? 24;
   const rt = dictOf(d.realtime);
   const warn = numOrNull(d.accuracy_warning_threshold_meters);
+  const routing = dictOf(d.routing);
+  const recalc = numOrNull(routing.recalculate_distance_threshold_meters);
   return {
     provider,
     apiVersion,
@@ -240,6 +247,10 @@ export function normMapConfig(v: unknown): MapConfig {
       subscribed: eventName(rt.subscribed_event, DEFAULT_REALTIME.subscribed),
       update: eventName(rt.update_event, DEFAULT_REALTIME.update),
     },
+    routing: {
+      serverRoute: routing.server_route_available === true,
+      recalcM: recalc !== null && recalc >= 20 && recalc <= 5000 ? Math.round(recalc) : DEFAULT_RECALC_M,
+    },
   };
 }
 
@@ -248,21 +259,29 @@ export function offlineMapConfig(): MapConfig {
   return { ...normMapConfig({ configured: false }), usable: false };
 }
 
-let configPromise: Promise<MapConfig> | null = null;
+const configPromises = new Map<MapLocale, Promise<MapConfig>>();
 
-export function getMapConfig(): Promise<MapConfig> {
-  if (!configPromise) {
-    const p = http("/marketplace/map/config").then(normMapConfig);
-    configPromise = p;
-    p.catch(() => {
-      if (configPromise === p) configPromise = null;
+export function mapLocaleOf(v: unknown): MapLocale {
+  const l = trimmed(v).toLowerCase();
+  return l.startsWith("ru") ? "ru" : l.startsWith("en") ? "en" : "uz";
+}
+
+export function getMapConfig(locale?: string): Promise<MapConfig> {
+  const l = mapLocaleOf(locale ?? (typeof document !== "undefined" ? document.documentElement.lang : ""));
+  let p = configPromises.get(l);
+  if (!p) {
+    const next = http(`/marketplace/map/config?locale=${l}`).then(normMapConfig);
+    configPromises.set(l, next);
+    next.catch(() => {
+      if (configPromises.get(l) === next) configPromises.delete(l);
     });
+    p = next;
   }
-  return configPromise;
+  return p;
 }
 
 export function resetMapConfig(): void {
-  configPromise = null;
+  configPromises.clear();
 }
 
 export function bboxOfBounds(bounds: unknown): MapBbox | null {

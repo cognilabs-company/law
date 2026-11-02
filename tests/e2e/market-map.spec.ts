@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import { ADVOCATE, CLIENT, mockBackend, signIn, type Mock, type Routes } from "./mock";
 import { installYmapsStub } from "./ymapsStub";
+import { ORDER_ID, order } from "./fixtures";
 
 // The marketplace map (LEXGO_YANDEX_MARKETPLACE_MAP_FRONTEND_2026_10_30):
 // the list stands in when the map is off or Yandex can't load, location is
@@ -400,7 +401,7 @@ test("route: the mode goes to the backend, the straight distance is shown and th
   await nav.getByRole("button", { name: "Yo‘lni ko‘rsatish" }).click();
   await expect(nav.locator('[data-ai-id="marketplace.route.straight"]')).toContainText(/To‘g‘ri chiziq bo‘yicha ≈ 3[,.]5 km/);
   expect(navBody).toEqual({ latitude: 41.3, longitude: 69.24, mode: "walking", paid_order_id: null });
-  expect(mock.calls.filter((c) => c.path.endsWith("/navigation"))).toHaveLength(1);
+  expect(mock.calls.filter((c) => c.method === "POST" && c.path.startsWith("/marketplace/sellers/"))).toHaveLength(1);
   const web = nav.getByRole("link", { name: "Yandex Xaritada ochish" });
   await expect(web).toHaveAttribute("href", WEB_ROUTE);
   await expect(web).toHaveAttribute("target", "_blank");
@@ -450,13 +451,19 @@ test("navigator: the guidance line on the map, then the in-app follow mode until
   const nav = page.locator('[data-ai-id="marketplace.map.card"] [data-ai-id="marketplace.route"]');
   await nav.getByRole("button", { name: "Yo‘lni ko‘rsatish" }).click();
   await expect(nav.locator('[data-ai-id="marketplace.route.straight"]')).toContainText(/≈ 3[,.]5 km/);
-  await expect(page.locator('.ymaps-stub-line[data-style="dash"]')).toHaveCount(1);
+  await expect(page.locator('.ymaps-stub-line[data-style="solid"]')).toHaveCount(3);
+  await expect(page.locator('.ymaps-stub-line[data-style="dot"]')).toHaveCount(1);
   await shot(page, "navigator-line", '[data-ai-id="marketplace.nearby"]');
   await nav.getByRole("button", { name: "Navigatorni boshlash" }).click();
   const hud = page.locator('[data-ai-id="marketplace.map.follow"]');
   await expect(hud).toBeVisible();
   await expect(hud).toContainText("Dilnoza Karimova tomon");
-  await expect(hud.locator(".mfh__big")).toHaveText(/≈ 3[,.]5 km/);
+  await expect(hud.locator(".mfh__big")).toHaveText(/^≈ \d+ daq$/);
+  await expect(hud.locator(".mfh__sub")).toContainText(/3[,.]5 km · \d{2}:\d{2} da yetasiz/);
+  await expect(hud.locator(".mfh__head")).toHaveText(/yuring$/);
+  await expect(page.locator(".ymk-stage")).toHaveClass(/is-tilt/);
+  await expect(page.locator(".ymk-me.is-nav")).toHaveCount(1);
+  await expect(page.locator(".mtb--float")).toBeHidden();
   await expect(hud.getByRole("button", { name: "To‘xtatish" })).toBeVisible();
   await shot(page, "navigator-follow", '[data-ai-id="marketplace.nearby"]');
   await context.setGeolocation({ latitude: 41.3099, longitude: 69.2799, accuracy: 10 });
@@ -465,6 +472,7 @@ test("navigator: the guidance line on the map, then the in-app follow mode until
   await shot(page, "navigator-arrived", '[data-ai-id="marketplace.nearby"]');
   await hud.getByRole("button", { name: "To‘xtatish" }).click();
   await expect(hud).toHaveCount(0);
+  await expect(page.locator(".ymk-stage")).not.toHaveClass(/is-tilt/);
   await expect(nav.getByRole("button", { name: "Navigatorni boshlash" })).toBeVisible();
   await storedNothing(page);
   await noOverflow(page);
@@ -772,4 +780,137 @@ test("office remove: cancelling the confirm keeps the office and sends nothing",
   await expect(dialog).toBeHidden();
   await expect(card.locator('[data-ai-id="profile.office.read"]')).toContainText("Toshkent");
   expect(mock.count("DELETE", /^\/marketplace\/me\/office-location$/)).toBe(0);
+});
+
+// LEXGO_YANDEX_MAP_BACKEND_FINAL_2026_11_02 §4: a real route from the backend
+// is drawn along its geometry with its own time and first instruction, and
+// asked again after the client moves past recalculate_after_meters.
+test("navigator: a backend route is drawn with its time and steps, and recalculated after 100 m", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 15 });
+  const bodies: Record<string, unknown>[] = [];
+  const routes = mapRoutes({ configured: true });
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = (b: unknown) => {
+    bodies.push(b as Record<string, unknown>);
+    return {
+      destination_source: "public_office",
+      destination: { latitude: 41.31, longitude: 69.28, coordinates: [69.28, 41.31] },
+      app_urls: { yandex_navigator: "yandexnavi://build_route_on_map?lat_to=41.31&lon_to=69.28" },
+      web_url: WEB_ROUTE,
+      route: {
+        available: true,
+        provider: "yandex",
+        mode: "driving",
+        distance_m: 4820,
+        duration_s: 840,
+        duration_in_traffic_s: 1020,
+        geometry: [
+          [69.24, 41.3],
+          [69.25, 41.302],
+          [69.265, 41.305],
+          [69.28, 41.31],
+        ],
+        steps: [{ instruction: "Amir Temur ko‘chasiga o‘ngga buriling", distance_m: 350 }],
+        coordinate_order: "longitude_latitude",
+        recalculate_after_meters: 100,
+      },
+      event_recorded: true,
+    };
+  };
+  const mock = await openMap(page, routes);
+  await page.locator('[data-ai-id="marketplace.nearby.locate"]').click();
+  await page.locator('[data-ai-id="marketplace.nearby.results"]').getByRole("button", { name: /Dilnoza Karimova/ }).click();
+  const nav = page.locator('[data-ai-id="marketplace.map.card"] [data-ai-id="marketplace.route"]');
+  await nav.getByRole("button", { name: "Yo‘lni ko‘rsatish" }).click();
+  const eta = nav.locator('[data-ai-id="marketplace.route.eta"]');
+  await expect(eta).toContainText("14 daq");
+  await expect(eta).toContainText(/4[,.]8 km yo‘l/);
+  await expect(nav).toContainText("Yandex marshruti bo‘yicha");
+  await expect(nav).toContainText("tirbandlik bilan 17 daq");
+  await expect(nav.locator('[data-ai-id="marketplace.route.straight"]')).toHaveCount(0);
+  await expect(page.locator('.ymaps-stub-line[data-style="solid"]').first()).toHaveAttribute("points", /\S+ \S+ \S+ \S+/);
+  await nav.getByRole("button", { name: "Navigatorni boshlash" }).click();
+  const hud = page.locator('[data-ai-id="marketplace.map.follow"]');
+  await expect(hud.locator(".mfh__head")).toHaveText("Amir Temur ko‘chasiga o‘ngga buriling");
+  await expect(hud.locator(".mfh__big")).toHaveText(/^\d+ daq$/);
+  await shot(page, "navigator-route", '[data-ai-id="marketplace.nearby"]');
+  await context.setGeolocation({ latitude: 41.3025, longitude: 69.2405, accuracy: 10 });
+  await expect.poll(() => bodies.length).toBe(2);
+  expect(bodies[1]).toEqual({ latitude: 41.303, longitude: 69.241, mode: "driving", paid_order_id: null });
+  expect(mock.calls.filter((c) => c.method === "POST" && c.path.startsWith("/marketplace/sellers/"))).toHaveLength(2);
+  await expect(hud).toBeVisible();
+  await hud.getByRole("button", { name: "To‘xtatish" }).click();
+  await storedNothing(page);
+});
+
+test("route: a closed public office (409) is explained in words", async ({ page, context }) => {
+  await noYandex(context, "abort");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 30 });
+  const routes = mapRoutes({ configured: false });
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = { status: 409, json: { detail: { code: "public_office_navigation_unavailable", message: "x" } } };
+  await openMap(page, routes);
+  await page.locator('[data-ai-id="marketplace.nearby.locate"]').click();
+  await page.locator('[data-ai-id="marketplace.nearby.results"]').getByRole("button", { name: /Dilnoza Karimova/ }).click();
+  const nav = page.locator('[data-ai-id="marketplace.map.card"] [data-ai-id="marketplace.route"]');
+  await nav.getByRole("button", { name: "Yo‘lni ko‘rsatish" }).click();
+  await expect(nav.getByRole("alert")).toHaveText("Mutaxassis ofisiga yo‘l ko‘rsatishni yoqmagan.");
+  await expect(nav).not.toContainText("public_office_navigation_unavailable");
+});
+
+test("order: the paid order opens the map on its specialist and the route carries the order", async ({ page, context }) => {
+  await noYandex(context, "abort");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 20 });
+  let navBody: Record<string, unknown> | null = null;
+  const locales: string[] = [];
+  const routes = mapRoutes({ configured: false });
+  routes["/marketplace/map/config"] = (_b: unknown, url: URL) => (locales.push(url.searchParams.get("locale") ?? ""), config(false));
+  routes[`/marketplace/lawyers/${S1}`] = { user_id: S1, name: "Dilnoza Karimova", lawyer_name: "Dilnoza Karimova", is_verified: true };
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = (b: unknown) => (
+    (navBody = b as Record<string, unknown>),
+    { destination_source: "paid_order_live_location", destination: { latitude: 41.31, longitude: 69.28 }, web_url: WEB_ROUTE, route: { available: false, distance_m: 3500, duration_s: 420, geometry: [], reason: "routing_key_not_configured" } }
+  );
+  await mockBackend(page, await signIn(page, CLIENT, routes));
+  await page.goto(`/uz/portal/client/lawyers?mode=nearby&route=${S1}&order=ord-77`);
+  const card = page.locator('[data-ai-id="marketplace.map.card"]');
+  await expect(card).toContainText("Dilnoza Karimova");
+  expect(locales).toContain("uz");
+  const nav = card.locator('[data-ai-id="marketplace.route"]');
+  await nav.getByRole("button", { name: "Yo‘lni ko‘rsatish" }).click();
+  await expect(nav.locator('[data-ai-id="marketplace.route.straight"]')).toContainText(/taxminan 7 daq/);
+  await expect(nav).toContainText("to‘langan buyurtmangiz bo‘yicha");
+  expect(navBody).toMatchObject({ mode: "driving", paid_order_id: "ord-77" });
+  await storedNothing(page);
+});
+
+test("map: the config is asked in the page language and an expired location consent says so", async ({ page, context }) => {
+  await noYandex(context, "abort");
+  const locales: string[] = [];
+  const routes = mapRoutes({ configured: false });
+  routes["/marketplace/map/config"] = (_b: unknown, url: URL) => (locales.push(url.searchParams.get("locale") ?? ""), config(false));
+  routes["/marketplace/me/location-consent"] = { granted: true, expired: true, effective_state: "expired", permission_state: "granted", source: "web" };
+  await mockBackend(page, await signIn(page, CLIENT, routes));
+  await page.goto("/ru/portal/client/lawyers?mode=nearby");
+  await expect(page.locator('[data-ai-id="marketplace.map.consent.expired"]')).toHaveText("Срок разрешения на геолокацию истёк — разрешите снова, чтобы продолжить.");
+  expect(locales).toEqual(expect.arrayContaining(["ru"]));
+  expect(locales).not.toContain("uz");
+});
+
+test("order page: a paid order offers the route to its specialist only when the backend allows it", async ({ page }) => {
+  const nav = { available: true, reason: null, destination_source: "public_office", endpoint: "/marketplace/sellers/{seller_user_id}/navigation", requires_location_consent: true, paid_order_id: ORDER_ID, modes: ["driving", "walking"] };
+  await mockBackend(page, await signIn(page, CLIENT, { [`/marketplace/me/orders/${ORDER_ID}`]: order({ navigation: nav }) }));
+  await page.goto(`/uz/portal/client/marketplace-orders/${ORDER_ID}`);
+  const link = page.locator(".mor");
+  await expect(link).toContainText("Mutaxassisga yo‘l");
+  await expect(link).toHaveAttribute("href", new RegExp(`/uz/portal/client/lawyers\\?mode=nearby&route=u-adv&order=${ORDER_ID}$`));
+  await shot(page, "order-route", ".mor");
+});
+
+test("order page: no route card when the order's navigation is closed", async ({ page }) => {
+  await mockBackend(page, await signIn(page, CLIENT, { [`/marketplace/me/orders/${ORDER_ID}`]: order({ navigation: { available: false, reason: "office_not_set" } }) }));
+  await page.goto(`/uz/portal/client/marketplace-orders/${ORDER_ID}`);
+  await expect(page.locator(".mod__facts").first()).toBeVisible();
+  await expect(page.locator(".mor")).toHaveCount(0);
 });
