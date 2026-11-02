@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import Select from "@/components/Select";
-import CheckBox from "@/components/CheckBox";
-import { IconBriefcase, IconClose, IconInfo, IconList, IconLock, IconMap, IconMapPin, IconRefresh, IconTarget, IconUsers } from "@/components/icons";
+import { IconBriefcase, IconClose, IconInfo, IconLock, IconMap, IconMapPin, IconRefresh, IconTarget, IconUsers } from "@/components/icons";
+import { Route as IconRoute } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/date";
 import type { CategoryRow } from "@/lib/services/categoryTree";
@@ -14,6 +13,7 @@ import { NEARBY_RADII, type NearbyRadius } from "@/lib/services/marketRuntime";
 import type { MarketSeller } from "@/lib/services/marketplace";
 import { geoFailureOf, precisionMeters, roundCoord, type GeoFailure, type NearbyMode, type Spot } from "@/lib/services/marketDiscovery";
 import { readPosition } from "@/lib/services/locationShare";
+import { useConsent } from "@/lib/useConsent";
 import {
   filterOfError,
   getLocationConsent,
@@ -28,23 +28,19 @@ import {
   type NearbySort,
   type Place,
 } from "@/lib/services/mapLocation";
-import {
-  DEFAULT_MAP_FILTERS,
-  filtersKey,
-  getMapConfig,
-  MIN_RATING_STEPS,
-  offlineMapConfig,
-  SELLER_TYPE_FILTERS,
-  type MapConfig,
-  type MapFilters,
-  type SellerTypeFilter,
-} from "@/lib/services/sellersMap";
+import { DEFAULT_MAP_FILTERS, filtersKey, getMapConfig, offlineMapConfig, SELLER_TYPE_FILTERS, type MapConfig, type MapFilters, type MapSeller, type SellerTypeFilter } from "@/lib/services/sellersMap";
 import { sellerTypeLabel } from "./bits";
-import AreaList from "./map/AreaList";
-import NavigateDialog, { type RouteTarget } from "./map/NavigateDialog";
+import AreaList, { useAreaSellers } from "./map/AreaList";
+import FilterSheet from "./map/FilterSheet";
+import FollowHud from "./map/FollowHud";
+import MapPanel, { RollText, Segmented, useNarrow, type Inset, type PanelVariant, type Snap } from "./map/MapPanel";
+import MapTopBar, { type PanelView } from "./map/MapTopBar";
+import NavigatorBlock, { type Guide } from "./map/NavigatorBlock";
 import PlaceSearch from "./map/PlaceSearch";
-import SellerRow from "./map/SellerRow";
+import SellerDetail from "./map/SellerDetail";
+import SellerRow, { type RowSeller } from "./map/SellerRow";
 import SellersYandexMap, { MapPlaceholder, type Viewport } from "./map/SellersYandexMap";
+import { askCompass, useFollow } from "./map/useFollow";
 import MapConsentGate from "./map/MapConsentGate";
 import { useMapRealtime } from "./map/useMapRealtime";
 import "./nearbySellers.css";
@@ -78,6 +74,10 @@ export function MarketModeSwitch({ mode, onChange }: { mode: NearbyMode; onChang
 type Here = { point: Spot; accuracyM: number | null; source: "web" | "manual" };
 type Res = { key: string; result: NearbySearchResult | null; fail: MapErrorKey | null };
 type Geo = { busy: boolean; fail: GeoFailure | null };
+type Then = (p: Spot) => void;
+type Picked = { s: RowSeller; near: boolean };
+
+const SHEET_FILTERS = ["categoryId", "subcategoryId", "sellerType", "minRating", "verifiedOnly"] as const;
 
 export default function NearbySellers({
   base,
@@ -105,12 +105,16 @@ export default function NearbySellers({
   const locale = useLocale();
   const uid = useId();
   const titleId = `${uid}t`;
+  const headId = `${uid}h`;
   const { session } = useAuth();
   const signedIn = !!session?.token;
+  const phone = useNarrow();
+  const rootRef = useRef<HTMLElement>(null);
+  const filterBtn = useRef<HTMLButtonElement>(null);
 
   const [cfg, setCfg] = useState<MapConfig | null>(null);
   const [broken, setBroken] = useState(false);
-  const [view, setView] = useState<"list" | "map">("map");
+  const [view, setView] = useState<PanelView>("map");
   const [filters, setFilters] = useState<MapFilters>(() => ({ ...DEFAULT_MAP_FILTERS, serviceId: initialServiceId }));
   const [radius, setRadius] = useState<NearbyRadius>(initialRadius);
   const [sort, setSort] = useState<NearbySort>("nearest");
@@ -125,9 +129,19 @@ export default function NearbySellers({
   const [consentErr, setConsentErr] = useState<MapErrorKey | null>(null);
   const [res, setRes] = useState<Res | null>(null);
   const [tick, setTick] = useState(0);
-  const [routeTo, setRouteTo] = useState<RouteTarget | null>(null);
   const [viewport, setViewport] = useState<Viewport | null>(null);
+  const [pinRows, setPinRows] = useState<readonly MapSeller[]>([]);
   const [refresh, setRefresh] = useState(0);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Picked | null>(null);
+  const [guide, setGuide] = useState<Guide | null>(null);
+  const [following, setFollowing] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [snap, setSnap] = useState<Snap>("peek");
+  const [inset, setInset] = useState<Inset>({ left: 0, bottom: 0 });
+  const [hudH, setHudH] = useState(0);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
 
   useEffect(() => {
     let dead = false;
@@ -159,8 +173,10 @@ export default function NearbySellers({
 
   const live = useMapRealtime(cfg?.realtime ?? null, signedIn && !!cfg, cfg?.debounceMs ?? 400, () => setRefresh((n) => n + 1));
 
-  const mapOn = !!cfg?.usable && !broken;
-  const shownView = mapOn ? view : "list";
+  const mapConsent = useConsent("functional");
+  const needConsent = !!cfg?.usable && !broken && mapConsent === false;
+  const mapOn = !!cfg?.usable && !broken && mapConsent === true;
+  const shownView: PanelView = mapOn || needConsent ? view : "list";
   const fKey = filtersKey(filters);
   const searchKey = here && signedIn ? `${here.point.latitude},${here.point.longitude}|${here.accuracyM ?? ""}|${radius}|${sort}|${fKey}|${tick}` : "";
 
@@ -195,6 +211,13 @@ export default function NearbySellers({
   const current = !searching && res?.key === searchKey ? res : null;
   const result = current?.result ?? null;
   const fail = current?.fail ?? null;
+  const area = useAreaSellers({ config: cfg, bbox: mapOn ? (viewport?.bbox ?? null) : null, filters, refresh, on: !!cfg && (!mapOn || !!viewport) });
+  const findSeller = (id: string): Picked | null => {
+    const n = here && signedIn ? result?.items.find((s) => s.sellerUserId === id) : undefined;
+    if (n) return { s: n, near: true };
+    const a = area.rows.find((s) => s.sellerUserId === id) ?? pinRows.find((s) => s.sellerUserId === id);
+    return a ? { s: a, near: false } : null;
+  };
 
   // ── Location: only after the client asks ──────────────────────────────
   const consentHours = cfg?.consentHours ?? 24;
@@ -212,9 +235,10 @@ export default function NearbySellers({
     }
   };
 
-  const locate = () => {
+  const locate = (then?: Then) => {
     if (geo.busy || !cfg) return;
     if (!signedIn) {
+      select(null);
       setNeedLogin(true);
       return;
     }
@@ -231,10 +255,13 @@ export default function NearbySellers({
         setHere({ point, accuracyM: Number.isFinite(fix.accuracy) ? Math.round(fix.accuracy) : null, source: "web" });
         setCenter(point);
         setTick((n) => n + 1);
+        setSnap((s) => (s === "peek" ? "half" : s));
+        then?.(point);
       },
       (e) => {
         const kind = geoFailureOf(e);
         setGeo({ busy: false, fail: kind });
+        setSnap((s) => (s === "peek" ? "half" : s));
         // The browser said no: that is recorded too (it revokes an active consent).
         if (kind === "denied") recordLocationConsent({ granted: false, permissionState: "denied", source: "web" }, cfg.consentUrl).then(setConsent, () => undefined);
       },
@@ -246,9 +273,17 @@ export default function NearbySellers({
       setNeedLogin(true);
       return;
     }
+    setFiltersOpen(false);
+    select(null);
     setManual(true);
     setPickPoint(null);
+    setSnap("half");
     if (mapOn) setView("map");
+  };
+
+  const cancelManual = () => {
+    setManual(false);
+    setPickPoint(null);
   };
 
   const choosePlace = (p: Place) => {
@@ -256,7 +291,7 @@ export default function NearbySellers({
     setCenter(p.point);
   };
 
-  const confirmManual = async (p: Spot | null = pickPoint) => {
+  const confirmManual = async (p: Spot | null = pickPoint, then?: Then) => {
     if (!p || consentBusy) return;
     setConsentBusy(true);
     const ok = await grant("manual");
@@ -268,6 +303,7 @@ export default function NearbySellers({
     setManual(false);
     setPickPoint(null);
     setTick((n) => n + 1);
+    then?.(point);
   };
 
   const revoke = async () => {
@@ -278,6 +314,9 @@ export default function NearbySellers({
       setHere(null);
       setRes(null);
       setManual(false);
+      setGuide(null);
+      setFollowing(false);
+      setPaused(false);
     } catch (e) {
       setConsentErr(mapErrorKey(e));
     } finally {
@@ -290,6 +329,95 @@ export default function NearbySellers({
     setRes(null);
     setConsent((c) => (c ? { ...c, granted: false } : c));
   };
+
+  const leaveNearby = () => {
+    setHere(null);
+    setRes(null);
+  };
+
+  const focusSoon = (sel: string) =>
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => rootRef.current?.querySelector<HTMLElement>(sel)?.focus({ preventScroll: true })));
+
+  const stopFollow = () => {
+    const hadFocus = !!document.activeElement?.closest?.('[data-ai-id="marketplace.map.follow"]');
+    setFollowing(false);
+    setPaused(false);
+    if (hadFocus) focusSoon('[data-ai-id="marketplace.route.follow"]');
+  };
+  const fol = useFollow({ active: following, dest: guide?.dest ?? null, onHidden: stopFollow });
+
+  const select = (id: string | null) => {
+    if (id === selected) return;
+    if (!following && guide && guide.sellerUserId !== id) setGuide(null);
+    setSelected(id);
+    setPicked(id ? findSeller(id) : null);
+    if (id) setSnap((s) => (s === "peek" ? "half" : s));
+  };
+
+  const closeDetail = () => {
+    const id = selected;
+    select(null);
+    if (!id) return;
+    window.requestAnimationFrame(() => {
+      const row = Array.from(rootRef.current?.querySelectorAll<HTMLElement>(".mmrow__btn[data-seller]") ?? []).find((b) => b.dataset.seller === id);
+      (row ?? rootRef.current?.querySelector<HTMLElement>(".ymk-canvas"))?.focus({ preventScroll: true });
+    });
+  };
+
+  const takeGuide = (g: Guide | null) => {
+    setGuide(g);
+    if (!g) stopFollow();
+  };
+
+  const startFollow = () => {
+    if (!guide?.dest) return;
+    askCompass();
+    fol.reset();
+    setPaused(false);
+    setFollowing(true);
+    if (phone) focusSoon('[data-ai-id="marketplace.map.follow.stop"]');
+  };
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!following || !root) return;
+    let down: { x: number; y: number } | null = null;
+    const onCanvas = (e: Event) => !!(e.target as Element | null)?.closest?.(".ymk-canvas");
+    const onDown = (e: PointerEvent) => {
+      down = onCanvas(e) ? { x: e.clientX, y: e.clientY } : null;
+    };
+    const onMove = (e: PointerEvent) => {
+      if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) < 8) return;
+      down = null;
+      setPaused(true);
+    };
+    const onUp = () => {
+      down = null;
+    };
+    const onWheel = (e: WheelEvent) => {
+      if (onCanvas(e)) setPaused(true);
+    };
+    root.addEventListener("pointerdown", onDown, true);
+    root.addEventListener("pointermove", onMove, true);
+    root.addEventListener("pointerup", onUp, true);
+    root.addEventListener("pointercancel", onUp, true);
+    root.addEventListener("wheel", onWheel, { capture: true, passive: true });
+    return () => {
+      root.removeEventListener("pointerdown", onDown, true);
+      root.removeEventListener("pointermove", onMove, true);
+      root.removeEventListener("pointerup", onUp, true);
+      root.removeEventListener("pointercancel", onUp, true);
+      root.removeEventListener("wheel", onWheel, true);
+    };
+  }, [following]);
+
+  const followPoint = following ? fol.point : null;
+  const followView = useMemo(() => (following && !paused && fol.point ? { point: fol.point, heading: fol.heading } : null), [following, paused, fol.point, fol.heading]);
+  const guideLine = useMemo(() => (guide?.dest ? { from: guide.from, to: guide.dest, name: guide.name } : null), [guide]);
+  const hudOn = following && !!guide && mapOn;
+  const hudOver = hudOn && phone;
+  const mapInset = useMemo(() => ({ left: inset.left, bottom: hudOn ? Math.max(hudH, inset.bottom) : inset.bottom }), [inset.left, inset.bottom, hudOn, hudH]);
+  const takeInset = (v: Inset) => setInset((p) => (p.left === v.left && p.bottom === v.bottom ? p : v));
 
   // ── Filters ───────────────────────────────────────────────────────────
   const rowsById = useMemo(() => new Map((categoryTree ?? []).map((r) => [r.node.id, r])), [categoryTree]);
@@ -322,303 +450,279 @@ export default function NearbySellers({
     setFilters({ ...DEFAULT_MAP_FILTERS });
     onChange({ radius, serviceId: "" });
   };
+  const clearSheet = () => setFilters((f) => ({ ...DEFAULT_MAP_FILTERS, serviceId: f.serviceId }));
   const filtersOn = fKey !== filtersKey(DEFAULT_MAP_FILTERS);
+  const activeFilters = SHEET_FILTERS.filter((k) => filters[k] !== DEFAULT_MAP_FILTERS[k]).length;
 
-  const filterBar = (
-    <div className="mmf" data-ai-target="marketplace:filters" data-ai-id="marketplace.map.filters">
-      <div className="mmf__f" data-ai-id="marketplace.map.filter.service" data-ai-type="select">
-        <span className="mmf__l">{tx("filters.service")}</span>
-        <Select value={filters.serviceId} onChange={(v) => setFilter("serviceId", v)} options={[{ value: "", label: t("allServices") }, ...svcOptions.map((s) => ({ value: s.value, label: s.label }))]} ariaLabel={tx("filters.service")} search />
-      </div>
-      {topCats.length ? (
-        <div className="mmf__f" data-ai-id="marketplace.map.filter.category" data-ai-type="select">
-          <span className="mmf__l">{tx("filters.category")}</span>
-          <Select value={filters.categoryId} onChange={(v) => setFilter("categoryId", v)} options={[{ value: "", label: tx("filters.anyCategory") }, ...topCats.map((r) => ({ value: r.node.id, label: catName(r.node.title) }))]} ariaLabel={tx("filters.category")} search />
-        </div>
-      ) : null}
-      {topCats.length ? (
-        <div className="mmf__f" data-ai-id="marketplace.map.filter.subcategory" data-ai-type="select">
-          <span className="mmf__l">{tx("filters.subcategory")}</span>
-          <Select
-            value={filters.subcategoryId}
-            onChange={(v) => setFilter("subcategoryId", v)}
-            options={[{ value: "", label: filters.categoryId ? tx("filters.anySubcategory") : tx("filters.pickCategory") }, ...subCats.map((r) => ({ value: r.node.id, label: r.path.slice(1).map(catName).join(" › ") }))]}
-            ariaLabel={tx("filters.subcategory")}
-            disabled={!filters.categoryId || !subCats.length}
-            search
-          />
-        </div>
-      ) : null}
-      <div className="mmf__f mmf__f--s" data-ai-id="marketplace.map.filter.type" data-ai-type="select">
-        <span className="mmf__l">{tx("filters.type")}</span>
-        <Select value={filters.sellerType} onChange={(v) => setFilter("sellerType", v as SellerTypeFilter)} options={[{ value: "", label: tx("filters.anyType") }, ...SELLER_TYPE_FILTERS.map((v) => ({ value: v, label: sellerTypeLabel(tm, v) }))]} ariaLabel={tx("filters.type")} />
-      </div>
-      <div className="mmf__f mmf__f--s" data-ai-id="marketplace.map.filter.rating" data-ai-type="select">
-        <span className="mmf__l">{tx("filters.rating")}</span>
-        <Select
-          value={String(filters.minRating)}
-          onChange={(v) => setFilter("minRating", Number(v) || 0)}
-          options={MIN_RATING_STEPS.map((n) => ({ value: String(n), label: n > 0 ? tx("filters.ratingFrom", { n: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(n) }) : tx("filters.anyRating") }))}
-          ariaLabel={tx("filters.rating")}
-        />
-      </div>
-      <div className="mmf__chk" data-ai-id="marketplace.map.filter.verified">
-        <CheckBox checked={filters.verifiedOnly} onChange={(on) => setFilter("verifiedOnly", on)}>
-          {tx("filters.verified")}
-        </CheckBox>
-      </div>
-      {filtersOn ? (
-        <button type="button" className="mmf__reset" onClick={clearFilters} data-ai-id="marketplace.map.filters.reset">
-          <IconClose aria-hidden="true" />
-          {tx("filters.reset")}
-        </button>
-      ) : null}
-    </div>
+  const topBar = (
+    <MapTopBar
+      floating={mapOn}
+      serviceId={filters.serviceId}
+      services={[{ value: "", label: t("allServices") }, ...svcOptions.map((s) => ({ value: s.value, label: s.label }))]}
+      onService={(v) => setFilter("serviceId", v)}
+      active={activeFilters}
+      filtersOpen={filtersOpen}
+      onFilters={() => setFiltersOpen((o) => !o)}
+      filterRef={filterBtn}
+      view={shownView}
+      onView={setView}
+      mapOn={mapOn || needConsent}
+    />
   );
 
-  const viewToggle = mapOn ? (
-    <div className="mknb-view" role="group" aria-label={t("map.view")}>
-      <button type="button" aria-pressed={shownView === "map"} onClick={() => setView("map")} data-ai-id="marketplace.nearby.view.map">
-        <IconMap aria-hidden="true" />
-        {t("map.map")}
-      </button>
-      <button type="button" aria-pressed={shownView === "list"} onClick={() => setView("list")} data-ai-id="marketplace.nearby.view.list">
-        <IconList aria-hidden="true" />
-        {t("map.list")}
-      </button>
-    </div>
-  ) : null;
-
-  // ── The "near me" panel: prompt, denied, manual, active ───────────────
-  const consentUntil = consent?.granted && consent.expiresAt ? fmtDateTime(consent.expiresAt, locale, false) : "";
-  const consentChip = consent?.granted ? (
-    <span className="mml__consent" data-ai-id="marketplace.map.consent">
-      <IconLock aria-hidden="true" />
-      <span>{consentUntil ? tx("consent.until", { time: consentUntil }) : tx("consent.on")}</span>
-      <button type="button" onClick={revoke} disabled={consentBusy} data-ai-id="marketplace.map.consent.revoke">
-        {tx("consent.revoke")}
-      </button>
-    </span>
-  ) : null;
-
-  const manualPanel = (
-    <div className="mml mml--manual" data-ai-id="marketplace.map.manual" data-ai-type="section">
-      <span className="mml__ic mml__ic--pick" aria-hidden="true">
-        <IconTarget />
-      </span>
-      <div className="mml__txt">
-        <b>{tx("manual.title")}</b>
-        <p>{mapOn ? tx("manual.textMap") : tx("manual.textList")}</p>
-        <PlaceSearch url={cfg?.geocoderSearchUrl ?? ""} off={!cfg?.geocoderOn} mapOn={mapOn} label={tx("manual.searchLabel")} placeholder={tx("manual.searchPlaceholder")} onSelect={choosePlace} aiId="marketplace.map.manual.place" autoFocus={!mapOn} />
-        {pickPoint ? (
-          <p className="mml__picked" role="status">
-            <IconMapPin aria-hidden="true" />
-            {tx("manual.pinned")}
-          </p>
-        ) : null}
-        <div className="mml__acts">
-          <button type="button" className="btn btn--grad btn--sm" onClick={() => confirmManual()} disabled={!pickPoint || consentBusy} aria-busy={consentBusy || undefined} data-ai-id="marketplace.map.manual.confirm">
-            <IconMapPin aria-hidden="true" />
-            {tx("manual.confirm")}
-          </button>
-          <button type="button" className="btn btn--line btn--sm" onClick={() => { setManual(false); setPickPoint(null); }} data-ai-id="marketplace.map.manual.cancel">
-            {tx("manual.cancel")}
-          </button>
-        </div>
-        <p className="mml__fine">{tx("manual.consent")}</p>
-      </div>
-    </div>
-  );
-
-  let panel: ReactNode;
-  if (!cfg) panel = null;
-  else if (needLogin && !signedIn) {
-    panel = (
-      <div className="mml mml--login" role="status" data-ai-id="marketplace.map.login">
-        <span className="mml__ic" aria-hidden="true">
-          <IconLock />
-        </span>
-        <div className="mml__txt">
-          <b>{tx("login.title")}</b>
-          <p>{tx("login.text")}</p>
-          <div className="mml__acts">
-            <Link href="/login" className="btn btn--grad btn--sm" data-ai-id="marketplace.map.login.go">
-              {tx("login.go")}
-            </Link>
-            <button type="button" className="btn btn--line btn--sm" onClick={() => setNeedLogin(false)}>
-              {tx("manual.cancel")}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  } else if (manual) panel = manualPanel;
-  else if (geo.fail) {
-    const denied = geo.fail === "denied";
-    const canRetry = geo.fail !== "insecure" && geo.fail !== "unsupported";
-    panel = (
-      <div className="mml mml--warn" role="alert" data-ai-id={denied ? "marketplace.map.denied" : "marketplace.map.geo-failed"}>
-        <span className="mml__ic mml__ic--warn" aria-hidden="true">
-          <IconMapPin />
-        </span>
-        <div className="mml__txt">
-          <b>{denied ? tx("denied.title") : tx("geoFail.title")}</b>
-          <p>{tx(`geoFail.${geo.fail}`)}</p>
-          <div className="mml__acts">
-            <button type="button" className="btn btn--grad btn--sm" onClick={startManual} data-ai-id="marketplace.map.manual.start">
-              <IconTarget aria-hidden="true" />
-              {mapOn ? tx("denied.pickMap") : tx("denied.pickAddress")}
-            </button>
-            {canRetry ? (
-              <button type="button" className="btn btn--line btn--sm" onClick={locate} data-ai-id="marketplace.map.locate.retry">
-                <IconRefresh aria-hidden="true" />
-                {t("retry")}
-              </button>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    );
-  } else if (here) {
-    panel = (
-      <div className="mml mml--on" data-ai-id="marketplace.map.near" data-ai-type="section">
-        <div className="mml__row">
-          <span className="mml__from">
-            <IconMapPin aria-hidden="true" />
-            {here.source === "manual" ? tx("from.manual") : tx("from.web")}
-          </span>
-          {consentChip}
-        </div>
-        <div className="mml__ctl">
-          <div className="mknb-chips" role="group" aria-label={t("radiusLabel")} data-ai-id="marketplace.map.radius">
-            {NEARBY_RADII.map((r) => (
-              <button key={r} type="button" className="mk-chip mk-chip--sm" aria-pressed={radius === r} onClick={() => pickRadius(r)} data-ai-id={`marketplace.nearby.radius.${r}`}>
-                {t("radiusKm", { n: r })}
-              </button>
-            ))}
-          </div>
-          <div className="mml__sort" data-ai-id="marketplace.map.sort" data-ai-type="select">
-            <Select value={sort} onChange={(v) => setSort(v as NearbySort)} options={NEARBY_SORTS.map((s) => ({ value: s, label: tx(`sort.${s}`) }))} ariaLabel={tx("sort.label")} />
-          </div>
-          <span className="mml__more">
-            <button type="button" className="btn btn--line btn--sm" onClick={locate} disabled={geo.busy} aria-busy={geo.busy || undefined} data-ai-id="marketplace.nearby.relocate">
-              <IconRefresh aria-hidden="true" />
-              {geo.busy ? tx("locate.asking") : t("relocate")}
-            </button>
-            <button type="button" className="btn btn--line btn--sm" onClick={startManual} data-ai-id="marketplace.map.manual.again">
-              <IconTarget aria-hidden="true" />
-              {tx("manual.other")}
-            </button>
-          </span>
-        </div>
-      </div>
-    );
-  } else {
-    panel = (
-      <div className="mml mml--ask" data-ai-id="marketplace.map.ask" data-ai-type="section">
-        <span className="mml__ic" aria-hidden="true">
-          <IconTarget />
-        </span>
-        <div className="mml__txt">
-          <b>{tx("locate.title")}</b>
-          <p>{tx("locate.text")}</p>
-          {consentErr ? (
-            <p className="mml__err" role="alert">
-              {tx(`errors.${consentErr}`)}
-            </p>
-          ) : null}
-          <div className="mml__acts">
-            <button type="button" className="btn btn--grad mknb-locate" onClick={locate} disabled={geo.busy} aria-busy={geo.busy || undefined} data-ai-id="marketplace.nearby.locate">
-              <IconTarget aria-hidden="true" />
-              {geo.busy ? tx("locate.asking") : tx("locate.go")}
-            </button>
-            {consentChip}
-          </div>
-          <p className="mml__fine">{tx("locate.fine", { h: consentHours })}</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Nearby results ────────────────────────────────────────────────────
   const precText = t("precision", { m: precisionMeters(cfg?.nearbyPrecision ?? "approximate_50m") });
+  const areaPrec = tx("approxArea", { m: precisionMeters(cfg?.markerPrecision ?? "approximate_500m") });
   const lowAccuracy = !!result && (result.accuracyWarning || (here?.source === "web" && here.accuracyM !== null && here.accuracyM > (cfg?.accuracyWarnM ?? 500)));
   const shownR = result ? result.radiusKm : radius;
   const nextRadius = NEARBY_RADII.find((r) => r > radius) ?? null;
   const badFilter = fail ? filterOfError(fail) : null;
-  const openRoute = signedIn ? (rt: RouteTarget) => setRouteTo(rt) : () => setNeedLogin(true);
+  const nearOn = !!here && signedIn;
 
-  let results: ReactNode = null;
-  if (here && signedIn) {
+  const consentUntil = consent?.granted && consent.expiresAt ? fmtDateTime(consent.expiresAt, locale, false) : "";
+  const consentChip = consent?.granted ? (
+    <span className="mmchip" data-ai-id="marketplace.map.consent">
+      <IconLock aria-hidden="true" />
+      <span>{consentUntil ? tx("consent.chip", { time: consentUntil }) : tx("consent.chipOn")}</span>
+      <button type="button" onClick={revoke} disabled={consentBusy} data-ai-id="marketplace.map.consent.revoke">
+        {tx("consent.cancel")}
+      </button>
+    </span>
+  ) : null;
+
+  const head: ReactNode = nearOn ? (
+    <div className="mph mph--near">
+      <span className="mph__ic" aria-hidden="true">
+        <IconTarget />
+      </span>
+      <div className="mph__txt" aria-live="polite">
+        <b id={headId}>
+          {searching ? t("loading") : <RollText value={result?.items.length ?? 0} render={(n) => (result?.fallbackNearest ? tx("panel.nearest", { n }) : tx("panel.near", { n }))} />}
+        </b>
+        <span className="mph__sub">
+          {here?.source === "manual" ? tx("from.manual") : tx("from.web")} · {precText}
+        </span>
+      </div>
+      <button type="button" className="mph__x" onClick={leaveNearby} aria-label={tx("panel.exitNear")} title={tx("panel.exitNear")} data-ai-id="marketplace.map.near.exit">
+        <IconClose aria-hidden="true" />
+      </button>
+    </div>
+  ) : (
+    <div className="mph">
+      <span className="mph__ic" aria-hidden="true">
+        <IconMap />
+      </span>
+      <div className="mph__txt" aria-live="polite">
+        <b id={headId}>
+          {area.loading && !area.rows.length ? ty("loading") : <RollText value={area.total} render={(n) => (area.country ? tx("area.countAll", { n }) : tx("panel.area", { n }))} />}
+        </b>
+        <span className="mph__sub">{areaPrec}</span>
+      </div>
+    </div>
+  );
+
+  const loginLine =
+    needLogin && !signedIn ? (
+      <div className="mmnote mmnote--login" role="status" data-ai-id="marketplace.map.login">
+        <IconLock aria-hidden="true" />
+        <span className="mmnote__txt">
+          <b>{tx("login.title")}</b>
+        </span>
+        <span className="mmnote__acts">
+          <Link href="/login" className="mmnote__act mmnote__act--main" data-ai-id="marketplace.map.login.go">
+            {tx("login.go")}
+          </Link>
+          <button type="button" className="mmnote__x" onClick={() => setNeedLogin(false)} aria-label={tx("manual.cancel")}>
+            <IconClose aria-hidden="true" />
+          </button>
+        </span>
+      </div>
+    ) : null;
+
+  const geoLine =
+    geo.fail && !manual ? (
+      <div className="mmnote mmnote--warn" role="alert" data-ai-id={geo.fail === "denied" ? "marketplace.map.denied" : "marketplace.map.geo-failed"}>
+        <IconMapPin aria-hidden="true" />
+        <span className="mmnote__txt">
+          <b>{geo.fail === "denied" ? tx("denied.title") : tx("geoFail.title")}</b>
+          <small>{tx(`geoFail.${geo.fail}`)}</small>
+        </span>
+        <span className="mmnote__acts">
+          <button type="button" className="mmnote__act mmnote__act--main" onClick={startManual} data-ai-id="marketplace.map.manual.start">
+            <IconTarget aria-hidden="true" />
+            {mapOn ? tx("denied.pickMap") : tx("denied.pickAddress")}
+          </button>
+          {geo.fail !== "insecure" && geo.fail !== "unsupported" ? (
+            <button type="button" className="mmnote__act" onClick={() => locate()} data-ai-id="marketplace.map.locate.retry">
+              <IconRefresh aria-hidden="true" />
+              {t("retry")}
+            </button>
+          ) : null}
+        </span>
+      </div>
+    ) : null;
+
+  const manualBlock = (
+    <div className="mmman" data-ai-id="marketplace.map.manual" data-ai-type="section">
+      <div className="mmman__head">
+        <span className="mmman__ic" aria-hidden="true">
+          <IconTarget />
+        </span>
+        <b>{tx("manual.title")}</b>
+      </div>
+      <p className="mmman__lead">{mapOn ? tx("manual.textMap") : tx("manual.textList")}</p>
+      <PlaceSearch url={cfg?.geocoderSearchUrl ?? ""} off={!cfg?.geocoderOn} mapOn={mapOn} label={tx("manual.searchLabel")} placeholder={tx("manual.searchPlaceholder")} onSelect={choosePlace} aiId="marketplace.map.manual.place" autoFocus={!mapOn} />
+      {pickPoint ? (
+        <p className="mmman__picked" role="status">
+          <IconMapPin aria-hidden="true" />
+          {tx("manual.pinned")}
+        </p>
+      ) : null}
+      <div className="mmman__acts">
+        <button type="button" className="btn btn--grad btn--sm" onClick={() => void confirmManual()} disabled={!pickPoint || consentBusy} aria-busy={consentBusy || undefined} data-ai-id="marketplace.map.manual.confirm">
+          <IconMapPin aria-hidden="true" />
+          {tx("manual.confirm")}
+        </button>
+        <button type="button" className="btn btn--line btn--sm" onClick={cancelManual} data-ai-id="marketplace.map.manual.cancel">
+          {tx("manual.cancel")}
+        </button>
+      </div>
+      <p className="mmman__fine">{tx("manual.consent")}</p>
+    </div>
+  );
+
+  const intro =
+    !nearOn && !geo.fail && !manual ? (
+      <div className="mmintro" data-ai-id="marketplace.map.ask" data-ai-type="section">
+        <span className="mmintro__art" aria-hidden="true" />
+        <span className="mmintro__txt">
+          <b>{tx("locate.title")}</b>
+          <small>{tx("locate.fine", { h: consentHours })}</small>
+          {consentErr ? (
+            <small className="mmintro__err" role="alert">
+              {tx(`errors.${consentErr}`)}
+            </small>
+          ) : null}
+        </span>
+        <button
+          type="button"
+          className="btn btn--grad btn--sm mmintro__go"
+          onClick={() => locate()}
+          disabled={geo.busy}
+          aria-busy={geo.busy || undefined}
+          data-ai-id={mapOn ? "marketplace.map.intro.locate" : "marketplace.nearby.locate"}
+        >
+          <IconTarget aria-hidden="true" />
+          {geo.busy ? tx("locate.asking") : tx("fab.near")}
+        </button>
+        {consentChip ? <span className="mmintro__chip">{consentChip}</span> : null}
+      </div>
+    ) : null;
+
+  let nearBody: ReactNode = null;
+  if (nearOn) {
+    const controls = (
+      <div className="mmnear" data-ai-id="marketplace.map.near" data-ai-type="section">
+        <Segmented
+          value={String(radius)}
+          options={NEARBY_RADII.map((r) => ({ value: String(r), label: t("radiusKm", { n: r }), ai: `marketplace.nearby.radius.${r}` }))}
+          onChange={(v) => pickRadius(Number(v) as NearbyRadius)}
+          label={t("radiusLabel")}
+          ai="marketplace.map.radius"
+        />
+        <Segmented
+          value={sort}
+          options={NEARBY_SORTS.map((s) => ({ value: s, label: tx(`sortShort.${s}`), title: tx(`sort.${s}`), ai: `marketplace.map.sort.${s}` }))}
+          onChange={setSort}
+          label={tx("sort.label")}
+          ai="marketplace.map.sort"
+        />
+        <div className="mmnear__row">
+          {consentChip}
+          <button type="button" className="mmlink" onClick={startManual} data-ai-id="marketplace.map.manual.again">
+            <IconTarget aria-hidden="true" />
+            {tx("manual.other")}
+          </button>
+        </div>
+      </div>
+    );
+    let list: ReactNode = null;
     if (searching) {
-      results = (
+      list = (
         <div className="mmres" aria-busy="true">
           <p className="sr-only" role="status">
             {t("loading")}
           </p>
-          <ul className="mknb-list" aria-hidden="true">
+          <ul className="mmlist" aria-hidden="true">
             {[0, 1, 2].map((i) => (
-              <li key={i} className="mknb-row mknb-row--ghost" />
+              <li key={i} className="mmrow mmrow--ghost" />
             ))}
           </ul>
         </div>
       );
     } else if (fail && fail !== "client_location_consent_required") {
-      results = (
-        <div className="mknb-msg" role="alert" data-ai-id="marketplace.map.near.error">
-          <p>{fail === "radius_invalid" ? tm("errors.radius_invalid", { list: NEARBY_RADII.join(", ") }) : tx(`errors.${fail}`)}</p>
-          <div className="mknb-msg__acts">
+      list = (
+        <div className="mmnote mmnote--warn" role="alert" data-ai-id="marketplace.map.near.error">
+          <span className="mmnote__txt">{fail === "radius_invalid" ? tm("errors.radius_invalid", { list: NEARBY_RADII.join(", ") }) : tx(`errors.${fail}`)}</span>
+          <span className="mmnote__acts">
             {badFilter ? (
-              <button type="button" className="btn btn--grad btn--sm" onClick={() => setFilter(badFilter, DEFAULT_MAP_FILTERS[badFilter])} data-ai-id="marketplace.map.near.clear-filter">
+              <button type="button" className="mmnote__act mmnote__act--main" onClick={() => setFilter(badFilter, DEFAULT_MAP_FILTERS[badFilter])} data-ai-id="marketplace.map.near.clear-filter">
                 <IconClose aria-hidden="true" />
                 {tx("filters.clearOne")}
               </button>
             ) : (
-              <button type="button" className="btn btn--grad btn--sm" onClick={() => setTick((n) => n + 1)} data-ai-id="marketplace.nearby.retry">
+              <button type="button" className="mmnote__act mmnote__act--main" onClick={() => setTick((n) => n + 1)} data-ai-id="marketplace.nearby.retry">
                 <IconRefresh aria-hidden="true" />
                 {t("retry")}
               </button>
             )}
-          </div>
+          </span>
         </div>
       );
     } else if (result && result.items.length) {
-      results = (
+      list = (
         <div className="mmres" data-ai-id="marketplace.map.near.results">
-          <div className="mknb-meta" aria-live="polite">
-            <span className="mknb-meta__n">{result.fallbackNearest ? t("countNearest", { n: result.items.length }) : t("count", { n: result.items.length, r: shownR })}</span>
-            <span className="mknb-prec">{precText}</span>
-            <p className="mknb-note">{tx("approxNote")}</p>
-          </div>
           {result.fallbackNearest ? (
-            <p className="mknb-fallback" data-ai-id="marketplace.map.near.fallback">
+            <p className="mmline" data-ai-id="marketplace.map.near.fallback">
               <IconInfo aria-hidden="true" />
               <span>{tx("fallback", { r: shownR })}</span>
             </p>
           ) : null}
           {lowAccuracy ? (
-            <div className="mml__low" role="status" data-ai-id="marketplace.map.near.accuracy">
+            <p className="mmline mmline--warn" role="status" data-ai-id="marketplace.map.near.accuracy">
               <IconInfo aria-hidden="true" />
               <span>{tx("accuracy.text")}</span>
               <button type="button" onClick={startManual} data-ai-id="marketplace.map.near.accuracy.pick">
                 {tx("accuracy.pick")}
               </button>
-            </div>
+            </p>
           ) : null}
-          <ul className="mknb-list" aria-label={t("listLabel")} data-ai-id="marketplace.nearby.results" data-ai-type="list">
-            {result.items.map((s) => (
-              <SellerRow key={s.sellerUserId || s.name} s={s} known={s.sellerUserId ? known(s.sellerUserId) : null} base={base} precText={precText} withDistance onNavigate={openRoute} ai="marketplace.nearby.seller" />
+          <ul className="mmlist" aria-label={t("listLabel")} data-ai-id="marketplace.nearby.results" data-ai-type="list">
+            {result.items.map((s, i) => (
+              <SellerRow
+                key={s.sellerUserId || s.name}
+                s={s}
+                known={s.sellerUserId ? known(s.sellerUserId) : null}
+                precText={precText}
+                withDistance
+                selected={!!s.sellerUserId && s.sellerUserId === selected}
+                onSelect={select}
+                index={i}
+                ai="marketplace.nearby.seller"
+              />
             ))}
           </ul>
+          <p className="mmlist__more">{tx("approxNote")}</p>
         </div>
       );
     } else if (result) {
-      results = (
-        <div className="mk-empty mknb-empty" aria-live="polite" data-ai-id="marketplace.map.near.empty">
-          <IconMapPin aria-hidden="true" />
+      list = (
+        <div className="mmempty" aria-live="polite" data-ai-id="marketplace.map.near.empty">
+          <span className="mmempty__ic" aria-hidden="true">
+            <IconMapPin />
+          </span>
           <b>{t("emptyTitle")}</b>
           <span>{result.fallbackNearest ? tx("emptyNone") : tx("emptyText", { r: shownR })}</span>
-          <div className="mk-empty__acts">
+          <span className="mmempty__acts">
             {nextRadius && !result.fallbackNearest ? (
               <button type="button" className="btn btn--grad btn--sm" onClick={() => pickRadius(nextRadius)} data-ai-id="marketplace.nearby.widen">
                 {t("widen", { r: nextRadius })}
@@ -633,91 +737,223 @@ export default function NearbySellers({
               <IconUsers aria-hidden="true" />
               {t("showAll")}
             </button>
-          </div>
+          </span>
         </div>
       );
     }
-  }
-
-  let body: ReactNode;
-  if (!cfg) body = <MapPlaceholder label={ty("loadingMap")} />;
-  else if (shownView === "map") {
-    body = (
+    nearBody = (
       <>
-        <MapConsentGate onList={() => setView("list")}>
-          <SellersYandexMap
-            config={cfg}
-            spot={here?.point ?? null}
-            center={center}
-            filters={filters}
-            refresh={refresh}
-            live={live}
-            picking={manual}
-            pickPoint={pickPoint}
-            onPick={setPickPoint}
-            base={base}
-            known={known}
-            locating={geo.busy}
-            onLocate={locate}
-            onFail={() => setBroken(true)}
-            onShowAll={onShowAll}
-            onViewport={setViewport}
-            onNavigate={openRoute}
-            hideList={!!results}
-          />
-        </MapConsentGate>
-        {results}
+        {controls}
+        {list}
       </>
     );
-  } else {
-    body = results ?? <AreaList config={cfg} bbox={mapOn ? (viewport?.bbox ?? null) : null} filters={filters} refresh={refresh} base={base} known={known} onNavigate={openRoute} onShowAll={onShowAll} />;
   }
 
+  const listBody = (
+    <div className="mpn__stack">
+      {loginLine}
+      {manual ? (
+        manualBlock
+      ) : (
+        <>
+          {geoLine}
+          {nearOn ? (
+            nearBody
+          ) : (
+            <>
+              {intro}
+              <AreaList state={area} known={known} precText={areaPrec} selectedId={selected} onSelect={select} onShowAll={onShowAll} />
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  const hit = (selected ? findSeller(selected) : null) ?? (picked && picked.s.sellerUserId === selected ? picked : null);
+  const inNear = !!hit?.near;
+  const sel: RowSeller | null = hit?.s ?? null;
+  const selName = sel ? sel.name || known(sel.sellerUserId)?.name || t("map.unnamed") : "";
+
+  const detail =
+    sel && cfg ? (
+      <SellerDetail
+        s={sel}
+        known={known(sel.sellerUserId)}
+        base={base}
+        precM={precisionMeters(inNear ? cfg.nearbyPrecision : cfg.markerPrecision)}
+        precText={inNear ? precText : areaPrec}
+        withDistance={inNear}
+        labelId={`${uid}d`}
+        onBack={closeDetail}
+      >
+        {sel.nav.available ? (
+          <NavigatorBlock
+            key={sel.sellerUserId}
+            target={{ sellerUserId: sel.sellerUserId, name: selName, endpoint: sel.nav.endpoint, modes: sel.nav.modes }}
+            point={here?.point ?? null}
+            signedIn={signedIn}
+            locating={geo.busy}
+            geoFailed={!!geo.fail}
+            geocoderUrl={cfg.geocoderOn ? cfg.geocoderSearchUrl : ""}
+            template={cfg.navigationTemplate}
+            guide={guide?.sellerUserId === sel.sellerUserId ? guide : null}
+            following={following}
+            onLocate={(then) => locate(then)}
+            onManual={(p, then) => void confirmManual(p.point, then)}
+            onConsentNeeded={consentLost}
+            onLogin={() => setNeedLogin(true)}
+            onGuide={takeGuide}
+            onStart={startFollow}
+            onStop={stopFollow}
+          />
+        ) : (
+          <div className="msd__nonav" data-ai-id="marketplace.map.card.no-route">
+            <IconRoute aria-hidden="true" strokeWidth={1.75} />
+            <span>
+              <b>{tx("card.noRouteTitle")}</b>
+              {tx("card.noRouteText")}
+            </span>
+          </div>
+        )}
+      </SellerDetail>
+    ) : null;
+
+  const variant: PanelVariant = !mapOn ? "flat" : shownView === "list" ? "full" : phone ? "sheet" : "float";
+
+  const panel = (
+    <MapPanel
+      variant={variant}
+      snap={snap}
+      onSnap={setSnap}
+      labelId={headId}
+      head={head}
+      detail={detail}
+      detailKey={sel?.sellerUserId ?? ""}
+      hidden={hudOver}
+      onInset={takeInset}
+    >
+      {listBody}
+    </MapPanel>
+  );
+
+  const hud =
+    following && guide ? (
+      <FollowHud guide={guide} state={fol} paused={paused} floating={mapOn} onRecenter={() => setPaused(false)} onStop={stopFollow} onSize={setHudH} />
+    ) : null;
+
+  const fab = mapOn && shownView !== "list" ? (
+    <button
+      type="button"
+      className={`mmfab mmx-in${geo.busy ? " is-busy" : ""}${nearOn ? " is-on" : ""}`}
+      style={{ "--d": "120ms" } as CSSProperties}
+      onClick={() => locate()}
+      disabled={geo.busy}
+      aria-busy={geo.busy || undefined}
+      title={tx("fab.hint", { h: consentHours })}
+      data-ai-id="marketplace.nearby.locate"
+    >
+      <span className="mmfab__ring" aria-hidden="true" />
+      <IconTarget aria-hidden="true" />
+      <span>{geo.busy ? tx("fab.locating") : tx("fab.near")}</span>
+    </button>
+  ) : null;
+
+  const overlay = (
+    <>
+      {manual ? null : topBar}
+      {fab}
+      {panel}
+      {hud}
+    </>
+  );
+
   return (
-    <section className="mknb" aria-labelledby={titleId} data-ai-target="marketplace:lawyer-list" data-ai-id="marketplace.nearby" data-ai-type="section">
-      <div className="mknb-head">
-        <span className="mknb-head__ic" aria-hidden="true">
-          <IconMap />
-        </span>
-        <div className="mknb-head__txt">
-          <h2 id={titleId}>{tx("title")}</h2>
-          <p>{tx("lead")}</p>
-          <p className="mknb-privacy">
-            <IconLock aria-hidden="true" />
-            <span>{tx("privacy")}</span>
-          </p>
-        </div>
-        {viewToggle ? <div className="ymk-switch">{viewToggle}</div> : null}
+    <section
+      ref={rootRef}
+      className={`mknb mmx${mapOn ? " mmx--map" : " mmx--flat"}${following ? " is-following" : ""}`}
+      style={{ "--mx-sheet": `${mapInset.bottom}px`, "--mx-left": `${mapInset.left}px`, "--mx-hud": `${following ? hudH : 0}px` } as CSSProperties}
+      aria-labelledby={titleId}
+      data-ai-target="marketplace:lawyer-list"
+      data-ai-id="marketplace.nearby"
+      data-ai-type="section"
+    >
+      <div className="mmx-title">
+        <h2 id={titleId}>{tx("title")}</h2>
+        <button
+          type="button"
+          className="mmx-lock"
+          aria-expanded={privacyOpen}
+          aria-controls={`${uid}p`}
+          onClick={() => setPrivacyOpen((v) => !v)}
+          title={tx("privacy")}
+          data-ai-id="marketplace.map.privacy"
+        >
+          <IconLock aria-hidden="true" />
+          <span className="sr-only">{tx("privacyShow")}</span>
+        </button>
       </div>
+      <p id={`${uid}p`} className={privacyOpen ? "mmx-privacy" : "sr-only"}>
+        {tx("privacy")}
+      </p>
 
-      {filterBar}
-
-      {cfg && !mapOn ? (
+      {cfg && !mapOn && !needConsent && mapConsent !== undefined ? (
         <p className="mmoff" role="status" data-ai-id="marketplace.map.unavailable">
           <IconInfo aria-hidden="true" />
           <span>{broken ? tx("unavailable.failed") : tx("unavailable.off")}</span>
         </p>
       ) : null}
 
-      {panel}
-
-      <div className="mknb-body">{body}</div>
-
-      {routeTo && cfg ? (
-        <NavigateDialog
-          target={routeTo}
-          point={here?.point ?? null}
+      {!cfg || (cfg.usable && !broken && mapConsent === undefined) ? (
+        <MapPlaceholder label={ty("loadingMap")} />
+      ) : mapOn ? (
+        <SellersYandexMap
+          config={cfg}
+          spot={followPoint ?? here?.point ?? null}
+          center={center}
+          filters={filters}
+          refresh={refresh}
+          live={live}
+          picking={manual}
+          pickPoint={pickPoint}
+          onPick={setPickPoint}
+          base={base}
+          known={known}
           locating={geo.busy}
-          geoFailed={!!geo.fail}
-          template={cfg.navigationTemplate}
-          geocoderUrl={cfg.geocoderOn ? cfg.geocoderSearchUrl : ""}
-          signedIn={signedIn}
-          onLocate={locate}
-          onManual={(p) => void confirmManual(p.point)}
-          onConsentNeeded={consentLost}
-          onClose={() => setRouteTo(null)}
+          onLocate={() => locate()}
+          onFail={() => setBroken(true)}
+          onShowAll={onShowAll}
+          onViewport={setViewport}
+          onSellers={setPinRows}
+          selectedId={selected}
+          onSelect={select}
+          guide={guideLine}
+          follow={followView}
+          panelInset={mapInset}
+          searching={searching}
+          radiusKm={nearOn ? shownR : null}
+          overlay={overlay}
         />
-      ) : null}
+      ) : (
+        <div className="mmx-flat">
+          {topBar}
+          {hud}
+          {needConsent && view === "map" ? <MapConsentGate onList={() => setView("list")}>{null}</MapConsentGate> : panel}
+        </div>
+      )}
+
+      <FilterSheet
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        trigger={filterBtn}
+        filters={filters}
+        onFilter={setFilter}
+        onClear={clearSheet}
+        active={activeFilters}
+        categories={topCats.length ? [{ value: "", label: tx("filters.anyCategory") }, ...topCats.map((r) => ({ value: r.node.id, label: catName(r.node.title) }))] : null}
+        subcategories={[{ value: "", label: filters.categoryId ? tx("filters.anySubcategory") : tx("filters.pickCategory") }, ...subCats.map((r) => ({ value: r.node.id, label: r.path.slice(1).map(catName).join(" › ") }))]}
+        types={[{ value: "", label: tx("filters.anyType") }, ...SELLER_TYPE_FILTERS.map((v) => ({ value: v as SellerTypeFilter, label: sellerTypeLabel(tm, v) }))]}
+      />
     </section>
   );
 }

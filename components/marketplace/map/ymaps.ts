@@ -16,28 +16,33 @@ import { hasConsent, subscribeConsent } from "@/lib/consent";
 type YEvent = { get: (key: string) => unknown };
 type YEvents = { add: (type: string, cb: (e: YEvent) => void) => unknown };
 type YProps = Record<string, unknown>;
-type YManager = { set: (v: YProps) => unknown };
-type YGeoObject = { events: YEvents; properties: YManager; options: YManager };
+type YManager = { set: (v: YProps) => unknown; get?: (key: string) => unknown };
+type YGeometry = { setCoordinates?: (c: unknown) => unknown };
+type YGeoObject = { events: YEvents; properties: YManager; options: YManager; geometry?: YGeometry };
 type YCluster = YGeoObject & { getBounds: () => unknown };
 type YCollection = { add: (o: unknown) => unknown; remove: (o: unknown) => unknown };
 type YClusterer = YCollection & { createCluster: (center: unknown, geoObjects: YGeoObject[]) => YCluster };
 type YMoveOpts = { duration?: number; checkZoomRange?: boolean; zoomMargin?: number };
+type YProjection = { toGlobalPixels: (point: number[], zoom: number) => unknown; fromGlobalPixels: (px: number[], zoom: number) => unknown };
 type YMap = {
   geoObjects: YCollection;
   events: YEvents;
   panes: { get: (key: string) => { getElement: () => HTMLElement } | null };
+  options?: { get: (key: string) => unknown };
+  container?: { getSize?: () => unknown };
+  getGlobalPixelCenter?: () => unknown;
   getBounds: () => unknown;
   getZoom: () => number;
   getCenter: () => unknown;
   setCenter: (center: number[], zoom?: number, opts?: YMoveOpts) => unknown;
   setZoom: (zoom: number, opts?: YMoveOpts) => unknown;
-  setBounds: (bounds: unknown, opts?: YMoveOpts) => unknown;
   destroy: () => void;
 };
 type Ymaps21 = {
   ready: (ok: () => void, fail?: (e: unknown) => void) => unknown;
   Map: new (el: HTMLElement, state: YProps, options?: YProps) => YMap;
   Placemark: new (coords: number[], props: YProps, options: YProps) => YGeoObject;
+  Polyline?: new (coords: number[][], props: YProps, options: YProps) => YGeoObject;
   Clusterer: { new (options: YProps): YClusterer; prototype: YClusterer };
   templateLayoutFactory: { createClass: (template: string) => unknown };
   meta?: { coordinatesOrder?: string };
@@ -102,11 +107,40 @@ function loadYmaps21(loaderUrl: string, timeoutMs = LOAD_TIMEOUT_MS): Promise<Ym
 // escapes them and `safe` strips the characters that could leave an
 // attribute anyway. `onActivate` runs on a click and, for the focusable
 // kinds, on Enter or Space.
-export type MarkKind = "pin" | "pin-mute" | "group" | "me" | "pick";
-export type MarkSpec = { kind: MarkKind; coords: LngLat; title: string; text?: string; cls?: string; size?: string; seller?: string; cluster?: string; src?: string; z: number; onActivate?: () => void };
-export type Mark = { set: (p: { title?: string; text?: string; cls?: string }) => void; remove: () => void };
+export type MarkKind = "pin" | "pin-mute" | "group" | "me" | "pick" | "dest" | "pulse" | "radar" | "ring";
+export type MarkFx = "drop" | "pop" | "";
+export type MarkSpec = {
+  kind: MarkKind;
+  coords: LngLat;
+  title: string;
+  text?: string;
+  cls?: string;
+  size?: string;
+  seller?: string;
+  cluster?: string;
+  sellers?: string;
+  src?: string;
+  z: number;
+  fx?: MarkFx;
+  i?: number;
+  onActivate?: () => void;
+};
+export type Mark = {
+  set: (p: { title?: string; text?: string; cls?: string; size?: string }) => void;
+  move: (coords: LngLat, ms?: number) => void;
+  vars: (v: Record<string, string | number | null>) => void;
+  flag: (name: string, on: boolean, ms?: number) => void;
+  remove: () => void;
+};
 export type MarkGroup = { marks: Mark[]; remove: () => void };
 export type GroupOptions = { gridPx: number; title: (n: number) => string; moveMs: () => number };
+export type PinSpec = MarkSpec & { id: string };
+export type PinSet = { sync: (specs: PinSpec[]) => void; get: (id: string) => Mark | undefined; remove: () => void };
+export type Pad = { top: number; right: number; bottom: number; left: number };
+export type FitOptions = { ms: number; maxZoom?: number; margin?: number };
+export type LineOptions = { color: string; halo: string; drawMs: number; delayMs?: number; pulse: boolean };
+export type GuideLine = { setPoints: (from: LngLat, to: LngLat, ms?: number) => void; remove: () => void };
+export type RadiusRing = { set: (center: LngLat, km: number, title?: string) => void; remove: () => void };
 export type MapHandle = {
   bbox: () => MapBbox | null;
   zoom: () => number;
@@ -115,11 +149,22 @@ export type MapHandle = {
   setZoom: (zoom: number, ms: number) => void;
   onView: (cb: () => void) => void;
   onClick: (cb: (p: LngLat) => void) => void;
+  onGesture: (cb: () => void) => void;
   setTheme: (theme: "light" | "dark") => void;
+  setPadding: (p: Partial<Pad>) => void;
+  pixel: (ll: LngLat) => [number, number] | null;
+  inView: (ll: LngLat) => boolean;
+  fit: (points: LngLat[], opts: FitOptions) => void;
+  follow: (point: LngLat, opts: { zoom?: number; ms: number }) => void;
   mark: (spec: MarkSpec) => Mark;
   // Seller pins grouped by the API's Clusterer: pins closer than gridPx on
   // screen show as one count that zooms in on a click or Enter.
   group: (specs: MarkSpec[], opts: GroupOptions) => MarkGroup;
+  pins: (opts: GroupOptions) => PinSet;
+  select: (seller: string | null) => void;
+  spreadFrom: (origin: LngLat, ms: number) => void;
+  line: (from: LngLat, to: LngLat, opts: LineOptions) => GuideLine;
+  ring: (center: LngLat, km: number, title: string) => RadiusRing;
   destroy: () => void;
 };
 export type MapView = { center: LngLat; zoom: number; theme: "light" | "dark" };
@@ -161,11 +206,15 @@ const safe = (s: string | undefined) => (s ?? "").replace(/"/g, "”").replace(/
 
 const TEMPLATES: Record<MarkKind | "cluster", string> = {
   pin: '<span class="ymk-pin{{ properties.cls }}" data-ymk-key="{{ properties.key }}" data-seller="{{ properties.seller }}" data-src="{{ properties.src }}" title="{{ properties.title }}" aria-label="{{ properties.title }}" role="button" tabindex="0"><span class="ymk-pin__in">{{ properties.text }}</span></span>',
-  "pin-mute": '<span class="ymk-pin ymk-pin--mute{{ properties.cls }}" data-src="{{ properties.src }}" title="{{ properties.title }}"><span class="ymk-pin__in">{{ properties.text }}</span></span>',
-  group: '<span class="ymk-group" data-size="{{ properties.size }}" data-ymk-key="{{ properties.key }}" data-cluster="{{ properties.cluster }}" title="{{ properties.title }}" aria-label="{{ properties.title }}" role="button" tabindex="0">{{ properties.text }}</span>',
-  cluster: '<span class="ymk-group ymk-group--near" data-size="{{ properties.size }}" data-ymk-key="{{ properties.key }}" title="{{ properties.title }}" aria-label="{{ properties.title }}" role="button" tabindex="0">{{ properties.text }}</span>',
-  me: '<span class="ymk-me" title="{{ properties.title }}"></span>',
-  pick: '<span class="ymk-pick{{ properties.cls }}" title="{{ properties.title }}"></span>',
+  "pin-mute": '<span class="ymk-pin ymk-pin--mute{{ properties.cls }}" data-ymk-key="{{ properties.key }}" data-src="{{ properties.src }}" title="{{ properties.title }}"><span class="ymk-pin__in">{{ properties.text }}</span></span>',
+  group: '<span class="ymk-group{{ properties.cls }}" data-size="{{ properties.size }}" data-ymk-key="{{ properties.key }}" data-cluster="{{ properties.cluster }}" title="{{ properties.title }}" aria-label="{{ properties.title }}" role="button" tabindex="0">{{ properties.text }}</span>',
+  cluster: '<span class="ymk-group ymk-group--near" data-size="{{ properties.size }}" data-ymk-key="{{ properties.key }}" data-sellers="{{ properties.sellers }}" title="{{ properties.title }}" aria-label="{{ properties.title }}" role="button" tabindex="0">{{ properties.text }}</span>',
+  me: '<span class="ymk-me{{ properties.cls }}" data-ymk-key="{{ properties.key }}" title="{{ properties.title }}"><span class="ymk-me__hd"></span><span class="ymk-me__dot"></span></span>',
+  pick: '<span class="ymk-pick{{ properties.cls }}" data-ymk-key="{{ properties.key }}" title="{{ properties.title }}"></span>',
+  dest: '<span class="ymk-dest{{ properties.cls }}" data-ymk-key="{{ properties.key }}" title="{{ properties.title }}"><span class="ymk-dest__pin"></span></span>',
+  pulse: '<span class="ymk-pulse" data-ymk-key="{{ properties.key }}"></span>',
+  radar: '<span class="ymk-radar" data-ymk-key="{{ properties.key }}"><span class="ymk-radar__sweep"></span></span>',
+  ring: '<span class="ymk-ring" data-ymk-key="{{ properties.key }}" title="{{ properties.title }}"><svg class="ymk-ring__svg" focusable="false" aria-hidden="true"><circle class="ymk-ring__c" cx="50%" cy="50%" r="49%" pathLength="100"></circle></svg></span>',
 };
 const SHAPES: Partial<Record<MarkKind | "cluster", YProps>> = {
   pin: { type: "Circle", coordinates: [0, 0], radius: 20 },
@@ -175,6 +224,45 @@ const SHAPES: Partial<Record<MarkKind | "cluster", YProps>> = {
 
 const sizeOf = (n: number) => (n < 10 ? "s" : n < 100 ? "m" : "l");
 export const countText = (n: number) => (n > 999 ? "999+" : String(n));
+
+const FX_WINDOW_MS = 700;
+const OUT_MS = 220;
+const DROP_MS = 620;
+const STAGGER_MS = 35;
+const STAGGER_CAP = 13;
+const SPREAD_MS = 520;
+const SPREAD_WAIT_MS = 1600;
+const SPREAD_MAX_PX = 560;
+const PULSE_MS = 1900;
+const GLIDE_MS = 600;
+const RING_MAX_PX = 5200;
+const TILE_PX = 256;
+const RING_GROW_MS = 640;
+
+const lerp = (a: LngLat, b: LngLat, t: number): LngLat => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const clampPx = (v: number) => Math.round(Math.max(-SPREAD_MAX_PX, Math.min(SPREAD_MAX_PX, v)));
+const same = (a: LngLat, b: LngLat) => a[0] === b[0] && a[1] === b[1];
+
+const mercator = {
+  to: (ll: LngLat, z: number): [number, number] => {
+    const w = TILE_PX * 2 ** z;
+    const s = Math.sin((Math.max(-85, Math.min(85, ll[1])) * Math.PI) / 180);
+    return [((ll[0] + 180) / 360) * w, (0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI)) * w];
+  },
+  from: (p: [number, number], z: number): LngLat => {
+    const w = TILE_PX * 2 ** z;
+    const n = Math.PI - (2 * Math.PI * p[1]) / w;
+    return [(p[0] / w) * 360 - 180, (180 / Math.PI) * Math.atan(Math.sinh(n))];
+  },
+};
+
+const pairOf = (v: unknown): [number, number] | null =>
+  Array.isArray(v) && v.length >= 2 && Number.isFinite(Number(v[0])) && Number.isFinite(Number(v[1])) ? [Number(v[0]), Number(v[1])] : null;
+
+type Live = { coords: LngLat; flags: Set<string>; vars: Map<string, string>; fx: MarkFx; i: number; until: number; members: string[] | null };
+type Spread = { keys: Set<string>; any: boolean; origin: LngLat; until: number };
 
 function build21(y: Ymaps21, box: HTMLElement, view: MapView): MapHandle {
   // 2.1 takes [latitude, longitude] unless the loader asked for longlat.
@@ -210,6 +298,227 @@ function build21(y: Ymaps21, box: HTMLElement, view: MapView): MapHandle {
   };
   box.addEventListener("keydown", onKey);
 
+  const quiet = (fn: () => unknown) => {
+    try {
+      fn();
+    } catch {}
+  };
+
+  const lives = new Map<string, Live>();
+  const timers = new Set<number>();
+  const glides = new Map<string, number>();
+  const stops = new Set<() => void>();
+  const rings = new Set<(z?: number) => void>();
+  const gestures = new Set<() => void>();
+  const seen = new WeakSet<Element>();
+  let chosen: string | null = null;
+  let spread: Spread | null = null;
+  let pad: Pad = { top: 0, right: 0, bottom: 0, left: 0 };
+
+  const later = (fn: () => void, ms: number) => {
+    const t = window.setTimeout(() => {
+      timers.delete(t);
+      fn();
+    }, ms);
+    timers.add(t);
+  };
+
+  const projection = (): YProjection | null => {
+    try {
+      const p = map.options?.get?.("projection") as Partial<YProjection> | undefined;
+      return p && typeof p.toGlobalPixels === "function" && typeof p.fromGlobalPixels === "function" ? (p as YProjection) : null;
+    } catch {
+      return null;
+    }
+  };
+  const gpx = (ll: LngLat, z: number): [number, number] => {
+    const p = projection();
+    if (p) {
+      try {
+        const v = pairOf(p.toGlobalPixels(toY(ll), z));
+        if (v) return v;
+      } catch {}
+    }
+    return mercator.to(ll, z);
+  };
+  const ungpx = (px: [number, number], z: number): LngLat | null => {
+    const p = projection();
+    if (p) {
+      try {
+        const v = fromY(p.fromGlobalPixels(px, z));
+        if (v) return v;
+      } catch {}
+    }
+    return lngLatOf(mercator.from(px, z));
+  };
+  const size = (): [number, number] => {
+    try {
+      const s = pairOf(map.container?.getSize?.());
+      if (s && s[0] > 0 && s[1] > 0) return s;
+    } catch {}
+    return [box.clientWidth || 1, box.clientHeight || 1];
+  };
+  const pixel = (ll: LngLat): [number, number] | null => {
+    try {
+      const z = Number(map.getZoom());
+      let c = pairOf(map.getGlobalPixelCenter?.());
+      if (!c) {
+        const cc = fromY(map.getCenter());
+        c = cc ? gpx(cc, z) : null;
+      }
+      if (!c) return null;
+      const [w, h] = size();
+      const p = gpx(ll, z);
+      return [p[0] - c[0] + w / 2, p[1] - c[1] + h / 2];
+    } catch {
+      return null;
+    }
+  };
+  const centerFor = (ll: LngLat, z: number): LngLat => {
+    const dx = (pad.left - pad.right) / 2;
+    const dy = (pad.top - pad.bottom) / 2;
+    if (!dx && !dy) return ll;
+    const p = gpx(ll, z);
+    return ungpx([p[0] - dx, p[1] - dy], z) ?? ll;
+  };
+  const go = (ll: LngLat, zoom: number, ms: number) => {
+    const z = clampZoom(zoom);
+    quiet(() => map.setCenter(toY(centerFor(ll, z)), z, { duration: ms, checkZoomRange: true }));
+  };
+  const fit = (pts: LngLat[], o: FitOptions) => {
+    if (!pts.length) return;
+    const [w, h] = size();
+    const m = o.margin ?? 40;
+    const aw = Math.max(48, w - pad.left - pad.right - 2 * m);
+    const ah = Math.max(48, h - pad.top - pad.bottom - 2 * m);
+    const span = (z: number) => {
+      const ps = pts.map((p) => gpx(p, z));
+      const xs = ps.map((p) => p[0]);
+      const ys = ps.map((p) => p[1]);
+      const x0 = Math.min(...xs);
+      const x1 = Math.max(...xs);
+      const y0 = Math.min(...ys);
+      const y1 = Math.max(...ys);
+      return { w: x1 - x0, h: y1 - y0, mid: [(x0 + x1) / 2, (y0 + y1) / 2] as [number, number] };
+    };
+    let z = clampZoom(o.maxZoom ?? 17);
+    let s = span(z);
+    while (z > 2 && (s.w > aw || s.h > ah)) {
+      z -= 1;
+      s = span(z);
+    }
+    const mid = ungpx(s.mid, z);
+    if (mid) go(mid, z, o.ms);
+  };
+
+  const els = (key: string): HTMLElement[] => (key ? Array.from(box.querySelectorAll<HTMLElement>(`[data-ymk-key="${key}"]`)) : []);
+  const flag = (key: string, name: string, on: boolean) => {
+    const st = lives.get(key);
+    if (!st) return;
+    if (on) st.flags.add(name);
+    else st.flags.delete(name);
+    for (const el of els(key)) el.classList.toggle(name, on);
+  };
+  const setVars = (key: string, v: Record<string, string | number | null>) => {
+    const st = lives.get(key);
+    if (!st) return;
+    const list = els(key);
+    for (const [k, val] of Object.entries(v)) {
+      if (val === null) {
+        st.vars.delete(k);
+        for (const el of list) el.style.removeProperty(k);
+      } else {
+        st.vars.set(k, String(val));
+        for (const el of list) el.style.setProperty(k, String(val));
+      }
+    }
+  };
+  const paintSel = (el: HTMLElement) => {
+    if (!el.classList.contains("ymk-pin") && !el.classList.contains("ymk-group")) return;
+    const on = !!chosen && (el.getAttribute("data-seller") === chosen || (el.getAttribute("data-sellers") ?? "").split(" ").includes(chosen));
+    el.classList.toggle("is-on", on);
+    el.classList.toggle("is-dim", !!chosen && !on);
+  };
+  const once = (el: HTMLElement, cls: string, i: number, ms: number) => {
+    el.style.setProperty("--i", String(i));
+    el.classList.add(cls);
+    later(() => el.classList.remove(cls), ms + 120);
+  };
+  const decorate = (el: HTMLElement) => {
+    if (seen.has(el)) return;
+    seen.add(el);
+    const key = el.getAttribute("data-ymk-key") ?? "";
+    const st = lives.get(key);
+    if (!st) return;
+    for (const f of st.flags) el.classList.add(f);
+    for (const [k, v] of st.vars) el.style.setProperty(k, v);
+    paintSel(el);
+    const now = performance.now();
+    const fresh = !!st.fx && now < st.until;
+    const sp = spread && now < spread.until ? spread : null;
+    if (sp && (sp.keys.has(key) || !!st.members?.some((k) => sp.keys.has(k)) || (sp.any && fresh))) {
+      const o = pixel(sp.origin);
+      const p = pixel(st.coords);
+      if (o && p) {
+        el.style.setProperty("--fx", `${clampPx(o[0] - p[0])}px`);
+        el.style.setProperty("--fy", `${clampPx(o[1] - p[1])}px`);
+        once(el, "is-spread", 0, SPREAD_MS);
+        return;
+      }
+    }
+    if (fresh) once(el, `is-${st.fx}`, st.i, DROP_MS + st.i * STAGGER_MS + 800);
+  };
+  const scan = (n: Node) => {
+    if (!(n instanceof HTMLElement)) return;
+    if (n.hasAttribute("data-ymk-key")) decorate(n);
+    n.querySelectorAll<HTMLElement>("[data-ymk-key]").forEach(decorate);
+  };
+  const watcher =
+    typeof MutationObserver === "function"
+      ? new MutationObserver((records) => {
+          for (const r of records) r.addedNodes.forEach(scan);
+        })
+      : null;
+  watcher?.observe(box, { childList: true, subtree: true });
+
+  const fadeOut = (key: string, done: () => void) => {
+    if (readMotion() || !els(key).length) {
+      done();
+      return;
+    }
+    flag(key, "is-out", true);
+    later(done, OUT_MS);
+  };
+
+  const stopGlide = (key: string) => {
+    const r = glides.get(key);
+    if (r !== undefined) cancelAnimationFrame(r);
+    glides.delete(key);
+  };
+  const glide = (key: string, pm: YGeoObject, to: LngLat, ms: number) => {
+    const st = lives.get(key);
+    if (!st) return;
+    stopGlide(key);
+    const put = (c: LngLat) => {
+      st.coords = c;
+      quiet(() => pm.geometry?.setCoordinates?.(toY(c)));
+    };
+    const from = st.coords;
+    if (same(from, to)) return;
+    if (ms <= 0 || readMotion()) {
+      put(to);
+      return;
+    }
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / ms);
+      put(p < 1 ? lerp(from, to, easeOut(p)) : to);
+      if (p < 1) glides.set(key, requestAnimationFrame(step));
+      else glides.delete(key);
+    };
+    glides.set(key, requestAnimationFrame(step));
+  };
+
   const props = (s: MarkSpec, key: string): YProps => ({
     key,
     title: safe(s.title),
@@ -218,11 +527,13 @@ function build21(y: Ymaps21, box: HTMLElement, view: MapView): MapHandle {
     size: s.size ?? "",
     seller: safe(s.seller),
     cluster: safe(s.cluster),
+    sellers: safe(s.sellers),
     src: s.src ?? "",
   });
 
-  const placemark = (s: MarkSpec): { pm: YGeoObject; key: string; mark: (remove: () => void) => Mark } => {
-    const key = s.onActivate ? `m${++seq}` : "";
+  const placemark = (s: MarkSpec): { pm: YGeoObject; key: string } => {
+    const key = `m${++seq}`;
+    lives.set(key, { coords: s.coords, flags: new Set(), vars: new Map(), fx: s.fx ?? "", i: Math.min(s.i ?? 0, STAGGER_CAP), until: performance.now() + FX_WINDOW_MS, members: null });
     const pm = new y.Placemark(toY(s.coords), props(s, key), {
       iconLayout: layout(s.kind),
       ...(SHAPES[s.kind] ? { iconShape: SHAPES[s.kind] } : {}),
@@ -239,27 +550,185 @@ function build21(y: Ymaps21, box: HTMLElement, view: MapView): MapHandle {
       actions.set(key, run);
       pm.events.add("click", () => run());
     }
-    const mark = (remove: () => void): Mark => ({
-      set: (p) => {
-        const next: YProps = {};
-        if (p.title !== undefined) next.title = safe(p.title);
-        if (p.text !== undefined) next.text = safe(p.text);
-        if (p.cls !== undefined) next.cls = p.cls ? ` ${safe(p.cls)}` : "";
-        pm.properties.set(next);
-      },
-      remove: () => {
-        if (key) actions.delete(key);
-        remove();
-      },
-    });
-    return { pm, key, mark };
+    return { pm, key };
   };
 
-  const quiet = (fn: () => unknown) => {
-    try {
-      fn();
-    } catch {}
+  const markOf = (key: string, pm: YGeoObject, s: MarkSpec, detach: () => void): Mark => {
+    const last = { title: safe(s.title), text: safe(s.text), cls: s.cls ? ` ${safe(s.cls)}` : "", size: s.size ?? "" };
+    let gone = false;
+    return {
+      set: (p) => {
+        const next: YProps = {};
+        if (p.title !== undefined && safe(p.title) !== last.title) next.title = last.title = safe(p.title);
+        if (p.text !== undefined && safe(p.text) !== last.text) next.text = last.text = safe(p.text);
+        if (p.size !== undefined && p.size !== last.size) next.size = last.size = p.size;
+        if (p.cls !== undefined) {
+          const cls = p.cls ? ` ${safe(p.cls)}` : "";
+          if (cls !== last.cls) next.cls = last.cls = cls;
+        }
+        if (Object.keys(next).length) quiet(() => pm.properties.set(next));
+      },
+      move: (to, ms = 0) => glide(key, pm, to, ms),
+      vars: (v) => setVars(key, v),
+      flag: (name, on, ms) => {
+        flag(key, name, on);
+        if (on && ms) later(() => flag(key, name, false), ms);
+      },
+      remove: () => {
+        if (gone) return;
+        gone = true;
+        actions.delete(key);
+        stopGlide(key);
+        const done = () => {
+          detach();
+          lives.delete(key);
+        };
+        if (s.kind === "pulse") done();
+        else fadeOut(key, done);
+      },
+    };
   };
+
+  const mark = (s: MarkSpec): Mark => {
+    const { pm, key } = placemark(s);
+    map.geoObjects.add(pm);
+    return markOf(key, pm, s, () => quiet(() => map.geoObjects.remove(pm)));
+  };
+
+  const pins = (opts: GroupOptions): PinSet => {
+    const clusterer = new y.Clusterer({
+      clusterIconLayout: layout("cluster"),
+      clusterIconShape: SHAPES.cluster,
+      gridSize: opts.gridPx,
+      // From here on pins are never grouped (the backend keeps nearby
+      // pins a few metres apart, so they separate before this zoom).
+      maxZoom: 17,
+      hasBalloon: false,
+      hasHint: false,
+      clusterDisableClickZoom: true,
+      clusterOpenBalloonOnClick: false,
+      zoomMargin: 48,
+    });
+    const items = new Map<string, { key: string; mark: Mark }>();
+    const clusterKeys = new Set<string>();
+    let freshUntil = 0;
+    const prune = () => {
+      if (clusterKeys.size < 64) return;
+      for (const k of clusterKeys) {
+        if (els(k).length) continue;
+        clusterKeys.delete(k);
+        actions.delete(k);
+        lives.delete(k);
+      }
+    };
+    clusterer.createCluster = function (this: YClusterer, center: unknown, geoObjects: YGeoObject[]) {
+      const cluster = y.Clusterer.prototype.createCluster.call(this, center, geoObjects);
+      prune();
+      const key = `c${++seq}`;
+      const members = geoObjects.map((o) => String(o.properties.get?.("key") ?? "")).filter(Boolean);
+      const sellers = geoObjects
+        .map((o) => String(o.properties.get?.("seller") ?? ""))
+        .filter(Boolean)
+        .join(" ");
+      const memberCoords = members.map((k) => lives.get(k)?.coords).filter((c): c is LngLat => !!c);
+      const at = fromY(center) ?? memberCoords[0] ?? view.center;
+      const now = performance.now();
+      lives.set(key, { coords: at, flags: new Set(), vars: new Map(), fx: now < freshUntil ? "pop" : "", i: 0, until: freshUntil, members });
+      const open = () => {
+        const ms = opts.moveMs();
+        flag(key, "is-burst", true);
+        later(() => flag(key, "is-burst", false), ms + SPREAD_WAIT_MS);
+        spread = { keys: new Set(members), any: false, origin: at, until: performance.now() + ms + SPREAD_WAIT_MS };
+        fit(memberCoords.length ? memberCoords : [at], { ms, maxZoom: 19, margin: 48 });
+      };
+      clusterKeys.add(key);
+      actions.set(key, open);
+      cluster.properties.set({ key, title: safe(opts.title(geoObjects.length)), text: countText(geoObjects.length), size: sizeOf(geoObjects.length), sellers: safe(sellers) });
+      cluster.events.add("click", () => open());
+      return cluster;
+    };
+    map.geoObjects.add(clusterer);
+    return {
+      sync: (specs) => {
+        const next = new Set(specs.map((s) => s.id));
+        for (const [id, it] of items) {
+          if (next.has(id)) continue;
+          items.delete(id);
+          it.mark.remove();
+        }
+        const add: YGeoObject[] = [];
+        let n = 0;
+        for (const s of specs) {
+          const it = items.get(s.id);
+          if (it) {
+            it.mark.set({ title: s.title, text: s.text, cls: s.cls });
+            it.mark.move(s.coords, GLIDE_MS);
+            continue;
+          }
+          const spec: MarkSpec = { ...s, fx: s.fx ?? "drop", i: Math.min(n++, STAGGER_CAP) };
+          const { pm, key } = placemark(spec);
+          items.set(s.id, { key, mark: markOf(key, pm, spec, () => quiet(() => clusterer.remove(pm))) });
+          add.push(pm);
+        }
+        if (add.length) {
+          freshUntil = performance.now() + FX_WINDOW_MS;
+          quiet(() => clusterer.add(add));
+        }
+      },
+      get: (id) => items.get(id)?.mark,
+      remove: () => {
+        const keys = [...[...items.values()].map((it) => it.key), ...clusterKeys];
+        for (const k of keys) actions.delete(k);
+        items.clear();
+        const done = () => {
+          quiet(() => map.geoObjects.remove(clusterer));
+          for (const k of keys) lives.delete(k);
+          clusterKeys.clear();
+        };
+        if (readMotion() || !keys.some((k) => els(k).length)) {
+          done();
+          return;
+        }
+        for (const k of keys) flag(k, "is-out", true);
+        later(done, OUT_MS);
+      },
+    };
+  };
+
+  const onBounds = () => {
+    for (const f of rings) f();
+  };
+  map.events.add("boundschange", onBounds);
+  map.events.add("actiontick", (e) => {
+    if (!rings.size) return;
+    const tick = e.get("tick") as { zoom?: unknown } | undefined;
+    const z = Number(tick?.zoom);
+    if (Number.isFinite(z)) for (const f of rings) f(z);
+  });
+
+  let press: [number, number] | null = null;
+  let pressed = false;
+  const tell = () => {
+    for (const f of gestures) f();
+  };
+  const onDown = (e: PointerEvent) => {
+    press = [e.clientX, e.clientY];
+    pressed = false;
+  };
+  const onMove = (e: PointerEvent) => {
+    if (!press || pressed || !e.buttons) return;
+    if (Math.hypot(e.clientX - press[0], e.clientY - press[1]) < 6) return;
+    pressed = true;
+    tell();
+  };
+  const onUp = () => {
+    press = null;
+  };
+  box.addEventListener("pointerdown", onDown, true);
+  box.addEventListener("pointermove", onMove, true);
+  box.addEventListener("pointerup", onUp, true);
+  box.addEventListener("pointercancel", onUp, true);
+  box.addEventListener("wheel", tell, { capture: true, passive: true });
 
   return {
     bbox: () => {
@@ -271,7 +740,7 @@ function build21(y: Ymaps21, box: HTMLElement, view: MapView): MapHandle {
     },
     zoom: () => clampZoom(Number(map.getZoom())),
     center: () => fromY(map.getCenter()),
-    moveTo: (center, zoom, ms) => void map.setCenter(toY(center), clampZoom(zoom), { duration: ms, checkZoomRange: true }),
+    moveTo: (center, zoom, ms) => go(center, zoom, ms),
     setZoom: (zoom, ms) => void map.setZoom(clampZoom(zoom), { duration: ms, checkZoomRange: true }),
     onView: (cb) => void map.events.add("boundschange", () => cb()),
     onClick: (cb) =>
@@ -279,56 +748,178 @@ function build21(y: Ymaps21, box: HTMLElement, view: MapView): MapHandle {
         const ll = fromY(e.get("coords"));
         if (ll) cb(ll);
       }),
+    onGesture: (cb) => void gestures.add(cb),
     setTheme: (theme) => {
       const ground = map.panes.get("ground")?.getElement();
       if (ground) ground.style.filter = theme === "dark" ? DARK_TILES : "";
     },
-    mark: (s) => {
-      const { pm, mark } = placemark(s);
-      map.geoObjects.add(pm);
-      return mark(() => quiet(() => map.geoObjects.remove(pm)));
+    setPadding: (p) => {
+      pad = { ...pad, ...p };
     },
+    pixel,
+    inView: (ll) => {
+      const p = pixel(ll);
+      if (!p) return true;
+      const [w, h] = size();
+      return p[0] >= pad.left && p[0] <= w - pad.right && p[1] >= pad.top && p[1] <= h - pad.bottom;
+    },
+    fit,
+    follow: (point, o) => go(point, o.zoom ?? Number(map.getZoom()), o.ms),
+    mark,
     group: (specs, opts) => {
-      const clusterer = new y.Clusterer({
-        clusterIconLayout: layout("cluster"),
-        clusterIconShape: SHAPES.cluster,
-        gridSize: opts.gridPx,
-        // From here on pins are never grouped (the backend keeps nearby
-        // pins a few metres apart, so they separate before this zoom).
-        maxZoom: 17,
+      const set = pins(opts);
+      const ids = specs.map((s, i) => s.seller || `i${i}`);
+      set.sync(specs.map((s, i) => ({ ...s, id: ids[i] })));
+      return { marks: ids.map((id) => set.get(id)).filter((m): m is Mark => !!m), remove: set.remove };
+    },
+    pins,
+    select: (seller) => {
+      chosen = seller || null;
+      box.querySelectorAll<HTMLElement>(".ymk-pin, .ymk-group").forEach(paintSel);
+    },
+    spreadFrom: (origin, ms) => {
+      spread = { keys: new Set(), any: true, origin, until: performance.now() + ms };
+    },
+    line: (from, to, o) => {
+      const P = y.Polyline;
+      if (typeof P !== "function") return { setPoints: () => undefined, remove: () => undefined };
+      let a = from;
+      let b = to;
+      let k = o.drawMs > 0 ? 0 : 1;
+      let dead = false;
+      let raf = 0;
+      let pulse: Mark | null = null;
+      let p0 = 0;
+      const t0 = performance.now() + Math.max(0, o.delayMs ?? 0);
+      const opts = (color: string, width: number, opacity: number, style: string, z: number): YProps => ({
+        strokeColor: color,
+        strokeWidth: width,
+        strokeOpacity: opacity,
+        strokeStyle: style,
+        zIndex: z,
         hasBalloon: false,
         hasHint: false,
-        clusterDisableClickZoom: true,
-        clusterOpenBalloonOnClick: false,
-        zoomMargin: 48,
+        openBalloonOnClick: false,
+        interactivityModel: "default#transparent",
       });
-      const clusterKeys = new Set<string>();
-      clusterer.createCluster = function (this: YClusterer, center: unknown, geoObjects: YGeoObject[]) {
-        const cluster = y.Clusterer.prototype.createCluster.call(this, center, geoObjects);
-        const key = `c${++seq}`;
-        const open = () => quiet(() => map.setBounds(cluster.getBounds(), { checkZoomRange: true, zoomMargin: 48, duration: opts.moveMs() }));
-        clusterKeys.add(key);
-        actions.set(key, open);
-        cluster.properties.set({ key, title: safe(opts.title(geoObjects.length)), text: countText(geoObjects.length), size: sizeOf(geoObjects.length) });
-        cluster.events.add("click", () => open());
-        return cluster;
+      const halo = new P([toY(a), toY(a)], {}, opts(o.halo, 10, 0.85, "solid", 1));
+      const main = new P([toY(a), toY(a)], {}, opts(o.color, 4, 0.95, "dash", 2));
+      quiet(() => map.geoObjects.add(halo));
+      quiet(() => map.geoObjects.add(main));
+      let shift: { from: LngLat; to: LngLat; t0: number; ms: number } | null = null;
+      const paint = () => {
+        const tip = lerp(a, b, easeInOut(k));
+        const coords = [toY(a), toY(tip)];
+        quiet(() => halo.geometry?.setCoordinates?.(coords));
+        quiet(() => main.geometry?.setCoordinates?.(coords));
       };
-      const made = specs.map((s) => placemark(s));
-      clusterer.add(made.map((m) => m.pm));
-      map.geoObjects.add(clusterer);
-      const keys = made.map((m) => m.key).filter(Boolean);
+      const stop = () => {
+        dead = true;
+        cancelAnimationFrame(raf);
+        raf = 0;
+        pulse?.remove();
+        pulse = null;
+      };
+      const busy = () => k < 1 || o.pulse || !!shift;
+      const loop = (now: number) => {
+        raf = 0;
+        if (dead) return;
+        let dirty = false;
+        if (shift) {
+          const p = Math.min(1, (now - shift.t0) / shift.ms);
+          a = p < 1 ? lerp(shift.from, shift.to, easeOut(p)) : shift.to;
+          if (p >= 1) shift = null;
+          dirty = true;
+        }
+        if (k < 1) {
+          k = Math.max(0, Math.min(1, (now - t0) / o.drawMs));
+          dirty = true;
+        }
+        if (dirty) paint();
+        if (k >= 1 && o.pulse) {
+          if (!pulse) {
+            pulse = mark({ kind: "pulse", coords: a, title: "", z: 36 });
+            p0 = now;
+          }
+          const ph = ((now - p0) % PULSE_MS) / PULSE_MS;
+          pulse.move(lerp(a, b, easeInOut(ph)), 0);
+          pulse.vars({ "--o": Math.sin(Math.PI * ph).toFixed(3) });
+        }
+        if (busy()) raf = requestAnimationFrame(loop);
+      };
+      const kick = () => {
+        if (!raf && !dead && busy()) raf = requestAnimationFrame(loop);
+      };
+      paint();
+      kick();
+      stops.add(stop);
       return {
-        marks: made.map((m) => m.mark(() => undefined)),
+        setPoints: (f, t, ms = 0) => {
+          if (dead) return;
+          b = t;
+          if (ms > 0 && !readMotion() && !same(a, f)) {
+            shift = { from: a, to: f, t0: performance.now(), ms };
+            kick();
+            return;
+          }
+          shift = null;
+          a = f;
+          paint();
+        },
         remove: () => {
-          for (const k of keys) actions.delete(k);
-          for (const k of clusterKeys) actions.delete(k);
-          quiet(() => map.geoObjects.remove(clusterer));
+          stop();
+          stops.delete(stop);
+          quiet(() => map.geoObjects.remove(main));
+          quiet(() => map.geoObjects.remove(halo));
+        },
+      };
+    },
+    ring: (c0, km, title) => {
+      let c = c0;
+      let r = km;
+      const m = mark({ kind: "ring", coords: c, title, z: 3 });
+      const resize = (at?: number) => {
+        const z = at ?? Number(map.getZoom());
+        const lat = Math.max(-85, Math.min(85, c[1]));
+        const east: LngLat = [c[0] + r / (111.32 * Math.max(0.05, Math.cos((lat * Math.PI) / 180))), c[1]];
+        const d = Math.abs(gpx(east, z)[0] - gpx(c, z)[0]) * 2;
+        m.vars({ "--d": d > 8 && d < RING_MAX_PX ? `${Math.round(d)}px` : "0px" });
+      };
+      resize();
+      rings.add(resize);
+      return {
+        set: (nc, nk, nt) => {
+          if (nk !== r) m.flag("is-grow", true, RING_GROW_MS);
+          c = nc;
+          r = nk;
+          m.move(nc, 0);
+          if (nt !== undefined) m.set({ title: nt });
+          resize();
+        },
+        remove: () => {
+          rings.delete(resize);
+          m.remove();
         },
       };
     },
     destroy: () => {
+      watcher?.disconnect();
       box.removeEventListener("keydown", onKey);
+      box.removeEventListener("pointerdown", onDown, true);
+      box.removeEventListener("pointermove", onMove, true);
+      box.removeEventListener("pointerup", onUp, true);
+      box.removeEventListener("pointercancel", onUp, true);
+      box.removeEventListener("wheel", tell, true);
+      for (const t of timers) window.clearTimeout(t);
+      timers.clear();
+      for (const r of glides.values()) cancelAnimationFrame(r);
+      glides.clear();
+      for (const stop of stops) stop();
+      stops.clear();
+      rings.clear();
+      gestures.clear();
       actions.clear();
+      lives.clear();
       quiet(() => map.destroy());
     },
   };

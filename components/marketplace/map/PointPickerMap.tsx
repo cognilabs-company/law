@@ -8,6 +8,8 @@ import { openYandexMap, useHtmlTheme, useReducedMotion, type MapHandle } from ".
 import "./sellersMap.css";
 
 const PICK_ZOOM = 16;
+const INTRO_STEPS = 2;
+const INTRO_MS = 900;
 
 // A Yandex map for choosing one point (a seller's office): a tap or click
 // sets the point, the pin shows it. The address search beside it is the
@@ -50,17 +52,21 @@ export default function PointPickerMap({
   });
   const startup = useEffectEvent(() => ({
     theme,
+    still,
     center: point ? ([point.longitude, point.latitude] as LngLat) : config.center,
     zoom: point ? PICK_ZOOM : config.zoom,
+    shown: point ? `${point.longitude},${point.latitude}` : "",
   }));
 
   useEffect(() => {
     const box = boxRef.current;
     if (!box) return;
     const init = startup();
+    const fly = !init.still && init.zoom > INTRO_STEPS;
+    shownRef.current = init.shown;
     let dead = false;
     let made: MapHandle | null = null;
-    openYandexMap(config, box, init).then(
+    openYandexMap(config, box, { theme: init.theme, center: init.center, zoom: fly ? init.zoom - INTRO_STEPS : init.zoom }).then(
       (h) => {
         if (dead) {
           h.destroy();
@@ -70,6 +76,7 @@ export default function PointPickerMap({
         try {
           h.setTheme(init.theme);
           h.onClick((ll) => click(ll));
+          if (fly) h.moveTo(init.center, init.zoom, INTRO_MS);
         } catch {
           h.destroy();
           made = null;
@@ -101,7 +108,7 @@ export default function PointPickerMap({
   useEffect(() => {
     const live = liveRef.current;
     if (!ready || !live || !point) return;
-    const m = live.mark({ kind: "pick", coords: [point.longitude, point.latitude], title: pinLabel, cls: "ymk-pick--office", z: 40 });
+    const m = live.mark({ kind: "pick", coords: [point.longitude, point.latitude], title: pinLabel, cls: "ymk-pick--office", z: 40, fx: "drop" });
     return () => m.remove();
     // pointKey stands for the point.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -112,13 +119,13 @@ export default function PointPickerMap({
     const live = liveRef.current;
     if (!ready || !live || !point || pointKey === shownRef.current) return;
     shownRef.current = pointKey;
-    live.moveTo([point.longitude, point.latitude], Math.max(live.zoom(), 14), still ? 0 : 400);
+    live.moveTo([point.longitude, point.latitude], Math.max(live.zoom(), 14), still ? 0 : 700);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, pointKey]);
 
   const zoomBy = (d: number) => {
     const live = liveRef.current;
-    if (live) live.setZoom(live.zoom() + d, still ? 0 : 250);
+    if (live) live.setZoom(live.zoom() + d, still ? 0 : 300);
   };
 
   return (
@@ -128,11 +135,10 @@ export default function PointPickerMap({
         <p className="ymk-pickhint" aria-hidden="true">
           {hint}
         </p>
-      ) : (
-        <div className="ymk-veil" aria-hidden="true">
-          <span className="ymk-spin" />
-        </div>
-      )}
+      ) : null}
+      <div className={`ymk-veil ymk-veil--art${ready ? " is-off" : ""}`} aria-hidden="true">
+        <span className="ymk-spin" />
+      </div>
       <div className="ymk-ctl">
         <button type="button" onClick={() => zoomBy(1)} disabled={!ready} aria-label={zoomInLabel} title={zoomInLabel}>
           <IconPlus aria-hidden="true" />

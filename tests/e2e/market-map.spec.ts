@@ -208,15 +208,23 @@ test("map off: filters and the list stand in, realtime refreshes the list and un
   expect(qs.get("bbox")).toBe("55.9,37.1,73.2,45.7");
   expect(qs.get("zoom")).toBe("13");
   expect(qs.get("verified_only")).toBe("true");
-  await shot(page, "not-configured", '.mmf');
+  await shot(page, "not-configured", ".mtb");
 
   // Handmade filters reach the backend.
-  await page.locator('[data-ai-id="marketplace.map.filter.type"]').getByRole("button").click();
+  const opener = page.locator('[data-ai-id="marketplace.map.filters.open"]');
+  await opener.click();
+  const sheet = page.getByRole("dialog", { name: "Filtrlar" });
+  await expect(sheet).toBeVisible();
+  await sheet.locator('[data-ai-id="marketplace.map.filter.type"]').getByRole("button").click();
   await page.getByRole("option", { name: "Yurist" }).click();
-  await page.locator('[data-ai-id="marketplace.map.filter.verified"]').getByText("Faqat tasdiqlangan mutaxassislar").click();
+  await sheet.locator('[data-ai-id="marketplace.map.filter.verified"]').getByText("Faqat tasdiqlangan mutaxassislar").click();
   await expect.poll(async () => (await lastMapQuery()).get("verified_only")).toBe("false");
   qs = await lastMapQuery();
   expect(qs.get("seller_type")).toBe("yurist");
+  await shot(page, "filter-sheet");
+  await sheet.locator('[data-ai-id="marketplace.map.filters.done"]').click();
+  await expect(sheet).toBeHidden();
+  await expect(opener.locator(".mtb__badge")).toHaveText("2");
 
   // Realtime: subscribed on the user socket; an update refetches the list.
   await expect.poll(() => mock.sent.some((m) => m.includes('"marketplace.map.subscribe"'))).toBe(true);
@@ -238,7 +246,7 @@ test("map configured but Yandex fails to load: the list takes over without a bro
   await expect(page.locator(".ymk-canvas")).toHaveCount(0);
   // Only the config's 2.1 loader was tried.
   expect(yandex.urls).toEqual([LOADER]);
-  await shot(page, "list-fallback", ".mmf");
+  await shot(page, "list-fallback", ".mtb");
   await noOverflow(page);
 });
 
@@ -254,7 +262,7 @@ test("2.1 loader: the script is the config's maps_loader_url, never v3, and the 
   expect(yandex.urls.some((u) => /\/v3\//.test(u))).toBe(false);
   // The 2.1 map is drawn: tiles in the ground pane, the backend's markers on top.
   await expect(page.locator(".ymaps-stub-ground")).toHaveCount(1);
-  await expect(page.locator('[data-ai-id="marketplace.map"]')).toContainText("Joylar taxminiy, ≈500 m aniqlikda");
+  await expect(page.locator('[data-ai-id="marketplace.map.panel"]')).toContainText("Taxminiy hududlar, ≈500 m");
   // Dark mode re-tints only the tiles; light mode leaves them alone.
   const filter = await page.locator(".ymaps-stub-ground").evaluate((el) => (el as HTMLElement).style.filter);
   const dark = (await page.evaluate(() => document.documentElement.getAttribute("data-theme"))) === "dark";
@@ -293,7 +301,7 @@ test("near me: location only after the click, consent recorded, nearest fallback
   await context.setGeolocation({ latitude: 41.31234, longitude: 69.27987, accuracy: 900 });
   const mock = await openMap(page, routes);
   await expect(page.getByRole("heading", { name: "Yaqinimdagi mutaxassislarni ko‘rsatish" }).or(page.getByText("Yaqinimdagi mutaxassislarni ko‘rsatish").first())).toBeVisible();
-  await shot(page, "permission-prompt", '.mmf');
+  await shot(page, "permission-prompt", ".mtb");
   // Nothing location-related was sent before the click.
   expect(mock.calls.some((c) => c.method === "POST")).toBe(false);
   await page.locator('[data-ai-id="marketplace.nearby.locate"]').click();
@@ -314,10 +322,11 @@ test("near me: location only after the click, consent recorded, nearest fallback
 
   // Radius and sort are handmade controls and go to the backend.
   await page.locator('[data-ai-id="marketplace.nearby.radius.25"]').click();
+  await expect(page.locator('[data-ai-id="marketplace.nearby.radius.25"]')).toHaveAttribute("aria-checked", "true");
   await expect.poll(() => (searched as Record<string, unknown> | null)?.radius_km).toBe(25);
-  await page.locator('[data-ai-id="marketplace.map.sort"]').getByRole("button").click();
-  await page.getByRole("option", { name: "Reytingi yuqorilari" }).click();
+  await page.locator('[data-ai-id="marketplace.map.sort.rating"]').click();
   await expect.poll(() => (searched as Record<string, unknown> | null)?.sort).toBe("rating");
+  await expect(page.locator('[data-ai-id="marketplace.map.consent"]')).toContainText("Bekor qilish");
   await storedNothing(page);
   await noOverflow(page);
 });
@@ -349,7 +358,7 @@ test("denied: the browser's refusal is recorded, the client picks an address and
   await storedNothing(page);
 });
 
-test("route: the mode goes to the backend and the returned web route opens", async ({ page, context }) => {
+test("route: the mode goes to the backend, the straight distance is shown and the returned web route is offered", async ({ page, context }) => {
   await noYandex(context, "abort");
   await context.route(/yandex\.uz\/maps/, (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<title>route</title>" }));
   await context.grantPermissions(["geolocation"]);
@@ -374,23 +383,32 @@ test("route: the mode goes to the backend and the returned web route opens", asy
   );
   const mock = await openMap(page, routes);
   await page.locator('[data-ai-id="marketplace.nearby.locate"]').click();
-  const row = page.locator('[data-ai-id="marketplace.nearby.results"] li').filter({ hasText: "Dilnoza Karimova" });
+  const results = page.locator('[data-ai-id="marketplace.nearby.results"]');
+  const card = page.locator('[data-ai-id="marketplace.map.card"]');
   // Only the seller whose route the backend allows offers one.
-  await expect(page.locator('[data-ai-id="marketplace.nearby.results"] li').filter({ hasText: "Akmal Yusupov" }).getByRole("button", { name: "Yo‘nalish" })).toHaveCount(0);
-  await row.getByRole("button", { name: "Yo‘nalish" }).click();
-  const dialog = page.getByRole("dialog", { name: "Dilnoza Karimova — yo‘nalish" });
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("radio", { name: "Mashinada" }).press("ArrowRight");
-  await expect(dialog.getByRole("radio", { name: "Piyoda" })).toHaveAttribute("aria-checked", "true");
-  await shot(page, "route-modes");
-  const popup = context.waitForEvent("page");
-  await dialog.getByRole("button", { name: "Yo‘nalish tuzish" }).click();
-  const tab = await popup;
-  await expect.poll(() => tab.url()).toBe(WEB_ROUTE);
+  await results.getByRole("button", { name: /Akmal Yusupov/ }).click();
+  await expect(card).toContainText("Akmal Yusupov");
+  await expect(card.locator('[data-ai-id="marketplace.route"]')).toHaveCount(0);
+  await card.getByRole("button", { name: "Ro‘yxatga qaytish" }).click();
+  await expect(card).toHaveCount(0);
+  await results.getByRole("button", { name: /Dilnoza Karimova/ }).click();
+  const nav = card.locator('[data-ai-id="marketplace.route"]');
+  await expect(nav).toBeVisible();
+  await nav.getByRole("radio", { name: "Mashina" }).press("ArrowRight");
+  await expect(nav.getByRole("radio", { name: "Piyoda" })).toHaveAttribute("aria-checked", "true");
+  await shot(page, "route-modes", '[data-ai-id="marketplace.map.card"]');
+  await nav.getByRole("button", { name: "Yo‘lni ko‘rsatish" }).click();
+  await expect(nav.locator('[data-ai-id="marketplace.route.straight"]')).toContainText(/To‘g‘ri chiziq bo‘yicha ≈ 3[,.]5 km/);
   expect(navBody).toEqual({ latitude: 41.3, longitude: 69.24, mode: "walking", paid_order_id: null });
   expect(mock.calls.filter((c) => c.path.endsWith("/navigation"))).toHaveLength(1);
-  await expect(dialog.getByRole("link", { name: "Brauzerda ochish" })).toHaveAttribute("href", WEB_ROUTE);
-  await expect(dialog.getByText("Manzil: mutaxassis ofisi")).toBeVisible();
+  const web = nav.getByRole("link", { name: "Yandex Xaritada ochish" });
+  await expect(web).toHaveAttribute("href", WEB_ROUTE);
+  await expect(web).toHaveAttribute("target", "_blank");
+  await expect(nav.getByText(/Manzil: mutaxassis ofisi/)).toBeVisible();
+  await expect(nav.getByRole("button", { name: "Navigatorni boshlash" })).toBeVisible();
+  await expect(nav.locator('[data-ai-id="marketplace.route.app"]')).toHaveCount(0);
+  await shot(page, "route-ready", '[data-ai-id="marketplace.map.card"]');
+  await storedNothing(page);
 });
 
 test("route: a seller without public navigation is explained in words", async ({ page, context }) => {
@@ -401,11 +419,87 @@ test("route: a seller without public navigation is explained in words", async ({
   routes[`POST /marketplace/sellers/${S1}/navigation`] = { status: 403, json: { detail: { code: "navigation_destination_unavailable", message: "x" } } };
   await openMap(page, routes);
   await page.locator('[data-ai-id="marketplace.nearby.locate"]').click();
-  await page.locator('[data-ai-id="marketplace.nearby.results"] li').filter({ hasText: "Dilnoza Karimova" }).getByRole("button", { name: "Yo‘nalish" }).click();
-  const dialog = page.getByRole("dialog", { name: "Dilnoza Karimova — yo‘nalish" });
-  await dialog.getByRole("button", { name: "Yo‘nalish tuzish" }).click();
-  await expect(dialog.getByRole("alert")).toHaveText("Bu mutaxassis ofisiga yo‘nalishni ochmagan. U bilan profil orqali bog‘laning.");
-  await expect(dialog).not.toContainText("navigation_destination_unavailable");
+  await page.locator('[data-ai-id="marketplace.nearby.results"]').getByRole("button", { name: /Dilnoza Karimova/ }).click();
+  const nav = page.locator('[data-ai-id="marketplace.map.card"] [data-ai-id="marketplace.route"]');
+  await nav.getByRole("button", { name: "Yo‘lni ko‘rsatish" }).click();
+  await expect(nav.getByRole("alert")).toHaveText("Bu mutaxassis ofisiga yo‘nalishni ochmagan. U bilan profil orqali bog‘laning.");
+  await expect(nav).not.toContainText("navigation_destination_unavailable");
+  await expect(nav.getByRole("button", { name: "Qayta urinish" })).toBeVisible();
+  await expect(nav.locator('[data-ai-id="marketplace.route.follow"]')).toHaveCount(0);
+});
+
+test("navigator: the guidance line on the map, then the in-app follow mode until arrival", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 20 });
+  const routes = mapRoutes({ configured: true });
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = {
+    provider: "yandex",
+    destination_source: "public_office",
+    destination: { latitude: 41.31, longitude: 69.28, coordinates: [69.28, 41.31] },
+    app_url: "yandexmaps://maps.yandex.ru/?rtext=41.3,69.24~41.31,69.28&rtt=auto",
+    app_urls: { yandex_maps: "yandexmaps://maps.yandex.ru/?rtext=41.3,69.24~41.31,69.28&rtt=auto", yandex_navigator: "yandexnavi://build_route_on_map?lat_to=41.31&lon_to=69.28" },
+    web_url: WEB_ROUTE,
+    fallback_url: WEB_ROUTE,
+    event_recorded: true,
+  };
+  await openMap(page, routes);
+  await expect(page.locator(".ymk-pin, .ymk-group").first()).toBeVisible();
+  await page.locator('[data-ai-id="marketplace.nearby.locate"]').click();
+  await page.locator('[data-ai-id="marketplace.nearby.results"]').getByRole("button", { name: /Dilnoza Karimova/ }).click();
+  const nav = page.locator('[data-ai-id="marketplace.map.card"] [data-ai-id="marketplace.route"]');
+  await nav.getByRole("button", { name: "Yo‘lni ko‘rsatish" }).click();
+  await expect(nav.locator('[data-ai-id="marketplace.route.straight"]')).toContainText(/≈ 3[,.]5 km/);
+  await expect(page.locator('.ymaps-stub-line[data-style="dash"]')).toHaveCount(1);
+  await shot(page, "navigator-line", '[data-ai-id="marketplace.nearby"]');
+  await nav.getByRole("button", { name: "Navigatorni boshlash" }).click();
+  const hud = page.locator('[data-ai-id="marketplace.map.follow"]');
+  await expect(hud).toBeVisible();
+  await expect(hud).toContainText("Dilnoza Karimova tomon");
+  await expect(hud.locator(".mfh__big")).toHaveText(/≈ 3[,.]5 km/);
+  await expect(hud.getByRole("button", { name: "To‘xtatish" })).toBeVisible();
+  await shot(page, "navigator-follow", '[data-ai-id="marketplace.nearby"]');
+  await context.setGeolocation({ latitude: 41.3099, longitude: 69.2799, accuracy: 10 });
+  await expect(hud.locator(".mfh__big")).toHaveText("Yetib keldingiz");
+  await expect(hud).toHaveClass(/is-arrived/);
+  await shot(page, "navigator-arrived", '[data-ai-id="marketplace.nearby"]');
+  await hud.getByRole("button", { name: "To‘xtatish" }).click();
+  await expect(hud).toHaveCount(0);
+  await expect(nav.getByRole("button", { name: "Navigatorni boshlash" })).toBeVisible();
+  await storedNothing(page);
+  await noOverflow(page);
+});
+
+test("navigator: when the browser stops giving the location the follow mode says so and offers Yandex", async ({ page, context }) => {
+  await noYandex(context, "abort");
+  await page.addInitScript(() => {
+    const fix = (ok: (p: unknown) => void) => setTimeout(() => ok({ coords: { latitude: 41.3, longitude: 69.24, accuracy: 25, heading: null, speed: null }, timestamp: Date.now() }), 10);
+    const lost = (_ok: unknown, err?: (e: { code: number; message: string }) => void) => {
+      setTimeout(() => err?.({ code: 1, message: "denied" }), 10);
+      return 7;
+    };
+    Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition: fix, watchPosition: lost, clearWatch: () => undefined } });
+  });
+  const routes = mapRoutes({ configured: false });
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = {
+    destination_source: "public_office",
+    destination: { latitude: 41.31, longitude: 69.28 },
+    app_url: "yandexmaps://maps.yandex.ru/?rtext=41.3,69.24~41.31,69.28&rtt=auto",
+    web_url: WEB_ROUTE,
+    fallback_url: WEB_ROUTE,
+  };
+  await openMap(page, routes);
+  await page.locator('[data-ai-id="marketplace.nearby.locate"]').click();
+  await page.locator('[data-ai-id="marketplace.nearby.results"]').getByRole("button", { name: /Dilnoza Karimova/ }).click();
+  const nav = page.locator('[data-ai-id="marketplace.map.card"] [data-ai-id="marketplace.route"]');
+  await nav.getByRole("button", { name: "Yo‘lni ko‘rsatish" }).click();
+  await nav.getByRole("button", { name: "Navigatorni boshlash" }).click();
+  const hud = page.locator('[data-ai-id="marketplace.map.follow"]');
+  await expect(hud.getByRole("alert")).toContainText("Brauzer joylashuvni kuzatishga ruxsat bermadi");
+  await expect(hud.getByRole("link", { name: "Yandex Xaritada ochish" })).toHaveAttribute("href", WEB_ROUTE);
+  await hud.getByRole("button", { name: "To‘xtatish" }).click();
+  await expect(hud).toHaveCount(0);
+  await storedNothing(page);
 });
 
 test("seller settings: the office location is saved with the public route switch", async ({ page, context }) => {
@@ -466,8 +560,8 @@ test("map view: clusters zoom in, markers open a card with a route, and a point 
   const mock = await openMap(page, routes);
   const group = page.locator(".ymk-group");
   await expect(group).toHaveText("2");
-  await expect(page.locator('[data-ai-id="marketplace.map"]')).toContainText("Shu hududda 2 ta mutaxassis");
-  await shot(page, "map", '[data-ai-id="marketplace.map.ask"]');
+  await expect(page.locator('[data-ai-id="marketplace.map.panel"]')).toContainText("Shu hududda 2 ta mutaxassis");
+  await shot(page, "map", '[data-ai-id="marketplace.nearby"]');
   // A cluster opens from the keyboard too: it zooms in and the viewport is asked again.
   await group.focus();
   await page.keyboard.press("Enter");
@@ -490,26 +584,29 @@ test("map view: clusters zoom in, markers open a card with a route, and a point 
   // service_action.id is the service the purchase opens.
   await expect(card.getByRole("link", { name: "Buyurtma: Aliment undirish" })).toHaveAttribute("href", `/uz/portal/client/lawyers/${S1}?buy=svc-77`);
   await expect(card).toContainText("300 000 so‘m");
-  await expect(card.getByRole("button", { name: "Yo‘nalish" })).toBeVisible();
+  await expect(card.locator('[data-ai-id="marketplace.route"]').getByRole("button", { name: "Yo‘lni ko‘rsatish" })).toBeVisible();
   await expect(card).not.toContainText(UUID);
-  await shot(page, "map-card", '[data-ai-id="marketplace.map"]');
-  await card.getByRole("button", { name: "Yopish" }).click();
+  await expect(pin).toHaveClass(/is-on/);
+  await shot(page, "map-card", '[data-ai-id="marketplace.nearby"]');
+  await card.getByRole("button", { name: "Ro‘yxatga qaytish" }).click();
+  await expect(card).toHaveCount(0);
 
   // Location refused: the client marks the point on the map instead.
   await page.locator('[data-ai-id="marketplace.nearby.locate"]').click();
   await page.locator('[data-ai-id="marketplace.map.manual.start"]').click();
-  await expect(page.locator('[data-ai-id="marketplace.map.pick-hint"]')).toHaveText("Xaritada turgan joyingizni bosing");
+  await expect(page.locator('[data-ai-id="marketplace.map.pick-hint"]')).toHaveText("Xaritada nuqtani bosing yoki manzilni qidiring");
   const canvas = page.locator(".ymk-canvas");
   await canvas.scrollIntoViewIfNeeded();
   const box = await canvas.boundingBox();
-  await page.mouse.click((box?.x ?? 0) + 60, (box?.y ?? 0) + (box?.height ?? 300) - 60);
+  await page.mouse.click((box?.x ?? 0) + (box?.width ?? 300) * 0.6, (box?.y ?? 0) + (box?.height ?? 300) * 0.35);
   await expect(page.locator(".ymk-pick")).toHaveCount(1);
   await expect(page.locator('[data-ai-id="marketplace.map.manual"]').getByText("Nuqta tanlandi")).toBeVisible();
   await shot(page, "denied-manual-map", '[data-ai-id="marketplace.map.manual"]');
   await page.locator('[data-ai-id="marketplace.map.manual.confirm"]').click();
   await expect(page.locator('[data-ai-id="marketplace.nearby.results"]').getByText("Dilnoza Karimova")).toBeVisible();
-  const hit = page.locator('[data-ai-id="marketplace.nearby.results"] li').filter({ hasText: "Dilnoza Karimova" });
-  await expect(hit.getByRole("link", { name: "Buyurtma: Aliment undirish" })).toHaveAttribute("href", `/uz/portal/client/lawyers/${S1}?buy=svc-77`);
+  await page.locator('[data-ai-id="marketplace.nearby.results"]').getByRole("button", { name: /Dilnoza Karimova/ }).click();
+  await expect(card.getByRole("link", { name: "Buyurtma: Aliment undirish" })).toHaveAttribute("href", `/uz/portal/client/lawyers/${S1}?buy=svc-77`);
+  await card.getByRole("button", { name: "Ro‘yxatga qaytish" }).click();
   const grants = mock.calls.filter((c) => c.method === "POST" && c.path === "/marketplace/me/location-consent").map((c) => c.body);
   expect(grants).toEqual([
     { granted: false, permission_state: "denied", source: "web" },
@@ -534,10 +631,11 @@ test("list view of the map area", async ({ page, context }) => {
   await page.locator('[data-ai-id="marketplace.nearby.view.list"]').click();
   const list = page.locator('[data-ai-id="marketplace.map.area.list"]');
   await expect(list.getByText("Akmal Yusupov")).toBeVisible();
-  await expect(page.getByText("Xaritaning shu qismida 2 ta mutaxassis")).toBeVisible();
+  await expect(page.locator('[data-ai-id="marketplace.map.panel"]')).toContainText("Shu hududda 2 ta mutaxassis");
+  await expect(page.locator('[data-ai-id="marketplace.nearby.view.list"]')).toHaveAttribute("aria-checked", "true");
   // The map's own area, at marker zoom.
-  expect(queries.at(-1)?.get("zoom")).toBe("13");
-  expect(queries.at(-1)?.get("bbox")).not.toBe("55.9,37.1,73.2,45.7");
+  expect(queries.some((q) => q.get("zoom") === "13" && q.get("bbox") !== "55.9,37.1,73.2,45.7")).toBe(true);
+  expect(queries.some((q) => q.get("bbox") === "55.9,37.1,73.2,45.7")).toBe(false);
   await shot(page, "list", '.mmarea');
   await noOverflow(page);
 });
@@ -564,7 +662,7 @@ test("geocoder down (provider 403): address search says so in words and the poin
   const canvas = page.locator(".ymk-canvas");
   await canvas.scrollIntoViewIfNeeded();
   const box = await canvas.boundingBox();
-  await page.mouse.click((box?.x ?? 0) + 70, (box?.y ?? 0) + (box?.height ?? 300) - 70);
+  await page.mouse.click((box?.x ?? 0) + (box?.width ?? 300) * 0.62, (box?.y ?? 0) + (box?.height ?? 300) * 0.32);
   await expect(page.locator(".ymk-pick")).toHaveCount(1);
   await page.locator('[data-ai-id="marketplace.map.manual.confirm"]').click();
   await expect(page.locator('[data-ai-id="marketplace.nearby.results"]').getByText("Dilnoza Karimova")).toBeVisible();

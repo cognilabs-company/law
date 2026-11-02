@@ -1,0 +1,59 @@
+.mfh{--mx-ease:cubic-bezier(.22,.8,.24,1);--mx-spring:cubic-bezier(.2,.9,.25,1.15);display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px 14px;min-width:0;padding:12px 14px;border-radius:22px;background:linear-gradient(150deg,#0E1B36,#0A1428 70%);color:#E7EEF8;box-shadow:0 26px 60px -24px rgba(4,12,30,.85),inset 0 0 0 1px rgba(110,168,255,.22);animation:mfh-in .46s var(--mx-spring) both}
+.mfh--float{position:absolute;bottom:12px;left:max(12px,var(--mx-left, 12px));right:76px;z-index:8;max-width:560px;margin-inline:auto;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);background:linear-gradient(150deg,rgba(14,27,54,.94),rgba(10,20,40,.9) 70%)}
+.mfh__dial{position:relative;display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 50% 40%,rgba(110,168,255,.22),rgba(110,168,255,.04) 70%);box-shadow:inset 0 0 0 1.5px rgba(110,168,255,.35)}
+.mfh__dial::before{content:"";position:absolute;inset:-5px;border-radius:50%;border:1.5px dashed rgba(110,168,255,.28);animation:mfh-orbit 24s linear infinite}
+.mfh__arrow{display:grid;place-items:center;width:42px;height:42px;color:#6EA8FF;transform:rotate(var(--turn, 0deg));transition:transform .4s cubic-bezier(.3,.7,.3,1);filter:drop-shadow(0 4px 10px rgba(110,168,255,.55))}
+.mfh__arrow svg{width:38px;height:38px;fill:currentColor;fill-opacity:.22}
+.mfh__arrow[data-wait]{animation:mfh-wait 1.4s ease-in-out infinite}
+.mfh__north{position:absolute;top:-2px;left:50%;padding:0 4px;border-radius:6px;transform:translate(-50%,-50%);background:#0B1730;color:#A3C8FF;font-size:.62rem;font-style:normal;font-weight:800;letter-spacing:.04em}
+.mfh__done{position:relative;display:grid;place-items:center;width:48px;height:48px;border-radius:50%;background:#12A37A;color:#fff;box-shadow:0 10px 26px -10px rgba(18,163,122,.9);animation:mfh-done .5s var(--mx-spring) both}
+.mfh__done::after{content:"";position:absolute;inset:-6px;border-radius:50%;box-shadow:0 0 0 2px rgba(74,222,159,.7);animation:mfh-ring 1.6s var(--mx-ease) .2s both}
+.mfh__done svg{width:26px;height:26px}
+.mfh__done svg path{stroke-dasharray:28;stroke-dashoffset:28;animation:mfh-draw .55s var(--mx-ease) .18s forwards}
+.mfh__txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mfh__big{font-family:var(--fd);font-size:1.6rem;font-weight:800;line-height:1.1;letter-spacing:-.02em;color:#fff;font-variant-numeric:tabular-nums}
+.mfh.is-arrived .mfh__big{color:#4ADE9F}
+.mfh__to{overflow:hidden;font-size:.82rem;font-weight:600;color:#C6D4EA;text-overflow:ellipsis;white-space:nowrap}
+.mfh__hint{font-size:.72rem;color:#8EA3C2}
+.mfh__acts{display:flex;flex-direction:column;align-items:stretch;gap:6px}
+.mfh__btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px;padding:6px 14px;border:0;border-radius:999px;background:rgba(110,168,255,.16);box-shadow:inset 0 0 0 1px rgba(110,168,255,.35);color:#DCE8FA;font:inherit;font-size:.8rem;font-weight:700;white-space:nowrap;cursor:pointer;transition:transform .18s var(--mx-ease),background .2s}
+.mfh__btn svg{width:15px;height:15px;flex:none}
+.mfh__btn:hover{background:rgba(110,168,255,.26)}
+.mfh__btn:active{transform:scale(.95)}
+.mfh__btn:focus-visible{outline:2px solid #6EA8FF;outline-offset:2px}
+.mfh__btn--stop{background:rgba(248,113,113,.14);box-shadow:inset 0 0 0 1px rgba(248,113,113,.45);color:#FFB4B4}
+.mfh__btn--stop:hover{background:rgba(248,113,113,.24)}
+.mfh__fail{grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 12px;border-radius:14px;background:rgba(251,191,36,.12);box-shadow:inset 0 0 0 1px rgba(251,191,36,.38);color:#FCD38A;font-size:.8rem;line-height:1.45;animation:mfh-in .36s var(--mx-ease) both}
+.mfh__fail>span:first-child{flex:1 1 200px}
+.mfh__ext{display:flex;flex-wrap:wrap;gap:6px}
+.mfh__ext .btn{background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);color:#E7EEF8}
+.mfh__ext .btn svg{width:15px;height:15px}
+
+@keyframes mfh-in{from{opacity:0;transform:translateY(24px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes mfh-orbit{to{transform:rotate(360deg)}}
+@keyframes mfh-wait{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes mfh-done{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:none}}
+@keyframes mfh-ring{0%{opacity:.9;transform:scale(.8)}100%{opacity:0;transform:scale(1.6)}}
+@keyframes mfh-draw{to{stroke-dashoffset:0}}
+
+@media (max-width:720px){
+  .mfh--float{left:8px;right:8px;bottom:8px;max-width:none;padding:10px 12px;gap:8px 12px;border-radius:20px}
+  .mfh__dial{width:56px;height:56px}
+  .mfh__big{font-size:1.36rem}
+}
+
+@media (max-width:420px){
+  .mfh{grid-template-columns:auto minmax(0,1fr)}
+  .mfh__acts{grid-column:1 / -1;flex-direction:row}
+  .mfh__acts .mfh__btn{flex:1 1 0}
+}
+
+@media (pointer:coarse){
+  .mfh__btn{min-height:44px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .mfh,.mfh__dial::before,.mfh__arrow[data-wait],.mfh__done,.mfh__done::after,.mfh__fail{animation:none}
+  .mfh__done svg path{animation:none;stroke-dashoffset:0}
+  .mfh__arrow,.mfh__btn{transition:none}
+}

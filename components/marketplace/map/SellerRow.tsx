@@ -1,14 +1,12 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Navigation, ShoppingBag } from "lucide-react";
+import { ShoppingBag } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { IconBriefcase, IconBuilding, IconMapPin, IconStarRate } from "@/components/icons";
+import { IconBriefcase, IconBuilding, IconChevronRight, IconMapPin, IconStarRate } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
-import { regionLabel } from "@/lib/labels";
-import { humanizeSlug } from "@/lib/lawyers";
 import { fmtRating } from "@/lib/date";
 import { fmtUzs } from "@/lib/money";
 import type { MarketSeller } from "@/lib/services/marketplace";
@@ -16,7 +14,6 @@ import { approxDistance } from "@/lib/services/marketDiscovery";
 import type { NearbySeller } from "@/lib/services/marketRuntime";
 import type { LocationSource, SellerNav, ServiceAction } from "@/lib/services/sellersMap";
 import { Monogram, sellerTypeLabel } from "../bits";
-import type { RouteTarget } from "./NavigateDialog";
 
 export type RowSeller = NearbySeller & { source: LocationSource; nav: SellerNav; service: ServiceAction | null };
 
@@ -55,88 +52,77 @@ export function ServiceActionLink({ action, href, className, ai }: { action: Ser
   );
 }
 
-// One specialist on the map page: avatar, name, verification, rating, the
-// approximate distance (never an address) and what can be done next —
-// the profile, the service in question, a route when the backend allows one.
+export function useDistanceText(): (km: number | null, precText: string) => { text: string; aria: string; known: boolean } {
+  const t = useTranslations("marketplace.nearby");
+  const locale = useLocale();
+  return useCallback(
+    (km: number | null, precText: string) => {
+      const num = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
+      const d = approxDistance(km);
+      if (!d) return { text: t("distanceUnknown"), aria: t("distanceUnknown"), known: false };
+      const text = d.unit === "m" ? t("distanceM", { d: num.format(d.value) }) : t("distanceKm", { d: num.format(d.value) });
+      return { text, aria: t("distanceAria", { d: text.replace(/^≈\s*/, ""), p: precText }), known: true };
+    },
+    [t, locale],
+  );
+}
+
 export default function SellerRow({
   s,
   known,
-  base,
   precText,
   withDistance,
-  onNavigate,
+  selected,
+  onSelect,
+  index,
   ai,
 }: {
   s: RowSeller;
   known: MarketSeller | null;
-  base: string;
   precText: string;
   withDistance: boolean;
-  onNavigate?: (t: RouteTarget) => void;
+  selected: boolean;
+  onSelect?: (id: string) => void;
+  index: number;
   ai: string;
 }) {
   const t = useTranslations("marketplace.nearby");
   const tm = useTranslations("marketplace");
   const tx = useTranslations("marketMap");
-  const te = useTranslations("enums");
   const locale = useLocale();
-  const num = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
   const id = s.sellerUserId;
   const name = s.name || known?.name || t("map.unnamed");
-  const href = id ? `${base}/${encodeURIComponent(id)}` : "";
-  const d = withDistance ? approxDistance(s.distanceKm) : null;
-  const dText = d ? (d.unit === "m" ? t("distanceM", { d: num.format(d.value) }) : t("distanceKm", { d: num.format(d.value) })) : t("distanceUnknown");
-  const dAria = d ? t("distanceAria", { d: dText.replace(/^≈\s*/, ""), p: precText }) : t("distanceUnknown");
+  const dist = useDistanceText()(s.distanceKm, precText);
   const actionPrice = useActionPrice();
   const price = s.service?.price ? actionPrice(s.service) : known && known.priceFrom > 0 ? tm("card.priceFrom", { price: fmtUzs(known.priceFrom) }) : "";
   const rowAi = aiId(ai, id || name);
-  const region = s.region || known?.region || "";
   const type = s.sellerType || known?.sellerType || "";
   const rating = s.rating > 0 ? s.rating : known?.rated && known.rating > 0 ? known.rating : 0;
-  const reviews = s.rating > 0 ? s.reviewsCount : (known?.reviewsCount ?? 0);
   const verified = s.verified || !!known?.verified;
-  const canRoute = !!id && s.nav.available && !!onNavigate;
 
-  return (
-    <li className="mknb-row mmrow" data-ai-id={rowAi} data-ai-type="list_item" data-ai-entity-type="seller" data-ai-entity-id={id || undefined}>
+  const body = (
+    <>
       <Monogram name={name} rating={rating} showRing={rating > 0} />
-      <div className="mknb-row__who">
-        <span className="mknb-row__title">
-          {href ? (
-            <Link href={href} className="mknb-row__name">
-              {name}
-            </Link>
-          ) : (
-            <span className="mknb-row__name">{name}</span>
-          )}
-          {verified ? <VerifiedBadge label={false} name={name} subtitle={type ? sellerTypeLabel(tm, type) : undefined} /> : null}
+      <span className="mmrow__who">
+        <span className="mmrow__title">
+          <span className="mmrow__name">{name}</span>
+          {verified ? <VerifiedBadge label={false} interactive={false} name={name} /> : null}
         </span>
-        <span className="mknb-row__sub">
+        <span className="mmrow__sub">
           {type ? <span>{sellerTypeLabel(tm, type)}</span> : null}
-          {region ? (
-            <>
-              {type ? <i aria-hidden="true">·</i> : null}
-              <span>{regionLabel(te, /[_-]/.test(region) ? humanizeSlug(region) : region)}</span>
-            </>
-          ) : null}
-          {type || region ? <i aria-hidden="true">·</i> : null}
           {rating > 0 ? (
-            <span className="mknb-row__rate">
+            <span className="mmrow__rate">
               <IconStarRate aria-hidden="true" />
               {fmtRating(rating, locale)}
-              {reviews > 0 ? <small>({tm("card.reviews", { count: reviews })})</small> : null}
             </span>
           ) : (
-            <span className="mknb-row__rate">{tm("card.newSeller")}</span>
+            <span>{tm("card.newSeller")}</span>
           )}
           {s.source ? (
-            <>
-              <i aria-hidden="true">·</i>
-              <span className="mknb-row__src" data-src={s.source}>
-                {s.source === "office" ? <IconBuilding aria-hidden="true" /> : <IconMapPin aria-hidden="true" />}
-                {tx(`src.${s.source}`)}
-              </span>
-            </>
+            <span className="mmrow__src" data-src={s.source}>
+              {s.source === "office" ? <IconBuilding aria-hidden="true" /> : <IconMapPin aria-hidden="true" />}
+              {tx(`src.${s.source}`)}
+            </span>
           ) : null}
         </span>
         {s.service?.title ? (
@@ -145,36 +131,38 @@ export default function SellerRow({
             <span>{s.service.title}</span>
           </span>
         ) : null}
-        {price ? <b className="mknb-row__price">{price}</b> : null}
-      </div>
-      {withDistance ? (
-        <span className={`mknb-dist${d ? "" : " mknb-dist--none"}`} title={d ? precText : undefined}>
-          <IconMapPin aria-hidden="true" />
-          <span aria-hidden="true">{dText}</span>
-          <span className="sr-only">{dAria}</span>
-        </span>
-      ) : (
-        <span aria-hidden="true" />
-      )}
-      <span className="mmrow__acts">
-        {href ? (
-          <Link href={href} className="btn btn--line btn--sm mknb-row__go" data-ai-id={`${rowAi}.detail`}>
-            {t("profile")}
-          </Link>
-        ) : null}
-        {href && s.service ? <ServiceActionLink action={s.service} href={href} className="btn btn--line btn--sm mknb-row__go" ai={`${rowAi}.service`} /> : null}
-        {canRoute ? (
-          <button
-            type="button"
-            className="btn btn--grad btn--sm mknb-row__go"
-            onClick={() => onNavigate?.({ sellerUserId: id, name, endpoint: s.nav.endpoint, modes: s.nav.modes })}
-            data-ai-id={`${rowAi}.route`}
-          >
-            <Navigation aria-hidden="true" />
-            {tx("route.open")}
-          </button>
-        ) : null}
       </span>
+      <span className="mmrow__end">
+        {withDistance ? (
+          <span className={`mknb-dist${dist.known ? "" : " mknb-dist--none"}`} title={dist.known ? precText : undefined}>
+            <IconMapPin aria-hidden="true" />
+            <span aria-hidden="true">{dist.text}</span>
+            <span className="sr-only">{dist.aria}</span>
+          </span>
+        ) : price ? (
+          <b className="mmrow__price">{price}</b>
+        ) : null}
+        {id && onSelect ? <IconChevronRight className="mmrow__go" aria-hidden="true" /> : null}
+      </span>
+    </>
+  );
+
+  return (
+    <li
+      className={`mmrow${selected ? " is-on" : ""}`}
+      style={{ "--i": Math.min(index, 14) } as CSSProperties}
+      data-ai-id={rowAi}
+      data-ai-type="list_item"
+      data-ai-entity-type="seller"
+      data-ai-entity-id={id || undefined}
+    >
+      {id && onSelect ? (
+        <button type="button" className="mmrow__btn" aria-pressed={selected} onClick={() => onSelect(id)} data-seller={id} data-ai-id={`${rowAi}.open`}>
+          {body}
+        </button>
+      ) : (
+        <div className="mmrow__btn mmrow__btn--static">{body}</div>
+      )}
     </li>
   );
 }

@@ -95,7 +95,31 @@ export function installYmapsStub(): void {
     paint() {
       this.wrap.innerHTML = render(this.options.get(this.layoutKey()), this.properties);
     }
-    geometry = { getCoordinates: () => this.coords };
+    geometry = {
+      getCoordinates: () => this.coords,
+      setCoordinates: (c: LatLng) => {
+        this.coords = c;
+        live.map?.place(this);
+      },
+    };
+  }
+  class Polyline {
+    coords: LatLng[];
+    properties: DataManager;
+    options: DataManager;
+    events = new EventManager();
+    constructor(coords: LatLng[], props?: Props, options?: Props) {
+      this.coords = coords;
+      this.properties = new DataManager(props);
+      this.options = new DataManager(options);
+    }
+    geometry = {
+      getCoordinates: () => this.coords,
+      setCoordinates: (c: LatLng[]) => {
+        this.coords = c;
+        live.map?.drawLines();
+      },
+    };
   }
   class Cluster extends Placemark {
     objects: Placemark[];
@@ -165,14 +189,14 @@ export function installYmapsStub(): void {
     }
   }
   class Collection {
-    items: (Placemark | Clusterer)[] = [];
+    items: (Placemark | Clusterer | Polyline)[] = [];
     constructor(private map: StubMap) {}
-    add(o: Placemark | Clusterer) {
+    add(o: Placemark | Clusterer | Polyline) {
       this.items.push(o);
       this.map.redraw();
       return this;
     }
-    remove(o: Placemark | Clusterer) {
+    remove(o: Placemark | Clusterer | Polyline) {
       this.items = this.items.filter((x) => x !== o);
       this.map.redraw();
       return this;
@@ -181,6 +205,7 @@ export function installYmapsStub(): void {
   class StubMap {
     root: HTMLElement;
     ground: HTMLDivElement;
+    lines: HTMLDivElement;
     places: HTMLDivElement;
     hits: HTMLDivElement;
     center: LatLng;
@@ -203,8 +228,9 @@ export function installYmapsStub(): void {
         return el;
       };
       this.ground = layer("ymaps-stub-ground", 1);
-      this.places = layer("ymaps-stub-places", 2);
-      this.hits = layer("ymaps-stub-events", 3);
+      this.lines = layer("ymaps-stub-lines", 2);
+      this.places = layer("ymaps-stub-places", 3);
+      this.hits = layer("ymaps-stub-events", 4);
       this.paint();
       live.map = this;
       this.hits.addEventListener("click", (e) => {
@@ -295,11 +321,48 @@ export function installYmapsStub(): void {
       };
       for (const o of this.geoObjects.items) {
         if (o instanceof Clusterer) o.layout(this).forEach(put);
-        else put(o);
+        else if (o instanceof Placemark) put(o);
       }
+      this.drawLines();
+    }
+    toScreen(c: LatLng): [number, number] {
+      const [w, h] = this.size();
+      const [cx, cy] = project(this.center, this.zoom);
+      const [px, py] = project(c, this.zoom);
+      return [px - cx + w / 2, py - cy + h / 2];
+    }
+    place(p: Placemark) {
+      const d = this.drawn.find((x) => x.geo === p);
+      if (!d) return;
+      [d.x, d.y] = this.toScreen(p.coords);
+      p.wrap.style.left = `${d.x}px`;
+      p.wrap.style.top = `${d.y}px`;
+    }
+    drawLines() {
+      const ns = "http://www.w3.org/2000/svg";
+      const [w, h] = this.size();
+      const svg = document.createElementNS(ns, "svg");
+      svg.setAttribute("width", String(w));
+      svg.setAttribute("height", String(h));
+      svg.style.cssText = "position:absolute;inset:0;overflow:visible";
+      for (const o of this.geoObjects.items) {
+        if (!(o instanceof Polyline)) continue;
+        const line = document.createElementNS(ns, "polyline");
+        line.setAttribute("class", "ymaps-stub-line");
+        line.setAttribute("points", o.coords.map((c) => this.toScreen(c).join(",")).join(" "));
+        line.setAttribute("fill", "none");
+        line.setAttribute("stroke", String(o.options.get("strokeColor", "#000000")));
+        line.setAttribute("stroke-width", String(o.options.get("strokeWidth", 1)));
+        line.setAttribute("stroke-opacity", String(o.options.get("strokeOpacity", 1)));
+        if (String(o.options.get("strokeStyle", "solid")) !== "solid") line.setAttribute("stroke-dasharray", "8 6");
+        line.dataset.style = String(o.options.get("strokeStyle", "solid"));
+        svg.appendChild(line);
+      }
+      this.lines.replaceChildren(svg);
     }
     destroy() {
       this.ground.remove();
+      this.lines.remove();
       this.places.remove();
       this.hits.remove();
       if (live.map === this) live.map = null;
@@ -317,6 +380,7 @@ export function installYmapsStub(): void {
     meta: { coordinatesOrder: "latlong" },
     Map: StubMap,
     Placemark,
+    Polyline,
     Clusterer,
     templateLayoutFactory,
   };
