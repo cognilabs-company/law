@@ -206,6 +206,12 @@ function subscribeMobile(cb: () => void) {
 // The overview (/admin) matches only itself; other items also cover their
 // sub-pages. A prefix match on /admin would let any page through by URL.
 const EXACT_NAV = new Set(["/admin/call-center"]);
+const ROLE_HIDES: readonly { role: string; unless: readonly string[]; hrefs: readonly string[] }[] = [
+  { role: "call_center_lawyer", unless: ["superadmin", "admin", "manager", "call_center"], hrefs: ["/admin/crm", "/admin/call-center", "/admin/call-center/support", "/admin/remote-assistance"] },
+  { role: "sales_operator", unless: ["superadmin", "admin", "manager", "sales_head"], hrefs: ["/admin/marketplace"] },
+];
+const hiddenForRoles = (href: string, roles: readonly string[]) =>
+  ROLE_HIDES.some((r) => roles.includes(r.role) && !r.unless.some((u) => roles.includes(u)) && r.hrefs.includes(href));
 const onItem = (pathname: string, n: NavItem) =>
   n.href === "/admin" || EXACT_NAV.has(n.href) ? pathname === n.href : pathname === n.href || pathname.startsWith(n.href + "/");
 // Most senior role first; the badge shows the first one the account has.
@@ -281,7 +287,8 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   // role on a session stored before permissions were saved) — call-center
   // operators run video meetings from here.
   const canSee = (n: NavItem) =>
-    n.key === "profile"
+    !hiddenForRoles(n.href, roles) &&
+    (n.key === "profile"
       ? true
       : n.key === "supportTickets"
         ? isCallCenterUser(session)
@@ -295,7 +302,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         ? true
         : n.perm
           ? isSuper || (Array.isArray(n.perm) ? n.perm : [n.perm]).some((p) => perms.includes(p))
-          : isFullAdmin;
+          : isFullAdmin);
   const visibleNav = NAV.filter(canSee);
   const q = query.trim();
   const matches = (n: NavItem) => !q || fuzzyContains(q, t(`nav.${n.key}`));
