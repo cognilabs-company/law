@@ -53,6 +53,7 @@ import { startCcShift } from "@/lib/callcenter/ccOperator";
 import { useCcOpen } from "@/lib/callcenter/useCcOpen";
 import { CCX_NAV_HREF, CCX_PROFILE_HREF, ccxRouteFor } from "@/lib/ccx/routes";
 import { useRoleNav } from "@/components/RoleNavHost";
+import CcxViewLoading from "../ccx/ViewLoading";
 
 const AiSystemAssistant = dynamic(() => import("../portal/AiSystemAssistant"), { ssr: false });
 const CcxShell = dynamic(() => import("../ccx/CcxShell"), { ssr: false, loading: () => <div className="portal portal--redirect" aria-busy="true"><span className="rf__spinner" /></div> });
@@ -382,7 +383,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         onLogout={logout}
         extra={<AiSystemAssistant open={aiOpen} onOpen={() => setAiOpen(true)} onClose={() => setAiOpen(false)} role="client" guideRole="staff" launcher="always" />}
       >
-        {ccLegacy ? <div className="opx-route-wait" aria-busy="true" /> : children}
+        {ccLegacy ? <CcxViewLoading /> : children}
       </CcxShell>
     );
   }

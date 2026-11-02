@@ -1,8 +1,7 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
 import { useAuth, isCallCenterUser, sessionRoles } from "@/lib/auth";
 import CallCenterQueue from "@/components/admin/CallCenterQueue";
 import UrgentAdvocateQueue from "@/components/admin/UrgentAdvocateQueue";
@@ -21,17 +20,46 @@ import CcClientSearch from "@/components/admin/CcClientSearch";
 import CcCallLog from "@/components/admin/CcCallLog";
 import CallCenterConsole, { CcTabPanel, REVIEW_PERMISSION, useCcConsole } from "@/components/admin/CallCenterConsole";
 import MarketWatcher from "@/components/marketplace/MarketWatcher";
+import { lazyView } from "@/components/ccx/lazyView";
 
-const CcxNow = dynamic(() => import("@/components/ccx/now/CcxNow"), { ssr: false });
-const CcxQueues = dynamic(() => import("@/components/ccx/queues/CcxQueues"), { ssr: false });
-const CcxUrgent = dynamic(() => import("@/components/ccx/urgent/CcxUrgent"), { ssr: false });
-const CcxClients = dynamic(() => import("@/components/ccx/clients/CcxClients"), { ssr: false });
-const CcxCrm = dynamic(() => import("@/components/ccx/crm/CcxCrm"), { ssr: false });
-const CcxSupport = dynamic(() => import("@/components/ccx/support/CcxSupport"), { ssr: false });
-const CcxMeetings = dynamic(() => import("@/components/ccx/meetings/CcxMeetings"), { ssr: false });
-const CcxTasks = dynamic(() => import("@/components/ccx/tasks/CcxTasks"), { ssr: false });
-const CcxAnalytics = dynamic(() => import("@/components/ccx/analytics/CcxAnalytics"), { ssr: false });
-const CcxProfile = dynamic(() => import("@/components/ccx/profile/CcxProfile"), { ssr: false });
+const NOW = lazyView(() => import("@/components/ccx/now/CcxNow"));
+const QUEUES = lazyView(() => import("@/components/ccx/queues/CcxQueues"));
+const URGENT = lazyView(() => import("@/components/ccx/urgent/CcxUrgent"));
+const CLIENTS = lazyView(() => import("@/components/ccx/clients/CcxClients"));
+const CRM = lazyView(() => import("@/components/ccx/crm/CcxCrm"));
+const SUPPORT = lazyView(() => import("@/components/ccx/support/CcxSupport"));
+const MEETINGS = lazyView(() => import("@/components/ccx/meetings/CcxMeetings"));
+const TASKS = lazyView(() => import("@/components/ccx/tasks/CcxTasks"));
+const ANALYTICS = lazyView(() => import("@/components/ccx/analytics/CcxAnalytics"));
+const PROFILE = lazyView(() => import("@/components/ccx/profile/CcxProfile"));
+
+const CcxNow = NOW.View;
+const CcxQueues = QUEUES.View;
+const CcxUrgent = URGENT.View;
+const CcxClients = CLIENTS.View;
+const CcxCrm = CRM.View;
+const CcxSupport = SUPPORT.View;
+const CcxMeetings = MEETINGS.View;
+const CcxTasks = TASKS.View;
+const CcxAnalytics = ANALYTICS.View;
+const CcxProfile = PROFILE.View;
+
+const PRELOAD = [NOW, QUEUES, URGENT, CLIENTS, CRM, SUPPORT, MEETINGS, TASKS, ANALYTICS, PROFILE];
+
+function usePreloadViews(on: boolean) {
+  useEffect(() => {
+    if (!on) return;
+    const run = () => {
+      for (const v of PRELOAD) v.preload().catch(() => undefined);
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(run, { timeout: 4000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const id = window.setTimeout(run, 2500);
+    return () => window.clearTimeout(id);
+  }, [on]);
+}
 
 // Call-center console (T4-01/T4-02): queue (call-center staff), lead board,
 // client lookup with the 360 card, and the call log. The backend limits the
@@ -119,6 +147,7 @@ function AdminCallCenterPage() {
   const params = useSearchParams();
   const roles = sessionRoles(session);
   const operator = isCallCenterUser(session) && !roles.includes("superadmin") && !roles.includes("admin");
+  usePreloadViews(operator);
   if (!operator) return <AdminCallCenterConsole />;
   const tab = params.get("tab") ?? "";
   if (tab === "urgent") return <CcxUrgent />;

@@ -845,6 +845,7 @@ html[data-opx-theme="light"] .opx-pbtn--call {
   display: grid;
   gap: 12px;
   padding: 20px;
+  animation: opx-in 0.25s ease 0.15s both;
 }
 
 .opx-pload .opx-shim {

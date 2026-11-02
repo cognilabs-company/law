@@ -1,7 +1,7 @@
 "use client";
 
 import "./crm.css";
-import dynamic from "next/dynamic";
+import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
@@ -11,22 +11,35 @@ import { CcxEmblem, IcRefresh } from "../icons";
 import { Loading } from "../panel/bits";
 import { CRM_VIEWS, crmHref, type CrmSectionProps, type CrmView } from "./nav";
 import CrmLive from "./CrmLive";
+import { lazyView } from "../lazyView";
 import type { ComponentType } from "react";
 
 const wait = () => <Loading label="" />;
 
+const OVERVIEW = lazyView(() => import("./sections/CrmOverviewX"), wait);
+const LEADS = lazyView(() => import("./sections/CrmLeadsX"), wait);
+const CUSTOMERS = lazyView(() => import("./sections/CrmCustomersX"), wait);
+const CALLS = lazyView(() => import("./sections/CrmCallsX"), wait);
+const PERFORMANCE = lazyView(() => import("./sections/CrmPerformanceX"), wait);
+const TEMPLATES = lazyView(() => import("./sections/CrmTemplatesX"), wait);
+const SMS = lazyView(() => import("./sections/CrmSmsX"), wait);
+const LEAD = lazyView(() => import("./sections/CrmLeadX"), wait);
+const CUSTOMER = lazyView(() => import("./sections/CrmCustomerX"), wait);
+
 const SECTIONS: Record<CrmView, ComponentType<CrmSectionProps>> = {
-  overview: dynamic(() => import("./sections/CrmOverviewX"), { ssr: false, loading: wait }),
-  leads: dynamic(() => import("./sections/CrmLeadsX"), { ssr: false, loading: wait }),
-  customers: dynamic(() => import("./sections/CrmCustomersX"), { ssr: false, loading: wait }),
-  calls: dynamic(() => import("./sections/CrmCallsX"), { ssr: false, loading: wait }),
-  performance: dynamic(() => import("./sections/CrmPerformanceX"), { ssr: false, loading: wait }),
-  templates: dynamic(() => import("./sections/CrmTemplatesX"), { ssr: false, loading: wait }),
-  sms: dynamic(() => import("./sections/CrmSmsX"), { ssr: false, loading: wait }),
+  overview: OVERVIEW.View,
+  leads: LEADS.View,
+  customers: CUSTOMERS.View,
+  calls: CALLS.View,
+  performance: PERFORMANCE.View,
+  templates: TEMPLATES.View,
+  sms: SMS.View,
 };
 
-const LeadPage = dynamic(() => import("./sections/CrmLeadX"), { ssr: false, loading: wait });
-const CustomerPage = dynamic(() => import("./sections/CrmCustomerX"), { ssr: false, loading: wait });
+const LeadPage = LEAD.View;
+const CustomerPage = CUSTOMER.View;
+
+const PRELOAD = [OVERVIEW, LEADS, CUSTOMERS, CALLS, PERFORMANCE, TEMPLATES, SMS, LEAD, CUSTOMER];
 
 const KEY: Record<CrmView, CrmSectionKey> = { overview: "overview", leads: "leads", customers: "customers", calls: "calls", performance: "performance", templates: "templates", sms: "sms" };
 
@@ -38,6 +51,13 @@ export default function CcxCrm() {
   const asked = (params.get("s") ?? (params.get("tab") === "leads" ? "leads" : null)) as CrmView | null;
   const lead = params.get("lead") ?? "";
   const customer = params.get("customer") ?? "";
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      for (const v of PRELOAD) v.preload().catch(() => undefined);
+    }, 600);
+    return () => window.clearTimeout(id);
+  }, []);
 
   if (!meta) {
     if (error) {
