@@ -1,0 +1,431 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { dateOnly, shortDateTime, timeOnly } from "@/lib/date";
+import { isAborted, logApiError } from "@/lib/http";
+import { toast } from "@/lib/toast";
+import { addLeadActivity, getLeadTimeline, leadCan, listCrmTemplates, updateCrmLead, type CrmActivity, type CrmContact, type CrmLead, type CrmMeta, type CrmTemplate } from "@/lib/services/crm";
+import { IcLayers, IcMeeting, IcPhone, IcRefresh, IcTimeline } from "../../icons";
+import { hasReadable, PayloadList } from "./detailList";
+import { IcBell, IcChat, IcClip, IcEdit, IcHistory, IcSend } from "./glyphs";
+import { CallsPane } from "./leadCalls";
+import type { LeadHistoryState } from "./leadCards";
+import { SmsPane } from "./leadSms";
+import { Card, DateTimeInput, Empty, Failed, Pill, Shim, StatusChip, StatusGlyph, fromLocal, inHours } from "./kit";
+import type { LeadWrite } from "./types";
+import { useCrmErr } from "../leads/util";
+
+export type Pane = "timeline" | "history" | "calls" | "sms";
+export const PANES: Pane[] = ["timeline", "history", "calls", "sms"];
+
+const WRITABLE = ["call_note", "note", "message", "meeting", "follow_up", "document"] as const;
+type Writable = (typeof WRITABLE)[number];
+
+export function TypeGlyph({ type, size = 16 }: { type: string; size?: number }) {
+  switch (type) {
+    case "call_note":
+      return <IcPhone size={size} />;
+    case "note":
+      return <IcChat size={size} />;
+    case "message":
+      return <IcSend size={size} />;
+    case "meeting":
+      return <IcMeeting size={size} />;
+    case "follow_up":
+      return <IcBell size={size} />;
+    case "document":
+      return <IcClip size={size} />;
+    default:
+      return <IcLayers size={size} />;
+  }
+}
+
+function PaneGlyph({ pane }: { pane: Pane }) {
+  if (pane === "timeline") return <IcTimeline size={16} />;
+  if (pane === "history") return <IcRefresh size={16} />;
+  if (pane === "calls") return <IcPhone size={16} />;
+  return <IcChat size={16} />;
+}
+
+export function ActivityList({ items, empty }: { items: CrmActivity[]; empty?: string }) {
+  const t = useTranslations("crm.tl");
+  const locale = useLocale();
+  if (!items.length) return <Empty icon={<IcHistory size={22} />} title={empty ?? t("empty")} />;
+  const out: ReactElement[] = [];
+  let day = "";
+  for (const a of [...items].reverse()) {
+    const d = a.createdAt ? dateOnly(a.createdAt, locale) : "";
+    if (d && d !== day) {
+      day = d;
+      out.push(
+        <li key={`d-${d}`} className="opx-cd-act__day" role="separator">
+          <span>{d}</span>
+        </li>,
+      );
+    }
+    const who = a.actor?.name || (a.type === "system" || !a.actorId ? t("system") : t("someone"));
+    out.push(
+      <li key={a.id || `${a.createdAt}-${a.type}`} className="opx-cd-act" data-t={a.type}>
+        <span className="opx-cd-act__ic" aria-hidden="true">
+          <TypeGlyph type={a.type} />
+        </span>
+        <article>
+          <header>
+            <b>{a.title || (t.has(`type.${a.type}`) ? t(`type.${a.type}`) : a.type)}</b>
+            <small>
+              {who}
+              <i aria-hidden="true">·</i>
+              <time className="opx-num" dateTime={a.createdAt}>
+                {a.createdAt ? timeOnly(a.createdAt, locale) : ""}
+              </time>
+            </small>
+          </header>
+          {a.body ? <p>{a.body}</p> : null}
+          {hasReadable(a.payload) ? (
+            <details className="opx-cd-act__more">
+              <summary>{t("payload")}</summary>
+              <PayloadList payload={a.payload} />
+            </details>
+          ) : null}
+        </article>
+      </li>,
+    );
+  }
+  return (
+    <ol className="opx-cd-acts" aria-label={t("label")}>
+      {out}
+    </ol>
+  );
+}
+
+export function FeedCard({
+  meta,
+  lead,
+  write,
+  pane,
+  onPane,
+  refreshKey,
+  onAdded,
+  callFocus,
+  history,
+  phones,
+  smsPreset,
+  onPresetUsed,
+}: {
+  meta: CrmMeta;
+  lead: CrmLead;
+  write: LeadWrite;
+  pane: Pane;
+  onPane: (p: Pane) => void;
+  refreshKey: number;
+  onAdded: () => void;
+  callFocus: number;
+  history: LeadHistoryState;
+  phones: CrmContact[] | null;
+  smsPreset: string;
+  onPresetUsed: () => void;
+}) {
+  const t = useTranslations("crm.lead");
+  const tx = useTranslations("admin.ccx.crmDetail");
+  return (
+    <Card icon={<IcTimeline size={17} />} title={tx("activity")} className="opx-cd-feed">
+      <div className="opx-cd-tabs" role="tablist" aria-label={t("panes")}>
+        {PANES.map((k) => (
+          <button key={k} type="button" role="tab" aria-selected={pane === k} onClick={() => onPane(k)}>
+            <PaneGlyph pane={k} />
+            {t(`pane.${k}`, { n: lead.cycleNumber })}
+          </button>
+        ))}
+      </div>
+      <div className="opx-cd-feed__body" role="tabpanel">
+        {pane === "timeline" ? (
+          <TimelinePane lead={lead} write={write} refreshKey={refreshKey} onAdded={onAdded} callFocus={callFocus} />
+        ) : pane === "history" ? (
+          <CyclesPane meta={meta} history={history} />
+        ) : pane === "calls" ? (
+          <CallsPane meta={meta} lead={lead} phones={phones} />
+        ) : (
+          <SmsPane meta={meta} lead={lead} phones={phones} preset={smsPreset} onPresetUsed={onPresetUsed} />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function TimelinePane({ lead, write, refreshKey, onAdded, callFocus }: { lead: CrmLead; write: LeadWrite; refreshKey: number; onAdded: () => void; callFocus: number }) {
+  const t = useTranslations("crm.tl");
+  const crmErr = useCrmErr();
+  const [items, setItems] = useState<CrmActivity[] | null>(null);
+  const [err, setErr] = useState("");
+  const canView = leadCan(lead, "view_timeline");
+  useEffect(() => {
+    if (!canView) return;
+    const ctl = new AbortController();
+    getLeadTimeline(lead.id, ctl.signal).then(
+      (x) => {
+        setItems(x);
+        setErr("");
+      },
+      (e) => {
+        if (isAborted(e)) return;
+        logApiError("crm.timeline", e);
+        setErr(crmErr(e));
+        setItems((cur) => cur ?? []);
+      },
+    );
+    return () => ctl.abort();
+  }, [lead.id, refreshKey, canView, crmErr]);
+  return (
+    <>
+      {leadCan(lead, "add_activity") ? <Composer lead={lead} write={write} onAdded={onAdded} callFocus={callFocus} /> : null}
+      {!canView ? (
+        <p className="opx-cd-sub">{t("noAccess")}</p>
+      ) : items === null ? (
+        <>
+          <Shim />
+          <Shim />
+        </>
+      ) : (
+        <>
+          {err ? <p className="opx-cd-err">{err}</p> : null}
+          <ActivityList items={items} />
+        </>
+      )}
+    </>
+  );
+}
+
+function Composer({ lead, write, onAdded, callFocus }: { lead: CrmLead; write: LeadWrite; onAdded: () => void; callFocus: number }) {
+  const t = useTranslations("crm.tl");
+  const crmErr = useCrmErr();
+  const [type, setType] = useState<Writable>("call_note");
+  const [title, setTitle] = useState("");
+  const [withTitle, setWithTitle] = useState(false);
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [slash, setSlash] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<CrmTemplate[] | null>(null);
+  const [sel, setSel] = useState(0);
+  const [remindAt, setRemindAt] = useState("");
+  const [chip, setChip] = useState<number | null>(null);
+  const canRemind = type === "follow_up" && leadCan(lead, "set_next_action");
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const slashOpen = slash !== null;
+  useEffect(() => {
+    if (!callFocus) return;
+    const id = window.setTimeout(() => {
+      setType("call_note");
+      boxRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+      ref.current?.focus({ preventScroll: true });
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [callFocus]);
+  useEffect(() => {
+    if (!slashOpen || templates) return;
+    const ctl = new AbortController();
+    listCrmTemplates({}, ctl.signal).then(setTemplates, (e) => {
+      if (isAborted(e)) return;
+      logApiError("crm.templates", e);
+      setTemplates([]);
+    });
+    return () => ctl.abort();
+  }, [slashOpen, templates]);
+  const matches = useMemo(() => {
+    const q = (slash ?? "").toLowerCase();
+    return (templates ?? []).filter((x) => x.status !== "archived" && (!q || x.title.toLowerCase().includes(q) || x.content.toLowerCase().includes(q))).slice(0, 8);
+  }, [slash, templates]);
+  const pickTemplate = (tpl: CrmTemplate) => {
+    setBody((cur) => cur.replace(/(^|\s)\/[^\s]*$/, "$1") + tpl.content);
+    if (!title) setTitle(tpl.title);
+    setSlash(null);
+    ref.current?.focus();
+  };
+  const onChange = (v: string) => {
+    setBody(v);
+    const m = /(^|\s)\/([^\s]*)$/.exec(v);
+    setSlash(m ? m[2] : null);
+    setSel(0);
+  };
+  const add = async () => {
+    if (!body.trim() || busy) return;
+    setBusy(true);
+    try {
+      const at = canRemind ? fromLocal(remindAt) : "";
+      if (at && !(await write((l) => updateCrmLead(l, { nextActionAt: at })))) return;
+      await addLeadActivity(lead.id, { type, title, body, payload: at ? { remind_at: at } : undefined });
+      setBody("");
+      setTitle("");
+      setWithTitle(false);
+      setRemindAt("");
+      setChip(null);
+      toast(at ? t("addedReminder") : t("added"), { tone: "ok" });
+      onAdded();
+    } catch (e) {
+      toast(crmErr(e), { tone: "err" });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="opx-cd-comp" ref={boxRef}>
+      <div className="opx-cd-comp__types" role="group" aria-label={t("typeLabel")}>
+        {WRITABLE.map((k) => (
+          <button key={k} type="button" aria-pressed={type === k} onClick={() => setType(k)}>
+            <TypeGlyph type={k} size={15} />
+            {t(`type.${k}`)}
+          </button>
+        ))}
+      </div>
+      <div className="opx-cd-comp__grid">
+        <div className="opx-cd-comp__main">
+          {withTitle || title ? (
+            <input className="opx-cd-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} aria-label={t("titlePh")} autoFocus={!title} />
+          ) : (
+            <button type="button" className="opx-cd-comp__addtitle" onClick={() => setWithTitle(true)}>
+              {t("addTitle")}
+            </button>
+          )}
+          <div className="opx-cd-comp__box">
+            <textarea
+              ref={ref}
+              className="opx-cd-input opx-cd-comp__text"
+              value={body}
+              rows={3}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder={t("bodyPh")}
+              aria-label={t("bodyPh")}
+              onKeyDown={(e) => {
+                if (slash !== null && matches.length) {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setSel((s) => Math.min(matches.length - 1, s + 1));
+                    return;
+                  }
+                  if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setSel((s) => Math.max(0, s - 1));
+                    return;
+                  }
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    pickTemplate(matches[sel]);
+                    return;
+                  }
+                  if (e.key === "Escape") {
+                    setSlash(null);
+                    return;
+                  }
+                }
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  void add();
+                }
+              }}
+            />
+            {slash !== null ? (
+              <div className="opx-cd-slash" role="listbox" aria-label={t("templates")}>
+                {templates === null ? (
+                  <Shim h={40} />
+                ) : matches.length ? (
+                  matches.map((m, i) => (
+                    <button key={m.id} type="button" role="option" aria-selected={i === sel} onMouseDown={(e) => e.preventDefault()} onClick={() => pickTemplate(m)}>
+                      <b>{m.title}</b>
+                      <small>{m.content}</small>
+                    </button>
+                  ))
+                ) : (
+                  <small className="opx-cd-sub">{t("noTemplates")}</small>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+        <div className="opx-cd-comp__side">
+          {canRemind ? (
+            <div className="opx-cd-remind" role="group" aria-label={t("remindLabel")}>
+              <div className="opx-cd-chips">
+                {[1, 3, 24, 72].map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    className="opx-cd-chip"
+                    aria-pressed={chip === h}
+                    onClick={() => {
+                      setRemindAt(inHours(h));
+                      setChip(h);
+                    }}
+                  >
+                    {t("remindIn", { n: h })}
+                  </button>
+                ))}
+              </div>
+              <DateTimeInput
+                label={t("remindLabel")}
+                value={remindAt}
+                onChange={(v) => {
+                  setRemindAt(v);
+                  setChip(null);
+                }}
+                hint={t("remindHint")}
+              />
+            </div>
+          ) : null}
+          <button type="button" className="opx-pbtn opx-pbtn--main" onClick={() => void add()} disabled={!body.trim() || busy} aria-busy={busy || undefined}>
+            <IcEdit size={16} />
+            {t("add")}
+          </button>
+          <span className="opx-cd-hint">{t.rich("composerHint", { k: (c) => <kbd>{c}</kbd> })}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CyclesPane({ meta, history }: { meta: CrmMeta; history: LeadHistoryState }) {
+  const t = useTranslations("crm.history");
+  const tsrc = useTranslations("crm.source");
+  const locale = useLocale();
+  const { h, err, load } = history;
+  if (!h && err) return <Failed text={err} retry={t("retry")} onRetry={() => void load()} />;
+  if (!h)
+    return (
+      <>
+        <Shim h={90} />
+        <Shim h={120} />
+      </>
+    );
+  return (
+    <>
+      {err ? <p className="opx-cd-err">{err}</p> : null}
+      {h.cycles.length ? (
+        <ol className="opx-cd-cycles">
+          {h.cycles.map((c) => {
+            const current = c.id === h.currentCycleId;
+            const end = c.terminalStatus;
+            return (
+              <li key={c.id} data-current={current || undefined}>
+                <span className="opx-cd-cycles__ic" aria-hidden="true">
+                  {end ? <StatusGlyph status={end} /> : <IcHistory size={16} />}
+                </span>
+                <span className="opx-cd-cycles__txt">
+                  <b>
+                    {t("cycleN", { n: c.sequence })}
+                    {current ? <Pill tone="info">{t("current")}</Pill> : null}
+                  </b>
+                  <small>{[c.source ? (tsrc.has(c.source) ? tsrc(c.source) : tsrc("other")) : "", c.openedAt ? t("opened", { at: shortDateTime(c.openedAt, locale) }) : "", c.closedAt ? t("closed", { at: shortDateTime(c.closedAt, locale) }) : ""].filter(Boolean).join(" · ")}</small>
+                  {c.inquiry ? <p>{c.inquiry}</p> : null}
+                  {c.reason ? <small className="opx-cd-mute">{t("reason", { text: c.reason })}</small> : null}
+                </span>
+                {end ? <StatusChip meta={meta} status={end} /> : <Pill tone="ok">{t("open")}</Pill>}
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <Empty icon={<IcRefresh size={22} />} title={t("noCycles")} />
+      )}
+    </>
+  );
+}

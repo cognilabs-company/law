@@ -1,7 +1,9 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useAuth, isCallCenterUser } from "@/lib/auth";
+import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
+import { useAuth, isCallCenterUser, sessionRoles } from "@/lib/auth";
 import CallCenterQueue from "@/components/admin/CallCenterQueue";
 import UrgentAdvocateQueue from "@/components/admin/UrgentAdvocateQueue";
 import QualityComplaints from "@/components/admin/QualityComplaints";
@@ -19,6 +21,17 @@ import CcClientSearch from "@/components/admin/CcClientSearch";
 import CcCallLog from "@/components/admin/CcCallLog";
 import CallCenterConsole, { CcTabPanel, REVIEW_PERMISSION, useCcConsole } from "@/components/admin/CallCenterConsole";
 import MarketWatcher from "@/components/marketplace/MarketWatcher";
+
+const CcxNow = dynamic(() => import("@/components/ccx/now/CcxNow"), { ssr: false });
+const CcxQueues = dynamic(() => import("@/components/ccx/queues/CcxQueues"), { ssr: false });
+const CcxUrgent = dynamic(() => import("@/components/ccx/urgent/CcxUrgent"), { ssr: false });
+const CcxClients = dynamic(() => import("@/components/ccx/clients/CcxClients"), { ssr: false });
+const CcxCrm = dynamic(() => import("@/components/ccx/crm/CcxCrm"), { ssr: false });
+const CcxSupport = dynamic(() => import("@/components/ccx/support/CcxSupport"), { ssr: false });
+const CcxMeetings = dynamic(() => import("@/components/ccx/meetings/CcxMeetings"), { ssr: false });
+const CcxTasks = dynamic(() => import("@/components/ccx/tasks/CcxTasks"), { ssr: false });
+const CcxAnalytics = dynamic(() => import("@/components/ccx/analytics/CcxAnalytics"), { ssr: false });
+const CcxProfile = dynamic(() => import("@/components/ccx/profile/CcxProfile"), { ssr: false });
 
 // Call-center console (T4-01/T4-02): queue (call-center staff), lead board,
 // client lookup with the 360 card, and the call log. The backend limits the
@@ -101,10 +114,45 @@ function AdminCallCenterConsole() {
   );
 }
 
+function AdminCallCenterPage() {
+  const { session } = useAuth();
+  const params = useSearchParams();
+  const roles = sessionRoles(session);
+  const operator = isCallCenterUser(session) && !roles.includes("superadmin") && !roles.includes("admin");
+  if (!operator) return <AdminCallCenterConsole />;
+  const tab = params.get("tab") ?? "";
+  if (tab === "urgent") return <CcxUrgent />;
+  if (tab === "clients") return <CcxClients />;
+  if (tab === "leads") return <CcxCrm />;
+  if (tab && tab !== "queue" && tab !== "cockpit") return <CcxQueues />;
+  switch (params.get("view")) {
+    case "queues":
+      return <CcxQueues />;
+    case "urgent":
+      return <CcxUrgent />;
+    case "clients":
+      return <CcxClients />;
+    case "crm":
+      return <CcxCrm />;
+    case "support":
+      return <CcxSupport />;
+    case "meetings":
+      return <CcxMeetings />;
+    case "tasks":
+      return <CcxTasks />;
+    case "analytics":
+      return <CcxAnalytics />;
+    case "profile":
+      return <CcxProfile />;
+    default:
+      return <CcxNow />;
+  }
+}
+
 export default function AdminCallCenter() {
   return (
     <Suspense fallback={null}>
-      <AdminCallCenterConsole />
+      <AdminCallCenterPage />
     </Suspense>
   );
 }

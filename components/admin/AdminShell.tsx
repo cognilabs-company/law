@@ -49,11 +49,12 @@ import {
   NavChevron,
 } from "./navIcons";
 import { IconLogo, IconGrid, IconLogout, IconMenu, IconClose, IconSearch } from "../icons";
-import CcStatusMenu from "./callcenter/CcStatusMenu";
 import { startCcShift } from "@/lib/callcenter/ccOperator";
 import { useCcOpen } from "@/lib/callcenter/useCcOpen";
+import { CCX_NAV_HREF, CCX_PROFILE_HREF, ccxRouteFor } from "@/lib/ccx/routes";
 
 const AiSystemAssistant = dynamic(() => import("../portal/AiSystemAssistant"), { ssr: false });
+const CcxShell = dynamic(() => import("../ccx/CcxShell"), { ssr: false, loading: () => <div className="portal portal--redirect" aria-busy="true"><span className="rf__spinner" /></div> });
 
 type SvgC = ComponentType<{ className?: string }>;
 // b2b.manage is checked for the nav item only; it doesn't grant admin access on its own.
@@ -281,6 +282,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (ccOperator) startCcShift();
   }, [ccOperator]);
+  const ccLegacy = ccOperator ? ccxRouteFor(pathname, "") : null;
+  useEffect(() => {
+    if (!ccOperator) return;
+    const next = ccxRouteFor(pathname, window.location.search);
+    if (next) router.replace(next);
+  }, [ccOperator, pathname, router]);
   // Test OTP is a staging tool: hidden where the backend's demo routes are off (T0-01).
   const demoTools = useDemoTools(isFullAdmin);
   // Meetings: anyone who may start calls (meetings.manage, or a call-center
@@ -353,6 +360,28 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const badgeKey = BADGE_ORDER.find((r) => roles.includes(r));
   const roleBadge = badgeKey && t.has(`roleBadges.${badgeKey}`) ? t(`roleBadges.${badgeKey}`) : t("badge");
   const profileHref = staffSession ? "/admin/profile" : `/portal/${role}/profile`;
+
+  if (ccOperator) {
+    const dock = visibleNav.filter((n) => !n.hidden);
+    const dockActive = active ? (active.hidden ? dock.find((n) => n.key === active.key)?.href ?? "" : active.href) : "";
+    return (
+      <CcxShell
+        nav={dock.map((n) => ({ href: CCX_NAV_HREF[n.key] ?? n.href, key: n.key }))}
+        activeHref={dockActive}
+        title={title}
+        openCount={ccOpen}
+        userId={session?.id ?? ""}
+        name={session?.name ?? ""}
+        roleBadge={roleBadge}
+        profileHref={staffSession ? CCX_PROFILE_HREF : profileHref}
+        hrm={hasInternalAccess(session)}
+        onLogout={logout}
+        extra={<AiSystemAssistant open={aiOpen} onOpen={() => setAiOpen(true)} onClose={() => setAiOpen(false)} role="client" guideRole="staff" launcher="always" />}
+      >
+        {ccLegacy ? <div className="opx-route-wait" aria-busy="true" /> : children}
+      </CcxShell>
+    );
+  }
 
   return (
     <div className="portal portal--admin">
@@ -457,7 +486,6 @@ export default function AdminShell({ children }: { children: ReactNode }) {
             {open ? <IconClose /> : <IconMenu />}
           </button>
           <h1 data-ai-target="ai-help:current-page">{title}</h1>
-          {ccOperator ? <CcStatusMenu open={ccOpen} /> : null}
           <div className="ptop__sp">
             {/* HRM is a workspace of its own, so its door sits up here
                 rather than among the admin pages in the sidebar. */}
