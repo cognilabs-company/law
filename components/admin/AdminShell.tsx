@@ -51,7 +51,7 @@ import {
 import { IconLogo, IconGrid, IconLogout, IconMenu, IconClose, IconSearch } from "../icons";
 import { startCcShift } from "@/lib/callcenter/ccOperator";
 import { useCcOpen } from "@/lib/callcenter/useCcOpen";
-import { CCX_NAV_HREF, CCX_PROFILE_HREF, ccxRouteFor } from "@/lib/ccx/routes";
+import { CCX_HOME, CCX_NAV_HREF, CCX_PROFILE_HREF, ccxRouteFor } from "@/lib/ccx/routes";
 import { useRoleNav } from "@/components/RoleNavHost";
 import CcxViewLoading from "../ccx/ViewLoading";
 
@@ -280,7 +280,7 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const allowed = adminAccess || isBootstrap || studioUser || (isStudioPath && studioPending);
   // Operators work in the same shell as everyone else: their status and
   // shift clock sit in the header, open work counts on their nav item.
-  const ccOperator = !isFullAdmin && isCallCenterUser(session);
+  const ccOperator = !isFullAdmin && isCallCenterUser(session) && !roleNav.hides(CCX_HOME);
   const ccOpen = useCcOpen(ccOperator);
   useEffect(() => {
     if (ccOperator) startCcShift();
