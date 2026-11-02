@@ -121,7 +121,23 @@ test.describe("role navigation policy", () => {
     const routes = await signIn(page, CLIENT, {});
     await mockBackend(page, routes);
     await page.goto("/ru/portal/client");
-    await expect(link(page, "/portal/client/works")).toBeVisible();
-    await expect(link(page, "/portal/client/academy")).toBeVisible();
+    await expect(link(page, "/portal/client/documents")).toBeVisible();
+    await expect(link(page, "/portal/client/referrals")).toBeVisible();
+  });
+
+  test("a page the policy hides is taken out of a sidebar that still lists it", async ({ page }) => {
+    // Works and academy left the client menu on 2026-11-02, so prove the
+    // menu filter on a row the sidebar still has.
+    const policy = {
+      ...CLIENT_POLICY,
+      hidden_page_ids: [...CLIENT_POLICY.hidden_page_ids, "referrals"],
+      hidden_pages: [...CLIENT_POLICY.hidden_pages, { page_id: "referrals", title: "Takliflar", routes: ["/portal/client/referrals"] }],
+      hidden_routes: [...CLIENT_POLICY.hidden_routes, "/portal/client/referrals"],
+    };
+    const routes = await signIn(page, CLIENT, { "/me/navigation": policy });
+    await mockBackend(page, routes);
+    await page.goto("/ru/portal/client");
+    await expect(link(page, "/portal/client/documents")).toBeVisible();
+    await expect(link(page, "/portal/client/referrals")).toHaveCount(0);
   });
 });
