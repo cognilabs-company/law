@@ -16,12 +16,14 @@ import {
   coordOrderOf,
   lngLatOf,
   locationSourceOf,
+  NAV_MODES,
   relPath,
   sellerNavOf,
   serviceActionOf,
   type LngLat,
   type LocationSource,
   type MapFilters,
+  type MapLocale,
   type NavMode,
   type SellerNav,
   type ServiceAction,
@@ -182,7 +184,19 @@ export async function searchNearbySellers(q: NearbySearchInput, url = DEFAULT_NE
 
 // ── Navigation ──────────────────────────────────────────────────────────
 
-export type RouteStep = { text: string; distanceM: number | null };
+export const ROUTE_MANEUVERS = ["straight", "slight_left", "left", "sharp_left", "slight_right", "right", "sharp_right", "uturn", "roundabout", "arrive"] as const;
+export type RouteManeuver = (typeof ROUTE_MANEUVERS)[number];
+export type RouteStep = {
+  index: number;
+  mode: NavMode | "";
+  text: string;
+  distanceM: number | null;
+  durationS: number | null;
+  point: LngLat | null;
+  maneuver: RouteManeuver | null;
+  street: string | null;
+  geometry: LngLat[];
+};
 export type RouteInfo = {
   available: boolean;
   distanceM: number | null;
@@ -192,6 +206,7 @@ export type RouteInfo = {
   steps: RouteStep[];
   recalcM: number | null;
   reason: string;
+  retryable: boolean;
 };
 export type NavRoute = { appUrl: string; webUrl: string; fallbackUrl: string; destinationSource: "public_office" | "paid_order_live_location" | ""; mode: NavMode | ""; name: string; info: RouteInfo | null };
 
@@ -200,17 +215,40 @@ const posOrNull = (v: unknown): number | null => {
   return n !== null && n >= 0 ? n : null;
 };
 
+const navModeOf = (v: unknown): NavMode | "" => {
+  const m = trimmed(v).toLowerCase();
+  return (NAV_MODES as readonly string[]).includes(m) ? (m as NavMode) : "";
+};
+
+const maneuverOf = (v: unknown): RouteManeuver | null => {
+  const m = trimmed(v).toLowerCase();
+  return (ROUTE_MANEUVERS as readonly string[]).includes(m) ? (m as RouteManeuver) : null;
+};
+
 export function normRouteInfo(v: unknown): RouteInfo | null {
   const r = dictOf(v);
   if (!Object.keys(r).length) return null;
   const order = coordOrderOf(r.coordinate_order);
   const path = (Array.isArray(r.geometry) ? r.geometry : []).map((p) => lngLatOf(p, order)).filter((p): p is LngLat => !!p);
-  const steps = (Array.isArray(r.steps) ? r.steps : [])
-    .map((x) => {
+  const routeMode = navModeOf(r.mode);
+  const steps: RouteStep[] = (Array.isArray(r.steps) ? r.steps : [])
+    .map((x, i): RouteStep => {
       const d = dictOf(x);
-      return { text: trimmed(d.instruction ?? d.text), distanceM: posOrNull(d.distance_m) };
+      const idx = numOrNull(d.index);
+      return {
+        index: idx !== null && Number.isInteger(idx) && idx >= 0 ? idx : i,
+        mode: navModeOf(d.mode) || routeMode,
+        text: trimmed(d.instruction ?? d.text),
+        distanceM: posOrNull(d.distance_m),
+        durationS: posOrNull(d.duration_s),
+        point: lngLatOf(d.point, order),
+        maneuver: maneuverOf(d.maneuver),
+        street: trimmed(d.street) || null,
+        geometry: (Array.isArray(d.geometry) ? d.geometry : []).map((p) => lngLatOf(p, order)).filter((p): p is LngLat => !!p),
+      };
     })
-    .filter((x) => x.text);
+    .filter((x) => x.text)
+    .sort((a, b) => a.index - b.index);
   const recalc = posOrNull(r.recalculate_after_meters);
   return {
     available: r.available === true && path.length >= 2,
@@ -221,8 +259,11 @@ export function normRouteInfo(v: unknown): RouteInfo | null {
     steps,
     recalcM: recalc !== null && recalc >= 20 ? recalc : null,
     reason: trimmed(r.reason).toLowerCase(),
+    retryable: r.retryable === true,
   };
 }
+
+export const recalcArmed = (info: RouteInfo | null): boolean => !!info && (info.available || info.retryable);
 
 // Only the backend builds route links. They are opened as given, after a
 // scheme check: an app scheme or https, never script or data URLs.
@@ -240,13 +281,12 @@ export function safeRouteUrl(v: unknown, app: boolean): string {
 export function normNavRoute(v: unknown): NavRoute {
   const d = dictOf(v);
   const src = trimmed(d.destination_source).toLowerCase();
-  const mode = trimmed(d.mode).toLowerCase();
   return {
     appUrl: safeRouteUrl(d.app_url, true),
     webUrl: safeRouteUrl(d.web_url, false),
     fallbackUrl: safeRouteUrl(d.fallback_url, false),
     destinationSource: src === "public_office" || src === "paid_order_live_location" ? src : "",
-    mode: mode === "driving" || mode === "walking" || mode === "transit" || mode === "bicycle" ? mode : "",
+    mode: navModeOf(d.mode),
     name: trimmed(d.display_name),
     info: normRouteInfo(d.route),
   };
@@ -259,9 +299,26 @@ export function navigationPath(sellerUserId: string, endpoint = "", template = D
   return tpl.replace("{seller_user_id}", encodeURIComponent(sellerUserId));
 }
 
-export async function requestNavigation(q: { sellerUserId: string; endpoint?: string; template?: string; point: Point; mode: NavMode; paidOrderId?: string }): Promise<NavRoute> {
-  const body = { latitude: q.point.latitude, longitude: q.point.longitude, mode: q.mode, paid_order_id: q.paidOrderId || null };
-  return normNavRoute(await http(navigationPath(q.sellerUserId, q.endpoint, q.template), { method: "POST", body: JSON.stringify(body) }));
+export const navCoord = (v: number): number => Math.round(v * 1e4) / 1e4;
+
+export function navSessionId(): string {
+  const c = typeof crypto !== "undefined" ? crypto : undefined;
+  const id = c && typeof c.randomUUID === "function" ? c.randomUUID() : `nav-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+  return id.slice(0, 64);
+}
+
+export type NavigationBodyInput = { point: Point; mode: NavMode; paidOrderId?: string; recalculate: boolean; sessionId: string; locale: MapLocale };
+
+export function navigationBody(q: NavigationBodyInput): Dict {
+  return {
+    latitude: q.point.latitude,
+    longitude: q.point.longitude,
+    mode: q.mode,
+    paid_order_id: q.paidOrderId || null,
+    recalculate: q.recalculate,
+    session_id: q.sessionId.slice(0, 64),
+    locale: q.locale,
+  };
 }
 
 // ── Seller office ───────────────────────────────────────────────────────
@@ -377,6 +434,8 @@ export const MAP_ERROR_CODES = [
   "client_location_consent_required",
   "navigation_destination_unavailable",
   "public_office_navigation_unavailable",
+  "paid_order_live_location_unavailable",
+  "routing_rate_limit_exceeded",
   "seller_not_found",
   "paid_order_not_found",
   "active_paid_order_required",

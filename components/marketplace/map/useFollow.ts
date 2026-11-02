@@ -2,32 +2,19 @@
 
 import { useEffect, useEffectEvent, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import type { Spot } from "@/lib/services/marketDiscovery";
+import { bearingDeg, distanceMeters, trackOnPath, type Track } from "./geoMath";
+
+export { bearingDeg, distanceMeters };
 
 export type FollowFail = "denied" | "unavailable" | "timeout" | "unsupported" | "insecure";
 export type Compass = "n" | "ne" | "e" | "se" | "s" | "sw" | "w" | "nw";
 
 export const ARRIVED_M = 60;
 const COMPASS: readonly Compass[] = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
-const EARTH_M = 6371008.8;
 const MIN_STEP_M = 3;
 const MIN_TURN_DEG = 4;
 
-const rad = (d: number) => (d * Math.PI) / 180;
 const norm = (d: number) => ((d % 360) + 360) % 360;
-
-export function distanceMeters(a: Spot, b: Spot): number {
-  const dLat = rad(b.latitude - a.latitude);
-  const dLon = rad(b.longitude - a.longitude);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(dLon / 2) ** 2;
-  return 2 * EARTH_M * Math.asin(Math.min(1, Math.sqrt(h)));
-}
-
-export function bearingDeg(a: Spot, b: Spot): number {
-  const dLon = rad(b.longitude - a.longitude);
-  const y = Math.sin(dLon) * Math.cos(rad(b.latitude));
-  const x = Math.cos(rad(a.latitude)) * Math.sin(rad(b.latitude)) - Math.sin(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.cos(dLon);
-  return norm((Math.atan2(y, x) * 180) / Math.PI);
-}
 
 export function compassOf(deg: number): Compass {
   return COMPASS[Math.round(norm(deg) / 45) % 8];
@@ -75,17 +62,20 @@ export type FollowState = {
   bearing: number | null;
   turn: number;
   fail: FollowFail | null;
+  path: Spot[] | null;
+  along: number | null;
+  off: number | null;
 };
 
 type Act =
   | { kind: "reset" }
-  | { kind: "fix"; point: Spot; accuracy: number | null; course: number | null; dest: Spot }
+  | { kind: "fix"; point: Spot; accuracy: number | null; course: number | null; dest: Spot; path: Spot[] | null }
   | { kind: "orient"; heading: number; dest: Spot }
   | { kind: "fail"; fail: FollowFail };
 
-type Inner = FollowState & { course: number | null; orient: number | null };
+type Inner = FollowState & { course: number | null; orient: number | null; track: Track | null };
 
-const BLANK: Inner = { point: null, accuracy: null, heading: null, meters: null, bearing: null, turn: 0, fail: null, course: null, orient: null };
+const BLANK: Inner = { point: null, accuracy: null, heading: null, meters: null, bearing: null, turn: 0, fail: null, path: null, along: null, off: null, course: null, orient: null, track: null };
 
 function unwrap(prev: number, target: number): number {
   const d = ((norm(target) - norm(prev) + 540) % 360) - 180;
@@ -109,8 +99,9 @@ function reduce(s: Inner, a: Act): Inner {
     if (s.orient !== null && Math.abs(((a.heading - s.orient + 540) % 360) - 180) < MIN_TURN_DEG) return s;
     return aim({ ...s, orient: a.heading }, a.dest);
   }
-  if (s.point && distanceMeters(s.point, a.point) < MIN_STEP_M && s.course === a.course && s.fail === null) return s;
-  return aim({ ...s, point: a.point, accuracy: a.accuracy, course: a.course, fail: null }, a.dest);
+  if (s.point && distanceMeters(s.point, a.point) < MIN_STEP_M && s.course === a.course && s.fail === null && s.path === a.path) return s;
+  const track = a.path && a.path.length >= 2 ? trackOnPath(a.path, a.point, s.path === a.path ? s.track : null) : null;
+  return aim({ ...s, point: a.point, accuracy: a.accuracy, course: a.course, fail: null, path: track ? a.path : null, along: track ? track.along : null, off: track ? track.off : null, track }, a.dest);
 }
 
 function courseOf(c: GeolocationCoordinates): number | null {
@@ -147,7 +138,7 @@ export function askCompass(): void {
   } catch {}
 }
 
-export function useFollow({ active, dest, onHidden }: { active: boolean; dest: Spot | null; onHidden: () => void }): FollowState & { reset: () => void } {
+export function useFollow({ active, dest, path = null, onHidden }: { active: boolean; dest: Spot | null; path?: Spot[] | null; onHidden: () => void }): FollowState & { reset: () => void } {
   const [s, dispatch] = useReducer(reduce, BLANK);
   const hidden = useEffectEvent(() => onHidden());
 
@@ -163,7 +154,7 @@ export function useFollow({ active, dest, onHidden }: { active: boolean; dest: S
     let late = 0;
     try {
       watch = geo.watchPosition(
-        (p) => dispatch({ kind: "fix", point: { latitude: p.coords.latitude, longitude: p.coords.longitude }, accuracy: Number.isFinite(p.coords.accuracy) ? p.coords.accuracy : null, course: courseOf(p.coords), dest }),
+        (p) => dispatch({ kind: "fix", point: { latitude: p.coords.latitude, longitude: p.coords.longitude }, accuracy: Number.isFinite(p.coords.accuracy) ? p.coords.accuracy : null, course: courseOf(p.coords), dest, path }),
         (e) => dispatch({ kind: "fail", fail: failOf(e?.code ?? 2) }),
         { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 },
       );
@@ -189,8 +180,8 @@ export function useFollow({ active, dest, onHidden }: { active: boolean; dest: S
       document.removeEventListener("visibilitychange", onVis);
       window.removeEventListener("pagehide", onLeave);
     };
-  }, [active, dest]);
+  }, [active, dest, path]);
 
   const reset = () => dispatch({ kind: "reset" });
-  return { point: s.point, accuracy: s.accuracy, heading: s.heading, meters: s.meters, bearing: s.bearing, turn: s.turn, fail: s.fail, reset };
+  return { point: s.point, accuracy: s.accuracy, heading: s.heading, meters: s.meters, bearing: s.bearing, turn: s.turn, fail: s.fail, path: s.path, along: s.along, off: s.off, reset };
 }

@@ -1,14 +1,29 @@
 "use client";
 
-import { useEffect, useEffectEvent, useId, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useEffectEvent, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Check, LocateFixed, Navigation2, X } from "lucide-react";
+import { ArrowDownLeft, ArrowDownRight, ArrowUp, ArrowUpLeft, ArrowUpRight, Check, CornerUpLeft, CornerUpRight, Flag, LocateFixed, Navigation2, RotateCcw, Undo2, X } from "lucide-react";
 import { IconExternal } from "@/components/icons";
-import { ARRIVED_M, compassOf, useRoll, type FollowState } from "./useFollow";
+import type { RouteManeuver } from "@/lib/services/mapLocation";
+import { compassOf, distanceMeters, useRoll, type FollowState } from "./useFollow";
 import { isHandheld, webRouteOf } from "./route";
 import { openInNavigator, type Guide } from "./NavigatorBlock";
-import { etaSeconds, pathRemainM, turnKeyOf, useClockText, useDurationText } from "./navText";
+import { pathLength, snapOnPath } from "./geoMath";
+import { arrivedNear, etaSeconds, nextManeuverAt, pathRemainM, routeRemainM, stepMarks, TURN_OF, turnKeyOf, useClockText, useDurationText } from "./navText";
 import "./followHud.css";
+
+const MAN_ICON: Record<RouteManeuver, ReactNode> = {
+  straight: <ArrowUp strokeWidth={1.75} />,
+  slight_left: <ArrowUpLeft strokeWidth={1.75} />,
+  left: <CornerUpLeft strokeWidth={1.75} />,
+  sharp_left: <ArrowDownLeft strokeWidth={1.75} />,
+  slight_right: <ArrowUpRight strokeWidth={1.75} />,
+  right: <CornerUpRight strokeWidth={1.75} />,
+  sharp_right: <ArrowDownRight strokeWidth={1.75} />,
+  uturn: <Undo2 strokeWidth={1.75} />,
+  roundabout: <RotateCcw strokeWidth={1.75} />,
+  arrive: <Flag strokeWidth={1.75} />,
+};
 
 function useMetersText(): (m: number) => string {
   const t = useTranslations("marketplace.nearby");
@@ -54,11 +69,23 @@ export default function FollowHud({
   const clock = useClockText();
   const now = useNow(30000);
   const routed = !!guide.info?.available && !!guide.path;
-  const remain = state.point ? (routed && guide.path ? pathRemainM(guide.path, state.point) : state.meters) : null;
-  const arrived = state.meters !== null && state.meters < ARRIVED_M;
+  const path = routed ? guide.path : null;
+  const len = useMemo(() => (path ? pathLength(path) : 0), [path]);
+  const endGap = useMemo(() => (path && guide.dest ? distanceMeters(path[path.length - 1], guide.dest) : 0), [path, guide.dest]);
+  const tracked = routeRemainM(path, len, state);
+  const point = state.point;
+  const fallback = useMemo(() => (path && point && tracked === null ? pathRemainM(path, point) : null), [path, point, tracked]);
+  const remain = point ? (path ? (tracked ?? fallback) : state.meters) : null;
+  const arrived = arrivedNear(state.meters, path ? remain : null, endGap);
   const rolled = useRoll(remain ?? 0, 700);
   const eta = remain === null ? null : etaSeconds(remain, guide.mode, routed ? (guide.info ?? null) : null);
-  const step = routed ? (guide.info?.steps[0] ?? null) : null;
+  const marks = useMemo(() => (path && guide.info ? stepMarks(path, guide.info.steps) : []), [path, guide.info]);
+  const here = path && state.path === path && state.along !== null ? state.along : null;
+  const next = useMemo(() => {
+    if (!marks.length || !path || !point) return null;
+    return nextManeuverAt(marks, here ?? snapOnPath(path, point).along);
+  }, [marks, path, point, here]);
+  const step = next ? next.step : routed && !marks.length ? (guide.info?.steps[0] ?? null) : null;
   const web = webRouteOf(guide.route);
   const appLink = guide.navigatorUrl || guide.route.appUrl;
   const phone = isHandheld();
@@ -68,16 +95,20 @@ export default function FollowHud({
     : !state.point
       ? t("waiting")
       : step
-        ? step.text
+        ? step.maneuver === "arrive"
+          ? t("arriveAhead")
+          : step.text || (step.maneuver ? t(`turn.${TURN_OF[step.maneuver]}`) : t("waiting"))
         : turn
           ? t(`turn.${turn}`)
           : state.bearing !== null
             ? t(`go.${compassOf(state.bearing)}`)
             : t("waiting");
-  const headDist = arrived || remain === null ? "" : step?.distanceM ? fmt(step.distanceM) : fmt(rolled);
+  const headDist = arrived || remain === null ? "" : next ? fmt(next.distM) : step?.distanceM ? fmt(step.distanceM) : fmt(rolled);
   const big = arrived ? t("arrived") : eta ? (eta.sure ? dur(eta.s) : t("approx", { t: dur(eta.s) })) : t("waiting");
   const sub = !arrived && remain !== null && eta ? t("remainAt", { d: fmt(rolled), time: clock(now + eta.s * 1000) }) : arrived ? t("arrivedText") : "";
-  const said = arrived ? t("arrived") : remain === null ? t("waiting") : `${head}. ${t("remainAt", { d: fmt(Math.round(remain / 50) * 50), time: eta ? clock(now + eta.s * 1000) : "" })}`;
+  const turnQ = next && next.step.maneuver !== "arrive" ? Math.round(next.distM / 50) * 50 : null;
+  const totalQ = remain === null ? 0 : turnQ !== null && next ? turnQ + Math.round(Math.max(0, remain - next.distM) / 50) * 50 : Math.round(remain / 50) * 50;
+  const said = arrived ? t("arrived") : remain === null ? t("waiting") : `${head}${turnQ !== null ? ` · ${fmt(turnQ)}` : ""}. ${t("remainAt", { d: fmt(totalQ), time: eta ? clock(now + eta.s * 1000) : "" })}`;
   const size = useEffectEvent((gone: boolean) => {
     onSize?.(gone || !dock.current ? 0 : dock.current.offsetHeight + (floating ? 12 : 0));
   });
@@ -113,6 +144,10 @@ export default function FollowHud({
         <span className={`mfh__tile${arrived ? " is-done" : ""}`}>
           {arrived ? (
             <Check strokeWidth={2} />
+          ) : step?.maneuver ? (
+            <span key={`${step.index}-${step.maneuver}`} className="mfh__mi" data-man={step.maneuver}>
+              {MAN_ICON[step.maneuver]}
+            </span>
           ) : (
             <span className="mfh__arrow" style={{ "--turn": `${state.turn}deg` } as CSSProperties} data-wait={state.point ? undefined : ""}>
               <Navigation2 strokeWidth={1.75} />

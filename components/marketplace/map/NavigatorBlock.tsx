@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Bike, Bus, Car, Footprints, Navigation, Route as RouteIcon, Square } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { IconExternal, IconLock, IconRefresh } from "@/components/icons";
-import { http } from "@/lib/http";
+import { http, isRateLimited, retryAfterSec } from "@/lib/http";
 import type { Spot } from "@/lib/services/marketDiscovery";
-import { mapErrorKey, navigationPath, normNavRoute, safeRouteUrl, type MapErrorKey, type NavRoute, type Place, type RouteInfo } from "@/lib/services/mapLocation";
-import { lngLatOf, NAV_MODES, type NavMode } from "@/lib/services/sellersMap";
+import { mapErrorKey, navigationBody, navigationPath, navSessionId, normNavRoute, recalcArmed, safeRouteUrl, type MapErrorKey, type NavRoute, type Place, type RouteInfo } from "@/lib/services/mapLocation";
+import { lngLatOf, mapLocaleOf, NAV_MODES, type MapLocale, type NavMode } from "@/lib/services/sellersMap";
 import { Segmented } from "./MapPanel";
 import PlaceSearch from "./PlaceSearch";
 import { isHandheld, openRoute, webRouteOf } from "./route";
@@ -29,6 +29,7 @@ export type Guide = {
   target: RouteTarget;
   path: Spot[] | null;
   info: RouteInfo | null;
+  sessionId: string;
 };
 
 const MODE_ICON: Record<NavMode, ReactNode> = {
@@ -40,9 +41,9 @@ const MODE_ICON: Record<NavMode, ReactNode> = {
 
 const dictOf = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
-export async function requestGuide(q: { target: RouteTarget; template: string; point: Spot; mode: NavMode }): Promise<Guide> {
-  const body = { latitude: q.point.latitude, longitude: q.point.longitude, mode: q.mode, paid_order_id: q.target.paidOrderId || null };
-  const raw = await http(navigationPath(q.target.sellerUserId, q.target.endpoint, q.template), { method: "POST", body: JSON.stringify(body) });
+export async function requestGuide(q: { target: RouteTarget; template: string; point: Spot; mode: NavMode; recalculate: boolean; sessionId: string; locale: MapLocale; signal?: AbortSignal }): Promise<Guide> {
+  const body = navigationBody({ point: q.point, mode: q.mode, paidOrderId: q.target.paidOrderId, recalculate: q.recalculate, sessionId: q.sessionId, locale: q.locale });
+  const raw = await http(navigationPath(q.target.sellerUserId, q.target.endpoint, q.template), { method: "POST", body: JSON.stringify(body), signal: q.signal });
   const d = dictOf(raw);
   const dst = dictOf(d.destination);
   const ll = lngLatOf({ latitude: dst.latitude, longitude: dst.longitude }) ?? lngLatOf(dst.coordinates);
@@ -59,6 +60,7 @@ export async function requestGuide(q: { target: RouteTarget; template: string; p
     target: q.target,
     path: info?.available ? info.path.map(([longitude, latitude]) => ({ latitude, longitude })) : null,
     info,
+    sessionId: q.sessionId,
   };
 }
 
@@ -78,6 +80,9 @@ export default function NavigatorBlock({
   template,
   guide,
   following,
+  waitS,
+  recalcM,
+  serverRoute,
   onLocate,
   onManual,
   onConsentNeeded,
@@ -85,6 +90,7 @@ export default function NavigatorBlock({
   onGuide,
   onStart,
   onStop,
+  onRateLimited,
 }: {
   target: RouteTarget;
   point: Spot | null;
@@ -95,6 +101,9 @@ export default function NavigatorBlock({
   template: string;
   guide: Guide | null;
   following: boolean;
+  waitS: number;
+  recalcM: number;
+  serverRoute: boolean;
   onLocate: (then: (p: Spot) => void) => void;
   onManual: (p: Place, then: (p: Spot) => void) => void;
   onConsentNeeded: () => void;
@@ -102,6 +111,7 @@ export default function NavigatorBlock({
   onGuide: (g: Guide | null) => void;
   onStart: () => void;
   onStop: () => void;
+  onRateLimited: (sec: number) => void;
 }) {
   const t = useTranslations("marketMap.nav");
   const tr = useTranslations("marketMap.route");
@@ -109,6 +119,7 @@ export default function NavigatorBlock({
   const uid = useId();
   const distText = useDistanceText();
   const dur = useDurationText();
+  const locale = mapLocaleOf(useLocale());
   const modes = target.modes.length ? target.modes : [...NAV_MODES];
   const [mode, setMode] = useState<NavMode>(guide && modes.includes(guide.mode) ? guide.mode : modes[0]);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
@@ -116,6 +127,7 @@ export default function NavigatorBlock({
   const busy = phase.kind === "busy";
   const done = guide && guide.sellerUserId === target.sellerUserId && guide.mode === mode ? guide : null;
   const alive = useRef(true);
+  const pendingSid = useRef("");
 
   useEffect(() => {
     alive.current = true;
@@ -126,22 +138,26 @@ export default function NavigatorBlock({
 
   const build = async (from: Spot) => {
     setPhase({ kind: "busy" });
+    if (!guide?.sessionId && !pendingSid.current) pendingSid.current = navSessionId();
+    const sessionId = guide?.sessionId || pendingSid.current;
     try {
-      const g = await requestGuide({ target, template, point: from, mode });
+      const g = await requestGuide({ target, template, point: from, mode, recalculate: false, sessionId, locale });
       if (!alive.current) return;
+      pendingSid.current = "";
       setPhase({ kind: "idle" });
       onGuide(g);
     } catch (e) {
       if (!alive.current) return;
       const err = mapErrorKey(e);
       setPhase({ kind: "fail", err });
+      if (isRateLimited(e)) onRateLimited(retryAfterSec(e, 60));
       if (err === "client_location_consent_required") onConsentNeeded();
       if (err === "login_required") onLogin();
     }
   };
 
   const go = () => {
-    if (busy) return;
+    if (busy || waitS > 0) return;
     if (!signedIn) {
       onLogin();
       return;
@@ -155,7 +171,7 @@ export default function NavigatorBlock({
   };
 
   const pickMode = (m: NavMode) => {
-    if (busy) return;
+    if (busy || locating) return;
     setMode(m);
     setPhase({ kind: "idle" });
   };
@@ -167,6 +183,7 @@ export default function NavigatorBlock({
   const straight = !routed && straightM !== null ? distText(straightM / 1000, "") : null;
   const eta = done && routed && info?.durationS !== null && info?.durationS !== undefined ? dur(info.durationS) : done && straightM !== null ? dur(etaSeconds(straightM, done.mode, null).s) : "";
   const traffic = routed && info?.trafficS ? dur(info.trafficS) : "";
+  const resends = done ? recalcArmed(info) : serverRoute;
   const web = done ? webRouteOf(done.route) : "";
   const phone = isHandheld();
   const appLink = done ? done.navigatorUrl || done.route.appUrl : "";
@@ -185,7 +202,7 @@ export default function NavigatorBlock({
         value={mode}
         onChange={pickMode}
         label={tr("how")}
-        disabled={busy}
+        disabled={busy || locating}
         ai="marketplace.route.modes"
         options={modes.map((m) => ({ value: m, label: t(`mode.${m}`), icon: MODE_ICON[m], ai: `marketplace.route.mode.${m}`, title: tr(`mode.${m}`) }))}
       />
@@ -209,6 +226,10 @@ export default function NavigatorBlock({
       {phase.kind === "fail" ? (
         <p className="mnv__err" role="alert">
           {tx(`errors.${phase.err}`)}
+        </p>
+      ) : signedIn && !done && waitS > 0 ? (
+        <p className="mnv__err" role="status" data-ai-id="marketplace.route.wait">
+          {tx("errors.routing_rate_limit_exceeded")}
         </p>
       ) : null}
 
@@ -271,15 +292,15 @@ export default function NavigatorBlock({
           ) : null}
         </div>
       ) : (
-        <button type="button" className="btn btn--grad mnv__go" onClick={go} disabled={busy || locating} aria-busy={busy || locating || undefined} data-ai-id="marketplace.route.build">
+        <button type="button" className="btn btn--grad mnv__go" onClick={go} disabled={busy || locating || waitS > 0} aria-busy={busy || locating || undefined} data-ai-id="marketplace.route.build">
           {phase.kind === "fail" ? <IconRefresh aria-hidden="true" /> : <RouteIcon aria-hidden="true" strokeWidth={1.75} />}
-          {busy ? tr("building") : locating ? tx("locate.asking") : phase.kind === "fail" ? tr("retry") : t("show")}
+          {busy ? tr("building") : locating ? tx("locate.asking") : waitS > 0 ? tr("retryIn", { n: waitS }) : phase.kind === "fail" ? tr("retry") : t("show")}
         </button>
       )}
 
       <p className="mnv__privacy">
         <IconLock aria-hidden="true" />
-        <span>{tr("privacy")}</span>
+        <span>{resends ? tr("privacyFollow", { m: Math.round(info?.recalcM ?? recalcM) }) : tr("privacy")}</span>
       </p>
     </div>
   );

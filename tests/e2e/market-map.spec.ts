@@ -400,12 +400,13 @@ test("route: the mode goes to the backend, the straight distance is shown and th
   await shot(page, "route-modes", '[data-ai-id="marketplace.map.card"]');
   await nav.getByRole("button", { name: "Yo‘lni ko‘rsatish" }).click();
   await expect(nav.locator('[data-ai-id="marketplace.route.straight"]')).toContainText(/To‘g‘ri chiziq bo‘yicha ≈ 3[,.]5 km/);
-  expect(navBody).toEqual({ latitude: 41.3, longitude: 69.24, mode: "walking", paid_order_id: null });
+  expect(navBody).toEqual({ latitude: 41.3, longitude: 69.24, mode: "walking", paid_order_id: null, recalculate: false, session_id: expect.stringMatching(UUID), locale: "uz" });
   expect(mock.calls.filter((c) => c.method === "POST" && c.path.startsWith("/marketplace/sellers/"))).toHaveLength(1);
   const web = nav.getByRole("link", { name: "Yandex Xaritada ochish" });
   await expect(web).toHaveAttribute("href", WEB_ROUTE);
   await expect(web).toHaveAttribute("target", "_blank");
   await expect(nav.getByText(/Manzil: mutaxassis ofisi/)).toBeVisible();
+  await expect(nav.locator(".mnv__privacy")).toContainText("bir marta");
   await expect(nav.getByRole("button", { name: "Navigatorni boshlash" })).toBeVisible();
   await expect(nav.locator('[data-ai-id="marketplace.route.app"]')).toHaveCount(0);
   await shot(page, "route-ready", '[data-ai-id="marketplace.map.card"]');
@@ -829,6 +830,8 @@ test("navigator: a backend route is drawn with its time and steps, and recalcula
   await expect(nav).toContainText("Yandex marshruti bo‘yicha");
   await expect(nav).toContainText("tirbandlik bilan 17 daq");
   await expect(nav.locator('[data-ai-id="marketplace.route.straight"]')).toHaveCount(0);
+  await expect(nav.locator(".mnv__privacy")).toContainText("taxminan har 100 m da");
+  await expect(nav.locator(".mnv__privacy")).not.toContainText("bir marta");
   await expect(page.locator('.ymaps-stub-line[data-style="solid"]').first()).toHaveAttribute("points", /\S+ \S+ \S+ \S+/);
   await nav.getByRole("button", { name: "Navigatorni boshlash" }).click();
   const hud = page.locator('[data-ai-id="marketplace.map.follow"]');
@@ -837,7 +840,8 @@ test("navigator: a backend route is drawn with its time and steps, and recalcula
   await shot(page, "navigator-route", '[data-ai-id="marketplace.nearby"]');
   await context.setGeolocation({ latitude: 41.3025, longitude: 69.2405, accuracy: 10 });
   await expect.poll(() => bodies.length).toBe(2);
-  expect(bodies[1]).toEqual({ latitude: 41.303, longitude: 69.241, mode: "driving", paid_order_id: null });
+  expect(bodies[0]).toMatchObject({ recalculate: false, locale: "uz", session_id: expect.stringMatching(UUID) });
+  expect(bodies[1]).toEqual({ latitude: 41.3025, longitude: 69.2405, mode: "driving", paid_order_id: null, recalculate: true, session_id: bodies[0].session_id, locale: "uz" });
   expect(mock.calls.filter((c) => c.method === "POST" && c.path.startsWith("/marketplace/sellers/"))).toHaveLength(2);
   await expect(hud).toBeVisible();
   await hud.getByRole("button", { name: "To‘xtatish" }).click();
@@ -881,7 +885,7 @@ test("order: the paid order opens the map on its specialist and the route carrie
   await nav.getByRole("button", { name: "Yo‘lni ko‘rsatish" }).click();
   await expect(nav.locator('[data-ai-id="marketplace.route.straight"]')).toContainText(/taxminan 7 daq/);
   await expect(nav).toContainText("to‘langan buyurtmangiz bo‘yicha");
-  expect(navBody).toMatchObject({ mode: "driving", paid_order_id: "ord-77" });
+  expect(navBody).toMatchObject({ mode: "driving", paid_order_id: "ord-77", recalculate: false, locale: "uz" });
   await storedNothing(page);
 });
 
@@ -913,4 +917,434 @@ test("order page: no route card when the order's navigation is closed", async ({
   await page.goto(`/uz/portal/client/marketplace-orders/${ORDER_ID}`);
   await expect(page.locator(".mod__facts").first()).toBeVisible();
   await expect(page.locator(".mor")).toHaveCount(0);
+});
+
+const NAV_POST = /^\/marketplace\/sellers\/[^/]+\/navigation$/;
+const ROUTED = (route: Record<string, unknown> = {}) => ({
+  destination_source: "public_office",
+  destination: { latitude: 41.31, longitude: 69.28, coordinates: [69.28, 41.31] },
+  web_url: WEB_ROUTE,
+  route: {
+    available: true,
+    provider: "yandex",
+    mode: "driving",
+    distance_m: 4820,
+    duration_s: 840,
+    duration_in_traffic_s: 1020,
+    geometry: [
+      [69.24, 41.3],
+      [69.25, 41.302],
+      [69.265, 41.305],
+      [69.28, 41.31],
+    ],
+    steps: [{ instruction: "Amir Temur ko‘chasiga o‘ngga buriling", distance_m: 350 }],
+    coordinate_order: "longitude_latitude",
+    recalculate_after_meters: 100,
+    ...route,
+  },
+  event_recorded: true,
+});
+const STRAIGHT = (reason = "routing_key_not_configured", retryable = false) => ({
+  destination_source: "public_office",
+  destination: { latitude: 41.31, longitude: 69.28, coordinates: [69.28, 41.31] },
+  web_url: WEB_ROUTE,
+  route: { available: false, source: "straight_line_external_app_fallback", mode: "driving", distance_m: 3500, duration_s: 420, geometry: [[69.24, 41.3], [69.28, 41.31]], steps: [], recalculate_after_meters: 100, reason, retryable },
+  event_recorded: true,
+});
+
+async function startRoute(page: Page) {
+  await page.locator('[data-ai-id="marketplace.nearby.locate"]').click();
+  await page.locator('[data-ai-id="marketplace.nearby.results"]').getByRole("button", { name: /Dilnoza Karimova/ }).click();
+  const nav = page.locator('[data-ai-id="marketplace.map.card"] [data-ai-id="marketplace.route"]');
+  await nav.locator('[data-ai-id="marketplace.route.build"]').click();
+  return nav;
+}
+
+test("navigator: one session per route — a retry and a mode change keep it, Hide and another seller start a new one", async ({ page, context }) => {
+  await noYandex(context, "abort");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 20 });
+  const bodies: Record<string, unknown>[] = [];
+  const routes = mapRoutes({
+    configured: false,
+    search: () => ({ items: [HITS[0], { ...marker(S2, "Akmal Yusupov", "yurist", 4.6, "live", true), distance_km: 31.6 }], count: 2, radius_km: 10, fallback_nearest: false, sort: "nearest", consent: consent(true) }),
+  });
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = (b: unknown) => (bodies.push(b as Record<string, unknown>), bodies.length === 1 ? { status: 503, json: { detail: "x" } } : STRAIGHT());
+  routes[`POST /marketplace/sellers/${S2}/navigation`] = (b: unknown) => (bodies.push(b as Record<string, unknown>), STRAIGHT());
+  await openMap(page, routes);
+  const nav = await startRoute(page);
+  await expect(nav.getByRole("alert")).toBeVisible();
+  await nav.getByRole("button", { name: "Qayta urinish" }).click();
+  await expect(nav.locator('[data-ai-id="marketplace.route.straight"]')).toBeVisible();
+  expect(bodies).toHaveLength(2);
+  expect(String(bodies[0].session_id)).toMatch(UUID);
+  expect(bodies[1].session_id).toBe(bodies[0].session_id);
+  await nav.getByRole("radio", { name: "Mashina" }).press("ArrowRight");
+  await expect(nav.getByRole("radio", { name: "Piyoda" })).toHaveAttribute("aria-checked", "true");
+  await nav.locator('[data-ai-id="marketplace.route.build"]').click();
+  await expect.poll(() => bodies.length).toBe(3);
+  expect(bodies[2]).toMatchObject({ mode: "walking", session_id: bodies[0].session_id });
+  await nav.locator('[data-ai-id="marketplace.route.hide"]').click();
+  await nav.locator('[data-ai-id="marketplace.route.build"]').click();
+  await expect.poll(() => bodies.length).toBe(4);
+  expect(String(bodies[3].session_id)).toMatch(UUID);
+  expect(bodies[3].session_id).not.toBe(bodies[0].session_id);
+  const card = page.locator('[data-ai-id="marketplace.map.card"]');
+  await card.getByRole("button", { name: "Ro‘yxatga qaytish" }).click();
+  await page.locator('[data-ai-id="marketplace.nearby.results"]').getByRole("button", { name: /Akmal Yusupov/ }).click();
+  await card.locator('[data-ai-id="marketplace.route.build"]').click();
+  await expect.poll(() => bodies.length).toBe(5);
+  expect(String(bodies[4].session_id)).toMatch(UUID);
+  expect(new Set(bodies.map((b) => b.session_id)).size).toBe(3);
+  for (const b of bodies) expect(b).toMatchObject({ recalculate: false, locale: "uz" });
+  const stored = await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }));
+  for (const b of bodies) expect(stored).not.toContain(String(b.session_id));
+  await storedNothing(page);
+});
+
+test("navigator: the route is asked in the page language and the recalculation keeps it", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 15 });
+  const bodies: Record<string, unknown>[] = [];
+  const routes = mapRoutes({ configured: true });
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = (b: unknown) => {
+    const body = b as Record<string, unknown>;
+    bodies.push(body);
+    return ROUTED({ steps: [{ instruction: body.locale === "ru" ? "Поверните направо на Амир Темур" : "Amir Temur ko‘chasiga o‘ngga buriling", distance_m: 350 }] });
+  };
+  await mockBackend(page, await signIn(page, CLIENT, routes));
+  await page.goto("/ru/portal/client/lawyers?mode=nearby");
+  const nav = await startRoute(page);
+  await nav.locator('[data-ai-id="marketplace.route.follow"]').click();
+  const hud = page.locator('[data-ai-id="marketplace.map.follow"]');
+  await expect(hud.locator(".mfh__head")).toHaveText("Поверните направо на Амир Темур");
+  expect(bodies[0]).toMatchObject({ locale: "ru", recalculate: false });
+  await context.setGeolocation({ latitude: 41.3025, longitude: 69.2405, accuracy: 10 });
+  await expect.poll(() => bodies.length).toBe(2);
+  expect(bodies[1]).toMatchObject({ locale: "ru", recalculate: true, session_id: bodies[0].session_id });
+  await hud.locator('[data-ai-id="marketplace.map.follow.stop"]').click();
+  await storedNothing(page);
+});
+
+test("navigator: the HUD shows the next maneuver with its icon and a live distance, then the destination", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 10 });
+  const routes = mapRoutes({ configured: true });
+  routes["/marketplace/map/config"] = { ...config(true), routing: { server_route_available: true, frontend_js_route_available: false, recalculate_distance_threshold_meters: 100, server_rate_limit_per_minute: 30 } };
+  const step = (index: number, maneuver: string, point: number[], next: number[] | null, instruction: string, street: string | null) => ({
+    index,
+    mode: "driving",
+    distance_m: next ? 300 : 0,
+    duration_s: next ? 40 : 0,
+    instruction,
+    point,
+    maneuver,
+    street,
+    geometry: next ? [point, next] : [point],
+  });
+  const P = [
+    [69.24, 41.3],
+    [69.24, 41.303],
+    [69.25, 41.303],
+    [69.25, 41.3085],
+  ];
+  const L_ROUTE = {
+    destination_source: "public_office",
+    destination: { latitude: 41.3085, longitude: 69.25, coordinates: [69.25, 41.3085] },
+    web_url: WEB_ROUTE,
+    route: {
+      available: true,
+      mode: "driving",
+      distance_m: 1780,
+      duration_s: 260,
+      geometry: P,
+      steps: [
+        step(0, "straight", P[0], P[1], "To‘g‘ri davom eting — Bobur ko‘chasi", "Bobur ko‘chasi"),
+        step(1, "right", P[1], P[2], "O‘ngga buriling — Amir Temur ko‘chasi", "Amir Temur ko‘chasi"),
+        step(2, "left", P[2], P[3], "Chapga buriling — Navoiy ko‘chasi", "Navoiy ko‘chasi"),
+        step(3, "arrive", P[3], null, "Manzilga yetib keldingiz", null),
+      ],
+      coordinate_order: "longitude_latitude",
+      recalculate_after_meters: 100,
+    },
+    event_recorded: true,
+  };
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = () => L_ROUTE;
+  const mock = await openMap(page, routes);
+  await page.locator('[data-ai-id="marketplace.nearby.locate"]').click();
+  await page.locator('[data-ai-id="marketplace.nearby.results"]').getByRole("button", { name: /Dilnoza Karimova/ }).click();
+  const nav = page.locator('[data-ai-id="marketplace.map.card"] [data-ai-id="marketplace.route"]');
+  await expect(nav.locator(".mnv__privacy")).toContainText("taxminan har 100 m da");
+  await nav.locator('[data-ai-id="marketplace.route.build"]').click();
+  await nav.locator('[data-ai-id="marketplace.route.follow"]').click();
+  const hud = page.locator('[data-ai-id="marketplace.map.follow"]');
+  await expect(hud.locator(".mfh__head")).toHaveText("O‘ngga buriling — Amir Temur ko‘chasi");
+  await expect(hud.locator('[data-man="right"]')).toHaveCount(1);
+  await expect(hud.locator(".mfh__arrow")).toHaveCount(0);
+  await expect(hud.locator(".mfh__headd")).toHaveText("≈ 330 m");
+  await shot(page, "navigator-maneuver", '[data-ai-id="marketplace.nearby"]');
+  await context.setGeolocation({ latitude: 41.3006, longitude: 69.24, accuracy: 10 });
+  await expect(hud.locator(".mfh__headd")).toHaveText("≈ 270 m");
+  expect(mock.count("POST", NAV_POST)).toBe(1);
+  await context.setGeolocation({ latitude: 41.303, longitude: 69.2425, accuracy: 10 });
+  await expect.poll(() => mock.count("POST", NAV_POST)).toBe(2);
+  await expect(hud.locator(".mfh__head")).toHaveText("Chapga buriling — Navoiy ko‘chasi");
+  await expect(hud.locator('[data-man="left"]')).toHaveCount(1);
+  await expect(hud.locator(".mfh__headd")).toHaveText("≈ 630 m");
+  await context.setGeolocation({ latitude: 41.3055, longitude: 69.25, accuracy: 10 });
+  await expect.poll(() => mock.count("POST", NAV_POST)).toBe(3);
+  await expect(hud.locator(".mfh__head")).toHaveText("Manzil oldinda");
+  await expect(hud.locator('[data-man="arrive"]')).toHaveCount(1);
+  await expect(hud.locator(".mfh__headd")).toHaveText("≈ 330 m");
+  await expect(hud).not.toContainText("Manzilga yetib keldingiz");
+  await context.setGeolocation({ latitude: 41.3082, longitude: 69.25, accuracy: 10 });
+  await expect(hud.locator(".mfh__big")).toHaveText("Yetib keldingiz");
+  await expect(hud.locator("[data-man]")).toHaveCount(0);
+  await page.waitForTimeout(600);
+  expect(mock.count("POST", NAV_POST)).toBe(3);
+  await hud.locator('[data-ai-id="marketplace.map.follow.stop"]').click();
+  await storedNothing(page);
+});
+
+test("navigator: the recalculation goes on when the client passes the threshold again while a request is in flight", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 10 });
+  const routes = mapRoutes({ configured: true });
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = () => ROUTED();
+  await openMap(page, routes);
+  const sent: Record<string, unknown>[] = [];
+  let release: () => void = () => {};
+  const held = new Promise<void>((r) => {
+    release = () => r();
+  });
+  await page.route(new RegExp(`/marketplace/sellers/${S1}/navigation$`), async (route) => {
+    sent.push(route.request().postDataJSON() as Record<string, unknown>);
+    if (sent.length === 2) await held;
+    await route.fallback();
+  });
+  const nav = await startRoute(page);
+  await nav.locator('[data-ai-id="marketplace.route.follow"]').click();
+  await context.setGeolocation({ latitude: 41.3025, longitude: 69.2405, accuracy: 10 });
+  await expect.poll(() => sent.length).toBe(2);
+  await context.setGeolocation({ latitude: 41.3051, longitude: 69.2412, accuracy: 10 });
+  await page.waitForTimeout(300);
+  release();
+  await expect.poll(() => sent.length).toBe(3);
+  expect(sent[2]).toEqual({ latitude: 41.3051, longitude: 69.2412, mode: "driving", paid_order_id: null, recalculate: true, session_id: sent[0].session_id, locale: "uz" });
+  await page.locator('[data-ai-id="marketplace.map.follow.stop"]').click();
+});
+
+test("navigator: reaching the destination stops the recalculation, leaving it starts it again", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 10 });
+  const bodies: Record<string, unknown>[] = [];
+  const routes = mapRoutes({ configured: true });
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = (b: unknown) => (bodies.push(b as Record<string, unknown>), ROUTED());
+  await openMap(page, routes);
+  const nav = await startRoute(page);
+  await nav.locator('[data-ai-id="marketplace.route.follow"]').click();
+  const hud = page.locator('[data-ai-id="marketplace.map.follow"]');
+  await context.setGeolocation({ latitude: 41.3099, longitude: 69.2799, accuracy: 10 });
+  await expect(hud.locator(".mfh__big")).toHaveText("Yetib keldingiz");
+  await context.setGeolocation({ latitude: 41.3102, longitude: 69.2803, accuracy: 10 });
+  await page.waitForTimeout(600);
+  await expect(hud).toHaveClass(/is-arrived/);
+  expect(bodies).toHaveLength(1);
+  await context.setGeolocation({ latitude: 41.308, longitude: 69.277, accuracy: 10 });
+  await expect.poll(() => bodies.length).toBe(2);
+  expect(bodies[1]).toMatchObject({ latitude: 41.308, longitude: 69.277, recalculate: true });
+  await expect(hud).not.toHaveClass(/is-arrived/);
+  await hud.locator('[data-ai-id="marketplace.map.follow.stop"]').click();
+  await storedNothing(page);
+});
+
+test("navigator: a 429 while recalculating keeps the route and waits retry_after_seconds", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 10 });
+  const bodies: Record<string, unknown>[] = [];
+  const at: number[] = [];
+  const routes = mapRoutes({ configured: true });
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = (b: unknown) => {
+    bodies.push(b as Record<string, unknown>);
+    at.push(Date.now());
+    return bodies.length === 2 ? { status: 429, json: { detail: { code: "routing_rate_limit_exceeded", retry_after_seconds: 3, limit_per_minute: 30, remaining: 0 } } } : ROUTED();
+  };
+  await openMap(page, routes);
+  const nav = await startRoute(page);
+  await nav.locator('[data-ai-id="marketplace.route.follow"]').click();
+  const hud = page.locator('[data-ai-id="marketplace.map.follow"]');
+  await expect(hud.locator(".mfh__head")).toHaveText("Amir Temur ko‘chasiga o‘ngga buriling");
+  await context.setGeolocation({ latitude: 41.3025, longitude: 69.2405, accuracy: 10 });
+  await expect.poll(() => bodies.length).toBe(2);
+  await expect(hud).toBeVisible();
+  await expect(hud.locator(".mfh__head")).toHaveText("Amir Temur ko‘chasiga o‘ngga buriling");
+  await expect(page.locator('.ymaps-stub-line[data-style="solid"]').first()).toHaveAttribute("points", /\S+ \S+ \S+ \S+/);
+  await context.setGeolocation({ latitude: 41.305, longitude: 69.241, accuracy: 10 });
+  await page.waitForTimeout(1000);
+  expect(bodies).toHaveLength(2);
+  await expect.poll(() => bodies.length, { timeout: 8000 }).toBe(3);
+  expect(at[2] - at[1]).toBeGreaterThanOrEqual(2900);
+  expect(bodies[2]).toMatchObject({ latitude: 41.305, longitude: 69.241, recalculate: true });
+  await hud.locator('[data-ai-id="marketplace.map.follow.stop"]').click();
+});
+
+test("route: a 429 on Show route names the limit and counts down before Retry, with the same session", async ({ page, context }) => {
+  await noYandex(context, "abort");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 20 });
+  const bodies: Record<string, unknown>[] = [];
+  const routes = mapRoutes({ configured: false });
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = (b: unknown) => (
+    bodies.push(b as Record<string, unknown>),
+    bodies.length === 1 ? { status: 429, json: { detail: { code: "routing_rate_limit_exceeded", retry_after_seconds: 2, limit_per_minute: 30, remaining: 0 } } } : STRAIGHT()
+  );
+  await openMap(page, routes);
+  const nav = await startRoute(page);
+  await expect(nav.getByRole("alert")).toHaveText("Yo‘nalish so‘rovlari vaqtincha cheklandi. Birozdan so‘ng qayta urining.");
+  await expect(nav).not.toContainText("routing_rate_limit_exceeded");
+  const build = nav.locator('[data-ai-id="marketplace.route.build"]');
+  await expect(build).toBeDisabled();
+  await expect(build).toHaveText(/· [1-3] s/);
+  expect(bodies).toHaveLength(1);
+  await expect(build).toBeEnabled({ timeout: 6000 });
+  await expect(build).toHaveText("Qayta urinish");
+  await build.click();
+  await expect(nav.locator('[data-ai-id="marketplace.route.straight"]')).toBeVisible();
+  expect(bodies).toHaveLength(2);
+  expect(bodies[1].session_id).toBe(bodies[0].session_id);
+});
+
+test("navigator: a retryable fallback mid-trip keeps the route and the recalculation goes on", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 10 });
+  const bodies: Record<string, unknown>[] = [];
+  const routes = mapRoutes({ configured: true });
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = (b: unknown) => (bodies.push(b as Record<string, unknown>), bodies.length === 2 ? STRAIGHT("routing_provider_unavailable", true) : ROUTED());
+  await openMap(page, routes);
+  const nav = await startRoute(page);
+  await nav.locator('[data-ai-id="marketplace.route.follow"]').click();
+  const hud = page.locator('[data-ai-id="marketplace.map.follow"]');
+  await context.setGeolocation({ latitude: 41.3025, longitude: 69.2405, accuracy: 10 });
+  await expect.poll(() => bodies.length).toBe(2);
+  await page.waitForTimeout(400);
+  await expect(hud.locator(".mfh__head")).toHaveText("Amir Temur ko‘chasiga o‘ngga buriling");
+  await expect(page.locator('.ymaps-stub-line[data-style="solid"]').first()).toHaveAttribute("points", /\S+ \S+ \S+ \S+/);
+  await context.setGeolocation({ latitude: 41.305, longitude: 69.241, accuracy: 10 });
+  await expect.poll(() => bodies.length).toBe(3);
+  await hud.locator('[data-ai-id="marketplace.map.follow.stop"]').click();
+});
+
+test("navigator: the production fallback (no routing key) sends no recalculation", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 10 });
+  const routes = mapRoutes({ configured: true });
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = () => STRAIGHT();
+  const mock = await openMap(page, routes);
+  const nav = await startRoute(page);
+  await nav.locator('[data-ai-id="marketplace.route.follow"]').click();
+  await context.setGeolocation({ latitude: 41.3025, longitude: 69.2405, accuracy: 10 });
+  await page.waitForTimeout(1500);
+  expect(mock.count("POST", NAV_POST)).toBe(1);
+  await page.locator('[data-ai-id="marketplace.map.follow.stop"]').click();
+});
+
+test("navigator: Stop drops a recalculation still in flight and nothing more is sent", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 10 });
+  const routes = mapRoutes({ configured: true });
+  let calls = 0;
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = () => (++calls === 1 ? ROUTED({ distance_m: 9000 }) : ROUTED({ distance_m: 2000, duration_s: 100 }));
+  await openMap(page, routes);
+  const sent: unknown[] = [];
+  let release: () => void = () => {};
+  const held = new Promise<void>((r) => {
+    release = () => r();
+  });
+  await page.route(new RegExp(`/marketplace/sellers/${S1}/navigation$`), async (route) => {
+    sent.push(route.request().postDataJSON());
+    if (sent.length === 2) await held;
+    await route.fallback().catch(() => undefined);
+  });
+  const nav = await startRoute(page);
+  const eta = nav.locator('[data-ai-id="marketplace.route.eta"]');
+  const before = (await eta.textContent()) ?? "";
+  await nav.locator('[data-ai-id="marketplace.route.follow"]').click();
+  await context.setGeolocation({ latitude: 41.3025, longitude: 69.2405, accuracy: 10 });
+  await expect.poll(() => sent.length).toBe(2);
+  await page.locator('[data-ai-id="marketplace.map.follow.stop"]').click();
+  release();
+  await page.waitForTimeout(500);
+  await expect(eta).toHaveText(before);
+  await context.setGeolocation({ latitude: 41.306, longitude: 69.243, accuracy: 10 });
+  await page.waitForTimeout(800);
+  expect(sent).toHaveLength(2);
+});
+
+test("order: the paid order's navigator shows even when the public marker has no office route", async ({ page, context }) => {
+  await noYandex(context, "abort");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 20 });
+  let navBody: Record<string, unknown> | null = null;
+  const routes = mapRoutes({ configured: false });
+  routes[`/marketplace/lawyers/${S2}`] = { user_id: S2, name: "Akmal Yusupov", lawyer_name: "Akmal Yusupov", is_verified: true };
+  routes[`POST /marketplace/sellers/${S2}/navigation`] = (b: unknown) => ((navBody = b as Record<string, unknown>), STRAIGHT());
+  await mockBackend(page, await signIn(page, CLIENT, routes));
+  await page.goto(`/uz/portal/client/lawyers?mode=nearby&route=${S2}&order=ord-9`);
+  const card = page.locator('[data-ai-id="marketplace.map.card"]');
+  await expect(card).toContainText("Akmal Yusupov");
+  await expect(page.locator('[data-ai-id="marketplace.map.area.list"]')).toContainText("Akmal Yusupov");
+  await expect(card.locator('[data-ai-id="marketplace.map.card.no-route"]')).toHaveCount(0);
+  await card.locator('[data-ai-id="marketplace.route.build"]').click();
+  await expect(card.locator('[data-ai-id="marketplace.route.straight"]')).toBeVisible();
+  expect(navBody).toMatchObject({ paid_order_id: "ord-9", recalculate: false });
+});
+
+test("navigator: a lost location consent during the trip stops the navigator and sends nothing more", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 10 });
+  const routes = mapRoutes({ configured: true });
+  let calls = 0;
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = () => (++calls === 2 ? { status: 403, json: { detail: { code: "client_location_consent_required", consent_url: "/marketplace/me/location-consent" } } } : ROUTED());
+  const mock = await openMap(page, routes);
+  const nav = await startRoute(page);
+  await nav.locator('[data-ai-id="marketplace.route.follow"]').click();
+  const hud = page.locator('[data-ai-id="marketplace.map.follow"]');
+  await expect(hud).toBeVisible();
+  await context.setGeolocation({ latitude: 41.3025, longitude: 69.2405, accuracy: 10 });
+  await expect.poll(() => mock.count("POST", NAV_POST)).toBe(2);
+  await expect(hud).toHaveCount(0);
+  await context.setGeolocation({ latitude: 41.306, longitude: 69.243, accuracy: 10 });
+  await page.waitForTimeout(800);
+  expect(mock.count("POST", NAV_POST)).toBe(2);
+});
+
+test("route: a wait set during the trip explains itself on the disabled route button", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 10 });
+  const routes = mapRoutes({ configured: true });
+  let calls = 0;
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = () => (++calls === 2 ? { status: 429, json: { detail: { code: "routing_rate_limit_exceeded", retry_after_seconds: 6, limit_per_minute: 30, remaining: 0 } } } : ROUTED());
+  const mock = await openMap(page, routes);
+  const nav = await startRoute(page);
+  await nav.locator('[data-ai-id="marketplace.route.follow"]').click();
+  await context.setGeolocation({ latitude: 41.3025, longitude: 69.2405, accuracy: 10 });
+  await expect.poll(() => mock.count("POST", NAV_POST)).toBe(2);
+  await page.locator('[data-ai-id="marketplace.map.follow.stop"]').click();
+  await nav.locator('[data-ai-id="marketplace.route.hide"]').click();
+  const build = nav.locator('[data-ai-id="marketplace.route.build"]');
+  await expect(build).toBeDisabled();
+  await expect(build).toHaveText(/· \d s/);
+  await expect(nav.locator('[data-ai-id="marketplace.route.wait"]')).toHaveText("Yo‘nalish so‘rovlari vaqtincha cheklandi. Birozdan so‘ng qayta urining.");
+  await expect(build).toBeEnabled({ timeout: 9000 });
+  await expect(nav.locator('[data-ai-id="marketplace.route.wait"]')).toHaveCount(0);
 });

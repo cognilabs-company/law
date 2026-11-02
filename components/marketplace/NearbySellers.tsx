@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { IconBriefcase, IconClose, IconInfo, IconLock, IconMap, IconMapPin, IconRefresh, IconTarget, IconUsers } from "@/components/icons";
 import { Route as IconRoute } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { isRateLimited, retryAfterSec } from "@/lib/http";
 import { fmtDateTime } from "@/lib/date";
 import type { CategoryRow } from "@/lib/services/categoryTree";
 import { categoryTitleName } from "@/lib/categoryNames";
@@ -14,12 +15,15 @@ import { getMarketplaceSeller, type MarketSeller } from "@/lib/services/marketpl
 import { geoFailureOf, precisionMeters, roundCoord, type GeoFailure, type NearbyMode, type Spot } from "@/lib/services/marketDiscovery";
 import { readPosition } from "@/lib/services/locationShare";
 import { useConsent } from "@/lib/useConsent";
+import { useDeadline } from "@/lib/useOtpTimer";
 import {
   filterOfError,
   getLocationConsent,
   isAborted,
   mapErrorKey,
+  navCoord,
   NEARBY_SORTS,
+  recalcArmed,
   recordLocationConsent,
   searchNearbySellers,
   type LocationConsent,
@@ -28,7 +32,7 @@ import {
   type NearbySort,
   type Place,
 } from "@/lib/services/mapLocation";
-import { DEFAULT_MAP_FILTERS, filtersKey, getMapConfig, NAV_MODES, offlineMapConfig, SELLER_TYPE_FILTERS, type MapConfig, type MapFilters, type MapSeller, type SellerTypeFilter } from "@/lib/services/sellersMap";
+import { DEFAULT_MAP_FILTERS, filtersKey, getMapConfig, mapLocaleOf, NAV_MODES, offlineMapConfig, SELLER_TYPE_FILTERS, type MapConfig, type MapFilters, type MapSeller, type SellerTypeFilter } from "@/lib/services/sellersMap";
 import { sellerTypeLabel } from "./bits";
 import AreaList, { useAreaSellers } from "./map/AreaList";
 import FilterSheet from "./map/FilterSheet";
@@ -41,6 +45,8 @@ import SellerDetail from "./map/SellerDetail";
 import SellerRow, { type RowSeller } from "./map/SellerRow";
 import SellersYandexMap, { MapPlaceholder, type Viewport } from "./map/SellersYandexMap";
 import { askCompass, distanceMeters, useFollow } from "./map/useFollow";
+import { pathLength } from "./map/geoMath";
+import { arrivedNear, routeRemainM } from "./map/navText";
 import MapConsentGate from "./map/MapConsentGate";
 import { useMapRealtime } from "./map/useMapRealtime";
 import "./nearbySellers.css";
@@ -71,7 +77,7 @@ export function MarketModeSwitch({ mode, onChange }: { mode: NearbyMode; onChang
 // Where the nearby search starts: the browser's position (source "web") or
 // a point the client chose after the browser refused (source "manual").
 // Held in memory only — never in localStorage or sessionStorage.
-type Here = { point: Spot; accuracyM: number | null; source: "web" | "manual" };
+type Here = { point: Spot; nav?: Spot; accuracyM: number | null; source: "web" | "manual" };
 type Res = { key: string; result: NearbySearchResult | null; fail: MapErrorKey | null };
 type Geo = { busy: boolean; fail: GeoFailure | null };
 type Then = (p: Spot) => void;
@@ -79,6 +85,7 @@ type Picked = { s: RowSeller; near: boolean };
 type OrderRoute = { sellerUserId: string; orderId: string };
 
 const SAFE_ID = /^[A-Za-z0-9_-]{1,80}$/;
+const REROUTE_TIMEOUT_MS = 30000;
 
 function orderRouteOf(search: string): OrderRoute | null {
   const q = new URLSearchParams(search);
@@ -178,6 +185,11 @@ export default function NearbySellers({
   const [picked, setPicked] = useState<Picked | null>(null);
   const [guide, setGuide] = useState<Guide | null>(null);
   const [following, setFollowing] = useState(false);
+  const [routeWaitUntil, setRouteWaitUntil] = useState(0);
+  const routeWaitS = useDeadline(routeWaitUntil);
+  const holdRoutes = (sec: number) => setRouteWaitUntil(Date.now() + Math.max(1, sec) * 1000);
+  const rerouteCtl = useRef<AbortController | null>(null);
+  const [rerouted, setRerouted] = useState(0);
   const [paused, setPaused] = useState(false);
   const [snap, setSnap] = useState<Snap>("peek");
   const [inset, setInset] = useState<Inset>({ left: 0, bottom: 0 });
@@ -294,11 +306,12 @@ export default function NearbySellers({
         setGeo({ busy: false, fail: null });
         if (!ok) return;
         const point = { latitude: roundCoord(fix.latitude), longitude: roundCoord(fix.longitude) };
-        setHere({ point, accuracyM: Number.isFinite(fix.accuracy) ? Math.round(fix.accuracy) : null, source: "web" });
+        const nav = { latitude: navCoord(fix.latitude), longitude: navCoord(fix.longitude) };
+        setHere({ point, nav, accuracyM: Number.isFinite(fix.accuracy) ? Math.round(fix.accuracy) : null, source: "web" });
         setCenter(point);
         setTick((n) => n + 1);
         setSnap((s) => (s === "peek" ? "half" : s));
-        then?.(point);
+        then?.(nav);
       },
       (e) => {
         const kind = geoFailureOf(e);
@@ -382,11 +395,13 @@ export default function NearbySellers({
 
   const stopFollow = () => {
     const hadFocus = !!document.activeElement?.closest?.('[data-ai-id="marketplace.map.follow"]');
+    rerouteCtl.current?.abort();
     setFollowing(false);
     setPaused(false);
     if (hadFocus) focusSoon('[data-ai-id="marketplace.route.follow"]');
   };
-  const fol = useFollow({ active: following, dest: guide?.dest ?? null, onHidden: stopFollow });
+  const followPath = guide?.info?.available ? guide.path : null;
+  const fol = useFollow({ active: following, dest: guide?.dest ?? null, path: followPath, onHidden: stopFollow });
 
   const select = (id: string | null) => {
     if (id === selected) return;
@@ -458,28 +473,66 @@ export default function NearbySellers({
   const guideLine = useMemo(() => (guide?.dest ? { from: guide.from, to: guide.dest, name: guide.name, path: guide.path } : null), [guide]);
 
   const recalcM = guide?.info?.recalcM ?? cfg?.routing.recalcM ?? 100;
-  const needReroute = following && !!guide?.info?.available && !!fol.point && distanceMeters(fol.point, guide.from) > recalcM;
+  const guideDest = guide?.dest ?? null;
+  const routeLen = useMemo(() => (followPath ? pathLength(followPath) : 0), [followPath]);
+  const endGap = useMemo(() => (followPath && guideDest ? distanceMeters(followPath[followPath.length - 1], guideDest) : 0), [followPath, guideDest]);
+  const arrivedNow = arrivedNear(fol.meters, followPath ? routeRemainM(followPath, routeLen, fol) : null, endGap);
+  const needReroute =
+    following && routeWaitS === 0 && !arrivedNow && !!guide && recalcArmed(guide.info) && !!fol.point && distanceMeters(fol.point, guide.from) - (fol.accuracy ?? 0) >= recalcM;
   const rerouting = useRef(false);
   const reroute = useEffectEvent(() => {
     const g = guide;
     const p = fol.point;
     if (!g || !p || !cfg || rerouting.current) return;
     rerouting.current = true;
-    const from = { latitude: roundCoord(p.latitude), longitude: roundCoord(p.longitude) };
-    requestGuide({ target: g.target, template: cfg.navigationTemplate, point: from, mode: g.mode }).then(
+    const ctl = new AbortController();
+    rerouteCtl.current = ctl;
+    const timer = window.setTimeout(() => ctl.abort(), REROUTE_TIMEOUT_MS);
+    const settle = () => {
+      window.clearTimeout(timer);
+      if (rerouteCtl.current === ctl) rerouteCtl.current = null;
+      rerouting.current = false;
+      setRerouted((n) => n + 1);
+    };
+    const from = { latitude: navCoord(p.latitude), longitude: navCoord(p.longitude) };
+    requestGuide({ target: g.target, template: cfg.navigationTemplate, point: from, mode: g.mode, recalculate: true, sessionId: g.sessionId, locale: mapLocaleOf(locale), signal: ctl.signal }).then(
       (next) => {
-        rerouting.current = false;
-        setGuide((cur) => (cur && cur.sellerUserId === next.sellerUserId && cur.mode === next.mode ? { ...next, from: p } : cur));
+        settle();
+        setGuide((cur) => {
+          if (cur !== g) return cur;
+          const sameDest = !!next.dest && !!cur.dest && next.route.destinationSource === cur.route.destinationSource && distanceMeters(next.dest, cur.dest) < 60;
+          return next.info?.available || !cur.info?.available || !sameDest ? { ...next, from: p } : { ...cur, from: p };
+        });
       },
-      () => {
-        rerouting.current = false;
-        setGuide((cur) => (cur && cur.sellerUserId === g.sellerUserId ? { ...cur, from: p } : cur));
+      (e) => {
+        settle();
+        if (isAborted(e)) return;
+        if (isRateLimited(e)) {
+          holdRoutes(retryAfterSec(e, 60));
+          return;
+        }
+        const k = mapErrorKey(e);
+        if (k === "client_location_consent_required") {
+          stopFollow();
+          consentLost();
+          return;
+        }
+        if (k === "login_required") {
+          stopFollow();
+          setNeedLogin(true);
+          return;
+        }
+        if (k === "seller_not_found" || k === "paid_order_not_found" || k === "active_paid_order_required" || k === "public_office_navigation_unavailable") {
+          takeGuide(null);
+          return;
+        }
+        setGuide((cur) => (cur === g ? { ...cur, from: p } : cur));
       },
     );
   });
   useEffect(() => {
     if (needReroute) reroute();
-  }, [needReroute]);
+  }, [needReroute, rerouted]);
 
   const [orderRoute] = useState<OrderRoute | null>(() => (typeof window === "undefined" ? null : orderRouteOf(window.location.search)));
   const openedOrder = useRef(false);
@@ -883,11 +936,11 @@ export default function NearbySellers({
         labelId={`${uid}d`}
         onBack={closeDetail}
       >
-        {sel.nav.available ? (
+        {sel.nav.available || (orderRoute?.sellerUserId === sel.sellerUserId && !!orderRoute.orderId) ? (
           <NavigatorBlock
             key={sel.sellerUserId}
             target={{ sellerUserId: sel.sellerUserId, name: selName, endpoint: sel.nav.endpoint, modes: sel.nav.modes, paidOrderId: orderRoute?.sellerUserId === sel.sellerUserId ? orderRoute.orderId : undefined }}
-            point={here?.point ?? null}
+            point={here?.nav ?? here?.point ?? null}
             signedIn={signedIn}
             locating={geo.busy}
             geoFailed={!!geo.fail}
@@ -895,6 +948,9 @@ export default function NearbySellers({
             template={cfg.navigationTemplate}
             guide={guide?.sellerUserId === sel.sellerUserId ? guide : null}
             following={following}
+            waitS={routeWaitS}
+            recalcM={cfg.routing.recalcM}
+            serverRoute={cfg.routing.serverRoute}
             onLocate={(then) => locate(then)}
             onManual={(p, then) => void confirmManual(p.point, then)}
             onConsentNeeded={consentLost}
@@ -902,6 +958,7 @@ export default function NearbySellers({
             onGuide={takeGuide}
             onStart={startFollow}
             onStop={stopFollow}
+            onRateLimited={holdRoutes}
           />
         ) : (
           <div className="msd__nonav" data-ai-id="marketplace.map.card.no-route">
