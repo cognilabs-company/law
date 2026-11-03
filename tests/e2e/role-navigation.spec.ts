@@ -39,6 +39,29 @@ const NAVBATCHI_POLICY = {
   direct_navigation_denied: true,
 };
 
+// 2026-11-03: urgent work opened to the duty lawyer; duty_services is no
+// longer hidden, CRM, operator chats and remote assistance still are.
+const NAVBATCHI_POLICY_URGENT = {
+  ...NAVBATCHI_POLICY,
+  policy_version: "2026-11-03.1",
+  hidden_page_ids: ["crm", "operator_chats", "remote_assistance"],
+};
+const URGENT_ROW = {
+  id: "ur1",
+  work_id: "LGT-20261103-D0A1B2C3",
+  service_kind: "urgent_consultation",
+  channel: "phone",
+  status: "new",
+  source: "web",
+  region: "tashkent_city",
+  need: "Hibsga olindi, zudlik bilan advokat kerak",
+  directions: ["criminal"],
+  lawyer_count: 1,
+  client: { id: "u-c1", name: "Dilnoza Karimova", phone: "+998900000005" },
+  created_at: new Date().toISOString(),
+  lifecycle: { next_statuses: ["in_review", "cancelled"], active_statuses: ["new", "in_review"], final_statuses: ["completed", "cancelled"] },
+};
+
 const sidebar = (page: Page) => page.locator(".psb__nav");
 const link = (page: Page, href: string) => sidebar(page).locator(`a[href$="${href}"]`);
 
@@ -108,6 +131,50 @@ test.describe("role navigation policy", () => {
     await page.goto("/ru/admin");
     await expect(page).toHaveURL(/\/ru\/portal\/lawyer$/);
     expect(seen.filter((p) => /\/admin\/(meetings|call-center)/.test(p))).toEqual([]);
+  });
+
+  test("navbatchi yurist without a navigation policy: admin pages settle in the workspace without bouncing", async ({ page }) => {
+    // GET /me/navigation missing (404): the workspace is open to the role,
+    // so /admin/meetings moves into it once and stays there (it used to
+    // loop /admin/meetings ↔ ?view=meetings).
+    const duty: Who = { ...NAVBATCHI, roles: ["yurist", "call_center_lawyer"], permissions: ["meetings.manage"] };
+    const routes = await signIn(page, duty, {});
+    await mockBackend(page, routes);
+    const seen: string[] = [];
+    page.on("framenavigated", (f) => {
+      if (f === page.mainFrame()) seen.push(new URL(f.url()).pathname + new URL(f.url()).search);
+    });
+    await page.goto("/ru/admin/meetings");
+    await page.waitForTimeout(3000);
+    await expect(page).toHaveURL(/\/ru\/admin\/call-center\?view=meetings$/);
+    // Once in the workspace it never goes back to /admin/meetings.
+    const first = seen.findIndex((p) => p.includes("/admin/call-center"));
+    expect(first).toBeGreaterThanOrEqual(0);
+    expect(seen.slice(first).filter((p) => p.includes("/admin/meetings"))).toEqual([]);
+  });
+
+  test("navbatchi yurist with urgent work open: the workspace shows the urgent queue, CRM stays closed", async ({ page }) => {
+    const duty: Who = { ...NAVBATCHI, roles: ["yurist", "call_center_lawyer"], permissions: [] };
+    const routes = await signIn(page, duty, {
+      "/me/navigation": NAVBATCHI_POLICY_URGENT,
+      "/call-center/urgent-advokat/requests": { items: [URGENT_ROW] },
+    });
+    const mock = await mockBackend(page, routes);
+    // Sign-in still lands on the cabinet (default_route).
+    await page.goto("/ru/login");
+    await expect(page).toHaveURL(/\/ru\/portal\/lawyer$/);
+    // The admin entry point opens the workspace on urgent work.
+    await page.goto("/ru/admin");
+    await expect(page).toHaveURL(/\/ru\/admin\/call-center$/);
+    await expect(page.getByText("Dilnoza Karimova").first()).toBeVisible();
+    expect(mock.count("GET", /^\/call-center\/urgent-advokat\/requests/)).toBeGreaterThan(0);
+    // No CRM or operator-chat tab; a CRM view link still shows urgent work.
+    await expect(page.locator('a[href*="view=crm"], a[href*="view=support"]')).toHaveCount(0);
+    await page.goto("/ru/admin/call-center?view=crm");
+    await expect(page.getByText("Dilnoza Karimova").first()).toBeVisible();
+    expect(mock.count("GET", /^\/crm\//)).toBe(0);
+    await page.goto("/ru/admin/crm/leads");
+    await expect(page).toHaveURL(/\/ru\/portal\/lawyer$/);
   });
 
   test("a role_page_access_denied answer refetches the policy and leaves the page with a short notice", async ({ page }) => {

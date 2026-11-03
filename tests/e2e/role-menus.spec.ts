@@ -30,12 +30,15 @@ async function sidebarHrefs(page: Page, path: string) {
   return hrefs.map((h) => h.replace(/^\/(uz|ru|en)/, "")).filter((h) => h.startsWith(path));
 }
 
-test("the duty lawyer has no CRM, duty desk, operator chats or remote assistance, even with the call_center primary role", async ({ page }) => {
+test("the duty lawyer keeps urgent work but has no CRM, operator chats or remote assistance, even with the call_center primary role", async ({ page }) => {
   await mockBackend(page, await signIn(page, DUTY_LAWYER, {}));
   await page.goto("/uz/admin/call-center");
-  await expect(page).not.toHaveURL(/\/admin\/call-center$/);
-  const hrefs = await sidebarHrefs(page, "/admin");
-  for (const gone of ["/admin/crm", "/admin/call-center", "/admin/call-center/support", "/admin/remote-assistance"]) expect(hrefs).not.toContain(gone);
+  // Urgent work is open to call_center_lawyer (2026-11-03): the workspace stays.
+  await expect(page).toHaveURL(/\/admin\/call-center$/);
+  await expect(page.locator(".opx-tab").first()).toBeVisible();
+  const tabs = await page.locator(".opx-tab").evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute("href") ?? ""));
+  expect(tabs.some((h) => h.endsWith("/admin/call-center"))).toBe(true);
+  for (const gone of ["view=crm", "view=support", "remote-assistance"]) expect(tabs.some((h) => h.includes(gone))).toBe(false);
   await page.goto("/uz/admin/remote-assistance");
   await expect(page).not.toHaveURL(/\/admin\/remote-assistance$/);
 });

@@ -211,7 +211,10 @@ function subscribeMobile(cb: () => void) {
 // sub-pages. A prefix match on /admin would let any page through by URL.
 const EXACT_NAV = new Set(["/admin/call-center"]);
 const ROLE_HIDES: readonly { role: string; unless: readonly string[]; hrefs: readonly string[] }[] = [
-  { role: "call_center_lawyer", unless: ["superadmin", "admin", "manager"], hrefs: ["/admin/crm", "/admin/call-center", "/admin/call-center/support", "/admin/remote-assistance"] },
+  // The duty desk itself (/admin/call-center) is not here: urgent work is
+  // open to call_center_lawyer (2026-11-03 contract) and GET /me/navigation
+  // alone decides whether duty_services is hidden.
+  { role: "call_center_lawyer", unless: ["superadmin", "admin", "manager"], hrefs: ["/admin/crm", "/admin/call-center/support", "/admin/remote-assistance"] },
   { role: "sales_operator", unless: ["superadmin", "admin", "manager", "sales_head"], hrefs: ["/admin/marketplace"] },
 ];
 const hiddenForRoles = (href: string, roles: readonly string[]) =>
@@ -281,7 +284,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const allowed = adminAccess || isBootstrap || studioUser || (isStudioPath && studioPending);
   // Operators work in the same shell as everyone else: their status and
   // shift clock sit in the header, open work counts on their nav item.
-  const ccOperator = !isFullAdmin && isCallCenterUser(session) && !roleNav.hides(CCX_HOME);
+  // Not a role whose menu drops the workspace: its pages would be moved into
+  // a workspace the access check then leaves, /admin/meetings ↔
+  // /admin/call-center?view=meetings for ever.
+  const ccOperator = !isFullAdmin && isCallCenterUser(session) && !roleNav.hides(CCX_HOME) && !hiddenForRoles(CCX_HOME, roles);
   const ccOpen = useCcOpen(ccOperator);
   useEffect(() => {
     if (ccOperator) startCcShift();
@@ -301,6 +307,10 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     !hiddenForRoles(n.href, roles) &&
     (n.key === "profile"
       ? true
+      // The duty desk's urgent work belongs to the call_center_lawyer role
+      // itself, whatever permissions the session carries (2026-11-03).
+      : n.href === CCX_HOME && roles.includes("call_center_lawyer")
+        ? true
       : n.key === "supportTickets"
         ? isCallCenterUser(session)
       : n.key === "testOtps" && demoTools !== true
@@ -349,6 +359,12 @@ export default function AdminShell({ children }: { children: ReactNode }) {
         if (roleNav.state.status === "loading") return;
         // The role's own landing page first (a duty lawyer goes straight to
         // its cabinet instead of through the first admin item it can see).
+        // An operator opening the admin entry point (the portal's "Admin"
+        // link) wants its workspace, not a hop back to the portal.
+        if (pathname === "/admin" && ccOperator && visibleNav.some((n) => n.href === CCX_HOME)) {
+          router.replace(CCX_HOME);
+          return;
+        }
         const landing = policyLanding(roleNav.state, session);
         const landingOk = !!landing && (!navPath(landing).startsWith("/admin") || visibleNav.some((n) => onItem(navPath(landing), n)));
         router.replace(landingOk ? landing : visibleNav.find((n) => !n.hidden)?.href ?? `/portal/${session.role}`);

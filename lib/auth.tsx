@@ -588,7 +588,9 @@ export function canMakeCalls(s: Session | null): boolean {
 // least one admin page (so AdminShell never admits someone with an empty nav).
 export function hasAdminAccess(s: Session | null): boolean {
   if (!s) return false;
-  if (sessionRoles(s).some((r) => r === "superadmin" || r === "admin")) return true;
+  // call_center_lawyer works the urgent queue in the admin call-center
+  // workspace (2026-11-03), whatever permissions its session carries.
+  if (sessionRoles(s).some((r) => r === "superadmin" || r === "admin" || r === "call_center_lawyer")) return true;
   return (s.permissions ?? []).some((p) => (ADMIN_PERMISSIONS as readonly string[]).includes(p));
 }
 

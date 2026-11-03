@@ -21,6 +21,7 @@ import CcCallLog from "@/components/admin/CcCallLog";
 import CallCenterConsole, { CcTabPanel, REVIEW_PERMISSION, useCcConsole } from "@/components/admin/CallCenterConsole";
 import MarketWatcher from "@/components/marketplace/MarketWatcher";
 import { lazyView } from "@/components/ccx/lazyView";
+import { useRoleNav } from "@/components/RoleNavHost";
 
 const NOW = lazyView(() => import("@/components/ccx/now/CcxNow"));
 const QUEUES = lazyView(() => import("@/components/ccx/queues/CcxQueues"));
@@ -147,8 +148,17 @@ function AdminCallCenterPage() {
   const params = useSearchParams();
   const roles = sessionRoles(session);
   const operator = isCallCenterUser(session) && !roles.includes("superadmin") && !roles.includes("admin");
+  const roleNav = useRoleNav();
   usePreloadViews(operator);
   if (!operator) return <AdminCallCenterConsole />;
+  // The duty lawyer (call_center_lawyer, profile navbatchi_yurist) works the
+  // urgent queue here (LEXGO_CALLCENTER_URGENT_WORK_ACCESS_2026_11_03): CRM,
+  // operator chats, client lookup and the general queues stay closed, so its
+  // workspace opens on urgent work and any other view falls back to it.
+  const duty =
+    roleNav.state.policy?.roleProfile === "navbatchi_yurist" ||
+    (roles.includes("call_center_lawyer") && !["superadmin", "admin", "manager"].some((r) => roles.includes(r)));
+  if (duty) return <DutyView view={params.get("view") ?? ""} />;
   const tab = params.get("tab") ?? "";
   if (tab === "urgent") return <CcxUrgent />;
   if (tab === "clients") return <CcxClients />;
@@ -175,6 +185,21 @@ function AdminCallCenterPage() {
       return <CcxProfile />;
     default:
       return <CcxNow />;
+  }
+}
+
+function DutyView({ view }: { view: string }) {
+  switch (view) {
+    case "meetings":
+      return <CcxMeetings />;
+    case "tasks":
+      return <CcxTasks />;
+    case "analytics":
+      return <CcxAnalytics />;
+    case "profile":
+      return <CcxProfile />;
+    default:
+      return <CcxUrgent />;
   }
 }
 
