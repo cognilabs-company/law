@@ -88,6 +88,28 @@ test.describe("role navigation policy", () => {
     expect(mock.count("GET", /^\/crm\//)).toBe(0);
   });
 
+  test("navbatchi yurist with staff permissions: sign-in lands on the lawyer cabinet in one step", async ({ page }) => {
+    // The duty lawyer also holds the call_center_lawyer role and admin-page
+    // permissions. It used to go /admin → /admin/meetings →
+    // /admin/call-center?view=meetings → /portal/lawyer, a spinner per page.
+    const duty: Who = { ...NAVBATCHI, roles: ["yurist", "call_center_lawyer"], permissions: ["meetings.manage", "leads.manage"] };
+    const routes = await signIn(page, duty, { "/me/navigation": NAVBATCHI_POLICY });
+    await mockBackend(page, routes);
+    const seen: string[] = [];
+    page.on("framenavigated", (f) => {
+      if (f === page.mainFrame()) seen.push(new URL(f.url()).pathname);
+    });
+    await page.goto("/ru/login");
+    await expect(page).toHaveURL(/\/ru\/portal\/lawyer$/);
+    expect(seen.filter((p) => p.startsWith("/ru/admin"))).toEqual([]);
+
+    // Its admin entry point goes straight to the cabinet too.
+    seen.length = 0;
+    await page.goto("/ru/admin");
+    await expect(page).toHaveURL(/\/ru\/portal\/lawyer$/);
+    expect(seen.filter((p) => /\/admin\/(meetings|call-center)/.test(p))).toEqual([]);
+  });
+
   test("a role_page_access_denied answer refetches the policy and leaves the page with a short notice", async ({ page }) => {
     let policyCalls = 0;
     const routes = await signIn(page, CLIENT, {

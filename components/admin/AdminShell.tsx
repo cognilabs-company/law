@@ -52,7 +52,8 @@ import { IconLogo, IconGrid, IconLogout, IconMenu, IconClose, IconSearch } from 
 import { startCcShift } from "@/lib/callcenter/ccOperator";
 import { useCcOpen } from "@/lib/callcenter/useCcOpen";
 import { CCX_HOME, CCX_NAV_HREF, CCX_PROFILE_HREF, ccxRouteFor } from "@/lib/ccx/routes";
-import { useRoleNav } from "@/components/RoleNavHost";
+import { policyLanding, useRoleNav } from "@/components/RoleNavHost";
+import { navPath } from "@/lib/roleNav";
 import CcxViewLoading from "../ccx/ViewLoading";
 
 const AiSystemAssistant = dynamic(() => import("../portal/AiSystemAssistant"), { ssr: false });
@@ -342,10 +343,19 @@ export default function AdminShell({ children }: { children: ReactNode }) {
       const onAllowed = visibleNav.some(
         (n) => onItem(pathname, n),
       );
-      if (!onAllowed) router.replace(visibleNav.find((n) => !n.hidden)?.href ?? `/portal/${session.role}`);
+      if (!onAllowed) {
+        // The role policy is still loading: RoleRouteGuard holds the page,
+        // and guessing now would add a hop the policy then undoes.
+        if (roleNav.state.status === "loading") return;
+        // The role's own landing page first (a duty lawyer goes straight to
+        // its cabinet instead of through the first admin item it can see).
+        const landing = policyLanding(roleNav.state, session);
+        const landingOk = !!landing && (!navPath(landing).startsWith("/admin") || visibleNav.some((n) => onItem(navPath(landing), n)));
+        router.replace(landingOk ? landing : visibleNav.find((n) => !n.hidden)?.href ?? `/portal/${session.role}`);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, session, router, isBootstrap, bootstrapOk, pathname, studioUser, studioPending, isStudioPath]);
+  }, [ready, session, router, isBootstrap, bootstrapOk, pathname, studioUser, studioPending, isStudioPath, roleNav.state]);
 
   const placeholder = <div className="portal portal--redirect" aria-busy="true"><span className="rf__spinner" /></div>;
   if (!ready) return placeholder;

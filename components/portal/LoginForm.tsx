@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { readReferral } from "@/lib/referral";
 import { takeReturnTo } from "@/lib/returnTo";
@@ -17,10 +17,13 @@ import { OtpCountdown, OtpResendButton } from "@/components/auth/OtpStatus";
 import CodeSlots, { type CodeSlotsStatus } from "../CodeSlots";
 import { IconCheck, IconLogo } from "../icons";
 import PasswordInput from "../PasswordInput";
+import { restrictedLanding, useRoleNavState } from "../RoleNavHost";
 
 // Success exit: the form fades and lifts (.plogin__c--leave in globals.css)
 // for this long before the router moves on.
 const EXIT_MS = 420;
+// Longest the exit waits for the role policy before using the generic home.
+const POLICY_WAIT_MS = 4000;
 // Backend unreachable (network / proxy 502) or a server-side failure.
 const unreachable = (e: unknown) => isOffline(e) || (e instanceof ApiError && (e.status === 502 || e.status === 503 || e.status === 504));
 // Any other 5xx: the backend answered but failed (e.g. the code could not be issued).
@@ -54,22 +57,50 @@ export default function LoginForm() {
   // The one-time-code field's own "accepted" animation. Separate from exitTo
   // so the tick is on screen BEFORE the card starts fading out.
   const [codeOk, setCodeOk] = useState(false);
-  const leave = (s: Session) => setExitTo(exitFor(s));
+  // A client's own return-to link wins over the role's landing page.
+  const exitIsReturn = useRef(false);
+  const leave = (s: Session) => {
+    const to = exitFor(s);
+    exitIsReturn.current = to !== homeFor(s);
+    setExitTo(to);
+  };
   // How long the accepted-code animation needs before the exit may start.
   const CODE_OK_MS = 620;
+  // The role policy (GET /me/navigation) is fetched as soon as the session
+  // exists. A restricted profile (e.g. the duty lawyer) has its own landing
+  // page, so wait for the answer and go there in one step: guessing /admin
+  // first sent such an account through several pages, each behind its own
+  // loading spinner. Capped so a slow policy never strands the user here.
+  const roleNav = useRoleNavState();
+  const navSettled = roleNav.status !== "loading";
+  const [exitReady, setExitReady] = useState(false);
   useEffect(() => {
     if (!exitTo) return;
     const ms = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : EXIT_MS;
-    const h = setTimeout(() => router.replace(exitTo), ms);
+    const h = setTimeout(() => setExitReady(true), ms);
     return () => clearTimeout(h);
-  }, [exitTo, router]);
+  }, [exitTo]);
+  const [navGaveUp, setNavGaveUp] = useState(false);
+  useEffect(() => {
+    if (!exitTo && !session) return;
+    const h = setTimeout(() => setNavGaveUp(true), POLICY_WAIT_MS);
+    return () => clearTimeout(h);
+  }, [exitTo, session]);
+  const landingFor = (s: Session, fallback: string) => (exitIsReturn.current ? fallback : restrictedLanding(roleNav, s) || fallback);
+  useEffect(() => {
+    if (!exitTo || !exitReady || !session || (!navSettled && !navGaveUp)) return;
+    router.replace(landingFor(session, exitTo));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exitTo, exitReady, session, navSettled, navGaveUp, router]);
 
   // Already signed in → the login page is off-limits until logout. Not while
   // a sign-in from this form is in flight: the session lands in the auth
   // context before `login` resolves, and the exit above owns that redirect.
   useEffect(() => {
-    if (ready && session && !busy && !resending && !exitTo) router.replace(homeFor(session));
-  }, [ready, session, busy, resending, exitTo, router]);
+    if (!ready || !session || busy || resending || exitTo || (!navSettled && !navGaveUp)) return;
+    router.replace(restrictedLanding(roleNav, session) || homeFor(session));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, session, busy, resending, exitTo, navSettled, navGaveUp, router]);
   // Referral code from the URL / storage stays on the sign-up link (T1A-08);
   // read after mount (storage is not available during SSR).
   const [refCode, setRefCode] = useState("");

@@ -60,6 +60,28 @@ function homeFor(s: Session | null, pathname: string): string {
   return `/portal/${s?.role ?? "client"}`;
 }
 
+const PORTAL_ROLES = new Set(["client", "lawyer", "advocate"]);
+
+// The policy's default_route when this session can actually open it ('' if
+// not): not one of the policy's own hidden routes, and not another role's
+// portal (PortalShell would only bounce it on to /portal/<role>, one more
+// spinner and one more page).
+export function policyLanding(state: RoleNavState, session: Session | null): string {
+  if ((state.status !== "ready" && state.status !== "cached") || !state.policy?.defaultRoute) return "";
+  const to = state.policy.defaultRoute;
+  const seg = navPath(to).split("/")[2] ?? "";
+  if (navPath(to).startsWith("/portal/") && PORTAL_ROLES.has(seg) && session && seg !== session.role) return "";
+  return stateHidesPath(state, to) ? "" : to;
+}
+
+// A profile the backend restricts (it hides at least one page) lands on its
+// default_route right after sign-in instead of the generic home.
+export function restrictedLanding(state: RoleNavState, session: Session | null): string {
+  const p = state.policy;
+  if (!p || (!p.hiddenPageIds.length && !p.hiddenRoutes.length)) return "";
+  return policyLanding(state, session);
+}
+
 const DENIED_TOAST_ID = "role-page-access-denied";
 const REFETCH_THROTTLE_MS = 5000;
 
@@ -170,7 +192,7 @@ export default function RoleNavHost() {
       const state = getRoleNavState();
       const onThatPage = (!!d.pageId && pageIdOfPath(here) === d.pageId) || stateHidesPath(state, here);
       if (!onThatPage) return;
-      const to = d.defaultRoute || state.policy?.defaultRoute || homeFor(sessionRef.current, here);
+      const to = d.defaultRoute || policyLanding(state, sessionRef.current) || homeFor(sessionRef.current, here);
       if (navPath(to) === navPath(here)) return;
       router.replace(to);
       notify.info(t("denied"), { id: DENIED_TOAST_ID, duration: 4000 });
@@ -194,12 +216,7 @@ export function RoleRouteGuard({ children }: { children: ReactNode }) {
   const hidden = stateHidesPath(state, pathname);
   // First policy of this account still loading: no cabinet page yet.
   const waiting = state.status === "loading" && CABINET.test(navPath(pathname));
-  const target =
-    state.status === "loading"
-      ? ""
-      : (state.status === "ready" || state.status === "cached") && state.policy?.defaultRoute
-        ? state.policy.defaultRoute
-        : homeFor(session, pathname);
+  const target = state.status === "loading" ? "" : policyLanding(state, session) || homeFor(session, pathname);
   useEffect(() => {
     if (!hidden || !target) return;
     // Never bounce onto another hidden route.
