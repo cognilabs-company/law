@@ -25,7 +25,7 @@ import { useRoleNav } from "@/components/RoleNavHost";
 
 const NOW = lazyView(() => import("@/components/ccx/now/CcxNow"));
 const QUEUES = lazyView(() => import("@/components/ccx/queues/CcxQueues"));
-const URGENT = lazyView(() => import("@/components/ccx/urgent/CcxUrgent"));
+const URGENT = lazyView<{ duty?: boolean }>(() => import("@/components/ccx/urgent/CcxUrgent"));
 const CLIENTS = lazyView(() => import("@/components/ccx/clients/CcxClients"));
 const CRM = lazyView(() => import("@/components/ccx/crm/CcxCrm"));
 const SUPPORT = lazyView(() => import("@/components/ccx/support/CcxSupport"));
@@ -199,7 +199,7 @@ function DutyView({ view }: { view: string }) {
     case "profile":
       return <CcxProfile />;
     default:
-      return <CcxUrgent />;
+      return <CcxUrgent duty />;
   }
 }
 

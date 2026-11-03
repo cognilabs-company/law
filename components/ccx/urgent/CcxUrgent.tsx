@@ -64,7 +64,9 @@ function MobileSheet({ label, onClose, children }: { label: string; onClose: () 
   );
 }
 
-export default function CcxUrgent() {
+// `duty`: the duty lawyer's workspace opens on this queue and has no general
+// queue board, so "All queues" would only lead back here.
+export default function CcxUrgent({ duty = false }: { duty?: boolean } = {}) {
   const t = useTranslations("admin.urgent");
   const x = useTranslations("admin.ccx.urgent");
   const tp = useTranslations("admin.ccx.panel");
@@ -371,10 +373,12 @@ export default function CcxUrgent() {
 
   const head = (
     <header className="opx-ug-head">
-      <Link href="/admin/call-center?view=queues" className="opx-ug-back">
-        <IcArrowLeft size={16} />
-        {x("back")}
-      </Link>
+      {duty ? null : (
+        <Link href="/admin/call-center?view=queues" className="opx-ug-back">
+          <IcArrowLeft size={16} />
+          {x("back")}
+        </Link>
+      )}
       <h2>{x("title")}</h2>
       {state.status !== "forbidden" && state.status !== "missing" ? (
         <span className={`opx-ug-live${live ? " is-on" : ""}`} role="status">
