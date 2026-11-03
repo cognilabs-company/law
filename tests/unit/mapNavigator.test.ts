@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError, isRateLimited, retryAfterSec } from "@/lib/http";
-import { mapErrorKey, navCoord, navigationBody, navSessionId, normConsent, normNavRoute, normRouteInfo, recalcArmed, type RouteStep } from "@/lib/services/mapLocation";
+import { mapErrorKey, navCoord, navigationBody, navSessionId, normConsent, normNavRoute, normRouteInfo, providerWaitS, recalcArmed, type RouteStep } from "@/lib/services/mapLocation";
 import { mapLocaleOf, normMapConfig } from "@/lib/services/sellersMap";
 import { orderNavigationOf } from "@/lib/services/marketplace";
 import { arrivedNear, etaSeconds, maneuverOfTurn, nextManeuver, nextManeuverAt, pathRemainM, routeRemainM, stepMarks, turnKeyOf } from "@/components/marketplace/map/navText";
@@ -70,6 +70,7 @@ describe("navigation route", () => {
       recalcM: 100,
       reason: "",
       retryable: false,
+      retryAfterS: null,
     });
   });
 
@@ -123,6 +124,21 @@ describe("navigation route", () => {
     expect(mapErrorKey(e)).toBe("public_office_navigation_unavailable");
     const live = new ApiError(409, "x", undefined, { code: "paid_order_live_location_unavailable", data: { detail: { code: "paid_order_live_location_unavailable" } } });
     expect(mapErrorKey(live)).toBe("paid_order_live_location_unavailable");
+  });
+
+  it("waits out the provider's own rate limit, which arrives as a 200", () => {
+    const limited = normRouteInfo({ available: false, reason: "routing_provider_rate_limit", retryable: true, retry_after_seconds: 37 });
+    expect(limited?.retryAfterS).toBe(37);
+    expect(providerWaitS(limited)).toBe(37);
+    expect(recalcArmed(limited)).toBe(true);
+
+    const noWait = normRouteInfo({ available: false, reason: "routing_provider_rate_limit", retryable: true });
+    expect(noWait?.retryAfterS).toBeNull();
+    expect(providerWaitS(noWait)).toBe(60);
+
+    expect(providerWaitS(normRouteInfo({ available: false, reason: "routing_provider_unavailable", retryable: true }))).toBe(0);
+    expect(providerWaitS(normRouteInfo({ available: true, reason: "routing_provider_rate_limit", geometry: [[69.24, 41.3], [69.25, 41.31]] }))).toBe(0);
+    expect(providerWaitS(null)).toBe(0);
   });
 
   it("names the routing limit (429) and keeps its wait", () => {

@@ -81,6 +81,7 @@ export default function NavigatorBlock({
   guide,
   following,
   waitS,
+  waitProvider,
   recalcM,
   serverRoute,
   onLocate,
@@ -91,6 +92,7 @@ export default function NavigatorBlock({
   onStart,
   onStop,
   onRateLimited,
+  onProviderLimited,
 }: {
   target: RouteTarget;
   point: Spot | null;
@@ -102,6 +104,7 @@ export default function NavigatorBlock({
   guide: Guide | null;
   following: boolean;
   waitS: number;
+  waitProvider: boolean;
   recalcM: number;
   serverRoute: boolean;
   onLocate: (then: (p: Spot) => void) => void;
@@ -112,6 +115,7 @@ export default function NavigatorBlock({
   onStart: () => void;
   onStop: () => void;
   onRateLimited: (sec: number) => void;
+  onProviderLimited: (info: RouteInfo | null) => boolean;
 }) {
   const t = useTranslations("marketMap.nav");
   const tr = useTranslations("marketMap.route");
@@ -145,6 +149,7 @@ export default function NavigatorBlock({
       if (!alive.current) return;
       pendingSid.current = "";
       setPhase({ kind: "idle" });
+      onProviderLimited(g.info);
       onGuide(g);
     } catch (e) {
       if (!alive.current) return;
@@ -227,9 +232,9 @@ export default function NavigatorBlock({
         <p className="mnv__err" role="alert">
           {tx(`errors.${phase.err}`)}
         </p>
-      ) : signedIn && !done && waitS > 0 ? (
+      ) : signedIn && waitS > 0 ? (
         <p className="mnv__err" role="status" data-ai-id="marketplace.route.wait">
-          {tx("errors.routing_rate_limit_exceeded")}
+          {waitProvider ? tx("errors.routing_provider_rate_limit", { n: waitS }) : tx("errors.routing_rate_limit_exceeded")}
         </p>
       ) : null}
 

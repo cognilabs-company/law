@@ -23,6 +23,7 @@ import {
   mapErrorKey,
   navCoord,
   NEARBY_SORTS,
+  providerWaitS,
   recalcArmed,
   recordLocationConsent,
   searchNearbySellers,
@@ -31,6 +32,7 @@ import {
   type NearbySearchResult,
   type NearbySort,
   type Place,
+  type RouteInfo,
 } from "@/lib/services/mapLocation";
 import { DEFAULT_MAP_FILTERS, filtersKey, getMapConfig, mapLocaleOf, NAV_MODES, offlineMapConfig, SELLER_TYPE_FILTERS, type MapConfig, type MapFilters, type MapSeller, type SellerTypeFilter } from "@/lib/services/sellersMap";
 import { sellerTypeLabel } from "./bits";
@@ -185,9 +187,14 @@ export default function NearbySellers({
   const [picked, setPicked] = useState<Picked | null>(null);
   const [guide, setGuide] = useState<Guide | null>(null);
   const [following, setFollowing] = useState(false);
-  const [routeWaitUntil, setRouteWaitUntil] = useState(0);
-  const routeWaitS = useDeadline(routeWaitUntil);
-  const holdRoutes = (sec: number) => setRouteWaitUntil(Date.now() + Math.max(1, sec) * 1000);
+  const [routeWait, setRouteWait] = useState<{ until: number; provider: boolean }>({ until: 0, provider: false });
+  const routeWaitS = useDeadline(routeWait.until);
+  const holdRoutes = (sec: number, provider = false) => setRouteWait({ until: Date.now() + Math.max(1, sec) * 1000, provider });
+  const holdProvider = (info: RouteInfo | null) => {
+    const sec = providerWaitS(info);
+    if (sec > 0) holdRoutes(sec, true);
+    return sec > 0;
+  };
   const rerouteCtl = useRef<AbortController | null>(null);
   const [rerouted, setRerouted] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -498,6 +505,7 @@ export default function NearbySellers({
     requestGuide({ target: g.target, template: cfg.navigationTemplate, point: from, mode: g.mode, recalculate: true, sessionId: g.sessionId, locale: mapLocaleOf(locale), signal: ctl.signal }).then(
       (next) => {
         settle();
+        holdProvider(next.info);
         setGuide((cur) => {
           if (cur !== g) return cur;
           const sameDest = !!next.dest && !!cur.dest && next.route.destinationSource === cur.route.destinationSource && distanceMeters(next.dest, cur.dest) < 60;
@@ -949,6 +957,7 @@ export default function NearbySellers({
             guide={guide?.sellerUserId === sel.sellerUserId ? guide : null}
             following={following}
             waitS={routeWaitS}
+            waitProvider={routeWait.provider}
             recalcM={cfg.routing.recalcM}
             serverRoute={cfg.routing.serverRoute}
             onLocate={(then) => locate(then)}
@@ -958,7 +967,8 @@ export default function NearbySellers({
             onGuide={takeGuide}
             onStart={startFollow}
             onStop={stopFollow}
-            onRateLimited={holdRoutes}
+            onRateLimited={(sec) => holdRoutes(sec)}
+            onProviderLimited={holdProvider}
           />
         ) : (
           <div className="msd__nonav" data-ai-id="marketplace.map.card.no-route">

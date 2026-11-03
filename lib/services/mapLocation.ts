@@ -207,6 +207,7 @@ export type RouteInfo = {
   recalcM: number | null;
   reason: string;
   retryable: boolean;
+  retryAfterS: number | null;
 };
 export type NavRoute = { appUrl: string; webUrl: string; fallbackUrl: string; destinationSource: "public_office" | "paid_order_live_location" | ""; mode: NavMode | ""; name: string; info: RouteInfo | null };
 
@@ -260,10 +261,21 @@ export function normRouteInfo(v: unknown): RouteInfo | null {
     recalcM: recalc !== null && recalc >= 20 ? recalc : null,
     reason: trimmed(r.reason).toLowerCase(),
     retryable: r.retryable === true,
+    retryAfterS: posOrNull(r.retry_after_seconds),
   };
 }
 
 export const recalcArmed = (info: RouteInfo | null): boolean => !!info && (info.available || info.retryable);
+
+export const PROVIDER_RATE_LIMIT = "routing_provider_rate_limit";
+
+export const PROVIDER_WAIT_FALLBACK_S = 60;
+
+export function providerWaitS(info: RouteInfo | null): number {
+  if (!info || info.available || info.reason !== PROVIDER_RATE_LIMIT) return 0;
+  const sec = info.retryAfterS;
+  return sec !== null && sec > 0 ? Math.min(sec, 3600) : PROVIDER_WAIT_FALLBACK_S;
+}
 
 // Only the backend builds route links. They are opened as given, after a
 // scheme check: an app scheme or https, never script or data URLs.

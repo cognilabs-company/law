@@ -104,11 +104,12 @@ export default function FollowHud({
             ? t(`go.${compassOf(state.bearing)}`)
             : t("waiting");
   const headDist = arrived || remain === null ? "" : next ? fmt(next.distM) : step?.distanceM ? fmt(step.distanceM) : fmt(rolled);
+  const street = arrived || !step ? null : step.street;
   const big = arrived ? t("arrived") : eta ? (eta.sure ? dur(eta.s) : t("approx", { t: dur(eta.s) })) : t("waiting");
   const sub = !arrived && remain !== null && eta ? t("remainAt", { d: fmt(rolled), time: clock(now + eta.s * 1000) }) : arrived ? t("arrivedText") : "";
   const turnQ = next && next.step.maneuver !== "arrive" ? Math.round(next.distM / 50) * 50 : null;
   const totalQ = remain === null ? 0 : turnQ !== null && next ? turnQ + Math.round(Math.max(0, remain - next.distM) / 50) * 50 : Math.round(remain / 50) * 50;
-  const said = arrived ? t("arrived") : remain === null ? t("waiting") : `${head}${turnQ !== null ? ` · ${fmt(turnQ)}` : ""}. ${t("remainAt", { d: fmt(totalQ), time: eta ? clock(now + eta.s * 1000) : "" })}`;
+  const said = arrived ? t("arrived") : remain === null ? t("waiting") : `${head}${street ? ` — ${t("onStreet", { street })}` : ""}${turnQ !== null ? ` · ${fmt(turnQ)}` : ""}. ${t("remainAt", { d: fmt(totalQ), time: eta ? clock(now + eta.s * 1000) : "" })}`;
   const size = useEffectEvent((gone: boolean) => {
     onSize?.(gone || !dock.current ? 0 : dock.current.offsetHeight + (floating ? 12 : 0));
   });
@@ -158,6 +159,11 @@ export default function FollowHud({
           <b key={head} className="mfh__head">
             {head}
           </b>
+          {street ? (
+            <span key={street} className="mfh__street">
+              {t("onStreet", { street })}
+            </span>
+          ) : null}
           {headDist ? <span className="mfh__headd">{headDist}</span> : null}
         </span>
       </div>

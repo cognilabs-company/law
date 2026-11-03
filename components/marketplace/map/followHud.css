@@ -15,6 +15,7 @@
 .mfh__mi svg{width:30px;height:30px}
 .mfh__mantxt{display:flex;flex-direction:column;gap:2px;min-width:0}
 .mfh__head{display:-webkit-box;overflow:hidden;font-family:var(--fd);font-size:1.12rem;font-weight:800;line-height:1.2;letter-spacing:-.01em;color:var(--ink);-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;animation:mfh-swap .34s var(--mx-ease) both}
+.mfh__street{overflow:hidden;font-size:.86rem;font-weight:600;line-height:1.25;color:var(--gray);text-overflow:ellipsis;white-space:nowrap;animation:mfh-swap .34s var(--mx-ease) both}
 .mfh__headd{font-size:.84rem;font-weight:700;color:var(--gray);font-variant-numeric:tabular-nums}
 
 .mfh__dock{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px 14px;padding:12px 12px 12px 18px;border-radius:22px;background:var(--mfh-card);box-shadow:var(--mfh-shadow);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);animation:mfh-in .5s var(--mx-spring) .06s both}
@@ -60,7 +61,7 @@
 }
 
 @media (prefers-reduced-motion:reduce){
-  .mfh__man,.mfh__dock,.mfh__re,.mfh__head,.mfh__mi,.mfh__tile.is-done,.mfh__arrow[data-wait],.mfh__fail{animation:none}
+  .mfh__man,.mfh__dock,.mfh__re,.mfh__head,.mfh__street,.mfh__mi,.mfh__tile.is-done,.mfh__arrow[data-wait],.mfh__fail{animation:none}
   .mfh__tile.is-done svg path{animation:none;stroke-dashoffset:0}
   .mfh__arrow,.mfh__stop,.mfh__re{transition:none}
 }
