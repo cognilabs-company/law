@@ -20,11 +20,12 @@ import {
   type UrgentRequest,
 } from "@/lib/services/backend";
 import { onUserSocketResync, subscribeUserEvents, subscribeUserSocketState } from "@/lib/userSocket";
-import { ApiError, errDetail, logApiError } from "@/lib/http";
+import { ApiError, errDetail, isRoleDenied, logApiError } from "@/lib/http";
 import { notify } from "@/lib/toast";
 import { useAuth } from "@/lib/auth";
 import CallRoom from "@/components/chat/CallRoom";
 import { Loading, Note } from "../panel/bits";
+import UrgentAssignedPanel from "@/components/portal/UrgentAssignedPanel";
 import { IcArrowLeft, IcInbox, IcLayers, IcPipeline, IcRefresh } from "../icons";
 import { FINAL, KINDS, OFFLINE_POLL_MS, PAGE, VIEWS, inView, isFinal, kindName, ntfId, sorterFor, type Ask, type Change, type Step } from "./model";
 import { useNarrow } from "./parts";
@@ -394,6 +395,19 @@ export default function CcxUrgent({ duty = false }: { duty?: boolean } = {}) {
       ) : null}
     </header>
   );
+
+  // Live backend (2026-11-03): a duty lawyer's operator queue still answers
+  // 403 "Ruxsat yo'q" while GET /urgent-advokat/requests/assigned answers 200
+  // with their urgent work, so the duty desk shows that list instead of a
+  // dead end. role_page_access_denied is left to RoleNavHost's redirect.
+  if (duty && state.status === "forbidden" && !isRoleDenied(state.error)) {
+    return (
+      <div className="opx-ug" data-ai-target="callcenter:urgent">
+        <Note tone="info">{x("dutyAssigned")}</Note>
+        <UrgentAssignedPanel />
+      </div>
+    );
+  }
 
   if (state.status === "forbidden" || state.status === "missing") {
     return (
