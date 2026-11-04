@@ -11,6 +11,8 @@ import CrmFrame from "./CrmFrame";
 import { Empty, useCrmError } from "./bits";
 import { CrmSelect } from "./fields";
 import { copyText } from "./LeadSide";
+import { TagsInput } from "./robots/shared";
+import { humanKey } from "@/lib/services/crmAutomation";
 
 export default function CrmTemplates(): ReactElement {
   const t = useTranslations("crm");
@@ -20,6 +22,7 @@ export default function CrmTemplates(): ReactElement {
 // Operator aids: copied into an editor, never sent from here (§6).
 function Library({ meta }: { meta: CrmMeta }): ReactElement {
   const t = useTranslations("crm.templates");
+  const tr = useTranslations("rop.tpl");
   const tl = useTranslations("crm.lang");
   const crmErr = useCrmError();
   const [type, setType] = useState("");
@@ -86,10 +89,16 @@ function Library({ meta }: { meta: CrmMeta }): ReactElement {
                 <span>
                   <b>{x.title}</b>
                   <small className="crm-muted">
-                    {t.has(`t.${x.type}`) ? t(`t.${x.type}`) : x.type} · {tl.has(x.language) ? tl(x.language) : x.language}
+                    {t.has(`t.${x.type}`) ? t(`t.${x.type}`) : humanKey(x.type)} · {tl.has(x.language) ? tl(x.language) : humanKey(x.language)}
                   </small>
                 </span>
+                {x.status && x.status !== "active" ? <span className="rop-pill rop-pill--warn">{tr.has(`status.${x.status}`) ? tr(`status.${x.status}`) : humanKey(x.status)}</span> : null}
               </span>
+              {x.tags.length ? (
+                <span className="rb-tags">
+                  {x.tags.map((g) => <span key={g} className="rb-tag" style={{ paddingRight: 8 }}>#{g}</span>)}
+                </span>
+              ) : null}
               <p className="crm-sub" style={{ whiteSpace: "pre-wrap", maxHeight: 120, overflow: "hidden" }}>
                 {x.content}
               </p>
@@ -114,12 +123,15 @@ function NewTemplate({ meta, onClose, onSaved }: { meta: CrmMeta; onClose: () =>
   const [type, setType] = useState<string>("chat");
   const [language, setLanguage] = useState(meta.languages[0] || "uz_latn");
   const [content, setContent] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
+  const [status, setStatus] = useState<"active" | "draft">("active");
+  const tr = useTranslations("rop.tpl");
   const [busy, setBusy] = useState(false);
   const save = async () => {
     if (!title.trim() || !content.trim() || busy) return;
     setBusy(true);
     try {
-      await createCrmTemplate({ title, type, language, content });
+      await createCrmTemplate({ title, type, language, content, tags, status });
       toast(t("saved"), { tone: "ok" });
       onSaved();
       onClose();
@@ -167,6 +179,17 @@ function NewTemplate({ meta, onClose, onSaved }: { meta: CrmMeta; onClose: () =>
           <span>{t("content")}</span>
           <textarea className="crm-textarea" value={content} onChange={(e) => setContent(e.target.value)} style={{ minHeight: 160 }} />
         </label>
+        <div className="crm-field">
+          <span>{tr("tags")}</span>
+          <TagsInput value={tags} onChange={setTags} options={[]} placeholder={tr("tagPh")} label={tr("tags")} />
+        </div>
+        <div className="crm-field">
+          <span>{tr("statusLabel")}</span>
+          <span className="rop-seg" role="group" aria-label={tr("statusLabel")}>
+            <button type="button" aria-pressed={status === "active"} onClick={() => setStatus("active")}>{tr("status.active")}</button>
+            <button type="button" aria-pressed={status === "draft"} onClick={() => setStatus("draft")}>{tr("status.draft")}</button>
+          </span>
+        </div>
       </div>
     </Modal>
   );

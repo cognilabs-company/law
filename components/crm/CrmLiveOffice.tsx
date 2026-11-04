@@ -6,7 +6,8 @@ import { Link } from "@/i18n/navigation";
 import { IconAlert, IconEye, IconPhone, IconRefresh, IconShieldCheck, IconSparkle } from "@/components/icons";
 import { shortDateTime } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
-import { aiCardsOf, getLiveCall, listLiveCalls, type LiveCall } from "@/lib/services/crm";
+import { aiCardsOf, crmCan, getLiveCall, listLiveCalls, type LiveCall } from "@/lib/services/crm";
+import { useSearchParams } from "next/navigation";
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import CrmFrame from "./CrmFrame";
 import { Avatar, Empty, StatusPill, useCrmError } from "./bits";
@@ -23,18 +24,20 @@ export default function CrmLiveOffice(): ReactElement {
   const t = useTranslations("crm");
   return (
     <CrmFrame section="live" title={t("liveOffice.title")}>
-      {() => <Office />}
+      {(api) => <Office recordings={crmCan(api.meta, "crm.calls.recordings.view")} />}
     </CrmFrame>
   );
 }
 
-function Office(): ReactElement {
+function Office({ recordings }: { recordings: boolean }): ReactElement {
   const t = useTranslations("crm.liveOffice");
   const crmErr = useCrmError();
   const now = useNow(1000);
   const [items, setItems] = useState<LiveCall[] | null>(null);
   const [err, setErr] = useState("");
-  const [open, setOpen] = useState("");
+  // ?call= opens one call directly (the ROP overview links here).
+  const params = useSearchParams();
+  const [open, setOpen] = useState(params.get("call") ?? "");
   const [call, setCall] = useState<LiveCall | null>(null);
   const [callErr, setCallErr] = useState("");
 
@@ -154,7 +157,7 @@ function Office(): ReactElement {
             ) : !call || call.id !== open ? (
               <span className="crm-sk crm-sk--block" style={{ height: 200 }} />
             ) : (
-              <LiveDetail call={call} />
+              <LiveDetail call={call} recordings={recordings} />
             )}
           </section>
         </div>
@@ -163,9 +166,10 @@ function Office(): ReactElement {
   );
 }
 
-function LiveDetail({ call }: { call: LiveCall }): ReactElement {
+function LiveDetail({ call, recordings }: { call: LiveCall; recordings: boolean }): ReactElement {
   const t = useTranslations("crm.liveOffice");
   const ta = useTranslations("crm.ai");
+  const tr = useTranslations("rop.live");
   const locale = useLocale();
   const cards = aiCardsOf(call.suggestions);
   const l = call.lead;
@@ -178,6 +182,14 @@ function LiveDetail({ call }: { call: LiveCall }): ReactElement {
           <small>{call.startedAt ? shortDateTime(call.startedAt, locale) : ""}</small>
         </h3>
         {call.transcript.length ? <Transcript segments={call.transcript} /> : <p className="crm-sub">{t("noTranscript")}</p>}
+        {recordings && call.recordingUrl ? (
+          <div className="crm-lo__rec">
+            <small>{tr("recording")}</small>
+            <audio controls preload="none" src={call.recordingUrl}>
+              <track kind="captions" />
+            </audio>
+          </div>
+        ) : null}
       </div>
       <aside className="crm-lo__side">
         {l ? (

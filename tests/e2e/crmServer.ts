@@ -4,6 +4,11 @@ import { CALL_CENTER, type Who } from "./mock";
 // (redesign-tour.spec.ts) share: shaped like production (contract
 // 2026-10-26, /crm/*), every value made up.
 export const OPERATOR: Who = { ...CALL_CENTER, permissions: ["callcenter.access", "crm.leads.view", "crm.leads.claim", "crm.leads.manage", "crm.customers.view", "crm.ai.use", "crm.analytics.self", "crm.exports.create"] };
+// The ROP (backend role sales_head, ROP final contract 2026-11-04 §3): the
+// permission set the backend gives it. Same user id as the operator so the
+// "mine" fixtures stay theirs.
+export const ROP_PERMS = ["sales.access", "leads.manage", "packages.approve", "crm.customers.view", "crm.customers.manage", "crm.customers.merge", "crm.leads.view", "crm.leads.view_all", "crm.leads.manage", "crm.leads.claim", "crm.leads.assign", "crm.analytics.self", "crm.ai.use", "crm.calls.start", "crm.calls.recordings.view", "crm.live_calls.view", "crm.sms.manage", "crm.automation.manage", "crm.exports.create", "crm.templates.manage"];
+export const ROP: Who = { ...CALL_CENTER, name: "Rustam Sotuvchi", backendRole: "sales_head", roles: ["sales_head"], permissions: ROP_PERMS };
 // Contract 13cb257 §6: six fixed statuses.
 export const STATUSES = ["new", "qualified", "proposal", "decision_pending", "won", "rejected"];
 export const TRANSITIONS: Record<string, string[]> = { new: ["qualified", "proposal", "decision_pending", "won", "rejected"], qualified: ["proposal", "decision_pending", "won", "rejected"], proposal: ["qualified", "decision_pending", "won", "rejected"], decision_pending: ["proposal", "won", "rejected"], won: [], rejected: [] };
@@ -21,7 +26,7 @@ export const meta = (perms: string[], revenue = false, cols: Col[] = COLUMNS()) 
   contact_types: ["phone", "telegram", "email"],
   sources: ["manual", "web", "telegram", "phone"],
   permissions: perms,
-  scope: perms.includes("crm.analytics.global") ? "all" : "own_and_queue",
+  scope: perms.includes("crm.analytics.global") || perms.includes("crm.leads.view_all") ? "all" : "own_and_queue",
   revenue_visible: revenue,
   telephony: { provider: "disabled", enabled: false, recording_consent_required: true, live_transcription: true, transcript_append_url: "/crm/calls/{call_id}/transcript" },
 });
@@ -93,6 +98,10 @@ export function crmServer(perms: string[], revenue = false) {
     smsApprovals: [] as Record<string, unknown>[],
     rules: [] as Record<string, unknown>[],
     ruleWrites: [] as { path: string; body: Record<string, unknown> }[],
+    drafts: [DRAFT()] as Record<string, unknown>[],
+    decisions: [] as Record<string, unknown>[],
+    runOps: [] as { path: string; body: unknown }[],
+    analyticsCalls: 0,
   };
   const page = (all: Record<string, unknown>[], url: URL) => {
     const want = url.searchParams.get("status");
@@ -223,25 +232,77 @@ export function crmServer(perms: string[], revenue = false) {
       return st.calls[0];
     },
     "/crm/leads/m1/sms": () => ({ items: st.sms, count: st.sms.length }),
-    "/crm/automation/rules": () => ({ items: st.rules, count: st.rules.length, available_actions: ["add_tags", "assign_owner", "change_status", "create_task", "escalate", "send_notification", "send_sms"] }),
-    "POST /crm/automation/rules": (b: Record<string, unknown>) => {
-      st.ruleWrites.push({ path: "create", body: b });
-      const r = { id: "r1", ...b, created_at: "2026-10-29T10:00:00Z", updated_at: "2026-10-29T10:00:00Z" };
+    "/crm/automation/catalog": CATALOG,
+    "/crm/automation/smart-scripts": { items: [{ key: "no_answer_recovery", title: "Javobsiz qo'ng'iroqdan keyin", description: "Mijoz javob bermasa — SMS qoralamasi va qayta qo'ng'iroq rejasi.", trigger_type: "call_no_answer", actions: [{ type: "send_sms" }, { type: "plan_call" }] }] },
+    "POST /crm/automation/smart-scripts/[^/]+/instantiate": (b: Record<string, unknown>) => {
+      const r = { id: "r2", name: b.name || "Javobsiz qo'ng'iroqdan keyin", trigger_type: "call_no_answer", delay_seconds: 180, priority: 100, conditions: [], actions: [{ type: "send_sms", body: "Siz bilan bog'lana olmadik." }], status: b.status, lock_version: 1, template_key: "no_answer_recovery" };
+      st.ruleWrites.push({ path: "instantiate", body: b });
       st.rules = [r, ...st.rules];
       return { status: 201, json: r };
     },
-    "PATCH /crm/automation/rules/r1": (b: Record<string, unknown>) => {
+    "/crm/automation/rules": () => ({ items: st.rules, total: st.rules.length }),
+    "POST /crm/automation/rules/preview": (b: Record<string, unknown>) => {
+      st.ruleWrites.push({ path: "preview", body: b });
+      return { summary: "Qo'ng'iroqqa javob berilmasa, 3 daqiqadan so'ng SMS qoralamasi tayyorlanadi.", steps: ["SMS qoralamasi tasdiqqa yuboriladi"], warnings: ["SMS mijozga faqat tasdiqdan keyin yuboriladi"], condition_trace: b.lead_id ? [{ label: "Lid holati: yangi", matched: true }] : [], matched: b.lead_id ? true : undefined, writes_performed: false };
+    },
+    "POST /crm/automation/rules": (b: Record<string, unknown>) => {
+      st.ruleWrites.push({ path: "create", body: b });
+      const r = { id: "r1", ...b, lock_version: 1, created_at: "2026-11-04T10:00:00Z", updated_at: "2026-11-04T10:00:00Z" };
+      st.rules = [r, ...st.rules];
+      return { status: 201, json: r };
+    },
+    "POST /crm/automation/rules/reorder": (b: Record<string, unknown>) => (st.ruleWrites.push({ path: "reorder", body: b }), { ok: true }),
+    "POST /crm/automation/rules/[^/]+/clone": (b: Record<string, unknown>, url: URL) => {
+      const id = url.pathname.split("/").at(-2) ?? "";
+      const src = st.rules.find((r) => r.id === id) ?? {};
+      const r = { ...src, id: `${id}-copy`, name: b.name, status: "draft", lock_version: 1 };
+      st.ruleWrites.push({ path: "clone", body: b });
+      st.rules = [r, ...st.rules];
+      return { status: 201, json: r };
+    },
+    "/crm/automation/rules/[^/]+": (_: unknown, url: URL) => st.rules.find((r) => r.id === url.pathname.split("/").at(-1)) ?? { status: 404, json: { detail: { code: "crm_automation_rule_not_found" } } },
+    "PATCH /crm/automation/rules/[^/]+": (b: Record<string, unknown>, url: URL) => {
+      const id = url.pathname.split("/").at(-1) ?? "";
       st.ruleWrites.push({ path: "patch", body: b });
-      st.rules = st.rules.map((r) => (r.id === "r1" ? { ...r, ...b } : r));
-      return st.rules[0];
+      const r = st.rules.find((x) => x.id === id)!;
+      if (b.expected_lock_version !== r.lock_version) return { status: 409, json: { detail: { code: "crm_automation_rule_version_conflict", current_lock_version: r.lock_version } } };
+      Object.assign(r, b, { lock_version: Number(r.lock_version) + 1 });
+      delete r.expected_lock_version;
+      return r;
     },
-    "POST /crm/automation/rules/r1/dry-run": (b: Record<string, unknown>) => {
+    "POST /crm/automation/rules/[^/]+/dry-run": (b: Record<string, unknown>) => {
       st.ruleWrites.push({ path: "dry", body: b });
-      return { rule_id: "r1", matched: true, matched_context: { lead: { status: "qualified", source: "phone" } }, proposed_actions: [{ type: "send_notification", message: "Qayta qo'ng'iroq qiling", recipient: "assigned_operator" }], writes_performed: false };
+      return { summary: "Bu lid uchun SMS qoralamasi tayyorlanardi.", matched: true, condition_trace: [{ label: "Hodisa: javobsiz qo'ng'iroq", matched: true }], writes_performed: false };
     },
+    "/crm/automation/runs": (_: unknown, url: URL) => {
+      const want = url.searchParams.get("status");
+      const items = RUNS().filter((r) => !want || r.status === want);
+      return { items, total: items.length, limit: 100, offset: 0 };
+    },
+    "/crm/automation/runs/[^/]+": (_: unknown, url: URL) => RUNS().find((r) => r.id === url.pathname.split("/").at(-1)) ?? { status: 404, json: { detail: "not found" } },
+    "POST /crm/automation/runs/[^/]+/retry": (b: unknown, url: URL) => {
+      st.runOps.push({ path: `retry:${url.pathname.split("/").at(-2)}`, body: b });
+      return { ...RUNS()[1], status: "scheduled", can_retry: false, can_cancel: true };
+    },
+    "POST /crm/automation/runs/[^/]+/cancel": (b: unknown, url: URL) => {
+      st.runOps.push({ path: `cancel:${url.pathname.split("/").at(-2)}`, body: b });
+      return { status: 409, json: { detail: { code: "crm_automation_run_not_cancellable" } } };
+    },
+    "/crm/automation/drafts": (_: unknown, url: URL) => {
+      const want = url.searchParams.get("status");
+      const items = st.drafts.filter((d) => !want || d.status === want);
+      return { items, total: items.length };
+    },
+    "POST /crm/automation/drafts/[^/]+/decision": (b: Record<string, unknown>, url: URL) => {
+      const id = url.pathname.split("/").at(-2) ?? "";
+      st.decisions.push({ id, ...b });
+      const d = st.drafts.find((x) => x.id === id)!;
+      Object.assign(d, { status: b.decision === "approve" ? "approved" : "rejected", reason: b.reason });
+      return d;
+    },
+    "/crm/automation/metrics": { total_runs: 42, status_counts: { completed: 38, failed: 3, scheduled: 1 }, success_rate: 0.905, scheduled_queue_size: 1, oldest_scheduled_at: soon(-4), queue_lag_seconds: 35 },
     "/crm/live-calls": { items: [{ call: { id: "lc1", status: "in_progress", started_at: new Date(Date.now() - 95_000).toISOString() }, operator: { id: "op-2", name: "Akmal Operator", lexgo_id: "LGCC-2", role: "call_center" }, lead: { id: "m1", work_id: "LEAD-M1", title: "Ijara shartnomasi tekshiruvi", status: "qualified", customer: CUSTOMER } }], count: 1, realtime_channel: "crm:live-calls", privacy: { permission_required: "crm.live_calls.view", audit_required: true } },
     "/crm/live-calls/lc1": { call: { id: "lc1", status: "in_progress", started_at: new Date(Date.now() - 95_000).toISOString(), transcript: [{ speaker: "customer", text: "Shartnomada kafil bandi bor." }, { speaker: "operator", text: "Uni yurist ko'rib chiqadi." }] }, operator: { id: "op-2", name: "Akmal Operator", lexgo_id: "LGCC-2", role: "call_center" }, lead: { id: "m1", work_id: "LEAD-M1", title: "Ijara shartnomasi tekshiruvi", status: "qualified", customer: CUSTOMER }, ai_suggestions: { reply_drafts: ["Kafil bandi bo'yicha yuristimiz izoh beradi."] } },
-    "/crm/automation/runs": { items: [{ id: "run9", rule_id: "r1", rule_name: "Javobsiz qo'ng'iroq", lead_id: "m1", lead_work_id: "LEAD-M1", status: "completed", attempts: 1, scheduled_at: "2026-10-29T10:00:00Z", started_at: "2026-10-29T10:00:01Z", completed_at: "2026-10-29T10:00:02Z", context: {}, result: { notified: true }, error: "" }], total: 1, limit: 30, offset: 0 },
     "POST /crm/leads/m1/sms": (b: Record<string, unknown>) => {
       const x = { id: `s${st.sms.length + 1}`, lead_id: "m1", body: b.body, language: b.language, contact_id: b.contact_id, status: "draft", created_at: new Date().toISOString() };
       st.sms = [x, ...st.sms];
@@ -298,7 +359,7 @@ export function crmServer(perms: string[], revenue = false) {
     },
     "POST /crm/ai/runs/run-1/apply": (b: Record<string, unknown>) => ((st.applied = b), { ok: true }),
     "/crm/me/metrics": { operator: ME, total: 12, active: 7, won: 3, closed: 2, conversion_percent: 25, average_first_response_minutes: 14, overdue_next_actions: 1, status_counts: { new: 0, qualified: 4, proposal: 2, decision_pending: 1, won: 3, rejected: 2 }, cycle_metrics: { total: 14, open: 7, won: 4, rejected: 2, completed: 6, conversion_percent: 66.7 }, revenue_visible: false },
-    "/crm/analytics": { total_leads: 17, status_counts: { new: 3, qualified: 5, proposal: 3, decision_pending: 2, won: 2, rejected: 2 }, source_counts: { phone: 9, web: 5, telegram: 3 }, operators: [{ operator_user_id: ME.id, operator: ME, total: 12, won: 3, conversion_percent: 25 }], paid_revenue: 25039162, currency: "UZS", revenue_visible: true },
+    "/crm/analytics": () => (st.analyticsCalls++, { total_leads: 17, status_counts: { new: 3, qualified: 5, proposal: 3, decision_pending: 2, won: 2, rejected: 2 }, source_counts: { phone: 9, web: 5, telegram: 3 }, operators: [{ operator_user_id: ME.id, operator: ME, total: 12, won: 3, conversion_percent: 25 }], paid_revenue: 25039162, currency: "UZS", revenue_visible: true }),
     "/crm/customers": { items: [{ ...CUSTOMER, status: "active", source: "phone", lead_count: 4, active_lead_count: 2, created_at: "2026-10-20T08:00:00Z", updated_at: "2026-10-26T08:00:00Z" }, { ...CUSTOMER, id: "c2", public_id: "CRM-AA11", name: "Dilnoza K.", primary_phone: "+998901234560", lead_count: 1, active_lead_count: 1, status: "active", source: "web", created_at: "2026-10-25T08:00:00Z", updated_at: "2026-10-25T08:00:00Z" }], total: 2, limit: 48, offset: 0 },
     "/crm/customers/c1": () => ({
       ...CUSTOMER,
@@ -326,3 +387,28 @@ export function crmServer(perms: string[], revenue = false) {
   };
   return { st, routes };
 }
+
+// The robot catalog (ROP contract §16–§17), shaped like the contract.
+export const CATALOG = {
+  triggers: [
+    { key: "call_no_answer", title: "Qo'ng'iroqqa javob berilmadi", description: "Operator qo'ng'iroq qildi, mijoz javob bermadi.", group: "calls" },
+    { key: "lead_created", title: "Yangi lid", description: "Har bir yangi murojaat.", group: "leads" },
+  ],
+  actions: [
+    { key: "send_sms", title: "SMS tayyorlash", description: "Mijozga SMS qoralamasi; tasdiqdan keyin yuboriladi.", group: "communication", risk: "high", integration: "sms", approval_required: true, client_facing: true, fields: [{ key: "body", label: "SMS matni", type: "textarea", required: true }, { key: "language", label: "Til", type: "select", options: [{ value: "uz_latn", label: "O'zbekcha (lotin)" }, { value: "ru", label: "Ruscha" }], default: "uz_latn" }] },
+    { key: "plan_call", title: "Qo'ng'iroq rejalash", description: "Operatorga qayta qo'ng'iroq vazifasi.", group: "communication", risk: "low", fields: [{ key: "due_in_minutes", label: "Necha daqiqadan keyin", type: "integer", required: true, default: 30, min: 1 }, { key: "purpose", label: "Maqsad", type: "text" }] },
+    { key: "notify_rop", title: "ROPga xabar", description: "Supervayzerga bildirishnoma.", group: "team", risk: "low", fields: [{ key: "message", label: "Xabar", type: "text", required: true }] },
+  ],
+  action_groups: [{ key: "communication", title: "Muloqot" }, { key: "team", title: "Jamoa" }],
+  condition_operators: ["eq", "ne", "in", "not_in", "contains", "not_contains", "exists", "not_exists", "gt", "gte", "lt", "lte"],
+  condition_fields: [{ key: "lead.status", label: "Lid holati", type: "status" }, { key: "lead.urgency", label: "Shoshilinchlik", options: [{ value: "normal", label: "Oddiy" }, { value: "urgent", label: "Shoshilinch" }] }, { key: "lead.cycle_number", label: "Tsikl raqami", type: "integer" }],
+  execution_modes: [{ key: "sequential", title: "Ketma-ket", description: "Amallar birin-ketin bajariladi" }, { key: "stop_on_failure", title: "Xatoda to'xtash", description: "Bitta amal xato bersa, qolganlari bajarilmaydi" }],
+  statuses: ["draft", "active", "paused", "archived"],
+  integrations: { sms: { available: true } },
+  safety_rules: ["Mijozga yuboriladigan har bir xabar avval tasdiqlanadi."],
+};
+export const RUNS = () => [
+  { id: "run9", rule_id: "r1", rule_name: "Javobsiz qo'ng'iroq", lead_id: "m1", lead_work_id: "LEAD-M1", status: "completed", attempts: 1, scheduled_at: "2026-11-04T10:00:00Z", started_at: "2026-11-04T10:00:01Z", completed_at: "2026-11-04T10:00:02Z", steps: [{ index: 0, action_type: "send_sms", status: "completed", attempts: 1, input: { body: "Siz bilan bog'lana olmadik." }, output: { draft_created: true } }] },
+  { id: "run7", rule_id: "r1", rule_name: "Javobsiz qo'ng'iroq", lead_id: "q1", lead_work_id: "LEAD-Q1", status: "failed", attempts: 2, scheduled_at: "2026-11-04T09:00:00Z", started_at: "2026-11-04T09:00:01Z", completed_at: "2026-11-04T09:00:05Z", error: "SMS provayder javob bermadi", steps: [{ index: 0, action_type: "plan_call", status: "completed", attempts: 1, input: { due_in_minutes: 30 }, output: { task_created: true } }, { index: 1, action_type: "send_sms", status: "failed", attempts: 2, input: { body: "Salom" }, output: {}, error: { message: "SMS provayder javob bermadi" } }] },
+];
+export const DRAFT = () => ({ id: "d1", status: "pending_approval", action_type: "send_sms", channel: "sms", title: "SMS: javobsiz qo'ng'iroqdan keyin", lead_id: "m1", lead_work_id: "LEAD-M1", customer_name: "Dilnoza Karimova", rule_name: "Javobsiz qo'ng'iroq", payload: { body: "Assalomu alaykum! Siz bilan bog'lana olmadik.", to_phone: "+998901234567" }, editable_fields: ["body"], created_at: "2026-11-04T10:00:03Z" });

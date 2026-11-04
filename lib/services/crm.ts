@@ -120,9 +120,11 @@ export function journeyOf(meta: CrmMeta | null, status: string): string[] {
 }
 
 export const crmCan = (meta: CrmMeta | null, perm: CrmPerm): boolean => !!meta && meta.permissions.includes(perm);
-// Global analytics: the permission (§18, §20); revenue inside it only with
-// revenue_visible.
-export const crmGlobalAnalytics = (meta: CrmMeta | null): boolean => crmCan(meta, "crm.analytics.global");
+// Global analytics: GET /crm/analytics is superadmin-only (ROP final
+// contract §3, §6) even when another role carries a similarly named
+// permission — so the permission AND a superadmin session. Revenue inside
+// it only with revenue_visible.
+export const crmGlobalAnalytics = (meta: CrmMeta | null, superadmin: boolean): boolean => superadmin && crmCan(meta, "crm.analytics.global");
 // The statuses a lead may move to next, from the backend's own map.
 export const crmNextStatuses = (meta: CrmMeta | null, status: string): string[] => meta?.transitions[status] ?? [];
 
@@ -279,9 +281,9 @@ export async function selectCrmCustomers(q: { q?: string; offset?: number; limit
 export const optionOfCustomer = (c: CrmCustomer): CustomerOption => ({ id: c.id, publicId: c.publicId, name: c.name, region: c.region, phone: c.phone, isLexgoUser: c.isLexgoUser, lexgoLabel: c.lexgoLabel, leadCount: c.leadCount, label: [c.name, c.publicId, c.phone].filter(Boolean).join(" · ") });
 
 export type CrmPage<T> = { items: T[]; total: number; limit: number; offset: number };
-export type CustomerQuery = { q?: string; region?: string; status?: string; limit?: number; offset?: number };
+export type CustomerQuery = { q?: string; region?: string; status?: string; lifecycle?: string; limit?: number; offset?: number };
 export async function listCrmCustomers(q: CustomerQuery = {}, signal?: AbortSignal): Promise<CrmPage<CrmCustomer>> {
-  const d = asDict(await http(`/crm/customers${qs({ q: q.q?.trim(), region: q.region, status: q.status ?? "active", limit: q.limit ?? 50, offset: q.offset ?? 0 })}`, { signal }));
+  const d = asDict(await http(`/crm/customers${qs({ q: q.q?.trim(), region: q.region, status: q.status ?? "active", lifecycle: q.lifecycle, limit: q.limit ?? 50, offset: q.offset ?? 0 })}`, { signal }));
   return { items: asArr(d.items).map(crmCustomerOf).filter((c) => c.id), total: int(d.total), limit: int(d.limit, 50), offset: int(d.offset) };
 }
 export async function getCrmCustomer(id: string, signal?: AbortSignal): Promise<CrmCustomerDetail> {
@@ -374,6 +376,9 @@ export type CrmLead = {
   cycle: CrmCycle | null;
   // The prepared LexGo order and its payment state (§9, §12).
   order: CrmLeadOrder | null;
+  // The board's own order inside a status (ROP contract §9): the backend's
+  // `kanban.rank`, never one worked out here. null when not sent.
+  rank: number | null;
 };
 export type CrmCycle = { id: string; sequence: number; inquiry: string; source: string; status: string; initialStatus: string; terminalStatus: string; orderId: string; paymentId: string; openedAt: string; closedAt: string; reason: string };
 export function crmCycleOf(v: unknown): CrmCycle | null {
@@ -429,6 +434,7 @@ export function crmLeadOf(v: unknown): CrmLead {
     cycleNumber: int(d.cycle_number, 1),
     cycle: crmCycleOf(d.cycle),
     order: leadOrderOf(d),
+    rank: num(asDict(d.kanban).rank ?? asDict(d.kanban).position),
   };
 }
 
@@ -887,7 +893,7 @@ export async function approveSms(smsId: string, body?: string): Promise<CrmSms> 
 
 // ── Live Office (§14, crm.live_calls.view) ──
 // Read-only and audited: every view is logged by the backend.
-export type LiveCall = { id: string; status: string; startedAt: string; durationSec: number | null; operator: CrmPerson | null; lead: CrmLead | null; customerName: string; transcript: CallSegment[]; suggestions: Dict };
+export type LiveCall = { id: string; status: string; startedAt: string; durationSec: number | null; operator: CrmPerson | null; lead: CrmLead | null; customerName: string; transcript: CallSegment[]; suggestions: Dict; recordingUrl: string };
 export function liveCallOf(v: unknown): LiveCall {
   const d = asDict(v);
   const call = Object.keys(asDict(d.call)).length ? asDict(d.call) : d;
@@ -905,6 +911,9 @@ export function liveCallOf(v: unknown): LiveCall {
       .map(segmentOf)
       .filter((x): x is CallSegment => !!x),
     suggestions: ai,
+    // Shown only to crm.calls.recordings.view (ROP contract §14); the page
+    // checks the permission before rendering it.
+    recordingUrl: asStr(call.recording_url ?? asDict(call.recording).url ?? d.recording_url),
   };
 }
 export async function listLiveCalls(signal?: AbortSignal): Promise<{ items: LiveCall[]; auditRequired: boolean }> {
@@ -916,106 +925,9 @@ export async function getLiveCall(id: string, signal?: AbortSignal): Promise<Liv
 }
 
 // ── Automation robots (§16, crm.automation.manage) ──
-export const AUTOMATION_TRIGGERS = ["lead_created", "status_changed", "lead_reopened", "call_no_answer", "call_completed", "next_action_due", "payment_confirmed"] as const;
-export const AUTOMATION_ACTIONS = ["send_sms", "send_notification", "create_task", "change_status", "assign_owner", "add_tags", "escalate"] as const;
-export const CONDITION_OPS = ["eq", "ne", "in", "not_in", "contains", "exists"] as const;
+// Lead and customer fields a robot condition can read, used only when the
+// automation catalog lists none (crmAutomation.ts reads the catalog first).
 export const CONDITION_FIELDS = ["lead.status", "lead.source", "lead.urgency", "lead.score", "lead.region", "lead.assigned_operator_user_id", "lead.cycle_number", "customer.lifecycle", "customer.language", "customer.region"] as const;
-export const RULE_STATUSES = ["draft", "active", "paused"] as const;
-export type RuleCondition = { field: string; operator: string; value: unknown };
-// An action is its type and that type's own settings.
-export type RuleAction = { type: string; params: Dict };
-export type AutomationRule = { id: string; name: string; trigger: string; delaySec: number; priority: number; conditions: RuleCondition[]; actions: RuleAction[]; status: string; createdAt: string; updatedAt: string };
-const actionOf = (v: unknown): RuleAction | null => {
-  const d = asDict(v);
-  const type = asStr(d.type ?? d.action ?? d.action_type);
-  if (!type) return null;
-  const params = Object.keys(asDict(d.params)).length ? asDict(d.params) : Object.fromEntries(Object.entries(d).filter(([k]) => !["type", "action", "action_type"].includes(k)));
-  return { type, params };
-};
-export function automationRuleOf(v: unknown): AutomationRule {
-  const d = asDict(v);
-  return {
-    id: asStr(d.id),
-    name: asStr(d.name),
-    trigger: asStr(d.trigger_type ?? d.trigger),
-    delaySec: int(d.delay_seconds),
-    priority: int(d.priority, 100),
-    conditions: asArr(d.conditions).map((c) => {
-      const x = asDict(c);
-      return { field: asStr(x.field), operator: asStr(x.operator) || "eq", value: x.value };
-    }),
-    actions: asArr(d.actions)
-      .map(actionOf)
-      .filter((a): a is RuleAction => !!a),
-    status: asStr(d.status) || "draft",
-    createdAt: asStr(d.created_at),
-    updatedAt: asStr(d.updated_at),
-  };
-}
-export type RuleInput = { name: string; trigger: string; delaySec: number; priority: number; conditions: RuleCondition[]; actions: RuleAction[] };
-// Conditions travel as {field, operator, value}; an action as its type
-// with its settings beside it.
-export const ruleBody = (r: RuleInput): Dict => ({
-  name: r.name.trim(),
-  trigger_type: r.trigger,
-  delay_seconds: Math.max(0, Math.round(r.delaySec)),
-  priority: Math.round(r.priority),
-  conditions: r.conditions.map((c) => (c.operator === "eq" ? { field: c.field, operator: "eq", value: c.value } : { field: c.field, operator: c.operator, value: c.value })),
-  actions: r.actions.map((a) => ({ type: a.type, ...a.params })),
-});
-export async function listAutomationRules(status = "", signal?: AbortSignal): Promise<{ items: AutomationRule[]; actions: string[] }> {
-  const d = asDict(await http(`/crm/automation/rules${qs({ status })}`, { signal }));
-  return { items: asArr(d.items).map(automationRuleOf).filter((r) => r.id), actions: asArr(d.available_actions).map((x) => asStr(x)).filter(Boolean) };
-}
-export async function createAutomationRule(r: RuleInput): Promise<AutomationRule> {
-  return automationRuleOf(await http("/crm/automation/rules", { method: "POST", body: JSON.stringify({ ...ruleBody(r), status: "draft" }) }));
-}
-export async function updateAutomationRule(id: string, patch: Partial<RuleInput> & { status?: string }): Promise<AutomationRule> {
-  const full = patch.name !== undefined ? ruleBody(patch as RuleInput) : {};
-  return automationRuleOf(await http(`/crm/automation/rules/${enc(id)}`, { method: "PATCH", body: JSON.stringify({ ...full, ...(patch.status ? { status: patch.status } : {}) }) }));
-}
-// A dry run never writes (writes_performed=false): whether the rule would
-// match this lead, the context it saw and the actions it would take.
-export type DryRun = { matched: boolean; context: Dict; actions: RuleAction[]; writesPerformed: boolean; reason: string };
-export function dryRunOf(v: unknown): DryRun {
-  const d = asDict(v);
-  return {
-    matched: d.matched === true || (d.matched === undefined && asArr(d.proposed_actions).length > 0),
-    context: asDict(d.matched_context ?? d.context),
-    actions: asArr(d.proposed_actions ?? d.actions)
-      .map(actionOf)
-      .filter((a): a is RuleAction => !!a),
-    writesPerformed: d.writes_performed === true,
-    reason: asStr(d.reason ?? d.message),
-  };
-}
-export async function dryRunRule(id: string, leadId: string, triggerContext: Dict = {}): Promise<DryRun> {
-  return dryRunOf(await http(`/crm/automation/rules/${enc(id)}/dry-run`, { method: "POST", body: JSON.stringify({ lead_id: leadId, trigger_context: triggerContext }) }));
-}
-export type AutomationRun = { id: string; ruleId: string; ruleName: string; leadId: string; leadWorkId: string; status: string; attempts: number; scheduledAt: string; startedAt: string; completedAt: string; context: Dict; result: Dict; error: string };
-export function automationRunOf(v: unknown): AutomationRun {
-  const d = asDict(v);
-  return {
-    id: asStr(d.id),
-    ruleId: asStr(d.rule_id),
-    ruleName: asStr(d.rule_name ?? asDict(d.rule).name),
-    leadId: asStr(d.lead_id),
-    leadWorkId: asStr(d.lead_work_id ?? asDict(d.lead).work_id),
-    status: asStr(d.status),
-    attempts: int(d.attempts ?? d.attempt_count),
-    scheduledAt: asStr(d.scheduled_at),
-    startedAt: asStr(d.started_at),
-    completedAt: asStr(d.completed_at ?? d.finished_at),
-    context: asDict(d.context),
-    result: asDict(d.result),
-    error: asStr(d.error ?? d.last_error),
-  };
-}
-export async function listAutomationRuns(q: { status?: string; ruleId?: string; leadId?: string; limit?: number; offset?: number } = {}, signal?: AbortSignal): Promise<{ items: AutomationRun[]; total: number }> {
-  const d = asDict(await http(`/crm/automation/runs${qs({ status: q.status, rule_id: q.ruleId, lead_id: q.leadId, limit: q.limit ?? 50, offset: q.offset ?? 0 })}`, { signal }));
-  const items = asArr(d.items).map(automationRunOf).filter((r) => r.id);
-  return { items, total: int(d.total, items.length) };
-}
 
 // ── Metrics and analytics ──────────────────────────────────────────────
 
@@ -1112,8 +1024,8 @@ export async function listCrmTemplates(q: { type?: string; language?: string; q?
     .map(crmTemplateOf)
     .filter((x) => x.id);
 }
-export async function createCrmTemplate(t: { title: string; type: string; language: string; content: string; tags?: string[] }): Promise<CrmTemplate> {
-  return crmTemplateOf(await http("/crm/operator-templates", { method: "POST", body: JSON.stringify({ title: t.title.trim(), template_type: t.type, language: t.language, content: t.content, tags: t.tags ?? [], status: "active" }) }));
+export async function createCrmTemplate(t: { title: string; type: string; language: string; content: string; tags?: string[]; status?: string }): Promise<CrmTemplate> {
+  return crmTemplateOf(await http("/crm/operator-templates", { method: "POST", body: JSON.stringify({ title: t.title.trim(), template_type: t.type, language: t.language, content: t.content, tags: t.tags ?? [], status: t.status || "active" }) }));
 }
 
 // ── Errors ─────────────────────────────────────────────────────────────
@@ -1159,6 +1071,14 @@ export const CRM_ERROR_CODES = [
   "crm_status_transition_invalid",
   "crm_duplicate_target_invalid",
   "crm_transfer_reason_required",
+  // ROP final contract 2026-11-04 §23.
+  "crm_lead_edit_denied",
+  "crm_automation_rule_version_conflict",
+  "crm_automation_action_configuration_invalid",
+  "crm_automation_trigger_invalid",
+  "crm_automation_run_not_retryable",
+  "crm_automation_run_not_cancellable",
+  "crm_automation_draft_not_found",
 ] as const;
 export const crmCode = (e: unknown): string => (e instanceof ApiError ? (e.code ?? "") : "");
 // §3/§22: the field a refusal names (detail.field, or a 422's first loc).
@@ -1223,6 +1143,13 @@ export function crmEventOf(raw: unknown): CrmEvent | null {
     "crm.call.completed": ["call", "live", "lead", "sms"],
     "crm.automation.notification": ["automation"],
     "crm.automation.escalated": ["automation", "lead"],
+    // ROP final contract §22.
+    "crm.automation.rule_created": ["automation"],
+    "crm.automation.rule_updated": ["automation"],
+    "crm.automation.run_completed": ["automation", "lead", "metrics"],
+    "crm.automation.run_failed": ["automation", "lead", "metrics"],
+    "crm.automation.approval_required": ["automation", "lead"],
+    "crm.automation.sla_escalated": ["automation", "lead", "lists"],
     "crm.export.ready": ["export"],
   };
   return { ...base, invalidate: map[name] ?? (base.leadId ? ["lead", "lists"] : ["lists"]) };

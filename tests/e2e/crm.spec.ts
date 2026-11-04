@@ -1,6 +1,12 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { ADMIN, mockBackend, signIn } from "./mock";
-import { OPERATOR, crmServer, lead, ME } from "./crmServer";
+import { OPERATOR, ROP, ROP_PERMS, crmServer, lead, ME } from "./crmServer";
+
+// Since the ROP final contract (2026-11-04) the /admin/crm pages are the
+// sales supervisor's (ROP, sales_head) workspace — operators work in the
+// call-center workspace — so these flows run as a ROP whose meta carries
+// the permissions each test needs (CORE: the operator-level CRM set).
+const CORE = (OPERATOR.permissions ?? []).filter((p) => p !== "callcenter.access");
 
 // The CRM and the operator AI copilot (contract 2026-10-26, /crm/*) against
 // a mocked backend shaped like production: meta-driven UI, the queue claim
@@ -43,41 +49,39 @@ const watchIntl = (page: Page) => {
   return missing;
 };
 
-test("operator mission control: queue, mine, overdue, my metrics, no revenue, honest telephony", async ({ page }) => {
+test("ROP overview: operational cards only — all leads, queue, workload, robots, approvals, live calls; never /crm/analytics or revenue", async ({ page }) => {
   const missing = watchIntl(page);
-  const { routes } = crmServer(OPERATOR.permissions ?? []);
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  const { st, routes } = crmServer(ROP_PERMS);
+  await mockBackend(page, await signIn(page, ROP, routes as never));
   await page.goto("/uz/admin/crm");
-  const hero = page.locator(".crm-hero");
-  await expect(hero.locator(".crm-counter").nth(0)).toContainText("3", { timeout: 20000 }); // first page of the run: cold dev compile
-  await expect(hero.locator(".crm-counter").nth(1)).toContainText("7");
-  await expect(hero.locator(".crm-counter").nth(2)).toContainText("1");
-  await expect(page.locator(".crm-agenda li").first()).toContainText("kechikdi");
-  // Leads by status: a donut of the six, the total in the middle.
-  const donut = page.locator(".crm-donut");
-  await expect(donut.locator(".crm-donut__slice")).toHaveCount(6);
-  await expect(donut.locator(".crm-donut__center")).toContainText("17");
-  await expect(page.getByText("IP-telefoniya hali ulanmagan")).toBeVisible();
-  // Operators: no analytics section, no revenue anywhere.
-  await expect(page.locator(".crm-nav").getByText("Tahlil")).toHaveCount(0);
-  await expect(page.locator(".crm")).not.toContainText("25 039 162");
-  await expect(page.getByText("To'langan tushum")).toHaveCount(0);
-  await shot(page, "overview");
-  // Hover shows one status in the middle; a click opens its list.
-  const row = donut.getByRole("button", { name: /^Saralangan: 5 ta, 29%/ });
-  await row.hover();
-  await expect(donut.locator(".crm-donut__center")).toContainText("Saralangan");
-  await expect(donut.locator(".crm-donut__center")).toContainText("29%");
-  await row.click();
-  await expect(page).toHaveURL(/\/admin\/crm\/leads\?tab=all&status=qualified/);
+  const ov = page.locator("[data-rop-overview]");
+  await expect(ov).toBeVisible({ timeout: 30000 }); // first page of the run: cold dev compile
+  // §4: the whole ROP menu from /crm/meta, no Revenue row.
+  await expect(page.locator("[data-rop-nav]")).toHaveCount(11);
+  await expect(page.locator(".lx-sb")).not.toContainText(/Daromad|Tushum|Tahlil/);
+  const kpis = ov.locator(".rop-kpi");
+  await expect(kpis.nth(0)).toContainText("5");
+  await expect(kpis.nth(1)).toContainText("3");
+  await expect(kpis.nth(2)).toContainText("1");
+  await expect(ov.locator(".rop-bars li")).toHaveCount(6);
+  await expect(ov).toContainText("Akmal Operator");
+  await expect(ov).toContainText("42");
+  await expect(ov).toContainText("Dilnoza Karimova");
+  // No revenue anywhere, and the superadmin-only analytics is never asked.
+  await expect(page.locator("body")).not.toContainText("25 039 162");
+  expect(st.analyticsCalls).toBe(0);
+  await shot(page, "rop-overview");
+  // The workload row opens the leads of that operator.
+  await ov.getByRole("link", { name: /Akmal Operator/ }).first().click();
+  await expect(page).toHaveURL(/\/admin\/crm\/leads\?tab=all&operator=op-2/);
   expect(missing).toEqual([]);
 });
 
 test("queue claim: mine on success; a 409 race shakes the row out and never shows it as mine", async ({ page }) => {
   const missing = watchIntl(page);
-  const { st, routes } = crmServer(OPERATOR.permissions ?? []);
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
-  await page.goto("/uz/admin/crm/leads?tab=queue&view=table");
+  const { st, routes } = crmServer(CORE);
+  await mockBackend(page, await signIn(page, ROP, routes as never));
+  await page.goto("/uz/admin/crm/leads?tab=queue");
   const rows = page.locator(".crm-table tbody tr");
   await expect(rows).toHaveCount(3);
   await shot(page, "leads");
@@ -100,8 +104,8 @@ test("queue claim: mine on success; a 409 race shakes the row out and never show
 
 test("lead workspace: status moves follow meta, carry the lock, recover from a version conflict; transfer needs a reason", async ({ page }) => {
   const missing = watchIntl(page);
-  const { st, routes } = crmServer([...(OPERATOR.permissions ?? []), "crm.leads.assign"]);
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  const { st, routes } = crmServer([...(CORE), "crm.leads.assign"]);
+  await mockBackend(page, await signIn(page, ROP, routes as never));
   await page.goto("/uz/admin/crm/leads/m1");
   const head = page.locator(".crm-glance");
   await expect(head).toContainText("Ijara shartnomasi tekshiruvi");
@@ -162,8 +166,8 @@ test("lead workspace: status moves follow meta, carry the lock, recover from a v
 
 test("AI copilot: 202 → poll → cards; only the ticked paths, with edits and the lock, are applied", async ({ page }) => {
   const missing = watchIntl(page);
-  const { st, routes } = crmServer(OPERATOR.permissions ?? []);
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  const { st, routes } = crmServer(CORE);
+  await mockBackend(page, await signIn(page, ROP, routes as never));
   await page.goto("/uz/admin/crm/leads/m1");
   const ai = await openAi(page);
   await expect(ai).toContainText("AI faqat taklif qiladi");
@@ -194,11 +198,11 @@ test("AI copilot: 202 → poll → cards; only the ticked paths, with edits and 
 
 test("AI copilot: all eleven run types; a run already going opens instead of a second; an SMS draft goes to the SMS pane", async ({ page }) => {
   const missing = watchIntl(page);
-  const { routes } = crmServer([...(OPERATOR.permissions ?? []), "crm.sms.manage"]);
+  const { routes } = crmServer([...(CORE), "crm.sms.manage"]);
   const r = routes as Record<string, unknown>;
   r["POST /crm/leads/m1/ai/runs"] = () => ({ status: 409, json: { detail: { code: "crm_ai_run_active", run_id: "run-9" } } });
   r["/crm/ai/runs/run-9"] = { id: "run-9", lead_id: "m1", run_type: "sms_draft", language: "uz_latn", status: "completed", output: { sms_draft: "Assalomu alaykum! Shartnoma nusxasini yuboring.", operator_confirmation_required: true, auto_executed: false }, created_at: new Date().toISOString() };
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await mockBackend(page, await signIn(page, ROP, routes as never));
   await page.goto("/uz/admin/crm/leads/m1");
   const ai = await openAi(page);
   await expect(ai.locator(".crm-ai__types .crm-chip")).toHaveCount(11);
@@ -216,8 +220,8 @@ test("AI copilot: all eleven run types; a run already going opens instead of a s
 
 test("customer profile: current and past leads, contacts, and merge only with its permission", async ({ page }) => {
   const missing = watchIntl(page);
-  const { routes } = crmServer(OPERATOR.permissions ?? []);
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  const { routes } = crmServer(CORE);
+  await mockBackend(page, await signIn(page, ROP, routes as never));
   await page.goto("/uz/admin/crm/customers/c1");
   await expect(page.locator(".crm-lhead")).toContainText("Dilnoza Karimova");
   await expect(page.getByText("Joriy lidlar")).toBeVisible();
@@ -280,11 +284,11 @@ async function dragCard(page: Page, from: Locator, to: Locator, onCard = false) 
 
 test("kanban: GET /crm/kanban, reorder in a column, status moves with the lock; won without a paid order snaps back", async ({ page }) => {
   const missing = watchIntl(page);
-  const { st, routes } = crmServer(OPERATOR.permissions ?? []);
+  const { st, routes } = crmServer(CORE);
   st.queue = [lead("q1"), lead("q2", { title: "Aliment undirish" }), lead("q3", { title: "Mehnat nizosi", lock_version: 3 })];
   st.queue.forEach((l) => (l.allowed_actions = ["view_timeline", "change_status", "claim"]));
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
-  await page.goto("/uz/admin/crm/leads?tab=all&view=board");
+  await mockBackend(page, await signIn(page, ROP, routes as never));
+  await page.goto("/uz/admin/crm/kanban?tab=all");
   const cols = page.locator(".crm-col");
   await expect(cols).toHaveCount(6);
   const fresh = cols.first();
@@ -326,10 +330,10 @@ test("kanban: GET /crm/kanban, reorder in a column, status moves with the lock; 
 });
 
 test("kanban: load more pages one column; status settings keep all six keys", async ({ page }) => {
-  const { st, routes } = crmServer([...(OPERATOR.permissions ?? []), "crm.automation.manage"]);
+  const { st, routes } = crmServer([...(CORE), "crm.automation.manage"]);
   st.queue = Array.from({ length: 33 }, (_, i) => lead(`n${i}`, { title: `Murojaat ${i + 1}` }));
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
-  await page.goto("/uz/admin/crm/leads?tab=all&view=board");
+  await mockBackend(page, await signIn(page, ROP, routes as never));
+  await page.goto("/uz/admin/crm/kanban?tab=all");
   const fresh = page.locator(".crm-col").first();
   await expect(fresh.locator(".crm-kcard")).toHaveCount(30);
   await fresh.getByRole("button", { name: /Yana yuklash \(3\)/ }).click();
@@ -351,9 +355,9 @@ test("kanban: load more pages one column; status settings keep all six keys", as
 });
 
 test("kanban: without crm.automation.manage there are no status settings; a claim from the board says who has it", async ({ page }) => {
-  const { st, routes } = crmServer(OPERATOR.permissions ?? []);
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
-  await page.goto("/uz/admin/crm/leads?tab=queue&view=board");
+  const { st, routes } = crmServer(CORE);
+  await mockBackend(page, await signIn(page, ROP, routes as never));
+  await page.goto("/uz/admin/crm/kanban?tab=queue");
   await expect(page.getByRole("tab", { name: /Hammasi/ })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("button", { name: "Holat sozlamalari" })).toHaveCount(0);
   const fresh = page.locator(".crm-col").first();
@@ -367,9 +371,9 @@ test("kanban: without crm.automation.manage there are no status settings; a clai
 });
 
 test("realtime: another user's move slides the card over; an actionable event pops a card that opens the lead", async ({ page }) => {
-  const { st, routes } = crmServer(OPERATOR.permissions ?? []);
-  const mock = await mockBackend(page, await signIn(page, OPERATOR, routes as never));
-  await page.goto("/uz/admin/crm/leads?tab=all&view=board");
+  const { st, routes } = crmServer(CORE);
+  const mock = await mockBackend(page, await signIn(page, ROP, routes as never));
+  await page.goto("/uz/admin/crm/kanban?tab=all");
   const cols = page.locator(".crm-col");
   await expect(cols.first().locator(".crm-kcard")).toHaveCount(3);
   await expect.poll(() => mock.sockets.length).toBeGreaterThan(0);
@@ -389,9 +393,9 @@ test("realtime: another user's move slides the card over; an actionable event po
 
 test("calls: a phone contact, the consent text, a live transcript with AI assist, and a no-answer completion", async ({ page }) => {
   const missing = watchIntl(page);
-  const { st, routes } = crmServer([...(OPERATOR.permissions ?? []), "crm.calls.start"]);
+  const { st, routes } = crmServer([...(CORE), "crm.calls.start"]);
   st.mine[0].allowed_actions = [...(st.mine[0].allowed_actions as string[]), "start_call"];
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await mockBackend(page, await signIn(page, ROP, routes as never));
   await page.goto("/uz/admin/crm/leads/m1?pane=calls");
   await wsTab(page, /Tarix/);
   const pane = page.locator(".crm-callpane");
@@ -415,8 +419,8 @@ test("calls: a phone contact, the consent text, a live transcript with AI assist
 
 test("SMS: a draft is approved with edits; a missing provider shows as not configured with a retry, never as sent", async ({ page }) => {
   const missing = watchIntl(page);
-  const { st, routes } = crmServer([...(OPERATOR.permissions ?? []), "crm.sms.manage"]);
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  const { st, routes } = crmServer([...(CORE), "crm.sms.manage"]);
+  await mockBackend(page, await signIn(page, ROP, routes as never));
   await page.goto("/uz/admin/crm/leads/m1?pane=sms");
   await wsTab(page, /Tarix/);
   const pane = page.locator(".crm-smspane");
@@ -436,51 +440,78 @@ test("SMS: a draft is approved with edits; a missing provider shows as not confi
   expect(missing).toEqual([]);
 });
 
-test("robots: built with pickers, a draft until a dry run on a real lead; Turn on only after it", async ({ page }) => {
+test("robots: built from the catalog — trigger, delay, an and/or tree, ordered actions with approval badges, preview, then activate; dry run on a picked lead", async ({ page }) => {
   const missing = watchIntl(page);
-  const { st, routes } = crmServer([...(OPERATOR.permissions ?? []), "crm.automation.manage"]);
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  const { st, routes } = crmServer(ROP_PERMS);
+  await mockBackend(page, await signIn(page, ROP, routes as never));
   await page.goto("/uz/admin/crm/automation");
-  await page.getByRole("button", { name: "Yangi robot" }).first().click();
-  const ed = page.getByRole("dialog", { name: "Yangi robot" });
-  await expect(ed.locator("textarea[name], select, input[type=checkbox]")).toHaveCount(0);
-  await ed.getByRole("textbox", { name: "Nomi" }).fill("Javobsiz qo'ng'iroq");
-  await ed.getByRole("button", { name: /Qachon ishlaydi/ }).click();
-  await page.getByRole("listbox").getByRole("option", { name: "Qo'ng'iroqqa javob bo'lmaganda" }).click();
-  await ed.getByRole("button", { name: "Shart qo'shish" }).click();
-  await ed.getByRole("button", { name: /^Shart/ }).first().click();
-  await page.getByRole("listbox").getByRole("option", { name: "quyidagilardan biri" }).click();
-  await ed.locator(".crm-cond .crm-chips").getByRole("button", { name: "Yangi" }).click();
-  await ed.locator(".crm-cond .crm-chips").getByRole("button", { name: "Saralangan" }).click();
-  await ed.getByRole("button", { name: /^Amal/ }).first().click();
-  await page.getByRole("listbox").getByRole("option", { name: "Bildirishnoma yuborish" }).click();
-  await ed.getByRole("textbox", { name: "Xabar matni" }).fill("Qayta qo'ng'iroq qiling");
-  await ed.getByRole("button", { name: "Qoralama sifatida saqlash" }).click();
-  await expect.poll(() => st.ruleWrites[0]?.body).toMatchObject({ name: "Javobsiz qo'ng'iroq", trigger_type: "call_no_answer", status: "draft", conditions: [{ field: "lead.status", operator: "in", value: ["new", "qualified"] }], actions: [{ type: "send_notification", message: "Qayta qo'ng'iroq qiling" }] });
-  const card = page.locator(".crm-rule").first();
-  await expect(card).toContainText("Agar: Lid holati quyidagilardan biri Yangi, Saralangan");
-  // Turn on stays shut until a dry run on a real lead.
-  await expect(card.getByRole("button", { name: "Yoqish" })).toBeDisabled();
-  await card.getByRole("button", { name: "Sinab ko'rish" }).click();
-  const dry = page.getByRole("dialog", { name: /sinash/ });
-  await dry.getByRole("option", { name: /Ijara shartnomasi/ }).first().click();
+  await page.locator("[data-rop-new-robot]").click();
+  const b = page.locator("[data-rop-builder]");
+  await expect(b.locator(".rb-step")).toHaveCount(9);
+  // Every step circle carries its icon.
+  await expect(b.locator(".rb-step__dot svg")).toHaveCount(9);
+  await b.getByRole("textbox", { name: "Nomi" }).fill("Javobsiz qo'ng'iroq");
+  await b.getByRole("button", { name: "Hodisa" }).click();
+  await page.getByRole("listbox").getByRole("option", { name: /Qo'ng'iroqqa javob berilmadi/ }).click();
+  await expect(b.locator(".rb-desc")).toContainText("mijoz javob bermadi");
+  await b.getByRole("textbox", { name: "Kechikish" }).fill("3");
+  // Conditions: an OR group with the twelve operators from the catalog.
+  await b.getByRole("button", { name: "YOKI" }).first().click();
+  await b.getByRole("button", { name: "Shart qo'shish" }).click();
+  await b.locator(".rb-cond").first().getByRole("button", { name: "Taqqoslash" }).click();
+  await expect(page.getByRole("listbox").getByRole("option")).toHaveCount(12);
+  await page.getByRole("listbox").getByRole("option", { name: "teng", exact: true }).click();
+  await b.locator(".rb-cond").first().getByRole("button", { name: "Qiymat" }).click();
+  await page.getByRole("listbox").getByRole("option", { name: "Yangi" }).click();
+  // Actions from the grouped, searchable picker; fields come from the catalog.
+  await b.locator("[data-rb-add]").click();
+  const pick = page.getByRole("dialog", { name: "Amal tanlash" });
+  await expect(pick.getByRole("region", { name: "Muloqot" })).toBeVisible();
+  await pick.getByRole("searchbox", { name: "Amal qidirish" }).fill("SMS");
+  await expect(pick.locator("[data-rb-pick]")).toHaveCount(1);
+  await expect(pick.locator("[data-rb-pick=send_sms]")).toContainText("Tasdiq talab qilinadi");
+  await pick.locator("[data-rb-pick=send_sms]").click();
+  await b.locator("[data-rb-add]").click();
+  await page.getByRole("dialog", { name: "Amal tanlash" }).locator("[data-rb-pick=plan_call]").click();
+  await expect(b.locator(".rb-action")).toHaveCount(2);
+  await expect(b.locator(".rb-approval")).toHaveCount(1);
+  await b.locator("[data-rb-action=send_sms]").getByRole("textbox", { name: /SMS matni/ }).fill("Siz bilan bog'lana olmadik.");
+  // Touch-friendly order: the call first.
+  await b.getByRole("button", { name: "2-amalni yuqoriga" }).click();
+  await expect(b.locator(".rb-action").first()).toHaveAttribute("data-rb-action", "plan_call");
+  // Activate waits for a preview of this very form.
+  await b.locator("[data-rb-save=active]").click();
+  expect(st.ruleWrites.filter((w) => w.path === "create")).toHaveLength(0);
+  await b.getByRole("button", { name: "Ko'rib chiqish" }).click();
+  await expect(b.locator("[data-rb-preview]")).toContainText("3 daqiqadan so'ng SMS qoralamasi");
+  await expect(b.locator("[data-rb-preview]")).toContainText("Hech narsa yozilmadi");
+  await shot(page, "rop-robot-builder");
+  await b.locator("[data-rb-save=active]").click();
+  await expect.poll(() => st.ruleWrites.find((w) => w.path === "create")?.body).toMatchObject({
+    name: "Javobsiz qo'ng'iroq",
+    trigger_type: "call_no_answer",
+    delay_seconds: 180,
+    status: "active",
+    conditions: { operator: "or", conditions: [{ field: "lead.status", operator: "eq", value: "new" }] },
+    actions: [{ type: "plan_call", due_in_minutes: 30 }, { type: "send_sms", body: "Siz bilan bog'lana olmadik.", language: "uz_latn" }],
+  });
+  // Back on the list: a dry run against a lead chosen by name.
+  const row = page.locator("[data-rule=r1]");
+  await expect(row).toContainText("Faol");
+  await row.getByRole("button", { name: "Sinov" }).click();
+  const dry = page.getByRole("dialog", { name: /Sinov: Javobsiz/ });
+  await dry.getByRole("button", { name: "Lidni tanlang" }).click();
+  await page.getByRole("option", { name: /Ijara shartnomasi/ }).first().click();
   await dry.getByRole("button", { name: "Sinovni boshlash" }).click();
-  await expect(dry.locator(".crm-dry")).toContainText("Shartlar mos keldi");
-  await expect(dry.locator(".crm-dry")).toContainText("Bildirishnoma yuborish: «Qayta qo'ng'iroq qiling»");
-  await expect(dry.locator(".crm-dry")).toContainText("Sinov hech narsani o'zgartirmadi");
-  await shot(page, "robot-dry");
-  await dry.getByRole("button", { name: "Tayyor" }).click();
-  await card.getByRole("button", { name: "Yoqish" }).click();
-  await expect.poll(() => st.ruleWrites.find((w) => w.path === "patch")?.body).toEqual({ status: "active" });
-  await page.getByRole("tab", { name: "Ishga tushishlar" }).click();
-  await expect(page.locator(".crm-runlog")).toContainText("1 urinish");
+  await expect(dry.locator("[data-rb-dryres]")).toContainText("Bu lid uchun SMS qoralamasi tayyorlanardi.");
+  expect(st.ruleWrites.find((w) => w.path === "dry")?.body).toMatchObject({ lead_id: expect.any(String) });
   expect(missing).toEqual([]);
 });
 
 test("live office: read-only, audited, transcript with lead context and live AI hints; hidden without permission", async ({ page }) => {
   const missing = watchIntl(page);
-  const { routes } = crmServer([...(OPERATOR.permissions ?? []), "crm.live_calls.view"]);
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  const { routes } = crmServer([...(CORE), "crm.live_calls.view"]);
+  await mockBackend(page, await signIn(page, ROP, routes as never));
   await page.goto("/uz/admin/crm/live");
   await expect(page.getByRole("note")).toContainText("Har bir ko'rish jurnalga yoziladi");
   await page.getByRole("button", { name: /Akmal Operator/ }).click();
@@ -494,24 +525,22 @@ test("live office: read-only, audited, transcript with lead context and live AI 
   expect(missing).toEqual([]);
 });
 
-test("a hidden section is out of the menu and its URL says no access", async ({ page }) => {
-  const { routes } = crmServer(OPERATOR.permissions ?? []);
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+test("a section the ROP lacks is out of the menu, and its URL leads back into the workspace", async ({ page }) => {
+  const { routes } = crmServer(CORE);
+  await mockBackend(page, await signIn(page, ROP, routes as never));
   await page.goto("/uz/admin/crm/live");
-  await expect(page.locator("[data-denied]")).toContainText("Bu bo'lim sizning ruxsatlaringizga kirmaydi");
-  // The CRM sections are the header's tabs, for operators too (0575a1a).
-  const nav = page.locator(".crm-nav");
-  await expect(nav.getByRole("link", { name: "Jonli ofis" })).toHaveCount(0);
-  await expect(nav.getByRole("link", { name: "Robotlar" })).toHaveCount(0);
-  await expect(nav.getByRole("link", { name: "Umumiy tahlil" })).toHaveCount(0);
-  await expect(nav.getByRole("link", { name: "Lidlar" })).toHaveCount(1);
+  await expect(page).toHaveURL(/\/admin\/crm$/);
+  const nav = page.locator(".lx-sb");
+  await expect(nav.locator("[data-rop-nav=live]")).toHaveCount(0);
+  await expect(nav.locator("[data-rop-nav=robots]")).toHaveCount(0);
+  await expect(nav.locator("[data-rop-nav=leads]")).toHaveCount(1);
 });
 
 test("a finished lead reopens as a new cycle; the old cycle keeps its final status", async ({ page }) => {
   const missing = watchIntl(page);
-  const { st, routes } = crmServer(OPERATOR.permissions ?? []);
+  const { st, routes } = crmServer(CORE);
   st.mine = [...st.mine, lead("w1", { status: "won", title: "Nikoh shartnomasi", cycle_number: 1, lock_version: 7, assigned_operator_user_id: ME.id, assigned_operator: ME, allowed_actions: ["view_timeline", "edit", "reopen"], closed_at: "2026-09-20T08:00:00Z" })];
-  await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  await mockBackend(page, await signIn(page, ROP, routes as never));
   await page.goto("/uz/admin/crm/leads/w1");
   const head = page.locator(".crm-glance");
   await expect(head).not.toContainText("2-sikl");
@@ -539,7 +568,7 @@ test("no page refetches by itself: once loaded, every CRM screen stays quiet", a
   const { routes } = crmServer(ALL, true);
   const mock = await mockBackend(page, await signIn(page, ADMIN, routes as never));
   const crmCalls = () => mock.calls.filter((c) => c.path.startsWith("/crm")).length;
-  for (const url of ["/uz/admin/crm", "/uz/admin/crm/leads?tab=all", "/uz/admin/crm/leads?tab=all&view=board", "/uz/admin/crm/leads/m1", "/uz/admin/crm/customers", "/uz/admin/crm/customers/c1", "/uz/admin/crm/templates", "/uz/admin/crm/analytics"]) {
+  for (const url of ["/uz/admin/crm", "/uz/admin/crm/leads?tab=all", "/uz/admin/crm/kanban?tab=all", "/uz/admin/crm/leads/m1", "/uz/admin/crm/customers", "/uz/admin/crm/customers/c1", "/uz/admin/crm/templates", "/uz/admin/crm/analytics"]) {
     await page.goto(url);
     await expect(page.locator(".crm-top")).toBeVisible();
     await page.waitForTimeout(1500);
@@ -635,7 +664,7 @@ test("new lead: one customer select, a new customer above the form, region from 
 
 test("lead details: detail_sections read as labelled values; ids, codes and raw JSON never show", async ({ page }) => {
   const missing = watchIntl(page);
-  const { st, routes } = crmServer(OPERATOR.permissions ?? []);
+  const { st, routes } = crmServer(CORE);
   st.mine[0] = {
     ...st.mine[0],
     detail_sections: [
@@ -651,7 +680,7 @@ test("lead details: detail_sections read as labelled values; ids, codes and raw 
       },
     ],
   };
-  const mock = await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  const mock = await mockBackend(page, await signIn(page, ROP, routes as never));
   await page.goto("/uz/admin/crm/leads/m1");
   await wsTab(page, /Mijoz|Ma'lumot/);
   const more = page.locator("section", { has: page.locator("#crm-more-t") });
@@ -672,7 +701,7 @@ test("lead details: detail_sections read as labelled values; ids, codes and raw 
 
 test("draft order: service, specialist and package are chosen by name; the review and the result show no ids", async ({ page }) => {
   const missing = watchIntl(page);
-  const { routes } = crmServer(OPERATOR.permissions ?? []);
+  const { routes } = crmServer(CORE);
   let conv: Record<string, unknown> | null = null;
   const sellerQs: string[] = [];
   const pkgQs: string[] = [];
@@ -686,7 +715,7 @@ test("draft order: service, specialist and package are chosen by name; the revie
     // Gaps closed §20: the updated lead with converted_order { work_id }.
     "POST /crm/leads/m1/conversion": (b: Record<string, unknown>) => ((conv = b), { id: "m1", work_id: "LEAD-M1", converted_order_id: "0f9d8c7b-0000-4000-8000-000000000001", converted_order: { id: "0f9d8c7b-0000-4000-8000-000000000001", work_id: "ORD-7Q2K", status: "operator_draft", payment_status: "unpaid" } }),
   });
-  const mock = await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  const mock = await mockBackend(page, await signIn(page, ROP, routes as never));
   await page.goto("/uz/admin/crm/leads/m1");
   await wsTab(page, /Mijoz|Ma'lumot/);
   await page.getByRole("button", { name: "Buyurtma tayyorlash" }).click();
@@ -720,8 +749,8 @@ test("draft order: service, specialist and package are chosen by name; the revie
 
 test("Eslatma: a reminder time becomes the lead's next action and shows in the history", async ({ page }) => {
   const missing = watchIntl(page);
-  const { st, routes } = crmServer(OPERATOR.permissions ?? []);
-  const mock = await mockBackend(page, await signIn(page, OPERATOR, routes as never));
+  const { st, routes } = crmServer(CORE);
+  const mock = await mockBackend(page, await signIn(page, ROP, routes as never));
   await page.goto("/uz/admin/crm/leads/m1");
   await wsTab(page, /Tarix/);
   const composer = page.locator(".crm-composer");

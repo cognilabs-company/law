@@ -1,6 +1,8 @@
 "use client";
 
 // Area styles first, the shared base last: its phone rules win.
+import { useInRop } from "./rop/ropCtx";
+import { sessionRoles, useAuth } from "@/lib/auth";
 import "./crm-overview.css";
 import "./crm-leads.css";
 import "./crm-lead.css";
@@ -12,10 +14,10 @@ import { useTranslations } from "next-intl";
 import { useScrollEdges } from "@/lib/useScrollEdges";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { IconAward, IconChevronLeft, IconCircleX, IconClipboardCheck, IconFileText, IconFlame, IconHourglass, IconInbox, IconLayers, IconSearch, IconSparkle } from "@/components/icons";
-import { errDetail } from "@/lib/http";
+import { ApiError, errDetail } from "@/lib/http";
 import { crmCode, journeyOf, type CrmMeta } from "@/lib/services/crm";
 import { visibleSections } from "./sections";
-import { minutesUntil, useCrmMeta, useLiveState } from "@/lib/crm/useCrm";
+import { loadCrmMeta, minutesUntil, useCrmMeta, useLiveState } from "@/lib/crm/useCrm";
 
 // A column's colour: the backend's (set on .crm by CrmFrame as --s-<key>),
 // else the built-in one for that key.
@@ -148,15 +150,30 @@ export function SkeletonRows({ n = 5 }: { n?: number }): ReactElement {
 // the server's message otherwise. Logic elsewhere branches on the code.
 // Stable across renders: loaders list it as a dependency, and a new
 // function every render would make them refetch forever.
+// §23: a 403 means the account lost a permission — /crm/meta is read again
+// (at most every few seconds) so menus and buttons follow, and the action
+// is not retried.
+let metaRefreshAt = 0;
+function refreshMetaOn403(e: unknown): void {
+  if (!(e instanceof ApiError) || e.status !== 403) return;
+  const now = Date.now();
+  if (now - metaRefreshAt < 5000) return;
+  metaRefreshAt = now;
+  void loadCrmMeta(true);
+}
 export function useCrmError(): (e: unknown) => string {
   const t = useTranslations("crm.err");
+  // Codes added by the ROP contract (2026-11-04 §23) live under rop.err.
+  const tr = useTranslations("rop.err");
   return useCallback(
     (e: unknown) => {
+      refreshMetaOn403(e);
       const code = crmCode(e);
       if (code && t.has(code)) return t(code);
+      if (code && tr.has(code)) return tr(code);
       return errDetail(e) || t("generic");
     },
-    [t],
+    [t, tr],
   );
 }
 
@@ -199,7 +216,9 @@ export function BackButton({ back }: { back: CrmBack }): ReactElement {
 export function CrmNav({ meta }: { meta: CrmMeta | null }): ReactElement {
   const t = useTranslations("crm");
   const path = usePathname();
-  const sections = visibleSections(meta);
+  const tr = useTranslations("rop");
+  const { session } = useAuth();
+  const sections = visibleSections(meta, sessionRoles(session).includes("superadmin"));
   const current = sections
     .slice()
     .sort((a, b) => b.href.length - a.href.length)
@@ -221,7 +240,7 @@ export function CrmNav({ meta }: { meta: CrmMeta | null }): ReactElement {
       {sections.map((s) => (
         <Link key={s.key} href={s.href} aria-current={current?.key === s.key ? "page" : undefined}>
           <s.Icon aria-hidden="true" />
-          {t(`nav.${s.key}`)}
+          {t.has(`nav.${s.key}`) ? t(`nav.${s.key}`) : tr(`nav.${s.key}`)}
         </Link>
       ))}
     </nav>
@@ -242,13 +261,17 @@ export function CrmTop({ meta, title, sub, onPalette, tools, back }: { meta: Crm
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onPalette]);
+  // In the ROP workspace the shell's header carries the title and its
+  // sidebar the sections; only the back link, the sub line and the page's
+  // tools stay here.
+  const inRop = useInRop();
   return (
-    <header className="crm-top">
+    <header className={`crm-top${inRop ? " crm-top--rop" : ""}`}>
       <div className="crm-top__row">
         <div className="crm-top__head">
           {back ? <BackButton back={back} /> : null}
           <div className="crm-top__titles">
-            <h2 className="crm-top__title">{title}</h2>
+            {inRop ? (back ? <b className="crm-top__title crm-top__title--sm">{title}</b> : null) : <h2 className="crm-top__title">{title}</h2>}
             {sub ? <p className="crm-top__sub">{sub}</p> : null}
           </div>
         </div>
@@ -262,7 +285,7 @@ export function CrmTop({ meta, title, sub, onPalette, tools, back }: { meta: Crm
           {tools}
         </div>
       </div>
-      <CrmNav meta={meta} />
+      {inRop ? null : <CrmNav meta={meta} />}
     </header>
   );
 }

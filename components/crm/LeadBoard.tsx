@@ -9,6 +9,13 @@ import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { changeLeadStatus, crmCan, crmNextStatuses, getCrmKanban, isVersionConflict, leadCan, moreKanbanLeads, positionIn, reorderCrmLead, KANBAN_PAGE, type CrmLead, type CrmMeta } from "@/lib/services/crm";
 import { fromLocalInput } from "./LeadSheets";
+
+// Leads with a backend rank in that order; a lead without one keeps its
+// place relative to the others (the list order the server sent).
+function byRank(items: CrmLead[]): CrmLead[] {
+  if (!items.every((x) => x.rank !== null)) return items;
+  return items.slice().sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
+}
 import { minutesUntil, useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import { Avatar, ScoreChip, WhenChip, statusVar, useCrmError, useStatusLabel } from "./bits";
 import { CrmDateTime } from "./fields";
@@ -194,7 +201,9 @@ export function LeadBoard({ meta, mineOnly, q, onClaim, claiming, refreshKey }: 
       setCols((cur) => (cur ? moveLocal(cur, lead.id, lead.status, position) : cur));
       try {
         const saved = await reorderCrmLead(lead, position);
-        setCols((cur) => (cur ? cur.map((c) => ({ ...c, items: c.items.map((x) => (x.id === saved.id ? { ...x, ...saved } : x)) })) : cur));
+        // The backend's kanban.rank is the order (ROP contract §9): the
+        // column is re-sorted by it, never by a rank worked out here.
+        setCols((cur) => (cur ? cur.map((c) => ({ ...c, items: byRank(c.items.map((x) => (x.id === saved.id ? { ...x, ...saved } : x))) })) : cur));
       } catch (e) {
         say(e);
       } finally {

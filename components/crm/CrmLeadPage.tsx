@@ -20,10 +20,13 @@ import { LeadGlance } from "./LeadGlance";
 import { LeadHistory } from "./LeadHistory";
 import { LeadCalls } from "./LeadCalls";
 import { LeadSms } from "./LeadSms";
+import { Bot } from "lucide-react";
+import { LeadRobots, useLeadDrafts } from "./robots/LeadRobots";
+import { crmCan } from "@/lib/services/crm";
 
-type Pane = "timeline" | "history" | "calls" | "sms";
-const PANES: Pane[] = ["timeline", "history", "calls", "sms"];
-const PANE_ICON = { timeline: IconLayers, history: IconHistory, calls: IconPhone, sms: IconChat } as const;
+type Pane = "timeline" | "history" | "calls" | "sms" | "robots";
+const PANES: Pane[] = ["timeline", "history", "calls", "sms", "robots"];
+const PANE_ICON = { timeline: IconLayers, history: IconHistory, calls: IconPhone, sms: IconChat, robots: Bot } as const;
 
 export type LeadWrite = (run: (lead: CrmLead) => Promise<CrmLead | null | void>, okText?: string) => Promise<boolean>;
 
@@ -38,6 +41,7 @@ export default function CrmLeadPage({ leadId }: { leadId: string }): ReactElemen
 
 function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactElement {
   const t = useTranslations("crm.lead");
+  const tr = useTranslations("rop.leadRobots");
   const crmErr = useCrmError();
   const [lead, setLead] = useState<CrmLead | null>(null);
   const [loadErr, setLoadErr] = useState<unknown>(null);
@@ -57,6 +61,10 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
   // The AI Copilot lives behind one button, in a drawer.
   const [aiOpen, setAiOpen] = useState(false);
   const leadRef = useRef<CrmLead | null>(null);
+  // Robot history and the drafts waiting for approval (ROP contract §24),
+  // for whoever manages robots.
+  const robots = crmCan(meta, "crm.automation.manage");
+  const pendingDrafts = useLeadDrafts(leadId, robots);
   useEffect(() => {
     leadRef.current = lead;
   }, [lead]);
@@ -198,12 +206,13 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
       <div className="crm-ws" data-tab={tab}>
         <div className="crm-ws__col crm-ws__main">
           <div className="crm-panes" role="tablist" aria-label={t("panes")}>
-            {PANES.map((k) => {
+            {PANES.filter((k) => k !== "robots" || robots).map((k) => {
               const Icon = PANE_ICON[k];
               return (
-                <button key={k} type="button" role="tab" aria-selected={pane === k} onClick={() => setPane(k)}>
+                <button key={k} type="button" role="tab" aria-selected={pane === k} onClick={() => setPane(k)} data-pane={k}>
                   <Icon aria-hidden="true" />
-                  {t(`pane.${k}`, { n: lead.cycleNumber })}
+                  {k === "robots" ? tr("pane") : t(`pane.${k}`, { n: lead.cycleNumber })}
+                  {k === "robots" && pendingDrafts ? <b className="crm-pane__badge" aria-label={tr("pendingN", { n: pendingDrafts })}>{pendingDrafts}</b> : null}
                 </button>
               );
             })}
@@ -214,6 +223,8 @@ function Workspace({ meta, leadId }: { meta: CrmMeta; leadId: string }): ReactEl
             <LeadHistory lead={lead} />
           ) : pane === "calls" ? (
             <LeadCalls meta={meta} lead={lead} />
+          ) : pane === "robots" && robots ? (
+            <LeadRobots leadId={lead.id} />
           ) : (
             <LeadSms meta={meta} lead={lead} preset={smsPreset} onPresetUsed={() => setSmsPreset("")} />
           )}

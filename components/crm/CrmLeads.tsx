@@ -1,5 +1,6 @@
 "use client";
 
+import { useInRop } from "./rop/ropCtx";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
@@ -38,11 +39,15 @@ const writeViews = (v: View[]) => {
   }
 };
 
-export default function CrmLeads(): ReactElement {
+// `forceView`: the ROP workspace's Leads and Kanban pages (ROP contract §4)
+// each show one view, with no switch between them.
+export default function CrmLeads({ forceView }: { forceView?: "table" | "board" } = {}): ReactElement {
   const t = useTranslations("crm");
+  const inRop = useInRop();
+  const fixed = forceView ?? (inRop ? "table" : undefined);
   return (
     <CrmFrame
-      section="leads"
+      section={fixed === "board" ? "kanban" : "leads"}
       title={t("leads.title")}
       tools={(api) => (
         <>
@@ -60,12 +65,12 @@ export default function CrmLeads(): ReactElement {
         </>
       )}
     >
-      {(api) => <LeadTable meta={api.meta} />}
+      {(api) => <LeadTable meta={api.meta} fixed={fixed} />}
     </CrmFrame>
   );
 }
 
-function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
+function LeadTable({ meta, fixed }: { meta: CrmMeta; fixed?: "table" | "board" }): ReactElement {
   const t = useTranslations("crm.leads");
   const tb = useTranslations("crm.board");
   const tsrc = useTranslations("crm.source");
@@ -83,9 +88,9 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
   const [managingCols, setManagingCols] = useState(false);
   const [tab, setTab] = useState<Tab>(initialTab);
   // Table or board: the URL first, then the operator's last choice.
-  const [view, setView] = useState<"table" | "board">(params.get("view") === "board" ? "board" : "table");
+  const [view, setView] = useState<"table" | "board">(fixed ?? (params.get("view") === "board" ? "board" : "table"));
   useEffect(() => {
-    if (params.get("view")) return;
+    if (fixed || params.get("view")) return;
     const id = window.setTimeout(() => {
       let saved = "";
       try {
@@ -97,7 +102,7 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
       else if (!saved && isCallCenterUser(session)) setView("board");
     }, 0);
     return () => window.clearTimeout(id);
-  }, [params, session]);
+  }, [params, session, fixed]);
   const pickView = (v: "table" | "board") => {
     setView(v);
     if (v === "board" && tab === "queue") setTab("all");
@@ -107,8 +112,9 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
       /* storage off */
     }
   };
-  const [f, setF] = useState<Filters>({ ...EMPTY, status: params.get("status") ?? "", due: params.get("due") ?? "" });
-  const [qInput, setQInput] = useState("");
+  // ?operator= arrives from the Operators page, ?q= from the header search.
+  const [f, setF] = useState<Filters>({ ...EMPTY, status: params.get("status") ?? "", due: params.get("due") ?? "", operator: params.get("operator") ?? "", q: (params.get("q") ?? "").trim() });
+  const [qInput, setQInput] = useState((params.get("q") ?? "").trim());
   const [offset, setOffset] = useState(0);
   const [rows, setRows] = useState<CrmLead[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -327,7 +333,7 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
             <em>{tabCounts[k] ?? "·"}</em>
           </button>
         ))}
-        <span className="crm-seg" role="group" aria-label={t("view")} style={{ marginLeft: "auto" }}>
+        {fixed ? null : <span className="crm-seg" role="group" aria-label={t("view")} style={{ marginLeft: "auto" }}>
           <button type="button" aria-pressed={view === "table"} onClick={() => pickView("table")}>
             <IconList aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: "-2px", marginRight: 4 }} />
             {t("viewTable")}
@@ -336,7 +342,7 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
             <IconGrid aria-hidden="true" style={{ width: 14, height: 14, verticalAlign: "-2px", marginRight: 4 }} />
             {t("viewBoard")}
           </button>
-        </span>
+        </span>}
         {view === "table" && canManageCols ? (
           <button type="button" className="crm-btn crm-btn--sm" onClick={() => setManagingCols(true)}>
             <IconColumns aria-hidden="true" />
@@ -358,7 +364,8 @@ function LeadTable({ meta }: { meta: CrmMeta }): ReactElement {
         <CrmSelect value={f.status} onChange={(v) => setFilter({ status: v })} label={t("f.status")} options={[{ value: "", label: t("f.anyStatus") }, ...meta.statuses.map((s) => ({ value: s, label: ts(s) }))]} />
         <CrmSelect value={f.score} onChange={(v) => setFilter({ score: v })} label={t("f.score")} options={[{ value: "", label: t("f.anyScore") }, ...meta.scores.map((s) => ({ value: s, label: tsc.has(s) ? tsc(s) : s }))]} />
         <CrmSelect value={f.source} onChange={(v) => setFilter({ source: v })} label={t("f.source")} options={[{ value: "", label: t("f.anySource") }, ...meta.sources.map((s) => ({ value: s, label: tsrc.has(s) ? tsrc(s) : tsrc("other") }))]} />
-        {tab === "all" && ops.length ? (
+        {/* The operator filter only for an "all" scope (ROP contract §5). */}
+        {tab === "all" && meta.scope === "all" && ops.length ? (
           <CrmSelect value={f.operator} onChange={(v) => setFilter({ operator: v })} label={t("f.operator")} options={[{ value: "", label: t("f.anyOperator") }, ...ops.map((o) => ({ value: o.id, label: o.name }))]} />
         ) : null}
         <input className="crm-input" style={{ width: 130 }} value={f.region} onChange={(e) => setFilter({ region: e.target.value })} placeholder={t("f.region")} aria-label={t("f.region")} />

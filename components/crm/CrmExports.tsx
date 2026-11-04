@@ -6,8 +6,9 @@ import { IconAlert, IconCheck, IconDownload, IconInbox, IconRefresh } from "@/co
 import { saveBlob } from "@/lib/download";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { EXPORT_SCOPES, createCrmExport, crmCan, downloadCrmExport, listCrmOperators, type CrmExport, type CrmMeta, type CrmOperator } from "@/lib/services/crm";
-import { dismissCrmExport, refreshCrmExport, trackCrmExport, useCrmEvents, useCrmExports } from "@/lib/crm/useCrm";
+import { EXPORT_SCOPES, createCrmExport, crmCan, downloadCrmExport, listCrmOperators, type CrmExport, type CrmMeta, type CrmOperator, crmCode
+} from "@/lib/services/crm";
+import { dismissCrmExport, refreshCrmExport, resumeCrmExport, trackCrmExport, useCrmEvents, useCrmExports } from "@/lib/crm/useCrm";
 import CrmFrame from "./CrmFrame";
 import { Empty, useCrmError, useStatusLabel } from "./bits";
 import { CrmDate, CrmSelect } from "./fields";
@@ -154,8 +155,13 @@ export function ExportJobs(): ReactElement {
       const { blob, name } = await downloadCrmExport(j.id);
       saveBlob(blob, name || `lexgo-crm-${j.scope}.xlsx`);
     } catch (e) {
-      toast(crmErr(e), { tone: "err" });
-      refreshCrmExport(j.id);
+      if (crmCode(e) === "crm_export_not_ready") {
+        toast(crmErr(e), { tone: "info" });
+        resumeCrmExport(j.id);
+      } else {
+        toast(crmErr(e), { tone: "err" });
+        refreshCrmExport(j.id);
+      }
     } finally {
       setSaving("");
     }

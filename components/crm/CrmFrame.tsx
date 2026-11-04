@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import Modal from "@/components/admin/Modal";
+import { sessionRoles, useAuth } from "@/lib/auth";
 import { useRouter } from "@/i18n/navigation";
 import { IconAlert, IconCheck, IconDownload, IconLayers, IconLock, IconPlus, IconRefresh, IconSearch, IconUser } from "@/components/icons";
 import { saveBlob } from "@/lib/download";
@@ -20,8 +21,9 @@ import {
   type CrmLead,
   type CrmMeta,
   type CustomerOption,
+  crmCode,
 } from "@/lib/services/crm";
-import { dismissCrmExport, loadCrmMeta, refreshCrmExport, useCrmEvents, useCrmExports, useCrmMeta } from "@/lib/crm/useCrm";
+import { dismissCrmExport, loadCrmMeta, refreshCrmExport, resumeCrmExport, useCrmEvents, useCrmExports, useCrmMeta } from "@/lib/crm/useCrm";
 import { CrmTop, Empty, SkeletonRows, statusColorVars, useCrmError, type CrmBack } from "./bits";
 import { CustomerPicker, NewCustomerModal, optionOfCustomer } from "./CustomerPicker";
 import { CrmDateTime, CrmSelect } from "./fields";
@@ -55,6 +57,8 @@ export default function CrmFrame({ title, sub, tools, back, section, noTray, chi
         : null,
     [meta],
   );
+  const { session } = useAuth();
+  const superadmin = sessionRoles(session).includes("superadmin");
 
   if (error && !meta) {
     return (
@@ -86,7 +90,7 @@ export default function CrmFrame({ title, sub, tools, back, section, noTray, chi
       </div>
     );
   }
-  const allowed = !section || sectionOk(section, api.meta);
+  const allowed = !section || sectionOk(section, api.meta, superadmin);
   const head = <CrmTop meta={api.meta} title={title ?? t("title")} sub={sub} onPalette={openPalette} tools={allowed ? tools?.(api) : null} back={back} />;
   const body = allowed ? (
     children(api)
@@ -304,8 +308,13 @@ function ExportTray(): ReactElement | null {
       const { blob, name } = await downloadCrmExport(id);
       saveBlob(blob, name || `lexgo-crm-${scope}.xlsx`);
     } catch (e) {
-      toast(crmErr(e), { tone: "err" });
-      refreshCrmExport(id);
+      if (crmCode(e) === "crm_export_not_ready") {
+        toast(crmErr(e), { tone: "info" });
+        resumeCrmExport(id);
+      } else {
+        toast(crmErr(e), { tone: "err" });
+        refreshCrmExport(id);
+      }
     }
   };
   return (

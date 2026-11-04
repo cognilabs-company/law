@@ -6,7 +6,7 @@
 // background export jobs tray, which survives page changes.
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { isAborted, logApiError, parseServerTime } from "@/lib/http";
+import { ApiError, isAborted, logApiError, parseServerTime } from "@/lib/http";
 import { onUserSocketResync, subscribeUserEvents, subscribeUserSocketState } from "@/lib/userSocket";
 import { crmEventOf, getCrmExport, getCrmMeta, exportDone, type CrmEvent, type CrmExport, type CrmMeta } from "@/lib/services/crm";
 
@@ -128,7 +128,15 @@ function poll(id: string, attempt = 0) {
         attempt++;
       }
     } catch (e) {
-      if (!isAborted(e)) logApiError("crm.export.poll", e);
+      if (isAborted(e)) return;
+      logApiError("crm.export.poll", e);
+      // A passing failure (network, 5xx, 409 not ready) keeps polling;
+      // a denied or vanished export stops.
+      const st = e instanceof ApiError ? e.status : 0;
+      if (st !== 403 && st !== 404 && st !== 401) {
+        polling.set(id, window.setTimeout(() => void run(), POLL_MS[Math.min(attempt + 1, POLL_MS.length - 1)]));
+        attempt++;
+      }
     }
   };
   polling.set(id, window.setTimeout(() => void run(), POLL_MS[Math.min(attempt, POLL_MS.length - 1)]));
@@ -136,6 +144,15 @@ function poll(id: string, attempt = 0) {
 export function trackCrmExport(e: CrmExport): void {
   setJob(e);
   if (!exportDone(e)) poll(e.id);
+}
+// §21: a download asked for too early (409 crm_export_not_ready) goes back
+// to polling the export instead of opening a broken file.
+export function resumeCrmExport(id: string): void {
+  const t = polling.get(id);
+  if (t) window.clearTimeout(t);
+  polling.delete(id);
+  setJob({ ...(jobs.find((j) => j.id === id) as CrmExport), status: "processing" });
+  poll(id, 1);
 }
 export function refreshCrmExport(id: string): void {
   const t = polling.get(id);

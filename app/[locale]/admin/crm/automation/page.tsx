@@ -1,7 +1,14 @@
 "use client";
 
-import CrmAutomation from "@/components/crm/CrmAutomation";
+import { Suspense } from "react";
+import RobotsPage from "@/components/crm/robots/RobotsPage";
 
+// CRM robots (ROP contract §16–§17): the rules, smart scripts and the
+// catalog-driven builder.
 export default function AdminCrmAutomation() {
-  return <CrmAutomation />;
+  return (
+    <Suspense fallback={null}>
+      <RobotsPage />
+    </Suspense>
+  );
 }

@@ -6,6 +6,8 @@ import { Link } from "@/i18n/navigation";
 import { IconAlert, IconCheck, IconLayers, IconMapPin, IconPhone, IconPlus, IconRefresh, IconSearch, IconUsers } from "@/components/icons";
 import { isAborted, logApiError } from "@/lib/http";
 import { crmCan, listCrmCustomers, type CrmCustomer, type CrmMeta } from "@/lib/services/crm";
+import { humanKey } from "@/lib/services/crmAutomation";
+import { CrmSelect } from "./fields";
 import { useCrmEvents } from "@/lib/crm/useCrm";
 import CrmFrame from "./CrmFrame";
 import { Avatar, Empty, useCrmError } from "./bits";
@@ -40,6 +42,9 @@ function CustomerGrid({ meta }: { meta: CrmMeta }): ReactElement {
   const [q, setQ] = useState("");
   const [region, setRegion] = useState("");
   const [status, setStatus] = useState("active");
+  // §8: prospect / customer, from the meta's lifecycles.
+  const [lifecycle, setLifecycle] = useState("");
+  const tlc = useTranslations("rop.lifecycle");
   const [offset, setOffset] = useState(0);
   const [rows, setRows] = useState<CrmCustomer[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -56,7 +61,7 @@ function CustomerGrid({ meta }: { meta: CrmMeta }): ReactElement {
     async (signal?: AbortSignal) => {
       const n = ++seq.current;
       try {
-        const p = await listCrmCustomers({ q, region, status, limit: LIMIT, offset }, signal);
+        const p = await listCrmCustomers({ q, region, status, lifecycle, limit: LIMIT, offset }, signal);
         if (n !== seq.current) return;
         setRows(p.items);
         setTotal(p.total);
@@ -68,7 +73,7 @@ function CustomerGrid({ meta }: { meta: CrmMeta }): ReactElement {
         setRows((cur) => cur ?? []);
       }
     },
-    [q, region, status, offset, crmErr],
+    [q, region, status, lifecycle, offset, crmErr],
   );
   useEffect(() => {
     const ctl = new AbortController();
@@ -88,6 +93,9 @@ function CustomerGrid({ meta }: { meta: CrmMeta }): ReactElement {
           <IconSearch aria-hidden="true" />
           <input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
         </label>
+        {meta.lifecycles.length ? (
+          <CrmSelect value={lifecycle} onChange={(v) => (setLifecycle(v), setOffset(0))} label={tlc("label")} options={[{ value: "", label: tlc("any") }, ...meta.lifecycles.map((l) => ({ value: l, label: tlc.has(l) ? tlc(l) : humanKey(l) }))]} />
+        ) : null}
         <input className="crm-input" style={{ width: 160 }} value={region} onChange={(e) => (setRegion(e.target.value), setOffset(0))} placeholder={t("region")} aria-label={t("region")} />
         <div className="crm-seg" role="group" aria-label={t("status")}>
           {["active", "archived", ""].map((s) => (

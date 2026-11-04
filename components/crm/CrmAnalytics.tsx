@@ -7,6 +7,7 @@ import { IconAlert, IconChartBar, IconLock, IconTarget, IconUsers } from "@/comp
 import { fmtNum } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
 import { fmtUzs } from "@/lib/money";
+import { sessionRoles, useAuth } from "@/lib/auth";
 import { crmGlobalAnalytics, getCrmAnalytics, type CrmAnalytics as Data, type CrmMeta } from "@/lib/services/crm";
 import { useCrmEvents } from "@/lib/crm/useCrm";
 import CrmFrame from "./CrmFrame";
@@ -32,7 +33,8 @@ function Board({ meta }: { meta: CrmMeta }): ReactElement {
   const [data, setData] = useState<Data | null>(null);
   const [err, setErr] = useState("");
   const [tick, setTick] = useState(0);
-  const allowed = crmGlobalAnalytics(meta);
+  const { session } = useAuth();
+  const allowed = crmGlobalAnalytics(meta, sessionRoles(session).includes("superadmin"));
   useEffect(() => {
     if (!allowed) return;
     const ctl = new AbortController();

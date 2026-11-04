@@ -5,9 +5,6 @@ import {
   aiCardsOf,
   applyAiRun,
   assignLead,
-  automationRuleOf,
-  dryRunOf,
-  ruleBody,
   canArchiveContact,
   crmContactOf,
   crmCustomerDetailOf,
@@ -85,9 +82,12 @@ describe("meta", () => {
     const m = crmMetaOf(LIVE_META);
     expect(crmCan(m, "crm.leads.view")).toBe(true);
     expect(crmCan(m, "crm.customers.merge")).toBe(false);
-    expect(crmGlobalAnalytics(m)).toBe(false);
-    // The permission opens global analytics; revenue_visible only shows money.
-    expect(crmGlobalAnalytics(crmMetaOf({ ...LIVE_META, permissions: ["crm.analytics.global"], revenue_visible: false }))).toBe(true);
+    expect(crmGlobalAnalytics(m, true)).toBe(false);
+    // Global analytics is superadmin-only (ROP contract §3): the permission
+    // alone, on a non-superadmin (a ROP), never opens it.
+    const g = crmMetaOf({ ...LIVE_META, permissions: ["crm.analytics.global"], revenue_visible: false });
+    expect(crmGlobalAnalytics(g, true)).toBe(true);
+    expect(crmGlobalAnalytics(g, false)).toBe(false);
   });
   it("uses each lead's allowed_actions", () => {
     const l = crmLeadOf(LEAD);
@@ -322,11 +322,14 @@ describe("sections by permission", () => {
   it("an operator sees their own work, never robots, global analytics, live office or exports", () => {
     expect(keys(OPERATOR)).toEqual(["overview", "leads", "customers", "performance", "calls", "sms", "templates"]);
   });
-  it("a sales head adds robots and exports", () => {
-    expect(keys(ROP)).toEqual(["overview", "leads", "customers", "performance", "calls", "sms", "templates", "automation", "exports"]);
+  it("a sales head adds operators (all scope), robots, runs, drafts and exports — never global analytics", () => {
+    const rop = (perms: string[]) => visibleSections(crmMetaOf({ ...LIVE_META, permissions: perms, scope: "all" })).map((s) => s.key);
+    expect(rop(ROP)).toEqual(["overview", "leads", "customers", "operators", "performance", "calls", "sms", "templates", "automation", "runs", "drafts", "exports"]);
+    // ROP contract §3: even with the permission, not without a superadmin session.
+    expect(rop([...ROP, "crm.analytics.global"])).not.toContain("analytics");
   });
-  it("a superadmin sees all eleven", () => {
-    expect(keys(SUPER)).toHaveLength(11);
+  it("a superadmin sees all fourteen", () => {
+    expect(visibleSections(crmMetaOf({ ...LIVE_META, permissions: SUPER, scope: "all" }), true)).toHaveLength(14);
     expect(sectionOk("live", crmMetaOf({ ...LIVE_META, permissions: SUPER }))).toBe(true);
     expect(sectionOk("live", crmMetaOf({ ...LIVE_META, permissions: OPERATOR }))).toBe(false);
   });
@@ -389,27 +392,5 @@ describe("calls and SMS", () => {
     expect(smsBody({ body: " Salom ", language: "uz_latn", contactId: "k1" })).toEqual({ body: "Salom", language: "uz_latn", contact_id: "k1", scheduled_at: null });
     const s = crmSmsOf({ id: "s1", status: "provider_configuration_required", body: "x" });
     expect([s.status, smsEditable(s), smsEditable(crmSmsOf({ id: "s2", status: "draft" }))]).toEqual(["provider_configuration_required", false, true]);
-  });
-});
-
-// §16: robots are built from pickers; the body is plain conditions and actions.
-describe("automation", () => {
-  it("sends {field, operator, value} conditions and typed actions", () => {
-    expect(
-      ruleBody({ name: " Eslatma ", trigger: "call_no_answer", delaySec: 300, priority: 100, conditions: [{ field: "lead.status", operator: "in", value: ["new", "qualified"] }], actions: [{ type: "send_notification", params: { message: "Qayta qo'ng'iroq qiling", recipient: "assigned_operator" } }] }),
-    ).toEqual({
-      name: "Eslatma",
-      trigger_type: "call_no_answer",
-      delay_seconds: 300,
-      priority: 100,
-      conditions: [{ field: "lead.status", operator: "in", value: ["new", "qualified"] }],
-      actions: [{ type: "send_notification", message: "Qayta qo'ng'iroq qiling", recipient: "assigned_operator" }],
-    });
-  });
-  it("reads a rule's actions back with their settings, and a dry run that wrote nothing", () => {
-    const r = automationRuleOf({ id: "r1", name: "x", trigger_type: "lead_created", actions: [{ type: "change_status", status: "qualified" }], status: "draft" });
-    expect(r.actions).toEqual([{ type: "change_status", params: { status: "qualified" } }]);
-    const d = dryRunOf({ matched: true, matched_context: { lead: { status: "new" } }, proposed_actions: [{ type: "create_task", title: "Qo'ng'iroq" }], writes_performed: false });
-    expect([d.matched, d.writesPerformed, d.actions[0].type]).toEqual([true, false, "create_task"]);
   });
 });

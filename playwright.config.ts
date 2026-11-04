@@ -7,7 +7,7 @@ const PORT = 3120;
 
 export default defineConfig({
   testDir: "tests/e2e",
-  testIgnore: /[\\/](advocate-practice|callcenter-cancellation|cancellation-flow|cockpit|complaint-hold|contact-sla|crm|double-submit|escalation|experience|orders-answers-shots|payouts|redesign-tour|remote-assist|resolution-choice|role-menus|support-queue|warranty)\.spec\.ts$/,
+  testIgnore: /[\\/](advocate-practice|callcenter-cancellation|cancellation-flow|cockpit|complaint-hold|contact-sla|double-submit|escalation|experience|orders-answers-shots|payouts|redesign-tour|remote-assist|resolution-choice|role-menus|support-queue|warranty)\.spec\.ts$/,
   timeout: 90_000,
   expect: { timeout: 15_000 },
   fullyParallel: false,

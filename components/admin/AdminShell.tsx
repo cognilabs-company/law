@@ -9,6 +9,7 @@ import { useDemoTools } from "@/lib/demoTools";
 import LanguageSwitcher from "../LanguageSwitcher";
 import ThemeToggle from "../ThemeToggle";
 import FeedbackButton from "@/components/internal/feedback/FeedbackButton";
+import { isRopAccount } from "@/components/crm/rop/ropNav";
 import { useAiReveal } from "@/lib/guide/targets";
 import { fuzzyContains } from "@/lib/searchMatch";
 import { hasStudioAccess, useStudioRegistry } from "@/lib/services/studio";
@@ -57,6 +58,7 @@ import { navPath } from "@/lib/roleNav";
 import CcxViewLoading from "../ccx/ViewLoading";
 
 const AiSystemAssistant = dynamic(() => import("../portal/AiSystemAssistant"), { ssr: false });
+const RopShell = dynamic(() => import("../crm/rop/RopShell"), { ssr: false, loading: () => <div className="portal portal--redirect" aria-busy="true"><span className="rf__spinner" /></div> });
 const CcxShell = dynamic(() => import("../ccx/CcxShell"), { ssr: false, loading: () => <div className="portal portal--redirect" aria-busy="true"><span className="rf__spinner" /></div> });
 
 type SvgC = ComponentType<{ className?: string }>;
@@ -293,6 +295,13 @@ export default function AdminShell({ children }: { children: ReactNode }) {
     if (ccOperator) startCcShift();
   }, [ccOperator]);
   const ccLegacy = ccOperator ? ccxRouteFor(pathname, "") : null;
+  // ROP: the CRM workspace and its own profile are the whole menu (§4); any
+  // other admin address leads back into the workspace.
+  const ropAccount = !ccOperator && isRopAccount(roles);
+  const ropPath = pathname === "/admin/crm" || pathname.startsWith("/admin/crm/") || pathname === "/admin/profile";
+  useEffect(() => {
+    if (ready && ropAccount && !ropPath) router.replace("/admin/crm");
+  }, [ready, ropAccount, ropPath, router]);
   useEffect(() => {
     if (!ccOperator) return;
     const next = ccxRouteFor(pathname, window.location.search);
@@ -391,6 +400,23 @@ export default function AdminShell({ children }: { children: ReactNode }) {
   const badgeKey = BADGE_ORDER.find((r) => roles.includes(r));
   const roleBadge = badgeKey && t.has(`roleBadges.${badgeKey}`) ? t(`roleBadges.${badgeKey}`) : t("badge");
   const profileHref = staffSession ? "/admin/profile" : `/portal/${role}/profile`;
+
+  // The sales supervisor (ROP) works in its own CRM workspace: the LexGo
+  // 1920 shell with the §4 menu, built from GET /crm/meta (ROP contract).
+  if (ropAccount && ropPath) {
+    return (
+      <RopShell
+        name={session?.name ?? ""}
+        roleBadge={roleBadge}
+        profileHref={profileHref}
+        hrm={hasInternalAccess(session)}
+        onLogout={logout}
+        extra={<AiSystemAssistant open={aiOpen} onOpen={() => setAiOpen(true)} onClose={() => setAiOpen(false)} role="client" guideRole="staff" launcher="always" />}
+      >
+        {children}
+      </RopShell>
+    );
+  }
 
   if (ccOperator) {
     const dock = visibleNav.filter((n) => !n.hidden);
