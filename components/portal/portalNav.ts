@@ -1,102 +1,159 @@
 import type { ComponentType } from "react";
 import {
-  IconAlert,
-  IconBell,
-  IconBolt,
-  IconCalendar,
-  IconChat,
-  IconClipboardCheck,
-  IconDocLines,
-  IconDocSearch,
-  IconEye,
-  IconFileText,
-  IconFolderPlus,
-  IconGem,
-  IconGift,
-  IconGrid,
-  IconHeadset,
-  IconPackage,
-  IconSparkle,
-  IconTag,
-  IconTarget,
-  IconUser,
-  IconUserPlus,
-  IconUsers,
-  IconVideo,
-} from "../icons";
+  BriefcaseBusiness,
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  CreditCard,
+  FileQuestion,
+  FileText,
+  Files,
+  Folder,
+  Gift,
+  Inbox,
+  LayoutGrid,
+  LifeBuoy,
+  MessageSquare,
+  MessageSquareWarning,
+  ShoppingBag,
+  Siren,
+  Sparkles,
+  SquareCheckBig,
+  Store,
+  User,
+  Users,
+  Video,
+  Zap,
+} from "lucide-react";
+import { IconBell, IconBolt, IconDocSearch, IconFileText, IconGem, IconPackage, IconUserPlus } from "../icons";
 
-// The cabinet's sidebar, one list per role. PortalShell draws it; the Studio
-// preview draws the same list around a draft so it sits where it will live.
+// The cabinet's sidebar (LexGo 1920 design): one grouped list per role.
+// PortalShell draws it; the Studio preview draws the same list around a
+// draft so it sits where it will live. Labels live in `lxShell.nav.<role>`.
 
 type SvgC = ComponentType<{ className?: string }>;
-export type NavItem = { href: string; key: string; Icon: SvgC };
+export type NavItem = { href: string; key: string; Icon: SvgC; tone?: "danger"; badge?: "orders" | "messages" };
+export type NavGroup = { key: string; items: NavItem[]; collapsible?: boolean };
 
-export const LAWYER_NAV: NavItem[] = [
-  { href: "/portal/lawyer", key: "dashboard", Icon: IconGrid },
-  { href: "/portal/lawyer/marketplace-orders", key: "marketplaceOrders", Icon: IconTag },
-  { href: "/portal/lawyer/tasks", key: "tasks", Icon: IconClipboardCheck },
-  { href: "/portal/lawyer/calendar", key: "calendar", Icon: IconCalendar },
-  { href: "/portal/lawyer/clients", key: "clients", Icon: IconUsers },
-  { href: "/portal/lawyer/services", key: "services", Icon: IconTarget },
-  { href: "/portal/lawyer/documents", key: "documents", Icon: IconDocLines },
-  { href: "/portal/lawyer/files", key: "files", Icon: IconFolderPlus },
-  { href: "/portal/lawyer/chat", key: "chat", Icon: IconChat },
-  { href: "/portal/lawyer/meetings", key: "meetings", Icon: IconVideo },
-  { href: "/portal/lawyer/notifications", key: "notifications", Icon: IconBell },
-  { href: "/portal/lawyer/ai", key: "ai", Icon: IconSparkle },
-  { href: "/portal/lawyer/assistant", key: "assistant", Icon: IconEye },
-  { href: "/portal/lawyer/profile", key: "profile", Icon: IconUser },
-  { href: "/portal/lawyer/referrals", key: "referrals", Icon: IconGift },
-  { href: "/portal/lawyer/promotion", key: "promotion", Icon: IconBolt },
-  { href: "/portal/lawyer/subscription", key: "subscription", Icon: IconGem },
-  { href: "/portal/lawyer/support", key: "support", Icon: IconHeadset },
+export const CLIENT_GROUPS: NavGroup[] = [
+  { key: "", items: [{ href: "/portal/client", key: "dashboard", Icon: LayoutGrid }] },
+  {
+    key: "help",
+    items: [
+      { href: "/portal/client/sos", key: "sos", Icon: Siren, tone: "danger" },
+      { href: "/portal/client/urgent", key: "urgent", Icon: Zap },
+      { href: "/portal/client/services", key: "services", Icon: FileText },
+      { href: "/portal/client/lawyers", key: "lawyers", Icon: Users },
+      { href: "/portal/client/ai", key: "ai", Icon: Sparkles },
+    ],
+  },
+  {
+    key: "myWork",
+    items: [
+      { href: "/portal/client/works", key: "works", Icon: BriefcaseBusiness },
+      { href: "/portal/client/marketplace-orders", key: "marketplaceOrders", Icon: ShoppingBag },
+      { href: "/portal/client/documents", key: "documentRequests", Icon: Folder },
+      { href: "/portal/client/messages", key: "messages", Icon: MessageSquare },
+    ],
+  },
+  {
+    key: "account",
+    items: [
+      { href: "/portal/client/subscription", key: "subscription", Icon: CreditCard },
+      { href: "/portal/client/support", key: "support", Icon: LifeBuoy },
+      { href: "/portal/client/feedback", key: "feedback", Icon: MessageSquareWarning },
+      { href: "/portal/client/profile", key: "profile", Icon: User },
+    ],
+  },
 ];
 
-export const ADVOCATE_NAV: NavItem[] = [
-  { href: "/portal/advocate", key: "dashboard", Icon: IconGrid },
-  { href: "/portal/advocate/marketplace-orders", key: "marketplaceOrders", Icon: IconTag },
-  { href: "/portal/advocate/calendar", key: "calendar", Icon: IconCalendar },
-  { href: "/portal/advocate/clients", key: "clients", Icon: IconUsers },
-  { href: "/portal/advocate/services", key: "services", Icon: IconTarget },
-  { href: "/portal/advocate/tasks", key: "tasks", Icon: IconClipboardCheck },
-  { href: "/portal/advocate/messages", key: "messages", Icon: IconChat },
-  { href: "/portal/advocate/meetings", key: "meetings", Icon: IconVideo },
-  { href: "/portal/advocate/notifications", key: "notifications", Icon: IconBell },
-  { href: "/portal/advocate/files", key: "files", Icon: IconFolderPlus },
-  { href: "/portal/advocate/assistant", key: "assistant", Icon: IconSparkle },
-  { href: "/portal/advocate/profile", key: "profile", Icon: IconUser },
-  { href: "/portal/advocate/referrals", key: "referrals", Icon: IconGift },
-  { href: "/portal/advocate/promotion", key: "promotion", Icon: IconBolt },
-  { href: "/portal/advocate/subscription", key: "subscription", Icon: IconGem },
-  { href: "/portal/advocate/support", key: "support", Icon: IconHeadset },
-];
+function sellerGroups(role: "advocate" | "lawyer"): NavGroup[] {
+  const p = `/portal/${role}`;
+  return [
+    { key: "", items: [{ href: p, key: "dashboard", Icon: LayoutGrid }] },
+    {
+      key: "orders",
+      items: [
+        { href: role === "advocate" ? `${p}/opportunities` : `${p}/marketplace`, key: "newOrders", Icon: Inbox, badge: "orders" },
+        { href: `${p}/marketplace-orders`, key: "marketplaceOrders", Icon: ClipboardList },
+        { href: `${p}/urgent`, key: "urgent", Icon: Zap },
+        { href: `${p}/document-requests`, key: "documentRequests", Icon: FileQuestion },
+      ],
+    },
+    {
+      key: "workspace",
+      items: [
+        { href: `${p}/cases`, key: "cases", Icon: BriefcaseBusiness },
+        { href: `${p}/clients`, key: "clients", Icon: Users },
+        { href: `${p}/calendar`, key: "calendar", Icon: CalendarDays },
+        { href: `${p}/tasks`, key: "tasks", Icon: SquareCheckBig },
+        { href: `${p}/files`, key: "files", Icon: Folder },
+        role === "advocate"
+          ? { href: `${p}/organization`, key: "organization", Icon: Building2 }
+          : { href: `${p}/documents`, key: "documents", Icon: Files },
+        { href: `${p}/assistant`, key: "ai", Icon: Sparkles },
+      ],
+    },
+    {
+      key: "comms",
+      items: [
+        { href: role === "advocate" ? `${p}/messages` : `${p}/chat`, key: "messages", Icon: MessageSquare, badge: "messages" },
+        { href: `${p}/meetings`, key: "meetings", Icon: Video },
+      ],
+    },
+    {
+      key: "growth",
+      collapsible: true,
+      items: [
+        { href: `${p}/services`, key: "services", Icon: Store },
+        { href: `${p}/referrals`, key: "referrals", Icon: Gift },
+        { href: `${p}/subscription`, key: "subscription", Icon: CreditCard },
+      ],
+    },
+    {
+      key: "account",
+      collapsible: true,
+      items: [
+        { href: `${p}/profile`, key: "profile", Icon: User },
+        { href: `${p}/support`, key: "support", Icon: LifeBuoy },
+        { href: `${p}/feedback`, key: "feedback", Icon: MessageSquareWarning },
+      ],
+    },
+  ];
+}
 
-// Reachable pages that deliberately have no sidebar row of their own.
-// They are consulted for the header title only, never rendered in the nav.
-export const CLIENT_TITLE_ONLY: NavItem[] = [
-  { href: "/portal/client/doc-analysis", key: "docAnalysis", Icon: IconDocSearch },
-  { href: "/portal/client/cases", key: "requests", Icon: IconFileText },
-];
+export const ADVOCATE_GROUPS = sellerGroups("advocate");
+export const LAWYER_GROUPS = sellerGroups("lawyer");
 
-export const CLIENT_NAV: NavItem[] = [
-  { href: "/portal/client", key: "dashboard", Icon: IconGrid },
-  { href: "/portal/client/sos", key: "sos", Icon: IconAlert },
-  { href: "/portal/client/urgent", key: "urgent", Icon: IconBolt },
-  { href: "/portal/client/services", key: "services", Icon: IconDocSearch },
-  { href: "/portal/client/documents", key: "documentRequests", Icon: IconDocLines },
-  { href: "/portal/client/lawyers", key: "lawyers", Icon: IconUsers },
-  { href: "/portal/client/messages", key: "messages", Icon: IconChat },
-  { href: "/portal/client/notifications", key: "notifications", Icon: IconBell },
-  { href: "/portal/client/ai", key: "ai", Icon: IconSparkle },
-  // /portal/client/doc-analysis has no sidebar row of its own: it is reached
-  // from the dashboard card, from the new-document modal and from the
-  // finished-document upsell. The route stays live, and CLIENT_TITLE_ONLY
-  // above gives it its own header title ("Hujjat tahlili"); the catalogue
-  // page beside it is "Huquqiy hujjatlar", so the two no longer share a name.
-  { href: "/portal/client/packages", key: "packages", Icon: IconPackage },
-  { href: "/portal/client/marketplace-orders", key: "marketplaceOrders", Icon: IconTag },
-  { href: "/portal/client/subscription", key: "subscription", Icon: IconGem },
-  { href: "/portal/client/referrals", key: "referrals", Icon: IconUserPlus },
-  { href: "/portal/client/support", key: "support", Icon: IconHeadset },
-  { href: "/portal/client/profile", key: "profile", Icon: IconUser },
-];
+const flat = (g: NavGroup[]): NavItem[] => g.flatMap((x) => x.items);
+export const CLIENT_NAV: NavItem[] = flat(CLIENT_GROUPS);
+export const ADVOCATE_NAV: NavItem[] = flat(ADVOCATE_GROUPS);
+export const LAWYER_NAV: NavItem[] = flat(LAWYER_GROUPS);
+
+export const groupsFor = (role: string): NavGroup[] =>
+  role === "advocate" ? ADVOCATE_GROUPS : role === "lawyer" ? LAWYER_GROUPS : CLIENT_GROUPS;
+
+// Reachable pages that have no sidebar row of their own (opened from the
+// header bell, the dashboard, or another page). Consulted for the header
+// title and breadcrumb only, never rendered in the nav.
+export const TITLE_ONLY: Record<"client" | "advocate" | "lawyer", NavItem[]> = {
+  client: [
+    { href: "/portal/client/doc-analysis", key: "docAnalysis", Icon: IconDocSearch },
+    { href: "/portal/client/cases", key: "requests", Icon: IconFileText },
+    { href: "/portal/client/notifications", key: "notifications", Icon: IconBell },
+    { href: "/portal/client/packages", key: "packages", Icon: IconPackage },
+    { href: "/portal/client/referrals", key: "referrals", Icon: IconUserPlus },
+    { href: "/portal/client/payments", key: "payments", Icon: IconGem },
+  ],
+  advocate: [
+    { href: "/portal/advocate/notifications", key: "notifications", Icon: IconBell },
+    { href: "/portal/advocate/promotion", key: "promotion", Icon: IconBolt },
+  ],
+  lawyer: [
+    { href: "/portal/lawyer/notifications", key: "notifications", Icon: IconBell },
+    { href: "/portal/lawyer/promotion", key: "promotion", Icon: IconBolt },
+    { href: "/portal/lawyer/ai", key: "aiChat", Icon: Sparkles },
+  ],
+};
+/** @deprecated kept for older imports; use TITLE_ONLY.client */
+export const CLIENT_TITLE_ONLY: NavItem[] = TITLE_ONLY.client;

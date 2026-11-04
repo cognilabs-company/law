@@ -33,6 +33,7 @@ import { dateOnly } from "@/lib/date";
 import { ApiError, contactBlockedOf } from "@/lib/http";
 import { getMyAvailability, putMyAvailability, enabledDays, weeklyFrom, DEFAULT_DEADLINES, type ResponseDeadlines } from "@/lib/services/availability";
 import TwoFactorCard from "@/components/portal/TwoFactorCard";
+import RatingBreakdown from "@/components/marketplace/RatingBreakdown";
 import IdentityVerify from "@/components/portal/IdentityVerify";
 import TelegramLinkCard from "@/components/portal/TelegramLinkCard";
 import NotificationPrefsCard from "@/components/portal/NotificationPrefsCard";
@@ -536,6 +537,9 @@ function Editor({ role, initial }: { role: Role; initial: ProfessionalProfile })
         {pPrice}
         {pHours}
         <OfficeLocationCard />
+        {/* How the marketplace rating is made up (TSK-332221); the
+            dashboard's rating card links here. */}
+        <div id="rating"><RatingBreakdown mine /></div>
       </div>
     ),
     security: (

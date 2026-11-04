@@ -45,6 +45,7 @@ export function performerRole(p: SxValues): PortalRole {
 
 export function PortalFrame({ role, active, name, children }: { role: PortalRole; active: string; name: string; children: ReactNode }): ReactElement {
   const t = useTranslations("portal");
+  const tx = useTranslations("lxShell");
   const nav = role === "advocate" ? ADVOCATE_NAV : role === "lawyer" ? LAWYER_NAV : CLIENT_NAV;
   const roleKey = role === "advocate" ? "Advocate" : role === "lawyer" ? "Lawyer" : "Client";
   return (
@@ -63,7 +64,7 @@ export function PortalFrame({ role, active, name, children }: { role: PortalRole
           {nav.map(({ href, key, Icon }) => (
             <span key={href} className={`psb__link${key === active ? " on" : ""}`}>
               <Icon />
-              <span className="psb__label">{t(`sidebar.${role}.${key}`)}</span>
+              <span className="psb__label">{tx(`nav.${role}.${key}`)}</span>
             </span>
           ))}
         </nav>
@@ -79,7 +80,7 @@ export function PortalFrame({ role, active, name, children }: { role: PortalRole
           <span className="ptop__burger">
             <IconMenu />
           </span>
-          <h1>{t(`sidebar.${role}.${active}`)}</h1>
+          <h1>{tx(`nav.${role}.${active}`)}</h1>
           <div className="ptop__sp">
             <span className="ptop__user">
               <span className="ptop__av">{initials(name)}</span>

@@ -98,6 +98,7 @@ export default function MarketDirectory({
   initialRadius,
   initialNearbyService,
   preview,
+  onLeave,
 }: {
   variant: "public" | "portal";
   initialArea?: string;
@@ -107,6 +108,9 @@ export default function MarketDirectory({
   initialRadius?: string;
   initialNearbyService?: string;
   preview?: DirectoryPreview;
+  // The cabinet's "Advokat va yuristlar" draws the by-specialist list itself
+  // (LexGo 1920 design); its mode switch hands that mode back to it.
+  onLeave?: () => void;
 }) {
   const t = useTranslations("marketplace");
   const te = useTranslations("enums");
@@ -750,7 +754,7 @@ export default function MarketDirectory({
 
       {!isPreview ? <SecondOpinionEntry aiId="marketplace.second-opinion" /> : null}
 
-      {!isPreview ? <MarketModeSwitch mode={mode} onChange={switchMode} /> : null}
+      {!isPreview ? <MarketModeSwitch mode={mode} onChange={(m) => (m === "all" && onLeave ? onLeave() : switchMode(m))} /> : null}
 
       {mode === "services" ? (
         <ServiceBrowser

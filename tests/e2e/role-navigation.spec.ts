@@ -201,7 +201,9 @@ test.describe("role navigation policy", () => {
     await page.goto("/ru/portal/client");
     await expect(link(page, "/portal/client/documents")).toBeVisible();
     await expect.poll(() => page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("lexgo_role_nav:")).length)).toBe(1);
-    await page.locator(".psb__foot button").first().click();
+    // Log out from the header's account menu (LexGo 1920 design).
+    await page.locator(".lx-avatar").click();
+    await page.getByRole("menuitem", { name: "Выйти" }).click();
     await expect(page).toHaveURL(/\/ru\/login/);
     expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("lexgo_role_nav:")).length)).toBe(0);
   });
@@ -211,7 +213,8 @@ test.describe("role navigation policy", () => {
     await mockBackend(page, routes);
     await page.goto("/ru/portal/client");
     await expect(link(page, "/portal/client/documents")).toBeVisible();
-    await expect(link(page, "/portal/client/referrals")).toBeVisible();
+    await expect(link(page, "/portal/client/works")).toBeVisible();
+    await expect(link(page, "/portal/client/subscription")).toBeVisible();
   });
 
   test("a page the policy hides is taken out of a sidebar that still lists it", async ({ page }) => {

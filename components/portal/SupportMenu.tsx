@@ -7,9 +7,9 @@ import type { Role } from "@/lib/auth";
 import { profileTabHref } from "@/lib/profileTabs";
 import BusinessHoursBadge from "@/components/portal/BusinessHoursBadge";
 import { SUPPORT_PHONE, SUPPORT_TEL } from "@/components/support/contact";
-import { IconAlert, IconArrowRight, IconHeadset, IconPhone } from "@/components/icons";
+import { IconAlert, IconArrowRight, IconHeadset, IconHelpCircle, IconPhone } from "@/components/icons";
 
-export default function SupportMenu({ role }: { role: Role }) {
+export default function SupportMenu({ role, text }: { role: Role; text?: string }) {
   const t = useTranslations("portal.support");
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -57,7 +57,7 @@ export default function SupportMenu({ role }: { role: Role }) {
         data-ai-target="button:support"
         data-ai-id="support.menu.open"
         className={`psup__btn${open ? " psup__btn--on" : ""}`}
-        aria-label={t("label")}
+        aria-label={text ? undefined : t("label")}
         title={t("label")}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -65,7 +65,8 @@ export default function SupportMenu({ role }: { role: Role }) {
       >
         <span className="psup__wave" aria-hidden="true" />
         <span className="psup__wave psup__wave--late" aria-hidden="true" />
-        <IconHeadset />
+        {text ? <IconHelpCircle /> : <IconHeadset />}
+        {text ? <span className="psup__txt">{text}</span> : null}
       </button>
       {open ? (
         <div className="psup__menu" role="menu" aria-label={t("title")} ref={menu} onKeyDown={onMenuKey}>

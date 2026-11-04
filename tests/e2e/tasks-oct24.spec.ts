@@ -160,6 +160,8 @@ test("tariff draft shows what publishing would change", async ({ page }) => {
 
 test("a seller sees their rating and what it is made of; unrated reads as such", async ({ page }) => {
   const routes = await signIn(page, ADVOCATE, {
+    "/lawyers/me": { lawyer_name: "Test Advokat", region: "tashkent", bio: "", languages: ["uz"], specializations: [], experience_years: 8 },
+    "/clients/me": { id: "u-adv", name: "Test Advokat", phone: "+998900000006" },
     "/marketplace/me/rating": {
       seller_user_id: "u-adv",
       public_rating: 2.35,
@@ -176,7 +178,12 @@ test("a seller sees their rating and what it is made of; unrated reads as such",
     },
   });
   await mockBackend(page, routes);
+  // The dashboard's rating card reads "not rated" and links to the
+  // breakdown, which lives on the profile's work tab (LexGo 1920 design).
   await page.goto("/uz/portal/advocate");
+  await expect(page.locator(".lxs-rate").getByText("Hali baholanmagan")).toBeVisible();
+  await page.locator(".lxs-rate__more").click();
+  await expect(page).toHaveURL(/\/portal\/advocate\/profile\?tab=work/);
   const card = page.locator(".rbd");
   await expect(card.getByText("Hali baholanmagan")).toBeVisible();
   await expect(card.getByText("2.4")).toHaveCount(0);

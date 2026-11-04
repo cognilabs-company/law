@@ -2,19 +2,18 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { ChevronRight, ChevronUp, CircleAlert, CircleCheck, PanelLeftClose, Scale } from "lucide-react";
+import "./shell/shell1920.css";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth, hasAdminAccess, type Role } from "@/lib/auth";
 import { useAiReveal } from "@/lib/guide/targets";
 import { initials } from "@/lib/lawyers";
-import LanguageSwitcher from "../LanguageSwitcher";
-import ThemeToggle from "../ThemeToggle";
 import NotificationBell from "./NotificationBell";
 import SupportMenu from "./SupportMenu";
 import MarketWatcher from "../marketplace/MarketWatcher";
 import SellerHeaderSlot from "./SellerHeaderSlot";
 import { listenToDesk, tellDesk } from "@/lib/deskBridge";
-import GiftNudge from "./GiftNudge";
 import { canUseDesk, setDeskMode, useDeskEmbedOs, useDeskEmbedded, useDeskMode, useDeskOs, useDesktopDevice } from "./desk/deskMode";
 import DeskApp from "./desk/DeskApp";
 import OsPicker from "./desk/OsPicker";
@@ -31,20 +30,20 @@ const LexGoRobot = dynamic(() => import("@/components/lexgo/robot/LexGoRobot"), 
 // that may never open it.
 const AiSystemAssistant = dynamic(() => import("./AiSystemAssistant"), { ssr: false });
 import { CabinetProvider, useCabinetLoader } from "./SellerCabinet";
-import { ADVOCATE_NAV, CLIENT_NAV, CLIENT_TITLE_ONLY, LAWYER_NAV } from "./portalNav";
+import { ADVOCATE_NAV, CLIENT_NAV, LAWYER_NAV, TITLE_ONLY, groupsFor, type NavItem } from "./portalNav";
+import { AccountMenu, HeaderSearch, LangSelect } from "./shell/LxHeaderTools";
+import { LxHeaderProvider, type LxHeader } from "./shell/lxHeader";
+import { useNavBadges } from "./shell/useNavBadges";
+import { weekdayDate } from "@/lib/date";
 import { useRoleNav } from "../RoleNavHost";
 import type { SellerActions } from "@/lib/services/backend";
 import {
   IconLogo,
-  IconShield,
-  IconLogout,
   IconMenu,
   IconClose,
   IconClipboardCheck,
   IconLock,
   IconClock,
-  IconChevronLeft,
-  IconMonitor,
 } from "../icons";
 
 
@@ -53,15 +52,13 @@ import {
 // (the backend also returns 403 on those endpoints until approval).
 const PENDING_ALLOWED: Record<Role, Set<string>> = {
   client: new Set(),
-  lawyer: new Set(["dashboard", "profile", "services", "subscription", "notifications", "support", "teamTasks"]),
-  advocate: new Set(["dashboard", "profile", "subscription", "notifications", "support", "teamTasks"]),
+  lawyer: new Set(["dashboard", "profile", "services", "subscription", "notifications", "support", "feedback", "teamTasks"]),
+  advocate: new Set(["dashboard", "profile", "subscription", "notifications", "support", "feedback", "teamTasks"]),
 };
 
 // Nav items that also need a specific cabinet action (available_actions).
 const ACTION_GATED: Record<string, keyof SellerActions> = {
-  marketplace: "acceptOrders",
-  opportunities: "acceptOrders",
-  chat: "secureChat",
+  newOrders: "acceptOrders",
   messages: "secureChat",
 };
 
@@ -79,6 +76,8 @@ export default function PortalShell({
   children: ReactNode;
 }) {
   const t = useTranslations("portal");
+  const tx = useTranslations("lxShell");
+  const locale = useLocale();
   const { session, ready, logout } = useAuth();
   // Pages the account's role profile lost (GET /me/navigation) have no row
   // in the sidebar, the mobile drawer or the desktop; RoleRouteGuard blocks
@@ -135,6 +134,30 @@ export default function PortalShell({
     }, 0);
     return () => clearTimeout(h);
   }, []);
+  // Collapsible sidebar groups the user folded, remembered per device.
+  const [folded, setFolded] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    const h = setTimeout(() => {
+      try {
+        const raw = localStorage.getItem("lexgo_sidebar_folded");
+        if (raw) setFolded(new Set(JSON.parse(raw) as string[]));
+      } catch { /* ignore */ }
+    }, 0);
+    return () => clearTimeout(h);
+  }, []);
+  function toggleGroup(key: string) {
+    setFolded((cur) => {
+      const next = new Set(cur);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try { localStorage.setItem("lexgo_sidebar_folded", JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  }
+  // What a page tells the header (the dashboards greet by name).
+  const [header, setHeader] = useState<LxHeader>({});
+  const headerTitle = header.path === pathname ? header.title : undefined;
+  const headerNote = header.path === pathname ? header.note : undefined;
   function toggleCollapsed() {
     setCollapsed((c) => {
       const next = !c;
@@ -149,6 +172,7 @@ export default function PortalShell({
   const limited =
     role !== "client" && (cabinet.data ? cabinet.data.limitedAccess : session?.accountStatus === "pending");
   const actions = cabinet.data?.actions ?? null;
+  const badges = useNavBadges(role, ready && session?.role === role && !limited, pathname, actions);
   // The nav entry for the current route (sellers only) and whether it is gated.
   // Until the cabinet answers, a route outside the always-allowed set is
   // treated as "unknown" and nothing is rendered — so a typed URL of a locked
@@ -192,15 +216,18 @@ export default function PortalShell({
   const gated = hideBody ? <div className="portal--gated" aria-busy="true"><span className="rf__spinner" /></div> : children;
 
   const baseNav = role === "advocate" ? ADVOCATE_NAV : role === "lawyer" ? LAWYER_NAV : CLIENT_NAV;
-  const nav = ((session.permissions ?? []).includes("tasks.view") ? [...baseNav, { href: `/portal/${role}/team-tasks`, key: "teamTasks", Icon: IconClipboardCheck }] : baseNav).filter((n) => !hides(n.href));
-  const titleOnly = role === "client" ? CLIENT_TITLE_ONLY.filter((n) => !hides(n.href)) : [];
+  const teamTasks: NavItem = { href: `/portal/${role}/team-tasks`, key: "teamTasks", Icon: IconClipboardCheck };
+  const canTeam = (session.permissions ?? []).includes("tasks.view");
+  const nav = (canTeam ? [...baseNav, teamTasks] : baseNav).filter((n) => !hides(n.href));
+  const titleOnly = TITLE_ONLY[role].filter((n) => !hides(n.href));
+  const navLabel = (key: string) => tx(`nav.${role}.${key}`);
   // Title lookup spans the title-only routes too, so a page that is not in
   // the sidebar is still named correctly and does not light a wrong row.
   const active = nav
     .concat(titleOnly)
     .sort((a, b) => b.href.length - a.href.length)
     .find((n) => pathname === n.href || pathname.startsWith(n.href + "/"));
-  const title = active ? t(`sidebar.${role}.${active.key}`) : t("metaTitle");
+  const title = active ? navLabel(active.key) : t("metaTitle");
   // The name in the header is where people click to reach their own profile.
   const profileHref = nav.find((n) => n.key === "profile")?.href ?? `/portal/${role}`;
 
@@ -217,7 +244,7 @@ export default function PortalShell({
       <div className="portal portal--embed">
         <CabinetProvider value={cabinet}>
           {deskAllowed && active ? (
-            <DeskApp os={embedOs} nav={nav} current={active.key} label={(k) => t(`sidebar.${role}.${k}`)} locked={(k) => isLocked(role, k, limited, actions)} name={session.name}>
+            <DeskApp os={embedOs} nav={nav} current={active.key} label={navLabel} locked={(k) => isLocked(role, k, limited, actions)} name={session.name}>
               {gated}
             </DeskApp>
           ) : (
@@ -237,7 +264,7 @@ export default function PortalShell({
           key={deskOs}
           os={deskOs}
           role={role}
-          apps={nav.concat(titleOnly).map((n) => ({ ...n, label: t(`sidebar.${role}.${n.key}`), locked: isLocked(role, n.key, limited, actions) }))}
+          apps={nav.concat(titleOnly).map((n) => ({ ...n, label: navLabel(n.key), locked: isLocked(role, n.key, limited, actions) }))}
           name={session.name}
           isAdmin={hasAdminAccess(session)}
           onLogout={logout}
@@ -246,8 +273,17 @@ export default function PortalShell({
     );
   }
 
+  const groups = groupsFor(role)
+    .map((g) => ({ ...g, items: [...g.items, ...(canTeam && g.key === (role === "client" ? "myWork" : "workspace") ? [teamTasks] : [])].filter((n) => nav.includes(n)) }))
+    .filter((g) => g.items.length);
+  const roleName = tx(`role.${role}`);
+  const dashHref = `/portal/${role}`;
+  const onDash = pathname === dashHref;
+  const today = weekdayDate(new Date(), locale);
+  const verified = cabinet.data ? cabinet.data.verification.verified === true : null;
+
   return (
-    <div className={`portal${collapsed ? " psb-collapsed" : ""}${fullscreen ? " portal--full" : ""}`}>
+    <div className={`portal lx${collapsed ? " psb-collapsed" : ""}${fullscreen ? " portal--full" : ""}`}>
       <MarketWatcher role={role} />
       {fullscreen && role !== "client" && !limited ? <SellerHeaderSlot role={role} quiet /> : null}
       {picking ? (
@@ -260,84 +296,91 @@ export default function PortalShell({
           }}
         />
       ) : null}
-      {/* LEXGO_AI_SYSTEM_ASSISTANT_FRONTEND_BACKEND_2026-09-29.md asks for a
-          floating assistant at the bottom right on desktop. That corner is
-          the robot's — .robot-edge-zone, and it is hidden below 900px — so
-          the robot opens the assistant instead of navigating away to the AI
-          page, which is still in the sidebar and is a different tool (the
-          case-analysis suite). Below 900px the assistant shows its own
-          launcher, so there is exactly one control at every width. */}
+      {/* The robot in the bottom-right corner opens the system assistant;
+          below 900px the assistant shows its own launcher instead. */}
       {fullscreen ? null : <LexGoRobot onRobotClick={() => setAiOpen(true)} />}
       <AiSystemAssistant open={aiOpen} onOpen={() => setAiOpen(true)} onClose={() => setAiOpen(false)} role={role} launcher={fullscreen ? "none" : "auto"} />
-      <div
-        className={`psb__scrim${open ? " on" : ""}`}
-        onClick={() => setOpenPath(null)}
-      />
+      <div className={`psb__scrim${open ? " on" : ""}`} onClick={() => setOpenPath(null)} />
       {fullscreen ? <div className="psb__hotzone" onMouseEnter={() => setPeek(true)} /> : null}
       <aside
-        className={`psb${open ? " on" : ""}${collapsed ? " collapsed" : ""}${fullscreen && peek ? " peek" : ""}`}
+        className={`psb lx-sb${open ? " on" : ""}${collapsed ? " collapsed" : ""}${fullscreen && peek ? " peek" : ""}`}
         onMouseLeave={() => fullscreen && setPeek(false)}
+        aria-label={tx("breadcrumb")}
       >
-        <div className="psb__brand">
-          <div className="psb__logo">
-            <span className="logo__m">
+        <div className="psb__brand lx-sb__brand">
+          <Link href={dashHref} className="lx-sb__logo" aria-label="LexGo">
+            <span className="lx-sb__mark">
               <IconLogo />
             </span>
             <span className="psb__label">LexGo</span>
-          </div>
-          <span className="psb__role">
-            {t(
-              `common.role${role === "advocate" ? "Advocate" : role === "lawyer" ? "Lawyer" : "Client"}`,
-            )}
-          </span>
+          </Link>
+          <span className="lx-sb__role">{roleName}</span>
+          <button className="lx-sb__x" type="button" aria-label={tx("closeMenu")} onClick={() => setOpenPath(null)}>
+            <IconClose />
+          </button>
         </div>
-        <nav className="psb__nav">
-          {nav.map(({ href, key, Icon }) => {
-            const on = active?.href === href;
-            const locked = isLocked(role, key, limited, actions);
-            const label = t(`sidebar.${role}.${key}`);
-            if (locked) {
-              return (
-                <span
-                  key={href}
-                  data-ai-target={`nav:${key}`}
-                  className="psb__link psb__link--locked"
-                  aria-disabled="true"
-                  title={t("pending.locked")}
-                >
-                  <Icon />
-                  <span className="psb__label">{label}</span>
-                  <IconLock />
-                </span>
-              );
-            }
+        <nav className="psb__nav lx-sb__nav">
+          {groups.map((g) => {
+            const shut = g.collapsible && folded.has(g.key) && !g.items.some((n) => n.href === active?.href);
             return (
-              <Link key={href} href={href} className={`psb__link${on ? " on" : ""}`} title={collapsed ? label : undefined} data-ai-target={`nav:${key}`}>
-                <Icon />
-                <span className="psb__label">{label}</span>
-              </Link>
+              <div className={`lx-sb__grp${shut ? " is-shut" : ""}`} key={g.key || "top"}>
+                {g.key ? (
+                  g.collapsible ? (
+                    <button
+                      type="button"
+                      className="lx-sb__glabel lx-sb__glabel--btn"
+                      aria-expanded={!shut}
+                      aria-label={tx("toggleGroup", { group: tx(`groups.${g.key}`) })}
+                      onClick={() => toggleGroup(g.key)}
+                    >
+                      <span className="psb__label">{tx(`groups.${g.key}`)}</span>
+                      <ChevronUp aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <span className="lx-sb__glabel">
+                      <span className="psb__label">{tx(`groups.${g.key}`)}</span>
+                    </span>
+                  )
+                ) : null}
+                {shut
+                  ? null
+                  : g.items.map(({ href, key, Icon, tone, badge }) => {
+                      const on = active?.href === href;
+                      const locked = isLocked(role, key, limited, actions);
+                      const label = navLabel(key);
+                      const n = badge ? badges[badge] : 0;
+                      const cls = `psb__link lx-sb__link${tone === "danger" ? " is-danger" : ""}`;
+                      if (locked) {
+                        return (
+                          <span key={href} data-ai-target={`nav:${key}`} className={`${cls} psb__link--locked`} aria-disabled="true" title={t("pending.locked")}>
+                            <Icon />
+                            <span className="psb__label">{label}</span>
+                            <IconLock />
+                          </span>
+                        );
+                      }
+                      return (
+                        <Link key={href} href={href} className={`${cls}${on ? " on" : ""}`} aria-current={on ? "page" : undefined} title={collapsed ? label : undefined} data-ai-target={`nav:${key}`}>
+                          <Icon />
+                          <span className="psb__label">{label}</span>
+                          {n > 0 ? <b className="lx-sb__badge">{n > 99 ? "99+" : n}</b> : null}
+                        </Link>
+                      );
+                    })}
+              </div>
             );
           })}
         </nav>
-        <div className="psb__foot">
-          {hasAdminAccess(session) ? (
-            <Link href="/admin" className="psb__link" title={collapsed ? t("common.admin") : undefined}>
-              <IconShield />
-              <span className="psb__label">{t("common.admin")}</span>
-            </Link>
-          ) : null}
-          <button className="psb__link" type="button" onClick={logout} title={collapsed ? t("common.logout") : undefined}>
-            <IconLogout />
-            <span className="psb__label">{t("common.logout")}</span>
-          </button>
-          <button
-            className="psb__link psb__collapse"
-            type="button"
-            onClick={toggleCollapsed}
-            title={t(collapsed ? "expand" : "collapse")}
-          >
-            <IconChevronLeft />
-            <span className="psb__label">{t("collapse")}</span>
+        <div className="psb__foot lx-sb__foot">
+          <Link href={profileHref} className="lx-sb__me" title={session.name} data-ai-target="sidebar:profile">
+            <span className="lx-sb__av">{initials(session.name || "U")}</span>
+            <span className="lx-sb__who psb__label">
+              <b>{session.name}</b>
+              <small>{roleName}</small>
+            </span>
+          </Link>
+          <button className="lx-sb__fold psb__collapse" type="button" onClick={toggleCollapsed} title={tx(collapsed ? "expand" : "collapse")} aria-label={tx(collapsed ? "expand" : "collapse")}>
+            <PanelLeftClose />
           </button>
         </div>
       </aside>
@@ -345,49 +388,64 @@ export default function PortalShell({
       <div className="pmain">
         {fullscreen ? (
           // Fullscreen drops the header, and with it the only way into the
-          // sidebar. On a desktop the hover hot-zone above takes over, but a
-          // phone has no hover — without this button the cabinet is
-          // unreachable from the document builder. Hidden above 900px.
-          <button
-            className="pfull__menu"
-            type="button"
-            aria-label={t("menu")}
-            aria-expanded={open}
-            onClick={() => setOpenPath(open ? null : pathname)}
-          >
+          // sidebar on a phone; this button stands in (hidden above 900px).
+          <button className="pfull__menu" type="button" aria-label={t("menu")} aria-expanded={open} onClick={() => setOpenPath(open ? null : pathname)}>
             {open ? <IconClose /> : <IconMenu />}
           </button>
-        ) : (
-          <header className="ptop">
-            <button
-              className="ptop__burger"
-              type="button"
-              aria-label={t("menu")}
-              onClick={() => setOpenPath(open ? null : pathname)}
-            >
-              {open ? <IconClose /> : <IconMenu />}
-            </button>
-            <h1 data-ai-target="ai-help:current-page">{title}</h1>
-            <div className="ptop__sp">
-              {role !== "client" && !limited ? <SellerHeaderSlot role={role} /> : null}
-              {deskAllowed ? (
-                <button type="button" className="ptop__desk" onClick={() => setPicking(true)} title={t("desk.switchDesktopHint")}>
-                  <IconMonitor />
-                  <span>{t("desk.switchDesktop")}</span>
-                </button>
-              ) : null}
-              <SupportMenu role={role} />
-              <NotificationBell role={role} />
-              <ThemeToggle variant="square" />
-              <LanguageSwitcher />
-              <Link className="ptop__user" href={profileHref} title={session.name} data-ai-target="header:profile">
-                <span className="ptop__av">{initials(session.name || "U")}</span>
-                <span>{session.name}</span>
-              </Link>
-            </div>
-          </header>
-        )}
+        ) : null}
         <div className="pbody">
+          {fullscreen ? null : (
+            <header className="ptop lx-top">
+              <button className="ptop__burger lx-top__burger" type="button" aria-label={tx(open ? "closeMenu" : "openMenu")} onClick={() => setOpenPath(open ? null : pathname)}>
+                {open ? <IconClose /> : <IconMenu />}
+              </button>
+              <div className="lx-top__head">
+                {role === "client" && !onDash ? (
+                  <nav className="lx-top__crumbs" aria-label={tx("breadcrumb")}>
+                    <Link href={dashHref}>{tx("crumbHome")}</Link>
+                    <ChevronRight aria-hidden="true" />
+                    <span aria-current="page">{title}</span>
+                  </nav>
+                ) : (
+                  <p className="lx-top__meta">
+                    {today} · {tx("crumbHome")}
+                    {headerNote ? ` · ${headerNote}` : ""}
+                  </p>
+                )}
+                <h1 data-ai-target="ai-help:current-page">{headerTitle ?? title}</h1>
+                {role !== "client" && !limited ? (
+                  <div className="lx-chips">
+                    <span className="lx-chip lx-chip--role">
+                      <span className="lx-chip__ic">
+                        <Scale />
+                      </span>
+                      {roleName}
+                    </span>
+                    {verified !== null ? (
+                      <span className={`lx-chip ${verified ? "lx-chip--ok" : "lx-chip--warn"}`}>
+                        {verified ? <CircleCheck /> : <CircleAlert />}
+                        {tx(verified ? "verified" : "unverified")}
+                      </span>
+                    ) : null}
+                    <SellerHeaderSlot role={role} />
+                  </div>
+                ) : null}
+              </div>
+              <div className="ptop__sp lx-top__tools">
+                <HeaderSearch role={role} pages={nav.concat(titleOnly)} label={navLabel} />
+                <SupportMenu role={role} text={tx("help")} />
+                <NotificationBell role={role} />
+                <LangSelect />
+                <AccountMenu
+                  name={session.name}
+                  profileHref={profileHref}
+                  isAdmin={hasAdminAccess(session)}
+                  onDesktop={deskAllowed ? () => setPicking(true) : undefined}
+                  onLogout={logout}
+                />
+              </div>
+            </header>
+          )}
           <div className="pbody__in">
             {fullscreen ? null : limited ? (
               <div className="pend-banner" role="status">
@@ -397,14 +455,10 @@ export default function PortalShell({
                   <p>{t("pending.text")}</p>
                 </div>
               </div>
-            ) : (
-              <GiftNudge
-                role={role}
-                completeness={session.completeness}
-                verified={cabinet.data ? cabinet.data.verification.verified === true : cabinet.status === "loading" ? null : false}
-              />
-            )}
-            <CabinetProvider value={cabinet}>{gated}</CabinetProvider>
+            ) : null}
+            <CabinetProvider value={cabinet}>
+              <LxHeaderProvider value={setHeader}>{gated}</LxHeaderProvider>
+            </CabinetProvider>
           </div>
         </div>
       </div>

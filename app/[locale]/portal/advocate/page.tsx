@@ -1,7 +1,8 @@
 "use client";
 
-import SellerRichDashboard from "@/components/portal/SellerRichDashboard";
+import SellerHome from "@/components/portal/dash/SellerHome";
 
+// The advocate's dashboard, as drawn in reference/design-lexgo-1920/2a.
 export default function AdvocateDashboard() {
-  return <SellerRichDashboard role="advocate" />;
+  return <SellerHome role="advocate" />;
 }

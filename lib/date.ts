@@ -253,3 +253,15 @@ export function fmtRating(n: number, locale: string, digits = 1): string {
   if (!Number.isFinite(n)) return "";
   return n.toFixed(digits).replace(".", locale === "en" ? "." : ",");
 }
+
+// "Juma, 30-oktabr 2026" / "Пятница, 30 октября 2026" / "Friday, 30 October
+// 2026" — the cabinet header's date line (LexGo 1920 design).
+const WEEKDAYS_LONG: Record<string, string[]> = {
+  uz: ["Yakshanba", "Dushanba", "Seshanba", "Chorshanba", "Payshanba", "Juma", "Shanba"],
+  ru: ["Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"],
+  en: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+};
+export function weekdayDate(at: Date, locale: string): string {
+  const wd = (WEEKDAYS_LONG[locale] || WEEKDAYS_LONG.uz)[at.getDay()];
+  return `${wd}, ${dayText(at.getFullYear(), at.getMonth() + 1, at.getDate(), locale)}`;
+}

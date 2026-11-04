@@ -1,6 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
+import { matchesSearch } from "@/lib/searchText";
 import { useLocale, useTranslations } from "next-intl";
 import { getMyCases, getLawyerClients, type BackendCase } from "@/lib/services/backend";
 import { useResource } from "@/lib/useResource";
@@ -11,8 +14,20 @@ import { statusLabel } from "@/lib/labels";
 import { shortDateTime } from "@/lib/date";
 
 // Seller-side cases (lawyer / advocate). Shows the client's name as the
-// primary label — never a raw case id/number.
+// primary label — never a raw case id/number. ?q= (the cabinet header's
+// search) narrows the list.
 export default function SellerCases({ ns }: { ns: string }) {
+  return (
+    <Suspense>
+      <CasesList ns={ns} />
+    </Suspense>
+  );
+}
+
+function CasesList({ ns }: { ns: string }) {
+  const q = (useSearchParams().get("q") ?? "").trim().slice(0, 200);
+  const tx = useTranslations("lxShell.search");
+  const path = usePathname();
   const t = useTranslations(ns);
   const tcm = useTranslations("portal.common");
   const locale = useLocale();
@@ -28,21 +43,27 @@ export default function SellerCases({ ns }: { ns: string }) {
   }, [clients.data]);
 
   const clientName = (c: BackendCase) => (c.clientUserId ? nameById.get(c.clientUserId) : "") || "";
+  const shown = q ? cases.data.filter((c) => matchesSearch([clientName(c), c.title, c.caseType, c.caseNumber, c.nextAction].filter(Boolean).join(" "), q)) : cases.data;
   const emptyTitle = t.has("empty") ? t("empty") : t("emptyTitle");
 
   return (
     <div className="ppanel" data-ai-target={cases.data.length ? undefined : "cases:list"}>
       <div className="ppanel__h">
         <b>{t("title")}</b>
-        <span className="advmuted">{t("count", { n: cases.data.length })}</span>
+        <span className="advmuted">{t("count", { n: shown.length })}</span>
       </div>
+      {q ? (
+        <p className="advmuted">
+          {tx("findSeller", { q })} · <Link href={path}>{tx("clear")}</Link>
+        </p>
+      ) : null}
       {cases.status === "loading" ? (
         <Skeleton rows={3} />
-      ) : !cases.data.length ? (
+      ) : !shown.length ? (
         <EmptyState icon={<IconFileText />} title={emptyTitle} text={t("emptyText")} />
       ) : (
         <div className="pcards" data-ai-target="cases:list" data-ai-label={t("title")}>
-          {cases.data.map((c) => {
+          {shown.map((c) => {
             const name = clientName(c);
             const primary = name || c.caseType || c.title || t("title");
             const meta = [name ? c.caseType : "", statusLabel(tcm, c.stage), c.nextAction, c.deadlineAt ? shortDateTime(c.deadlineAt, locale) : ""].filter(Boolean).join(" · ");
