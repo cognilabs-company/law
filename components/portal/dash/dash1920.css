@@ -150,47 +150,42 @@ html[data-theme="dark"] .cx-ai__go:hover{background:var(--lx-blue-h)}
 .cx-ai__chip:hover{border-color:var(--lx-blue);background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
 
 /* services
-   Each card leads with its own picture (public/img/xizmatlar) on a tinted
-   plate rather than a generic glyph, and lifts on hover so the whole card
-   reads as the target, not just the button. The first card is the promoted
-   one and keeps the blue accent. */
-.cx-svcs__grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px}
+   Arch cards (reference/image.png): a dome top whose radius is half the card
+   width, the picture in a white circle inside the dome, then the name, the
+   line under it and the price — no label, no button, the whole arch is the
+   link. Fills alternate dark / blue down the row. */
+.cx-svcs__grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px;justify-items:center}
+.cx-svcs__grid > li{width:100%;max-width:300px;display:flex}
 .cx-svc{
-  display:flex;flex-direction:column;min-width:0;
-  padding:18px 18px 18px!important;border-radius:20px!important;
-  transition:border-color .16s,transform .16s,box-shadow .16s;
+  position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;
+  min-width:0;height:100%;padding:22px 18px 24px;text-decoration:none;color:#fff;
+  background:var(--lx-navy);
+  border-radius:50% 50% 18px 18px / 100px 100px 18px 18px;
+  transition:transform .18s,box-shadow .18s,filter .18s;
 }
-.cx-svc:hover{border-color:#C7D6EC;transform:translateY(-3px);box-shadow:0 18px 34px -24px rgba(10,21,38,.42)}
-html[data-theme="dark"] .cx-svc:hover{border-color:#32456B;box-shadow:0 18px 34px -24px rgba(0,0,0,.7)}
-.cx-svc__top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:16px}
+.cx-svc.is-blue{background:var(--lx-blue)}
+html[data-theme="dark"] .cx-svc{background:#16243C;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+html[data-theme="dark"] .cx-svc.is-blue{background:var(--lx-blue);box-shadow:none}
+.cx-svc:hover{transform:translateY(-4px);box-shadow:0 22px 38px -24px rgba(10,21,38,.55);filter:brightness(1.07)}
+/* picture, in the dome */
 .cx-svc__ic{
-  width:78px;height:78px;flex:none;border-radius:18px;
-  background:var(--img) center/76% no-repeat,linear-gradient(160deg,#EEF4FF 0%,#F8FBFF 60%,#E7EFFC 100%);
-  box-shadow:inset 0 0 0 1px rgba(22,104,240,.1);transition:background-size .2s ease;
+  width:92px;height:92px;flex:none;border-radius:50%;margin-bottom:16px;
+  background:var(--img) center/62% no-repeat,#fff;
+  transition:background-size .2s ease;
 }
-html[data-theme="dark"] .cx-svc__ic{
-  background:var(--img) center/76% no-repeat,linear-gradient(160deg,#E8EFFA 0%,#F4F8FF 60%,#E1EAF8 100%);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);
-}
-.cx-svc:hover .cx-svc__ic{background-size:83%,auto}
-.cx-svc__ic.is-pri{box-shadow:inset 0 0 0 2px var(--lx-blue)}
-.cx-svc__tag{
-  display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:999px;flex:none;
-  font-size:.7rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;
-  background:var(--lx-blue);color:#fff;
-}
-.cx-svc__t{font-size:1rem;font-weight:600;color:var(--lx-ink);line-height:1.35;letter-spacing:-.005em}
-.cx-svc__s{margin:7px 0 0;font-size:.83rem;color:var(--lx-gray);line-height:1.45;flex:1}
+.cx-svc:hover .cx-svc__ic{background-size:68%,auto}
+.cx-svc__t{font-size:.98rem;font-weight:600;line-height:1.35;letter-spacing:-.005em}
+.cx-svc__s{margin-top:6px;font-size:.81rem;line-height:1.45;color:rgba(255,255,255,.74)}
+.cx-svc.is-blue .cx-svc__s{color:rgba(255,255,255,.86)}
+/* price: no label, just the amount, under the text */
 .cx-svc__price{
-  display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap;
-  border-top:1px solid var(--lx-line);margin-top:16px;padding-top:12px;margin-bottom:14px;
+  margin-top:auto;padding-top:16px;
+  font-family:var(--fd);font-size:1.16rem;font-weight:700;letter-spacing:-.015em;color:#fff;
+  display:flex;align-items:center;justify-content:center;min-height:1.6em;
 }
-.cx-svc__price small{font-size:.78rem;color:var(--lx-gray)}
-.cx-svc__price b{font-family:var(--fd);font-size:1.22rem;font-weight:700;color:var(--lx-ink);letter-spacing:-.015em;display:flex;align-items:center;min-height:1.5em}
-.cx-svc__price .cx-svc__soft{font-size:.94rem;font-weight:600;color:var(--lx-gray)}
+.cx-svc__price .cx-svc__soft{font-size:.92rem;font-weight:600;font-style:normal;color:rgba(255,255,255,.78)}
+.cx-svc__wait{font-style:normal;display:inline-flex}
 .cx-svc__wait svg{width:17px;height:17px;animation:spin 1s linear infinite}
-.portal.lx .cx-svc .btn{min-height:46px;padding:10px 12px;gap:7px}
-.cx-svc .btn svg{flex:none}
 
 /* specialists */
 .cx-experts{padding:28px}
@@ -232,7 +227,7 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
 .cx-gift--slim b{flex:1;min-width:160px}
 
 /* responsive */
-@media (max-width:1600px){
+@media (max-width:1380px){
   .cx-svcs__grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 @media (max-width:1440px){
@@ -255,7 +250,6 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
   .cx-ai{padding:22px 20px 20px}
   .cx-ai__f{flex-direction:column}
   .cx-ai__go{height:52px;justify-content:center}
-  .cx-svcs__grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .cx-head{flex-direction:column;align-items:stretch}
   .cx-head__btn{align-self:flex-start}
 }
@@ -277,7 +271,12 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
   .cx-area__txt b{font-size:.9rem}
   .cx-area__txt small{font-size:.76rem}
   .cx-area__go{display:none}
-  .cx-svcs__grid{grid-template-columns:minmax(0,1fr)}
+  .cx-svcs__grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .cx-svc{padding:16px 10px 18px;border-radius:50% 50% 14px 14px / 72px 72px 14px 14px}
+  .cx-svc__ic{width:64px;height:64px;margin-bottom:12px}
+  .cx-svc__t{font-size:.86rem}
+  .cx-svc__s{font-size:.74rem}
+  .cx-svc__price{font-size:1rem;padding-top:12px}
   .cx-exp{flex-direction:column}
   .cx-exp__ph{width:100%;min-height:96px}
 }

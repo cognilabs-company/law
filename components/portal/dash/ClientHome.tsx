@@ -299,30 +299,25 @@ export default function ClientHome() {
           {SERVICES.map((s, i) => {
             const price = priceOf(s.catalog);
             return (
-              <li key={s.key} className="lx-card cx-svc">
-                <div className="cx-svc__top">
-                  <span className={`cx-svc__ic${i === 0 ? " is-pri" : ""}`} style={{ "--img": `url(${s.img})` } as CSSProperties} />
-                  {i === 0 ? <span className="cx-svc__tag">{t("services.fast")}</span> : null}
-                </div>
-                <b className="cx-svc__t">{t(`services.${s.key}.t`)}</b>
-                <p className="cx-svc__s">{t(`services.${s.key}.s`)}</p>
-                <div className="cx-svc__price">
-                  <small>{t("services.price")}</small>
-                  {s.catalog ? (
-                    price ? (
-                      <b>{fmtUzs(price)} {t("services.som")}</b>
-                    ) : catalog.status === "loading" ? (
-                      <b className="cx-svc__wait" aria-label={t("services.loading")}><Loader /></b>
+              <li key={s.key}>
+                {/* The whole arch is the link — no button, as in the design. */}
+                <Link href={s.href} className={`cx-svc${i % 2 ? " is-blue" : ""}`}>
+                  <span className="cx-svc__ic" style={{ "--img": `url(${s.img})` } as CSSProperties} />
+                  <b className="cx-svc__t">{t(`services.${s.key}.t`)}</b>
+                  <span className="cx-svc__s">{t(`services.${s.key}.s`)}</span>
+                  <span className="cx-svc__price">
+                    {s.catalog ? (
+                      price ? (
+                        <>{fmtUzs(price)} {t("services.som")}</>
+                      ) : catalog.status === "loading" ? (
+                        <i className="cx-svc__wait" aria-label={t("services.loading")}><Loader /></i>
+                      ) : (
+                        <i className="cx-svc__soft">{t("services.byDoc")}</i>
+                      )
                     ) : (
-                      <b className="cx-svc__soft">{t("services.byDoc")}</b>
-                    )
-                  ) : (
-                    <b className="cx-svc__soft">{t(`services.${s.fallback ?? "byDoc"}`)}</b>
-                  )}
-                </div>
-                <Link href={s.href} className={`btn ${i === 0 ? "btn--pri" : "btn--line"} btn--full`}>
-                  {i === 0 ? t("services.connect") : t("services.order")}
-                  <ArrowRight />
+                      <i className="cx-svc__soft">{t(`services.${s.fallback ?? "byDoc"}`)}</i>
+                    )}
+                  </span>
                 </Link>
               </li>
             );
