@@ -9,24 +9,19 @@ import {
   ArrowUpRight,
   CircleCheck,
   FileSearch,
-  FileText,
   Gift,
   ListChecks,
   Loader,
   MapPin,
   MessageSquareText,
   PenLine,
-  Scale,
   Scroll,
   Search,
   Siren,
   Sparkles,
   UserRoundSearch,
   Users,
-  Video,
   X,
-  Zap,
-  Car,
   type LucideIcon,
 } from "lucide-react";
 import { Link, useRouter } from "@/i18n/navigation";
@@ -57,14 +52,15 @@ const STEP: Record<string, number> = { request: 1, matching: 1, payment: 2, work
 const REGIONS = ["tashkent", "samarkand", "fergana", "bukhara", "namangan", "andijan", "kashkadarya", "khorezm", "jizzakh", "navoi"];
 const GIFT_KEY = "lexgo_dash_gift_closed";
 
-type Svc = { key: "urgent" | "online" | "docs" | "analysis" | "problem" | "traffic"; Icon: LucideIcon; href: string; catalog?: string; fallback?: "byDoc" | "byFile" };
+// The card pictures live in public/img/xizmatlar, named after the service.
+type Svc = { key: "urgent" | "online" | "docs" | "analysis" | "problem" | "traffic"; img: string; href: string; catalog?: string; fallback?: "byDoc" | "byFile" };
 const SERVICES: Svc[] = [
-  { key: "urgent", Icon: Zap, href: "/portal/client/urgent?service=express_video_consultation", catalog: "express_video_consultation" },
-  { key: "online", Icon: Video, href: "/portal/client/urgent?service=video_consultation", catalog: "video_consultation" },
-  { key: "docs", Icon: FileText, href: "/portal/client/services", fallback: "byDoc" },
-  { key: "analysis", Icon: FileSearch, href: "/portal/client/doc-analysis", fallback: "byFile" },
-  { key: "problem", Icon: Scale, href: "/portal/client/urgent?service=chat_consultation", catalog: "chat_consultation" },
-  { key: "traffic", Icon: Car, href: "/portal/client/urgent?service=traffic_accident_consultation", catalog: "traffic_accident_consultation" },
+  { key: "urgent", img: "/img/xizmatlar/Tezkor_Advokat.png", href: "/portal/client/urgent?service=express_video_consultation", catalog: "express_video_consultation" },
+  { key: "online", img: "/img/xizmatlar/Onlayn_konsultatsiya.png", href: "/portal/client/urgent?service=video_consultation", catalog: "video_consultation" },
+  { key: "docs", img: "/img/xizmatlar/Huquqiy_hujjatlar.png", href: "/portal/client/services", fallback: "byDoc" },
+  { key: "analysis", img: "/img/xizmatlar/Hujjat_tahlili.png", href: "/portal/client/doc-analysis", fallback: "byFile" },
+  { key: "problem", img: "/img/xizmatlar/Muammo_tahlili.png", href: "/portal/client/urgent?service=chat_consultation", catalog: "chat_consultation" },
+  { key: "traffic", img: "/img/xizmatlar/Avtoavariya.png", href: "/portal/client/urgent?service=traffic_accident_consultation", catalog: "traffic_accident_consultation" },
 ];
 
 // The AI hero's capability list and its starter prompts. Both are ordered
@@ -141,61 +137,51 @@ export default function ClientHome() {
 
   return (
     <div className="cx">
-      {/* AI — the dashboard's primary entry point, above everything else */}
+      {/* AI — a slim bar, not a hero: the prompt field itself carries the
+          pitch, with the starter questions and what the AI does under it. */}
       <section className="cx-ai" aria-labelledby="cx-ai-h">
-        <div className="cx-ai__main">
-          <span className="cx-ai__badge"><Sparkles aria-hidden="true" />{t("aiHero.badge")}</span>
-          <h2 id="cx-ai-h" className="cx-ai__t">{t("aiHero.title")}</h2>
-          <p className="cx-ai__lead">{t("aiHero.lead")}</p>
-          <form className="cx-ai__f" onSubmit={sendAsk}>
-            <label className="cx-ai__q">
-              <MessageSquareText aria-hidden="true" />
-              <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={t("aiHero.ph")} aria-label={t("aiHero.ph")} />
-            </label>
-            <button type="submit" className="cx-ai__go">
-              {t("aiHero.send")}
-              <ArrowUp aria-hidden="true" />
-            </button>
-          </form>
-          <div className="cx-ai__chips">
-            <span className="cx-ai__chipsL">{t("aiHero.tryLabel")}</span>
-            {AI_PROMPTS.map((k) => (
-              <button key={k} type="button" className="cx-ai__chip" onClick={() => openAi(t(`aiHero.p.${k}`))}>
-                {t(`aiHero.p.${k}`)}
-              </button>
-            ))}
-          </div>
-          <div className="cx-ai__foot">
-            <span className="cx-ai__free"><CircleCheck aria-hidden="true" />{t("aiHero.free")}</span>
-            <Link href="/portal/client/ai" className="cx-ai__link">
-              {t("aiHero.open")}
-              <ArrowRight aria-hidden="true" />
-            </Link>
-            <button type="button" className="cx-ai__link" onClick={() => setWhoOpen(true)}>
-              <UserRoundSearch aria-hidden="true" />
-              {t("ask.who")}
-            </button>
-            <Link href="/portal/client/sos" className="cx-ai__link cx-ai__link--sos">
-              <Siren aria-hidden="true" />
-              {t("ask.sos")}
-            </Link>
-          </div>
-          <p className="cx-ai__note">{t("aiHero.note")}</p>
+        <div className="cx-ai__h">
+          <h2 id="cx-ai-h" className="cx-ai__badge"><Sparkles aria-hidden="true" />{t("aiHero.badge")}</h2>
+          <span className="cx-ai__free">{t("aiHero.free")}</span>
+          <Link href="/portal/client/ai" className="cx-ai__link">
+            {t("aiHero.open")}
+            <ArrowRight aria-hidden="true" />
+          </Link>
+          <button type="button" className="cx-ai__link" onClick={() => setWhoOpen(true)}>
+            <UserRoundSearch aria-hidden="true" />
+            {t("ask.who")}
+          </button>
+          <Link href="/portal/client/sos" className="cx-ai__link cx-ai__link--sos">
+            <Siren aria-hidden="true" />
+            {t("ask.sos")}
+          </Link>
         </div>
-        <div className="cx-ai__caps">
-          <h3 className="cx-ai__capsT">{t("aiHero.capsTitle")}</h3>
-          <ul>
-            {AI_CAPS.map((c) => (
-              <li key={c.key}>
-                <span className="cx-ai__capIc" aria-hidden="true"><c.Icon /></span>
-                <span className="cx-ai__capTxt">
-                  <b>{t(`aiHero.caps.${c.key}.t`)}</b>
-                  <small>{t(`aiHero.caps.${c.key}.s`)}</small>
-                </span>
-              </li>
-            ))}
-          </ul>
+        <form className="cx-ai__f" onSubmit={sendAsk}>
+          <label className="cx-ai__q">
+            <MessageSquareText aria-hidden="true" />
+            <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={t("aiHero.ph")} aria-label={t("aiHero.ph")} />
+          </label>
+          <button type="submit" className="cx-ai__go">
+            {t("aiHero.send")}
+            <ArrowUp aria-hidden="true" />
+          </button>
+        </form>
+        <div className="cx-ai__chips">
+          {AI_PROMPTS.map((k) => (
+            <button key={k} type="button" className="cx-ai__chip" onClick={() => openAi(t(`aiHero.p.${k}`))}>
+              {t(`aiHero.p.${k}`)}
+            </button>
+          ))}
         </div>
+        <ul className="cx-ai__caps">
+          {AI_CAPS.map((c) => (
+            <li key={c.key}>
+              <c.Icon aria-hidden="true" />
+              {t(`aiHero.caps.${c.key}`)}
+            </li>
+          ))}
+        </ul>
+        <p className="cx-ai__note">{t("aiHero.note")}</p>
       </section>
 
       <div className="cx-row cx-row--top">
@@ -339,7 +325,7 @@ export default function ClientHome() {
             return (
               <li key={s.key} className="lx-card cx-svc">
                 <div className="cx-svc__top">
-                  <span className={`cx-svc__ic${i === 0 ? " is-pri" : ""}`}><s.Icon /></span>
+                  <span className={`cx-svc__ic${i === 0 ? " is-pri" : ""}`} style={{ "--img": `url(${s.img})` } as CSSProperties} />
                   {i === 0 ? <span className="cx-svc__tag">{t("services.fast")}</span> : null}
                 </div>
                 <b className="cx-svc__t">{t(`services.${s.key}.t`)}</b>
