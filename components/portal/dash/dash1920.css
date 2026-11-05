@@ -98,67 +98,57 @@ html[data-theme="dark"] .cx-skel{background:linear-gradient(90deg,#18253E,#1E2D4
 .cx-skel--tall{height:180px}
 @keyframes cxsk{0%{background-position:100% 0}100%{background-position:-100% 0}}
 
-/* ═══ AI bar ═══
-   The dashboard's first action, but a bar rather than a hero: no headline and
-   no standing paragraph — the placeholder makes the pitch, the chips start a
-   real question and the strip underneath says what the AI actually does. */
-.cx-ai{
-  position:relative;overflow:hidden;isolation:isolate;
-  padding:16px 20px 14px;border-radius:18px;color:#fff;
-  background:linear-gradient(104deg,#0A1526 0%,#11274A 52%,#17386C 100%);
-}
-html[data-theme="dark"] .cx-ai{background:linear-gradient(104deg,#081120 0%,#0E1F3A 52%,#122B53 100%);box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
-.cx-ai::before{content:"";position:absolute;z-index:-1;border-radius:50%;pointer-events:none;width:300px;height:300px;top:-180px;right:18%;background:radial-gradient(circle,rgba(22,104,240,.4),transparent 70%)}
-/* top line: who is answering, and the ways out of the bar */
-.cx-ai__h{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:11px}
+/* ═══ AI card ═══
+   A light card like the rest of the dashboard (reference/image.png): the name
+   and the free badge, one line of pitch, a wide prompt field with a dark
+   action button, then the questions people actually open with. */
+.cx-ai{padding:26px 28px 24px}
+.cx-ai__h{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:6px}
 .cx-ai__badge{
-  display:inline-flex;align-items:center;gap:6px;margin:0;
-  font-family:var(--fd);font-size:.76rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#fff;
+  flex:none;white-space:nowrap;margin:0;
+  font-family:var(--fd);font-size:1.38rem;font-weight:800;line-height:1.25;
+  letter-spacing:-.01em;text-transform:uppercase;color:var(--lx-ink);
 }
-.cx-ai__badge svg{width:15px;height:15px;color:#7FB2FF}
-.cx-ai__free{font-size:.76rem;font-weight:600;color:#7BE2B4;margin-right:auto}
+.cx-ai__free{
+  display:inline-flex;align-items:center;height:28px;padding:0 13px;border-radius:999px;
+  background:var(--lx-chip);color:var(--lx-ink);font-size:.82rem;font-weight:600;white-space:nowrap;
+}
+.cx-ai__free + .cx-ai__link{margin-left:auto}
 .cx-ai__link{
   display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:0;cursor:pointer;
-  color:#C9D4E3;font-size:.82rem;font-weight:600;text-decoration:none;
+  color:var(--lx-link);font-size:.86rem;font-weight:600;text-decoration:none;white-space:nowrap;
 }
-.cx-ai__link svg{width:15px;height:15px}
-.cx-ai__link:hover{color:#fff;text-decoration:underline}
-.cx-ai__link--sos{color:#FFB4AE}
-/* the field */
-.cx-ai__f{display:flex;gap:9px}
+.cx-ai__link svg{width:16px;height:16px}
+.cx-ai__link:hover{text-decoration:underline}
+.cx-ai__lead{margin:0 0 18px;font-size:.98rem;line-height:1.5;color:var(--lx-gray);max-width:76ch}
+/* field + action */
+.cx-ai__f{display:flex;gap:12px}
 .cx-ai__q{
-  display:flex;align-items:center;gap:11px;flex:1;min-width:0;height:50px;padding:0 17px;
-  background:#fff;border:1px solid transparent;border-radius:13px;
+  flex:1;min-width:0;height:58px;padding:0 20px;
+  border:1px solid var(--lx-line);border-radius:14px;background:var(--lx-card);
+  font-size:.98rem;color:var(--lx-ink);outline:0;
 }
-.cx-ai__q svg{width:19px;height:19px;color:var(--lx-gray2);flex:none}
-.cx-ai__q input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:.92rem;color:#0A1526}
-.cx-ai__q input::placeholder{color:#5D6E84}
-.cx-ai__q:focus-within{border-color:#63A1FF;box-shadow:0 0 0 4px rgba(99,161,255,.22)}
+.cx-ai__q::placeholder{color:var(--lx-gray2)}
+.cx-ai__q:focus{border-color:var(--lx-blue);box-shadow:0 0 0 3px rgba(22,104,240,.12)}
 .cx-ai__go{
-  flex:none;height:50px;padding:0 19px;border:0;border-radius:13px;cursor:pointer;
-  background:var(--lx-blue);color:#fff;font-size:.9rem;font-weight:600;
-  display:inline-flex;align-items:center;gap:8px;white-space:nowrap;
-  box-shadow:0 12px 24px -16px rgba(22,104,240,.9);transition:background .15s;
+  flex:none;height:58px;padding:0 26px;border:0;border-radius:14px;cursor:pointer;
+  background:var(--lx-navy);color:#fff;font-size:.98rem;font-weight:600;
+  display:inline-flex;align-items:center;gap:10px;white-space:nowrap;transition:background .15s;
 }
-.cx-ai__go:hover{background:var(--lx-blue-h)}
-.cx-ai__go svg{width:17px;height:17px}
+html[data-theme="dark"] .cx-ai__go{background:var(--lx-blue)}
+.cx-ai__go:hover{background:#16243C}
+html[data-theme="dark"] .cx-ai__go:hover{background:var(--lx-blue-h)}
+.cx-ai__go svg{width:18px;height:18px}
 /* starter questions */
-.cx-ai__chips{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:10px}
+.cx-ai__chips{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:18px}
+.cx-ai__chipsL{font-size:.88rem;font-weight:500;color:var(--lx-gray);white-space:nowrap}
 .cx-ai__chip{
-  border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);
-  color:#E7EEF8;font-size:.79rem;font-weight:500;padding:6px 11px;border-radius:999px;cursor:pointer;
-  transition:background .15s,border-color .15s;
+  border:1px solid var(--lx-line);background:var(--lx-card);color:var(--lx-ink);
+  font-size:.88rem;font-weight:500;padding:9px 16px;border-radius:999px;cursor:pointer;
+  transition:border-color .15s,background .15s;
 }
-.cx-ai__chip:hover{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.36)}
-/* what it does — one quiet strip, not a panel */
-.cx-ai__caps{
-  list-style:none;margin:12px 0 0;padding:11px 0 0;
-  border-top:1px solid rgba(255,255,255,.1);
-  display:flex;flex-wrap:wrap;gap:8px 20px;
-}
-.cx-ai__caps li{display:inline-flex;align-items:center;gap:7px;font-size:.79rem;font-weight:500;color:#AEBDD2}
-.cx-ai__caps svg{width:15px;height:15px;color:#7FB2FF;flex:none}
-.cx-ai__note{margin:9px 0 0;font-size:.73rem;line-height:1.4;color:#7A8AA2}
+.cx-ai__chip:hover{border-color:var(--lx-blue);background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
+.cx-ai__note{margin:16px 0 0;font-size:.78rem;line-height:1.45;color:var(--lx-gray2)}
 
 /* services
    Each card leads with its own picture (public/img/xizmatlar) on a tinted
@@ -263,7 +253,9 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
 @media (max-width:900px){
   .cx-side{grid-template-columns:minmax(0,1fr)}
   .cx-find{grid-template-columns:minmax(0,1fr)}
-  .cx-ai__go{padding:0 15px}
+  .cx-ai{padding:22px 20px 20px}
+  .cx-ai__f{flex-direction:column}
+  .cx-ai__go{height:52px;justify-content:center}
   .cx-svcs__grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .cx-head{flex-direction:column;align-items:stretch}
   .cx-head__btn{align-self:flex-start}
@@ -271,15 +263,16 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
 @media (max-width:560px){
   .cx{gap:16px}
   .cx-areas,.cx-works,.cx-experts{padding:18px!important}
-  .cx-ai{padding:14px 14px 12px;border-radius:16px}
-  .cx-ai__h{gap:10px 14px;margin-bottom:10px}
-  .cx-ai__free{margin-right:0}
-  .cx-ai__f{flex-direction:column;gap:8px}
-  .cx-ai__q{height:46px;padding:0 14px}
-  .cx-ai__q input{font-size:.88rem}
-  .cx-ai__go{height:44px;justify-content:center}
-  .cx-ai__caps{gap:7px 14px;margin-top:10px;padding-top:10px}
-  .cx-ai__caps li{font-size:.75rem}
+  .cx-ai{padding:18px 16px!important}
+  .cx-ai__h{gap:10px}
+  .cx-ai__badge{font-size:1.16rem}
+  .cx-ai__free + .cx-ai__link{margin-left:0}
+  .cx-ai__lead{font-size:.9rem;margin-bottom:14px}
+  .cx-ai__q{height:50px;padding:0 15px;font-size:.92rem}
+  .cx-ai__go{height:48px}
+  .cx-ai__chips{gap:8px;margin-top:14px}
+  .cx-ai__chipsL{display:none}
+  .cx-ai__chip{font-size:.82rem;padding:8px 13px}
   .cx-areas__grid{gap:10px}
   .cx-area__body{padding:10px 12px 12px}
   .cx-area__txt b{font-size:.9rem}

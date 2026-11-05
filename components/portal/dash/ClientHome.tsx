@@ -5,24 +5,17 @@ import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from
 import { useTranslations } from "next-intl";
 import {
   ArrowRight,
-  ArrowUp,
   ArrowUpRight,
   CircleCheck,
-  FileSearch,
   Gift,
-  ListChecks,
   Loader,
   MapPin,
   MessageSquareText,
-  PenLine,
-  Scroll,
   Search,
-  Siren,
   Sparkles,
   UserRoundSearch,
   Users,
   X,
-  type LucideIcon,
 } from "lucide-react";
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
@@ -63,16 +56,7 @@ const SERVICES: Svc[] = [
   { key: "traffic", img: "/img/xizmatlar/Avtoavariya.png", href: "/portal/client/urgent?service=traffic_accident_consultation", catalog: "traffic_accident_consultation" },
 ];
 
-// The AI hero's capability list and its starter prompts. Both are ordered
-// strongest-first: the five capabilities answer "why ask the AI and not
-// Google", the prompts are the four areas clients actually open with.
-const AI_CAPS: { key: "law" | "doc" | "plan" | "draft" | "human"; Icon: LucideIcon }[] = [
-  { key: "law", Icon: Scroll },
-  { key: "doc", Icon: FileSearch },
-  { key: "plan", Icon: ListChecks },
-  { key: "draft", Icon: PenLine },
-  { key: "human", Icon: UserRoundSearch },
-];
+// The questions clients actually open with, in the order they do.
 const AI_PROMPTS = ["labor", "rent", "aliment", "traffic"] as const;
 
 function firstName(name: string): string {
@@ -137,50 +121,43 @@ export default function ClientHome() {
 
   return (
     <div className="cx">
-      {/* AI — a slim bar, not a hero: the prompt field itself carries the
-          pitch, with the starter questions and what the AI does under it. */}
-      <section className="cx-ai" aria-labelledby="cx-ai-h">
+      {/* AI — a light card like the rest of the dashboard: name, one line of
+          pitch, the prompt field and the questions people actually open with. */}
+      <section className="lx-card cx-ai" aria-labelledby="cx-ai-h">
         <div className="cx-ai__h">
-          <h2 id="cx-ai-h" className="cx-ai__badge"><Sparkles aria-hidden="true" />{t("aiHero.badge")}</h2>
+          <h2 id="cx-ai-h" className="cx-ai__badge">{t("aiHero.badge")}</h2>
           <span className="cx-ai__free">{t("aiHero.free")}</span>
-          <Link href="/portal/client/ai" className="cx-ai__link">
-            {t("aiHero.open")}
-            <ArrowRight aria-hidden="true" />
-          </Link>
           <button type="button" className="cx-ai__link" onClick={() => setWhoOpen(true)}>
             <UserRoundSearch aria-hidden="true" />
             {t("ask.who")}
           </button>
-          <Link href="/portal/client/sos" className="cx-ai__link cx-ai__link--sos">
-            <Siren aria-hidden="true" />
-            {t("ask.sos")}
+          <Link href="/portal/client/ai" className="cx-ai__link">
+            {t("aiHero.open")}
+            <ArrowRight aria-hidden="true" />
           </Link>
         </div>
+        <p className="cx-ai__lead">{t("aiHero.lead")}</p>
         <form className="cx-ai__f" onSubmit={sendAsk}>
-          <label className="cx-ai__q">
-            <MessageSquareText aria-hidden="true" />
-            <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={t("aiHero.ph")} aria-label={t("aiHero.ph")} />
-          </label>
+          <input
+            className="cx-ai__q"
+            value={ask}
+            onChange={(e) => setAsk(e.target.value)}
+            placeholder={t("aiHero.ph")}
+            aria-label={t("aiHero.ph")}
+          />
           <button type="submit" className="cx-ai__go">
             {t("aiHero.send")}
-            <ArrowUp aria-hidden="true" />
+            <ArrowRight aria-hidden="true" />
           </button>
         </form>
         <div className="cx-ai__chips">
+          <span className="cx-ai__chipsL">{t("aiHero.tryLabel")}</span>
           {AI_PROMPTS.map((k) => (
             <button key={k} type="button" className="cx-ai__chip" onClick={() => openAi(t(`aiHero.p.${k}`))}>
               {t(`aiHero.p.${k}`)}
             </button>
           ))}
         </div>
-        <ul className="cx-ai__caps">
-          {AI_CAPS.map((c) => (
-            <li key={c.key}>
-              <c.Icon aria-hidden="true" />
-              {t(`aiHero.caps.${c.key}`)}
-            </li>
-          ))}
-        </ul>
         <p className="cx-ai__note">{t("aiHero.note")}</p>
       </section>
 
