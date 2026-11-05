@@ -88,19 +88,84 @@ html[data-theme="dark"] .cx-skel{background:linear-gradient(90deg,#18253E,#1E2D4
 .cx-skel--tall{height:180px}
 @keyframes cxsk{0%{background-position:100% 0}100%{background-position:-100% 0}}
 
-/* quick question */
-.cx-ask{padding:22px 20px 20px}
-.cx-ask__h{display:flex;gap:14px;align-items:flex-start;margin-bottom:16px}
-.cx-ask__h p{margin:2px 0 0;font-size:.8rem;color:var(--lx-gray)}
-.cx-ask__ic{width:36px;height:36px;border-radius:10px;background:var(--lx-chip);display:grid;place-items:center;color:var(--lx-ink);flex:none}
-.cx-ask__ic svg{width:18px;height:18px}
-.cx-ask__f{display:flex;gap:10px}
-.cx-ask__f input{flex:1;min-width:0;height:48px;border-radius:12px;border:1px solid var(--lx-line);background:var(--lx-chip);padding:0 14px;font-size:.92rem;color:var(--lx-ink);outline:0}
-.cx-ask__f input:focus{border-color:var(--lx-blue);background:var(--lx-card)}
-.cx-ask__f button{width:48px;height:48px;border-radius:12px;border:0;background:var(--lx-navy);color:#fff;display:grid;place-items:center;cursor:pointer;flex:none}
-html[data-theme="dark"] .cx-ask__f button{background:var(--lx-blue)}
-.cx-ask__f button svg{width:20px;height:20px}
-.cx-ask__links{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:18px}
+/* ═══ AI hero ═══
+   The page's primary call to action, so it is the one dark, full-width block
+   above the fold: a navy panel with the prompt field, four starter prompts and
+   the capability list that answers "why the AI and not a web search". It
+   replaces the small "Qisqa savol bormi?" card that used to sit in the side
+   column, where it read as a footnote. */
+.cx-ai{
+  position:relative;overflow:hidden;isolation:isolate;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,398px);gap:36px;
+  padding:34px 34px 30px;border-radius:24px;color:#fff;
+  background:linear-gradient(118deg,#0A1526 0%,#11274A 46%,#17386C 100%);
+}
+html[data-theme="dark"] .cx-ai{background:linear-gradient(118deg,#081120 0%,#0E1F3A 46%,#122B53 100%);box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
+/* Two soft lights: one behind the headline, one behind the capability panel,
+   so the panel reads as lifted without a second border. */
+.cx-ai::before,.cx-ai::after{content:"";position:absolute;z-index:-1;border-radius:50%;pointer-events:none}
+.cx-ai::before{width:420px;height:420px;top:-210px;left:-90px;background:radial-gradient(circle,rgba(22,104,240,.45),transparent 68%)}
+.cx-ai::after{width:360px;height:360px;right:-120px;bottom:-190px;background:radial-gradient(circle,rgba(99,161,255,.26),transparent 70%)}
+.cx-ai__main{min-width:0;display:flex;flex-direction:column}
+.cx-ai__badge{
+  align-self:flex-start;display:inline-flex;align-items:center;gap:7px;
+  height:30px;padding:0 13px;border-radius:999px;margin-bottom:16px;
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.16);
+  font-size:.76rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+}
+.cx-ai__badge svg{width:15px;height:15px;color:#A3C8FF}
+.cx-ai__t{font-family:var(--fd);font-size:clamp(1.5rem,2vw,2.1rem);font-weight:800;letter-spacing:-.025em;line-height:1.16;margin:0;max-width:19ch;text-wrap:balance}
+.cx-ai__lead{margin:14px 0 0;max-width:62ch;font-size:.96rem;line-height:1.6;color:#C9D4E3}
+.cx-ai__f{display:flex;gap:10px;margin-top:22px}
+.cx-ai__q{
+  display:flex;align-items:center;gap:12px;flex:1;min-width:0;height:62px;padding:0 20px;
+  background:#fff;border:1px solid transparent;border-radius:16px;
+}
+.cx-ai__q svg{width:20px;height:20px;color:var(--lx-gray2);flex:none}
+.cx-ai__q input{flex:1;min-width:0;border:0;outline:0;background:none;font-size:1rem;color:#0A1526}
+.cx-ai__q input::placeholder{color:#5D6E84}
+.cx-ai__q:focus-within{border-color:#63A1FF;box-shadow:0 0 0 4px rgba(99,161,255,.25)}
+.cx-ai__go{
+  flex:none;height:62px;padding:0 24px;border:0;border-radius:16px;cursor:pointer;
+  background:var(--lx-blue);color:#fff;font-size:1rem;font-weight:600;
+  display:inline-flex;align-items:center;gap:9px;white-space:nowrap;
+  box-shadow:0 14px 28px -16px rgba(22,104,240,.8);transition:background .15s,transform .15s;
+}
+.cx-ai__go:hover{background:var(--lx-blue-h);transform:translateY(-1px)}
+.cx-ai__go svg{width:18px;height:18px}
+.cx-ai__chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:16px}
+.cx-ai__chipsL{font-size:.82rem;font-weight:500;color:#94A6BF}
+.cx-ai__chip{
+  border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.07);
+  color:#E7EEF8;font-size:.84rem;font-weight:500;padding:7px 13px;border-radius:999px;cursor:pointer;
+  transition:background .15s,border-color .15s;
+}
+.cx-ai__chip:hover{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.34)}
+.cx-ai__foot{display:flex;align-items:center;gap:22px;flex-wrap:wrap;margin-top:auto;padding-top:24px}
+.cx-ai__free{display:inline-flex;align-items:center;gap:7px;font-size:.86rem;font-weight:600;color:#7BE2B4}
+.cx-ai__free svg{width:16px;height:16px}
+.cx-ai__link{
+  display:inline-flex;align-items:center;gap:7px;border:0;background:none;padding:0;cursor:pointer;
+  color:#fff;font-size:.88rem;font-weight:600;text-decoration:none;
+}
+.cx-ai__link svg{width:16px;height:16px}
+.cx-ai__link:hover{text-decoration:underline}
+.cx-ai__link--sos{color:#FFB4AE}
+.cx-ai__note{margin:14px 0 0;font-size:.78rem;line-height:1.5;color:#8494AB;max-width:68ch}
+/* capability panel */
+.cx-ai__caps{
+  min-width:0;align-self:start;
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);
+  border-radius:20px;padding:22px 20px;backdrop-filter:blur(2px);
+}
+.cx-ai__capsT{font-family:var(--fd);font-size:.74rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#A3C8FF;margin:0 0 16px}
+.cx-ai__caps ul{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.cx-ai__caps li{display:flex;gap:12px;align-items:flex-start}
+.cx-ai__capIc{width:34px;height:34px;flex:none;border-radius:10px;background:rgba(99,161,255,.18);color:#BFD8FF;display:grid;place-items:center}
+.cx-ai__capIc svg{width:17px;height:17px}
+.cx-ai__capTxt{display:grid;gap:2px;min-width:0}
+.cx-ai__capTxt b{font-size:.92rem;font-weight:600;line-height:1.3}
+.cx-ai__capTxt small{font-size:.8rem;line-height:1.45;color:#AEBDD2}
 
 /* services */
 .cx-svcs__grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px}
@@ -121,7 +186,7 @@ html[data-theme="dark"] .cx-ask__f button{background:var(--lx-blue)}
 
 /* specialists */
 .cx-experts{padding:28px}
-.cx-experts__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.cx-experts__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
 .cx-exp{display:flex;gap:16px;border:1px solid var(--lx-line);border-radius:16px;padding:16px;min-width:0}
 .cx-exp__ph{width:108px;flex:none;border-radius:12px;background:linear-gradient(160deg,var(--lx-blue-tint),var(--lx-chip));border:1px dashed #C9D4E3;display:grid;place-items:center;align-self:stretch;min-height:132px}
 .cx-exp__ph span{width:56px;height:56px;border-radius:50%;background:var(--lx-navy);color:#fff;display:grid;place-items:center;font-weight:700;font-size:1.05rem}
@@ -164,19 +229,32 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
 }
 @media (max-width:1440px){
   .cx-row{grid-template-columns:minmax(0,1fr) minmax(300px,400px)}
-  .cx-areas__grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+  /* Three area cards per row, not four: at this width four leave the title
+     wrapping mid-word, and three rows sit closer to the side column's height. */
+  .cx-areas__grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .cx-ai{grid-template-columns:minmax(0,1fr) minmax(260px,324px);gap:24px;padding:30px 28px 26px}
+  .cx-ai__t{font-size:1.68rem;max-width:22ch}
+  .cx-ai__lead{font-size:.9rem}
+  .cx-ai__go{padding:0 18px;font-size:.94rem}
 }
 @media (max-width:1280px){
   .cx-row{grid-template-columns:minmax(0,1fr)}
   .cx-side{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto}
+  .cx-ai{grid-template-columns:minmax(0,1fr);gap:26px}
+  .cx-ai__t{max-width:24ch}
+  .cx-ai__caps ul{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 20px}
 }
 @media (max-width:1024px){
   .cx-areas__grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .cx-experts__grid{grid-template-columns:1fr}
+  .cx-experts__grid{grid-template-columns:minmax(0,1fr)}
 }
 @media (max-width:900px){
   .cx-side{grid-template-columns:minmax(0,1fr)}
   .cx-find{grid-template-columns:minmax(0,1fr)}
+  .cx-ai{padding:26px 22px 24px}
+  .cx-ai__f{flex-direction:column}
+  .cx-ai__go{height:54px;justify-content:center}
+  .cx-ai__caps ul{grid-template-columns:minmax(0,1fr)}
   .cx-svcs__grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .cx-head{flex-direction:column;align-items:stretch}
   .cx-head__btn{align-self:flex-start}
@@ -184,6 +262,11 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
 @media (max-width:560px){
   .cx{gap:16px}
   .cx-areas,.cx-works,.cx-experts{padding:18px!important}
+  .cx-ai{padding:20px 18px;border-radius:20px;gap:20px}
+  .cx-ai__t{font-size:1.32rem;max-width:none}
+  .cx-ai__lead{font-size:.9rem}
+  .cx-ai__q{height:54px;padding:0 15px}
+  .cx-ai__foot{gap:14px;padding-top:18px}
   .cx-areas__grid{gap:10px}
   .cx-area__body{padding:10px 12px 12px}
   .cx-area__txt b{font-size:.9rem}

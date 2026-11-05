@@ -11,10 +11,13 @@ import {
   FileSearch,
   FileText,
   Gift,
+  ListChecks,
   Loader,
   MapPin,
   MessageSquareText,
+  PenLine,
   Scale,
+  Scroll,
   Search,
   Siren,
   Sparkles,
@@ -64,6 +67,18 @@ const SERVICES: Svc[] = [
   { key: "traffic", Icon: Car, href: "/portal/client/urgent?service=traffic_accident_consultation", catalog: "traffic_accident_consultation" },
 ];
 
+// The AI hero's capability list and its starter prompts. Both are ordered
+// strongest-first: the five capabilities answer "why ask the AI and not
+// Google", the prompts are the four areas clients actually open with.
+const AI_CAPS: { key: "law" | "doc" | "plan" | "draft" | "human"; Icon: LucideIcon }[] = [
+  { key: "law", Icon: Scroll },
+  { key: "doc", Icon: FileSearch },
+  { key: "plan", Icon: ListChecks },
+  { key: "draft", Icon: PenLine },
+  { key: "human", Icon: UserRoundSearch },
+];
+const AI_PROMPTS = ["labor", "rent", "aliment", "traffic"] as const;
+
 function firstName(name: string): string {
   return (name || "").trim().split(/\s+/)[0] ?? "";
 }
@@ -80,7 +95,7 @@ export default function ClientHome() {
 
   const orders = useResource(() => listMarketplaceOrders("client"), []);
   const catalog = useResource<UrgentCatalog>(async () => [await getUrgentCatalog()], []);
-  const experts = useResource<MarketSeller>(async () => (await listMarketplace({ sort: "recommended" })).items.slice(0, 2), []);
+  const experts = useResource<MarketSeller>(async () => (await listMarketplace({ sort: "recommended" })).items.slice(0, 4), []);
   const referral = useResource(async () => [await getMyReferral()], []);
 
   const active = useMemo(
@@ -108,10 +123,13 @@ export default function ClientHome() {
     if (region) qs.set("region", region);
     router.push(`/portal/client/lawyers${qs.size ? `?${qs}` : ""}`);
   };
+  const openAi = (text: string) => {
+    const v = text.trim();
+    router.push(`/portal/client/ai${v ? `?q=${encodeURIComponent(v)}` : ""}`);
+  };
   const sendAsk = (e: FormEvent) => {
     e.preventDefault();
-    const v = ask.trim();
-    router.push(`/portal/client/ai${v ? `?q=${encodeURIComponent(v)}` : ""}`);
+    openAi(ask);
   };
   const priceOf = (key?: string): number | null => {
     const c = catalog.data[0];
@@ -123,6 +141,63 @@ export default function ClientHome() {
 
   return (
     <div className="cx">
+      {/* AI — the dashboard's primary entry point, above everything else */}
+      <section className="cx-ai" aria-labelledby="cx-ai-h">
+        <div className="cx-ai__main">
+          <span className="cx-ai__badge"><Sparkles aria-hidden="true" />{t("aiHero.badge")}</span>
+          <h2 id="cx-ai-h" className="cx-ai__t">{t("aiHero.title")}</h2>
+          <p className="cx-ai__lead">{t("aiHero.lead")}</p>
+          <form className="cx-ai__f" onSubmit={sendAsk}>
+            <label className="cx-ai__q">
+              <MessageSquareText aria-hidden="true" />
+              <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={t("aiHero.ph")} aria-label={t("aiHero.ph")} />
+            </label>
+            <button type="submit" className="cx-ai__go">
+              {t("aiHero.send")}
+              <ArrowUp aria-hidden="true" />
+            </button>
+          </form>
+          <div className="cx-ai__chips">
+            <span className="cx-ai__chipsL">{t("aiHero.tryLabel")}</span>
+            {AI_PROMPTS.map((k) => (
+              <button key={k} type="button" className="cx-ai__chip" onClick={() => openAi(t(`aiHero.p.${k}`))}>
+                {t(`aiHero.p.${k}`)}
+              </button>
+            ))}
+          </div>
+          <div className="cx-ai__foot">
+            <span className="cx-ai__free"><CircleCheck aria-hidden="true" />{t("aiHero.free")}</span>
+            <Link href="/portal/client/ai" className="cx-ai__link">
+              {t("aiHero.open")}
+              <ArrowRight aria-hidden="true" />
+            </Link>
+            <button type="button" className="cx-ai__link" onClick={() => setWhoOpen(true)}>
+              <UserRoundSearch aria-hidden="true" />
+              {t("ask.who")}
+            </button>
+            <Link href="/portal/client/sos" className="cx-ai__link cx-ai__link--sos">
+              <Siren aria-hidden="true" />
+              {t("ask.sos")}
+            </Link>
+          </div>
+          <p className="cx-ai__note">{t("aiHero.note")}</p>
+        </div>
+        <div className="cx-ai__caps">
+          <h3 className="cx-ai__capsT">{t("aiHero.capsTitle")}</h3>
+          <ul>
+            {AI_CAPS.map((c) => (
+              <li key={c.key}>
+                <span className="cx-ai__capIc" aria-hidden="true"><c.Icon /></span>
+                <span className="cx-ai__capTxt">
+                  <b>{t(`aiHero.caps.${c.key}.t`)}</b>
+                  <small>{t(`aiHero.caps.${c.key}.s`)}</small>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
       <div className="cx-row cx-row--top">
         {/* Legal areas + search */}
         <section className="lx-card cx-areas" aria-labelledby="cx-areas-h">
@@ -155,7 +230,7 @@ export default function ClientHome() {
               <li key={a.key}>
                 <Link href={`/portal/client/lawyers?area=${a.key}`} className="cx-area" aria-label={t("areas.open", { area: t(`area.${a.key}.t`) })}>
                   <span className="cx-area__img" style={{ "--img": `url(${a.image})` } as CSSProperties}>
-                    <span className="cx-area__ic"><a.Icon /></span>
+                    <span className="cx-area__ic"><a.Icon /></span>
                   </span>
                   <span className="cx-area__body">
                     <span className="cx-area__txt">
@@ -209,30 +284,42 @@ export default function ClientHome() {
             )}
           </section>
 
-          {/* Quick question */}
-          <section className="lx-card cx-ask" aria-labelledby="cx-ask-h">
-            <div className="cx-ask__h">
-              <span className="cx-ask__ic"><Sparkles /></span>
-              <div>
-                <h2 id="cx-ask-h" className="cx-h4">{t("ask.title")}</h2>
-                <p>{t("ask.sub")}</p>
+          {/* Gift */}
+          {giftClosed ? (
+            <section className="cx-gift cx-gift--slim" aria-label={t("gift.title")}>
+              <span className="cx-gift__ic"><Gift /></span>
+              <b>{t("gift.title")}</b>
+              <Link href="/portal/client/subscription?tab=gifts" className="btn btn--sm cx-gift__cta">{t("gift.cta")}</Link>
+            </section>
+          ) : (
+            <section className="cx-gift" aria-labelledby="cx-gift-h">
+              <div className="cx-gift__top">
+                <span className="cx-gift__ic"><Gift /></span>
+                <button
+                  type="button"
+                  className="cx-gift__x"
+                  aria-label={t("gift.close")}
+                  onClick={() => {
+                    setGiftClosed(true);
+                    try { localStorage.setItem(GIFT_KEY, "1"); } catch { /* ignore */ }
+                  }}
+                >
+                  <X />
+                </button>
               </div>
-            </div>
-            <form className="cx-ask__f" onSubmit={sendAsk}>
-              <input value={ask} onChange={(e) => setAsk(e.target.value)} placeholder={t("ask.ph")} aria-label={t("ask.ph")} />
-              <button type="submit" aria-label={t("ask.send")}><ArrowUp /></button>
-            </form>
-            <div className="cx-ask__links">
-              <button type="button" className="cx-link" onClick={() => setWhoOpen(true)}>
-                <UserRoundSearch />
-                {t("ask.who")}
-              </button>
-              <Link href="/portal/client/sos" className="cx-link cx-link--danger">
-                <Siren />
-                {t("ask.sos")}
-              </Link>
-            </div>
-          </section>
+              <h2 id="cx-gift-h">{t("gift.title")}</h2>
+              <p>{t("gift.text")}</p>
+              <div className="cx-gift__foot">
+                <Link href="/portal/client/subscription?tab=gifts" className="btn cx-gift__cta">{t("gift.cta")}</Link>
+                {referral.data[0] ? (
+                  <Link href="/portal/client/referrals" className="cx-gift__ref">
+                    <Users />
+                    {t("gift.ref", { n: referral.data[0].joined })}
+                  </Link>
+                ) : null}
+              </div>
+            </section>
+          )}
         </div>
       </div>
 
@@ -283,98 +370,58 @@ export default function ClientHome() {
         </ul>
       </section>
 
-      <div className="cx-row cx-row--bottom">
-        {/* Specialists */}
-        <section className="lx-card cx-experts" aria-labelledby="cx-exp-h">
-          <div className="cx-works__h">
-            <h2 id="cx-exp-h" className="cx-h3">{t("experts.title")}</h2>
-            <Link href="/portal/client/lawyers" className="cx-link">
-              {t("experts.all")}
-              <ArrowRight />
-            </Link>
+      {/* Specialists */}
+      <section className="lx-card cx-experts" aria-labelledby="cx-exp-h">
+        <div className="cx-works__h">
+          <h2 id="cx-exp-h" className="cx-h3">{t("experts.title")}</h2>
+          <Link href="/portal/client/lawyers" className="cx-link">
+            {t("experts.all")}
+            <ArrowRight />
+          </Link>
+        </div>
+        {experts.status === "loading" ? (
+          <div className="cx-experts__grid">
+            {[0, 1, 2, 3].map((n) => <div key={n} className="cx-skel cx-skel--tall" />)}
           </div>
-          {experts.status === "loading" ? (
-            <div className="cx-experts__grid">
-              <div className="cx-skel cx-skel--tall" />
-              <div className="cx-skel cx-skel--tall" />
-            </div>
-          ) : experts.status === "error" || !experts.data.length ? (
-            <div className="cx-empty">
-              <span className="cx-empty__ic"><Users /></span>
-              <b>{experts.status === "error" ? t("experts.error") : t("experts.empty")}</b>
-              {experts.status === "error" ? null : <p>{t("experts.emptyText")}</p>}
-            </div>
-          ) : (
-            <div className="cx-experts__grid">
-              {experts.data.map((s) => (
-                <article key={s.userId} className="cx-exp">
-                  <div className="cx-exp__ph" role="img" aria-label={t("experts.photo", { name: personName(s.name) })}>
-                    <span>{initials(personName(s.name) || "L")}</span>
-                  </div>
-                  <div className="cx-exp__b">
-                    <Link href={`/portal/client/lawyers/${s.userId}`} className="cx-exp__name">{personName(s.name)}</Link>
-                    <span className="cx-exp__role">
-                      {sellerTypeLabel(tm, s.sellerType)}
-                      {s.verified ? (
-                        <span className="cx-ok"><CircleCheck />{t("experts.verified")}</span>
-                      ) : null}
-                    </span>
-                    <span className="cx-tags">
-                      {(s.categories.length ? s.categories.map((c) => c.title) : s.specializations.map((x) => specLabel(te, x))).slice(0, 2).map((x) => (
-                        <span key={x} className="cx-tag">{x}</span>
-                      ))}
-                    </span>
-                    {s.region ? (
-                      <span className="cx-exp__geo"><MapPin />{regionLabel(te, s.region)}</span>
-                    ) : null}
-                    <div className="cx-exp__act">
-                      <Link href={`/portal/client/lawyers/${s.userId}`} className="btn btn--dark btn--sm">{t("experts.consult")}</Link>
-                      <Link href={`/portal/client/lawyers/${s.userId}#services`} className="cx-iconbtn" aria-label={t("experts.message")}><MessageSquareText /></Link>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Gift */}
-        {giftClosed ? (
-          <section className="cx-gift cx-gift--slim" aria-label={t("gift.title")}>
-            <span className="cx-gift__ic"><Gift /></span>
-            <b>{t("gift.title")}</b>
-            <Link href="/portal/client/subscription?tab=gifts" className="btn btn--sm cx-gift__cta">{t("gift.cta")}</Link>
-          </section>
+        ) : experts.status === "error" || !experts.data.length ? (
+          <div className="cx-empty">
+            <span className="cx-empty__ic"><Users /></span>
+            <b>{experts.status === "error" ? t("experts.error") : t("experts.empty")}</b>
+            {experts.status === "error" ? null : <p>{t("experts.emptyText")}</p>}
+          </div>
         ) : (
-          <section className="cx-gift" aria-labelledby="cx-gift-h">
-            <div className="cx-gift__top">
-              <span className="cx-gift__ic"><Gift /></span>
-              <button
-                type="button"
-                className="cx-gift__x"
-                aria-label={t("gift.close")}
-                onClick={() => {
-                  setGiftClosed(true);
-                  try { localStorage.setItem(GIFT_KEY, "1"); } catch { /* ignore */ }
-                }}
-              >
-                <X />
-              </button>
-            </div>
-            <h2 id="cx-gift-h">{t("gift.title")}</h2>
-            <p>{t("gift.text")}</p>
-            <div className="cx-gift__foot">
-              <Link href="/portal/client/subscription?tab=gifts" className="btn cx-gift__cta">{t("gift.cta")}</Link>
-              {referral.data[0] ? (
-                <Link href="/portal/client/referrals" className="cx-gift__ref">
-                  <Users />
-                  {t("gift.ref", { n: referral.data[0].joined })}
-                </Link>
-              ) : null}
-            </div>
-          </section>
+          <div className="cx-experts__grid">
+            {experts.data.map((s) => (
+              <article key={s.userId} className="cx-exp">
+                <div className="cx-exp__ph" role="img" aria-label={t("experts.photo", { name: personName(s.name) })}>
+                  <span>{initials(personName(s.name) || "L")}</span>
+                </div>
+                <div className="cx-exp__b">
+                  <Link href={`/portal/client/lawyers/${s.userId}`} className="cx-exp__name">{personName(s.name)}</Link>
+                  <span className="cx-exp__role">
+                    {sellerTypeLabel(tm, s.sellerType)}
+                    {s.verified ? (
+                      <span className="cx-ok"><CircleCheck />{t("experts.verified")}</span>
+                    ) : null}
+                  </span>
+                  <span className="cx-tags">
+                    {(s.categories.length ? s.categories.map((c) => c.title) : s.specializations.map((x) => specLabel(te, x))).slice(0, 2).map((x) => (
+                      <span key={x} className="cx-tag">{x}</span>
+                    ))}
+                  </span>
+                  {s.region ? (
+                    <span className="cx-exp__geo"><MapPin />{regionLabel(te, s.region)}</span>
+                  ) : null}
+                  <div className="cx-exp__act">
+                    <Link href={`/portal/client/lawyers/${s.userId}`} className="btn btn--dark btn--sm">{t("experts.consult")}</Link>
+                    <Link href={`/portal/client/lawyers/${s.userId}#services`} className="cx-iconbtn" aria-label={t("experts.message")}><MessageSquareText /></Link>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
         )}
-      </div>
+      </section>
 
       <Modal open={whoOpen} onClose={() => setWhoOpen(false)} title={t("who.title")}>
         <div className="cdwho">
