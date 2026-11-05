@@ -155,8 +155,7 @@ export default function ClientHome() {
               <li key={a.key}>
                 <Link href={`/portal/client/lawyers?area=${a.key}`} className="cx-area" aria-label={t("areas.open", { area: t(`area.${a.key}.t`) })}>
                   <span className="cx-area__img" style={{ "--img": `url(${a.image})` } as CSSProperties}>
-                    <span className="cx-area__ic"><a.Icon /></span>
-                    <span className="cx-area__credit">{t("areas.photo")}</span>
+                    <span className="cx-area__ic"><a.Icon /></span>
                   </span>
                   <span className="cx-area__body">
                     <span className="cx-area__txt">
