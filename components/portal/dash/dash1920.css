@@ -35,10 +35,20 @@
 .cx-areas__grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
 .cx-area{display:flex;flex-direction:column;height:100%;border:1px solid var(--lx-line);border-radius:16px;overflow:hidden;background:var(--lx-card);text-decoration:none;color:var(--lx-ink);transition:border-color .15s,transform .15s,box-shadow .15s}
 .cx-area:hover{border-color:#C7D6EC;transform:translateY(-2px);box-shadow:0 14px 28px -20px rgba(10,21,38,.35)}
-.cx-area__img{position:relative;display:block;aspect-ratio:232/144;background:var(--lx-chip) var(--img) center/cover no-repeat}
-.cx-area__ic{position:absolute;top:12px;left:12px;width:40px;height:40px;border-radius:10px;background:#fff;color:#0A1526;display:grid;place-items:center;box-shadow:0 2px 6px rgba(10,21,38,.15)}
-.cx-area__ic svg{width:19px;height:19px}
-.cx-area__credit{position:absolute;left:8px;bottom:8px;font-size:.66rem;font-weight:500;color:#fff;background:rgba(10,21,38,.55);padding:2px 6px;border-radius:4px}
+/* The area illustrations (public/img/category) are transparent line art,
+   normalised to this slot's shape with a common content box, so the slot just
+   fills. The plate stays light in dark mode — black line art on a dark card
+   would disappear. */
+.cx-area__img{
+  display:block;aspect-ratio:232/161;border-bottom:1px solid var(--lx-line);
+  background:var(--img) center/contain no-repeat,linear-gradient(168deg,#F1F6FF 0%,#FAFCFF 56%,#E9F1FD 100%);
+  transition:background-size .2s ease;
+}
+html[data-theme="dark"] .cx-area__img{
+  border-bottom-color:#26365A;
+  background:var(--img) center/contain no-repeat,linear-gradient(168deg,#E8EFFA 0%,#F4F8FF 56%,#E1EAF8 100%);
+}
+.cx-area:hover .cx-area__img{background-size:108% auto,auto}
 .cx-area__body{display:flex;align-items:center;gap:10px;padding:14px 16px 16px;flex:1}
 .cx-area__txt{display:grid;gap:3px;flex:1;min-width:0}
 .cx-area__txt b{font-size:.98rem;font-weight:600}
