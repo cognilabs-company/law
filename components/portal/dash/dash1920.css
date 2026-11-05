@@ -148,7 +148,6 @@ html[data-theme="dark"] .cx-ai__go:hover{background:var(--lx-blue-h)}
   transition:border-color .15s,background .15s;
 }
 .cx-ai__chip:hover{border-color:var(--lx-blue);background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
-.cx-ai__note{margin:16px 0 0;font-size:.78rem;line-height:1.45;color:var(--lx-gray2)}
 
 /* services
    Each card leads with its own picture (public/img/xizmatlar) on a tinted

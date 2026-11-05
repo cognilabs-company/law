@@ -158,7 +158,6 @@ export default function ClientHome() {
             </button>
           ))}
         </div>
-        <p className="cx-ai__note">{t("aiHero.note")}</p>
       </section>
 
       <div className="cx-row cx-row--top">
