@@ -31,6 +31,7 @@ import Toaster from "@/components/Toaster";
 import RoleNavHost, { RoleRouteGuard } from "@/components/RoleNavHost";
 import ConfirmHost from "@/components/ui/ConfirmDialog";
 import GuideHost from "@/components/guide/GuideHost";
+import OnboardingHost from "@/components/onboarding/OnboardingHost";
 import AiRuntimeHost from "@/components/guide/AiRuntimeHost";
 import CopilotHost from "@/components/copilot/CopilotHost";
 import { THEME_SCRIPT } from "@/lib/themeScript";
@@ -135,6 +136,7 @@ export default async function LocaleLayout({ children, params }: Props) {
             <ConfirmHost />
             <ChromeGate>
               <GuideHost />
+              <OnboardingHost />
               <AiRuntimeHost />
               <CopilotHost />
             </ChromeGate>

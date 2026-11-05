@@ -137,7 +137,7 @@ export default function ClientHome() {
           </Link>
         </div>
         <p className="cx-ai__lead">{t("aiHero.lead")}</p>
-        <form className="cx-ai__f" onSubmit={sendAsk}>
+        <form className="cx-ai__f" onSubmit={sendAsk} data-tour="ai-ask">
           <input
             className="cx-ai__q"
             value={ask}
@@ -162,7 +162,7 @@ export default function ClientHome() {
 
       <div className="cx-row cx-row--top">
         {/* Legal areas + search */}
-        <section className="lx-card cx-areas" aria-labelledby="cx-areas-h">
+        <section className="lx-card cx-areas" aria-labelledby="cx-areas-h" data-tour="areas">
           <div className="cx-head">
             <div>
               <h2 id="cx-areas-h" className="lx-h1">{t("areas.title")}</h2>
@@ -295,7 +295,7 @@ export default function ClientHome() {
             <ArrowRight />
           </Link>
         </div>
-        <ul className="cx-svcs__grid">
+        <ul className="cx-svcs__grid" data-tour="services">
           {SERVICES.map((s, i) => {
             const price = priceOf(s.catalog);
             return (

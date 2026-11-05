@@ -8,9 +8,15 @@ import { profileTabHref } from "@/lib/profileTabs";
 import BusinessHoursBadge from "@/components/portal/BusinessHoursBadge";
 import { SUPPORT_PHONE, SUPPORT_TEL } from "@/components/support/contact";
 import { IconAlert, IconArrowRight, IconHeadset, IconHelpCircle, IconPhone } from "@/components/icons";
+import { Compass } from "lucide-react";
+import { startOnboarding } from "@/lib/onboarding/store";
+import { clearTourSeen, tourFor } from "@/lib/onboarding/tour";
+import { useAuth } from "@/lib/auth";
 
 export default function SupportMenu({ role, text }: { role: Role; text?: string }) {
   const t = useTranslations("portal.support");
+  const tour = useTranslations("onboarding");
+  const { session } = useAuth();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const btn = useRef<HTMLButtonElement>(null);
@@ -38,6 +44,14 @@ export default function SupportMenu({ role, text }: { role: Role; text?: string 
   const client = role === "client";
   const hub = `/portal/${role}/support`;
   const done = () => setOpen(false);
+  // Replaying the walkthrough also clears the "seen" flag, so the entry is a
+  // real reset rather than a one-off run.
+  const hasTour = tourFor(role).length > 0;
+  const replay = () => {
+    setOpen(false);
+    if (session?.id) clearTourSeen(session.id);
+    startOnboarding();
+  };
 
   const onMenuKey = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
@@ -104,6 +118,17 @@ export default function SupportMenu({ role, text }: { role: Role; text?: string 
               <BusinessHoursBadge />
             </span>
           </a>
+          {hasTour ? (
+            <button type="button" role="menuitem" className="psup__it" onClick={replay} data-ai-id="support.menu.tour">
+              <span className="psup__ic psup__ic--op" aria-hidden="true">
+                <Compass />
+              </span>
+              <span className="psup__tx">
+                <b>{tour("replay")}</b>
+                <small>{tour("replaySub")}</small>
+              </span>
+            </button>
+          ) : null}
           <Link role="menuitem" href={hub} className="psup__all" onClick={done} data-ai-id="support.menu.hub">
             {t("hub")}
             <IconArrowRight aria-hidden="true" />
