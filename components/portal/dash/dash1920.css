@@ -242,7 +242,7 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
   /* Three area cards per row, not four: at this width four leave the title
      wrapping mid-word, and three rows sit closer to the side column's height. */
   .cx-areas__grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-  .cx-ai{grid-template-columns:minmax(0,1fr) minmax(250px,308px);gap:22px;padding:24px 24px 22px}
+  .cx-ai{grid-template-columns:minmax(0,1fr) minmax(264px,330px);gap:20px;padding:24px 24px 22px}
   .cx-ai__t{font-size:1.44rem;max-width:24ch}
   .cx-ai__lead{font-size:.86rem}
   .cx-ai__go{padding:0 16px;font-size:.9rem}
@@ -250,9 +250,12 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
 @media (max-width:1280px){
   .cx-row{grid-template-columns:minmax(0,1fr)}
   .cx-side{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto}
-  .cx-ai{grid-template-columns:minmax(0,1fr);gap:26px}
-  .cx-ai__t{max-width:24ch}
-  .cx-ai__caps ul{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 20px}
+  .cx-ai{grid-template-columns:minmax(0,1fr) minmax(240px,300px);gap:18px}
+}
+@media (max-width:1100px){
+  .cx-ai{grid-template-columns:minmax(0,1fr);gap:22px}
+  .cx-ai__t{max-width:28ch}
+  .cx-ai__caps ul{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px}
 }
 @media (max-width:1024px){
   .cx-areas__grid{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -264,7 +267,6 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
   .cx-ai{padding:22px 20px 20px}
   .cx-ai__f{flex-direction:column}
   .cx-ai__go{height:50px;justify-content:center}
-  .cx-ai__caps ul{grid-template-columns:minmax(0,1fr)}
   .cx-svcs__grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .cx-head{flex-direction:column;align-items:stretch}
   .cx-head__btn{align-self:flex-start}
@@ -272,11 +274,19 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
 @media (max-width:560px){
   .cx{gap:16px}
   .cx-areas,.cx-works,.cx-experts{padding:18px!important}
-  .cx-ai{padding:18px 16px;border-radius:18px;gap:18px}
+  .cx-ai{padding:18px 16px;border-radius:18px;gap:16px}
   .cx-ai__t{font-size:1.22rem;max-width:none}
   .cx-ai__lead{font-size:.86rem}
   .cx-ai__q{height:50px;padding:0 14px}
   .cx-ai__foot{gap:13px;padding-top:16px}
+  .cx-ai__chipsL{display:none}
+  .cx-ai__caps{padding:14px 13px}
+  .cx-ai__caps ul{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+  .cx-ai__caps li{gap:8px}
+  .cx-ai__capTxt small{display:none}
+  .cx-ai__capTxt b{font-size:.82rem}
+  .cx-ai__capIc{width:26px;height:26px;border-radius:8px}
+  .cx-ai__capIc svg{width:14px;height:14px}
   .cx-areas__grid{gap:10px}
   .cx-area__body{padding:10px 12px 12px}
   .cx-area__txt b{font-size:.9rem}
