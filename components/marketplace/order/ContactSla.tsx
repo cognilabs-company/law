@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { IconChat, IconCheck, IconClock, IconHourglass, IconInfo, IconPaperclip, IconPhone, IconVideo } from "@/components/icons";
 import { useCountdown } from "@/lib/useCountdown";
 import type { MarketOrder } from "@/lib/services/marketplace";
-import { contactChannelOf, contactLeftParts, contactSlaState, tashkentDateTime, type ContactChannel } from "./contactSla";
+import { contactChannelOf, contactLeftParts, contactSlaState, tashkentDateTime, type ContactChannel } from "./contactSlaTime";
 import { useContactSpeedText } from "./contactSpeed";
 
 // The contact SLA of an order (backend answers 2026-10-31 §1.3), the same on

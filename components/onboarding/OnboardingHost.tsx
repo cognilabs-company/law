@@ -6,8 +6,8 @@ import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import Typewriter from "@/components/guide/Typewriter";
-import { getIdleOnboarding, getOnboarding, goToStep, startOnboarding, stopOnboarding, subscribeOnboarding } from "@/lib/onboarding/store";
-import { markTourSeen, tourFor, tourSeen, type TourStep } from "@/lib/onboarding/tour";
+import { getIdleOnboarding, getOnboarding, goToStep, onboardingRunning, startOnboarding, stopOnboarding, subscribeOnboarding } from "@/lib/onboarding/store";
+import { tourFor, type TourStep } from "@/lib/onboarding/tour";
 
 // The first-run walkthrough: the page behind is blurred and dimmed, the step's
 // real element stays sharp through a hole cut in that layer, and the caption
@@ -122,17 +122,18 @@ export default function OnboardingHost() {
   const [visible, setVisible] = useState(false);
   const scrim = useRef<HTMLDivElement>(null);
   const cap = useRef<HTMLDivElement>(null);
-  const booted = useRef(false);
+  // The last route this effect handled, so one arrival starts the tour once.
+  const lastPath = useRef<string | null>(null);
 
-  const userId = session?.id ?? "";
   const steps = session ? tourFor(session.role) : [];
   const step: TourStep | undefined = steps[state.index];
   const running = state.running && !!step;
+  // The dashboard is the tour's home; arriving there plays it again.
+  const home = session ? `/portal/${session.role}` : "";
 
   const finish = useCallback(() => {
-    if (userId) markTourSeen(userId);
     stopOnboarding();
-  }, [userId]);
+  }, []);
 
   const advance = useCallback(() => {
     const s = getOnboarding();
@@ -141,22 +142,25 @@ export default function OnboardingHost() {
     else goToStep(s.index + 1);
   }, [steps.length, finish]);
 
-  // Auto-start once per user, after the session is known. The read happens in
-  // an effect so the server and the first client render agree. The guard is
-  // set when the timer fires, not before it: Strict Mode runs the effect
-  // twice, and a flag set up front would let the cleanup cancel the only
-  // start that was ever scheduled.
+  // Play on every arrival at the dashboard. `lastPath` is written when the
+  // timer fires rather than in the effect body: Strict Mode runs the effect
+  // twice, and a flag set up front would let the first cleanup cancel the only
+  // start that was ever scheduled. It also keeps one arrival to one start, so
+  // a re-render on the same route does not replay the tour.
   useEffect(() => {
-    if (booted.current || !ready || !session) return;
+    if (!ready || !session) return;
+    if (pathname !== home) {
+      lastPath.current = pathname;
+      return;
+    }
+    if (lastPath.current === pathname) return;
     if (!tourFor(session.role).length) return;
-    if (tourSeen(session.id)) return;
-    if (!pathname.startsWith("/portal/")) return;
     const id = window.setTimeout(() => {
-      booted.current = true;
-      startOnboarding();
+      lastPath.current = pathname;
+      if (!onboardingRunning()) startOnboarding();
     }, 900);
     return () => window.clearTimeout(id);
-  }, [ready, session, pathname]);
+  }, [ready, session, pathname, home]);
 
   // A signed-out user can never be mid-tour.
   useEffect(() => {
@@ -276,15 +280,6 @@ export default function OnboardingHost() {
     };
   }, [running, el, step?.selector, advance]);
 
-  // Clicking the real element advances a "target" step. The click still does
-  // its own job — this only listens.
-  useEffect(() => {
-    if (!running || !el || step?.advance !== "target") return;
-    const onClick = () => window.setTimeout(advance, 0);
-    el.addEventListener("click", onClick);
-    return () => el.removeEventListener("click", onClick);
-  }, [running, el, step?.advance, advance]);
-
   // Esc leaves; arrows and Enter/Space move on. Everything else is swallowed so
   // the blurred page cannot be tabbed into mid-step.
   useEffect(() => {
@@ -297,7 +292,6 @@ export default function OnboardingHost() {
         return;
       }
       if (e.key === "ArrowRight" || e.key === "Enter" || e.key === " ") {
-        if (step?.advance === "target") return; // the real element handles it
         e.preventDefault();
         advance();
       } else if (e.key === "ArrowLeft") {
@@ -307,7 +301,7 @@ export default function OnboardingHost() {
     };
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [running, step?.advance, advance, finish]);
+  }, [running, advance, finish]);
 
   useEffect(() => {
     if (!running) return;
@@ -319,25 +313,18 @@ export default function OnboardingHost() {
 
   if (!running || typeof document === "undefined") return null;
   const text = t(`steps.${step.key}`);
-  const hint = step.advance === "target" ? t("hintClick") : t("hintAny");
 
   return createPortal(
     <div className={`obd${visible ? " is-in" : ""}`} data-layer-ignore="">
       {/* the blur + dim, with the target punched out of it */}
-      <div
-        className="obd__scrim"
-        ref={scrim}
-        onClick={() => {
-          if (step.advance !== "target") advance();
-        }}
-      />
+      <div className="obd__scrim" ref={scrim} onClick={advance} />
       {/* plain text under the target: no container, no background, no shadow */}
       <div className="obd__cap" ref={cap} role="status" aria-live="polite">
         <p className="obd__text">
           <Typewriter key={`${step.id}:${locale}`} text={text} locale={locale} />
         </p>
         <span className="obd__meta">
-          <span className="obd__hint">{hint}</span>
+          <span className="obd__hint">{t("hintAny")}</span>
           <button type="button" className="obd__skip" onClick={finish}>
             {t("skip")}
           </button>

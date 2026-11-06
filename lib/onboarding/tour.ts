@@ -9,11 +9,10 @@ import type { Role } from "@/lib/auth";
 // must exist in the real markup:
 //   [data-ai-target="nav:<key>"]  sidebar rows, from components/portal/portalNav.ts
 //   [data-tour="<id>"]            the few dashboard anchors added for this tour
-export type TourAdvance =
-  // the step explains something; a click anywhere moves on
-  | "any"
-  // the user has to click the real element, which also navigates
-  | "target";
+// Every step explains something and a click anywhere moves on. The real
+// element stays clickable through the hole, so a user who would rather open it
+// can — the tour simply carries on from the next page.
+export type TourAdvance = "any";
 
 export type TourStep = {
   id: string;
@@ -26,13 +25,11 @@ export type TourStep = {
   route?: string;
 };
 
-export const TOUR_VERSION = 1;
-
 const CLIENT_STEPS: TourStep[] = [
   { id: "ai", selector: '[data-tour="ai-ask"]', key: "ai", advance: "any", route: "/portal/client" },
   { id: "areas", selector: '[data-tour="areas"]', key: "areas", advance: "any", route: "/portal/client" },
   { id: "services", selector: '[data-tour="services"]', key: "services", advance: "any", route: "/portal/client" },
-  { id: "lawyers", selector: '[data-ai-target="nav:lawyers"]', key: "lawyers", advance: "target" },
+  { id: "lawyers", selector: '[data-ai-target="nav:lawyers"]', key: "lawyers", advance: "any" },
   { id: "works", selector: '[data-ai-target="nav:works"]', key: "works", advance: "any" },
   { id: "sos", selector: '[data-ai-target="nav:sos"]', key: "sos", advance: "any" },
 ];
@@ -47,36 +44,4 @@ const SELLER_STEPS: TourStep[] = [
 
 export function tourFor(role: Role): TourStep[] {
   return role === "client" ? CLIENT_STEPS : role === "advocate" || role === "lawyer" ? SELLER_STEPS : [];
-}
-
-const KEY = "lexgo_onboarding_v" + TOUR_VERSION;
-
-/** Scoped to the signed-in user so a shared device does not swallow the tour. */
-function storeKey(userId: string): string {
-  return userId ? `${KEY}:${userId}` : KEY;
-}
-
-export function tourSeen(userId: string): boolean {
-  try {
-    return window.localStorage.getItem(storeKey(userId)) === "1";
-  } catch {
-    // Private mode or blocked storage: treat as seen so the tour cannot loop.
-    return true;
-  }
-}
-
-export function markTourSeen(userId: string): void {
-  try {
-    window.localStorage.setItem(storeKey(userId), "1");
-  } catch {
-    return;
-  }
-}
-
-export function clearTourSeen(userId: string): void {
-  try {
-    window.localStorage.removeItem(storeKey(userId));
-  } catch {
-    return;
-  }
 }

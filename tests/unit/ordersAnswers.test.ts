@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { complaintOf, marketSignalOf, normMarketOrder, warrantyOf, warrantyResolutionsOf } from "@/lib/services/marketplace";
 import { warrantyClaimOf } from "@/lib/services/mpComplaints";
 import { escalationOf } from "@/lib/services/resolution";
-import { contactChannelOf, contactLeftParts, contactSlaState, tashkentDateTime } from "@/components/marketplace/order/contactSla";
+import { contactChannelOf, contactLeftParts, contactSlaState, tashkentDateTime } from "@/components/marketplace/order/contactSlaTime";
 import { PAYOUT_LIVE } from "@/components/marketplace/order/useOrderPayouts";
 
 // The marketplace order contract as the backend answered it on 2026-10-31

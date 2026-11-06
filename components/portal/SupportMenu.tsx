@@ -10,13 +10,11 @@ import { SUPPORT_PHONE, SUPPORT_TEL } from "@/components/support/contact";
 import { IconAlert, IconArrowRight, IconHeadset, IconHelpCircle, IconPhone } from "@/components/icons";
 import { Compass } from "lucide-react";
 import { startOnboarding } from "@/lib/onboarding/store";
-import { clearTourSeen, tourFor } from "@/lib/onboarding/tour";
-import { useAuth } from "@/lib/auth";
+import { tourFor } from "@/lib/onboarding/tour";
 
 export default function SupportMenu({ role, text }: { role: Role; text?: string }) {
   const t = useTranslations("portal.support");
   const tour = useTranslations("onboarding");
-  const { session } = useAuth();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const btn = useRef<HTMLButtonElement>(null);
@@ -44,12 +42,11 @@ export default function SupportMenu({ role, text }: { role: Role; text?: string 
   const client = role === "client";
   const hub = `/portal/${role}/support`;
   const done = () => setOpen(false);
-  // Replaying the walkthrough also clears the "seen" flag, so the entry is a
-  // real reset rather than a one-off run.
+  // The walkthrough plays itself on every dashboard visit; this is the way to
+  // call it up from anywhere else.
   const hasTour = tourFor(role).length > 0;
   const replay = () => {
     setOpen(false);
-    if (session?.id) clearTourSeen(session.id);
     startOnboarding();
   };
 
