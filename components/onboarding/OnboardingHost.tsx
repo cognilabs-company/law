@@ -218,8 +218,20 @@ export default function OnboardingHost() {
     window.addEventListener("scroll", onScroll, { capture: true, passive: true });
     const loop = () => {
       if (!el.isConnected) {
-        // the page replaced the element (route change, re-render): re-resolve
-        setEl(document.querySelector<HTMLElement>(step?.selector ?? "") ?? null);
+        // React replaced the node — a real dashboard re-renders as its data
+        // arrives. Re-resolve and let the effect restart on the new node.
+        // Never store null here: that would leave the step with no element and
+        // nothing to bring it back, which froze the tour on the first step.
+        const again = document.querySelector<HTMLElement>(step?.selector ?? "");
+        if (again) {
+          setEl(again);
+          return;
+        }
+        if (!goneSince) goneSince = performance.now();
+        else if (performance.now() - goneSince > GONE_MS) {
+          advance();
+          return;
+        }
         raf = window.requestAnimationFrame(loop);
         return;
       }
@@ -279,6 +291,16 @@ export default function OnboardingHost() {
       delete s.dataset.scrolling;
     };
   }, [running, el, step?.selector, advance]);
+
+  // The highlighted element is the obvious thing to click, so clicking it has
+  // to move the tour on as well — otherwise the step looks stuck. The click
+  // still reaches the element and does its own job; this only listens.
+  useEffect(() => {
+    if (!running || !el) return;
+    const onClick = () => window.setTimeout(advance, 0);
+    el.addEventListener("click", onClick);
+    return () => el.removeEventListener("click", onClick);
+  }, [running, el, advance]);
 
   // Esc leaves; arrows and Enter/Space move on. Everything else is swallowed so
   // the blurred page cannot be tabbed into mid-step.
