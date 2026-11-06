@@ -130,6 +130,10 @@ const DIRECTIONS: { slug: string; area: string }[] = [
 ];
 
 const GROUP = "second_opinion_group";
+// The road-accident consultation is one situation, not a choice of practice
+// area, so its form does not ask for a direction — the other urgent services
+// still do.
+const TRAFFIC = "traffic_accident_consultation";
 // The two video consultations are one decision with two answers — ordinary,
 // which queues in the call-center pool, and express, which rings whoever is
 // on duty right now. The catalog marks them (variant: ordinary | express)
@@ -369,6 +373,7 @@ export default function UrgentAdvocatePanel() {
   const about = (k: string) => (t.has(`about.${k}`) ? t(`about.${k}`) : "");
 
   const isGroup = sel?.key === GROUP;
+  const asksDirections = sel?.key !== TRAFFIC;
   const price = urgentPrice(sel, channel, isGroup ? lawyers : 1);
   const minutes = urgentMinutes(sel, channel);
 
@@ -410,7 +415,7 @@ export default function UrgentAdvocatePanel() {
     // nothing at all. One field at a time, in the order the form asks for
     // them, marked on the control itself and given focus — which inside a
     // scrolling dialog also brings it back into view.
-    if (!dirs.length) {
+    if (asksDirections && !dirs.length) {
       setMiss("dirs");
       document.getElementById("ua-dirs")?.focus();
       return;
@@ -428,7 +433,9 @@ export default function UrgentAdvocatePanel() {
         serviceKind: sel.key,
         channel,
         need: need.trim(),
-        directions: dirs,
+        // Never carry a direction the form did not ask for: switching to the
+        // road-accident service would otherwise inherit the last pick.
+        directions: asksDirections ? dirs : [],
         lawyerCount: isGroup ? lawyers : undefined,
       });
       // The whole form resets, not just the text: leaving the practice areas
@@ -1051,40 +1058,42 @@ export default function UrgentAdvocatePanel() {
                 <p className="ua__pre"><IconLock />{t("priorPurchaseNote")}</p>
               ) : null}
 
-              <div>
-                <label id="ua-dirs-l">{t("directions")}</label>
-                {/* A multi-select of buttons is neither an input nor a
-                    checkbox, so the house pattern's aria-invalid goes on the
-                    GROUP and the whole group is what turns red — marking one
-                    arbitrary chip would read as "this chip is wrong". It is
-                    focusable at tabIndex -1 only so a failed press can bring
-                    it back into view inside the scrolling body; it stays out
-                    of the tab order, where the seven chips already are. */}
-                <div
-                  id="ua-dirs"
-                  role="group"
-                  data-ai-target="urgent:form-directions"
-                  data-ai-id="urgent_advokat.request.direction"
-                  data-ai-type="select"
-                  data-ai-label={t("directions")}
-                  tabIndex={-1}
-                  aria-labelledby="ua-dirs-l"
-                  aria-invalid={miss === "dirs" || undefined}
-                  aria-describedby={miss === "dirs" ? "ua-dirs-bad" : undefined}
-                  className={`chiprow uaform__chips${miss === "dirs" ? " is-bad" : ""}`}
-                >
-                  {DIRECTIONS.map((d) => (
-                    <button key={d.slug} type="button" className="fchip" aria-pressed={dirs.includes(d.slug)} onClick={() => toggleDir(d.slug)} data-ai-id={aiId("urgent_advokat.request.direction", d.slug)}>
-                      {te.has(`areas.${d.area}`) ? te(`areas.${d.area}`) : d.slug}
-                    </button>
-                  ))}
+              {asksDirections ? (
+                <div>
+                  <label id="ua-dirs-l">{t("directions")}</label>
+                  {/* A multi-select of buttons is neither an input nor a
+                      checkbox, so the house pattern's aria-invalid goes on the
+                      GROUP and the whole group is what turns red — marking one
+                      arbitrary chip would read as "this chip is wrong". It is
+                      focusable at tabIndex -1 only so a failed press can bring
+                      it back into view inside the scrolling body; it stays out
+                      of the tab order, where the seven chips already are. */}
+                  <div
+                    id="ua-dirs"
+                    role="group"
+                    data-ai-target="urgent:form-directions"
+                    data-ai-id="urgent_advokat.request.direction"
+                    data-ai-type="select"
+                    data-ai-label={t("directions")}
+                    tabIndex={-1}
+                    aria-labelledby="ua-dirs-l"
+                    aria-invalid={miss === "dirs" || undefined}
+                    aria-describedby={miss === "dirs" ? "ua-dirs-bad" : undefined}
+                    className={`chiprow uaform__chips${miss === "dirs" ? " is-bad" : ""}`}
+                  >
+                    {DIRECTIONS.map((d) => (
+                      <button key={d.slug} type="button" className="fchip" aria-pressed={dirs.includes(d.slug)} onClick={() => toggleDir(d.slug)} data-ai-id={aiId("urgent_advokat.request.direction", d.slug)}>
+                        {te.has(`areas.${d.area}`) ? te(`areas.${d.area}`) : d.slug}
+                      </button>
+                    ))}
+                  </div>
+                  {miss === "dirs" ? (
+                    <p className="cform__bad" id="ua-dirs-bad" role="alert"><IconAlert />{t("missDirection")}</p>
+                  ) : (
+                    <span className="rf__hint">{t("directionsHint")}</span>
+                  )}
                 </div>
-                {miss === "dirs" ? (
-                  <p className="cform__bad" id="ua-dirs-bad" role="alert"><IconAlert />{t("missDirection")}</p>
-                ) : (
-                  <span className="rf__hint">{t("directionsHint")}</span>
-                )}
-              </div>
+              ) : null}
 
               <div data-ai-target="urgent:form-need" data-ai-private>
                 <label htmlFor="ua-need">{t("need")}</label>
