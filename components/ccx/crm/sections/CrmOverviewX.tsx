@@ -146,6 +146,7 @@ export default function CrmOverviewX({ meta }: CrmSectionProps) {
   const overdue = metrics?.overdue ?? agenda.filter((l) => !!now && Date.parse(l.nextActionAt) < now).length;
   const total = meta.statuses.reduce((n, s) => n + (counts[s] ?? 0), 0);
   const peak = metrics ? Math.max(0, ...meta.statuses.map((s) => metrics.statusCounts[s] ?? 0)) : 0;
+  const canTake = !!top && leadCan(top, "claim");
   const toStatus = (s: string) => router.push(crmHref("leads", { scope: "all", status: s, layout: "list" }));
 
   return (
@@ -155,8 +156,8 @@ export default function CrmOverviewX({ meta }: CrmSectionProps) {
           <i aria-hidden="true" />
           {tlive(live)}
         </span>
-        <p>{t("heroLead")}</p>
-        <NewLeadButton meta={meta} />
+        <span className="opx-ov-top__gap" />
+        <NewLeadButton meta={meta} quiet={canTake || (canLeads && queue === null && !err)} />
       </div>
 
       {err ? (
@@ -179,11 +180,10 @@ export default function CrmOverviewX({ meta }: CrmSectionProps) {
               <span className="opx-ov-kpi__txt">
                 <small>{t("queue")}</small>
                 <b className="opx-num">{queue === null ? "—" : fmtNum(queue, locale)}</b>
-                <span>{t("queueSub")}</span>
               </span>
             </Link>
-            {top && leadCan(top, "claim") ? (
-              <button type="button" className="opx-ov-take" onClick={() => void take()} disabled={taking} aria-busy={taking || undefined}>
+            {canTake ? (
+              <button type="button" className="opx-ov-take opx-pbtn--main" onClick={() => void take()} disabled={taking} aria-busy={taking || undefined}>
                 <IcLayers size={16} />
                 {tx("take")}
                 <IcArrowRight size={15} />
@@ -198,7 +198,6 @@ export default function CrmOverviewX({ meta }: CrmSectionProps) {
               <span className="opx-ov-kpi__txt">
                 <small>{t("mine")}</small>
                 <b className="opx-num">{mineTotal === null ? "—" : fmtNum(metrics?.active ?? mineTotal, locale)}</b>
-                <span>{t("mineSub")}</span>
               </span>
             </Link>
           </section>
@@ -210,7 +209,6 @@ export default function CrmOverviewX({ meta }: CrmSectionProps) {
               <span className="opx-ov-kpi__txt">
                 <small>{t("overdue")}</small>
                 <b className="opx-num">{mine === null && !metrics ? "—" : fmtNum(overdue, locale)}</b>
-                <span>{t("overdueSub")}</span>
               </span>
             </Link>
           </section>
@@ -222,7 +220,6 @@ export default function CrmOverviewX({ meta }: CrmSectionProps) {
           <header className="opx-ov-h">
             <IcBars size={19} />
             <h3 id="opx-ov-rib">{t("ribbon")}</h3>
-            {total ? <small>{t("donut.hint")}</small> : null}
           </header>
           {total ? (
             <>
@@ -318,7 +315,6 @@ export default function CrmOverviewX({ meta }: CrmSectionProps) {
                   <IcCalendar size={24} />
                 </span>
                 <b>{t("todayEmpty")}</b>
-                <p>{t("todayEmptyText")}</p>
               </div>
             )}
           </section>
@@ -399,7 +395,6 @@ export default function CrmOverviewX({ meta }: CrmSectionProps) {
                   <i className="opx-shim" />
                 </div>
               )}
-              <p className="opx-ov-note">{t("noRevenue")}</p>
             </section>
           ) : null}
           <div className="opx-ov-tel" data-off={!tel.enabled || undefined} role="status">
@@ -408,7 +403,7 @@ export default function CrmOverviewX({ meta }: CrmSectionProps) {
             </span>
             <span>
               <b>{tel.enabled ? ttel("on", { provider: tel.provider }) : ttel("off")}</b>
-              <small>{tel.enabled ? (tel.recordingConsentRequired ? ttel("consent") : ttel("onText")) : ttel("offText")}</small>
+              {tel.enabled && tel.recordingConsentRequired ? <small>{ttel("consent")}</small> : null}
             </span>
           </div>
         </div>

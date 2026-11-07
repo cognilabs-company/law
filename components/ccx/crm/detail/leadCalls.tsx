@@ -34,8 +34,9 @@ import { IcMic, IcPlay, IcSend, IcSpark } from "./glyphs";
 import { Check, Empty, Failed, Pill, Seg, SelectInput, Shim, TextArea, TextInput } from "./kit";
 import { useCrmErr } from "../leads/util";
 
-export function CallsPane({ meta, lead, phones }: { meta: CrmMeta; lead: CrmLead; phones: CrmContact[] | null }) {
+export function CallsPane({ meta, lead, phones, onDrafting }: { meta: CrmMeta; lead: CrmLead; phones: CrmContact[] | null; onDrafting: (on: boolean) => void }) {
   const t = useTranslations("crm.calls");
+  const ttel = useTranslations("crm.tel");
   const locale = useLocale();
   const crmErr = useCrmErr();
   const tel = meta.telephony;
@@ -92,12 +93,17 @@ export function CallsPane({ meta, lead, phones }: { meta: CrmMeta; lead: CrmLead
   const replace = (c: CrmCall) => setCalls((cur) => (cur ?? []).map((x) => (x.id === c.id ? { ...x, ...c } : x)));
   const active = (calls ?? []).find((c) => !callEnded(c));
   const past = (calls ?? []).filter((c) => callEnded(c));
+  const inCall = !!active;
+  useEffect(() => {
+    onDrafting(inCall);
+    return () => onDrafting(false);
+  }, [inCall, onDrafting]);
 
   return (
     <div className="opx-cd-pane">
       <p className="opx-cd-telline" data-on={tel.enabled || undefined}>
         <IcPhone size={15} />
-        <span>{tel.enabled ? t("telOn") : t("telOff")}</span>
+        <span>{tel.enabled ? ttel("on", { provider: tel.provider }) : ttel("off")}</span>
         {tel.liveTranscription ? <Pill tone="ok">{t("liveOn")}</Pill> : null}
       </p>
 
@@ -115,8 +121,7 @@ export function CallsPane({ meta, lead, phones }: { meta: CrmMeta; lead: CrmLead
                 <SelectInput label={t("contact")} value={contact} onChange={setPicked} options={phones.map((p) => ({ value: p.id, label: [prettyPhone(p.value), p.label].filter(Boolean).join(" · ") }))} invalid={bad === "contact_id"} />
                 <TextInput label={t("purpose")} value={purpose} onChange={setPurpose} max={500} placeholder={t("purposePh")} />
               </div>
-              {tel.recordingConsentRequired ? <p className="opx-cd-sub">{t("consentFirst")}</p> : null}
-              <button type="button" className="opx-pbtn opx-pbtn--main opx-cd-self-start" onClick={() => void start()} disabled={starting || !contact} aria-busy={starting || undefined}>
+              <button type="button" className="opx-pbtn opx-cd-self-start" onClick={() => void start()} disabled={starting || !contact} aria-busy={starting || undefined}>
                 <IcPhone size={16} />
                 {t("start")}
               </button>
@@ -134,7 +139,7 @@ export function CallsPane({ meta, lead, phones }: { meta: CrmMeta; lead: CrmLead
       ) : calls === null ? (
         <Shim h={90} />
       ) : !past.length && !active ? (
-        <Empty icon={<IcPhone size={22} />} title={t("none")} text={canStart ? t("noneText") : undefined} />
+        <Empty icon={<IcPhone size={22} />} title={t("none")} />
       ) : past.length ? (
         <ol className="opx-cd-calllog">
           {past.map((c) => (
@@ -297,7 +302,7 @@ function ActiveCall({ meta, call, onChange }: { meta: CrmMeta; call: CrmCall; on
               aria-label={t("line")}
               maxLength={4000}
             />
-            <button type="button" className="opx-pbtn opx-pbtn--main" onClick={() => void send()} disabled={sending || !text.trim()} aria-busy={sending || undefined} aria-label={t("add")} title={t("add")}>
+            <button type="button" className="opx-pbtn" onClick={() => void send()} disabled={sending || !text.trim()} aria-busy={sending || undefined} aria-label={t("add")} title={t("add")}>
               <IcSend size={16} />
             </button>
           </div>

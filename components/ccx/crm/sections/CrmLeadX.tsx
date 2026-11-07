@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { useAuth } from "@/lib/auth";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { statusColorVars } from "@/components/crm/bits";
@@ -15,10 +16,11 @@ import { ConvertCard } from "../detail/convert";
 import { IcAlert } from "../detail/glyphs";
 import { AiSheet } from "../detail/leadAi";
 import { CustomerCard, DupCard, ExtraCard, NeedCard, NextCard, StatusHistoryCard, useLeadHistory } from "../detail/leadCards";
-import { FeedCard, PANES, type Pane } from "../detail/leadFeed";
+import { FeedCard, PANES, useLeadTimeline, type Pane } from "../detail/leadFeed";
 import { LeadHead } from "../detail/leadHead";
 import { AssignSheet, ConflictSheet, DuplicateSheet, EditSheet, NextSheet, ReopenSheet, StatusSheet, WatcherSheet } from "../detail/leadSheets";
-import { Empty, Shim } from "../detail/kit";
+import { Empty, Shim, telOf } from "../detail/kit";
+import { callOnRecord, nextLeadStep } from "../detail/nextStep";
 import type { LeadSheetKind, LeadWrite } from "../detail/types";
 import { useCrmErr } from "../leads/util";
 
@@ -34,6 +36,7 @@ function Workspace({ meta, leadId, startPane }: { meta: CrmMeta; leadId: string;
   const t = useTranslations("crm.lead");
   const crmErr = useCrmErr();
   const now = useNow();
+  const me = useAuth().session?.id ?? "";
   const [lead, setLead] = useState<CrmLead | null>(null);
   const [loadErr, setLoadErr] = useState<unknown>(null);
   const [conflict, setConflict] = useState<{ mine: CrmLead; fresh: CrmLead | null } | null>(null);
@@ -42,6 +45,8 @@ function Workspace({ meta, leadId, startPane }: { meta: CrmMeta; leadId: string;
   const [timelineKey, setTimelineKey] = useState(0);
   const [aiKey, setAiKey] = useState(0);
   const [callFocus, setCallFocus] = useState(0);
+  const [dialed, setDialed] = useState(false);
+  const [drafting, setDrafting] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [sheet, setSheet] = useState<LeadSheetKind>("");
   const [to, setTo] = useState("");
@@ -143,7 +148,10 @@ function Workspace({ meta, leadId, startPane }: { meta: CrmMeta; leadId: string;
   });
 
   const history = useLeadHistory(lead ? leadId : "", lead?.lockVersion ?? 0);
+  const canViewTimeline = leadCan(lead, "view_timeline");
+  const timeline = useLeadTimeline(lead ? leadId : "", timelineKey, canViewTimeline);
   const onPresetUsed = useCallback(() => setSmsPreset(""), []);
+  const reloadTimeline = () => setTimelineKey((k) => k + 1);
 
   if (loadErr && !lead) {
     return (
@@ -182,21 +190,32 @@ function Workspace({ meta, leadId, startPane }: { meta: CrmMeta; leadId: string;
 
   const phones = !lead.customerId ? [] : cust && cust.id === lead.customerId ? cust.contacts.filter((x) => x.type === "phone") : null;
   const contacts = cust && cust.id === lead.customerId ? cust.contacts : null;
+  const step = nextLeadStep(meta, lead, {
+    me,
+    canDial: !!telOf(lead.customer?.phone ?? ""),
+    callLogged: !canViewTimeline ? true : timeline.items ? callOnRecord(timeline.items, lead.cycle?.openedAt) : null,
+    dialed,
+    drafting,
+  });
+  const openPane = (p: Pane) => {
+    setPane(p);
+    if (p === "timeline") reloadTimeline();
+  };
   const callResult = () => {
-    setPane("timeline");
+    if (pane !== "timeline") openPane("timeline");
     setCallFocus((n) => n + 1);
   };
 
   return (
     <div className="opx-cd opx-cd--lead" style={statusColorVars(meta)}>
-      <LeadHead meta={meta} lead={lead} write={write} onSheet={setSheet} onStatus={setTo} onAi={leadCan(lead, "run_ai") ? () => setAiOpen(true) : undefined} />
+      <LeadHead meta={meta} lead={lead} step={step} write={write} onSheet={setSheet} onStatus={setTo} onAi={leadCan(lead, "run_ai") ? () => setAiOpen(true) : undefined} />
       <div className="opx-cd-grid">
         <div className="opx-cd-col opx-cd-col--main">
           <div className="opx-cd-m2">
             <NeedCard lead={lead} onEdit={leadCan(lead, "edit") ? () => setSheet("edit") : undefined} />
           </div>
           <div className="opx-cd-m5">
-            <ConvertCard lead={lead} onDone={() => void write(async () => null)} />
+            <ConvertCard lead={lead} bright={step === "order"} onDone={() => void write(async () => null)} />
           </div>
           <div className="opx-cd-m6 opx-cd-anchor" ref={feedRef}>
             <FeedCard
@@ -204,9 +223,10 @@ function Workspace({ meta, leadId, startPane }: { meta: CrmMeta; leadId: string;
               lead={lead}
               write={write}
               pane={pane}
-              onPane={setPane}
-              refreshKey={timelineKey}
-              onAdded={() => setTimelineKey((k) => k + 1)}
+              onPane={openPane}
+              timeline={timeline}
+              onAdded={reloadTimeline}
+              onDrafting={setDrafting}
               callFocus={callFocus}
               history={history}
               phones={phones}
@@ -217,10 +237,10 @@ function Workspace({ meta, leadId, startPane }: { meta: CrmMeta; leadId: string;
         </div>
         <div className="opx-cd-col opx-cd-col--side">
           <div className="opx-cd-m1">
-            <CustomerCard lead={lead} contacts={contacts} onCallResult={leadCan(lead, "add_activity") ? callResult : undefined} />
+            <CustomerCard lead={lead} contacts={contacts} step={step} onDial={() => setDialed(true)} onCallResult={leadCan(lead, "add_activity") ? callResult : undefined} />
           </div>
           <div className="opx-cd-m3">
-            <NextCard lead={lead} now={now} onChange={leadCan(lead, "set_next_action") ? () => setSheet("next") : undefined} />
+            <NextCard lead={lead} now={now} step={step} onChange={leadCan(lead, "set_next_action") ? () => setSheet("next") : undefined} />
           </div>
           {lead.duplicateStatus === "needs_review" ? (
             <div className="opx-cd-m4">

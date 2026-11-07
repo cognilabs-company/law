@@ -18,13 +18,13 @@ import { localInputOf, useCrmErr, useRegionName } from "./util";
 
 const URGENCIES = ["low", "normal", "high", "urgent"];
 
-export function NewLeadButton({ meta }: { meta: CrmMeta }) {
+export function NewLeadButton({ meta, quiet = false }: { meta: CrmMeta; quiet?: boolean }) {
   const t = useTranslations("crm.newLead");
   const [open, setOpen] = useState(false);
   if (!crmCan(meta, "crm.leads.manage")) return null;
   return (
     <>
-      <button type="button" className="opx-pbtn opx-pbtn--main opx-ld-newbtn" onClick={() => setOpen(true)}>
+      <button type="button" className={`opx-pbtn${quiet ? "" : " opx-pbtn--main"} opx-ld-newbtn`} onClick={() => setOpen(true)}>
         <IcPlus size={18} />
         {t("title")}
       </button>
@@ -159,7 +159,6 @@ function NewLeadSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void })
         </span>
         <span className="opx-ld-shead__txt">
           <b>{t("title")}</b>
-          <small>{t("lead")}</small>
         </span>
       </div>
     ) : (
@@ -169,7 +168,6 @@ function NewLeadSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void })
         </button>
         <span className="opx-ld-shead__txt">
           <b>{tc("title")}</b>
-          <small>{tc("leadNested")}</small>
         </span>
       </div>
     );
@@ -205,9 +203,7 @@ function NewLeadSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void })
                 <p className="opx-ferr" role="alert">
                   {show("who")}
                 </p>
-              ) : (
-                <small className="opx-ld-f__hint">{t("customerHelp")}</small>
-              )}
+              ) : null}
             </div>
             <TextField inputRef={titleRef} label={t("titleLabel")} value={title} onChange={setTitle} required error={show("title") || undefined} />
             <Field label={t("problem")} value={problem} onChange={setProblem} multiline rows={4} />
@@ -219,7 +215,6 @@ function NewLeadSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void })
                   setRegion(v);
                   setRegionTouched(true);
                 }}
-                hint={customer && regionTouched && region.trim() && region.trim() !== customer.region && region.trim() !== regionName(customer.region) ? t("regionOverride") : t("regionFromCustomer")}
               />
               <SelectField label={t("source")} value={source} onChange={setSource} options={meta.sources.map((s) => ({ value: s, label: tsrc.has(s) ? tsrc(s) : tsrc("other") }))} />
             </div>
@@ -251,7 +246,7 @@ function NewLeadSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void })
           <div className="opx-pscroll opx-ld-form">
             <TextField label={tc("name")} value={cName} onChange={setCName} required autoFocus error={cTried && !cName.trim() ? tc("nameRequired") : undefined} />
             <div className="opx-pgrid2">
-              <TextField type="tel" inputMode="tel" label={tc("phone")} value={cPhone} onChange={setCPhone} placeholder="+998" hint={tc("phoneHelp")} />
+              <TextField type="tel" inputMode="tel" label={tc("phone")} value={cPhone} onChange={setCPhone} placeholder="+998" />
               <TextField label={tc("telegram")} value={cTelegram} onChange={setCTelegram} placeholder="@" />
             </div>
             <div className="opx-pgrid2">

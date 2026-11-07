@@ -1227,12 +1227,6 @@ a.opx-sx-file:hover {
   gap: 10px;
 }
 
-.opx-sx-keys {
-  flex: 1;
-  color: var(--opx-ink-3);
-  font-size: 12px;
-}
-
 .opx-sx-send {
   min-height: 38px;
   margin-left: auto;
@@ -1917,9 +1911,6 @@ a.opx-sx-file:hover {
     padding: 8px 10px 10px;
   }
 
-  .opx-sx-keys {
-    display: none;
-  }
 }
 
 @media (max-width: 520px) {

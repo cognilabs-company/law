@@ -99,14 +99,41 @@ export function ActivityList({ items, empty }: { items: CrmActivity[]; empty?: s
   );
 }
 
+export type LeadTimelineState = { items: CrmActivity[] | null; err: string };
+
+export function useLeadTimeline(leadId: string, refreshKey: number, canView: boolean): LeadTimelineState {
+  const crmErr = useCrmErr();
+  const [items, setItems] = useState<CrmActivity[] | null>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    if (!leadId || !canView) return;
+    const ctl = new AbortController();
+    getLeadTimeline(leadId, ctl.signal).then(
+      (x) => {
+        setItems(x);
+        setErr("");
+      },
+      (e) => {
+        if (isAborted(e)) return;
+        logApiError("crm.timeline", e);
+        setErr(crmErr(e));
+        setItems((cur) => cur ?? []);
+      },
+    );
+    return () => ctl.abort();
+  }, [leadId, refreshKey, canView, crmErr]);
+  return { items, err };
+}
+
 export function FeedCard({
   meta,
   lead,
   write,
   pane,
   onPane,
-  refreshKey,
+  timeline,
   onAdded,
+  onDrafting,
   callFocus,
   history,
   phones,
@@ -118,8 +145,9 @@ export function FeedCard({
   write: LeadWrite;
   pane: Pane;
   onPane: (p: Pane) => void;
-  refreshKey: number;
+  timeline: LeadTimelineState;
   onAdded: () => void;
+  onDrafting: (on: boolean) => void;
   callFocus: number;
   history: LeadHistoryState;
   phones: CrmContact[] | null;
@@ -140,45 +168,26 @@ export function FeedCard({
       </div>
       <div className="opx-cd-feed__body" role="tabpanel">
         {pane === "timeline" ? (
-          <TimelinePane lead={lead} write={write} refreshKey={refreshKey} onAdded={onAdded} callFocus={callFocus} />
+          <TimelinePane lead={lead} write={write} timeline={timeline} onAdded={onAdded} onDrafting={onDrafting} callFocus={callFocus} />
         ) : pane === "history" ? (
           <CyclesPane meta={meta} history={history} />
         ) : pane === "calls" ? (
-          <CallsPane meta={meta} lead={lead} phones={phones} />
+          <CallsPane meta={meta} lead={lead} phones={phones} onDrafting={onDrafting} />
         ) : (
-          <SmsPane meta={meta} lead={lead} phones={phones} preset={smsPreset} onPresetUsed={onPresetUsed} />
+          <SmsPane meta={meta} lead={lead} phones={phones} preset={smsPreset} onPresetUsed={onPresetUsed} onDrafting={onDrafting} />
         )}
       </div>
     </Card>
   );
 }
 
-function TimelinePane({ lead, write, refreshKey, onAdded, callFocus }: { lead: CrmLead; write: LeadWrite; refreshKey: number; onAdded: () => void; callFocus: number }) {
+function TimelinePane({ lead, write, timeline, onAdded, onDrafting, callFocus }: { lead: CrmLead; write: LeadWrite; timeline: LeadTimelineState; onAdded: () => void; onDrafting: (on: boolean) => void; callFocus: number }) {
   const t = useTranslations("crm.tl");
-  const crmErr = useCrmErr();
-  const [items, setItems] = useState<CrmActivity[] | null>(null);
-  const [err, setErr] = useState("");
+  const { items, err } = timeline;
   const canView = leadCan(lead, "view_timeline");
-  useEffect(() => {
-    if (!canView) return;
-    const ctl = new AbortController();
-    getLeadTimeline(lead.id, ctl.signal).then(
-      (x) => {
-        setItems(x);
-        setErr("");
-      },
-      (e) => {
-        if (isAborted(e)) return;
-        logApiError("crm.timeline", e);
-        setErr(crmErr(e));
-        setItems((cur) => cur ?? []);
-      },
-    );
-    return () => ctl.abort();
-  }, [lead.id, refreshKey, canView, crmErr]);
   return (
     <>
-      {leadCan(lead, "add_activity") ? <Composer lead={lead} write={write} onAdded={onAdded} callFocus={callFocus} /> : null}
+      {leadCan(lead, "add_activity") ? <Composer lead={lead} write={write} onAdded={onAdded} onDrafting={onDrafting} callFocus={callFocus} /> : null}
       {!canView ? (
         <p className="opx-cd-sub">{t("noAccess")}</p>
       ) : items === null ? (
@@ -196,7 +205,7 @@ function TimelinePane({ lead, write, refreshKey, onAdded, callFocus }: { lead: C
   );
 }
 
-function Composer({ lead, write, onAdded, callFocus }: { lead: CrmLead; write: LeadWrite; onAdded: () => void; callFocus: number }) {
+function Composer({ lead, write, onAdded, onDrafting, callFocus }: { lead: CrmLead; write: LeadWrite; onAdded: () => void; onDrafting: (on: boolean) => void; callFocus: number }) {
   const t = useTranslations("crm.tl");
   const crmErr = useCrmErr();
   const [type, setType] = useState<Writable>("call_note");
@@ -213,6 +222,11 @@ function Composer({ lead, write, onAdded, callFocus }: { lead: CrmLead; write: L
   const ref = useRef<HTMLTextAreaElement | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
   const slashOpen = slash !== null;
+  const typed = !!body.trim();
+  useEffect(() => {
+    onDrafting(typed);
+    return () => onDrafting(false);
+  }, [typed, onDrafting]);
   useEffect(() => {
     if (!callFocus) return;
     const id = window.setTimeout(() => {
@@ -294,8 +308,8 @@ function Composer({ lead, write, onAdded, callFocus }: { lead: CrmLead; write: L
               value={body}
               rows={3}
               onChange={(e) => onChange(e.target.value)}
-              placeholder={t("bodyPh")}
-              aria-label={t("bodyPh")}
+              placeholder={t("bodyShort")}
+              aria-label={t("bodyShort")}
               onKeyDown={(e) => {
                 if (slash !== null && matches.length) {
                   if (e.key === "ArrowDown") {
@@ -368,15 +382,13 @@ function Composer({ lead, write, onAdded, callFocus }: { lead: CrmLead; write: L
                   setRemindAt(v);
                   setChip(null);
                 }}
-                hint={t("remindHint")}
               />
             </div>
           ) : null}
-          <button type="button" className="opx-pbtn opx-pbtn--main" onClick={() => void add()} disabled={!body.trim() || busy} aria-busy={busy || undefined}>
+          <button type="button" className={`opx-pbtn${typed ? " opx-pbtn--main" : ""}`} onClick={() => void add()} disabled={!typed || busy} aria-busy={busy || undefined}>
             <IcEdit size={16} />
             {t("add")}
           </button>
-          <span className="opx-cd-hint">{t.rich("composerHint", { k: (c) => <kbd>{c}</kbd> })}</span>
         </div>
       </div>
     </div>

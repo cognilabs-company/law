@@ -19,7 +19,6 @@ export function LookupField<T extends { id: string }>({
   sub,
   icon,
   text,
-  hint,
   clearLabel,
 }: {
   label: string;
@@ -30,7 +29,6 @@ export function LookupField<T extends { id: string }>({
   sub?: (v: T) => string;
   icon?: ReactNode;
   text: LookupText;
-  hint?: string;
   clearLabel?: string;
 }) {
   const t = useTranslations("crm.picker");
@@ -124,7 +122,6 @@ export function LookupField<T extends { id: string }>({
           </button>
         ) : null}
       </div>
-      {hint ? <small className="opx-cd-hint">{hint}</small> : null}
       {open ? (
         <div
           className="opx-cd-look__pop"

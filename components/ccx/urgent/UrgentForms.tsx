@@ -71,7 +71,6 @@ export function CompleteStep({ busy, onBack, onDirty, onSubmit }: { busy: boolea
   return (
     <>
       <div className="opx-pscroll" data-ai-private>
-        <p className="opx-ug-lead">{t("completeLead")}</p>
         <Field label={t("summary")} value={summary} onChange={setSummary} multiline rows={4} required placeholder={t("summaryPh")} hint={t("minChars", { n: MIN_SUMMARY })} />
         <Field label={t("nextAction")} value={next} onChange={setNext} placeholder={t("nextActionPh")} />
       </div>
@@ -125,7 +124,6 @@ export function CancelStep({ busy, onBack, onDirty, onSubmit }: { busy: boolean;
   return (
     <>
       <div className="opx-pscroll" data-ai-private>
-        <p className="opx-ug-lead">{t("cancelLead")}</p>
         <div className="opx-field">
           <label htmlFor={`${uid}-r`}>
             {t("reason")}
@@ -215,7 +213,6 @@ export function TransferStep({
   return (
     <>
       <div className="opx-pscroll" data-ai-private>
-        <p className="opx-ug-lead">{t("transferLead")}</p>
         <section className="opx-ug-pick" aria-labelledby={`${uid}-l`}>
           <h4 id={`${uid}-l`}>{t("transferPick")}</h4>
           {state === "loading" ? (

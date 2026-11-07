@@ -16,6 +16,7 @@ import { useCrmErr, useRegionName } from "../leads/util";
 import { DetailBlocks } from "./detailList";
 import { IcAlert, IcArchive, IcChat, IcEdit, IcExternal, IcHistory, IcLink, IcStar, IcVerified } from "./glyphs";
 import { Avatar, Card, ContactGlyph, Failed, Shim, contactHref, telOf } from "./kit";
+import type { LeadStep } from "./nextStep";
 
 export type LeadHistoryState = { h: CrmHistory | null; err: string; load: (signal?: AbortSignal) => Promise<void> };
 
@@ -164,7 +165,7 @@ export function NeedCard({ lead, onEdit }: { lead: CrmLead; onEdit?: () => void 
   );
 }
 
-export function CustomerCard({ lead, contacts, onCallResult }: { lead: CrmLead; contacts: CrmContact[] | null; onCallResult?: () => void }) {
+export function CustomerCard({ lead, contacts, step, onDial, onCallResult }: { lead: CrmLead; contacts: CrmContact[] | null; step: LeadStep; onDial: () => void; onCallResult?: () => void }) {
   const t = useTranslations("crm.side");
   const tg = useTranslations("crm.glance");
   const tl = useTranslations("admin.ccx.crm.lang");
@@ -216,13 +217,13 @@ export function CustomerCard({ lead, contacts, onCallResult }: { lead: CrmLead; 
           </div>
           <div className="opx-cd-cust__acts">
             {tel ? (
-              <a className="opx-pbtn opx-pbtn--call" href={tel} aria-label={`${tg("call")}: ${phone}`}>
+              <a className={`opx-pbtn ${step === "call" ? "opx-pbtn--call" : "opx-cd-btn-sm"}`} href={tel} aria-label={`${tg("call")}: ${phone}`} onClick={onDial}>
                 <IcPhone size={15} />
                 {tp("call")}
               </a>
             ) : null}
             {onCallResult ? (
-              <button type="button" className="opx-pbtn opx-cd-btn-sm" onClick={onCallResult}>
+              <button type="button" className={`opx-pbtn${step === "callResult" ? " opx-pbtn--main" : ""} opx-cd-btn-sm`} onClick={onCallResult}>
                 <IcEdit size={15} />
                 {tg("callResult")}
               </button>
@@ -242,7 +243,7 @@ export function CustomerCard({ lead, contacts, onCallResult }: { lead: CrmLead; 
   );
 }
 
-export function NextCard({ lead, now, onChange }: { lead: CrmLead; now: number; onChange?: () => void }) {
+export function NextCard({ lead, now, step, onChange }: { lead: CrmLead; now: number; step: LeadStep; onChange?: () => void }) {
   const t = useTranslations("crm.glance");
   const ts = useTranslations("crm.side");
   const locale = useLocale();
@@ -261,7 +262,7 @@ export function NextCard({ lead, now, onChange }: { lead: CrmLead; now: number; 
       className="opx-cd-nextcard"
       aside={
         onChange ? (
-          <button type="button" className="opx-cd-link" onClick={onChange}>
+          <button type="button" className={step === "nextAction" ? "opx-pbtn opx-pbtn--main opx-cd-btn-sm" : "opx-cd-link"} onClick={onChange}>
             {lead.nextActionAt ? t("changeNext") : t("setNext")}
             <IcExternal size={14} />
           </button>
@@ -292,7 +293,6 @@ export function DupCard({ onDecide }: { onDecide?: (d: "duplicate" | "not_duplic
   return (
     <Card icon={<IcAlert size={17} />} title={t("dup")} tone="warn" className="opx-cd-dupcard">
       <div className="opx-cd-dupcard__row">
-        <p>{t("dupText")}</p>
         {onDecide ? (
           <div className="opx-cd-dupcard__acts">
             <button type="button" className="opx-pbtn opx-cd-btn-warn" onClick={() => onDecide("duplicate")}>

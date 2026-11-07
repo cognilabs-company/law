@@ -194,7 +194,6 @@ export default function UrgentCandidates({
 
         {wide ? (
           <section className="opx-psec opx-ug-wide">
-            <p className="opx-ug-lead">{t("searchWideLead")}</p>
             <span className="opx-ug-lbl" id={`${uid}-d`}>
               {t("directions")}
             </span>

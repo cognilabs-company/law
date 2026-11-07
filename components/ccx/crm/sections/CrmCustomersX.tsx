@@ -127,7 +127,7 @@ export default function CrmCustomersX({ meta }: CrmSectionProps) {
           ))}
         </div>
       ) : !rows.length ? (
-        <Empty icon={<IcUsers size={22} />} title={q ? t("noMatch") : t("empty")} text={t("emptyText")} />
+        <Empty icon={<IcUsers size={22} />} title={q ? t("noMatch") : t("empty")} />
       ) : (
         <div className="opx-cd-clist">
           {rows.map((c) => {

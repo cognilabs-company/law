@@ -66,8 +66,7 @@ export function StatusSheet({ meta, lead, to, write, onClose }: Base & { meta: C
           <IcArrowRight size={18} />
           <StatusChip meta={meta} status={to} />
         </div>
-        <TextArea label={closing ? t("reasonClose") : t("reason")} value={reason} onChange={setReason} max={1000} rows={4} required={needReason} autoFocus error={reasonErr} hint={reasonErr ? undefined : needReason ? t("reasonRequired") : t("reasonHelp")} />
-        {to === "won" ? <Note tone="warn">{t("wonNeedsPaid")}</Note> : null}
+        <TextArea label={closing ? t("reasonClose") : t("reason")} value={reason} onChange={setReason} max={1000} rows={4} required={needReason} autoFocus error={reasonErr} />
       </div>
       <PanelFoot onCancel={onClose} cancelLabel={t("cancel")} primary={() => void ok()} primaryLabel={t("move")} busy={busy} danger={to === "rejected"} />
     </Sheet>
@@ -113,9 +112,9 @@ export function ReopenSheet({ meta, lead, write, onClose }: Base & { meta: CrmMe
   };
   const sources = meta.sources.includes(source) ? meta.sources : [source, ...meta.sources];
   return (
-    <Sheet label={t("title", { lead: lead.workId })} head={<SheetHead icon={<IcRefresh size={20} />} title={t("title", { lead: lead.workId })} sub={t("lead", { n: lead.cycleNumber + 1 })} />} onClose={onClose} dirty={!!inquiry || !!reason}>
+    <Sheet label={t("title", { lead: lead.workId })} head={<SheetHead icon={<IcRefresh size={20} />} title={t("title", { lead: lead.workId })} sub={lead.workId} />} onClose={onClose} dirty={!!inquiry || !!reason}>
       <div className="opx-pscroll">
-        <TextArea label={t("inquiry")} value={inquiry} onChange={setInquiry} max={20000} rows={4} required autoFocus error={tried && bad ? t("inquiryNeed") : undefined} hint={t("inquiryHelp")} />
+        <TextArea label={t("inquiry")} value={inquiry} onChange={setInquiry} max={20000} rows={4} required autoFocus error={tried && bad ? t("inquiryNeed") : undefined} />
         <div className="opx-pgrid2">
           <SelectInput label={t("source")} value={source} onChange={setSource} options={sources.map((s) => ({ value: s, label: tsrc.has(s) ? tsrc(s) : tsrc("other") }))} />
           {canAssign ? <SelectInput label={t("operator")} value={operator} onChange={setOperator} options={[{ value: "", label: t("keepOperator") }, ...ops.map((o) => ({ value: o.id, label: o.name }))]} /> : null}
@@ -415,7 +414,7 @@ export function DuplicateSheet({ lead, write, onClose, preset }: Base & { preset
     </div>
   );
   return (
-    <Sheet label={t("title")} head={<SheetHead icon={<IcLink size={20} />} title={t("title")} sub={t("lead")} />} onClose={onClose} dirty={!!reason} wide>
+    <Sheet label={t("title")} head={<SheetHead icon={<IcLink size={20} />} title={t("title")} sub={lead.workId} />} onClose={onClose} dirty={!!reason} wide>
       <div className="opx-pscroll">
         {shown === null ? (
           <Shim h={180} />
@@ -438,7 +437,7 @@ export function DuplicateSheet({ lead, write, onClose, preset }: Base & { preset
             { value: "duplicate", label: t("is"), disabled: !other },
           ]}
         />
-        <TextArea label={t("reason")} value={reason} onChange={setReason} rows={3} required error={tried && (errs.reason || errs.target) ? errs.reason || errs.target : undefined} hint={t("safe")} />
+        <TextArea label={t("reason")} value={reason} onChange={setReason} rows={3} required error={tried && (errs.reason || errs.target) ? errs.reason || errs.target : undefined} />
       </div>
       <PanelFoot onCancel={onClose} cancelLabel={tc("cancel")} primary={() => void ok()} primaryLabel={t("decide")} busy={busy} />
     </Sheet>

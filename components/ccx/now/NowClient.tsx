@@ -89,9 +89,7 @@ export default function NowClient({ who, client, notes = "", seller = false }: {
           <i className="opx-shim opx-shim--block" />
           <i className="opx-shim opx-shim--block" />
         </div>
-      ) : !who.userId ? (
-        <p className="opx-c360__note">{t("guest")}</p>
-      ) : client?.denied ? (
+      ) : !who.userId ? null : client?.denied ? (
         <p className="opx-c360__note">{t("denied")}</p>
       ) : client?.failed ? (
         <p className="opx-c360__note opx-c360__note--bad">{t("failed")}</p>

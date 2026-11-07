@@ -13,7 +13,7 @@ import { IcCart } from "./glyphs";
 import { Card, Pill, SheetHead, TextArea, TextInput } from "./kit";
 import { useCrmErr } from "../leads/util";
 
-export function ConvertCard({ lead, onDone }: { lead: CrmLead; onDone: () => void }) {
+export function ConvertCard({ lead, bright, onDone }: { lead: CrmLead; bright: boolean; onDone: () => void }) {
   const t = useTranslations("crm.conv");
   const ts = useTranslations("crm.side");
   const tps = useTranslations("crm.customer.payStatus");
@@ -56,7 +56,6 @@ export function ConvertCard({ lead, onDone }: { lead: CrmLead; onDone: () => voi
       ) : null}
       {can ? (
         <>
-          <p className="opx-cd-sub">{t("lead")}</p>
           <div className="opx-cd-conv__grid">
             <LookupField<ConvOption>
               label={t("service")}
@@ -90,7 +89,6 @@ export function ConvertCard({ lead, onDone }: { lead: CrmLead; onDone: () => voi
               sub={(o) => o.sub}
               icon={<IcUser size={16} />}
               text={{ placeholder: t("pickSeller"), searchPh: t("findSeller"), empty: t("noSeller") }}
-              hint={service ? t("sellerHelp") : t("sellerAny")}
               clearLabel={t("clear")}
             />
           </div>
@@ -101,7 +99,7 @@ export function ConvertCard({ lead, onDone }: { lead: CrmLead; onDone: () => voi
               <small>{tx("estimate")}</small>
               <b className="opx-num">{amount !== null ? `${fmtUzs(amount)} ${t("som")}` : t("priceLater")}</b>
             </div>
-            <button type="button" className="opx-pbtn opx-pbtn--main opx-cd-conv__go" onClick={() => setReview(true)}>
+            <button type="button" className={`opx-pbtn${bright ? " opx-pbtn--main" : ""} opx-cd-conv__go`} onClick={() => setReview(true)}>
               <IcDoc size={16} />
               {t("review")}
             </button>
@@ -165,7 +163,7 @@ function ConvertSheet({ lead, service, pkg, seller, amount, note, onDone, onClos
     [t("seller"), seller?.title || "—"],
   ];
   return (
-    <Sheet label={t("title")} head={<SheetHead icon={<IcCart size={20} />} title={t("title")} sub={t("lead")} />} onClose={close}>
+    <Sheet label={t("title")} head={<SheetHead icon={<IcCart size={20} />} title={t("title")} sub={lead.workId} />} onClose={close}>
       <div className="opx-pscroll">
         <div className="opx-cd-draft" data-done={step === "done" || undefined}>
           <span className="opx-cd-draft__mark">{t("mark")}</span>
@@ -185,7 +183,7 @@ function ConvertSheet({ lead, service, pkg, seller, amount, note, onDone, onClos
             ) : null}
           </dl>
         </div>
-        {step === "done" ? <Note tone="ok">{orderId ? t("doneText", { id: orderId }) : t("doneNoCode")}</Note> : <Note tone="info">{t("reviewText")}</Note>}
+        {step === "done" ? <Note tone="ok">{orderId ? t("doneText", { id: orderId }) : t("doneNoCode")}</Note> : null}
         {needAccount ? (
           <Note tone="warn">
             <b>{t("needAccount")}</b>

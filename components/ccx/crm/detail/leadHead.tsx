@@ -6,15 +6,17 @@ import { Link } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { claimCrmLead, crmNextStatuses, isFinalStatus, journeyOf, leadCan, removeLeadWatcher, type CrmLead, type CrmMeta } from "@/lib/services/crm";
 import { IcArrowLeft, IcArrowRight, IcCheck, IcChevron, IcClose, IcDoc, IcRefresh } from "../../icons";
+import { IcLock } from "../../support/icons";
 import { crmHref } from "../nav";
 import { useCategoryName, useStatusName } from "../leads/util";
 import { IcAlert, IcGlobe, IcSpark, IcUserPlus, IcUsers } from "./glyphs";
 import { Avatar, Pill, StatusGlyph, statusTone, useDismiss, type Tone } from "./kit";
+import { forwardOf, wonLocked, type LeadStep } from "./nextStep";
 import type { LeadSheetKind, LeadWrite } from "./types";
 
 type Menu = "" | "op" | "watch" | "moves";
 
-export function LeadHead({ meta, lead, write, onSheet, onStatus, onAi }: { meta: CrmMeta; lead: CrmLead; write: LeadWrite; onSheet: (k: LeadSheetKind) => void; onStatus: (to: string) => void; onAi?: () => void }) {
+export function LeadHead({ meta, lead, step, write, onSheet, onStatus, onAi }: { meta: CrmMeta; lead: CrmLead; step: LeadStep; write: LeadWrite; onSheet: (k: LeadSheetKind) => void; onStatus: (to: string) => void; onAi?: () => void }) {
   const t = useTranslations("crm.glance");
   const tl = useTranslations("crm.lead");
   const ts = useTranslations("crm.side");
@@ -47,7 +49,8 @@ export function LeadHead({ meta, lead, write, onSheet, onStatus, onAi }: { meta:
   const ended = isFinalStatus(meta, lead.status);
   const moves = leadCan(lead, "change_status") ? crmNextStatuses(meta, lead.status) : [];
   const canReject = moves.includes("rejected");
-  const forward = moves.find((s) => s !== "rejected" && journey.indexOf(s) > at) ?? moves.find((s) => s !== "rejected" && !isFinalStatus(meta, s)) ?? "";
+  const forward = forwardOf(meta, lead);
+  const locked = wonLocked(lead);
   const claimable = !lead.operatorId && leadCan(lead, "claim");
   const reopenable = ended && (leadCan(lead, "reopen") || leadCan(lead, "edit"));
   const primary = claimable ? "claim" : reopenable ? "reopen" : forward ? "forward" : "";
@@ -59,6 +62,8 @@ export function LeadHead({ meta, lead, write, onSheet, onStatus, onAi }: { meta:
   const canAssign = leadCan(lead, "assign");
   const canTransfer = leadCan(lead, "transfer") && !!lead.operatorId;
   const canWatch = leadCan(lead, "manage_watchers");
+
+  const bright = (s: LeadStep) => `opx-pbtn${step === s ? " opx-pbtn--main" : ""}`;
 
   const claim = async () => {
     if (claiming) return;
@@ -207,7 +212,7 @@ export function LeadHead({ meta, lead, write, onSheet, onStatus, onAi }: { meta:
             const inner = (
               <>
                 <span className="opx-cd-pipe__ic" aria-hidden="true">
-                  {state === "done" ? <IcCheck size={16} /> : <StatusGlyph status={s} size={16} />}
+                  {state === "done" ? <IcCheck size={16} /> : state === "todo" && s === "won" && locked ? <IcLock size={16} /> : <StatusGlyph status={s} size={16} />}
                 </span>
                 <span className="opx-cd-pipe__t">{label(s)}</span>
               </>
@@ -260,18 +265,18 @@ export function LeadHead({ meta, lead, write, onSheet, onStatus, onAi }: { meta:
             </div>
           ) : null}
           {primary === "claim" ? (
-            <button type="button" className="opx-pbtn opx-pbtn--main" onClick={() => void claim()} disabled={claiming} aria-busy={claiming || undefined}>
+            <button type="button" className={bright("claim")} onClick={() => void claim()} disabled={claiming} aria-busy={claiming || undefined}>
               <IcCheck size={16} />
               {t("claim")}
             </button>
           ) : primary === "reopen" ? (
-            <button type="button" className="opx-pbtn opx-pbtn--main" onClick={() => onSheet("reopen")}>
+            <button type="button" className={bright("reopen")} onClick={() => onSheet("reopen")}>
               <IcRefresh size={16} />
               {t("reopen")}
             </button>
           ) : primary === "forward" ? (
-            <button type="button" className="opx-pbtn opx-pbtn--main" onClick={() => onStatus(forward)}>
-              <IcArrowRight size={16} />
+            <button type="button" className={bright("forward")} onClick={() => onStatus(forward)}>
+              {forward === "won" && locked ? <IcLock size={16} /> : <IcArrowRight size={16} />}
               {tx("nextStage", { status: label(forward) })}
             </button>
           ) : null}

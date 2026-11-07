@@ -7,7 +7,7 @@ import { isAborted } from "@/lib/http";
 import { initials } from "@/lib/lawyers";
 import { listSupportOperators, type SupportOperator, type SupportTicket } from "@/lib/services/support";
 import Sheet from "../panel/Sheet";
-import { Note, PanelFoot, PanelHead } from "../panel/bits";
+import { PanelFoot, PanelHead } from "../panel/bits";
 import { IcCheck, IcSearch } from "../icons";
 import { IcSwap } from "./icons";
 import { codeOf } from "./model";
@@ -189,7 +189,6 @@ export function CloseSheet({ ticket, busy, onCancel, onSubmit }: { ticket: Suppo
   return (
     <Sheet label={t("close")} head={<PanelHead icon={<IcCheck size={20} />} tag={t("close")} code={codeOf(ticket)} />} onClose={onCancel} dirty={Boolean(resolution.trim())}>
       <div className="opx-pscroll opx-sx-sheet" data-ai-id={aiId(BASE, tid, "close-modal")} data-ai-type="modal" data-ai-label={t("close")} data-ai-private>
-        <Note tone="info">{t("closeNote")}</Note>
         <div className={`opx-field${err ? " has-error" : ""}`}>
           <label htmlFor={`${uid}-r`}>
             {t("resolution")}

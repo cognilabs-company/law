@@ -2,7 +2,7 @@
 
 import "../../panel/panel.css";
 import "../leads/leads.css";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
@@ -340,7 +340,6 @@ export default function CrmLeadsX({ meta }: CrmSectionProps) {
   };
 
   const scopeLabel = (s: Scope) => (s === "queue" ? t("unassigned") : s === "mine" ? tx("mine") : s === "overdue" ? t("f.overdue") : t("tab.all"));
-  const kbd = (c: ReactNode) => <kbd>{c}</kbd>;
 
   return (
     <div className="opx-ld" style={stageVars(meta)} data-ai-target="callcenter:crm-leads">
@@ -386,7 +385,7 @@ export default function CrmLeadsX({ meta }: CrmSectionProps) {
             {t("viewTable")}
           </button>
         </div>
-        <NewLeadButton meta={meta} />
+        <NewLeadButton meta={meta} quiet={crmCan(meta, "crm.leads.claim") && counts.queue !== 0} />
       </div>
 
       {layout === "list" ? (
@@ -444,11 +443,7 @@ export default function CrmLeadsX({ meta }: CrmSectionProps) {
             </span>
           )}
         </div>
-      ) : (
-        <p className="opx-ld-hint">
-          {tb("hint")} {t("boardScope")}
-        </p>
-      )}
+      ) : null}
 
       {layout === "list" && moreOpen ? (
         <div className="opx-ld-more">
@@ -511,7 +506,6 @@ export default function CrmLeadsX({ meta }: CrmSectionProps) {
             {tab === "queue" ? <IcCheck size={26} /> : <IcLayers size={26} />}
           </span>
           <b>{t(`empty.${tab}`)}</b>
-          <p>{t(`emptyText.${tab}`)}</p>
         </div>
       ) : (
         <LeadTableX rows={rows} total={total} tab={tab} now={now} active={active} flash={flash} holding={holding} stageLabel={label} onOpen={open} onHover={setActive} onClaim={(l) => void claim(l)} />
@@ -530,8 +524,6 @@ export default function CrmLeadsX({ meta }: CrmSectionProps) {
           </span>
         </div>
       ) : null}
-
-      {layout === "list" && prefs.keys && rows?.length ? <p className="opx-ld-keys">{t.rich("keys", { k: kbd })}</p> : null}
     </div>
   );
 }

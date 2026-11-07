@@ -421,25 +421,6 @@ html[data-opx][data-opx-theme="light"] .opx-ld-form input[type="datetime-local"]
   box-shadow: var(--opx-ring);
 }
 
-.opx-ld-hint,
-.opx-ld-keys {
-  margin: 0;
-  padding: 0 4px;
-  color: var(--opx-ink-3);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.opx-ld-keys kbd {
-  margin: 0 2px;
-  padding: 1px 6px;
-  border-radius: 6px;
-  border: 1px solid var(--opx-line-2);
-  background: var(--opx-glass-2);
-  color: var(--opx-ink-2);
-  font: 600 11px/1.5 var(--opx-mono), ui-monospace, monospace;
-}
-
 .opx-ld-more {
   display: flex;
   flex-wrap: wrap;
@@ -689,13 +670,16 @@ html[data-opx][data-opx-theme="light"] .opx-ld-form input[type="datetime-local"]
   font-weight: 800;
 }
 
-.opx-ld-col__head > small {
-  overflow: hidden;
-  color: var(--opx-ink-3);
-  font-size: 12.5px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.opx-ld-col__to {
+  position: absolute;
+  top: 22px;
+  right: -13px;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  color: var(--opx-ink-2);
+  transform: rotate(-90deg);
+  pointer-events: none;
 }
 
 .opx-ld-col__idle {
@@ -1821,12 +1805,8 @@ html[data-opx-theme="light"] .opx-ld-menu {
   animation: opx-rise 0.45s var(--opx-ease) both;
 }
 
-.opx-ov-top p {
-  flex: 1 1 260px;
-  margin: 0;
-  color: var(--opx-ink-2);
-  font-size: 14px;
-  font-weight: 600;
+.opx-ov-top__gap {
+  flex: 1;
 }
 
 .opx-ov-live {
@@ -1971,12 +1951,6 @@ html[data-opx-theme="light"] .opx-ld-menu {
   color: var(--opx-hot);
 }
 
-.opx-ov-kpi__txt span {
-  color: var(--opx-ink-2);
-  font-size: 13px;
-  font-weight: 600;
-}
-
 .opx-ov-take {
   display: inline-flex;
   align-items: center;
@@ -1984,20 +1958,14 @@ html[data-opx-theme="light"] .opx-ld-menu {
   height: 42px;
   padding: 0 14px;
   border-radius: 13px;
-  border: 1px solid var(--opx-line-2);
-  background: var(--opx-glass-2);
-  color: var(--opx-ink);
+  border-width: 1px;
+  border-style: solid;
   font: inherit;
   font-size: 13.5px;
   font-weight: 750;
   white-space: nowrap;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s, color 0.2s;
-}
-
-.opx-ov-take:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--opx-aqua) 60%, transparent);
-  background: var(--opx-teal-soft);
 }
 
 .opx-ov-take:hover:not(:disabled) .opx-i:last-child {
@@ -2471,13 +2439,6 @@ html[data-opx-theme="light"] .opx-ov-seg {
   overflow-wrap: break-word;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-}
-
-.opx-ov-note {
-  margin: 0;
-  color: var(--opx-ink-3);
-  font-size: 12.5px;
-  line-height: 1.5;
 }
 
 .opx-ov-tel {

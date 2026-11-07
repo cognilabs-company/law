@@ -172,7 +172,6 @@ export default function CcxNow() {
           <CcxEmblem size={72} />
         </span>
         <h2 id="opx-empty-h">{t("emptyTitle")}</h2>
-        <p>{t("emptyLead")}</p>
         <div className="opx-now-msg__act">
           <button type="button" className="opx-btn" onClick={reload}>
             <IcRefresh size={18} />

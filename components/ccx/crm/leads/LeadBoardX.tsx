@@ -6,9 +6,9 @@ import { useRouter } from "@/i18n/navigation";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
-import { changeLeadStatus, crmNextStatuses, getCrmKanban, isVersionConflict, KANBAN_PAGE, leadCan, moreKanbanLeads, positionIn, reorderCrmLead, type CrmLead, type CrmMeta } from "@/lib/services/crm";
+import { changeLeadStatus, crmNextStatuses, getCrmKanban, isFinalStatus, isVersionConflict, KANBAN_PAGE, leadCan, moreKanbanLeads, positionIn, reorderCrmLead, type CrmLead, type CrmMeta } from "@/lib/services/crm";
 import type { BoardColumn } from "@/components/crm/leadQuery";
-import { IcRefresh } from "../../icons";
+import { IcChevron, IcRefresh } from "../../icons";
 import { leadHref } from "../nav";
 import { LeadCard } from "./LeadCard";
 import RejectSheet from "./RejectSheet";
@@ -22,7 +22,6 @@ type Props = { meta: CrmMeta; mineOnly: boolean; q: string; focus: string; onCla
 
 export default function LeadBoardX({ meta, mineOnly, q, focus, onClaim, claiming, refreshKey }: Props) {
   const t = useTranslations("crm.board");
-  const tx = useTranslations("admin.ccx.crmLeads");
   const label = useStageLabel(meta);
   const router = useRouter();
   const crmErr = useCrmErr();
@@ -341,7 +340,6 @@ export default function LeadBoardX({ meta, mineOnly, q, focus, onClaim, claiming
                   <b>{name}</b>
                   <em className="opx-num">{c.total}</em>
                 </span>
-                {tx.has(`stage.${c.status}`) ? <small>{tx(`stage.${c.status}`)}</small> : null}
                 {idle ? (
                   <span className="opx-ld-col__idle opx-num" title={t("idleTitle")} data-tone={idle >= 2880 ? "hot" : idle >= 480 ? "warn" : undefined}>
                     {idleText(idle)}
@@ -382,6 +380,11 @@ export default function LeadBoardX({ meta, mineOnly, q, focus, onClaim, claiming
                   </button>
                 ) : null}
               </div>
+              {ci < cols.length - 1 && !isFinalStatus(meta, c.status) ? (
+                <span className="opx-ld-col__to" aria-hidden="true">
+                  <IcChevron size={14} />
+                </span>
+              ) : null}
             </section>
           );
         })}

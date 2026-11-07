@@ -26,7 +26,6 @@ import {
 import { useCrmEvents, useNow, minutesUntil } from "@/lib/crm/useCrm";
 import { prettyPhone } from "../../now/feed";
 import { CopyButton } from "../../now/NowFocus";
-import { Note } from "../../panel/bits";
 import { IcArrowLeft, IcArrowRight, IcDoc, IcPhone, IcShield, IcTimeline } from "../../icons";
 import { crmHref, leadHref, type CrmSectionProps } from "../nav";
 import { useCrmErr, useRegionName } from "../leads/util";
@@ -61,6 +60,7 @@ function Profile({ meta, customerId }: { meta: CrmMeta; customerId: string }) {
   const [sheet, setSheet] = useState<Sheet>("");
   const [tab, setTab] = useState<Tab>("leads");
   const [contactBusy, setContactBusy] = useState("");
+  const [notesDirty, setNotesDirty] = useState(false);
   const canManage = crmCan(meta, "crm.customers.manage");
 
   const load = useCallback(
@@ -135,6 +135,7 @@ function Profile({ meta, customerId }: { meta: CrmMeta; customerId: string }) {
   const onlyOne = live.length <= 1;
   const phone = c.phone || live.find((x) => x.type === "phone")?.value || "";
   const tel = telOf(phone);
+  const bright = notesDirty ? "" : tel && (current.length || !crmCan(meta, "crm.leads.manage")) ? "call" : "lead";
 
   const setPrimary = async (id: string) => {
     if (contactBusy) return;
@@ -227,13 +228,13 @@ function Profile({ meta, customerId }: { meta: CrmMeta; customerId: string }) {
           </div>
           <div className="opx-cd-chead__acts">
             {tel ? (
-              <a className="opx-pbtn opx-pbtn--call" href={tel} aria-label={`${tp("call")}: ${phone}`}>
+              <a className={`opx-pbtn${bright === "call" ? " opx-pbtn--call" : ""}`} href={tel} aria-label={`${tp("call")}: ${phone}`}>
                 <IcPhone size={15} />
                 {tp("call")}
               </a>
             ) : null}
             {crmCan(meta, "crm.leads.manage") ? (
-              <button type="button" className="opx-pbtn opx-pbtn--main" onClick={() => setSheet("lead")}>
+              <button type="button" className={`opx-pbtn${bright === "lead" ? " opx-pbtn--main" : ""}`} onClick={() => setSheet("lead")}>
                 <IcPlus size={16} />
                 {t("newLead")}
               </button>
@@ -309,7 +310,7 @@ function Profile({ meta, customerId }: { meta: CrmMeta; customerId: string }) {
                 c.orders.length ? (
                   <OrderList c={c} />
                 ) : (
-                  <Empty icon={<IcCart size={22} />} title={c.isLexgoUser ? t("noOrders") : t("ordersNeedLink")} />
+                  <Empty icon={<IcCart size={22} />} title={t("noOrders")} />
                 )
               ) : tl2 === null ? (
                 <Shim h={120} />
@@ -333,7 +334,6 @@ function Profile({ meta, customerId }: { meta: CrmMeta; customerId: string }) {
               ) : null
             }
           >
-            {canManage && onlyOne && contacts.length ? <Note tone="info">{t("lastContact")}</Note> : null}
             {contacts.length ? (
               <ul className="opx-cd-contacts">
                 {contacts.map((x) => (
@@ -352,15 +352,14 @@ function Profile({ meta, customerId }: { meta: CrmMeta; customerId: string }) {
             )}
           </Card>
 
-          <NotesCard c={c} canManage={canManage} onSaved={() => void load()} />
+          <NotesCard c={c} canManage={canManage} onSaved={() => void load()} onDirty={setNotesDirty} />
 
           <Card icon={<IcShield size={17} />} title={t("linkTitle")} className="opx-cd-linkcard" tone={c.linking.linked ? undefined : "warn"}>
             <p className="opx-cd-linkstate" data-on={c.linking.linked || undefined}>
               {c.linking.linked ? <IcLink size={16} /> : <IcInfo size={16} />}
               <b>{c.linking.linked ? t("linked") : t("notLinked")}</b>
             </p>
-            {!c.linking.linked ? <p className="opx-cd-sub">{c.linking.requiredAction || (c.linking.automatic ? t("linkAuto") : t("linkManual"))}</p> : null}
-            <p className="opx-cd-sub">{c.lifecycle === "customer" ? t("lifeCustomerSince", { date: c.becameCustomerAt ? shortDateTime(c.becameCustomerAt, locale) : "—" }) : t("lifeProspect")}</p>
+            {c.lifecycle === "customer" ? <p className="opx-cd-sub">{t("lifeCustomerSince", { date: c.becameCustomerAt ? shortDateTime(c.becameCustomerAt, locale) : "—" })}</p> : null}
           </Card>
 
           {c.sections.length ? (
@@ -432,7 +431,7 @@ function OrderList({ c }: { c: CrmCustomerDetail }) {
   );
 }
 
-function NotesCard({ c, canManage, onSaved }: { c: CrmCustomerDetail; canManage: boolean; onSaved: () => void }) {
+function NotesCard({ c, canManage, onSaved, onDirty }: { c: CrmCustomerDetail; canManage: boolean; onSaved: () => void; onDirty: (on: boolean) => void }) {
   const tn = useTranslations("crm.newCustomer");
   const t = useTranslations("crm.customer");
   const ts = useTranslations("crm.side");
@@ -442,6 +441,8 @@ function NotesCard({ c, canManage, onSaved }: { c: CrmCustomerDetail; canManage:
   const [edit, setEdit] = useState(false);
   const [text, setText] = useState(c.notes);
   const [busy, setBusy] = useState(false);
+  const dirty = edit && text !== c.notes;
+  useEffect(() => onDirty(dirty), [dirty, onDirty]);
   const save = async () => {
     if (busy) return;
     setBusy(true);
@@ -485,7 +486,7 @@ function NotesCard({ c, canManage, onSaved }: { c: CrmCustomerDetail; canManage:
             <button type="button" className="opx-pbtn opx-cd-btn-sm" onClick={() => setEdit(false)} disabled={busy}>
               {tsh("cancel")}
             </button>
-            <button type="button" className="opx-pbtn opx-pbtn--main opx-cd-btn-sm" onClick={() => void save()} disabled={busy || text === c.notes} aria-busy={busy || undefined}>
+            <button type="button" className={`opx-pbtn${dirty ? " opx-pbtn--main" : ""} opx-cd-btn-sm`} onClick={() => void save()} disabled={busy || !dirty} aria-busy={busy || undefined}>
               {tsh("save")}
             </button>
           </div>

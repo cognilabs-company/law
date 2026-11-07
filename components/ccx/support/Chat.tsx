@@ -373,10 +373,10 @@ export function Composer({ chat, ticket, canWrite, claimable }: { chat: TicketCh
 
   return (
     <div className="opx-sx-compose">
-      {!canWrite && known ? (
+      {!canWrite && known && !claimable ? (
         <p className="opx-sx-ro">
           <IcLock size={15} />
-          <span>{claimable ? tx("claimToReply") : t("readOnly")}</span>
+          <span>{t("readOnly")}</span>
         </p>
       ) : null}
       {writable ? (
@@ -415,12 +415,7 @@ export function Composer({ chat, ticket, canWrite, claimable }: { chat: TicketCh
           data-ai-id={ticket.id ? aiId("call_center.support.ticket", ticket.id, "message-input") : undefined}
         />
         <div className="opx-sx-form__foot">
-          {writable ? (
-            <span className="opx-sx-keys" aria-hidden="true">
-              {t("chat.enterHint")}
-            </span>
-          ) : null}
-          <button type="submit" className="opx-pbtn opx-pbtn--main opx-sx-send" disabled={!writable || chat.sending || !text.trim()} aria-busy={chat.sending || undefined}>
+          <button type="submit" className={`opx-pbtn${text.trim() ? " opx-pbtn--main" : ""} opx-sx-send`} disabled={!writable || chat.sending || !text.trim()} aria-busy={chat.sending || undefined}>
             <IcSend size={16} />
             {t("send")}
           </button>

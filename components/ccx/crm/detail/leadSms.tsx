@@ -16,7 +16,7 @@ import { useCrmErr } from "../leads/util";
 
 const MAX = 1000;
 
-export function SmsPane({ meta, lead, phones, preset, onPresetUsed }: { meta: CrmMeta; lead: CrmLead; phones: CrmContact[] | null; preset: string; onPresetUsed: () => void }) {
+export function SmsPane({ meta, lead, phones, preset, onPresetUsed, onDrafting }: { meta: CrmMeta; lead: CrmLead; phones: CrmContact[] | null; preset: string; onPresetUsed: () => void; onDrafting: (on: boolean) => void }) {
   const t = useTranslations("crm.sms");
   const locale = useLocale();
   const crmErr = useCrmErr();
@@ -31,6 +31,11 @@ export function SmsPane({ meta, lead, phones, preset, onPresetUsed }: { meta: Cr
   const [bad, setBad] = useState("");
   const list = phones ?? [];
   const contact = picked || list.find((x) => x.primary)?.id || list[0]?.id || "";
+  const typed = !!body.trim();
+  useEffect(() => {
+    onDrafting(typed);
+    return () => onDrafting(false);
+  }, [typed, onDrafting]);
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -99,7 +104,6 @@ export function SmsPane({ meta, lead, phones, preset, onPresetUsed }: { meta: Cr
 
   return (
     <div className="opx-cd-pane">
-      <Note tone="info">{t("autoRule", { n: meta.noAnswerSmsDelaySec ?? 180 })}</Note>
       {can ? (
         <section className="opx-cd-blk" aria-label={t("newTitle")}>
           <h4>
@@ -116,8 +120,7 @@ export function SmsPane({ meta, lead, phones, preset, onPresetUsed }: { meta: Cr
                 <SelectInput label={t("language")} value={language} onChange={setLanguage} options={AI_LANGUAGES.filter((l) => l !== "auto").map((l) => ({ value: l, label: t(`lang.${l}`) }))} />
                 <DateTimeInput label={t("when")} value={when} onChange={setWhen} />
               </div>
-              <p className="opx-cd-sub">{t("draftNote")}</p>
-              <button type="button" className="opx-pbtn opx-pbtn--main opx-cd-self-start" onClick={() => void draft()} disabled={busy === "new" || !body.trim()} aria-busy={busy === "new" || undefined}>
+              <button type="button" className={`opx-pbtn${typed ? " opx-pbtn--main" : ""} opx-cd-self-start`} onClick={() => void draft()} disabled={busy === "new" || !typed} aria-busy={busy === "new" || undefined}>
                 <IcEdit size={16} />
                 {t("saveDraft")}
               </button>
@@ -194,7 +197,7 @@ function SmsRow({ s, can, busy, locked, onApprove, locale }: { s: CrmSms; can: b
               >
                 {t("cancel")}
               </button>
-              <button type="button" className="opx-pbtn opx-pbtn--main opx-cd-btn-sm" onClick={() => void onApprove(s, text).then(() => setEdit(false))} disabled={busy || locked || !text.trim()} aria-busy={busy || undefined}>
+              <button type="button" className="opx-pbtn opx-cd-btn-sm" onClick={() => void onApprove(s, text).then(() => setEdit(false))} disabled={busy || locked || !text.trim()} aria-busy={busy || undefined}>
                 <IcCheck size={15} />
                 {t("approveEdited")}
               </button>
@@ -205,7 +208,7 @@ function SmsRow({ s, can, busy, locked, onApprove, locale }: { s: CrmSms; can: b
                 <IcEdit size={15} />
                 {t("edit")}
               </button>
-              <button type="button" className="opx-pbtn opx-pbtn--main opx-cd-btn-sm" onClick={() => void onApprove(s)} disabled={busy || locked} aria-busy={busy || undefined}>
+              <button type="button" className="opx-pbtn opx-cd-btn-sm" onClick={() => void onApprove(s)} disabled={busy || locked} aria-busy={busy || undefined}>
                 <IcCheck size={15} />
                 {t("approve")}
               </button>

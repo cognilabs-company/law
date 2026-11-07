@@ -289,11 +289,11 @@ export function NewCustomerSheet({ meta, onClose, onCreated }: { meta: CrmMeta; 
     }
   };
   return (
-    <Sheet label={t("title")} head={<SheetHead icon={<IcUser size={20} />} title={t("title")} sub={t("lead")} />} onClose={onClose} dirty={!!(name || phone || telegram || email || notes)}>
+    <Sheet label={t("title")} head={<SheetHead icon={<IcUser size={20} />} title={t("title")} />} onClose={onClose} dirty={!!(name || phone || telegram || email || notes)}>
       <div className="opx-pscroll">
         <TextInput label={t("name")} value={name} onChange={setName} required autoFocus error={nameErr || undefined} />
         <div className="opx-pgrid2">
-          <TextInput label={t("phone")} value={phone} onChange={setPhone} type="tel" inputMode="tel" placeholder="+998" hint={t("phoneHelp")} />
+          <TextInput label={t("phone")} value={phone} onChange={setPhone} type="tel" inputMode="tel" placeholder="+998" />
           <TextInput label={t("telegram")} value={telegram} onChange={setTelegram} placeholder="@" />
           <TextInput label={t("email")} value={email} onChange={setEmail} type="email" inputMode="email" />
           <TextInput label={t("region")} value={region} onChange={setRegion} />
@@ -315,7 +315,6 @@ export function NewLeadSheet({ meta, customer, onClose }: { meta: CrmMeta; custo
   const [title, setTitle] = useState("");
   const [problem, setProblem] = useState("");
   const [region, setRegion] = useState(() => regionName(customer.region));
-  const [regionTouched, setRegionTouched] = useState(false);
   const [urgency, setUrgency] = useState("normal");
   const [source, setSource] = useState(meta.sources.includes("phone") ? "phone" : meta.sources[0] || "manual");
   const [language, setLanguage] = useState(meta.languages[0] || "uz_latn");
@@ -349,9 +348,8 @@ export function NewLeadSheet({ meta, customer, onClose }: { meta: CrmMeta; custo
     }
   };
   const show = (k: keyof typeof errs) => (tried ? errs[k] : "");
-  const regionHint = regionTouched && region.trim() && region.trim() !== customer.region && region.trim() !== regionName(customer.region) ? t("regionOverride") : t("regionFromCustomer");
   return (
-    <Sheet label={t("title")} head={<SheetHead icon={<IcPlus size={20} />} title={t("title")} sub={t("lead")} />} onClose={onClose} dirty={!!(title || problem)}>
+    <Sheet label={t("title")} head={<SheetHead icon={<IcPlus size={20} />} title={t("title")} sub={customer.name || customer.publicId} />} onClose={onClose} dirty={!!(title || problem)}>
       <div className="opx-pscroll">
         <div className="opx-cd-fixedwho" data-err={show("who") ? "" : undefined}>
           <Avatar name={customer.name} />
@@ -368,11 +366,7 @@ export function NewLeadSheet({ meta, customer, onClose }: { meta: CrmMeta; custo
           <TextInput
             label={t("region")}
             value={region}
-            onChange={(v) => {
-              setRegion(v);
-              setRegionTouched(true);
-            }}
-            hint={regionHint}
+            onChange={setRegion}
           />
           <SelectInput label={t("source")} value={source} onChange={setSource} options={(meta.sources.includes(source) ? meta.sources : [source, ...meta.sources]).map((s) => ({ value: s, label: tsrc.has(s) ? tsrc(s) : tsrc("other") }))} />
           <SelectInput label={t("urgency")} value={urgency} onChange={setUrgency} options={["low", "normal", "high", "urgent"].map((u) => ({ value: u, label: t(`urg.${u}`) }))} />

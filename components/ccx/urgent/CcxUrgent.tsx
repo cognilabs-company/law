@@ -515,7 +515,6 @@ export default function CcxUrgent({ duty = false }: { duty?: boolean } = {}) {
             <div className="opx-ug-empty">
               <IcInbox size={30} />
               <b>{t("empty")}</b>
-              <p>{t("emptyText")}</p>
             </div>
           ) : (
             <>

@@ -739,7 +739,6 @@ export default function UrgentDetail({
 
               {sources.length ? (
                 <Section icon={<IcShield size={17} />} title={t("eligibleSources")} count={sources.length}>
-                  <p className="opx-ug-note">{t("eligibleSourcesLead")}</p>
                   <ul className="opx-ug-sources">
                     {(allSources ? sources : sources.slice(0, SOURCES_SHOWN)).map((s, i) => (
                       <li key={`${s.type}-${s.id}-${i}`}>
