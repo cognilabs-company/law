@@ -55,6 +55,8 @@ export default function LandingProblem() {
         </h2>
       </div>
 
+      {/* The track gives the stage its scroll distance; motion/hold.ts sets its height. */}
+      <div className="lh-prob__track">
       <div className="lh-prob__stage">
         {SCENES.map((scene, i) => {
           const item = items[i];
@@ -111,6 +113,7 @@ export default function LandingProblem() {
             <b key={scene.key} />
           ))}
         </div>
+      </div>
       </div>
     </section>
   );

@@ -1,5 +1,20 @@
 # LexGo landing: build spec
 
+## Rules learned in production (these override anything below)
+
+The first version froze the browser ("page not responding") in production. On this site every forced style recalculation is slow, because `app/globals.css` is 1.75 MB. So:
+
+1. Never use ScrollTrigger's `pin`. Hold sections with `motion/hold.ts` (CSS sticky inside a track).
+2. Never tween `clipPath` with GSAP. Use `clipTween` and `insetClip` from `motion/clip.ts`.
+3. No SplitText anywhere. `data-lh-lines` now simply rises the whole heading.
+4. Never call `ScrollTrigger.refresh()` from a section. `LandingMotion.tsx` owns it.
+5. Tween only transforms, opacity and CSS custom properties, in the same unit at both ends. Never tween `width`, `height`, `top`, `left`, `margin`, `padding`, `font-size` or mixed units such as `"5vh"`: GSAP converts units by inserting a probe element and forcing a layout.
+6. No layout reads (`getBoundingClientRect`, `offsetHeight`, `getComputedStyle`) inside `onUpdate`, tickers or scroll handlers. Measure once, and again on ScrollTrigger's `refresh` event.
+7. No new `backdrop-filter`, and no animated `filter` on large areas.
+8. Motion setup is split per section so the page stays responsive. Keep each section's setup small.
+
+The owner loves the animations as they are. Keep them: fix defects, do not redesign or remove effects.
+
 Project root: `C:\Users\karim\OneDrive\Desktop\LexGo\law`. Next.js 16 App Router, next-intl, GSAP 3.15 (ScrollTrigger and SplitText included free). Read `node_modules/next/dist/docs/` before using a Next API you are unsure of (`priority` on next/image is deprecated: use `fetchPriority="high"`).
 
 Goal, in the owner's words: a landing page that astonishes. Premium, creative, editorial, heavily animated. Colours blue, white and black. It must keep its full quality on ANY device: never tune for one screen.

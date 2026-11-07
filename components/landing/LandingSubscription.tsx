@@ -31,7 +31,8 @@ export default function LandingSubscription() {
         </filter>
       </svg>
 
-      {/* Always present and the only thing that gets pinned. */}
+      {/* The track gives the band its scroll distance; motion/hold.ts sets its height. */}
+      <div className="lh-sub__track">
       <div className="lh-sub__pin">
         <div className="lh-sub__frame lh-dark lh-grain">
           <div className="lh-sub__media">
@@ -55,6 +56,7 @@ export default function LandingSubscription() {
             <p className="lh-lead lh-sub__lead">{t("lead")}</p>
           </div>
         </div>
+      </div>
       </div>
 
       <SubscriptionSection />

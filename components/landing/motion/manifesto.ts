@@ -21,9 +21,9 @@ function finder({ gsap, root, onCleanup }: MotionApi) {
   const panel = section?.querySelector<HTMLElement>(".lh-finder__panel");
   if (!section || !panel) return;
 
-  // The deep overlap is only safe once the hero is pinned: its content lifts
-  // away during the pin, and at rest it must not be covered.
-  if (root.querySelector(".lh-hero .pin-spacer")) {
+  // The deep overlap is only safe once the hero is held: its content lifts
+  // away during the hold, and at rest it must not be covered.
+  if (root.querySelector(".lh-hero [data-lh-held]")) {
     section.classList.add("is-pulled");
     onCleanup(() => section.classList.remove("is-pulled"));
   }

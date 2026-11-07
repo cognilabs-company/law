@@ -92,11 +92,25 @@ export default function LandingMotion() {
       };
       const ctx = gsap.context(() => {}, root);
 
+      // ScrollTrigger has no ResizeObserver of its own, and this page grows late:
+      // lawyer cards, Finder results and FAQ answers all change its height.
       let timer: ReturnType<typeof setTimeout> | undefined;
-      let observer: ResizeObserver | undefined;
+      let lastHeight = 0;
+      const observer = new ResizeObserver(() => {
+        const height = root.offsetHeight;
+        if (Math.abs(height - lastHeight) < 2) return;
+        lastHeight = height;
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          // true: if the visitor is scrolling, wait for them to stop.
+          ScrollTrigger.refresh(true);
+          lastHeight = root.offsetHeight;
+        }, 400);
+      });
+
       teardown = () => {
         clearTimeout(timer);
-        observer?.disconnect();
+        observer.disconnect();
         cleanups.splice(0).forEach((fn) => fn());
         ctx.revert();
         // ScrollTrigger writes an inline scroll-behavior during refresh.
@@ -116,21 +130,7 @@ export default function LandingMotion() {
       await breathe();
       if (dead) return;
       ScrollTrigger.refresh();
-
-      // ScrollTrigger has no ResizeObserver of its own, and this page grows late:
-      // lawyer cards, Finder results and FAQ answers all change its height.
-      let lastHeight = root.offsetHeight;
-      observer = new ResizeObserver(() => {
-        const height = root.offsetHeight;
-        if (Math.abs(height - lastHeight) < 2) return;
-        lastHeight = height;
-        clearTimeout(timer);
-        timer = setTimeout(() => {
-          // true: if the visitor is scrolling, wait for them to stop.
-          ScrollTrigger.refresh(true);
-          lastHeight = root.offsetHeight;
-        }, 400);
-      });
+      lastHeight = root.offsetHeight;
       observer.observe(root);
     })().catch((err) => console.warn("[landing] motion failed to load", err));
 

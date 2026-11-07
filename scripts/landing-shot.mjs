@@ -96,7 +96,7 @@ for (const size of sizes) {
   await context.addInitScript((dark) => {
     try {
       localStorage.setItem("lexgo_theme", dark ? "dark" : "light");
-      localStorage.setItem("lexgo_cookie_consent", JSON.stringify({ necessary: true }));
+      localStorage.setItem("lexgo_cookie_consent", JSON.stringify({ v: 1, at: Date.now(), choices: { functional: false, analytics: false, marketing: false } }));
     } catch {}
   }, Boolean(opt("dark", false)));
   await context.route(/\/api\/backend\//, (r) => {
@@ -115,7 +115,11 @@ for (const size of sizes) {
   });
   await page.goto(base + route, { waitUntil: "domcontentloaded", timeout: 180000 });
   await page.waitForSelector(".lhome", { timeout: 120000 });
-  await page.waitForTimeout(1800);
+  // Wait for the motion to be set up, unless it never will be.
+  if (!opt("reduced", false)) {
+    await page.waitForSelector("[data-lh-held]", { state: "attached", timeout: 60000 }).catch(() => console.log("note: no held section after 60s"));
+  }
+  await page.waitForTimeout(2500);
 
   const cookieBtn = page.locator(".ckc button").first();
   if (await cookieBtn.isVisible().catch(() => false)) await cookieBtn.click().catch(() => {});
@@ -141,8 +145,9 @@ for (const size of sizes) {
     const top = await page.evaluate(([sel]) => {
       const el = document.querySelector(sel);
       if (!el) return null;
-      const spacer = el.closest(".pin-spacer") || el;
-      return { top: spacer.getBoundingClientRect().top + scrollY, height: spacer.getBoundingClientRect().height };
+      // A held section scrolls through its track, which is its parent.
+      const box = el.matches("[data-lh-held]") ? el.parentElement : el;
+      return { top: box.getBoundingClientRect().top + scrollY, height: box.getBoundingClientRect().height };
     }, [at]);
     if (!top) {
       console.log(`selector not found: ${at}`);

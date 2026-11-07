@@ -30,7 +30,8 @@ export default function LandingWarranty() {
         </div>
       </div>
 
-      {/* Always present and the only thing that gets pinned. */}
+      {/* The track gives the orbit its scroll distance; motion/hold.ts sets its height. */}
+      <div className="lh-war__track">
       <div className="lh-war__pin">
         <div className="lh-war__orbit">
           <div className="lh-war__glow" aria-hidden="true" />
@@ -75,6 +76,7 @@ export default function LandingWarranty() {
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       <div className="lh-wrap lh-war__wrap">

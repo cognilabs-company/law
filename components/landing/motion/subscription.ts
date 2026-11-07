@@ -1,4 +1,5 @@
 import { clipTween, insetClip } from "./clip";
+import { hold } from "./hold";
 import type { MotionApi } from "./types";
 
 /**
@@ -7,7 +8,7 @@ import type { MotionApi } from "./types";
  * term switch belong to React.
  */
 export function subscriptionMotion(api: MotionApi) {
-  const { gsap, ScrollTrigger, root } = api;
+  const { gsap, root, onCleanup } = api;
   const wrap = root.querySelector<HTMLElement>(".lh-sub");
   if (!wrap) return;
   const pin = wrap.querySelector<HTMLElement>(".lh-sub__pin");
@@ -22,16 +23,15 @@ export function subscriptionMotion(api: MotionApi) {
   const pinLength = () => window.innerHeight * 1.15;
   const lead = () => window.innerHeight * 0.8;
 
-  if (fits) {
-    ScrollTrigger.create({ trigger: pin, pin: true, start: "top top", end: () => `+=${pinLength()}` });
-  }
+  const track = pin.parentElement as HTMLElement;
+  if (fits) onCleanup(hold(api, track, pin, pinLength).release);
 
   const portrait = window.matchMedia("(max-aspect-ratio: 1/1)").matches;
   const closed = portrait ? [23, 15, 23, 15] : [21, 31, 21, 31];
 
   const tl = gsap.timeline({
     scrollTrigger: {
-      trigger: pin,
+      trigger: track,
       start: "top 80%",
       end: () => (fits ? `+=${lead() + pinLength()}` : "bottom 70%"),
       scrub: 0.7,

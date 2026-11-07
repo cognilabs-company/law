@@ -1,3 +1,4 @@
+import { hold } from "./hold";
 import type { MotionApi } from "./types";
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -7,7 +8,8 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
  * their resting places. The spiral is measured from the real layout on every
  * refresh, so it holds for any viewport, language and panel height.
  */
-export function warrantyMotion({ gsap, ScrollTrigger, root, finePointer, onCleanup }: MotionApi) {
+export function warrantyMotion(api: MotionApi) {
+  const { gsap, ScrollTrigger, root, finePointer, onCleanup } = api;
   const section = root.querySelector<HTMLElement>(".lh-war");
   if (!section) return;
   const pin = section.querySelector<HTMLElement>(".lh-war__pin");
@@ -66,14 +68,12 @@ export function warrantyMotion({ gsap, ScrollTrigger, root, finePointer, onClean
     measure();
     ScrollTrigger.addEventListener("refresh", measure);
 
+    const held = fits ? hold(api, pin.parentElement as HTMLElement, pin, () => window.innerHeight * 1.65) : null;
+
     const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: pin,
-        start: fits ? "top top" : "top 75%",
-        end: fits ? "+=165%" : "bottom 90%",
-        pin: fits ? pin : false,
-        scrub: 0.8,
-      },
+      scrollTrigger: held
+        ? { trigger: held.trigger, start: held.start, end: held.end, scrub: 0.8 }
+        : { trigger: pin, start: "top 75%", end: "bottom 90%", scrub: 0.8 },
     });
 
     tl.fromTo(depth, { scale: 1.36, yPercent: 7, rotationY: -22 }, { scale: 1, yPercent: 0, rotationY: 0, ease: "power2.out", duration: 1.1 }, 0)
@@ -90,6 +90,7 @@ export function warrantyMotion({ gsap, ScrollTrigger, root, finePointer, onClean
     tl.to({}, { duration: 0.14 });
 
     return () => {
+      held?.release();
       ScrollTrigger.removeEventListener("refresh", measure);
       gsap.set(panels, { clearProps: "transform,opacity" });
     };

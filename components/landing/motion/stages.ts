@@ -1,11 +1,14 @@
+import { hold } from "./hold";
 import type { MotionApi } from "./types";
 
 /**
  * The stair builds itself: each step rises from behind the one below it while
- * the azure dot climbs the treads. Both compositions run the same timeline; they
- * differ only in what is pinned and where. The resting CSS is the finished stair.
+ * the azure dot climbs the treads. The poster holds on screen for the climb. The
+ * narrow composition is taller than most screens, so it climbs as it scrolls past
+ * and each step fades up as it arrives. The resting CSS is the finished stair.
  */
-export function stagesMotion({ gsap, ScrollTrigger, root, onCleanup }: MotionApi) {
+export function stagesMotion(api: MotionApi) {
+  const { gsap, ScrollTrigger, root, onCleanup } = api;
   const stage = root.querySelector<HTMLElement>(".lh-st__stage");
   const inner = stage?.querySelector<HTMLElement>(".lh-st__in");
   const flight = stage?.querySelector<HTMLElement>(".lh-st__flight");
@@ -18,17 +21,13 @@ export function stagesMotion({ gsap, ScrollTrigger, root, onCleanup }: MotionApi
   const readMode = () =>
     getComputedStyle(inner).getPropertyValue("--lh-st-mode").trim() === "wide" ? "wide" : "narrow";
 
-  // Below the fixed tab bar's width the last 90px of the screen are taken.
-  const floorClearance = () => (window.innerWidth <= 760 ? 96 : 28);
-
   const build = (mode: string) =>
     gsap.context(() => {
       const wide = mode === "wide";
-      const clearance = floorClearance();
-      const room = window.innerHeight - (wide ? 0 : 70 + clearance);
       // If a very short screen cannot hold the whole stair, nothing may be hidden
-      // waiting for a pin: the steps stay put and only the path animates.
-      const fits = (wide ? stage : flight).offsetHeight <= room + 2;
+      // waiting for a hold: the steps stay put and only the path animates.
+      const fits = wide && stage.offsetHeight <= window.innerHeight + 2;
+      const held = fits ? hold(api, stage.parentElement as HTMLElement, stage, () => window.innerHeight * 1.5) : null;
 
       const pct = (fn: (w: number, h: number) => number) => () =>
         fn(flight.offsetWidth || 1, flight.offsetHeight || 1);
@@ -45,22 +44,9 @@ export function stagesMotion({ gsap, ScrollTrigger, root, onCleanup }: MotionApi
 
       const tl = gsap.timeline({
         defaults: { ease: "none" },
-        scrollTrigger: fits
-          ? {
-              trigger: wide ? stage : flight,
-              pin: wide ? stage : flight,
-              start: wide ? "top top" : () => `bottom bottom-=${floorClearance()}`,
-              end: () => `+=${Math.round(window.innerHeight * (wide ? 1.5 : 1.25))}`,
-              scrub: 0.6,
-              invalidateOnRefresh: true,
-            }
-          : {
-              trigger: flight,
-              start: "top 78%",
-              end: "bottom 45%",
-              scrub: 0.6,
-              invalidateOnRefresh: true,
-            },
+        scrollTrigger: held
+          ? { trigger: held.trigger, start: held.start, end: held.end, scrub: 0.6, invalidateOnRefresh: true }
+          : { trigger: flight, start: "top 78%", end: "bottom 45%", scrub: 0.6, invalidateOnRefresh: true },
       });
 
       gsap.set(climb, { x: 0, y: 0, xPercent: xOf(0), yPercent: yOf(0) });
@@ -68,22 +54,28 @@ export function stagesMotion({ gsap, ScrollTrigger, root, onCleanup }: MotionApi
       gsap.set(risers, { scaleY: 0 });
 
       if (fits) {
-        // The first step comes up with the section, before the pin takes hold.
+        // The first step comes up with the section, before the hold starts.
         gsap.fromTo(
           steps[0],
           { yPercent: 104 },
           {
             yPercent: 0,
             ease: "power2.out",
-            scrollTrigger: {
-              trigger: wide ? stage : flight,
-              start: "top 72%",
-              end: wide ? "top top" : () => `bottom bottom-=${floorClearance()}`,
-              scrub: 0.6,
-              invalidateOnRefresh: true,
-            },
+            scrollTrigger: { trigger: stage, start: "top 72%", end: "top top", scrub: 0.6 },
           },
         );
+      } else {
+        // Nothing is held here, so each step simply arrives as it reaches the screen.
+        steps.forEach((step) => {
+          gsap.from([step.querySelector(".lh-st__body"), step.querySelector(".lh-st__desc")], {
+            y: 30,
+            autoAlpha: 0,
+            duration: 0.9,
+            ease: "expo.out",
+            stagger: 0.08,
+            scrollTrigger: { trigger: step, start: "top 90%", once: true },
+          });
+        });
       }
 
       steps.forEach((step, i) => {
@@ -144,6 +136,8 @@ export function stagesMotion({ gsap, ScrollTrigger, root, onCleanup }: MotionApi
           );
         }
       }
+
+      return () => held?.release();
     }, stage);
 
   let mode = readMode();
