@@ -95,10 +95,6 @@
   text-wrap: balance;
 }
 /* Masked lines must not shave the descenders of tight display type. */
-.lhome .lh-svc__title .lh-split-line {
-  padding-block-end: 0.14em;
-  margin-block-end: -0.14em;
-}
 .lhome .lh-svc__lead {
   font-size: max(calc(var(--lh-u) * 1.12), 1cqw);
   max-width: 30ch;

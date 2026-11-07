@@ -62,8 +62,6 @@
 
 /* The line masks from data-lh-lines are as tall as the tight leading, which
    would slice descenders and the italic's overhang. Room inside, none outside. */
-.lhome .lh-finder__title .lh-split-line { padding: 0 0.08em 0.22em; }
-.lhome .lh-finder__title .lh-split-line-mask { margin: 0 -0.08em -0.22em; }
 
 /* --------------------------------------------------------------------------
    The Finder's frame

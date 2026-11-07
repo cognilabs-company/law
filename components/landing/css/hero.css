@@ -578,6 +578,43 @@
     .lhome .lh-hero__card--b .lh-hero__card-copy {
       padding: calc(var(--lh-hu) * 0.3) 0 calc(var(--lh-hu) * 0.3) calc(var(--lh-hu) * 0.4);
     }
+    /* Nothing sits on the photo here: the labels follow the cards, and the
+       folder's dot has no card left to point to. */
+    .lhome .lh-hero .hero__tags {
+      grid-row: 6;
+      width: auto;
+      margin: calc(var(--lh-hu) * 1.3) var(--lh-gut) 0;
+      padding-top: calc(var(--lh-hu) * 0.9);
+      border-top: 1px solid rgba(255, 255, 255, 0.18);
+    }
+    .lhome .lh-hero__mark {
+      display: none;
+    }
+  }
+}
+
+/* Long leads (Russian) must still leave the CTAs above the tab bar on short phones. */
+@media (max-aspect-ratio: 1/1) and (max-width: 599px) {
+  .lhome .lh-hero__pin {
+    --lh-stack: calc(90px + var(--lh-hu) * 16.6);
+  }
+}
+
+/* On a tablet the second card shares the row with the small line. */
+@media (max-aspect-ratio: 1/1) and (min-width: 600px) {
+  .lhome .lh-hero__pin {
+    --lh-small: min(8cqw, 6.2svh);
+    --lh-stack: calc(90px + var(--lh-hu) * 21);
+  }
+  /* Narrow tablets also carry the tab bar. */
+  @media (max-width: 760px) {
+    .lhome .lh-hero__pin {
+      --lh-stack: calc(90px + var(--lh-hu) * 24);
+      --lh-wh: clamp(58cqw, calc(100svh - var(--lh-stack) - var(--lh-wy)), 100cqw);
+    }
+  }
+  .lhome .lh-hero__small {
+    max-width: calc(100cqw - 2 * var(--lh-gut) - var(--lh-bw) - var(--lh-hu) * 1.5);
   }
 }
 
