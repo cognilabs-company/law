@@ -342,51 +342,6 @@
   color: var(--opx-ink-3);
 }
 
-.opx-tk-sel > .opx-i {
-  position: absolute;
-  pointer-events: none;
-}
-
-.opx-tk-sel > .opx-i:first-of-type {
-  left: 12px;
-}
-
-.opx-tk-sel .opx-tk-sel__chev {
-  right: 11px;
-}
-
-.opx-tk-sel select {
-  max-width: 240px;
-  height: 36px;
-  padding: 0 32px 0 34px;
-  border-radius: 999px;
-  border: 1px solid var(--opx-line-2);
-  background: var(--opx-glass-2);
-  color: var(--opx-ink-2);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  appearance: none;
-  cursor: pointer;
-}
-
-.opx-tk-sel[data-on] select {
-  border-color: color-mix(in srgb, var(--opx-aqua) 60%, transparent);
-  background-color: var(--opx-teal-soft);
-  color: var(--opx-ink);
-}
-
-.opx-tk-sel select:focus-visible {
-  outline: none;
-  box-shadow: var(--opx-ring);
-}
-
-.opx-tk-sel option {
-  background: var(--opx-base);
-  color: var(--opx-ink);
-}
-
 .opx-tk-reset {
   display: inline-flex;
   align-items: center;

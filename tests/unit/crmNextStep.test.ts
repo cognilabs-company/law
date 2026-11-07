@@ -57,8 +57,11 @@ describe("nextLeadStep: the one bright button of the lead workspace", () => {
 
   it("with the order there, or no right to prepare one, it moves forward", () => {
     expect(nextLeadStep(meta, lead({ status: "proposal", converted_order_id: "o1" }), ctx())).toBe("forward");
-    expect(nextLeadStep(meta, lead({ status: "decision_pending", converted_order_id: "o1" }), ctx())).toBe("forward");
-    expect(nextLeadStep(meta, lead({ status: "decision_pending", allowed_actions: ["change_status"] }), ctx())).toBe("forward");
+    // Winning takes a paid order: an unpaid one is where to go, not a locked "won".
+    expect(nextLeadStep(meta, lead({ status: "decision_pending", converted_order: { id: "o1", payment_status: "unpaid" }, next_action_at: "2026-12-01T09:00:00Z" }), ctx())).toBe("order");
+    expect(nextLeadStep(meta, lead({ status: "decision_pending", next_action_at: "2026-12-01T09:00:00Z" }), ctx())).toBe("order");
+    expect(nextLeadStep(meta, lead({ status: "decision_pending", converted_order: { id: "o1", payment_status: "paid" }, next_action_at: "2026-12-01T09:00:00Z" }), ctx())).toBe("forward");
+    expect(nextLeadStep(meta, lead({ status: "decision_pending", allowed_actions: ["change_status"] }), ctx())).toBe(null);
   });
 
   it("a final lead offers only reopening, if allowed", () => {

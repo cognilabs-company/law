@@ -1,13 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { CcCall } from "@/lib/services/backend";
 import { fmtAgeMin, shortDateTime } from "@/lib/date";
 import { prettyPhone } from "../now/feed";
-import { IcArrowRight, IcPhone } from "../icons";
+import { IcArrowRight, IcChevron, IcPhone } from "../icons";
 import { FAMILIES, type FamKey, type LaneView, type QKey, type QView } from "./model";
-import { FamIcon, JobRow } from "./parts";
+import { FamIcon } from "./parts";
 
 type Props = {
   lanes: Partial<Record<QKey, LaneView>>;
@@ -37,102 +38,106 @@ export function CallRows({ calls, max }: { calls: CcCall[]; max: number }) {
 
 export default function QueuesBoard({ lanes, calls, onDrill, onRetry, onOpen }: Props) {
   const t = useTranslations("admin.ccx.queues");
-  const locale = useLocale();
+  const [showEmpty, setShowEmpty] = useState(false);
+  const rows = FAMILIES.flatMap((f) => f.queues.map((q) => ({ fam: f.key, lane: lanes[q] })).filter((r): r is { fam: FamKey; lane: LaneView } => Boolean(r.lane) && r.lane?.status !== "denied"));
+  const busy = rows.filter((r) => r.lane.status !== "failed" && r.lane.jobs.length);
+  const failed = rows.filter((r) => r.lane.status === "failed");
+  const empty = rows.filter((r) => r.lane.status !== "failed" && !r.lane.jobs.length);
+  const first = [...busy].sort((a, b) => (b.lane.oldest?.ageMin ?? 0) - (a.lane.oldest?.ageMin ?? 0))[0];
+  const oldest = first?.lane.jobs[0];
 
   return (
-    <div className="opx-board">
-      {FAMILIES.map((f, fi) => {
-        const visible = f.queues.map((q) => lanes[q]).filter((l): l is LaneView => Boolean(l) && l?.status !== "denied");
-        if (f.key !== "people" && !visible.length) return null;
-        const total = visible.reduce((n, l) => n + (l.status === "ready" ? l.count : 0), 0);
-        return (
-          <section key={f.key} className="opx-col" data-fam={f.key} aria-labelledby={`opx-col-${f.key}`} style={{ animationDelay: `${fi * 60}ms` }}>
-            <header className="opx-col__head">
-              <span className="opx-col__ic" aria-hidden="true">
-                <FamIcon fam={f.key} />
-              </span>
-              <h3 id={`opx-col-${f.key}`}>{t(`fam.${f.key}`)}</h3>
-              {f.key !== "people" ? <b className="opx-col__n opx-num">{total}</b> : null}
-            </header>
+    <div className="opx-board2">
+      {oldest ? (
+        <section className="opx-board2__do">
+          <span className="opx-board2__ic" aria-hidden="true">
+            <FamIcon fam={first.fam} />
+          </span>
+          <button type="button" className="opx-pbtn opx-pbtn--main" onClick={() => onOpen(oldest)}>
+            {t("doOldest")}
+            <IcArrowRight size={22} />
+          </button>
+        </section>
+      ) : null}
 
-            {f.key === "people" ? (
-              <>
-                <section className="opx-lane">
-                  <header className="opx-lane__head">
-                    <h4>{t("people.leads")}</h4>
-                  </header>
-                  <p className="opx-lane__note">{t("people.leadsLead")}</p>
-                  <Link href="/admin/call-center?view=crm&s=leads" className="opx-lane__all">
-                    {t("people.leadsGo")}
-                    <IcArrowRight size={14} />
-                  </Link>
-                </section>
-                <section className="opx-lane">
-                  <header className="opx-lane__head">
-                    <h4>{t("people.clients")}</h4>
-                  </header>
-                  {calls ? <CallRows calls={calls} max={3} /> : <p className="opx-lane__note">{t("people.clientsLead")}</p>}
-                  <Link href="/admin/call-center?view=clients" className="opx-lane__all">
-                    {t("people.clientsGo")}
-                    <IcArrowRight size={14} />
-                  </Link>
-                </section>
-              </>
+      <ul className="opx-board2__rows">
+        {busy.map(({ fam, lane: l }) => (
+          <li key={l.queue}>
+            {l.queue === "urgent" ? (
+              <Link href="/admin/call-center?view=urgent" className="opx-board2__row" data-tone={l.oldest?.tone}>
+                <QueueRow fam={fam} lane={l} />
+              </Link>
             ) : (
-              visible.map((l) =>
-                l.status === "failed" ? (
-                  <section key={l.queue} className="opx-lane is-failed">
-                    <header className="opx-lane__head">
-                      <h4>{t(`q.${l.queue}`)}</h4>
-                    </header>
-                    <p className="opx-lane__empty">
-                      {t("failed")}
-                      <button type="button" onClick={onRetry}>
-                        {t("retry")}
-                      </button>
-                    </p>
-                  </section>
-                ) : !l.jobs.length ? (
-                  <section key={l.queue} className="opx-lane is-empty">
-                    <header className="opx-lane__head">
-                      <h4>{t(`q.${l.queue}`)}</h4>
-                      <span className="opx-lane__quiet">{t("empty")}</span>
-                    </header>
-                  </section>
-                ) : (
-                  <section key={l.queue} className="opx-lane">
-                    <header className="opx-lane__head">
-                      <h4>{t(`q.${l.queue}`)}</h4>
-                      <b className="opx-lane__n opx-num">{l.count}</b>
-                    </header>
-                    {l.oldest ? (
-                      <span className="opx-oldest" data-tone={l.oldest.tone}>
-                        {t("oldest", { time: fmtAgeMin(l.oldest.ageMin, locale) })}
-                      </span>
-                    ) : null}
-                    <ul className="opx-lane__rows">
-                      {l.jobs.slice(0, 2).map((j) => (
-                        <JobRow key={j.key} job={j} onOpen={onOpen} />
-                      ))}
-                    </ul>
-                    {l.queue === "urgent" ? (
-                      <Link href="/admin/call-center?view=urgent" className="opx-lane__all">
-                        {t("all")}
-                        <IcArrowRight size={14} />
-                      </Link>
-                    ) : (
-                      <button type="button" className="opx-lane__all" onClick={() => onDrill(f.key, l.queue)}>
-                        {t("all")}
-                        <IcArrowRight size={14} />
-                      </button>
-                    )}
-                  </section>
-                ),
-              )
+              <button type="button" className="opx-board2__row" data-tone={l.oldest?.tone} onClick={() => onDrill(fam, l.queue)}>
+                <QueueRow fam={fam} lane={l} />
+              </button>
             )}
-          </section>
-        );
-      })}
+          </li>
+        ))}
+        {failed.map(({ fam, lane: l }) => (
+          <li key={l.queue}>
+            <button type="button" className="opx-board2__row is-failed" onClick={onRetry}>
+              <span className="opx-board2__fam" aria-hidden="true">
+                <FamIcon fam={fam} />
+              </span>
+              <b>{t(`q.${l.queue}`)}</b>
+              <em>{t("retry")}</em>
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <div className="opx-board2__links">
+        <Link href="/admin/call-center?view=crm&s=leads" className="opx-pbtn">
+          {t("people.leadsGo")}
+          <IcArrowRight size={15} />
+        </Link>
+        <Link href="/admin/call-center?view=clients" className="opx-pbtn">
+          {t("people.clientsGo")}
+          <IcArrowRight size={15} />
+        </Link>
+        {empty.length ? (
+          <button type="button" className="opx-pbtn opx-board2__quiet" aria-expanded={showEmpty} onClick={() => setShowEmpty((o) => !o)}>
+            {t("emptyQueues", { n: empty.length })}
+            <IcChevron size={15} />
+          </button>
+        ) : null}
+      </div>
+      {showEmpty ? (
+        <ul className="opx-board2__empty">
+          {empty.map(({ lane: l }) => (
+            <li key={l.queue}>{t(`q.${l.queue}`)}</li>
+          ))}
+        </ul>
+      ) : null}
+      {calls && calls.length ? (
+        <section className="opx-lane">
+          <header className="opx-lane__head">
+            <h4>{t("people.clients")}</h4>
+          </header>
+          <CallRows calls={calls} max={3} />
+        </section>
+      ) : null}
     </div>
+  );
+}
+
+function QueueRow({ fam, lane: l }: { fam: FamKey; lane: LaneView }) {
+  const t = useTranslations("admin.ccx.queues");
+  const locale = useLocale();
+  return (
+    <>
+      <span className="opx-board2__fam" aria-hidden="true">
+        <FamIcon fam={fam} />
+      </span>
+      <b>{t(`q.${l.queue}`)}</b>
+      {l.oldest ? (
+        <em className="opx-num" data-tone={l.oldest.tone}>
+          {fmtAgeMin(l.oldest.ageMin, locale)}
+        </em>
+      ) : null}
+      <strong className="opx-num">{l.count}</strong>
+      <IcArrowRight size={18} />
+    </>
   );
 }

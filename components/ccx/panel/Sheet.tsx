@@ -33,7 +33,7 @@ export default function Sheet({ label, head, onClose, dirty = false, wide = fals
     box.current?.focus({ preventScroll: true });
     const keep = (e: FocusEvent) => {
       const panel = box.current;
-      if (panel && e.target instanceof Node && !panel.contains(e.target) && !(e.target instanceof Element && e.target.closest("[data-layer-soft], .opx-sheet__keep"))) panel.focus({ preventScroll: true });
+      if (panel && e.target instanceof Node && !panel.contains(e.target) && !(e.target instanceof Element && e.target.closest("[data-layer-soft], .opx-sheet__keep,.dsel__menu,.dsel__pop,.dsel__sheet,.mpick__pop"))) panel.focus({ preventScroll: true });
     };
     document.addEventListener("focusin", keep);
     const root = document.documentElement;

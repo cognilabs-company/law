@@ -204,14 +204,12 @@ export default function CcxNow() {
           job={current}
           detail={detail}
           who={who}
-          position={{ i: index + 1, n: jobs.length }}
           canLater={jobs.length > 1}
-          keys={prefs.keys}
+          extra={<NowClient who={who} client={client} notes={detail?.customerNotes} seller={isSellerJob(current)} />}
           onChanged={changed}
           onLater={snooze}
           onLogged={() => setRev((r) => r + 1)}
         />
-        <NowClient who={who} client={client} notes={detail?.customerNotes} seller={isSellerJob(current)} />
       </div>
 
       <section className="opx-next" aria-labelledby="opx-next-h">
@@ -221,7 +219,6 @@ export default function CcxNow() {
             <b className="opx-num">{rest.length}</b>
           </h2>
           <span className="opx-next__sync">
-            {synced}
             <button type="button" onClick={reload} aria-label={t("refresh")} title={t("refresh")}>
               <IcRefresh size={16} />
             </button>
@@ -243,7 +240,6 @@ export default function CcxNow() {
           <button type="button" className="opx-next__go" onClick={next} disabled={!rest.length}>
             <IcNext size={18} />
             {t("next")}
-            {prefs.keys ? <kbd>N</kbd> : null}
           </button>
         </header>
         {rest.length ? (

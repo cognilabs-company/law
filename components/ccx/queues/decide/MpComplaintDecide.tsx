@@ -21,6 +21,7 @@ import { IcArrowRight, IcCheck, IcClock, IcCoins, IcDoc, IcFlag, IcScale, IcShie
 import Party from "./Party";
 import { focusFirstError } from "./focus";
 import type { DecideProps } from "./types";
+import Select from "@/components/Select";
 
 const NOTE_MIN = 5;
 const NOTE_MAX = 2000;
@@ -297,11 +298,8 @@ export default function MpComplaintDecide({ job, item: c, onDone, onClose, onDir
                 )}
                 <div style={UP_ROW}>
                   <div className="opx-field opx-qsel" style={VIS}>
-                    <label htmlFor={visId}>{t("visibility")}</label>
-                    <select id={visId} value={visibility} disabled={uploading || busy} onChange={(e) => setVisibility(e.target.value === "parties" ? "parties" : "staff")}>
-                      <option value="staff">{t("vis.staff")}</option>
-                      <option value="parties">{t("vis.parties")}</option>
-                    </select>
+                    <label id={visId}>{t("visibility")}</label>
+                    <Select value={visibility} labelId={visId} disabled={uploading || busy} onChange={(v) => setVisibility(v === "parties" ? "parties" : "staff")} options={[{ value: "staff", label: t("vis.staff") }, { value: "parties", label: t("vis.parties") }]} />
                   </div>
                   <button type="button" className="opx-pbtn" onClick={() => fileBox.current?.click()} disabled={uploading || busy} aria-busy={uploading}>
                     <IcArrowRight size={16} style={UP} />

@@ -671,30 +671,6 @@ a.opx-lrow:focus-visible {
   box-shadow: var(--opx-ring);
 }
 
-.opx-fam__sort select {
-  height: 40px;
-  padding: 0 34px 0 14px;
-  border-radius: 12px;
-  border: 1px solid var(--opx-line);
-  background: var(--opx-glass-2) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238394ab' stroke-width='2.4' stroke-linecap='round'><path d='m6 9 6 6 6-6'/></svg>") no-repeat right 12px center;
-  color: var(--opx-ink);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  appearance: none;
-  cursor: pointer;
-}
-
-.opx-fam__sort select:focus-visible {
-  outline: none;
-  box-shadow: var(--opx-ring);
-}
-
-.opx-fam__sort option {
-  background: var(--opx-base);
-  color: var(--opx-ink);
-}
-
 .opx-fam__grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1118,27 +1094,187 @@ html[data-opx-theme="light"] .opx-qbtn--call {
   white-space: normal;
 }
 
-.opx-field.opx-qsel select {
-  padding-right: 40px;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238394ab' stroke-width='2.4' stroke-linecap='round'><path d='m6 9 6 6 6-6'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  appearance: none;
-  cursor: pointer;
-}
-
-.opx-field.opx-qsel select:focus-visible {
-  outline: none;
-  box-shadow: var(--opx-ring);
-}
-
-.opx-field.opx-qsel option {
-  background: var(--opx-base);
-  color: var(--opx-ink);
-}
-
 html[data-opx-theme="light"] .opx-pbtn--main.is-danger {
   border-color: color-mix(in srgb, var(--opx-hot) 70%, transparent);
   background: linear-gradient(120deg, #c2405a, #db5a73);
   color: #fff;
+}
+
+/* Barcha navbatlar: the oldest job first, then only the queues with work. */
+.opx-board2 {
+  display: grid;
+  gap: 14px;
+}
+
+.opx-board2__do {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 999px;
+  background: linear-gradient(110deg, color-mix(in srgb, var(--opx-aqua) 18%, var(--opx-glass)), color-mix(in srgb, var(--opx-ice) 14%, var(--opx-glass)));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--opx-aqua) 34%, transparent);
+}
+
+.opx-board2__ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: var(--opx-grad);
+  color: #fff;
+}
+
+.opx-board2__do .opx-pbtn {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 76px;
+  border-radius: 999px;
+  font-size: 24px;
+  font-weight: 800;
+  white-space: normal;
+}
+
+.opx-board2__rows {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.opx-board2__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 76px;
+  padding: 12px 18px 12px 14px;
+  border: 1px solid var(--opx-line);
+  border-radius: 22px;
+  background: var(--opx-glass);
+  color: var(--opx-ink);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.opx-board2__row:hover {
+  border-color: color-mix(in srgb, var(--opx-aqua) 45%, transparent);
+  background: var(--opx-glass-2);
+}
+
+.opx-board2__row:focus-visible {
+  outline: none;
+  box-shadow: var(--opx-ring);
+}
+
+.opx-board2__row b {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.opx-board2__row em {
+  flex: none;
+  color: var(--opx-ink-3);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.opx-board2__row em[data-tone="hot"],
+.opx-board2__row em[data-tone="bad"] {
+  color: var(--opx-hot);
+}
+
+.opx-board2__row strong {
+  display: grid;
+  flex: none;
+  place-items: center;
+  min-width: 40px;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--opx-teal-soft);
+  color: var(--opx-aqua);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.opx-board2__row.is-failed {
+  border-style: dashed;
+  background: none;
+}
+
+.opx-board2__fam {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--opx-chip);
+  color: var(--opx-ink);
+}
+
+.opx-board2__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.opx-board2__quiet.opx-pbtn {
+  margin-left: auto;
+  border-color: transparent;
+  background: none;
+  color: var(--opx-ink-3);
+}
+
+.opx-board2__quiet[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.opx-board2__empty {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  color: var(--opx-ink-3);
+  font-size: 13px;
+  list-style: none;
+}
+
+.opx-board2__empty li {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--opx-chip);
+}
+
+.opx-fam__sort .dsel {
+  min-width: 170px;
+}
+
+@media (max-width: 720px) {
+  .opx-board2__do {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .opx-board2__ic {
+    width: 56px;
+    height: 56px;
+  }
+
+  .opx-board2__do .opx-pbtn {
+    min-height: 60px;
+    font-size: 18px;
+  }
 }

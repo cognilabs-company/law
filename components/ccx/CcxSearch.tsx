@@ -96,9 +96,6 @@ const CcxSearch = forwardRef<CcxSearchHandle, { enabled: boolean }>(function Ccx
         }}
         data-ai-id="call_center.header.search"
       />
-      <kbd className="opx-search__kbd" aria-hidden="true">
-        Ctrl K
-      </kbd>
       {showList ? (
         <ul className="opx-search__list" id={`${uid}-list`} role="listbox" aria-label={t("results")}>
           {res.busy && !shown.length ? <li className="opx-search__note">{t("searching")}</li> : null}

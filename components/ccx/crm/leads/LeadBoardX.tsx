@@ -6,13 +6,13 @@ import { useRouter } from "@/i18n/navigation";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
-import { changeLeadStatus, crmNextStatuses, getCrmKanban, isFinalStatus, isVersionConflict, KANBAN_PAGE, leadCan, moreKanbanLeads, positionIn, reorderCrmLead, type CrmLead, type CrmMeta } from "@/lib/services/crm";
+import { changeLeadStatus, crmNextStatuses, getCrmKanban, isVersionConflict, KANBAN_PAGE, leadCan, moreKanbanLeads, positionIn, reorderCrmLead, type CrmLead, type CrmMeta } from "@/lib/services/crm";
 import type { BoardColumn } from "@/components/crm/leadQuery";
-import { IcChevron, IcRefresh } from "../../icons";
+import { IcRefresh } from "../../icons";
 import { leadHref } from "../nav";
 import { LeadCard } from "./LeadCard";
 import RejectSheet from "./RejectSheet";
-import { cardBelow, idleOf, moveLocal, stageStyle, useCrmErr, useStageLabel } from "./util";
+import { cardBelow, moveLocal, stageStyle, useCrmErr, useStageLabel } from "./util";
 
 const RELOAD_DEBOUNCE = 350;
 
@@ -247,8 +247,6 @@ export default function LeadBoardX({ meta, mineOnly, q, focus, onClaim, claiming
     }
   };
 
-  const idleText = (m: number) => (m >= 1440 ? t("idleD", { n: Math.floor(m / 1440) }) : m >= 60 ? t("idleH", { n: Math.floor(m / 60) }) : t("idleM", { n: m }));
-
   if (!cols) {
     if (failed) {
       return (
@@ -294,7 +292,6 @@ export default function LeadBoardX({ meta, mineOnly, q, focus, onClaim, claiming
         {cols.map((c, ci) => {
           const ok = drag ? allowed(drag, c.status) : false;
           const name = label(c.status);
-          const idle = idleOf(c, now);
           return (
             <section
               key={c.status}
@@ -340,11 +337,6 @@ export default function LeadBoardX({ meta, mineOnly, q, focus, onClaim, claiming
                   <b>{name}</b>
                   <em className="opx-num">{c.total}</em>
                 </span>
-                {idle ? (
-                  <span className="opx-ld-col__idle opx-num" title={t("idleTitle")} data-tone={idle >= 2880 ? "hot" : idle >= 480 ? "warn" : undefined}>
-                    {idleText(idle)}
-                  </span>
-                ) : null}
               </header>
               <div className="opx-ld-col__body">
                 {c.items.length ? (
@@ -380,11 +372,6 @@ export default function LeadBoardX({ meta, mineOnly, q, focus, onClaim, claiming
                   </button>
                 ) : null}
               </div>
-              {ci < cols.length - 1 && !isFinalStatus(meta, c.status) ? (
-                <span className="opx-ld-col__to" aria-hidden="true">
-                  <IcChevron size={14} />
-                </span>
-              ) : null}
             </section>
           );
         })}

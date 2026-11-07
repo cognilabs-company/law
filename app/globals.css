@@ -17468,8 +17468,7 @@ html[data-theme="dark"] .amodal{--mkm-active:#3987e5}
 .hrmf-files li button{display:grid;place-items:center;width:26px;height:26px;border:0;border-radius:8px;background:none;color:var(--gray);cursor:pointer}
 .hrmf-files .stu-fe-add{cursor:pointer}
 .hrmf-files .stu-fe-add.is-busy{opacity:.6}
-.hrmf-color{display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px}
-.hrmf-color input[type=color]{width:44px;height:42px;padding:3px;border:0;border-radius:10px;background:var(--dk-surface-2,#F7FAFE);box-shadow:inset 0 0 0 1px var(--line)}
+.hrmf-color{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
 .hrmf-code{font-family:var(--fm,ui-monospace,monospace);font-size:.84rem}
 .hrmc-group{display:grid;gap:10px}
 .hrmc-group>h3{margin:6px 0 0;font-family:var(--fd);font-size:1rem}
@@ -21122,3 +21121,12 @@ html[data-theme="dark"] .mk-bought,html[data-theme="dark"] .mk-side__bought{colo
   .obd__scrim{background:Canvas}
   .obd__text{color:CanvasText}
 }
+
+/* Pills whose real input is hidden: the keyboard focus shows on the pill. */
+.vac:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:2px}
+.unvmode__opt:has(input:focus-visible){outline:3px solid var(--focus);outline-offset:2px}
+.unvmode__opt:has(input:disabled){opacity:.55;cursor:default}
+.hrmf-swatches{display:flex;flex-wrap:wrap;gap:6px}
+.hrmf-swatch{width:28px;height:28px;padding:0;border:0;border-radius:50%;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+.hrmf-swatch.on{outline:2px solid var(--ink);outline-offset:2px}
+.hrmf-swatch:focus-visible{outline:3px solid var(--focus);outline-offset:2px}

@@ -19,7 +19,6 @@ export default function NewMeeting({ onOpen }: { onOpen: (a: Active) => void }) 
   const tc = useTranslations("call");
   const tn = useTranslations("common.notify");
   const te = useTranslations("enums");
-  const x = useTranslations("admin.ccx.meetings");
   const { session } = useAuth();
   const uid = useId();
   const seller = session?.role === "advocate" || session?.role === "lawyer";
@@ -140,9 +139,7 @@ export default function NewMeeting({ onOpen }: { onOpen: (a: Active) => void }) 
           </div>
           <PeoplePick label={t("participants")} value={picks} onChange={changePicks} search={searchOptions} error={pickErr} />
           <Choice label={t("col.duration")} options={DURATIONS.map((n) => ({ value: String(n), label: t("durationMin", { n }) }))} value={minutes} onChange={setMinutes} />
-          <p className="opx-mtg-hint">{seller ? t("sellerHint") : t("hint")}</p>
           <footer className="opx-mtg-form__foot">
-            <small>{t("enterHint")}</small>
             {title || picks.length ? (
               <button type="button" className="opx-pbtn" onClick={reset}>
                 {t("clear")}
@@ -153,14 +150,6 @@ export default function NewMeeting({ onOpen }: { onOpen: (a: Active) => void }) 
               {busy ? t("starting") : t("start")}
             </button>
           </footer>
-          <details className="opx-mtg-how">
-            <summary>{t("howTitle")}</summary>
-            <ol>
-              <li>{t("how1")}</li>
-              <li>{t("how2")}</li>
-              <li>{x("how3")}</li>
-            </ol>
-          </details>
         </form>
       ) : (
         <Note tone="warn">{t("noPermission")}</Note>

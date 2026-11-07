@@ -13,7 +13,7 @@ import { IcCart } from "./glyphs";
 import { Card, Pill, SheetHead, TextArea, TextInput } from "./kit";
 import { useCrmErr } from "../leads/util";
 
-export function ConvertCard({ lead, bright, onDone }: { lead: CrmLead; bright: boolean; onDone: () => void }) {
+export function ConvertCard({ lead, onDone }: { lead: CrmLead; onDone: () => void }) {
   const t = useTranslations("crm.conv");
   const ts = useTranslations("crm.side");
   const tps = useTranslations("crm.customer.payStatus");
@@ -99,7 +99,7 @@ export function ConvertCard({ lead, bright, onDone }: { lead: CrmLead; bright: b
               <small>{tx("estimate")}</small>
               <b className="opx-num">{amount !== null ? `${fmtUzs(amount)} ${t("som")}` : t("priceLater")}</b>
             </div>
-            <button type="button" className={`opx-pbtn${bright ? " opx-pbtn--main" : ""} opx-cd-conv__go`} onClick={() => setReview(true)}>
+            <button type="button" className="opx-pbtn opx-cd-conv__go" onClick={() => setReview(true)}>
               <IcDoc size={16} />
               {t("review")}
             </button>

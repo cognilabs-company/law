@@ -8,11 +8,12 @@ import { crmCan, listCrmCustomers, type CrmCustomer } from "@/lib/services/crm";
 import { useCrmEvents } from "@/lib/crm/useCrm";
 import { prettyPhone } from "../../now/feed";
 import { IcArrowLeft, IcArrowRight, IcSearch } from "../../icons";
+import { IcFilter } from "../leads/icons";
 import { customerHref, type CrmSectionProps } from "../nav";
-import { useCrmErr, useRegionName } from "../leads/util";
+import { useCrmErr } from "../leads/util";
 import { NewCustomerSheet } from "../detail/customerSheets";
-import { IcLink, IcPin, IcPlus, IcUsers } from "../detail/glyphs";
-import { Avatar, ContactGlyph, Empty, Failed, Pill, Seg, Shim } from "../detail/kit";
+import { IcPin, IcPlus, IcUsers } from "../detail/glyphs";
+import { Avatar, Empty, Failed, Pill, Seg, Shim } from "../detail/kit";
 
 const LIMIT = 48;
 const STATUSES = ["active", "archived", ""] as const;
@@ -20,10 +21,10 @@ type Status = (typeof STATUSES)[number];
 
 export default function CrmCustomersX({ meta }: CrmSectionProps) {
   const t = useTranslations("crm.customers");
-  const tc = useTranslations("crm.customer");
+  const tl = useTranslations("crm.leads");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const tn = useTranslations("crm.newCustomer");
   const crmErr = useCrmErr();
-  const regionName = useRegionName();
   const router = useRouter();
   const [qInput, setQInput] = useState("");
   const [q, setQ] = useState("");
@@ -89,6 +90,19 @@ export default function CrmCustomersX({ meta }: CrmSectionProps) {
           <IcSearch size={16} />
           <input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder={t("search")} aria-label={t("search")} type="search" />
         </label>
+        <button type="button" className="opx-pbtn" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((o) => !o)}>
+          <IcFilter size={16} />
+          {tl("filter")}
+        </button>
+        {canManage ? (
+          <button type="button" className="opx-pbtn opx-pbtn--main" onClick={() => setCreating(true)}>
+            <IcPlus size={16} />
+            {tn("title")}
+          </button>
+        ) : null}
+      </section>
+
+      {filtersOpen ? <section className="opx-cd-bar">
         <label className="opx-cd-search opx-cd-search--region">
           <IcPin size={16} />
           <input
@@ -110,18 +124,12 @@ export default function CrmCustomersX({ meta }: CrmSectionProps) {
           }}
           options={STATUSES.map((s) => ({ value: s, label: t(`st.${s || "all"}`) }))}
         />
-        {canManage ? (
-          <button type="button" className="opx-pbtn opx-pbtn--main" onClick={() => setCreating(true)}>
-            <IcPlus size={16} />
-            {tn("title")}
-          </button>
-        ) : null}
-      </section>
+      </section> : null}
 
       {err ? <Failed text={err} retry={t("retry")} onRetry={() => void load()} /> : null}
 
       {rows === null ? (
-        <div className="opx-cd-clist" aria-busy="true">
+        <div className="opx-jr-rows" aria-busy="true">
           {Array.from({ length: 6 }, (_, i) => (
             <Shim key={i} h={150} />
           ))}
@@ -129,44 +137,24 @@ export default function CrmCustomersX({ meta }: CrmSectionProps) {
       ) : !rows.length ? (
         <Empty icon={<IcUsers size={22} />} title={q ? t("noMatch") : t("empty")} />
       ) : (
-        <div className="opx-cd-clist">
+        <div className="opx-jr-rows">
           {rows.map((c) => {
             const contact = c.phone || c.telegram || c.email;
             const kind = c.phone ? "phone" : c.telegram ? "telegram" : "email";
             return (
-              <Link key={c.id} href={customerHref(c.id)} className="opx-cd-ccard">
-                <span className="opx-cd-ccard__top">
-                  <Avatar name={c.name} size="lg" />
-                  <span className="opx-cd-ccard__id">
-                    <b>{c.name || c.publicId}</b>
-                    <span className="opx-cd-code opx-num">{c.publicId}</span>
-                  </span>
-                  {c.isLexgoUser ? (
-                    <span className="opx-cd-ccard__lx" title={t("linked")}>
-                      <IcLink size={14} />
-                      LexGo
-                    </span>
-                  ) : null}
-                </span>
-                <span className="opx-cd-ccard__meta">
+              <Link key={c.id} href={customerHref(c.id)} className="opx-jr-row">
+                <Avatar name={c.name} size="lg" />
+                <span className="opx-jr-row__txt">
+                  <b>{c.name || c.publicId}</b>
                   {contact ? (
                     <span className="opx-num" dir="ltr">
-                      <ContactGlyph type={kind} size={14} />
                       {kind === "phone" ? prettyPhone(contact) : contact}
                     </span>
                   ) : null}
-                  {c.region ? (
-                    <span>
-                      <IcPin size={14} />
-                      {regionName(c.region)}
-                    </span>
-                  ) : null}
                 </span>
-                <span className="opx-cd-ccard__pills">
-                  <Pill tone={c.lifecycle === "customer" ? "ok" : "mute"}>{tc(`life.${c.lifecycle === "customer" ? "customer" : "prospect"}`)}</Pill>
-                  <Pill tone="info">{t("leads", { n: c.leadCount })}</Pill>
-                  {c.activeLeadCount ? <Pill tone="warn">{t("active", { n: c.activeLeadCount })}</Pill> : null}
-                  <IcArrowRight size={16} className="opx-cd-ccard__go" />
+                {c.activeLeadCount ? <Pill tone="warn">{t("active", { n: c.activeLeadCount })}</Pill> : null}
+                <span className="opx-jr-row__go" aria-hidden="true">
+                  <IcArrowRight size={18} />
                 </span>
               </Link>
             );

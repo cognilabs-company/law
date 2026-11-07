@@ -1156,26 +1156,7 @@
   flex: 1 1 100%;
 }
 
-.opx-mtg-in:not(.opx-mtg-in--search) {
-  flex: 1 1 160px;
-}
-
-.opx-mtg-in--date input {
-  flex: 1;
-}
-
-.opx-mtg-in input[type="date"][data-empty]:not(:focus)::-webkit-datetime-edit {
-  color: transparent;
-}
-
-.opx-mtg-in input[type="date"]::-webkit-calendar-picker-indicator {
-  margin-left: auto;
-  cursor: pointer;
-  opacity: 0.75;
-}
-
-.opx-mtg-in input,
-.opx-mtg-in select {
+.opx-mtg-in input {
   min-width: 0;
   min-height: 40px;
   padding: 0;
@@ -1190,16 +1171,6 @@
 
 .opx-mtg-in--search input {
   flex: 1;
-}
-
-.opx-mtg-in select {
-  flex: 1;
-  cursor: pointer;
-}
-
-.opx-mtg-in select option {
-  background: var(--opx-base);
-  color: var(--opx-ink);
 }
 
 .opx-mtg-rows {
@@ -1493,8 +1464,7 @@ html[data-opx-theme="light"] .opx-mtg-join.is-live {
     min-width: 0;
   }
 
-  .opx-mtg-in,
-  .opx-mtg-in--date {
+  .opx-mtg-in {
     flex: 1 1 140px;
   }
 
@@ -1517,4 +1487,25 @@ html[data-opx-theme="light"] .opx-mtg-join.is-live {
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
   }
+}
+
+/* The new-meeting forms appear once asked for; until then, the list fills the screen. */
+.opx-mtg-grid[data-solo] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.opx-mtg-side[hidden] {
+  display: none;
+}
+
+.opx-mtg-cta {
+  min-height: 56px;
+  padding-inline: 28px;
+  border-radius: 999px;
+  font-size: 17px;
+}
+
+.opx-mtg-pick {
+  flex: 1 1 170px;
+  min-width: 150px;
 }

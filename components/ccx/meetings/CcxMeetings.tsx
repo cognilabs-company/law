@@ -61,6 +61,7 @@ export default function CcxMeetings() {
   const minute = useSyncExternalStore(subscribeMinute, readMinute, serverMinute);
   const callMap = useCallStatusMap();
   const [active, setActive] = useState<Active | null>(null);
+  const [creating, setCreating] = useState(false);
   const [history, setHistory] = useState<HistoryItem[] | null>(null);
   const [histErr, setHistErr] = useState<{ missing: boolean; error: unknown } | null>(null);
   const [histTick, setHistTick] = useState(0);
@@ -225,11 +226,14 @@ export default function CcxMeetings() {
   }
 
   function goCreate() {
-    const el = sideRef.current?.querySelector<HTMLInputElement>("[data-mtg-title]");
-    if (!el) return;
-    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    el.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
-    el.focus({ preventScroll: true });
+    setCreating(true);
+    window.setTimeout(() => {
+      const el = sideRef.current?.querySelector<HTMLInputElement>("[data-mtg-title]");
+      if (!el) return;
+      const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
+      el.focus({ preventScroll: true });
+    }, 0);
   }
 
   function rejoin(c: HistoryItem) {
@@ -358,7 +362,7 @@ export default function CcxMeetings() {
         </button>
       ) : null}
 
-      <div className="opx-mtg-grid">
+      <div className="opx-mtg-grid" data-solo={creating ? undefined : ""}>
         <section id={`${uid}-panel`} role="tabpanel" aria-labelledby={`${uid}-tab-${tab}`} className="opx-mtg-panel">
           <div className="opx-mtg-panel__view" hidden={tab === "all"} data-ai-target="seller:meeting-list">
             <div className="opx-mtg-panel__head">
@@ -399,7 +403,7 @@ export default function CcxMeetings() {
           ) : null}
         </section>
 
-        <div className="opx-mtg-side" ref={sideRef}>
+        <div className="opx-mtg-side" ref={sideRef} hidden={!creating}>
           <NewMeeting onOpen={setActive} />
           {canHost ? <QuickStart onOpen={setActive} /> : null}
         </div>

@@ -11,15 +11,17 @@ import { notify } from "@/lib/toast";
 import { fmtAgeMin, shortDateTime } from "@/lib/date";
 import { fmtUzs } from "@/lib/money";
 import { humanize, labelOf, regionLabel } from "@/lib/labels";
-import { leadCategoryLabel } from "@/lib/leadLabels";
-import { initials } from "@/lib/lawyers";
 import { assignNextSeller, claimUrgentRequest } from "@/lib/services/backend";
+import { useCrmMeta } from "@/lib/crm/useCrm";
 import { isSellerJob, prettyPhone, toneOf, type NowJob } from "./feed";
 import { queueHref, useJobText } from "./text";
 import NowTabs from "./NowTabs";
 import { leadHref } from "../crm/nav";
+import { LeadJourney } from "../crm/detail/LeadJourney";
+import { useCategoryName } from "../crm/leads/util";
+import { UrgentJourney } from "../urgent/UrgentJourney";
 import type { JobDetail, Who } from "./useNow";
-import { IcArrowRight, IcCheck, IcClock, IcCopy, IcDoc, IcPhone, IcSnooze, IcUser, JobIcon } from "../icons";
+import { IcArrowRight, IcCheck, IcChevron, IcClock, IcCopy, IcPhone, IcSnooze, JobIcon } from "../icons";
 
 type Resolve = { href: string; label: string } | { label: string; run: () => Promise<unknown>; done: string; fail: string };
 type Step = { id: string; at: string; title: string; sub: string };
@@ -58,9 +60,8 @@ export default function NowFocus({
   job,
   detail,
   who,
-  position,
   canLater,
-  keys,
+  extra,
   onChanged,
   onLater,
   onLogged,
@@ -68,9 +69,8 @@ export default function NowFocus({
   job: NowJob;
   detail: JobDetail | null;
   who: Who;
-  position: { i: number; n: number };
   canLater: boolean;
-  keys: boolean;
+  extra?: ReactNode;
   onChanged: () => void;
   onLater: () => void;
   onLogged: () => void;
@@ -81,7 +81,6 @@ export default function NowFocus({
   const tu = useTranslations("admin.urgent");
   const tk = useTranslations("portal.client.urgent");
   const tsrc = useTranslations("crm.source");
-  const tp = useTranslations("admin.pipeline");
   const urg = useUrgentStatuses();
   const locale = useLocale();
   const text = useJobText();
@@ -90,6 +89,9 @@ export default function NowFocus({
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
   const [logBusy, setLogBusy] = useState(false);
   const [logDirty, setLogDirty] = useState(false);
+  const [more, setMore] = useState(false);
+  const crm = useCrmMeta().meta;
+  const categoryName = useCategoryName();
 
   const lead = detail?.lead;
   const urgent = detail?.urgent;
@@ -102,7 +104,7 @@ export default function NowFocus({
   const frac = Math.max(0.05, Math.min(1, job.slaMin ? job.ageMin / job.slaMin : job.ageMin / 120));
   const urgentStatus = (s: string) => (s in urg ? urg[s].label : t.has(`ust.${s}`) ? t(`ust.${s}`) : humanize(s));
   const serviceName = urgent ? (urgent.serviceKind && tk.has(`kinds.${urgent.serviceKind}`) ? tk(`kinds.${urgent.serviceKind}`) : urgent.serviceTitle) : "";
-  const category = lead?.category ? leadCategoryLabel(tp, lead.category) : "";
+  const category = lead?.category ? categoryName(lead.category) : "";
   const rating = (r: number) => `${new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(r)} / 5`;
 
   const facts: [string, ReactNode][] = [];
@@ -180,24 +182,55 @@ export default function NowFocus({
     t("unknownClient")
   );
 
+  const callEl = dial ? (
+    <a className="opx-act opx-act--call" href={`tel:${dial}`} data-key="c" onClick={() => setLogging(true)}>
+      <IcPhone size={21} />
+      <span>{t("act.call")}</span>
+    </a>
+  ) : (
+    <button type="button" className="opx-act opx-act--call" data-key="c" onClick={() => setLogging(true)}>
+      <IcPhone size={21} />
+      <span>{t("act.logCall")}</span>
+    </button>
+  );
+  const resolveEl =
+    "href" in resolve ? (
+      <Link className="opx-act opx-act--done" href={resolve.href} data-key="e">
+        <IcArrowRight size={21} />
+        <span>{resolve.label}</span>
+      </Link>
+    ) : (
+      <button type="button" className="opx-act opx-act--done" data-key="e" onClick={() => void run()} disabled={running} aria-busy={running}>
+        <IcCheck size={21} />
+        <span>{running ? t("act.working") : resolve.label}</span>
+      </button>
+    );
+  // One thing to do: a job that needs taking is taken first, otherwise the client is called.
+  const callFirst = "href" in resolve && (!!dial || asksClient);
+
   return (
     <section className="opx-focus" data-tone={tone} aria-labelledby="opx-focus-code" data-ai-target="callcenter:now:focus">
       <div className="opx-focus__body" key={job.key}>
         <header className="opx-focus__head">
           <div className="opx-focus__id">
-            <h2 id="opx-focus-code" className="opx-focus__code">
-              {code}
-            </h2>
             <div className="opx-focus__tags">
               <span className="opx-tag">
                 <JobIcon kind={job.kind} size={16} />
                 {text.kind(job)}
               </span>
               {job.hot ? <span className="opx-tag opx-tag--hot">{t("hot")}</span> : null}
-              <span className="opx-focus__pos opx-num" aria-label={t("posAria", { i: position.i, n: position.n })}>
-                {position.i} / {position.n}
-              </span>
             </div>
+            <h2 id="opx-focus-code" className="opx-focus__code">
+              {nameNode}
+            </h2>
+            {sellerSide ? <small className="opx-who__role">{t("f.seller")}</small> : null}
+            {who.phone ? (
+              <span className="opx-focus__phone opx-num" dir="ltr">
+                {prettyPhone(who.phone)}
+              </span>
+            ) : waitingDetail ? (
+              <i className="opx-shim opx-shim--line" />
+            ) : null}
           </div>
           <div className="opx-wait" data-tone={tone} role="img" aria-label={t("waitAria", { time: age })}>
             <span className="opx-wait__ring" aria-hidden="true">
@@ -209,42 +242,54 @@ export default function NowFocus({
             </span>
             <span className="opx-wait__txt">
               <b className="opx-num">{age}</b>
-              <small>{job.leftMin == null ? t("waiting") : job.breached ? t("slaOver") : t("slaLeft", { time: fmtAgeMin(job.leftMin, locale) })}</small>
             </span>
           </div>
         </header>
 
-        <div className="opx-who">
-          <div className="opx-who__main">
-            <span className="opx-av" aria-hidden="true">
-              {who.name ? initials(who.name) : <IcUser size={22} />}
-            </span>
-            <div className="opx-who__txt">
-              {sellerSide ? <small className="opx-who__role">{t("f.seller")}</small> : null}
-              <b className="opx-who__name">{nameNode}</b>
-              {who.phone ? (
-                <span className="opx-who__line">
-                  <IcPhone size={16} />
-                  <span className="opx-num">{prettyPhone(who.phone)}</span>
-                  <CopyButton value={who.phone} label={t("phone")} />
-                </span>
-              ) : (
-                <span className="opx-who__line opx-who__line--mute">
-                  <IcPhone size={16} />
-                  {waitingDetail ? <i className="opx-shim opx-shim--line" /> : who.phoneHidden ? t("phoneHidden") : t("noPhone")}
-                </span>
-              )}
-              {who.lexgoId ? (
-                <span className="opx-who__line">
-                  <small>{t("lexgoId")}</small>
-                  <span className="opx-num">{who.lexgoId}</span>
-                  <CopyButton value={who.lexgoId} label={t("lexgoId")} />
-                </span>
-              ) : null}
-            </div>
-          </div>
-          {facts.length ? (
+        <div className="opx-focus__need">
+          <b>{reasonTitle}</b>
+          {waitingDetail ? <i className="opx-shim opx-shim--para" /> : reasonBody ? <p>{reasonBody}</p> : null}
+        </div>
+
+        {lead && crm ? <LeadJourney meta={crm} status={lead.status} /> : null}
+        {urgent ? <UrgentJourney r={urgent} /> : null}
+
+        <div className="opx-acts">
+          {callFirst ? callEl : resolveEl}
+          {callFirst ? resolveEl : callEl}
+          <button type="button" className="opx-act opx-act--later" data-key="s" onClick={onLater} disabled={!canLater}>
+            <IcSnooze size={21} />
+            <span>{t("act.later")}</span>
+          </button>
+        </div>
+
+        <button type="button" className="opx-focus__more" aria-expanded={more} onClick={() => setMore((o) => !o)}>
+          {t("more")}
+          <IcChevron size={15} />
+        </button>
+        {more ? (
+          <div className="opx-focus__extra">
             <dl className="opx-who__facts">
+              <div>
+                <dt>{t("f.code")}</dt>
+                <dd className="opx-num">
+                  {code}
+                  <CopyButton value={code} label={t("f.code")} />
+                </dd>
+              </div>
+              {who.lexgoId ? (
+                <div>
+                  <dt>{t("lexgoId")}</dt>
+                  <dd className="opx-num">
+                    {who.lexgoId}
+                    <CopyButton value={who.lexgoId} label={t("lexgoId")} />
+                  </dd>
+                </div>
+              ) : null}
+              <div>
+                <dt>{t("waiting")}</dt>
+                <dd className="opx-num">{job.leftMin == null ? age : job.breached ? t("slaOver") : t("slaLeft", { time: fmtAgeMin(job.leftMin, locale) })}</dd>
+              </div>
               {facts.map(([k, v]) => (
                 <div key={k}>
                   <dt>{k}</dt>
@@ -252,55 +297,10 @@ export default function NowFocus({
                 </div>
               ))}
             </dl>
-          ) : null}
-        </div>
-
-        <div className="opx-reason">
-          <span className="opx-reason__ic" aria-hidden="true">
-            <IcDoc size={20} />
-          </span>
-          <div>
-            <h3>{asksClient ? t("reason") : t("about")}</h3>
-            <b>{reasonTitle}</b>
-            {waitingDetail ? <i className="opx-shim opx-shim--para" /> : <p>{reasonBody || (asksClient ? t("noReason") : t("noDetails"))}</p>}
+            <NowTabs job={job} detail={detail} steps={steps} waiting={waitingDetail} onNote={onLogged} />
+            {extra}
           </div>
-        </div>
-
-        <NowTabs job={job} detail={detail} steps={steps} waiting={waitingDetail} onNote={onLogged} />
-      </div>
-
-      <div className="opx-acts">
-        {dial ? (
-          <a className="opx-act opx-act--call" href={`tel:${dial}`} data-key="c" onClick={() => setLogging(true)}>
-            <IcPhone size={21} />
-            <span>{t("act.call")}</span>
-            {keys ? <kbd>C</kbd> : null}
-          </a>
-        ) : (
-          <button type="button" className="opx-act opx-act--call" data-key="c" onClick={() => setLogging(true)}>
-            <IcPhone size={21} />
-            <span>{t("act.logCall")}</span>
-            {keys ? <kbd>C</kbd> : null}
-          </button>
-        )}
-        {"href" in resolve ? (
-          <Link className="opx-act opx-act--done" href={resolve.href} data-key="e">
-            <IcArrowRight size={21} />
-            <span>{resolve.label}</span>
-            {keys ? <kbd>E</kbd> : null}
-          </Link>
-        ) : (
-          <button type="button" className="opx-act opx-act--done" data-key="e" onClick={() => void run()} disabled={running} aria-busy={running}>
-            <IcCheck size={21} />
-            <span>{running ? t("act.working") : resolve.label}</span>
-            {keys ? <kbd>E</kbd> : null}
-          </button>
-        )}
-        <button type="button" className="opx-act opx-act--later" data-key="s" onClick={onLater} disabled={!canLater}>
-          <IcSnooze size={21} />
-          <span>{t("act.later")}</span>
-          {keys ? <kbd>S</kbd> : null}
-        </button>
+        ) : null}
       </div>
 
       {logging ? (

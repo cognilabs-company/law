@@ -2,7 +2,10 @@
 
 import "../../panel/panel.css";
 import "./detail.css";
-import { useEffect, useId, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useId, type ReactNode, type RefObject } from "react";
+import CheckBox from "@/components/CheckBox";
+import { CrmDateTime } from "@/components/crm/fields";
+import Select from "@/components/Select";
 import { initials } from "@/components/crm/bits";
 import { useCrmMeta } from "@/lib/crm/useCrm";
 import { isFinalStatus, type CrmContact, type CrmMeta } from "@/lib/services/crm";
@@ -219,14 +222,8 @@ export function SelectInput({ label, value, onChange, options, hint, error, inva
   const id = useId();
   return (
     <div className={`opx-field opx-cd-select${error || invalid ? " has-error" : ""}`}>
-      <FieldLabel id={id} label={label} />
-      <select id={id} value={value} aria-invalid={error || invalid ? true : undefined} onChange={(e) => onChange(e.target.value)}>
-        {options.map((o) => (
-          <option key={o.value || "_"} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      <label id={`${id}-l`}>{label}</label>
+      <Select value={value} onChange={onChange} options={options} labelId={`${id}-l`} invalid={error || invalid ? true : undefined} />
       <FieldFoot id={id} hint={hint} error={error} />
     </div>
   );
@@ -251,14 +248,10 @@ export function inHours(h: number): string {
 
 export function DateTimeInput({ label, value, onChange, hint }: { label: string; value: string; onChange: (v: string) => void; hint?: ReactNode }) {
   const id = useId();
-  const [min] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T00:00`;
-  });
   return (
     <div className="opx-field opx-cd-dt">
-      <label htmlFor={id}>{label}</label>
-      <input id={id} type="datetime-local" value={value} min={min} onChange={(e) => onChange(e.target.value)} />
+      <span className="opx-field__cap">{label}</span>
+      <CrmDateTime value={value} onChange={onChange} label={label} />
       <FieldFoot id={id} hint={hint} />
     </div>
   );
@@ -279,11 +272,9 @@ export function Seg<T extends string>({ label, value, options, onChange, size }:
 
 export function Check({ checked, onChange, disabled, children }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean; children: ReactNode }) {
   return (
-    <label className={`opx-cd-check${disabled ? " is-off" : ""}`}>
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
-      <span aria-hidden="true" className="opx-cd-check__box" />
-      <span>{children}</span>
-    </label>
+    <CheckBox checked={checked} onChange={onChange} disabled={disabled}>
+      {children}
+    </CheckBox>
   );
 }
 

@@ -1,6 +1,8 @@
 "use client";
 
 import { useId, type Ref } from "react";
+import { CrmDateTime } from "@/components/crm/fields";
+import Select from "@/components/Select";
 
 export type Opt = { value: string; label: string };
 
@@ -8,14 +10,18 @@ export function SelectField({ label, value, onChange, options, disabled }: { lab
   const id = useId();
   return (
     <div className="opx-field opx-ld-f">
-      <label htmlFor={id}>{label}</label>
-      <select id={id} className="opx-ld-select" value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+      <label id={`${id}-l`}>{label}</label>
+      <Select value={value} onChange={onChange} options={options} labelId={`${id}-l`} disabled={disabled} />
+    </div>
+  );
+}
+
+// A local date and time ("YYYY-MM-DDTHH:MM", "" for none) with the site's own pickers.
+export function DateTimeField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="opx-field opx-ld-f">
+      <span className="opx-field__cap">{label}</span>
+      <CrmDateTime value={value} onChange={onChange} label={label} />
     </div>
   );
 }
@@ -28,7 +34,7 @@ type TextProps = {
   error?: string;
   hint?: string;
   placeholder?: string;
-  type?: "text" | "email" | "tel" | "datetime-local" | "date";
+  type?: "text" | "email" | "tel";
   inputMode?: "text" | "tel" | "email";
   min?: string;
   max?: string;

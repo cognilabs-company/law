@@ -258,23 +258,6 @@
   box-shadow: var(--opx-ring);
 }
 
-.opx-sx-sort select {
-  padding: 0 2px;
-  border: 0;
-  background: none;
-  color: var(--opx-ink);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  outline: none;
-  cursor: pointer;
-}
-
-.opx-sx-sort option {
-  background: var(--opx-base);
-  color: var(--opx-ink);
-}
-
 .opx-sx-items {
   flex: 1;
   min-height: 0;
@@ -775,7 +758,7 @@ html[data-opx-theme="light"] .opx-sx-claim {
   font-size: 13px;
 }
 
-.opx-sx-infobtn {
+.opx-pbtn.opx-sx-infobtn {
   display: none;
   width: 38px;
   padding: 0;
@@ -1777,7 +1760,7 @@ a.opx-sx-file:hover {
     animation: opx-sheet 0.35s var(--opx-ease) both;
   }
 
-  .opx-sx-infobtn {
+  .opx-pbtn.opx-sx-infobtn {
     display: inline-flex;
   }
 
@@ -1944,4 +1927,77 @@ a.opx-sx-file:hover {
   .opx-sx-bub {
     border: 1px solid CanvasText;
   }
+}
+
+/* Murojaat: the ticket's track, one do-now pill, plain rows. */
+.opx-sx-track {
+  display: grid;
+  gap: 10px;
+  padding: 10px 16px 14px;
+  border-bottom: 1px solid var(--opx-line);
+}
+
+.opx-pbtn.opx-sx-do {
+  width: 100%;
+  min-height: 64px;
+  border-radius: 999px;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.opx-sx-pick .opx-pbtn.opx-sx-do {
+  width: min(420px, 100%);
+}
+
+.opx-sx-item__main .opx-sx-item__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.opx-sx-item__main .opx-sx-item__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 15px;
+}
+
+.opx-sx-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  color: var(--opx-ink-3);
+  font-size: 12.5px;
+}
+
+.opx-sx-item.has-claim {
+  display: grid;
+  padding: 0;
+  overflow: hidden;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--opx-aqua) 45%, transparent);
+}
+
+.opx-sx-item.has-claim .opx-sx-claim {
+  position: static;
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(120deg, #18a99d, #23c3b4);
+  color: #032623;
+  font-size: 14px;
+  font-weight: 800;
+  justify-content: center;
+}
+
+.opx-sx-sort {
+  min-width: 170px;
+}
+
+.opx-sx-sort .dsel__btn {
+  min-height: 36px;
+  padding-block: 2px;
+  border: 0;
+  background: none;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
@@ -12,13 +12,13 @@ import { IcPlus } from "../misc/icons";
 import { Empty, Seg, Skel, copyText } from "../misc/ui";
 import type { CrmSectionProps } from "../nav";
 import { useCrmErr } from "../leads/util";
+import Select from "@/components/Select";
 
 export default function CrmTemplatesX({ meta }: CrmSectionProps) {
   const t = useTranslations("crm.templates");
   const tl = useTranslations("admin.ccx.crm.lang");
   const tx = useTranslations("admin.ccx.crmMisc");
   const crmErr = useCrmErr();
-  const uid = useId();
   const [type, setType] = useState("");
   const [language, setLanguage] = useState("");
   const [qInput, setQInput] = useState("");
@@ -68,17 +68,7 @@ export default function CrmTemplatesX({ meta }: CrmSectionProps) {
           <input value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
         </label>
         <span className="opx-cm-select">
-          <label htmlFor={`${uid}-lang`} className="opx-sr">
-            {t("language")}
-          </label>
-          <select id={`${uid}-lang`} value={language} onChange={(e) => setLanguage(e.target.value)}>
-            <option value="">{t("anyLanguage")}</option>
-            {meta.languages.map((l) => (
-              <option key={l} value={l}>
-                {langName(l)}
-              </option>
-            ))}
-          </select>
+          <Select value={language} onChange={setLanguage} ariaLabel={t("language")} options={[{ value: "", label: t("anyLanguage") }, ...meta.languages.map((l) => ({ value: l, label: langName(l) }))]} />
         </span>
         {canManage ? (
           <button type="button" className="opx-pbtn opx-pbtn--main opx-cm-push" onClick={() => setCreating(true)}>

@@ -60,7 +60,6 @@ export default function QuickStart({ onOpen }: { onOpen: (a: Active) => void }) 
         </span>
         <h3 id={`${uid}-h`}>{x("quickTitle")}</h3>
       </header>
-      <p className="opx-mtg-lead">{x("quickLead")}</p>
       <form
         className="opx-mtg-quick__form"
         noValidate
@@ -99,7 +98,6 @@ export default function QuickStart({ onOpen }: { onOpen: (a: Active) => void }) 
           {busy ? t("starting") : x("quickGo")}
         </button>
       </form>
-      <p className="opx-mtg-hint">{t("ccConfirmText")}</p>
     </section>
   );
 }

@@ -1779,3 +1779,172 @@ html[data-opx-theme="light"] .opx-hist__list li::before {
     padding-right: 2px;
   }
 }
+
+/* Hozir: one job, one thing to do. */
+.opx-now__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.opx-focus {
+  padding: 26px 30px;
+}
+
+.opx-focus__head {
+  align-items: flex-start;
+}
+
+.opx-focus__id {
+  display: grid;
+  gap: 6px;
+}
+
+.opx-focus__code {
+  font-size: 38px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.opx-focus__phone {
+  color: var(--opx-ink-2);
+  font-size: 16px;
+  font-weight: 650;
+}
+
+.opx-focus__need {
+  display: grid;
+  gap: 4px;
+  margin: 14px 0 18px;
+}
+
+.opx-focus__need b {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--opx-ink);
+}
+
+.opx-focus__need p {
+  margin: 0;
+  color: var(--opx-ink-2);
+  font-size: 15px;
+}
+
+.opx-focus .opx-jr {
+  margin: 8px 0 18px;
+}
+
+/* The first action is the big pill; the others are quiet. */
+.opx-focus .opx-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.opx-focus .opx-acts > .opx-act {
+  flex: 0 1 auto;
+  width: auto;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--opx-line-2);
+  background: var(--opx-glass-2);
+  color: var(--opx-ink);
+  box-shadow: none;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.opx-focus .opx-acts > .opx-act:first-child {
+  flex: 1 0 100%;
+  min-height: 84px;
+  border-color: transparent;
+  background: linear-gradient(120deg, #18a99d, #23c3b4);
+  color: #032623;
+  font-size: 24px;
+  font-weight: 800;
+  box-shadow: 0 18px 40px -22px rgba(60, 220, 200, 0.95);
+}
+
+.opx-focus .opx-acts > .opx-act:first-child svg {
+  width: 28px;
+  height: 28px;
+}
+
+.opx-focus .opx-acts > .opx-act--later {
+  margin-left: auto;
+  border-color: transparent;
+  background: none;
+  color: var(--opx-ink-3);
+}
+
+.opx-focus__more {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  margin-top: 12px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--opx-ink-3);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.opx-focus__more:hover {
+  color: var(--opx-ink);
+}
+
+.opx-focus__more[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.opx-focus__extra {
+  display: grid;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.opx-focus__extra .opx-who__facts dd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+@media (max-width: 720px) {
+  .opx-focus {
+    padding: 16px;
+  }
+
+  .opx-focus__code {
+    font-size: 26px;
+  }
+
+  .opx-focus .opx-acts > .opx-act:first-child {
+    min-height: 64px;
+    font-size: 19px;
+  }
+}
+
+@media (max-width: 720px) {
+  .opx-focus .opx-acts > .opx-act--later {
+    margin-left: 0;
+  }
+}
+
+/* One scroll, the page's: details open in place. */
+.opx-focus,
+.opx-focus__body,
+.opx-now__main {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.opx-now {
+  height: auto;
+}

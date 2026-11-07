@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { dateOnly, shortDateTime, timeOnly } from "@/lib/date";
 import { isAborted, logApiError } from "@/lib/http";
@@ -8,11 +8,12 @@ import { toast } from "@/lib/toast";
 import { addLeadActivity, getLeadTimeline, leadCan, listCrmTemplates, updateCrmLead, type CrmActivity, type CrmContact, type CrmLead, type CrmMeta, type CrmTemplate } from "@/lib/services/crm";
 import { IcLayers, IcMeeting, IcPhone, IcRefresh, IcTimeline } from "../../icons";
 import { hasReadable, PayloadList } from "./detailList";
-import { IcBell, IcChat, IcClip, IcEdit, IcHistory, IcSend } from "./glyphs";
+import { IcDots } from "../leads/icons";
+import { IcBell, IcChat, IcClip, IcEdit, IcHistory, IcPlus, IcSend } from "./glyphs";
 import { CallsPane } from "./leadCalls";
 import type { LeadHistoryState } from "./leadCards";
 import { SmsPane } from "./leadSms";
-import { Card, DateTimeInput, Empty, Failed, Pill, Shim, StatusChip, StatusGlyph, fromLocal, inHours } from "./kit";
+import { Card, DateTimeInput, Empty, Failed, Pill, Shim, StatusChip, StatusGlyph, fromLocal, inHours, useDismiss } from "./kit";
 import type { LeadWrite } from "./types";
 import { useCrmErr } from "../leads/util";
 
@@ -135,6 +136,8 @@ export function FeedCard({
   onAdded,
   onDrafting,
   callFocus,
+  submitDraft,
+  callLogged,
   history,
   phones,
   smsPreset,
@@ -149,26 +152,56 @@ export function FeedCard({
   onAdded: () => void;
   onDrafting: (on: boolean) => void;
   callFocus: number;
+  submitDraft: number;
+  callLogged: boolean;
   history: LeadHistoryState;
   phones: CrmContact[] | null;
   smsPreset: string;
   onPresetUsed: () => void;
 }) {
   const t = useTranslations("crm.lead");
+  const tg = useTranslations("crm.glance");
   const tx = useTranslations("admin.ccx.crmDetail");
+  const [menu, setMenu] = useState(false);
+  const box = useRef<HTMLDivElement | null>(null);
+  const close = useCallback(() => setMenu(false), []);
+  useDismiss(menu, close, box);
+  const title = pane === "timeline" ? tx("activity") : t(`pane.${pane}`, { n: lead.cycleNumber });
   return (
-    <Card icon={<IcTimeline size={17} />} title={tx("activity")} className="opx-cd-feed">
-      <div className="opx-cd-tabs" role="tablist" aria-label={t("panes")}>
-        {PANES.map((k) => (
-          <button key={k} type="button" role="tab" aria-selected={pane === k} onClick={() => onPane(k)}>
-            <PaneGlyph pane={k} />
-            {t(`pane.${k}`, { n: lead.cycleNumber })}
+    <Card
+      icon={pane === "timeline" ? <IcTimeline size={17} /> : <PaneGlyph pane={pane} />}
+      title={title}
+      className="opx-cd-feed"
+      aside={
+        <div className="opx-cd-menu" ref={box}>
+          <button type="button" className="opx-cd-ibtn opx-jr-more" aria-haspopup="menu" aria-expanded={menu} aria-label={t("panes")} title={tg("more")} onClick={() => setMenu((o) => !o)}>
+            <IcDots size={18} />
           </button>
-        ))}
-      </div>
-      <div className="opx-cd-feed__body" role="tabpanel">
+          {menu ? (
+            <div className="opx-cd-pop opx-cd-pop--end" role="menu" aria-label={t("panes")}>
+              {PANES.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={pane === k}
+                  onClick={() => {
+                    setMenu(false);
+                    onPane(k);
+                  }}
+                >
+                  <PaneGlyph pane={k} />
+                  {t(`pane.${k}`, { n: lead.cycleNumber })}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      }
+    >
+      <div className="opx-cd-feed__body">
         {pane === "timeline" ? (
-          <TimelinePane lead={lead} write={write} timeline={timeline} onAdded={onAdded} onDrafting={onDrafting} callFocus={callFocus} />
+          <TimelinePane lead={lead} write={write} timeline={timeline} onAdded={onAdded} onDrafting={onDrafting} callFocus={callFocus} submitDraft={submitDraft} callLogged={callLogged} />
         ) : pane === "history" ? (
           <CyclesPane meta={meta} history={history} />
         ) : pane === "calls" ? (
@@ -181,13 +214,13 @@ export function FeedCard({
   );
 }
 
-function TimelinePane({ lead, write, timeline, onAdded, onDrafting, callFocus }: { lead: CrmLead; write: LeadWrite; timeline: LeadTimelineState; onAdded: () => void; onDrafting: (on: boolean) => void; callFocus: number }) {
+function TimelinePane({ lead, write, timeline, onAdded, onDrafting, callFocus, submitDraft, callLogged }: { lead: CrmLead; write: LeadWrite; timeline: LeadTimelineState; onAdded: () => void; onDrafting: (on: boolean) => void; callFocus: number; submitDraft: number; callLogged: boolean }) {
   const t = useTranslations("crm.tl");
   const { items, err } = timeline;
   const canView = leadCan(lead, "view_timeline");
   return (
     <>
-      {leadCan(lead, "add_activity") ? <Composer lead={lead} write={write} onAdded={onAdded} onDrafting={onDrafting} callFocus={callFocus} /> : null}
+      {leadCan(lead, "add_activity") ? <Composer lead={lead} write={write} onAdded={onAdded} onDrafting={onDrafting} callFocus={callFocus} submitDraft={submitDraft} callLogged={callLogged} /> : null}
       {!canView ? (
         <p className="opx-cd-sub">{t("noAccess")}</p>
       ) : items === null ? (
@@ -205,10 +238,14 @@ function TimelinePane({ lead, write, timeline, onAdded, onDrafting, callFocus }:
   );
 }
 
-function Composer({ lead, write, onAdded, onDrafting, callFocus }: { lead: CrmLead; write: LeadWrite; onAdded: () => void; onDrafting: (on: boolean) => void; callFocus: number }) {
+function Composer({ lead, write, onAdded, onDrafting, callFocus, submitDraft, callLogged }: { lead: CrmLead; write: LeadWrite; onAdded: () => void; onDrafting: (on: boolean) => void; callFocus: number; submitDraft: number; callLogged: boolean }) {
   const t = useTranslations("crm.tl");
   const crmErr = useCrmErr();
-  const [type, setType] = useState<Writable>("call_note");
+  // Until a call is on record, the only form is the call's result; afterwards a
+  // plain note. Every other kind of entry waits behind the "+".
+  const [picked, setPicked] = useState<Writable | null>(null);
+  const type: Writable = picked ?? (callLogged ? "note" : "call_note");
+  const [moreTypes, setMoreTypes] = useState(false);
   const [title, setTitle] = useState("");
   const [withTitle, setWithTitle] = useState(false);
   const [body, setBody] = useState("");
@@ -230,7 +267,7 @@ function Composer({ lead, write, onAdded, onDrafting, callFocus }: { lead: CrmLe
   useEffect(() => {
     if (!callFocus) return;
     const id = window.setTimeout(() => {
-      setType("call_note");
+      setPicked("call_note");
       boxRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
       ref.current?.focus({ preventScroll: true });
     }, 0);
@@ -282,31 +319,62 @@ function Composer({ lead, write, onAdded, onDrafting, callFocus }: { lead: CrmLe
       setBusy(false);
     }
   };
+  const addRef = useRef(add);
+  useEffect(() => {
+    addRef.current = add;
+  });
+  useEffect(() => {
+    if (submitDraft) void addRef.current();
+  }, [submitDraft]);
   return (
     <div className="opx-cd-comp" ref={boxRef}>
-      <div className="opx-cd-comp__types" role="group" aria-label={t("typeLabel")}>
-        {WRITABLE.map((k) => (
-          <button key={k} type="button" aria-pressed={type === k} onClick={() => setType(k)}>
-            <TypeGlyph type={k} size={15} />
-            {t(`type.${k}`)}
-          </button>
-        ))}
+      <div className="opx-cd-comp__head">
+        <span className="opx-cd-comp__kind">
+          <TypeGlyph type={type} size={16} />
+          {t(`type.${type}`)}
+        </span>
+        <button type="button" className="opx-cd-ibtn opx-cd-comp__plus" aria-expanded={moreTypes} aria-label={t("typeLabel")} title={t("typeLabel")} onClick={() => setMoreTypes((o) => !o)}>
+          <IcPlus size={17} />
+        </button>
       </div>
-      <div className="opx-cd-comp__grid">
-        <div className="opx-cd-comp__main">
-          {withTitle || title ? (
-            <input className="opx-cd-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} aria-label={t("titlePh")} autoFocus={!title} />
-          ) : (
-            <button type="button" className="opx-cd-comp__addtitle" onClick={() => setWithTitle(true)}>
+      {moreTypes ? (
+        <div className="opx-cd-comp__types" role="group" aria-label={t("typeLabel")}>
+          {WRITABLE.map((k) => (
+            <button
+              key={k}
+              type="button"
+              aria-pressed={type === k}
+              onClick={() => {
+                setPicked(k);
+                setMoreTypes(false);
+              }}
+            >
+              <TypeGlyph type={k} size={15} />
+              {t(`type.${k}`)}
+            </button>
+          ))}
+          {withTitle || title ? null : (
+            <button
+              type="button"
+              onClick={() => {
+                setWithTitle(true);
+                setMoreTypes(false);
+              }}
+            >
               {t("addTitle")}
             </button>
           )}
+        </div>
+      ) : null}
+      <div className="opx-cd-comp__grid">
+        <div className="opx-cd-comp__main">
+          {withTitle || title ? <input className="opx-cd-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("titlePh")} aria-label={t("titlePh")} autoFocus={!title} /> : null}
           <div className="opx-cd-comp__box">
             <textarea
               ref={ref}
               className="opx-cd-input opx-cd-comp__text"
               value={body}
-              rows={3}
+              rows={2}
               onChange={(e) => onChange(e.target.value)}
               placeholder={t("bodyShort")}
               aria-label={t("bodyShort")}
@@ -385,7 +453,7 @@ function Composer({ lead, write, onAdded, onDrafting, callFocus }: { lead: CrmLe
               />
             </div>
           ) : null}
-          <button type="button" className={`opx-pbtn${typed ? " opx-pbtn--main" : ""}`} onClick={() => void add()} disabled={!typed || busy} aria-busy={busy || undefined}>
+          <button type="button" className="opx-pbtn" onClick={() => void add()} disabled={!typed || busy} aria-busy={busy || undefined}>
             <IcEdit size={16} />
             {t("add")}
           </button>

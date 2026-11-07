@@ -55,7 +55,6 @@ export function StepFoot({
       <button type="button" className={`opx-pbtn opx-pbtn--main${danger ? " is-danger" : ""}`} disabled={busy || disabled} aria-busy={busy} onClick={primary}>
         {icon}
         {busy ? busyLabel : label}
-        {kbd ? <kbd>Ctrl Enter</kbd> : null}
       </button>
     </footer>
   );

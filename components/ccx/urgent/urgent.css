@@ -48,37 +48,6 @@
   letter-spacing: -0.015em;
 }
 
-.opx-ug-live {
-  --opx-dot: var(--opx-warn);
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 13px 0 11px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--opx-dot) 45%, transparent);
-  background: color-mix(in srgb, var(--opx-dot) 12%, transparent);
-  color: var(--opx-dot);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.opx-ug-live.is-on {
-  --opx-dot: var(--opx-aqua);
-}
-
-.opx-ug-live i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--opx-dot);
-  animation: opx-blink 1.4s ease-in-out infinite;
-}
-
-.opx-ug-live.is-on i {
-  animation: opx-live 2s ease-in-out infinite;
-}
-
 .opx-ug-head__n {
   color: var(--opx-ink-2);
   font-size: 15px;
@@ -193,36 +162,6 @@
   min-width: 0;
 }
 
-.opx-ug-filter > .opx-i {
-  position: absolute;
-  left: 13px;
-  color: var(--opx-ice);
-  pointer-events: none;
-}
-
-.opx-ug-filter select {
-  width: 100%;
-  min-width: 0;
-  max-width: 270px;
-  height: 42px;
-  padding: 0 36px 0 39px;
-  overflow: hidden;
-  border-radius: 14px;
-  border: 1px solid var(--opx-line);
-  background: var(--opx-glass) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238394ab' stroke-width='2.4' stroke-linecap='round'><path d='m6 9 6 6 6-6'/></svg>") no-repeat right 13px center;
-  -webkit-backdrop-filter: blur(18px);
-  backdrop-filter: blur(18px);
-  color: var(--opx-ink);
-  font: inherit;
-  font-size: 13.5px;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  appearance: none;
-  cursor: pointer;
-}
-
-.opx-ug-filter option,
 .opx-ug .opx-field option,
 .opx-ug-sheet .opx-field option {
   background: var(--opx-base);
@@ -941,100 +880,6 @@
   box-shadow: var(--opx-ring);
 }
 
-.opx-ug-flow {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  margin: 0 14px;
-  padding: 2px 0 12px;
-  border-bottom: 1px solid var(--opx-line);
-  list-style: none;
-}
-
-.opx-ug-flow li {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  color: var(--opx-ink-3);
-  font-size: 12.5px;
-  font-weight: 700;
-  text-align: center;
-}
-
-.opx-ug-flow li::before {
-  content: "";
-  position: absolute;
-  top: 10px;
-  left: calc(-50% + 13px);
-  right: calc(50% + 13px);
-  height: 2px;
-  border-radius: 2px;
-  background: var(--opx-line-2);
-}
-
-.opx-ug-flow li:first-child::before {
-  display: none;
-}
-
-.opx-ug-flow li.is-done::before,
-.opx-ug-flow li.is-now::before {
-  background: var(--opx-aqua);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--opx-aqua) 60%, transparent);
-}
-
-.opx-ug-flow i {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 2px solid var(--opx-line-2);
-  background: var(--opx-base);
-  color: var(--opx-base);
-  font-style: normal;
-}
-
-.opx-ug-flow li.is-done i {
-  border-color: var(--opx-aqua);
-  background: var(--opx-aqua);
-}
-
-.opx-ug-flow li.is-now i {
-  border-color: var(--opx-aqua);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--opx-aqua) 20%, transparent), 0 0 16px color-mix(in srgb, var(--opx-aqua) 75%, transparent);
-}
-
-.opx-ug-flow li.is-now i::after {
-  content: "";
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--opx-aqua);
-}
-
-.opx-ug-flow li.is-bad i {
-  border-color: var(--opx-hot);
-  background: color-mix(in srgb, var(--opx-hot) 22%, var(--opx-base));
-  color: var(--opx-hot);
-}
-
-.opx-ug-flow li.is-done span,
-.opx-ug-flow li.is-now span {
-  color: var(--opx-ink);
-}
-
-.opx-ug-flow li.is-bad span {
-  color: var(--opx-hot);
-}
-
-.opx-ug-flow span {
-  max-width: 100%;
-  padding: 0 4px;
-  overflow-wrap: normal;
-}
-
 .opx-ug-dirs {
   display: flex;
   flex-wrap: wrap;
@@ -1698,41 +1543,6 @@
   gap: 8px 16px;
 }
 
-.opx-ug-check {
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 8px;
-  color: var(--opx-ink);
-  font-size: 13.5px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.opx-ug-check input {
-  width: 18px;
-  height: 18px;
-  flex: none;
-  margin: 1px 0 0;
-  accent-color: var(--opx-aqua);
-  cursor: pointer;
-}
-
-.opx-ug-check.is-off {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.opx-ug-check span {
-  display: grid;
-  gap: 2px;
-}
-
-.opx-ug-check small {
-  color: var(--opx-ink-3);
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .opx-ug-wide {
   gap: 10px;
 }
@@ -1935,9 +1745,8 @@ html[data-opx-motion="off"] .opx-ug-confirm {
 
 @media (prefers-reduced-motion: reduce) {
   .opx-ug-sheet,
-  .opx-ug-confirm,
-  .opx-ug-live i,
-  .opx-ug-st i {
+.opx-ug-confirm,
+.opx-ug-st i {
     animation: none;
   }
 }
@@ -1999,20 +1808,12 @@ html[data-opx-motion="off"] .opx-ug-confirm {
     flex: 1 1 0;
   }
 
-  .opx-ug-filter select {
-    max-width: none;
-  }
-
   .opx-ug-sheet .opx-ug-dhead {
     padding: 12px 62px 10px 12px;
   }
 
   .opx-ug-sheet .opx-ug-detail .opx-pscroll {
     padding: 12px;
-  }
-
-  .opx-ug-sheet .opx-ug-flow {
-    margin: 0 8px;
   }
 
   .opx-ug-sheet .opx-pgrid2 {
@@ -2060,14 +1861,6 @@ html[data-opx-motion="off"] .opx-ug-confirm {
     flex: 1;
   }
 
-  .opx-ug-flow li {
-    font-size: 10.5px;
-  }
-
-  .opx-ug-flow span {
-    padding: 0 1px;
-  }
-
   .opx-ug-dhead__chips {
     justify-content: flex-start;
     margin-left: 0;
@@ -2096,4 +1889,66 @@ html[data-opx-motion="off"] .opx-ug-confirm {
   .opx-pbtn.opx-ug-cancel {
     margin-left: 0;
   }
+}
+
+/* Tezkor advokat: the same track, one do-now pill, no small extras. */
+.opx-ug-track {
+  display: grid;
+  gap: 12px;
+  padding: 14px 18px 16px;
+  border-bottom: 1px solid var(--opx-line);
+}
+
+.opx-ug-do .opx-pbtn {
+  width: 100%;
+  min-height: 72px;
+  border-radius: 999px;
+  font-size: 22px;
+  font-weight: 800;
+  white-space: normal;
+}
+
+.opx-ug-do .opx-pbtn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.opx-ug-morebtn {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 4px;
+}
+
+.opx-ug-morebtn[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+.opx-ug-filters[hidden] {
+  display: none;
+}
+
+.opx-ug-filter {
+  width: 190px;
+  max-width: 100%;
+}
+
+.opx-pbtn.opx-ug-cancel {
+  border-color: transparent;
+  background: none;
+  color: var(--opx-ink-3);
+}
+
+.opx-pbtn.opx-ug-cancel:hover {
+  color: var(--opx-hot);
+}
+
+.opx-ug-card__heads .opx-ug-card__title {
+  font-size: 16px;
+}
+
+.opx-ug-go.is-main {
+  min-height: 44px;
+  padding-inline: 22px;
+  border-radius: 999px;
 }

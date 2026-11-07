@@ -27,7 +27,7 @@ export function PanelHead({ icon, tag, code, ageMin, tone }: { icon: ReactNode; 
   );
 }
 
-export function PartyCard({ role, name, phone, lexgoId, extra }: { role: string; name: ReactNode; phone?: string; lexgoId?: string; extra?: ReactNode }) {
+export function PartyCard({ role, name, phone, lexgoId, extra, quietCall }: { role: string; name: ReactNode; phone?: string; lexgoId?: string; extra?: ReactNode; quietCall?: boolean }) {
   const t = useTranslations("admin.ccx.panel");
   const dial = (phone ?? "").replace(/[^\d+]/g, "");
   return (
@@ -53,7 +53,7 @@ export function PartyCard({ role, name, phone, lexgoId, extra }: { role: string;
         {extra}
       </div>
       {dial ? (
-        <a className="opx-pbtn opx-pbtn--call" href={`tel:${dial}`}>
+        <a className={`opx-pbtn${quietCall ? "" : " opx-pbtn--call"}`} href={`tel:${dial}`}>
           <IcPhone size={15} />
           {t("call")}
         </a>
@@ -248,7 +248,6 @@ export function PanelFoot({ onCancel, cancelLabel, primary, primaryLabel, busy, 
       {primary ? (
         <button type="button" className={`opx-pbtn opx-pbtn--main${danger ? " is-danger" : ""}`} onClick={primary} disabled={busy || disabled} aria-busy={busy}>
           {busy ? t("working") : primaryLabel}
-          {kbd ? <kbd>Ctrl Enter</kbd> : null}
         </button>
       ) : null}
     </footer>

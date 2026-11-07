@@ -526,7 +526,13 @@ export default function CcxSupport() {
             <span className="opx-sx-pick__ic" aria-hidden="true">
               <IcSupport size={34} />
             </span>
-            <p>{list.status === "error" ? tx("pickError") : list.status === "ready" && !shown.length ? tx("pickNone") : tx("pick")}</p>
+            {list.status === "ready" && shown.length ? (
+              <button type="button" className="opx-pbtn opx-pbtn--main opx-sx-do" onClick={() => open(shown[0])}>
+                {tx("openFirst")}
+              </button>
+            ) : (
+              <p>{list.status === "error" ? tx("pickError") : list.status === "ready" ? tx("pickNone") : tx("pick")}</p>
+            )}
           </section>
         )}
       </div>

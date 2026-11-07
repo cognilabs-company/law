@@ -11,6 +11,8 @@ import { notify } from "@/lib/toast";
 import { IcArrowRight, IcClose, IcMeeting, IcPhone, IcRefresh, IcSearch } from "../icons";
 import { IcCalendar, IcUsers } from "./glyphs";
 import { CALL_TONE, PAGE, PLAT_REFRESH_ID, STATUS_ORDER, countBy, dayStart, isTransient, ordered, reasonOf, useCallStatusMap, utcDay } from "./model";
+import Select from "@/components/Select";
+import DatePicker from "@/components/DatePicker";
 
 export default function AllMeetings({ minute, onOpen }: { minute: number; onOpen: (id: string) => void }) {
   const t = useTranslations("admin.meetings");
@@ -107,30 +109,21 @@ export default function AllMeetings({ minute, onOpen }: { minute: number; onOpen
           <IcRefresh size={17} />
         </button>
       </div>
-      <p className="opx-mtg-lead">{tch("lead")}</p>
       <div className="opx-mtg-filters">
         <label className="opx-mtg-in opx-mtg-in--search">
           <IcSearch size={16} />
           <span className="opx-sr">{tch("searchPh")}</span>
           <input type="search" value={query} placeholder={tch("searchPh")} onChange={(e) => setQuery(e.target.value)} autoComplete="off" />
         </label>
-        <label className="opx-mtg-in">
-          <span className="opx-sr">{tpc("filterStatus")}</span>
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
-            <option value="">{tpc("filterAllStatuses")}</option>
-            {statuses.map((s) => (
-              <option key={s} value={s}>{`${statusOf(s) || s} (${counts.get(s) ?? 0})`}</option>
-            ))}
-          </select>
-        </label>
-        <label className="opx-mtg-in opx-mtg-in--date">
-          <span>{tch("from")}</span>
-          <input type="date" value={from} max={to || undefined} data-empty={from ? undefined : ""} onChange={(e) => setFrom(e.target.value)} />
-        </label>
-        <label className="opx-mtg-in opx-mtg-in--date">
-          <span>{tch("to")}</span>
-          <input type="date" value={to} min={from || undefined} data-empty={to ? undefined : ""} onChange={(e) => setTo(e.target.value)} />
-        </label>
+        <span className="opx-mtg-pick">
+          <Select value={status} onChange={setStatus} ariaLabel={tpc("filterStatus")} options={[{ value: "", label: tpc("filterAllStatuses") }, ...statuses.map((s) => ({ value: s, label: `${statusOf(s) || s} (${counts.get(s) ?? 0})` }))]} />
+        </span>
+        <span className="opx-mtg-pick">
+          <DatePicker value={from} max={to || undefined} placeholder={tch("from")} ariaLabel={tch("from")} onChange={setFrom} />
+        </span>
+        <span className="opx-mtg-pick">
+          <DatePicker value={to} min={from || undefined} placeholder={tch("to")} ariaLabel={tch("to")} onChange={setTo} />
+        </span>
         {from || to ? (
           <button
             type="button"

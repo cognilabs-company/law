@@ -15,6 +15,7 @@ import JobPanel from "./JobPanel";
 import { useQueues } from "./useQueues";
 import QueuesBoard, { CallRows } from "./QueuesBoard";
 import { FamIcon, JobCard, QueueIcon } from "./parts";
+import Select from "@/components/Select";
 
 type Mode = "board" | "family";
 
@@ -261,13 +262,9 @@ export default function CcxQueues() {
                     </button>
                   ))}
                 </div>
-                <label className="opx-fam__sort">
-                  <span className="opx-sr">{t("sortAria")}</span>
-                  <select value={newest ? "new" : "old"} onChange={(e) => setNewest(e.target.value === "new")}>
-                    <option value="old">{t("sort.old")}</option>
-                    <option value="new">{t("sort.new")}</option>
-                  </select>
-                </label>
+                <span className="opx-fam__sort">
+                  <Select value={newest ? "new" : "old"} ariaLabel={t("sortAria")} onChange={(v) => setNewest(v === "new")} options={[{ value: "old", label: t("sort.old") }, { value: "new", label: t("sort.new") }]} />
+                </span>
               </div>
 
               {lane?.status === "failed" ? (
@@ -287,16 +284,6 @@ export default function CcxQueues() {
                 <p className="opx-fam__none">{filter === "all" ? t("emptyLane") : t("emptyFilter")}</p>
               )}
 
-              {prefs.keys && famLanes.length > 1 ? (
-                <p className="opx-fam__keys">
-                  {t("keys")}
-                  <kbd>←</kbd>
-                  <kbd>→</kbd>
-                  {t("keysNav")}
-                  <kbd>Enter</kbd>
-                  {t("keysOpen")}
-                </p>
-              ) : null}
             </>
           )}
         </div>

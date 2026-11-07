@@ -13,6 +13,10 @@ import { IcSearch } from "../icons";
 import { CAND_PAGE, DIRECTION_SLUGS, localToday, ntfId } from "./model";
 import { CandRow, StepError, StepFoot, useReportDirty } from "./kit";
 import { px } from "./parts";
+import TimePicker from "@/components/TimePicker";
+import Select from "@/components/Select";
+import DatePicker from "@/components/DatePicker";
+import CheckBox from "@/components/CheckBox";
 
 type Query = { dirs: string[]; region: string; n: number };
 
@@ -32,6 +36,7 @@ export default function UrgentCandidates({
   const t = useTranslations("admin.urgent");
   const te = useTranslations("enums");
   const uid = useId();
+  const tf = useTranslations("crm.fields");
   const errBox = useRef<HTMLDivElement>(null);
   const [list, setList] = useState<UrgentCandidate[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
@@ -178,14 +183,12 @@ export default function UrgentCandidates({
         </div>
 
         <div className="opx-ug-candtools">
-          <label className={`opx-ug-check${wide ? " is-off" : ""}`}>
-            <input type="checkbox" checked={external} disabled={wide} onChange={(e) => setExternal(e.target.checked)} />
-            <span>{t("includeExternal")}</span>
-          </label>
-          <label className={`opx-ug-check${wide ? " is-off" : ""}`}>
-            <input type="checkbox" checked={callcenter} disabled={wide} onChange={(e) => setCallcenter(e.target.checked)} />
-            <span>{t("includeCallcenter")}</span>
-          </label>
+          <CheckBox checked={external} disabled={wide} onChange={setExternal}>
+            {t("includeExternal")}
+          </CheckBox>
+          <CheckBox checked={callcenter} disabled={wide} onChange={setCallcenter}>
+            {t("includeCallcenter")}
+          </CheckBox>
           <button type="button" className={`opx-pbtn opx-ug-sm${wide ? " is-on" : ""}`} aria-pressed={wide} onClick={flipWide}>
             <IcSearch size={15} />
             {wide ? t("searchNarrow") : t("searchWide")}
@@ -206,14 +209,8 @@ export default function UrgentCandidates({
             </div>
             <div className="opx-ug-widerow">
               <div className="opx-field">
-                <label htmlFor={`${uid}-r`}>{t("region")}</label>
-                <select id={`${uid}-r`} value={wideRegion} onChange={(e) => setWideRegion(e.target.value)}>
-                  {regionOpts.map((o) => (
-                    <option key={o.value || "all"} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                <label id={`${uid}-r`}>{t("region")}</label>
+                <Select value={wideRegion} onChange={setWideRegion} labelId={`${uid}-r`} options={regionOpts} />
               </div>
               <button type="button" className="opx-pbtn" onClick={rerun}>
                 <IcSearch size={15} />
@@ -250,37 +247,28 @@ export default function UrgentCandidates({
 
         <div className="opx-pgrid2">
           <div className="opx-field">
-            <label htmlFor={`${uid}-dt`}>{t("date")}</label>
-            <input id={`${uid}-dt`} type="date" min={today} value={date} onChange={(e) => setDate(e.target.value)} />
+            <span className="opx-field__cap">{t("date")}</span>
+            <DatePicker value={date} min={today} placeholder={t("date")} ariaLabel={t("date")} clearLabel={tf("clear")} onChange={setDate} />
           </div>
           <div className="opx-field">
-            <label htmlFor={`${uid}-tm`}>{t("time")}</label>
-            <input id={`${uid}-tm`} type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+            <span className="opx-field__cap">{t("time")}</span>
+            <TimePicker value={time} placeholder={t("time")} ariaLabel={t("time")} clearLabel={tf("clear")} onChange={setTime} />
           </div>
         </div>
-        <p className="opx-ug-hint">{t("timeOptional")}</p>
 
         <Field label={t("note")} value={note} onChange={setNote} multiline rows={2} placeholder={t("notePh")} />
 
         <div ref={errBox} className="opx-ug-errs">
           {err ? <Note tone="bad">{err}</Note> : null}
           {offer === "count" ? (
-            <label className="opx-ug-check opx-ug-check--hint">
-              <input type="checkbox" checked={okCount} onChange={(e) => setOkCount(e.target.checked)} />
-              <span>
-                {t("overrideCount")}
-                <small>{t("overrideCountHint")}</small>
-              </span>
-            </label>
+            <CheckBox checked={okCount} onChange={setOkCount} hint={t("overrideCountHint")}>
+              {t("overrideCount")}
+            </CheckBox>
           ) : null}
           {offer === "direction" ? (
-            <label className="opx-ug-check opx-ug-check--hint">
-              <input type="checkbox" checked={okDirection} onChange={(e) => setOkDirection(e.target.checked)} />
-              <span>
-                {t("overrideDirection")}
-                <small>{t("overrideDirectionHint")}</small>
-              </span>
-            </label>
+            <CheckBox checked={okDirection} onChange={setOkDirection} hint={t("overrideDirectionHint")}>
+              {t("overrideDirection")}
+            </CheckBox>
           ) : null}
         </div>
       </div>

@@ -33,7 +33,7 @@ import {
   type TaskStatus,
 } from "@/lib/services/taskManagement";
 import { useClock } from "../useLive";
-import { IcChevron, IcClose, IcInbox, IcSearch, IcTasks, IcUser } from "../icons";
+import { IcClose, IcInbox, IcSearch, IcTasks } from "../icons";
 import Board from "./Board";
 import Drawer from "./Drawer";
 import { IcAlert, IcPlus } from "./icons";
@@ -44,6 +44,7 @@ import TaskSheet, { type FormMode } from "./TaskSheet";
 import Tiles from "./Tiles";
 import { useStats } from "./useStats";
 import { useTx } from "./text";
+import Select from "@/components/Select";
 
 const NARROW = "(max-width: 960px)";
 const subNarrow = (cb: () => void) => {
@@ -509,19 +510,9 @@ export default function CcxTasks() {
               ))}
             </div>
           ) : null}
-          <label className="opx-tk-sel" data-on={isPerson || undefined}>
-            <IcUser size={16} />
-            <span className="opx-sr">{t("filter.assignee")}</span>
-            <select value={isPerson ? scope : ""} onChange={(e) => setScope(e.target.value)}>
-              <option value="">{t("filter.assignee")}</option>
-              {people.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-            <IcChevron size={15} className="opx-tk-sel__chev" />
-          </label>
+          <span className="opx-tk-sel" data-on={isPerson || undefined}>
+            <Select value={isPerson ? scope : ""} onChange={setScope} ariaLabel={t("filter.assignee")} options={[{ value: "", label: t("filter.assignee") }, ...people]} />
+          </span>
           {filtered ? (
             <button type="button" className="opx-tk-reset" onClick={resetFilters}>
               <IcClose size={14} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { fmtNum } from "@/lib/date";
@@ -13,6 +13,7 @@ import { IcPercent, IcTrend } from "../misc/icons";
 import { Card, Empty, Failed, Kpi, KpiRow, RefreshButton, Seg, Skel } from "../misc/ui";
 import { crmHref, type CrmSectionProps } from "../nav";
 import { useCrmErr, useStatusName } from "../leads/util";
+import DatePicker from "@/components/DatePicker";
 
 type Preset = "7" | "30" | "90" | "all" | "custom";
 
@@ -42,7 +43,7 @@ export default function CrmPerformanceX({ meta }: CrmSectionProps) {
   const tx = useTranslations("admin.ccx.crmMisc");
   const locale = useLocale();
   const crmErr = useCrmErr();
-  const uid = useId();
+  const tf = useTranslations("crm.fields");
   const [preset, setPreset] = useState<Preset>("all");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -112,31 +113,12 @@ export default function CrmPerformanceX({ meta }: CrmSectionProps) {
           ]}
           onChange={pick}
         />
-        <span className="opx-cm-range" role="group" aria-label={t("period")}>
-          <label htmlFor={`${uid}-f`}>{t("from")}</label>
-          <input
-            id={`${uid}-f`}
-            type="date"
-            value={from}
-            max={to || undefined}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              setPreset("custom");
-            }}
-          />
-          <label htmlFor={`${uid}-t`}>{t("to")}</label>
-          <input
-            id={`${uid}-t`}
-            type="date"
-            value={to}
-            min={from || undefined}
-            onChange={(e) => {
-              setTo(e.target.value);
-              setPreset("custom");
-            }}
-          />
-        </span>
-        <span className="opx-cm-hint">{t("onlyMine")}</span>
+        {preset === "custom" ? (
+          <span className="opx-cm-range" role="group" aria-label={t("period")}>
+            <DatePicker value={from} max={to || undefined} placeholder={t("from")} ariaLabel={t("from")} clearLabel={tf("clear")} onChange={setFrom} />
+            <DatePicker value={to} min={from || undefined} placeholder={t("to")} ariaLabel={t("to")} clearLabel={tf("clear")} onChange={setTo} />
+          </span>
+        ) : null}
         <RefreshButton onClick={() => void load()} busy={busy} />
       </div>
 
@@ -154,7 +136,6 @@ export default function CrmPerformanceX({ meta }: CrmSectionProps) {
             </span>
             <div>
               <h3>{m.operator?.name || t("title")}</h3>
-              <p>{t("lead")}</p>
             </div>
           </header>
 
@@ -171,7 +152,6 @@ export default function CrmPerformanceX({ meta }: CrmSectionProps) {
               <StatusBars meta={meta} counts={m.statusCounts} />
             </Card>
             <Card icon={<IcTrend size={17} />} title={t("cycles")}>
-              <p className="opx-cm-sub">{t("cyclesLead")}</p>
               <dl className="opx-cm-stats">
                 {(["total", "open", "won", "rejected", "completed"] as const).map((k) => (
                   <div key={k} data-tone={k === "won" ? "ok" : k === "rejected" ? "hot" : undefined}>
@@ -230,7 +210,6 @@ function StatusBars({ meta, counts }: { meta: CrmMeta; counts: Record<string, nu
           </li>
         ))}
       </ul>
-      <p className="opx-cm-sub">{td("hint")}</p>
     </div>
   );
 }

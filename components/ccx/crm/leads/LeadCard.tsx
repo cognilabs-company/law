@@ -1,13 +1,11 @@
 "use client";
 
 import { memo, useEffect, useRef, type DragEvent, type KeyboardEvent } from "react";
-import { useLocale, useTranslations } from "next-intl";
-import { fmtAge } from "@/lib/date";
+import { useTranslations } from "next-intl";
 import { crmNextStatuses, leadCan, type CrmLead, type CrmMeta } from "@/lib/services/crm";
-import { prettyPhone } from "../../now/feed";
 import { IcBolt, IcClock, IcDoc, IcLayers, IcPhone, IcStore, IcSupport, IcUser } from "../../icons";
-import { IcAlert, IcCase, IcDots, IcDown, IcGlobe, IcSend, IcUp } from "./icons";
-import { dialOf, initials, shortName, stageStyle, useCategoryName, useDayTime, useWhen } from "./util";
+import { IcAlert, IcDots, IcDown, IcGlobe, IcSend, IcUp } from "./icons";
+import { stageStyle, useDayTime, useWhen } from "./util";
 
 export function SourceIcon({ source }: { source: string }) {
   if (source === "phone") return <IcPhone size={13} />;
@@ -64,10 +62,9 @@ export const LeadCard = memo(function LeadCard({ lead: l, meta, now, stageLabel,
   const t = useTranslations("crm.board");
   const tl = useTranslations("crm.leads");
   const tx = useTranslations("admin.ccx.crmLeads");
-  const locale = useLocale();
+  const tu = useTranslations("crm.lead");
   const when = useWhen();
   const dayTime = useDayTime();
-  const categoryName = useCategoryName();
   const menuBtn = useRef<HTMLButtonElement>(null);
   const menuBox = useRef<HTMLDivElement>(null);
   const movable = leadCan(l, "change_status") || leadCan(l, "move");
@@ -75,11 +72,16 @@ export const LeadCard = memo(function LeadCard({ lead: l, meta, now, stageLabel,
   const canMove = movable && !movingTo;
   const who = l.customer?.name || l.title || l.workId;
   const sub = l.customer?.name ? l.title : "";
-  const category = categoryName(l.category);
-  const phone = l.customer?.phone ?? "";
-  const tg = l.customer?.telegram ?? "";
   const next = l.nextActionAt ? when(l.nextActionAt, now) : null;
-  const age = now && l.createdAt ? fmtAge(l.createdAt, locale, now) : "";
+  const urgent = l.urgency === "urgent" || l.urgency === "high" || l.urgency === "critical";
+  const flag = urgent ? (
+    <span className="opx-ld-card__flag">
+      <IcAlert size={13} />
+      {tu.has(`urg.${l.urgency}`) ? tu(`urg.${l.urgency}`) : l.urgency}
+    </span>
+  ) : l.score === "hot" ? (
+    <ScoreBadge score={l.score} />
+  ) : null;
 
   useEffect(() => {
     if (menuOpen) menuBox.current?.querySelector<HTMLButtonElement>("button")?.focus();
@@ -107,6 +109,8 @@ export const LeadCard = memo(function LeadCard({ lead: l, meta, now, stageLabel,
       className="opx-ld-card"
       style={stageStyle(l.status)}
       data-urgency={l.urgency || "normal"}
+      data-overdue={next?.tone === "bad" || undefined}
+      data-free={(!l.operator && leadCan(l, "claim")) || undefined}
       data-dragging={dragging || undefined}
       data-moving={movingTo ? "" : undefined}
       data-open={menuOpen || undefined}
@@ -123,42 +127,17 @@ export const LeadCard = memo(function LeadCard({ lead: l, meta, now, stageLabel,
         if (e.key === "Enter" && e.target === e.currentTarget) onOpen(l);
       }}
     >
-      <span className="opx-ld-card__top">
-        <span className="opx-ld-card__cat" title={l.workId}>
-          <span className="opx-ld-card__catic" aria-hidden="true">
-            <IcCase size={14} />
-          </span>
-          <span>{category || l.workId}</span>
-        </span>
-        <ScoreBadge score={l.score} />
-      </span>
       <b className="opx-ld-card__who">{who}</b>
       {sub ? <small className="opx-ld-card__sub">{sub}</small> : null}
-      <span className="opx-ld-card__row">
-        {phone || tg ? (
-          <a
-            className="opx-ld-card__reach opx-num"
-            href={phone ? `tel:${dialOf(phone)}` : `https://t.me/${tg.replace(/^@/, "")}`}
-            target={phone ? undefined : "_blank"}
-            rel={phone ? undefined : "noopener noreferrer"}
-            draggable={false}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
-            {phone ? <IcPhone size={14} /> : <IcSend size={14} />}
-            <span dir="ltr">{phone ? prettyPhone(phone) : tg}</span>
-          </a>
-        ) : (
-          <span className="opx-ld-card__none">—</span>
-        )}
-        <SourceChip source={l.source} />
-      </span>
-      {next ? (
-        <span className="opx-ld-card__next" data-tone={next.tone || undefined}>
-          <IcClock size={14} />
-          <span>
-            {dayTime(l.nextActionAt, now)} · {next.text}
-          </span>
+      {next || flag ? (
+        <span className="opx-ld-card__meta">
+          {next ? (
+            <span className="opx-ld-card__next" data-tone={next.tone || undefined}>
+              <IcClock size={14} />
+              <span>{dayTime(l.nextActionAt, now)}</span>
+            </span>
+          ) : null}
+          {flag}
         </span>
       ) : null}
       {movingTo ? (
@@ -172,57 +151,40 @@ export const LeadCard = memo(function LeadCard({ lead: l, meta, now, stageLabel,
           {t("dup")}
         </span>
       ) : null}
-      <span className="opx-ld-card__foot">
-        {l.operator ? (
-          <span className="opx-ld-op" title={l.operator.name}>
-            <i aria-hidden="true">{initials(l.operator.name)}</i>
-            <span>{shortName(l.operator.name)}</span>
-          </span>
-        ) : leadCan(l, "claim") ? (
-          <button
-            type="button"
-            className="opx-ld-claim"
-            data-done={claimState === "done" || undefined}
-            disabled={!!claimState}
-            aria-busy={claimState === "hold" || undefined}
-            onClick={(e) => {
-              e.stopPropagation();
-              onClaim(l);
-            }}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
-            {claimState === "done" ? tl("claimDone") : tl("claim")}
-          </button>
-        ) : (
-          <span className="opx-ld-op is-none">
-            <i aria-hidden="true">?</i>
-            <span>{tl("unassigned")}</span>
-          </span>
-        )}
-        {age ? (
-          <span className="opx-ld-card__age opx-num" title={tl("col.created")}>
-            {age}
-          </span>
-        ) : null}
-        {canMove ? (
-          <button
-            ref={menuBtn}
-            type="button"
-            className="opx-ld-card__more"
-            aria-label={t("moveTo")}
-            title={t("moveTo")}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            onClick={(e) => {
-              e.stopPropagation();
-              onMenu(l.id);
-            }}
-            onKeyDown={(e) => e.stopPropagation()}
-          >
-            <IcDots size={18} />
-          </button>
-        ) : null}
-      </span>
+      {canMove ? (
+        <button
+          ref={menuBtn}
+          type="button"
+          className="opx-ld-card__more"
+          aria-label={t("moveTo")}
+          title={t("moveTo")}
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          onClick={(e) => {
+            e.stopPropagation();
+            onMenu(l.id);
+          }}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <IcDots size={18} />
+        </button>
+      ) : null}
+      {!l.operator && leadCan(l, "claim") ? (
+        <button
+          type="button"
+          className="opx-ld-claim"
+          data-done={claimState === "done" || undefined}
+          disabled={!!claimState}
+          aria-busy={claimState === "hold" || undefined}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClaim(l);
+          }}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          {claimState === "done" ? tl("claimDone") : tl("claim")}
+        </button>
+      ) : null}
       {menuOpen && canMove ? (
         <div ref={menuBox} className="opx-ld-menu" role="menu" aria-label={t("moveTo")} onClick={(e) => e.stopPropagation()} onKeyDown={menuKeys}>
           <button type="button" role="menuitem" onClick={() => onNudge(l, -1)}>

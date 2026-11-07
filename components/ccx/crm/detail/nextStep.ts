@@ -1,8 +1,7 @@
 import { crmNextStatuses, isFinalStatus, journeyOf, leadCan, type CrmActivity, type CrmLead, type CrmMeta } from "@/lib/services/crm";
 
-// The one thing to do next on a lead. Only that control wears the primary
-// style, so a first-time user sees where to click without being told.
-// Emphasis only: every other action stays on the page and keeps working.
+// The one thing to do next on a lead. It drives the "do this now" block, the
+// single most prominent shape on the lead page.
 export type LeadStep = "claim" | "call" | "callResult" | "nextAction" | "forward" | "order" | "reopen" | "compose" | null;
 
 export type LeadStepContext = {
@@ -53,7 +52,10 @@ export function nextLeadStep(meta: CrmMeta | null, lead: CrmLead, ctx: LeadStepC
   if (!lead.nextActionAt && leadCan(lead, "set_next_action")) return "nextAction";
   const forward = forwardOf(meta, lead);
   const journey = journeyOf(meta, lead.status);
-  if (forward && journey.indexOf(lead.status) < journey.indexOf("proposal")) return "forward";
+  const blocked = forward === "won" && wonLocked(lead);
+  if (forward && !blocked && journey.indexOf(lead.status) < journey.indexOf("proposal")) return "forward";
   if (!lead.order && leadCan(lead, "prepare_conversion")) return "order";
+  // Winning takes a paid order: until there is one, the way forward is the order.
+  if (blocked) return lead.order ? "order" : null;
   return forward ? "forward" : null;
 }

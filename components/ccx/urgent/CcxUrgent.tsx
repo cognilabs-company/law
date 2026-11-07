@@ -26,11 +26,13 @@ import { useAuth } from "@/lib/auth";
 import CallRoom from "@/components/chat/CallRoom";
 import { Loading, Note } from "../panel/bits";
 import UrgentAssignedPanel from "@/components/portal/UrgentAssignedPanel";
-import { IcArrowLeft, IcInbox, IcLayers, IcPipeline, IcRefresh } from "../icons";
+import { IcArrowLeft, IcInbox, IcPipeline, IcRefresh } from "../icons";
 import { FINAL, KINDS, OFFLINE_POLL_MS, PAGE, VIEWS, inView, isFinal, kindName, ntfId, sorterFor, type Ask, type Change, type Step } from "./model";
 import { useNarrow } from "./parts";
 import UrgentCard from "./UrgentCard";
 import UrgentDetail from "./UrgentDetail";
+import Select from "@/components/Select";
+import { useAiField } from "@/lib/ai/registry";
 
 type State = { status: "loading" | "ready" | "error" | "forbidden" | "missing"; items: UrgentRequest[]; error?: unknown };
 type Meeting = { roomId: string; callId: string; title: string; lk: LiveKitJoin | null; caller: boolean };
@@ -69,6 +71,8 @@ function MobileSheet({ label, onClose, children }: { label: string; onClose: () 
 // queue board, so "All queues" would only lead back here.
 export default function CcxUrgent({ duty = false }: { duty?: boolean } = {}) {
   const t = useTranslations("admin.urgent");
+  const tl = useTranslations("crm.leads");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const x = useTranslations("admin.ccx.urgent");
   const tp = useTranslations("admin.ccx.panel");
   const tk = useTranslations("portal.client.urgent");
@@ -222,7 +226,6 @@ export default function CcxUrgent({ duty = false }: { duty?: boolean } = {}) {
   const scoped = useMemo(() => state.items.filter((r) => (!kind || r.serviceKind === kind) && (!channel || r.channel === channel)), [state.items, kind, channel]);
   const counts = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.value, scoped.filter((r) => inView(r, v.value)).length])), [scoped]);
   const rows = useMemo(() => scoped.filter((r) => inView(r, view)).sort(sorterFor(view)), [scoped, view]);
-  const activeAll = ready ? state.items.filter((r) => !isFinal(r)).length : 0;
 
   if (followId && ready) {
     const hit = state.items.find((r) => r.id === followId);
@@ -291,6 +294,24 @@ export default function CcxUrgent({ duty = false }: { duty?: boolean } = {}) {
     setPending(null);
     setAsk((a) => ({ id: "", act: "", n: a.n + 1 }));
   }
+
+  // The filters are handmade dropdowns now: the robot fills them through the registry.
+  useAiField("call_center.urgent-advokat.filters.kind", {
+    get: () => kind,
+    set: (value) => {
+      const w = value.trim().toLowerCase();
+      const hit = KINDS.find((k) => k === w || (tk.has(`kinds.${k}`) && tk(`kinds.${k}`).toLowerCase() === w));
+      if (hit) rescope(() => setKind(hit));
+    },
+  });
+  useAiField("call_center.urgent-advokat.filters.channel", {
+    get: () => channel,
+    set: (value) => {
+      const w = value.trim().toLowerCase();
+      const hit = w === "video" || w === tk("chVideo").toLowerCase() ? "video" : w === "chat" || w === tk("chChat").toLowerCase() ? "chat" : "";
+      if (hit) rescope(() => setChannel(hit));
+    },
+  });
 
   const closeSheet = useCallback(() => {
     if (dirty) {
@@ -382,13 +403,6 @@ export default function CcxUrgent({ duty = false }: { duty?: boolean } = {}) {
       )}
       <h2>{x("title")}</h2>
       {state.status !== "forbidden" && state.status !== "missing" ? (
-        <span className={`opx-ug-live${live ? " is-on" : ""}`} role="status">
-          <i aria-hidden="true" />
-          {live ? t("liveOn") : t("liveOff")}
-        </span>
-      ) : null}
-      {ready ? <span className="opx-ug-head__n opx-num">{t("activeCount", { n: activeAll })}</span> : null}
-      {state.status !== "forbidden" && state.status !== "missing" ? (
         <button type="button" className={`opx-ug-sync${refreshing ? " is-busy" : ""}`} onClick={refreshNow} aria-label={t("refresh")} title={t("refresh")} aria-busy={refreshing} data-ai-id="call_center.urgent-advokat.refresh">
           <IcRefresh size={17} />
         </button>
@@ -452,7 +466,7 @@ export default function CcxUrgent({ duty = false }: { duty?: boolean } = {}) {
 
       <div className="opx-ug-bar">
         <div className="opx-ug-tabs" role="group" aria-label={t("fStatus")} data-ai-id="call_center.urgent-advokat.tabs">
-          {VIEWS.map((v) => (
+          {VIEWS.filter((v) => !ready || view === v.value || v.value === "active" || (counts[v.value] ?? 0) > 0).map((v) => (
             <button
               key={v.value}
               type="button"
@@ -466,29 +480,17 @@ export default function CcxUrgent({ duty = false }: { duty?: boolean } = {}) {
             </button>
           ))}
         </div>
-        <div className="opx-ug-filters" data-ai-id="call_center.urgent-advokat.filters">
-          <label className="opx-ug-filter">
-            <IcPipeline size={16} />
-            <span className="opx-sr">{t("fKind")}</span>
-            <select value={kind} onChange={(e) => rescope(() => setKind(e.target.value))} data-ai-id="call_center.urgent-advokat.filters.kind">
-              {kindOpts.map((o) => (
-                <option key={o.value || "all"} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="opx-ug-filter">
-            <IcLayers size={16} />
-            <span className="opx-sr">{t("fChannel")}</span>
-            <select value={channel} onChange={(e) => rescope(() => setChannel(e.target.value))} data-ai-id="call_center.urgent-advokat.filters.channel">
-              {channelOpts.map((o) => (
-                <option key={o.value || "all"} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
+        <button type="button" className="opx-pbtn opx-ug-filterbtn" aria-expanded={filtersOpen || !!kind || !!channel} onClick={() => setFiltersOpen((o) => !o)}>
+          <IcPipeline size={16} />
+          {tl("filter")}
+        </button>
+        <div className="opx-ug-filters" hidden={!(filtersOpen || !!kind || !!channel)} data-ai-id="call_center.urgent-advokat.filters">
+          <span className="opx-ug-filter" data-ai-id="call_center.urgent-advokat.filters.kind">
+            <Select value={kind} onChange={(v) => rescope(() => setKind(v))} ariaLabel={t("fKind")} options={kindOpts} />
+          </span>
+          <span className="opx-ug-filter" data-ai-id="call_center.urgent-advokat.filters.channel">
+            <Select value={channel} onChange={(v) => rescope(() => setChannel(v))} ariaLabel={t("fChannel")} options={channelOpts} />
+          </span>
         </div>
       </div>
 

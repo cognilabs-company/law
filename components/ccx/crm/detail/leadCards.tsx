@@ -10,13 +10,12 @@ import { minutesUntil, useCrmEvents } from "@/lib/crm/useCrm";
 import { prettyPhone } from "../../now/feed";
 import { CopyButton } from "../../now/NowFocus";
 import { Note } from "../../panel/bits";
-import { IcArrowRight, IcClock, IcPhone, IcUser } from "../../icons";
+import { IcArrowRight, IcChevron, IcClock } from "../../icons";
 import { customerHref } from "../nav";
-import { useCrmErr, useRegionName } from "../leads/util";
+import { useCategoryName, useCrmErr, useRegionName } from "../leads/util";
 import { DetailBlocks } from "./detailList";
-import { IcAlert, IcArchive, IcChat, IcEdit, IcExternal, IcHistory, IcLink, IcStar, IcVerified } from "./glyphs";
+import { IcAlert, IcArchive, IcChat, IcHistory, IcLink, IcStar, IcVerified } from "./glyphs";
 import { Avatar, Card, ContactGlyph, Failed, Shim, contactHref, telOf } from "./kit";
-import type { LeadStep } from "./nextStep";
 
 export type LeadHistoryState = { h: CrmHistory | null; err: string; load: (signal?: AbortSignal) => Promise<void> };
 
@@ -116,134 +115,95 @@ export function ContactRow({ c, onPrimary, onArchive, archiveBlocked, busy }: { 
   );
 }
 
-export function NeedCard({ lead, onEdit }: { lead: CrmLead; onEdit?: () => void }) {
+export function NeedCard({ lead }: { lead: CrmLead }) {
   const t = useTranslations("crm.glance");
   const ts = useTranslations("crm.side");
   const tsrc = useTranslations("crm.source");
+  const tsc = useTranslations("crm.score");
   const tl = useTranslations("admin.ccx.crm.lang");
   const regionName = useRegionName();
+  const categoryName = useCategoryName();
   const locale = useLocale();
+  const [more, setMore] = useState(false);
   const need = (lead.problem || lead.title).trim();
   const facts: [string, string][] = [
+    lead.workId ? [t("f.code"), lead.workId] : null,
+    lead.category ? [ts("category"), categoryName(lead.category)] : null,
     lead.source ? [t("f.source"), tsrc.has(lead.source) ? tsrc(lead.source) : tsrc("other")] : null,
     lead.region ? [t("f.region"), regionName(lead.region)] : null,
     lead.language ? [t("f.language"), tl.has(lead.language) ? tl(lead.language) : t("f.other")] : null,
+    lead.score ? [t("f.score"), tsc.has(lead.score) ? tsc(lead.score) : t("scoreOther")] : null,
+    [t("f.operator"), lead.operator?.name || t("f.nobody")],
     [t("f.cycle"), t("cycleN", { n: lead.cycleNumber })],
     lead.createdAt ? [t("f.created"), shortDateTime(lead.createdAt, locale)] : null,
     lead.claimedAt ? [t("f.claimed"), shortDateTime(lead.claimedAt, locale)] : null,
   ].filter((x): x is [string, string] => !!x);
   return (
-    <Card
-      icon={<IcChat size={17} />}
-      title={t("need")}
-      className="opx-cd-needcard"
-      aside={
-        onEdit ? (
-          <button type="button" className="opx-cd-ibtn" onClick={onEdit} aria-label={ts("edit")} title={ts("edit")}>
-            <IcEdit size={16} />
-          </button>
-        ) : null
-      }
-    >
+    <Card icon={<IcChat size={17} />} title={t("need")} className="opx-cd-needcard">
       <p className="opx-cd-need">{need || t("noNeed")}</p>
-      {lead.problem && lead.title && lead.title !== lead.problem ? <p className="opx-cd-need__title">{lead.title}</p> : null}
       {lead.lostReason ? (
         <Note tone="warn">
           <b>{ts("lost")}: </b>
           {lead.lostReason}
         </Note>
       ) : null}
-      <dl className="opx-cd-facts">
-        {facts.map(([k, v]) => (
-          <div key={k}>
-            <dt>{k}</dt>
-            <dd>{v}</dd>
-          </div>
-        ))}
-      </dl>
+      <button type="button" className="opx-jr-toggle" aria-expanded={more} onClick={() => setMore((o) => !o)}>
+        {t("details")}
+        <IcChevron size={15} />
+      </button>
+      {more ? (
+        <dl className="opx-cd-facts">
+          {facts.map(([k, v]) => (
+            <div key={k}>
+              <dt>{k}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
     </Card>
   );
 }
 
-export function CustomerCard({ lead, contacts, step, onDial, onCallResult }: { lead: CrmLead; contacts: CrmContact[] | null; step: LeadStep; onDial: () => void; onCallResult?: () => void }) {
+export function CustomerCard({ lead, contacts, onDial }: { lead: CrmLead; contacts: CrmContact[] | null; onDial: () => void }) {
   const t = useTranslations("crm.side");
   const tg = useTranslations("crm.glance");
-  const tl = useTranslations("admin.ccx.crm.lang");
-  const tp = useTranslations("admin.ccx.panel");
   const tx = useTranslations("admin.ccx.crmDetail");
   const c = lead.customer;
-  const fallback: CrmContact[] = c
-    ? [
-        c.phone ? { id: "p", type: "phone", value: c.phone, label: "", primary: true, verified: false, status: "active", source: "", createdAt: "" } : null,
-        c.telegram ? { id: "t", type: "telegram", value: c.telegram, label: "", primary: !c.phone, verified: false, status: "active", source: "", createdAt: "" } : null,
-        c.email ? { id: "e", type: "email", value: c.email, label: "", primary: !c.phone && !c.telegram, verified: false, status: "active", source: "", createdAt: "" } : null,
-      ].filter((x): x is CrmContact => !!x)
-    : [];
-  const shown = contacts ?? fallback;
   const phone = c?.phone ?? "";
   const tel = telOf(phone);
+  const other = phone ? "" : (contacts?.find((x) => x.status !== "archived")?.value ?? c?.telegram ?? c?.email ?? "");
   return (
-    <Card
-      icon={<IcUser size={17} />}
-      title={tg("who")}
-      className="opx-cd-cust"
-      aside={
-        c ? (
-          <Link href={customerHref(c.id)} className="opx-cd-link">
-            {tx("openProfile")}
-            <IcExternal size={14} />
-          </Link>
-        ) : null
-      }
-    >
+    <section className="opx-cd-card opx-jr-who" aria-label={tg("who")}>
       {c ? (
-        <div className="opx-cd-cust__body">
-          <Avatar name={c.name} size="xl" />
-          <div className="opx-cd-cust__txt">
-            <b className="opx-cd-cust__name">{c.name || c.publicId || tg("noName")}</b>
-            {c.publicId ? <span className="opx-cd-code opx-num">{c.publicId}</span> : null}
-            {shown.length ? (
-              <ul className="opx-cd-contacts">
-                {shown.map((x) => (
-                  <ContactRow key={x.id} c={x} />
-                ))}
-              </ul>
-            ) : contacts === null && lead.customerId ? (
-              <Shim h={28} />
-            ) : (
-              <p className="opx-cd-sub">{t("noContacts")}</p>
-            )}
-            {c.language ? <small className="opx-cd-sub">{t("speaks", { lang: tl.has(c.language) ? tl(c.language) : c.language })}</small> : null}
-          </div>
-          <div className="opx-cd-cust__acts">
+        <>
+          <Avatar name={c.name} size="lg" />
+          <span className="opx-jr-who__txt">
+            <b>{c.name || c.publicId || tg("noName")}</b>
             {tel ? (
-              <a className={`opx-pbtn ${step === "call" ? "opx-pbtn--call" : "opx-cd-btn-sm"}`} href={tel} aria-label={`${tg("call")}: ${phone}`} onClick={onDial}>
-                <IcPhone size={15} />
-                {tp("call")}
+              <a className="opx-num" dir="ltr" href={tel} aria-label={`${tg("call")}: ${phone}`} onClick={onDial}>
+                {prettyPhone(phone)}
               </a>
-            ) : null}
-            {onCallResult ? (
-              <button type="button" className={`opx-pbtn${step === "callResult" ? " opx-pbtn--main" : ""} opx-cd-btn-sm`} onClick={onCallResult}>
-                <IcEdit size={15} />
-                {tg("callResult")}
-              </button>
-            ) : null}
-            <span className="opx-cd-lx" data-on={c.isLexgoUser || undefined}>
-              <IcLink size={16} />
-              <span>
-                <b>{c.isLexgoUser ? t("linked") : t("notLinked")}</b>
-              </span>
-            </span>
-          </div>
-        </div>
+            ) : other ? (
+              <small>{other}</small>
+            ) : contacts === null && lead.customerId ? (
+              <Shim h={18} />
+            ) : (
+              <small>{t("noContacts")}</small>
+            )}
+          </span>
+          <Link href={customerHref(c.id)} className="opx-pbtn opx-jr-who__go">
+            {tx("openProfile")}
+          </Link>
+        </>
       ) : (
         <p className="opx-cd-sub">{t("noCustomer")}</p>
       )}
-    </Card>
+    </section>
   );
 }
 
-export function NextCard({ lead, now, step, onChange }: { lead: CrmLead; now: number; step: LeadStep; onChange?: () => void }) {
+export function NextCard({ lead, now, onChange }: { lead: CrmLead; now: number; onChange?: () => void }) {
   const t = useTranslations("crm.glance");
   const ts = useTranslations("crm.side");
   const locale = useLocale();
@@ -255,6 +215,7 @@ export function NextCard({ lead, now, step, onChange }: { lead: CrmLead; now: nu
     return a < 60 ? t("min", { n: Math.max(1, a) }) : a < 60 * 48 ? t("h", { n: Math.round(a / 60) }) : t("d", { n: Math.round(a / 1440) });
   };
   const when = mins === null ? "" : mins < 0 ? t("late", { span: span(mins) }) : Math.abs(mins) < 1 ? t("nowDue") : t("inSpan", { span: span(mins) });
+  if (!lead.nextActionAt) return null;
   return (
     <Card
       icon={<IcClock size={17} />}
@@ -262,27 +223,22 @@ export function NextCard({ lead, now, step, onChange }: { lead: CrmLead; now: nu
       className="opx-cd-nextcard"
       aside={
         onChange ? (
-          <button type="button" className={step === "nextAction" ? "opx-pbtn opx-pbtn--main opx-cd-btn-sm" : "opx-cd-link"} onClick={onChange}>
-            {lead.nextActionAt ? t("changeNext") : t("setNext")}
-            <IcExternal size={14} />
+          <button type="button" className="opx-cd-link" onClick={onChange}>
+            {t("changeNext")}
           </button>
         ) : null
       }
     >
-      {lead.nextActionAt ? (
-        <div className="opx-cd-next" data-tone={tone}>
-          <span className="opx-cd-next__when opx-num" role={tone === "bad" ? "alert" : undefined}>
-            <IcClock size={15} />
-            {when || shortDateTime(lead.nextActionAt, locale)}
-          </span>
-          <span className="opx-cd-next__txt">
-            <b>{nextNote || t("nextDefault")}</b>
-            <small className="opx-num">{shortDateTime(lead.nextActionAt, locale)}</small>
-          </span>
-        </div>
-      ) : (
-        <p className="opx-cd-sub">{t("noNext")}</p>
-      )}
+      <div className="opx-cd-next" data-tone={tone}>
+        <span className="opx-cd-next__when opx-num" role={tone === "bad" ? "alert" : undefined}>
+          <IcClock size={15} />
+          {when || shortDateTime(lead.nextActionAt, locale)}
+        </span>
+        <span className="opx-cd-next__txt">
+          <b>{nextNote || t("nextDefault")}</b>
+          <small className="opx-num">{shortDateTime(lead.nextActionAt, locale)}</small>
+        </span>
+      </div>
     </Card>
   );
 }
@@ -314,12 +270,11 @@ export function StatusHistoryCard({ history }: { history: LeadHistoryState }) {
   const locale = useLocale();
   const { h, err, load } = history;
   const events = h ? [...h.events].sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0)) : [];
+  if (!err && !events.length) return null;
   return (
     <Card icon={<IcHistory size={17} />} title={t("statusHistory")} className="opx-cd-shist" aside={h ? <b className="opx-cd-count opx-num">{h.events.length}</b> : null}>
       {!h && err ? (
         <Failed text={err} retry={t("retry")} onRetry={() => void load()} />
-      ) : !h ? (
-        <Shim h={90} />
       ) : events.length ? (
         <ol className="opx-cd-rail">
           {events.map((e, i) => (
@@ -335,9 +290,7 @@ export function StatusHistoryCard({ history }: { history: LeadHistoryState }) {
             </li>
           ))}
         </ol>
-      ) : (
-        <p className="opx-cd-sub">{t("noEvents")}</p>
-      )}
+      ) : null}
       {h && err ? <p className="opx-cd-err">{err}</p> : null}
     </Card>
   );

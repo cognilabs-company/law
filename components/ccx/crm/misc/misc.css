@@ -666,48 +666,6 @@
   gap: 6px 8px;
 }
 
-.opx-cm-range label {
-  color: var(--opx-ink-3);
-  font-size: 12.5px;
-  font-weight: 700;
-}
-
-.opx-cm-range input,
-.opx-cm-select select {
-  height: 40px;
-  border-radius: 12px;
-  border: 1px solid var(--opx-line-2);
-  background: var(--opx-glass-2);
-  color: var(--opx-ink);
-  font: inherit;
-  font-size: 13.5px;
-  font-weight: 650;
-  color-scheme: dark;
-  transition: border-color 0.2s, box-shadow 0.25s;
-}
-
-html[data-opx-theme="light"] .opx-cm-range input,
-html[data-opx-theme="light"] .opx-cm-select select {
-  color-scheme: light;
-}
-
-.opx-cm-range input {
-  padding: 0 10px;
-}
-
-.opx-cm-select select {
-  max-width: 100%;
-  padding: 0 12px;
-  cursor: pointer;
-}
-
-.opx-cm-range input:focus,
-.opx-cm-select select:focus {
-  outline: none;
-  border-color: color-mix(in srgb, var(--opx-aqua) 60%, transparent);
-  box-shadow: var(--opx-ring);
-}
-
 .opx-cm-search {
   display: flex;
   flex: 1 1 260px;
@@ -1262,19 +1220,13 @@ html[data-opx-theme="light"] .opx-cm-select select {
     flex-basis: 100%;
   }
 
-  .opx-cm-select,
-  .opx-cm-select select {
+  .opx-cm-select {
     flex: 1;
     width: 100%;
   }
 
   .opx-cm-range {
     width: 100%;
-  }
-
-  .opx-cm-range input {
-    flex: 1;
-    min-width: 0;
   }
 
   .opx-cm-kpi__txt em {

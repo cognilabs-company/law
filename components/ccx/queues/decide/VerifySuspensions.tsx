@@ -18,6 +18,7 @@ import {
 } from "@/lib/services/advocatePractice";
 import { Field, Note } from "../../panel/bits";
 import { IcClock, IcClose, IcDoc } from "../../icons";
+import DatePicker from "@/components/DatePicker";
 
 type SuspForm = { id: string; startedOn: string; endedOn: string; reason: string; files: ExperienceEvidence[]; uploading: number | null; today: string };
 
@@ -205,24 +206,21 @@ export default function VerifySuspensions({ sellerUserId, practice, onPractice, 
         <div className="opx-vrf-sform">
           <div className="opx-pgrid2">
             <div className="opx-field">
-              <label htmlFor={form.id ? undefined : `${uid}-from`}>
+              <span className="opx-field__cap">
                 {t("from")}
                 {form.id ? null : <i aria-hidden="true">*</i>}
-              </label>
+              </span>
               {form.id ? (
                 <b className="opx-vrf-ro opx-num">
                   {dateOnly(form.startedOn, locale)}
                 </b>
               ) : (
-                <input id={`${uid}-from`} type="date" value={form.startedOn} max={form.today} required onChange={(e) => patch({ startedOn: e.target.value })} />
+                <DatePicker value={form.startedOn} max={form.today} placeholder={t("from")} ariaLabel={t("from")} onChange={(v) => patch({ startedOn: v })} />
               )}
             </div>
             <div className="opx-field">
-              <label htmlFor={`${uid}-to`}>{t("to")}</label>
-              <input id={`${uid}-to`} type="date" value={form.endedOn} min={form.startedOn || undefined} aria-describedby={`${uid}-toh`} onChange={(e) => patch({ endedOn: e.target.value })} />
-              <span className="opx-field__meta">
-                <small id={`${uid}-toh`}>{form.endedOn ? "" : t("openEnded")}</small>
-              </span>
+              <span className="opx-field__cap">{t("to")}</span>
+              <DatePicker value={form.endedOn} min={form.startedOn || undefined} placeholder={t("openEnded")} ariaLabel={t("to")} onChange={(v) => patch({ endedOn: v })} />
             </div>
           </div>
           <Field label={t("reason")} value={form.reason} onChange={(v) => patch({ reason: v })} max={2000} multiline rows={2} required placeholder={t("reasonPh")} />

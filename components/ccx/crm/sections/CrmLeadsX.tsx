@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
+import DatePicker from "@/components/DatePicker";
+import Select from "@/components/Select";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { useCcxPrefs } from "@/lib/ccx/prefs";
@@ -13,7 +15,7 @@ import { loadCrmMeta, useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import { claimCrmLead, crmCan, isClaimRace, leadCan, listCrmLeads, listCrmOperators, type CrmLead, type CrmOperator } from "@/lib/services/crm";
 import { EMPTY, LIMIT, queryOf, type Filters, type Tab } from "@/components/crm/leadQuery";
 import { plainKey } from "../../now/feed";
-import { IcCheck, IcClock, IcClose, IcFlag, IcInbox, IcLayers, IcRefresh, IcSearch, IcUser } from "../../icons";
+import { IcCheck, IcClock, IcClose, IcFlag, IcLayers, IcRefresh, IcSearch } from "../../icons";
 import { leadHref, type CrmSectionProps } from "../nav";
 import { IcBoard, IcBookmark, IcFilter, IcList } from "../leads/icons";
 import LeadBoardX from "../leads/LeadBoardX";
@@ -54,25 +56,11 @@ const readLayout = (): Layout => {
   }
 };
 
-function ScopeIcon({ scope }: { scope: Scope }) {
-  if (scope === "queue") return <IcInbox size={22} />;
-  if (scope === "mine") return <IcUser size={22} />;
-  if (scope === "overdue") return <IcClock size={22} />;
-  return <IcLayers size={22} />;
-}
-
 function Sel({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
   return (
-    <label className="opx-ld-sel" data-on={value ? "" : undefined}>
-      <span className="opx-sr">{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} title={label}>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <span className="opx-ld-sel" data-on={value ? "" : undefined}>
+      <Select value={value} onChange={onChange} options={options} ariaLabel={label} />
+    </span>
   );
 }
 
@@ -116,6 +104,7 @@ export default function CrmLeadsX({ meta }: CrmSectionProps) {
   const [views, setViews] = useState<Saved[]>(readViews);
   const [naming, setNaming] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [boardTick, setBoardTick] = useState(0);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const seq = useRef(0);
@@ -343,52 +332,41 @@ export default function CrmLeadsX({ meta }: CrmSectionProps) {
 
   return (
     <div className="opx-ld" style={stageVars(meta)} data-ai-target="callcenter:crm-leads">
-      <div className="opx-ld-kpis" role="group" aria-label={t("tabs")}>
-        {SCOPES.map((s, i) => {
-          const n = counts[s];
-          return (
-            <button
-              key={s}
-              type="button"
-              className="opx-ld-kpi"
-              data-scope={s}
-              data-tone={s === "overdue" && (n ?? 0) > 0 ? "hot" : undefined}
-              aria-pressed={shown === s}
-              onClick={() => pickScope(s)}
-              style={{ animationDelay: `${i * 50}ms` }}
-            >
-              <span className="opx-ld-kpi__ic" aria-hidden="true">
-                <ScopeIcon scope={s} />
-              </span>
-              <span className="opx-ld-kpi__txt">
-                <small>{scopeLabel(s)}</small>
+      <div className="opx-ld-top">
+        <div className="opx-ld-tabs" role="group" aria-label={t("tabs")}>
+          {SCOPES.map((s) => {
+            const n = counts[s];
+            return (
+              <button key={s} type="button" className="opx-ld-tab" data-scope={s} data-tone={s === "overdue" && (n ?? 0) > 0 ? "hot" : undefined} aria-pressed={shown === s} onClick={() => pickScope(s)}>
+                {scopeLabel(s)}
                 <b className="opx-num">{n ?? "·"}</b>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="opx-ld-bar">
+              </button>
+            );
+          })}
+        </div>
         <label className="opx-search opx-ld-bar__search">
           <IcSearch size={18} />
           <input ref={searchRef} type="search" value={qInput} onChange={(e) => setQInput(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
-          {prefs.keys ? <kbd className="opx-search__kbd">/</kbd> : null}
         </label>
-        <div className="opx-ld-seg" role="group" aria-label={t("view")}>
-          <button type="button" className={layout === "board" ? "is-on" : undefined} aria-pressed={layout === "board"} onClick={() => pickLayout("board")}>
-            <IcBoard size={16} />
-            {t("viewBoard")}
+        {layout === "list" ? (
+          <button type="button" className="opx-pbtn opx-ld-filterbtn" aria-expanded={filtersOpen} onClick={() => setFiltersOpen((o) => !o)}>
+            <IcFilter size={16} />
+            {t("filter")}
+            {activeFilters.length ? <b className="opx-num">{activeFilters.length}</b> : null}
           </button>
-          <button type="button" className={layout === "list" ? "is-on" : undefined} aria-pressed={layout === "list"} onClick={() => pickLayout("list")}>
-            <IcList size={16} />
-            {t("viewTable")}
+        ) : null}
+        <div className="opx-ld-seg" role="group" aria-label={t("view")}>
+          <button type="button" className={layout === "board" ? "is-on" : undefined} aria-pressed={layout === "board"} aria-label={t("viewBoard")} title={t("viewBoard")} onClick={() => pickLayout("board")}>
+            <IcBoard size={17} />
+          </button>
+          <button type="button" className={layout === "list" ? "is-on" : undefined} aria-pressed={layout === "list"} aria-label={t("viewTable")} title={t("viewTable")} onClick={() => pickLayout("list")}>
+            <IcList size={17} />
           </button>
         </div>
         <NewLeadButton meta={meta} quiet={crmCan(meta, "crm.leads.claim") && counts.queue !== 0} />
       </div>
 
-      {layout === "list" ? (
+      {layout === "list" && filtersOpen ? (
         <div className="opx-ld-filters">
           <Sel label={t("f.status")} value={f.status} onChange={(v) => setFilter({ status: v })} options={[{ value: "", label: t("f.anyStatus") }, ...meta.statuses.map((s) => ({ value: s, label: label(s) }))]} />
           <Sel label={t("f.score")} value={f.score} onChange={(v) => setFilter({ score: v })} options={[{ value: "", label: t("f.anyScore") }, ...meta.scores.map((s) => ({ value: s, label: tsc.has(s) ? tsc(s) : s }))]} />
@@ -445,7 +423,7 @@ export default function CrmLeadsX({ meta }: CrmSectionProps) {
         </div>
       ) : null}
 
-      {layout === "list" && moreOpen ? (
+      {layout === "list" && filtersOpen && moreOpen ? (
         <div className="opx-ld-more">
           <label className="opx-ld-in">
             <span>{t("f.region")}</span>
@@ -453,15 +431,15 @@ export default function CrmLeadsX({ meta }: CrmSectionProps) {
           </label>
           <fieldset className="opx-ld-range">
             <legend>{t("f.created")}</legend>
-            <input type="date" aria-label={t("f.createdFrom")} value={f.createdFrom} max={f.createdTo || undefined} onChange={(e) => setFilter({ createdFrom: e.target.value })} />
+            <DatePicker value={f.createdFrom} max={f.createdTo || undefined} placeholder={t("f.createdFrom")} ariaLabel={t("f.createdFrom")} clearLabel={t("f.clear")} onChange={(v) => setFilter({ createdFrom: v })} />
             <span aria-hidden="true">–</span>
-            <input type="date" aria-label={t("f.createdTo")} value={f.createdTo} min={f.createdFrom || undefined} onChange={(e) => setFilter({ createdTo: e.target.value })} />
+            <DatePicker value={f.createdTo} min={f.createdFrom || undefined} placeholder={t("f.createdTo")} ariaLabel={t("f.createdTo")} clearLabel={t("f.clear")} onChange={(v) => setFilter({ createdTo: v })} />
           </fieldset>
           <fieldset className="opx-ld-range">
             <legend>{t("f.next")}</legend>
-            <input type="date" aria-label={t("f.nextFrom")} value={f.nextFrom} max={f.nextTo || undefined} onChange={(e) => setFilter({ nextFrom: e.target.value, due: "" })} />
+            <DatePicker value={f.nextFrom} max={f.nextTo || undefined} placeholder={t("f.nextFrom")} ariaLabel={t("f.nextFrom")} clearLabel={t("f.clear")} onChange={(v) => setFilter({ nextFrom: v, due: "" })} />
             <span aria-hidden="true">–</span>
-            <input type="date" aria-label={t("f.nextTo")} value={f.nextTo} min={f.nextFrom || undefined} onChange={(e) => setFilter({ nextTo: e.target.value, due: "" })} />
+            <DatePicker value={f.nextTo} min={f.nextFrom || undefined} placeholder={t("f.nextTo")} ariaLabel={t("f.nextTo")} clearLabel={t("f.clear")} onChange={(v) => setFilter({ nextTo: v, due: "" })} />
           </fieldset>
         </div>
       ) : null}

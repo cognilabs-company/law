@@ -2075,3 +2075,277 @@ html[data-opx-motion="off"] .opx-look {
     display: none;
   }
 }
+
+/* Handmade controls (components/Select, DatePicker, TimePicker, CheckBox) in the
+   call center workspace. The popups live in a portal on <body>, so everything
+   hangs off html[data-opx], not off a workspace class. */
+html[data-opx] .dsel,
+html[data-opx] .mpick {
+  width: 100%;
+  min-width: 0;
+}
+
+html[data-opx] .dsel__btn,
+html[data-opx] .mpick__btn {
+  min-height: 44px;
+  padding: 8px 10px 8px 14px;
+  border: 1px solid var(--opx-line-2);
+  border-radius: 13px;
+  background: var(--opx-glass-2);
+  box-shadow: none;
+  color: var(--opx-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  transition: border-color 0.2s, box-shadow 0.25s;
+}
+
+html[data-opx] .dsel__btn:hover,
+html[data-opx] .mpick__btn:hover:not(:disabled) {
+  background: var(--opx-glass-3);
+  border-color: color-mix(in srgb, var(--opx-aqua) 40%, transparent);
+  box-shadow: none;
+}
+
+html[data-opx] .dsel[data-open="true"] .dsel__btn,
+html[data-opx] .mpick[data-open="true"] .mpick__btn,
+html[data-opx] .dsel__btn:focus-visible,
+html[data-opx] .mpick__btn:focus-within {
+  outline: none;
+  border-color: color-mix(in srgb, var(--opx-aqua) 60%, transparent);
+  box-shadow: var(--opx-ring);
+}
+
+html[data-opx] .dsel[data-invalid="true"] .dsel__btn {
+  border-color: color-mix(in srgb, var(--opx-hot) 60%, transparent);
+}
+
+html[data-opx] .dsel__val--ph,
+html[data-opx] .mpick__btn--ph .mpick__val,
+html[data-opx] .mpick__val::placeholder {
+  color: var(--opx-ink-3);
+  font-weight: 500;
+}
+
+html[data-opx] .mpick__btn > svg {
+  stroke: var(--opx-ink-3);
+}
+
+/* The date field's real text input draws nothing of its own. */
+html[data-opx] .mpick__btn input.mpick__val {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--opx-ink);
+  font: inherit;
+  outline: none;
+}
+
+html[data-opx] .dsel__menu,
+html[data-opx] .dsel__pop,
+html[data-opx] .dsel__sheet,
+html[data-opx] .mpick__pop {
+  background: var(--opx-solid);
+  border: 1px solid var(--opx-line-2);
+  box-shadow: var(--opx-shadow);
+  color: var(--opx-ink);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+}
+
+html[data-opx] .dsel__pop > .dsel__menu,
+html[data-opx] .dsel__sheet > .dsel__menu {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html[data-opx] .dsel__opt,
+html[data-opx] .dpick__d,
+html[data-opx] .tpick__c {
+  color: var(--opx-ink);
+}
+
+html[data-opx] .dsel__opt:hover,
+html[data-opx] .dsel__opt:focus-visible,
+html[data-opx] .dpick__d:hover:not(:disabled),
+html[data-opx] .tpick__c:hover {
+  background: var(--opx-teal-soft);
+  color: var(--opx-ink);
+}
+
+html[data-opx] .dsel__opt[aria-selected="true"] {
+  background: var(--opx-teal-soft);
+  color: var(--opx-aqua);
+}
+
+html[data-opx] .dsel__opt[aria-selected="true"]::after {
+  border-color: var(--opx-aqua);
+}
+
+html[data-opx] .dpick__d.on,
+html[data-opx] .tpick__c.on {
+  background: var(--opx-grad);
+  color: var(--opx-on-accent);
+  box-shadow: none;
+}
+
+html[data-opx] .dpick__d.is-today:not(.on) {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--opx-aqua) 60%, transparent);
+  color: var(--opx-aqua);
+}
+
+html[data-opx] .dpick__d:disabled {
+  color: var(--opx-ink-3);
+  opacity: 0.4;
+}
+
+html[data-opx] .dpick__d:focus-visible,
+html[data-opx] .tpick__c:focus-visible,
+html[data-opx] .dsel__opt:focus-visible {
+  outline: 2px solid var(--opx-aqua);
+  outline-offset: -2px;
+}
+
+html[data-opx] .mpick__nav b,
+html[data-opx] .tpick__lbl,
+html[data-opx] .dpick__wd span,
+html[data-opx] .mpick__clear,
+html[data-opx] .dsel__stitle,
+html[data-opx] .mpick__title {
+  color: var(--opx-ink-2);
+}
+
+html[data-opx] .mpick__nav button,
+html[data-opx] .mpick__x,
+html[data-opx] .mpick__clear {
+  background: var(--opx-chip);
+  border: 1px solid var(--opx-line);
+  color: var(--opx-ink);
+}
+
+html[data-opx] .mpick__nav button svg,
+html[data-opx] .mpick__x svg,
+html[data-opx] .mpick__clear svg {
+  stroke: currentColor;
+}
+
+html[data-opx] .dsel__srch {
+  background: var(--opx-glass-2);
+  border-color: var(--opx-line-2);
+  color: var(--opx-ink);
+}
+
+html[data-opx] .dsel__srch input {
+  color: var(--opx-ink);
+}
+
+html[data-opx] .mpick__sheetval {
+  background: var(--opx-glass-2);
+  border: 1px solid var(--opx-line-2);
+  color: var(--opx-ink);
+}
+
+html[data-opx] .cbx {
+  --cbx-bg: var(--opx-base-2);
+}
+
+html[data-opx] .cbx__box {
+  border-color: var(--opx-line-2);
+}
+
+html[data-opx] .cbx__tx {
+  color: var(--opx-ink);
+  font-weight: 650;
+}
+
+html[data-opx] .cbx__hint {
+  color: var(--opx-ink-3);
+}
+
+html[data-opx] input.cbx__in:checked + .cbx__row .cbx__box {
+  border-color: var(--opx-aqua);
+}
+
+html[data-opx] .cbx__box::before,
+html[data-opx] .cbx__box::after {
+  background: var(--opx-aqua);
+}
+
+/* A caption above a handmade date or time field. */
+.opx-field__cap {
+  color: var(--opx-ink-2);
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.opx-field__cap i {
+  margin-left: 3px;
+  color: var(--opx-hot);
+  font-style: normal;
+}
+
+/* A day and a time, side by side; stacked once they would get cramped. */
+html[data-opx] .crm-dt {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+@media (max-width: 420px) {
+  html[data-opx] .crm-dt {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+html[data-opx][data-opx-theme="light"] .dsel__menu,
+html[data-opx][data-opx-theme="light"] .dsel__pop,
+html[data-opx][data-opx-theme="light"] .dsel__sheet,
+html[data-opx][data-opx-theme="light"] .mpick__pop {
+  box-shadow: 0 24px 50px -24px rgba(30, 60, 110, 0.35);
+}
+
+html[data-opx][data-opx-theme="light"] .dsel__opt[aria-selected="true"],
+html[data-opx][data-opx-theme="light"] .dpick__d.is-today:not(.on) {
+  color: var(--opx-teal);
+}
+
+/* A chevron, not a badge. */
+html[data-opx] .dsel__cv {
+  width: 20px;
+  height: 20px;
+  background: transparent;
+}
+
+html[data-opx] .dsel__cv::after {
+  border-color: var(--opx-ink-3);
+}
+
+html[data-opx] .mpick__cv {
+  border-color: var(--opx-ink-3);
+}
+
+/* Small dropdowns sitting inside an already framed pill. */
+html[data-opx] .opx-sx-sort .dsel__btn,
+html[data-opx] .opx-fam__sort .dsel__btn,
+html[data-opx] .opx-tk-sel .dsel__btn {
+  min-height: 34px;
+  padding: 2px 4px 2px 8px;
+  border: 0;
+  background: transparent;
+  font-size: 13px;
+}
+
+html[data-opx] .opx-sx-sort .dsel__btn:hover,
+html[data-opx] .opx-fam__sort .dsel__btn:hover,
+html[data-opx] .opx-tk-sel .dsel__btn:hover {
+  background: transparent;
+}

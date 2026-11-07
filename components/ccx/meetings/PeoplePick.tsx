@@ -179,8 +179,8 @@ export default function PeoplePick({ label, value, onChange, search, error }: Pr
           </div>
         ) : null}
       </div>
-      <span className="opx-field__meta">
-        <small id={hintId}>{t("participantsHint")}</small>
+      <span className="opx-sr" id={hintId}>
+        {t("participantsHint")}
       </span>
       {error ? (
         <p className="opx-ferr" id={errId} role="alert">

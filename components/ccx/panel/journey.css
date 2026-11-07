@@ -1,0 +1,203 @@
+/* The journey track (Journey.tsx), shared by every process screen. */
+.opx-jr {
+  --jr-big: 64px;
+  --jr-mid: 36px;
+  --jr-small: 28px;
+  min-width: 0;
+}
+
+.opx-jr__track {
+  position: relative;
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: visible;
+}
+
+/* The line runs from the middle of the first cell to the middle of the last. */
+.opx-jr__track::before,
+.opx-jr__track::after {
+  content: "";
+  position: absolute;
+  top: calc(var(--jr-big) / 2 - 3px);
+  left: calc(100% / (var(--jr-n) * 2));
+  height: 6px;
+  border-radius: 6px;
+}
+
+.opx-jr__track::before {
+  right: calc(100% / (var(--jr-n) * 2));
+  background: var(--opx-line-2);
+}
+
+.opx-jr__track::after {
+  width: calc((100% - 100% / var(--jr-n)) * var(--jr-at) / max(var(--jr-n) - 1, 1));
+  background: linear-gradient(90deg, var(--opx-teal), var(--opx-aqua));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--opx-aqua) 55%, transparent);
+  transition: width 0.5s var(--opx-ease);
+}
+
+.opx-jr__track > li {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.opx-jr__track > li > button,
+.opx-jr__cell {
+  display: grid;
+  grid-template-rows: var(--jr-big) auto;
+  justify-items: center;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+}
+
+.opx-jr__track > li > button {
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.opx-jr__track > li > button:focus-visible {
+  outline: 2px solid var(--opx-aqua);
+  outline-offset: 2px;
+}
+
+.opx-jr__dot {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  transition: transform 0.25s var(--opx-spring), background 0.25s;
+}
+
+.opx-jr__t {
+  max-width: 100%;
+  overflow: hidden;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--opx-ink-3);
+}
+
+li[data-state="done"] > * > .opx-jr__dot {
+  width: var(--jr-mid);
+  height: var(--jr-mid);
+  background: linear-gradient(135deg, var(--opx-teal), var(--opx-aqua));
+  color: var(--opx-on-accent);
+}
+
+html[data-opx-theme="dark"] li[data-state="done"] > * > .opx-jr__dot,
+html:not([data-opx-theme="light"]) li[data-state="done"] > * > .opx-jr__dot {
+  color: #032623;
+}
+
+li[data-state="done"] > * > .opx-jr__t {
+  color: var(--opx-ink-2);
+}
+
+li[data-state="now"] > * > .opx-jr__dot {
+  width: var(--jr-big);
+  height: var(--jr-big);
+  background: var(--opx-grad);
+  color: #fff;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--opx-aqua) 22%, transparent), 0 0 34px color-mix(in srgb, var(--opx-aqua) 60%, transparent);
+}
+
+li[data-state="now"] > * > .opx-jr__t {
+  color: var(--opx-ink);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+li[data-state="todo"] > * > .opx-jr__dot {
+  width: var(--jr-small);
+  height: var(--jr-small);
+  border: 1.5px solid var(--opx-line-2);
+  background: var(--opx-base-2);
+  color: var(--opx-ink-3);
+}
+
+.opx-jr__track > li > button:hover > .opx-jr__dot {
+  transform: scale(1.12);
+  border-color: var(--opx-aqua);
+  color: var(--opx-aqua);
+}
+
+.opx-jr[data-ended="hot"] li[data-state="now"] > * > .opx-jr__dot {
+  background: linear-gradient(135deg, #c43a53, var(--opx-hot));
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--opx-hot) 22%, transparent), 0 0 34px color-mix(in srgb, var(--opx-hot) 50%, transparent);
+}
+
+.opx-jr[data-ended="hot"] .opx-jr__track::after {
+  background: var(--opx-ink-3);
+  box-shadow: none;
+}
+
+.opx-jr[data-ended="mute"] li[data-state="now"] > * > .opx-jr__dot {
+  background: var(--opx-ink-3);
+  box-shadow: none;
+}
+
+.opx-jr__cap {
+  display: none;
+  margin: 4px 0 0;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--opx-ink);
+}
+
+@media (max-width: 720px) {
+  .opx-jr {
+    --jr-big: 46px;
+    --jr-mid: 28px;
+    --jr-small: 22px;
+  }
+
+  .opx-jr__t {
+    display: none;
+  }
+
+  .opx-jr__cap {
+    display: block;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opx-jr__track::after,
+  .opx-jr__dot {
+    transition: none;
+  }
+}
+
+.opx-jr li[data-state="now"] .opx-jr__dot svg {
+  width: 30px;
+  height: 30px;
+}
+
+.opx-jr li[data-state="todo"] .opx-jr__dot svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 720px) {
+  .opx-jr li[data-state="now"] .opx-jr__dot svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .opx-jr li[data-state="todo"] .opx-jr__dot svg {
+    width: 12px;
+    height: 12px;
+  }
+}

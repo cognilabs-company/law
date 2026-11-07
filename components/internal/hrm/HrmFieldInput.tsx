@@ -22,6 +22,8 @@ const isDict = (v: unknown): v is Dict => !!v && typeof v === "object" && !Array
 // The directory already holds people, units, positions and logins: those
 // lists answer at once; any other source (another module's records) is read
 // from the backend and searched there.
+const COLOR_SWATCHES = ["#1668f0", "#0891b2", "#0e8077", "#16a34a", "#d97706", "#dc2626", "#7c3aed", "#475569"];
+
 function directoryOptions(dir: HrmDirectory, source: string): HrmOption[] | null {
   const path = source.split("?")[0];
   if (path === "/internal/employees") return dir.employeeOptions.length ? dir.employeeOptions : null;
@@ -176,7 +178,11 @@ export default function HrmFieldInput({ field, value, onChange, invalid }: { fie
     case "color":
       return (
         <span className="hrmf-color">
-          <input type="color" value={/^#[0-9a-f]{6}$/i.test(text(value)) ? text(value) : "#1668f0"} onChange={(e) => onChange(e.target.value)} aria-label={label} />
+<span className="hrmf-swatches" role="group" aria-label={label}>
+            {COLOR_SWATCHES.map((c) => (
+              <button key={c} type="button" className={`hrmf-swatch${text(value).toLowerCase() === c ? " on" : ""}`} style={{ background: c }} aria-label={c} aria-pressed={text(value).toLowerCase() === c} onClick={() => onChange(c)} />
+            ))}
+          </span>
           <input value={text(value)} onChange={(e) => onChange(e.target.value || undefined)} placeholder="#1668F0" aria-invalid={invalid || undefined} aria-label={label} />
         </span>
       );

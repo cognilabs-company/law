@@ -8,13 +8,14 @@ import { errorText } from "@/lib/errorText";
 import { contactBlockedOf } from "@/lib/http";
 import { humanize } from "@/lib/labels";
 import { initials } from "@/lib/lawyers";
-import { isUrgentPriority, ticketTitle, type SupportMessage, type SupportTicket } from "@/lib/services/support";
+import { isClosedStatus, isUrgentPriority, ticketTitle, type SupportMessage, type SupportTicket } from "@/lib/services/support";
 import ContactBlockedNote from "@/components/ContactBlockedNote";
 import { useSupportLabels } from "@/components/support/bits";
 import PersonName from "@/components/ui/PersonName";
-import { IcArrowLeft, IcCheck, IcRefresh, IcUser } from "../icons";
+import { Journey } from "../panel/Journey";
+import { IcArrowLeft, IcCheck, IcInbox, IcRefresh, IcUser } from "../icons";
 import { IcAlert, IcBubble, IcClip, IcDownload, IcLock, IcPanel, IcSend, IcSpark, IcSwap } from "./icons";
-import { QUICK, codeOf, fileSize, near, priorityTone, statusTone, whoOf, type Who } from "./model";
+import { QUICK, codeOf, fileSize, near, priorityTone, whoOf, type Who } from "./model";
 import type { TicketChat } from "./useTicketChat";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -46,6 +47,7 @@ export function ChatHead({ ticket, mine, isOpen, claimable, busy, transferOff, g
   const status = ticket.status ? (t.has(`status.${ticket.status}`) ? t(`status.${ticket.status}`) : humanize(ticket.status)) : "";
   const person = ticket.clientName || (ticket.clientLexgoId ? t("chat.lexgoId", { id: ticket.clientLexgoId }) : t("client"));
   const own = mine && isOpen;
+  const closedNow = isClosedStatus(ticket.status);
   const reason = !known
     ? null
     : ticket.status === "reopened" && ticket.reopenReason
@@ -68,9 +70,6 @@ export function ChatHead({ ticket, mine, isOpen, claimable, busy, transferOff, g
             <>
               <span className="opx-sx-chead__row">
                 <h3>{title}</h3>
-                <span className="opx-pill opx-sx-pill" data-tone={statusTone(ticket.status)}>
-                  {status}
-                </span>
                 {isUrgentPriority(ticket.priority) ? (
                   <span className="opx-sx-urg" data-tone={priorityTone(ticket.priority)}>
                     {labels.priority(ticket.priority) || t("urgent")}
@@ -78,11 +77,7 @@ export function ChatHead({ ticket, mine, isOpen, claimable, busy, transferOff, g
                 ) : null}
               </span>
               <span className="opx-sx-chead__sub">
-                <b className="opx-num">{codeOf(ticket)}</b>
-                <span>
-                  <IcUser size={14} />
-                  <span>{person}</span>
-                </span>
+                <span>{person}</span>
               </span>
             </>
           ) : gone ? (
@@ -104,12 +99,6 @@ export function ChatHead({ ticket, mine, isOpen, claimable, busy, transferOff, g
           </span>
         ) : null}
         <div className="opx-sx-chead__acts">
-          {claimable ? (
-            <button type="button" className="opx-pbtn opx-pbtn--blue opx-sx-act is-claim" disabled={busy} onClick={onClaim} data-ai-id={aiId("call_center.support.ticket", tid, "claim")}>
-              <IcCheck size={16} />
-              <span>{t("claim")}</span>
-            </button>
-          ) : null}
           {own ? (
             <>
               <button
@@ -144,6 +133,25 @@ export function ChatHead({ ticket, mine, isOpen, claimable, busy, transferOff, g
           </button>
         </div>
       </header>
+      {known ? (
+        <div className="opx-sx-track">
+          <Journey
+            label={status}
+            at={closedNow ? 2 : ticket.operatorUserId || ticket.operatorName ? 1 : 0}
+            steps={[
+              { key: "new", label: t("status.new"), icon: <IcInbox size={16} /> },
+              { key: "work", label: t("status.in_progress"), icon: <IcBubble size={16} /> },
+              { key: "end", label: t("status.closed"), icon: <IcCheck size={16} /> },
+            ]}
+          />
+          {claimable ? (
+            <button type="button" className="opx-pbtn opx-pbtn--main opx-sx-do" disabled={busy} onClick={onClaim} data-ai-id={aiId("call_center.support.ticket", tid, "claim")}>
+              <IcCheck size={22} />
+              <span>{t("claim")}</span>
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {(own && transferOff) || reason ? (
         <div className="opx-sx-notes">
           {own && transferOff ? (

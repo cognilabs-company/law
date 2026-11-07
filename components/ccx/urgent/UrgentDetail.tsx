@@ -33,7 +33,8 @@ import { CaseBox, Loading, PartyCard, Section } from "../panel/bits";
 import { CopyButton } from "../now/NowFocus";
 import { prettyPhone } from "../now/feed";
 import { IcArrowLeft, IcBolt, IcCheck, IcChevron, IcClock, IcClose, IcCoins, IcDoc, IcMeeting, IcScale, IcShield, IcTimeline, IcUser } from "../icons";
-import { AI_ITEM, GROUP, SOURCES_SHOWN, chatHref, dedupeSources, flowIndex, kindName, ntfId, statusChoicesOf, statusOf, telOf, type Ask, type Change, type Step } from "./model";
+import { UrgentJourney } from "./UrgentJourney";
+import { AI_ITEM, GROUP, SOURCES_SHOWN, chatHref, dedupeSources, kindName, ntfId, statusChoicesOf, statusOf, telOf, type Ask, type Change, type Step } from "./model";
 import { ChannelChip, KindIcon, MoreMenu, UrgBadge, VoiceNote, px, type MenuItem } from "./parts";
 import { useReportDirty } from "./kit";
 import { CancelStep, CompleteStep, StatusStep, TransferStep } from "./UrgentForms";
@@ -51,41 +52,6 @@ function sizeOf(bytes: number): string {
   if (!bytes) return "";
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
-
-function Flow({ r }: { r: UrgentRequest }) {
-  const t = useTranslations("admin.urgent");
-  const x = useTranslations("admin.ccx.urgent");
-  const tk = useTranslations("portal.client.urgent");
-  const urg = useUrgentStatuses();
-  const st = statusOf(r);
-  const bad = st === "cancelled" || st === "expired";
-  const at = flowIndex(r);
-  const labels = [
-    urg.open_pool?.label ?? t("tabOpenPool"),
-    urg.claimed?.label ?? t("tabClaimed"),
-    x("flowLawyer"),
-    r.channel === "chat" ? tk("chChat") : x("flowMeeting"),
-    bad ? (urg[st]?.label ?? humanize(st)) : (urg.completed?.label ?? t("tabCompleted")),
-  ];
-  const stateOf = (i: number) => {
-    if (bad) return i === labels.length - 1 ? "bad" : i <= at ? "done" : "todo";
-    if (st === "completed") return "done";
-    return i < at ? "done" : i === at ? "now" : "todo";
-  };
-  return (
-    <ol className="opx-ug-flow" aria-label={x("flowAria")}>
-      {labels.map((label, i) => {
-        const s = stateOf(i);
-        return (
-          <li key={i} className={`is-${s}`} aria-current={s === "now" ? "step" : undefined}>
-            <i aria-hidden="true">{s === "done" ? <IcCheck size={12} /> : s === "bad" ? <IcClose size={12} /> : null}</i>
-            <span>{label}</span>
-          </li>
-        );
-      })}
-    </ol>
-  );
 }
 
 export default function UrgentDetail({
@@ -109,6 +75,8 @@ export default function UrgentDetail({
 }) {
   const t = useTranslations("admin.urgent");
   const tp = useTranslations("admin.ccx.panel");
+  const tc = useTranslations("admin.ccx.now");
+  const [details, setDetails] = useState(false);
   const x = useTranslations("admin.ccx.urgent");
   const none = useTranslations("common")("none");
   const tk = useTranslations("portal.client.urgent");
@@ -442,7 +410,6 @@ export default function UrgentDetail({
       ) : null}
     </>
   );
-  const hasFoot = !!primary || can.meeting || can.complete || can.transfer || items.length > 0 || can.cancel;
 
   return (
     <div
@@ -459,40 +426,16 @@ export default function UrgentDetail({
           <KindIcon kind={req.serviceKind} size={24} />
         </span>
         <div className="opx-ug-dhead__txt">
-          <small>{kindLabel}</small>
-          <h3 className="opx-ug-dhead__title opx-num" tabIndex={-1}>
-            {req.workId || kindLabel}
+          <h3 className="opx-ug-dhead__title" tabIndex={-1}>
+            {kindLabel || req.workId}
           </h3>
         </div>
-        {req.workId ? <CopyButton value={req.workId} label={tk("workId")} /> : null}
-        <div className="opx-ug-dhead__chips">
-          <UrgBadge status={statusOf(req)} urg={urg} />
-          <ChannelChip channel={req.channel} />
-          {req.meetingMinutes ? (
-            <span className="opx-ug-chip opx-num">
-              <IcClock size={14} />
-              {tk("minutesN", { n: req.meetingMinutes })}
-            </span>
-          ) : null}
-          {req.amount ? (
-            <span className="opx-ug-chip opx-num">
-              <IcCoins size={14} />
-              {fmtUzs(req.amount)} {te("currency")}
-            </span>
-          ) : null}
-          {req.immediateCall ? (
-            <span className="opx-ug-chip is-now">
-              <IcBolt size={14} />
-              {t("onDuty")}
-            </span>
-          ) : null}
-          {req.slaBreached ? (
-            <span className="opx-ug-st" data-tone="hot">
-              <IconAlert {...px(13)} aria-hidden="true" />
-              {t("slaBreached")}
-            </span>
-          ) : null}
-        </div>
+        {req.slaBreached ? (
+          <span className="opx-ug-st" data-tone="hot">
+            <IconAlert {...px(13)} aria-hidden="true" />
+            {t("slaBreached")}
+          </span>
+        ) : null}
         {onClose ? (
           <button type="button" className="opx-ug-x" onClick={onClose} aria-label={tp("close")} title={tp("close")}>
             <IcClose size={18} />
@@ -579,10 +522,14 @@ export default function UrgentDetail({
         </>
       ) : (
         <>
-          <Flow r={req} />
+          <div className="opx-ug-track">
+            <UrgentJourney r={req} />
+            {primaryBtn ? <div className="opx-ug-do">{primaryBtn}</div> : null}
+          </div>
           <div className="opx-pscroll" data-ai-private>
             <div className="opx-pgrid2">
               <PartyCard
+                quietCall={!!primaryBtn}
                 role={t("client")}
                 name={req.clientName || t("unknownClient")}
                 phone={req.clientPhone || undefined}
@@ -709,6 +656,40 @@ export default function UrgentDetail({
               </Section>
             ) : null}
 
+            <button type="button" className="opx-ug-link opx-ug-morebtn" aria-expanded={details} onClick={() => setDetails((v) => !v)}>
+              {tc("more")}
+              <IcChevron size={15} />
+            </button>
+            {details ? (
+              <>
+                <div className="opx-ug-dhead__chips">
+                  {req.workId ? (
+                    <span className="opx-ug-chip opx-num">
+                      {req.workId}
+                      <CopyButton value={req.workId} label={tk("workId")} />
+                    </span>
+                  ) : null}
+                  <UrgBadge status={statusOf(req)} urg={urg} />
+                  <ChannelChip channel={req.channel} />
+                  {req.meetingMinutes ? (
+                    <span className="opx-ug-chip opx-num">
+                      <IcClock size={14} />
+                      {tk("minutesN", { n: req.meetingMinutes })}
+                    </span>
+                  ) : null}
+                  {req.amount ? (
+                    <span className="opx-ug-chip opx-num">
+                      <IcCoins size={14} />
+                      {fmtUzs(req.amount)} {te("currency")}
+                    </span>
+                  ) : null}
+                  {req.immediateCall ? (
+                    <span className="opx-ug-chip is-now">
+                      <IcBolt size={14} />
+                      {t("onDuty")}
+                    </span>
+                  ) : null}
+                </div>
             <div className={sources.length ? "opx-pgrid2" : undefined}>
               <Section icon={<IcUser size={17} />} title={t("assignment")}>
                 <dl className="opx-ug-dl">
@@ -780,11 +761,12 @@ export default function UrgentDetail({
                 </ol>
               </section>
             ) : null}
+              </>
+            ) : null}
           </div>
 
-          {hasFoot ? (
+          {secondary || items.length > 0 || can.cancel ? (
             <footer className="opx-ug-acts">
-              {primaryBtn}
               {secondary}
               <MoreMenu items={items} title={t("moreTitle")} up disabled={!!busy} aiId={aiId(AI_ITEM, req.id, "more")} />
               {can.cancel ? (

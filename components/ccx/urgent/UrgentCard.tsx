@@ -4,14 +4,12 @@ import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import type { UrgentRequest } from "@/lib/services/backend";
 import { dateTimeFull, shortDateTime } from "@/lib/date";
-import { regionLabel } from "@/lib/labels";
 import { aiId } from "@/lib/ai/ids";
 import { directionLabel, useUrgentStatuses } from "@/components/admin/UrgentAdvocateQueue";
-import { IconChat, IconExternal, IconMapPin, IconUsers } from "@/components/icons";
-import { prettyPhone } from "../now/feed";
-import { IcArrowRight, IcBolt, IcClock, IcClose, IcDoc, IcMeeting, IcPhone, IcUser } from "../icons";
-import { AI_ITEM, chatHref, kindName, rowAction, statusChoicesOf, statusOf, telOf, type Step } from "./model";
-import { ChannelChip, KindIcon, MoreMenu, SlaBar, UrgBadge, px, type MenuItem } from "./parts";
+import { IconChat, IconExternal, IconUsers } from "@/components/icons";
+import { IcArrowRight, IcClock, IcClose, IcDoc, IcMeeting, IcUser } from "../icons";
+import { AI_ITEM, chatHref, kindName, rowAction, statusChoicesOf, statusOf, type Step } from "./model";
+import { KindIcon, MoreMenu, SlaBar, UrgBadge, px, type MenuItem } from "./parts";
 
 type Props = {
   r: UrgentRequest;
@@ -43,7 +41,7 @@ export default function UrgentCard({ r, me, on, busy, index, onSelect, onClaim, 
     .map((d) => directionLabel(te, d, t))
     .filter((d, i, all) => d && all.indexOf(d) === i)
     .join(", ");
-  const needText = [dirs, r.need].filter(Boolean).join(" — ");
+  const needText = r.need || dirs;
   const timed = !!r.scheduledAt && !finished;
   const whenAt = timed ? r.scheduledAt : r.createdAt;
   const whenText = whenAt ? (timed ? t("scheduledFor", { when: shortDateTime(whenAt, locale) }) : shortDateTime(whenAt, locale)) : "";
@@ -109,22 +107,10 @@ export default function UrgentCard({ r, me, on, busy, index, onSelect, onClaim, 
         <div className="opx-ug-card__top">
           <div className="opx-ug-card__heads">
             <button type="button" className="opx-ug-card__title" aria-pressed={on} onClick={onSelect}>
-              {name}
+              {r.clientName || name}
             </button>
             <UrgBadge status={st} urg={urg} />
-            <ChannelChip channel={r.channel} />
-            {r.immediateCall ? (
-              <span className="opx-ug-chip is-now">
-                <IcBolt size={13} />
-                {t("onDuty")}
-              </span>
-            ) : null}
           </div>
-          {r.workId ? (
-            <span className="opx-ug-card__wid opx-num" title={tk("workId")}>
-              {r.workId}
-            </span>
-          ) : null}
         </div>
         {needText ? (
           <p className="opx-ug-card__need" title={needText}>
@@ -133,29 +119,11 @@ export default function UrgentCard({ r, me, on, busy, index, onSelect, onClaim, 
         ) : null}
         <div className="opx-ug-card__foot">
           <div className="opx-ug-card__meta">
-            {r.clientName ? (
-              <span>
-                <IcUser size={14} />
-                <b>{r.clientName}</b>
-              </span>
-            ) : null}
-            {r.clientPhone ? (
-              <a className="opx-num" href={`tel:${telOf(r.clientPhone)}`}>
-                <IcPhone size={14} />
-                {prettyPhone(r.clientPhone)}
-              </a>
-            ) : null}
             {whenText && whenAt ? (
               <time className="opx-num" dateTime={whenAt} title={dateTimeFull(whenAt, locale)}>
                 <IcClock size={14} />
                 {whenText}
               </time>
-            ) : null}
-            {r.region ? (
-              <span>
-                <IconMapPin {...px(14)} aria-hidden="true" />
-                {regionLabel(te, r.region)}
-              </span>
             ) : null}
           </div>
           <div className="opx-ug-card__side">

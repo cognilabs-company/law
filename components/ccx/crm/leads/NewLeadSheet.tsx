@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
-import { useNow } from "@/lib/crm/useCrm";
 import { createCrmCustomer, createCrmLead, crmCan, crmField, optionOfCustomer, selectCrmCustomers, type ContactInput, type CrmMeta, type CustomerOption } from "@/lib/services/crm";
 import Sheet from "../../panel/Sheet";
 import { Choice, Field, Note, PanelFoot } from "../../panel/bits";
@@ -13,8 +12,8 @@ import { prettyPhone } from "../../now/feed";
 import { IcArrowLeft, IcRefresh, IcSearch, IcUser } from "../../icons";
 import { leadHref } from "../nav";
 import { IcPlus } from "./icons";
-import { SelectField, TextField } from "./fields";
-import { localInputOf, useCrmErr, useRegionName } from "./util";
+import { DateTimeField, SelectField, TextField } from "./fields";
+import { useCrmErr, useRegionName } from "./util";
 
 const URGENCIES = ["low", "normal", "high", "urgent"];
 
@@ -43,7 +42,6 @@ function NewLeadSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void })
   const regionName = useRegionName();
   const crmErr = useCrmErr();
   const router = useRouter();
-  const now = useNow();
   const [step, setStep] = useState<"lead" | "customer">("lead");
   const [customer, setCustomer] = useState<CustomerOption | null>(null);
   const [title, setTitle] = useState("");
@@ -221,7 +219,7 @@ function NewLeadSheet({ meta, onClose }: { meta: CrmMeta; onClose: () => void })
             <Choice label={t("urgency")} value={urgency} onChange={setUrgency} options={URGENCIES.map((u) => ({ value: u, label: t(`urg.${u}`), danger: u === "urgent" }))} />
             <div className="opx-pgrid2">
               <SelectField label={t("language")} value={language} onChange={setLanguage} options={langs} />
-              <TextField type="datetime-local" label={t("next")} value={next} onChange={setNext} min={now ? `${localInputOf(now).slice(0, 10)}T00:00` : undefined} />
+              <DateTimeField label={t("next")} value={next} onChange={setNext} />
             </div>
             {dupWarn ? <Note tone="warn">{t("dupText")}</Note> : null}
             {err ? <Note tone="bad">{err}</Note> : null}

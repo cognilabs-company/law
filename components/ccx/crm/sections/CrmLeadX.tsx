@@ -8,7 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { isAborted, logApiError } from "@/lib/http";
 import { toast } from "@/lib/toast";
 import { statusColorVars } from "@/components/crm/bits";
-import { getCrmCustomer, getCrmLead, isClaimRace, isCrmDenied, isVersionConflict, leadCan, type CrmContact, type CrmLead, type CrmMeta } from "@/lib/services/crm";
+import { getCrmCustomer, getCrmLead, isClaimRace, isCrmDenied, isFinalStatus, isVersionConflict, journeyOf, leadCan, type CrmContact, type CrmLead, type CrmMeta } from "@/lib/services/crm";
 import { useCrmEvents, useNow } from "@/lib/crm/useCrm";
 import { IcArrowLeft } from "../../icons";
 import { crmHref, type CrmSectionProps } from "../nav";
@@ -45,6 +45,8 @@ function Workspace({ meta, leadId, startPane }: { meta: CrmMeta; leadId: string;
   const [timelineKey, setTimelineKey] = useState(0);
   const [aiKey, setAiKey] = useState(0);
   const [callFocus, setCallFocus] = useState(0);
+  const [submitDraft, setSubmitDraft] = useState(0);
+  const [orderAsked, setOrderAsked] = useState(false);
   const [dialed, setDialed] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
@@ -55,6 +57,7 @@ function Workspace({ meta, leadId, startPane }: { meta: CrmMeta; leadId: string;
   const [custKey, setCustKey] = useState(0);
   const leadRef = useRef<CrmLead | null>(null);
   const feedRef = useRef<HTMLDivElement | null>(null);
+  const orderRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     leadRef.current = lead;
   }, [lead]);
@@ -195,8 +198,21 @@ function Workspace({ meta, leadId, startPane }: { meta: CrmMeta; leadId: string;
     canDial: !!telOf(lead.customer?.phone ?? ""),
     callLogged: !canViewTimeline ? true : timeline.items ? callOnRecord(timeline.items, lead.cycle?.openedAt) : null,
     dialed,
-    drafting,
+    drafting: drafting && pane === "timeline",
   });
+  const stepLoading = canViewTimeline && timeline.items === null && !!me && lead.operatorId === me && !isFinalStatus(meta, lead.status);
+  const journey = journeyOf(meta, lead.status);
+  const orderStage = journey.indexOf(lead.status) >= journey.indexOf("proposal");
+  const showOrder = !!lead.order || orderStage || orderAsked || step === "order";
+  const callLogged = !canViewTimeline || (timeline.items ? callOnRecord(timeline.items, lead.cycle?.openedAt) : true);
+  const openOrder = () => {
+    setOrderAsked(true);
+    window.setTimeout(() => {
+      const box = orderRef.current;
+      box?.scrollIntoView({ block: "center", behavior: "smooth" });
+      box?.querySelector<HTMLElement>("button, input")?.focus({ preventScroll: true });
+    }, 60);
+  };
   const openPane = (p: Pane) => {
     setPane(p);
     if (p === "timeline") reloadTimeline();
@@ -208,15 +224,17 @@ function Workspace({ meta, leadId, startPane }: { meta: CrmMeta; leadId: string;
 
   return (
     <div className="opx-cd opx-cd--lead" style={statusColorVars(meta)}>
-      <LeadHead meta={meta} lead={lead} step={step} write={write} onSheet={setSheet} onStatus={setTo} onAi={leadCan(lead, "run_ai") ? () => setAiOpen(true) : undefined} />
+      <LeadHead meta={meta} lead={lead} step={step} loading={stepLoading} write={write} onSheet={setSheet} onStatus={setTo} onAi={leadCan(lead, "run_ai") ? () => setAiOpen(true) : undefined} onDial={() => setDialed(true)} onCallResult={callResult} onOrder={openOrder} onSubmitDraft={() => setSubmitDraft((n) => n + 1)} />
       <div className="opx-cd-grid">
         <div className="opx-cd-col opx-cd-col--main">
           <div className="opx-cd-m2">
-            <NeedCard lead={lead} onEdit={leadCan(lead, "edit") ? () => setSheet("edit") : undefined} />
+            <NeedCard lead={lead} />
           </div>
-          <div className="opx-cd-m5">
-            <ConvertCard lead={lead} bright={step === "order"} onDone={() => void write(async () => null)} />
-          </div>
+          {showOrder ? (
+            <div className="opx-cd-m5 opx-cd-anchor" ref={orderRef}>
+              <ConvertCard lead={lead} onDone={() => void write(async () => null)} />
+            </div>
+          ) : null}
           <div className="opx-cd-m6 opx-cd-anchor" ref={feedRef}>
             <FeedCard
               meta={meta}
@@ -228,6 +246,8 @@ function Workspace({ meta, leadId, startPane }: { meta: CrmMeta; leadId: string;
               onAdded={reloadTimeline}
               onDrafting={setDrafting}
               callFocus={callFocus}
+              submitDraft={submitDraft}
+              callLogged={callLogged}
               history={history}
               phones={phones}
               smsPreset={smsPreset}
@@ -237,11 +257,13 @@ function Workspace({ meta, leadId, startPane }: { meta: CrmMeta; leadId: string;
         </div>
         <div className="opx-cd-col opx-cd-col--side">
           <div className="opx-cd-m1">
-            <CustomerCard lead={lead} contacts={contacts} step={step} onDial={() => setDialed(true)} onCallResult={leadCan(lead, "add_activity") ? callResult : undefined} />
+            <CustomerCard lead={lead} contacts={contacts} onDial={() => setDialed(true)} />
           </div>
-          <div className="opx-cd-m3">
-            <NextCard lead={lead} now={now} step={step} onChange={leadCan(lead, "set_next_action") ? () => setSheet("next") : undefined} />
-          </div>
+          {step !== "nextAction" ? (
+            <div className="opx-cd-m3">
+              <NextCard lead={lead} now={now} onChange={leadCan(lead, "set_next_action") ? () => setSheet("next") : undefined} />
+            </div>
+          ) : null}
           {lead.duplicateStatus === "needs_review" ? (
             <div className="opx-cd-m4">
               <DupCard

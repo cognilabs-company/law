@@ -5,10 +5,11 @@ import { errorText } from "@/lib/errorText";
 import { humanize } from "@/lib/labels";
 import { aiId } from "@/lib/ai/ids";
 import { isActiveTicket, isClosedStatus, isUrgentPriority, isWaitingTicket, ticketTitle, type SupportTicket } from "@/lib/services/support";
-import { agoText, lastPreview, minutesSince, useSupportLabels, waitText } from "@/components/support/bits";
-import { IcCheck, IcClock, IcRefresh, IcSupport, IcUser } from "../icons";
-import { IcAlert, IcBubble, IcSort } from "./icons";
-import { codeOf, priorityTone, statusTone, waitShare, waitTone, type Order } from "./model";
+import { agoText, minutesSince, useSupportLabels, waitText } from "@/components/support/bits";
+import { IcClock, IcRefresh, IcSupport } from "../icons";
+import { IcAlert, IcSort } from "./icons";
+import { priorityTone, waitTone, type Order } from "./model";
+import Select from "@/components/Select";
 
 type Props = {
   items: SupportTicket[];
@@ -41,14 +42,10 @@ export default function TicketList(p: Props) {
     <aside className="opx-sx-col opx-sx-list" aria-label={t("queueTitle")}>
       <div className="opx-sx-list__bar">
         <span className="opx-sx-list__n opx-num">{p.status === "ready" && p.items.length ? tx("count", { n: p.count }) : ""}</span>
-        <label className="opx-sx-sort">
-          <span className="opx-sr">{tq("sortAria")}</span>
+        <span className="opx-sx-sort">
           <IcSort size={16} />
-          <select value={p.order} onChange={(e) => p.onOrder(e.target.value === "new" ? "new" : "old")}>
-            <option value="old">{tq("sort.old")}</option>
-            <option value="new">{tq("sort.new")}</option>
-          </select>
-        </label>
+          <Select value={p.order} ariaLabel={tq("sortAria")} onChange={(v) => p.onOrder(v === "new" ? "new" : "old")} options={[{ value: "old", label: tq("sort.old") }, { value: "new", label: tq("sort.new") }]} />
+        </span>
       </div>
       <div className="opx-sx-items" data-ai-target="support:ticket-list" data-ai-id="call_center.support.queue" data-ai-type="list" data-ai-label={t("queueTitle")}>
         {p.status === "loading" ? (
@@ -125,7 +122,6 @@ function TicketRow({
   const locale = useLocale();
   const labels = useSupportLabels();
   const title = ticketTitle(ticket, t("untitled"));
-  const last = lastPreview(ticket, title);
   const when = ticket.lastMessageAt || ticket.updatedAt;
   const waiting = isWaitingTicket(ticket);
   const waited = waiting ? minutesSince(ticket.createdAt, now) : null;
@@ -149,18 +145,7 @@ function TicketRow({
     >
       <button type="button" className="opx-sx-item__main" onClick={() => onOpen(ticket)} aria-current={active || undefined}>
         <span className="opx-sx-item__top">
-          <i className="opx-sx-dot" data-tone={priorityTone(ticket.priority)} aria-hidden="true" />
-          <b className="opx-num">{codeOf(ticket)}</b>
-          {isUrgentPriority(ticket.priority) ? (
-            <span className="opx-sx-urg" data-tone={priorityTone(ticket.priority)}>
-              {labels.priority(ticket.priority) || t("urgent")}
-            </span>
-          ) : null}
-          {when ? (
-            <time className="opx-num" dateTime={when}>
-              {agoText(t, locale, when, now)}
-            </time>
-          ) : null}
+          <b className="opx-sx-item__title">{title}</b>
           {unread ? (
             <span className="opx-sx-unread opx-num" title={t("unreadAria", { n: unread })}>
               <span aria-hidden="true">{unread > 99 ? "99+" : unread}</span>
@@ -168,41 +153,26 @@ function TicketRow({
             </span>
           ) : null}
         </span>
-        <b className="opx-sx-item__title">{title}</b>
         <span className="opx-sx-item__line">
-          <IcUser size={14} />
           <span>{person}</span>
         </span>
-        {last ? (
-          <span className={`opx-sx-item__line is-msg${unread ? " is-new" : ""}`}>
-            <IcBubble size={14} />
-            <span>{last}</span>
-          </span>
-        ) : null}
-        {waiting ? (
-          <span className="opx-sx-item__wait">
-            <IcClock size={14} />
-            <span className="opx-num">{waitText(t, ticket.createdAt, now) || t("queue.waiting")}</span>
-            <i className="opx-sx-meter" aria-hidden="true">
-              <i style={{ width: `${waitShare(waited)}%` }} />
-            </i>
-          </span>
-        ) : (
-          <span className="opx-sx-item__meta">
-            {status ? (
-              <span className="opx-pill opx-sx-pill" data-tone={statusTone(ticket.status)}>
-                {status}
-              </span>
-            ) : null}
-            {cat ? <span>{cat}</span> : null}
-          </span>
-        )}
-        {isClosedStatus(ticket.status) && ticket.resolution ? (
-          <span className="opx-sx-item__res">
-            <IcCheck size={14} />
-            <span>{ticket.resolution}</span>
-          </span>
-        ) : null}
+        <span className="opx-sx-item__meta">
+          {isUrgentPriority(ticket.priority) ? (
+            <span className="opx-sx-urg" data-tone={priorityTone(ticket.priority)}>
+              {labels.priority(ticket.priority) || t("urgent")}
+            </span>
+          ) : null}
+          {waiting ? (
+            <span className="opx-sx-item__wait">
+              <IcClock size={14} />
+              <span className="opx-num">{waitText(t, ticket.createdAt, now) || t("queue.waiting")}</span>
+            </span>
+          ) : when ? (
+            <time className="opx-num" dateTime={when}>
+              {agoText(t, locale, when, now)}
+            </time>
+          ) : null}
+        </span>
       </button>
       {claim ? (
         <button
@@ -213,7 +183,6 @@ function TicketRow({
           data-ai-id={aiId("call_center.support.ticket", ticket.id, "claim")}
           data-ai-label={t("claim")}
         >
-          <IcCheck size={15} />
           {t("claim")}
         </button>
       ) : null}
