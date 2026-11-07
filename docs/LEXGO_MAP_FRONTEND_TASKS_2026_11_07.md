@@ -22,7 +22,7 @@ Kontrakt: `LEXGO_YANDEX_MARKETPLACE_MAP_FRONTEND_2026_10_30.md`
 **Pinlar.** Oq pin va bosh harflar, tanlangani asosiy rangda. Ofis kvadratroq, faqat viloyati ma'lum sotuvchi shtrixli, ya'ni aniqlik darajasi matnsiz ko'rinadi.
 
 **Animatsiya.**
-- Yo'l chizilgan paytdagi cheksiz animatsiyalar 15 tadan 3 taga tushdi, xarita ichida faqat joylashuv nuqtasining pulsi qoladi.
+- Yo'l chizilgan paytdagi cheksiz animatsiyalar 15 tadan 2 taga tushdi: xarita ichida faqat joylashuv nuqtasining pulsi qoldi, ikkinchisi xaritaga tegishli emas (AI tugmasi). Navigatsiya paytida xaritada cheksiz animatsiya yo'q.
 - Harakatlanuvchi puls, 3D qiyalik, radar, "sonar"lar, kirishdagi uchish, raqam aylanishi olib tashlandi.
 - Hamma harakat `transform` va `opacity` bilan, 120 / 200 / 320 ms. Telefon paneli balandlik emas, `transform` bilan siljiydi.
 - `prefers-reduced-motion` hamma joyda hisobga olingan.

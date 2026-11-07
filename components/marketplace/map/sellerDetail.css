@@ -75,6 +75,10 @@
 
 @keyframes mnv-breath{50%{opacity:.4}}
 
+@media (max-width:720px){
+  .msd__acts .btn{flex-basis:100%}
+}
+
 @media (pointer:coarse){
   .msd__back,.mnv__x{width:44px;height:44px}
   .mseg.mnv__modes button{min-height:46px}

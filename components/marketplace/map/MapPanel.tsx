@@ -128,14 +128,16 @@ export default function MapPanel({
     if (sheet) {
       const h = heightOf(snap, stageOf(el));
       el.style.setProperty("--mpn-h", `${Math.round(h)}px`);
-      el.style.setProperty("--mpn-rest", `${Math.round(h)}px`);
+      // What is below the sheet's visible edge is padding, so the list scrolls
+      // inside the part that shows and a focused row can always be reached.
+      el.style.setProperty("--mpn-pad", `${Math.max(0, Math.round(el.offsetHeight - h))}px`);
       if (!onInset) return;
       if (hidden) onInset({ left: 0, bottom: 0 });
       else onInset({ left: 0, bottom: Math.round(h) });
       return;
     }
     el.style.removeProperty("--mpn-h");
-    el.style.removeProperty("--mpn-rest");
+    el.style.removeProperty("--mpn-pad");
     if (!onInset) return;
     if (hidden || variant === "full" || variant === "flat") return onInset({ left: 0, bottom: 0 });
     onInset({ left: Math.round(el.offsetLeft + el.offsetWidth), bottom: 0 });

@@ -23,7 +23,7 @@ html[data-theme="dark"] :is(.mmx,.ymk-stage,.mfs,.mpn,.mseg,.mfh,.mtb,.msd,.mnv)
 .mpn--float{top:12px;left:12px;max-height:calc(100% - 24px);width:clamp(304px,27vw,392px);max-width:calc(100% - 96px);border-radius:18px;transition:transform var(--mm-slow) var(--mm-sheet),opacity var(--mm-med) ease}
 .mpn--full{top:12px;left:12px;right:12px;bottom:12px;border-radius:18px}
 .mpn--float.is-hidden{opacity:0;transform:translateX(calc(-100% - 16px));pointer-events:none}
-.mpn--sheet{left:0;right:0;bottom:0;height:calc(100% - 72px);border-radius:20px 20px 0 0;transform:translate3d(0,calc(100% - var(--mpn-h, 92px)),0);transition:transform var(--mm-slow) var(--mm-sheet),opacity var(--mm-med) ease}
+.mpn--sheet{left:0;right:0;bottom:0;box-sizing:border-box;height:calc(100% - 72px);padding-bottom:var(--mpn-pad, 0px);border-radius:20px 20px 0 0;transform:translate3d(0,calc(100% - var(--mpn-h, 92px)),0);transition:transform var(--mm-slow) var(--mm-sheet),opacity var(--mm-med) ease}
 .mpn--sheet[data-drag]{transition:none}
 .mpn--sheet.is-hidden{opacity:0;transform:translate3d(0,100%,0);pointer-events:none}
 .mpn--flat{position:relative;border-radius:18px;background:var(--mm-surface);box-shadow:inset 0 0 0 1px var(--mm-edge)}
@@ -42,10 +42,6 @@ html[data-theme="dark"] :is(.mmx,.ymk-stage,.mfs,.mpn,.mseg,.mfh,.mtb,.msd,.mnv)
 .mpn--float.has-detail .mpn__layer--list{display:none}
 .mpn--flat .mpn__body{overflow:visible}
 .mpn__layer{grid-area:1 / 1;min-height:0;min-width:0;padding:0 8px 12px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
-/* The sheet's lower part is off screen until it is pulled up: the padding lets
-   the last row scroll into the part that shows. */
-.mpn--sheet .mpn__layer{padding-bottom:calc(100cqh - var(--mpn-rest, 92px) + 12px)}
-.mpn--sheet{container-type:size}
 .mpn--flat .mpn__layer{overflow:visible}
 .mpn__layer--list{transition:opacity var(--mm-med) ease}
 .mpn.has-detail .mpn__layer--list{opacity:0;visibility:hidden;transition:opacity var(--mm-fast) ease,visibility 0s var(--mm-fast)}

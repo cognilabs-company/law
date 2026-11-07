@@ -20,7 +20,7 @@
 .mfh__headd{font-size:.82rem;font-weight:600;color:var(--gray);font-variant-numeric:tabular-nums}
 
 .mfh__dock{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 12px;padding:10px 10px 10px 16px;border-radius:16px;background:var(--mm-surface);box-shadow:var(--mm-shadow);animation:mfh-in var(--mm-slow) var(--mm-ease) 40ms both}
-.mfh--float .mfh__dock{position:absolute;left:var(--mfh-pad);right:var(--mfh-pad);bottom:calc(var(--mfh-pad) + 22px);max-width:460px;margin-inline:auto}
+.mfh--float .mfh__dock{position:absolute;left:var(--mfh-pad);right:var(--mfh-pad);bottom:var(--mfh-pad);max-width:460px;margin-inline:auto}
 .mfh__eta{display:flex;flex-direction:column;gap:0;min-width:0}
 .mfh__big{font-family:var(--fd);font-size:1.32rem;font-weight:700;line-height:1.15;letter-spacing:-.015em;color:var(--ink);font-variant-numeric:tabular-nums}
 .mfh.is-arrived .mfh__big{color:var(--dk-txt-ok, #0B7A58)}
@@ -33,7 +33,7 @@
 
 .mfh__re{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 14px 6px 10px;border:0;border-radius:12px;background:var(--mm-surface);box-shadow:var(--mm-shadow);color:var(--mm-acc);font:inherit;font-size:.84rem;font-weight:600;cursor:pointer;animation:mfh-in var(--mm-med) var(--mm-ease) both}
 .mfh__re svg{width:16px;height:16px}
-.mfh--float .mfh__re{position:absolute;left:50%;bottom:calc(var(--mx-hud, 88px) + var(--mfh-pad) + 22px);transform:translateX(-50%)}
+.mfh--float .mfh__re{position:absolute;left:50%;bottom:calc(var(--mx-hud, 88px) + 30px);transform:translateX(-50%)}
 
 .mfh__fail{grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:var(--dk-tint-warn, #FFF7E6);color:var(--ink);font-size:.78rem;line-height:1.45}
 .mfh__fail>span:first-child{flex:1 1 200px}
