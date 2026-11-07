@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { ShoppingBag } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { IconBriefcase, IconBuilding, IconChevronRight, IconMapPin, IconStarRate } from "@/components/icons";
+import { IconBriefcase, IconStarRate } from "@/components/icons";
 import { aiId } from "@/lib/ai/ids";
 import { fmtRating } from "@/lib/date";
 import { fmtUzs } from "@/lib/money";
@@ -67,6 +67,15 @@ export function useDistanceText(): (km: number | null, precText: string) => { te
   );
 }
 
+// A rating with no reviews behind it is not a rating: the map endpoint sends 5.0
+// for everyone nobody has reviewed yet.
+export function ratedOf(s: { rating: number; reviewsCount: number }, known: MarketSeller | null): { rating: number; reviews: number } {
+  if (s.rating > 0 && s.reviewsCount > 0) return { rating: s.rating, reviews: s.reviewsCount };
+  if (known?.rated && known.rating > 0 && known.reviewsCount > 0) return { rating: known.rating, reviews: known.reviewsCount };
+  return { rating: 0, reviews: 0 };
+}
+
+// One row: who, what kind, how good, how far. Everything else waits for the card.
 export default function SellerRow({
   s,
   known,
@@ -88,21 +97,18 @@ export default function SellerRow({
 }) {
   const t = useTranslations("marketplace.nearby");
   const tm = useTranslations("marketplace");
-  const tx = useTranslations("marketMap");
   const locale = useLocale();
   const id = s.sellerUserId;
   const name = s.name || known?.name || t("map.unnamed");
   const dist = useDistanceText()(s.distanceKm, precText);
-  const actionPrice = useActionPrice();
-  const price = s.service?.price ? actionPrice(s.service) : known && known.priceFrom > 0 ? tm("card.priceFrom", { price: fmtUzs(known.priceFrom) }) : "";
   const rowAi = aiId(ai, id || name);
   const type = s.sellerType || known?.sellerType || "";
-  const rating = s.rating > 0 ? s.rating : known?.rated && known.rating > 0 ? known.rating : 0;
+  const { rating } = ratedOf(s, known);
   const verified = s.verified || !!known?.verified;
 
   const body = (
     <>
-      <Monogram name={name} rating={rating} showRing={rating > 0} />
+      <Monogram name={name} rating={0} showRing={false} />
       <span className="mmrow__who">
         <span className="mmrow__title">
           <span className="mmrow__name">{name}</span>
@@ -115,35 +121,17 @@ export default function SellerRow({
               <IconStarRate aria-hidden="true" />
               {fmtRating(rating, locale)}
             </span>
-          ) : (
-            <span>{tm("card.newSeller")}</span>
-          )}
-          {s.source ? (
-            <span className="mmrow__src" data-src={s.source}>
-              {s.source === "office" ? <IconBuilding aria-hidden="true" /> : <IconMapPin aria-hidden="true" />}
-              {tx(`src.${s.source}`)}
-            </span>
           ) : null}
         </span>
-        {s.service?.title ? (
-          <span className="mmrow__svc">
-            <IconBriefcase aria-hidden="true" />
-            <span>{s.service.title}</span>
-          </span>
-        ) : null}
       </span>
-      <span className="mmrow__end">
-        {withDistance ? (
-          <span className={`mknb-dist${dist.known ? "" : " mknb-dist--none"}`} title={dist.known ? precText : undefined}>
-            <IconMapPin aria-hidden="true" />
+      {withDistance && dist.known ? (
+        <span className="mmrow__end">
+          <span className="mknb-dist" title={precText}>
             <span aria-hidden="true">{dist.text}</span>
             <span className="sr-only">{dist.aria}</span>
           </span>
-        ) : price ? (
-          <b className="mmrow__price">{price}</b>
-        ) : null}
-        {id && onSelect ? <IconChevronRight className="mmrow__go" aria-hidden="true" /> : null}
-      </span>
+        </span>
+      ) : null}
     </>
   );
 

@@ -2,7 +2,6 @@
 
 import { useEffect, useEffectEvent, useRef, useSyncExternalStore, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { useRoll } from "./useFollow";
 import "./mapPanel.css";
 
 export type PanelVariant = "float" | "sheet" | "full" | "flat";
@@ -10,7 +9,7 @@ export type Snap = "peek" | "half" | "full";
 export type Inset = { left: number; bottom: number };
 export type SegOption<T extends string> = { value: T; label: ReactNode; icon?: ReactNode; ai?: string; title?: string };
 
-export const PEEK_PX = 96;
+export const PEEK_PX = 92;
 const SNAPS: readonly Snap[] = ["peek", "half", "full"];
 const NARROW = "(max-width: 720px)";
 
@@ -86,21 +85,14 @@ export function Segmented<T extends string>({
   );
 }
 
-export function RollText({ value, render, className }: { value: number; render: (n: number) => string; className?: string }) {
-  const shown = useRoll(value);
-  return (
-    <span className={`mroll${className ? ` ${className}` : ""}`}>
-      <span aria-hidden="true">{render(Math.round(shown))}</span>
-      <span className="sr-only">{render(value)}</span>
-    </span>
-  );
-}
-
-const FULL_GAP_PX = 68;
-const HALF_SHARE = 0.52;
+const FULL_GAP_PX = 72;
+const HALF_SHARE = 0.48;
 const heightOf = (s: Snap, stage: number) => (s === "full" ? Math.max(PEEK_PX, stage - FULL_GAP_PX) : s === "half" ? Math.max(PEEK_PX, stage * HALF_SHARE) : PEEK_PX);
 const stageOf = (el: HTMLElement) => (el.offsetParent as HTMLElement | null)?.clientHeight ?? el.offsetHeight;
 
+// The panel beside the map (or the bottom sheet on a phone). The sheet keeps
+// one height and slides: only `transform` changes, on the compositor, so the
+// map under it never has to lay out again while it moves.
 export default function MapPanel({
   variant,
   snap,
@@ -132,10 +124,23 @@ export default function MapPanel({
 
   const report = useEffectEvent(() => {
     const el = ref.current;
-    if (!el || !onInset) return;
+    if (!el) return;
+    if (sheet) {
+      const h = heightOf(snap, stageOf(el));
+      el.style.setProperty("--mpn-h", `${Math.round(h)}px`);
+      // What is below the sheet's visible edge is padding, so the list scrolls
+      // inside the part that shows and a focused row can always be reached.
+      el.style.setProperty("--mpn-pad", `${Math.max(0, Math.round(el.offsetHeight - h))}px`);
+      if (!onInset) return;
+      if (hidden) onInset({ left: 0, bottom: 0 });
+      else onInset({ left: 0, bottom: Math.round(h) });
+      return;
+    }
+    el.style.removeProperty("--mpn-h");
+    el.style.removeProperty("--mpn-pad");
+    if (!onInset) return;
     if (hidden || variant === "full" || variant === "flat") return onInset({ left: 0, bottom: 0 });
-    if (variant === "float") return onInset({ left: Math.round(el.offsetLeft + el.offsetWidth + 12), bottom: 0 });
-    onInset({ left: 0, bottom: Math.round(heightOf(snap, stageOf(el))) });
+    onInset({ left: Math.round(el.offsetLeft + el.offsetWidth), bottom: 0 });
   });
 
   useEffect(() => {
@@ -144,8 +149,8 @@ export default function MapPanel({
     report();
     if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(() => report());
-    ro.observe(el);
     if (el.offsetParent) ro.observe(el.offsetParent);
+    ro.observe(el);
     return () => ro.disconnect();
   }, [variant, snap, hidden]);
 
@@ -160,7 +165,7 @@ export default function MapPanel({
     if (target.closest("a,input,select,textarea,[role=radio],button:not(.mpn__grip)")) return;
     const el = ref.current;
     if (!el) return;
-    drag.current = { y: e.clientY, base: el.offsetHeight, stage: stageOf(el), moved: false, last: e.clientY, at: performance.now(), v: 0 };
+    drag.current = { y: e.clientY, base: heightOf(snap, stageOf(el)), stage: stageOf(el), moved: false, last: e.clientY, at: performance.now(), v: 0 };
   };
 
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -176,7 +181,7 @@ export default function MapPanel({
     d.last = e.clientY;
     d.at = now;
     el.dataset.drag = "";
-    el.style.height = `${Math.min(Math.max(d.base - dy, PEEK_PX), heightOf("full", d.stage))}px`;
+    el.style.setProperty("--mpn-h", `${Math.min(Math.max(d.base - dy, PEEK_PX), heightOf("full", d.stage))}px`);
   };
 
   const onUp = (e: PointerEvent<HTMLDivElement>) => {
@@ -189,7 +194,6 @@ export default function MapPanel({
       skipClick.current = false;
     }, 0);
     delete el.dataset.drag;
-    el.style.height = "";
     const aim = d.base - (e.clientY - d.y) - d.v * 200;
     let best: Snap = snap;
     let gap = Number.POSITIVE_INFINITY;
@@ -200,6 +204,7 @@ export default function MapPanel({
         best = s;
       }
     }
+    el.style.setProperty("--mpn-h", `${Math.round(heightOf(best, d.stage))}px`);
     onSnap(best);
   };
 
@@ -223,8 +228,7 @@ export default function MapPanel({
   return (
     <aside
       ref={ref}
-      className={`mpn mpn--${variant}${open ? " has-detail" : ""}${hidden ? " is-hidden" : ""}${variant === "flat" ? "" : " mmx-in"}`}
-      style={{ "--d": "240ms" } as CSSProperties}
+      className={`mpn mpn--${variant}${open ? " has-detail" : ""}${hidden ? " is-hidden" : ""}`}
       data-snap={sheet ? snap : undefined}
       aria-labelledby={labelId}
       inert={hidden || undefined}

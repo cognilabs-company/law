@@ -301,7 +301,7 @@ test("near me: location only after the click, consent recorded, nearest fallback
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: 41.31234, longitude: 69.27987, accuracy: 900 });
   const mock = await openMap(page, routes);
-  await expect(page.getByRole("heading", { name: "Yaqinimdagi mutaxassislarni ko‘rsatish" }).or(page.getByText("Yaqinimdagi mutaxassislarni ko‘rsatish").first())).toBeVisible();
+  await expect(page.locator('[data-ai-id="marketplace.nearby.locate"]')).toBeVisible();
   await shot(page, "permission-prompt", ".mtb");
   // Nothing location-related was sent before the click.
   expect(mock.calls.some((c) => c.method === "POST")).toBe(false);
@@ -325,8 +325,11 @@ test("near me: location only after the click, consent recorded, nearest fallback
   await page.locator('[data-ai-id="marketplace.nearby.radius.25"]').click();
   await expect(page.locator('[data-ai-id="marketplace.nearby.radius.25"]')).toHaveAttribute("aria-checked", "true");
   await expect.poll(() => (searched as Record<string, unknown> | null)?.radius_km).toBe(25);
+  await page.locator('[data-ai-id="marketplace.map.filters.open"]').click();
   await page.locator('[data-ai-id="marketplace.map.sort.rating"]').click();
   await expect.poll(() => (searched as Record<string, unknown> | null)?.sort).toBe("rating");
+  await page.locator('[data-ai-id="marketplace.map.filters.done"]').click();
+  await page.locator('[data-ai-id="marketplace.map.privacy"]').click();
   await expect(page.locator('[data-ai-id="marketplace.map.consent"]')).toContainText("Bekor qilish");
   await storedNothing(page);
   await noOverflow(page);
@@ -405,7 +408,6 @@ test("route: the mode goes to the backend, the straight distance is shown and th
   const web = nav.getByRole("link", { name: "Yandex Xaritada ochish" });
   await expect(web).toHaveAttribute("href", WEB_ROUTE);
   await expect(web).toHaveAttribute("target", "_blank");
-  await expect(nav.getByText(/Manzil: mutaxassis ofisi/)).toBeVisible();
   await expect(nav.locator(".mnv__privacy")).toContainText("bir marta");
   await expect(nav.getByRole("button", { name: "Navigatorni boshlash" })).toBeVisible();
   await expect(nav.locator('[data-ai-id="marketplace.route.app"]')).toHaveCount(0);
@@ -452,8 +454,8 @@ test("navigator: the guidance line on the map, then the in-app follow mode until
   const nav = page.locator('[data-ai-id="marketplace.map.card"] [data-ai-id="marketplace.route"]');
   await nav.getByRole("button", { name: "Yo‘lni ko‘rsatish" }).click();
   await expect(nav.locator('[data-ai-id="marketplace.route.straight"]')).toContainText(/≈ 3[,.]5 km/);
-  await expect(page.locator('.ymaps-stub-line[data-style="solid"]')).toHaveCount(3);
-  await expect(page.locator('.ymaps-stub-line[data-style="dot"]')).toHaveCount(1);
+  await expect(page.locator('.ymaps-stub-line[data-style="shortdash"]')).toHaveCount(1);
+  await expect(page.locator('.ymaps-stub-line[data-style="solid"]')).toHaveCount(0);
   await shot(page, "navigator-line", '[data-ai-id="marketplace.nearby"]');
   await nav.getByRole("button", { name: "Navigatorni boshlash" }).click();
   const hud = page.locator('[data-ai-id="marketplace.map.follow"]');
@@ -462,7 +464,7 @@ test("navigator: the guidance line on the map, then the in-app follow mode until
   await expect(hud.locator(".mfh__big")).toHaveText(/^≈ \d+ daq$/);
   await expect(hud.locator(".mfh__sub")).toContainText(/3[,.]5 km · \d{2}:\d{2} da yetasiz/);
   await expect(hud.locator(".mfh__head")).toHaveText(/yuring$/);
-  await expect(page.locator(".ymk-stage")).toHaveClass(/is-tilt/);
+  await expect(page.locator(".ymk-stage")).toHaveClass(/is-nav/);
   await expect(page.locator(".ymk-me.is-nav")).toHaveCount(1);
   await expect(page.locator(".mtb--float")).toBeHidden();
   await expect(hud.getByRole("button", { name: "To‘xtatish" })).toBeVisible();
@@ -473,7 +475,7 @@ test("navigator: the guidance line on the map, then the in-app follow mode until
   await shot(page, "navigator-arrived", '[data-ai-id="marketplace.nearby"]');
   await hud.getByRole("button", { name: "To‘xtatish" }).click();
   await expect(hud).toHaveCount(0);
-  await expect(page.locator(".ymk-stage")).not.toHaveClass(/is-tilt/);
+  await expect(page.locator(".ymk-stage")).not.toHaveClass(/is-nav/);
   await expect(nav.getByRole("button", { name: "Navigatorni boshlash" })).toBeVisible();
   await storedNothing(page);
   await noOverflow(page);
@@ -569,7 +571,7 @@ test("map view: clusters zoom in, markers open a card with a route, and a point 
   const mock = await openMap(page, routes);
   const group = page.locator(".ymk-group");
   await expect(group).toHaveText("2");
-  await expect(page.locator('[data-ai-id="marketplace.map.panel"]')).toContainText("Shu hududda 2 ta mutaxassis");
+  await expect(page.locator('[data-ai-id="marketplace.map.panel"]')).toContainText("2 ta mutaxassis");
   await shot(page, "map", '[data-ai-id="marketplace.nearby"]');
   // A cluster opens from the keyboard too: it zooms in and the viewport is asked again.
   await group.focus();
@@ -587,8 +589,7 @@ test("map view: clusters zoom in, markers open a card with a route, and a point 
   await tapAt(page, pin);
   const card = page.locator('[data-ai-id="marketplace.map.card"]');
   await expect(card).toContainText("Dilnoza Karimova");
-  await expect(card).toContainText("Ofis hududi (taxminiy)");
-  await expect(card.locator('[data-ai-id="marketplace.map.card.approx"]')).toHaveText("Taxminiy hudud, ≈500 m — aniq manzil emas");
+  await expect(card.locator('[data-ai-id="marketplace.map.card.approx"]')).toHaveText("Xaritadagi belgi taxminiy, ≈500 m.");
   await expect(card.locator(".mk-mono")).toHaveText("DK");
   // service_action.id is the service the purchase opens.
   await expect(card.getByRole("link", { name: "Buyurtma: Aliment undirish" })).toHaveAttribute("href", `/uz/portal/client/lawyers/${S1}?buy=svc-77`);
@@ -637,11 +638,10 @@ test("list view of the map area", async ({ page, context }) => {
   await expect(near).toHaveText("2");
   await tapAt(page, near);
   await expect(page.locator(".ymk-pin[data-seller]")).toHaveCount(2);
-  await page.locator('[data-ai-id="marketplace.nearby.view.list"]').click();
+  await expect(page.locator('[data-ai-id="marketplace.nearby.view.list"]')).toHaveCount(0);
   const list = page.locator('[data-ai-id="marketplace.map.area.list"]');
   await expect(list.getByText("Akmal Yusupov")).toBeVisible();
-  await expect(page.locator('[data-ai-id="marketplace.map.panel"]')).toContainText("Shu hududda 2 ta mutaxassis");
-  await expect(page.locator('[data-ai-id="marketplace.nearby.view.list"]')).toHaveAttribute("aria-checked", "true");
+  await expect(page.locator('[data-ai-id="marketplace.map.panel"]')).toContainText("2 ta mutaxassis");
   // The map's own area, at marker zoom.
   expect(queries.some((q) => q.get("zoom") === "13" && q.get("bbox") !== "55.9,37.1,73.2,45.7")).toBe(true);
   expect(queries.some((q) => q.get("bbox") === "55.9,37.1,73.2,45.7")).toBe(false);
@@ -827,10 +827,9 @@ test("navigator: a backend route is drawn with its time and steps, and recalcula
   const eta = nav.locator('[data-ai-id="marketplace.route.eta"]');
   await expect(eta).toContainText("14 daq");
   await expect(eta).toContainText(/4[,.]8 km yo‘l/);
-  await expect(nav).toContainText("Yandex marshruti bo‘yicha");
   await expect(nav).toContainText("tirbandlik bilan 17 daq");
   await expect(nav.locator('[data-ai-id="marketplace.route.straight"]')).toHaveCount(0);
-  await expect(nav.locator(".mnv__privacy")).toContainText("taxminan har 100 m da");
+  await expect(nav.locator(".mnv__privacy")).toContainText("taxminan 100 m chiqsangiz");
   await expect(nav.locator(".mnv__privacy")).not.toContainText("bir marta");
   await expect(page.locator('.ymaps-stub-line[data-style="solid"]').first()).toHaveAttribute("points", /\S+ \S+ \S+ \S+/);
   await nav.getByRole("button", { name: "Navigatorni boshlash" }).click();
@@ -981,7 +980,6 @@ test("navigator: one session per route — a retry and a mode change keep it, Hi
   expect(bodies[1].session_id).toBe(bodies[0].session_id);
   await nav.getByRole("radio", { name: "Mashina" }).press("ArrowRight");
   await expect(nav.getByRole("radio", { name: "Piyoda" })).toHaveAttribute("aria-checked", "true");
-  await nav.locator('[data-ai-id="marketplace.route.build"]').click();
   await expect.poll(() => bodies.length).toBe(3);
   expect(bodies[2]).toMatchObject({ mode: "walking", session_id: bodies[0].session_id });
   await nav.locator('[data-ai-id="marketplace.route.hide"]').click();
@@ -1076,7 +1074,7 @@ test("navigator: the HUD shows the next maneuver with its icon and a live distan
   await page.locator('[data-ai-id="marketplace.nearby.locate"]').click();
   await page.locator('[data-ai-id="marketplace.nearby.results"]').getByRole("button", { name: /Dilnoza Karimova/ }).click();
   const nav = page.locator('[data-ai-id="marketplace.map.card"] [data-ai-id="marketplace.route"]');
-  await expect(nav.locator(".mnv__privacy")).toContainText("taxminan har 100 m da");
+  await expect(nav.locator(".mnv__privacy")).toContainText("taxminan 100 m chiqsangiz");
   await nav.locator('[data-ai-id="marketplace.route.build"]').click();
   await nav.locator('[data-ai-id="marketplace.route.follow"]').click();
   const hud = page.locator('[data-ai-id="marketplace.map.follow"]');

@@ -3,158 +3,125 @@
 
 .ymk{position:relative;display:flex;flex-direction:column;gap:10px;min-width:0}
 
-.ymk-stage{--ymk-acc:var(--dk-acc, var(--b600, #1668F0));--ymk-glass:var(--dk-glass, rgba(255,255,255,.86));--ymk-ease:cubic-bezier(.2,.8,.2,1);--ymk-settle:cubic-bezier(.2,.9,.25,1.15);position:relative;height:clamp(360px,56vh,540px);border-radius:18px;overflow:hidden;background:var(--dk-surface-2, #EDF2F8);box-shadow:inset 0 0 0 1px var(--line);isolation:isolate}
-.ymk--full .ymk-stage{height:min(76vh,760px);min-height:440px;border-radius:22px;background:var(--dk-surface-2, #E9EEF5)}
+.ymk-stage{--ymk-acc:var(--mm-acc);position:relative;height:clamp(360px,56vh,540px);border-radius:16px;overflow:hidden;overflow:clip;background:var(--mm-soft);box-shadow:inset 0 0 0 1px var(--mm-edge);isolation:isolate}
+/* The map takes the screen it is given, on a short laptop and on 4K alike. */
+.ymk--full .ymk-stage{height:clamp(460px,calc(100svh - 150px),1400px);border-radius:18px}
 .ymk-canvas{position:absolute;inset:0;z-index:0;outline:none}
 .ymk-canvas:focus-visible{box-shadow:inset 0 0 0 2px var(--ymk-acc)}
-.ymk-stage--wait{background:linear-gradient(100deg,var(--dk-surface-2, #EDF2F8) 30%,var(--dk-tint-blue, #E3ECF7) 50%,var(--dk-surface-2, #EDF2F8) 70%);background-size:300% 100%;animation:ymk-shim 1.6s ease infinite}
-.ymk--full .ymk-stage--wait{background:#0B1426;animation:none}
 
-.ymk-veil{position:absolute;inset:0;z-index:1;display:grid;place-items:center;overflow:hidden;transition:opacity .6s cubic-bezier(.4,0,.2,1),transform .6s cubic-bezier(.4,0,.2,1),visibility 0s linear .6s}
-.ymk-veil--art{background:#0B1426}
-.ymk-veil--art::before{content:"";position:absolute;inset:-4%;background:linear-gradient(180deg,rgba(7,13,28,.42),rgba(7,13,28,.78)),url(/map/night-city-sm.webp) center/cover no-repeat;animation:ymk-drift 9s cubic-bezier(.2,.6,.3,1) both}
-.ymk-veil--art::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.06) 50%,transparent 70%);background-size:300% 100%;animation:ymk-shim 2.4s ease infinite}
-.ymk-veil--art>*{position:relative;z-index:1}
-.ymk-veil--art .ymk-spin{border-color:rgba(255,255,255,.2);border-top-color:#fff}
-.ymk-veil.is-off{opacity:0;transform:scale(1.04);visibility:hidden;pointer-events:none}
-.ymk-spin{width:30px;height:30px;border-radius:50%;border:3px solid color-mix(in srgb,var(--dk-acc, var(--b600)) 22%,transparent);border-top-color:var(--dk-acc, var(--b600));animation:ymk-spin .8s linear infinite}
-.ymk-bar{position:absolute;top:0;left:0;z-index:8;width:36%;height:3px;border-radius:0 3px 3px 0;background:var(--grad, var(--b600));animation:ymk-bar 1.1s ease-in-out infinite}
+/* The stand-in shown until the tiles are ready: a quiet drawing of a city in
+   the page's own theme, so nothing flashes dark before a light map. */
+.ymk-veil{position:absolute;inset:0;z-index:1;display:grid;place-items:center;overflow:hidden;transition:opacity 240ms ease,visibility 0s linear 240ms}
+.ymk-veil--art{background:var(--mm-soft) url(/map/placeholder-light.webp) center/cover no-repeat}
+html[data-theme="dark"] .ymk-veil--art{background-image:url(/map/placeholder-dark.webp)}
+.ymk-veil.is-off{opacity:0;visibility:hidden;pointer-events:none}
+.ymk-spin{width:26px;height:26px;border-radius:50%;border:2.5px solid color-mix(in srgb,var(--ymk-acc) 22%,transparent);border-top-color:var(--ymk-acc);animation:ymk-spin .8s linear infinite}
+.ymk-bar{position:absolute;top:0;left:0;z-index:8;width:30%;height:2px;background:var(--ymk-acc);opacity:.8;animation:ymk-bar 1.1s ease-in-out infinite}
 
-.ymk-chips{position:absolute;z-index:5;top:calc(var(--ymk-pt, 0px) + 12px);left:calc(var(--ymk-pl, 0px) + 12px);right:68px;display:flex;justify-content:center;pointer-events:none;transition:left .45s var(--ymk-ease),top .45s var(--ymk-ease)}
-.ymk-chips>*{pointer-events:auto;animation:ymk-pop-in .22s var(--ymk-ease) both}
-.ymk-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:7px 14px;border-radius:var(--pill, 999px);background:var(--ymk-glass);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);box-shadow:inset 0 0 0 1px var(--line),0 10px 26px -14px rgba(11,31,69,.55);font-size:.8rem;font-weight:600;line-height:1.35;color:var(--ink)}
-.ymk-err{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;max-width:100%;padding:6px 6px 6px 14px;border-radius:16px;background:var(--dk-tint-warn, #FFF7E6);box-shadow:inset 0 0 0 1px var(--dk-bd-warn, #F5D9A0),0 10px 26px -14px rgba(11,31,69,.5);font-size:.84rem;line-height:1.4;color:var(--ink)}
-.ymk-err button{display:inline-flex;align-items:center;gap:6px;min-height:34px;padding:4px 12px;border:0;border-radius:var(--pill, 999px);background:var(--dk-surface, #fff);color:var(--ymk-acc);font:inherit;font-size:.8rem;font-weight:700;cursor:pointer;box-shadow:inset 0 0 0 1px var(--line);transition:transform .18s var(--ymk-ease)}
-.ymk-err button:active{transform:scale(.96)}
+.ymk-chips{position:absolute;z-index:5;top:calc(var(--ymk-pt, 0px) + 10px);left:calc(var(--ymk-pl, 0px) + 12px);right:64px;display:flex;justify-content:center;pointer-events:none}
+.ymk-chips>*{pointer-events:auto;animation:mm-rise var(--mm-med) var(--mm-ease) both}
+.ymk-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:6px 12px;border-radius:10px;background:var(--mm-surface);box-shadow:var(--mm-shadow);font-size:.78rem;font-weight:500;line-height:1.35;color:var(--ink)}
+.ymk-err{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;max-width:100%;padding:6px 6px 6px 12px;border-radius:12px;background:var(--mm-surface);box-shadow:var(--mm-shadow);font-size:.82rem;line-height:1.4;color:var(--ink)}
+.ymk-err button{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:4px 10px;border:0;border-radius:9px;background:var(--mm-soft);color:var(--ink);font:inherit;font-size:.78rem;font-weight:600;cursor:pointer}
 .ymk-err button:focus-visible{outline:2px solid var(--ymk-acc);outline-offset:2px}
-.ymk-err button svg{width:15px;height:15px}
+.ymk-err button svg{width:14px;height:14px}
 
-.ymk-sig{position:absolute;z-index:5;left:calc(var(--ymk-pl, 0px) + 12px);bottom:calc(var(--ymk-pb, 0px) + 34px);display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:var(--pill, 999px);background:var(--ymk-glass);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 1px var(--line),0 6px 16px -10px rgba(11,31,69,.5);font-size:.74rem;font-weight:700;color:var(--gray);pointer-events:none;animation:ymk-pop-in .22s var(--ymk-ease) both;transition:left .45s var(--ymk-ease),bottom .45s var(--ymk-ease)}
-.ymk-sig i{width:8px;height:8px;border-radius:50%;background:var(--gray)}
-.ymk-sig--live{color:var(--dk-txt-ok, #0B6B4B)}
-.ymk-sig--live i{background:var(--dk-txt-ok, #12A37A);animation:ymk-beat 1.8s ease-out infinite}
-.ymk-sig--connecting,.ymk-sig--reconnecting{color:var(--dk-txt-warn, #9A5B00)}
-.ymk-sig--connecting i,.ymk-sig--reconnecting i{background:var(--dk-txt-warn, #9A5B00);animation:ymk-pulse .9s ease-in-out infinite}
+/* Yandex's own attribution stays visible: it slides out from under the panel
+   and rides above the phone's sheet. */
+.ymk-canvas [class*="-copyrights-pane"]{transform:translateY(calc(-1 * var(--ymk-pb, 0px)));transition:transform var(--mm-slow) var(--mm-sheet)}
+.ymk-canvas [class*="-gotoymaps"]{transform:translate(var(--ymk-pl, 0px),calc(-1 * var(--ymk-pb, 0px)));transition:transform var(--mm-slow) var(--mm-sheet)}
+.ymk-canvas [class*="-gotoymaps"] [class*="-gotoymaps"]{transform:none;transition:none}
 
-.ymk-ctl{position:absolute;z-index:6;top:calc(var(--ymk-pt, 0px) + (100% - var(--ymk-pt, 0px) - var(--ymk-pb, 0px)) / 2);right:12px;display:flex;flex-direction:column;padding:4px;border-radius:16px;translate:0 -50%;background:var(--ymk-glass);-webkit-backdrop-filter:blur(14px) saturate(1.4);backdrop-filter:blur(14px) saturate(1.4);box-shadow:inset 0 0 0 1px var(--line),0 12px 28px -14px rgba(11,31,69,.55);transition:top .45s var(--ymk-ease)}
-.ymk--full .ymk-ctl{animation:ymk-in-r .42s var(--ymk-ease) .12s backwards}
-.ymk-ctl button{position:relative;display:grid;place-items:center;width:40px;height:40px;padding:0;border:0;border-radius:12px;background:transparent;color:var(--ink);cursor:pointer;transition:background .18s ease,color .18s ease,transform .18s var(--ymk-ease)}
-.ymk-ctl button+button::before{content:"";position:absolute;top:-1px;left:10px;right:10px;height:1px;background:var(--line)}
-.ymk-ctl button:hover:not(:disabled){background:color-mix(in srgb,var(--ymk-acc) 10%,transparent);color:var(--ymk-acc)}
-.ymk-ctl button:active:not(:disabled){transform:scale(.9)}
-.ymk-ctl button:focus-visible{outline:2px solid var(--ymk-acc);outline-offset:1px}
-.ymk-ctl button:disabled{cursor:default;opacity:.5}
+/* Zoom and "where am I", centred in the part of the map that shows. They stay
+   clear of the Yandex attribution in the bottom corner. */
+.ymk-ctl{position:absolute;z-index:6;top:50%;right:12px;display:flex;flex-direction:column;border-radius:12px;background:var(--mm-surface);box-shadow:var(--mm-shadow);transform:translateY(calc(-50% + (var(--ymk-pt, 0px) - var(--ymk-pb, 0px)) / 2));transition:transform var(--mm-slow) var(--mm-sheet)}
+.ymk-ctl button{position:relative;display:grid;place-items:center;width:40px;height:40px;padding:0;border:0;background:transparent;color:var(--ink);cursor:pointer;transition:color var(--mm-fast) ease}
+.ymk-ctl button:first-child{border-radius:12px 12px 0 0}
+.ymk-ctl button:last-child{border-radius:0 0 12px 12px}
+.ymk-ctl button+button{box-shadow:inset 0 1px 0 var(--mm-edge)}
+.ymk-ctl button:hover:not(:disabled){color:var(--ymk-acc)}
+.ymk-ctl button:focus-visible{outline:2px solid var(--ymk-acc);outline-offset:-2px}
+.ymk-ctl button:disabled{cursor:default;opacity:.45}
 .ymk-ctl svg{width:18px;height:18px}
 .ymk-ctl__me{color:var(--ymk-acc)!important}
-.ymk-ctl__me[aria-busy=true]::after{content:"";position:absolute;inset:5px;border-radius:50%;border:2px solid color-mix(in srgb,var(--ymk-acc) 22%,transparent);border-top-color:var(--ymk-acc);animation:ymk-spin .8s linear infinite}
+.ymk-ctl__me[aria-busy=true] svg{animation:ymk-breath 1s ease-in-out infinite}
 
-.ymk-pin{position:absolute;left:0;top:0;display:grid;place-items:center;width:38px;height:38px;border-radius:50%;translate:-50% -50%;background:var(--dk-surface, #fff);box-shadow:0 0 0 3px color-mix(in srgb,var(--dk-txt-ok, #12A37A) 45%,transparent),0 6px 14px -6px rgba(11,31,69,.55);cursor:pointer;transition:transform .32s var(--ymk-settle),opacity .26s ease,box-shadow .26s ease}
-.ymk-pin__in{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--grad, var(--b600));color:#fff;font-size:.7rem;font-weight:800;letter-spacing:.02em;line-height:1}
-.ymk-pin::before{content:"";position:absolute;inset:-6px;border-radius:inherit;box-shadow:0 0 0 2px var(--ymk-acc),0 0 22px 6px color-mix(in srgb,var(--ymk-acc) 50%,transparent);opacity:0;transform:scale(.8);transition:opacity .3s ease,transform .42s var(--ymk-settle);pointer-events:none}
-.ymk-pin::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:0 0 0 2px color-mix(in srgb,var(--ymk-acc) 75%,transparent);opacity:0;pointer-events:none}
-.ymk-pin--mute{cursor:default}
-.ymk-pin--mute .ymk-pin__in{background:var(--gray)}
-.ymk-pin--office{border-radius:12px;box-shadow:0 0 0 3px color-mix(in srgb,var(--ymk-acc) 40%,transparent),0 6px 14px -6px rgba(11,31,69,.55)}
-.ymk-pin--office .ymk-pin__in{border-radius:9px}
+/* A specialist: white with initials, accent only when chosen. An office is a
+   rounded square, a place known only as a region is dashed and see-through, so
+   the map says how exact a marker is without a word. */
+.ymk-pin{position:absolute;left:0;top:0;display:grid;place-items:center;width:36px;height:36px;border-radius:50%;translate:-50% -50%;background:var(--mm-surface);box-shadow:0 0 0 1px var(--mm-edge),0 2px 6px rgba(10,21,38,.28);cursor:pointer;transition:transform var(--mm-med) var(--mm-ease),opacity var(--mm-med) ease,background var(--mm-fast) ease}
+.ymk-pin__in{color:var(--ink);font-size:.68rem;font-weight:700;letter-spacing:.01em;line-height:1;transition:color var(--mm-fast) ease}
+.ymk-pin--mute{cursor:default;opacity:.8}
+.ymk-pin--office{border-radius:11px}
+.ymk-pin[data-src="profile_region"]{background:color-mix(in srgb,var(--mm-surface) 78%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ink) 34%,transparent),0 1px 3px rgba(10,21,38,.16);outline:1.5px dashed color-mix(in srgb,var(--ink) 34%,transparent);outline-offset:-1.5px}
+.ymk-pin[data-src="profile_region"] .ymk-pin__in{color:var(--gray)}
 
-.ymk-group{position:absolute;left:0;top:0;display:grid;place-items:center;min-width:40px;height:40px;padding:0 8px;border-radius:999px;translate:-50% -50%;background:var(--ymk-acc);color:#fff;font-size:.86rem;font-weight:800;font-variant-numeric:tabular-nums;box-shadow:0 0 0 4px color-mix(in srgb,var(--ymk-acc) 26%,transparent),0 8px 18px -8px rgba(11,31,69,.6);cursor:pointer;transition:transform .3s var(--ymk-settle),opacity .26s ease}
-.ymk-group::before{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:0 0 0 10px color-mix(in srgb,var(--ymk-acc) 20%,transparent),0 0 28px 12px color-mix(in srgb,var(--ymk-acc) 26%,transparent);animation:ymk-breathe 2.4s ease-in-out infinite;pointer-events:none}
-.ymk-group[data-size=m]{min-width:48px;height:48px}
-.ymk-group[data-size=l]{min-width:56px;height:56px;font-size:.92rem}
-.ymk-group--near{background:var(--grad, var(--ymk-acc))}
+.ymk-group{position:absolute;left:0;top:0;display:grid;place-items:center;min-width:36px;height:36px;padding:0 8px;border-radius:999px;translate:-50% -50%;background:var(--ymk-acc);color:var(--mm-on);font-size:.8rem;font-weight:700;font-variant-numeric:tabular-nums;box-shadow:0 0 0 2px var(--mm-surface),0 2px 8px rgba(10,21,38,.3);cursor:pointer;transition:transform var(--mm-med) var(--mm-ease),opacity var(--mm-med) ease}
+.ymk-group[data-size=m]{min-width:42px;height:42px}
+.ymk-group[data-size=l]{min-width:48px;height:48px;font-size:.86rem}
 
 @media (hover:hover){
   .ymk-pin:hover,.ymk-group:hover{transform:scale(1.08)}
   .ymk-pin.is-dim:hover,.ymk-group.is-dim:hover{opacity:1}
 }
 
-.ymk-pin.is-on{transform:translateY(-6px) scale(1.18);box-shadow:0 0 0 3px var(--ymk-acc),0 16px 26px -10px rgba(11,31,69,.6)}
-.ymk-pin.is-on::before{opacity:1;transform:scale(1);animation:ymk-glow 2.4s ease-in-out .42s infinite}
-.ymk-group.is-on{transform:scale(1.1)}
-.ymk-pin.is-dim,.ymk-group.is-dim{opacity:.55}
+.ymk-pin.is-on{z-index:2;background:var(--ymk-acc);box-shadow:0 0 0 3px var(--mm-surface),0 6px 16px rgba(10,21,38,.35);outline:0;transform:scale(1.16)}
+.ymk-pin.is-on .ymk-pin__in{color:var(--mm-on)}
+.ymk-group.is-on{transform:scale(1.08)}
+.ymk-pin.is-dim,.ymk-group.is-dim{opacity:.62}
+.has-guide .ymk-pin.is-dim,.has-guide .ymk-group.is-dim{opacity:.32}
+.has-guide .ymk-pin.is-on{opacity:0;pointer-events:none}
 .ymk-pin:focus-visible,.ymk-group:focus-visible{outline:3px solid var(--ymk-acc);outline-offset:3px}
 
-.ymk-pin.is-drop{animation:ymk-drop .62s var(--ymk-settle) calc(var(--i, 0) * 35ms) backwards}
-.ymk-pin.is-drop::after{animation:ymk-ripple .8s cubic-bezier(.2,.7,.3,1) calc(var(--i, 0) * 35ms + .36s) both}
-.ymk-group.is-pop{animation:ymk-pop .48s var(--ymk-settle) calc(var(--i, 0) * 35ms) backwards}
-.ymk-pin.is-spread,.ymk-group.is-spread{animation:ymk-spread .52s var(--ymk-ease) backwards}
-.ymk-group.is-burst{animation:ymk-burst .24s cubic-bezier(.4,0,1,1) forwards;pointer-events:none}
-.ymk-group.is-burst::before{animation:none;opacity:0}
-.ymk-pin.is-out,.ymk-group.is-out,.ymk-me.is-out{animation:ymk-out .22s cubic-bezier(.4,0,1,1) forwards;pointer-events:none}
+.ymk-pin.is-drop,.ymk-group.is-pop{animation:ymk-in 240ms var(--mm-ease) calc(var(--i, 0) * 20ms) backwards}
+.ymk-pin.is-spread,.ymk-group.is-spread{animation:ymk-spread 300ms var(--mm-ease) backwards}
+.ymk-group.is-burst{opacity:0;transform:scale(1.15);pointer-events:none}
+.ymk-pin.is-out,.ymk-group.is-out,.ymk-me.is-out{animation:ymk-out 140ms ease forwards;pointer-events:none}
 
+/* You. The only thing on the map that keeps moving, and it does so calmly. */
 .ymk-me{position:absolute;left:0;top:0;display:block;width:0;height:0}
-.ymk-me__dot{position:absolute;left:-9px;top:-9px;z-index:2;width:18px;height:18px;border-radius:50%;background:var(--ymk-acc);box-shadow:0 0 0 4px #fff,0 2px 10px rgba(11,31,69,.45)}
-.ymk-me::before,.ymk-me::after{content:"";position:absolute;left:-32px;top:-32px;width:64px;height:64px;border-radius:50%;background:radial-gradient(circle,transparent 30%,color-mix(in srgb,var(--ymk-acc) 26%,transparent) 72%);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--ymk-acc) 55%,transparent);opacity:0;animation:ymk-sonar 2s cubic-bezier(.2,.6,.3,1) infinite;pointer-events:none}
-.ymk-me::after{animation-delay:1s}
-.ymk-me__hd{position:absolute;left:-48px;top:-48px;z-index:1;width:96px;height:96px;border-radius:50%;background:conic-gradient(from -32deg,transparent 0deg,color-mix(in srgb,var(--ymk-acc) 62%,transparent) 32deg,transparent 64deg,transparent 360deg);-webkit-mask:radial-gradient(closest-side,#000 16%,transparent 100%);mask:radial-gradient(closest-side,#000 16%,transparent 100%);opacity:0;transform:rotate(var(--hd, 0deg));transition:transform .4s cubic-bezier(.4,0,.2,1),opacity .3s ease}
+.ymk-me__dot{position:absolute;left:-8px;top:-8px;z-index:2;width:16px;height:16px;border-radius:50%;background:var(--ymk-acc);box-shadow:0 0 0 3px #fff,0 2px 6px rgba(10,21,38,.35)}
+.ymk-me::before{content:"";position:absolute;left:-24px;top:-24px;width:48px;height:48px;border-radius:50%;background:color-mix(in srgb,var(--ymk-acc) 22%,transparent);opacity:0;animation:ymk-halo 2.8s ease-out infinite;pointer-events:none}
+.ymk-me__hd{position:absolute;left:-40px;top:-40px;z-index:1;width:80px;height:80px;border-radius:50%;background:conic-gradient(from -28deg,transparent 0deg,color-mix(in srgb,var(--ymk-acc) 50%,transparent) 28deg,transparent 56deg,transparent 360deg);-webkit-mask:radial-gradient(closest-side,#000 16%,transparent 100%);mask:radial-gradient(closest-side,#000 16%,transparent 100%);opacity:0;transform:rotate(var(--hd, 0deg));transition:transform 320ms var(--mm-ease),opacity var(--mm-med) ease}
 .ymk-me.has-hd .ymk-me__hd{opacity:1}
-.ymk-me.is-pop .ymk-me__dot{animation:ymk-pop .5s var(--ymk-settle) backwards}
+.ymk-me.is-pop .ymk-me__dot{animation:ymk-in 240ms var(--mm-ease) backwards}
 
 .ymk-canvas .ymk-pick{animation:none}
-.ymk-canvas .ymk-pick.is-drop{animation:ymk-fall .62s var(--ymk-settle) backwards}
-.ymk-pick.is-out,.ymk-dest.is-out,.ymk-radar.is-out,.ymk-ring.is-out{animation:ymk-fade .22s ease forwards}
+.ymk-canvas .ymk-pick.is-drop{animation:ymk-settle 260ms var(--mm-ease) backwards}
+.ymk-pick.is-out,.ymk-dest.is-out,.ymk-ring.is-out{animation:ymk-fade 140ms ease forwards}
 
+/* Where the route ends */
 .ymk-dest{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none}
-.ymk-dest::before{content:"";position:absolute;left:-12px;top:-6px;width:24px;height:12px;border-radius:50%;background:color-mix(in srgb,var(--ymk-acc) 42%,transparent);animation:ymk-base 1.8s ease-out infinite}
-.ymk-dest::after{content:"";position:absolute;left:-18px;top:-18px;width:36px;height:36px;border-radius:50%;box-shadow:0 0 0 2px var(--ymk-acc);opacity:0}
-.ymk-dest__pin{position:absolute;left:-16px;top:-39px;width:32px;height:32px;border-radius:50% 50% 50% 0;rotate:-45deg;background:var(--grad, var(--ymk-acc));box-shadow:0 0 0 3px #fff,0 10px 20px -6px rgba(11,31,69,.6)}
-.ymk-dest__pin::after{content:"";position:absolute;left:50%;top:50%;width:11px;height:11px;margin:-5.5px 0 0 -5.5px;border-radius:50%;background:#fff}
-.ymk-dest.is-drop .ymk-dest__pin{animation:ymk-fall-in .62s var(--ymk-settle) .45s backwards}
-.ymk-dest.is-drop::after{animation:ymk-ripple .7s cubic-bezier(.2,.7,.3,1) .8s both}
+.ymk-dest__pin{position:absolute;left:-14px;top:-34px;width:28px;height:28px;border-radius:50% 50% 50% 0;rotate:-45deg;background:var(--ymk-acc);box-shadow:0 0 0 2.5px #fff,0 4px 10px rgba(10,21,38,.35)}
+.ymk-dest__pin::after{content:"";position:absolute;left:50%;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:#fff}
+.ymk-dest.is-drop .ymk-dest__pin{animation:ymk-settle 320ms var(--mm-ease) 360ms backwards}
 
-.ymk-pulse{position:absolute;left:-7px;top:-7px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px var(--ymk-acc),0 0 18px 8px color-mix(in srgb,var(--ymk-acc) 55%,transparent);opacity:var(--o, 0);pointer-events:none}
-
-.ymk-radar{--rd:300px;position:absolute;left:0;top:0;width:var(--rd);height:var(--rd);border-radius:50%;overflow:hidden;translate:-50% -50%;background:radial-gradient(circle,color-mix(in srgb,var(--ymk-acc) 16%,transparent) 0,transparent 70%);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ymk-acc) 32%,transparent);pointer-events:none;animation:ymk-radar-in .45s var(--ymk-ease) both}
-.ymk-radar::before,.ymk-radar::after{content:"";position:absolute;inset:16.5%;border-radius:50%;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ymk-acc) 24%,transparent)}
-.ymk-radar::after{inset:33%}
-.ymk-radar__sweep{position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent 0deg 250deg,color-mix(in srgb,var(--ymk-acc) 46%,transparent) 359deg,transparent 360deg);animation:ymk-sweep 1.6s linear infinite}
-
+/* The search radius: an outline with the faintest fill. */
 .ymk-ring{position:absolute;left:0;top:0;width:var(--d, 0px);height:var(--d, 0px);translate:-50% -50%;pointer-events:none}
-.ymk-ring.is-grow{transition:width .6s var(--ymk-ease),height .6s var(--ymk-ease)}
-.ymk-ring__svg{display:block;width:100%;height:100%;overflow:visible;transform:rotate(-90deg);animation:ymk-ring-breathe 3.6s ease-in-out .8s infinite}
-.ymk-ring__c{fill:color-mix(in srgb,var(--ymk-acc) 7%,transparent);stroke:var(--ymk-acc);stroke-width:2;stroke-dasharray:100;stroke-dashoffset:0;animation:ymk-ring-draw .7s cubic-bezier(.4,0,.2,1) both}
+.ymk-ring.is-grow{transition:width 280ms var(--mm-ease),height 280ms var(--mm-ease)}
+.ymk-ring__svg{display:block;width:100%;height:100%;overflow:visible;animation:mm-fade 240ms ease both}
+.ymk-ring__c{fill:color-mix(in srgb,var(--ymk-acc) 5%,transparent);stroke:color-mix(in srgb,var(--ymk-acc) 55%,transparent);stroke-width:1.5}
 
 @keyframes ymk-spin{to{transform:rotate(360deg)}}
-@keyframes ymk-bar{0%{transform:translateX(-100%)}100%{transform:translateX(290%)}}
-@keyframes ymk-shim{from{background-position:100% 0}to{background-position:0 0}}
-@keyframes ymk-pulse{50%{opacity:.35}}
-@keyframes ymk-ring{0%{transform:scale(.4);opacity:.9}100%{transform:scale(1.4);opacity:0}}
-@keyframes ymk-up{from{opacity:0;translate:0 8px}to{opacity:1;translate:0 0}}
-@keyframes ymk-drift{from{transform:scale(1.08)}to{transform:scale(1)}}
-@keyframes ymk-pop-in{from{opacity:0;transform:scale(.96)}}
-@keyframes ymk-in-r{from{opacity:0;transform:translateX(16px)}}
-@keyframes ymk-beat{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--dk-txt-ok, #12A37A) 55%,transparent)}100%{box-shadow:0 0 0 8px transparent}}
-@keyframes ymk-drop{from{opacity:0;transform:translateY(-28px) scale(.6)}}
-@keyframes ymk-ripple{0%{opacity:.85;transform:scale(1)}100%{opacity:0;transform:scale(2.3)}}
-@keyframes ymk-pop{from{opacity:0;transform:scale(.5)}}
-@keyframes ymk-spread{from{opacity:.3;transform:translate(var(--fx, 0px),var(--fy, 0px)) scale(.72)}}
-@keyframes ymk-burst{to{opacity:0;transform:scale(1.25)}}
-@keyframes ymk-out{to{opacity:0;transform:scale(.4)}}
+@keyframes ymk-bar{0%{transform:translateX(-100%)}100%{transform:translateX(340%)}}
+@keyframes ymk-breath{50%{opacity:.35}}
+@keyframes ymk-in{from{opacity:0;transform:scale(.72)}}
+@keyframes ymk-settle{from{opacity:0;translate:0 -10px}}
+@keyframes ymk-spread{from{opacity:.3;transform:translate(var(--fx, 0px),var(--fy, 0px)) scale(.8)}}
+@keyframes ymk-out{to{opacity:0;transform:scale(.8)}}
 @keyframes ymk-fade{to{opacity:0}}
-@keyframes ymk-breathe{0%,100%{opacity:.9;transform:scale(1)}50%{opacity:.3;transform:scale(1.2)}}
-@keyframes ymk-glow{0%,100%{opacity:1}50%{opacity:.5}}
-@keyframes ymk-sonar{0%{opacity:.9;transform:scale(.3)}100%{opacity:0;transform:scale(1.6)}}
-@keyframes ymk-fall{from{opacity:0;translate:0 -28px}}
-@keyframes ymk-fall-in{from{opacity:0;translate:0 -36px;scale:.6}}
-@keyframes ymk-base{0%{opacity:.9;transform:scale(.5)}100%{opacity:0;transform:scale(2.2)}}
-@keyframes ymk-radar-in{from{opacity:0;transform:scale(.6)}}
-@keyframes ymk-sweep{to{transform:rotate(360deg)}}
-@keyframes ymk-ring-draw{from{stroke-dashoffset:100;fill-opacity:0}}
-@keyframes ymk-ring-breathe{0%,100%{opacity:1}50%{opacity:.62}}
+@keyframes ymk-halo{0%{opacity:.8;transform:scale(.4)}70%,100%{opacity:0;transform:scale(1)}}
 
 @media (max-width:720px){
-  .ymk--full .ymk-stage{height:min(80vh,700px);height:min(80svh,700px);min-height:460px;border-radius:18px}
-  .ymk-ctl{top:calc(var(--ymk-pt, 0px) + 6px);right:8px;translate:none}
-  .ymk-chips{left:8px;right:60px}
-  .ymk-sig{left:8px}
-  .ymk-radar{--rd:220px}
+  .ymk--full .ymk-stage{height:clamp(420px,calc(100svh - 190px),1000px);border-radius:16px}
+  .ymk-chips{left:8px;right:56px}
 }
 
 @media (max-width:560px){
   .ymk-switch{flex:1 1 100%;margin-left:0}
   .ymk-switch .mknb-view{display:grid;grid-template-columns:1fr 1fr;width:100%}
   .ymk-switch .mknb-view button{justify-content:center}
-  .ymk-stage{height:380px;border-radius:16px}
+  .ymk-stage{height:380px}
 }
 
 @media (pointer:coarse){
@@ -162,9 +129,8 @@
 }
 
 @media (prefers-reduced-motion:reduce){
-  .ymk-stage--wait,.ymk-bar,.ymk-veil--art::before,.ymk-veil--art::after,.ymk--full .ymk-ctl,.ymk-chips>*,.ymk-sig,.ymk-sig i,.ymk-pin,.ymk-pin::before,.ymk-pin::after,.ymk-group,.ymk-group::before,.ymk-me,.ymk-me::before,.ymk-me::after,.ymk-me__dot,.ymk-pick,.ymk-dest,.ymk-dest::before,.ymk-dest::after,.ymk-dest__pin,.ymk-radar,.ymk-radar__sweep,.ymk-ring,.ymk-ring__svg,.ymk-ring__c{animation:none!important}
-  .ymk-veil,.ymk-chips,.ymk-sig,.ymk-ctl,.ymk-ctl button,.ymk-err button,.ymk-pin,.ymk-pin::before,.ymk-group,.ymk-me__hd,.ymk-ring{transition:none!important}
-  .ymk-veil.is-off{transform:none}
-  .ymk-me::before{opacity:.45;transform:scale(1)}
+  .ymk-bar,.ymk-chips>*,.ymk-pin,.ymk-group,.ymk-me,.ymk-me::before,.ymk-me__dot,.ymk-pick,.ymk-dest,.ymk-dest__pin,.ymk-ring,.ymk-ring__svg,.ymk-ctl__me svg{animation:none!important}
+  .ymk-veil,.ymk-ctl,.ymk-ctl button,.ymk-pin,.ymk-group,.ymk-me__hd,.ymk-ring,.ymk-canvas [class*="-copyrights-pane"],.ymk-canvas [class*="-gotoymaps"]{transition:none!important}
+  .ymk-me::before{opacity:.4;transform:scale(.8)}
   .ymk-spin{animation-duration:2.4s}
 }

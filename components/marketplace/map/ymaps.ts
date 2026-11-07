@@ -110,7 +110,7 @@ function loadYmaps21(loaderUrl: string, timeoutMs = LOAD_TIMEOUT_MS): Promise<Ym
 // escapes them and `safe` strips the characters that could leave an
 // attribute anyway. `onActivate` runs on a click and, for the focusable
 // kinds, on Enter or Space.
-export type MarkKind = "pin" | "pin-mute" | "group" | "me" | "pick" | "dest" | "pulse" | "radar" | "ring";
+export type MarkKind = "pin" | "pin-mute" | "group" | "me" | "pick" | "dest" | "ring";
 export type MarkFx = "drop" | "pop" | "";
 export type MarkSpec = {
   kind: MarkKind;
@@ -141,8 +141,8 @@ export type PinSpec = MarkSpec & { id: string };
 export type PinSet = { sync: (specs: PinSpec[]) => void; get: (id: string) => Mark | undefined; remove: () => void };
 export type Pad = { top: number; right: number; bottom: number; left: number };
 export type FitOptions = { ms: number; maxZoom?: number; margin?: number };
-export type RouteOptions = { color: string; casing: string; glow: string; past: string; drawMs: number; delayMs?: number; flow: boolean; straight: boolean };
-export type GuideRoute = { set: (points: LngLat[], ms?: number) => void; progress: (at: LngLat | null) => void; remove: () => void };
+export type RouteOptions = { color: string; casing: string; drawMs: number; delayMs?: number; straight: boolean };
+export type GuideRoute = { set: (points: LngLat[]) => void; progress: (at: LngLat | null) => void; remove: () => void };
 export type RadiusRing = { set: (center: LngLat, km: number, title?: string) => void; remove: () => void };
 export type MapHandle = {
   bbox: () => MapBbox | null;
@@ -205,6 +205,9 @@ export function openYandexMap(config: MapConfig, box: HTMLElement, view: MapView
 // inverted and re-tinted, so roads and water read as a night map while the
 // pins (their own pane) keep their colours.
 const DARK_TILES = "invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.55)";
+// In the light theme the tiles are only calmed down: the yellow roads stop
+// competing with the pins and the route, which carry the one accent colour.
+const LIGHT_TILES = "saturate(.62) brightness(1.01)";
 
 const safe = (s: string | undefined) => (s ?? "").replace(/"/g, "”").replace(/[<>]/g, "");
 
@@ -216,8 +219,6 @@ const TEMPLATES: Record<MarkKind | "cluster", string> = {
   me: '<span class="ymk-me{{ properties.cls }}" data-ymk-key="{{ properties.key }}" title="{{ properties.title }}"><span class="ymk-me__hd"></span><span class="ymk-me__dot"></span><span class="ymk-me__arw"></span></span>',
   pick: '<span class="ymk-pick{{ properties.cls }}" data-ymk-key="{{ properties.key }}" title="{{ properties.title }}"></span>',
   dest: '<span class="ymk-dest{{ properties.cls }}" data-ymk-key="{{ properties.key }}" title="{{ properties.title }}"><span class="ymk-dest__pin"></span></span>',
-  pulse: '<span class="ymk-pulse" data-ymk-key="{{ properties.key }}"></span>',
-  radar: '<span class="ymk-radar" data-ymk-key="{{ properties.key }}"><span class="ymk-radar__sweep"></span></span>',
   ring: '<span class="ymk-ring" data-ymk-key="{{ properties.key }}" title="{{ properties.title }}"><svg class="ymk-ring__svg" focusable="false" aria-hidden="true"><circle class="ymk-ring__c" cx="50%" cy="50%" r="49%" pathLength="100"></circle></svg></span>',
 };
 const SHAPES: Partial<Record<MarkKind | "cluster", YProps>> = {
@@ -230,21 +231,20 @@ const sizeOf = (n: number) => (n < 10 ? "s" : n < 100 ? "m" : "l");
 export const countText = (n: number) => (n > 999 ? "999+" : String(n));
 
 const FX_WINDOW_MS = 700;
-const OUT_MS = 220;
-const DROP_MS = 620;
-const STAGGER_MS = 35;
-const STAGGER_CAP = 13;
-const SPREAD_MS = 520;
-const SPREAD_WAIT_MS = 1600;
+const OUT_MS = 140;
+const DROP_MS = 260;
+const STAGGER_MS = 20;
+const STAGGER_CAP = 8;
+const SPREAD_MS = 300;
+const SPREAD_WAIT_MS = 1200;
 const SPREAD_MAX_PX = 560;
-const GLIDE_MS = 600;
+const GLIDE_MS = 480;
 const RING_MAX_PX = 5200;
 const TILE_PX = 256;
 const RING_GROW_MS = 640;
 
 const lerp = (a: LngLat, b: LngLat, t: number): LngLat => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
-const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const clampPx = (v: number) => Math.round(Math.max(-SPREAD_MAX_PX, Math.min(SPREAD_MAX_PX, v)));
 const same = (a: LngLat, b: LngLat) => a[0] === b[0] && a[1] === b[1];
 const flatM = (a: LngLat, b: LngLat) => {
@@ -286,7 +286,6 @@ const snapTo = (path: LngLat[], p: LngLat): { at: LngLat; i: number } => {
   }
   return { at: best.at, i: best.i };
 };
-const TRAIL_MAX = 400;
 
 const mercator = {
   to: (ll: LngLat, z: number): [number, number] => {
@@ -626,8 +625,7 @@ function build21(y: Ymaps21, box: HTMLElement, view: MapView): MapHandle {
           detach();
           lives.delete(key);
         };
-        if (s.kind === "pulse") done();
-        else fadeOut(key, done);
+        fadeOut(key, done);
       },
     };
   };
@@ -794,7 +792,7 @@ function build21(y: Ymaps21, box: HTMLElement, view: MapView): MapHandle {
     onGesture: (cb) => void gestures.add(cb),
     setTheme: (theme) => {
       const ground = map.panes.get("ground")?.getElement();
-      if (ground) ground.style.filter = theme === "dark" ? DARK_TILES : "";
+      if (ground) ground.style.filter = theme === "dark" ? DARK_TILES : LIGHT_TILES;
     },
     setPadding: (p) => {
       pad = { ...pad, ...p };
@@ -827,116 +825,69 @@ function build21(y: Ymaps21, box: HTMLElement, view: MapView): MapHandle {
       const P = y.Polyline;
       if (typeof P !== "function" || points.length < 2) return { set: () => undefined, progress: () => undefined, remove: () => undefined };
       let path = points.slice();
-      let lens = lengthsOf(path);
       let left = path;
-      let leftLens = lens;
-      let trail: LngLat[] = [];
+      let leftLens = lengthsOf(left);
+      let at: LngLat | null = null;
       let k = o.drawMs > 0 && !readMotion() ? 0 : 1;
-      let t0 = performance.now() + Math.max(0, o.delayMs ?? 0);
-      let drawMs = o.drawMs;
+      const t0 = performance.now() + Math.max(0, o.delayMs ?? 0);
       let dead = false;
       let raf = 0;
-      let pulse: Mark | null = null;
-      let p0 = 0;
-      const flow = o.flow && !readMotion();
-      const opts = (color: string, width: number, opacity: number, style: string, z: number): YProps => ({
-        strokeColor: color,
-        strokeWidth: width,
-        strokeOpacity: opacity,
-        strokeStyle: style,
-        zIndex: z,
-        hasBalloon: false,
-        hasHint: false,
-        openBalloonOnClick: false,
-        interactivityModel: "default#transparent",
-      });
-      const glow = new P([], {}, opts(o.glow, 24, 0.22, "solid", 1));
-      const casing = new P([], {}, opts(o.casing, 13, 1, "solid", 2));
-      const main = new P([], {}, opts(o.color, 7, 1, "solid", 3));
-      const past = new P([], {}, opts(o.past, 5, 0.95, "dot", 4));
-      for (const line of [glow, casing, past, main]) quiet(() => map.geoObjects.add(line));
-      const coords = (list: LngLat[]) => list.map(toY);
+      const stroke = (color: string, width: number, style: string, z: number) =>
+        new P([], {}, { strokeColor: color, strokeWidth: width, strokeOpacity: 1, strokeStyle: style, zIndex: z, hasBalloon: false, hasHint: false, openBalloonOnClick: false, interactivityModel: "default#transparent" });
+      // A road route is a solid line on a casing. Without a road there is no
+      // route, so the straight fallback is a thin dashed line that never reads as one.
+      const lines = o.straight ? [stroke(o.color, 3, "shortdash", 3)] : [stroke(o.casing, 9, "solid", 2), stroke(o.color, 5, "solid", 3)];
+      for (const line of lines) quiet(() => map.geoObjects.add(line));
       const paint = () => {
         const total = leftLens[leftLens.length - 1];
-        const shown = k >= 1 ? left : prefixOf(left, leftLens, total * easeInOut(k));
-        const c = coords(shown.length >= 2 ? shown : [left[0], left[0]]);
-        quiet(() => glow.geometry?.setCoordinates?.(c));
-        quiet(() => casing.geometry?.setCoordinates?.(c));
-        quiet(() => main.geometry?.setCoordinates?.(c));
-        quiet(() => past.geometry?.setCoordinates?.(coords(trail.length >= 2 ? trail : [])));
+        const shown = k >= 1 ? left : prefixOf(left, leftLens, total * easeOut(k));
+        const c = (shown.length >= 2 ? shown : [left[0], left[0]]).map(toY);
+        for (const line of lines) quiet(() => line.geometry?.setCoordinates?.(c));
+      };
+      const walk = () => {
+        if (!at) left = path;
+        else if (o.straight) left = [at, path[path.length - 1]];
+        else {
+          const q = snapTo(path, at);
+          left = [q.at, ...path.slice(q.i)];
+        }
+        leftLens = lengthsOf(left);
       };
       const stop = () => {
         dead = true;
         cancelAnimationFrame(raf);
         raf = 0;
-        pulse?.remove();
-        pulse = null;
       };
-      const busy = () => k < 1 || flow;
+      // The line is drawn once. Everything after it is a plain update, so a
+      // recalculation never makes the route vanish and grow back mid-trip.
       const loop = (now: number) => {
         raf = 0;
-        if (dead) return;
-        if (k < 1) {
-          k = drawMs > 0 ? Math.max(0, Math.min(1, (now - t0) / drawMs)) : 1;
-          paint();
-        }
-        if (k >= 1 && flow) {
-          const total = leftLens[leftLens.length - 1];
-          if (!pulse) {
-            pulse = mark({ kind: "pulse", coords: left[0], title: "", z: 36 });
-            p0 = now;
-          }
-          const period = Math.max(1400, Math.min(4200, total * 3));
-          const ph = ((now - p0) % period) / period;
-          pulse.move(along(left, leftLens, total * easeInOut(ph)).at, 0);
-          pulse.vars({ "--o": Math.sin(Math.PI * ph).toFixed(3) });
-        }
-        if (busy()) raf = requestAnimationFrame(loop);
-      };
-      const kick = () => {
-        if (!raf && !dead && busy()) raf = requestAnimationFrame(loop);
+        if (dead || k >= 1) return;
+        k = Math.max(0, Math.min(1, (now - t0) / Math.max(1, o.drawMs)));
+        paint();
+        if (k < 1) raf = requestAnimationFrame(loop);
       };
       paint();
-      kick();
+      if (k < 1) raf = requestAnimationFrame(loop);
       stops.add(stop);
       return {
-        set: (next, ms = 0) => {
+        set: (next) => {
           if (dead || next.length < 2) return;
           path = next.slice();
-          lens = lengthsOf(path);
-          left = path;
-          leftLens = lens;
-          if (ms > 0 && !readMotion()) {
-            k = 0;
-            drawMs = ms;
-            t0 = performance.now();
-            kick();
-          } else k = 1;
+          k = 1;
+          walk();
           paint();
         },
-        progress: (at) => {
+        progress: (next) => {
           if (dead) return;
-          if (!at) {
-            trail = [];
-            left = path;
-            leftLens = lens;
-            paint();
-            return;
-          }
-          const last = trail[trail.length - 1];
-          if (!last || flatM(last, at) > 3) trail = [...trail.slice(-(TRAIL_MAX - 1)), at];
-          if (o.straight) left = [at, path[path.length - 1]];
-          else {
-            const q = snapTo(path, at);
-            left = [q.at, ...path.slice(q.i)];
-          }
-          leftLens = lengthsOf(left);
+          at = next;
+          walk();
           paint();
         },
         remove: () => {
           stop();
           stops.delete(stop);
-          for (const line of [main, past, casing, glow]) quiet(() => map.geoObjects.remove(line));
+          for (const line of lines) quiet(() => map.geoObjects.remove(line));
         },
       };
     },

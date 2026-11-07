@@ -534,6 +534,12 @@ function putInfo(id: string, v: MarketSeller | null): void {
   for (const fn of [...infoSubs]) fn();
 }
 
+// The profile answered 404 or 410, so no link should lead there. A failure that
+// is being retried (the network, a 500) does not count.
+export function mapSellerGone(info: MapSellerInfo, id: string): boolean {
+  return info.has(id) && info.get(id) === null && !infoRetryAt.has(id);
+}
+
 export function subscribeMapSellerInfo(fn: () => void): () => void {
   infoSubs.add(fn);
   return () => {
