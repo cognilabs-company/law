@@ -1,0 +1,51 @@
+/* ==========================================================================
+   LandingBand: the turn from problem to solution. A cobalt strip laid at a
+   slight angle across the seam: it overlaps the end of the last scene and
+   lands on the black of the next section. Static at rest; motion/band.ts adds
+   the drift and the reaction to scroll velocity.
+   ========================================================================== */
+.lhome .lh-band {
+  /* How far the strip's ends rise and fall at its steepest angle. */
+  --lh-band-rise: 3.4cqw;
+  container-type: inline-size;
+  position: relative;
+  z-index: 3;
+  margin-top: -6.8vw;
+  padding-block: var(--lh-band-rise);
+  /* Transparent over the photo above, black where it meets the next section. */
+  background: linear-gradient(to bottom, transparent calc(var(--lh-band-rise) * 2), #000 0);
+  overflow-x: clip;
+  pointer-events: none;
+}
+.lhome .lh-band__strip {
+  width: 112%;
+  margin-left: -6%;
+  background: var(--lh-cobalt);
+  color: #fff;
+  overflow: hidden;
+  transform: rotate(-2.2deg);
+  transform-origin: 50% 50%;
+}
+.lhome .lh-band__skew { will-change: transform; }
+.lhome .lh-band__track {
+  display: flex;
+  width: max-content;
+  font-size: min(24cqw, 22svh);
+  line-height: 1;
+  letter-spacing: -0.06em;
+  font-weight: 400;
+  white-space: nowrap;
+  padding-block: 0.1em 0.2em;
+}
+.lhome .lh-band__run,
+.lhome .lh-band__item { display: inline-flex; align-items: baseline; }
+.lhome .lh-band__mark {
+  margin-inline: 0.2em;
+  font: italic 500 0.86em / 1 var(--lh-serif);
+  letter-spacing: 0;
+  color: var(--lh-azure);
+}
+
+@media not (max-aspect-ratio: 1/1) {
+  .lhome .lh-band__track { font-size: min(14.5cqw, 30svh); }
+}

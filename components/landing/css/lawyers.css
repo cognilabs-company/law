@@ -1,0 +1,630 @@
+/* ==========================================================================
+   LandingLawyers: a scoped restyle of the working LawyersSection.
+   A light rounded sheet that unfurls between two dark sections, a poster-size
+   heading, a bleeding carousel of notched cards and a numbered rail.
+
+   Three things here are load bearing:
+   - No z-index, transform, filter, clip-path, contain or container-type on any
+     ancestor of .uf-card: on a phone it becomes a position:fixed sheet at z 90
+     and any of those would trap it under the tab bar. The sheet colour lives on
+     .sec::before, which is a sibling of the content, so only it may move.
+   - .lhome .lh-lawyers beats globals' html[data-theme="dark"] rules by count.
+   - GSAP never touches this section. Its motion is scroll-driven CSS, added
+     only where the browser supports it, on top of a complete resting state.
+   ========================================================================== */
+
+.lhome .lh-lawyers {
+  /* The corners of the sheet show the sections it sits between. */
+  --lh-law-above: var(--lh-navy);
+  --lh-law-below: var(--lh-navy);
+  --lh-law-card: min(calc(var(--lh-u) * 21.5), 84vw);
+  --lh-law-gap: calc(var(--lh-u) * 1.1);
+  --lh-law-drop: calc(var(--lh-u) * 2.4);
+  /* Bleed the carousel to the viewport edges, whatever the wrap's width is. The
+     space outside the wrap written without a percentage, because scroll-padding
+     resolves percentages against a different box than margin and padding do.
+     Margin and padding cancel, so the first card keeps the wrap's left edge even
+     with a classic scrollbar taking part of 100vw. */
+  --lh-law-bleed: calc(var(--lh-gutter) + max(0px, (100vw - var(--lh-u) * 118) / 2));
+  --lh-law-ctl: max(46px, calc(var(--lh-u) * 3.4));
+  position: relative;
+  background: linear-gradient(var(--lh-law-above) 50%, var(--lh-law-below) 50%);
+}
+
+.lhome .lh-lawyers .sec {
+  position: relative;
+  background: transparent !important;
+  padding-block: var(--lh-sec);
+}
+.lhome .lh-lawyers .sec::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--lh-r-l);
+  background: var(--lh-bg);
+}
+.lhome .lh-lawyers .wrap {
+  position: relative;
+  max-width: var(--lh-max);
+  padding-inline: var(--lh-gutter);
+  timeline-scope: --lh-law-x;
+}
+
+/* --------------------------------------------------------------------------
+   Head: kicker, poster heading, then the lead and the round arrows on one line.
+   -------------------------------------------------------------------------- */
+.lhome .lh-lawyers .head {
+  container-type: inline-size;
+  display: flex;
+  flex-flow: row wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: calc(var(--lh-u) * 1.5) calc(var(--lh-u) * 3);
+  max-width: none;
+  margin-bottom: 0;
+}
+.lhome .lh-lawyers .head > div:first-child { display: contents; }
+
+.lhome .lh-lawyers .kick {
+  flex: 0 0 100%;
+  gap: 0.6em;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--lh-mute);
+  font-size: calc(var(--lh-u) * 0.82);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.lhome .lh-lawyers .kick::before {
+  content: "";
+  flex: none;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--lh-accent);
+}
+
+.lhome .lh-lawyers .h2 {
+  flex: 0 0 100%;
+  max-width: 100%;
+  font-size: clamp(calc(var(--lh-u) * 2.5), calc(var(--lh-u) * 1.7 + 4.4cqw), calc(var(--lh-u) * 10.5));
+  font-weight: 400;
+  letter-spacing: -0.044em;
+  line-height: 0.98;
+  color: var(--lh-text);
+  text-wrap: balance;
+}
+/* Two tones like the reference's giant words. The first line wraps wherever the
+   width puts it, so this works in every language with no markup change. */
+.lhome .lh-lawyers .h2::first-line { color: var(--lh-accent); }
+
+.lhome .lh-lawyers .lead {
+  flex: 1 1 calc(var(--lh-u) * 22);
+  max-width: 54ch;
+  margin: 0;
+  color: var(--lh-mute);
+  font-size: calc(var(--lh-u) * 1.12);
+  line-height: 1.42;
+  text-wrap: pretty;
+}
+
+/* globals hides the arrows below 760px. They work, so phones keep them too. */
+.lhome .lh-lawyers .navbtns {
+  display: flex;
+  flex: none;
+  gap: calc(var(--lh-u) * 0.6);
+}
+.lhome .lh-lawyers .nbtn {
+  width: var(--lh-law-ctl);
+  height: var(--lh-law-ctl);
+  border: 1px solid var(--lh-mist);
+  background: transparent;
+  box-shadow: none;
+  color: var(--lh-text);
+  transition: transform 0.45s var(--lh-ease), background-color 0.25s, border-color 0.25s, opacity 0.25s;
+}
+.lhome .lh-lawyers .nbtn:last-child {
+  border-color: var(--lh-text);
+  background: var(--lh-text);
+}
+.lhome .lh-lawyers .nbtn svg {
+  width: calc(var(--lh-u) * 1.15);
+  height: calc(var(--lh-u) * 1.15);
+  stroke: var(--lh-text);
+  stroke-width: 1.8;
+  transition: stroke 0.25s;
+}
+.lhome .lh-lawyers .nbtn:last-child svg { stroke: var(--lh-bg); }
+.lhome .lh-lawyers .nbtn:focus-visible { border-radius: 50%; }
+.lhome .lh-lawyers .nbtn:disabled { opacity: 0.32; }
+.lhome .lh-lawyers .nbtn:disabled:hover { background: transparent; }
+.lhome .lh-lawyers .nbtn:last-child:disabled:hover { background: var(--lh-text); }
+.lhome .lh-lawyers .nbtn:disabled:hover svg { stroke: var(--lh-text); }
+.lhome .lh-lawyers .nbtn:last-child:disabled:hover svg { stroke: var(--lh-bg); }
+@media (hover: hover) {
+  .lhome .lh-lawyers .nbtn:not(:disabled):hover {
+    transform: scale(1.07);
+    border-color: var(--lh-cobalt);
+    background: var(--lh-cobalt);
+  }
+  .lhome .lh-lawyers .nbtn:not(:disabled):hover svg { stroke: #fff; }
+}
+
+/* Below 900px the filters collapse to one toggle (FilterBar's own switch). The
+   arrows take the line under the lead and the toggle is pulled up beside them,
+   so a phone gets one compact row of controls. Head width stays under 860px
+   whenever the viewport is under 900px, at every gutter. */
+@container (max-width: 860px) {
+  .lhome .lh-lawyers .lead { flex-basis: 100%; }
+  .lhome .lh-lawyers .navbtns { flex-basis: 100%; justify-content: flex-end; }
+}
+.lhome .lh-lawyers .uf-bar {
+  align-self: flex-start;
+  width: fit-content;
+  margin-top: calc(var(--lh-law-ctl) * -1);
+}
+
+/* --------------------------------------------------------------------------
+   Filters. :not(.is-open) keeps this off the phone sheet without a width query:
+   the bar is only ever opened by the toggle that exists below 900px.
+   -------------------------------------------------------------------------- */
+.lhome .lh-lawyers .uf { margin: 0 0 calc(var(--lh-u) * 1.6); gap: calc(var(--lh-u) * 0.8); }
+.lhome .lh-lawyers .uf-card:not(.is-open) {
+  margin-top: calc(var(--lh-u) * 3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(var(--lh-u) * 2);
+  padding: calc(var(--lh-u) * 1) 0;
+  border-block: 1px solid var(--lh-line);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.lhome .lh-lawyers .uf-card:not(.is-open) .uf-fld {
+  flex-direction: row;
+  align-items: center;
+  gap: calc(var(--lh-u) * 1);
+}
+.lhome .lh-lawyers .uf-card:not(.is-open) .uf-fld__l { flex: none; }
+.lhome .lh-lawyers .uf-fld__l {
+  color: var(--lh-mute);
+  font-size: calc(var(--lh-u) * 0.82);
+  font-weight: 500;
+}
+.lhome .lh-lawyers .uf-fld__l svg {
+  width: calc(var(--lh-u) * 1);
+  height: calc(var(--lh-u) * 1);
+}
+.lhome .lh-lawyers .dsel__btn {
+  min-height: max(46px, calc(var(--lh-u) * 3));
+  padding-inline: calc(var(--lh-u) * 1.2) calc(var(--lh-u) * 0.8);
+  border-radius: 999px;
+  background: var(--lh-card);
+  box-shadow: inset 0 0 0 1px var(--lh-line);
+  color: var(--lh-text);
+  font-size: calc(var(--lh-u) * 0.95);
+  font-weight: 500;
+}
+.lhome .lh-lawyers .dsel__btn:hover,
+.lhome .lh-lawyers .dsel[data-open="true"] .dsel__btn { box-shadow: inset 0 0 0 1px var(--lh-accent); }
+.lhome .lh-lawyers .dsel__btn:focus-visible { border-radius: 999px; }
+
+.lhome .lh-lawyers .uf-toggle {
+  min-height: var(--lh-law-ctl);
+  padding-inline: calc(var(--lh-u) * 1.4);
+  border-radius: 999px;
+  background: var(--lh-card);
+  box-shadow: inset 0 0 0 1px var(--lh-line);
+  color: var(--lh-text);
+  font-size: calc(var(--lh-u) * 0.95);
+  font-weight: 500;
+}
+.lhome .lh-lawyers .uf-toggle:focus-visible { border-radius: 999px; }
+.lhome .lh-lawyers .uf-toggle svg { color: var(--lh-accent); }
+.lhome .lh-lawyers .uf-chosen { font-size: calc(var(--lh-u) * 0.82); }
+.lhome .lh-lawyers .uf-chosen__c,
+.lhome .lh-lawyers .uf-chosen__all,
+.lhome .lh-lawyers .uf-count {
+  font-size: calc(var(--lh-u) * 0.82);
+  font-weight: 500;
+}
+
+/* The phone sheet: same behaviour, the landing's type and buttons. */
+.lhome .lh-lawyers .uf-card.is-open {
+  gap: calc(var(--lh-u) * 1);
+  padding-inline: var(--lh-gutter);
+  border-radius: var(--lh-r-l) var(--lh-r-l) 0 0;
+  background: var(--lh-card);
+}
+.lhome .lh-lawyers .uf-card.is-open .uf-card__head b {
+  font-family: var(--lh-sans);
+  font-size: calc(var(--lh-u) * 1.5);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+.lhome .lh-lawyers .uf-card__head button:focus-visible { border-radius: 50%; }
+.lhome .lh-lawyers .uf-card__apply {
+  min-height: max(48px, calc(var(--lh-u) * 3.2));
+  background: var(--lh-text);
+  box-shadow: none;
+  color: var(--lh-bg);
+  font-family: var(--lh-sans);
+  font-size: calc(var(--lh-u) * 1);
+  font-weight: 500;
+}
+.lhome .lh-lawyers .uf-card__apply:hover { background: var(--lh-cobalt); color: #fff; box-shadow: none; }
+
+/* --------------------------------------------------------------------------
+   Carousel: runs off both edges of the screen, with a stepped rhythm.
+   -------------------------------------------------------------------------- */
+.lhome .lh-lawyers .scroller {
+  gap: var(--lh-law-gap);
+  margin-inline: calc(var(--lh-law-bleed) * -1);
+  padding: calc(var(--lh-u) * 1) var(--lh-law-bleed) calc(var(--lh-law-drop) + var(--lh-u) * 1.2);
+  scroll-padding-inline: var(--lh-law-bleed);
+  scroll-timeline: --lh-law-x x;
+}
+
+/* The card itself. overflow:hidden and the hover lift come from globals. */
+.lhome .lh-lawyers .advcard {
+  width: var(--lh-law-card);
+  border-radius: 0;
+  background: var(--lh-card);
+  box-shadow: none;
+  clip-path: url(#lh-clip-card);
+}
+.lhome .lh-lawyers .advcard:hover {
+  transform: translateY(calc(var(--lh-u) * -0.5));
+  box-shadow: none;
+}
+/* Every second card hangs lower. The opposite margin keeps stretched heights equal. */
+.lhome .lh-lawyers .advcard:nth-child(even) {
+  margin-top: var(--lh-law-drop);
+  margin-bottom: calc(var(--lh-law-drop) * -1);
+}
+
+.lhome .lh-lawyers .advcard__top {
+  display: block;
+  min-height: 0;
+  padding: calc(var(--lh-u) * 1.5) calc(var(--lh-u) * 1.5) 0;
+  background: none;
+  color: var(--lh-text);
+  overflow: visible;
+}
+.lhome .lh-lawyers .advcard__top::after { display: none; }
+.lhome .lh-lawyers .advcard__row {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--lh-u) * 1.5);
+}
+.lhome .lh-lawyers .advcard__av {
+  display: grid;
+  place-items: center;
+  width: calc(var(--lh-u) * 4.4);
+  height: calc(var(--lh-u) * 4.4);
+  border: 0;
+  background: var(--lh-cobalt);
+  color: #fff;
+  font-family: var(--lh-serif);
+  font-size: calc(var(--lh-u) * 1.55);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.lhome .lh-lawyers .advcard:nth-child(3n + 2) .advcard__av { background: var(--lh-navy); }
+.lhome .lh-lawyers .advcard:nth-child(3n) .advcard__av { background: var(--lh-black); }
+
+.lhome .lh-lawyers .advcard__n {
+  color: var(--lh-text);
+  font-family: var(--lh-sans);
+  font-size: calc(var(--lh-u) * 1.75);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+}
+.lhome .lh-lawyers .advcard__sp {
+  margin-top: 0.45em;
+  color: var(--lh-mute);
+  font-size: calc(var(--lh-u) * 0.86);
+  line-height: 1.3;
+}
+.lhome .lh-lawyers .advcard__tags { gap: 0.4em; margin-top: calc(var(--lh-u) * 0.8); }
+.lhome .lh-lawyers .advcard__kind,
+.lhome .lh-lawyers .advcard__badge {
+  margin: 0;
+  padding: 0.28em 0.75em;
+  border: 1px solid var(--lh-line);
+  border-radius: 999px;
+  background: none;
+  color: var(--lh-text);
+  font-size: calc(var(--lh-u) * 0.74);
+  font-weight: 500;
+  line-height: 1.35;
+}
+.lhome .lh-lawyers .advcard__badge--un { border-style: dashed; color: var(--lh-mute); }
+.lhome .lh-lawyers .vbadge { font-size: calc(var(--lh-u) * 0.74); font-weight: 500; }
+.lhome .lh-lawyers .vbadge:not(.vbadge--icon) {
+  padding: 0.22em 0.75em 0.22em 0.3em;
+  border-radius: 999px;
+}
+.lhome .lh-lawyers .vbadge__img {
+  width: calc(var(--lh-u) * 1.1);
+  height: calc(var(--lh-u) * 1.1);
+}
+.lhome .lh-lawyers .vbadge:focus-visible { border-radius: 999px; }
+
+.lhome .lh-lawyers .advcard__b {
+  gap: calc(var(--lh-u) * 1.1);
+  padding: calc(var(--lh-u) * 1.3) calc(var(--lh-u) * 1.5) calc(var(--lh-u) * 1.5);
+}
+
+/* The rating as a figure over its note, not a green pill. Stacked, a score and
+   the longer "not rated yet" line take the same height, so cards stay even. */
+.lhome .lh-lawyers .rating {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3em;
+  font-size: calc(var(--lh-u) * 0.82);
+}
+.lhome .lh-lawyers .rating b {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--lh-text);
+  font-size: calc(var(--lh-u) * 2.1);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.lhome .lh-lawyers .rating span {
+  color: var(--lh-mute);
+  font-size: calc(var(--lh-u) * 0.8);
+  line-height: 1.25;
+}
+
+.lhome .lh-lawyers .wins {
+  gap: 0;
+  padding-block: calc(var(--lh-u) * 0.9);
+  border-block: 1px solid var(--lh-line);
+}
+.lhome .lh-lawyers .win {
+  padding: 0 calc(var(--lh-u) * 0.6);
+  border-left: 1px solid var(--lh-line);
+  border-radius: 0;
+  background: none;
+  text-align: left;
+}
+.lhome .lh-lawyers .win:first-child { padding-left: 0; border-left: 0; }
+.lhome .lh-lawyers .win b {
+  color: var(--lh-text);
+  font-family: var(--lh-sans);
+  font-size: calc(var(--lh-u) * 1.45);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+}
+.lhome .lh-lawyers .win b small { font-size: 0.56em; font-weight: 400; letter-spacing: 0; }
+.lhome .lh-lawyers .win span {
+  margin-top: 0.4em;
+  color: var(--lh-mute);
+  font-size: calc(var(--lh-u) * 0.72);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.lhome .lh-lawyers .advcard__ft {
+  flex-direction: column;
+  align-items: stretch;
+  gap: calc(var(--lh-u) * 1);
+  padding-top: 0;
+  border-top: 0;
+}
+.lhome .lh-lawyers .price b {
+  font-family: var(--lh-sans);
+  font-size: calc(var(--lh-u) * 1.6);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+.lhome .lh-lawyers .price span {
+  color: var(--lh-mute);
+  font-size: calc(var(--lh-u) * 0.76);
+  font-weight: 400;
+}
+.lhome .lh-lawyers .advcard__ctas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(var(--lh-u) * 0.45);
+}
+.lhome .lh-lawyers .advcard .btn {
+  min-height: max(44px, calc(var(--lh-u) * 2.95));
+  padding: 0.4em 0.6em;
+  font-family: var(--lh-sans);
+  font-size: calc(var(--lh-u) * 0.9);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: normal;
+}
+.lhome .lh-lawyers .advcard .btn:focus-visible { border-radius: 999px; outline-offset: -3px; }
+.lhome .lh-lawyers .advcard .btn--pri {
+  background: var(--lh-text);
+  box-shadow: none;
+  color: var(--lh-bg);
+}
+.lhome .lh-lawyers .advcard .btn--ghost {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--lh-line);
+  color: var(--lh-text);
+}
+@media (hover: hover) {
+  .lhome .lh-lawyers .advcard .btn--pri:hover {
+    background: var(--lh-cobalt);
+    box-shadow: none;
+    color: #fff;
+  }
+  .lhome .lh-lawyers .advcard .btn--ghost:hover {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--lh-accent);
+    color: var(--lh-accent);
+  }
+}
+.lhome .lh-lawyers .advcard__note,
+.lhome .lh-lawyers .advcard__err {
+  margin-top: 0;
+  border-radius: var(--lh-r-s);
+  font-size: calc(var(--lh-u) * 0.78);
+}
+
+/* Loading and empty states sit on the same sheet. */
+.lhome .lh-lawyers .wrap > .info {
+  position: relative;
+  margin-top: 0;
+  padding: calc(var(--lh-u) * 1.2) 0 0;
+  border-top: 1px solid var(--lh-line);
+  border-radius: 0;
+  background: none;
+  color: var(--lh-mute);
+  font-size: calc(var(--lh-u) * 0.82);
+  line-height: 1.5;
+}
+.lhome .lh-lawyers .wrap > .info span { max-width: 104ch; }
+.lhome .lh-lawyers .wrap > .info svg {
+  width: calc(var(--lh-u) * 1.1);
+  height: calc(var(--lh-u) * 1.1);
+  stroke: var(--lh-accent);
+  stroke-width: 1.6;
+}
+
+/* --------------------------------------------------------------------------
+   Flow: four numbered steps on one continuous rail. Four, two or one column,
+   switched by the width this grid really has: wrap cannot be a query container
+   because the sheet lives inside it.
+   -------------------------------------------------------------------------- */
+.lhome .lh-lawyers .flow {
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(
+      min(
+        100%,
+        max(
+          clamp(25%, calc((var(--lh-u) * 56 - 100%) * 999), 50%),
+          calc((var(--lh-u) * 26 - 100%) * 999)
+        )
+      ),
+      1fr
+    )
+  );
+  gap: calc(var(--lh-u) * 2.2) 0;
+  margin-top: calc(var(--lh-u) * 3.5);
+}
+.lhome .lh-lawyers .fstep {
+  position: relative;
+  padding: calc(var(--lh-u) * 1.5) calc(var(--lh-u) * 2) 0 0;
+  border-top: 1px solid var(--lh-text);
+  border-radius: 0;
+  background: none;
+}
+.lhome .lh-lawyers .fstep::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--lh-u) * -0.32);
+  left: 0;
+  width: calc(var(--lh-u) * 0.6);
+  height: calc(var(--lh-u) * 0.6);
+  border-radius: 50%;
+  background: var(--lh-azure);
+  box-shadow: 0 0 0 calc(var(--lh-u) * 0.26) var(--lh-bg);
+}
+.lhome .lh-lawyers .fstep b {
+  display: block;
+  width: auto;
+  height: auto;
+  margin: 0 0 calc(var(--lh-u) * 1.1);
+  border-radius: 0;
+  background: none;
+  color: var(--lh-accent);
+  font-family: var(--lh-serif);
+  font-size: calc(var(--lh-u) * 4.6);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 0.9;
+}
+.lhome .lh-lawyers .fstep strong {
+  display: block;
+  margin-bottom: 0.45em;
+  color: var(--lh-text);
+  font-size: calc(var(--lh-u) * 1.4);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+.lhome .lh-lawyers .fstep span {
+  display: block;
+  max-width: 34ch;
+  color: var(--lh-mute);
+  font-size: calc(var(--lh-u) * 0.96);
+  line-height: 1.42;
+  text-wrap: pretty;
+}
+
+/* --------------------------------------------------------------------------
+   Motion. Scroll-driven CSS, so nothing here runs without support, and every
+   rule below only adds to the finished state above.
+   -------------------------------------------------------------------------- */
+@keyframes lh-law-sheet {
+  from { clip-path: inset(0 3.5% 0 3.5% round calc(var(--lh-r-l) * 1.5)); }
+  to { clip-path: inset(0 0 0 0 round var(--lh-r-l)); }
+}
+@keyframes lh-law-title {
+  from { transform: translate3d(calc(var(--lh-u) * 5), 0, 0); }
+  to { transform: none; }
+}
+@keyframes lh-law-mono {
+  from { transform: translate3d(calc(var(--lh-u) * 2.6), 0, 0) scale(0.82); }
+  to { transform: none; }
+}
+@keyframes lh-law-bar {
+  from { transform: scaleX(0.06); }
+  to { transform: scaleX(1); }
+}
+
+@supports (animation-timeline: view()) {
+  /* The progress line along the fine print. Without support it is a plain hairline. */
+  .lhome .lh-lawyers .wrap > .info::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: var(--lh-accent);
+    transform: scaleX(0.06);
+    transform-origin: 0 50%;
+    animation: lh-law-bar linear both;
+    animation-timeline: --lh-law-x;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .lhome .lh-lawyers .sec { view-timeline: --lh-law-view block; }
+    .lhome .lh-lawyers .sec::before {
+      animation: lh-law-sheet linear both;
+      animation-timeline: --lh-law-view;
+      animation-range: entry 0% entry 42%;
+    }
+    .lhome .lh-lawyers .h2 {
+      animation: lh-law-title linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 34%;
+    }
+    /* The monogram slides home as its card comes in from the right. */
+    .lhome .lh-lawyers .advcard__av {
+      animation: lh-law-mono linear both;
+      animation-timeline: view(inline);
+      animation-range: entry 0% entry 100%;
+    }
+  }
+}

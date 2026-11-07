@@ -1,0 +1,306 @@
+/* ==========================================================================
+   LexGo home landing: design system.
+   Everything is prefixed with lh- and scoped under .lhome, because Next keeps
+   this stylesheet loaded on other routes after a client navigation.
+
+   Fluid by construction: sizes come from --lh-u, a unit that scales with the
+   viewport from small phones to 4K, and layouts react to the container and the
+   aspect ratio rather than to named devices.
+   ========================================================================== */
+
+/* The page needs native, unclipped scrolling for pins and sticky elements.
+   Only true while the landing is mounted. */
+html:has(.lhome) { scroll-behavior: auto; }
+body:has(.lhome) { overflow-x: clip; }
+
+/* The burger lines are dark in dark theme, which is unreadable over the hero. */
+body:has(.lhome) .bar:not(.on) .burg i,
+body:has(.lhome) .bar:not(.on) .burg i::before,
+body:has(.lhome) .bar:not(.on) .burg i::after { background: #fff; }
+
+.lhome {
+  /* Fluid unit: 15px on a small phone, 16px on a laptop, 26px on a 4K screen. */
+  --lh-u: clamp(15px, 0.34vw + 11.1px, 26px);
+  --lh-gutter: clamp(16px, 3.1vw, 96px);
+  --lh-max: min(100%, calc(var(--lh-u) * 118));
+  --lh-sec: clamp(64px, 9vw, 240px);
+
+  /* Brand: navy and the azure of the "Go" in the wordmark, plus cobalt. */
+  --lh-cobalt: #0a4dff;
+  --lh-azure: #0b8cff;
+  --lh-navy: #0b1f45;
+  --lh-black: #05070d;
+  --lh-white: #fff;
+
+  /* Surfaces follow the site's theme tokens. */
+  --lh-bg: var(--dk-bg, #f4f5f7);
+  --lh-card: var(--dk-surface, #fff);
+  --lh-text: var(--dk-txt, var(--ink));
+  --lh-mute: var(--gray);
+  --lh-line: var(--line);
+  --lh-mist: var(--dk-mist, #b8bdc9);
+  --lh-accent: var(--dk-acc, var(--lh-cobalt));
+
+  --lh-r-s: calc(var(--lh-u) * 0.9);
+  --lh-r-m: calc(var(--lh-u) * 1.5);
+  --lh-r-l: calc(var(--lh-u) * 2.5);
+
+  --lh-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --lh-sans: var(--lh-font-sans), var(--font-inter), system-ui, sans-serif;
+  --lh-serif: var(--lh-font-serif), Georgia, "Times New Roman", serif;
+
+  position: relative;
+  background: var(--lh-bg);
+  color: var(--lh-text);
+  font-family: var(--lh-sans);
+  font-variant-numeric: normal;
+  font-size: var(--lh-u);
+  line-height: 1.4;
+  overflow-x: clip;
+}
+
+html[data-theme="dark"] .lhome {
+  --lh-mist: #39435a;
+  --lh-text: var(--ink);
+}
+
+.lhome img,
+.lhome svg { max-width: none; }
+.lhome p,
+.lhome ul,
+.lhome ol { margin: 0; padding: 0; }
+.lhome ul,
+.lhome ol { list-style: none; }
+.lhome h1,
+.lhome h2,
+.lhome h3 {
+  font-family: var(--lh-sans);
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 0.98;
+  margin: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Layout helpers
+   -------------------------------------------------------------------------- */
+.lh-wrap {
+  width: var(--lh-max);
+  margin-inline: auto;
+  padding-inline: var(--lh-gutter);
+}
+.lh-sec {
+  position: relative;
+  padding-block: var(--lh-sec);
+}
+
+/* Photo-led panels stay dark in both themes, and need the light focus ring. */
+.lh-dark {
+  --focus: #6ea8ff;
+  --lh-text: #fff;
+  --lh-mute: rgba(255, 255, 255, 0.72);
+  --lh-line: rgba(255, 255, 255, 0.16);
+  --lh-accent: #6ea8ff;
+  background: var(--lh-black);
+  color: #fff;
+  isolation: isolate;
+}
+
+/* --------------------------------------------------------------------------
+   Type
+   -------------------------------------------------------------------------- */
+.lh-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  font-size: calc(var(--lh-u) * 0.82);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--lh-mute);
+}
+.lh-kicker::before {
+  content: "";
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--lh-accent);
+}
+.lh-h2 {
+  font-size: clamp(2.1rem, 5.1vw, calc(var(--lh-u) * 6.4));
+  color: inherit;
+  text-wrap: balance;
+}
+.lh-h3 {
+  font-size: calc(var(--lh-u) * 1.45);
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+}
+.lh-lead {
+  font-size: calc(var(--lh-u) * 1.12);
+  line-height: 1.42;
+  color: var(--lh-mute);
+  text-wrap: pretty;
+  max-width: 44ch;
+}
+/* The serif italic accent echoes the "Go" of the wordmark. */
+.lhome em.lh-accent {
+  font-family: var(--lh-serif);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--lh-accent);
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+.lh-btn {
+  --lh-btn-bg: var(--lh-text);
+  --lh-btn-fg: var(--lh-bg);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7em;
+  min-height: calc(var(--lh-u) * 3.15);
+  padding: 0.5em 1.5em;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--lh-btn-bg);
+  color: var(--lh-btn-fg);
+  font: 500 calc(var(--lh-u) * 0.98) / 1.15 var(--lh-sans);
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  text-align: center;
+  transition: transform 0.45s var(--lh-ease), background-color 0.25s, color 0.25s, border-color 0.25s;
+}
+.lh-btn:hover { transform: translateY(-2px); }
+.lh-btn:focus-visible { border-radius: 999px; }
+.lh-btn svg { width: 1.05em; height: 1.05em; flex: none; }
+.lh-btn--white { --lh-btn-bg: #fff; --lh-btn-fg: var(--lh-black); }
+.lh-btn--blue { --lh-btn-bg: var(--lh-cobalt); --lh-btn-fg: #fff; }
+.lh-btn--blue:hover { --lh-btn-bg: #003be0; }
+.lh-btn--ghost {
+  --lh-btn-bg: transparent;
+  --lh-btn-fg: currentColor;
+  border-color: currentColor;
+}
+.lh-btn--glass {
+  --lh-btn-bg: rgba(255, 255, 255, 0.12);
+  --lh-btn-fg: #fff;
+  border-color: rgba(255, 255, 255, 0.32);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+.lh-round {
+  display: inline-grid;
+  place-items: center;
+  width: calc(var(--lh-u) * 3.1);
+  height: calc(var(--lh-u) * 3.1);
+  border: 1px solid var(--lh-mist);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--lh-text);
+  cursor: pointer;
+  transition: transform 0.45s var(--lh-ease), background-color 0.25s, color 0.25s, border-color 0.25s;
+}
+.lh-round:hover { transform: scale(1.06); }
+.lh-round:focus-visible { border-radius: 50%; }
+.lh-round svg { width: 1.1em; height: 1.1em; }
+.lh-round--solid {
+  border-color: var(--lh-text);
+  background: var(--lh-text);
+  color: var(--lh-bg);
+}
+
+/* --------------------------------------------------------------------------
+   Glass
+   -------------------------------------------------------------------------- */
+.lh-glass {
+  background: rgba(16, 28, 60, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #fff;
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  backdrop-filter: blur(16px) saturate(1.3);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .lh-glass { background: rgba(11, 31, 69, 0.86); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .lh-glass { background: rgba(11, 31, 69, 0.92); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* --------------------------------------------------------------------------
+   Photo frame: fixed aspect ratio box so triggers never shift
+   -------------------------------------------------------------------------- */
+.lh-photo {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: var(--lh-navy);
+}
+.lh-photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Film grain: gives large gradients texture and hides upscaling softness. */
+.lh-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0.16;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* --------------------------------------------------------------------------
+   Motion hooks. The resting CSS is the finished state, so content is complete
+   without JavaScript and under reduced motion. LandingMotion adds movement.
+   -------------------------------------------------------------------------- */
+.lh-split-line { display: block; }
+
+/* Custom cursor, only on devices with a precise pointer. */
+.lh-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 79;
+  display: none;
+  place-items: center;
+  width: calc(var(--lh-u) * 1.1);
+  height: calc(var(--lh-u) * 1.1);
+  margin: calc(var(--lh-u) * -0.55) 0 0 calc(var(--lh-u) * -0.55);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--lh-black);
+  font: 500 calc(var(--lh-u) * 0.74) / 1 var(--lh-sans);
+  mix-blend-mode: difference;
+  pointer-events: none;
+  will-change: transform;
+  transition: width 0.35s var(--lh-ease), height 0.35s var(--lh-ease), margin 0.35s var(--lh-ease), background-color 0.25s;
+}
+.lh-cursor.is-on { display: grid; }
+.lh-cursor b { font-weight: 500; opacity: 0; transition: opacity 0.2s; }
+.lh-cursor.is-big {
+  width: calc(var(--lh-u) * 5.4);
+  height: calc(var(--lh-u) * 5.4);
+  margin: calc(var(--lh-u) * -2.7) 0 0 calc(var(--lh-u) * -2.7);
+  mix-blend-mode: normal;
+  background: var(--lh-azure);
+  color: #fff;
+}
+.lh-cursor.is-big b { opacity: 1; }
+.lh-cursor.is-link {
+  width: calc(var(--lh-u) * 2.8);
+  height: calc(var(--lh-u) * 2.8);
+  margin: calc(var(--lh-u) * -1.4) 0 0 calc(var(--lh-u) * -1.4);
+}
+
+/* Section CSS */

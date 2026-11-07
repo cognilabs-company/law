@@ -1,0 +1,338 @@
+/* ==========================================================================
+   11. LandingWarranty: a glass shield with four guarantees in orbit around it.
+   Resting CSS is the finished composition; motion/warranty.ts only adds flight.
+   ========================================================================== */
+.lhome .lh-war {
+  position: relative;
+  overflow: clip;
+  padding-block-start: var(--lh-sec);
+  border-radius: var(--lh-r-l);
+  background:
+    radial-gradient(70% 46% at 50% 54%, rgba(16, 72, 196, 0.5), rgba(16, 72, 196, 0) 72%),
+    linear-gradient(180deg, #071431 0%, #0b1f45 46%, #06112b 100%);
+}
+
+/* --------------------------------------------------------------------------
+   Head
+   -------------------------------------------------------------------------- */
+.lhome .lh-war__wrap {
+  position: relative;
+  z-index: 4;
+  container: lh-warhead / inline-size;
+}
+.lhome .lh-war__head {
+  display: grid;
+  gap: calc(var(--lh-u) * 1.5);
+}
+.lhome .lh-war__title {
+  font-size: clamp(2.45rem, 8.1cqw, calc(var(--lh-u) * 11.5));
+  font-weight: 400;
+  letter-spacing: -0.055em;
+  line-height: 0.95;
+  text-wrap: balance;
+}
+.lhome .lh-war__title em.lh-accent { font-weight: 400; }
+.lhome .lh-war__lead { max-width: 46ch; }
+@container lh-warhead (min-width: 860px) {
+  .lhome .lh-war__head { grid-template-columns: minmax(0, 1fr) minmax(0, calc(var(--lh-u) * 30)); }
+  .lhome .lh-war__kicker,
+  .lhome .lh-war__title { grid-column: 1 / -1; }
+  .lhome .lh-war__lead { grid-column: 2; }
+}
+
+/* --------------------------------------------------------------------------
+   Orbit stage. Stacked by default: shield on top, panels below.
+   -------------------------------------------------------------------------- */
+.lhome .lh-war__pin { container: lh-war / inline-size; }
+.lhome .lh-war__orbit {
+  --lh-war-h: min(50svh, 92cqw);
+  --lh-war-w: calc(var(--lh-war-h) * 0.7927);
+  --lh-war-pad: calc(var(--lh-u) * 2.5);
+  --lh-war-cy: calc(var(--lh-war-pad) + var(--lh-war-h) / 2);
+  position: relative;
+  /* No clip here: rings and glow run on under the head and foot, and the section
+     clips them. While pinned they simply leave the viewport. */
+  padding: var(--lh-war-pad) var(--lh-gutter) calc(var(--lh-u) * 2);
+}
+
+.lhome .lh-war__core {
+  position: relative;
+  z-index: 2;
+  width: var(--lh-war-w);
+  height: var(--lh-war-h);
+  margin-inline: auto;
+  pointer-events: none;
+}
+.lhome .lh-war__depth,
+.lhome .lh-war__tilt,
+.lhome .lh-war__float {
+  position: absolute;
+  inset: 0;
+}
+.lhome .lh-war__depth { will-change: transform; }
+.lhome .lh-war__shield {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 calc(var(--lh-u) * 2.6) calc(var(--lh-u) * 4) rgba(4, 12, 48, 0.75));
+}
+/* A band of light that only exists on the glass, cut to the shield's own alpha. */
+.lhome .lh-war__sheen {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask: url("/img/landing/warranty-shield.webp") center / 100% 100% no-repeat;
+  mask: url("/img/landing/warranty-shield.webp") center / 100% 100% no-repeat;
+  mix-blend-mode: screen;
+}
+.lhome .lh-war__sheen::before {
+  content: "";
+  position: absolute;
+  inset: -20% -60%;
+  background: linear-gradient(105deg, transparent 42%, rgba(190, 226, 255, 0.5) 50%, transparent 58%);
+  transform: translateX(-46%);
+}
+
+.lhome .lh-war__glow {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: var(--lh-war-cy);
+  width: calc(var(--lh-war-h) * 1.95);
+  aspect-ratio: 1;
+  margin: calc(var(--lh-war-h) * -0.975) 0 0 calc(var(--lh-war-h) * -0.975);
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(11, 140, 255, 0.62), rgba(10, 77, 255, 0.26) 46%, rgba(10, 77, 255, 0) 100%);
+  pointer-events: none;
+}
+
+.lhome .lh-war__rings {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: var(--lh-war-cy);
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.lhome .lh-war__rings i {
+  --lh-ring: calc(var(--lh-war-h) * 1.22);
+  position: absolute;
+  left: calc(var(--lh-ring) / -2);
+  top: calc(var(--lh-ring) / -2);
+  width: var(--lh-ring);
+  height: var(--lh-ring);
+  border: 1px solid rgba(140, 190, 255, 0.28);
+  border-radius: 50%;
+}
+.lhome .lh-war__rings i:nth-child(2) {
+  --lh-ring: calc(var(--lh-war-h) * 1.72);
+  border-color: rgba(140, 190, 255, 0.18);
+  border-style: dashed;
+}
+.lhome .lh-war__rings i:nth-child(3) {
+  --lh-ring: calc(var(--lh-war-h) * 2.4);
+  border-color: rgba(140, 190, 255, 0.12);
+}
+/* Each ring carries one small body. */
+.lhome .lh-war__rings i::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: calc(var(--lh-u) * 0.5);
+  height: calc(var(--lh-u) * 0.5);
+  margin: calc(var(--lh-u) * -0.25) 0 0 calc(var(--lh-u) * -0.25);
+  border-radius: 50%;
+  background: #8cc4ff;
+  box-shadow: 0 0 calc(var(--lh-u) * 0.9) rgba(11, 140, 255, 0.9);
+}
+
+/* The huge line behind the subject, the reference's first device. */
+.lhome .lh-war__ghost {
+  position: absolute;
+  z-index: 0;
+  left: 50%;
+  top: var(--lh-war-cy);
+  width: max-content;
+  translate: -50% -50%;
+  font-size: min(calc(100cqw / (var(--chars) * 0.635)), 34svh);
+  font-weight: 400;
+  letter-spacing: -0.06em;
+  line-height: 0.86;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.52) 12%, rgba(120, 176, 255, 0.14) 88%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* --------------------------------------------------------------------------
+   Panels
+   -------------------------------------------------------------------------- */
+.lhome .lh-war__panels {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  gap: calc(var(--lh-u) * 0.75);
+  margin-top: calc(var(--lh-u) * -2.4);
+}
+.lhome .lh-war__panel {
+  position: relative;
+  display: grid;
+  gap: calc(var(--lh-u) * 0.55);
+  padding: calc(var(--lh-u) * 1.35) calc(var(--lh-u) * 1.45) calc(var(--lh-u) * 1.5);
+  border-radius: var(--lh-r-m);
+  background: linear-gradient(150deg, rgba(40, 84, 176, 0.42), rgba(10, 24, 66, 0.46));
+  border-color: rgba(170, 208, 255, 0.24);
+}
+.lhome .lh-war__no {
+  font-size: calc(var(--lh-u) * 0.78);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: #8cc4ff;
+}
+.lhome .lh-war__ptitle {
+  font-size: calc(var(--lh-u) * 1.5);
+  font-weight: 500;
+  color: #fff;
+}
+.lhome .lh-war__ptext {
+  font-size: calc(var(--lh-u) * 0.98);
+  line-height: 1.42;
+  color: rgba(235, 243, 255, 0.84);
+  text-wrap: pretty;
+}
+.lhome .lh-war__tick { display: none; }
+
+/* Two across once there is room, still under the shield. */
+@container lh-war (min-width: 620px) {
+  .lhome .lh-war__panels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* --------------------------------------------------------------------------
+   Orbit composition: wide and landscape. The shield sits on the stage's centre
+   and the panels hold the four corners of a pinwheel around it, leaving a clear
+   band through the middle for the giant line.
+   -------------------------------------------------------------------------- */
+@media (min-aspect-ratio: 1/1) {
+  @container lh-war (min-width: 860px) {
+    .lhome .lh-war__orbit {
+      --lh-war-h: min(70svh, 43cqw);
+      --lh-war-cy: 50%;
+      --lh-war-gap: calc(var(--lh-u) * 2.2);
+      --lh-war-pw: calc(var(--lh-u) * 24.5);
+      display: grid;
+      min-height: 100svh;
+      padding-block: calc(70px + 2.2svh) 4svh;
+    }
+    .lhome .lh-war__core {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      margin: calc(var(--lh-war-h) / -2) 0 0 calc(var(--lh-war-w) / -2);
+    }
+    .lhome .lh-war__panels {
+      z-index: 1;
+      margin-top: 0;
+      grid-template-columns: minmax(0, 1fr) calc(var(--lh-war-w) * 1.02) minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+      column-gap: var(--lh-war-gap);
+      row-gap: 13svh;
+    }
+    .lhome .lh-war__panel { width: min(100%, var(--lh-war-pw)); }
+    .lhome .lh-war__panel:nth-child(1) { grid-area: 1 / 1; align-self: start; justify-self: end; }
+    .lhome .lh-war__panel:nth-child(2) { grid-area: 1 / 3; align-self: start; justify-self: start; margin-top: 5svh; }
+    .lhome .lh-war__panel:nth-child(3) { grid-area: 2 / 1; align-self: end; justify-self: start; margin-bottom: 5svh; }
+    .lhome .lh-war__panel:nth-child(4) { grid-area: 2 / 3; align-self: end; justify-self: end; }
+
+    /* A hairline from each panel in toward the shield, as the reference anchors
+       its glass cards. They run under the shield, so their far ends can't float. */
+    .lhome .lh-war__tick {
+      position: absolute;
+      top: calc(var(--lh-u) * 2.05);
+      display: block;
+      height: 1px;
+      width: var(--lh-war-tick, calc(var(--lh-war-gap) + var(--lh-war-w) * 0.14));
+      background: linear-gradient(90deg, rgba(170, 208, 255, 0.7), rgba(170, 208, 255, 0.25));
+    }
+    .lhome .lh-war__tick::after {
+      content: "";
+      position: absolute;
+      top: calc(var(--lh-u) * -0.24);
+      width: calc(var(--lh-u) * 0.5);
+      height: calc(var(--lh-u) * 0.5);
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 0 calc(var(--lh-u) * 0.28) rgba(140, 196, 255, 0.28);
+    }
+    .lhome .lh-war__panel:nth-child(odd) .lh-war__tick { left: 100%; transform-origin: left center; }
+    .lhome .lh-war__panel:nth-child(odd) .lh-war__tick::after { right: 0; }
+    .lhome .lh-war__panel:nth-child(even) .lh-war__tick {
+      right: 100%;
+      transform-origin: right center;
+      background: linear-gradient(270deg, rgba(170, 208, 255, 0.7), rgba(170, 208, 255, 0.25));
+    }
+    .lhome .lh-war__panel:nth-child(even) .lh-war__tick::after { left: 0; }
+    .lhome .lh-war__panel:nth-child(3) .lh-war__tick,
+    .lhome .lh-war__panel:nth-child(4) .lh-war__tick { top: auto; bottom: calc(var(--lh-u) * 2.05); }
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Foot
+   -------------------------------------------------------------------------- */
+.lhome .lh-war__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--lh-u) * 1.2) calc(var(--lh-u) * 3);
+  margin-top: calc(var(--lh-u) * 1.5);
+  padding-block: calc(var(--lh-u) * 1.5) calc(var(--lh-u) * 3.2);
+  border-top: 1px solid var(--lh-line);
+}
+.lhome .lh-war__note {
+  flex: 1 1 calc(var(--lh-u) * 20);
+  max-width: 54ch;
+  font-size: calc(var(--lh-u) * 0.98);
+  line-height: 1.42;
+  color: var(--lh-mute);
+  text-wrap: pretty;
+}
+.lhome .lh-war__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--lh-u) * 0.6);
+}
+.lhome .lh-war__links .lh-btn { flex: 1 1 auto; }
+
+/* --------------------------------------------------------------------------
+   Idle life, on every device. The site's reduced-motion CSS flattens these and
+   the media query keeps them from starting at all.
+   -------------------------------------------------------------------------- */
+@keyframes lh-war-float {
+  0%, 100% { transform: translate3d(0, -1.1%, 0) rotate(-0.7deg); }
+  50% { transform: translate3d(0, 1.1%, 0) rotate(0.7deg); }
+}
+@keyframes lh-war-pulse {
+  0%, 100% { opacity: 0.76; transform: scale(0.97); }
+  50% { opacity: 1; transform: scale(1.03); }
+}
+@keyframes lh-war-spin { to { transform: rotate(360deg); } }
+@keyframes lh-war-sheen {
+  0%, 62% { transform: translateX(-46%); }
+  100% { transform: translateX(46%); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lhome .lh-war__float { animation: lh-war-float 9s ease-in-out infinite; }
+  .lhome .lh-war__glow { animation: lh-war-pulse 7s ease-in-out infinite; }
+  .lhome .lh-war__rings i { animation: lh-war-spin 46s linear infinite; }
+  .lhome .lh-war__rings i:nth-child(2) { animation-duration: 74s; animation-direction: reverse; }
+  .lhome .lh-war__rings i:nth-child(3) { animation-duration: 110s; }
+  .lhome .lh-war__sheen::before { animation: lh-war-sheen 8s cubic-bezier(0.45, 0, 0.2, 1) infinite; }
+}

@@ -1,0 +1,307 @@
+/* LandingAi: a black poster. The statue melts into the section, the title runs
+   across her, and the live phone stays beside the list as it scrolls past.
+   The whole poster scales with its container: --fs, --phone and --sw/--sh. */
+
+.lhome .lh-ai {
+  position: relative;
+  container-type: inline-size;
+  overflow: clip;
+  background: #000;
+}
+
+.lhome .lh-ai__dust {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: 100svh;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   Poster grid. Statue, list and phone are all anchored to the second row, so
+   they hold together however many lines the title takes in a language.
+   -------------------------------------------------------------------------- */
+.lhome .lh-ai__poster {
+  --fs: min(7.6cqw, 15.5svh);
+  --phone: max(260px, min(23cqw, 44svh));
+  --sw: min(86cqw, 150svh);
+  --sh: calc(var(--sw) * 0.9022);
+  --gap: calc(var(--lh-u) * 3);
+
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--phone);
+  grid-template-areas:
+    "head head"
+    "body dock";
+  column-gap: var(--gap);
+  padding: max(calc(var(--lh-u) * 6.5), 11svh) var(--lh-gutter) var(--lh-sec);
+}
+
+@supports (width: calc(1px * sqrt(4))) {
+  .lhome .lh-ai__poster {
+    --fs: min(calc(59cqw / sqrt(var(--chars))), calc(88cqw / (var(--word) * 0.54)), 15.5svh);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Statue
+   -------------------------------------------------------------------------- */
+.lhome .lh-ai__statue {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  z-index: 0;
+  align-self: start;
+  justify-self: start;
+  width: var(--sw);
+  height: var(--sh);
+  margin-top: calc(var(--sh) * -0.4);
+  margin-left: calc(-1 * var(--lh-gutter) - 10cqw);
+  pointer-events: none;
+}
+.lhome .lh-ai__statue-in {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  /* Dim under the title, melt at the bottom and into the particles on the right. */
+  --mask:
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.12) 0, rgba(0, 0, 0, 0.2) 32%, #000 50%, #000 72%, transparent 98%),
+    linear-gradient(to right, #000 76%, transparent 100%),
+    radial-gradient(ellipse 32% 22% at 20% 27%, rgba(0, 0, 0, 0.22) 62%, #000 100%);
+  -webkit-mask-image: var(--mask);
+  mask-image: var(--mask);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+.lhome .lh-ai__statue img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* --------------------------------------------------------------------------
+   Title
+   -------------------------------------------------------------------------- */
+.lhome .lh-ai__head {
+  grid-area: head;
+  position: relative;
+  z-index: 2;
+}
+.lhome .lh-ai__head .lh-kicker {
+  margin-bottom: calc(var(--lh-u) * 1.3);
+  color: rgba(255, 255, 255, 0.78);
+}
+.lhome .lh-ai__title {
+  font-size: var(--fs);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.042em;
+  color: #fff;
+}
+/* The phone rises beside the third line, so the title wraps around it. */
+.lhome .lh-ai__title::before {
+  content: "";
+  float: right;
+  width: calc(var(--phone) + var(--gap) * 0.5);
+  height: calc(var(--fs) * 3);
+  shape-outside: inset(calc(var(--fs) * 2) 0 0 0);
+}
+.lhome .lh-ai__title em.lh-accent {
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  /* Playfair sits smaller on the line than Inter Tight. */
+  font-size: 1.04em;
+  color: #6ea8ff;
+}
+/* Room for descenders inside the masked lines. */
+.lhome .lh-ai__title .lh-split-line-mask {
+  padding-block: 0.06em 0.2em;
+  margin-block: -0.06em -0.2em;
+}
+
+/* --------------------------------------------------------------------------
+   Phone. Its internals are sized in rem and px, so the whole device is zoomed
+   from its width and keeps its proportions from a phone screen to 4K.
+   -------------------------------------------------------------------------- */
+.lhome .lh-ai__dock {
+  grid-area: dock;
+  position: sticky;
+  top: max(calc(var(--lh-u) * 5), calc(50svh - var(--phone)));
+  z-index: 3;
+  align-self: start;
+  margin-top: calc(var(--fs) * -0.98);
+}
+.lhome .lh-ai__dock::before {
+  content: "";
+  position: absolute;
+  inset: -16% -38%;
+  z-index: -1;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(10, 77, 255, 0.5), rgba(11, 140, 255, 0.14) 58%, transparent);
+  pointer-events: none;
+}
+.lhome .lh-ai__device {
+  container-type: inline-size;
+  width: var(--phone);
+  transform-origin: 50% 40%;
+  will-change: transform;
+}
+.lhome .lh-ai__device .phone {
+  width: 292px;
+  margin: 0;
+  zoom: tan(atan2(100cqw, 292px));
+  background: #05070d;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 26px 70px rgba(0, 0, 0, 0.72),
+    0 0 90px rgba(11, 140, 255, 0.28);
+}
+.lhome .lh-ai__device .phone__n { background: #05070d; }
+
+/* --------------------------------------------------------------------------
+   Copy and list
+   -------------------------------------------------------------------------- */
+.lhome .lh-ai__body {
+  grid-area: body;
+  position: relative;
+  z-index: 2;
+  /* Starts under the scale pans, where the statue has almost gone. */
+  padding-top: calc(var(--sh) * 0.53);
+  container: lh-ai-body / inline-size;
+}
+.lhome .lh-ai__lead {
+  max-width: 30em;
+  font-size: min(calc(var(--lh-u) * 2), max(calc(var(--lh-u) * 1.28), 2.9cqi));
+  line-height: 1.26;
+  letter-spacing: -0.022em;
+  color: #fff;
+  text-wrap: pretty;
+}
+
+.lhome .lh-ai__list {
+  margin-top: calc(var(--lh-u) * 3.4);
+  border-bottom: 1px solid var(--lh-line);
+}
+.lhome .lh-ai__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: calc(var(--lh-u) * 2.8) minmax(0, 1fr);
+  column-gap: calc(var(--lh-u) * 0.4);
+  row-gap: calc(var(--lh-u) * 0.5);
+  align-items: baseline;
+  padding-block: calc(var(--lh-u) * 1.5);
+}
+.lhome .lh-ai__rule {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: var(--lh-line);
+  transform-origin: 0 50%;
+}
+.lhome .lh-ai__num {
+  font-size: calc(var(--lh-u) * 0.84);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: #6ea8ff;
+}
+.lhome .lh-ai__term {
+  font-size: min(calc(var(--lh-u) * 3), max(calc(var(--lh-u) * 1.55), 3.1cqi));
+  font-weight: 400;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  color: #fff;
+  text-wrap: balance;
+  transition: transform 0.7s var(--lh-ease), color 0.3s;
+}
+.lhome .lh-ai__detail {
+  grid-column: 2;
+  display: block;
+  max-width: 34em;
+  font-size: calc(var(--lh-u) * 1.02);
+  line-height: 1.38;
+  color: var(--lh-mute);
+  text-wrap: pretty;
+}
+.lhome .lh-ai__detail::first-letter { text-transform: uppercase; }
+
+@media (hover: hover) and (pointer: fine) {
+  .lhome .lh-ai__row:hover .lh-ai__term {
+    transform: translateX(0.28em);
+    color: #6ea8ff;
+  }
+}
+
+@container lh-ai-body (min-width: 36rem) {
+  .lhome .lh-ai__row {
+    grid-template-columns: calc(var(--lh-u) * 3.4) minmax(0, 1.06fr) minmax(0, 1fr);
+    column-gap: calc(var(--lh-u) * 1.2);
+  }
+  .lhome .lh-ai__term:last-child { grid-column: 2 / -1; }
+  .lhome .lh-ai__detail { grid-column: 3; }
+}
+
+.lhome .lh-ai__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--lh-u) * 1.4) calc(var(--lh-u) * 2.5);
+  margin-top: calc(var(--lh-u) * 2.2);
+}
+.lhome .lh-ai__info {
+  flex: 1 1 18em;
+  max-width: 28em;
+  font-size: calc(var(--lh-u) * 0.94);
+  line-height: 1.4;
+  color: var(--lh-mute);
+}
+.lhome .lh-ai__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--lh-u) * 0.65);
+}
+
+/* --------------------------------------------------------------------------
+   Portrait: title, statue, phone, then the copy
+   -------------------------------------------------------------------------- */
+@media (max-aspect-ratio: 1/1) {
+  .lhome .lh-ai__poster {
+    --fs: 12cqw;
+    --phone: min(78cqw, 40svh);
+    --sw: 135cqw;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "head"
+      "statue"
+      "dock"
+      "body";
+    padding-top: max(calc(var(--lh-u) * 5.5), 80px);
+  }
+  @supports (width: calc(1px * sqrt(4))) {
+    .lhome .lh-ai__poster {
+      --fs: min(calc(92cqw / sqrt(var(--chars))), calc(90cqw / (var(--word) * 0.56)));
+    }
+  }
+  .lhome .lh-ai__statue {
+    grid-area: statue;
+    margin-top: calc(var(--sh) * -0.22);
+    margin-bottom: calc(var(--sh) * -0.2);
+    margin-left: calc(-1 * var(--lh-gutter) - 30cqw);
+  }
+  .lhome .lh-ai__title { text-wrap: balance; }
+  .lhome .lh-ai__title::before { content: none; }
+  .lhome .lh-ai__dock {
+    position: relative;
+    top: auto;
+    justify-self: center;
+    margin-top: 0;
+  }
+  .lhome .lh-ai__dock::before { inset: -10% -24%; }
+  .lhome .lh-ai__body {
+    padding-top: calc(var(--lh-u) * 4.2);
+  }
+}

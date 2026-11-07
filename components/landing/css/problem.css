@@ -1,0 +1,328 @@
+/* ==========================================================================
+   LandingProblem: a giant statement that brightens, then four full-bleed scenes.
+
+   The resting CSS is a plain stack of full-height scenes, complete without JS
+   and under reduced motion. motion/problem.ts adds .is-staged to the stage,
+   which stacks them for the scrubbed version.
+
+   container-type lives on the stage itself, never on an ancestor of it: layout
+   containment on an ancestor would capture the pin's position:fixed.
+   ========================================================================== */
+.lhome .lh-prob {
+  position: relative;
+  border-radius: var(--lh-r-l) var(--lh-r-l) 0 0;
+}
+
+/* --------------------------------------------------------------------------
+   Intro
+   -------------------------------------------------------------------------- */
+.lhome .lh-prob__intro {
+  container-type: inline-size;
+  position: relative;
+  padding: var(--lh-sec) var(--lh-gutter) calc(var(--lh-sec) * 0.8);
+}
+.lhome .lh-prob__intro .lh-kicker {
+  font-size: max(calc(var(--lh-u) * 0.92), 1.05cqw);
+}
+.lhome .lh-prob__title {
+  margin-top: calc(var(--lh-u) * 1.6);
+  font-size: min(16.2cqw, 12svh);
+  font-weight: 400;
+  letter-spacing: -0.042em;
+  line-height: 0.97;
+  color: #fff;
+}
+.lhome .lh-prob__tw {
+  display: inline-block;
+  padding-right: 0.05em;
+  margin-right: -0.05em;
+}
+.lhome .lh-prob__title em.lh-prob__tw {
+  font-weight: 400;
+  padding-right: 0.1em;
+}
+
+/* --------------------------------------------------------------------------
+   Stage and scenes. Default composition is portrait: title on top, text at the
+   bottom, the subject breathing between them.
+   -------------------------------------------------------------------------- */
+.lhome .lh-prob__stage {
+  --lh-prob-t: min(15cqw, 8.8svh);
+  --lh-prob-p: max(calc(var(--lh-u) * 1.06), min(1.3cqw, 2.3svh));
+  container-type: inline-size;
+  position: relative;
+  background: var(--lh-black);
+}
+.lhome .lh-prob__scene {
+  position: relative;
+  min-height: 100svh;
+  overflow: hidden;
+  background: var(--lh-navy);
+}
+.lhome .lh-prob__media,
+.lhome .lh-prob__scrim,
+.lhome .lh-prob__veil {
+  position: absolute;
+  inset: 0;
+}
+.lhome .lh-prob__media { overflow: hidden; }
+.lhome .lh-prob__media img { object-fit: cover; }
+.lhome .lh-prob__scrim { pointer-events: none; }
+.lhome .lh-prob__veil {
+  pointer-events: none;
+  background: var(--lh-black);
+  opacity: 0;
+}
+
+.lhome .lh-prob__copy {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr auto;
+  min-height: 100svh;
+  padding: calc(70px + var(--lh-u) * 1.3) calc(var(--lh-gutter) + var(--lh-u) * 0.4) max(calc(var(--lh-u) * 2.2), 5.5svh) var(--lh-gutter);
+  color: #fff;
+}
+/* Clears the fixed tab bar on narrow screens. */
+@media (max-width: 760px) {
+  .lhome .lh-prob__copy {
+    padding-bottom: calc(90px + env(safe-area-inset-bottom) + var(--lh-u) * 0.8);
+  }
+}
+
+.lhome .lh-prob__count {
+  grid-row: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.28em;
+  margin-bottom: calc(var(--lh-u) * 0.5);
+  font-size: max(calc(var(--lh-u) * 0.92), min(1.05cqw, 1.9svh));
+  letter-spacing: 0.02em;
+}
+.lhome .lh-prob__count b {
+  font: italic 500 2.3em / 1 var(--lh-serif);
+  letter-spacing: -0.03em;
+}
+.lhome .lh-prob__h3 {
+  grid-row: 2;
+  font-size: var(--lh-prob-t);
+  font-weight: 400;
+  letter-spacing: -0.042em;
+  line-height: 0.97;
+  color: #fff;
+}
+/* The mask keeps descenders and the dots of Cyrillic letters at rest. */
+.lhome .lh-prob__w {
+  display: inline-block;
+  overflow: clip;
+  padding: 0.1em 0.07em 0.16em 0;
+  margin: -0.1em -0.07em -0.16em 0;
+  vertical-align: top;
+}
+.lhome .lh-prob__wi { display: inline-block; }
+.lhome .lh-prob__half { display: block; }
+.lhome .lh-prob__h3--split .lh-prob__half:last-child { text-align: right; }
+
+.lhome .lh-prob__text {
+  grid-row: 4;
+  align-self: end;
+  max-width: 34ch;
+  font-size: var(--lh-prob-p);
+  line-height: 1.38;
+  letter-spacing: 0;
+  color: #fff;
+  text-wrap: pretty;
+}
+
+/* Scrims: at least 4.5:1 for white text, shaped so the subject keeps its light. */
+.lhome .lh-prob__scrim {
+  background:
+    linear-gradient(to bottom, rgba(5, 7, 13, 0.74) 0, rgba(5, 7, 13, 0.62) 34%, rgba(5, 7, 13, 0) 52%),
+    linear-gradient(to top, rgba(5, 7, 13, 0.86) 0, rgba(5, 7, 13, 0.66) 20%, rgba(5, 7, 13, 0) 34%);
+}
+.lhome .lh-prob__scene--torn .lh-prob__scrim,
+.lhome .lh-prob__scene--storm .lh-prob__scrim {
+  background:
+    linear-gradient(to bottom, rgba(5, 7, 13, 0.82) 0, rgba(5, 7, 13, 0.7) 30%, rgba(5, 7, 13, 0) 44%),
+    linear-gradient(to top, rgba(5, 7, 13, 0.88) 0, rgba(5, 7, 13, 0.7) 18%, rgba(5, 7, 13, 0) 32%);
+}
+
+/* --------------------------------------------------------------------------
+   Landscape: each scene is composed around where its photograph leaves room.
+   -------------------------------------------------------------------------- */
+@media not (max-aspect-ratio: 1/1) {
+  .lhome .lh-prob__title { font-size: min(9.3cqw, 19.5svh); }
+  .lhome .lh-prob__stage { --lh-prob-t: min(6.5cqw, 13.5svh); }
+  .lhome .lh-prob__text { max-width: none; }
+
+  /* Maze: bottom left, in the dark of the walls. The figure stays to the right. */
+  .lhome .lh-prob__scene--maze .lh-prob__copy {
+    grid-template-columns: minmax(0, 57cqw) minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    align-content: end;
+  }
+  .lhome .lh-prob__scene--maze .lh-prob__text {
+    grid-row: 3;
+    max-width: 40ch;
+    margin-top: calc(var(--lh-u) * 1.1);
+  }
+  .lhome .lh-prob__scene--maze .lh-prob__scrim {
+    background:
+      linear-gradient(to bottom, rgba(5, 7, 13, 0.55) 0, rgba(5, 7, 13, 0) 20%),
+      linear-gradient(72deg, rgba(5, 7, 13, 0.88) 0, rgba(5, 7, 13, 0.72) 34%, rgba(5, 7, 13, 0) 58%);
+  }
+
+  /* Doors: the title stands to the left of the door, the text to the right. */
+  .lhome .lh-prob__scene--doors .lh-prob__copy {
+    grid-template-columns: minmax(0, 34cqw) minmax(0, 1fr) minmax(0, 24cqw);
+    grid-template-rows: auto auto;
+    align-content: end;
+  }
+  .lhome .lh-prob__scene--doors .lh-prob__count { grid-column: 1; }
+  .lhome .lh-prob__scene--doors .lh-prob__h3 { grid-column: 1; }
+  .lhome .lh-prob__scene--doors .lh-prob__text {
+    grid-column: 3;
+    grid-row: 2;
+    align-self: end;
+    padding-bottom: 0.2em;
+  }
+  .lhome .lh-prob__scene--doors .lh-prob__scrim {
+    background:
+      linear-gradient(to bottom, rgba(5, 7, 13, 0.5) 0, rgba(5, 7, 13, 0) 18%),
+      linear-gradient(to top, rgba(5, 7, 13, 0.55) 0, rgba(5, 7, 13, 0) 40%);
+  }
+
+  /* Torn: the paper runs low left to high right, the words take the other diagonal. */
+  .lhome .lh-prob__scene--torn .lh-prob__copy {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 27cqw);
+    grid-template-rows: auto auto 1fr;
+  }
+  .lhome .lh-prob__scene--torn .lh-prob__count,
+  .lhome .lh-prob__scene--torn .lh-prob__h3 { grid-column: 1 / -1; }
+  .lhome .lh-prob__scene--torn .lh-prob__h3 { max-width: 40cqw; }
+  .lhome .lh-prob__scene--torn .lh-prob__text {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .lhome .lh-prob__scene--torn .lh-prob__scrim {
+    background:
+      radial-gradient(ellipse 62% 58% at 8% 6%, rgba(5, 7, 13, 0.86) 0, rgba(5, 7, 13, 0.7) 52%, rgba(5, 7, 13, 0) 100%),
+      linear-gradient(315deg, rgba(5, 7, 13, 0.7) 0, rgba(5, 7, 13, 0) 30%);
+  }
+
+  /* Storm: the title is thrown apart around the figure. */
+  .lhome .lh-prob__scene--storm .lh-prob__copy {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr auto;
+  }
+  .lhome .lh-prob__scene--storm .lh-prob__h3 {
+    --lh-prob-t: min(8cqw, 15.5svh);
+    display: flex;
+    justify-content: space-between;
+    gap: 13cqw;
+    align-self: center;
+    grid-row: 2;
+  }
+  .lhome .lh-prob__scene--storm .lh-prob__half:first-child { margin-top: -0.9em; }
+  .lhome .lh-prob__scene--storm .lh-prob__half:last-child { margin-top: 0.9em; }
+  .lhome .lh-prob__scene--storm .lh-prob__text {
+    grid-row: 3;
+    max-width: 30cqw;
+  }
+  .lhome .lh-prob__scene--storm .lh-prob__scrim {
+    background:
+      linear-gradient(to right, rgba(5, 7, 13, 0.76) 0, rgba(5, 7, 13, 0.64) 30%, rgba(5, 7, 13, 0) 43%, rgba(5, 7, 13, 0) 57%, rgba(5, 7, 13, 0.64) 70%, rgba(5, 7, 13, 0.76) 100%),
+      linear-gradient(to bottom, rgba(5, 7, 13, 0.4) 0, rgba(5, 7, 13, 0) 22%);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Scrubbed version: added by motion/problem.ts only.
+   -------------------------------------------------------------------------- */
+.lhome .lh-prob__stage.is-staged {
+  height: 100svh;
+  overflow: clip;
+}
+.lhome .is-staged .lh-prob__scene {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+}
+.lhome .is-staged .lh-prob__copy {
+  position: absolute;
+  inset: 0;
+  min-height: 0;
+}
+.lhome .is-staged .lh-prob__scene:nth-child(1) { z-index: 1; }
+.lhome .is-staged .lh-prob__scene:nth-child(2) { z-index: 2; }
+.lhome .is-staged .lh-prob__scene:nth-child(3) { z-index: 3; }
+.lhome .is-staged .lh-prob__scene:nth-child(4) { z-index: 4; }
+
+/* The door's opening edges, two lines of light sliding apart. */
+.lhome .lh-prob__slit { display: none; }
+.lhome .is-staged .lh-prob__slit {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  overflow: hidden;
+}
+.lhome .lh-prob__slit i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  opacity: 0;
+}
+.lhome .lh-prob__slit i:first-child {
+  left: 0;
+  background: linear-gradient(to left, rgba(190, 215, 255, 0.55), rgba(190, 215, 255, 0) 4cqw);
+  border-right: 1px solid #fff;
+}
+.lhome .lh-prob__slit i:last-child {
+  right: 0;
+  background: linear-gradient(to right, rgba(190, 215, 255, 0.55), rgba(190, 215, 255, 0) 4cqw);
+  border-left: 1px solid #fff;
+}
+
+/* Position rail: a hairline in the right gutter with one mark per scene. */
+.lhome .lh-prob__rail { display: none; }
+.lhome .is-staged .lh-prob__rail {
+  display: block;
+  position: absolute;
+  top: calc(70px + var(--lh-u) * 1.6);
+  bottom: max(calc(var(--lh-u) * 2.4), 5.5svh);
+  right: calc(var(--lh-gutter) * 0.42);
+  z-index: 6;
+  width: max(2px, 0.07cqw);
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 99px;
+  pointer-events: none;
+}
+@media (max-width: 760px) {
+  .lhome .is-staged .lh-prob__rail {
+    bottom: calc(90px + env(safe-area-inset-bottom) + var(--lh-u));
+  }
+}
+.lhome .lh-prob__fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: #fff;
+  transform: scaleY(0);
+  transform-origin: 50% 0;
+}
+.lhome .lh-prob__rail b {
+  position: absolute;
+  left: 50%;
+  width: max(7px, 0.26cqw);
+  aspect-ratio: 1;
+  margin: calc(max(7px, 0.26cqw) / -2) 0 0 calc(max(7px, 0.26cqw) / -2);
+  border-radius: 50%;
+  background: #fff;
+}
+.lhome .lh-prob__rail b:nth-of-type(1) { top: 0; }
+.lhome .lh-prob__rail b:nth-of-type(2) { top: 33.333%; }
+.lhome .lh-prob__rail b:nth-of-type(3) { top: 66.667%; }
+.lhome .lh-prob__rail b:nth-of-type(4) { top: 100%; }

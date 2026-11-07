@@ -1,15 +1,22 @@
 import { setRequestLocale } from "next-intl/server";
-import Hero from "@/components/sections/Hero";
-import ProblemSection from "@/components/sections/ProblemSection";
-import AiSection from "@/components/sections/AiSection";
-import StagesSection from "@/components/sections/StagesSection";
-import ServicesSection from "@/components/sections/ServicesSection";
-import BenefitsSection from "@/components/sections/BenefitsSection";
-import LawyersSection from "@/components/sections/LawyersSection";
-import WarrantySection from "@/components/sections/WarrantySection";
-import SubscriptionSection from "@/components/sections/SubscriptionSection";
-import FaqSection from "@/components/sections/FaqSection";
-import FinalCtaSection from "@/components/sections/FinalCtaSection";
+import { landingSans, landingSerif } from "@/components/landing/fonts";
+import "@/components/landing/landing.css";
+import LandingDefs from "@/components/landing/LandingDefs";
+import LandingHero from "@/components/landing/LandingHero";
+import LandingFinder from "@/components/landing/LandingFinder";
+import LandingManifesto from "@/components/landing/LandingManifesto";
+import LandingProblem from "@/components/landing/LandingProblem";
+import LandingBand from "@/components/landing/LandingBand";
+import LandingAi from "@/components/landing/LandingAi";
+import LandingStages from "@/components/landing/LandingStages";
+import LandingServices from "@/components/landing/LandingServices";
+import LandingBenefits from "@/components/landing/LandingBenefits";
+import LandingLawyers from "@/components/landing/LandingLawyers";
+import LandingWarranty from "@/components/landing/LandingWarranty";
+import LandingSubscription from "@/components/landing/LandingSubscription";
+import LandingFaq from "@/components/landing/LandingFaq";
+import LandingFinalCta from "@/components/landing/LandingFinalCta";
+import LandingMotion from "@/components/landing/LandingMotion";
 
 export default async function HomePage({
   params,
@@ -20,29 +27,37 @@ export default async function HomePage({
   setRequestLocale(locale);
 
   return (
-    <>
+    // One plain root: React removes it whole when leaving the page, which keeps
+    // pinned sections safe. Only real data here: the lawyers come from the
+    // backend, and the page carries no invented counters or quotes.
+    <div className={`lhome ${landingSans.variable} ${landingSerif.variable}`}>
+      <LandingDefs />
       {/* Attention */}
-      <Hero />
+      <LandingHero />
+      <LandingFinder />
       {/* Problem / Need */}
-      <ProblemSection />
+      <LandingManifesto />
+      <LandingProblem />
+      <LandingBand />
       {/* Solution */}
-      <AiSection />
-      <StagesSection />
-      <ServicesSection />
+      <LandingAi />
+      <LandingStages />
+      <LandingServices />
       {/* Benefits */}
-      <BenefitsSection />
-      {/* Trust / Social proof */}
-      {/* Only real data here: the lawyers come from the backend. The counters,
-          the "live activity" ticker and the quotes that used to sit around
-          them were made up, so they are gone until real figures exist. */}
-      <LawyersSection />
-      <WarrantySection />
+      <LandingBenefits />
+      {/* Trust */}
+      <LandingLawyers />
+      <LandingWarranty />
       {/* Offer */}
-      <SubscriptionSection />
+      <LandingSubscription />
       {/* Objection handling */}
-      <FaqSection />
+      <LandingFaq />
       {/* Main CTA */}
-      <FinalCtaSection />
-    </>
+      <LandingFinalCta />
+      <span className="lh-cursor" aria-hidden="true">
+        <b />
+      </span>
+      <LandingMotion />
+    </div>
   );
 }

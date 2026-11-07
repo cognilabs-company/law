@@ -1,0 +1,362 @@
+/* ==========================================================================
+   LandingServices: a large rounded panel, its text on one side and a row of
+   notched photo cards running off the other, over one giant word.
+   The panel is the container, so everything inside follows its width.
+   ========================================================================== */
+.lhome .lh-svc {
+  position: relative;
+  padding: calc(var(--lh-sec) * 0.5) calc(var(--lh-u) * 0.75);
+  background: var(--lh-bg);
+}
+.lhome .lh-svc__panel {
+  position: relative;
+  container: lh-svc / inline-size;
+  border-radius: var(--lh-r-l);
+  background: var(--lh-card);
+  overflow: clip;
+}
+
+/* --------------------------------------------------------------------------
+   Layout. Wide is the base; the narrow container query below re-stacks it.
+   -------------------------------------------------------------------------- */
+.lhome .lh-svc__grid {
+  --lh-p: 0;
+  --lh-pad: max(calc(var(--lh-u) * 1.6), 3.6cqw);
+  --lh-card-w: min(31cqw, 56svh);
+  --lh-stag: calc(var(--lh-card-w) * 0.13);
+  --lh-word: min(calc(100cqw / (var(--chars, 16) * 0.47)), 30svh);
+
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 36fr) minmax(0, 64fr);
+  grid-template-rows: 1fr auto;
+  grid-template-areas:
+    "side view"
+    "ctrl view";
+  row-gap: calc(var(--lh-u) * 2);
+  padding-block: var(--lh-pad) calc(var(--lh-word) * 0.8);
+}
+
+/* The giant word: behind everything, cut by the panel's bottom edge. */
+.lhome .lh-svc__ghost {
+  position: absolute;
+  left: 0;
+  bottom: calc(var(--lh-word) * -0.16);
+  z-index: 0;
+  padding-inline: 0.12em;
+  font-size: var(--lh-word);
+  font-weight: 400;
+  letter-spacing: -0.065em;
+  line-height: 0.9;
+  white-space: nowrap;
+  color: var(--lh-mist);
+  opacity: 0.62;
+  pointer-events: none;
+  user-select: none;
+}
+
+.lhome .lh-svc__side,
+.lhome .lh-svc__ctrl,
+.lhome .lh-svc__view { position: relative; z-index: 1; }
+
+/* --------------------------------------------------------------------------
+   Panel text
+   -------------------------------------------------------------------------- */
+.lhome .lh-svc__side {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--lh-u) * 2.2);
+  padding-inline-start: var(--lh-pad);
+}
+.lhome .lh-svc__top {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--lh-u) * 0.9);
+}
+.lhome .lh-svc__thumb {
+  flex: none;
+  width: max(calc(var(--lh-u) * 5.6), 7.4cqw);
+  aspect-ratio: 16 / 10;
+  border-radius: var(--lh-r-s);
+}
+.lhome .lh-svc__copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: calc(var(--lh-u) * 1.3);
+  margin-block-start: auto;
+}
+.lhome .lh-svc__title {
+  font-size: min(6.1cqw, 13svh);
+  font-weight: 500;
+  letter-spacing: -0.052em;
+  line-height: 0.96;
+  text-wrap: balance;
+}
+/* Masked lines must not shave the descenders of tight display type. */
+.lhome .lh-svc__title .lh-split-line {
+  padding-block-end: 0.14em;
+  margin-block-end: -0.14em;
+}
+.lhome .lh-svc__lead {
+  font-size: max(calc(var(--lh-u) * 1.12), 1cqw);
+  max-width: 30ch;
+}
+.lhome .lh-svc__all { margin-block-start: calc(var(--lh-u) * 0.3); }
+
+/* --------------------------------------------------------------------------
+   The scroller: native scrolling and snap, soft left edge, bleeding off right.
+   -------------------------------------------------------------------------- */
+.lhome .lh-svc__view {
+  --lh-edge: calc(var(--lh-u) * 2.6);
+  grid-area: view;
+  align-self: end;
+  /* Runs down into the giant word so the cards overlap it. */
+  margin-block-end: calc(var(--lh-word) * -0.5);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline-start: var(--lh-edge);
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 var(--lh-edge));
+  mask-image: linear-gradient(90deg, transparent 0, #000 var(--lh-edge));
+}
+.lhome .lh-svc__view::-webkit-scrollbar { display: none; }
+.lhome .lh-svc__view:focus-visible {
+  outline: 2px solid var(--focus, var(--lh-accent));
+  outline-offset: -4px;
+  border-radius: var(--lh-r-m);
+}
+.lhome .lh-svc__view.is-drag {
+  scroll-snap-type: none;
+  user-select: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .lhome .lh-svc__view { cursor: grab; }
+  .lhome .lh-svc__view.is-drag,
+  .lhome .lh-svc__view.is-drag * { cursor: grabbing; }
+}
+
+.lhome .lh-svc__row {
+  display: flex;
+  align-items: flex-start;
+  width: max-content;
+  gap: calc(var(--lh-card-w) * 0.055);
+  padding: calc(var(--lh-u) * 0.5) calc(var(--lh-u) * 1.6) calc(var(--lh-u) * 0.5) var(--lh-edge);
+}
+.lhome .lh-svc__row > li {
+  flex: none;
+  width: var(--lh-card-w);
+  scroll-snap-align: start;
+}
+.lhome .lh-svc__row > li:nth-child(even) { margin-block-start: var(--lh-stag); }
+
+/* --------------------------------------------------------------------------
+   Card. It is its own container, so its type always fits its own size.
+   -------------------------------------------------------------------------- */
+.lhome .lh-svc__card {
+  position: relative;
+  display: block;
+  container-type: inline-size;
+  color: #fff;
+  text-decoration: none;
+  -webkit-user-drag: none;
+}
+.lhome .lh-svc__card:focus-visible {
+  outline: 2px solid var(--focus, var(--lh-accent));
+  outline-offset: 3px;
+  border-radius: var(--lh-r-m);
+}
+.lhome .lh-svc__frame {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--lh-navy);
+  clip-path: url(#lh-clip-card);
+}
+.lhome .lh-svc__drift {
+  position: absolute;
+  inset: -8%;
+  transition: scale 1.1s var(--lh-ease);
+}
+.lhome .lh-svc__drift img {
+  object-fit: cover;
+  -webkit-user-drag: none;
+}
+/* Scrim under the caption: with the glass it holds 4.5:1 over white paper. */
+.lhome .lh-svc__frame::after {
+  content: "";
+  position: absolute;
+  inset: 45% 0 0;
+  background: linear-gradient(180deg, rgba(5, 9, 22, 0) 0%, rgba(5, 9, 22, 0.62) 100%);
+  pointer-events: none;
+}
+
+.lhome .lh-svc__cap {
+  position: absolute;
+  inset: auto 3.4cqi 3.4cqi;
+  z-index: 1;
+  display: grid;
+  gap: max(1.5cqi, 5px);
+  padding: max(4.2cqi, 12px) max(4.6cqi, 13px);
+  border-radius: 5cqi;
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(8, 16, 40, 0.62);
+}
+.lhome .lh-svc__name {
+  font-size: max(6.1cqi, 17px);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+}
+.lhome .lh-svc__text {
+  font-size: max(3.45cqi, 12.5px);
+  line-height: 1.32;
+  color: rgba(255, 255, 255, 0.88);
+  text-wrap: pretty;
+}
+.lhome .lh-svc__price {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  margin-block-start: max(1.4cqi, 4px);
+  padding-block-start: max(2.4cqi, 8px);
+  border-block-start: 1px solid rgba(255, 255, 255, 0.24);
+  font-size: max(3.2cqi, 12px);
+  color: rgba(255, 255, 255, 0.88);
+}
+.lhome .lh-svc__price b {
+  font-size: max(7.6cqi, 22px);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: #fff;
+}
+
+/* The two marks sitting in the stepped notch. */
+.lhome .lh-svc__go {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  width: 12.4cqi;
+  height: 12.4cqi;
+  border-radius: 50%;
+  background: var(--lh-cobalt);
+  color: #fff;
+  transition: transform 0.7s var(--lh-ease), background-color 0.25s;
+}
+.lhome .lh-svc__go svg {
+  width: 46%;
+  height: 46%;
+  transition: transform 0.7s var(--lh-ease);
+}
+.lhome .lh-svc__no {
+  position: absolute;
+  top: 4.2cqi;
+  right: 15.2cqi;
+  font-size: max(3cqi, 11px);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  color: var(--lh-mute);
+}
+@media (hover: hover) {
+  .lhome .lh-svc__card:hover .lh-svc__drift { scale: 1.05; }
+  .lhome .lh-svc__card:hover .lh-svc__go { transform: scale(1.08); }
+  .lhome .lh-svc__card:hover .lh-svc__go svg { transform: rotate(45deg); }
+}
+
+/* --------------------------------------------------------------------------
+   Position readout and round controls
+   -------------------------------------------------------------------------- */
+.lhome .lh-svc__ctrl {
+  grid-area: ctrl;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--lh-u) * 0.8);
+  padding-inline-start: var(--lh-pad);
+}
+.lhome .lh-svc__count {
+  flex: none;
+  font-size: calc(var(--lh-u) * 0.82);
+  font-variant-numeric: tabular-nums;
+  color: var(--lh-mute);
+}
+.lhome .lh-svc__count b {
+  font-weight: 500;
+  color: var(--lh-text);
+}
+.lhome .lh-svc__rail {
+  position: relative;
+  flex: 1;
+  min-width: calc(var(--lh-u) * 2);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--lh-line);
+  overflow: hidden;
+}
+.lhome .lh-svc__rail i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(100% / var(--lh-n, 4));
+  border-radius: 2px;
+  background: var(--lh-accent);
+  transform: translateX(calc(var(--lh-p) * (var(--lh-n, 4) - 1) * 100%));
+}
+.lhome .lh-svc__ctrl .lh-round { flex: none; }
+.lhome .lh-svc__ctrl .lh-round[aria-disabled="true"] {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* --------------------------------------------------------------------------
+   Narrow container: text first, then a full-width row over the word.
+   -------------------------------------------------------------------------- */
+@container lh-svc (max-width: 860px) {
+  .lhome .lh-svc__grid {
+    --lh-pad: calc(var(--lh-u) * 1.5);
+    --lh-card-w: max(46cqw, min(80cqw, calc(var(--lh-u) * 20), 68svh));
+
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "side"
+      "view"
+      "ctrl";
+    row-gap: 0;
+    padding-block: var(--lh-pad);
+  }
+  .lhome .lh-svc__side {
+    gap: calc(var(--lh-u) * 1.8);
+    padding-inline: var(--lh-pad);
+  }
+  .lhome .lh-svc__thumb { width: calc(var(--lh-u) * 5.6); }
+  .lhome .lh-svc__title { font-size: min(13.4cqw, calc(var(--lh-u) * 5.2)); }
+  .lhome .lh-svc__lead { font-size: calc(var(--lh-u) * 1.08); max-width: 38ch; }
+
+  /* The word sits in the same cell as the row and pokes out above the cards. */
+  .lhome .lh-svc__ghost {
+    position: relative;
+    grid-area: view;
+    align-self: start;
+    bottom: auto;
+    margin-block-start: calc(var(--lh-u) * 1.4);
+  }
+  .lhome .lh-svc__view {
+    --lh-edge: var(--lh-pad);
+    align-self: stretch;
+    margin-block-end: 0;
+    padding-block-start: calc(var(--lh-u) * 1.4 + var(--lh-word) * 0.62);
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .lhome .lh-svc__row { padding-inline-end: var(--lh-pad); }
+  .lhome .lh-svc__ctrl {
+    padding-inline: var(--lh-pad);
+    padding-block-start: calc(var(--lh-u) * 0.9);
+  }
+}

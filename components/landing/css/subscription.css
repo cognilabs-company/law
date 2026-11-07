@@ -1,0 +1,481 @@
+/* ==========================================================================
+   12. LandingSubscription: a window that opens on a family at dusk, then the
+   existing SubscriptionSection restyled in scope. GSAP never touches the plans.
+   ========================================================================== */
+.lhome .lh-sub {
+  position: relative;
+  padding-block-start: calc(var(--lh-u) * 1);
+}
+.lhome .lh-sub__defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* --------------------------------------------------------------------------
+   The band
+   -------------------------------------------------------------------------- */
+.lhome .lh-sub__pin {
+  display: flex;
+  min-height: 100svh;
+  padding: clamp(8px, 1.4svh, calc(var(--lh-u) * 1.2)) clamp(8px, 0.9vw, calc(var(--lh-u) * 1.2));
+}
+.lhome .lh-sub__frame {
+  --lh-accent: #9cc8ff;
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+  container: lh-subf / inline-size;
+  border-radius: var(--lh-r-l);
+  background: #04102f;
+}
+
+.lhome .lh-sub__media {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 76%;
+  overflow: hidden;
+  will-change: transform;
+}
+.lhome .lh-sub__photo,
+.lhome .lh-sub__matte {
+  object-fit: cover;
+  object-position: 50% 30%;
+}
+
+/* A group of its own: black, the white line, then the thresholded photograph
+   multiplied on top so the silhouettes cut the letters. Screened onto the photo,
+   the black disappears and only the surviving letters add light. */
+.lhome .lh-sub__behind {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background: #000;
+  mix-blend-mode: screen;
+}
+.lhome .lh-sub__matte {
+  mix-blend-mode: multiply;
+  filter: url(#lh-sub-silhouette);
+}
+.lhome .lh-sub__ghost {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7%;
+  text-align: center;
+  font-size: min(calc(100cqw / (var(--word) * 0.67)), 22svh);
+  font-weight: 400;
+  letter-spacing: -0.06em;
+  line-height: 0.86;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.lhome .lh-sub__scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(0deg, #04102f 0%, #04102f 34%, rgba(4, 16, 47, 0.78) 50%, rgba(4, 16, 47, 0) 72%);
+}
+
+.lhome .lh-sub__copy {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: calc(var(--lh-u) * 0.85);
+  padding: 34cqw calc(var(--lh-u) * 1.3) calc(var(--lh-u) * 1.6);
+  color: #fff;
+}
+.lhome .lh-sub__kicker { color: rgba(255, 255, 255, 0.86); }
+.lhome .lh-sub__title {
+  font-size: clamp(2.3rem, 6.5cqw, calc(var(--lh-u) * 9.2));
+  font-weight: 400;
+  letter-spacing: -0.05em;
+  line-height: 0.97;
+  text-wrap: balance;
+}
+.lhome .lh-sub__title em.lh-accent { font-weight: 400; }
+.lhome .lh-sub__lead {
+  color: rgba(255, 255, 255, 0.88);
+  max-width: 42ch;
+}
+
+@media (max-width: 760px) {
+  .lhome .lh-sub__pin { padding-bottom: calc(90px + env(safe-area-inset-bottom)); }
+}
+
+/* Landscape: the photograph fills the band, type runs behind the family at head
+   height, the title rests on the dark floor. */
+@media (min-aspect-ratio: 1/1) {
+  .lhome .lh-sub__media { height: 100%; }
+  .lhome .lh-sub__photo,
+  .lhome .lh-sub__matte { object-position: 50% 38%; }
+  .lhome .lh-sub__ghost {
+    top: 11%;
+    white-space: nowrap;
+    font-size: min(calc(100cqw / (var(--chars) * 0.655)), 32svh);
+  }
+  .lhome .lh-sub__scrim {
+    background:
+      linear-gradient(0deg, rgba(3, 9, 30, 0.94) 0%, rgba(3, 9, 30, 0.82) 22%, rgba(3, 9, 30, 0.42) 40%, rgba(3, 9, 30, 0) 58%);
+  }
+  .lhome .lh-sub__copy {
+    grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
+    align-items: end;
+    column-gap: calc(var(--lh-u) * 3);
+    padding: 38svh calc(var(--lh-u) * 2.4) calc(var(--lh-u) * 2.2);
+  }
+  .lhome .lh-sub__kicker { grid-column: 1 / -1; }
+}
+
+/* --------------------------------------------------------------------------
+   The plans. Blue, white and black: one panel of each.
+   -------------------------------------------------------------------------- */
+.lhome .lh-sub .sec {
+  background: transparent !important;
+  padding-block: calc(var(--lh-u) * 3) var(--lh-sec);
+}
+.lhome .lh-sub .wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: calc(var(--lh-u) * 1.1);
+  width: var(--lh-max);
+  max-width: none;
+  margin-inline: auto;
+  padding-inline: var(--lh-gutter);
+  container: lh-plans / inline-size;
+}
+.lhome .lh-sub .head { display: none; }
+
+/* Term switch: a pill with a thumb that slides between equal halves. */
+.lhome .lh-sub .switch {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  width: min(100%, calc(var(--lh-u) * 25));
+  margin: 0;
+  padding: calc(var(--lh-u) * 0.28);
+  border-radius: 999px;
+  background: var(--lh-card);
+  box-shadow: inset 0 0 0 1px var(--lh-line);
+}
+.lhome .lh-sub .switch::before {
+  content: "";
+  position: absolute;
+  top: calc(var(--lh-u) * 0.28);
+  bottom: calc(var(--lh-u) * 0.28);
+  left: calc(var(--lh-u) * 0.28);
+  width: calc(50% - var(--lh-u) * 0.28);
+  border-radius: 999px;
+  background: var(--lh-text);
+  transition: transform 0.55s var(--lh-ease);
+}
+.lhome .lh-sub .switch:has(button:last-child[aria-pressed="true"])::before { transform: translateX(100%); }
+.lhome .lh-sub .switch button {
+  position: relative;
+  min-height: calc(var(--lh-u) * 2.9);
+  padding: 0.3em 0.6em;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--lh-mute);
+  font: 500 calc(var(--lh-u) * 0.96) / 1.1 var(--lh-sans);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition: color 0.3s;
+}
+.lhome .lh-sub .switch button[aria-pressed="true"] {
+  background: transparent;
+  box-shadow: none;
+  color: var(--lh-bg);
+}
+
+.lhome .lh-sub .chkline {
+  --cbx-bg: var(--lh-bg) !important;
+  margin: 0;
+  font-size: calc(var(--lh-u) * 0.96);
+  color: var(--lh-text);
+}
+.lhome .lh-sub .chkline .cbx__tx {
+  font-size: calc(var(--lh-u) * 0.96);
+  line-height: 1.3;
+  color: var(--lh-text);
+}
+
+.lhome .lh-sub .plans {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(var(--lh-u) * 0.8);
+  max-width: none;
+  align-items: stretch;
+}
+.lhome .lh-sub .plan {
+  --lh-p-fg: var(--lh-text);
+  --lh-p-mute: var(--lh-mute);
+  --lh-p-line: var(--lh-line);
+  --lh-p-tick: var(--lh-accent);
+  container-type: inline-size;
+  padding: calc(var(--lh-u) * 2) calc(var(--lh-u) * 1.9) calc(var(--lh-u) * 1.9);
+  border-radius: var(--lh-r-l);
+  background: var(--lh-card);
+  box-shadow: inset 0 0 0 1px var(--lh-line);
+  color: var(--lh-p-fg);
+}
+.lhome .lh-sub .plan__h {
+  margin: 0 0 calc(var(--lh-u) * 0.6);
+  max-width: 62%;
+  font: 500 calc(var(--lh-u) * 2.5) / 1 var(--lh-sans);
+  letter-spacing: -0.045em;
+  color: inherit;
+}
+.lhome .lh-sub .plan__for {
+  min-height: 3em;
+  font-size: calc(var(--lh-u) * 1);
+  line-height: 1.38;
+  color: var(--lh-p-mute);
+  text-wrap: pretty;
+}
+.lhome .lh-sub .plan__p {
+  gap: 0.25em calc(var(--lh-u) * 0.55);
+  margin: calc(var(--lh-u) * 1.7) 0 calc(var(--lh-u) * 0.5);
+  padding-top: calc(var(--lh-u) * 1.2);
+  border-top: 1px solid var(--lh-p-line);
+}
+.lhome .lh-sub .plan__p b {
+  flex: 1 0 100%;
+  font: 400 min(calc(var(--lh-u) * 5.6), 19.5cqw) / 0.95 var(--lh-sans);
+  letter-spacing: -0.06em;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+}
+.lhome .lh-sub .plan__p em {
+  font-size: calc(var(--lh-u) * 0.98);
+  color: var(--lh-p-fg);
+}
+.lhome .lh-sub .plan__p .old {
+  font-size: calc(var(--lh-u) * 0.92);
+  color: var(--lh-p-mute);
+}
+/* Cobalt, not azure: azure is only 3.2:1 with white at this small size. */
+.lhome .lh-sub .plan__p .save {
+  padding: 0.25em 0.65em;
+  border-radius: 999px;
+  background: var(--lh-cobalt);
+  color: #fff;
+  font-size: calc(var(--lh-u) * 0.82);
+  font-weight: 500;
+}
+.lhome .lh-sub .plan__t {
+  min-height: 2.8em;
+  margin: 0 0 calc(var(--lh-u) * 1.5);
+  font-size: calc(var(--lh-u) * 0.88);
+  line-height: 1.38;
+  color: var(--lh-p-mute);
+}
+
+.lhome .lh-sub .plan ul {
+  display: block;
+  margin: 0 0 calc(var(--lh-u) * 1.8);
+  font-size: calc(var(--lh-u) * 0.96);
+  line-height: 1.36;
+  color: inherit;
+}
+.lhome .lh-sub .plan ul li {
+  gap: calc(var(--lh-u) * 0.7);
+  padding-block: calc(var(--lh-u) * 0.68);
+  border-top: 1px solid var(--lh-p-line);
+}
+.lhome .lh-sub .plan ul li::before {
+  width: calc(var(--lh-u) * 0.95);
+  height: calc(var(--lh-u) * 0.95);
+  margin-top: 0.2em;
+  background: var(--lh-p-tick);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 8.6l3.7 3.7 7.3-8.4' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2.5 8.6l3.7 3.7 7.3-8.4' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.lhome .lh-sub .plan .btn {
+  position: relative;
+  z-index: 1;
+  min-height: calc(var(--lh-u) * 3.2);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--lh-text);
+  box-shadow: none;
+  color: var(--lh-bg);
+  font: 500 calc(var(--lh-u) * 1) / 1.15 var(--lh-sans);
+  letter-spacing: -0.01em;
+  transition: transform 0.45s var(--lh-ease), background-color 0.25s, color 0.25s;
+}
+.lhome .lh-sub .plan .btn:hover { transform: translateY(-2px); }
+
+/* Premium: black, with the azure of the wordmark rising in one corner. */
+.lhome .lh-sub .plan--hot {
+  --lh-p-fg: #fff;
+  --lh-p-mute: rgba(255, 255, 255, 0.72);
+  --lh-p-line: rgba(255, 255, 255, 0.16);
+  --lh-p-tick: #6ea8ff;
+  --focus: #6ea8ff;
+  background:
+    radial-gradient(90% 62% at 100% 0%, rgba(10, 77, 255, 0.62), rgba(10, 77, 255, 0) 72%),
+    var(--lh-black);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+.lhome .lh-sub .plan--hot::before {
+  top: calc(var(--lh-u) * 2.05);
+  left: auto;
+  right: calc(var(--lh-u) * 1.9);
+  padding: 0.42em 0.85em;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+  color: #fff;
+  font: 500 calc(var(--lh-u) * 0.8) / 1.1 var(--lh-sans);
+  letter-spacing: 0;
+}
+.lhome .lh-sub .plan--hot .btn,
+.lhome .lh-sub .plan--card .btn {
+  background: #fff;
+  color: var(--lh-black);
+}
+.lhome .lh-sub .plan--hot .plan__p .old { color: rgba(255, 255, 255, 0.66); }
+
+/* Gift: cobalt, carried by the card it gives. Inline colours need !important. */
+.lhome .lh-sub .plan--card {
+  --lh-p-fg: #fff;
+  --lh-p-mute: rgba(255, 255, 255, 0.86);
+  --lh-p-line: rgba(255, 255, 255, 0.24);
+  --lh-p-tick: #fff;
+  --focus: #fff;
+  background:
+    radial-gradient(100% 70% at 0% 100%, rgba(5, 18, 72, 0.72), rgba(5, 18, 72, 0) 74%),
+    linear-gradient(165deg, #0a4dff 0%, #0636c8 100%);
+  box-shadow: none;
+}
+.lhome .lh-sub .plan--card .plan__h,
+.lhome .lh-sub .plan--card .plan__p b { color: #fff !important; }
+.lhome .lh-sub .plan--card .plan__p em { color: rgba(255, 255, 255, 0.9) !important; }
+.lhome .lh-sub .plan--card ul { color: #fff !important; }
+.lhome .lh-sub .plan--card .plan__for,
+.lhome .lh-sub .plan--card .plan__t { color: var(--lh-p-mute); }
+.lhome .lh-sub .plan--card .plan__t { min-height: 0; }
+/* The site's sheen leaves a hard edge when translated: give it room to travel. */
+.lhome .lh-sub .plan--card::after {
+  inset: 0 -45%;
+  background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.12) 50%, transparent 60%);
+}
+/* The gift card itself: an actual card, lower in the panel so the three prices
+   share one line. Order is visual only; the panel's one link stays in sequence. */
+.lhome .lh-sub .plan--card > * { order: 1; }
+.lhome .lh-sub .plan--card > .mcard {
+  order: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: calc(var(--lh-u) * 1.6);
+  width: min(100%, calc(var(--lh-u) * 22));
+  aspect-ratio: 1.586;
+  margin: auto 0 calc(var(--lh-u) * 1.5);
+  padding: calc(var(--lh-u) * 1.2) calc(var(--lh-u) * 1.3);
+  border-radius: var(--lh-r-m);
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.07));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+  transform: rotate(-3deg);
+  transition: transform 0.7s var(--lh-ease);
+}
+.lhome .lh-sub .plan--card:hover > .mcard { transform: rotate(0deg) translateY(-3px); }
+.lhome .lh-sub .plan--card > .btn { order: 3; margin-top: 0; }
+.lhome .lh-sub .plan--card > .quote { order: 4; }
+.lhome .lh-sub .plan--card .mcard__chip {
+  width: calc(var(--lh-u) * 2.3);
+  height: calc(var(--lh-u) * 1.75);
+  border-radius: calc(var(--lh-u) * 0.38);
+  background: linear-gradient(135deg, #fff, #a9c8ff);
+}
+.lhome .lh-sub .plan--card .mcard b {
+  font: 500 calc(var(--lh-u) * 1.3) / 1.15 var(--lh-sans);
+  letter-spacing: -0.02em;
+}
+.lhome .lh-sub .plan--card .mcard span span {
+  display: block;
+  margin-top: 0.3em;
+  font-size: calc(var(--lh-u) * 0.82);
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.9);
+}
+.lhome .lh-sub .plan--card .quote {
+  position: relative;
+  z-index: 1;
+  margin: calc(var(--lh-u) * 1.2) 0 0;
+  font-family: var(--lh-serif);
+  font-size: calc(var(--lh-u) * 1.12);
+  font-style: italic;
+  line-height: 1.26;
+  color: #fff;
+  text-wrap: balance;
+}
+
+.lhome .lh-sub .info {
+  grid-column: 1 / -1;
+  margin: calc(var(--lh-u) * 0.6) 0 0;
+  padding: calc(var(--lh-u) * 1.1) 0 0;
+  gap: calc(var(--lh-u) * 0.8);
+  border-top: 1px solid var(--lh-line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--lh-mute);
+  font-size: calc(var(--lh-u) * 0.94);
+  line-height: 1.42;
+}
+.lhome .lh-sub .info svg {
+  width: calc(var(--lh-u) * 1.2);
+  height: calc(var(--lh-u) * 1.2);
+  margin-top: 0.1em;
+  stroke: var(--lh-accent);
+}
+
+/* Two across, the gift running the full width under them. */
+@container lh-plans (min-width: 680px) {
+  .lhome .lh-sub .wrap > .plans { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lhome .lh-sub .plans > .plan--card {
+    grid-column: 1 / -1;
+    container-type: normal;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: calc(var(--lh-u) * 2.4);
+    align-content: start;
+  }
+  .lhome .lh-sub .plans > .plan--card > * { grid-column: 1; }
+  .lhome .lh-sub .plans > .plan--card > ul,
+  .lhome .lh-sub .plans > .plan--card > .mcard,
+  .lhome .lh-sub .plans > .plan--card > .btn { grid-column: 2; }
+  .lhome .lh-sub .plans > .plan--card > .mcard { grid-row: 1 / span 4; margin: 0 0 calc(var(--lh-u) * 1.5); justify-self: end; }
+  .lhome .lh-sub .plans > .plan--card > ul { grid-row: 5; margin-bottom: calc(var(--lh-u) * 1.2); }
+  .lhome .lh-sub .plans > .plan--card > .btn { grid-row: 6; }
+  .lhome .lh-sub .plans > .plan--card > .quote { grid-row: 5 / span 2; align-self: end; }
+  .lhome .lh-sub .plans > .plan--card .plan__p b { font-size: calc(var(--lh-u) * 5.6); }
+}
+
+/* Three across, with the term switch and its checkbox on one line. */
+@container lh-plans (min-width: 1040px) {
+  .lhome .lh-sub .wrap > .switch,
+  .lhome .lh-sub .wrap > .chkline { grid-column: auto; }
+  .lhome .lh-sub .wrap > .plans { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lhome .lh-sub .plans > .plan--card {
+    grid-column: auto;
+    container-type: inline-size;
+    display: flex;
+  }
+  .lhome .lh-sub .plans > .plan--card .plan__p b { font-size: min(calc(var(--lh-u) * 5.6), 19.5cqw); }
+  .lhome .lh-sub .plans > .plan--card > .mcard { margin: auto 0 calc(var(--lh-u) * 1.5); }
+  .lhome .lh-sub .plans > .plan--card > ul { margin-bottom: calc(var(--lh-u) * 1.8); }
+}

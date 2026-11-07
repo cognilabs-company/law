@@ -17,6 +17,8 @@ const FONTS = [
   { name: "Inter", use: "ui", license: "SIL Open Font License 1.1", copyright: "Copyright 2016 The Inter Project Authors", url: "https://github.com/rsms/inter" },
   { name: "Onest", use: "display", license: "SIL Open Font License 1.1", copyright: "Copyright 2021 The Onest Project Authors", url: "https://github.com/simpals/onest" },
   { name: "Poppins", use: "accent", license: "SIL Open Font License 1.1", copyright: "Copyright 2020 The Poppins Project Authors", url: "https://github.com/itfoundry/Poppins" },
+  { name: "Inter Tight", use: "display", license: "SIL Open Font License 1.1", copyright: "Copyright 2022 The Inter Tight Project Authors", url: "https://github.com/googlefonts/inter-tight" },
+  { name: "Playfair Display", use: "accent", license: "SIL Open Font License 1.1", copyright: "Copyright 2017 The Playfair Display Project Authors", url: "https://github.com/clauseggers/Playfair" },
   { name: "DejaVu Sans", use: "doc", license: "Bitstream Vera Fonts licence", copyright: "Copyright (c) 2003 Bitstream, Inc.; DejaVu changes are in the public domain", url: "https://dejavu-fonts.github.io", file: "/fonts/LICENSE.txt" },
 ] as const;
 

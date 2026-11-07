@@ -1,0 +1,251 @@
+/* ==========================================================================
+   LandingFaq: a scoped restyle of the working FaqSection.
+   A cobalt tile with the title and an enormous serif question mark, beside a
+   white tile with the numbered accordion. One column when the container narrows.
+   ========================================================================== */
+
+.lhome .lh-faq {
+  container-type: inline-size;
+  counter-reset: lh-faq;
+}
+.lhome .lh-faq .sec {
+  background: transparent !important;
+  padding-block: var(--lh-sec);
+}
+.lhome .lh-faq .wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: calc(var(--lh-u) * 0.8);
+  max-width: var(--lh-max);
+  padding-inline: var(--lh-gutter);
+}
+@container (min-width: 880px) {
+  .lhome .lh-faq .wrap { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+}
+
+/* --------------------------------------------------------------------------
+   Title tile. It stays dark blue in both themes, so it brings its own tokens.
+   -------------------------------------------------------------------------- */
+.lhome .lh-faq .head {
+  --focus: #6ea8ff;
+  container-type: inline-size;
+  position: relative;
+  max-width: none;
+  margin: 0;
+  padding: calc(var(--lh-u) * 2) calc(var(--lh-u) * 2) clamp(calc(var(--lh-u) * 8.5), 34cqw, calc(var(--lh-u) * 20));
+  overflow: clip;
+  border-radius: var(--lh-r-l);
+  background: var(--lh-cobalt);
+  color: #fff;
+}
+.lhome .lh-faq .kick {
+  position: relative;
+  z-index: 1;
+  gap: 0.6em;
+  margin: 0 0 calc(var(--lh-u) * 1.5);
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: #fff;
+  font-size: calc(var(--lh-u) * 0.82);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.lhome .lh-faq .kick::before {
+  content: "";
+  flex: none;
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: #fff;
+}
+.lhome .lh-faq .h2 {
+  position: relative;
+  z-index: 1;
+  /* The longest word of the title in any language still fits the tile. */
+  font-size: clamp(calc(var(--lh-u) * 2.6), 14.6cqw, calc(var(--lh-u) * 9));
+  font-weight: 400;
+  letter-spacing: -0.045em;
+  line-height: 0.96;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+
+/* The question mark is decoration, drawn in the wordmark's serif. The second
+   content declaration keeps it out of the accessibility tree. */
+.lhome .lh-faq .head::after {
+  content: "?";
+  content: "?" / "";
+  position: absolute;
+  inset: 0;
+  padding-right: 0.06em;
+  color: #fff;
+  opacity: 0.16;
+  font-family: var(--lh-serif);
+  font-size: 92cqw;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1;
+  text-align: right;
+  transform: translateY(calc(100% - 0.98em));
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   Accordion tile
+   -------------------------------------------------------------------------- */
+.lhome .lh-faq .faq {
+  display: block;
+  max-width: none;
+  padding: calc(var(--lh-u) * 0.6) calc(var(--lh-u) * 2) calc(var(--lh-u) * 0.8);
+  border-radius: var(--lh-r-l);
+  background: var(--lh-card);
+}
+.lhome .lh-faq .faqi {
+  position: relative;
+  overflow: visible;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  counter-increment: lh-faq;
+}
+.lhome .lh-faq .faqi + .faqi { border-top: 1px solid var(--lh-line); }
+.lhome .lh-faq .faqi.open { background: none; box-shadow: none; }
+
+/* An azure line wipes across the top of the row on hover and while open. */
+.lhome .lh-faq .faqi::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--lh-accent);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 0.9s var(--lh-ease);
+  pointer-events: none;
+}
+.lhome .lh-faq .faqi.open::before { transform: scaleX(1); }
+.lhome .lh-faq .faqi:first-child::before { display: none; }
+
+.lhome .lh-faq .faqi__q {
+  display: block;
+  min-height: calc(var(--lh-u) * 4.2);
+  padding: calc(var(--lh-u) * 1.3) calc(var(--lh-u) * 3.9) calc(var(--lh-u) * 1.3) calc(var(--lh-u) * 2.8);
+  color: var(--lh-text);
+  font-family: var(--lh-sans);
+  font-size: clamp(calc(var(--lh-u) * 1.28), 2.6cqw, calc(var(--lh-u) * 1.95));
+  font-weight: 500;
+  letter-spacing: -0.024em;
+  line-height: 1.14;
+  text-wrap: pretty;
+  transition: color 0.25s;
+}
+.lhome .lh-faq .faqi__q:focus-visible {
+  outline-offset: -3px;
+  border-radius: var(--lh-r-s);
+}
+
+/* The row number. Not part of the question's accessible name. */
+.lhome .lh-faq .faqi__q::before {
+  content: counter(lh-faq, decimal-leading-zero);
+  content: counter(lh-faq, decimal-leading-zero) / "";
+  position: absolute;
+  top: calc(var(--lh-u) * 1.3);
+  left: 0;
+  color: var(--lh-mute);
+  font-size: calc(var(--lh-u) * 0.78);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  line-height: 2;
+  transition: color 0.25s;
+}
+
+/* A clean plus in a hairline circle that fills and turns into a close mark. */
+.lhome .lh-faq .faqi__q::after {
+  --lh-faq-plus: var(--lh-text);
+  top: calc(var(--lh-u) * 1.05);
+  right: 0;
+  width: calc(var(--lh-u) * 2.5);
+  height: calc(var(--lh-u) * 2.5);
+  border: 1px solid var(--lh-mist);
+  background:
+    linear-gradient(var(--lh-faq-plus), var(--lh-faq-plus)) center / 38% 1.5px no-repeat,
+    linear-gradient(var(--lh-faq-plus), var(--lh-faq-plus)) center / 1.5px 38% no-repeat;
+  transform: none;
+  transition: transform 0.7s var(--lh-ease), background-color 0.25s, border-color 0.25s;
+}
+.lhome .lh-faq .faqi.open .faqi__q::after {
+  --lh-faq-plus: #fff;
+  border-color: var(--lh-cobalt);
+  background:
+    linear-gradient(var(--lh-faq-plus), var(--lh-faq-plus)) center / 38% 1.5px no-repeat,
+    linear-gradient(var(--lh-faq-plus), var(--lh-faq-plus)) center / 1.5px 38% no-repeat,
+    var(--lh-cobalt);
+  transform: rotate(135deg);
+}
+.lhome .lh-faq .faqi.open .faqi__q::before { color: var(--lh-accent); }
+
+@media (hover: hover) {
+  .lhome .lh-faq .faqi:hover::before { transform: scaleX(1); }
+  .lhome .lh-faq .faqi__q:hover { color: var(--lh-accent); }
+  .lhome .lh-faq .faqi__q:hover::before { color: var(--lh-accent); }
+  .lhome .lh-faq .faqi__q:hover::after { border-color: var(--lh-accent); }
+}
+
+.lhome .lh-faq .faqi__p p {
+  max-width: 62ch;
+  padding: 0 calc(var(--lh-u) * 3.9) calc(var(--lh-u) * 1.7) calc(var(--lh-u) * 2.8);
+  color: var(--lh-mute);
+  font-size: calc(var(--lh-u) * 1.06);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+/* --------------------------------------------------------------------------
+   Narrow tiles keep the column gutter for the number but lose the wide insets.
+   -------------------------------------------------------------------------- */
+@container (max-width: 560px) {
+  .lhome .lh-faq .faq { padding-inline: calc(var(--lh-u) * 1.2); }
+  .lhome .lh-faq .head { padding-inline: calc(var(--lh-u) * 1.4); }
+  .lhome .lh-faq .faqi__q {
+    padding-left: calc(var(--lh-u) * 2.2);
+    padding-right: calc(var(--lh-u) * 3.2);
+  }
+  .lhome .lh-faq .faqi__p p { padding-inline: calc(var(--lh-u) * 2.2) 0; }
+}
+
+/* --------------------------------------------------------------------------
+   Motion: only ever on top of the finished state above.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: no-preference) {
+  /* A slower, heavier version of the same grid-rows accordion. */
+  .lhome .lh-faq .faqi__p { transition: grid-template-rows 0.7s var(--lh-ease); }
+  .lhome .lh-faq .faqi__p p {
+    transition: opacity 0.6s var(--lh-ease), transform 0.8s var(--lh-ease);
+  }
+  .lhome .lh-faq .faqi:not(.open) .faqi__p p {
+    opacity: 0;
+    transform: translateY(calc(var(--lh-u) * 0.8));
+  }
+}
+
+@keyframes lh-faq-mark {
+  from { transform: translateY(14%) rotate(-7deg); }
+  to { transform: translateY(calc(100% - 0.98em)) rotate(0deg); }
+}
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    /* The mark falls down the tile while the questions go by, so the tall
+       column always has something moving in view, without any pinning. */
+    .lhome .lh-faq .sec { view-timeline: --lh-faq-view block; }
+    .lhome .lh-faq .head::after {
+      animation: lh-faq-mark linear both;
+      animation-timeline: --lh-faq-view;
+      animation-range: entry 55% exit 45%;
+    }
+  }
+}
