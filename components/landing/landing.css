@@ -19,6 +19,36 @@ body:has(.lhome) {
   overflow-y: visible !important;
 }
 
+/* On the narrowest phones the logo, language, CTA and burger do not all fit at their
+   usual spacing, and the burger was cut off at the screen's edge. */
+@media (max-width: 430px) {
+  body:has(.lhome) .bar__in { gap: 6px; }
+  body:has(.lhome) .bar__act { gap: 5px; }
+  body:has(.lhome) .bar__act .btn--pri {
+    padding-inline: 11px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+}
+@media (max-width: 380px) {
+  /* The flag alone says which language this is. */
+  body:has(.lhome) .bar__act .lang .btn--glass {
+    gap: 0;
+    padding-inline: 9px;
+    font-size: 0;
+  }
+}
+/* Long Russian menu labels ran the actions off the edge just above the burger's breakpoint. */
+@media (min-width: 981px) and (max-width: 1180px) {
+  body:has(.lhome) .bar__in { gap: 10px; }
+  body:has(.lhome) .nav { gap: 0; }
+  body:has(.lhome) .nav a {
+    padding-inline: 7px;
+    font-size: 0.8rem;
+  }
+  body:has(.lhome) .bar__act { gap: 5px; }
+}
+
 /* The burger lines are dark in dark theme, which is unreadable over the hero. */
 body:has(.lhome) .bar:not(.on) .burg i,
 body:has(.lhome) .bar:not(.on) .burg i::before,
@@ -270,8 +300,6 @@ html[data-theme="dark"] .lhome {
    Motion hooks. The resting CSS is the finished state, so content is complete
    without JavaScript and under reduced motion. LandingMotion adds movement.
    -------------------------------------------------------------------------- */
-.lh-split-line { display: block; }
-
 /* Custom cursor, only on devices with a precise pointer. */
 .lh-cursor {
   position: fixed;

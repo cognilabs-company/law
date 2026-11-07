@@ -38,6 +38,14 @@ the `no-restricted-imports` rule in `eslint.config.mjs`.
 - A WebGL canvas pauses while the page scrolls (`frameloop="never"`) and mounts
   only where it is shown, after the page is idle. On a 2G/3G or data-saving
   connection the robot is its still picture.
+- GSAP on a page: every forced style recalculation is slow here because of the
+  size of `globals.css`, so the home landing once froze the browser for over a
+  minute. Hold sections with CSS sticky (`components/landing/motion/hold.ts`),
+  never ScrollTrigger's `pin`. Animate `clip-path` through a progress value
+  (`motion/clip.ts`), never as a GSAP string. No SplitText. Tween only transforms,
+  opacity and custom properties, with one unit at both ends. Refresh only on a real
+  resize. Guard: `tests/unit/landingMotion.test.ts`. Measure with the CPU throttled
+  4x on a production build: the dev server hides or invents these problems.
 - Large assets in `public/` are sized for how they are shown. The robot uses
   `lexgo-robot.web.glb` (1024² textures, only the clips production plays;
   rebuild with `scripts/optimize-robot-model.mjs`). The budget is 2.5 MB.

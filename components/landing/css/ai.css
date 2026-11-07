@@ -117,10 +117,6 @@
   color: #6ea8ff;
 }
 /* Room for descenders inside the masked lines. */
-.lhome .lh-ai__title .lh-split-line-mask {
-  padding-block: 0.06em 0.2em;
-  margin-block: -0.06em -0.2em;
-}
 
 /* --------------------------------------------------------------------------
    Phone. Its internals are sized in rem and px, so the whole device is zoomed
@@ -304,4 +300,10 @@
   .lhome .lh-ai__body {
     padding-top: calc(var(--lh-u) * 4.2);
   }
+}
+
+/* The live chat's field brings no focus ring of its own, and keyboard users need one. */
+.lhome .lh-ai__device input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
 }

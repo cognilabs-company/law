@@ -1,9 +1,9 @@
 // Visual QA for the landing. Serves real pixels from the running dev server with
 // a mocked backend, because the API host may be down.
 //
-//   node shot.mjs --sizes 1440x900,390x844 --at ".lh-hero" --out C:/path/name
-//   node shot.mjs --sizes 1920x1080 --at ".lh-prob" --progress 0.5 --out C:/path/name
-//   node shot.mjs --sizes 1440x900 --full --out C:/path/name
+//   node scripts/landing-shot.mjs --sizes 1440x900,390x844 --at ".lh-hero" --out C:/path/name
+//   node scripts/landing-shot.mjs --sizes 1920x1080 --at ".lh-prob" --progress 0.5 --out C:/path/name
+//   node scripts/landing-shot.mjs --sizes 1440x900 --full --out C:/path/name
 //
 // Options:
 //   --base http://localhost:3120   server
@@ -29,7 +29,7 @@ const opt = (name, dflt) => {
   return v === undefined || v.startsWith("--") ? true : v;
 };
 
-const projectRoot = "C:/Users/karim/OneDrive/Desktop/LexGo/law";
+const projectRoot = process.cwd();
 const require = createRequire(path.join(projectRoot, "package.json"));
 const { chromium } = require("@playwright/test");
 
