@@ -336,3 +336,11 @@
   .lhome .lh-war__rings i:nth-child(3) { animation-duration: 110s; }
   .lhome .lh-war__sheen::before { animation: lh-war-sheen 8s cubic-bezier(0.45, 0, 0.2, 1) infinite; }
 }
+
+/* Solid enough to read over the smooth gradient, without four large blurred panels
+   being re-rendered on every frame of their flight. */
+.lhome .lh-war__panel.lh-glass {
+  background: rgba(14, 28, 66, 0.72);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
