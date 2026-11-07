@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { useLocale, useTranslations } from "next-intl";
-import { ChevronRight, ChevronUp, CircleAlert, CircleCheck, PanelLeftClose, Scale } from "lucide-react";
+import { ChevronRight, ChevronUp, CircleAlert, CircleCheck, LogOut, PanelLeftClose, Scale } from "lucide-react";
 import "./shell/shell1920.css";
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { useAuth, hasAdminAccess, type Role } from "@/lib/auth";
@@ -39,6 +39,7 @@ import { useRoleNav } from "../RoleNavHost";
 import type { SellerActions } from "@/lib/services/backend";
 import {
   IconLogo,
+  IconLogoText,
   IconMenu,
   IconClose,
   IconClipboardCheck,
@@ -312,9 +313,19 @@ export default function PortalShell({
             <span className="lx-sb__mark">
               <IconLogo />
             </span>
-            <span className="psb__label">LexGo</span>
+            <span className="psb__label lx-sb__word">
+              <IconLogoText />
+            </span>
           </Link>
-          <span className="lx-sb__role">{roleName}</span>
+          <button
+            className="lx-sb__fold lx-sb__fold--top psb__collapse"
+            type="button"
+            onClick={toggleCollapsed}
+            title={tx(collapsed ? "expand" : "collapse")}
+            aria-label={tx(collapsed ? "expand" : "collapse")}
+          >
+            <PanelLeftClose />
+          </button>
           <button className="lx-sb__x" type="button" aria-label={tx("closeMenu")} onClick={() => setOpenPath(null)}>
             <IconClose />
           </button>
@@ -376,11 +387,10 @@ export default function PortalShell({
             <span className="lx-sb__av">{initials(session.name || "U")}</span>
             <span className="lx-sb__who psb__label">
               <b>{session.name}</b>
-              <small>{roleName}</small>
             </span>
           </Link>
-          <button className="lx-sb__fold psb__collapse" type="button" onClick={toggleCollapsed} title={tx(collapsed ? "expand" : "collapse")} aria-label={tx(collapsed ? "expand" : "collapse")}>
-            <PanelLeftClose />
+          <button className="lx-sb__fold lx-sb__out" type="button" onClick={logout} title={tx("menu.logout")} aria-label={tx("menu.logout")}>
+            <LogOut />
           </button>
         </div>
       </aside>

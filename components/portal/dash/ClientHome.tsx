@@ -20,11 +20,10 @@ import {
 import { Link, useRouter } from "@/i18n/navigation";
 import { useAuth } from "@/lib/auth";
 import { useResource } from "@/lib/useResource";
-import { getMyReferral, getUrgentCatalog, type UrgentCatalog } from "@/lib/services/backend";
+import { getMyReferral } from "@/lib/services/backend";
 import { listMarketplace, listMarketplaceOrders, type MarketOrder, type MarketSeller } from "@/lib/services/marketplace";
 import { clientStageOf, useOrderStatusLabel } from "@/lib/orderStatus";
 import { LEGAL_AREAS } from "@/lib/legalAreas";
-import { fmtUzs } from "@/lib/money";
 import { initials } from "@/lib/lawyers";
 import { regionLabel } from "@/lib/labels";
 import { personName } from "@/lib/labels";
@@ -46,14 +45,14 @@ const REGIONS = ["tashkent", "samarkand", "fergana", "bukhara", "namangan", "and
 const GIFT_KEY = "lexgo_dash_gift_closed";
 
 // The card pictures live in public/img/xizmatlar, named after the service.
-type Svc = { key: "urgent" | "online" | "docs" | "analysis" | "problem" | "traffic"; img: string; href: string; catalog?: string; fallback?: "byDoc" | "byFile" };
+type Svc = { key: "urgent" | "online" | "docs" | "analysis" | "problem" | "traffic"; img: string; href: string };
 const SERVICES: Svc[] = [
-  { key: "urgent", img: "/img/xizmatlar/Tezkor_Advokat.png", href: "/portal/client/urgent?service=express_video_consultation", catalog: "express_video_consultation" },
-  { key: "online", img: "/img/xizmatlar/Onlayn_konsultatsiya.png", href: "/portal/client/urgent?service=video_consultation", catalog: "video_consultation" },
-  { key: "docs", img: "/img/xizmatlar/Huquqiy_hujjatlar.png", href: "/portal/client/services", fallback: "byDoc" },
-  { key: "analysis", img: "/img/xizmatlar/Hujjat_tahlili.png", href: "/portal/client/doc-analysis", fallback: "byFile" },
-  { key: "problem", img: "/img/xizmatlar/Muammo_tahlili.png", href: "/portal/client/urgent?service=chat_consultation", catalog: "chat_consultation" },
-  { key: "traffic", img: "/img/xizmatlar/Avtoavariya.png", href: "/portal/client/urgent?service=traffic_accident_consultation", catalog: "traffic_accident_consultation" },
+  { key: "urgent", img: "/img/xizmatlar/Tezkor_Advokat.png", href: "/portal/client/urgent?service=express_video_consultation" },
+  { key: "online", img: "/img/xizmatlar/Onlayn_konsultatsiya.png", href: "/portal/client/urgent?service=video_consultation" },
+  { key: "docs", img: "/img/xizmatlar/Huquqiy_hujjatlar.png", href: "/portal/client/services" },
+  { key: "analysis", img: "/img/xizmatlar/Hujjat_tahlili.png", href: "/portal/client/doc-analysis" },
+  { key: "problem", img: "/img/xizmatlar/Muammo_tahlili.png", href: "/portal/client/urgent?service=chat_consultation" },
+  { key: "traffic", img: "/img/xizmatlar/Avtoavariya.png", href: "/portal/client/urgent?service=traffic_accident_consultation" },
 ];
 
 // The questions clients actually open with, in the order they do.
@@ -74,7 +73,6 @@ export default function ClientHome() {
   const statusLabel = useOrderStatusLabel();
 
   const orders = useResource(() => listMarketplaceOrders("client"), []);
-  const catalog = useResource<UrgentCatalog>(async () => [await getUrgentCatalog()], []);
   const experts = useResource<MarketSeller>(async () => (await listMarketplace({ sort: "recommended" })).items.slice(0, 4), []);
   const referral = useResource(async () => [await getMyReferral()], []);
 
@@ -111,14 +109,6 @@ export default function ClientHome() {
     e.preventDefault();
     openAi(ask);
   };
-  const priceOf = (key?: string): number | null => {
-    const c = catalog.data[0];
-    if (!key || !c) return null;
-    const s = c.services.find((x) => x.key === key);
-    if (!s) return null;
-    return s.price || Math.min(...s.variants.map((v) => v.price).filter(Boolean)) || null;
-  };
-
   return (
     <div className="cx">
       {/* AI — a light card like the rest of the dashboard: name, one line of
@@ -158,6 +148,32 @@ export default function ClientHome() {
             </button>
           ))}
         </div>
+      </section>
+
+      {/* Services */}
+      <section className="cx-svcs" aria-labelledby="cx-svcs-h">
+        <div className="cx-head cx-head--bare">
+          <div>
+            <h2 id="cx-svcs-h" className="lx-h1">{t("services.title")}</h2>
+            <p className="lx-sub">{t("services.sub")}</p>
+          </div>
+          <Link href="/portal/client/marketplace-orders" className="btn btn--line btn--pill cx-head__btn">
+            {t("services.mine")}
+            <ArrowRight />
+          </Link>
+        </div>
+        <ul className="cx-svcs__grid" data-tour="services">
+          {SERVICES.map((s) => (
+            <li key={s.key}>
+              {/* The whole arch is the link — no button, as in the design. */}
+              <Link href={s.href} className="cx-svc">
+                <span className="cx-svc__ic" style={{ "--img": `url(${s.img})` } as CSSProperties} />
+                <b className="cx-svc__t">{t(`services.${s.key}.t`)}</b>
+                <span className="cx-svc__s">{t(`services.${s.key}.s`)}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <div className="cx-row cx-row--top">
@@ -282,48 +298,6 @@ export default function ClientHome() {
           )}
         </div>
       </div>
-
-      {/* Services */}
-      <section className="cx-svcs" aria-labelledby="cx-svcs-h">
-        <div className="cx-head cx-head--bare">
-          <div>
-            <h2 id="cx-svcs-h" className="lx-h1">{t("services.title")}</h2>
-            <p className="lx-sub">{t("services.sub")}</p>
-          </div>
-          <Link href="/portal/client/marketplace-orders" className="btn btn--line btn--pill cx-head__btn">
-            {t("services.mine")}
-            <ArrowRight />
-          </Link>
-        </div>
-        <ul className="cx-svcs__grid" data-tour="services">
-          {SERVICES.map((s, i) => {
-            const price = priceOf(s.catalog);
-            return (
-              <li key={s.key}>
-                {/* The whole arch is the link — no button, as in the design. */}
-                <Link href={s.href} className={`cx-svc${i % 2 ? " is-blue" : ""}`}>
-                  <span className="cx-svc__ic" style={{ "--img": `url(${s.img})` } as CSSProperties} />
-                  <b className="cx-svc__t">{t(`services.${s.key}.t`)}</b>
-                  <span className="cx-svc__s">{t(`services.${s.key}.s`)}</span>
-                  <span className="cx-svc__price">
-                    {s.catalog ? (
-                      price ? (
-                        <>{fmtUzs(price)} {t("services.som")}</>
-                      ) : catalog.status === "loading" ? (
-                        <i className="cx-svc__wait" aria-label={t("services.loading")}><Loader /></i>
-                      ) : (
-                        <i className="cx-svc__soft">{t("services.byDoc")}</i>
-                      )
-                    ) : (
-                      <i className="cx-svc__soft">{t(`services.${s.fallback ?? "byDoc"}`)}</i>
-                    )}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
 
       {/* Specialists */}
       <section className="lx-card cx-experts" aria-labelledby="cx-exp-h">

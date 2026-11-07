@@ -150,22 +150,24 @@ html[data-theme="dark"] .cx-ai__go:hover{background:var(--lx-blue-h)}
 .cx-ai__chip:hover{border-color:var(--lx-blue);background:var(--lx-blue-tint);color:var(--lx-blue-ink)}
 
 /* services
-   Arch cards (reference/image.png): a dome top whose radius is half the card
-   width, the picture in a white circle inside the dome, then the name, the
-   line under it and the price — no label, no button, the whole arch is the
-   link. Fills alternate dark / blue down the row. */
-.cx-svcs__grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:18px;justify-items:center}
+   Arch cards (reference/design-lexgo-1920/1a_mijoz_boshqaruv.png): a dome top,
+   the picture in a white circle inside it, then the name and the line under
+   it — no price, no button, the whole arch is the link. One fill for every
+   card: the row used to alternate dark / blue, which read as two kinds of
+   service rather than one list. */
+/* grid-auto-rows:1fr so every ROW is the same height too — without it a
+   second row sizes to its own tallest card and the set stops matching. */
+.cx-svcs__grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:1fr;gap:18px;justify-items:center}
 .cx-svcs__grid > li{width:100%;max-width:300px;display:flex}
 .cx-svc{
   position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;
   min-width:0;height:100%;padding:22px 18px 24px;text-decoration:none;color:#fff;
+  justify-content:center;
   background:var(--lx-navy);
   border-radius:50% 50% 18px 18px / 100px 100px 18px 18px;
   transition:transform .18s,box-shadow .18s,filter .18s;
 }
-.cx-svc.is-blue{background:var(--lx-blue)}
 html[data-theme="dark"] .cx-svc{background:#16243C;box-shadow:inset 0 0 0 1px var(--lx-navy-line)}
-html[data-theme="dark"] .cx-svc.is-blue{background:var(--lx-blue);box-shadow:none}
 .cx-svc:hover{transform:translateY(-4px);box-shadow:0 22px 38px -24px rgba(10,21,38,.55);filter:brightness(1.07)}
 /* picture, in the dome */
 .cx-svc__ic{
@@ -176,16 +178,6 @@ html[data-theme="dark"] .cx-svc.is-blue{background:var(--lx-blue);box-shadow:non
 .cx-svc:hover .cx-svc__ic{background-size:68%,auto}
 .cx-svc__t{font-size:.98rem;font-weight:600;line-height:1.35;letter-spacing:-.005em}
 .cx-svc__s{margin-top:6px;font-size:.81rem;line-height:1.45;color:rgba(255,255,255,.74)}
-.cx-svc.is-blue .cx-svc__s{color:rgba(255,255,255,.86)}
-/* price: no label, just the amount, under the text */
-.cx-svc__price{
-  margin-top:auto;padding-top:16px;
-  font-family:var(--fd);font-size:1.16rem;font-weight:700;letter-spacing:-.015em;color:#fff;
-  display:flex;align-items:center;justify-content:center;min-height:1.6em;
-}
-.cx-svc__price .cx-svc__soft{font-size:.92rem;font-weight:600;font-style:normal;color:rgba(255,255,255,.78)}
-.cx-svc__wait{font-style:normal;display:inline-flex}
-.cx-svc__wait svg{width:17px;height:17px;animation:spin 1s linear infinite}
 
 /* specialists */
 .cx-experts{padding:28px}
@@ -276,7 +268,6 @@ html[data-theme="dark"] .cx-gift{background:#0B1830;box-shadow:inset 0 0 0 1px v
   .cx-svc__ic{width:64px;height:64px;margin-bottom:12px}
   .cx-svc__t{font-size:.86rem}
   .cx-svc__s{font-size:.74rem}
-  .cx-svc__price{font-size:1rem;padding-top:12px}
   .cx-exp{flex-direction:column}
   .cx-exp__ph{width:100%;min-height:96px}
 }

@@ -26,9 +26,11 @@ export type TourStep = {
 };
 
 const CLIENT_STEPS: TourStep[] = [
+  // In page order — the tour walks down the dashboard, it does not jump back
+  // up. Services sits above the areas card, so it is explained first.
   { id: "ai", selector: '[data-tour="ai-ask"]', key: "ai", advance: "any", route: "/portal/client" },
-  { id: "areas", selector: '[data-tour="areas"]', key: "areas", advance: "any", route: "/portal/client" },
   { id: "services", selector: '[data-tour="services"]', key: "services", advance: "any", route: "/portal/client" },
+  { id: "areas", selector: '[data-tour="areas"]', key: "areas", advance: "any", route: "/portal/client" },
   { id: "lawyers", selector: '[data-ai-target="nav:lawyers"]', key: "lawyers", advance: "any" },
   { id: "works", selector: '[data-ai-target="nav:works"]', key: "works", advance: "any" },
   { id: "sos", selector: '[data-ai-target="nav:sos"]', key: "sos", advance: "any" },

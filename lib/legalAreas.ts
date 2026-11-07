@@ -14,14 +14,14 @@ export type LegalArea = {
 };
 
 export const LEGAL_AREAS: LegalArea[] = [
-  { key: "labor", Icon: BriefcaseBusiness, image: "/img/category/mehnat-huquqi-ico.png", terms: ["mehnat", "labor", "labour", "employment", "трудов", "меҳнат", "ishdan", "maosh"] },
-  { key: "family", Icon: HeartHandshake, image: "/img/category/oila-huquqi-ico.png", terms: ["oila", "family", "nikoh", "aliment", "ajrash", "vasiylik", "семь", "оила", "никоҳ", "алимент", "развод"] },
-  { key: "property", Icon: House, image: "/img/category/kochmas-mulk-ico.png", terms: ["realestate", "real-estate", "ko'chmas", "kochmas", "ko‘chmas", "mulk", "ijara", "uy-joy", "lease", "недвиж", "кўчмас", "ижара", "аренд"] },
-  { key: "traffic", Icon: Car, image: "/img/category/avto-avariya-ico.png", terms: ["avto", "ytx", "yth", "traffic", "accident", "sug'urta", "sugurta", "дтп", "йтҳ", "авто", "страхов"] },
-  { key: "business", Icon: Landmark, image: "/img/category/biznes-soliq-ico.png", terms: ["biznes", "business", "soliq", "tax", "korxona", "korporativ", "corporate", "iqtisod", "economic", "налог", "бизнес", "корпоратив", "солиқ", "иқтисод"] },
-  { key: "inheritance", Icon: ScrollText, image: "/img/category/meros-vaziyat-ico.png", terms: ["meros", "inherit", "vasiyat", "will", "наслед", "мерос", "васият", "inherited"] },
-  { key: "criminal", Icon: Gavel, image: "/img/category/jinoyat-ishlari-ico.png", terms: ["jinoy", "criminal", "уголов", "жиноя", "himoya", "tergov", "defense"] },
-  { key: "consumer", Icon: ShoppingBag, image: "/img/category/istemolchi-huquqlari-ico.png", terms: ["iste'molchi", "istemolchi", "iste‘molchi", "consumer", "потребит", "истеъмолчи", "tovar"] },
+  { key: "labor", Icon: BriefcaseBusiness, image: "/img/category/Mehnat_huquqi.png", terms: ["mehnat", "labor", "labour", "employment", "трудов", "меҳнат", "ishdan", "maosh"] },
+  { key: "family", Icon: HeartHandshake, image: "/img/category/Oila_huquqi.png", terms: ["oila", "family", "nikoh", "aliment", "ajrash", "vasiylik", "семь", "оила", "никоҳ", "алимент", "развод"] },
+  { key: "property", Icon: House, image: "/img/category/Kochmas_mulk.png", terms: ["realestate", "real-estate", "ko'chmas", "kochmas", "ko‘chmas", "mulk", "ijara", "uy-joy", "lease", "недвиж", "кўчмас", "ижара", "аренд"] },
+  { key: "traffic", Icon: Car, image: "/img/category/Avtoavariya_YTH.png", terms: ["avto", "ytx", "yth", "traffic", "accident", "sug'urta", "sugurta", "дтп", "йтҳ", "авто", "страхов"] },
+  { key: "business", Icon: Landmark, image: "/img/category/Soliq_huquqi.png", terms: ["biznes", "business", "soliq", "tax", "korxona", "korporativ", "corporate", "iqtisod", "economic", "налог", "бизнес", "корпоратив", "солиқ", "иқтисод"] },
+  { key: "inheritance", Icon: ScrollText, image: "/img/category/meros_huquqi.png", terms: ["meros", "inherit", "vasiyat", "will", "наслед", "мерос", "васият", "inherited"] },
+  { key: "criminal", Icon: Gavel, image: "/img/category/Jinoyiy_huquq.png", terms: ["jinoy", "criminal", "уголов", "жиноя", "himoya", "tergov", "defense"] },
+  { key: "consumer", Icon: ShoppingBag, image: "/img/category/istemolchi_huquqi.png", terms: ["iste'molchi", "istemolchi", "iste‘molchi", "consumer", "потребит", "истеъмолчи", "tovar"] },
 ];
 
 export const areaByKey = (key: string): LegalArea | undefined => LEGAL_AREAS.find((a) => a.key === key);
