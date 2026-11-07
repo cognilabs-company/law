@@ -1,3 +1,4 @@
+import { clipTween, insetClip } from "./clip";
 import type { MotionApi } from "./types";
 
 /**
@@ -8,7 +9,8 @@ import type { MotionApi } from "./types";
  * stacking context and carry their gradient themselves, so they move through
  * CSS variables that their own transform reads.
  */
-export function heroMotion({ gsap, ScrollTrigger, root, finePointer, onCleanup }: MotionApi) {
+export function heroMotion(api: MotionApi) {
+  const { gsap, root, finePointer, onCleanup } = api;
   const pin = root.querySelector<HTMLElement>(".lh-hero__pin");
   const big = root.querySelector<HTMLElement>(".lh-hero__big");
   const small = root.querySelector<HTMLElement>(".lh-hero__small");
@@ -142,22 +144,12 @@ export function heroMotion({ gsap, ScrollTrigger, root, finePointer, onCleanup }
     if (el) tl.fromTo(el, { yPercent: 0, autoAlpha: 1 }, { yPercent: el === mark ? 0 : lift, autoAlpha: 0, duration: 0.6 }, at);
   }
 
-  tl.fromTo(
-    pin,
-    { clipPath: "inset(0% 0% 0% 0% round 0rem)" },
-    { clipPath: "inset(3% 3% 5% 3% round 2.5rem)", duration: 1 },
-    0,
-  );
+  tl.add(clipTween(api, pin, insetClip([0, 0, 0, 0], [3, 3, 5, 3], 0, 2.5), { duration: 1 }), 0);
 
   onCleanup(() => {
     big.style.removeProperty("--lh-bx");
     big.style.removeProperty("--lh-bo");
     small.style.removeProperty("--lh-sy");
     small.style.removeProperty("--lh-so");
-  });
-
-  // The fit can change the height of a portrait hero, and with it the pin start.
-  document.fonts?.ready.then(() => {
-    if (alive) ScrollTrigger.refresh();
   });
 }

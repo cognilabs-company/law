@@ -1,3 +1,4 @@
+import { clipTween, insetClip } from "./clip";
 import type { MotionApi } from "./types";
 
 /**
@@ -7,29 +8,21 @@ import type { MotionApi } from "./types";
  *
  *   data-lh-rise            fade and rise once
  *   data-lh-rise-group      fade and rise each child in turn
- *   data-lh-lines           split a static h2 or h3 into masked lines (headings only)
+ *   data-lh-lines           rise a static heading once
  *   data-lh-reveal          wipe a photo frame open once
  *   data-lh-parallax="12"   drift the image inside a frame by that many percent
- *
- * Never put data-lh-lines on text React can change: SplitText replaces the DOM
- * nodes React owns.
  */
-export function commonMotion({ gsap, SplitText, root }: MotionApi) {
+export function commonMotion(api: MotionApi) {
+  const { gsap, root } = api;
+  // Headings rise whole. Splitting them into lines measured every word with a
+  // forced layout, which took seconds on this site's stylesheet.
   gsap.utils.toArray<HTMLElement>("[data-lh-lines]", root).forEach((el) => {
-    SplitText.create(el, {
-      type: "lines",
-      mask: "lines",
-      linesClass: "lh-split-line",
-      autoSplit: true,
-      onSplit(self) {
-        return gsap.from(self.lines, {
-          yPercent: 110,
-          duration: 1.1,
-          ease: "expo.out",
-          stagger: 0.09,
-          scrollTrigger: { trigger: el, start: "top 88%", once: true },
-        });
-      },
+    gsap.from(el, {
+      y: 44,
+      autoAlpha: 0,
+      duration: 1.15,
+      ease: "expo.out",
+      scrollTrigger: { trigger: el, start: "top 90%", once: true },
     });
   });
 
@@ -55,17 +48,12 @@ export function commonMotion({ gsap, SplitText, root }: MotionApi) {
   });
 
   gsap.utils.toArray<HTMLElement>("[data-lh-reveal]", root).forEach((el) => {
-    gsap.fromTo(
-      el,
-      { clipPath: "inset(12% 6% 12% 6% round 2.5rem)" },
-      {
-        clipPath: "inset(0% 0% 0% 0% round 0rem)",
-        duration: 1.5,
-        ease: "expo.out",
-        clearProps: "clipPath",
-        scrollTrigger: { trigger: el, start: "top 85%", once: true },
-      },
-    );
+    clipTween(api, el, insetClip([12, 6, 12, 6], [0, 0, 0, 0], 2.5, 0), {
+      duration: 1.5,
+      ease: "expo.out",
+      onComplete: () => el.style.removeProperty("clip-path"),
+      scrollTrigger: { trigger: el, start: "top 85%", once: true },
+    });
   });
 
   gsap.utils.toArray<HTMLElement>("[data-lh-parallax]", root).forEach((frame) => {
