@@ -82,8 +82,6 @@ export default function CrmTemplatesX({ meta }: CrmSectionProps) {
         <Seg label={t("type")} value={type} options={[{ value: "", label: t("anyType") }, ...TEMPLATE_TYPES.map((x) => ({ value: x as string, label: t(`t.${x}`) }))]} onChange={setType} />
       </div>
 
-      <p className="opx-cm-sub">{t("note")}</p>
-
       {rows === null ? (
         <Skel heights={[180, 180]} />
       ) : !rows.length ? (

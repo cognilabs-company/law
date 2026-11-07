@@ -2295,3 +2295,11 @@ html[data-opx-theme="light"] .opx-ld-card[data-free] .opx-ld-claim {
   color: #fff;
   background: linear-gradient(120deg, #0e8077, #12a292);
 }
+
+/* Names wrap on narrow columns instead of being cut. */
+.opx-ld-card__who {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}

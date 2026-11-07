@@ -3638,3 +3638,12 @@ html[data-opx-theme="light"] .opx-cd-slash {
   border-radius: 50%;
   background: var(--opx-chip);
 }
+
+/* The reminder's day and time sit in the composer's narrow side column. */
+.opx-cd-comp__side .crm-dt {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+html[data-opx] .opx-cd-comp__side .crm-dt {
+  grid-template-columns: minmax(0, 1fr);
+}
