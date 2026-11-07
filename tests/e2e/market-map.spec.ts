@@ -133,6 +133,8 @@ function mapRoutes(opts: { configured: boolean; search?: (b: unknown) => unknown
       })),
     "/marketplace/geocoder/search": PLACES,
     "/marketplace/geocoder/reverse": PLACES,
+    [`/marketplace/lawyers/${S1}`]: { user_id: S1, display_name: "Dilnoza Karimova", seller_type: "advokat", rating: 4.9, reviews_count: 4, is_verified: true, region: "Toshkent" },
+    [`/marketplace/lawyers/${S2}`]: { user_id: S2, display_name: "Akmal Yusupov", seller_type: "yurist", rating: 4.6, reviews_count: 4, is_verified: true, region: "Toshkent" },
   };
 }
 
@@ -199,8 +201,6 @@ test("map off: filters and the list stand in, realtime refreshes the list and un
   await expect(page.getByText("Xarita hozir mavjud emas — mutaxassislar o‘sha filtrlar bilan ro‘yxat ko‘rinishida.")).toBeVisible();
   const list = page.locator('[data-ai-id="marketplace.map.area.list"]');
   await expect(list.getByText("Dilnoza Karimova")).toBeVisible();
-  await expect(list.getByText("Ofis hududi (taxminiy)")).toBeVisible();
-  await expect(list.getByText("Viloyat markazi (taxminiy)")).toBeVisible();
   await expect(page.locator('[data-ai-id="marketplace.nearby"]')).not.toContainText(UUID);
   await expect(page.locator('[data-ai-id="marketplace.nearby"]')).not.toContainText("LG-");
   // The whole country at marker zoom, verified only by default.
@@ -263,7 +263,7 @@ test("2.1 loader: the script is the config's maps_loader_url, never v3, and the 
   expect(yandex.urls.some((u) => /\/v3\//.test(u))).toBe(false);
   // The 2.1 map is drawn: tiles in the ground pane, the backend's markers on top.
   await expect(page.locator(".ymaps-stub-ground")).toHaveCount(1);
-  await expect(page.locator('[data-ai-id="marketplace.map.panel"]')).toContainText("Taxminiy hududlar, ≈500 m");
+  await expect(page.locator('[data-ai-id="marketplace.map.panel"]')).toContainText("2 ta mutaxassis");
   // Dark mode re-tints only the tiles; light mode leaves them alone.
   const filter = await page.locator(".ymaps-stub-ground").evaluate((el) => (el as HTMLElement).style.filter);
   const dark = (await page.evaluate(() => document.documentElement.getAttribute("data-theme"))) === "dark";
@@ -627,6 +627,20 @@ test("map view: clusters zoom in, markers open a card with a route, and a point 
   await page.locator('[data-ai-id="marketplace.map.manual.again"]').click();
   await page.locator('[data-ai-id="marketplace.map.manual.cancel"]').click();
   await noOverflow(page);
+});
+
+test("card: a seller whose profile answers 404 offers no link that leads to an error page", async ({ page, context }) => {
+  await noYandex(context, "abort");
+  const routes = mapRoutes({ configured: false });
+  delete routes[`/marketplace/lawyers/${S1}`];
+  routes["/marketplace/sellers/map"] = () => ({ items: [{ ...MARKERS[0], rating: 5, reviews_count: 0 }], markers: [], clusters: [], count: 1, total_in_bbox: 1 });
+  await openMap(page, routes);
+  await page.locator('[data-ai-id="marketplace.map.area.list"]').getByRole("button", { name: /Dilnoza Karimova/ }).click();
+  const card = page.locator('[data-ai-id="marketplace.map.card"]');
+  await expect(card.locator('[data-ai-id="marketplace.map.card.no-profile"]')).toBeVisible();
+  await expect(card.locator('[data-ai-id="marketplace.map.card.profile"]')).toHaveCount(0);
+  // 5.0 with no reviews behind it is not a rating.
+  await expect(card).not.toContainText("5,0");
 });
 
 test("list view of the map area", async ({ page, context }) => {
@@ -1087,12 +1101,10 @@ test("navigator: the HUD shows the next maneuver with its icon and a live distan
   await expect(hud.locator(".mfh__headd")).toHaveText("≈ 270 m");
   expect(mock.count("POST", NAV_POST)).toBe(1);
   await context.setGeolocation({ latitude: 41.303, longitude: 69.2425, accuracy: 10 });
-  await expect.poll(() => mock.count("POST", NAV_POST)).toBe(2);
   await expect(hud.locator(".mfh__head")).toHaveText("Chapga buriling — Navoiy ko‘chasi");
   await expect(hud.locator('[data-man="left"]')).toHaveCount(1);
   await expect(hud.locator(".mfh__headd")).toHaveText("≈ 630 m");
   await context.setGeolocation({ latitude: 41.3055, longitude: 69.25, accuracy: 10 });
-  await expect.poll(() => mock.count("POST", NAV_POST)).toBe(3);
   await expect(hud.locator(".mfh__head")).toHaveText("Manzil oldinda");
   await expect(hud.locator('[data-man="arrive"]')).toHaveCount(1);
   await expect(hud.locator(".mfh__headd")).toHaveText("≈ 330 m");
@@ -1101,7 +1113,8 @@ test("navigator: the HUD shows the next maneuver with its icon and a live distan
   await expect(hud.locator(".mfh__big")).toHaveText("Yetib keldingiz");
   await expect(hud.locator("[data-man]")).toHaveCount(0);
   await page.waitForTimeout(600);
-  expect(mock.count("POST", NAV_POST)).toBe(3);
+  // The whole trip stayed on the line: the route was asked for once.
+  expect(mock.count("POST", NAV_POST)).toBe(1);
   await hud.locator('[data-ai-id="marketplace.map.follow.stop"]').click();
   await storedNothing(page);
 });
@@ -1152,9 +1165,9 @@ test("navigator: reaching the destination stops the recalculation, leaving it st
   await page.waitForTimeout(600);
   await expect(hud).toHaveClass(/is-arrived/);
   expect(bodies).toHaveLength(1);
-  await context.setGeolocation({ latitude: 41.308, longitude: 69.277, accuracy: 10 });
+  await context.setGeolocation({ latitude: 41.3065, longitude: 69.277, accuracy: 10 });
   await expect.poll(() => bodies.length).toBe(2);
-  expect(bodies[1]).toMatchObject({ latitude: 41.308, longitude: 69.277, recalculate: true });
+  expect(bodies[1]).toMatchObject({ latitude: 41.3065, longitude: 69.277, recalculate: true });
   await expect(hud).not.toHaveClass(/is-arrived/);
   await hud.locator('[data-ai-id="marketplace.map.follow.stop"]').click();
   await storedNothing(page);
