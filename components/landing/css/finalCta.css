@@ -1,0 +1,217 @@
+/* LandingFinalCta: the last word on the page.
+
+   A full-bleed photo in three layers: the photo, then the h2, then the same photo
+   clipped to the courthouse silhouette. The words therefore pass behind the marble.
+   Everything is sized from the photo box (--lh-fw), so the title always knows how
+   much open sky it has, on any screen. */
+.lhome .lh-final {
+  /* The section's own height; content may push past it, the sky colour fills in. */
+  --lh-fh: max(100svh, calc(var(--lh-u) * 38));
+  /* The photo's box: covers the section, anchored bottom left where the sky is. */
+  --lh-fw: max(100cqw, calc(var(--lh-fh) * 1.7768));
+  --lh-fleft: 0px;
+  /* Sky to the left of the first column. */
+  --lh-fsky: calc(var(--lh-fw) * 0.505 + var(--lh-fleft) - var(--lh-gutter));
+  /* As wide as the sky allows, and as tall as four lines plus the foot allow. */
+  --lh-fsize: min(
+    calc(var(--lh-fsky) / (var(--lh-word) * 0.55)),
+    calc((var(--lh-fh) - 70px - var(--lh-u) * 20.5) / 3.76)
+  );
+
+  position: relative;
+  container-type: inline-size;
+  /* Shows around the frame while it is still a rounded inset. */
+  background: var(--lh-bg);
+  overflow: clip;
+}
+
+/* Portrait: the sky runs above the photo, the crop stops before the roof meets its
+   top edge, so the join is invisible. Title in the sky, the walker and steps below. */
+@media (max-aspect-ratio: 1/1) {
+  .lhome .lh-final {
+    --lh-fw: 244cqw;
+    --lh-fleft: calc(var(--lh-fw) * -0.2);
+    --lh-fsky: calc(100cqw - var(--lh-gutter) * 2);
+    --lh-fsize: min(calc(var(--lh-fsky) / (var(--lh-word) * 0.55)), calc(var(--lh-fh) * 0.11));
+  }
+}
+
+.lhome .lh-final__defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.lhome .lh-final__frame {
+  position: relative;
+  overflow: clip;
+  min-height: var(--lh-fh);
+  background: #0046f2; /* the sky at the photo's top edge */
+}
+
+/* ------- Photo plates: identical boxes, so the silhouette lines up exactly. */
+.lhome .lh-final__plate {
+  position: absolute;
+  left: var(--lh-fleft);
+  bottom: 0;
+  width: var(--lh-fw);
+  aspect-ratio: 3200 / 1801;
+  transform-origin: 52% 78%;
+  pointer-events: none;
+}
+.lhome .lh-final__plate img { object-fit: fill; }
+.lhome .lh-final__plate--back { z-index: 0; overflow: hidden; }
+.lhome .lh-final__plate--front {
+  z-index: 2;
+  overflow: hidden;
+  -webkit-clip-path: url(#lh-final-silhouette);
+  clip-path: url(#lh-final-silhouette);
+}
+@media (max-aspect-ratio: 1/1) {
+  .lhome .lh-final__plate--back {
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 9%);
+    mask-image: linear-gradient(to bottom, transparent, #000 9%);
+  }
+}
+
+/* A band of sunlight that only ever lands on the marble. */
+.lhome .lh-final__sun {
+  position: absolute;
+  inset: -10% -40%;
+  background: linear-gradient(104deg, transparent 38%, rgba(255, 255, 255, 0.7) 50%, transparent 62%);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+/* ------- The sky deepens behind the text. The marble, above it, stays bright. */
+.lhome .lh-final__shade {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgba(3, 16, 60, 0.42), transparent 34%),
+    radial-gradient(90% 80% at 12% 62%, rgba(3, 18, 72, 0.62), transparent 72%);
+}
+
+/* The steps go down into the footer's own colour. This lives in both plates, under
+   the h2 and over the marble, so the title never turns grey in it... */
+.lhome .lh-final__steps {
+  position: absolute;
+  inset: auto 0 0;
+  height: min(40%, calc(var(--lh-u) * 25));
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(3, 16, 43, 0.5) 46%, rgba(3, 16, 43, 0.88) 78%, var(--b950));
+}
+/* ...and this last strip holds the join while the plates drift on scrub. */
+.lhome .lh-final__fade {
+  position: absolute;
+  inset: auto 0 0;
+  height: calc(var(--lh-u) * 4);
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--b950));
+}
+
+/* ------- Text. The body sets no stacking context, so the h2 can sit between plates. */
+.lhome .lh-final__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: var(--lh-fh);
+  padding: calc(70px + var(--lh-u) * 1.4) var(--lh-gutter) calc(var(--lh-u) * 1.5);
+}
+.lhome .lh-final__kicker,
+.lhome .lh-final__foot,
+.lhome .lh-final__note {
+  position: relative;
+  z-index: 3;
+}
+.lhome .lh-final__kicker {
+  color: #fff;
+  font-size: calc(var(--lh-u) * 0.95);
+  --lh-accent: #fff;
+}
+.lhome .lh-final__title {
+  position: relative;
+  z-index: 1;
+  width: var(--lh-fsky);
+  margin-top: calc(var(--lh-u) * 0.9);
+  font-size: var(--lh-fsize);
+  font-weight: 400;
+  letter-spacing: -0.045em;
+  line-height: 0.94;
+  color: #fff;
+}
+.lhome .lh-final__title b {
+  display: inline-block;
+  font-weight: inherit;
+}
+.lhome .lh-final__foot {
+  width: min(100%, calc(var(--lh-fw) * 0.385));
+  margin-top: auto;
+  padding-top: calc(var(--lh-u) * 1.5);
+}
+.lhome .lh-final__lead {
+  max-width: 44ch;
+  color: #fff;
+  font-size: calc(var(--lh-u) * 1.2);
+  line-height: 1.38;
+  letter-spacing: -0.012em;
+  text-wrap: pretty;
+}
+.lhome .lh-final__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--lh-u) * 0.6);
+  margin-top: calc(var(--lh-u) * 1.3);
+}
+.lhome .lh-final__mag { display: inline-flex; flex: 0 1 auto; }
+.lhome .lh-final__mag .lh-btn {
+  min-height: calc(var(--lh-u) * 3.5);
+  padding-inline: 1.7em;
+  font-size: calc(var(--lh-u) * 1.06);
+  /* GSAP owns the transform on fine pointers, a CSS transition would fight it. */
+  transition: background-color 0.25s, color 0.25s, border-color 0.25s;
+}
+.lhome .lh-final__mag .lh-btn svg { transition: transform 0.45s var(--lh-ease); }
+.lhome .lh-final__mag .lh-btn:hover svg { transform: translateX(0.25em); }
+.lhome .lh-final__mag .lh-btn--glass:hover { --lh-btn-bg: rgba(255, 255, 255, 0.22); }
+.lhome .lh-final__note {
+  width: 100%;
+  max-width: 78ch;
+  margin-top: calc(var(--lh-u) * 1.6);
+  color: rgba(255, 255, 255, 0.82);
+  font-size: calc(var(--lh-u) * 0.74);
+  line-height: 1.4;
+}
+
+@media (max-aspect-ratio: 1/1) {
+  .lhome .lh-final__foot {
+    width: 100%;
+    margin-top: 0;
+    padding-top: calc(var(--lh-u) * 1.3);
+  }
+  /* Leaves the walker, the steps and the columns open under the text. */
+  .lhome .lh-final__note { margin-top: calc(var(--lh-fw) * 0.3); }
+  /* Both buttons fill the row they land on, so a wrap still reads as a pair. */
+  .lhome .lh-final__mag { flex: 1 1 auto; }
+  .lhome .lh-final__mag .lh-btn { width: 100%; padding-inline: 1.4em; }
+}
+
+/* ------- The site footer takes over from the photo's last colour. */
+body:has(.lhome) .ftr {
+  margin-top: -1px;
+  padding-block: clamp(40px, 3.6vw, 120px) clamp(28px, 1.6vw, 56px);
+  font-size: clamp(0.89rem, 0.3vw + 0.66rem, 1.45rem);
+}
+/* Same left edge as the section above: --lh-gutter is not in scope out here. */
+body:has(.lhome) .ftr .wrap {
+  max-width: none;
+  padding-inline: clamp(16px, 3.1vw, 96px);
+}
+body:has(.lhome) .ftr h4 { font-size: 0.83em; }
+body:has(.lhome) .ftr__p { font-size: 1.7em; }
+body:has(.lhome) .ftr__p small { font-size: 0.48em; }
+body:has(.lhome) .ftr__b { font-size: 0.91em; }

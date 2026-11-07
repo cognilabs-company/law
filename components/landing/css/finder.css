@@ -1,0 +1,348 @@
+/* ==========================================================================
+   LandingFinder: a sheet that rises over the end of the hero and carries the
+   real Finder. Finder markup and behaviour are untouched: everything below is
+   a scoped restyle. The site's own rules switch layout on the viewport width,
+   so each of them is restated here and switched on this panel's width instead.
+   ========================================================================== */
+
+.lhome .lh-finder {
+  /* Resting state: the rounded corners sit on the photo's last few pixels. Once
+     the hero is pinned, motion/manifesto.ts adds .is-pulled for a real overlap. */
+  --lh-finder-pull: calc(var(--lh-u) * 2.5);
+  position: relative;
+  z-index: 6;
+  margin-top: calc(var(--lh-finder-pull) * -1);
+  padding-inline: clamp(8px, 1.25vw, calc(var(--lh-u) * 2));
+  scroll-margin-top: 70px;
+}
+.lhome .lh-finder.is-pulled { --lh-finder-pull: clamp(calc(var(--lh-u) * 5), 16svh, calc(var(--lh-u) * 18)); }
+
+.lhome .lh-finder__panel {
+  container: lh-finder / inline-size;
+  position: relative;
+  background: var(--lh-card);
+  border-radius: var(--lh-r-l);
+  will-change: transform;
+}
+
+.lhome .lh-finder__head,
+.lhome .lh-finder .finder {
+  /* Inside the panel everything scales with the panel, capped by height, so a
+     4K or an ultrawide screen gets the same poster and not a small form. */
+  --lh-f: max(var(--lh-u), min(0.9cqw, 1.75svh));
+  --lh-pad: max(18px, 3cqw);
+}
+
+/* --------------------------------------------------------------------------
+   Head
+   -------------------------------------------------------------------------- */
+.lhome .lh-finder__head {
+  padding: calc(var(--lh-pad) * 1.05) var(--lh-pad) calc(var(--lh-pad) * 0.9);
+}
+.lhome .lh-finder__head .lh-kicker { font-size: calc(var(--lh-f) * 0.92); }
+.lhome .lh-finder__title {
+  /* Sized so the longer clause fills the panel on one line, never past it. */
+  font-size: clamp(
+    calc(var(--lh-u) * 2.05),
+    min(6.3cqw, calc((100cqw - var(--lh-pad) * 2) / (var(--lh-n) * 0.47))),
+    15svh
+  );
+  font-weight: 400;
+  letter-spacing: -0.05em;
+  line-height: 1.02;
+  margin-top: calc(var(--lh-f) * 1.5);
+  color: var(--lh-text);
+}
+.lhome .lh-finder__title em.lh-accent {
+  display: block;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  padding-bottom: 0.08em;
+}
+
+/* The line masks from data-lh-lines are as tall as the tight leading, which
+   would slice descenders and the italic's overhang. Room inside, none outside. */
+.lhome .lh-finder__title .lh-split-line { padding: 0 0.08em 0.22em; }
+.lhome .lh-finder__title .lh-split-line-mask { margin: 0 -0.08em -0.22em; }
+
+/* --------------------------------------------------------------------------
+   The Finder's frame
+   -------------------------------------------------------------------------- */
+.lhome .lh-finder .finder { position: static; z-index: auto; margin: 0; }
+.lhome .lh-finder .finder__c {
+  padding: 0 var(--lh-pad) calc(var(--lh-pad) * 0.9);
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  color: var(--lh-text);
+}
+
+/* Tabs: a line of type, the active one marked by a rule. */
+.lhome .lh-finder .ftabs {
+  gap: calc(var(--lh-f) * 2.2);
+  padding: 0;
+  border-bottom: 1px solid var(--lh-line);
+}
+.lhome .lh-finder .ftab {
+  gap: 0.5em;
+  padding: 0.35em 0 0.85em;
+  font: 400 calc(var(--lh-f) * 1.3) / 1.15 var(--lh-sans);
+  letter-spacing: -0.025em;
+  color: var(--lh-mute);
+}
+.lhome .lh-finder .ftab svg { width: 0.9em; height: 0.9em; transition: color 0.25s; }
+.lhome .lh-finder .ftab:hover { color: var(--lh-text); }
+.lhome .lh-finder .ftab::after {
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 0;
+  background: var(--lh-accent);
+  transform-origin: left;
+  transition: transform 0.7s var(--lh-ease);
+}
+.lhome .lh-finder .ftab[aria-selected="true"] { color: var(--lh-text); }
+.lhome .lh-finder .ftab[aria-selected="true"] svg { color: var(--lh-accent); transform: none; }
+.lhome .lh-finder .ftab:focus-visible { outline-offset: -2px; border-radius: 6px; }
+
+.lhome .lh-finder .fform { padding: calc(var(--lh-f) * 1.5) 0 0; }
+
+/* The bar: one line drawn around everything, the button inset at its end. */
+.lhome .lh-finder .fbar {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  background: transparent;
+  border-radius: var(--lh-r-m);
+  box-shadow: inset 0 0 0 1px var(--lh-line);
+}
+.lhome .lh-finder .fbar:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--lh-accent), 0 0 0 4px color-mix(in srgb, var(--lh-accent) 16%, transparent);
+}
+.lhome .lh-finder .fbar--ai { grid-template-columns: minmax(0, 1fr) auto; }
+.lhome .lh-finder .fbar__f {
+  grid-column: auto;
+  padding: calc(var(--lh-f) * 1.05) calc(var(--lh-f) * 1.5);
+  border-radius: var(--lh-r-m);
+}
+.lhome .lh-finder .fbar__f:hover,
+.lhome .lh-finder .fbar__f:focus-within { background: var(--lh-bg); }
+.lhome .lh-finder .fbar__f + .fbar__f::before,
+.lhome .lh-finder .fbar__f:nth-child(2)::before {
+  top: 22%;
+  bottom: 22%;
+  left: 0;
+  right: auto;
+  width: 1px;
+  height: auto;
+  background: var(--lh-line);
+}
+.lhome .lh-finder .fbar__f label {
+  gap: 0.45em;
+  margin: 0 0 0.15em;
+  font-size: calc(var(--lh-f) * 0.8);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--lh-mute);
+}
+.lhome .lh-finder .fbar__f label svg {
+  width: 1em;
+  height: 1em;
+  color: var(--lh-accent);
+  opacity: 1;
+}
+.lhome .lh-finder .fbar .dsel__btn {
+  min-height: calc(var(--lh-f) * 2.3);
+  padding: 0.1em 0;
+  font-family: var(--lh-sans);
+  font-size: calc(var(--lh-f) * 1.32);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  color: var(--lh-text);
+}
+.lhome .lh-finder .fbar .dsel__cv { width: 1em; height: 1em; }
+.lhome .lh-finder .fbar .dsel__cv::after {
+  width: 0.36em;
+  height: 0.36em;
+  border-right-width: 1.5px;
+  border-bottom-width: 1.5px;
+  border-color: var(--lh-mute);
+}
+.lhome .lh-finder .fbar .dsel[data-open="true"] .dsel__cv::after { border-color: var(--lh-accent); }
+.lhome .lh-finder .fbar__f--txt textarea {
+  display: block;
+  min-height: 2.8em;
+  font-family: var(--lh-sans);
+  font-size: calc(var(--lh-f) * 1.32);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  color: var(--lh-text);
+}
+.lhome .lh-finder .fbar__f--txt textarea::placeholder { color: var(--lh-mute); }
+
+.lhome .lh-finder .fgo {
+  grid-column: auto;
+  margin: calc(var(--lh-f) * 0.5);
+  padding: 0.6em 2em;
+  border-radius: calc(var(--lh-r-m) - var(--lh-f) * 0.5);
+  background: var(--lh-cobalt);
+  box-shadow: none;
+  color: #fff;
+  font: 500 calc(var(--lh-f) * 1.14) / 1.15 var(--lh-sans);
+  letter-spacing: -0.015em;
+  transition: background-color 0.25s, transform 0.5s var(--lh-ease);
+}
+.lhome .lh-finder .fgo svg { width: 1.05em; height: 1.05em; transition: transform 0.5s var(--lh-ease); }
+.lhome .lh-finder .fgo:hover { background: #003be0; box-shadow: none; filter: none; }
+.lhome .lh-finder .fgo:hover svg { transform: scale(1.12); }
+.lhome .lh-finder .fgo:active { transform: scale(0.98); }
+
+/* Suggestions */
+.lhome .lh-finder .fhint {
+  gap: calc(var(--lh-f) * 0.45);
+  padding: calc(var(--lh-f) * 1.05) 0 0;
+}
+.lhome .lh-finder .fhint b {
+  gap: 0.4em;
+  margin-right: 0.5em;
+  font-size: calc(var(--lh-f) * 0.84);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--lh-mute);
+}
+.lhome .lh-finder .fhint b svg { width: 1em; height: 1em; color: var(--lh-accent); }
+.lhome .lh-finder .qc {
+  min-height: 2.5em;
+  padding: 0.5em 1em;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--lh-line);
+  color: var(--lh-text);
+  font-family: var(--lh-sans);
+  font-size: calc(var(--lh-f) * 0.88);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  transition: background-color 0.25s, color 0.25s, box-shadow 0.25s;
+}
+.lhome .lh-finder .qc:hover {
+  background: var(--lh-text);
+  box-shadow: inset 0 0 0 1px var(--lh-text);
+  color: var(--lh-card);
+  transform: none;
+}
+
+/* --------------------------------------------------------------------------
+   Results
+   -------------------------------------------------------------------------- */
+.lhome .lh-finder .sheetres {
+  margin-top: calc(var(--lh-f) * 1.6);
+  padding: calc(var(--lh-f) * 1.4) 0 0;
+  border-top: 1px solid var(--lh-line);
+}
+.lhome .lh-finder .sheetres__t { margin-bottom: calc(var(--lh-f) * 0.7); }
+.lhome .lh-finder .sheetres__t b {
+  font: 500 calc(var(--lh-f) * 1.5) / 1.1 var(--lh-sans);
+  letter-spacing: -0.03em;
+}
+.lhome .lh-finder .sheetres__t .pill { font-size: calc(var(--lh-f) * 0.82); }
+.lhome .lh-finder .reslist { gap: 0; }
+.lhome .lh-finder .resrow {
+  gap: calc(var(--lh-f) * 1);
+  padding: calc(var(--lh-f) * 0.95) calc(var(--lh-f) * 0.5);
+  border-bottom: 1px solid var(--lh-line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--lh-text);
+  transition: background-color 0.25s;
+}
+.lhome .lh-finder .resrow:hover { background: var(--lh-bg); box-shadow: none; }
+.lhome .lh-finder .resrow__i {
+  width: calc(var(--lh-f) * 2.8);
+  height: calc(var(--lh-f) * 2.8);
+  flex: none;
+  border-radius: 50%;
+  background: var(--lh-navy);
+  font-size: calc(var(--lh-f) * 0.9);
+}
+.lhome .lh-finder .resrow__n {
+  font-size: calc(var(--lh-f) * 1.14);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.lhome .lh-finder .resrow__m { font-size: calc(var(--lh-f) * 0.86); color: var(--lh-mute); }
+.lhome .lh-finder .resrow__r b {
+  font-size: calc(var(--lh-f) * 1.14);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.lhome .lh-finder .resrow__r span { font-size: calc(var(--lh-f) * 0.78); color: var(--lh-mute); }
+.lhome .lh-finder .disc {
+  margin-top: calc(var(--lh-f) * 0.9);
+  padding-top: 0;
+  border-top: 0;
+  font-size: calc(var(--lh-f) * 0.8);
+  color: var(--lh-mute);
+}
+.lhome .lh-finder .aibox {
+  padding: calc(var(--lh-f) * 1.2);
+  border-radius: var(--lh-r-s);
+  background: var(--lh-bg);
+  box-shadow: none;
+}
+.lhome .lh-finder .aibox__h {
+  font-size: calc(var(--lh-f) * 1.05);
+  font-weight: 500;
+  color: var(--lh-text);
+}
+.lhome .lh-finder .aibox p { font-size: calc(var(--lh-f) * 0.95) !important; color: var(--lh-mute) !important; margin-bottom: 0 !important; }
+.lhome .lh-finder .aibox__h .dot { background: var(--lh-azure); box-shadow: 0 0 0 4px color-mix(in srgb, var(--lh-azure) 22%, transparent); }
+.lhome .lh-finder .skel__r { height: calc(var(--lh-f) * 4.4); border-radius: var(--lh-r-s); }
+
+/* --------------------------------------------------------------------------
+   The panel narrows: rows instead of a bar. Follows the panel, not the device.
+   -------------------------------------------------------------------------- */
+@container lh-finder (max-width: 60rem) {
+  .lhome .lh-finder .fbar,
+  .lhome .lh-finder .fbar--ai { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .lhome .lh-finder .fbar__f--txt,
+  .lhome .lh-finder .fbar__f:nth-child(3),
+  .lhome .lh-finder .fgo { grid-column: 1 / -1; }
+  .lhome .lh-finder .fbar__f:nth-child(3)::before {
+    top: 0;
+    bottom: auto;
+    left: calc(var(--lh-f) * 1.5);
+    right: calc(var(--lh-f) * 1.5);
+    width: auto;
+    height: 1px;
+  }
+  .lhome .lh-finder .fgo { min-height: calc(var(--lh-f) * 3.5); }
+}
+
+@container lh-finder (max-width: 34rem) {
+  .lhome .lh-finder__title {
+    font-size: clamp(calc(var(--lh-u) * 2.05), 10.6cqw, 13svh);
+    margin-top: calc(var(--lh-f) * 1);
+  }
+  .lhome .lh-finder__title em.lh-accent { display: inline; }
+  .lhome .lh-finder .ftabs { gap: calc(var(--lh-f) * 1.4); }
+  .lhome .lh-finder .ftab { font-size: calc(var(--lh-f) * 1.06); }
+  .lhome .lh-finder .fform { padding-top: calc(var(--lh-f) * 1.05); }
+  .lhome .lh-finder .fbar,
+  .lhome .lh-finder .fbar--ai { grid-template-columns: minmax(0, 1fr); }
+  .lhome .lh-finder .fbar__f { grid-column: 1 / -1; padding: calc(var(--lh-f) * 0.8) calc(var(--lh-f) * 1.05); }
+  .lhome .lh-finder .fbar__f + .fbar__f::before,
+  .lhome .lh-finder .fbar__f:nth-child(2)::before,
+  .lhome .lh-finder .fbar__f:nth-child(3)::before {
+    top: 0;
+    bottom: auto;
+    left: calc(var(--lh-f) * 1.05);
+    right: calc(var(--lh-f) * 1.05);
+    width: auto;
+    height: 1px;
+  }
+  .lhome .lh-finder .fbar .dsel__btn { min-height: 2.2em; font-size: calc(var(--lh-f) * 1.14); }
+  .lhome .lh-finder .fbar__f--txt textarea { font-size: calc(var(--lh-f) * 1.14); }
+  .lhome .lh-finder .qc { min-height: 44px; }
+  .lhome .lh-finder .resrow { flex-wrap: wrap; }
+  .lhome .lh-finder .resrow__r { margin-left: calc(var(--lh-f) * 3.8); text-align: left; flex-basis: 100%; }
+}
