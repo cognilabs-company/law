@@ -1,4 +1,5 @@
 import { clipTween, insetClip } from "./clip";
+import { hold } from "./hold";
 import type { MotionApi } from "./types";
 
 // Timeline units: one unit is one stage height of scroll.
@@ -55,6 +56,11 @@ export function problemMotion(api: MotionApi) {
   stage.classList.add("is-staged");
   onCleanup(() => stage.classList.remove("is-staged"));
 
+  const total = FIRST_HOLD + STEP * 3 + TAIL - (STEP - ENTRY);
+  const track = stage.parentElement as HTMLElement;
+  const held = hold(api, track, stage, () => stage.offsetHeight * total);
+  onCleanup(held.release);
+
   // A scene behind a closed clip-path may count as out of view and stay unloaded,
   // so the photos start loading well before the stage arrives.
   ScrollTrigger.create({
@@ -84,26 +90,16 @@ export function problemMotion(api: MotionApi) {
   gsap
     .timeline({
       defaults: { ease: "none" },
-      scrollTrigger: { trigger: stage, start: "top bottom", end: "top top", scrub: 0.6 },
+      scrollTrigger: { trigger: track, start: "top bottom", end: "top top", scrub: 0.6 },
     })
     .add(clipTween(api, maze.scene, insetClip([10, 7, 0, 7], [0, 0, 0, 0], 2.5, 0), { duration: 1 }), 0)
     .fromTo(maze.img, { scale: 1.35 }, { scale: 1, duration: 1 }, 0)
     .fromTo(maze.words, { yPercent: 118 }, { yPercent: 0, duration: 0.3, stagger: 0.03, ease: "power3.out" }, 0.48)
     .fromTo([maze.count, maze.text], { y: 26, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.3, ease: "power3.out" }, 0.62);
 
-  const total = FIRST_HOLD + STEP * 3 + TAIL - (STEP - ENTRY);
-
   const tl = gsap.timeline({
     defaults: { ease: "none" },
-    scrollTrigger: {
-      trigger: stage,
-      start: "top top",
-      end: () => `+=${Math.round(stage.offsetHeight * total)}`,
-      pin: true,
-      scrub: 0.7,
-      anticipatePin: 1,
-      invalidateOnRefresh: true,
-    },
+    scrollTrigger: { trigger: held.trigger, start: held.start, end: held.end, scrub: 0.7 },
   });
 
   // Keeps the last scene on screen for the tail, whatever the tweens below add up to.

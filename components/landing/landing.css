@@ -11,7 +11,13 @@
 /* The page needs native, unclipped scrolling for pins and sticky elements.
    Only true while the landing is mounted. */
 html:has(.lhome) { scroll-behavior: auto; }
-body:has(.lhome) { overflow-x: clip; }
+/* !important: the menu, the chat dock and modals set an inline overflow:hidden on
+   body. It does not stop the page scrolling anyway, but it would make body a scroll
+   container and every sticky section would let go while one of them is open. */
+body:has(.lhome) {
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+}
 
 /* The burger lines are dark in dark theme, which is unreadable over the hero. */
 body:has(.lhome) .bar:not(.on) .burg i,

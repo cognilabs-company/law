@@ -1,4 +1,5 @@
 import { clipTween, insetClip } from "./clip";
+import { hold } from "./hold";
 import type { MotionApi } from "./types";
 
 /**
@@ -109,14 +110,16 @@ export function heroMotion(api: MotionApi) {
   }
 
   /* ---- Scroll: she runs at the camera, the type leaves, the frame closes. ---- */
+  // A hero taller than the screen (phones, with the cards) holds once its end arrives.
+  const held = hold(api, pin.parentElement as HTMLElement, pin, () => window.innerHeight * 0.7);
+  onCleanup(held.release);
+
   const tl = gsap.timeline({
     defaults: { ease: "none" },
     scrollTrigger: {
-      trigger: pin,
-      // A hero taller than the screen (phones, with the cards) pins once its end arrives.
-      start: () => (pin.offsetHeight > window.innerHeight + 1 ? "bottom bottom" : "top top"),
-      end: () => `+=${Math.round(window.innerHeight * 0.7)}`,
-      pin: true,
+      trigger: held.trigger,
+      start: held.start,
+      end: held.end,
       scrub: 0.6,
       invalidateOnRefresh: true,
     },
