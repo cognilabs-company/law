@@ -1,3 +1,4 @@
+import { clipTween, insetClip } from "./clip";
 import type { MotionApi } from "./types";
 
 // Timeline units: one unit is one stage height of scroll.
@@ -26,7 +27,8 @@ function tear(f: number) {
   return `polygon(${[...left, ...right].join(",")})`;
 }
 
-export function problemMotion({ gsap, ScrollTrigger, root, onCleanup }: MotionApi) {
+export function problemMotion(api: MotionApi) {
+  const { gsap, ScrollTrigger, root, onCleanup } = api;
   const section = root.querySelector<HTMLElement>(".lh-prob");
   const stage = section?.querySelector<HTMLElement>(".lh-prob__stage");
   if (!section || !stage) return;
@@ -84,12 +86,7 @@ export function problemMotion({ gsap, ScrollTrigger, root, onCleanup }: MotionAp
       defaults: { ease: "none" },
       scrollTrigger: { trigger: stage, start: "top bottom", end: "top top", scrub: 0.6 },
     })
-    .fromTo(
-      maze.scene,
-      { clipPath: "inset(10% 7% 0% 7% round 2.5rem)" },
-      { clipPath: "inset(0% 0% 0% 0% round 0rem)", duration: 1 },
-      0,
-    )
+    .add(clipTween(api, maze.scene, insetClip([10, 7, 0, 7], [0, 0, 0, 0], 2.5, 0), { duration: 1 }), 0)
     .fromTo(maze.img, { scale: 1.35 }, { scale: 1, duration: 1 }, 0)
     .fromTo(maze.words, { yPercent: 118 }, { yPercent: 0, duration: 0.3, stagger: 0.03, ease: "power3.out" }, 0.48)
     .fromTo([maze.count, maze.text], { y: 26, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.3, ease: "power3.out" }, 0.62);
@@ -119,10 +116,8 @@ export function problemMotion({ gsap, ScrollTrigger, root, onCleanup }: MotionAp
     switch (next) {
       case doors: {
         const [a, b] = gsap.utils.toArray<HTMLElement>(".lh-prob__slit i", stage);
-        tl.fromTo(
-          next.scene,
-          { clipPath: "inset(0% 50% 0% 50%)" },
-          { clipPath: "inset(0% 0% 0% 0%)", duration: ENTRY, ease: "power2.inOut" },
+        tl.add(
+          clipTween(api, next.scene, insetClip([0, 50, 0, 50], [0, 0, 0, 0]), { duration: ENTRY, ease: "power2.inOut" }),
           t,
         );
         tl.fromTo(next.img, { scale: 1.22 }, { scale: 1, duration: STEP, ease: "power1.out" }, t);
@@ -133,19 +128,12 @@ export function problemMotion({ gsap, ScrollTrigger, root, onCleanup }: MotionAp
         break;
       }
       case torn:
-        tl.fromTo(
-          next.scene,
-          { clipPath: tear(0) },
-          { clipPath: tear(1), duration: ENTRY, ease: "power3.in" },
-          t,
-        );
+        tl.add(clipTween(api, next.scene, tear, { duration: ENTRY, ease: "power3.in" }), t);
         tl.fromTo(next.img, { scale: 1.3, rotate: 3 }, { scale: 1, rotate: 0, duration: STEP, ease: "power1.out" }, t);
         break;
       case storm:
-        tl.fromTo(
-          next.scene,
-          { clipPath: "circle(0% at 50% 58%)" },
-          { clipPath: "circle(92% at 50% 58%)", duration: ENTRY, ease: "power2.in" },
+        tl.add(
+          clipTween(api, next.scene, (p) => `circle(${(92 * p).toFixed(3)}% at 50% 58%)`, { duration: ENTRY, ease: "power2.in" }),
           t,
         );
         tl.fromTo(next.img, { scale: 1.55, rotate: -11 }, { scale: 1, rotate: 0, duration: STEP, ease: "power2.out" }, t);

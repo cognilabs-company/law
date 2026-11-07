@@ -1,3 +1,4 @@
+import { clipTween, insetClip } from "./clip";
 import type { MotionApi } from "./types";
 
 /**
@@ -5,7 +6,8 @@ import type { MotionApi } from "./types";
  * Only the band moves: GSAP never touches SubscriptionSection, whose prices and
  * term switch belong to React.
  */
-export function subscriptionMotion({ gsap, ScrollTrigger, root }: MotionApi) {
+export function subscriptionMotion(api: MotionApi) {
+  const { gsap, ScrollTrigger, root } = api;
   const wrap = root.querySelector<HTMLElement>(".lh-sub");
   if (!wrap) return;
   const pin = wrap.querySelector<HTMLElement>(".lh-sub__pin");
@@ -16,7 +18,7 @@ export function subscriptionMotion({ gsap, ScrollTrigger, root }: MotionApi) {
   if (!pin || !frame || !media || !ghost || !copy) return;
 
   const fits = pin.offsetHeight <= window.innerHeight + 2;
-  const radius = () => parseFloat(getComputedStyle(frame).borderTopLeftRadius) || 0;
+  const radius = parseFloat(getComputedStyle(frame).borderTopLeftRadius) || 0;
   const pinLength = () => window.innerHeight * 1.15;
   const lead = () => window.innerHeight * 0.8;
 
@@ -25,7 +27,7 @@ export function subscriptionMotion({ gsap, ScrollTrigger, root }: MotionApi) {
   }
 
   const portrait = window.matchMedia("(max-aspect-ratio: 1/1)").matches;
-  const closed = portrait ? "inset(23% 15% 23% 15% round " : "inset(21% 31% 21% 31% round ";
+  const closed = portrait ? [23, 15, 23, 15] : [21, 31, 21, 31];
 
   const tl = gsap.timeline({
     scrollTrigger: {
@@ -37,10 +39,8 @@ export function subscriptionMotion({ gsap, ScrollTrigger, root }: MotionApi) {
     },
   });
 
-  tl.fromTo(
-    frame,
-    { clipPath: () => `${closed}${radius() * 1.2}px)` },
-    { clipPath: () => `inset(0% 0% 0% 0% round ${radius()}px)`, ease: "power2.inOut", duration: 1 },
+  tl.add(
+    clipTween(api, frame, insetClip(closed, [0, 0, 0, 0], radius * 1.2, radius, "px"), { ease: "power2.inOut", duration: 1 }),
     0,
   )
     .fromTo(media, { scale: 1.42 }, { scale: 1, ease: "power2.inOut", duration: 1 }, 0)

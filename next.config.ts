@@ -48,6 +48,9 @@ const nextConfig: NextConfig = {
   // 75 stays the default for every existing image; the landing's large photos
   // ask for 90, because smooth blue gradients band at lower qualities.
   images: { qualities: [75, 90] },
+  // Type checking this project takes over half an hour on a local machine.
+  // LEXGO_FAST_BUILD=1 skips it for a quick local build; CI still runs typecheck.
+  typescript: { ignoreBuildErrors: process.env.LEXGO_FAST_BUILD === "1" },
   // Dev server defaults to allowing only "localhost" as the request origin
   // (Next.js 16 cross-origin dev-asset protection); local CDP-driven testing
   // hits 127.0.0.1 directly, which otherwise gets a silent 403 on every

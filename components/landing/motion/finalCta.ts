@@ -1,3 +1,4 @@
+import { clipTween } from "./clip";
 import type { MotionApi } from "./types";
 
 /**
@@ -6,7 +7,8 @@ import type { MotionApi } from "./types";
  * behind the columns. In portrait, where the title sits above the roof, they rise
  * into the sky instead. CTAs are magnetic on fine pointers.
  */
-export function finalCtaMotion({ gsap, root, finePointer, onCleanup }: MotionApi) {
+export function finalCtaMotion(api: MotionApi) {
+  const { gsap, root, finePointer, onCleanup } = api;
   const section = root.querySelector<HTMLElement>(".lh-final");
   if (!section) return;
   const frame = section.querySelector<HTMLElement>(".lh-final__frame");
@@ -19,14 +21,15 @@ export function finalCtaMotion({ gsap, root, finePointer, onCleanup }: MotionApi
   const plates = [back, front];
   const isPortrait = () => window.matchMedia("(max-aspect-ratio: 1/1)").matches;
 
-  gsap.fromTo(
+  clipTween(
+    api,
     frame,
-    { clipPath: "inset(7% 2.8% 0% 2.8% round 3rem 3rem 0rem 0rem)" },
-    {
-      clipPath: "inset(0% 0% 0% 0% round 0rem 0rem 0rem 0rem)",
-      ease: "none",
-      scrollTrigger: { trigger: section, start: "top bottom", end: "top 18%", scrub: 0.5 },
+    (p) => {
+      const q = 1 - p;
+      const r = (3 * q).toFixed(3);
+      return `inset(${(7 * q).toFixed(3)}% ${(2.8 * q).toFixed(3)}% 0% ${(2.8 * q).toFixed(3)}% round ${r}rem ${r}rem 0rem 0rem)`;
     },
+    { scrollTrigger: { trigger: section, start: "top bottom", end: "top 18%", scrub: 0.5 } },
   );
 
   // Both plates take identical transforms, so the silhouette never slips.
