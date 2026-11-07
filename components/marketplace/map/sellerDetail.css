@@ -81,6 +81,7 @@
 
 @media (pointer:coarse){
   .msd__back,.mnv__x{width:44px;height:44px}
+  .mnv__x{margin-block:-7px}
   .mseg.mnv__modes button{min-height:46px}
 }
 

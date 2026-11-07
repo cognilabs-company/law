@@ -219,13 +219,13 @@ export default function NavigatorBlock({
   const yandexFirst = !!done && !routed && !!web;
 
   const startBtn = done?.dest ? (
-    <button type="button" className={`btn btn--sm ${following || yandexFirst ? "btn--line" : "btn--grad"} mnv__start`} onClick={following ? onStop : onStart} aria-pressed={following} data-ai-id="marketplace.route.follow">
+    <button type="button" className={`btn btn--sm ${following || yandexFirst ? "btn--line" : "btn--grad"} mnv__start`} onClick={following ? onStop : onStart} aria-pressed={following} data-sheet-fit={yandexFirst ? undefined : ""} data-ai-id="marketplace.route.follow">
       {following ? <Square aria-hidden="true" strokeWidth={1.75} /> : <Navigation aria-hidden="true" strokeWidth={1.75} />}
       {following ? t("stop") : t("start")}
     </button>
   ) : null;
   const webBtn = web ? (
-    <a className={`btn btn--sm ${yandexFirst ? "btn--grad" : "btn--line"}`} href={web} target="_blank" rel="noopener noreferrer" data-ai-id="marketplace.route.web">
+    <a className={`btn btn--sm ${yandexFirst ? "btn--grad" : "btn--line"}`} href={web} target="_blank" rel="noopener noreferrer" data-sheet-fit={yandexFirst ? "" : undefined} data-ai-id="marketplace.route.web">
       <IconExternal aria-hidden="true" />
       {t("mapsWeb")}
     </a>
@@ -316,7 +316,7 @@ export default function NavigatorBlock({
           </div>
         </div>
       ) : (
-        <button type="button" className="btn btn--grad mnv__go" onClick={go} disabled={busy || locating || waitS > 0} aria-busy={busy || locating || undefined} data-ai-id="marketplace.route.build">
+        <button type="button" className="btn btn--grad mnv__go" onClick={go} disabled={busy || locating || waitS > 0} aria-busy={busy || locating || undefined} data-sheet-fit="" data-ai-id="marketplace.route.build">
           {phase.kind === "fail" ? <IconRefresh aria-hidden="true" /> : <RouteIcon aria-hidden="true" strokeWidth={1.75} />}
           {busy ? tr("building") : locating ? tx("locate.asking") : waitS > 0 ? tr("retryIn", { n: waitS }) : phase.kind === "fail" ? tr("retry") : t("show")}
         </button>

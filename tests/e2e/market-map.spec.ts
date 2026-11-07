@@ -481,6 +481,67 @@ test("navigator: the guidance line on the map, then the in-app follow mode until
   await noOverflow(page);
 });
 
+const STRAIGHT_ROUTE = {
+  provider: "yandex",
+  destination_source: "public_office",
+  destination: { latitude: 41.31, longitude: 69.28, coordinates: [69.28, 41.31] },
+  app_url: "yandexmaps://maps.yandex.ru/?rtext=41.3,69.24~41.31,69.28&rtt=auto",
+  web_url: WEB_ROUTE,
+  fallback_url: WEB_ROUTE,
+  event_recorded: true,
+};
+
+test("navigator: moving along a trip asks for no pins, and the map reads its view again after it", async ({ page, context }) => {
+  await noYandex(context, "stub");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 20 });
+  const routes = mapRoutes({ configured: true });
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = STRAIGHT_ROUTE;
+  const mock = await openMap(page, routes);
+  await expect(page.locator(".ymk-pin, .ymk-group").first()).toBeVisible();
+  await page.locator('[data-ai-id="marketplace.nearby.locate"]').click();
+  await page.locator('[data-ai-id="marketplace.nearby.results"]').getByRole("button", { name: /Dilnoza Karimova/ }).click();
+  const nav = page.locator('[data-ai-id="marketplace.map.card"] [data-ai-id="marketplace.route"]');
+  await nav.getByRole("button", { name: "Yo‘lni ko‘rsatish" }).click();
+  await nav.getByRole("button", { name: "Navigatorni boshlash" }).click();
+  const hud = page.locator('[data-ai-id="marketplace.map.follow"]');
+  await expect(hud).toBeVisible();
+  // What the start itself moved has settled before the trip is counted.
+  await page.waitForTimeout(1200);
+  const pins = /^\/marketplace\/sellers\/map$/;
+  const before = mock.count("GET", pins);
+  await context.setGeolocation({ latitude: 41.303, longitude: 69.25, accuracy: 10 });
+  await page.waitForTimeout(1000);
+  await context.setGeolocation({ latitude: 41.305, longitude: 69.26, accuracy: 10 });
+  await page.waitForTimeout(1000);
+  expect(mock.count("GET", pins)).toBe(before);
+  await hud.getByRole("button", { name: "To‘xtatish" }).click();
+  await expect.poll(() => mock.count("GET", pins)).toBeGreaterThan(before);
+});
+
+test("phone: the sheet shows the route's main action whole, however little of the card used to fit", async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 700 });
+  await noYandex(context, "stub");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 41.3, longitude: 69.24, accuracy: 20 });
+  const routes = mapRoutes({ configured: true });
+  routes[`POST /marketplace/sellers/${S1}/navigation`] = STRAIGHT_ROUTE;
+  await openMap(page, routes);
+  await expect(page.locator(".ymk-pin, .ymk-group").first()).toBeVisible();
+  await page.locator('[data-ai-id="marketplace.nearby.locate"]').click();
+  await page.locator('[data-ai-id="marketplace.nearby.results"]').getByRole("button", { name: /Dilnoza Karimova/ }).click();
+  const card = page.locator('[data-ai-id="marketplace.map.card"]');
+  await card.getByRole("button", { name: "Yo‘lni ko‘rsatish" }).click();
+  await expect(card.locator('[data-ai-id="marketplace.route.done"]')).toBeVisible();
+  const cut = async () => {
+    const stage = await page.locator(".ymk-stage").boundingBox();
+    const main = await card.locator("[data-sheet-fit]").boundingBox();
+    return (main?.y ?? 0) + (main?.height ?? 0) - ((stage?.y ?? 0) + (stage?.height ?? 0));
+  };
+  await expect.poll(cut).toBeLessThanOrEqual(0);
+  await noOverflow(page);
+});
+
 test("navigator: when the browser stops giving the location the follow mode says so and offers Yandex", async ({ page, context }) => {
   await noYandex(context, "abort");
   await page.addInitScript(() => {

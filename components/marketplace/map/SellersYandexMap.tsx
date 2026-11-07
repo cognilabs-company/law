@@ -45,6 +45,7 @@ const GLIDE_MS = 480;
 const FIT_MS = 460;
 const DRAW_MS = 620;
 const SIDE_PAD = 64;
+const CTL_ROOM_PX = 156;
 const FOLLOW_ZOOM = 16;
 const GUIDE_ZOOM = 16;
 const RING_ZOOM = 15;
@@ -157,6 +158,9 @@ export default function SellersYandexMap({
   const [res, setRes] = useState<ResState | null>(null);
   const [own, setOwn] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const readView = useRef<() => void>(() => undefined);
+  // The client moved the map by hand: a panel that changes leaves their view alone.
+  const handMoved = useRef(false);
 
   const selected = selectedId === undefined ? own : selectedId;
   const padL = Math.max(0, Math.round(panelInset?.left ?? 0));
@@ -181,6 +185,7 @@ export default function SellersYandexMap({
     pad: { top: padT, right: SIDE_PAD, bottom: padB, left: padL },
   }));
   const motion = useEffectEvent((ms: number) => (still ? 0 : ms));
+  const navNow = useEffectEvent(() => !!follow);
   const pinTitle = useEffectEvent((s: MapSeller) => (s.source ? tx(`pin.${s.source}`, { name: nameOf(s) }) : t("approx", { name: nameOf(s) })));
   // No avatar_url on map markers yet (§7.4, a backend gap): the pin is the
   // generated initials avatar, like the cards.
@@ -204,7 +209,8 @@ export default function SellersYandexMap({
     let made: MapHandle | null = null;
     const read = () => {
       const live = liveRef.current;
-      if (!live) return;
+      // The pins are hidden during a trip, so its moves ask the backend for nothing.
+      if (!live || navNow()) return;
       const bbox = live.bbox();
       if (!bbox) {
         if (tries++ < 20) timer = window.setTimeout(read, 150);
@@ -218,6 +224,7 @@ export default function SellersYandexMap({
       window.clearTimeout(timer);
       timer = window.setTimeout(read, init.debounce);
     };
+    readView.current = read;
     openYandexMap(config, box, { center: init.center, zoom: init.zoom, theme: init.theme }).then(
       (h) => {
         if (dead) {
@@ -262,6 +269,9 @@ export default function SellersYandexMap({
   useEffect(() => {
     const live = liveRef.current;
     if (ready && live) live.setPadding({ top: padT, right: SIDE_PAD, bottom: padB, left: padL });
+    // Too little map shows above the sheet for the zoom buttons: a phone pinches instead.
+    const box = boxRef.current;
+    if (ready && box) box.parentElement?.toggleAttribute("data-tight", box.clientHeight - padT - padB < CTL_ROOM_PX);
   }, [ready, padT, padB, padL]);
 
   useEffect(() => {
@@ -422,6 +432,9 @@ export default function SellersYandexMap({
 
   const navOn = !!follow;
   useEffect(() => {
+    if (ready && !navOn) readView.current();
+  }, [ready, navOn]);
+  useEffect(() => {
     const m = meRef.current;
     if (!ready || !m) return;
     m.set({ cls: navOn ? " is-nav" : "" });
@@ -470,7 +483,9 @@ export default function SellersYandexMap({
   }, [ringOn, spotKey, radiusKm]);
 
   useEffect(() => {
-    if (ringOn) fitRing();
+    if (!ringOn) return;
+    handMoved.current = false;
+    fitRing();
   }, [ringOn, radiusKm]);
 
   const routed = !!guide?.path && guide.path.length >= 2;
@@ -489,6 +504,7 @@ export default function SellersYandexMap({
     const line = live.route(g.points, { color: ink.color, casing: ink.casing, drawMs: still ? 0 : DRAW_MS, delayMs: still ? 0 : 120, straight: g.straight });
     const dest = live.mark({ kind: "dest", coords: llOf(g.to), title: g.title, z: 34, fx: "drop" });
     lineRef.current = line;
+    handMoved.current = false;
     live.fit([...g.points, llOf(g.to)], { ms: still ? 0 : FIT_MS, maxZoom: GUIDE_ZOOM, margin: 56 });
     return () => {
       lineRef.current = null;
@@ -503,11 +519,31 @@ export default function SellersYandexMap({
     if (!guide?.path || guide.path.length < 2) return;
     const points = guide.path.map(llOf);
     lineRef.current?.set(points);
-    if (!follow) liveRef.current?.fit([...points, llOf(guide.to)], { ms: motion(FIT_MS), maxZoom: GUIDE_ZOOM, margin: 56 });
+    if (follow) return;
+    handMoved.current = false;
+    liveRef.current?.fit([...points, llOf(guide.to)], { ms: motion(FIT_MS), maxZoom: GUIDE_ZOOM, margin: 56 });
   });
   useEffect(() => {
     if (ready && pathKey) reroute();
   }, [ready, pathKey]);
+
+  // The panel often settles after the view has fit: a search opens the sheet, a
+  // route makes it taller. The view then fits again in the space that is left.
+  const refit = useEffectEvent(() => {
+    const live = liveRef.current;
+    if (!live || follow) return;
+    const g = guideNow();
+    if (!handMoved.current && g) live.fit([...g.points, llOf(g.to)], { ms: motion(FIT_MS), maxZoom: GUIDE_ZOOM, margin: 56 });
+    else if (!handMoved.current && ringOn) fitRing();
+    else if (selected) reveal(selected);
+  });
+  useEffect(() => {
+    if (ready) refit();
+  }, [ready, padB, padL]);
+
+  const onHand = (e: { target: EventTarget }) => {
+    if ((e.target as Element).closest?.(".ymk-canvas,.ymk-ctl")) handMoved.current = true;
+  };
 
   const followAt = keyOf(follow?.point);
   const trail = useEffectEvent(() => {
@@ -557,7 +593,7 @@ export default function SellersYandexMap({
       <p className="sr-only" role="status">
         {!ready ? t("loadingMap") : loading ? t("loading") : guideSaid}
       </p>
-      <div className={`ymk-stage${ready ? " is-ready" : " ymk-stage--wait"}${picking ? " ymk-stage--pick" : ""}${selected ? " has-sel" : ""}${guide ? " has-guide" : ""}${ready && navOn ? " is-nav" : ""}`} style={stageStyle}>
+      <div className={`ymk-stage${ready ? " is-ready" : " ymk-stage--wait"}${picking ? " ymk-stage--pick" : ""}${selected ? " has-sel" : ""}${guide ? " has-guide" : ""}${ready && navOn ? " is-nav" : ""}`} style={stageStyle} onPointerDownCapture={onHand} onWheelCapture={onHand}>
         <div ref={boxRef} className="ymk-canvas" role="region" tabIndex={-1} aria-label={t("region")} aria-describedby={`${uid}-n`} />
         <p id={`${uid}-n`} className="sr-only">
           {tx("stage.hint")}
@@ -565,7 +601,7 @@ export default function SellersYandexMap({
         <div className={`ymk-veil ymk-veil--art${ready ? " is-off" : ""}`} aria-hidden="true">
           {ready ? null : <span className="ymk-spin" />}
         </div>
-        {ready && loading ? <span className="ymk-bar" aria-hidden="true" /> : null}
+        {ready && loading && !navOn ? <span className="ymk-bar" aria-hidden="true" /> : null}
         {picking && ready ? (
           <p className="ymk-pickhint" role="status" data-ai-id="marketplace.map.pick-hint">
             <IconTarget aria-hidden="true" />

@@ -6,7 +6,7 @@
 .ymk-stage{--ymk-acc:var(--mm-acc);position:relative;height:clamp(360px,56vh,540px);border-radius:16px;overflow:hidden;overflow:clip;background:var(--mm-soft);box-shadow:inset 0 0 0 1px var(--mm-edge);isolation:isolate}
 /* The map takes the screen it is given, on a short laptop and on 4K alike. */
 .ymk--full .ymk-stage{height:clamp(460px,calc(100svh - 150px),1400px);border-radius:18px}
-.ymk-canvas{position:absolute;inset:0;z-index:0;outline:none}
+.ymk-canvas{position:absolute;inset:0;z-index:0;outline:none;container:ymk / inline-size}
 .ymk-canvas:focus-visible{box-shadow:inset 0 0 0 2px var(--ymk-acc)}
 
 /* The stand-in shown until the tiles are ready: a quiet drawing of a city in
@@ -26,15 +26,24 @@ html[data-theme="dark"] .ymk-veil--art{background-image:url(/map/placeholder-dar
 .ymk-err button:focus-visible{outline:2px solid var(--ymk-acc);outline-offset:2px}
 .ymk-err button svg{width:14px;height:14px}
 
-/* Yandex's own attribution stays visible: it slides out from under the panel
-   and rides above the phone's sheet. */
-.ymk-canvas [class*="-copyrights-pane"]{transform:translateY(calc(-1 * var(--ymk-pb, 0px)));transition:transform var(--mm-slow) var(--mm-sheet)}
-.ymk-canvas [class*="-gotoymaps"]{transform:translate(var(--ymk-pl, 0px),calc(-1 * var(--ymk-pb, 0px)));transition:transform var(--mm-slow) var(--mm-sheet)}
+/* Yandex's own attribution stays visible: it rides above the phone's sheet and
+   stays clear of the round assistant button in the page's corner. The "open in
+   Yandex" link is inside the same pane, so it rises with it and only has to step
+   out from under the panel; where the row is too short for both it sits above. */
+.ymk-canvas [class*="-copyrights-pane"]{transform:translate(calc(-1 * var(--ymk-fab, 0px)),calc(-1 * var(--ymk-pb, 0px)));transition:transform var(--mm-slow) var(--mm-sheet)}
+.ymk-canvas [class*="-gotoymaps"]{transform:translateX(calc(var(--ymk-pl, 0px) + var(--ymk-fab, 0px)));transition:transform var(--mm-slow) var(--mm-sheet)}
 .ymk-canvas [class*="-gotoymaps"] [class*="-gotoymaps"]{transform:none;transition:none}
+@container ymk (max-width:980px){
+  .ymk-canvas [class*="-gotoymaps"]{transform:translate(calc(var(--ymk-pl, 0px) + var(--ymk-fab, 0px)),-30px)}
+}
+@media (min-width:721px) and (max-width:1780px){
+  .ymk-stage{--ymk-fab:52px}
+}
 
 /* Zoom and "where am I", centred in the part of the map that shows. They stay
    clear of the Yandex attribution in the bottom corner. */
 .ymk-ctl{position:absolute;z-index:6;top:50%;right:12px;display:flex;flex-direction:column;border-radius:12px;background:var(--mm-surface);box-shadow:var(--mm-shadow);transform:translateY(calc(-50% + (var(--ymk-pt, 0px) - var(--ymk-pb, 0px)) / 2));transition:transform var(--mm-slow) var(--mm-sheet)}
+.ymk-stage[data-tight] .ymk-ctl{opacity:0;visibility:hidden;pointer-events:none}
 .ymk-ctl button{position:relative;display:grid;place-items:center;width:40px;height:40px;padding:0;border:0;background:transparent;color:var(--ink);cursor:pointer;transition:color var(--mm-fast) ease}
 .ymk-ctl button:first-child{border-radius:12px 12px 0 0}
 .ymk-ctl button:last-child{border-radius:0 0 12px 12px}
@@ -111,6 +120,12 @@ html[data-theme="dark"] .ymk-veil--art{background-image:url(/map/placeholder-dar
 @keyframes ymk-out{to{opacity:0;transform:scale(.8)}}
 @keyframes ymk-fade{to{opacity:0}}
 @keyframes ymk-halo{0%{opacity:.8;transform:scale(.4)}70%,100%{opacity:0;transform:scale(1)}}
+
+/* Inside the portal the page title and the tabs sit above the map, and the
+   assistant in the corner is the taller robot. */
+@media (min-width:721px){
+  .portal .ymk--full .ymk-stage{--ymk-fab:96px;height:clamp(460px,calc(100svh - 198px),1400px)}
+}
 
 @media (max-width:720px){
   .ymk--full .ymk-stage{height:clamp(420px,calc(100svh - 190px),1000px);border-radius:16px}

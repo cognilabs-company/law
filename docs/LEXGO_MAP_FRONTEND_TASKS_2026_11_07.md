@@ -35,7 +35,10 @@ Kontrakt: `LEXGO_YANDEX_MARKETPLACE_MAP_FRONTEND_2026_10_30.md`
 - Marshrut yo'q bo'lsa, shtrixli ingichka chiziq, "aniq yo'l chizilmadi" yozuvi va asosiy tugma "Yandex Xaritada ochish".
 - Geolokatsiya rad etilsa va geocoder ishlamasa, boshlang'ich nuqtani xaritada belgilash mumkin, tanlangan sotuvchi yo'qolmaydi va yo'l o'zi tuziladi.
 - Navigatsiyada panel yashirinadi, ekran o'chmaydi (Wake Lock). Bildirishnoma yoki boshqa ilovaga o'tish navigatsiyani to'xtatmaydi, faqat pauza qiladi. Sahifa yashirin paytda joylashuv o'qilmaydi.
-- Yandex atributsiyasi endi tugma yoki panel ostida qolmaydi.
+- Yandex atributsiyasi endi tugma, panel yoki burchakdagi AI yordamchi ostida qolmaydi. "Yandex Xaritada ochish" tugmasi joyida turadi va yozuv bilan ustma-ust tushmaydi.
+- Panel ko'tarilganda xarita qolgan joyga qayta moslashadi. Mijoz xaritani o'zi surgan bo'lsa, uning ko'rinishiga tegilmaydi.
+- Telefonda yarim panel asosiy tugmani butun ko'rsatadi: panel balandligi tugmaga qarab moslashadi.
+- Navigatsiya paytida xaritaning siljishidan `sellers/map` so'ralmaydi, chunki pinlar yashirin. To'xtatilgach ko'rinish yana o'qiladi.
 
 ## Qolgan frontend ishlari
 
@@ -58,7 +61,9 @@ Kontrakt: `LEXGO_YANDEX_MARKETPLACE_MAP_FRONTEND_2026_10_30.md`
 | F8 | Bitta surishda 2 ta `sellers/map` so'rovi | Ro'yxat (`useAreaSellers`) va xarita alohida so'raydi. Zoom 13 va undan yuqorida bitta javob yetadi |
 | F9 | Haqiqiy telefonda sinash | Wake Lock, kompas, iOS va Android geolokatsiyasi faqat emulyatsiyada tekshirildi |
 | F10 | Ofis sozlamalari kartasi (`OfficeLocationCard`, `PointPickerMap`) | Bu ishga kirmagan. Xarita komponentlaridan yangi ranglarni oladi, lekin karta o'zi eski uslubda, `PointPickerMap` kirishdagi uchishni saqlab qolgan |
-| F11 | Eski rasmlarni o'chirish | `public/map/night-city.webp` va `night-city-sm.webp` endi xarita sahifasida ishlatilmaydi. O'chirishdan oldin boshqa joyda ishlatilmasligini tekshirish kerak |
+| F11 | Eski rasmlarni o'chirish | `public/map/night-city.webp` va `night-city-sm.webp` endi xarita sahifasida ishlatilmaydi. `app`, `components` va `lib` ichida havola topilmadi, boshqa joylarni tekshirib o'chirish mumkin |
+| F12 | "Yandex Xaritada ochish" tugmasi | `suppressMapOpenBlock: true` yoqilgan (`ymaps.ts`), lekin joriy 2.1 build tugmani baribir ko'rsatadi. Sababi aniqlanmagan. Yandex shartlari tekshirilmaguncha CSS bilan yashirilmagan |
+| F13 | Sayt sarlavhasi (xaritadan tashqari) | 1024 px kenglikda ruscha menyu sig'maydi, "Начать" tugmasi o'ng chetdan chiqib ketadi |
 
 ## Yangi tuzilma haqida eslatma
 
@@ -66,3 +71,4 @@ Kontrakt: `LEXGO_YANDEX_MARKETPLACE_MAP_FRONTEND_2026_10_30.md`
 - Yo'l chizig'i: `ymaps.ts` ichidagi `route()`. Asosiy rang va chegara `SellersYandexMap.tsx` ichidagi `LINE_COLORS` da.
 - `data-ai-id` qiymatlari saqlangan. Olib tashlanganlari: `marketplace.map.intro.locate`, `marketplace.map.live`.
 - Sinash: `tests/e2e/market-map.spec.ts`. Soxta Yandex (`ymapsStub.ts`) ishlatiladi, haqiqiy xarita ochilmaydi.
+- Ko'z bilan tekshirilgan o'lchamlar (haqiqiy Yandex xaritasi, soxta backend javoblari): 360x640, 390x844, 820x1180, 1024x768, 1366x768, 1920x1080, 3440x1440, 3840x2160. Portal sahifasi: 390x844 va 1366x768.

@@ -87,8 +87,20 @@ export function Segmented<T extends string>({
 
 const FULL_GAP_PX = 72;
 const HALF_SHARE = 0.48;
-const heightOf = (s: Snap, stage: number) => (s === "full" ? Math.max(PEEK_PX, stage - FULL_GAP_PX) : s === "half" ? Math.max(PEEK_PX, stage * HALF_SHARE) : PEEK_PX);
+const FIT_GAP_PX = 14;
+const heightOf = (s: Snap, stage: number, fit = 0) => {
+  const full = Math.max(PEEK_PX, stage - FULL_GAP_PX);
+  if (s === "full") return full;
+  return s === "half" ? Math.min(full, Math.max(PEEK_PX, stage * HALF_SHARE, fit)) : PEEK_PX;
+};
 const stageOf = (el: HTMLElement) => (el.offsetParent as HTMLElement | null)?.clientHeight ?? el.offsetHeight;
+// At half height a card's main action is shown whole, never cut by the sheet's edge.
+const fitOf = (el: HTMLElement) => {
+  const aim = el.querySelector<HTMLElement>("[data-sheet-fit]");
+  if (!aim) return 0;
+  const scrolled = aim.closest<HTMLElement>(".mpn__layer")?.scrollTop ?? 0;
+  return Math.ceil(aim.getBoundingClientRect().bottom - el.getBoundingClientRect().top + scrolled + FIT_GAP_PX);
+};
 
 // The panel beside the map (or the bottom sheet on a phone). The sheet keeps
 // one height and slides: only `transform` changes, on the compositor, so the
@@ -118,15 +130,15 @@ export default function MapPanel({
 }) {
   const t = useTranslations("marketMap.panel");
   const ref = useRef<HTMLElement>(null);
-  const drag = useRef<{ y: number; base: number; stage: number; moved: boolean; last: number; at: number; v: number } | null>(null);
+  const drag = useRef<{ y: number; base: number; stage: number; fit: number; moved: boolean; last: number; at: number; v: number } | null>(null);
   const skipClick = useRef(false);
   const sheet = variant === "sheet";
 
   const report = useEffectEvent(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || drag.current?.moved) return;
     if (sheet) {
-      const h = heightOf(snap, stageOf(el));
+      const h = heightOf(snap, stageOf(el), fitOf(el));
       el.style.setProperty("--mpn-h", `${Math.round(h)}px`);
       // What is below the sheet's visible edge is padding, so the list scrolls
       // inside the part that shows and a focused row can always be reached.
@@ -147,11 +159,16 @@ export default function MapPanel({
     const el = ref.current;
     if (!el) return;
     report();
-    if (typeof ResizeObserver === "undefined") return;
-    const ro = new ResizeObserver(() => report());
-    if (el.offsetParent) ro.observe(el.offsetParent);
-    ro.observe(el);
-    return () => ro.disconnect();
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => report());
+    if (ro && el.offsetParent) ro.observe(el.offsetParent);
+    ro?.observe(el);
+    // A route coming back moves the card's main action; the sheet follows it.
+    const mo = variant === "sheet" ? new MutationObserver(() => report()) : null;
+    mo?.observe(el, { childList: true, subtree: true });
+    return () => {
+      ro?.disconnect();
+      mo?.disconnect();
+    };
   }, [variant, snap, hidden]);
 
   const step = (d: 1 | -1) => {
@@ -165,7 +182,8 @@ export default function MapPanel({
     if (target.closest("a,input,select,textarea,[role=radio],button:not(.mpn__grip)")) return;
     const el = ref.current;
     if (!el) return;
-    drag.current = { y: e.clientY, base: heightOf(snap, stageOf(el)), stage: stageOf(el), moved: false, last: e.clientY, at: performance.now(), v: 0 };
+    const fit = fitOf(el);
+    drag.current = { y: e.clientY, base: heightOf(snap, stageOf(el), fit), stage: stageOf(el), fit, moved: false, last: e.clientY, at: performance.now(), v: 0 };
   };
 
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -198,13 +216,13 @@ export default function MapPanel({
     let best: Snap = snap;
     let gap = Number.POSITIVE_INFINITY;
     for (const s of SNAPS) {
-      const g = Math.abs(heightOf(s, d.stage) - aim);
+      const g = Math.abs(heightOf(s, d.stage, d.fit) - aim);
       if (g < gap) {
         gap = g;
         best = s;
       }
     }
-    el.style.setProperty("--mpn-h", `${Math.round(heightOf(best, d.stage))}px`);
+    el.style.setProperty("--mpn-h", `${Math.round(heightOf(best, d.stage, d.fit))}px`);
     onSnap(best);
   };
 
