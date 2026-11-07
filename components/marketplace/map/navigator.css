@@ -1,24 +1,13 @@
+/* The client's own marker while guided: the arrow turns with the heading. */
 .ymk-me__arw{display:none}
-.ymk-me.is-nav::before,.ymk-me.is-nav::after{left:-40px;top:-40px;width:80px;height:80px;background:radial-gradient(circle,color-mix(in srgb,var(--ymk-acc) 30%,transparent) 0 46%,transparent 72%);box-shadow:none;animation:ymk-nav-halo 2.4s cubic-bezier(.2,.6,.3,1) infinite}
-.ymk-me.is-nav::after{animation-delay:1.2s}
+.ymk-me.is-nav::before{display:none}
 .ymk-me.is-nav .ymk-me__hd{display:none}
-.ymk-me.is-nav .ymk-me__dot{left:-20px;top:-20px;width:40px;height:40px;background:linear-gradient(150deg,color-mix(in srgb,var(--ymk-acc) 78%,#fff),var(--ymk-acc) 62%);box-shadow:0 0 0 3px #fff,0 0 0 10px color-mix(in srgb,var(--ymk-acc) 22%,transparent),0 10px 22px -6px rgba(11,31,69,.6);animation:ymk-nav-in .5s cubic-bezier(.2,.9,.25,1.15) both}
-.ymk-me.is-nav .ymk-me__arw{position:absolute;left:-9px;top:-11px;z-index:3;display:block;width:18px;height:21px;background:#fff;clip-path:polygon(50% 0,100% 100%,50% 76%,0 100%);transform:rotate(var(--hd, 0deg));transform-origin:50% 56%;transition:transform .45s cubic-bezier(.3,.7,.3,1);filter:drop-shadow(0 1px 1px rgba(11,31,69,.35))}
+.ymk-me.is-nav .ymk-me__dot{left:-16px;top:-16px;width:32px;height:32px;background:var(--ymk-acc);box-shadow:0 0 0 3px #fff,0 4px 12px rgba(10,21,38,.35)}
+.ymk-me.is-nav .ymk-me__arw{position:absolute;left:-8px;top:-9px;z-index:3;display:block;width:16px;height:18px;background:#fff;clip-path:polygon(50% 0,100% 100%,50% 76%,0 100%);transform:rotate(var(--hd, 0deg));transform-origin:50% 56%;transition:transform 320ms cubic-bezier(.2,.8,.2,1)}
 
-.ymk-canvas{transition:transform .7s cubic-bezier(.22,.8,.24,1),filter .7s ease}
-.ymk-stage.is-tilt .ymk-canvas{transform:perspective(1100px) rotateX(34deg) scale(1.34);transform-origin:50% 58%}
-.ymk-fog{position:absolute;inset:0 0 auto;z-index:2;height:30%;background:linear-gradient(var(--dk-surface-2, #EDF2F8) 8%,color-mix(in srgb,var(--dk-surface-2, #EDF2F8) 55%,transparent) 55%,transparent);opacity:0;pointer-events:none;transition:opacity .7s ease}
-.ymk-stage.is-tilt .ymk-fog{opacity:1}
-.ymk-stage [class*="-ground-pane"]{transition:filter .7s ease}
-.ymk-stage.is-tilt [class*="-ground-pane"]{filter:saturate(.42) brightness(1.04) contrast(.96)}
-.ymk-stage.is-tilt .ymk-pin,.ymk-stage.is-tilt .ymk-group{opacity:0!important;visibility:hidden;transition:opacity .35s ease,visibility 0s .35s}
-
-@keyframes ymk-nav-halo{0%{opacity:.85;transform:scale(.45)}100%{opacity:0;transform:scale(1.25)}}
-@keyframes ymk-nav-in{from{opacity:0;transform:scale(.4)}}
+/* Guided: other specialists step aside so the route reads at a glance. */
+.ymk-stage.is-nav .ymk-pin,.ymk-stage.is-nav .ymk-group{opacity:0!important;visibility:hidden;transition:opacity 160ms ease,visibility 0s 160ms}
 
 @media (prefers-reduced-motion:reduce){
-  .ymk-canvas,.ymk-fog,.ymk-me.is-nav .ymk-me__arw,.ymk-stage [class*="-ground-pane"]{transition:none}
-  .ymk-me.is-nav::before{animation:none;opacity:.5;transform:scale(.9)}
-  .ymk-me.is-nav::after{animation:none;opacity:0}
-  .ymk-me.is-nav .ymk-me__dot{animation:none}
+  .ymk-me.is-nav .ymk-me__arw{transition:none}
 }

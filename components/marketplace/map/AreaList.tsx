@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { IconMapPin, IconRefresh, IconUsers } from "@/components/icons";
+import { IconRefresh, IconUsers } from "@/components/icons";
 import type { MarketSeller } from "@/lib/services/marketplace";
 import { isAborted, mapErrorKey, type MapErrorKey } from "@/lib/services/mapLocation";
 import { bboxParam, filtersKey, getSellersMap, MARKER_ZOOM, UZ_BBOX, type MapBbox, type MapConfig, type MapFilters, type MapSeller, type SellersMapResult } from "@/lib/services/sellersMap";
@@ -104,9 +104,7 @@ export default function AreaList({
   if (!rows.length) {
     return (
       <div className="mmempty" aria-live="polite" data-ai-id="marketplace.map.area.empty">
-        <span className="mmempty__ic" aria-hidden="true">
-          <IconMapPin />
-        </span>
+        <span className="mmempty__art" aria-hidden="true" />
         <b>{t("emptyTitle")}</b>
         <span>{t("emptyText")}</span>
         <button type="button" className="btn btn--line btn--sm" onClick={onShowAll} data-ai-id="marketplace.map.area.show-all">

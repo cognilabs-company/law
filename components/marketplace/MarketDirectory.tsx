@@ -614,7 +614,8 @@ export default function MarketDirectory({
         <PromotionSurfaces part="banner" banners={shownBanners} sponsored={[]} base={base} />
       </div>
 
-      <div className="mk-hero">
+      {/* On the map tab the map is the page: the hero would push it below the fold. */}
+      <div className="mk-hero" hidden={mode === "nearby" || undefined}>
         <div className="mk-hero__glow" aria-hidden="true" />
         <div className="mk-hero__in">
           <span className="mk-kick">
@@ -752,7 +753,7 @@ export default function MarketDirectory({
         <HeroShowcase items={shownItems} promos={shownBanners} base={base} locale={locale} />
       </div>
 
-      {!isPreview ? <SecondOpinionEntry aiId="marketplace.second-opinion" /> : null}
+      {!isPreview && mode !== "nearby" ? <SecondOpinionEntry aiId="marketplace.second-opinion" /> : null}
 
       {!isPreview ? <MarketModeSwitch mode={mode} onChange={(m) => (m === "all" && onLeave ? onLeave() : switchMode(m))} /> : null}
 

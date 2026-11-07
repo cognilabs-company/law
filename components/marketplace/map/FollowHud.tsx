@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { ArrowDownLeft, ArrowDownRight, ArrowUp, ArrowUpLeft, ArrowUpRight, Check, CornerUpLeft, CornerUpRight, Flag, LocateFixed, Navigation2, RotateCcw, Undo2, X } from "lucide-react";
 import { IconExternal } from "@/components/icons";
 import type { RouteManeuver } from "@/lib/services/mapLocation";
-import { compassOf, distanceMeters, useRoll, type FollowState } from "./useFollow";
+import { compassOf, distanceMeters, type FollowState } from "./useFollow";
 import { isHandheld, webRouteOf } from "./route";
 import { openInNavigator, type Guide } from "./NavigatorBlock";
 import { pathLength, snapOnPath } from "./geoMath";
@@ -77,7 +77,6 @@ export default function FollowHud({
   const fallback = useMemo(() => (path && point && tracked === null ? pathRemainM(path, point) : null), [path, point, tracked]);
   const remain = point ? (path ? (tracked ?? fallback) : state.meters) : null;
   const arrived = arrivedNear(state.meters, path ? remain : null, endGap);
-  const rolled = useRoll(remain ?? 0, 700);
   const eta = remain === null ? null : etaSeconds(remain, guide.mode, routed ? (guide.info ?? null) : null);
   const marks = useMemo(() => (path && guide.info ? stepMarks(path, guide.info.steps) : []), [path, guide.info]);
   const here = path && state.path === path && state.along !== null ? state.along : null;
@@ -103,10 +102,10 @@ export default function FollowHud({
           : state.bearing !== null
             ? t(`go.${compassOf(state.bearing)}`)
             : t("waiting");
-  const headDist = arrived || remain === null ? "" : next ? fmt(next.distM) : step?.distanceM ? fmt(step.distanceM) : fmt(rolled);
+  const headDist = arrived || remain === null ? "" : next ? fmt(next.distM) : step?.distanceM ? fmt(step.distanceM) : fmt(remain);
   const street = arrived || !step ? null : step.street;
   const big = arrived ? t("arrived") : eta ? (eta.sure ? dur(eta.s) : t("approx", { t: dur(eta.s) })) : t("waiting");
-  const sub = !arrived && remain !== null && eta ? t("remainAt", { d: fmt(rolled), time: clock(now + eta.s * 1000) }) : arrived ? t("arrivedText") : "";
+  const sub = !arrived && remain !== null && eta ? t("remainAt", { d: fmt(remain), time: clock(now + eta.s * 1000) }) : arrived ? t("arrivedText") : "";
   const turnQ = next && next.step.maneuver !== "arrive" ? Math.round(next.distM / 50) * 50 : null;
   const totalQ = remain === null ? 0 : turnQ !== null && next ? turnQ + Math.round(Math.max(0, remain - next.distM) / 50) * 50 : Math.round(remain / 50) * 50;
   const said = arrived ? t("arrived") : remain === null ? t("waiting") : `${head}${street ? ` — ${t("onStreet", { street })}` : ""}${turnQ !== null ? ` · ${fmt(turnQ)}` : ""}. ${t("remainAt", { d: fmt(totalQ), time: eta ? clock(now + eta.s * 1000) : "" })}`;

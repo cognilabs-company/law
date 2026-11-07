@@ -137,7 +137,7 @@ export default function PointPickerMap({
         </p>
       ) : null}
       <div className={`ymk-veil ymk-veil--art${ready ? " is-off" : ""}`} aria-hidden="true">
-        <span className="ymk-spin" />
+        {ready ? null : <span className="ymk-spin" />}
       </div>
       <div className="ymk-ctl">
         <button type="button" onClick={() => zoomBy(1)} disabled={!ready} aria-label={zoomInLabel} title={zoomInLabel}>

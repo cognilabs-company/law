@@ -27,7 +27,6 @@ import {
   type MapSeller,
   type SellersMapResult,
 } from "@/lib/services/sellersMap";
-import type { MapLive } from "./useMapRealtime";
 import { countText, openYandexMap, useHtmlTheme, useReducedMotion, type GuideRoute, type Mark, type MapHandle, type PinSet, type PinSpec, type RadiusRing } from "./ymaps";
 import "./sellersMap.css";
 import "./navigator.css";
@@ -41,18 +40,17 @@ type ResState = { key: string; result: SellersMapResult | null; fail: MapErrorKe
 // Pins closer than this on screen are grouped by the Clusterer.
 const GROUP_PX = 48;
 const NAME_MAX = 24;
-const INTRO_ZOOM = 9;
-const INTRO_MS = 1100;
-const MOVE_MS = 520;
-const GLIDE_MS = 700;
-const TOP_PAD = 76;
+const MOVE_MS = 420;
+const GLIDE_MS = 480;
+const FIT_MS = 460;
+const DRAW_MS = 620;
 const SIDE_PAD = 64;
 const FOLLOW_ZOOM = 16;
 const GUIDE_ZOOM = 16;
 const RING_ZOOM = 15;
 const LINE_COLORS = {
-  light: { color: "#1668F0", casing: "#FFFFFF", glow: "#1668F0", past: "#8DB1F7" },
-  dark: { color: "#6EA8FF", casing: "#0A1120", glow: "#6EA8FF", past: "#3E5F98" },
+  light: { color: "#1460DC", casing: "#FFFFFF" },
+  dark: { color: "#6EA8FF", casing: "#0A1120" },
 } as const;
 
 const llOf = (s: Spot): LngLat => [s.longitude, s.latitude];
@@ -91,7 +89,6 @@ export default function SellersYandexMap({
   center,
   filters,
   refresh,
-  live,
   picking,
   pickPoint,
   onPick,
@@ -106,8 +103,8 @@ export default function SellersYandexMap({
   guide = null,
   follow = null,
   panelInset,
+  topInset = 0,
   overlay,
-  searching = false,
   radiusKm = null,
 }: {
   config: MapConfig;
@@ -117,7 +114,6 @@ export default function SellersYandexMap({
   filters: MapFilters;
   // Bumped by realtime updates and reconnects: refetch the viewport.
   refresh: number;
-  live: MapLive;
   // Manual point selection (browser location denied): a tap marks the point.
   picking: boolean;
   pickPoint: Spot | null;
@@ -135,8 +131,9 @@ export default function SellersYandexMap({
   guide?: MapGuide | null;
   follow?: MapFollow | null;
   panelInset?: MapInset;
+  // What floats over the top of the map (the phone's search bar).
+  topInset?: number;
   overlay?: ReactNode;
-  searching?: boolean;
   radiusKm?: number | null;
 }) {
   const t = useTranslations("marketplace.ymap");
@@ -164,7 +161,7 @@ export default function SellersYandexMap({
   const selected = selectedId === undefined ? own : selectedId;
   const padL = Math.max(0, Math.round(panelInset?.left ?? 0));
   const padB = Math.max(0, Math.round(panelInset?.bottom ?? 0));
-  const padT = overlay ? TOP_PAD : 0;
+  const padT = Math.max(0, Math.round(topInset));
 
   const info = useSyncExternalStore(subscribeMapSellerInfo, mapSellerInfoSnapshot, mapSellerInfoServerSnapshot);
   const nameOf = (s: MapSeller) => mapSellerView(s, s.sellerUserId ? known(s.sellerUserId) : null, s.sellerUserId ? info.get(s.sellerUserId) : null).name || tn("map.unnamed");
@@ -201,7 +198,6 @@ export default function SellersYandexMap({
     const box = boxRef.current;
     if (!box) return;
     const init = startup();
-    const fly = !init.still && init.zoom > INTRO_ZOOM;
     let dead = false;
     let timer = 0;
     let tries = 0;
@@ -222,7 +218,7 @@ export default function SellersYandexMap({
       window.clearTimeout(timer);
       timer = window.setTimeout(read, init.debounce);
     };
-    openYandexMap(config, box, { center: init.center, zoom: fly ? INTRO_ZOOM : init.zoom, theme: init.theme }).then(
+    openYandexMap(config, box, { center: init.center, zoom: init.zoom, theme: init.theme }).then(
       (h) => {
         if (dead) {
           h.destroy();
@@ -234,7 +230,6 @@ export default function SellersYandexMap({
           h.setPadding(init.pad);
           h.onView(schedule);
           h.onClick((ll) => mapClick(ll));
-          if (fly) h.moveTo(init.center, init.zoom, INTRO_MS);
         } catch {
           h.destroy();
           made = null;
@@ -243,7 +238,7 @@ export default function SellersYandexMap({
         }
         liveRef.current = h;
         setReady(true);
-        timer = window.setTimeout(read, fly ? INTRO_MS + 120 : 60);
+        timer = window.setTimeout(read, 60);
       },
       () => {
         if (!dead) fail();
@@ -447,20 +442,11 @@ export default function SellersYandexMap({
     m.flag("has-hd", true);
   }, [ready, hasSpot, heading]);
 
-  const radarOn = ready && searching && hasSpot;
-  useEffect(() => {
-    const live = liveRef.current;
-    const at = spotNow();
-    if (!radarOn || !live || !at) return;
-    const m = live.mark({ kind: "radar", coords: llOf(at), title: "", z: 4 });
-    return () => m.remove();
-  }, [radarOn, spotKey]);
-
   const ringOn = ready && hasSpot && !!radiusKm && radiusKm > 0;
   const ringNow = useEffectEvent(() => (spot && radiusKm ? { at: spot, km: radiusKm, title: tx("stage.radius", { r: radiusKm }) } : null));
   const fitRing = useEffectEvent(() => {
     const live = liveRef.current;
-    if (live && spot && radiusKm && !follow) live.fit(ringBox(spot, radiusKm), { ms: motion(800), maxZoom: RING_ZOOM, margin: 28 });
+    if (live && spot && radiusKm && !follow) live.fit(ringBox(spot, radiusKm), { ms: motion(FIT_MS), maxZoom: RING_ZOOM, margin: 28 });
   });
 
   useEffect(() => {
@@ -500,10 +486,10 @@ export default function SellersYandexMap({
     const g = guideNow();
     if (!ready || !live || !g) return;
     const ink = LINE_COLORS[theme];
-    const line = live.route(g.points, { color: ink.color, casing: ink.casing, glow: ink.glow, past: ink.past, drawMs: still ? 0 : 1100, delayMs: still ? 0 : 240, flow: !still, straight: g.straight });
+    const line = live.route(g.points, { color: ink.color, casing: ink.casing, drawMs: still ? 0 : DRAW_MS, delayMs: still ? 0 : 120, straight: g.straight });
     const dest = live.mark({ kind: "dest", coords: llOf(g.to), title: g.title, z: 34, fx: "drop" });
     lineRef.current = line;
-    live.fit(g.points, { ms: still ? 0 : 800, maxZoom: GUIDE_ZOOM, margin: 56 });
+    live.fit([...g.points, llOf(g.to)], { ms: still ? 0 : FIT_MS, maxZoom: GUIDE_ZOOM, margin: 56 });
     return () => {
       lineRef.current = null;
       line.remove();
@@ -511,8 +497,13 @@ export default function SellersYandexMap({
     };
   }, [ready, guideKey, theme, still]);
 
+  // A new path (a recalculation, another way of travel) replaces the line in
+  // place. Only when nobody is being guided does the view fit the new path.
   const reroute = useEffectEvent(() => {
-    if (guide?.path && guide.path.length >= 2) lineRef.current?.set(guide.path.map(llOf), motion(600));
+    if (!guide?.path || guide.path.length < 2) return;
+    const points = guide.path.map(llOf);
+    lineRef.current?.set(points);
+    if (!follow) liveRef.current?.fit([...points, llOf(guide.to)], { ms: motion(FIT_MS), maxZoom: GUIDE_ZOOM, margin: 56 });
   });
   useEffect(() => {
     if (ready && pathKey) reroute();
@@ -539,7 +530,7 @@ export default function SellersYandexMap({
     const live = liveRef.current;
     if (!live || !follow) return;
     const z = live.zoom();
-    live.follow(llOf(follow.point), { zoom: Math.max(z, FOLLOW_ZOOM), ms: motion(z < FOLLOW_ZOOM ? 900 : GLIDE_MS) });
+    live.follow(llOf(follow.point), { zoom: Math.max(z, FOLLOW_ZOOM), ms: motion(GLIDE_MS) });
   });
   useEffect(() => {
     if (ready && followKey) camera();
@@ -566,14 +557,13 @@ export default function SellersYandexMap({
       <p className="sr-only" role="status">
         {!ready ? t("loadingMap") : loading ? t("loading") : guideSaid}
       </p>
-      <div className={`ymk-stage${ready ? " is-ready" : " ymk-stage--wait"}${picking ? " ymk-stage--pick" : ""}${selected ? " has-sel" : ""}${guide ? " has-guide" : ""}${ready && navOn ? " is-tilt" : ""}`} style={stageStyle}>
+      <div className={`ymk-stage${ready ? " is-ready" : " ymk-stage--wait"}${picking ? " ymk-stage--pick" : ""}${selected ? " has-sel" : ""}${guide ? " has-guide" : ""}${ready && navOn ? " is-nav" : ""}`} style={stageStyle}>
         <div ref={boxRef} className="ymk-canvas" role="region" tabIndex={-1} aria-label={t("region")} aria-describedby={`${uid}-n`} />
-        <span className="ymk-fog" aria-hidden="true" />
         <p id={`${uid}-n`} className="sr-only">
           {tx("stage.hint")}
         </p>
         <div className={`ymk-veil ymk-veil--art${ready ? " is-off" : ""}`} aria-hidden="true">
-          <span className="ymk-spin" />
+          {ready ? null : <span className="ymk-spin" />}
         </div>
         {ready && loading ? <span className="ymk-bar" aria-hidden="true" /> : null}
         {picking && ready ? (
@@ -599,12 +589,6 @@ export default function SellersYandexMap({
             )}
           </div>
         ) : null}
-        {live === "reconnecting" ? (
-          <span className={`ymk-sig ymk-sig--${live}`} data-ai-id="marketplace.map.live">
-            <i aria-hidden="true" />
-            {tx(`live.${live}`)}
-          </span>
-        ) : null}
         <div className="ymk-ctl" role="group" aria-label={tx("stage.controls")}>
           <button type="button" onClick={() => zoomBy(1)} disabled={!ready} aria-label={t("zoomIn")} title={t("zoomIn")} data-ai-id="marketplace.map.zoom-in">
             <IconPlus aria-hidden="true" />
@@ -612,7 +596,7 @@ export default function SellersYandexMap({
           <button type="button" onClick={() => zoomBy(-1)} disabled={!ready} aria-label={t("zoomOut")} title={t("zoomOut")} data-ai-id="marketplace.map.zoom-out">
             <IconMinus aria-hidden="true" />
           </button>
-          {onLocate && !overlay ? (
+          {onLocate ? (
             <button
               type="button"
               className="ymk-ctl__me"

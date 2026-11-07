@@ -11,10 +11,6 @@
 .mknb-msg__acts{display:flex;flex-wrap:wrap;gap:8px}
 .mknb-msg__acts .btn svg{width:16px;height:16px}
 
-.mknb-dist{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:var(--pill);background:var(--dk-tint-blue, #EEF5FF);color:var(--dk-acc, var(--b600));font-size:.82rem;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
-.mknb-dist svg{width:14px;height:14px;flex:none}
-.mknb-dist--none{background:var(--dk-surface-2, #F2F6FC);color:var(--gray);font-weight:600}
-
 @media (max-width:560px){
   .mknb-mode{max-width:none}
   .mknb-mode{grid-template-columns:repeat(3,minmax(0,auto))}

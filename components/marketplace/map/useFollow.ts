@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useReducer, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useEffectEvent, useReducer } from "react";
 import type { Spot } from "@/lib/services/marketDiscovery";
 import { bearingDeg, distanceMeters, trackOnPath, type Track } from "./geoMath";
 
@@ -18,40 +18,6 @@ const norm = (d: number) => ((d % 360) + 360) % 360;
 
 export function compassOf(deg: number): Compass {
   return COMPASS[Math.round(norm(deg) / 45) % 8];
-}
-
-function subscribeStill(cb: () => void): () => void {
-  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-  mq.addEventListener?.("change", cb);
-  return () => mq.removeEventListener?.("change", cb);
-}
-
-export function useStill(): boolean {
-  return useSyncExternalStore(subscribeStill, () => window.matchMedia("(prefers-reduced-motion: reduce)").matches, () => false);
-}
-
-export function useRoll(target: number, ms = 650): number {
-  const still = useStill();
-  const [shown, setShown] = useState(target);
-  const from = useRef(target);
-  useEffect(() => {
-    if (still) {
-      from.current = target;
-      return;
-    }
-    const base = from.current;
-    if (base === target) return;
-    const start = performance.now();
-    let raf = requestAnimationFrame(function tick(now: number) {
-      const p = Math.min(1, (now - start) / ms);
-      const v = p < 1 ? base + (target - base) * (1 - Math.pow(1 - p, 3)) : target;
-      from.current = v;
-      setShown(v);
-      if (p < 1) raf = requestAnimationFrame(tick);
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [target, ms, still]);
-  return still ? target : shown;
 }
 
 export type FollowState = {
@@ -138,9 +104,36 @@ export function askCompass(): void {
   } catch {}
 }
 
-export function useFollow({ active, dest, path = null, onHidden }: { active: boolean; dest: Spot | null; path?: Spot[] | null; onHidden: () => void }): FollowState & { reset: () => void } {
+// The screen stays on while the client is being guided. Not every browser has
+// the API, and a refusal changes nothing: the trip goes on either way.
+type WakeLockHandle = { release: () => Promise<void> };
+function keepAwake(): () => void {
+  const api = (navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<WakeLockHandle> } }).wakeLock;
+  if (!api) return () => undefined;
+  let lock: WakeLockHandle | null = null;
+  let gone = false;
+  const take = () => {
+    if (gone || document.visibilityState !== "visible") return;
+    api.request("screen").then(
+      (l) => {
+        if (gone) void l.release().catch(() => undefined);
+        else lock = l;
+      },
+      () => undefined,
+    );
+  };
+  take();
+  document.addEventListener("visibilitychange", take);
+  return () => {
+    gone = true;
+    document.removeEventListener("visibilitychange", take);
+    void lock?.release().catch(() => undefined);
+  };
+}
+
+export function useFollow({ active, dest, path = null, onLeave }: { active: boolean; dest: Spot | null; path?: Spot[] | null; onLeave: () => void }): FollowState & { reset: () => void } {
   const [s, dispatch] = useReducer(reduce, BLANK);
-  const hidden = useEffectEvent(() => onHidden());
+  const leave = useEffectEvent(() => onLeave());
 
   useEffect(() => {
     if (!active || !dest) return;
@@ -152,33 +145,47 @@ export function useFollow({ active, dest, path = null, onHidden }: { active: boo
     const geo = window.navigator.geolocation;
     let watch: number | null = null;
     let late = 0;
-    try {
-      watch = geo.watchPosition(
-        (p) => dispatch({ kind: "fix", point: { latitude: p.coords.latitude, longitude: p.coords.longitude }, accuracy: Number.isFinite(p.coords.accuracy) ? p.coords.accuracy : null, course: courseOf(p.coords), dest, path }),
-        (e) => dispatch({ kind: "fail", fail: failOf(e?.code ?? 2) }),
-        { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 },
-      );
-    } catch {
-      late = window.setTimeout(() => dispatch({ kind: "fail", fail: "unavailable" }), 0);
-    }
+    const startWatch = () => {
+      if (watch !== null) return;
+      try {
+        watch = geo.watchPosition(
+          (p) => dispatch({ kind: "fix", point: { latitude: p.coords.latitude, longitude: p.coords.longitude }, accuracy: Number.isFinite(p.coords.accuracy) ? p.coords.accuracy : null, course: courseOf(p.coords), dest, path }),
+          (e) => dispatch({ kind: "fail", fail: failOf(e?.code ?? 2) }),
+          { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 },
+        );
+      } catch {
+        late = window.setTimeout(() => dispatch({ kind: "fail", fail: "unavailable" }), 0);
+      }
+    };
+    const stopWatch = () => {
+      if (watch !== null) geo.clearWatch(watch);
+      watch = null;
+    };
+    startWatch();
+    const awake = keepAwake();
     const onOrient = (e: Event) => {
       const h = compassHeading(e as DeviceOrientationEvent);
       if (h !== null) dispatch({ kind: "orient", heading: h, dest });
     };
     const orientEvent = "ondeviceorientationabsolute" in window ? "deviceorientationabsolute" : "deviceorientation";
     window.addEventListener(orientEvent, onOrient);
+    // A notification or a glance at another app only pauses the trip: no
+    // location is read while the page is hidden, and it picks up on return.
+    // Leaving the page ends it.
     const onVis = () => {
-      if (document.visibilityState === "hidden") hidden();
+      if (document.visibilityState === "hidden") stopWatch();
+      else startWatch();
     };
-    const onLeave = () => hidden();
+    const onPageHide = () => leave();
     document.addEventListener("visibilitychange", onVis);
-    window.addEventListener("pagehide", onLeave);
+    window.addEventListener("pagehide", onPageHide);
     return () => {
       window.clearTimeout(late);
-      if (watch !== null) geo.clearWatch(watch);
+      stopWatch();
+      awake();
       window.removeEventListener(orientEvent, onOrient);
       document.removeEventListener("visibilitychange", onVis);
-      window.removeEventListener("pagehide", onLeave);
+      window.removeEventListener("pagehide", onPageHide);
     };
   }, [active, dest, path]);
 

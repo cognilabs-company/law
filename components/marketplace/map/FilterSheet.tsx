@@ -7,6 +7,7 @@ import Select, { type Option } from "@/components/Select";
 import CheckBox from "@/components/CheckBox";
 import { IconClose } from "@/components/icons";
 import { usePopover } from "@/lib/usePopover";
+import { NEARBY_SORTS, type NearbySort } from "@/lib/services/mapLocation";
 import { MIN_RATING_STEPS, type MapFilters, type SellerTypeFilter } from "@/lib/services/sellersMap";
 import { Segmented } from "./MapPanel";
 import "./mapTopBar.css";
@@ -22,6 +23,8 @@ export default function FilterSheet({
   categories,
   subcategories,
   types,
+  sort,
+  onSort,
 }: {
   open: boolean;
   onClose: () => void;
@@ -33,6 +36,9 @@ export default function FilterSheet({
   categories: Option[] | null;
   subcategories: Option[];
   types: Option[];
+  // Only a nearby search has an order: the map's own area has none to choose.
+  sort?: NearbySort;
+  onSort?: (s: NearbySort) => void;
 }) {
   const tx = useTranslations("marketMap");
   const locale = useLocale();
@@ -72,6 +78,12 @@ export default function FilterSheet({
           </button>
         </div>
         <div className="mfs__body">
+          {sort && onSort ? (
+            <div className="mfs__f" data-ai-id="marketplace.map.sort.field">
+              <span className="mfs__l">{tx("sort.label")}</span>
+              <Segmented value={sort} options={NEARBY_SORTS.map((s) => ({ value: s, label: tx(`sortShort.${s}`), title: tx(`sort.${s}`), ai: `marketplace.map.sort.${s}` }))} onChange={onSort} label={tx("sort.label")} ai="marketplace.map.sort" />
+            </div>
+          ) : null}
           {categories ? (
             <>
               <div className="mfs__f" data-ai-id="marketplace.map.filter.category" data-ai-type="select">

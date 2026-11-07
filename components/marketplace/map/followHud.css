@@ -1,67 +1,55 @@
-.mfh{--mx-ease:cubic-bezier(.22,.8,.24,1);--mx-spring:cubic-bezier(.2,.9,.25,1.15);--mfh-card:var(--dk-glass, rgba(255,255,255,.97));--mfh-shadow:0 18px 44px -18px rgba(11,31,69,.42),0 2px 6px rgba(11,31,69,.08),inset 0 0 0 1px var(--dk-line, rgba(11,31,69,.06));display:grid;gap:10px;min-width:0}
+/* While the client is being guided the map is the screen: the next turn on top,
+   time left at the bottom, nothing else. */
+.mfh{--mfh-pad:12px;display:grid;gap:8px;min-width:0}
 .mfh--float{position:absolute;inset:0;z-index:8;display:block;pointer-events:none}
 .mfh--float>*{pointer-events:auto}
 
-.mfh__man{display:flex;align-items:center;gap:12px;min-width:0;padding:10px 18px 10px 10px;border-radius:20px;background:var(--mfh-card);box-shadow:var(--mfh-shadow);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);animation:mfh-drop .52s var(--mx-spring) both}
-.mfh--float .mfh__man{position:absolute;top:12px;left:max(12px,var(--mx-left, 12px));max-width:min(440px,calc(100% - max(12px,var(--mx-left, 12px)) - 12px))}
-.mfh__tile{position:relative;display:grid;place-items:center;flex:none;width:54px;height:54px;border-radius:16px;background:var(--grad, #1668F0);color:#fff;box-shadow:0 10px 22px -10px rgba(22,104,240,.85),inset 0 1px 0 rgba(255,255,255,.28)}
-.mfh__tile.is-done{background:linear-gradient(150deg,#22C08A,#12A37A);box-shadow:0 10px 22px -10px rgba(18,163,122,.9);animation:mfh-done .5s var(--mx-spring) both}
-.mfh__tile.is-done svg{width:28px;height:28px}
-.mfh__tile.is-done svg path{stroke-dasharray:28;stroke-dashoffset:28;animation:mfh-draw .5s var(--mx-ease) .15s forwards}
-.mfh__arrow{display:grid;place-items:center;width:34px;height:34px;transform:rotate(var(--turn, 0deg));transition:transform .45s cubic-bezier(.3,.7,.3,1)}
-.mfh__arrow svg{width:30px;height:30px;fill:currentColor;fill-opacity:.95}
-.mfh__arrow[data-wait]{animation:mfh-wait 1.4s ease-in-out infinite}
-.mfh__mi{display:grid;place-items:center;width:34px;height:34px;animation:mfh-turn .42s var(--mx-spring) both}
-.mfh__mi svg{width:30px;height:30px}
-.mfh__mantxt{display:flex;flex-direction:column;gap:2px;min-width:0}
-.mfh__head{display:-webkit-box;overflow:hidden;font-family:var(--fd);font-size:1.12rem;font-weight:800;line-height:1.2;letter-spacing:-.01em;color:var(--ink);-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;animation:mfh-swap .34s var(--mx-ease) both}
-.mfh__street{overflow:hidden;font-size:.86rem;font-weight:600;line-height:1.25;color:var(--gray);text-overflow:ellipsis;white-space:nowrap;animation:mfh-swap .34s var(--mx-ease) both}
-.mfh__headd{font-size:.84rem;font-weight:700;color:var(--gray);font-variant-numeric:tabular-nums}
+.mfh__man{display:flex;align-items:center;gap:12px;min-width:0;padding:10px 16px 10px 10px;border-radius:16px;background:var(--mm-surface);box-shadow:var(--mm-shadow);animation:mfh-in var(--mm-slow) var(--mm-ease) both}
+.mfh--float .mfh__man{position:absolute;top:var(--mfh-pad);left:var(--mfh-pad);width:min(420px,calc(100% - var(--mfh-pad) * 2))}
+.mfh__tile{position:relative;display:grid;place-items:center;flex:none;width:48px;height:48px;border-radius:12px;background:var(--mm-acc);color:var(--mm-on)}
+.mfh__tile.is-done{background:var(--dk-txt-ok, #12A37A)}
+.mfh__tile.is-done svg{width:26px;height:26px}
+.mfh__arrow{display:grid;place-items:center;width:32px;height:32px;transform:rotate(var(--turn, 0deg));transition:transform var(--mm-slow) var(--mm-ease)}
+.mfh__arrow svg{width:28px;height:28px;fill:currentColor;fill-opacity:.95}
+.mfh__arrow[data-wait]{opacity:.6}
+.mfh__mi{display:grid;place-items:center;width:32px;height:32px}
+.mfh__mi svg{width:28px;height:28px}
+.mfh__mantxt{display:flex;flex-direction:column;gap:1px;min-width:0}
+.mfh__head{display:-webkit-box;overflow:hidden;font-family:var(--fd);font-size:1.04rem;font-weight:700;line-height:1.22;letter-spacing:-.01em;color:var(--ink);-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.mfh__street{overflow:hidden;font-size:.82rem;line-height:1.3;color:var(--gray);text-overflow:ellipsis;white-space:nowrap}
+.mfh__headd{font-size:.82rem;font-weight:600;color:var(--gray);font-variant-numeric:tabular-nums}
 
-.mfh__dock{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px 14px;padding:12px 12px 12px 18px;border-radius:22px;background:var(--mfh-card);box-shadow:var(--mfh-shadow);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);animation:mfh-in .5s var(--mx-spring) .06s both}
-.mfh--float .mfh__dock{position:absolute;left:max(12px,var(--mx-left, 12px));right:12px;bottom:12px;max-width:560px;margin-inline:auto}
-.mfh__eta{display:flex;flex-direction:column;gap:1px;min-width:0}
-.mfh__big{font-family:var(--fd);font-size:1.5rem;font-weight:800;line-height:1.1;letter-spacing:-.02em;color:var(--ink);font-variant-numeric:tabular-nums}
-.mfh.is-arrived .mfh__big{color:#12A37A}
-.mfh__sub{font-size:.84rem;font-weight:700;color:var(--dk-acc, var(--b600, #1668F0));font-variant-numeric:tabular-nums}
+.mfh__dock{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px 12px;padding:10px 10px 10px 16px;border-radius:16px;background:var(--mm-surface);box-shadow:var(--mm-shadow);animation:mfh-in var(--mm-slow) var(--mm-ease) 40ms both}
+.mfh--float .mfh__dock{position:absolute;left:var(--mfh-pad);right:var(--mfh-pad);bottom:calc(var(--mfh-pad) + 22px);max-width:460px;margin-inline:auto}
+.mfh__eta{display:flex;flex-direction:column;gap:0;min-width:0}
+.mfh__big{font-family:var(--fd);font-size:1.32rem;font-weight:700;line-height:1.15;letter-spacing:-.015em;color:var(--ink);font-variant-numeric:tabular-nums}
+.mfh.is-arrived .mfh__big{color:var(--dk-txt-ok, #0B7A58)}
+.mfh__sub{font-size:.82rem;color:var(--gray);font-variant-numeric:tabular-nums}
 .mfh__to{overflow:hidden;font-size:.76rem;color:var(--gray);text-overflow:ellipsis;white-space:nowrap}
-.mfh__stop{display:grid;place-items:center;width:48px;height:48px;border:0;border-radius:50%;background:color-mix(in srgb,#EF4444 12%,transparent);color:#DC2626;cursor:pointer;transition:transform .18s var(--mx-ease),background .2s}
-.mfh__stop svg{width:22px;height:22px}
-.mfh__stop:hover{background:color-mix(in srgb,#EF4444 20%,transparent)}
-.mfh__stop:active{transform:scale(.92)}
-.mfh__stop:focus-visible,.mfh__re:focus-visible{outline:2px solid var(--dk-acc, var(--b600, #1668F0));outline-offset:2px}
+.mfh__stop{display:grid;place-items:center;width:44px;height:44px;border:0;border-radius:12px;background:var(--mm-soft);color:var(--ink);cursor:pointer;transition:background var(--mm-fast) ease,color var(--mm-fast) ease}
+.mfh__stop svg{width:20px;height:20px}
+.mfh__stop:hover{background:var(--dk-tint-err, #FDECEC);color:var(--dk-txt-err, #B42318)}
+.mfh__stop:focus-visible,.mfh__re:focus-visible{outline:2px solid var(--mm-acc);outline-offset:2px}
 
-.mfh__re{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:8px 18px 8px 14px;border:0;border-radius:999px;background:var(--mfh-card);box-shadow:var(--mfh-shadow);color:var(--dk-acc, var(--b600, #1668F0));font:inherit;font-size:.86rem;font-weight:800;cursor:pointer;animation:mfh-pop .4s var(--mx-spring) both;transition:transform .18s var(--mx-ease)}
-.mfh__re svg{width:17px;height:17px}
-.mfh__re:active{transform:scale(.95)}
-.mfh--float .mfh__re{position:absolute;right:12px;bottom:calc(var(--mx-hud, 96px) + 12px)}
+.mfh__re{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 14px 6px 10px;border:0;border-radius:12px;background:var(--mm-surface);box-shadow:var(--mm-shadow);color:var(--mm-acc);font:inherit;font-size:.84rem;font-weight:600;cursor:pointer;animation:mfh-in var(--mm-med) var(--mm-ease) both}
+.mfh__re svg{width:16px;height:16px}
+.mfh--float .mfh__re{position:absolute;left:50%;bottom:calc(var(--mx-hud, 88px) + var(--mfh-pad) + 22px);transform:translateX(-50%)}
 
-.mfh__fail{grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 12px;border-radius:14px;background:color-mix(in srgb,#F59E0B 12%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,#F59E0B 38%,transparent);color:var(--ink);font-size:.8rem;line-height:1.45;animation:mfh-in .36s var(--mx-ease) both}
+.mfh__fail{grid-column:1 / -1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:var(--dk-tint-warn, #FFF7E6);color:var(--ink);font-size:.78rem;line-height:1.45}
 .mfh__fail>span:first-child{flex:1 1 200px}
 .mfh__ext{display:flex;flex-wrap:wrap;gap:6px}
 .mfh__ext .btn svg{width:15px;height:15px}
 
-@keyframes mfh-in{from{opacity:0;transform:translateY(22px) scale(.98)}to{opacity:1;transform:none}}
-@keyframes mfh-drop{from{opacity:0;transform:translateY(-18px) scale(.97)}to{opacity:1;transform:none}}
-@keyframes mfh-pop{from{opacity:0;transform:scale(.8)}to{opacity:1;transform:none}}
-@keyframes mfh-swap{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-@keyframes mfh-turn{from{opacity:0;transform:scale(.6) rotate(-14deg)}to{opacity:1;transform:none}}
-@keyframes mfh-wait{0%,100%{opacity:1}50%{opacity:.45}}
-@keyframes mfh-done{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
-@keyframes mfh-draw{to{stroke-dashoffset:0}}
+@keyframes mfh-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
 @media (max-width:720px){
   body:has(.mfh--float) :is(.robot-edge-zone, .ains__launch){display:none}
-  .mfh--float .mfh__man{top:8px;left:8px;right:8px;max-width:none;padding:8px 14px 8px 8px;border-radius:18px}
-  .mfh__tile{width:48px;height:48px;border-radius:14px}
-  .mfh__head{font-size:1.02rem}
-  .mfh--float .mfh__dock{left:8px;right:8px;bottom:8px;max-width:none;padding:10px 10px 10px 16px;border-radius:20px}
-  .mfh__big{font-size:1.32rem}
-  .mfh--float .mfh__re{right:8px;bottom:calc(var(--mx-hud, 88px) + 8px)}
+  .mfh{--mfh-pad:8px}
+  .mfh--float .mfh__man{width:calc(100% - var(--mfh-pad) * 2)}
+  .mfh--float .mfh__dock{max-width:none}
 }
 
 @media (prefers-reduced-motion:reduce){
-  .mfh__man,.mfh__dock,.mfh__re,.mfh__head,.mfh__street,.mfh__mi,.mfh__tile.is-done,.mfh__arrow[data-wait],.mfh__fail{animation:none}
-  .mfh__tile.is-done svg path{animation:none;stroke-dashoffset:0}
-  .mfh__arrow,.mfh__stop,.mfh__re{transition:none}
+  .mfh__man,.mfh__dock,.mfh__re{animation:none}
+  .mfh__arrow,.mfh__stop{transition:none}
 }
