@@ -72,6 +72,8 @@ export default function LandingAiParticles() {
     let onScreen = false;
     let pointerX = -1e4;
     let pointerY = -1e4;
+    let scrolling = false;
+    let scrollTimer: ReturnType<typeof setTimeout> | undefined;
 
     const spawn = (p: Dust, scatter: boolean) => {
       p.seed = Math.random() * TAU;
@@ -127,6 +129,11 @@ export default function LandingAiParticles() {
 
     const draw = (now: number) => {
       frame = requestAnimationFrame(draw);
+      // Holds its last frame while the page scrolls, like the site's WebGL canvas.
+      if (scrolling) {
+        last = now;
+        return;
+      }
       const dt = Math.min(0.05, (now - last) / 1000 || 0);
       last = now;
       const t = now * 0.001;
@@ -249,11 +256,21 @@ export default function LandingAiParticles() {
       section.addEventListener("pointermove", onMove, { passive: true });
       section.addEventListener("pointerleave", onLeave);
     }
+    const onScroll = () => {
+      scrolling = true;
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        scrolling = false;
+      }, 160);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("visibilitychange", sync);
     motion.addEventListener("change", sync);
 
     return () => {
       stop();
+      clearTimeout(scrollTimer);
+      window.removeEventListener("scroll", onScroll);
       sized.disconnect();
       seen.disconnect();
       section.removeEventListener("pointermove", onMove);

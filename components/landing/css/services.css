@@ -199,7 +199,11 @@
   padding: max(4.2cqi, 12px) max(4.6cqi, 13px);
   border-radius: 5cqi;
   border-color: rgba(255, 255, 255, 0.24);
-  background: rgba(8, 16, 40, 0.62);
+  /* Solid enough to read without a blur: a backdrop-filter inside the card's SVG
+     clip-path is re-rendered on every frame of the gallery's drift. */
+  background: rgba(8, 16, 40, 0.8);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 .lhome .lh-svc__name {
   font-size: max(6.1cqi, 17px);
