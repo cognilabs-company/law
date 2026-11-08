@@ -34,7 +34,7 @@ Per-area counts come from the area tables below. A few rows are counted in two c
 
 **Screenshots:** `/tmp/lexgo-perms/before/` (the pre-change commit) and `/tmp/lexgo-perms/after/` hold the same 18 file names. They cover 5 restricted roles: call-center operator with only `callcenter.access`, a limited admin with only `users.manage`, a ROP with view-only CRM, an internal employee without `internal_hr.manage`, and an advokat. Regenerate them with `tests/e2e/permissions-shots.spec.ts` (`SHOTS_DIR=…`). That spec is in `testIgnore`, so run it with a config that clears `testIgnore`.
 
-**Commits:** see the "Hide every action the user has no permission for" commit on `main` (2026-11-08).
+**Commits:** `519d1b50` Hide every action the user has no permission for (code, tests, this report, questions file), plus a follow-up commit that adds this hash.
 
 ## How it works now (central layer)
 
