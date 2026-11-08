@@ -52,6 +52,10 @@ type Props = {
   children: ReactNode;
 };
 
+// How many shells are mounted right now: during a language switch the old
+// and the new one overlap for a moment.
+let shellsMounted = 0;
+
 export default function CcxShell({ nav: navIn, activeHref, title, openCount, userId, name, roleBadge, profileHref, hrm, onLogout, extra, children }: Props) {
   const t = useTranslations("admin");
   const tx = useTranslations("admin.ccx");
@@ -95,12 +99,20 @@ export default function CcxShell({ nav: navIn, activeHref, title, openCount, use
     return () => mo.disconnect();
   }, [prefs.theme, prefs.bg, prefs.motion]);
 
-  useEffect(() => {
+  // A layout effect, like the one above that sets <html data-opx>: on a
+  // language switch the old shell is torn down in the same commit the new one
+  // mounts. As a passive effect this cleanup ran after the new shell had set
+  // its attributes and stripped them (every colour variable) and the fonts
+  // from the shell left on screen.
+  useLayoutEffect(() => {
     const root = document.documentElement;
     const body = document.body;
     const fonts = [ccxSans.variable, ccxMono.variable];
     body.classList.add(...fonts);
+    shellsMounted += 1;
     return () => {
+      shellsMounted -= 1;
+      if (shellsMounted > 0) return;
       body.classList.remove(...fonts);
       ["data-opx", "data-opx-theme", "data-opx-bg", "data-opx-motion"].forEach((a) => root.removeAttribute(a));
       applyTheme(readThemePref());
@@ -264,7 +276,10 @@ export default function CcxShell({ nav: navIn, activeHref, title, openCount, use
                       aria-pressed={code === locale}
                       onClick={() => {
                         setMenu(false);
-                        if (code !== locale) router.replace(pathname, { locale: code });
+                        if (code === locale) return;
+                        // Keep ?tab= / ?view= so the operator stays on the same queue.
+                        const qs = params.toString();
+                        router.replace(qs ? `${pathname}?${qs}` : pathname, { locale: code });
                       }}
                     >
                       {code === locale ? <IcCheck size={14} /> : null}
